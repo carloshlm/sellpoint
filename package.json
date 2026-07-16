@@ -9,6 +9,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:up": "docker compose -f infrastructure/docker-compose.dev.yml up -d",
+    "dev:down": "docker compose -f infrastructure/docker-compose.dev.yml down",
     "lint": "biome check .",
     "lint:packages": "turbo run lint",
     "format": "biome format --write .",

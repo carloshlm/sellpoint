@@ -228,19 +228,19 @@ Ejemplos:
 
 ### Módulo F0-DB — Infraestructura Local de Datos
 
-- [ ] **F0-DB-01** — `docker-compose.dev.yml` con Postgres 16
+- [x] **F0-DB-01** — `docker-compose.dev.yml` con Postgres 16
   - **Salida:** archivo en `infrastructure/docker-compose.dev.yml` con servicio `postgres` (volumen persistente, healthcheck)
   - **Verificar:** `docker compose -f infrastructure/docker-compose.dev.yml up postgres` levanta y `psql` conecta
   - **Depende de:** F0-MONO-03
   - **Estimación:** 30 min
 
-- [ ] **F0-DB-02** — Agregar Redis 7 al `docker-compose.dev.yml`
+- [x] **F0-DB-02** — Agregar Redis 7 al `docker-compose.dev.yml`
   - **Salida:** servicio `redis` con persistencia
   - **Verificar:** `redis-cli ping` responde PONG
   - **Depende de:** F0-DB-01
   - **Estimación:** 15 min
 
-- [ ] **F0-DB-03** — Script `dev:up` y `dev:down` en `package.json` raíz
+- [x] **F0-DB-03** — Script `dev:up` y `dev:down` en `package.json` raíz
   - **Salida:** comandos `pnpm dev:up` y `pnpm dev:down` que controlan los contenedores
   - **Verificar:** ambos comandos funcionan
   - **Depende de:** F0-DB-02
