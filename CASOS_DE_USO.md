@@ -1,0 +1,690 @@
+# SellPoint — Casos de Uso
+
+> Define **quién** hace **qué** en el sistema. Cada caso de uso identifica el actor, la precondición, el flujo principal, los flujos alternativos y la postcondición.
+
+---
+
+## Tabla de Contenidos
+
+1. [Actores del Sistema](#1-actores-del-sistema)
+2. [Matriz de Permisos](#2-matriz-de-permisos)
+3. [Casos de Uso por Módulo](#3-casos-de-uso-por-módulo)
+   - [3.1 Autenticación y Onboarding](#31-autenticación-y-onboarding)
+   - [3.2 Sistema (Usuarios y Roles)](#32-sistema-usuarios-y-roles)
+   - [3.3 Catálogo](#33-catálogo)
+   - [3.4 Almacenes](#34-almacenes)
+   - [3.5 Movimientos de Inventario](#35-movimientos-de-inventario)
+   - [3.6 Punto de Venta](#36-punto-de-venta)
+   - [3.7 Reportes](#37-reportes)
+
+---
+
+## 1. Actores del Sistema
+
+| Actor | Descripción | Alcance |
+|---|---|---|
+| **SuperAdmin** | Equipo de SellPoint. Administra la plataforma, los tenants, planes y soporte. | Cross-tenant (no participa en operaciones diarias del cliente) |
+| **TenantAdmin** | Propietario o administrador del negocio cliente. Configura todo el sistema para su tenant. | Su tenant — acceso total |
+| **Manager** | Encargado operativo. Gestiona catálogo, inventario, almacenes y reportes. NO administra usuarios ni schemas. | Su tenant — operaciones |
+| **POS_Seller** | Vendedor de mostrador. Solo opera el punto de venta. | Su tenant — solo POS |
+| **Viewer** | Consulta. Auditor o supervisor que ve reportes pero no modifica datos. | Su tenant — solo lectura |
+
+> Los roles **`Manager`**, **`POS_Seller`** y **`Viewer`** son configurables: el `TenantAdmin` puede crear roles custom combinando permisos granulares.
+
+### 1.1 Alcance por almacén (scoping)
+
+Además del rol, cada usuario tiene un **alcance opcional por almacén** que define **dónde** puede ejecutar las acciones que su rol permite:
+
+| Caso | Comportamiento |
+|---|---|
+| `TenantAdmin` | **Siempre bypasea el scoping.** Ve y opera todos los almacenes del tenant. |
+| Otro rol sin scope asignado | Default permisivo: ve todos los almacenes. Útil para tenants chicos (un solo almacén). |
+| Otro rol con scope asignado | Solo ve y opera los almacenes específicos asignados. El resto es invisible para él. |
+
+**Ejemplos:**
+- Cadena con 10 sucursales: cada Manager se asigna a 1 sucursal → solo ve su stock, sus ventas, sus reportes.
+- Gerente regional Sur: scope `[Sucursal A, B, C]` → opera 3 almacenes.
+- Auditor externo: rol `Viewer` sin scope → lee toda la cadena en modo solo lectura.
+
+Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuarios-por-almacén-multi-sucursal).
+
+---
+
+## 2. Matriz de Permisos
+
+> `✅` = puede ejecutarlo · `👁` = solo lectura · `❌` = sin acceso
+
+| Módulo / Acción | SuperAdmin | TenantAdmin | Manager | POS_Seller | Viewer |
+|---|:-:|:-:|:-:|:-:|:-:|
+| **Plataforma** |  |  |  |  |  |
+| Gestionar tenants (crear/suspender) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Ver métricas globales del SaaS | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Sistema (dentro del tenant)** |  |  |  |  |  |
+| Gestionar usuarios | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Gestionar roles y permisos | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Cambiar mi password | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Catálogo** |  |  |  |  |  |
+| Definir/editar schema de productos | ❌ | ✅ | ❌ | ❌ | ❌ |
+| CRUD de productos | ❌ | ✅ | ✅ | 👁 | 👁 |
+| Definir unidad base y presentaciones | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Definir receta (producto compuesto / BOM) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Importar productos desde Excel | ❌ | ✅ | ✅ | ❌ | ❌ |
+| **Almacenes** |  |  |  |  |  |
+| CRUD de almacenes | ❌ | ✅ | ✅ | 👁 | 👁 |
+| **Movimientos** |  |  |  |  |  |
+| Entrada Directa (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Salida Directa (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Confirmar recepción de traspaso | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Ver traspasos en tránsito | ❌ | ✅ | ✅ | 👁 | 👁 |
+| Inventario físico | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Ver kardex | ❌ | ✅ | ✅ | 👁 | 👁 |
+| **POS** |  |  |  |  |  |
+| Operar POS (vender) | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Cierre de caja | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Anular venta | ❌ | ✅ | ✅ | ❌ | ❌ |
+| **Reportes** |  |  |  |  |  |
+| Ver todos los reportes | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Exportar a Excel | ❌ | ✅ | ✅ | ❌ | ✅ |
+
+> **Nota sobre alcance:** los permisos definen QUÉ acciones puede ejecutar el usuario. El **alcance por almacén** (ver § 1.1) determina DÓNDE puede ejecutarlas. Un `Manager` con permiso `inventory:movement` y scope `[Sucursal Centro]` solo puede mover inventario **en Sucursal Centro**, no en otras. El `TenantAdmin` bypasea siempre el scoping.
+
+---
+
+## 3. Casos de Uso por Módulo
+
+### 3.1 Autenticación y Onboarding
+
+---
+
+#### **CU-AUTH-01 — Registrar un nuevo tenant (negocio)**
+
+- **Actor:** Visitante (futuro TenantAdmin)
+- **Precondición:** No tiene cuenta. Tiene un email válido.
+- **Flujo principal:**
+  1. Accede a `/register`
+  2. Ingresa: nombre del negocio, email del admin, password (con confirmación)
+  3. Sistema valida fortaleza del password (mín 12 chars, mayúsculas, números, símbolos)
+  4. Sistema envía email de verificación
+  5. Usuario hace click en el link de verificación
+  6. Sistema crea: tenant + usuario admin + rol `TenantAdmin` asignado
+  7. Sistema redirige al **wizard de onboarding**
+- **Flujos alternativos:**
+  - 2a. Email ya registrado → mensaje genérico "Si el email existe, recibirás instrucciones"
+  - 3a. Password débil → muestra checklist de requisitos en vivo
+  - 5a. Link expirado (>24h) → opción de reenviar
+- **Postcondición:** Tenant creado con un usuario admin verificado. Listo para configurar.
+
+---
+
+#### **CU-AUTH-02 — Wizard de onboarding inicial**
+
+- **Actor:** TenantAdmin recién registrado
+- **Precondición:** CU-AUTH-01 completado.
+- **Flujo principal:**
+  1. Paso 1: Datos del negocio (razón social, RFC/RUT, dirección, zona horaria)
+  2. Paso 2: Elegir **plantilla de schema de producto** (Farmacia, Ferretería, Abarrotes, Personalizado)
+  3. Paso 3: Crear primer almacén
+  4. Paso 4: (Opcional) Invitar usuarios adicionales
+  5. Sistema marca tenant como `onboarded`
+- **Flujos alternativos:**
+  - 2a. Elige "Personalizado" → va directo al editor de schema
+  - 4a. Salta el paso → puede invitar después desde Sistema → Usuarios
+- **Postcondición:** Tenant operativo, con schema inicial y al menos un almacén.
+
+---
+
+#### **CU-AUTH-03 — Login**
+
+- **Actor:** Cualquier usuario registrado
+- **Precondición:** Cuenta activa y verificada.
+- **Flujo principal:**
+  1. Accede a `/login`
+  2. Ingresa email + password
+  3. Sistema verifica credenciales contra hash Argon2id
+  4. Sistema genera JWT access token (15 min) + refresh token (cookie httpOnly, 7 días)
+  5. Redirige a `/dashboard`
+- **Flujos alternativos:**
+  - 3a. Credenciales inválidas → respuesta idéntica para "email no existe" o "password incorrecto"
+  - 3b. Más de 5 intentos en 15 min desde la misma IP → bloqueo temporal
+  - 3c. Cuenta no verificada → enlace para reenviar email
+  - 3d. Cuenta suspendida → mensaje "contacta a tu administrador"
+- **Postcondición:** Sesión activa, contexto de tenant cargado.
+
+---
+
+#### **CU-AUTH-04 — Recuperar password**
+
+- **Actor:** Usuario que olvidó su password
+- **Flujo principal:**
+  1. Click en "Olvidé mi password" en `/login`
+  2. Ingresa email
+  3. Sistema envía link con token de un solo uso (válido 30 min)
+  4. Usuario abre link, ingresa nuevo password (con confirmación)
+  5. Sistema invalida **todos los refresh tokens** del usuario
+  6. Sistema redirige a `/login`
+- **Postcondición:** Password actualizado, sesiones previas cerradas.
+
+---
+
+#### **CU-AUTH-05 — Logout**
+
+- **Actor:** Usuario autenticado
+- **Flujo principal:**
+  1. Click en menú usuario → "Cerrar sesión"
+  2. Frontend elimina access token de memoria
+  3. Sistema invalida refresh token (revocación en Redis con TTL)
+  4. Redirige a `/login`
+- **Postcondición:** Sesión cerrada. Refresh token inutilizable.
+
+---
+
+### 3.2 Sistema (Usuarios y Roles)
+
+---
+
+#### **CU-SYS-01 — Crear usuario del sistema**
+
+- **Actor:** TenantAdmin
+- **Precondición:** Está autenticado en su tenant.
+- **Flujo principal:**
+  1. Va a Sistema → Usuarios → "Nuevo usuario"
+  2. Completa: número de empleado, nombre, apellido paterno, apellido materno, email, rol(es) asignado(s)
+  3. **(Opcional) Define alcance por almacén:** selecciona uno o más almacenes a los que el usuario tendrá acceso. Si no se selecciona ninguno, el usuario ve todos los almacenes del tenant.
+  4. Sistema valida email único dentro del tenant
+  5. Sistema envía email al usuario con link para que defina su password
+  6. Usuario nuevo aparece en la lista con estado `pendiente_activación`
+- **Flujos alternativos:**
+  - 3a. Si el rol asignado es `TenantAdmin`, el sistema **ignora el alcance** (TenantAdmin siempre ve todo)
+  - 4a. Email ya existe en el tenant → error en formulario
+  - 5a. Email rebota → admin puede reenviar invitación
+- **Postcondición:** Usuario creado, pendiente de activar password. Si tiene scope, queda limitado a esos almacenes.
+
+---
+
+#### **CU-SYS-04 — Asignar / modificar alcance de almacenes de un usuario**
+
+- **Actor:** TenantAdmin
+- **Precondición:** Existe el usuario y al menos un almacén.
+- **Flujo principal:**
+  1. Va a Sistema → Usuarios → selecciona usuario → tab "Alcance"
+  2. Sistema muestra los almacenes del tenant con checkbox; los seleccionados son los actualmente asignados
+  3. Marca/desmarca almacenes
+  4. Click "Guardar alcance"
+  5. Sistema actualiza `user_warehouse_scopes` (atómicamente: borra los anteriores e inserta los nuevos)
+  6. Cambio aplica en la próxima request del usuario (no requiere relogin)
+- **Flujos alternativos:**
+  - 2a. Usuario es `TenantAdmin` → tab "Alcance" se muestra deshabilitada con leyenda "TenantAdmin tiene acceso a todos los almacenes"
+  - 5a. Si el usuario está logueado con conexión activa al POS de un almacén que acaba de perder, su siguiente request a ese almacén devuelve 403
+- **Postcondición:** Usuario ve únicamente los almacenes asignados (o todos, si no quedó ninguno).
+
+---
+
+#### **CU-SYS-02 — Asignar permisos granulares a un rol**
+
+- **Actor:** TenantAdmin
+- **Flujo principal:**
+  1. Va a Sistema → Roles → selecciona rol (o "Nuevo rol")
+  2. Marca/desmarca permisos agrupados por módulo (catálogo:read, inventario:movement, etc.)
+  3. Guarda
+  4. Cambio aplica a todos los usuarios con ese rol en la próxima request
+- **Postcondición:** Rol actualizado.
+
+---
+
+#### **CU-SYS-03 — Suspender / reactivar usuario**
+
+- **Actor:** TenantAdmin
+- **Flujo principal:**
+  1. Lista de usuarios → switch "Activo" en la fila del usuario
+  2. Confirma acción
+  3. Si suspende: invalida todos sus refresh tokens (logout forzado)
+- **Postcondición:** Usuario suspendido no puede loguearse.
+
+---
+
+#### **CU-SYS-05 — Cambiar idioma de mi perfil**
+
+- **Actor:** Cualquier usuario autenticado
+- **Precondición:** Sesión activa.
+- **Flujo principal:**
+  1. Va a Sistema → Mi perfil
+  2. En la sección "Preferencias", abre el selector "Idioma"
+  3. Elige uno de los idiomas soportados (`Español`, `English`)
+  4. Click "Guardar"
+  5. Sistema actualiza `users.locale` y refresca la UI inmediatamente con las traducciones nuevas
+  6. Próximas respuestas de la API (mensajes de error, emails, recibos) se devuelven en el nuevo idioma
+- **Flujos alternativos:**
+  - 3a. Sistema detecta `Accept-Language` del browser al registrarse y lo pre-selecciona automáticamente (CU-AUTH-01).
+  - 5a. Si hay traducciones faltantes para una clave, cae al idioma default (`es`) y se loguea como warning en Sentry.
+- **Postcondición:** El idioma del usuario queda persistido en su perfil. Aplica de inmediato sin relogin.
+
+---
+
+#### **CU-SYS-06 — Configurar moneda operacional del tenant**
+
+- **Actor:** TenantAdmin
+- **Precondición:** Está autenticado en su tenant.
+- **Flujo principal (durante onboarding):**
+  1. En el wizard de onboarding (CU-AUTH-02), Paso 1 incluye selector "Moneda operacional"
+  2. TenantAdmin elige `MXN` o `USD`
+  3. Sistema persiste `tenants.currency`
+  4. Todos los precios, costos, ventas y reportes del tenant se manejan en esa moneda en adelante
+- **Flujo principal (cambio posterior):**
+  1. Va a Sistema → Configuración del Negocio → "Moneda operacional"
+  2. Sistema verifica si el tenant tiene transacciones registradas (productos con precio, ventas, movimientos con costo, facturas)
+  3. **Si NO tiene transacciones:** muestra selector activo. Cambio procede normal.
+  4. **Si SÍ tiene transacciones:** selector deshabilitado con mensaje *"No podés cambiar la moneda porque ya existen movimientos. Contactá soporte si necesitás migrar."*
+- **Flujos alternativos:**
+  - 4a. Caso edge: SuperAdmin puede forzar el cambio vía override manual (genera audit log + entrada en Bitácora).
+- **Postcondición:** El tenant opera enteramente en la moneda elegida. No hay conversión: lo que se carga en MXN, se ve en MXN. Lo que se carga en USD, se ve en USD.
+- **Nota:** la moneda de **facturación de la suscripción** (Stripe) es independiente y se gestiona en CU-BILL-XX (Fase 7).
+
+---
+
+### 3.3 Catálogo
+
+---
+
+#### **CU-CAT-01 — Definir/editar schema de productos del tenant**
+
+- **Actor:** TenantAdmin
+- **Precondición:** El tenant ya está onboarded.
+- **Flujo principal:**
+  1. Va a Catálogo → Schema de Productos
+  2. Ve el schema activo y su versión
+  3. Click "Editar" → abre el **editor visual de schema**
+  4. Agrega/edita/elimina campos custom: nombre, tipo (string, number, enum, boolean, date), required, opciones (si es enum), regex de validación
+  5. Click "Guardar" → sistema valida que productos existentes sigan cumpliendo el nuevo schema
+  6. Si hay productos incompatibles → muestra reporte con opciones: cancelar / migrar / forzar
+- **Flujos alternativos:**
+  - 5a. Tenant nunca tuvo productos → guarda directo
+  - 6a. Forzar → marca productos legacy con flag `schema_drift = true` para revisión manual
+- **Postcondición:** Schema nueva versión activa. Versiones previas archivadas (no se borran).
+
+---
+
+#### **CU-CAT-02 — Crear producto**
+
+- **Actor:** TenantAdmin / Manager
+- **Precondición:** Existe un schema activo.
+- **Flujo principal:**
+  1. Va a Catálogo → Productos → "Nuevo producto"
+  2. Completa campos fijos: SKU, nombre, **unidad base** (selector: Unidad, ml, l, gr, kg, m, cm, etc.), stock mínimo
+  3. Indica si es **producto compuesto** (toggle "Este producto se prepara a partir de otros del catálogo")
+  4. Completa campos dinámicos según el schema del tenant
+  5. Sistema valida atributos contra el JSON Schema (Ajv)
+  6. Guarda producto (sin presentaciones todavía — esas se definen en CU-CAT-05)
+  7. Sistema redirige a la página del producto con tabs habilitados: `Información`, `Presentaciones`, y `Receta` (este último solo si es compuesto)
+- **Flujos alternativos:**
+  - 2a. SKU duplicado en el tenant → error.
+  - 2b. Si el producto no es compuesto, el sistema fuerza al menos una presentación con `is_sellable=true` antes de poder vender en POS.
+  - 5a. Validación falla → muestra error por campo.
+- **Postcondición:** Producto creado con stock 0 en `base_unit` (el stock se agrega vía movimientos). Sin presentaciones ni receta todavía.
+
+---
+
+#### **CU-CAT-05 — Definir presentaciones de un producto**
+
+- **Actor:** TenantAdmin / Manager
+- **Precondición:** Existe el producto (CU-CAT-02).
+- **Flujo principal:**
+  1. Va al producto → tab "Presentaciones"
+  2. Ve una tabla con las presentaciones actuales (vacía al principio)
+  3. Click "Agregar presentación" → fila inline editable:
+     - **Nombre** (ej: "Caja 1L", "Vaso 200ml", "Granel por gramo")
+     - **Factor** (cuántas `base_unit` equivale — ej: 1000 para 1L si la base es ml)
+     - **Comprable** (toggle): aparece en Entrada Directa
+     - **Vendible** (toggle): aparece en POS
+     - **Predeterminada para venta** (radio, una sola por producto)
+     - **🔢 Solo enteros** (toggle): si está activo, esta presentación NO acepta cantidades decimales en compra/venta. Default automático:
+       - Categoría `count` (unit) → ON (no permite decimales)
+       - Categoría `volume`/`weight`/`length` → OFF (permite decimales)
+       - TenantAdmin puede override (ej: "Paquete cerrado 250gr" → ON aunque sea peso)
+     - **Código de barras** (opcional)
+     - **Precio de venta** (si es vendible)
+     - **Costo de compra** (si es comprable, último/promedio)
+  4. Guarda la fila (se inserta sin salir de la página)
+  5. Repite para todas las presentaciones del producto
+- **Flujos alternativos:**
+  - 3a. Producto **simple** (no compuesto) requiere al menos 1 presentación vendible antes de aparecer en POS.
+  - 3b. Producto **compuesto**: las presentaciones son solo del producto compuesto vendible (Vaso 200ml, Vaso 350ml) — no compra al proveedor.
+  - 4a. Código de barras duplicado en el tenant → error con link al producto que ya lo tiene.
+- **Postcondición:** Producto tiene N presentaciones gestionables. Cada presentación funciona como unidad de transacción en compra/venta.
+
+---
+
+#### **CU-CAT-06 — Definir receta de producto compuesto (BOM)**
+
+- **Actor:** TenantAdmin / Manager
+- **Precondición:** Existe el producto con `is_composite = true` (CU-CAT-02).
+- **Filosofía UX:** la UI es **una tabla inline simple**. Sin wizards. Sin pasos. Sin drag-and-drop.
+- **Flujo principal:**
+  1. Va al producto → tab "📝 Receta" (visible solo si es compuesto)
+  2. Ve la tabla de ingredientes (vacía al principio)
+  3. Click en el input de búsqueda "🔍 Agregar ingrediente del catálogo..."
+  4. Empieza a tipear → autocompletado muestra productos del catálogo con su `base_unit`
+  5. Selecciona un producto → fila se inserta con: nombre del ingrediente, input de cantidad, unidad **pre-cargada** desde el `base_unit` del ingrediente (no editable), (opcional) merma %, ícono ✕ para quitar
+  6. Ingresa la cantidad (ej: 200 para 200 ml de leche)
+  7. Sistema recalcula en vivo:
+     - **Costo estimado de la receta**: suma de `cost_promedio × quantity` por ingrediente
+     - **Disponibilidad actual**: `min(stock_ingrediente_i / quantity_i)` redondeado hacia abajo, en cualquier almacén
+  8. Repite para cada ingrediente
+  9. Click "Guardar receta"
+- **Flujos alternativos:**
+  - 5a. El ingrediente seleccionado es un producto compuesto → sistema lo permite (recetas anidadas), pero valida que **no haya recursión** (DFS sobre el grafo).
+  - 5b. Recursión detectada (A → B → A) → error claro: *"'X' ya usa este producto como ingrediente, indirectamente."*
+  - 5c. El ingrediente no tiene `base_unit` definida → bloqueado con CTA "Editá primero la unidad base de este producto".
+  - 9a. Receta vacía → guarda OK pero el producto compuesto no se podrá vender hasta tener al menos 1 ingrediente.
+- **Postcondición:** Receta guardada. Al vender el producto compuesto en POS, el sistema descuenta los ingredientes en transacción atómica.
+
+---
+
+#### **CU-CAT-07 — Ver disponibilidad de productos compuestos**
+
+- **Actor:** Cualquiera con `catalog:read`
+- **Flujo principal:**
+  1. Catálogo → Productos → filtra por "Compuestos"
+  2. Tabla muestra por producto: nombre, presentación predeterminada, **porciones disponibles** (calculado: cuántas veces puedo hacer esta receta con el stock actual), ingrediente limitante (el que está más cerca de quedarse sin stock)
+- **Postcondición:** Visibilidad de capacidad real de producción.
+
+---
+
+#### **CU-CAT-03 — Importar productos desde Excel**
+
+- **Actor:** TenantAdmin / Manager
+- **Flujo principal:**
+  1. Catálogo → Productos → "Importar Excel"
+  2. Descarga plantilla generada según el schema activo
+  3. Llena la plantilla con los productos
+  4. Sube el archivo
+  5. Sistema procesa **fila por fila** y valida cada una
+  6. Muestra resumen: N exitosos, M con errores
+  7. Usuario puede descargar Excel con errores marcados para corregir y reintentar
+- **Flujos alternativos:**
+  - 5a. Archivo > 5MB → procesamiento asíncrono con notificación al terminar
+- **Postcondición:** Productos válidos creados; fallidos no impactan los exitosos.
+
+---
+
+#### **CU-CAT-04 — Buscar y filtrar productos**
+
+- **Actor:** Cualquiera con `catalog:read`
+- **Flujo principal:**
+  1. Catálogo → Productos
+  2. Ingresa texto en búsqueda (busca en SKU, código de barras, nombre)
+  3. (Opcional) Aplica filtros por campos custom del schema
+  4. Tabla se actualiza con paginación server-side
+- **Postcondición:** Lista filtrada.
+
+---
+
+### 3.4 Almacenes
+
+---
+
+#### **CU-ALM-01 — Crear almacén**
+
+- **Actor:** TenantAdmin / Manager
+- **Flujo principal:**
+  1. Almacenes → "Nuevo almacén"
+  2. Completa: nombre, calle, número, colonia, municipio/alcaldía, estado, código postal
+  3. (Opcional) Define racks de ubicación (estructura interna del almacén)
+  4. Guarda
+- **Postcondición:** Almacén disponible para recibir movimientos.
+
+---
+
+#### **CU-ALM-02 — Editar / desactivar almacén**
+
+- **Actor:** TenantAdmin / Manager
+- **Flujo principal:**
+  1. Lista → click en almacén → editar
+  2. Modifica datos o lo desactiva
+  3. Si desactiva: sistema valida que no tenga stock pendiente o movimientos abiertos
+- **Postcondición:** Almacén actualizado. Desactivados no aparecen en nuevos movimientos.
+
+---
+
+### 3.5 Movimientos de Inventario
+
+> **Modelo unificado:** existen **2 movimientos directos** (Entrada Directa, Salida Directa) cada uno con un campo **motivo** (`reason_code`) que diferencia el caso de uso. El traspaso entre almacenes es un **proceso de 2 pasos con confirmación** (CU-MOV-01 con motivo `transfer` en origen + CU-MOV-03 en destino).
+
+#### Motivos soportados
+
+| Entrada Directa | Salida Directa |
+|---|---|
+| `invoice` — Factura/Compra (proveedor, costo) | `adjustment` — Ajuste/Merma/Daño |
+| `adjustment` — Ajuste por sobrante | `transfer` — Traspaso a otro almacén (pide destino) |
+| `transfer` — Traspaso desde otro almacén (pide origen) | `loss` — Pérdida/Robo |
+| `customer_return` — Devolución de cliente | `consumption` — Consumo interno |
+| `production` — Producción interna | `expired` — Caducado |
+
+> Cuando el motivo es `transfer`, el sistema vincula el movimiento al `Transfer` correspondiente. Para todos los demás motivos, el movimiento es independiente.
+
+---
+
+#### **CU-MOV-01 — Entrada Directa**
+
+- **Actor:** TenantAdmin / Manager
+- **Precondición:** El usuario tiene scope sobre el almacén destino. Si el motivo es `transfer`, debe existir un `Transfer` en estado `in_transit` con destino a ese almacén (ver CU-MOV-03 para el flujo de confirmación de traspaso, que es la forma recomendada).
+- **Flujo principal:**
+  1. Movimientos → "Nueva Entrada Directa"
+  2. Selecciona almacén destino
+  3. Elige **motivo** (`reason_code`) del enum: factura, ajuste, traspaso, devolución, producción
+  4. Completa campos contextuales según motivo:
+     - `invoice` → número de documento, proveedor, costo unitario por línea
+     - `adjustment` → texto libre con explicación + usuario autorizador
+     - `transfer` → selector "Almacén origen" + (opcional) folio del `Transfer` para auto-cargar líneas
+     - `customer_return` → referencia a la venta original
+     - `production` → orden de producción (texto libre por ahora)
+  5. Agrega productos: escanea código de barras o busca por SKU, ingresa cantidad
+  6. Sistema valida cantidades > 0 y producto activo. **Si la presentación elegida tiene `allow_fractional_input=false`, valida también que la cantidad no tenga parte decimal** (error claro: *"La presentación 'Caja 30 tab' solo acepta cantidades enteras"*).
+  7. Click "Confirmar" → **transacción atómica**:
+     - Inserta `stock_movement` por línea con `direction='entry'`, `reason_code`, `reason_note`, `presentation_id`, `linked_warehouse_id` (si transfer). La `quantity` se persiste en `base_unit` (convertida con `presentation.factor`).
+     - Actualiza `stock_by_warehouse`
+     - Si `reason_code='transfer'`: marca el `Transfer` vinculado como `completed` (ver CU-MOV-03)
+     - Registra audit log
+- **Flujos alternativos:**
+  - 4a. Motivo `transfer` sin folio → se crea entrada huérfana (caso edge para corregir un traspaso mal registrado). Requiere confirmación explícita.
+- **Postcondición:** Stock sumado al almacén. Kardex actualizado. Si era traspaso vinculado, ciclo cerrado.
+
+---
+
+#### **CU-MOV-02 — Salida Directa**
+
+- **Actor:** TenantAdmin / Manager
+- **Precondición:** El usuario tiene scope sobre el almacén origen. Hay stock disponible.
+- **Flujo principal:**
+  1. Movimientos → "Nueva Salida Directa"
+  2. Selecciona almacén origen
+  3. Elige **motivo** (`reason_code`) del enum: ajuste, traspaso, merma, pérdida, consumo, caducado
+  4. Completa campos contextuales según motivo:
+     - `adjustment` / `loss` / `expired` → texto libre con explicación + usuario autorizador
+     - `transfer` → selector "Almacén destino"
+     - `consumption` → área o concepto (texto libre)
+  5. Agrega productos y cantidades
+  6. Sistema valida stock suficiente (`stock_by_warehouse.quantity >= cantidad solicitada`). **Si la presentación elegida tiene `allow_fractional_input=false`, valida también cantidad entera**.
+  7. Click "Confirmar" → **transacción atómica**:
+     - Inserta `stock_movement` por línea con `direction='exit'`, `reason_code`, `reason_note`, `presentation_id`, `linked_warehouse_id` (si transfer). La `quantity` se persiste en `base_unit` (convertida con `presentation.factor`).
+     - Decrementa `stock_by_warehouse`
+     - Si `reason_code='transfer'`: crea registro en tabla `transfers` con estado `in_transit`, almacenes origen + destino, líneas
+     - Registra audit log
+- **Flujos alternativos:**
+  - 6a. Stock insuficiente → error con detalle de cuánto hay disponible.
+  - 7a. Si motivo es `transfer` y se confirma → el stock sale del origen y queda "en tránsito". NO entra automáticamente al destino. El destino tiene que confirmar con CU-MOV-03.
+- **Postcondición:** Stock restado del origen. Si era traspaso, `Transfer` queda `in_transit` esperando recepción.
+
+---
+
+#### **CU-MOV-03 — Confirmar recepción de traspaso**
+
+- **Actor:** TenantAdmin / Manager del **almacén destino**
+- **Precondición:** Existe un `Transfer` con estado `in_transit` cuyo destino es un almacén dentro del scope del usuario.
+- **Flujo principal:**
+  1. Movimientos → "Traspasos en tránsito" → tab "Pendientes de recibir"
+  2. Selecciona el traspaso a confirmar (muestra origen, fecha de salida, líneas con cantidades enviadas)
+  3. Click "Confirmar recepción" → se abre el formulario pre-cargado con las líneas
+  4. Usuario verifica cantidades. Puede:
+     - Confirmar **iguales** (cantidad recibida = cantidad enviada)
+     - Confirmar **con diferencia** (cantidad recibida < cantidad enviada — faltante por pérdida/robo en tránsito)
+  5. Si hay diferencia, ingresa nota explicativa obligatoria
+  6. Click "Confirmar" → genera internamente una Entrada Directa con `reason_code='transfer'` vinculada al `Transfer`:
+     - Inserta `stock_movement` `direction='entry'` por línea con cantidad RECIBIDA
+     - Si recibido < enviado: registra `discrepancy` en `transfer.discrepancies` con la diferencia + nota
+     - Cambia `Transfer.status='completed'` con timestamp + usuario que confirmó
+     - Audit log detallado de la discrepancia (importante para auditorías)
+- **Flujos alternativos:**
+  - 4a. Cantidad recibida > enviada → bloqueado. No tiene sentido operacional (¿de dónde salió el excedente?). El operador debe registrar el excedente como Entrada Directa con motivo `adjustment`.
+  - 5a. Si NUNCA llega el traspaso (vehículo robado, accidente) → SuperAdmin/TenantAdmin puede cancelar el `Transfer` (estado `canceled`) con justificación; el stock NO retorna al origen automáticamente — queda como pérdida del origen hasta que se haga un ajuste explícito.
+- **Postcondición:** `Transfer.status='completed'`. Stock entra al destino con las cantidades realmente recibidas. Cualquier discrepancia auditada.
+
+---
+
+#### **CU-MOV-04 — Ver traspasos en tránsito**
+
+- **Actor:** TenantAdmin / Manager / Viewer
+- **Flujo principal:**
+  1. Movimientos → "Traspasos en tránsito"
+  2. Sistema muestra dos tabs:
+     - **Pendientes de recibir** (entrantes a almacenes del scope del usuario)
+     - **Pendientes de enviar** (salidas hechas desde almacenes del scope, todavía no confirmadas en destino)
+  3. Cada fila: folio, fecha salida, origen, destino, # líneas, días en tránsito
+  4. Filtros: rango de fechas, origen, destino, antigüedad (> 7 días en tránsito marcadas con badge naranja)
+- **Postcondición:** Visibilidad de stock no consolidado.
+
+---
+
+#### **CU-MOV-05 — Inventario físico**
+
+- **Actor:** TenantAdmin / Manager
+- **Flujo principal:**
+  1. Movimientos → Inventario físico → "Nuevo conteo"
+  2. Selecciona almacén
+  3. Sistema bloquea movimientos sobre ese almacén durante el conteo (opcional, configurable por tenant)
+  4. Sube Excel con columnas: código de barras, lote, caducidad, cantidad, ubicación
+  5. Sistema reconcilia:
+     - Genera salida total del stock teórico actual (movimientos con `direction='exit'` y `reason_code='physical_count'`)
+     - Genera entrada del stock contado (`direction='entry'`, `reason_code='physical_count'`)
+     - Calcula diferencias y muestra reporte
+  6. Usuario revisa y confirma
+- **Postcondición:** Inventario reconciliado. Discrepancias registradas en audit log.
+
+---
+
+#### **CU-MOV-06 — Consultar Kardex de un producto**
+
+- **Actor:** Cualquiera con `inventory:read`
+- **Flujo principal:**
+  1. Catálogo → Productos → selecciona producto → tab "Kardex"
+  2. Sistema muestra histórico completo de movimientos del producto en todos los almacenes accesibles según el scope del usuario
+  3. Filtros: rango de fechas, almacén, dirección (entrada/salida), motivo (`reason_code`)
+- **Postcondición:** Visualización de trazabilidad.
+
+---
+
+### 3.6 Punto de Venta
+
+---
+
+#### **CU-POS-01 — Realizar una venta**
+
+- **Actor:** TenantAdmin / Manager / POS_Seller
+- **Precondición:** Sesión activa con permiso `pos:sell`. Existe stock.
+- **Flujo principal:**
+  1. POS → pantalla de venta
+  2. Escanea código de barras o busca por nombre/SKU (búsqueda predictiva)
+  3. Sistema agrega al carrito; valida que haya stock
+  4. Ajusta cantidades / aplica descuento por línea o global (si tiene permiso)
+  5. Click "Cobrar" → selecciona método de pago (efectivo, tarjeta, transferencia)
+  6. Sistema ejecuta **transacción atómica**:
+     - Crea `sale` y sus `sale_items`
+     - Descuenta stock de cada producto
+     - Registra movimientos de salida
+     - Genera ticket
+  7. Imprime ticket (USB/Red o Bluetooth) y/o lo envía por email
+- **Flujos alternativos:**
+  - 3a. Producto sin stock → bloquea o pide confirmación según política del tenant
+  - 4a. Descuento sobre el permitido → requiere autorización (login secundario de manager)
+  - 6a. Falla la impresión → opción de reimprimir desde el historial
+- **Postcondición:** Venta registrada. Stock descontado. Ticket emitido.
+
+---
+
+#### **CU-POS-02 — Anular venta**
+
+- **Actor:** TenantAdmin / Manager
+- **Precondición:** Venta del mismo día (configurable).
+- **Flujo principal:**
+  1. POS → Historial de ventas → selecciona venta → "Anular"
+  2. Ingresa motivo
+  3. Sistema crea movimientos de **devolución a stock** (entradas por ajuste con motivo "anulación de venta")
+  4. Venta queda marcada como `anulada`
+- **Postcondición:** Stock restituido. Venta no contabiliza.
+
+---
+
+#### **CU-POS-03 — Cierre de caja**
+
+- **Actor:** TenantAdmin / Manager / POS_Seller
+- **Flujo principal:**
+  1. POS → "Cierre de caja"
+  2. Sistema muestra totales del turno por método de pago + cantidad de ventas
+  3. Usuario ingresa el efectivo contado en caja
+  4. Sistema calcula diferencia (sobrante/faltante)
+  5. Confirma cierre → genera reporte de cierre imprimible
+- **Postcondición:** Turno cerrado. No se pueden hacer más ventas hasta abrir otro turno.
+
+---
+
+### 3.7 Reportes
+
+---
+
+#### **CU-REP-01 — Reporte de Stock por Almacén**
+
+- **Actor:** TenantAdmin / Manager / Viewer
+- **Flujo principal:**
+  1. Reportes → Stock por almacén
+  2. Filtros: almacén(es), producto, mostrar solo bajo stock mínimo
+  3. Tabla paginada server-side
+  4. Click "Exportar Excel" → descarga `.xlsx`
+- **Postcondición:** Datos visualizados o descargados.
+
+---
+
+#### **CU-REP-02 — Reporte de Catálogo de Productos**
+
+- **Actor:** TenantAdmin / Manager / Viewer
+- **Flujo principal:**
+  1. Reportes → Catálogo
+  2. Filtros por cualquier campo del schema activo
+  3. Visualiza o exporta a Excel (incluye campos custom)
+- **Postcondición:** Reporte generado.
+
+---
+
+#### **CU-REP-03 — Reporte de Ventas**
+
+- **Actor:** TenantAdmin / Manager / Viewer
+- **Flujo principal:**
+  1. Reportes → Ventas
+  2. Filtros: rango de fechas, vendedor, método de pago, almacén
+  3. Visualiza totales agrupados + listado detallado
+  4. Exporta
+- **Postcondición:** Reporte generado.
+
+---
+
+#### **CU-REP-04 — Reporte de Kardex Detallado**
+
+- **Actor:** TenantAdmin / Manager / Viewer
+- **Flujo principal:**
+  1. Reportes → Kardex
+  2. Selecciona producto + rango de fechas + almacén(es)
+  3. Muestra todos los movimientos cronológicos con stock acumulado
+  4. Exporta
+- **Postcondición:** Trazabilidad completa visible.
+
+---
+
+*Documento de casos de uso de SellPoint. Mantener sincronizado con [ARQUITECTURA.md](ARQUITECTURA.md) y [VISTAS.md](VISTAS.md).*
