@@ -250,19 +250,19 @@ Ejemplos:
 
 ### Módulo F0-SHARED — Paquetes Compartidos
 
-- [ ] **F0-SHARED-01** — Crear `packages/shared` con TypeScript
+- [x] **F0-SHARED-01** — Crear `packages/shared` con TypeScript
   - **Salida:** `packages/shared/package.json`, `tsconfig.json` extendiendo el base, build con `tsc`
   - **Verificar:** `pnpm --filter @sellpoint/shared build` genera `dist/`
   - **Depende de:** F0-MONO-05
   - **Estimación:** 30 min
 
-- [ ] **F0-SHARED-02** — Instalar Zod en `packages/shared` y exportar primer schema dummy
+- [x] **F0-SHARED-02** — Instalar Zod en `packages/shared` y exportar primer schema dummy
   - **Salida:** archivo `src/schemas/health.ts` con `HealthSchema = z.object({status: z.literal('ok')})`
   - **Verificar:** importable desde otro paquete
   - **Depende de:** F0-SHARED-01
   - **Estimación:** 20 min
 
-- [ ] **F0-SHARED-03** — Crear `packages/api-client` (placeholder)
+- [x] **F0-SHARED-03** — Crear `packages/api-client` (placeholder)
   - **Salida:** estructura vacía con `package.json` y un export `version`
   - **Verificar:** `pnpm install` lo enlaza correctamente
   - **Depende de:** F0-MONO-05

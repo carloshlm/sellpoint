@@ -1,0 +1,23 @@
+{
+  "name": "@sellpoint/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cliente HTTP type-safe de la API de SellPoint (generado desde OpenAPI — placeholder por ahora)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@sellpoint/shared": "workspace:*"
+  }
+}
