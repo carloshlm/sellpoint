@@ -274,13 +274,13 @@ Ejemplos:
 
 > Setup mínimo para que i18n y formateo de moneda estén disponibles desde el día 1. Las traducciones específicas (auth, errores, emails) se agregan en F1-LOCALE y módulos siguientes.
 
-- [ ] **F0-I18N-01** — Constantes y tipos `Locale` + `Currency` en `packages/shared`
+- [x] **F0-I18N-01** — Constantes y tipos `Locale` + `Currency` en `packages/shared`
   - **Salida:** `packages/shared/src/i18n.ts` con `SUPPORTED_LOCALES = ['es', 'en'] as const`, `SUPPORTED_CURRENCIES = ['MXN', 'USD'] as const`, types `Locale` y `Currency`, `DEFAULT_LOCALE`, `DEFAULT_CURRENCY`.
   - **Verificar:** importable desde `apps/api` y `apps/web` con autocompletado de tipos.
   - **Depende de:** F0-SHARED-02
   - **Estimación:** 20 min
 
-- [ ] **F0-I18N-02** — Helper `formatMoney(amount, currency, locale)` en `packages/shared`
+- [x] **F0-I18N-02** — Helper `formatMoney(amount, currency, locale)` en `packages/shared`
   - **Salida:** función usando `Intl.NumberFormat`. Helper auxiliar `localeToBcp47(locale)` (`es` → `es-MX`, `en` → `en-US`). Tests unitarios cubriendo combinaciones MXN/USD × es/en.
   - **Verificar:** `formatMoney(1234.56, 'MXN', 'es')` → `"$1,234.56"`; tests verdes.
   - **Depende de:** F0-I18N-01
@@ -1705,6 +1705,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 <!-- Una línea por decisión. El detalle completo se busca en engram por su topic_key. -->
 
 - **2026-07-16** — TS 7 removió `baseUrl`: paths relativos obligatorios en todo tsconfig — `topic_key: sellpoint/ts7-no-baseurl` — afecta: F0-MONO-05 (hecho), F0-SHARED-01, F0-API-01, F0-WEB-01
+- **2026-07-16** — ICU/Node 22: USD en locale es NO da `US$` sino `USD 1,234.56` (código ISO + NBSP); expected de tests pineados empíricamente — `topic_key: sdd/format-money/apply-progress` — afecta: F0-I18N-02 (hecho), F0-I18N-04, F4 (display de precios)
 
 ---
 

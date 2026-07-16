@@ -33,3 +33,6 @@ Thumbs.db
 
 # Claude Code (local overrides)
 .claude/settings.local.json
+
+# Agent Teams Lite / SDD local artifacts
+.atl/
