@@ -362,7 +362,7 @@ Ejemplos:
   - **Depende de:** F0-API-03
   - **Estimación:** 30 min
 
-- [ ] **F0-API-11** — Test unitario de smoke
+- [x] **F0-API-11** — Test unitario de smoke
   - **Salida:** Jest corriendo, `app.controller.spec.ts` con un test del health
   - **Verificar:** `pnpm --filter api test` pasa
   - **Depende de:** F0-API-06
