@@ -408,7 +408,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-04
   - **Estimación:** 1 h
 
-- [ ] **F0-WEB-06** — Setup TanStack Query con QueryClientProvider
+- [x] **F0-WEB-06** — Setup TanStack Query con QueryClientProvider
   - **Salida:** `App.tsx` con provider, devtools en dev
   - **Verificar:** devtools de Query visibles en browser
   - **Depende de:** F0-WEB-05

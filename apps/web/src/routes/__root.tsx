@@ -1,3 +1,4 @@
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 
 export const Route = createRootRoute({
@@ -16,6 +17,7 @@ function RootLayout() {
         </Link>
       </nav>
       <Outlet />
+      {import.meta.env.DEV && <ReactQueryDevtools buttonPosition="bottom-right" />}
     </>
   );
 }
