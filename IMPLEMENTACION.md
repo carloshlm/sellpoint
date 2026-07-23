@@ -308,7 +308,7 @@ Ejemplos:
   - **Depende de:** F0-MONO-02
   - **Estimación:** 30 min
 
-- [ ] **F0-API-02** — Configurar TypeScript estricto en `apps/api`
+- [x] **F0-API-02** — Configurar TypeScript estricto en `apps/api`
   - **Salida:** `tsconfig.json` extiende base, `strict: true`
   - **Verificar:** `pnpm --filter api build` sin errores
   - **Depende de:** F0-API-01
