@@ -1,5 +1,6 @@
 import { formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import heroImg from "./assets/hero.png";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "./assets/vite.svg";
@@ -29,6 +30,7 @@ function App() {
         <div className="bg-blue-500 p-4 text-white" data-testid="tailwind-check">
           Tailwind activo
         </div>
+        <Button data-testid="shadcn-check">Click</Button>
       </section>
 
       <div className="ticks"></div>

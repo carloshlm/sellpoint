@@ -18,7 +18,13 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+
+    /* Paths: pisa los del base, hay que redeclarar ambos */
+    "paths": {
+      "@sellpoint/*": ["../../packages/*/src"],
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

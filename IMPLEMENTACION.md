@@ -396,7 +396,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-01
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-04** — Inicializar shadcn/ui
+- [x] **F0-WEB-04** — Inicializar shadcn/ui
   - **Salida:** `components.json` configurado, `Button` instalado como prueba
   - **Verificar:** `<Button>Click</Button>` renderiza con estilos shadcn
   - **Depende de:** F0-WEB-03
