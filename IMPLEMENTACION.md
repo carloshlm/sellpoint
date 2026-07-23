@@ -326,7 +326,7 @@ Ejemplos:
   - **Depende de:** F0-API-03
   - **Estimación:** 15 min
 
-- [ ] **F0-API-05** — Instalar y configurar Prisma
+- [x] **F0-API-05** — Instalar y configurar Prisma
   - **Salida:** `prisma/schema.prisma` con datasource Postgres + generator, `PrismaService` en `infrastructure/prisma`
   - **Verificar:** `pnpm --filter api prisma migrate dev --name init` corre (con schema vacío)
   - **Depende de:** F0-API-01, F0-DB-01
