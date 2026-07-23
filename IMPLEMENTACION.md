@@ -302,7 +302,7 @@ Ejemplos:
 
 ### Módulo F0-API — Bootstrap del Backend
 
-- [ ] **F0-API-01** — `nest new apps/api` (con pnpm)
+- [x] **F0-API-01** — `nest new apps/api` (con pnpm)
   - **Salida:** app NestJS funcionando con `pnpm --filter api start:dev`
   - **Verificar:** `curl localhost:3000` devuelve `Hello World!`
   - **Depende de:** F0-MONO-02
