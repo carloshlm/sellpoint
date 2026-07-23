@@ -444,7 +444,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-01
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-12** — Test smoke con Vitest
+- [x] **F0-WEB-12** — Test smoke con Vitest (adelantada: habilita verificar WEB-05/06/07/10 con tests)
   - **Salida:** `App.test.tsx` con test mínimo, `vitest.config.ts`
   - **Verificar:** `pnpm --filter web test` pasa
   - **Depende de:** F0-WEB-01
