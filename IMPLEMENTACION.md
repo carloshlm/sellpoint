@@ -450,7 +450,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-01
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-13** — Dockerfile para Web (build estático + nginx)
+- [x] **F0-WEB-13** — Dockerfile para Web (build estático + nginx)
   - **Salida:** `infrastructure/docker/web.Dockerfile`
   - **Verificar:** `docker build` exitoso, imagen sirve la app
   - **Depende de:** F0-WEB-12
