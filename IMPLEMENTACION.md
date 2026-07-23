@@ -320,7 +320,7 @@ Ejemplos:
   - **Depende de:** F0-API-01, F0-SHARED-02
   - **Estimación:** 1 h
 
-- [ ] **F0-API-04** — Crear `.env.example` para API
+- [x] **F0-API-04** — Crear `.env.example` para API
   - **Salida:** archivo con todas las variables documentadas
   - **Verificar:** copia a `.env` permite arrancar el server
   - **Depende de:** F0-API-03
