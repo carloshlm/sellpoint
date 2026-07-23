@@ -350,7 +350,7 @@ Ejemplos:
   - **Depende de:** F0-API-01
   - **Estimación:** 45 min
 
-- [ ] **F0-API-09** — Global exception filter
+- [x] **F0-API-09** — Global exception filter
   - **Salida:** `AllExceptionsFilter` formatea errores como `{statusCode, message, error}`
   - **Verificar:** lanzar un error desde el controller produce respuesta consistente
   - **Depende de:** F0-API-01
