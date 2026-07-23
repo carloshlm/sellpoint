@@ -420,7 +420,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-06, F0-API-06
   - **Estimación:** 45 min
 
-- [ ] **F0-WEB-08** — Setup de Zustand
+- [x] **F0-WEB-08** — Setup de Zustand
   - **Salida:** store de ejemplo `useAuthStore` con accessToken (en memoria)
   - **Verificar:** un componente puede leer y setear el token
   - **Depende de:** F0-WEB-01
