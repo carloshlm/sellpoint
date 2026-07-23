@@ -1,3 +1,4 @@
+import { formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import heroImg from "./assets/hero.png";
 import reactLogo from "./assets/react.svg";
@@ -24,6 +25,7 @@ function App() {
         <button type="button" className="counter" onClick={() => setCount((count) => count + 1)}>
           Count is {count}
         </button>
+        <p data-testid="shared-import">Total demo: {formatMoney(1234.56, "MXN", "es")}</p>
       </section>
 
       <div className="ticks"></div>

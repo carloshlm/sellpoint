@@ -384,7 +384,7 @@ Ejemplos:
   - **Depende de:** F0-MONO-02
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-02** — Configurar TypeScript estricto en `apps/web`
+- [x] **F0-WEB-02** — Configurar TypeScript estricto en `apps/web`
   - **Salida:** extiende `tsconfig.base.json`, paths para `@sellpoint/*`
   - **Verificar:** import desde `packages/shared` funciona
   - **Depende de:** F0-WEB-01, F0-SHARED-02
