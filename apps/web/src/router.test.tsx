@@ -18,10 +18,12 @@ async function renderRoute(path: string) {
 }
 
 describe("Router", () => {
-  it("la ruta / renderiza el landing", async () => {
+  it("la ruta / renderiza la home con los canarios de integración", async () => {
     await renderRoute("/");
 
-    expect(await screen.findByTestId("shared-import")).toBeInTheDocument();
+    expect(await screen.findByTestId("shared-import")).toHaveTextContent("$1,234.56");
+    expect(screen.getByTestId("tailwind-check")).toBeInTheDocument();
+    expect(screen.getByTestId("shadcn-check")).toHaveTextContent("Click");
   });
 
   it("la ruta /login renderiza el placeholder", async () => {

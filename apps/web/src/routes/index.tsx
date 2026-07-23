@@ -1,6 +1,26 @@
+import { formatMoney } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
-import App from "../App";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
-  component: App,
+  component: HomePage,
 });
+
+/**
+ * Home provisional de Fase 0. Los data-testid son canarios de integración:
+ * shared (formatMoney), Tailwind (clases) y shadcn (Button) — los cubren los tests.
+ */
+function HomePage() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6">
+      <h1 className="text-3xl font-semibold">SellPoint</h1>
+      <p className="text-muted-foreground" data-testid="shared-import">
+        Total demo: {formatMoney(1234.56, "MXN", "es")}
+      </p>
+      <div className="rounded-lg bg-blue-500 p-4 text-white" data-testid="tailwind-check">
+        Tailwind activo
+      </div>
+      <Button data-testid="shadcn-check">Click</Button>
+    </main>
+  );
+}
