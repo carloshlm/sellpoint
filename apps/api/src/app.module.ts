@@ -3,7 +3,9 @@ import { ConfigModule } from "@nestjs/config";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { validateEnv } from "./config/env.schema";
+import { HealthController } from "./health/health.controller";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module";
+import { RedisModule } from "./infrastructure/redis/redis.module";
 
 @Module({
   imports: [
@@ -12,8 +14,9 @@ import { PrismaModule } from "./infrastructure/prisma/prisma.module";
       validate: validateEnv,
     }),
     PrismaModule,
+    RedisModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [AppService],
 })
 export class AppModule {}

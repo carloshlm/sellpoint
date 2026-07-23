@@ -332,7 +332,7 @@ Ejemplos:
   - **Depende de:** F0-API-01, F0-DB-01
   - **Estimación:** 45 min
 
-- [ ] **F0-API-06** — Endpoint `GET /health`
+- [x] **F0-API-06** — Endpoint `GET /health`
   - **Salida:** controller que devuelve `{status: 'ok', db: 'ok', redis: 'ok'}`
   - **Verificar:** `curl localhost:3000/health` devuelve 200
   - **Depende de:** F0-API-05, F0-DB-02
