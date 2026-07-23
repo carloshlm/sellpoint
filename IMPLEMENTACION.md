@@ -368,7 +368,7 @@ Ejemplos:
   - **Depende de:** F0-API-06
   - **Estimación:** 30 min
 
-- [ ] **F0-API-12** — Dockerfile para API (multi-stage, dev)
+- [x] **F0-API-12** — Dockerfile para API (multi-stage, dev)
   - **Salida:** `infrastructure/docker/api.Dockerfile`, build funciona
   - **Verificar:** `docker build -f infrastructure/docker/api.Dockerfile .` exitoso
   - **Depende de:** F0-API-11
