@@ -390,8 +390,8 @@ Ejemplos:
   - **Depende de:** F0-WEB-01, F0-SHARED-02
   - **Estimación:** 20 min
 
-- [ ] **F0-WEB-03** — Instalar Tailwind CSS + PostCSS
-  - **Salida:** `tailwind.config.ts`, clases de Tailwind funcionan
+- [x] **F0-WEB-03** — Instalar Tailwind CSS + PostCSS
+  - **Salida:** ~~`tailwind.config.ts`~~ Tailwind 4 CSS-first (`@tailwindcss/vite` + `@import "tailwindcss"`), sin config file ni PostCSS — clases funcionan
   - **Verificar:** un `<div class="bg-blue-500">` se ve azul
   - **Depende de:** F0-WEB-01
   - **Estimación:** 30 min

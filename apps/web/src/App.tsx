@@ -26,6 +26,9 @@ function App() {
           Count is {count}
         </button>
         <p data-testid="shared-import">Total demo: {formatMoney(1234.56, "MXN", "es")}</p>
+        <div className="bg-blue-500 p-4 text-white" data-testid="tailwind-check">
+          Tailwind activo
+        </div>
       </section>
 
       <div className="ticks"></div>
