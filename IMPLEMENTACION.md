@@ -338,7 +338,7 @@ Ejemplos:
   - **Depende de:** F0-API-05, F0-DB-02
   - **Estimación:** 30 min
 
-- [ ] **F0-API-07** — Setup de Swagger
+- [x] **F0-API-07** — Setup de Swagger
   - **Salida:** UI disponible en `/docs`, `openapi.json` generado
   - **Verificar:** `/docs` muestra el endpoint `/health`
   - **Depende de:** F0-API-06
