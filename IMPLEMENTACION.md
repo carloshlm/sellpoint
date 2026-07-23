@@ -414,7 +414,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-05
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-07** — Axios instance con baseURL + interceptors básicos
+- [x] **F0-WEB-07** — Axios instance con baseURL + interceptors básicos
   - **Salida:** `lib/api.ts` exporta instance configurada
   - **Verificar:** llamada a `/health` del API funciona desde el frontend
   - **Depende de:** F0-WEB-06, F0-API-06
