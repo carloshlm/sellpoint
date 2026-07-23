@@ -292,9 +292,9 @@ Ejemplos:
   - **Depende de:** F0-API-01, F0-I18N-01
   - **Estimación:** 1.5 h
 
-- [ ] **F0-I18N-04** — Setup `react-i18next` en `apps/web`
-  - **Salida:** `react-i18next` + `i18next-browser-languagedetector` instalados; estructura `apps/web/src/i18n/{es,en}/{common,auth,validation}.json`; provider en root; hook `useTranslation()` funcionando; detector lee `Accept-Language` y `localStorage`.
-  - **Verificar:** componente dummy usando `t('common.welcome')` muestra texto correcto al cambiar locale en devtools.
+- [x] **F0-I18N-04** — Setup `react-i18next` en `apps/web`
+  - **Salida:** `react-i18next` + `i18next-browser-languagedetector` instalados; estructura `apps/web/src/i18n/{es,en}/{common,auth,validation}.json`; provider en root; hook `useTranslation()` funcionando; detector lee `localStorage` → `navigator`.
+  - **Verificar:** componente dummy usando `t('common.welcome')` muestra texto correcto al cambiar locale — cubierto por tests (`changeLanguage` + persistencia en `localStorage`, `apps/web/src/i18n/i18n.test.tsx`). La verificación manual en devtools queda a mano del usuario si la quiere hacer.
   - **Depende de:** F0-WEB-01, F0-I18N-01
   - **Estimación:** 2 h
 
