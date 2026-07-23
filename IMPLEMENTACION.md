@@ -432,7 +432,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-01
   - **Estimación:** 20 min
 
-- [ ] **F0-WEB-10** — ErrorBoundary global
+- [x] **F0-WEB-10** — ErrorBoundary global
   - **Salida:** componente que captura errores y muestra fallback
   - **Verificar:** un componente que lanza error muestra el fallback
   - **Depende de:** F0-WEB-01
