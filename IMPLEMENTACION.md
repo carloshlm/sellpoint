@@ -314,7 +314,7 @@ Ejemplos:
   - **Depende de:** F0-API-01
   - **Estimación:** 15 min
 
-- [ ] **F0-API-03** — Configurar variables de entorno tipadas (Zod + ConfigModule)
+- [x] **F0-API-03** — Configurar variables de entorno tipadas (Zod + ConfigModule)
   - **Salida:** `src/config/env.schema.ts` valida `.env`, `ConfigModule.forRoot` con validation
   - **Verificar:** arrancar con `.env` inválido falla con mensaje claro
   - **Depende de:** F0-API-01, F0-SHARED-02
