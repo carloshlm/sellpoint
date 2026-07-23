@@ -50,6 +50,27 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...validEnv, PORT: "abc" })).toThrow(/PORT/);
   });
 
+  it("parsea CORS_ORIGINS separado por comas a array", () => {
+    const result = validateEnv({
+      ...validEnv,
+      CORS_ORIGINS: "http://localhost:5173, https://app.sellpoint.mx",
+    });
+
+    expect(result.CORS_ORIGINS).toEqual(["http://localhost:5173", "https://app.sellpoint.mx"]);
+  });
+
+  it("aplica default de CORS_ORIGINS cuando falta", () => {
+    const result = validateEnv(validEnv);
+
+    expect(result.CORS_ORIGINS).toEqual(["http://localhost:5173"]);
+  });
+
+  it("rechaza CORS_ORIGINS con entradas que no son URL", () => {
+    expect(() => validateEnv({ ...validEnv, CORS_ORIGINS: "http://ok.com,no-es-url" })).toThrow(
+      /CORS_ORIGINS/,
+    );
+  });
+
   it("ignora variables extra del entorno sin fallar", () => {
     const result = validateEnv({ ...validEnv, HOME: "/Users/algo", SHELL: "/bin/zsh" });
 

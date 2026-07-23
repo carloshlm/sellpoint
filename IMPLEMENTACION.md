@@ -356,7 +356,7 @@ Ejemplos:
   - **Depende de:** F0-API-01
   - **Estimación:** 30 min
 
-- [ ] **F0-API-10** — Setup CORS + Helmet
+- [x] **F0-API-10** — Setup CORS + Helmet
   - **Salida:** middleware configurado con whitelist de origins desde env
   - **Verificar:** request desde origin no whitelisteado es rechazado
   - **Depende de:** F0-API-03
