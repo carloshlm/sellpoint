@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { LoggerModule } from "nestjs-pino";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { validateEnv } from "./config/env.schema";
@@ -12,6 +13,20 @@ import { RedisModule } from "./infrastructure/redis/redis.module";
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        redact: {
+          paths: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            "res.headers['set-cookie']",
+            "*.password",
+            "req.body.password",
+          ],
+          censor: "[REDACTED]",
+        },
+      },
     }),
     PrismaModule,
     RedisModule,

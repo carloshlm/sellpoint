@@ -344,7 +344,7 @@ Ejemplos:
   - **Depende de:** F0-API-06
   - **Estimación:** 30 min
 
-- [ ] **F0-API-08** — Setup de Pino logger con redacción
+- [x] **F0-API-08** — Setup de Pino logger con redacción
   - **Salida:** `nestjs-pino` configurado, redacta `authorization`, `password`, `cookie`
   - **Verificar:** request muestra log estructurado en JSON
   - **Depende de:** F0-API-01
