@@ -426,7 +426,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-01
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-09** — Variables de entorno con prefijo `VITE_`
+- [x] **F0-WEB-09** — Variables de entorno con prefijo `VITE_` (adelantada: WEB-07 la necesita)
   - **Salida:** `.env.example` y `vite-env.d.ts` tipados
   - **Verificar:** `import.meta.env.VITE_API_URL` está tipado
   - **Depende de:** F0-WEB-01
