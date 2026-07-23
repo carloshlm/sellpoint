@@ -402,7 +402,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-03
   - **Estimación:** 45 min
 
-- [ ] **F0-WEB-05** — Setup TanStack Router (file-based o code-based)
+- [x] **F0-WEB-05** — Setup TanStack Router (file-based, con autoCodeSplitting)
   - **Salida:** rutas `/` y `/login` (placeholder) navegables
   - **Verificar:** navegación browser funciona
   - **Depende de:** F0-WEB-04
