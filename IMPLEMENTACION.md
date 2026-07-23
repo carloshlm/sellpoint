@@ -378,7 +378,7 @@ Ejemplos:
 
 ### Módulo F0-WEB — Bootstrap del Frontend
 
-- [ ] **F0-WEB-01** — Crear `apps/web` con Vite + React + TypeScript
+- [x] **F0-WEB-01** — Crear `apps/web` con Vite + React + TypeScript
   - **Salida:** app levanta con `pnpm --filter web dev` en puerto 5173
   - **Verificar:** browser muestra landing default de Vite
   - **Depende de:** F0-MONO-02
