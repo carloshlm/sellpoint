@@ -438,7 +438,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-01
   - **Estimación:** 30 min
 
-- [ ] **F0-WEB-11** — Manifest PWA básico (sin service worker aún)
+- [x] **F0-WEB-11** — Manifest PWA básico (sin service worker aún)
   - **Salida:** `public/manifest.webmanifest` con nombre, íconos placeholder
   - **Verificar:** Lighthouse detecta el manifest
   - **Depende de:** F0-WEB-01
