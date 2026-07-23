@@ -8,3 +8,4 @@
 .git
 infrastructure/docker-compose.dev.yml
 *.md
+**/*.tsbuildinfo

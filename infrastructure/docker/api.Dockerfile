@@ -19,7 +19,7 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 
 RUN pnpm --filter api exec prisma generate
-RUN pnpm --filter api build
+RUN pnpm --filter api... build
 
 # node_modules de producción autocontenido para el deploy
 RUN pnpm --filter api deploy --prod --legacy /prod/api

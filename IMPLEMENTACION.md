@@ -286,7 +286,7 @@ Ejemplos:
   - **Depende de:** F0-I18N-01
   - **Estimación:** 1 h
 
-- [ ] **F0-I18N-03** — Setup `nestjs-i18n` en `apps/api`
+- [x] **F0-I18N-03** — Setup `nestjs-i18n` en `apps/api`
   - **Salida:** módulo `I18nModule.forRoot()` registrado, estructura `apps/api/src/i18n/{es,en}/{common,auth,errors,emails}.json` con un par de claves dummy. Loader configurado para hot-reload en dev.
   - **Verificar:** endpoint dummy `GET /hello` devuelve `"Hola"` con `Accept-Language: es` y `"Hello"` con `en`.
   - **Depende de:** F0-API-01, F0-I18N-01

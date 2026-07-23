@@ -1,10 +1,13 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER } from "@nestjs/core";
+import { I18nModule } from "nestjs-i18n";
 import { LoggerModule } from "nestjs-pino";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { validateEnv } from "./config/env.schema";
 import { HealthController } from "./health/health.controller";
+import { i18nOptions } from "./i18n/i18n.config";
+import { I18nDemoController } from "./i18n/i18n-demo.controller";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
 
@@ -28,10 +31,11 @@ import { RedisModule } from "./infrastructure/redis/redis.module";
         },
       },
     }),
+    I18nModule.forRoot(i18nOptions),
     PrismaModule,
     RedisModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, I18nDemoController],
   providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
 })
 export class AppModule {}

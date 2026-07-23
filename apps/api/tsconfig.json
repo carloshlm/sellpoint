@@ -2,12 +2,16 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
-    "incremental": true
+    "incremental": true,
+    "paths": {
+      "@sellpoint/*": ["../../packages/*/dist"]
+    }
   }
 }
