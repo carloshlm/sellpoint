@@ -460,6 +460,8 @@ Ejemplos:
 
 ### Módulo F0-CI — CI Básica
 
+> 🔌 **MCP al abrir este módulo:** evaluar **GitHub MCP** si el repo gana remote + Actions (opcional: `gh` CLI ya cubre el 80%). Ver `topic_key: decision/mcps-del-proyecto...` en engram.
+
 - [ ] **F0-CI-01** — GitHub Actions: workflow `ci.yml`
   - **Salida:** workflow corre en push y PR: `pnpm install`, `pnpm lint`, `pnpm type-check`, `pnpm test`
   - **Verificar:** push a una rama dispara el workflow y pasa
@@ -730,6 +732,8 @@ Ejemplos:
 ---
 
 ### Módulo F1-TENANT — Contexto de Tenant
+
+> 🔌 **MCP al abrir este módulo:** instalar **Postgres MCP (read-only)** — inspección directa de schema y queries para verificar RLS y aislamiento multi-tenant sin pasar por Prisma. Ver `topic_key: decision/mcps-del-proyecto...` en engram.
 
 - [ ] **F1-TENANT-01** — `TenantContextMiddleware`
   - **Salida:** middleware Nest que lee `req.user.tenantId` del JWT y ejecuta `SELECT set_config('app.tenant_id', $1, true)`
@@ -1228,6 +1232,8 @@ Ejemplos:
 ## Fase 7 — Planes + Billing + Suscripciones
 
 > **Objetivo:** habilitar monetización del SaaS. Planes (Chica/Mediana/Empresa), suscripciones mensuales/anuales, pagos con Stripe (vía adapter pattern), límites por plan, trial de 14 días sin tarjeta, grace period de 7 días, dunning automático. Facturación fiscal (CFDI/SAT) **fuera de scope MVP** — se integra después con Facturapi cuando lo pida el primer cliente.
+>
+> 🔌 **MCP al abrir esta fase:** instalar **Stripe MCP oficial** (API de Stripe: products, prices, subscriptions, webhooks de prueba). Ver `topic_key: decision/mcps-del-proyecto...` en engram.
 
 ### Defaults confirmados
 
@@ -1711,6 +1717,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-07-23** — i18n api: solo AcceptLanguageResolver (cadena completa la owna F1-LOCALE), DEFAULT_LOCALE desde shared, type-safety de claves diferida, GET /hello canario permanente; api pasó a depender de shared (tsconfig paths→dist, Dockerfile `--filter api...`) — `topic_key: sdd/api-i18n/proposal` — afecta: F0-I18N-03 (hecho), F0-I18N-04, F1-LOCALE
 - **2026-07-23** — tsbuildinfo stale en contexto Docker = emit fantasma de tsc sin error (exit 0); `**/*.tsbuildinfo` agregado a .dockerignore — `topic_key: discovery/tsbuildinfo-stale-romp-a-el-build-de-shared-dentro-de-docker-emit-fantasma-sin-error` — afecta: F0-I18N-03 (hecho), todo Dockerfile futuro
 - **2026-07-23** — i18n web: claves dotted en namespace único (byte-idénticas al api), JSON estáticos sin http-backend, detector localStorage→navigator (key `sellpoint.locale`), factory `createI18n` hermética para tests + singleton con detector, Suspense off, canario `i18n-check` — `topic_key: sdd/web-i18n/proposal` — afecta: F0-I18N-04 (hecho), F1-LOCALE (selector de idioma y migración a namespaces nativos si hay lazy-load)
+- **2026-07-27** — MCPs: Context7 + Playwright instalados en `.mcp.json` (proyecto); Postgres MCP → F1-TENANT, GitHub MCP → F0-CI (opcional), Stripe MCP → F7; rechazados filesystem/git/docker/redis/memory por redundantes — `topic_key: decision/mcps-del-proyecto-context7-playwright-instalados-postgres-github-stripe-diferidos-por-fase` — afecta: F0-CI, F1-TENANT, F7 (notas 🔌 en cada módulo)
 
 ---
 
