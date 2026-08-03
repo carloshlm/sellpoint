@@ -104,15 +104,15 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 
 | Componente | Stack |
 |---|---|
-| Servidor | **EC2 Ubuntu 22.04 LTS** (ya disponible) |
+| Servidor | **VPS Vultr High Frequency 2GB, Ciudad de México** (Ubuntu LTS; decidido 2026-08-03, EC2 previa dada de baja) |
 | Orquestación local y prod | **Docker Compose** (api, web, postgres, redis, nginx) |
 | Proxy reverso | **Nginx** + **Let's Encrypt (certbot)** — HTTPS obligatorio para Web Bluetooth y cámara |
-| Imágenes | **Amazon ECR** (privado) |
-| CI/CD | **GitHub Actions**: lint → test → build → push ECR → SSH deploy |
-| Backups | Cron `pg_dump` cifrado → **S3** con lifecycle a Glacier (90 días) |
-| Logs | **Pino** → **CloudWatch** (vía agent o sidecar) |
+| Imágenes | **GHCR** (privado, gratis con el repo) |
+| CI/CD | **GitHub Actions**: lint → test → build → push GHCR → SSH deploy |
+| Backups | Cron `pg_dump` cifrado → **Cloudflare R2 / Backblaze B2** (retención 14 días en F0, endurece F6) |
+| Logs | **Pino** → archivo con rotación en F0; destino final a revisar en F6 (sin cuenta AWS: Grafana Loki self-hosted o similar) |
 | Errores | **Sentry** (frontend + backend con `@sentry/nestjs`) |
-| Secretos | **AWS Parameter Store** (SecureString con KMS). Nunca commitear `.env` plano. |
+| Secretos | `.env.prod` con permisos 600 en F0 (F0-DEPLOY-07); gestor a revisar en F6 (sin cuenta AWS: sops/age o Infisical). Nunca commitear `.env` plano. |
 
 ---
 
@@ -561,7 +561,7 @@ sellpoint/
 
 ### 5.4 Datos
 
-- **PII en reposo:** cifrado a nivel disco (EBS encryption en EC2). Passwords hasheadas con Argon2id. Sin almacenamiento de tarjetas (integración futura con pasarela tercerizada).
+- **PII en reposo:** cifrado a nivel disco (cifrado de disco del VPS). Passwords hasheadas con Argon2id. Sin almacenamiento de tarjetas (integración futura con pasarela tercerizada).
 - **Backups cifrados** en S3 con KMS (`SSE-KMS`).
 - **Auditoría:** tabla `audit_log` con `who/what/when/before/after` para:
   - Movimientos de inventario
@@ -684,7 +684,7 @@ sellpoint/
 
 1. Dockerfiles productivos: multi-stage, non-root user, sin dependencias de dev
 2. `docker-compose.prod.yml` con Nginx + certbot + healthchecks
-3. CI/CD: GitHub Actions → ECR → SSH deploy a EC2
+3. CI/CD: GitHub Actions → GHCR → SSH deploy al VPS (Vultr CDMX)
 4. Cron de backups a S3 cifrado
 5. Sentry + CloudWatch
 6. Smoke tests post-deploy

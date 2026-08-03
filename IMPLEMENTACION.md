@@ -160,7 +160,7 @@ Ejemplos:
 
 ## Fase 0 — Setup + Walking Skeleton
 
-> **Objetivo:** monorepo levantable con `pnpm dev`, dos apps vacías (`api`, `web`), CI básico, Docker local + EC2, **y walking skeleton deployable a producción con HTTPS**. Cada push a `main` deploya automáticamente. Cuando empecemos features en F1, ya tenemos el pipeline end-to-end funcionando — no hay sorpresas de producción al final.
+> **Objetivo:** monorepo levantable con `pnpm dev`, dos apps vacías (`api`, `web`), CI básico, Docker local + VPS (Vultr), **y walking skeleton deployable a producción con HTTPS**. Cada push a `main` deploya automáticamente. Cuando empecemos features en F1, ya tenemos el pipeline end-to-end funcionando — no hay sorpresas de producción al final.
 
 ### Módulo F0-MONO — Estructura del Monorepo
 
@@ -485,27 +485,29 @@ Ejemplos:
 ### Módulo F0-DEPLOY — Walking Skeleton en Producción
 
 > **Por qué acá y no en F6:** queremos que **cada commit deploye a producción desde el día 1**. Esto evita el anti-patrón de "funciona en mi máquina", descubre problemas de prod (HTTPS, cookies, CORS, RLS con pooler) cuando son baratos de arreglar, y construye el músculo de CD desde temprano. F0 deja el deploy mínimo funcional; F6 endurece (backups, monitoreo, secrets, DR).
+>
+> **Proveedor (decidido 2026-08-03):** VPS **Vultr High Frequency 2GB, región Ciudad de México** (~$12/mes, clientes en MX, resize-up cuando lleguen los workers de F5) + registry **GHCR** (gratis con el repo) en vez de AWS ECR. La instancia EC2 previa se dio de baja. Detalle y alternativas evaluadas: `topic_key: decision/deploy-vultr` en engram.
 
-- [ ] **F0-DEPLOY-01** — Acceso SSH al EC2 + hardening básico
+- [ ] **F0-DEPLOY-01** — Acceso SSH al VPS + hardening básico
   - **Salida:** acceso por key (no password), `ufw` con solo 22/80/443 abiertos, `fail2ban` activo, usuario non-root con sudo
   - **Verificar:** SSH funciona; conexión a puertos no abiertos es rechazada
   - **Depende de:** —
   - **Estimación:** 45 min
 
-- [ ] **F0-DEPLOY-02** — Instalar Docker + Docker Compose en EC2
+- [ ] **F0-DEPLOY-02** — Instalar Docker + Docker Compose en el VPS
   - **Salida:** `docker run hello-world` corre en el server
   - **Verificar:** `docker --version` y `docker compose version` responden
   - **Depende de:** F0-DEPLOY-01
   - **Estimación:** 20 min
 
-- [ ] **F0-DEPLOY-03** — Asignar Elastic IP + apuntar dominio
-  - **Salida:** Elastic IP attached al EC2 (IP estable), A record `tu-dominio.com` → IP
+- [ ] **F0-DEPLOY-03** — Apuntar dominio a la IP del VPS
+  - **Salida:** A record `tu-dominio.com` → IP del VPS (Vultr incluye IP fija, sin costo extra)
   - **Verificar:** `dig tu-dominio.com` resuelve a la IP correcta
   - **Depende de:** F0-DEPLOY-01
   - **Estimación:** 30 min
 
-- [ ] **F0-DEPLOY-04** — `docker-compose.prod.yml` con Postgres + Redis en EC2
-  - **Salida:** ambos servicios con volúmenes persistentes en disco del EC2, network privada
+- [ ] **F0-DEPLOY-04** — `docker-compose.prod.yml` con Postgres + Redis en el VPS
+  - **Salida:** ambos servicios con volúmenes persistentes en disco del VPS, network privada
   - **Verificar:** `docker compose up -d postgres redis` arranca; `psql` conecta desde dentro del server
   - **Depende de:** F0-DEPLOY-02
   - **Estimación:** 45 min
@@ -528,20 +530,20 @@ Ejemplos:
   - **Depende de:** F0-DEPLOY-06
   - **Estimación:** 30 min
 
-- [ ] **F0-DEPLOY-08** — Crear repos en AWS ECR + IAM user con permisos mínimos
-  - **Salida:** repos `sellpoint-api` y `sellpoint-web` en ECR; user IAM `github-actions-deploy` con políticas acotadas (push ECR + SSH key del EC2)
-  - **Verificar:** `aws ecr describe-repositories` los lista
+- [ ] **F0-DEPLOY-08** — Configurar GHCR + token con permisos mínimos
+  - **Salida:** imágenes `sellpoint-api` y `sellpoint-web` en GHCR (`ghcr.io/{owner}`); el workflow usa `GITHUB_TOKEN` con `packages: write`; el VPS usa un PAT read-only para pull; política de retención de imágenes viejas
+  - **Verificar:** `docker login ghcr.io` + push/pull de prueba funcionan
   - **Depende de:** —
   - **Estimación:** 30 min
 
-- [ ] **F0-DEPLOY-09** — GitHub Actions: build + push a ECR
+- [ ] **F0-DEPLOY-09** — GitHub Actions: build + push a GHCR
   - **Salida:** workflow `deploy.yml` que en push a `main` buildea ambas imágenes y las pushea con tags `latest` + `${sha}`
-  - **Verificar:** push a `main` produce imágenes nuevas en ECR
+  - **Verificar:** push a `main` produce imágenes nuevas en GHCR
   - **Depende de:** F0-DEPLOY-08, F0-CI-01
   - **Estimación:** 1.5 h
 
-- [ ] **F0-DEPLOY-10** — GitHub Actions: SSH deploy al EC2
-  - **Salida:** workflow hace SSH al server, `docker login` a ECR, `docker compose pull && up -d`
+- [ ] **F0-DEPLOY-10** — GitHub Actions: SSH deploy al VPS
+  - **Salida:** workflow hace SSH al server, `docker login` a GHCR, `docker compose pull && up -d`
   - **Verificar:** un cambio trivial en el repo se ve en `https://tu-dominio.com` en < 5 min
   - **Depende de:** F0-DEPLOY-09
   - **Estimación:** 1.5 h
@@ -557,6 +559,12 @@ Ejemplos:
   - **Verificar:** cronómetro: commit → deploy verde → cambio visible en < 5 min
   - **Depende de:** F0-DEPLOY-11
   - **Estimación:** 15 min
+
+- [ ] **F0-DEPLOY-13** — Backup mínimo de Postgres desde el día 1
+  - **Salida:** cron nocturno de `pg_dump` comprimido subido a Cloudflare R2 (10GB gratis) o Backblaze B2, retención 14 días; adelantado de F6 porque con clientes reales un server único sin backup no es opción
+  - **Verificar:** restaurar el dump de ayer en un Postgres local y correr una query
+  - **Depende de:** F0-DEPLOY-04
+  - **Estimación:** 1 h
 
 ---
 
@@ -1211,7 +1219,7 @@ Ejemplos:
 
 > **Nota:** el deploy básico (walking skeleton) ya está hecho en **F0-DEPLOY** y funcionando desde el día uno. Esta fase **endurece** la infra existente: pasa de "está corriendo" a "está listo para clientes reales".
 
-- **F6-SECRETS** — Migrar de `.env` en disco a AWS Parameter Store (SecureString con KMS); rotación de claves JWT
+- **F6-SECRETS** — Migrar de `.env` en disco a un gestor de secretos (a decidir: sops/age o Infisical — Parameter Store descartado al salir de AWS, ver decisión deploy-vultr); rotación de claves JWT
 - **F6-BACKUPS** — Cron `pg_dump` cifrado → S3 con KMS + lifecycle a Glacier (90 días)
 - **F6-RESTORE-DRILL** — Probar end-to-end el restore desde backup; documentar RTO/RPO
 - **F6-LOGS** — CloudWatch agent / sidecar; retención + alertas básicas
@@ -1719,6 +1727,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-07-23** — i18n web: claves dotted en namespace único (byte-idénticas al api), JSON estáticos sin http-backend, detector localStorage→navigator (key `sellpoint.locale`), factory `createI18n` hermética para tests + singleton con detector, Suspense off, canario `i18n-check` — `topic_key: sdd/web-i18n/proposal` — afecta: F0-I18N-04 (hecho), F1-LOCALE (selector de idioma y migración a namespaces nativos si hay lazy-load)
 - **2026-07-27** — MCPs: Context7 + Playwright instalados en `.mcp.json` (proyecto); Postgres MCP → F1-TENANT, GitHub MCP → F0-CI (opcional), Stripe MCP → F7; rechazados filesystem/git/docker/redis/memory por redundantes — `topic_key: decision/mcps-del-proyecto-context7-playwright-instalados-postgres-github-stripe-diferidos-por-fase` — afecta: F0-CI, F1-TENANT, F7 (notas 🔌 en cada módulo)
 - **2026-07-27** — Patrones UI confirmados: container/presentational + `features/{dominio}` + labels SOLO por i18n + estilos por design tokens; atomic design completo y hexagonal-en-front RECHAZADOS; se codifica al abrir F1 con la primera feature como molde — `topic_key: sellpoint/feature-modules-convention` — afecta: F1 (primera tarea), todo componente futuro del web
+- **2026-08-03** — Deploy: Vultr HF 2GB CDMX (~$12/mes) + GHCR + pg_dump nocturno a R2 desde F0 (nueva F0-DEPLOY-13); EC2 de Ohio dada de baja ($17/mes por 1GB que no corría el stack); serverless descartado (POS no tolera cold starts); CloudWatch/Parameter Store a reemplazar en F6 — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY (reescrito), F5 (resize por workers), F6-LOGS/F6-SECRETS
 
 ---
 
