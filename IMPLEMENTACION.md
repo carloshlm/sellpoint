@@ -160,7 +160,7 @@ Ejemplos:
 
 ## Fase 0 — Setup + Walking Skeleton
 
-> **Objetivo:** monorepo levantable con `pnpm dev`, dos apps vacías (`api`, `web`), CI básico, Docker local + VPS (Hetzner), **y walking skeleton deployable a producción con HTTPS**. Cada push a `main` deploya automáticamente. Cuando empecemos features en F1, ya tenemos el pipeline end-to-end funcionando — no hay sorpresas de producción al final.
+> **Objetivo:** monorepo levantable con `pnpm dev`, dos apps vacías (`api`, `web`), CI básico, Docker local + VPS (Vultr), **y walking skeleton deployable a producción con HTTPS**. Cada push a `main` deploya automáticamente. Cuando empecemos features en F1, ya tenemos el pipeline end-to-end funcionando — no hay sorpresas de producción al final.
 
 ### Módulo F0-MONO — Estructura del Monorepo
 
@@ -486,7 +486,7 @@ Ejemplos:
 
 > **Por qué acá y no en F6:** queremos que **cada commit deploye a producción desde el día 1**. Esto evita el anti-patrón de "funciona en mi máquina", descubre problemas de prod (HTTPS, cookies, CORS, RLS con pooler) cuando son baratos de arreglar, y construye el músculo de CD desde temprano. F0 deja el deploy mínimo funcional; F6 endurece (backups, monitoreo, secrets, DR).
 >
-> **Proveedor (decidido 2026-08-04, por presupuesto):** VPS **Hetzner CPX11 (2 vCPU/2GB), Ashburn VA** (~$6-7/mes; ~50-70ms desde CDMX, aceptable) + registry **GHCR**. **Upgrade path documentado:** si el POS se siente pesado en producción real, migrar a Vultr HF CDMX (~$12, ~15ms) — stack 100% portable, migración de horas. La instancia EC2 previa se dio de baja. Detalle y alternativas: `topic_key: decision/deploy-vultr` en engram.
+> **Proveedor (FINAL, 2026-08-04):** VPS **Vultr High Frequency 1 vCPU/2GB, región Ciudad de México** ($12/mes verificado, ~15ms) + registry **GHCR**. Hetzner descartado con evidencia de consola: post-suba de junio 2026 su plan US cuesta $20.49 (más caro y con peor latencia) y los baratos son solo-Europa (~150ms). Resize a HF 4GB (~$24) cuando lleguen los workers de F5. La instancia EC2 previa se dio de baja. Detalle: `topic_key: decision/deploy-vultr` en engram.
 
 - [ ] **F0-DEPLOY-01** — Acceso SSH al VPS + hardening básico
   - **Salida:** acceso por key (no password), `ufw` con solo 22/80/443 abiertos, `fail2ban` activo, usuario non-root con sudo
@@ -1729,7 +1729,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-07-27** — Patrones UI confirmados: container/presentational + `features/{dominio}` + labels SOLO por i18n + estilos por design tokens; atomic design completo y hexagonal-en-front RECHAZADOS; se codifica al abrir F1 con la primera feature como molde — `topic_key: sellpoint/feature-modules-convention` — afecta: F1 (primera tarea), todo componente futuro del web
 - **2026-08-03** — Deploy: Vultr HF 2GB CDMX (~$12/mes) + GHCR + pg_dump nocturno a R2 desde F0 (nueva F0-DEPLOY-13); EC2 de Ohio dada de baja ($17/mes por 1GB que no corría el stack); serverless descartado (POS no tolera cold starts); CloudWatch/Parameter Store a reemplazar en F6 — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY (reescrito), F5 (resize por workers), F6-LOGS/F6-SECRETS
 - **2026-08-03** — Imágenes de catálogo: Cloudflare R2 (egress $0, 10GB free, S3-compatible), NO S3 ni disco del VPS; adapter StorageService + presigned URLs + sharp, bucket separado del de backups — `topic_key: decision/storage-imagenes-r2` — afecta: F2-PROD (implementación), F0-DEPLOY-13 (mismo proveedor)
-- **2026-08-04** — Proveedor final por presupuesto ajustado: Hetzner CPX11 Ashburn (~$6-7/mes) reemplaza a Vultr CDMX como primario; Vultr queda como upgrade path si la latencia (~50-70ms) molesta en producción — migración de horas por stack portable. Bluehost evaluado y RECHAZADO (sin datacenter MX, lock-in anual, precio teaser) — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY, SERVICIOS.md
+- **2026-08-04** — Proveedor FINAL tras vuelta completa: **Vultr HF 2GB CDMX ($12/mes)**. Bluehost RECHAZADO (sin DC en México, lock-in anual, teaser). Hetzner RECHAZADO con evidencia de consola (post-suba jun-2026: US $20.49 > Vultr con peor latencia; planes baratos solo-Europa ~150ms). Lección: precios de cloud se verifican EN EL CHECKOUT, no en blogs — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY, SERVICIOS.md
 
 ---
 

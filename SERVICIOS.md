@@ -1,6 +1,6 @@
 # Servicios a Contratar — SellPoint
 
-> **TL;DR:** para poner SellPoint en producción para los 2 clientes iniciales necesitás contratar HOY **2 servicios de pago** (Hetzner + dominio) y **2 gratuitos** (Cloudflare, GitHub). Total: **~$7-8 USD/mes + ~$10 USD/año de dominio**. Todo lo demás se contrata por fase, cuando el plan lo pida.
+> **TL;DR:** para poner SellPoint en producción para los 2 clientes iniciales necesitás contratar HOY **2 servicios de pago** (Vultr + dominio) y **2 gratuitos** (Cloudflare, GitHub). Total: **~$13 USD/mes + ~$10 USD/año de dominio**. Todo lo demás se contrata por fase, cuando el plan lo pida.
 >
 > Decisiones de respaldo: Bitácora 2026-08-03 (`decision/deploy-vultr`, `decision/storage-imagenes-r2` en engram). Este doc es el resumen operativo — si diverge de la Bitácora, manda la Bitácora.
 
@@ -10,16 +10,16 @@
 
 | # | Servicio | Plan exacto | Costo | Para qué |
 |---|----------|-------------|-------|----------|
-| 1 | **Hetzner Cloud** | **CPX11** (2 vCPU AMD / 2GB), región **Ashburn, VA (us-east)**, Ubuntu LTS | **~$6-7/mes** (IPv4 incl.) | El servidor: API + Web + Postgres + Redis en Docker Compose. Un solo server para TODOS los clientes (multi-tenant). ~50-70ms desde CDMX — aceptable; si en producción real el POS se siente pesado, migrar a Vultr HF CDMX (~$12, ~15ms) es cuestión de horas: stack 100% portable (Compose + GHCR + pg_dump) |
+| 1 | **Vultr** | Cloud Compute **High Frequency, 1 vCPU / 2GB**, región **Mexico City**, Ubuntu LTS | **$12/mes** (verificado 2026-08) | El servidor: API + Web + Postgres + Redis en Docker Compose. Un solo server para TODOS los clientes (multi-tenant). ~15ms desde CDMX. ⚠️ Hetzner DESCARTADO con evidencia (2026-08-04): tras su suba de junio 2026, su plan US cuesta $20.49 con peor latencia, y sus planes baratos son solo-Europa (~150ms, inviable para POS) |
 | 2 | **Dominio** | `.com` en Cloudflare Registrar (precio de costo) o Namecheap | **~$10/año** (~$1/mes) | HTTPS obligatorio (Web Bluetooth y cámara del POS lo exigen) |
 | 3 | **Cloudflare** | Plan **Free** + **R2** habilitado | **$0/mes** | DNS del dominio + R2 para backups nocturnos de Postgres (10GB gratis). ⚠️ R2 pide tarjeta para habilitarse, pero el free tier es real |
 | 4 | **GitHub** | Plan Free (ya lo tenés) | **$0/mes** | Repo + GHCR (registry de imágenes Docker) + Actions (2,000 min/mes gratis alcanzan de sobra para CI+deploy) |
 
-**Total mensual hoy: ~$7-8 USD** (≈ $130-145 MXN). Contra referencia: la EC2 dada de baja costaba $17.11/mes sin poder correr el stack.
+**Total mensual hoy: ~$13 USD** (≈ $235 MXN). Contra referencia: la EC2 dada de baja costaba $17.11/mes sin poder correr el stack.
 
 ### Checklist de contratación (en orden)
 
-- [ ] Crear cuenta Hetzner (https://accounts.hetzner.com/signUp — puede pedir verificación de identidad, es normal) → server CPX11 en Ashburn, Ubuntu LTS, con SSH key desde el inicio
+- [ ] Crear cuenta Vultr (https://www.vultr.com) → Deploy New Server → **Cloud Compute High Frequency**, location **Mexico City**, Ubuntu LTS, plan 1 vCPU/2GB ($12), con SSH key desde el inicio
 - [ ] Comprar dominio → apuntar DNS a Cloudflare (plan Free)
 - [ ] En Cloudflare: habilitar R2 → crear bucket `sellpoint-backups`
 - [ ] A record del dominio → IP del VPS
@@ -32,7 +32,7 @@
 | Fase | Servicio | Plan | Costo estimado | Trigger |
 |------|----------|------|----------------|---------|
 | F2-PROD | **Cloudflare R2** (bucket adicional `sellpoint-images`) | mismo free tier | **$0** (catálogos de 2 clientes ≈ 1-2GB, el free tier da 10GB) | Upload de imágenes de productos |
-| F5 | **Hetzner resize** (o migración a Vultr CDMX si la latencia ya molestaba) | CPX21 (3 vCPU / 4GB) | ~el doble del CPX11 (confirmar en consola) | Workers de BullMQ (exportaciones) o +clientes |
+| F5 | **Vultr resize** | HF 2 vCPU / 4GB | ~$24/mes (reemplaza los $12; confirmar en consola) | Workers de BullMQ (exportaciones) o +clientes |
 | F6 | **Sentry** | Free tier (5k errores/mes) | **$0** | Monitoreo de errores en prod |
 | F7 | **Stripe** | Sin mensualidad | **% por transacción** (México: ~3.6% + $3 MXN por cargo) | Billing/suscripciones del SaaS |
 
