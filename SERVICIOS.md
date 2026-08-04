@@ -44,7 +44,7 @@
 
 1. **Un server, N clientes**: los clientes nuevos NO agregan costo de infra hasta que el volumen pida el resize — y para entonces ya hay ingresos que lo pagan.
 2. **Nada de egress caro**: R2 sirve imágenes con egress $0. Nunca contratar S3/almacenamiento que cobre por descarga para contenido público.
-3. **El backup no es opcional**: pg_dump nocturno a R2 desde el día 1 (F0-DEPLOY-13). Los snapshots del proveedor NO lo reemplazan — como mucho, snapshot manual antes de un cambio riesgoso.
+3. **El backup no es opcional**: pg_dump nocturno a R2 desde el día 1 (F0-DEPLOY-13). Los snapshots del proveedor NO lo reemplazan — como mucho, snapshot manual antes de un cambio riesgoso. **Automatic Backups de Vultr (~$2.40/mes): apagado mientras el server solo tenga config (vive en git); se ENCIENDE el día que entra el primer dato real de un cliente** — y ese día F0-DEPLOY-13 ya debe estar corriendo. Datos reales sin ambas capas = no.
 4. **Cada servicio nuevo entra por la Bitácora**: si un módulo pide contratar algo que no está acá, primero decisión (engram + Bitácora), después tarjeta.
 
 ---
