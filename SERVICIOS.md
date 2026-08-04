@@ -19,7 +19,7 @@
 
 ### Checklist de contratación (en orden)
 
-- [ ] Crear cuenta Vultr (https://www.vultr.com) → Deploy New Server → **Cloud Compute High Frequency**, location **Mexico City**, Ubuntu LTS, plan 1 vCPU/2GB ($12), con SSH key desde el inicio
+- [x] Crear cuenta Vultr → **HECHO 2026-08-04**: instancia `sellpoint-prod` ("Sellpoint Production"), plan `vhp-1c-2gb` ($12/mes, High Performance 1vCPU/2GB/50GB NVMe), Mexico City, Ubuntu LTS, IP `216.238.73.144` (IPv4+IPv6), SSH key `macbook-carlos`, backups off (trigger: primer dato real), cupón $250 aplicado (mes 1 gratis)
 - [ ] Comprar dominio → apuntar DNS a Cloudflare (plan Free)
 - [ ] En Cloudflare: habilitar R2 → crear bucket `sellpoint-backups`
 - [ ] A record del dominio → IP del VPS
