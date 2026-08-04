@@ -20,9 +20,9 @@
 ### Checklist de contratación (en orden)
 
 - [x] Crear cuenta Vultr → **HECHO 2026-08-04**: instancia `sellpoint-prod` ("Sellpoint Production"), plan `vhp-1c-2gb` ($12/mes, High Performance 1vCPU/2GB/50GB NVMe), Mexico City, Ubuntu LTS, IP `216.238.73.144` (IPv4+IPv6), SSH key `macbook-carlos`, backups off (trigger: primer dato real), cupón $250 aplicado (mes 1 gratis)
-- [ ] Comprar dominio → apuntar DNS a Cloudflare (plan Free)
+- [x] Dominio → **HECHO 2026-08-04**: `laradoc.com` (ya existente en IONOS, registrador se queda ahí) delegado a Cloudflare plan Free (NS skip/demi.ns.cloudflare.com). MX/TXT de correo IONOS preservados intactos
 - [ ] En Cloudflare: habilitar R2 → crear bucket `sellpoint-backups`
-- [ ] A record del dominio → IP del VPS
+- [x] A records → **HECHO 2026-08-04**: `laradoc.com` y `www` → `216.238.73.144`, nube gris (DNS only, requerido para certbot en F0-DEPLOY-06); propagación verificada con dig
 - [ ] Con eso, arranca el módulo F0-DEPLOY del plan (13 tareas)
 
 ---
