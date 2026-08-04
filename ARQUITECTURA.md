@@ -104,7 +104,7 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 
 | Componente | Stack |
 |---|---|
-| Servidor | **VPS Vultr High Frequency 2GB, Ciudad de México** (Ubuntu LTS; decidido 2026-08-03, EC2 previa dada de baja) |
+| Servidor | **VPS Hetzner CPX11 (2 vCPU/2GB), Ashburn VA** (Ubuntu LTS; decidido 2026-08-04 por presupuesto — upgrade path: Vultr HF CDMX si la latencia molesta; EC2 previa dada de baja) |
 | Orquestación local y prod | **Docker Compose** (api, web, postgres, redis, nginx) |
 | Proxy reverso | **Nginx** + **Let's Encrypt (certbot)** — HTTPS obligatorio para Web Bluetooth y cámara |
 | Imágenes | **GHCR** (privado, gratis con el repo) |
@@ -684,7 +684,7 @@ sellpoint/
 
 1. Dockerfiles productivos: multi-stage, non-root user, sin dependencias de dev
 2. `docker-compose.prod.yml` con Nginx + certbot + healthchecks
-3. CI/CD: GitHub Actions → GHCR → SSH deploy al VPS (Vultr CDMX)
+3. CI/CD: GitHub Actions → GHCR → SSH deploy al VPS (Hetzner Ashburn)
 4. Cron de backups a S3 cifrado
 5. Sentry + CloudWatch
 6. Smoke tests post-deploy
