@@ -38,6 +38,8 @@
 
 **Sin decidir aún** (se decide en su fase, NO contratar): gestor de secretos F6 (sops/age gratis vs Infisical), destino de logs F6 (Loki self-hosted = $0 en el mismo VPS), email transaccional para F1-AUTH (reset de password — se evalúa al llegar).
 
+**Optimización pendiente (sin urgencia)**: transferir el REGISTRO de `laradoc.com` de IONOS ($340 MXN/año ≈ $18.5) a Cloudflare Registrar ($10.46/año a costo, la transferencia incluye +1 año) — ahorro ~43%/año. Receta: quitar transfer lock en IONOS → pedir Auth-Code/EPP → CF Domain Registration → Transfer. El DNS ya está en CF, así que cero downtime. Aplica igual a `berrinchitosdent.com` si se conserva.
+
 ---
 
 ## 3. Reglas de oro del presupuesto
