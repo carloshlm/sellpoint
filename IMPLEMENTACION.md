@@ -489,6 +489,10 @@ Ejemplos:
 >
 > **Proveedor (FINAL, 2026-08-04):** VPS **Vultr High Frequency 1 vCPU/2GB, región Ciudad de México** ($12/mes verificado, ~15ms) + registry **GHCR**. Hetzner descartado con evidencia de consola: post-suba de junio 2026 su plan US cuesta $20.49 (más caro y con peor latencia) y los baratos son solo-Europa (~150ms). Resize a HF 4GB (~$24) cuando lleguen los workers de F5. La instancia EC2 previa se dio de baja. Detalle: `topic_key: decision/deploy-vultr` en engram.
 
+- [x] **F0-DEPLOY-00** — Repo GitHub + remote + push inicial (tarea agregada por el proposal: el repo era local-only)
+  - **Salida:** `carloshlm/sellpoint` con main pusheado; secrets de Actions cargados
+  - **Verificar:** `git push` funciona; workflows visibles en Actions — HECHO 2026-08-06
+
 - [x] **F0-DEPLOY-01** — Acceso SSH al VPS + hardening básico
   - **Salida:** acceso por key (no password), `ufw` con solo 22/80/443 abiertos, `fail2ban` activo, usuario non-root con sudo
   - **Verificar:** SSH funciona; conexión a puertos no abiertos es rechazada
@@ -1234,9 +1238,12 @@ Ejemplos:
 > **Nota:** el deploy básico (walking skeleton) ya está hecho en **F0-DEPLOY** y funcionando desde el día uno. Esta fase **endurece** la infra existente: pasa de "está corriendo" a "está listo para clientes reales".
 
 - **F6-SECRETS** — Migrar de `.env` en disco a un gestor de secretos (a decidir: sops/age o Infisical — Parameter Store descartado al salir de AWS, ver decisión deploy-vultr); rotación de claves JWT
-- **F6-BACKUPS** — Cron `pg_dump` cifrado → S3 con KMS + lifecycle a Glacier (90 días)
+- **F6-BACKUPS** — Endurecer el backup de F0 (cifrado del dump, alerting si el cron falla; el básico a R2 ya corre desde F0-DEPLOY-13)
 - **F6-RESTORE-DRILL** — Probar end-to-end el restore desde backup; documentar RTO/RPO
-- **F6-LOGS** — CloudWatch agent / sidecar; retención + alertas básicas
+- **F6-LOGS** — Destino de logs a decidir (CloudWatch descartado al salir de AWS → Loki self-hosted o similar); retención + alertas básicas
+- **F6-ROLLBACK-DRILL** — Ejercitar la rama de rollback de deploy.yml con un fallo inducido (herencia de F0: nunca corrió en real; hacerlo ANTES del primer dato de cliente) — verify W3
+- **F6-GHCR-RETENTION** — Retención de imágenes en GHCR (actions/delete-package-versions); hoy crecen sin techo — verify W4
+- **F6-CF-PROXY** — Decidir Cloudflare naranja vs gris: hoy naranja funciona (ACME verificado atravesando CF) pero el origen sigue alcanzable por IP y una renovación fallida de cert sería silenciosa; evaluar Origin Certificate de CF (15 años) + Authenticated Origin Pulls + alerting de renovación — verify W7
 - **F6-SENTRY** — Sentry frontend + backend con `@sentry/nestjs`, source maps subidos en CI
 - **F6-HEADERS** — Cabeceras de seguridad endurecidas: CSP estricta, HSTS preload, X-Frame-Options, Permissions-Policy
 - **F6-DOCKER-HARDEN** — Imágenes productivas: multi-stage, non-root user, scan con Trivy en CI
@@ -1744,6 +1751,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-08-03** — Deploy: Vultr HF 2GB CDMX (~$12/mes) + GHCR + pg_dump nocturno a R2 desde F0 (nueva F0-DEPLOY-13); EC2 de Ohio dada de baja ($17/mes por 1GB que no corría el stack); serverless descartado (POS no tolera cold starts); CloudWatch/Parameter Store a reemplazar en F6 — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY (reescrito), F5 (resize por workers), F6-LOGS/F6-SECRETS
 - **2026-08-03** — Imágenes de catálogo: Cloudflare R2 (egress $0, 10GB free, S3-compatible), NO S3 ni disco del VPS; adapter StorageService + presigned URLs + sharp, bucket separado del de backups — `topic_key: decision/storage-imagenes-r2` — afecta: F2-PROD (implementación), F0-DEPLOY-13 (mismo proveedor)
 - **2026-08-04** — Proveedor FINAL tras vuelta completa: **Vultr HF 2GB CDMX ($12/mes)**. Bluehost RECHAZADO (sin DC en México, lock-in anual, teaser). Hetzner RECHAZADO con evidencia de consola (post-suba jun-2026: US $20.49 > Vultr con peor latencia; planes baratos solo-Europa ~150ms). Lección: precios de cloud se verifican EN EL CHECKOUT, no en blogs — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY, SERVICIOS.md
+- **2026-08-06** — F0-DEPLOY completo: producción viva en laradoc.com (TLS Let's Encrypt, push→prod en 2m05s). Cloudflare quedó PROXY NARANJA (desviación de D7 asumida como deliberada: ACME verificado atravesando CF; revisión formal en F6-CF-PROXY). 2 bugs reales cazados en el camino: stdin del heredoc SSH tragándose el script del deploy (CI verde sin deployar) y POSTGRES_DB equivocada en el backup. Verify PASS_WITH_WARNINGS (0 críticos; W3/W4/W7 → tareas F6) — `topic_key: sdd/f0-deploy/verify-report` — afecta: F0-DEPLOY (cerrado), F6 (3 tareas nuevas)
 
 ---
 
