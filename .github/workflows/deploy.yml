@@ -135,7 +135,13 @@ jobs:
           write_image_tag "${NEW_TAG}"
 
           echo "Corriendo migraciones (one-shot, antes de tocar la app viva)..."
-          if ! docker compose -f docker-compose.prod.yml run --rm migrate; then
+          # </dev/null es OBLIGATORIO: sin esto, "docker compose run" hereda el
+          # stdin de este script (el resto del heredoc SSH) y se lo traga como
+          # si fuera input del contenedor. bash llega a EOF prematuro y el
+          # script termina en silencio con exit 0 DESPUES de migrate, sin
+          # correr pull/up -d/smoke/prune y sin que el job falle (bug real
+          # encontrado en el primer run de produccion, 2026-08-06).
+          if ! docker compose -f docker-compose.prod.yml run --rm migrate < /dev/null; then
             echo "Migración FALLÓ. Revirtiendo IMAGE_TAG a ${PREV_TAG} sin desplegar."
             write_image_tag "${PREV_TAG}"
             exit 1
