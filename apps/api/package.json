@@ -64,6 +64,9 @@
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "rootDir": "src",
+    "setupFiles": [
+      "<rootDir>/../test/setup-env.js"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
