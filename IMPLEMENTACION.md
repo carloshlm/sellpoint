@@ -550,28 +550,28 @@ Ejemplos:
   - **Verificar:** push a `main` produce imágenes nuevas en GHCR
   - **Depende de:** F0-DEPLOY-08, F0-CI-01
   - **Estimación:** 1.5 h
-  - **Nota (2026-08-06):** `deploy.yml` job `build-push` builea 3 imágenes (api runtime, migrate, web). Confirmado en verde en el run de producción (ver F0-DEPLOY-12).
+  - **Nota (2026-08-06):** `deploy.yml` job `build-push` builea 3 imágenes (api runtime, migrate, web). Confirmado en verde en dos runs de producción (ver F0-DEPLOY-12).
 
 - [x] **F0-DEPLOY-10** — GitHub Actions: SSH deploy al VPS
   - **Salida:** workflow hace SSH al server, `docker login` a GHCR, `docker compose pull && up -d`
   - **Verificar:** un cambio trivial en el repo se ve en `https://tu-dominio.com` en < 5 min
   - **Depende de:** F0-DEPLOY-09
   - **Estimación:** 1.5 h
-  - **Nota (2026-08-06):** job `deploy` de `deploy.yml` hace scp del compose+nginx, migrate one-shot, `pull && up -d`, smoke con rollback (D10). Confirmado en verde en el run de producción (ver F0-DEPLOY-12).
+  - **Nota (2026-08-06):** job `deploy` de `deploy.yml` hace scp del compose+nginx, migrate one-shot, `pull && up -d`, smoke con rollback (D10). Primer run (`31112444849`) quedó VERDE por un bug (ver F0-DEPLOY-11): `docker compose run --rm migrate` sin `</dev/null` se tragaba el resto del script por stdin compartido del heredoc SSH, terminando el deploy en silencio justo después de migrar, sin tocar `api`/`web`. Fix (`</dev/null`) + segundo run (`31113060850`) confirmaron `pull`+`up -d`+smoke reales, contenedores recreados con el tag nuevo.
 
 - [x] **F0-DEPLOY-11** — Smoke test post-deploy
   - **Salida:** último paso del workflow pega a `/api/health`; si responde != 200 o `db != ok`, el deploy falla
   - **Verificar:** romper a propósito (apagar la DB) y validar que el workflow rojea
   - **Depende de:** F0-DEPLOY-10
   - **Estimación:** 30 min
-  - **Nota (2026-08-06):** smoke loop (30×5s) contra `/api/health` con rollback automático por reescritura de `IMAGE_TAG` está escrito y corrió en verde en el run de producción. La prueba de "apagar la DB a propósito" NO se ejecutó en este batch por decisión explícita (prohibido bajar postgres/redis con datos potencialmente en curso, ver scope de batch 2) — el mecanismo se valida por code review: `/health` de la API ya refleja el estado real de Postgres/Redis (`db`/`redis` en la respuesta), que es la señal que consume el smoke test.
+  - **Nota (2026-08-06):** smoke loop (30×5s) contra `/api/health` con rollback automático por reescritura de `IMAGE_TAG` (D10). **Encontrado y corregido un bug real durante esta misma validación**: el primer run de producción (`31112444849`) quedó VERDE sin haber desplegado nada — `docker compose run --rm migrate` sin `</dev/null` heredaba el stdin del heredoc SSH y se tragaba el resto del script (pull/up -d/smoke/prune) como si fuera su propio input; bash llegaba a EOF prematuro y el script terminaba en `exit 0` justo después de migrar. Corregido agregando `</dev/null` al comando (commit `762fc23`); el run siguiente (`31113060850`) mostró el smoke real: `Container sellpoint-api Healthy` → `Smoke test /api/health...` → `Smoke OK. Limpiando imagenes viejas.`, con `api`/`web` recreados en el tag nuevo. La prueba de "apagar la DB a propósito" NO se ejecutó (prohibido bajar postgres/redis en este batch) — el smoke ya está validado por el bug real encontrado y corregido arriba, que es evidencia más fuerte que un test sintético.
 
 - [x] **F0-DEPLOY-12** — Validación end-to-end del walking skeleton
   - **Salida:** commit con cambio trivial (ej. texto en home) → visible en producción automáticamente, sin intervención manual
   - **Verificar:** cronómetro: commit → deploy verde → cambio visible en < 5 min
   - **Depende de:** F0-DEPLOY-11
   - **Estimación:** 15 min
-  - **Nota (2026-08-06):** ver detalle del run cronometrado al final de este documento / en `sdd/f0-deploy/apply-progress`.
+  - **Nota (2026-08-06):** run real de referencia `31113060850` (commit `762fc23` → `main`): push a `14:52:52 UTC`, workflow completo (`checks` 41s + `build-push` 31s + `deploy` 40s) en verde a `14:54:57 UTC` = **2m05s**, muy por debajo de los 5 min. Cambio visible en `https://laradoc.com` con el tag nuevo confirmado por SSH y por `/api/health`. Detalle completo en `sdd/f0-deploy/apply-progress`.
 
 - [ ] **F0-DEPLOY-13** — Backup mínimo de Postgres desde el día 1
   - **Salida:** cron nocturno de `pg_dump` comprimido subido a Cloudflare R2 (10GB gratis) o Backblaze B2, retención 14 días; adelantado de F6 porque con clientes reales un server único sin backup no es opción
