@@ -655,7 +655,7 @@ Ejemplos:
   - **Depende de:** F0-API-05
   - **Estimación:** 30 min
 
-- [ ] **F1-DB-02** — Modelo Prisma `User`
+- [x] **F1-DB-02** — Modelo Prisma `User`
   - **Salida:** modelo con `id`, `tenant_id`, `email`, `password_hash`, `employee_number`, `first_name`, `last_name_paternal`, `last_name_maternal`, `status`, `locale` (CHAR(2), default `es`, CHECK `IN ('es','en')`), `email_verified_at`
   - **Verificar:** relación con Tenant, email único por tenant, CHECK constraint en locale
   - **Depende de:** F1-DB-01
