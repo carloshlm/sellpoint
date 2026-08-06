@@ -469,7 +469,7 @@ Ejemplos:
   - **Estimación:** 1 h
   - **Nota (2026-08-06):** implementada dentro del change `f0-deploy` (D5 del proposal), no como módulo aparte. `checks.yml` reusable + `ci.yml` que lo invoca en push/PR; `deploy.yml` llama al mismo reusable como gate antes de build+push. Confirmado en verde en el run del pipeline de producción (ver F0-DEPLOY-12).
 
-- [ ] **F0-CI-02** — Configurar Dependabot
+- [x] **F0-CI-02** — Configurar Dependabot
   - **Salida:** `.github/dependabot.yml` para npm y GitHub Actions
   - **Verificar:** archivo válido (no se puede testear sin esperar el primer scan)
   - **Depende de:** F0-CI-01
@@ -588,19 +588,19 @@ Ejemplos:
 
 ### Módulo F0-DOC — Documentación Inicial
 
-- [ ] **F0-DOC-01** — `CONTRIBUTING.md` con convenciones de commits y branches
+- [x] **F0-DOC-01** — `CONTRIBUTING.md` con convenciones de commits y branches
   - **Salida:** archivo con guía de contribución
   - **Verificar:** revisión visual
   - **Depende de:** F0-MONO-08
   - **Estimación:** 30 min
 
-- [ ] **F0-DOC-02** — `apps/api/README.md` con comandos y estructura
+- [x] **F0-DOC-02** — `apps/api/README.md` con comandos y estructura
   - **Salida:** README específico de la API
   - **Verificar:** seguir las instrucciones desde cero funciona
   - **Depende de:** F0-API-12
   - **Estimación:** 30 min
 
-- [ ] **F0-DOC-03** — `apps/web/README.md` con comandos y estructura
+- [x] **F0-DOC-03** — `apps/web/README.md` con comandos y estructura
   - **Salida:** README específico del web
   - **Verificar:** seguir instrucciones desde cero funciona
   - **Depende de:** F0-WEB-13

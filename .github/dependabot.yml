@@ -1,0 +1,30 @@
+# Actualizaciones automáticas de dependencias.
+# Los PRs de dependabot corren ci.yml (checks) — NO deployan (deploy.yml solo corre en push a main).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 5
+    # Agrupa minor+patch en un solo PR para no inundar; majors llegan solos
+    groups:
+      minor-y-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "chore"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Mexico_City"
+    commit-message:
+      prefix: "ci"
