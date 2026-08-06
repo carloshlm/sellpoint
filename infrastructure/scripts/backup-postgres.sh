@@ -3,11 +3,11 @@
 # backup-postgres.sh — Dump nocturno de Postgres a Cloudflare R2 (D12 del
 # proposal f0-deploy).
 #
-# Se ESCRIBE y commitea en este batch. La INSTALACIÓN (copiar al server,
-# `rclone.conf` con el token de R2, cron) es tarea de batch 2 (requiere SSH),
-# ver M5 en el proposal. Pensado para correr vía cron 09:15 UTC (03:15 CDMX)
-# — el server queda en UTC a propósito, así el cron no tiene sorpresas con
-# el cambio de horario de verano.
+# Instalado en /opt/sellpoint/scripts/backup-postgres.sh, corre vía cron de
+# `deploy` a las 09:15 UTC (03:15 CDMX) — el server queda en UTC a propósito,
+# así el cron no tiene sorpresas con el cambio de horario de verano.
+# rclone.conf (token R2 scoped a `sellpoint-backups`) fue escrito por Carlos
+# directo en el server (nunca por el chat, D12/M5).
 #
 # Uso esperado en el server (una vez instalado):
 #   /opt/sellpoint/scripts/backup-postgres.sh
@@ -15,6 +15,11 @@
 set -euo pipefail
 
 COMPOSE_FILE="/opt/sellpoint/docker-compose.prod.yml"
+# Ruta absoluta a propósito: el binario es estático (batch 3, sin sudo en el
+# server) instalado en /home/deploy/bin/rclone, y cron NO carga el PATH de
+# una sesión de login — un `rclone` a secas fallaría con "command not found"
+# silenciosamente en cada corrida nocturna.
+RCLONE="/home/deploy/bin/rclone"
 BUCKET="r2:sellpoint-backups"
 RETENTION_DAYS="14"
 TIMESTAMP="$(date -u +%Y%m%d-%H%M)"
@@ -33,8 +38,14 @@ trap cleanup EXIT
 #    selectivo con pg_restore (a diferencia de un dump plano de texto).
 # ---------------------------------------------------------------------------
 log "Generando dump: ${DUMP_NAME}"
+# ⚠️ POSTGRES_USER/POSTGRES_DB NO se leen del entorno de este script (que
+# corre standalone por cron, sin sourcear /opt/sellpoint/.env) — se toman
+# de las env vars que YA tiene el propio container `postgres` (inyectadas
+# ahí por `env_file:` en el compose). Así el script no hardcodea ni
+# duplica el nombre real de la DB (que en prod es `sellpoint_prod`, no
+# `sellpoint`) y nunca hace falta imprimir ni exportar el password.
 docker compose -f "${COMPOSE_FILE}" exec -T postgres \
-  pg_dump -U "${POSTGRES_USER:-sellpoint}" -Fc "${POSTGRES_DB:-sellpoint}" > "${DUMP_PATH}"
+  sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > "${DUMP_PATH}"
 
 # ---------------------------------------------------------------------------
 # 2. Verificación mínima: un dump de 0 bytes es peor que no tener backup
@@ -51,13 +62,13 @@ log "Dump generado OK (${DUMP_SIZE} bytes)."
 # 3. Subida a R2 vía rclone (binario estático, soporte nativo S3-compatible).
 # ---------------------------------------------------------------------------
 log "Subiendo a ${BUCKET}…"
-rclone copy "${DUMP_PATH}" "${BUCKET}" --quiet
+"${RCLONE}" copy "${DUMP_PATH}" "${BUCKET}" --quiet
 
 # ---------------------------------------------------------------------------
 # 4. Retención: 14 días, visible en git (no un lifecycle rule invisible en
 #    un dashboard). Se borra por fecha directamente en el bucket.
 # ---------------------------------------------------------------------------
 log "Borrando backups con más de ${RETENTION_DAYS} días…"
-rclone delete "${BUCKET}" --min-age "${RETENTION_DAYS}d" --quiet
+"${RCLONE}" delete "${BUCKET}" --min-age "${RETENTION_DAYS}d" --quiet
 
 log "Backup completo: ${DUMP_NAME}"
