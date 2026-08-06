@@ -33,6 +33,16 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 # ---------------------------------------------------------------------------
+# 0.5 Utilidades base — curl lo necesita tanto la instalación de Docker más
+#     abajo como el smoke test de deploy.yml (curl contra /api/health en el
+#     server). Se garantiza acá para no depender de que la imagen cloud-init
+#     ya la traiga.
+# ---------------------------------------------------------------------------
+log "Instalando utilidades base (curl, ca-certificates)…"
+apt-get update -y
+apt-get install -y curl ca-certificates
+
+# ---------------------------------------------------------------------------
 # 1. Usuario `deploy` — sin password, autenticación SOLO por clave pública.
 #    Se agrega a `sudo` (uso humano/manual con contraseña de root si hiciera
 #    falta) y, más abajo, a `docker` una vez que el daemon existe.
