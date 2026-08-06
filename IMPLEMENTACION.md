@@ -475,11 +475,11 @@ Ejemplos:
   - **Depende de:** F0-CI-01
   - **Estimación:** 15 min
 
-- [ ] **F0-CI-03** — Branch protection rules en `main`
-  - **Salida:** configuración en GitHub que requiere CI verde para mergear
-  - **Verificar:** intentar mergear con CI roja se bloquea
+- [ ] ⏸️ **F0-CI-03** — Branch protection rules en `main` — **DIFERIDA (2026-08-06)**
+  - **Por qué:** choca con el diseño del walking skeleton ("push a main = deploy directo") y con un solo dev no protege de nada real. Los checks igual corren en cada push y frenan el deploy si fallan.
+  - **Trigger de reactivación:** cuando el flujo de PRs entre en uso (chained PRs en F1) o se sume un segundo dev — lo primero que ocurra.
+  - **Salida original:** configuración en GitHub que requiere CI verde para mergear
   - **Depende de:** F0-CI-01
-  - **Estimación:** 10 min
 
 ---
 
@@ -1752,6 +1752,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-08-03** — Imágenes de catálogo: Cloudflare R2 (egress $0, 10GB free, S3-compatible), NO S3 ni disco del VPS; adapter StorageService + presigned URLs + sharp, bucket separado del de backups — `topic_key: decision/storage-imagenes-r2` — afecta: F2-PROD (implementación), F0-DEPLOY-13 (mismo proveedor)
 - **2026-08-04** — Proveedor FINAL tras vuelta completa: **Vultr HF 2GB CDMX ($12/mes)**. Bluehost RECHAZADO (sin DC en México, lock-in anual, teaser). Hetzner RECHAZADO con evidencia de consola (post-suba jun-2026: US $20.49 > Vultr con peor latencia; planes baratos solo-Europa ~150ms). Lección: precios de cloud se verifican EN EL CHECKOUT, no en blogs — `topic_key: decision/deploy-vultr` — afecta: F0-DEPLOY, SERVICIOS.md
 - **2026-08-06** — F0-DEPLOY completo: producción viva en laradoc.com (TLS Let's Encrypt, push→prod en 2m05s). Cloudflare quedó PROXY NARANJA (desviación de D7 asumida como deliberada: ACME verificado atravesando CF; revisión formal en F6-CF-PROXY). 2 bugs reales cazados en el camino: stdin del heredoc SSH tragándose el script del deploy (CI verde sin deployar) y POSTGRES_DB equivocada en el backup. Verify PASS_WITH_WARNINGS (0 críticos; W3/W4/W7 → tareas F6) — `topic_key: sdd/f0-deploy/verify-report` — afecta: F0-DEPLOY (cerrado), F6 (3 tareas nuevas)
+- **2026-08-06** — F0-CI-03 (branch protection) DIFERIDA: choca con "push a main = deploy" del walking skeleton y con un solo dev no protege nada real (los checks igual frenan el deploy si fallan). Trigger de reactivación: flujo de PRs en uso (chained PRs F1) o segundo dev. **Con esto, Fase 0 queda CERRADA** (todas las tareas hechas o diferidas con nota) — afecta: F0-CI-03 (⏸️), F1 (hereda el trigger)
 
 ---
 
