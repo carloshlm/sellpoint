@@ -649,7 +649,7 @@ Ejemplos:
 
 ### Módulo F1-DB — Modelos Base
 
-- [ ] **F1-DB-01** — Modelo Prisma `Tenant`
+- [x] **F1-DB-01** — Modelo Prisma `Tenant`
   - **Salida:** modelo con `id`, `name`, `legal_name`, `tax_id`, `timezone`, `currency` (CHAR(3), default `MXN`, CHECK `IN ('MXN','USD')`), `onboarded`, timestamps
   - **Verificar:** migration aplica limpia; CHECK constraint rechaza valores no soportados
   - **Depende de:** F0-API-05

@@ -12,3 +12,19 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Tenant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  legalName String?  @map("legal_name")
+  taxId     String?  @map("tax_id")
+  timezone  String   @default("America/Mexico_City")
+  // CHAR(3) con CHECK (currency IN ('MXN','USD')) — el CHECK vive en el SQL de
+  // la migración porque Prisma no soporta constraints CHECK en el schema.
+  currency  String   @default("MXN") @db.Char(3)
+  onboarded Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("tenants")
+}
