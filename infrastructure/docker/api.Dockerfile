@@ -36,3 +36,19 @@ COPY --from=build /repo/apps/api/dist ./dist
 EXPOSE 3000
 USER node
 CMD ["node", "dist/main"]
+
+# --- Etapa de migraciones: imagen dedicada solo para `prisma migrate deploy` ---
+# Prisma es devDependency de apps/api (no existe en la etapa runtime de arriba,
+# D11 del proposal f0-deploy). Se instala el CLI + dotenv como deps locales de
+# esta imagen (no globales: prisma.config.ts hace `import "dotenv/config"` y
+# necesita resolverlo en node_modules relativo, no en el global de npm).
+# Versión pineada = la misma que apps/api/package.json (mantener en sync).
+FROM base AS migrate
+WORKDIR /app
+
+RUN npm install --no-save --no-audit --no-fund prisma@7.9.0 dotenv@17.4.2
+
+COPY apps/api/prisma ./prisma
+COPY apps/api/prisma.config.ts ./prisma.config.ts
+
+CMD ["npx", "prisma", "migrate", "deploy"]

@@ -1,0 +1,124 @@
+# Compose de producción — corre en el server como usuario `deploy`.
+# Ubicación real en el server: /opt/sellpoint/docker-compose.prod.yml
+#
+# Todo vive en la red interna `sellpoint`. El ÚNICO servicio con puertos
+# publicados es nginx-edge (80/443): postgres y redis NO llevan `ports:`
+# a propósito — Docker escribe en la cadena DOCKER-USER/nat y saltea ufw,
+# así que publicar 5432/6379 los expondría a internet aunque ufw diga
+# que están cerrados (gotcha documentado en el proposal, D4).
+name: sellpoint
+
+services:
+  nginx-edge:
+    image: nginx:alpine
+    container_name: sellpoint-nginx-edge
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # default.conf NO se versiona: es una copia de http-only.conf o with-tls.conf
+      # (infrastructure/nginx/) que el deploy/TLS switch escribe en el server
+      # (D7 — dos etapas, ver esos archivos para el detalle de cada una).
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot_webroot:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    networks:
+      - sellpoint
+
+  web:
+    image: ghcr.io/carloshlm/sellpoint-web:${IMAGE_TAG}
+    container_name: sellpoint-web
+    restart: unless-stopped
+    networks:
+      - sellpoint
+
+  api:
+    image: ghcr.io/carloshlm/sellpoint-api:${IMAGE_TAG}
+    container_name: sellpoint-api
+    restart: unless-stopped
+    env_file:
+      - /opt/sellpoint/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - sellpoint
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: sellpoint-postgres
+    restart: unless-stopped
+    env_file:
+      - /opt/sellpoint/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - sellpoint
+
+  redis:
+    image: redis:7-alpine
+    container_name: sellpoint-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - sellpoint
+
+  # One-shot: `docker compose run --rm migrate` — nunca se levanta con `up -d`.
+  migrate:
+    image: ghcr.io/carloshlm/sellpoint-migrate:${IMAGE_TAG}
+    container_name: sellpoint-migrate
+    env_file:
+      - /opt/sellpoint/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+    networks:
+      - sellpoint
+
+  # One-shot: emisión/renovación de certificados (`docker compose run --rm certbot ...`).
+  certbot:
+    image: certbot/certbot
+    container_name: sellpoint-certbot
+    volumes:
+      - certbot_webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    profiles:
+      - tools
+
+networks:
+  sellpoint:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_webroot:
+  letsencrypt:
