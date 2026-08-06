@@ -103,13 +103,22 @@ jobs:
 
       - name: copiar compose y nginx al server
         run: |
+          # mkdir -p de conf.d/ y snippets/ COMO deploy, ANTES de que
+          # `docker compose up -d` cree el bind-mount de directorio (R9 del
+          # proposal vps-multidominio): si Docker lo crea él solo, queda
+          # owner root y `deploy` (sin sudo) no puede escribirlo después.
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "mkdir -p /opt/sellpoint/nginx"
+            "mkdir -p /opt/sellpoint/nginx/conf.d /opt/sellpoint/nginx/snippets"
           scp -i ~/.ssh/deploy_key \
             infrastructure/docker-compose.prod.yml \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/docker-compose.prod.yml"
-          scp -i ~/.ssh/deploy_key \
-            infrastructure/nginx/http-only.conf infrastructure/nginx/with-tls.conf \
+          # conf.d/ y snippets/ son directorios versionados byte-idénticos al
+          # repo (D2) — bootstrap/ NUNCA se copia acá, es manual/por script.
+          scp -i ~/.ssh/deploy_key -r \
+            infrastructure/nginx/conf.d \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/nginx/"
+          scp -i ~/.ssh/deploy_key -r \
+            infrastructure/nginx/snippets \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/nginx/"
 
       # Migrate one-shot → pull+up -d → smoke a /api/health → rollback si falla
@@ -150,6 +159,26 @@ jobs:
           echo "Pull + up -d..."
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d
+
+          # Regla dura (D2 del proposal vps-multidominio): los cambios de
+          # config de nginx SIEMPRE se validan con `nginx -t` antes de
+          # aplicarlos con `nginx -s reload`. NUNCA --force-recreate para
+          # config: un vhost roto en un `-t` fallido dejar corriendo la
+          # config VIEJA (los 3 sitios siguen arriba); un force-recreate con
+          # el mismo error tira nginx entero.
+          # up -d de arriba NO reinicia nginx-edge si el bind-mount de
+          # conf.d/snippets ya existía (el contenido de los archivos ya
+          # cambió en disco por el scp, pero el proceso nginx sigue con la
+          # config vieja cargada en memoria) — por eso el -t/-s reload
+          # explícito de acá es indispensable en TODO deploy, no solo el
+          # primero.
+          echo "Validando config de nginx (nginx -t)..."
+          if ! docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -t; then
+            echo "nginx -t FALLÓ. Abortando deploy SIN recargar (la config vieja sigue sirviendo)."
+            exit 1
+          fi
+          echo "nginx -t OK. Recargando (nginx -s reload)..."
+          docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload
 
           echo "Smoke test /api/health (hasta 30 intentos x 5s)..."
           SMOKE_OK=0

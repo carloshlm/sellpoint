@@ -17,10 +17,15 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # default.conf NO se versiona: es una copia de http-only.conf o with-tls.conf
-      # (infrastructure/nginx/) que el deploy/TLS switch escribe en el server
-      # (D7 — dos etapas, ver esos archivos para el detalle de cada una).
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # conf.d/ y snippets/ SÍ se versionan (D2 del proposal vps-multidominio):
+      # un archivo por sitio + snippets compartidos. El deploy hace scp de
+      # ambos directorios completos y valida con `nginx -t` antes de
+      # `nginx -s reload` — NUNCA --force-recreate para cambios de config
+      # (un vhost roto no debe poder tumbar los otros sitios).
+      # bootstrap/ (etapa 1 de TLS por dominio nuevo) NO se monta ni se
+      # versiona acá — ver infrastructure/nginx/bootstrap/README.md.
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
       - certbot_webroot:/var/www/certbot:ro
       - letsencrypt:/etc/letsencrypt:ro
     depends_on:
