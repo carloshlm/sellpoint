@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env.DATABASE_URL,
+    // El CLI (migrate/seed) opera como ADMIN (superuser: bypasea RLS, crea
+    // roles). El runtime de la API usa DATABASE_URL con sellpoint_app (sin
+    // privilegios, sujeto a RLS) — ver PrismaService.
+    url: process.env.DATABASE_URL_ADMIN ?? process.env.DATABASE_URL,
   },
 });

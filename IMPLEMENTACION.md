@@ -673,31 +673,31 @@ Ejemplos:
   - **Depende de:** F1-DB-02
   - **Estimación:** 30 min
 
-- [ ] **F1-DB-05** — Modelo `EmailVerificationToken` y `PasswordResetToken`
+- [x] **F1-DB-05** — Modelo `EmailVerificationToken` y `PasswordResetToken`
   - **Salida:** tablas para tokens de un solo uso con TTL
   - **Verificar:** índices únicos
   - **Depende de:** F1-DB-02
   - **Estimación:** 30 min
 
-- [ ] **F1-DB-06** — Modelo `AuditLog`
+- [x] **F1-DB-06** — Modelo `AuditLog`
   - **Salida:** modelo con `id`, `tenant_id`, `user_id`, `action`, `resource_type`, `resource_id`, `before`, `after`, `ip`, `user_agent`, `created_at`
   - **Verificar:** índices por `tenant_id` + `created_at`
   - **Depende de:** F1-DB-01
   - **Estimación:** 30 min
 
-- [ ] **F1-DB-07** — Migration inicial con todos los modelos
+- [x] **F1-DB-07** — Migration inicial con todos los modelos
   - **Salida:** `pnpm prisma migrate dev --name init_auth` corre limpio
   - **Verificar:** todas las tablas existen en la DB
   - **Depende de:** F1-DB-01 a F1-DB-06
   - **Estimación:** 20 min
 
-- [ ] **F1-DB-08** — Activar RLS en tablas con `tenant_id`
+- [x] **F1-DB-08** — Activar RLS en tablas con `tenant_id`
   - **Salida:** migration SQL custom que ejecuta `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` en todas las tablas con `tenant_id`
   - **Verificar:** `\d+ users` en psql muestra "Row security: enabled"
   - **Depende de:** F1-DB-07
   - **Estimación:** 1 h
 
-- [ ] **F1-DB-09** — Crear policy `tenant_isolation` por tabla
+- [x] **F1-DB-09** — Crear policy `tenant_isolation` por tabla
   - **Salida:** policies que filtran por `current_setting('app.tenant_id')::uuid`
   - **Verificar:** sin set_config, `SELECT * FROM users` devuelve 0 filas
   - **Depende de:** F1-DB-08
