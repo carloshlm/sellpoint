@@ -633,6 +633,20 @@ Ejemplos:
 
 > **Objetivo:** un tenant puede registrarse, sus usuarios pueden loguearse con seguridad robusta, y RLS garantiza aislamiento de datos. UI básica de login + onboarding + gestión de usuarios.
 
+### Convención de módulos por dominio (codificada al abrir F1 — decisión `sellpoint/feature-modules-convention`)
+
+**Backend (`apps/api`)**: cada dominio de negocio vive en `src/modules/{dominio}/` (controller, service, repository del dominio). Lo transversal queda donde está: `common/`, `infrastructure/`, `config/`, `i18n/`.
+
+**Frontend (`apps/web`)**: 4 capas, cada una cambiable sin tocar las otras:
+1. `components/ui/` — primitivas shadcn (variants con cva). NO atomic design completo (rechazado).
+2. **Presentational** por feature: props → JSX puro, cero hooks de datos.
+3. **Containers** finitos: conectan Query/stores/router, cero markup interesante.
+4. `features/{dominio}/` — `components/`, `containers/`, `hooks/` (las Query viven acá), `api.ts`. El código grita negocio, no tecnología.
+
+**Reglas duras**: ningún string de UI hardcodeado (todo por `t('dominio.clave')`); estilos por design tokens (theme vars en `index.css`); hexagonal NO aplica al front (container/presentational + hooks ES la separación).
+
+**La primera feature de F1 es el molde de referencia** — ante la duda, copiá su estructura.
+
 ### Módulo F1-DB — Modelos Base
 
 - [ ] **F1-DB-01** — Modelo Prisma `Tenant`
