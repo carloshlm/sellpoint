@@ -462,11 +462,12 @@ Ejemplos:
 
 > 🔌 **MCP al abrir este módulo:** evaluar **GitHub MCP** si el repo gana remote + Actions (opcional: `gh` CLI ya cubre el 80%). Ver `topic_key: decision/mcps-del-proyecto...` en engram.
 
-- [ ] **F0-CI-01** — GitHub Actions: workflow `ci.yml`
+- [x] **F0-CI-01** — GitHub Actions: workflow `ci.yml`
   - **Salida:** workflow corre en push y PR: `pnpm install`, `pnpm lint`, `pnpm type-check`, `pnpm test`
   - **Verificar:** push a una rama dispara el workflow y pasa
   - **Depende de:** F0-API-11, F0-WEB-12
   - **Estimación:** 1 h
+  - **Nota (2026-08-06):** implementada dentro del change `f0-deploy` (D5 del proposal), no como módulo aparte. `checks.yml` reusable + `ci.yml` que lo invoca en push/PR; `deploy.yml` llama al mismo reusable como gate antes de build+push. Confirmado en verde en el run del pipeline de producción (ver F0-DEPLOY-12).
 
 - [ ] **F0-CI-02** — Configurar Dependabot
   - **Salida:** `.github/dependabot.yml` para npm y GitHub Actions
@@ -488,77 +489,89 @@ Ejemplos:
 >
 > **Proveedor (FINAL, 2026-08-04):** VPS **Vultr High Frequency 1 vCPU/2GB, región Ciudad de México** ($12/mes verificado, ~15ms) + registry **GHCR**. Hetzner descartado con evidencia de consola: post-suba de junio 2026 su plan US cuesta $20.49 (más caro y con peor latencia) y los baratos son solo-Europa (~150ms). Resize a HF 4GB (~$24) cuando lleguen los workers de F5. La instancia EC2 previa se dio de baja. Detalle: `topic_key: decision/deploy-vultr` en engram.
 
-- [ ] **F0-DEPLOY-01** — Acceso SSH al VPS + hardening básico
+- [x] **F0-DEPLOY-01** — Acceso SSH al VPS + hardening básico
   - **Salida:** acceso por key (no password), `ufw` con solo 22/80/443 abiertos, `fail2ban` activo, usuario non-root con sudo
   - **Verificar:** SSH funciona; conexión a puertos no abiertos es rechazada
   - **Depende de:** —
   - **Estimación:** 45 min
+  - **Nota (2026-08-06):** `deploy` (grupos docker) creado por `infrastructure/scripts/bootstrap.sh`; `sshd_config` con `PermitRootLogin no` + `PasswordAuthentication no` + `AuthenticationMethods publickey`; `ufw` solo 22/80/443; `fail2ban` jail sshd activo; swap 2GB. Password de root del SO conservada a propósito (rescate por consola Vultr, D4 del proposal).
 
-- [ ] **F0-DEPLOY-02** — Instalar Docker + Docker Compose en el VPS
+- [x] **F0-DEPLOY-02** — Instalar Docker + Docker Compose en el VPS
   - **Salida:** `docker run hello-world` corre en el server
   - **Verificar:** `docker --version` y `docker compose version` responden
   - **Depende de:** F0-DEPLOY-01
   - **Estimación:** 20 min
+  - **Nota (2026-08-06):** Docker 29 + Compose v5 instalados por el bootstrap; usados en vivo para levantar los 5 servicios del stack (ver F0-DEPLOY-04/05).
 
-- [ ] **F0-DEPLOY-03** — Apuntar dominio a la IP del VPS
+- [x] **F0-DEPLOY-03** — Apuntar dominio a la IP del VPS
   - **Salida:** A record `tu-dominio.com` → IP del VPS (IP fija incluida)
   - **Verificar:** `dig tu-dominio.com` resuelve a la IP correcta
   - **Depende de:** F0-DEPLOY-01
   - **Estimación:** 30 min
+  - **Nota (2026-08-04, verificada de nuevo 2026-08-06):** `laradoc.com`/`www.laradoc.com` delegados a Cloudflare. ⚠️ Al 2026-08-06 el proxy de Cloudflare está en modo naranja (`dig` → `172.64.80.1`, no la IP del VPS directamente) — el diseño original (D7 del proposal `f0-deploy`) asumía nube gris/DNS-only. Funciona igual porque el certificado de origin es válido (Cloudflare en modo Full/Full-strict) y el ACME challenge pasa por el proxy, pero es una desviación no intencional del diseño que Carlos debería confirmar.
 
-- [ ] **F0-DEPLOY-04** — `docker-compose.prod.yml` con Postgres + Redis en el VPS
+- [x] **F0-DEPLOY-04** — `docker-compose.prod.yml` con Postgres + Redis en el VPS
   - **Salida:** ambos servicios con volúmenes persistentes en disco del VPS, network privada
   - **Verificar:** `docker compose up -d postgres redis` arranca; `psql` conecta desde dentro del server
   - **Depende de:** F0-DEPLOY-02
   - **Estimación:** 45 min
+  - **Nota (2026-08-06):** `postgres:16-alpine` + `redis:7-alpine` arriba en `/opt/sellpoint`, sin `ports:` publicados (D4 — Docker saltea ufw), healthchecks verdes, volúmenes `postgres_data`/`redis_data` persistentes.
 
-- [ ] **F0-DEPLOY-05** — Nginx como reverse proxy (HTTP)
+- [x] **F0-DEPLOY-05** — Nginx como reverse proxy (HTTP)
   - **Salida:** Nginx en container; sirve `:80` → API en `/api/*` y web estático (o `:5173`) en `/`
   - **Verificar:** `curl http://tu-dominio.com/api/health` devuelve 200
   - **Depende de:** F0-DEPLOY-03, F0-DEPLOY-04
   - **Estimación:** 1 h
+  - **Nota (2026-08-06):** `nginx-edge` (etapa `http-only.conf`) con strip de `/api` (D8); `curl http://laradoc.com/api/health` → `{"status":"ok","db":"ok","redis":"ok"}` antes de emitir TLS.
 
-- [ ] **F0-DEPLOY-06** — SSL con Let's Encrypt + certbot + auto-renewal
+- [x] **F0-DEPLOY-06** — SSL con Let's Encrypt + certbot + auto-renewal
   - **Salida:** certificado válido, redirect `80 → 443`, cron de renovación cada 60 días
   - **Verificar:** `https://tu-dominio.com` con candado verde; `certbot renew --dry-run` exitoso
   - **Depende de:** F0-DEPLOY-05
   - **Estimación:** 45 min
+  - **Nota (2026-08-06):** `--dry-run` OK, emisión real OK (expira 2026-11-04), `nginx-edge` recreado con `with-tls.conf`; `curl -I https://laradoc.com` → 200 con cert de Let's Encrypt válido, `http://` redirige 301 a `https://`. Cron de renovación en crontab de `deploy`: diario 04:30 UTC (D7 del proposal — no cada 60 días como decía este ítem original, LE recomienda intentos más frecuentes; el cron corre `renew` que es no-op hasta ~30 días antes del vencimiento).
 
-- [ ] **F0-DEPLOY-07** — Variables de entorno productivas en el server
+- [x] **F0-DEPLOY-07** — Variables de entorno productivas en el server
   - **Salida:** `/opt/sellpoint/.env.prod` fuera del repo (permisos `600`), referenciado por compose
   - **Verificar:** API arranca con URLs HTTPS y CORS configurado para el dominio prod
   - **Depende de:** F0-DEPLOY-06
   - **Estimación:** 30 min
+  - **Nota (2026-08-06):** archivo real es `/opt/sellpoint/.env` (D9 del proposal — un solo nombre sin flags), generado EN el server vía SSH (password nunca pasó por el chat), `chmod 600`. `CORS_ORIGINS=https://laradoc.com,https://www.laradoc.com`, API healthy consumiéndolo.
 
-- [ ] **F0-DEPLOY-08** — Configurar GHCR + token con permisos mínimos
+- [x] **F0-DEPLOY-08** — Configurar GHCR + token con permisos mínimos
   - **Salida:** imágenes `sellpoint-api` y `sellpoint-web` en GHCR (`ghcr.io/{owner}`); el workflow usa `GITHUB_TOKEN` con `packages: write`; el VPS usa un PAT read-only para pull; política de retención de imágenes viejas
   - **Verificar:** `docker login ghcr.io` + push/pull de prueba funcionan
   - **Depende de:** —
   - **Estimación:** 30 min
+  - **Nota (2026-08-06):** 3 imágenes (`api`, `web`, `migrate`) publicadas en `ghcr.io/carloshlm/sellpoint-*` con tags `latest` + sha. `docker login` en el server con PAT read-only confirmado, pull de las 3 imágenes exitoso en el deploy real.
 
-- [ ] **F0-DEPLOY-09** — GitHub Actions: build + push a GHCR
+- [x] **F0-DEPLOY-09** — GitHub Actions: build + push a GHCR
   - **Salida:** workflow `deploy.yml` que en push a `main` buildea ambas imágenes y las pushea con tags `latest` + `${sha}`
   - **Verificar:** push a `main` produce imágenes nuevas en GHCR
   - **Depende de:** F0-DEPLOY-08, F0-CI-01
   - **Estimación:** 1.5 h
+  - **Nota (2026-08-06):** `deploy.yml` job `build-push` builea 3 imágenes (api runtime, migrate, web). Confirmado en verde en el run de producción (ver F0-DEPLOY-12).
 
-- [ ] **F0-DEPLOY-10** — GitHub Actions: SSH deploy al VPS
+- [x] **F0-DEPLOY-10** — GitHub Actions: SSH deploy al VPS
   - **Salida:** workflow hace SSH al server, `docker login` a GHCR, `docker compose pull && up -d`
   - **Verificar:** un cambio trivial en el repo se ve en `https://tu-dominio.com` en < 5 min
   - **Depende de:** F0-DEPLOY-09
   - **Estimación:** 1.5 h
+  - **Nota (2026-08-06):** job `deploy` de `deploy.yml` hace scp del compose+nginx, migrate one-shot, `pull && up -d`, smoke con rollback (D10). Confirmado en verde en el run de producción (ver F0-DEPLOY-12).
 
-- [ ] **F0-DEPLOY-11** — Smoke test post-deploy
+- [x] **F0-DEPLOY-11** — Smoke test post-deploy
   - **Salida:** último paso del workflow pega a `/api/health`; si responde != 200 o `db != ok`, el deploy falla
   - **Verificar:** romper a propósito (apagar la DB) y validar que el workflow rojea
   - **Depende de:** F0-DEPLOY-10
   - **Estimación:** 30 min
+  - **Nota (2026-08-06):** smoke loop (30×5s) contra `/api/health` con rollback automático por reescritura de `IMAGE_TAG` está escrito y corrió en verde en el run de producción. La prueba de "apagar la DB a propósito" NO se ejecutó en este batch por decisión explícita (prohibido bajar postgres/redis con datos potencialmente en curso, ver scope de batch 2) — el mecanismo se valida por code review: `/health` de la API ya refleja el estado real de Postgres/Redis (`db`/`redis` en la respuesta), que es la señal que consume el smoke test.
 
-- [ ] **F0-DEPLOY-12** — Validación end-to-end del walking skeleton
+- [x] **F0-DEPLOY-12** — Validación end-to-end del walking skeleton
   - **Salida:** commit con cambio trivial (ej. texto en home) → visible en producción automáticamente, sin intervención manual
   - **Verificar:** cronómetro: commit → deploy verde → cambio visible en < 5 min
   - **Depende de:** F0-DEPLOY-11
   - **Estimación:** 15 min
+  - **Nota (2026-08-06):** ver detalle del run cronometrado al final de este documento / en `sdd/f0-deploy/apply-progress`.
 
 - [ ] **F0-DEPLOY-13** — Backup mínimo de Postgres desde el día 1
   - **Salida:** cron nocturno de `pg_dump` comprimido subido a Cloudflare R2 (10GB gratis) o Backblaze B2, retención 14 días; adelantado de F6 porque con clientes reales un server único sin backup no es opción
