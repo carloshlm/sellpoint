@@ -661,7 +661,7 @@ Ejemplos:
   - **Depende de:** F1-DB-01
   - **Estimación:** 30 min
 
-- [ ] **F1-DB-03** — Modelos `Role`, `Permission`, `UserRole`, `RolePermission`
+- [x] **F1-DB-03** — Modelos `Role`, `Permission`, `UserRole`, `RolePermission`
   - **Salida:** modelos M:N completos
   - **Verificar:** queries M:N funcionan en Prisma Studio
   - **Depende de:** F1-DB-02
