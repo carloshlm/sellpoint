@@ -703,7 +703,7 @@ Ejemplos:
   - **Depende de:** F1-DB-08
   - **Estimación:** 45 min
 
-- [ ] **F1-DB-10** — Seed con tenant demo + admin demo + roles base
+- [x] **F1-DB-10** — Seed con tenant demo + admin demo + roles base
   - **Salida:** `prisma/seed.ts` crea: tenant "Demo" (con `currency='MXN'`), user admin (con `locale='es'`) con password conocido, roles `TenantAdmin/Manager/POS_Seller/Viewer` con permisos
   - **Verificar:** `pnpm prisma db seed` corre, se puede loguear como admin demo
   - **Depende de:** F1-DB-09
