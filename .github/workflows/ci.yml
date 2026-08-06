@@ -1,0 +1,12 @@
+# CI de Pull Requests. Esto ES F0-CI-01 (implementada acá, ver proposal
+# f0-deploy D5): reusa checks.yml como única fuente de verdad, sin duplicar
+# comandos de lint/test/build.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml

@@ -1,0 +1,42 @@
+# Workflow reusable: install → lint → test → build.
+# Única fuente de verdad de "el código está sano" — la llaman ci.yml (PRs)
+# y deploy.yml (push a main), así nunca hay dos definiciones de lo mismo
+# que se puedan desincronizar (D5 del proposal f0-deploy).
+name: checks
+
+on:
+  workflow_call:
+
+jobs:
+  checks:
+    name: lint, test y build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: instalar dependencias
+        run: pnpm install --frozen-lockfile --ignore-scripts=false
+
+      # El cliente de Prisma se genera en apps/api/src/generated/prisma
+      # (gitignored) — sin esto, el build y los tests de la api fallan.
+      - name: generar prisma client
+        run: pnpm --filter api exec prisma generate
+
+      - name: lint (biome)
+        run: pnpm lint
+
+      - name: tests
+        run: pnpm test
+
+      - name: build
+        run: pnpm build
