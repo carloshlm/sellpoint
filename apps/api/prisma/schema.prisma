@@ -57,12 +57,36 @@ model User {
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  roles  UserRole[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@map("users")
+}
+
+// Refresh rotation con familias: cada login abre una familia; cada refresh
+// rota el token DENTRO de la familia. Reuso de un token ya usado = robo
+// detectado → se revoca la familia completa (F1-AUTH).
+// Sin updated_at a propósito: las filas se escriben máximo dos veces
+// (crear + marcar usada/revocada) — created_at alcanza para auditar.
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  // Hash del token (nunca el token en claro — si la DB se filtra, no hay sesiones)
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // Catálogo GLOBAL de permisos (definido por el sistema, sin tenant_id).

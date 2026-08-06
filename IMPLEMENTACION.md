@@ -667,7 +667,7 @@ Ejemplos:
   - **Depende de:** F1-DB-02
   - **Estimación:** 45 min
 
-- [ ] **F1-DB-04** — Modelo `RefreshToken`
+- [x] **F1-DB-04** — Modelo `RefreshToken`
   - **Salida:** modelo con `id`, `user_id`, `token_hash`, `family_id`, `expires_at`, `revoked_at`, `used_at`
   - **Verificar:** índices en `family_id` y `token_hash`
   - **Depende de:** F1-DB-02
