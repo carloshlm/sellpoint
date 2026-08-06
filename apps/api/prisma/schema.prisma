@@ -121,6 +121,21 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+// Tabla MAESTRA de monedas (global, sin tenant_id, sin RLS). Datos de
+// referencia: los INSERT viven en la migración (no en el seed demo) para que
+// lleguen a TODOS los entornos por el pipeline. La app solo lee (REVOKE de
+// escritura para sellpoint_app en la migración).
+model Currency {
+  code     String  @id @db.Char(3)
+  symbol   String
+  decimals Int     @default(2)
+  nameEs   String  @map("name_es")
+  nameEn   String  @map("name_en")
+  isActive Boolean @default(true) @map("is_active")
+
+  @@map("currencies")
+}
+
 // Audit log de acciones críticas (append-only: sin updated_at, sin FK a users
 // para que el log sobreviva a borrados — user_id queda como referencia suave).
 model AuditLog {

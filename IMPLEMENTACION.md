@@ -715,7 +715,7 @@ Ejemplos:
 
 > Habilita el modelo de i18n + multi-currency operacional. El setup base de librerías ya fue hecho en F0-I18N. Acá se agregan traducciones reales, middleware de resolución, validaciones y UI de cambio.
 
-- [ ] **F1-LOCALE-01** — Tabla `currencies` (maestra) + migration
+- [x] **F1-LOCALE-01** — Tabla `currencies` (maestra) + migration
   - **Salida:** tabla con `code` (PK), `symbol`, `decimals`, `name_es`, `name_en`, `is_active`. Seed inicial con MXN y USD.
   - **Verificar:** `SELECT * FROM currencies` devuelve 2 filas activas.
   - **Depende de:** F1-DB-10
