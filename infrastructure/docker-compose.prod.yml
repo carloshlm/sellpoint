@@ -13,6 +13,13 @@ services:
     image: nginx:alpine
     container_name: sellpoint-nginx-edge
     restart: unless-stopped
+    # Gobierno de recursos (D5 del proposal vps-multidominio): topes de
+    # cgroup, NO reservas — sobre-suscribir la suma por encima de la RAM
+    # física es correcto, lo que se compra es que ningún container solo
+    # pueda tumbar el host. Keys top-level (mem_limit/cpu_shares), NUNCA
+    # `deploy.resources` — ese bloque se ignora en Compose v2 fuera de Swarm.
+    mem_limit: 48M
+    cpu_shares: 512
     ports:
       - "80:80"
       - "443:443"
@@ -40,6 +47,8 @@ services:
     image: ghcr.io/carloshlm/sellpoint-web:${IMAGE_TAG}
     container_name: sellpoint-web
     restart: unless-stopped
+    mem_limit: 24M
+    cpu_shares: 256
     networks:
       - sellpoint
 
@@ -47,6 +56,13 @@ services:
     image: ghcr.io/carloshlm/sellpoint-api:${IMAGE_TAG}
     container_name: sellpoint-api
     restart: unless-stopped
+    # 512M: 256 de heap (NODE_OPTIONS en .env) + young gen + buffers nativos +
+    # argon2id (memoryCost=19456, contrato con f1-auth vía R2 del proposal).
+    # memswap_limit = mem_limit deshabilita swap: un Node en swap thrashing
+    # es un timeout de 30s sin evidencia; preferimos OOM-kill diagnosticable.
+    mem_limit: 512M
+    memswap_limit: 512M
+    cpu_shares: 1024
     env_file:
       - /opt/sellpoint/.env
     depends_on:
@@ -67,6 +83,28 @@ services:
     image: postgres:16-alpine
     container_name: sellpoint-postgres
     restart: unless-stopped
+    # Tuning en `command:` (visible en git, sin postgresql.conf que mantener
+    # sincronizado). synchronous_commit NO se toca — queda en `on` (D5).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_connections=50
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - max_wal_size=1GB
+      - -c
+      - min_wal_size=128MB
+    mem_limit: 320M
+    cpu_shares: 1024
     env_file:
       - /opt/sellpoint/.env
     volumes:
@@ -83,7 +121,15 @@ services:
     image: redis:7-alpine
     container_name: sellpoint-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    # maxmemory + volatile-ttl: solo evicta claves CON TTL. Los contadores de
+    # throttle tienen TTL y son los primeros en caer; perm-epoch:* (f1-auth,
+    # D8) se escribe SIN TTL y queda inevictable por construcción — jamás
+    # allkeys-lru, eso lo haría evictable. --appendonly yes se mantiene:
+    # perder el epoch en un restart re-validaría tokens ya revocados.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-ttl"]
+    mem_limit: 96M
+    memswap_limit: 96M
+    cpu_shares: 512
     volumes:
       - redis_data:/data
     healthcheck:
