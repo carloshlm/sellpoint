@@ -132,99 +132,21 @@ jobs:
             infrastructure/php-fpm/pool.d \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/php-fpm/"
 
-      # Migrate one-shot → pull+up -d → smoke a /api/health → rollback si falla
-      # (D10: tags inmutables + rollback por reescritura de IMAGE_TAG en .env,
-      # nunca se retaggea el registry). El script vive en el runner y se
-      # ejecuta remoto por stdin — así el SHA nuevo viaja como argumento, no
-      # hardcodeado en un heredoc que GitHub pudiera interpolar mal.
+      # Migrate one-shot → pull+up -d → nginx -t/reload con evidencia →
+      # smoke a /api/health → rollback si falla (D10). El script remoto es
+      # un ARCHIVO versionado (scripts/deploy-remote.sh) que se copia y se
+      # ejecuta por ruta — NUNCA por stdin/heredoc: `docker compose exec -T`
+      # deja stdin conectado y un heredoc se lo traga, terminando el script
+      # en silencio con exit 0 (C1/C2 del verify vps-multidominio: el
+      # reload y el smoke nunca corrieron en 4/4 runs verdes). El `ssh -n`
+      # ancla stdin remoto a /dev/null por la misma razón.
+      - name: copiar script de deploy al server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            infrastructure/scripts/deploy-remote.sh \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/scripts/deploy-remote.sh"
+
       - name: migrar, actualizar y smoke test (con rollback)
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            bash -s -- "${{ github.sha }}" <<'REMOTE_SCRIPT'
-          set -euo pipefail
-          NEW_TAG="$1"
-          cd /opt/sellpoint
-
-          PREV_TAG="$(grep '^IMAGE_TAG=' .env | cut -d= -f2)"
-          echo "Tag previo: ${PREV_TAG} -> Tag nuevo: ${NEW_TAG}"
-
-          write_image_tag() {
-            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$1/" .env
-          }
-
-          write_image_tag "${NEW_TAG}"
-
-          echo "Corriendo migraciones (one-shot, antes de tocar la app viva)..."
-          # </dev/null es OBLIGATORIO: sin esto, "docker compose run" hereda el
-          # stdin de este script (el resto del heredoc SSH) y se lo traga como
-          # si fuera input del contenedor. bash llega a EOF prematuro y el
-          # script termina en silencio con exit 0 DESPUES de migrate, sin
-          # correr pull/up -d/smoke/prune y sin que el job falle (bug real
-          # encontrado en el primer run de produccion, 2026-08-06).
-          if ! docker compose -f docker-compose.prod.yml run --rm migrate < /dev/null; then
-            echo "Migración FALLÓ. Revirtiendo IMAGE_TAG a ${PREV_TAG} sin desplegar."
-            write_image_tag "${PREV_TAG}"
-            exit 1
-          fi
-
-          echo "Pull + up -d..."
-          docker compose -f docker-compose.prod.yml pull
-          docker compose -f docker-compose.prod.yml up -d
-
-          # Regla dura (D2 del proposal vps-multidominio): los cambios de
-          # config de nginx SIEMPRE se validan con `nginx -t` antes de
-          # aplicarlos con `nginx -s reload`. NUNCA --force-recreate para
-          # config: un vhost roto en un `-t` fallido dejar corriendo la
-          # config VIEJA (los 3 sitios siguen arriba); un force-recreate con
-          # el mismo error tira nginx entero.
-          # up -d de arriba NO reinicia nginx-edge si el bind-mount de
-          # conf.d/snippets ya existía (el contenido de los archivos ya
-          # cambió en disco por el scp, pero el proceso nginx sigue con la
-          # config vieja cargada en memoria) — por eso el -t/-s reload
-          # explícito de acá es indispensable en TODO deploy, no solo el
-          # primero.
-          echo "Validando config de nginx (nginx -t)..."
-          if ! docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -t; then
-            echo "nginx -t FALLÓ. Abortando deploy SIN recargar (la config vieja sigue sirviendo)."
-            exit 1
-          fi
-          echo "nginx -t OK. Recargando (nginx -s reload)..."
-          docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload
-
-          # --resolve contra el origen, no https://laradoc.com (S5 del verify
-          # de f0-deploy, cerrado por D1/U3 del proposal vps-multidominio):
-          # pegarle a través de Cloudflare hace que una caída de CF dispare
-          # un rollback espurio de un deploy sano. Con --resolve se ejercita
-          # el vhost real de system.laradoc.com, el TLS real y el strip de
-          # /api real, sin depender del DNS público ni de la salida a
-          # internet — la app YA vive en system.laradoc.com (D1).
-          echo "Smoke test /api/health en system.laradoc.com, contra el origen (hasta 30 intentos x 5s)..."
-          SMOKE_OK=0
-          for i in $(seq 1 30); do
-            if curl -fsS --resolve system.laradoc.com:443:127.0.0.1 https://system.laradoc.com/api/health > /dev/null; then
-              SMOKE_OK=1
-              break
-            fi
-            sleep 5
-          done
-
-          if [ "${SMOKE_OK}" -eq 1 ]; then
-            echo "Smoke OK. Limpiando imagenes viejas."
-            docker image prune -f
-          else
-            echo "Smoke FALLÓ. Rollback a ${PREV_TAG}."
-            write_image_tag "${PREV_TAG}"
-            docker compose -f docker-compose.prod.yml up -d
-            # Re-verificación del rollback: no cambia el resultado del job
-            # (que igual queda ROJO, D10), es solo para dejar registro en el
-            # log de si el rollback devolvió el server a un estado sano.
-            for i in $(seq 1 10); do
-              if curl -fsS --resolve system.laradoc.com:443:127.0.0.1 https://system.laradoc.com/api/health > /dev/null; then
-                echo "Rollback verificado: /api/health responde con el tag previo."
-                break
-              fi
-              sleep 5
-            done
-            exit 1
-          fi
-          REMOTE_SCRIPT
+          ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            bash /opt/sellpoint/scripts/deploy-remote.sh "${{ github.sha }}"

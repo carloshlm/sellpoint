@@ -1,6 +1,6 @@
-# snippet: headers de seguridad para los sitios PHP informativos (D4/S1 del
-# proposal vps-multidominio). Se usa recién en U4 (ápices PHP) — se crea acá
-# porque U1 versiona la carpeta snippets/ completa de una vez.
+# snippet: headers de seguridad para TODOS los vhosts :443 (D4/S1 del
+# proposal vps-multidominio; extendido a system.laradoc.com por W2 del
+# verify — system va en gris y no tiene a Cloudflare como capa extra).
 #
 # HSTS SIN includeSubDomains ni preload a propósito: el ápice no debe dictar
 # política de transporte sobre subdominios futuros (D4).
