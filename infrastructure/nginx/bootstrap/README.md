@@ -22,7 +22,13 @@ que corresponda. Sin bloque `:443` (el certificado no existe todavía; si
    siguiente `nginx -t` del deploy automático falla por `ssl_certificate`
    inexistente y aborta el deploy).
 
-## Dominios pendientes (bloqueados, no forman parte de U1)
+## Dominios ya emitidos
 
-- `system.laradoc.com` — bloqueado por M1 (DNS todavía en naranja/proxied)
+- `system.laradoc.com` — TLS emitido 2026-08-07 (U3), expira 2026-11-05.
+  El vhost http-only de esta carpeta sigue versionado como referencia del
+  patrón para el próximo dominio; el vhost TLS definitivo vive en
+  `../conf.d/system.laradoc.com.conf`.
+
+## Dominios pendientes (bloqueados, no forman parte de U1/U3)
+
 - `berrinchitosdent.com` — bloqueado por M2/M3 (DNS + contenido pendientes)

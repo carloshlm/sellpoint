@@ -181,10 +181,17 @@ jobs:
           echo "nginx -t OK. Recargando (nginx -s reload)..."
           docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload
 
-          echo "Smoke test /api/health (hasta 30 intentos x 5s)..."
+          # --resolve contra el origen, no https://laradoc.com (S5 del verify
+          # de f0-deploy, cerrado por D1/U3 del proposal vps-multidominio):
+          # pegarle a través de Cloudflare hace que una caída de CF dispare
+          # un rollback espurio de un deploy sano. Con --resolve se ejercita
+          # el vhost real de system.laradoc.com, el TLS real y el strip de
+          # /api real, sin depender del DNS público ni de la salida a
+          # internet — la app YA vive en system.laradoc.com (D1).
+          echo "Smoke test /api/health en system.laradoc.com, contra el origen (hasta 30 intentos x 5s)..."
           SMOKE_OK=0
           for i in $(seq 1 30); do
-            if curl -fsS https://laradoc.com/api/health > /dev/null; then
+            if curl -fsS --resolve system.laradoc.com:443:127.0.0.1 https://system.laradoc.com/api/health > /dev/null; then
               SMOKE_OK=1
               break
             fi
@@ -202,7 +209,7 @@ jobs:
             # (que igual queda ROJO, D10), es solo para dejar registro en el
             # log de si el rollback devolvió el server a un estado sano.
             for i in $(seq 1 10); do
-              if curl -fsS https://laradoc.com/api/health > /dev/null; then
+              if curl -fsS --resolve system.laradoc.com:443:127.0.0.1 https://system.laradoc.com/api/health > /dev/null; then
                 echo "Rollback verificado: /api/health responde con el tag previo."
                 break
               fi
