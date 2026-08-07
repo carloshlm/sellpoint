@@ -53,8 +53,13 @@ docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload < /
 # prueba que la señal se emitió. La prueba de que el master la procesó es
 # el "reconfiguring" en su log. OJO: `nginx -T` NO sirve acá — relee el
 # DISCO, no la memoria del worker (daría siempre falso OK).
+# Se captura a variable y se grepea DESPUÉS: `... | grep -q` bajo pipefail
+# es una carrera — grep -q sale al primer match, docker logs muere con
+# SIGPIPE (141) y el gate falla justo cuando SÍ hay evidencia (falso
+# negativo real del run 31142186631, 2026-08-07).
 sleep 2
-if ! docker logs --since "${T0}" sellpoint-nginx-edge 2>&1 | grep -q "reconfiguring"; then
+RELOAD_LOG="$(docker logs --since "${T0}" sellpoint-nginx-edge 2>&1 || true)"
+if [[ "${RELOAD_LOG}" != *"reconfiguring"* ]]; then
   echo "Reload SIN EVIDENCIA en el log de nginx (no apareció 'reconfiguring'). Abortando."
   exit 1
 fi
