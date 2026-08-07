@@ -64,11 +64,22 @@ jobs:
       - name: generar prisma client
         run: pnpm --filter api exec prisma generate
 
-      # Crea el rol sellpoint_app (sin password — pg_hba en el service
-      # container de CI es trust) y aplica todas las migraciones, incluida
-      # _auth_login_gateway (RLS, SECURITY DEFINER, email único global).
+      # Crea el rol sellpoint_app (LOGIN, SIN password — la migración
+      # app_db_user nunca setea secretos) y aplica todas las migraciones,
+      # incluida _auth_login_gateway (RLS, SECURITY DEFINER, email único
+      # global).
       - name: aplicar migraciones (rol runtime + RLS + f1-auth)
         run: pnpm --filter api exec prisma migrate deploy
+
+      # A diferencia del Postgres local de dev (pg_hba permisivo), el
+      # service container oficial de este runner exige auth real incluso
+      # para localhost — sellpoint_app necesita password. En dev/prod esto
+      # lo setea Carlos fuera del repo (U1-02); acá, como en cualquier
+      # entorno de test descartable, no es un secreto real.
+      - name: setear password de sellpoint_app (solo CI — dev/prod fuera del repo)
+        run: |
+          PGPASSWORD=sellpoint psql -h localhost -U sellpoint -d sellpoint_dev \
+            -c "ALTER ROLE sellpoint_app PASSWORD 'sellpoint_app';"
 
       - name: lint (biome)
         run: pnpm lint
