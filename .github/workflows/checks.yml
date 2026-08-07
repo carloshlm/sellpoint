@@ -11,6 +11,38 @@ jobs:
   checks:
     name: lint, test y build
     runs-on: ubuntu-latest
+    # f1-auth U1-13/R10: los tests de integración/RLS y el e2e nuevo
+    # necesitan Postgres y Redis reales — antes checks.yml no los levantaba,
+    # así que el TDD estricto de este módulo nunca corría en CI.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sellpoint
+          POSTGRES_PASSWORD: sellpoint
+          POSTGRES_DB: sellpoint_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sellpoint -d sellpoint_dev"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # CLI de migraciones (superuser). El runtime de los tests conecta como
+      # sellpoint_app SIN privilegios (default de test/setup-env.js) —
+      # exactamente como en prod (R1 del design de f1-auth).
+      DATABASE_URL_ADMIN: postgresql://sellpoint:sellpoint@localhost:5432/sellpoint_dev
+      REDIS_URL: redis://localhost:6379
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -32,11 +64,20 @@ jobs:
       - name: generar prisma client
         run: pnpm --filter api exec prisma generate
 
+      # Crea el rol sellpoint_app (sin password — pg_hba en el service
+      # container de CI es trust) y aplica todas las migraciones, incluida
+      # _auth_login_gateway (RLS, SECURITY DEFINER, email único global).
+      - name: aplicar migraciones (rol runtime + RLS + f1-auth)
+        run: pnpm --filter api exec prisma migrate deploy
+
       - name: lint (biome)
         run: pnpm lint
 
-      - name: tests
+      - name: tests (unit + integración, sellpoint_app + RLS real)
         run: pnpm test
+
+      - name: tests e2e (Postgres + Redis reales, harness f1-auth)
+        run: pnpm --filter api test:e2e
 
       - name: build
         run: pnpm build

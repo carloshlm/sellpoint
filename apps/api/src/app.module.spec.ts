@@ -17,7 +17,11 @@ describe("Smoke: AppModule", () => {
       .overrideProvider(PrismaService)
       .useValue({ $queryRaw: jest.fn().mockResolvedValue([{ "?column?": 1 }]) })
       .overrideProvider(REDIS_CLIENT)
-      .useValue({ ping: jest.fn().mockResolvedValue("PONG") })
+      .useValue({
+        ping: jest.fn().mockResolvedValue("PONG"),
+        quit: jest.fn().mockResolvedValue("OK"),
+        mget: jest.fn().mockResolvedValue([null, null]),
+      })
       .compile();
   });
 

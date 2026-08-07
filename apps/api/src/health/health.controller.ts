@@ -2,6 +2,7 @@ import { Controller, Get, Inject, ServiceUnavailableException } from "@nestjs/co
 import { Redis } from "ioredis";
 import { PrismaService } from "../infrastructure/prisma/prisma.service";
 import { REDIS_CLIENT } from "../infrastructure/redis/redis.module";
+import { Public } from "../modules/auth/decorators/public.decorator";
 
 type CheckResult = "ok" | "error";
 
@@ -18,6 +19,7 @@ export class HealthController {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
+  @Public()
   @Get()
   async getHealth(): Promise<HealthReport> {
     const [db, redis] = await Promise.all([

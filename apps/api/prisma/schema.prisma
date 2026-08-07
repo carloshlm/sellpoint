@@ -26,8 +26,11 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  users User[]
-  roles Role[]
+  users                   User[]
+  roles                   Role[]
+  refreshTokens           RefreshToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
 
   @@map("tenants")
 }
@@ -41,8 +44,14 @@ enum UserStatus {
 }
 
 model User {
-  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId         String     @map("tenant_id") @db.Uuid
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  // f1-auth D1 (decision-email-global, #228): único GLOBAL, no por tenant —
+  // login no pide selector de tenant. El unique real es un índice FUNCIONAL
+  // sobre lower(email) (Prisma no soporta índices funcionales en el schema,
+  // igual que el CHECK de abajo: vive a mano en la migración
+  // _auth_login_gateway). NO declarar @unique acá — generaría un índice
+  // btree plano redundante/inconsistente con el funcional.
   email            String
   // Nullable: los usuarios nacen invitados, el password llega al aceptar
   passwordHash     String?    @map("password_hash")
@@ -63,7 +72,6 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
 
-  @@unique([tenantId, email])
   @@index([tenantId])
   @@map("users")
 }
@@ -73,8 +81,14 @@ model User {
 // detectado → se revoca la familia completa (F1-AUTH).
 // Sin updated_at a propósito: las filas se escriben máximo dos veces
 // (crear + marcar usada/revocada) — created_at alcanza para auditar.
+// tenantId (f1-auth AD-3/U1-05): las rutas pre-auth (refresh/verify/reset)
+// resuelven el tenant desde la fila del token, sin pasar por la función
+// SECURITY DEFINER. Esta tabla SIGUE SIN RLS a propósito (design AD-3): es
+// el punto de entrada pre-contexto — toda query es por token_hash (unique),
+// jamás un listado.
 model RefreshToken {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   // Hash del token (nunca el token en claro — si la DB se filtra, no hay sesiones)
   tokenHash String    @unique @map("token_hash")
@@ -84,40 +98,50 @@ model RefreshToken {
   usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
   @@index([userId])
+  @@index([tenantId])
   @@map("refresh_tokens")
 }
 
 // Tokens de un solo uso con TTL (verificación de email). Solo hash en DB.
+// tenantId + SIN RLS: mismo razonamiento que RefreshToken (AD-3).
 model EmailVerificationToken {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   tokenHash String    @unique @map("token_hash")
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
   usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([tenantId])
   @@map("email_verification_tokens")
 }
 
 // Tokens de un solo uso con TTL (reset de password). Solo hash en DB.
+// tenantId + SIN RLS: mismo razonamiento que RefreshToken (AD-3).
 model PasswordResetToken {
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   tokenHash String    @unique @map("token_hash")
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
   usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([tenantId])
   @@map("password_reset_tokens")
 }
 

@@ -1,6 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { I18n, type I18nContext } from "nestjs-i18n";
+import { Public } from "../modules/auth/decorators/public.decorator";
 
 /**
  * Canary de wiring de i18n (F0-I18N-03), análogo a HealthController para
@@ -11,6 +12,7 @@ import { I18n, type I18nContext } from "nestjs-i18n";
 @ApiTags("i18n")
 @Controller()
 export class I18nDemoController {
+  @Public()
   @Get("hello")
   getHello(@I18n() i18n: I18nContext): string {
     return i18n.t("common.hello");

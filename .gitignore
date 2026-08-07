@@ -21,6 +21,10 @@ logs/
 # Testing
 coverage/
 
+# f1-auth: claves RS256 locales (dev), NUNCA committeadas (R2 del design)
+apps/api/keys/
+*.pem
+
 # OS
 .DS_Store
 Thumbs.db

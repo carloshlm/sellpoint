@@ -5,6 +5,7 @@ const validEnv = {
   PORT: "3000",
   DATABASE_URL: "postgresql://sellpoint:sellpoint@localhost:5432/sellpoint_dev",
   REDIS_URL: "redis://localhost:6379",
+  REFRESH_COOKIE_PATH: "/auth",
 };
 
 describe("validateEnv", () => {
@@ -75,5 +76,90 @@ describe("validateEnv", () => {
     const result = validateEnv({ ...validEnv, HOME: "/Users/algo", SHELL: "/bin/zsh" });
 
     expect(result).not.toHaveProperty("HOME");
+  });
+
+  describe("f1-auth: JWT/MAIL/COOKIE/THROTTLE", () => {
+    it("aplica defaults de JWT/MAIL/COOKIE/THROTTLE cuando faltan", () => {
+      const result = validateEnv(validEnv);
+
+      expect(result.JWT_ISSUER).toBe("sellpoint-api");
+      expect(result.JWT_AUDIENCE).toBe("sellpoint-app");
+      expect(result.JWT_ACCESS_TTL_MIN).toBe(15);
+      expect(result.MAIL_DRIVER).toBe("console");
+      expect(result.COOKIE_DOMAIN).toBe("");
+      expect(result.REFRESH_TOKEN_TTL_DAYS).toBe(7);
+      expect(result.REFRESH_FAMILY_MAX_DAYS).toBe(30);
+      expect(result.THROTTLE_ENABLED).toBe(true);
+      expect(result.TRUST_PROXY_HOPS).toBe(1);
+      expect(result.THROTTLE_GLOBAL_LIMIT).toBe(100);
+      expect(result.THROTTLE_GLOBAL_TTL_SEC).toBe(60);
+      expect(result.THROTTLE_AUTH_IP_LIMIT).toBe(5);
+      expect(result.THROTTLE_AUTH_IP_TTL_SEC).toBe(900);
+      expect(result.THROTTLE_AUTH_EMAIL_LIMIT).toBe(10);
+      expect(result.THROTTLE_AUTH_EMAIL_TTL_SEC).toBe(3600);
+    });
+
+    it("falla nombrando la variable cuando falta REFRESH_COOKIE_PATH (obligatoria, sin default)", () => {
+      const { REFRESH_COOKIE_PATH, ...rest } = validEnv;
+
+      expect(() => validateEnv(rest)).toThrow(/REFRESH_COOKIE_PATH/);
+    });
+
+    it("parsea THROTTLE_ENABLED=false a boolean", () => {
+      const result = validateEnv({ ...validEnv, THROTTLE_ENABLED: "false" });
+
+      expect(result.THROTTLE_ENABLED).toBe(false);
+    });
+
+    it("rechaza COOKIE_DOMAIN no vacío (cookie host-only, D6 vps-multidominio)", () => {
+      expect(() => validateEnv({ ...validEnv, COOKIE_DOMAIN: ".laradoc.com" })).toThrow(
+        /COOKIE_DOMAIN/,
+      );
+    });
+
+    it("acepta COOKIE_DOMAIN vacío explícito", () => {
+      const result = validateEnv({ ...validEnv, COOKIE_DOMAIN: "" });
+
+      expect(result.COOKIE_DOMAIN).toBe("");
+    });
+
+    it("rechaza MAIL_DRIVER=resend sin RESEND_API_KEY ni MAIL_FROM", () => {
+      expect(() => validateEnv({ ...validEnv, MAIL_DRIVER: "resend" })).toThrow(/MAIL_DRIVER/);
+    });
+
+    it("acepta MAIL_DRIVER=resend con RESEND_API_KEY y MAIL_FROM", () => {
+      const result = validateEnv({
+        ...validEnv,
+        MAIL_DRIVER: "resend",
+        RESEND_API_KEY: "re_xxx",
+        MAIL_FROM: "no-reply@system.laradoc.com",
+      });
+
+      expect(result.MAIL_DRIVER).toBe("resend");
+    });
+
+    it("rechaza MAIL_DRIVER=console cuando NODE_ENV=production", () => {
+      expect(() =>
+        validateEnv({ ...validEnv, NODE_ENV: "production", MAIL_DRIVER: "console" }),
+      ).toThrow(/MAIL_DRIVER/);
+    });
+
+    it("rechaza MAIL_DRIVER=noop cuando NODE_ENV=production", () => {
+      expect(() =>
+        validateEnv({ ...validEnv, NODE_ENV: "production", MAIL_DRIVER: "noop" }),
+      ).toThrow(/MAIL_DRIVER/);
+    });
+
+    it("acepta MAIL_DRIVER=resend en NODE_ENV=production con key y from", () => {
+      const result = validateEnv({
+        ...validEnv,
+        NODE_ENV: "production",
+        MAIL_DRIVER: "resend",
+        RESEND_API_KEY: "re_xxx",
+        MAIL_FROM: "no-reply@system.laradoc.com",
+      });
+
+      expect(result.MAIL_DRIVER).toBe("resend");
+    });
   });
 });
