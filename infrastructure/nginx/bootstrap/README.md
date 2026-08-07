@@ -28,7 +28,14 @@ que corresponda. Sin bloque `:443` (el certificado no existe todavía; si
   El vhost http-only de esta carpeta sigue versionado como referencia del
   patrón para el próximo dominio; el vhost TLS definitivo vive en
   `../conf.d/system.laradoc.com.conf`.
+- `berrinchitosdent.com` (+ `www`, mismo lineage) — TLS emitido 2026-08-07
+  (U4) vía `tls-bootstrap.sh berrinchitosdent.com www.berrinchitosdent.com`
+  (script extendido en U4 para aceptar dominios extra como SANs), expira
+  2026-11-05. `--dry-run` pasó limpio: "Always Use HTTPS" estaba apagado en
+  esa zona de Cloudflare. El vhost TLS definitivo vive en
+  `../conf.d/berrinchitosdent.com.conf`.
 
-## Dominios pendientes (bloqueados, no forman parte de U1/U3)
+## Dominios pendientes
 
-- `berrinchitosdent.com` — bloqueado por M2/M3 (DNS + contenido pendientes)
+Ninguno — los tres dominios del change vps-multidominio (`laradoc.com`,
+`system.laradoc.com`, `berrinchitosdent.com`) tienen TLS emitido.

@@ -1,22 +1,20 @@
-# snippet: bloque PHP-FPM hardened para los sitios informativos (D4 del
-# proposal vps-multidominio). Se usa recién en U4 — se crea acá porque U1
-# versiona la carpeta snippets/ completa de una vez. El servicio php-fpm
-# todavía no existe en el compose (lo crea U4); este archivo no se incluye
-# desde ningún vhost activo hasta entonces.
+# snippet: hardening genérico de los vhosts PHP de los ápices (D4 del
+# proposal vps-multidominio, unidad U4).
 #
-# El try_files ANTES de fastcgi_pass es lo que bloquea el exploit clásico de
-# path-info (ej. /img/foo.jpg/x.php ejecutando el jpg). Requiere
-# cgi.fix_pathinfo=0 en php.ini (U4) para ser efectivo.
+# ⚠️ Ajuste respecto al placeholder especulativo de U1: el `location ~
+# \.php$ { fastcgi_pass ... }` NO vive acá. Cada sitio tiene su PROPIA pool
+# de php-fpm (D4: aislamiento entre sitios vía `open_basedir`), y php-fpm no
+# puede enrutar por Host header dentro de un mismo listener — cada pool
+# necesita su propio puerto. Como el puerto difiere por sitio, ese location
+# queda en el vhost de cada dominio (ver conf.d/laradoc.com.conf y
+# conf.d/berrinchitosdent.com.conf), con el mismo hardening en los tres:
+# `try_files $uri =404;` ANTES de `fastcgi_pass` — es lo que bloquea el
+# exploit clásico de path-info (ej. /img/foo.jpg/x.php ejecutando el jpg).
+# Requiere `cgi.fix_pathinfo=0` en php.ini (infrastructure/php-fpm/conf.d/,
+# aplica a ambas pools) para ser efectivo.
 #
-# Uso: include /etc/nginx/snippets/php-site.inc;  dentro del server{} del sitio
-
-location ~ \.php$ {
-    try_files $uri =404;
-    fastcgi_pass php-fpm:9000;
-    fastcgi_index index.php;
-    include fastcgi_params;
-    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-}
+# Uso: include /etc/nginx/snippets/php-site.inc;  dentro del server{} :443
+# del sitio, junto al location ~ \.php$ { ... } propio del vhost.
 
 location ~ /\. {
     deny all;

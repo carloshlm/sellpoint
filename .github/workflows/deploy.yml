@@ -102,14 +102,16 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: copiar compose y nginx al server
+      - name: copiar compose, nginx y php-fpm al server
         run: |
-          # mkdir -p de conf.d/ y snippets/ COMO deploy, ANTES de que
-          # `docker compose up -d` cree el bind-mount de directorio (R9 del
-          # proposal vps-multidominio): si Docker lo crea él solo, queda
-          # owner root y `deploy` (sin sudo) no puede escribirlo después.
+          # mkdir -p de conf.d/, snippets/ y (desde U4) php-fpm/{conf.d,pool.d}
+          # COMO deploy, ANTES de que `docker compose up -d` cree el
+          # bind-mount de directorio (R9 del proposal vps-multidominio): si
+          # Docker lo crea él solo, queda owner root y `deploy` (sin sudo)
+          # no puede escribirlo después. Mismo gotcha aplica al servicio
+          # php-fpm nuevo (U4): sus dos mounts de config son directorios.
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "mkdir -p /opt/sellpoint/nginx/conf.d /opt/sellpoint/nginx/snippets"
+            "mkdir -p /opt/sellpoint/nginx/conf.d /opt/sellpoint/nginx/snippets /opt/sellpoint/php-fpm/conf.d /opt/sellpoint/php-fpm/pool.d"
           scp -i ~/.ssh/deploy_key \
             infrastructure/docker-compose.prod.yml \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/docker-compose.prod.yml"
@@ -121,6 +123,14 @@ jobs:
           scp -i ~/.ssh/deploy_key -r \
             infrastructure/nginx/snippets \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/nginx/"
+          # php.ini hardening + pools de php-fpm (D4, U4) — también
+          # versionados byte-idénticos al repo.
+          scp -i ~/.ssh/deploy_key -r \
+            infrastructure/php-fpm/conf.d \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/php-fpm/"
+          scp -i ~/.ssh/deploy_key -r \
+            infrastructure/php-fpm/pool.d \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/php-fpm/"
 
       # Migrate one-shot → pull+up -d → smoke a /api/health → rollback si falla
       # (D10: tags inmutables + rollback por reescritura de IMAGE_TAG en .env,

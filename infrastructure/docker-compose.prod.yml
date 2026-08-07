@@ -35,11 +35,18 @@ services:
       - ./nginx/snippets:/etc/nginx/snippets:ro
       - certbot_webroot:/var/www/certbot:ro
       - letsencrypt:/etc/letsencrypt:ro
+      # Sitios PHP de los ápices (D4, unidad U4): MISMA ruta que en
+      # php-fpm (/var/www/sites) — gotcha documentado ahí: nginx manda
+      # SCRIPT_FILENAME y php-fpm lo resuelve en SU PROPIO filesystem, rutas
+      # distintas = "File not found" eterno. :ro en ambos lados.
+      - /opt/sites:/var/www/sites:ro
     depends_on:
       web:
         condition: service_started
       api:
         condition: service_healthy
+      php-fpm:
+        condition: service_started
     networks:
       - sellpoint
 
@@ -137,6 +144,36 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - sellpoint
+
+  # Runtime PHP compartido de los sitios informativos de los ápices (D4 del
+  # proposal vps-multidominio, unidad U4). Imagen PINEADA por tag+digest
+  # (nunca `latest`): 8.3-fpm-alpine tiene soporte de seguridad hasta 2027.
+  # Sin healthcheck a propósito: la imagen no trae cgi-fcgi y un check que
+  # solo verifica que el binario existe es teatro — si php-fpm está caído,
+  # nginx devuelve 502 (visible e inequívoco).
+  php-fpm:
+    image: php:8.3-fpm-alpine@sha256:bf90236449d333cef008b1f01c72a3d4f11a6470a74629665e4c6b6158f03fc8
+    container_name: sellpoint-php-fpm
+    restart: unless-stopped
+    # 160M: 5 children x ~25 MB (pm=ondemand, cero children en idle — solo
+    # el master, ~6 MB). cpus (cap DURO, no cpu_shares/peso): php-fpm es el
+    # vecino menos confiable de este server (código sin tests, deploy
+    # externo a este pipeline) — un loop infinito en un sitio no debe poder
+    # robarle CPU a la api bajo contención (D5).
+    mem_limit: 160M
+    cpus: 0.5
+    volumes:
+      # Misma ruta que en nginx-edge — ver el comentario ahí (gotcha de
+      # SCRIPT_FILENAME). :ro es hardening: un webshell no puede escribirse
+      # a sí mismo en disco.
+      - /opt/sites:/var/www/sites:ro
+      - ./php-fpm/conf.d:/usr/local/etc/php/conf.d:ro
+      # Reemplaza TODO /usr/local/etc/php-fpm.d/ — el pool "www" default de
+      # la imagen NO existe, solo corren las dos pools de acá (D4: dos
+      # pools, cada una con su open_basedir propio).
+      - ./php-fpm/pool.d:/usr/local/etc/php-fpm.d:ro
     networks:
       - sellpoint
 

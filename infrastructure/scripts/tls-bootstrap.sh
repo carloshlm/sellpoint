@@ -11,6 +11,13 @@
 #
 # Uso:
 #   infrastructure/scripts/tls-bootstrap.sh system.laradoc.com
+#   infrastructure/scripts/tls-bootstrap.sh berrinchitosdent.com www.berrinchitosdent.com
+#
+# El primer argumento es el dominio "primario": nombra el archivo bootstrap
+# (<primario>.http.conf) y el conf.d de destino en el server. Argumentos
+# extra (U4: el www del ápice) se agregan como -d adicionales al MISMO
+# certificado — sigue siendo un lineage por dominio primario (D3), el www
+# es un SAN del mismo cert, no un lineage propio.
 #
 # Variables de entorno opcionales:
 #   DEPLOY_HOST (default 216.238.73.144)
@@ -23,7 +30,12 @@
 # aborta por un ssl_certificate inexistente).
 set -euo pipefail
 
-DOMAIN="${1:?Uso: tls-bootstrap.sh <dominio>}"
+DOMAIN="${1:?Uso: tls-bootstrap.sh <dominio> [dominio-extra...]}"
+shift || true
+CERTBOT_DOMAIN_ARGS=(-d "${DOMAIN}")
+for extra in "$@"; do
+  CERTBOT_DOMAIN_ARGS+=(-d "${extra}")
+done
 DEPLOY_HOST="${DEPLOY_HOST:-216.238.73.144}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 
@@ -48,13 +60,13 @@ log "3/5 — certbot --dry-run para ${DOMAIN} (OBLIGATORIO antes de la emisión 
 ssh "${REMOTE}" "cd /opt/sellpoint && ${COMPOSE} run --rm certbot certonly \
   --webroot -w /var/www/certbot \
   --key-type ecdsa --register-unsafely-without-email --agree-tos -n \
-  --dry-run -d ${DOMAIN}"
+  --dry-run ${CERTBOT_DOMAIN_ARGS[*]}"
 
 log "4/5 — Emisión REAL para ${DOMAIN}..."
 ssh "${REMOTE}" "cd /opt/sellpoint && ${COMPOSE} run --rm certbot certonly \
   --webroot -w /var/www/certbot \
   --key-type ecdsa --register-unsafely-without-email --agree-tos -n \
-  -d ${DOMAIN}"
+  ${CERTBOT_DOMAIN_ARGS[*]}"
 
 log "5/5 — Listo. El certificado de ${DOMAIN} ya existe en el server."
 cat <<EOF
