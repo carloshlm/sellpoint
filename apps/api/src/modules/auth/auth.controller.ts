@@ -13,8 +13,10 @@ import {
   type RefreshCookieEnv,
 } from "./cookie/refresh-cookie";
 import { Public } from "./decorators/public.decorator";
+import { type ForgotPasswordDto, forgotPasswordSchema } from "./dto/forgot-password.dto";
 import { type LoginDto, loginSchema } from "./dto/login.dto";
 import { type RegisterTenantDto, registerTenantSchema } from "./dto/register-tenant.dto";
+import { type ResetPasswordDto, resetPasswordSchema } from "./dto/reset-password.dto";
 import { type VerifyEmailDto, verifyEmailSchema } from "./dto/verify-email.dto";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -141,5 +143,35 @@ export class AuthController {
     });
 
     response.cookie(REFRESH_COOKIE_NAME, "", buildClearedRefreshCookieOptions(this.cookieEnv));
+  }
+
+  // AUTH-REQ-08 (a prueba de enumeración): SIEMPRE 202 con el MISMO body,
+  // exista o no el email — el trabajo real (token + mail) vive adentro de
+  // authService.forgotPassword y nunca se filtra acá.
+  @Public()
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.ACCEPTED)
+  async forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema, "auth.invalid_body")) dto: ForgotPasswordDto,
+    @Req() request: Request,
+  ): Promise<{ accepted: true }> {
+    await this.authService.forgotPassword(dto.email, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
+    return { accepted: true };
+  }
+
+  @Public()
+  @Post("reset-password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema, "auth.token_invalid")) dto: ResetPasswordDto,
+    @Req() request: Request,
+  ): Promise<void> {
+    await this.authService.resetPassword(dto.token, dto.password, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
   }
 }

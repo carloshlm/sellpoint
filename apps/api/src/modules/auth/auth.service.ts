@@ -10,11 +10,13 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Redis } from "ioredis";
 import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";
 import { CLOCK, type ClockPort } from "../../infrastructure/clock/clock.port";
 import { HASHER, type HashPort } from "../../infrastructure/crypto/hash.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import { REDIS_CLIENT } from "../../infrastructure/redis/redis.module";
 import { AuditService } from "../audit/audit.service";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { TenantsService } from "../tenants/tenants.service";
@@ -24,6 +26,9 @@ import { RefreshTokenService } from "./services/refresh-token.service";
 import { TokenService } from "./services/token.service";
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+// AUTH-REQ-08: TTL fijo de 30 min (spec) — no es configurable por env, igual
+// que EMAIL_VERIFICATION_TTL_MS arriba.
+const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 // AUTH-REQ-03: password nunca usado para autenticar de verdad — solo existe
 // para que argon2.verify() consuma el MISMO tiempo de CPU cuando el email
 // no existe (anti-timing). No es un secreto: si se filtra, no habilita nada.
@@ -72,6 +77,7 @@ export class AuthService implements OnModuleInit {
     private readonly tokenService: TokenService,
     private readonly refreshTokenService: RefreshTokenService,
     configService: ConfigService<Env, true>,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {
     this.appUrl = configService.get("APP_URL", { infer: true });
     this.accessTtlSeconds = configService.get("JWT_ACCESS_TTL_MIN", { infer: true }) * 60;
@@ -419,6 +425,132 @@ export class AuthService implements OnModuleInit {
         userAgent: meta.userAgent,
       });
     });
+  }
+
+  /**
+   * AUTH-REQ-08 (design §4): a prueba de enumeración — SIEMPRE resuelve sin
+   * error, exista o no el email; el controller responde el MISMO 202 en
+   * ambos casos. El trabajo real (invalidar tokens previos + crear uno
+   * nuevo + mail) solo ocurre si el email existe.
+   */
+  // `meta` (ip/userAgent) se recibe por simetría con el resto del módulo
+  // pero NO se usa: AUTH-REQ-15 no exige auditar forgot-password (solo el
+  // reset completado), y filtrar más info acá arriesgaría enumeración.
+  async forgotPassword(email: string, _meta: RequestMeta): Promise<void> {
+    const tenantId = await this.authRepository.resolveTenantByEmail(email);
+
+    if (!tenantId) {
+      return;
+    }
+
+    // AD-1: lectura CORTA dentro de withTenantContext (users tiene RLS);
+    // cierra antes de tocar password_reset_tokens (sin RLS, AD-3).
+    const user = await this.prisma.withTenantContext(tenantId, (tx) =>
+      this.authRepository.findUserByTenantAndEmail(tx, tenantId, email),
+    );
+
+    if (!user) {
+      return;
+    }
+
+    const now = this.clock.now();
+    // Design §4: invalidar tokens de reset previos SIN usar del usuario
+    // antes de emitir uno nuevo.
+    await this.authRepository.invalidatePendingPasswordResetTokens(user.id, now);
+
+    const { token, tokenHash } = this.oneTimeTokenService.generate();
+    const expiresAt = new Date(now.getTime() + PASSWORD_RESET_TTL_MS);
+
+    await this.authRepository.createPasswordResetToken({
+      tenantId,
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    const link = `${this.appUrl}/reset-password?token=${token}`;
+    const locale = user.locale as "es" | "en";
+
+    // Fire-and-forget (AD-9): un fallo del proveedor de mail JAMÁS rompe el
+    // request.
+    this.mailer
+      .send({
+        to: user.email,
+        template: "reset-password",
+        vars: { firstName: user.firstName, link },
+        locale,
+      })
+      .catch((error: unknown) => {
+        this.logger.error(
+          `Fallo al enviar mail de reset de password a ${user.email}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+  }
+
+  /**
+   * AUTH-REQ-09/10/13 (design §4): password nuevo + token consumido +
+   * TODAS las familias de refresh revocadas (no solo una, a diferencia de
+   * logout) + bump de `perm-epoch:{userId}` (mata los access tokens vivos,
+   * AD-8) + audit `auth.password.reset`.
+   */
+  async resetPassword(token: string, password: string, meta: RequestMeta): Promise<void> {
+    const tokenHash = this.oneTimeTokenService.hash(token);
+    const row = await this.authRepository.findPasswordResetTokenByHash(tokenHash);
+    const now = this.clock.now();
+
+    // Misma clave para inexistente/usado/expirado (mismo criterio que
+    // verify-email): no le decimos al atacante en cuál se equivocó.
+    if (!row || row.usedAt !== null || row.expiresAt < now) {
+      throw new BadRequestException({ message: "auth.token_invalid" });
+    }
+
+    // AD-1: argon2 (~80-150ms) SIEMPRE fuera de cualquier $transaction.
+    const passwordHash = await this.hasher.hash(password);
+
+    await this.prisma.withTenantContext(row.tenantId, async (tx) => {
+      const user = await this.authRepository.findUserById(tx, row.userId);
+      // Design §4: usar el link de reset prueba el control del email — si
+      // todavía no estaba verificado, el reset lo verifica de paso.
+      const emailVerifiedAt = user && user.emailVerifiedAt === null ? now : null;
+
+      await this.authRepository.updateUserPassword(tx, row.userId, passwordHash, emailVerifiedAt);
+      await this.authRepository.markPasswordResetTokenUsed(tx, row.id, now);
+      // AUTH-REQ-09: TODAS las familias del usuario, no solo una (logout
+      // solo revoca la familia de la sesión actual).
+      await this.authRepository.revokeAllRefreshTokensForUser(tx, row.userId, now);
+      await this.auditService.record(tx, {
+        tenantId: row.tenantId,
+        userId: row.userId,
+        action: "auth.password.reset",
+        resourceType: "user",
+        resourceId: row.userId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    });
+
+    await this.bumpPermEpoch(row.userId, now);
+  }
+
+  /**
+   * AD-8: `SET` SIN TTL (inevictable con volatile-ttl) — valor en unix
+   * SEGUNDOS, misma unidad que `iat`. Fail-open consciente si Redis está
+   * caído (mismo criterio que JwtAuthGuard): el peor caso es degradar a la
+   * revocación de refresh tokens ya garantizada por la tx de arriba; el
+   * access token viejo (15 min) sigue vivo hasta expirar por su cuenta.
+   */
+  private async bumpPermEpoch(userId: string, now: Date): Promise<void> {
+    try {
+      await this.redis.set(`perm-epoch:${userId}`, String(Math.floor(now.getTime() / 1000)));
+    } catch (error) {
+      this.logger.warn(
+        `Redis inalcanzable al bumpear perm-epoch:${userId}, fail-open: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }
 

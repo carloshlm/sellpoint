@@ -18,6 +18,8 @@ import type { OneTimeTokenService } from "./services/one-time-token.service";
 import type { RefreshTokenService } from "./services/refresh-token.service";
 import type { TokenService } from "./services/token.service";
 
+type FakeRedis = { set: jest.Mock };
+
 const NOW = new Date("2026-08-12T12:00:00Z");
 
 const ENV_DEFAULTS: Record<string, unknown> = {
@@ -38,6 +40,7 @@ function buildService(overrides?: {
   oldestFamilyCreatedAt?: Date | null;
   isFamilyOverCap?: boolean;
   rotateResult?: boolean;
+  passwordResetTokenRow?: Record<string, unknown> | null;
 }) {
   const tenantsService = {
     provision: overrides?.provisionError
@@ -81,6 +84,16 @@ function buildService(overrides?: {
         overrides?.oldestFamilyCreatedAt === undefined ? NOW : overrides.oldestFamilyCreatedAt,
       ),
     createRefreshToken: jest.fn().mockResolvedValue({ id: "rt-new" }),
+    findPasswordResetTokenByHash: jest
+      .fn()
+      .mockResolvedValue(
+        overrides?.passwordResetTokenRow === undefined ? null : overrides.passwordResetTokenRow,
+      ),
+    createPasswordResetToken: jest.fn().mockResolvedValue({ id: "prt-new" }),
+    invalidatePendingPasswordResetTokens: jest.fn().mockResolvedValue(undefined),
+    markPasswordResetTokenUsed: jest.fn().mockResolvedValue(undefined),
+    updateUserPassword: jest.fn().mockResolvedValue(undefined),
+    revokeAllRefreshTokensForUser: jest.fn().mockResolvedValue(undefined),
   } as unknown as AuthRepository;
 
   const mailer = { send: jest.fn().mockResolvedValue(undefined) } as unknown as MailerPort;
@@ -108,6 +121,8 @@ function buildService(overrides?: {
     get: (key: string) => ENV_DEFAULTS[key],
   } as unknown as ConfigService;
 
+  const redis: FakeRedis = { set: jest.fn().mockResolvedValue("OK") };
+
   const service = new AuthService(
     tenantsService,
     hasher,
@@ -120,6 +135,7 @@ function buildService(overrides?: {
     tokenService,
     refreshTokenService,
     configService,
+    redis as never,
   );
 
   return {
@@ -133,6 +149,7 @@ function buildService(overrides?: {
     prisma,
     tokenService,
     refreshTokenService,
+    redis,
     tx,
   };
 }
@@ -604,5 +621,153 @@ describe("AuthService.logout (AUTH-REQ-07)", () => {
       ip: "1.2.3.4",
       userAgent: "jest",
     });
+  });
+});
+
+describe("AuthService.forgotPassword (AUTH-REQ-08 — a prueba de enumeración)", () => {
+  it("email inexistente → resuelve en silencio, SIN tocar el repo de tokens ni el mailer (202 idéntico afuera)", async () => {
+    const { service, authRepository, mailer } = buildService({
+      resolveTenantByEmailResult: null,
+    });
+
+    await expect(service.forgotPassword("nadie@acme.test", {})).resolves.toBeUndefined();
+    expect(authRepository.invalidatePendingPasswordResetTokens).not.toHaveBeenCalled();
+    expect(authRepository.createPasswordResetToken).not.toHaveBeenCalled();
+    expect(mailer.send).not.toHaveBeenCalled();
+  });
+
+  it("email existente → invalida tokens previos, crea uno nuevo (TTL 30min) y dispara el mail best-effort", async () => {
+    const { service, authRepository, mailer, tx } = buildService({
+      userRow: activeUser(),
+    });
+
+    await service.forgotPassword("owner@acme.test", { ip: "1.2.3.4", userAgent: "jest" });
+
+    expect(authRepository.invalidatePendingPasswordResetTokens).toHaveBeenCalledWith("user-1", NOW);
+    expect(authRepository.createPasswordResetToken).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      tokenHash: "hash-token",
+      expiresAt: new Date(NOW.getTime() + 30 * 60 * 1000),
+    });
+    expect(mailer.send).toHaveBeenCalledWith({
+      to: "owner@acme.test",
+      template: "reset-password",
+      vars: { firstName: "Ana", link: "https://app.example.com/reset-password?token=raw-token" },
+      locale: "es",
+    });
+    void tx;
+  });
+
+  it("un fallo del mailer NUNCA rompe la respuesta (best-effort, AD-9)", async () => {
+    const { service, mailer } = buildService({ userRow: activeUser() });
+    (mailer.send as jest.Mock).mockRejectedValue(new Error("smtp caído"));
+
+    await expect(service.forgotPassword("owner@acme.test", {})).resolves.toBeUndefined();
+  });
+});
+
+describe("AuthService.resetPassword (AUTH-REQ-09/10/13)", () => {
+  const validTokenRow = {
+    id: "prt-1",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    usedAt: null,
+    expiresAt: new Date(NOW.getTime() + 1000),
+  };
+
+  it("token inexistente → 400 auth.token_invalid", async () => {
+    const { service } = buildService({ passwordResetTokenRow: null });
+
+    await expect(
+      service.resetPassword("token-cualquiera", "twelve-characters", {}),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.resetPassword("token-cualquiera", "twelve-characters", {}),
+    ).rejects.toMatchObject({ response: { message: "auth.token_invalid" } });
+  });
+
+  it("token ya usado → 400 auth.token_invalid (misma clave que inexistente/expirado)", async () => {
+    const { service } = buildService({
+      passwordResetTokenRow: { ...validTokenRow, usedAt: new Date(NOW.getTime() - 1000) },
+    });
+
+    await expect(service.resetPassword("raw-token", "twelve-characters", {})).rejects.toMatchObject(
+      { response: { message: "auth.token_invalid" } },
+    );
+  });
+
+  it("token expirado → 400 auth.token_invalid", async () => {
+    const { service } = buildService({
+      passwordResetTokenRow: { ...validTokenRow, expiresAt: new Date(NOW.getTime() - 1000) },
+    });
+
+    await expect(service.resetPassword("raw-token", "twelve-characters", {})).rejects.toMatchObject(
+      { response: { message: "auth.token_invalid" } },
+    );
+  });
+
+  it("token válido: hashea AFUERA de la tx, actualiza password, marca token usado, revoca TODOS los refresh, audita, bumpea perm-epoch", async () => {
+    const { service, hasher, authRepository, auditService, refreshTokenService, redis, tx } =
+      buildService({ passwordResetTokenRow: validTokenRow, userRow: activeUser() });
+
+    await service.resetPassword("raw-token", "twelve-characters", {
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+
+    expect(hasher.hash).toHaveBeenCalledWith("twelve-characters");
+    expect(authRepository.updateUserPassword).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      "hashed-password",
+      null,
+    );
+    expect(authRepository.markPasswordResetTokenUsed).toHaveBeenCalledWith(tx, "prt-1", NOW);
+    // AUTH-REQ-09: TODAS las familias, no solo una — a diferencia de logout.
+    expect(authRepository.revokeAllRefreshTokensForUser).toHaveBeenCalledWith(tx, "user-1", NOW);
+    expect(refreshTokenService.revokeFamily).not.toHaveBeenCalled();
+    expect(auditService.record).toHaveBeenCalledWith(tx, {
+      tenantId: "tenant-1",
+      userId: "user-1",
+      action: "auth.password.reset",
+      resourceType: "user",
+      resourceId: "user-1",
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+    // AD-8: SET sin TTL, valor en segundos (misma unidad que `iat`).
+    expect(redis.set).toHaveBeenCalledWith(
+      "perm-epoch:user-1",
+      String(Math.floor(NOW.getTime() / 1000)),
+    );
+  });
+
+  it("si emailVerifiedAt era NULL, el reset lo setea (usar el link prueba el control del email)", async () => {
+    const { service, authRepository, tx } = buildService({
+      passwordResetTokenRow: validTokenRow,
+      userRow: activeUser({ emailVerifiedAt: null }),
+    });
+
+    await service.resetPassword("raw-token", "twelve-characters", {});
+
+    expect(authRepository.updateUserPassword).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      "hashed-password",
+      NOW,
+    );
+  });
+
+  it("un fallo de Redis al bumpear el epoch NO rompe el reset (fail-open, igual que JwtAuthGuard)", async () => {
+    const { service, redis } = buildService({
+      passwordResetTokenRow: validTokenRow,
+      userRow: activeUser(),
+    });
+    redis.set.mockRejectedValue(new Error("redis caído"));
+
+    await expect(
+      service.resetPassword("raw-token", "twelve-characters", {}),
+    ).resolves.toBeUndefined();
   });
 });

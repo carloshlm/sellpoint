@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type {
   EmailVerificationToken,
+  PasswordResetToken,
   Prisma,
   RefreshToken,
   User,
@@ -19,6 +20,13 @@ export interface CreateRefreshTokenInput {
   userId: string;
   tokenHash: string;
   familyId: string;
+  expiresAt: Date;
+}
+
+export interface CreatePasswordResetTokenInput {
+  tenantId: string;
+  userId: string;
+  tokenHash: string;
   expiresAt: Date;
 }
 
@@ -127,5 +135,73 @@ export class AuthRepository {
     input: CreateRefreshTokenInput,
   ): Promise<RefreshToken> {
     return tx.refreshToken.create({ data: input });
+  }
+
+  /**
+   * f1-auth U5 — AUTH-REQ-08/09. `password_reset_tokens` NO tiene RLS
+   * (AD-3, misma familia que email_verification_tokens/refresh_tokens): el
+   * lookup pre-contexto y la invalidación de tokens previos usan el cliente
+   * base; solo lo que toca `users` (RLS) necesita el `tx` de
+   * `withTenantContext`.
+   */
+  findPasswordResetTokenByHash(tokenHash: string): Promise<PasswordResetToken | null> {
+    return this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  }
+
+  createPasswordResetToken(input: CreatePasswordResetTokenInput): Promise<PasswordResetToken> {
+    return this.prisma.passwordResetToken.create({ data: input });
+  }
+
+  /**
+   * Design §4 (forgot-password): invalidar los tokens de reset previos SIN
+   * usar del usuario antes de emitir uno nuevo — evita que links viejos
+   * sigan siendo canjeables si el usuario pide varios resets seguidos.
+   */
+  async invalidatePendingPasswordResetTokens(userId: string, now: Date): Promise<void> {
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: now },
+    });
+  }
+
+  markPasswordResetTokenUsed(
+    tx: Prisma.TransactionClient,
+    tokenId: string,
+    usedAt: Date,
+  ): Promise<PasswordResetToken> {
+    return tx.passwordResetToken.update({ where: { id: tokenId }, data: { usedAt } });
+  }
+
+  /**
+   * AUTH-REQ-09/10 + design §4: `passwordHash` siempre se actualiza;
+   * `emailVerifiedAt` solo se toca si el caller lo pasa (era NULL antes del
+   * reset) — usar el link de reset prueba el control del email.
+   */
+  updateUserPassword(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    passwordHash: string,
+    emailVerifiedAt: Date | null,
+  ): Promise<User> {
+    return tx.user.update({
+      where: { id: userId },
+      data: { passwordHash, ...(emailVerifiedAt ? { emailVerifiedAt } : {}) },
+    });
+  }
+
+  /**
+   * AUTH-REQ-09: a diferencia de `RefreshTokenService.revokeFamily`
+   * (revoca UNA familia), esto revoca TODAS las familias activas del
+   * usuario — una sesión robada muere con el cambio de password.
+   */
+  async revokeAllRefreshTokensForUser(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    revokedAt: Date,
+  ): Promise<void> {
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt },
+    });
   }
 }

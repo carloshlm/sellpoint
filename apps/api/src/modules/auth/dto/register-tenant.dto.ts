@@ -2,7 +2,9 @@ import { z } from "zod";
 
 // AUTH-REQ-01/AUTH-REQ-10: 12+ caracteres, SIN reglas de composición (NIST
 // SP 800-63B, confirmado por Carlos) — nada de mayúscula+número+símbolo.
-const passwordSchema = z.string().min(12, "auth.weak_password");
+// Exportado: reset-password.dto.ts (U5) reusa el MISMO validador — AUTH-REQ-10
+// exige la misma política en registro, reset y cambio de password.
+export const passwordSchema = z.string().min(12, "auth.weak_password");
 
 export const registerTenantSchema = z.object({
   tenantName: z.string().trim().min(1),

@@ -82,6 +82,8 @@ describe("AuthController.login/refresh/logout — cookie builder (AD-5)", () => 
       login: jest.fn(),
       refresh: jest.fn(),
       logout: jest.fn().mockResolvedValue(undefined),
+      forgotPassword: jest.fn().mockResolvedValue(undefined),
+      resetPassword: jest.fn().mockResolvedValue(undefined),
       ...authServiceOverrides,
     } as unknown as AuthService;
     const controller = new AuthController(authService, buildConfigService());
@@ -168,5 +170,42 @@ describe("AuthController.login/refresh/logout — cookie builder (AD-5)", () => 
       "",
       expect.objectContaining({ maxAge: 0 }),
     );
+  });
+});
+
+describe("AuthController.forgotPassword/resetPassword — U5 (AUTH-REQ-08/09)", () => {
+  function buildController(authServiceOverrides: Partial<AuthService> = {}) {
+    const authService = {
+      forgotPassword: jest.fn().mockResolvedValue(undefined),
+      resetPassword: jest.fn().mockResolvedValue(undefined),
+      ...authServiceOverrides,
+    } as unknown as AuthService;
+    const controller = new AuthController(authService, buildConfigService());
+    return { controller, authService };
+  }
+
+  it("forgotPassword: delega en authService.forgotPassword y responde 202-shaped body sin filtrar nada", async () => {
+    const { controller, authService } = buildController();
+    const request = { ip: "1.2.3.4", headers: { "user-agent": "jest" } } as never;
+
+    const body = await controller.forgotPassword({ email: "owner@acme.test" }, request);
+
+    expect(authService.forgotPassword).toHaveBeenCalledWith("owner@acme.test", {
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+    expect(body).toEqual({ accepted: true });
+  });
+
+  it("resetPassword: delega en authService.resetPassword con token y password", async () => {
+    const { controller, authService } = buildController();
+    const request = { ip: "1.2.3.4", headers: {} } as never;
+
+    await controller.resetPassword({ token: "raw-token", password: "twelve-characters" }, request);
+
+    expect(authService.resetPassword).toHaveBeenCalledWith("raw-token", "twelve-characters", {
+      ip: "1.2.3.4",
+      userAgent: undefined,
+    });
   });
 });

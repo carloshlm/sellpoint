@@ -860,13 +860,13 @@ Ejemplos:
   - **Depende de:** F1-AUTH-09
   - **Estimación:** 30 min
 
-- [ ] **F1-AUTH-11** — Forgot password
+- [x] **F1-AUTH-11** — Forgot password
   - **Salida:** POST `/auth/forgot-password` crea token de un solo uso, manda email
   - **Verificar:** crea fila en `PasswordResetToken` con TTL 30 min
   - **Depende de:** F1-AUTH-04, F1-DB-05
   - **Estimación:** 45 min
 
-- [ ] **F1-AUTH-12** — Reset password
+- [x] **F1-AUTH-12** — Reset password
   - **Salida:** POST `/auth/reset-password` con token + nuevo password; invalida TODOS los refresh tokens del usuario
   - **Verificar:** password actualizado, sesiones anteriores invalidadas
   - **Depende de:** F1-AUTH-11

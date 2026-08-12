@@ -10,18 +10,38 @@ describe("AuthRepository (f1-auth U2/U3/U4 — único lugar con queries de auth)
       update: jest.fn(),
     };
     const user = { update: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn() };
-    const refreshToken = { findUnique: jest.fn(), aggregate: jest.fn(), create: jest.fn() };
+    const refreshToken = {
+      findUnique: jest.fn(),
+      aggregate: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+    };
     const userRole = { findMany: jest.fn() };
+    const passwordResetToken = {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    };
     const $queryRaw = jest.fn();
     const prisma = {
       emailVerificationToken,
       user,
       refreshToken,
       userRole,
+      passwordResetToken,
       $queryRaw,
     } as unknown as PrismaService;
     const repo = new AuthRepository(prisma);
-    return { repo, emailVerificationToken, user, refreshToken, userRole, $queryRaw };
+    return {
+      repo,
+      emailVerificationToken,
+      user,
+      refreshToken,
+      userRole,
+      passwordResetToken,
+      $queryRaw,
+    };
   }
 
   it("findEmailVerificationTokenByHash consulta con el cliente base (tokens sin RLS, AD-3)", async () => {
@@ -169,6 +189,102 @@ describe("AuthRepository (f1-auth U2/U3/U4 — único lugar con queries de auth)
         familyId: "family-1",
         expiresAt,
       },
+    });
+  });
+
+  describe("Forgot/reset password (f1-auth U5 — AUTH-REQ-08/09)", () => {
+    it("findPasswordResetTokenByHash consulta el cliente base (password_reset_tokens sin RLS, AD-3)", async () => {
+      const { repo, passwordResetToken } = buildRepo();
+      passwordResetToken.findUnique.mockResolvedValue({ id: "prt-1" });
+
+      const result = await repo.findPasswordResetTokenByHash("hash-reset");
+
+      expect(passwordResetToken.findUnique).toHaveBeenCalledWith({
+        where: { tokenHash: "hash-reset" },
+      });
+      expect(result).toEqual({ id: "prt-1" });
+    });
+
+    it("createPasswordResetToken inserta con el cliente base", async () => {
+      const { repo, passwordResetToken } = buildRepo();
+      const expiresAt = new Date("2026-08-12T12:30:00Z");
+      passwordResetToken.create.mockResolvedValue({ id: "prt-1" });
+
+      await repo.createPasswordResetToken({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        tokenHash: "hash-reset",
+        expiresAt,
+      });
+
+      expect(passwordResetToken.create).toHaveBeenCalledWith({
+        data: { tenantId: "tenant-1", userId: "user-1", tokenHash: "hash-reset", expiresAt },
+      });
+    });
+
+    it("invalidatePendingPasswordResetTokens marca usedAt en los tokens previos sin usar del usuario (cliente base)", async () => {
+      const { repo, passwordResetToken } = buildRepo();
+      const now = new Date("2026-08-12T12:00:00Z");
+      passwordResetToken.updateMany.mockResolvedValue({ count: 1 });
+
+      await repo.invalidatePendingPasswordResetTokens("user-1", now);
+
+      expect(passwordResetToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: "user-1", usedAt: null },
+        data: { usedAt: now },
+      });
+    });
+
+    it("markPasswordResetTokenUsed corre sobre el tx recibido", async () => {
+      const { repo } = buildRepo();
+      const update = jest.fn().mockResolvedValue(undefined);
+      const tx = { passwordResetToken: { update } } as unknown as Prisma.TransactionClient;
+      const now = new Date("2026-08-12T12:00:00Z");
+
+      await repo.markPasswordResetTokenUsed(tx, "prt-1", now);
+
+      expect(update).toHaveBeenCalledWith({ where: { id: "prt-1" }, data: { usedAt: now } });
+    });
+
+    it("updateUserPassword actualiza passwordHash sobre el tx (users tiene RLS)", async () => {
+      const { repo } = buildRepo();
+      const update = jest.fn().mockResolvedValue(undefined);
+      const tx = { user: { update } } as unknown as Prisma.TransactionClient;
+
+      await repo.updateUserPassword(tx, "user-1", "new-hash", null);
+
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { passwordHash: "new-hash" },
+      });
+    });
+
+    it("updateUserPassword además setea emailVerifiedAt si se lo pasan (design §4: el link prueba control del email)", async () => {
+      const { repo } = buildRepo();
+      const update = jest.fn().mockResolvedValue(undefined);
+      const tx = { user: { update } } as unknown as Prisma.TransactionClient;
+      const now = new Date("2026-08-12T12:00:00Z");
+
+      await repo.updateUserPassword(tx, "user-1", "new-hash", now);
+
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { passwordHash: "new-hash", emailVerifiedAt: now },
+      });
+    });
+
+    it("revokeAllRefreshTokensForUser revoca TODAS las familias del usuario (AUTH-REQ-09), sobre el tx", async () => {
+      const { repo } = buildRepo();
+      const updateMany = jest.fn().mockResolvedValue({ count: 3 });
+      const tx = { refreshToken: { updateMany } } as unknown as Prisma.TransactionClient;
+      const now = new Date("2026-08-12T12:00:00Z");
+
+      await repo.revokeAllRefreshTokensForUser(tx, "user-1", now);
+
+      expect(updateMany).toHaveBeenCalledWith({
+        where: { userId: "user-1", revokedAt: null },
+        data: { revokedAt: now },
+      });
     });
   });
 });
