@@ -779,8 +779,8 @@ Ejemplos:
 > 🔌 **MCP al abrir este módulo:** instalar **Postgres MCP (read-only)** — inspección directa de schema y queries para verificar RLS y aislamiento multi-tenant sin pasar por Prisma. Ver `topic_key: decision/mcps-del-proyecto...` en engram.
 
 - [x] **F1-TENANT-01** — `TenantContextMiddleware`
-  - **Salida:** middleware Nest que lee `req.user.tenantId` del JWT y ejecuta `SELECT set_config('app.tenant_id', $1, true)`
-  - **Verificar:** logs muestran la variable seteada por request
+  - **Salida:** middleware Nest que resuelve `tenantId` del JWT y lo expone en el request (resolución + observabilidad). ⚠️ El `set_config` NO va en el middleware: con connection pooling puede aterrizar en otra conexión o filtrarse entre tenants (AD-1 del design de f1-auth) — el `set_config` real corre DENTRO de la transacción vía `PrismaService.withTenantContext` (F1-TENANT-02)
+  - **Verificar:** logs muestran el tenant resuelto por request; el e2e de F1-TENANT-03 prueba el mecanismo completo
   - **Depende de:** F1-DB-09, F1-AUTH-06
   - **Estimación:** 1 h
 
