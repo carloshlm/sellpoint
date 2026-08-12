@@ -9,6 +9,15 @@ process.env.DATABASE_URL ??=
   "postgresql://sellpoint_app:sellpoint_app@localhost:5432/sellpoint_dev";
 process.env.REDIS_URL ??= "redis://localhost:6379";
 
+// f1-auth U6-02: apagado por defecto en TODA la suite (unit + e2e) — sin
+// esto, los ~50 tests e2e existentes que pegan repetidas veces a /auth/*
+// desde la misma IP de test tropezarían con el límite de 5/15min (auth-ip)
+// y la suite completa se rompería por contaminación cruzada entre archivos.
+// La suite de throttling (test/e2e/auth-throttling.e2e-spec.ts) lo prende
+// explícitamente en su propio beforeAll/afterAll (design §8: "THROTTLE_
+// ENABLED=false salvo en la suite de throttling").
+process.env.THROTTLE_ENABLED ??= "false";
+
 // f1-auth U1-06: obligatoria en env.schema.ts, sin default de producción —
 // pero los tests sí necesitan un valor válido para que ConfigModule.forRoot
 // no explote al bootear AppModule.

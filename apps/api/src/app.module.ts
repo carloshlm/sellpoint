@@ -1,9 +1,11 @@
 import { type MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { I18nModule } from "nestjs-i18n";
 import { LoggerModule } from "nestjs-pino";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
+import type { Env } from "./config/env.schema";
 import { validateEnv } from "./config/env.schema";
 import { HealthController } from "./health/health.controller";
 import { i18nOptions } from "./i18n/i18n.config";
@@ -14,6 +16,8 @@ import { CryptoModule } from "./infrastructure/crypto/crypto.module";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
 import { TenantContextMiddleware } from "./infrastructure/tenant-context/tenant-context.middleware";
+import { RedisThrottlerStorage } from "./infrastructure/throttle/redis-throttler.storage";
+import { ThrottleModule } from "./infrastructure/throttle/throttle.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
@@ -50,6 +54,31 @@ import { UsersModule } from "./modules/users/users.module";
     CryptoModule,
     PrismaModule,
     RedisModule,
+    ThrottleModule,
+    // f1-auth U6-02: throttler `default` (100/60s, IP, app entera) — vive
+    // acá porque protege TODA la app, no solo /auth/*. `auth-ip`/`auth-email`
+    // (5/900s, 10/3600s) NO están acá: son un guard aparte
+    // (AuthEmailThrottlerGuard) aplicado solo en AuthController — ver esa
+    // clase para el porqué de no meter los 3 throttlers en un único
+    // ThrottlerModule global con @SkipThrottle por controller.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService, RedisThrottlerStorage],
+      useFactory: (configService: ConfigService<Env, true>, storage: RedisThrottlerStorage) => ({
+        skipIf: () => !configService.get("THROTTLE_ENABLED", { infer: true }),
+        // Contrato de key (design §6/AD-7): `throttle:{name}:{tracker}`,
+        // SIN el nombre de ruta/handler — "app entera" es un balde único
+        // por IP, no un balde por endpoint (que es el default de la lib).
+        generateKey: (_context, tracker, name) => `throttle:${name}:${tracker}`,
+        throttlers: [
+          {
+            name: "default",
+            limit: configService.get("THROTTLE_GLOBAL_LIMIT", { infer: true }),
+            ttl: configService.get("THROTTLE_GLOBAL_TTL_SEC", { infer: true }) * 1000,
+          },
+        ],
+        storage,
+      }),
+    }),
     // f1-auth U2: registro de tenant+owner + verificación de email.
     AuditModule,
     MailModule,
@@ -61,6 +90,11 @@ import { UsersModule } from "./modules/users/users.module";
   controllers: [HealthController, I18nDemoController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // f1-auth AD-7: el throttle tiene que pegar ANTES de gastar ciclos
+    // verificando firmas RS256 — por eso ThrottlerGuard va PRIMERO en este
+    // array (el orden de múltiples APP_GUARD es el orden del array, Nest
+    // los ejecuta en secuencia).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Secure by default (f1-auth AD-8): TODO endpoint requiere JWT válido
     // salvo @Public() explícito. JwtAuthGuard resuelve TokenService desde
     // AuthModule (importado arriba, lo exporta desde U3) — no se declara acá.

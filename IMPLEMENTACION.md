@@ -872,7 +872,7 @@ Ejemplos:
   - **Depende de:** F1-AUTH-11
   - **Estimación:** 45 min
 
-- [ ] **F1-AUTH-13** — Throttling en `/auth/*` con `@nestjs/throttler` + Redis
+- [x] **F1-AUTH-13** — Throttling en `/auth/*` con `@nestjs/throttler` + Redis
   - **Salida:** 5 intentos / 15 min por IP, 10 / hora por email en login
   - **Verificar:** intentar 6 veces seguidas devuelve 429
   - **Depende de:** F1-AUTH-07, F0-DB-02
@@ -890,7 +890,7 @@ Ejemplos:
   - **Depende de:** F1-AUTH-14
   - **Estimación:** 30 min
 
-- [ ] **F1-AUTH-16** — Suite de tests e2e de auth
+- [x] **F1-AUTH-16** — Suite de tests e2e de auth
   - **Salida:** tests para register, verify, login, refresh, logout, forgot, reset
   - **Verificar:** `pnpm --filter api test:e2e` pasa
   - **Depende de:** F1-AUTH-01 a F1-AUTH-15

@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
@@ -18,11 +18,17 @@ import { type LoginDto, loginSchema } from "./dto/login.dto";
 import { type RegisterTenantDto, registerTenantSchema } from "./dto/register-tenant.dto";
 import { type ResetPasswordDto, resetPasswordSchema } from "./dto/reset-password.dto";
 import { type VerifyEmailDto, verifyEmailSchema } from "./dto/verify-email.dto";
+import { AuthEmailThrottlerGuard } from "./guards/auth-email-throttler.guard";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// f1-auth AUTH-REQ-12/U6-02: guard aplicado a NIVEL DE CONTROLLER — cubre
+// las 8 rutas de /auth/* con el chequeo de IP (design AD-7: "/auth/*"
+// entero); el guard mismo restringe internamente el chequeo de email a
+// login/forgot-password (EMAIL_TRACKED_HANDLERS).
 @ApiTags("auth")
 @Controller("auth")
+@UseGuards(AuthEmailThrottlerGuard)
 export class AuthController {
   private readonly cookieEnv: RefreshCookieEnv;
   private readonly refreshTtlMs: number;

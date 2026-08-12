@@ -4,6 +4,7 @@ import { MailModule } from "../mail/mail.module";
 import { TenantsModule } from "../tenants/tenants.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { AuthEmailThrottlerGuard } from "./guards/auth-email-throttler.guard";
 import { AuthRepository } from "./repositories/auth.repository";
 import { OneTimeTokenService } from "./services/one-time-token.service";
 import { RefreshTokenService } from "./services/refresh-token.service";
@@ -17,7 +18,14 @@ import { TokenService } from "./services/token.service";
 @Module({
   imports: [TenantsModule, MailModule, AuditModule],
   controllers: [AuthController],
-  providers: [AuthService, AuthRepository, OneTimeTokenService, RefreshTokenService, TokenService],
+  providers: [
+    AuthService,
+    AuthRepository,
+    OneTimeTokenService,
+    RefreshTokenService,
+    TokenService,
+    AuthEmailThrottlerGuard,
+  ],
   exports: [TokenService],
 })
 export class AuthModule {}
