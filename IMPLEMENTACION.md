@@ -912,25 +912,25 @@ Ejemplos:
   - **Depende de:** F1-RBAC-01
   - **Estimación:** 20 min
 
-- [ ] **F1-RBAC-03** — CRUD endpoints de usuarios
+- [x] **F1-RBAC-03** — CRUD endpoints de usuarios
   - **Salida:** `POST /users`, `GET /users`, `GET /users/:id`, `PATCH /users/:id`, `POST /users/:id/suspend`, `POST /users/:id/reactivate`
   - **Verificar:** Swagger muestra todos, tests verifican RBAC
   - **Depende de:** F1-RBAC-02
   - **Estimación:** 2 h
 
-- [ ] **F1-RBAC-04** — CRUD endpoints de roles
+- [x] **F1-RBAC-04** — CRUD endpoints de roles
   - **Salida:** `POST /roles`, `GET /roles`, `PATCH /roles/:id`, `DELETE /roles/:id`
   - **Verificar:** swap de permisos en un rol cambia los de todos sus usuarios
   - **Depende de:** F1-RBAC-02
   - **Estimación:** 1.5 h
 
-- [ ] **F1-RBAC-05** — Endpoint lectura de permisos disponibles
+- [x] **F1-RBAC-05** — Endpoint lectura de permisos disponibles
   - **Salida:** `GET /permissions` devuelve lista agrupada por módulo
   - **Verificar:** frontend puede construir el editor de roles
   - **Depende de:** F1-RBAC-04
   - **Estimación:** 30 min
 
-- [ ] **F1-RBAC-06** — Tests de RBAC
+- [x] **F1-RBAC-06** — Tests de RBAC
   - **Salida:** tests que verifican cada combinación de rol vs endpoint
   - **Verificar:** matriz de permisos cubierta
   - **Depende de:** F1-RBAC-03, F1-RBAC-04

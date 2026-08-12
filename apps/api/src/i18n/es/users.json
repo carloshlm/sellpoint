@@ -1,3 +1,8 @@
 {
-  "invalid_body": "El idioma enviado no es válido"
+  "invalid_body": "Los datos enviados no son válidos",
+  "not_found": "El usuario no existe",
+  "email_taken": "Ya existe una cuenta con ese correo electrónico",
+  "invalid_role_ids": "Uno o más roles enviados no existen en este comercio",
+  "cannot_suspend_self": "No podés suspender tu propia cuenta",
+  "not_suspended": "El usuario no está suspendido"
 }
