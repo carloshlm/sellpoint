@@ -628,7 +628,7 @@ Ejemplos:
 - [x] `certbot renew --dry-run` exitoso (los 3 lineages: laradoc.com, berrinchitosdent.com, system.laradoc.com)
 
 **Cierre:**
-- [ ] Tag `v0.1.0-fase0` creado
+- [x] Tag `v0.1.0-fase0` creado (en `c14ee9a`, 2026-08-12 — primer commit donde TODOS los checks son demostrablemente ciertos)
 
 ---
 
