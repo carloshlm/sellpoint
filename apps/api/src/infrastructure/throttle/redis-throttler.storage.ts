@@ -1,7 +1,21 @@
 import { Inject, Injectable } from "@nestjs/common";
-import type { ThrottlerStorage, ThrottlerStorageRecord } from "@nestjs/throttler";
+import type { ThrottlerStorage } from "@nestjs/throttler";
 import { Redis } from "ioredis";
 import { REDIS_CLIENT } from "../redis/redis.module";
+
+// `@nestjs/throttler` declara `ThrottlerStorageRecord` como interface +
+// `const ... : unique symbol` fusionados en el mismo nombre (patrón de
+// token de DI). Bajo `isolatedModules` + `moduleResolution: NodeNext`
+// (tsconfig.base.json) el re-export `export *` de esa fusión no resuelve
+// como tipo importable (`TS2724` en `nest build`, aunque `ts-jest` no lo
+// marca) — se define el shape acá, estructuralmente idéntico, en vez de
+// importarlo.
+interface ThrottlerRecord {
+  totalHits: number;
+  timeToExpire: number;
+  isBlocked: boolean;
+  timeToBlockExpire: number;
+}
 
 // f1-auth AD-7: atómico en un único roundtrip — INCR + PEXPIRE SOLO en el
 // primer hit (current == 1) + PTTL. Si dos requests concurrentes pegan al
@@ -38,7 +52,7 @@ export class RedisThrottlerStorage implements ThrottlerStorage {
     limit: number,
     _blockDuration: number,
     _throttlerName: string,
-  ): Promise<ThrottlerStorageRecord> {
+  ): Promise<ThrottlerRecord> {
     const [totalHits, pttl] = (await this.redis.eval(INCREMENT_SCRIPT, 1, key, ttl)) as [
       number,
       number,
