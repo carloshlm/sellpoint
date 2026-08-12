@@ -514,8 +514,20 @@ export class AuthService implements OnModuleInit {
       // Design §4: usar el link de reset prueba el control del email — si
       // todavía no estaba verificado, el reset lo verifica de paso.
       const emailVerifiedAt = user && user.emailVerifiedAt === null ? now : null;
+      // Y si esa verificación ocurre sobre un usuario invited, se promueve
+      // a active con la MISMA semántica que verify-email — sin esto queda
+      // un estado roto: login pasa (chequea emailVerifiedAt) pero el primer
+      // refresh expulsa (exige active). suspended jamás se promueve: la
+      // suspensión es administrativa, no de verificación.
+      const promoteToActive = emailVerifiedAt !== null && user?.status === "invited";
 
-      await this.authRepository.updateUserPassword(tx, row.userId, passwordHash, emailVerifiedAt);
+      await this.authRepository.updateUserPassword(
+        tx,
+        row.userId,
+        passwordHash,
+        emailVerifiedAt,
+        promoteToActive,
+      );
       await this.authRepository.markPasswordResetTokenUsed(tx, row.id, now);
       // AUTH-REQ-09: TODAS las familias del usuario, no solo una (logout
       // solo revoca la familia de la sesión actual).

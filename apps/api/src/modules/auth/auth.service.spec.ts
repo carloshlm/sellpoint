@@ -722,6 +722,7 @@ describe("AuthService.resetPassword (AUTH-REQ-09/10/13)", () => {
       "user-1",
       "hashed-password",
       null,
+      false,
     );
     expect(authRepository.markPasswordResetTokenUsed).toHaveBeenCalledWith(tx, "prt-1", NOW);
     // AUTH-REQ-09: TODAS las familias, no solo una — a diferencia de logout.
@@ -756,6 +757,41 @@ describe("AuthService.resetPassword (AUTH-REQ-09/10/13)", () => {
       "user-1",
       "hashed-password",
       NOW,
+      false,
+    );
+  });
+
+  it("usuario invited que verifica vía reset → status pasa a active (misma semántica que verify-email; sin esto loguea pero el primer refresh lo expulsa)", async () => {
+    const { service, authRepository, tx } = buildService({
+      passwordResetTokenRow: validTokenRow,
+      userRow: activeUser({ status: "invited", emailVerifiedAt: null }),
+    });
+
+    await service.resetPassword("raw-token", "twelve-characters", {});
+
+    expect(authRepository.updateUserPassword).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      "hashed-password",
+      NOW,
+      true,
+    );
+  });
+
+  it("usuario suspended NUNCA se promueve a active vía reset (la suspensión es decisión administrativa, no de verificación)", async () => {
+    const { service, authRepository, tx } = buildService({
+      passwordResetTokenRow: validTokenRow,
+      userRow: activeUser({ status: "suspended", emailVerifiedAt: null }),
+    });
+
+    await service.resetPassword("raw-token", "twelve-characters", {});
+
+    expect(authRepository.updateUserPassword).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      "hashed-password",
+      NOW,
+      false,
     );
   });
 

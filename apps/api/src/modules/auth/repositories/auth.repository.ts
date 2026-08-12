@@ -175,17 +175,24 @@ export class AuthRepository {
   /**
    * AUTH-REQ-09/10 + design §4: `passwordHash` siempre se actualiza;
    * `emailVerifiedAt` solo se toca si el caller lo pasa (era NULL antes del
-   * reset) — usar el link de reset prueba el control del email.
+   * reset) — usar el link de reset prueba el control del email. Cuando esa
+   * verificación promueve a un invited, `promoteToActive` replica la
+   * semántica de verify-email (status → active en la misma escritura).
    */
   updateUserPassword(
     tx: Prisma.TransactionClient,
     userId: string,
     passwordHash: string,
     emailVerifiedAt: Date | null,
+    promoteToActive: boolean,
   ): Promise<User> {
     return tx.user.update({
       where: { id: userId },
-      data: { passwordHash, ...(emailVerifiedAt ? { emailVerifiedAt } : {}) },
+      data: {
+        passwordHash,
+        ...(emailVerifiedAt ? { emailVerifiedAt } : {}),
+        ...(promoteToActive ? { status: "active" as const } : {}),
+      },
     });
   }
 
