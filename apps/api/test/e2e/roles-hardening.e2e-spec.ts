@@ -25,6 +25,16 @@ const PASSWORD = "twelve-characters";
  *   menos un rol con `roles:manage`+`users:manage` asignado a un usuario
  *   ACTIVO. Se prueban los 3 vectores HTTP reales: `PATCH /roles/:id`,
  *   `PATCH /users/:id` (roleIds) y `POST /users/:id/suspend`.
+ * - W1b (verify #274 pasada 2, hardening posterior): la remediación de W1
+ *   vive en `RolesService` (impide ACUÑARLE a un rol un permiso no
+ *   poseído) — pero nada impedía que un actor TOMARA un rol EXISTENTE que
+ *   ya reúne permisos que él no tiene, vía `PATCH/POST /users` (`roleIds`).
+ *   Ver describe "W1b" más abajo.
+ * - W4 (verify #274 pasada 2, flake introducido por la remediación de W2):
+ *   `freshAccessToken()` existe PORQUE un test de este archivo bumpea el
+ *   epoch del propio owner y NO puede reusar su token viejo — si volvés a
+ *   ver `owner.accessToken` reusado inmediatamente después de un PATCH que
+ *   le cambia `roleIds`/`status` a sí mismo, es el mismo bug de vuelta.
  */
 describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
   let app: INestApplication<App>;
@@ -83,6 +93,14 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
 
     const body = registerResponse.body as { tenantId: string; userId: string };
     return { ...body, email, accessToken: login.body.accessToken as string };
+  }
+
+  async function freshAccessToken(email: string): Promise<string> {
+    const login = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email, password: PASSWORD })
+      .expect(200);
+    return login.body.accessToken as string;
   }
 
   function tokenWith(tenantId: string, permissions: string[]): string {
@@ -179,6 +197,134 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
     });
   });
 
+  describe("W1b — escalada de privilegios por ASIGNACIÓN de roles (verify #274 pasada 2)", () => {
+    it("repro EXACTO del verify: actor con SOLO users:manage (SIN roles:manage) no puede auto-asignarse el rol TenantAdmin -> 403 (antes: 200)", async () => {
+      const owner = await registerActiveOwner();
+      const tenantAdminId = await tenantAdminRoleId(owner.accessToken);
+
+      // El owner YA nace con TenantAdmin (provisioning) — mandarle el MISMO
+      // roleId sería un no-op (`sameSet` -> rolesChanged=false, ni pasa por
+      // el guard). Para reproducir el vector real hace falta un usuario
+      // real que TODAVÍA no tenga TenantAdmin: el owner crea un rol custom
+      // "HR Manager" (users:manage+users:read, SIN roles:manage — mismo
+      // gap que documentó el verify: no explotable con el catálogo base) y
+      // un user con ESE rol.
+      const hrManagerRole = await request(app.getHttpServer())
+        .post("/roles")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({
+          name: `HR Manager ${randomUUID()}`,
+          permissionCodes: ["users:manage", "users:read"],
+        })
+        .expect(201);
+
+      const target = await request(app.getHttpServer())
+        .post("/users")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({
+          email: `hr-${randomUUID()}@example.com`,
+          firstName: "HR",
+          lastNamePaternal: "Manager",
+          roleIds: [hrManagerRole.body.id],
+        })
+        .expect(201);
+
+      // Mismo truco que el resto del suite: token forjado directo con
+      // TokenService, `sub` = el propio target (self-assign) con EXACTAMENTE
+      // los permisos que su rol real le da — PermissionsGuard solo lee
+      // claims ya verificados, no vuelve a consultar DB.
+      const limitedSelfToken = tokenService.signAccessToken({
+        sub: target.body.id,
+        tenantId: owner.tenantId,
+        permissions: ["users:manage", "users:read"],
+        locale: "es",
+      });
+
+      const response = await request(app.getHttpServer())
+        .patch(`/users/${target.body.id}`)
+        .set("Authorization", bearer(limitedSelfToken))
+        .send({ roleIds: [tenantAdminId] })
+        .expect(403);
+      expect(response.body).toMatchObject({ code: "users.cannot_assign_unheld_role_permission" });
+
+      // No mutó nada: el target conserva EXACTAMENTE el rol que tenía antes
+      // del intento (no ganó TenantAdmin).
+      const detail = await request(app.getHttpServer())
+        .get(`/users/${target.body.id}`)
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).toEqual(
+        expect.arrayContaining([expect.stringContaining("HR Manager")]),
+      );
+      expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).not.toContain(
+        "TenantAdmin",
+      );
+    });
+
+    it("POST /users: actor con SOLO users:manage no puede crear un user con un rol que otorga roles:manage -> 403", async () => {
+      const owner = await registerActiveOwner();
+      const tenantAdminId = await tenantAdminRoleId(owner.accessToken);
+      const limitedToken = tokenWith(owner.tenantId, ["users:manage", "users:read"]);
+
+      const response = await request(app.getHttpServer())
+        .post("/users")
+        .set("Authorization", bearer(limitedToken))
+        .send({
+          email: `nuevo-${randomUUID()}@example.com`,
+          firstName: "Nuevo",
+          lastNamePaternal: "Usuario",
+          roleIds: [tenantAdminId],
+        })
+        .expect(403);
+      expect(response.body).toMatchObject({ code: "users.cannot_assign_unheld_role_permission" });
+    });
+
+    it("PATCH /users/:id: un TenantAdmin real SÍ puede asignar cualquier rol existente (camino feliz, sin regresión)", async () => {
+      const owner = await registerActiveOwner();
+      const roles = await request(app.getHttpServer())
+        .get("/roles")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      const managerRoleId = (roles.body as Array<{ id: string; name: string }>).find(
+        (r) => r.name === "Manager",
+      )?.id as string;
+      const tenantAdminId = await tenantAdminRoleId(owner.accessToken);
+
+      await request(app.getHttpServer())
+        .patch(`/users/${owner.userId}`)
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ roleIds: [tenantAdminId, managerRoleId] })
+        .expect(200);
+    });
+
+    it("PATCH /users/:id: SACARLE un rol a alguien no es escalada -> permitido aunque el actor no posea esos permisos", async () => {
+      const owner = await registerActiveOwner();
+      const tenantAdminId = await tenantAdminRoleId(owner.accessToken);
+      const secondAdmin = await request(app.getHttpServer())
+        .post("/roles")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({
+          name: `Second Admin ${randomUUID()}`,
+          permissionCodes: ["roles:manage", "users:manage"],
+        })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch(`/users/${owner.userId}`)
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ roleIds: [tenantAdminId, secondAdmin.body.id] })
+        .expect(200);
+
+      // Actor limitado (SOLO users:read) le saca SecondAdmin al owner sin
+      // agregar nada nuevo — set resultante es subconjunto del anterior.
+      const limitedToken = tokenWith(owner.tenantId, ["users:manage", "users:read"]);
+      await request(app.getHttpServer())
+        .patch(`/users/${owner.userId}`)
+        .set("Authorization", bearer(limitedToken))
+        .send({ roleIds: [tenantAdminId] })
+        .expect(200);
+    });
+  });
+
   describe("W2 — lockout del tenant (protección del último admin)", () => {
     it("PATCH /roles/:id: quitarle users:manage al ÚNICO rol admin (TenantAdmin) -> 409 roles.last_admin_protected", async () => {
       const owner = await registerActiveOwner();
@@ -235,9 +381,20 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .send({ roleIds: [tenantAdminId, secondAdmin.body.id] })
         .expect(200);
 
+      // W4 (verify #274 pasada 2): el PATCH anterior cambió el `roleIds`
+      // del propio owner -> bumpea `perm-epoch:{owner.userId}` (mecanismo
+      // funcionando, NO es un bug). Si reusáramos `owner.accessToken`
+      // (emitido ANTES del bump) y el bump cae en el mismo segundo que su
+      // `iat`, la siguiente request da 401 `auth.token_stale` en vez de
+      // 200 -> flake reproducido 1/3 corridas por el verify. El test NO
+      // puede depender de sobrevivir a su propia mutación: re-loguea para
+      // obtener un token con `iat` posterior al epoch ya bumpeado. NO
+      // "simplificar" esto de vuelta a reusar `owner.accessToken`.
+      const freshToken = await freshAccessToken(owner.email);
+
       await request(app.getHttpServer())
         .patch(`/roles/${secondAdmin.body.id}`)
-        .set("Authorization", bearer(owner.accessToken))
+        .set("Authorization", bearer(freshToken))
         .send({ permissionCodes: ["roles:manage"] })
         .expect(200);
     });

@@ -4,5 +4,6 @@
   "email_taken": "An account with that email already exists",
   "invalid_role_ids": "One or more submitted roles do not exist in this business",
   "cannot_suspend_self": "You cannot suspend your own account",
-  "not_suspended": "The user is not suspended"
+  "not_suspended": "The user is not suspended",
+  "cannot_assign_unheld_role_permission": "You cannot assign a role that grants permissions you do not have yourself"
 }

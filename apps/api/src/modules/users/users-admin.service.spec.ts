@@ -28,7 +28,12 @@ function uniqueViolation() {
 // `where`, igual que el mock de `permission.findMany` en roles.service.spec.
 function defaultRoleFindMany(args: { where?: Record<string, unknown> }) {
   if (args?.where && "id" in args.where) {
-    return Promise.resolve([{ id: "role-1", name: "Manager" }]);
+    // permissions acotado a lo que ACTOR YA posee (users:manage) — el
+    // default no debe disparar el guard W1b por accidente en los tests que
+    // no lo ejercitan a propósito.
+    return Promise.resolve([
+      { id: "role-1", name: "Manager", permissions: [{ permission: { code: "users:manage" } }] },
+    ]);
   }
   // Default W2: el tenant SIGUE teniendo un admin activo tras la mutación
   // — los tests dedicados a W2 pisan este mock para simular el lockout.
@@ -153,6 +158,49 @@ describe("UsersAdminService.create (F1-RBAC-03)", () => {
   });
 });
 
+describe("UsersAdminService.create — W1b hardening (verify #274 pasada 2): escalada por asignación de roles", () => {
+  it("ACTOR (SOLO users:manage, SIN roles:manage) no puede crear un user con un rol TenantAdmin -> 403, no crea nada", async () => {
+    const { service, tx } = buildService();
+    tx.role.findMany.mockResolvedValueOnce([
+      {
+        id: "role-admin",
+        name: "TenantAdmin",
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "users:manage" } },
+        ],
+      },
+    ]);
+
+    await expect(
+      service.create(
+        ACTOR,
+        { email: "x@example.com", firstName: "X", lastNamePaternal: "Y", roleIds: ["role-admin"] },
+        {},
+      ),
+    ).rejects.toMatchObject({
+      response: { message: "users.cannot_assign_unheld_role_permission" },
+    });
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
+
+  it("ACTOR SÍ puede crear un user con un rol cuyos permisos posee por completo", async () => {
+    const { service, tx } = buildService();
+    tx.role.findMany.mockResolvedValueOnce([
+      { id: "role-1", name: "Manager", permissions: [{ permission: { code: "users:manage" } }] },
+    ]);
+
+    await expect(
+      service.create(
+        ACTOR,
+        { email: "y@example.com", firstName: "X", lastNamePaternal: "Y", roleIds: ["role-1"] },
+        {},
+      ),
+    ).resolves.toBeDefined();
+    expect(tx.user.create).toHaveBeenCalled();
+  });
+});
+
 describe("UsersAdminService.update (F1-RBAC-03)", () => {
   function withExistingUser(tx: ReturnType<typeof buildService>["tx"]) {
     tx.user.findFirst.mockResolvedValue({
@@ -185,7 +233,9 @@ describe("UsersAdminService.update (F1-RBAC-03)", () => {
   it("reemplazar roleIds BUMPEA perm-epoch:{userId} tras el commit (permisos del user cambian)", async () => {
     const { service, tx, permEpochService } = buildService();
     withExistingUser(tx);
-    tx.role.findMany.mockResolvedValueOnce([{ id: "role-2", name: "Viewer" }]);
+    tx.role.findMany.mockResolvedValueOnce([
+      { id: "role-2", name: "Viewer", permissions: [{ permission: { code: "users:read" } }] },
+    ]);
 
     await service.update(ACTOR, "user-2", { roleIds: ["role-2"] }, {});
 
@@ -215,9 +265,12 @@ describe("UsersAdminService.update — W2 hardening (verify #274): protege al ú
       roles: [{ roleId: "role-1" }],
     });
     // resolveRoles(): el roleId nuevo pedido (Viewer) SÍ existe en el
-    // tenant. La segunda llamada (guard W2, where sin `id`) usa el default
-    // del mock: NINGÚN rol admin queda con usuario activo tras el swap.
-    tx.role.findMany.mockResolvedValueOnce([{ id: "role-viewer", name: "Viewer" }]);
+    // tenant y sus permisos son un subconjunto de ACTOR (no dispara W1b).
+    // La segunda llamada (guard W2, where sin `id`) usa el default del
+    // mock: NINGÚN rol admin queda con usuario activo tras el swap.
+    tx.role.findMany.mockResolvedValueOnce([
+      { id: "role-viewer", name: "Viewer", permissions: [{ permission: { code: "users:read" } }] },
+    ]);
     tx.role.findMany.mockResolvedValueOnce([]);
 
     await expect(
@@ -225,6 +278,66 @@ describe("UsersAdminService.update — W2 hardening (verify #274): protege al ú
     ).rejects.toMatchObject({ response: { message: "roles.last_admin_protected" } });
 
     expect(permEpochService.bumpUserEpoch).not.toHaveBeenCalled();
+  });
+});
+
+describe("UsersAdminService.update — W1b hardening (verify #274 pasada 2): escalada por asignación de roles", () => {
+  it("repro EXACTO del verify: ACTOR con users:manage (SIN roles:manage) no puede auto-asignarse un rol TenantAdmin -> 403, sin mutar", async () => {
+    const { service, tx, permEpochService } = buildService();
+    tx.user.findFirst.mockResolvedValue({
+      id: ACTOR.userId,
+      status: "active",
+      roles: [{ roleId: "role-viewer" }],
+    });
+    tx.role.findMany.mockResolvedValueOnce([
+      {
+        id: "role-admin",
+        name: "TenantAdmin",
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "users:manage" } },
+        ],
+      },
+    ]);
+
+    await expect(
+      service.update(ACTOR, ACTOR.userId, { roleIds: ["role-admin"] }, {}),
+    ).rejects.toMatchObject({
+      response: { message: "users.cannot_assign_unheld_role_permission" },
+    });
+
+    expect(tx.userRole.deleteMany).not.toHaveBeenCalled();
+    expect(tx.userRole.createMany).not.toHaveBeenCalled();
+    expect(permEpochService.bumpUserEpoch).not.toHaveBeenCalled();
+  });
+
+  it("quitarle a alguien un rol NO es escalada -> permitido aunque el actor no posea esos permisos", async () => {
+    const { service, tx, permEpochService } = buildService();
+    tx.user.findFirst.mockResolvedValue({
+      id: "user-2",
+      status: "active",
+      roles: [{ roleId: "role-admin" }, { roleId: "role-1" }],
+    });
+    tx.user.findFirstOrThrow.mockResolvedValue({
+      id: "user-2",
+      email: "nuevo@example.com",
+      firstName: "Bruno",
+      lastNamePaternal: "Díaz",
+      lastNameMaternal: null,
+      status: "active",
+      locale: "en",
+      roles: [{ role: { id: "role-1", name: "Manager" } }],
+    });
+    tx.role.findMany.mockResolvedValueOnce([
+      { id: "role-1", name: "Manager", permissions: [{ permission: { code: "users:manage" } }] },
+    ]);
+
+    // ACTOR no tiene roles:manage, pero acá solo se SACA role-admin (que lo
+    // otorgaba) -- el set nuevo (["role-1"]) no agrega nada -> sin escalada.
+    await expect(
+      service.update(ACTOR, "user-2", { roleIds: ["role-1"] }, {}),
+    ).resolves.toBeDefined();
+    expect(permEpochService.bumpUserEpoch).toHaveBeenCalled();
   });
 });
 

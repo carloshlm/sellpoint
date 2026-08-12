@@ -12,6 +12,7 @@ import { PermEpochService } from "../../infrastructure/redis/perm-epoch.service"
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertNoRoleAssignmentEscalation } from "../roles/role-assignment-guard";
 import { assertTenantRetainsAdmin } from "../roles/tenant-admin-guard";
 import type { CreateUserDto } from "./dto/create-user.dto";
 import type { UpdateUserDto } from "./dto/update-user.dto";
@@ -19,6 +20,10 @@ import type { UpdateUserDto } from "./dto/update-user.dto";
 export interface UserRoleRef {
   id: string;
   name: string;
+}
+
+interface ResolvedRole extends UserRoleRef {
+  permissionCodes: string[];
 }
 
 export interface UserDetail {
@@ -43,6 +48,13 @@ export interface UserDetail {
  * ya rechazan `status=suspended` (f1-auth AUTH-REQ-04/11) — el epoch cubre
  * la ventana que ellos no cubren (un access token YA emitido y todavía
  * vigente).
+ *
+ * `create()`/`update()` validan `roleIds` con
+ * `assertNoRoleAssignmentEscalation` (W1b, hardening post-verify #274
+ * pasada 2): el actor debe poseer TODOS los permisos efectivos de los
+ * roles que AGREGA. Es la misma clase de confused deputy que W1 de
+ * `RolesService` (que impide ACUÑAR un permiso no poseído), por otra
+ * puerta: acá nada impedía TOMAR un rol EXISTENTE que ya lo tiene.
  */
 @Injectable()
 export class UsersAdminService {
@@ -56,6 +68,9 @@ export class UsersAdminService {
   async create(actor: AuthUser, input: CreateUserDto, meta: RequestMeta): Promise<UserDetail> {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const roles = await this.resolveRoles(tx, actor.tenantId, input.roleIds);
+      // W1b (verify #274 pasada 2): un user nuevo arranca sin roles -> TODO
+      // roleIds pedido es "delta agregado".
+      assertNoRoleAssignmentEscalation(actor, roles);
 
       let user: {
         id: string;
@@ -174,11 +189,19 @@ export class UsersAdminService {
         let rolesChanged = false;
 
         if (input.roleIds !== undefined) {
-          await this.resolveRoles(tx, actor.tenantId, input.roleIds);
+          const roles = await this.resolveRoles(tx, actor.tenantId, input.roleIds);
           const beforeRoleIds = before.roles.map((r) => r.roleId);
           rolesChanged = !sameSet(beforeRoleIds, input.roleIds);
 
           if (rolesChanged) {
+            // W1b (verify #274 pasada 2): solo se valida el DELTA agregado
+            // (roles NUEVOS respecto de `beforeRoleIds`) — quitarle a
+            // alguien roles que ya tenía no es escalada, sigue permitido
+            // sin pasar por acá. DEBE correr ANTES del swap: si tira, la tx
+            // no debe haber mutado nada todavía.
+            const addedRoles = roles.filter((role) => !beforeRoleIds.includes(role.id));
+            assertNoRoleAssignmentEscalation(actor, addedRoles);
+
             await tx.userRole.deleteMany({ where: { userId } });
             await tx.userRole.createMany({
               data: input.roleIds.map((roleId) => ({ userId, roleId })),
@@ -318,22 +341,36 @@ export class UsersAdminService {
     });
   }
 
+  /**
+   * Devuelve, ADEMÁS de `{id, name}`, los `permissionCodes` efectivos de
+   * cada rol — necesarios para el guard W1b (`assertNoRoleAssignmentEscalation`)
+   * sin una query extra. `toDetail()` es responsable de NO filtrar
+   * `permissionCodes` al DTO de respuesta.
+   */
   private async resolveRoles(
     tx: Prisma.TransactionClient,
     tenantId: string,
     roleIds: readonly string[],
-  ): Promise<UserRoleRef[]> {
+  ): Promise<ResolvedRole[]> {
     const uniqueIds = [...new Set(roleIds)];
     const roles = await tx.role.findMany({
       where: { id: { in: uniqueIds }, tenantId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        permissions: { select: { permission: { select: { code: true } } } },
+      },
     });
 
     if (roles.length !== uniqueIds.length) {
       throw new BadRequestException({ message: "users.invalid_role_ids" });
     }
 
-    return roles;
+    return roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      permissionCodes: role.permissions.map((p) => p.permission.code),
+    }));
   }
 
   private toDetail(
@@ -356,7 +393,10 @@ export class UsersAdminService {
       lastNameMaternal: user.lastNameMaternal,
       status: user.status,
       locale: user.locale,
-      roles,
+      // Reconstruido explícito: `roles` puede venir de `resolveRoles()`
+      // (`ResolvedRole`, con `permissionCodes` interno para el guard W1b) —
+      // nunca debe filtrarse al DTO de respuesta.
+      roles: roles.map((role) => ({ id: role.id, name: role.name })),
     };
   }
 }

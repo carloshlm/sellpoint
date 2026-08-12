@@ -4,5 +4,6 @@
   "email_taken": "Ya existe una cuenta con ese correo electrónico",
   "invalid_role_ids": "Uno o más roles enviados no existen en este comercio",
   "cannot_suspend_self": "No podés suspender tu propia cuenta",
-  "not_suspended": "El usuario no está suspendido"
+  "not_suspended": "El usuario no está suspendido",
+  "cannot_assign_unheld_role_permission": "No podés asignar un rol que otorga permisos que vos mismo no tenés"
 }
