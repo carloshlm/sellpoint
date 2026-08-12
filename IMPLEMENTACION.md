@@ -733,7 +733,7 @@ Ejemplos:
   - **Depende de:** F1-LOCALE-02
   - **Estimación:** 1.5 h
 
-- [ ] **F1-LOCALE-04** — Traducciones base de auth (es + en)
+- [x] **F1-LOCALE-04** — Traducciones base de auth (es + en)
   - **Salida:** `i18n/{es,en}/auth.json` y `errors.json` con todas las claves usadas en F1-AUTH: login, register, forgot, reset, suspended, unverified, locked, weak password. Mínimo ~15 claves.
   - **Verificar:** todos los mensajes de error de auth disponibles en ambos idiomas.
   - **Depende de:** F1-LOCALE-03
@@ -781,7 +781,7 @@ Ejemplos:
   - **Depende de:** F1-DB-09, F1-AUTH-06
   - **Estimación:** 1 h
 
-- [ ] **F1-TENANT-02** — `PrismaService` integrado con tenant context
+- [x] **F1-TENANT-02** — `PrismaService` integrado con tenant context
   - **Salida:** servicio que usa una connection-per-request o aplica el `set_config` antes de cada query
   - **Verificar:** dos usuarios de tenants distintos no ven los datos del otro
   - **Depende de:** F1-TENANT-01
@@ -797,37 +797,37 @@ Ejemplos:
 
 ### Módulo F1-AUTH — Autenticación
 
-- [ ] **F1-AUTH-01** — Script para generar par de claves RS256
+- [x] **F1-AUTH-01** — Script para generar par de claves RS256
   - **Salida:** `scripts/generate-keys.sh` que crea `apps/api/keys/jwt-private.pem` y `jwt-public.pem`
   - **Verificar:** `ssh-keygen -y` o `openssl rsa` valida los archivos
   - **Depende de:** F0-API-01
   - **Estimación:** 20 min
 
-- [ ] **F1-AUTH-02** — Servicio de hashing con Argon2id
+- [x] **F1-AUTH-02** — Servicio de hashing con Argon2id
   - **Salida:** `HashService` con `hash(password)` y `verify(password, hash)`
   - **Verificar:** unit test verifica que hash distinto en cada llamada pero `verify` devuelve true
   - **Depende de:** F0-API-01
   - **Estimación:** 30 min
 
-- [ ] **F1-AUTH-03** — `AuthService.registerTenant`
+- [x] **F1-AUTH-03** — `AuthService.registerTenant`
   - **Salida:** crea tenant + admin + asigna rol `TenantAdmin`, todo en transacción
   - **Verificar:** POST `/auth/register-tenant` crea las 4 filas
   - **Depende de:** F1-DB-10, F1-AUTH-02
   - **Estimación:** 1 h
 
-- [ ] **F1-AUTH-04** — Email service stub (consola en dev)
+- [x] **F1-AUTH-04** — Email service stub (consola en dev)
   - **Salida:** `EmailService` interface + implementación console en dev
   - **Verificar:** mandar email loguea el contenido a stdout
   - **Depende de:** F0-API-08
   - **Estimación:** 30 min
 
-- [ ] **F1-AUTH-05** — Endpoint y flujo de verificación de email
+- [x] **F1-AUTH-05** — Endpoint y flujo de verificación de email
   - **Salida:** crear `EmailVerificationToken`, enviar link, endpoint `GET /auth/verify?token=...` activa usuario
   - **Verificar:** registro nuevo → token en DB → endpoint marca `email_verified_at`
   - **Depende de:** F1-AUTH-03, F1-AUTH-04, F1-DB-05
   - **Estimación:** 1.5 h
 
-- [ ] **F1-AUTH-06** — JWT access token RS256
+- [x] **F1-AUTH-06** — JWT access token RS256
   - **Salida:** servicio que firma JWT con clave privada, payload `{userId, tenantId, permissions}`
   - **Verificar:** unit test verifica firma y decodifica con clave pública
   - **Depende de:** F1-AUTH-01
@@ -875,13 +875,13 @@ Ejemplos:
   - **Depende de:** F1-AUTH-07, F0-DB-02
   - **Estimación:** 1 h
 
-- [ ] **F1-AUTH-14** — `JwtAuthGuard`
+- [x] **F1-AUTH-14** — `JwtAuthGuard`
   - **Salida:** guard que valida el JWT en header `Authorization: Bearer`
   - **Verificar:** endpoint protegido devuelve 401 sin token, 200 con token válido
   - **Depende de:** F1-AUTH-06
   - **Estimación:** 45 min
 
-- [ ] **F1-AUTH-15** — Decorator `@CurrentUser()`
+- [x] **F1-AUTH-15** — Decorator `@CurrentUser()`
   - **Salida:** decorator que inyecta el payload del JWT en el handler
   - **Verificar:** `@CurrentUser() user: AuthUser` recibe `{userId, tenantId, ...}`
   - **Depende de:** F1-AUTH-14
