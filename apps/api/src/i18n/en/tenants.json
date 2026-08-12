@@ -1,0 +1,3 @@
+{
+  "currency_locked": "Cannot change the currency of a tenant that already has recorded transactions"
+}

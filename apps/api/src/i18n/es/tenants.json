@@ -1,0 +1,3 @@
+{
+  "currency_locked": "No se puede cambiar la moneda de un tenant que ya tiene transacciones registradas"
+}

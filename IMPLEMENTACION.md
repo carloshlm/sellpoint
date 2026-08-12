@@ -721,13 +721,13 @@ Ejemplos:
   - **Depende de:** F1-DB-10
   - **Estimación:** 30 min
 
-- [ ] **F1-LOCALE-02** — `LocaleResolverMiddleware`
+- [x] **F1-LOCALE-02** — `LocaleResolverMiddleware`
   - **Salida:** middleware Nest que setea `req.locale` con cascada: `user.locale` (autenticado) → `Accept-Language` (soportado) → `DEFAULT_LOCALE` (`es`). Expone helper `getLocale(req)`.
   - **Verificar:** tests unitarios cubriendo las 3 ramas de la cascada.
   - **Depende de:** F0-I18N-03, F1-AUTH-06
   - **Estimación:** 1.5 h
 
-- [ ] **F1-LOCALE-03** — Integrar resolución de locale con `nestjs-i18n`
+- [x] **F1-LOCALE-03** — Integrar resolución de locale con `nestjs-i18n`
   - **Salida:** `I18nModule` configurado para tomar `locale` desde `req.locale` (custom resolver). Endpoints existentes (`/auth/login`, `/auth/forgot`) devuelven errores traducidos.
   - **Verificar:** login con credenciales inválidas devuelve `"Credenciales inválidas"` (es) o `"Invalid credentials"` (en) según el header.
   - **Depende de:** F1-LOCALE-02
@@ -739,13 +739,13 @@ Ejemplos:
   - **Depende de:** F1-LOCALE-03
   - **Estimación:** 1 h
 
-- [ ] **F1-LOCALE-05** — Endpoint `PATCH /me` con campo `locale`
+- [x] **F1-LOCALE-05** — Endpoint `PATCH /me` con campo `locale`
   - **Salida:** acepta `{ locale }` en el body, valida contra `SUPPORTED_LOCALES`, persiste en `users.locale`, devuelve user actualizado. Audit log.
   - **Verificar:** cambio refleja en DB; siguiente request del user usa el nuevo locale.
   - **Depende de:** F1-LOCALE-02
   - **Estimación:** 1 h
 
-- [ ] **F1-LOCALE-06** — Guard de cambio de currency post-onboarding
+- [x] **F1-LOCALE-06** — Guard de cambio de currency post-onboarding
   - **Salida:** decorator `@TenantCurrencyChangeable` aplicado al endpoint de update de tenant. Verifica si el tenant tiene transacciones (futuro: productos con precio, ventas, movimientos). En F1 no hay transacciones aún, así que la verificación inicialmente siempre permite — pero el guard queda preparado con TODO comments para extenderlo en F2-F4.
   - **Verificar:** guard existe y se ejecuta; tests con mocks de "tenant con/sin transacciones".
   - **Depende de:** F1-DB-01
@@ -763,7 +763,7 @@ Ejemplos:
   - **Depende de:** F1-LOCALE-05, F0-I18N-04
   - **Estimación:** 1.5 h
 
-- [ ] **F1-LOCALE-09** — Detección inicial de `Accept-Language` al signup
+- [x] **F1-LOCALE-09** — Detección inicial de `Accept-Language` al signup
   - **Salida:** en `/register`, el frontend lee `navigator.language`, normaliza a un locale soportado, y lo envía al backend como `locale` inicial del primer user. Si el browser está en `pt-BR`, cae a default `es`.
   - **Verificar:** signup desde browser en inglés crea user con `locale='en'`.
   - **Depende de:** F1-LOCALE-05
