@@ -6,8 +6,21 @@ import type { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RolesService } from "./roles.service";
 
+// TenantAdmin-like: sostiene los 4 codes del catálogo mínimo. Los tests de
+// mecánica (create/update/remove/list) usan este actor a propósito —
+// cualquier actor que YA posee todo lo que otorga nunca puede activar el
+// guard W1 (escalada). Los tests DEDICADOS a W1 usan LIMITED_USER (abajo).
 const CURRENT_USER: AuthUser = {
   userId: "user-1",
+  tenantId: "tenant-1",
+  permissions: ["roles:read", "roles:manage", "users:read", "users:manage"],
+  locale: "es",
+};
+
+// Solo roles:manage — el actor "confused deputy" de W1 (verify #274): puede
+// gestionar roles pero NO tiene users:manage ni users:read.
+const LIMITED_USER: AuthUser = {
+  userId: "user-2",
   tenantId: "tenant-1",
   permissions: ["roles:manage"],
   locale: "es",
@@ -126,6 +139,94 @@ describe("RolesService.create (F1-RBAC-04)", () => {
   });
 });
 
+describe("RolesService — W1 hardening (verify #274): no se puede otorgar un permiso que el actor no posee", () => {
+  it("POST /roles: LIMITED_USER (solo roles:manage) crea un rol con users:manage -> 403, no crea nada", async () => {
+    const { service, tx } = buildService();
+
+    await expect(
+      service.create(
+        LIMITED_USER,
+        { name: "Auto-escalado", permissionCodes: ["users:manage"] },
+        {},
+      ),
+    ).rejects.toMatchObject({ response: { message: "roles.cannot_grant_unheld_permission" } });
+
+    expect(tx.role.create).not.toHaveBeenCalled();
+    expect(tx.rolePermission.createMany).not.toHaveBeenCalled();
+  });
+
+  it("POST /roles: LIMITED_USER puede otorgar SOLO lo que ya posee (roles:manage) -> 201", async () => {
+    const { service, tx } = buildService();
+
+    await service.create(
+      LIMITED_USER,
+      { name: "Sub-admin", permissionCodes: ["roles:manage"] },
+      {},
+    );
+
+    expect(tx.role.create).toHaveBeenCalled();
+  });
+
+  it("PATCH /roles/:id: LIMITED_USER agrega users:manage a un rol -> 403, no muta permisos", async () => {
+    const { service, tx, permEpochService } = buildService();
+    tx.role.findFirst.mockResolvedValue({
+      id: "role-1",
+      name: "Custom",
+      permissions: [{ permission: { code: "roles:read" } }],
+    });
+
+    await expect(
+      service.update(
+        LIMITED_USER,
+        "role-1",
+        { permissionCodes: ["roles:read", "users:manage"] },
+        {},
+      ),
+    ).rejects.toMatchObject({ response: { message: "roles.cannot_grant_unheld_permission" } });
+
+    expect(tx.rolePermission.deleteMany).not.toHaveBeenCalled();
+    expect(tx.rolePermission.createMany).not.toHaveBeenCalled();
+    expect(permEpochService.bumpTenantEpoch).not.toHaveBeenCalled();
+  });
+
+  it("PATCH /roles/:id: LIMITED_USER puede QUITAR permisos que no posee (bajar privilegios ajenos no es escalada)", async () => {
+    const { service, tx } = buildService();
+    tx.role.findFirst.mockResolvedValue({
+      id: "role-1",
+      name: "Custom",
+      permissions: [
+        { permission: { code: "roles:manage" } },
+        { permission: { code: "users:manage" } },
+        { permission: { code: "users:read" } },
+      ],
+    });
+    tx.role.findMany.mockResolvedValue([
+      {
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "users:manage" } },
+        ],
+        users: [{ user: { status: "active" } }],
+      },
+    ]);
+
+    // Deja el rol SOLO con roles:manage — el delta es puramente una quita
+    // (users:manage y users:read desaparecen), ningún code nuevo se agrega.
+    await service.update(LIMITED_USER, "role-1", { permissionCodes: ["roles:manage"] }, {});
+
+    expect(tx.rolePermission.deleteMany).toHaveBeenCalledWith({ where: { roleId: "role-1" } });
+  });
+
+  it("PATCH /roles/:id: rol inexistente (RLS/cross-tenant) sigue siendo 404 antes que la validación de escalada", async () => {
+    const { service, tx } = buildService();
+    tx.role.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.update(LIMITED_USER, "role-ajeno", { permissionCodes: ["users:manage"] }, {}),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
 describe("RolesService.update (F1-RBAC-04 — criterio clave del batch)", () => {
   function withExistingRole(tx: ReturnType<typeof buildService>["tx"]) {
     tx.role.findFirst.mockResolvedValue({
@@ -135,6 +236,18 @@ describe("RolesService.update (F1-RBAC-04 — criterio clave del batch)", () => 
     });
     tx.role.update.mockResolvedValue({ id: "role-1", name: "Manager" });
     tx.userRole.count.mockResolvedValue(3);
+    // Default W2: el tenant SIGUE teniendo un admin válido después de la
+    // mutación (otro rol, con usuario activo) — los tests dedicados a W2
+    // pisan este mock para simular el lockout.
+    tx.role.findMany.mockResolvedValue([
+      {
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "users:manage" } },
+        ],
+        users: [{ user: { status: "active" } }],
+      },
+    ]);
   }
 
   it("cambiar SOLO el nombre no toca permisos ni bumpea el epoch", async () => {
@@ -207,6 +320,85 @@ describe("RolesService.update (F1-RBAC-04 — criterio clave del batch)", () => 
   });
 });
 
+describe("RolesService.update — W2 hardening (verify #274): protege al último admin del tenant", () => {
+  function withExistingAdminRole(tx: ReturnType<typeof buildService>["tx"]) {
+    tx.role.findFirst.mockResolvedValue({
+      id: "role-1",
+      name: "TenantAdmin",
+      permissions: [
+        { permission: { code: "roles:manage" } },
+        { permission: { code: "users:manage" } },
+        { permission: { code: "roles:read" } },
+        { permission: { code: "users:read" } },
+      ],
+    });
+    tx.role.update.mockResolvedValue({ id: "role-1", name: "TenantAdmin" });
+    tx.userRole.count.mockResolvedValue(1);
+  }
+
+  it("quitarle users:manage al ÚNICO rol admin -> 409 roles.last_admin_protected, no muta", async () => {
+    const { service, tx, permEpochService } = buildService();
+    withExistingAdminRole(tx);
+    // Post-mutación (simulada): el propio rol pierde users:manage y NINGÚN
+    // otro rol del tenant cubre la invariante -> lockout.
+    tx.role.findMany.mockResolvedValue([
+      {
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "roles:read" } },
+          { permission: { code: "users:read" } },
+        ],
+        users: [{ user: { status: "active" } }],
+      },
+    ]);
+
+    await expect(
+      service.update(
+        CURRENT_USER,
+        "role-1",
+        { permissionCodes: ["roles:manage", "roles:read", "users:read"] },
+        {},
+      ),
+    ).rejects.toMatchObject({ response: { message: "roles.last_admin_protected" } });
+
+    expect(permEpochService.bumpTenantEpoch).not.toHaveBeenCalled();
+  });
+
+  it("HAY DOS roles admin: sacarle permisos a UNO (dejando al otro intacto) SÍ se permite", async () => {
+    const { service, tx, permEpochService } = buildService();
+    withExistingAdminRole(tx);
+    // El OTRO rol admin del tenant (con su propio usuario activo) sigue
+    // cubriendo la invariante después de esta mutación.
+    tx.role.findMany.mockResolvedValue([
+      {
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "roles:read" } },
+          { permission: { code: "users:read" } },
+        ],
+        users: [{ user: { status: "active" } }],
+      },
+      {
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "users:manage" } },
+        ],
+        users: [{ user: { status: "active" } }],
+      },
+    ]);
+
+    const result = await service.update(
+      CURRENT_USER,
+      "role-1",
+      { permissionCodes: ["roles:manage", "roles:read", "users:read"] },
+      {},
+    );
+
+    expect(result.permissionCodes).not.toContain("users:manage");
+    expect(permEpochService.bumpTenantEpoch).toHaveBeenCalled();
+  });
+});
+
 describe("RolesService.remove (F1-RBAC-04)", () => {
   it("rol CON usuarios asignados -> 409 roles.role_in_use, no borra", async () => {
     const { service, tx } = buildService();
@@ -240,6 +432,22 @@ describe("RolesService.remove (F1-RBAC-04)", () => {
     await expect(service.remove(CURRENT_USER, "ghost", {})).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  // W2 (verify #274) vector "DELETE del último rol admin": role_in_use YA
+  // cubre este vector sin código nuevo — DELETE solo llega a borrar cuando
+  // userCount===0 (ACTIVO o no), y un rol admin sin ningún usuario asignado
+  // nunca estaba cubriendo la invariante para empezar (0 usuarios activos
+  // en ese rol). Documentado acá para que quede explícito, no implícito.
+  it("W2: el único rol TenantAdmin CON su usuario -> 409 role_in_use, nunca llega a borrarse", async () => {
+    const { service, tx } = buildService();
+    tx.role.findFirst.mockResolvedValue({ id: "role-1", name: "TenantAdmin" });
+    tx.userRole.count.mockResolvedValue(1);
+
+    await expect(service.remove(CURRENT_USER, "role-1", {})).rejects.toMatchObject({
+      response: { message: "roles.role_in_use" },
+    });
+    expect(tx.role.delete).not.toHaveBeenCalled();
   });
 });
 

@@ -3,5 +3,7 @@
   "not_found": "El rol no existe",
   "name_taken": "Ya existe un rol con ese nombre en este comercio",
   "role_in_use": "No se puede eliminar un rol que tiene usuarios asignados",
-  "unknown_permission_code": "Uno o más permisos enviados no existen en el catálogo"
+  "unknown_permission_code": "Uno o más permisos enviados no existen en el catálogo",
+  "cannot_grant_unheld_permission": "No se puede otorgar un permiso que vos mismo no tenés",
+  "last_admin_protected": "Esta acción dejaría al comercio sin ningún usuario que pueda administrar roles y usuarios"
 }

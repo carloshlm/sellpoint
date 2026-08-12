@@ -22,9 +22,30 @@ function uniqueViolation() {
   });
 }
 
+// El mock de `role.findMany` sirve DOS consultas distintas con la misma tx:
+// `resolveRoles()` (where.id.in — valida roleIds) y `assertTenantRetainsAdmin`
+// del guard W2 (where SIN `id`, solo tenantId). Se distinguen por shape del
+// `where`, igual que el mock de `permission.findMany` en roles.service.spec.
+function defaultRoleFindMany(args: { where?: Record<string, unknown> }) {
+  if (args?.where && "id" in args.where) {
+    return Promise.resolve([{ id: "role-1", name: "Manager" }]);
+  }
+  // Default W2: el tenant SIGUE teniendo un admin activo tras la mutación
+  // — los tests dedicados a W2 pisan este mock para simular el lockout.
+  return Promise.resolve([
+    {
+      permissions: [
+        { permission: { code: "roles:manage" } },
+        { permission: { code: "users:manage" } },
+      ],
+      users: [{ user: { status: "active" } }],
+    },
+  ]);
+}
+
 function buildService() {
   const role = {
-    findMany: jest.fn().mockResolvedValue([{ id: "role-1", name: "Manager" }]),
+    findMany: jest.fn(defaultRoleFindMany),
   };
 
   const user = {
@@ -164,7 +185,7 @@ describe("UsersAdminService.update (F1-RBAC-03)", () => {
   it("reemplazar roleIds BUMPEA perm-epoch:{userId} tras el commit (permisos del user cambian)", async () => {
     const { service, tx, permEpochService } = buildService();
     withExistingUser(tx);
-    tx.role.findMany.mockResolvedValue([{ id: "role-2", name: "Viewer" }]);
+    tx.role.findMany.mockResolvedValueOnce([{ id: "role-2", name: "Viewer" }]);
 
     await service.update(ACTOR, "user-2", { roleIds: ["role-2"] }, {});
 
@@ -182,6 +203,28 @@ describe("UsersAdminService.update (F1-RBAC-03)", () => {
     await expect(service.update(ACTOR, "ghost", { locale: "en" }, {})).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+describe("UsersAdminService.update — W2 hardening (verify #274): protege al último admin del tenant", () => {
+  it("reasignar roleIds del ÚNICO admin activo a un rol sin admin -> 409 roles.last_admin_protected", async () => {
+    const { service, tx, permEpochService } = buildService();
+    tx.user.findFirst.mockResolvedValue({
+      id: "user-2",
+      status: "active",
+      roles: [{ roleId: "role-1" }],
+    });
+    // resolveRoles(): el roleId nuevo pedido (Viewer) SÍ existe en el
+    // tenant. La segunda llamada (guard W2, where sin `id`) usa el default
+    // del mock: NINGÚN rol admin queda con usuario activo tras el swap.
+    tx.role.findMany.mockResolvedValueOnce([{ id: "role-viewer", name: "Viewer" }]);
+    tx.role.findMany.mockResolvedValueOnce([]);
+
+    await expect(
+      service.update(ACTOR, "user-2", { roleIds: ["role-viewer"] }, {}),
+    ).rejects.toMatchObject({ response: { message: "roles.last_admin_protected" } });
+
+    expect(permEpochService.bumpUserEpoch).not.toHaveBeenCalled();
   });
 });
 
@@ -274,6 +317,75 @@ describe("UsersAdminService.suspend/reactivate (F1-RBAC-03)", () => {
 
     expect(result.status).toBe("active");
     expect(permEpochService.bumpUserEpoch).not.toHaveBeenCalled();
+  });
+});
+
+describe("UsersAdminService.suspend — W2 hardening (verify #274): protege al último admin del tenant", () => {
+  it("suspender al ÚNICO admin activo del tenant -> 409 roles.last_admin_protected, no muta", async () => {
+    const { service, tx, permEpochService } = buildService();
+    tx.user.findFirst.mockResolvedValue({
+      id: "user-2",
+      email: "admin@example.com",
+      firstName: "Ana",
+      lastNamePaternal: "Pérez",
+      lastNameMaternal: null,
+      status: "active",
+      locale: "es",
+      roles: [{ role: { id: "role-1", name: "TenantAdmin" } }],
+    });
+    // Post-mutación (simulada, actor DISTINTO al target): sin este admin
+    // activo, el tenant se queda sin nadie que administre roles/usuarios.
+    tx.role.findMany.mockResolvedValue([]);
+
+    await expect(service.suspend(ACTOR, "user-2", {})).rejects.toMatchObject({
+      response: { message: "roles.last_admin_protected" },
+    });
+
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: "user-2" },
+      data: { status: "suspended" },
+    });
+    // El guard corre DESPUÉS del update, DENTRO de la misma tx — Prisma
+    // revierte la tx completa al tirar (mismo mecanismo que cualquier otra
+    // excepción lanzada dentro de `withTenantContext`).
+    expect(permEpochService.bumpUserEpoch).not.toHaveBeenCalled();
+  });
+
+  it("suspender a un admin CUANDO hay otro admin activo -> se permite", async () => {
+    const { service, tx, permEpochService } = buildService();
+    tx.user.findFirst.mockResolvedValue({
+      id: "user-2",
+      email: "admin2@example.com",
+      firstName: "Bruno",
+      lastNamePaternal: "Díaz",
+      lastNameMaternal: null,
+      status: "active",
+      locale: "es",
+      roles: [{ role: { id: "role-1", name: "TenantAdmin" } }],
+    });
+    tx.user.update.mockResolvedValue({
+      id: "user-2",
+      email: "admin2@example.com",
+      firstName: "Bruno",
+      lastNamePaternal: "Díaz",
+      lastNameMaternal: null,
+      status: "suspended",
+      locale: "es",
+    });
+    tx.role.findMany.mockResolvedValue([
+      {
+        permissions: [
+          { permission: { code: "roles:manage" } },
+          { permission: { code: "users:manage" } },
+        ],
+        users: [{ user: { status: "active" } }],
+      },
+    ]);
+
+    const result = await service.suspend(ACTOR, "user-2", {});
+
+    expect(result.status).toBe("suspended");
+    expect(permEpochService.bumpUserEpoch).toHaveBeenCalledWith("user-2", NOW);
   });
 });
 

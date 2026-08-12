@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -14,6 +15,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { CreateRoleDto } from "./dto/create-role.dto";
 import type { UpdateRoleDto } from "./dto/update-role.dto";
+import { assertTenantRetainsAdmin } from "./tenant-admin-guard";
 
 export interface RoleSummary {
   id: string;
@@ -45,6 +47,9 @@ export class RolesService {
   async create(user: AuthUser, input: CreateRoleDto, meta: RequestMeta): Promise<RoleSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const permissionIds = await this.resolvePermissionIds(tx, input.permissionCodes);
+      // W1 (verify #274, confused deputy): un rol nuevo arranca sin
+      // permisos -> TODO permissionCodes pedido es "delta agregado".
+      this.assertNoPrivilegeEscalation(user, input.permissionCodes, []);
 
       let role: { id: string; name: string };
       try {
@@ -140,6 +145,10 @@ export class RolesService {
 
         if (input.permissionCodes !== undefined) {
           const permissionIds = await this.resolvePermissionIds(tx, input.permissionCodes);
+          // W1 (verify #274): solo se valida el DELTA agregado — bajar
+          // privilegios ajenos (quitar codes que el actor tampoco posee)
+          // SÍ se permite, no es escalada.
+          this.assertNoPrivilegeEscalation(user, input.permissionCodes, beforeCodes);
           permissionsChanged = !sameSet(beforeCodes, input.permissionCodes);
 
           if (permissionsChanged) {
@@ -149,6 +158,11 @@ export class RolesService {
                 data: permissionIds.map((permissionId) => ({ roleId, permissionId })),
               });
             }
+            // W2 (verify #274): recién DESPUÉS de aplicar el swap, con el
+            // estado ya mutado dentro de esta misma tx — si el tenant se
+            // queda sin ningún admin activo, tira 409 y Prisma revierte
+            // TODO (deleteMany + createMany incluidos).
+            await assertTenantRetainsAdmin(tx, user.tenantId);
           }
           afterCodes = [...input.permissionCodes];
         }
@@ -241,6 +255,35 @@ export class RolesService {
     }
 
     return rows.map((row) => row.id);
+  }
+
+  /**
+   * W1 (hardening post-verify #274, `sdd/f1-rbac/verify-report`): confused
+   * deputy / escalada de privilegios intra-tenant. Un actor con
+   * `roles:manage` (y NADA más) podía otorgarle a un rol cualquier code
+   * del catálogo GLOBAL vía `resolvePermissionIds()`, sin importar si el
+   * actor mismo lo poseía — incluyendo su PROPIO rol, auto-escalándose en
+   * el próximo refresh. Regla: nadie puede otorgar un permiso que no
+   * posee. Solo se valida el DELTA AGREGADO (`requestedCodes` menos
+   * `currentCodes`) — quitarle a un rol permisos que el actor tampoco
+   * posee SÍ está permitido (bajar privilegios ajenos no es escalada).
+   */
+  private assertNoPrivilegeEscalation(
+    actor: AuthUser,
+    requestedCodes: readonly string[],
+    currentCodes: readonly string[],
+  ): void {
+    const currentSet = new Set(currentCodes);
+    const addedCodes = requestedCodes.filter((code) => !currentSet.has(code));
+    if (addedCodes.length === 0) {
+      return;
+    }
+
+    const actorPermissions = new Set(actor.permissions);
+    const unheldCodes = addedCodes.filter((code) => !actorPermissions.has(code));
+    if (unheldCodes.length > 0) {
+      throw new ForbiddenException({ message: "roles.cannot_grant_unheld_permission" });
+    }
   }
 }
 

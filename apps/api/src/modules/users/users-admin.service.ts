@@ -12,6 +12,7 @@ import { PermEpochService } from "../../infrastructure/redis/perm-epoch.service"
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertTenantRetainsAdmin } from "../roles/tenant-admin-guard";
 import type { CreateUserDto } from "./dto/create-user.dto";
 import type { UpdateUserDto } from "./dto/update-user.dto";
 
@@ -182,6 +183,11 @@ export class UsersAdminService {
             await tx.userRole.createMany({
               data: input.roleIds.map((roleId) => ({ userId, roleId })),
             });
+            // W2 (verify #274): quitarle al ÚLTIMO admin activo su rol
+            // admin (reasignándolo a otro rol) es el mismo lockout que
+            // vaciarle los permisos al rol — mismo guard, mismo criterio
+            // post-mutación dentro de la tx.
+            await assertTenantRetainsAdmin(tx, actor.tenantId);
           }
         }
 
@@ -246,6 +252,12 @@ export class UsersAdminService {
         where: { id: userId },
         data: { status: "suspended" },
       });
+
+      // W2 (verify #274): con `status` ya mutado dentro de esta misma tx,
+      // este usuario deja de contar como "activo" para la invariante — si
+      // era el último admin activo del tenant, tira 409 y Prisma revierte
+      // el update completo.
+      await assertTenantRetainsAdmin(tx, actor.tenantId);
 
       await this.auditService.record(tx, {
         tenantId: actor.tenantId,

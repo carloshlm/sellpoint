@@ -3,5 +3,7 @@
   "not_found": "The role does not exist",
   "name_taken": "A role with that name already exists in this business",
   "role_in_use": "A role with users assigned cannot be deleted",
-  "unknown_permission_code": "One or more submitted permissions do not exist in the catalog"
+  "unknown_permission_code": "One or more submitted permissions do not exist in the catalog",
+  "cannot_grant_unheld_permission": "You cannot grant a permission you do not have yourself",
+  "last_admin_protected": "This action would leave the business without anyone able to manage roles and users"
 }
