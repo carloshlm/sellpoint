@@ -8,11 +8,16 @@ import { validateEnv } from "./config/env.schema";
 import { HealthController } from "./health/health.controller";
 import { i18nOptions } from "./i18n/i18n.config";
 import { I18nDemoController } from "./i18n/i18n-demo.controller";
+import { ClockModule } from "./infrastructure/clock/clock.module";
 import { CryptoModule } from "./infrastructure/crypto/crypto.module";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
+import { AuditModule } from "./modules/audit/audit.module";
+import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { TokenService } from "./modules/auth/services/token.service";
+import { MailModule } from "./modules/mail/mail.module";
+import { TenantsModule } from "./modules/tenants/tenants.module";
 
 @Module({
   imports: [
@@ -34,18 +39,28 @@ import { TokenService } from "./modules/auth/services/token.service";
         },
       },
     }),
-    I18nModule.forRoot(i18nOptions),
+    // global: true (f1-auth U2): nestjs-i18n no marca I18nModule global por
+    // default — sin esto, cada feature module que necesite I18nService
+    // (MailModule acá) tendría que volver a llamar forRoot() y duplicar
+    // loaders/watchers. DynamicModule respeta `global` como cualquier otro.
+    { ...I18nModule.forRoot(i18nOptions), global: true },
+    ClockModule,
     CryptoModule,
     PrismaModule,
     RedisModule,
+    // f1-auth U2: registro de tenant+owner + verificación de email.
+    AuditModule,
+    MailModule,
+    TenantsModule,
+    AuthModule,
   ],
   controllers: [HealthController, I18nDemoController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     // Secure by default (f1-auth AD-8): TODO endpoint requiere JWT válido
-    // salvo @Public() explícito. TokenService/JwtAuthGuard viven acá
-    // temporalmente hasta que U2 introduzca AuthModule — no hay controller
-    // de auth todavía, pero el guard global ya tiene que estar montado.
+    // salvo @Public() explícito. TokenService/JwtAuthGuard siguen wireados
+    // acá directo (login llega en U3) — no hay controller que los use
+    // todavía, pero el guard global ya tiene que estar montado.
     TokenService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],

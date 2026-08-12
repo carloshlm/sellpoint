@@ -1,3 +1,17 @@
 {
-  "greeting": "Hola"
+  "greeting": "Hola",
+  "verifyEmail": {
+    "subject": "Verificá tu cuenta de SellPoint",
+    "greeting": "Hola {firstName},",
+    "body": "Gracias por registrarte en SellPoint. Confirmá tu email para activar tu cuenta.",
+    "cta": "Verificar email",
+    "expiry": "Este link vence en 24 horas. Si no creaste esta cuenta, ignorá este correo."
+  },
+  "resetPassword": {
+    "subject": "Restablecé tu contraseña de SellPoint",
+    "greeting": "Hola {firstName},",
+    "body": "Recibimos una solicitud para restablecer tu contraseña.",
+    "cta": "Restablecer contraseña",
+    "expiry": "Este link vence en 30 minutos. Si no pediste esto, ignorá este correo."
+  }
 }

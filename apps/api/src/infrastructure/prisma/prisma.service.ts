@@ -46,4 +46,30 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       { timeout: 10_000 },
     );
   }
+
+  /**
+   * Variante de `withTenantContext` para el ÚNICO caso donde el tenant NO
+   * existe todavía al abrir la transacción: registro de tenant nuevo
+   * (f1-auth design §4, `TenantsService.provision()`). El callback recibe
+   * `setTenantContext(tenantId)` y DEBE llamarlo justo después de crear el
+   * tenant, antes de tocar cualquier tabla con RLS — `set_config` sigue
+   * viviendo únicamente acá (regla dura de AD-1), nunca inline en el
+   * dominio.
+   */
+  async withNewTenantContext<T>(
+    fn: (
+      tx: Prisma.TransactionClient,
+      setTenantContext: (tenantId: string) => Promise<void>,
+    ) => Promise<T>,
+  ): Promise<T> {
+    return this.$transaction(
+      async (tx) => {
+        const setTenantContext = async (tenantId: string) => {
+          await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}::text, true)`;
+        };
+        return fn(tx, setTenantContext);
+      },
+      { timeout: 10_000 },
+    );
+  }
 }

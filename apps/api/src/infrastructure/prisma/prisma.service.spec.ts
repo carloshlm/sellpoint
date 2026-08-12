@@ -68,4 +68,45 @@ describe("PrismaService — withTenantContext (integration)", () => {
       expect(rows).toHaveLength(0);
     });
   });
+
+  describe("withNewTenantContext (f1-auth U2, register-tenant)", () => {
+    it("permite crear el tenant y recién después abrir su propio contexto en la misma tx", async () => {
+      const result = await prisma.withNewTenantContext(async (tx, setTenantContext) => {
+        const tenant = await tx.tenant.create({
+          data: { name: "Tenant nuevo - withNewTenantContext" },
+        });
+        await setTenantContext(tenant.id);
+
+        const user = await tx.user.create({
+          data: {
+            tenantId: tenant.id,
+            email: `owner-${Date.now()}@example.com`,
+            firstName: "Owner",
+            lastNamePaternal: "Test",
+          },
+        });
+
+        return { tenantId: tenant.id, userId: user.id };
+      });
+
+      const usersEnContexto = await prisma.withTenantContext(result.tenantId, (tx) =>
+        tx.user.findMany({ where: { tenantId: result.tenantId } }),
+      );
+      expect(usersEnContexto).toHaveLength(1);
+      expect(usersEnContexto[0]?.id).toBe(result.userId);
+    });
+
+    it("el contexto abierto adentro no fuga fuera de la transacción", async () => {
+      await prisma.withNewTenantContext(async (tx, setTenantContext) => {
+        const tenant = await tx.tenant.create({
+          data: { name: "Tenant fuga - withNewTenantContext" },
+        });
+        await setTenantContext(tenant.id);
+        return tenant.id;
+      });
+
+      const usersSinContexto = await prisma.user.findMany();
+      expect(usersSinContexto).toHaveLength(0);
+    });
+  });
 });

@@ -40,3 +40,6 @@ Thumbs.db
 
 # Agent Teams Lite / SDD local artifacts
 .atl/
+
+# Salesforce CLI local cache (ajeno a este repo — no debe committearse)
+.sfdx/

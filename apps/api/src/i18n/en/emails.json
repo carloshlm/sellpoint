@@ -1,3 +1,17 @@
 {
-  "greeting": "Hello"
+  "greeting": "Hello",
+  "verifyEmail": {
+    "subject": "Verify your SellPoint account",
+    "greeting": "Hi {firstName},",
+    "body": "Thanks for signing up to SellPoint. Confirm your email to activate your account.",
+    "cta": "Verify email",
+    "expiry": "This link expires in 24 hours. If you didn't create this account, ignore this email."
+  },
+  "resetPassword": {
+    "subject": "Reset your SellPoint password",
+    "greeting": "Hi {firstName},",
+    "body": "We received a request to reset your password.",
+    "cta": "Reset password",
+    "expiry": "This link expires in 30 minutes. If you didn't request this, ignore this email."
+  }
 }
