@@ -1,4 +1,14 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleInit,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";
@@ -10,8 +20,14 @@ import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { TenantsService } from "../tenants/tenants.service";
 import { AuthRepository } from "./repositories/auth.repository";
 import { OneTimeTokenService } from "./services/one-time-token.service";
+import { RefreshTokenService } from "./services/refresh-token.service";
+import { TokenService } from "./services/token.service";
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+// AUTH-REQ-03: password nunca usado para autenticar de verdad — solo existe
+// para que argon2.verify() consuma el MISMO tiempo de CPU cuando el email
+// no existe (anti-timing). No es un secreto: si se filtra, no habilita nada.
+const DUMMY_PASSWORD_FOR_TIMING = "dummy-password-constant-time-verify";
 
 export interface RegisterTenantInput {
   tenantName: string;
@@ -35,9 +51,14 @@ export interface RequestMeta {
  * módulo auth (IMPLEMENTACION.md:636).
  */
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
   private readonly appUrl: string;
+  private readonly accessTtlSeconds: number;
+  // AUTH-REQ-03: precomputado UNA vez al bootear (OnModuleInit, equivalente
+  // async del "constructor" del design) — nunca recalculado por request, así
+  // el timing es constante desde el primer login.
+  private dummyHash!: string;
 
   constructor(
     private readonly tenantsService: TenantsService,
@@ -48,9 +69,16 @@ export class AuthService {
     @Inject(MAILER) private readonly mailer: MailerPort,
     private readonly auditService: AuditService,
     private readonly prisma: PrismaService,
+    private readonly tokenService: TokenService,
+    private readonly refreshTokenService: RefreshTokenService,
     configService: ConfigService<Env, true>,
   ) {
     this.appUrl = configService.get("APP_URL", { infer: true });
+    this.accessTtlSeconds = configService.get("JWT_ACCESS_TTL_MIN", { infer: true }) * 60;
+  }
+
+  async onModuleInit(): Promise<void> {
+    this.dummyHash = await this.hasher.hash(DUMMY_PASSWORD_FOR_TIMING);
   }
 
   async registerTenant(
@@ -145,4 +173,277 @@ export class AuthService {
       });
     });
   }
+
+  /**
+   * AUTH-REQ-03 (design §4): a prueba de enumeración — el mismo
+   * `401 auth.invalid_credentials` sale de CUALQUIERA de: email inexistente,
+   * password incorrecto, usuario invitado sin password. `argon2.verify`
+   * corre SIEMPRE, incluso cuando ya sabemos que va a fallar, para que el
+   * tiempo de CPU no delate cuál de los casos fue.
+   */
+  async login(input: LoginInput, meta: RequestMeta): Promise<LoginResult> {
+    const tenantId = await this.authRepository.resolveTenantByEmail(input.email);
+
+    if (!tenantId) {
+      await this.hasher.verify(this.dummyHash, input.password);
+      // AD-10: sin tenant no hay dónde auditar en DB (audit_logs exige
+      // tenant_id NOT NULL) — esto va solo al log estructurado de pino.
+      this.logger.warn("login fallido: email no registrado en ningún tenant");
+      throw new UnauthorizedException({ message: "auth.invalid_credentials" });
+    }
+
+    // AD-1: lectura CORTA, cierra antes de verificar el hash.
+    const user = await this.prisma.withTenantContext(tenantId, (tx) =>
+      this.authRepository.findUserByTenantAndEmail(tx, tenantId, input.email),
+    );
+
+    if (!user || user.passwordHash === null) {
+      await this.hasher.verify(this.dummyHash, input.password);
+      throw new UnauthorizedException({ message: "auth.invalid_credentials" });
+    }
+
+    // argon2 SIEMPRE fuera de la tx (AD-1: ~80-150ms retendría una
+    // conexión del pool).
+    const passwordValid = await this.hasher.verify(user.passwordHash, input.password);
+
+    if (!passwordValid) {
+      await this.prisma.withTenantContext(tenantId, (tx) =>
+        this.auditService.record(tx, {
+          tenantId,
+          userId: user.id,
+          action: "auth.login.failed",
+          resourceType: "user",
+          resourceId: user.id,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        }),
+      );
+      throw new UnauthorizedException({ message: "auth.invalid_credentials" });
+    }
+
+    if (user.status === "suspended") {
+      throw new ForbiddenException({ message: "auth.account_suspended" });
+    }
+
+    if (user.emailVerifiedAt === null) {
+      throw new ForbiddenException({ message: "auth.email_not_verified" });
+    }
+
+    const familyId = randomUUID();
+
+    return this.prisma.withTenantContext(tenantId, async (tx) => {
+      const permissions = await this.authRepository.resolvePermissionCodes(tx, user.id);
+      const { token: rawRefreshToken, tokenHash } = this.oneTimeTokenService.generate();
+      const refreshExpiresAt = this.refreshTokenService.buildExpiry();
+
+      await this.authRepository.createRefreshToken(tx, {
+        tenantId,
+        userId: user.id,
+        tokenHash,
+        familyId,
+        expiresAt: refreshExpiresAt,
+      });
+
+      await this.auditService.record(tx, {
+        tenantId,
+        userId: user.id,
+        action: "auth.login.success",
+        resourceType: "user",
+        resourceId: user.id,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      const locale = user.locale as "es" | "en";
+      const accessToken = this.tokenService.signAccessToken({
+        sub: user.id,
+        tenantId,
+        permissions,
+        locale,
+      });
+
+      return {
+        accessToken,
+        expiresIn: this.accessTtlSeconds,
+        refreshToken: rawRefreshToken,
+        refreshExpiresAt,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          locale,
+          permissions,
+        },
+      };
+    });
+  }
+
+  /**
+   * AUTH-REQ-05/06/11 (design §4). `rawToken` viene de la cookie
+   * `sp_refresh` — el controller es responsable de limpiarla en CUALQUIER
+   * error (catch genérico), acá solo se orquesta la lógica de dominio.
+   */
+  async refresh(rawToken: string | undefined, meta: RequestMeta): Promise<RefreshResult> {
+    if (!rawToken) {
+      throw new UnauthorizedException({ message: "auth.missing_refresh_token" });
+    }
+
+    const tokenHash = this.oneTimeTokenService.hash(rawToken);
+    const row = await this.authRepository.findRefreshTokenByHash(tokenHash);
+
+    if (!row) {
+      throw new UnauthorizedException({ message: "auth.invalid_refresh_token" });
+    }
+
+    // AUTH-REQ-06: reuso de un token ya rotado/revocado — robo probable.
+    // Revocar la familia entera necesita auditar (audit_logs tiene RLS), por
+    // eso SÍ abre contexto acá aunque refresh_tokens no tenga RLS (AD-3).
+    if (row.usedAt !== null || row.revokedAt !== null) {
+      await this.prisma.withTenantContext(row.tenantId, async (tx) => {
+        await this.refreshTokenService.revokeFamily(tx, row.familyId);
+        await this.auditService.record(tx, {
+          tenantId: row.tenantId,
+          userId: row.userId,
+          action: "auth.refresh.reuse_detected",
+          resourceType: "refresh_token_family",
+          resourceId: row.familyId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+      });
+      throw new UnauthorizedException({ message: "auth.token_reused" });
+    }
+
+    if (row.expiresAt < this.clock.now()) {
+      throw new UnauthorizedException({ message: "auth.invalid_refresh_token" });
+    }
+
+    const oldestCreatedAt = await this.authRepository.findOldestFamilyCreatedAt(row.familyId);
+    if (oldestCreatedAt && this.refreshTokenService.isFamilyOverCap(oldestCreatedAt)) {
+      throw new UnauthorizedException({ message: "auth.invalid_refresh_token" });
+    }
+
+    return this.prisma.withTenantContext(row.tenantId, async (tx) => {
+      const user = await this.authRepository.findUserById(tx, row.userId);
+
+      // AUTH-REQ-11: re-chequeo de estado EN CADA rotación — una
+      // suspensión aplicada a mitad de sesión corta el refresh acá. Dos
+      // guards separados (en vez de `!user || user.status !== "active"`)
+      // a propósito: mantienen el narrowing de `user` para el resto del
+      // callback sin el warning de useOptionalChain de biome.
+      if (user === null) {
+        throw new ForbiddenException({ message: "auth.account_suspended" });
+      }
+      if (user.status !== "active") {
+        throw new ForbiddenException({ message: "auth.account_suspended" });
+      }
+
+      const rotated = await this.refreshTokenService.markUsedOrRevokeFamily(
+        tx,
+        row.id,
+        row.familyId,
+      );
+
+      if (!rotated) {
+        await this.auditService.record(tx, {
+          tenantId: row.tenantId,
+          userId: row.userId,
+          action: "auth.refresh.reuse_detected",
+          resourceType: "refresh_token_family",
+          resourceId: row.familyId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+        throw new UnauthorizedException({ message: "auth.token_reused" });
+      }
+
+      // Permisos re-resueltos FRESCOS desde DB (design §4): es lo que hace
+      // que un epoch bumpeado (AD-8) propague apenas el usuario refresca.
+      const permissions = await this.authRepository.resolvePermissionCodes(tx, user.id);
+      const { token: newRawToken, tokenHash: newTokenHash } = this.oneTimeTokenService.generate();
+      const refreshExpiresAt = this.refreshTokenService.buildExpiry();
+
+      await this.authRepository.createRefreshToken(tx, {
+        tenantId: row.tenantId,
+        userId: user.id,
+        tokenHash: newTokenHash,
+        familyId: row.familyId,
+        expiresAt: refreshExpiresAt,
+      });
+
+      const locale = user.locale as "es" | "en";
+      const accessToken = this.tokenService.signAccessToken({
+        sub: user.id,
+        tenantId: row.tenantId,
+        permissions,
+        locale,
+      });
+
+      return {
+        accessToken,
+        expiresIn: this.accessTtlSeconds,
+        refreshToken: newRawToken,
+        refreshExpiresAt,
+      };
+    });
+  }
+
+  /**
+   * AUTH-REQ-07: revoca la FAMILIA entera (no solo el token) — cerrar
+   * sesión en un dispositivo no debe dejar un token rotable colgando.
+   * Silencioso a propósito: sin cookie, token inexistente o ya revocado,
+   * el resultado observable es el mismo (204) — el controller SIEMPRE
+   * limpia la cookie después de llamar acá.
+   */
+  async logout(rawToken: string | undefined, meta: RequestMeta): Promise<void> {
+    if (!rawToken) {
+      return;
+    }
+
+    const tokenHash = this.oneTimeTokenService.hash(rawToken);
+    const row = await this.authRepository.findRefreshTokenByHash(tokenHash);
+
+    if (!row) {
+      return;
+    }
+
+    await this.prisma.withTenantContext(row.tenantId, async (tx) => {
+      await this.refreshTokenService.revokeFamily(tx, row.familyId);
+      await this.auditService.record(tx, {
+        tenantId: row.tenantId,
+        userId: row.userId,
+        action: "auth.logout",
+        resourceType: "user",
+        resourceId: row.userId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    });
+  }
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface LoginResult {
+  accessToken: string;
+  expiresIn: number;
+  refreshToken: string;
+  refreshExpiresAt: Date;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    locale: "es" | "en";
+    permissions: string[];
+  };
+}
+
+export interface RefreshResult {
+  accessToken: string;
+  expiresIn: number;
+  refreshToken: string;
+  refreshExpiresAt: Date;
 }

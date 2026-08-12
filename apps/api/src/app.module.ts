@@ -17,7 +17,6 @@ import { TenantContextMiddleware } from "./infrastructure/tenant-context/tenant-
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
-import { TokenService } from "./modules/auth/services/token.service";
 import { MailModule } from "./modules/mail/mail.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -63,10 +62,8 @@ import { UsersModule } from "./modules/users/users.module";
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     // Secure by default (f1-auth AD-8): TODO endpoint requiere JWT válido
-    // salvo @Public() explícito. TokenService/JwtAuthGuard siguen wireados
-    // acá directo (login llega en U3) — no hay controller que los use
-    // todavía, pero el guard global ya tiene que estar montado.
-    TokenService,
+    // salvo @Public() explícito. JwtAuthGuard resuelve TokenService desde
+    // AuthModule (importado arriba, lo exporta desde U3) — no se declara acá.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })

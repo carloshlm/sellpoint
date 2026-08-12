@@ -836,25 +836,25 @@ Ejemplos:
   - **Depende de:** F1-AUTH-01
   - **Estimación:** 1 h
 
-- [ ] **F1-AUTH-07** — `AuthService.login` con Argon2id + JWT
+- [x] **F1-AUTH-07** — `AuthService.login` con Argon2id + JWT
   - **Salida:** POST `/auth/login` valida credenciales, retorna access + setea cookie refresh
   - **Verificar:** login con credenciales válidas devuelve 200 + cookie; inválidas → 401
   - **Depende de:** F1-AUTH-02, F1-AUTH-06
   - **Estimación:** 1.5 h
 
-- [ ] **F1-AUTH-08** — Refresh token rotativo
+- [x] **F1-AUTH-08** — Refresh token rotativo
   - **Salida:** crear `RefreshToken` con `family_id`, cookie `httpOnly+Secure+SameSite=Strict`
   - **Verificar:** cookie se setea, hash guardado en DB
   - **Depende de:** F1-AUTH-07
   - **Estimación:** 1 h
 
-- [ ] **F1-AUTH-09** — Endpoint `/auth/refresh` con detección de reuse
+- [x] **F1-AUTH-09** — Endpoint `/auth/refresh` con detección de reuse
   - **Salida:** rota el refresh; si se intenta usar uno ya rotado, **invalida toda la familia**
   - **Verificar:** reusar un refresh viejo invalida todos los tokens del usuario
   - **Depende de:** F1-AUTH-08
   - **Estimación:** 1.5 h
 
-- [ ] **F1-AUTH-10** — `AuthService.logout`
+- [x] **F1-AUTH-10** — `AuthService.logout`
   - **Salida:** POST `/auth/logout` revoca el refresh actual + limpia cookie
   - **Verificar:** después del logout, el refresh no funciona
   - **Depende de:** F1-AUTH-09
