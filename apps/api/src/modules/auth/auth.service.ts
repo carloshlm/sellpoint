@@ -329,69 +329,92 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException({ message: "auth.invalid_refresh_token" });
     }
 
-    return this.prisma.withTenantContext(row.tenantId, async (tx) => {
-      const user = await this.authRepository.findUserById(tx, row.userId);
+    // C1 (verify #271): el `withTenantContext` de acá abajo es un
+    // `$transaction` de Prisma (AD-1) — un `throw` DENTRO del callback hace
+    // ROLLBACK de TODO lo escrito en esa transacción, incluida la
+    // revocación de familia y el audit que las ramas `!rotated`/suspendido
+    // acaban de grabar. Por eso el callback NUNCA throwea: siempre devuelve
+    // un `RefreshOutcome` y el `$transaction` comitea sin importar la rama.
+    // Recién DESPUÉS de que la promesa resuelve (commit ya hecho) se
+    // inspecciona el outcome y se throwea AFUERA — el mismo patrón que ya
+    // usa el camino secuencial de reuso más arriba (líneas ~307-321).
+    const outcome = await this.prisma.withTenantContext(
+      row.tenantId,
+      async (tx): Promise<RefreshOutcome> => {
+        const user = await this.authRepository.findUserById(tx, row.userId);
 
-      // AUTH-REQ-11: re-chequeo de estado EN CADA rotación — una
-      // suspensión aplicada a mitad de sesión corta el refresh acá. Dos
-      // guards separados (en vez de `!user || user.status !== "active"`)
-      // a propósito: mantienen el narrowing de `user` para el resto del
-      // callback sin el warning de useOptionalChain de biome.
-      if (user === null) {
-        throw new ForbiddenException({ message: "auth.account_suspended" });
-      }
-      if (user.status !== "active") {
-        throw new ForbiddenException({ message: "auth.account_suspended" });
-      }
+        // AUTH-REQ-11: re-chequeo de estado EN CADA rotación — una
+        // suspensión aplicada a mitad de sesión corta el refresh acá.
+        if (user === null || user.status !== "active") {
+          // W7 (verify #271): revocar la familia también acá — sin esto el
+          // refresh token de un usuario suspendido queda vivo
+          // (usedAt=null, revokedAt=null) hasta expirar por su cuenta; si
+          // se levanta la suspensión, una sesión robada previa revive.
+          await this.refreshTokenService.revokeFamily(tx, row.familyId);
+          return { kind: "suspended" };
+        }
 
-      const rotated = await this.refreshTokenService.markUsedOrRevokeFamily(
-        tx,
-        row.id,
-        row.familyId,
-      );
+        const rotated = await this.refreshTokenService.markUsedOrRevokeFamily(
+          tx,
+          row.id,
+          row.familyId,
+        );
 
-      if (!rotated) {
-        await this.auditService.record(tx, {
+        if (!rotated) {
+          await this.auditService.record(tx, {
+            tenantId: row.tenantId,
+            userId: row.userId,
+            action: "auth.refresh.reuse_detected",
+            resourceType: "refresh_token_family",
+            resourceId: row.familyId,
+            ip: meta.ip,
+            userAgent: meta.userAgent,
+          });
+          return { kind: "reused" };
+        }
+
+        // Permisos re-resueltos FRESCOS desde DB (design §4): es lo que
+        // hace que un epoch bumpeado (AD-8) propague apenas el usuario
+        // refresca.
+        const permissions = await this.authRepository.resolvePermissionCodes(tx, user.id);
+        const { token: newRawToken, tokenHash: newTokenHash } = this.oneTimeTokenService.generate();
+        const refreshExpiresAt = this.refreshTokenService.buildExpiry();
+
+        await this.authRepository.createRefreshToken(tx, {
           tenantId: row.tenantId,
-          userId: row.userId,
-          action: "auth.refresh.reuse_detected",
-          resourceType: "refresh_token_family",
-          resourceId: row.familyId,
-          ip: meta.ip,
-          userAgent: meta.userAgent,
+          userId: user.id,
+          tokenHash: newTokenHash,
+          familyId: row.familyId,
+          expiresAt: refreshExpiresAt,
         });
-        throw new UnauthorizedException({ message: "auth.token_reused" });
-      }
 
-      // Permisos re-resueltos FRESCOS desde DB (design §4): es lo que hace
-      // que un epoch bumpeado (AD-8) propague apenas el usuario refresca.
-      const permissions = await this.authRepository.resolvePermissionCodes(tx, user.id);
-      const { token: newRawToken, tokenHash: newTokenHash } = this.oneTimeTokenService.generate();
-      const refreshExpiresAt = this.refreshTokenService.buildExpiry();
+        const locale = user.locale as "es" | "en";
+        const accessToken = this.tokenService.signAccessToken({
+          sub: user.id,
+          tenantId: row.tenantId,
+          permissions,
+          locale,
+        });
 
-      await this.authRepository.createRefreshToken(tx, {
-        tenantId: row.tenantId,
-        userId: user.id,
-        tokenHash: newTokenHash,
-        familyId: row.familyId,
-        expiresAt: refreshExpiresAt,
-      });
+        return {
+          kind: "ok",
+          result: {
+            accessToken,
+            expiresIn: this.accessTtlSeconds,
+            refreshToken: newRawToken,
+            refreshExpiresAt,
+          },
+        };
+      },
+    );
 
-      const locale = user.locale as "es" | "en";
-      const accessToken = this.tokenService.signAccessToken({
-        sub: user.id,
-        tenantId: row.tenantId,
-        permissions,
-        locale,
-      });
-
-      return {
-        accessToken,
-        expiresIn: this.accessTtlSeconds,
-        refreshToken: newRawToken,
-        refreshExpiresAt,
-      };
-    });
+    if (outcome.kind === "suspended") {
+      throw new ForbiddenException({ message: "auth.account_suspended" });
+    }
+    if (outcome.kind === "reused") {
+      throw new UnauthorizedException({ message: "auth.token_reused" });
+    }
+    return outcome.result;
   }
 
   /**
@@ -591,3 +614,10 @@ export interface RefreshResult {
   refreshToken: string;
   refreshExpiresAt: Date;
 }
+
+// C1 (verify #271): discriminada para que el callback de `withTenantContext`
+// en `refresh()` NUNCA throwee — ver el comentario en `refresh()`.
+type RefreshOutcome =
+  | { kind: "suspended" }
+  | { kind: "reused" }
+  | { kind: "ok"; result: RefreshResult };

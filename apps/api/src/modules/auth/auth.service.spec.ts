@@ -515,7 +515,7 @@ describe("AuthService.refresh (AUTH-REQ-05/06/11)", () => {
       revokedAt: null,
       expiresAt: new Date(NOW.getTime() + 1000),
     };
-    const { service, authRepository } = buildService({
+    const { service, authRepository, refreshTokenService, tx } = buildService({
       refreshRow,
       userRow: activeUser({ status: "suspended" }),
     });
@@ -524,6 +524,10 @@ describe("AuthService.refresh (AUTH-REQ-05/06/11)", () => {
       response: { message: "auth.account_suspended" },
     });
     expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+    // W7 (verify #271): sin esto el refresh token de un usuario suspendido
+    // queda vivo (usedAt=null, revokedAt=null) — si se levanta la
+    // suspensión, una sesión robada previa revive.
+    expect(refreshTokenService.revokeFamily).toHaveBeenCalledWith(tx, "family-1");
   });
 
   it("affectedRows=0 en el UPDATE condicional (reuse concurrente) → 401 auth.token_reused, audita", async () => {
