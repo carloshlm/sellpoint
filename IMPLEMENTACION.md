@@ -900,13 +900,13 @@ Ejemplos:
 
 ### Módulo F1-RBAC — Roles y Permisos
 
-- [ ] **F1-RBAC-01** — `PermissionsGuard`
+- [x] **F1-RBAC-01** — `PermissionsGuard`
   - **Salida:** guard que valida que el JWT tenga los permisos del decorator
   - **Verificar:** endpoint protegido por `@RequirePermissions('users:manage')` rechaza usuario sin ese permiso
   - **Depende de:** F1-AUTH-14
   - **Estimación:** 1 h
 
-- [ ] **F1-RBAC-02** — Decorator `@RequirePermissions(...permissions)`
+- [x] **F1-RBAC-02** — Decorator `@RequirePermissions(...permissions)`
   - **Salida:** decorator que setea metadata leída por el guard
   - **Verificar:** unit test del decorator
   - **Depende de:** F1-RBAC-01

@@ -21,6 +21,7 @@ import { ThrottleModule } from "./infrastructure/throttle/throttle.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
+import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
 import { MailModule } from "./modules/mail/mail.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -99,6 +100,10 @@ import { UsersModule } from "./modules/users/users.module";
     // salvo @Public() explícito. JwtAuthGuard resuelve TokenService desde
     // AuthModule (importado arriba, lo exporta desde U3) — no se declara acá.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // F1-RBAC-01: autorización, DESPUÉS de la autenticación — lee los
+    // permisos de claims ya verificados (firma + epoch). Sin
+    // @RequirePermissions un endpoint solo exige estar logueado.
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule implements NestModule {
