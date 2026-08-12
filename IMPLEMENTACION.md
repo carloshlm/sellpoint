@@ -778,7 +778,7 @@ Ejemplos:
 
 > 🔌 **MCP al abrir este módulo:** instalar **Postgres MCP (read-only)** — inspección directa de schema y queries para verificar RLS y aislamiento multi-tenant sin pasar por Prisma. Ver `topic_key: decision/mcps-del-proyecto...` en engram.
 
-- [ ] **F1-TENANT-01** — `TenantContextMiddleware`
+- [x] **F1-TENANT-01** — `TenantContextMiddleware`
   - **Salida:** middleware Nest que lee `req.user.tenantId` del JWT y ejecuta `SELECT set_config('app.tenant_id', $1, true)`
   - **Verificar:** logs muestran la variable seteada por request
   - **Depende de:** F1-DB-09, F1-AUTH-06
@@ -790,7 +790,7 @@ Ejemplos:
   - **Depende de:** F1-TENANT-01
   - **Estimación:** 1.5 h
 
-- [ ] **F1-TENANT-03** — Test e2e que valida aislamiento RLS
+- [x] **F1-TENANT-03** — Test e2e que valida aislamiento RLS
   - **Salida:** test que crea 2 tenants, 1 user en cada uno, verifica que User A no ve datos de Tenant B
   - **Verificar:** test pasa
   - **Depende de:** F1-TENANT-02

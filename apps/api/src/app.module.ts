@@ -13,6 +13,7 @@ import { ClockModule } from "./infrastructure/clock/clock.module";
 import { CryptoModule } from "./infrastructure/crypto/crypto.module";
 import { PrismaModule } from "./infrastructure/prisma/prisma.module";
 import { RedisModule } from "./infrastructure/redis/redis.module";
+import { TenantContextMiddleware } from "./infrastructure/tenant-context/tenant-context.middleware";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
@@ -74,7 +75,10 @@ export class AppModule implements NestModule {
   // antes que los guards — necesario porque decodifica el claim `locale`
   // del Bearer token sin depender de que JwtAuthGuard ya haya poblado
   // req.user (los middlewares siempre corren antes que los guards).
+  // F1-TENANT-01: mismo patrón para el claim `tenantId` (observabilidad de
+  // request; la única fuente de confianza para RLS es
+  // PrismaService.withTenantContext, no este middleware).
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(LocaleResolverMiddleware).forRoutes("*");
+    consumer.apply(LocaleResolverMiddleware, TenantContextMiddleware).forRoutes("*");
   }
 }
