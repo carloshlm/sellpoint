@@ -148,7 +148,7 @@ describe("Ciclo completo de auth: register→verify→login→me→refresh→reu
       .post("/auth/refresh")
       .set("Cookie", firstCookie.header)
       .expect(401);
-    expect(reuseResponse.body).toMatchObject({ message: "auth.token_reused" });
+    expect(reuseResponse.body).toMatchObject({ code: "auth.token_reused" });
 
     const rowsAfterReuse = await prisma.refreshToken.findMany({ where: { userId } });
     expect(rowsAfterReuse).toHaveLength(2);

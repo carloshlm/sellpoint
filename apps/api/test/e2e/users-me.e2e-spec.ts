@@ -93,7 +93,7 @@ describe("PATCH /me (e2e)", () => {
       .send({ locale: "fr" })
       .expect(400);
 
-    expect(response.body).toMatchObject({ message: "users.invalid_body" });
+    expect(response.body).toMatchObject({ code: "users.invalid_body" });
   });
 
   it("sin Authorization -> 401 (secure by default)", () => {

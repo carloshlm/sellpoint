@@ -140,7 +140,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
       .expect(401);
 
     expect(wrongPassword.body).toEqual(unknownEmail.body);
-    expect(wrongPassword.body).toMatchObject({ message: "auth.invalid_credentials" });
+    expect(wrongPassword.body).toMatchObject({ code: "auth.invalid_credentials" });
   });
 
   it("usuario no verificado (invited) → 403 auth.email_not_verified", async () => {
@@ -151,7 +151,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
       .send({ email: user.email, password: PASSWORD })
       .expect(403);
 
-    expect(response.body).toMatchObject({ message: "auth.email_not_verified" });
+    expect(response.body).toMatchObject({ code: "auth.email_not_verified" });
   });
 
   it("usuario suspendido → 403 auth.account_suspended", async () => {
@@ -165,7 +165,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
       .send({ email: user.email, password: PASSWORD })
       .expect(403);
 
-    expect(response.body).toMatchObject({ message: "auth.account_suspended" });
+    expect(response.body).toMatchObject({ code: "auth.account_suspended" });
   });
 
   it("ciclo refresh: rota DENTRO de la misma familia, el token anterior queda usedAt≠null", async () => {
@@ -224,7 +224,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
       .set("Cookie", firstCookie.header)
       .expect(401);
 
-    expect(reuseResponse.body).toMatchObject({ message: "auth.token_reused" });
+    expect(reuseResponse.body).toMatchObject({ code: "auth.token_reused" });
     const clearedCookie = extractRefreshCookie(reuseResponse.headers["set-cookie"] as never);
     expect(clearedCookie.raw).toBe("");
 

@@ -79,7 +79,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
       .send(registerPayload({ email: payload.email }))
       .expect(409);
 
-    expect(response.body).toMatchObject({ message: "auth.email_taken" });
+    expect(response.body).toMatchObject({ code: "auth.email_taken" });
   });
 
   it("password < 12 caracteres → 400 auth.weak_password", async () => {
@@ -88,7 +88,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
       .send(registerPayload({ password: "corta" }))
       .expect(400);
 
-    expect(response.body).toMatchObject({ message: "auth.weak_password" });
+    expect(response.body).toMatchObject({ code: "auth.weak_password" });
   });
 
   it("ciclo completo: verificar con el token real del mail capturado activa al usuario", async () => {
@@ -120,7 +120,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
       .send({ token })
       .expect(400);
 
-    expect(response.body).toMatchObject({ message: "auth.token_invalid" });
+    expect(response.body).toMatchObject({ code: "auth.token_invalid" });
   });
 
   it("token inexistente → 400 auth.token_invalid", async () => {
@@ -129,6 +129,6 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
       .send({ token: "token-que-nunca-existio" })
       .expect(400);
 
-    expect(response.body).toMatchObject({ message: "auth.token_invalid" });
+    expect(response.body).toMatchObject({ code: "auth.token_invalid" });
   });
 });

@@ -82,12 +82,12 @@ describe("Throttling de /auth/* (e2e)", () => {
       // auth-email, solo debe contar el límite de IP.
       const res = await loginAttempt(uniqueEmail(), ip);
       expect(res.status).toBe(401);
-      expect(res.body).toMatchObject({ message: "auth.invalid_credentials" });
+      expect(res.body).toMatchObject({ code: "auth.invalid_credentials" });
     }
 
     const blocked = await loginAttempt(uniqueEmail(), ip);
     expect(blocked.status).toBe(429);
-    expect(blocked.body).toMatchObject({ message: "auth.too_many_attempts" });
+    expect(blocked.body).toMatchObject({ code: "auth.too_many_attempts" });
   });
 
   it("auth-ip: dos IPs independientes tienen contadores propios — una bloqueada no afecta a la otra", async () => {
@@ -114,7 +114,7 @@ describe("Throttling de /auth/* (e2e)", () => {
 
     const blocked = await loginAttempt(email, nextFakeIp());
     expect(blocked.status).toBe(429);
-    expect(blocked.body).toMatchObject({ message: "auth.too_many_attempts" });
+    expect(blocked.body).toMatchObject({ code: "auth.too_many_attempts" });
   });
 
   it("forgot-password también cuenta contra auth-email (mismo email, IPs distintas)", async () => {
@@ -134,7 +134,7 @@ describe("Throttling de /auth/* (e2e)", () => {
       .send({ email });
 
     expect(blocked.status).toBe(429);
-    expect(blocked.body).toMatchObject({ message: "auth.too_many_attempts" });
+    expect(blocked.body).toMatchObject({ code: "auth.too_many_attempts" });
   });
 
   it("register-tenant NO aplica auth-email (scope explícito login+forgot-password) — se bloquea por IP en el 6º intento, nunca antes por email", async () => {

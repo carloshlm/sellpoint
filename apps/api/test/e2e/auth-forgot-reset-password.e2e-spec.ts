@@ -155,7 +155,7 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
       .post("/auth/reset-password")
       .send({ token: firstToken, password: NEW_PASSWORD })
       .expect(400);
-    expect(response.body).toMatchObject({ message: "auth.token_invalid" });
+    expect(response.body).toMatchObject({ code: "auth.token_invalid" });
   });
 
   it("token inexistente → 400 auth.token_invalid", async () => {
@@ -164,7 +164,7 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
       .send({ token: "token-que-nunca-existio", password: NEW_PASSWORD })
       .expect(400);
 
-    expect(response.body).toMatchObject({ message: "auth.token_invalid" });
+    expect(response.body).toMatchObject({ code: "auth.token_invalid" });
   });
 
   it("password < 12 caracteres → 400 auth.weak_password", async () => {
@@ -176,7 +176,7 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
       .send({ token, password: "corta" })
       .expect(400);
 
-    expect(response.body).toMatchObject({ message: "auth.weak_password" });
+    expect(response.body).toMatchObject({ code: "auth.weak_password" });
   });
 
   it("ciclo completo: reset exitoso → password actualizado, token consumido, TODAS las familias de refresh revocadas, perm-epoch bumpeado", async () => {
