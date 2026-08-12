@@ -1,0 +1,7 @@
+{
+  "invalid_body": "Los datos enviados no son válidos",
+  "not_found": "El rol no existe",
+  "name_taken": "Ya existe un rol con ese nombre en este comercio",
+  "role_in_use": "No se puede eliminar un rol que tiene usuarios asignados",
+  "unknown_permission_code": "Uno o más permisos enviados no existen en el catálogo"
+}

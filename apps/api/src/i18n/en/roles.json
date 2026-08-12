@@ -1,0 +1,7 @@
+{
+  "invalid_body": "The submitted data is invalid",
+  "not_found": "The role does not exist",
+  "name_taken": "A role with that name already exists in this business",
+  "role_in_use": "A role with users assigned cannot be deleted",
+  "unknown_permission_code": "One or more submitted permissions do not exist in the catalog"
+}

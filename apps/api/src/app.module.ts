@@ -23,6 +23,8 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
 import { MailModule } from "./modules/mail/mail.module";
+import { PermissionsModule } from "./modules/permissions/permissions.module";
+import { RolesModule } from "./modules/roles/roles.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
 
@@ -86,7 +88,10 @@ import { UsersModule } from "./modules/users/users.module";
     TenantsModule,
     AuthModule,
     // F1-LOCALE-05: PATCH /me (cambio de locale del propio user).
+    // F1-RBAC-03/04/05: CRUD de usuarios/roles + catálogo de permisos.
     UsersModule,
+    RolesModule,
+    PermissionsModule,
   ],
   controllers: [HealthController, I18nDemoController],
   providers: [

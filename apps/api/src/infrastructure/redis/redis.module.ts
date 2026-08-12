@@ -2,8 +2,12 @@ import { Global, Inject, Module, type OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Redis } from "ioredis";
 import { Env } from "../../config/env.schema";
+import { PermEpochService } from "./perm-epoch.service";
+import { REDIS_CLIENT } from "./redis.tokens";
 
-export const REDIS_CLIENT = "REDIS_CLIENT";
+// Re-exportado para no romper a ningún consumidor existente (ver
+// redis.tokens.ts para el porqué del archivo separado).
+export { REDIS_CLIENT };
 
 @Global()
 @Module({
@@ -14,8 +18,9 @@ export const REDIS_CLIENT = "REDIS_CLIENT";
         new Redis(configService.get("REDIS_URL", { infer: true })),
       inject: [ConfigService],
     },
+    PermEpochService,
   ],
-  exports: [REDIS_CLIENT],
+  exports: [REDIS_CLIENT, PermEpochService],
 })
 export class RedisModule implements OnModuleDestroy {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
