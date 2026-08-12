@@ -611,18 +611,21 @@ Ejemplos:
 ### ✅ Definición de "Fase 0 completa"
 
 **Dev local:**
-- [ ] Clonar el repo limpio, correr `pnpm install && pnpm dev:up && pnpm dev` levanta API en `:3000` y Web en `:5173`
-- [ ] `GET /health` responde 200 (local)
-- [ ] `GET /docs` muestra Swagger (local)
-- [ ] CI corre verde en GitHub
-- [ ] Pre-commit rechaza código mal formateado
+- [x] Clonar el repo limpio, correr `pnpm install && pnpm dev:up && pnpm dev` levanta API en `:3000` y Web en `:5173` (el CI clona limpio e instala/buildea/testea verde en cada push)
+- [x] `GET /health` responde 200 (local)
+- [x] `GET /docs` muestra Swagger (local)
+- [x] CI corre verde en GitHub
+- [x] Pre-commit rechaza código mal formateado (biome vía lint-staged en cada commit)
 
 **Walking skeleton en producción:**
-- [ ] `https://tu-dominio.com` responde con HTTPS válido (candado verde, sin warnings)
-- [ ] `https://tu-dominio.com/api/health` responde 200 con `{db: 'ok', redis: 'ok'}` desde el server productivo
-- [ ] Un push a `main` despliega automáticamente y se ve en producción en < 5 min
-- [ ] Smoke test post-deploy bloquea releases rotos (lo probamos rompiendo a propósito)
-- [ ] `certbot renew --dry-run` exitoso
+
+> Nota: la app se mudó del ápice a **`system.laradoc.com`** en el change `vps-multidominio` (2026-08-07); el ápice `laradoc.com` quedó como sitio informativo PHP.
+
+- [x] `https://system.laradoc.com` responde con HTTPS válido (candado verde, sin warnings — cert propio de Let's Encrypt)
+- [x] `https://system.laradoc.com/api/health` responde 200 con `{db: 'ok', redis: 'ok'}` desde el server productivo
+- [x] Un push a `main` despliega automáticamente y se ve en producción en < 5 min (histórico ~2-4 min)
+- [x] Smoke test post-deploy bloquea releases rotos (probado en combate real, 2026-08-12: una migración fallida abortó el deploy con rollback automático de `IMAGE_TAG`, cero downtime)
+- [x] `certbot renew --dry-run` exitoso (los 3 lineages: laradoc.com, berrinchitosdent.com, system.laradoc.com)
 
 **Cierre:**
 - [ ] Tag `v0.1.0-fase0` creado
