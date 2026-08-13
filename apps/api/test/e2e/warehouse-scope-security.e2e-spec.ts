@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
@@ -145,7 +146,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
     expect(captured).toEqual([{ url: "/health", scope: undefined }]);
   });
 
-  it("T1/AD-7: request rechazado por el guard (token forjado, permisos SIN bypass, contra ruta protegida) NO ejecuta withTenantContext antes del 401", async () => {
+  it("JwtAuthGuard rechaza (401) ANTES de cualquier trabajo de DB: token forjado sin bypass contra ruta protegida no ejecuta withTenantContext", async () => {
     const withTenantContextSpy = jest.spyOn(prisma, "withTenantContext");
     // permissions: [] a propósito — fuerza el camino de DB (sin bypass de
     // TenantAdmin) en el diseño viejo, igual que T1 del verify-report.
@@ -161,6 +162,41 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
 
     expect(res.status).toBe(401);
     expect(withTenantContextSpy).not.toHaveBeenCalled();
+  });
+
+  // AD-7 DE VERDAD: el test de arriba prueba el corte del guard de AUTH
+  // (401), no el del THROTTLER. Son cortes distintos y AD-7 es sobre el
+  // segundo: "el throttle tiene que pegar ANTES de gastar ciclos". Sin este
+  // caso, la suite prometía cubrir AD-7 y solo cubría el 401 (S5 del verify
+  // #296 — un test cuyo nombre promete más de lo que prueba es una trampa
+  // para el que confíe en él).
+  it("AD-7: los requests rechazados por el THROTTLER (429) no ejecutan withTenantContext", async () => {
+    const configService = app.get(ConfigService);
+    const withTenantContextSpy = jest.spyOn(prisma, "withTenantContext");
+    configService.set("THROTTLE_ENABLED", true);
+
+    try {
+      const limit = configService.get("THROTTLE_GLOBAL_LIMIT", { infer: true }) as number;
+      const ip = `203.0.113.${Math.floor(Math.random() * 200) + 1}`; // TEST-NET-3, balde propio
+      const forged = forgedBearer({ sub: randomUUID(), tenantId: randomUUID(), permissions: [] });
+
+      const statuses: number[] = [];
+      for (let i = 0; i < limit + 3; i++) {
+        const res = await request(app.getHttpServer())
+          .get("/roles")
+          .set("X-Forwarded-For", ip)
+          .set("Authorization", `Bearer ${forged}`);
+        statuses.push(res.status);
+      }
+
+      // El throttler tiene que haber cortado al menos uno con 429...
+      expect(statuses).toContain(429);
+      // ...y NINGUNO de los requests (ni los 401 ni los 429) puede haber
+      // tocado la DB: el interceptor corre después de ambos guards.
+      expect(withTenantContextSpy).not.toHaveBeenCalled();
+    } finally {
+      configService.set("THROTTLE_ENABLED", false);
+    }
   });
 
   it("404 en ruta inexistente con Bearer forjado NO dispara ninguna transacción de DB (amplificación cerrada)", async () => {

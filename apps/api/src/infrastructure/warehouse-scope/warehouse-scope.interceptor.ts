@@ -44,6 +44,14 @@ type ScopedRequest = Request & RequestWithScope & { user?: AuthUser };
  *     solo sobre `permissions` ya verificados;
  *   - el trabajo de DB queda después del throttler -> restaura AD-7.
  *
+ * ⚠️ INVARIANTE DE LA QUE DEPENDE TODO LO ANTERIOR (S6 del verify #296):
+ * **`JwtAuthGuard` es el ÚNICO escritor de `request.user` en toda la app.**
+ * Comprobable: `rg "\.user\s*=" apps/api/src` devuelve UNA coincidencia.
+ * Si alguien la rompe (middleware/interceptor/guard que popule `req.user`
+ * con datos no verificados), este interceptor vuelve a decidir sobre claims
+ * forjados y revive el vector cross-tenant que motivó el cambio. Cualquier
+ * escritura nueva a `request.user` exige revisar este archivo.
+ *
  * Criterio de bypass ("TenantAdmin ve todo"): reutiliza
  * `TENANT_ADMIN_PERMISSION_CODES` (`roles:manage` + `users:manage`) — la
  * MISMA invariante que `assertTenantRetainsAdmin` usa para "quién administra
