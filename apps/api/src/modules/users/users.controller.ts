@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Req } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -13,6 +13,11 @@ import { UsersService } from "./users.service";
 @Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get("me")
+  me(@CurrentUser() user: AuthUser) {
+    return this.usersService.getMe(user);
+  }
 
   @Patch("me")
   updateMe(

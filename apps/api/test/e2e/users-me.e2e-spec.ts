@@ -16,7 +16,7 @@ import { NoopMailer } from "../../src/modules/mail/noop.mailer";
  * el flujo real (register-tenant + verify-email) para no inventar un shape
  * de fila que no pase por dominio.
  */
-describe("PATCH /me (e2e)", () => {
+describe("/me (e2e)", () => {
   let app: INestApplication<App>;
   let tokenService: TokenService;
 
@@ -37,7 +37,11 @@ describe("PATCH /me (e2e)", () => {
     await app.close();
   });
 
-  async function registerActiveUser(): Promise<{ tenantId: string; userId: string }> {
+  async function registerActiveUser(): Promise<{
+    tenantId: string;
+    userId: string;
+    email: string;
+  }> {
     const email = `owner-${randomUUID()}@example.com`;
     const registerResponse = await request(app.getHttpServer())
       .post("/auth/register-tenant")
@@ -57,7 +61,8 @@ describe("PATCH /me (e2e)", () => {
 
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
-    return registerResponse.body as { tenantId: string; userId: string };
+    const body = registerResponse.body as { tenantId: string; userId: string };
+    return { ...body, email };
   }
 
   function accessTokenFor(user: { tenantId: string; userId: string }): string {
@@ -68,6 +73,34 @@ describe("PATCH /me (e2e)", () => {
       locale: "es",
     });
   }
+
+  it("GET /me con token válido devuelve el shape que consume el front (bootstrap de sesión)", async () => {
+    const user = await registerActiveUser();
+    const accessToken = tokenService.signAccessToken({
+      sub: user.userId,
+      tenantId: user.tenantId,
+      permissions: ["products:read"],
+      locale: "es",
+    });
+
+    const response = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      id: user.userId,
+      email: user.email,
+      firstName: "Ana",
+      locale: "es",
+      permissions: ["products:read"],
+    });
+    expect(response.body).not.toHaveProperty("passwordHash");
+  });
+
+  it("GET /me sin Authorization -> 401 (secure by default)", () => {
+    return request(app.getHttpServer()).get("/me").expect(401);
+  });
 
   it("actualiza el locale del user autenticado y lo devuelve en la respuesta", async () => {
     const user = await registerActiveUser();

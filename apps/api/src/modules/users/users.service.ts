@@ -16,6 +16,19 @@ export interface UserSummary {
 }
 
 /**
+ * Shape que consume el bootstrap de sesión del front (AuthUser del store de
+ * apps/web): identidad fresca de DB + permissions del JWT. NO exponer acá
+ * campos sensibles (passwordHash, status interno, etc.).
+ */
+export interface MeProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  locale: string;
+  permissions: string[];
+}
+
+/**
  * F1-LOCALE-05 (PATCH /me): CERO SQL directo acá, todo vía PrismaService —
  * mismo molde que TenantsService/AuthService. `withTenantContext` porque
  * `users` tiene RLS (tenant_isolation) — el user autenticado solo puede
@@ -27,6 +40,30 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {}
+
+  /**
+   * GET /me — lo consume el bootstrap de sesión del front tras un refresh
+   * (la cookie httpOnly revive el token, pero el JWT no trae email/firstName).
+   * `email`/`firstName`/`locale` salen de la DB (frescos: PATCH /me pudo
+   * cambiar el locale con el token ya emitido); `permissions` del JWT, que es
+   * la fuente que autoriza ESTA sesión.
+   */
+  async getMe(user: AuthUser): Promise<MeProfile> {
+    const row = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      tx.user.findUniqueOrThrow({
+        where: { id: user.userId },
+        select: { id: true, email: true, firstName: true, locale: true },
+      }),
+    );
+
+    return {
+      id: row.id,
+      email: row.email,
+      firstName: row.firstName,
+      locale: row.locale,
+      permissions: user.permissions,
+    };
+  }
 
   async updateLocale(user: AuthUser, locale: Locale, meta: RequestMeta): Promise<UserSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {

@@ -45,6 +45,48 @@ function buildService(overrides?: {
   return { service, prisma, auditService, tx };
 }
 
+describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
+  it("devuelve el shape que consume el front: datos frescos de DB + permissions del JWT", async () => {
+    const { service, prisma, tx } = buildService();
+    const jwtUser: AuthUser = { ...CURRENT_USER, permissions: ["products:read"] };
+
+    const result = await service.getMe(jwtUser);
+
+    expect(prisma.withTenantContext).toHaveBeenCalledWith("tenant-1", expect.any(Function));
+    expect(tx.user.findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      select: { id: true, email: true, firstName: true, locale: true },
+    });
+    expect(result).toEqual({
+      id: "user-1",
+      email: "owner@example.com",
+      firstName: "Ana",
+      locale: "es",
+      permissions: ["products:read"],
+    });
+    expect(result).not.toHaveProperty("passwordHash");
+  });
+
+  it("el locale sale de la DB, no del claim del JWT (PATCH /me pudo cambiarlo con el token ya emitido)", async () => {
+    const { service } = buildService({
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        firstName: "Ana",
+        lastNamePaternal: "Pérez",
+        lastNameMaternal: null,
+        status: "active",
+        locale: "en",
+      },
+    });
+
+    // El JWT dice "es" (claim viejo) pero la DB ya dice "en".
+    const result = await service.getMe(CURRENT_USER);
+
+    expect(result).toMatchObject({ locale: "en" });
+  });
+});
+
 describe("UsersService.updateLocale (F1-LOCALE-05)", () => {
   it("actualiza users.locale dentro del contexto de tenant del user autenticado", async () => {
     const { service, prisma, tx } = buildService();
