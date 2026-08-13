@@ -942,25 +942,25 @@ Ejemplos:
 
 > Las tablas de warehouses no existen aún (vienen en F2). Acá dejamos preparada la lógica de scoping.
 
-- [ ] **F1-SCOPE-01** — Modelo Prisma `UserWarehouseScope`
+- [x] **F1-SCOPE-01** — Modelo Prisma `UserWarehouseScope`
   - **Salida:** tabla con `user_id`, `warehouse_id`, `tenant_id`, PK compuesta
   - **Verificar:** migration aplica (warehouse_id sin FK aún)
   - **Depende de:** F1-DB-07
   - **Estimación:** 20 min
 
-- [ ] **F1-SCOPE-02** — Activar RLS en `user_warehouse_scopes`
+- [x] **F1-SCOPE-02** — Activar RLS en `user_warehouse_scopes`
   - **Salida:** policy `tenant_isolation`
   - **Verificar:** sin set_config no devuelve filas
   - **Depende de:** F1-SCOPE-01, F1-DB-09
   - **Estimación:** 15 min
 
-- [ ] **F1-SCOPE-03** — `WarehouseScopeMiddleware`
+- [x] **F1-SCOPE-03** — `WarehouseScopeMiddleware`
   - **Salida:** middleware que carga `warehouseIds` accesibles del usuario en `req.scope`
   - **Verificar:** unit test verifica que TenantAdmin bypass, otros roles filtran
   - **Depende de:** F1-SCOPE-02, F1-TENANT-01
   - **Estimación:** 1 h
 
-- [ ] **F1-SCOPE-04** — Decorator `@CurrentUserScope()`
+- [x] **F1-SCOPE-04** — Decorator `@CurrentUserScope()`
   - **Salida:** inyecta `{warehouseIds: string[] | 'all'}` en el handler
   - **Verificar:** `@CurrentUserScope() scope` recibe el valor correcto
   - **Depende de:** F1-SCOPE-03

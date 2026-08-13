@@ -18,6 +18,7 @@ import { RedisModule } from "./infrastructure/redis/redis.module";
 import { TenantContextMiddleware } from "./infrastructure/tenant-context/tenant-context.middleware";
 import { RedisThrottlerStorage } from "./infrastructure/throttle/redis-throttler.storage";
 import { ThrottleModule } from "./infrastructure/throttle/throttle.module";
+import { WarehouseScopeMiddleware } from "./infrastructure/warehouse-scope/warehouse-scope.middleware";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
@@ -119,7 +120,13 @@ export class AppModule implements NestModule {
   // F1-TENANT-01: mismo patrón para el claim `tenantId` (observabilidad de
   // request; la única fuente de confianza para RLS es
   // PrismaService.withTenantContext, no este middleware).
+  // F1-SCOPE-03: mismo patrón de decode-sin-firma, pero acá SÍ alimenta una
+  // decisión de negocio (`req.scope`) — ver el comentario de
+  // WarehouseScopeMiddleware para por qué es seguro igual (el valor solo se
+  // LEE después de que JwtAuthGuard ya corrió).
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(LocaleResolverMiddleware, TenantContextMiddleware).forRoutes("*");
+    consumer
+      .apply(LocaleResolverMiddleware, TenantContextMiddleware, WarehouseScopeMiddleware)
+      .forRoutes("*");
   }
 }

@@ -31,6 +31,7 @@ model Tenant {
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  warehouseScopes         UserWarehouseScope[]
 
   @@map("tenants")
 }
@@ -44,8 +45,8 @@ enum UserStatus {
 }
 
 model User {
-  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId String @map("tenant_id") @db.Uuid
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String     @map("tenant_id") @db.Uuid
   // f1-auth D1 (decision-email-global, #228): único GLOBAL, no por tenant —
   // login no pide selector de tenant. El unique real es un índice FUNCIONAL
   // sobre lower(email) (Prisma no soporta índices funcionales en el schema,
@@ -71,6 +72,7 @@ model User {
   refreshTokens           RefreshToken[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  warehouseScopes         UserWarehouseScope[]
 
   @@index([tenantId])
   @@map("users")
@@ -234,4 +236,31 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
+}
+
+// F1-SCOPE-01: preparación de warehouse scoping — las tablas reales de
+// warehouses llegan en F2 (ver ARQUITECTURA/roadmap), así que acá SOLO
+// dejamos la relación user↔warehouse lista para que F2 la use sin volver a
+// tocar auth/RBAC. `warehouseId` es UUID crudo, DELIBERADAMENTE SIN
+// `@relation`/FK todavía: la tabla `warehouses` no existe hasta F2. Cuando
+// aterrice, una migración de F2 agrega
+// `ALTER TABLE user_warehouse_scopes ADD CONSTRAINT ... FOREIGN KEY
+// (warehouse_id) REFERENCES warehouses(id)` — no requiere backfill porque la
+// columna ya nace NOT NULL y sin filas legacy que reconciliar.
+model UserWarehouseScope {
+  userId      String   @map("user_id") @db.Uuid
+  warehouseId String   @map("warehouse_id") @db.Uuid
+  // Redundante con `user.tenantId` a propósito: es la columna que la policy
+  // RLS `tenant_isolation` necesita comparar directo, mismo patrón que
+  // refresh_tokens/email_verification_tokens/password_reset_tokens
+  // (f1-auth AD-3) — ninguna policy de esta tabla depende de un JOIN a users.
+  tenantId    String   @map("tenant_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@id([userId, warehouseId])
+  @@index([tenantId])
+  @@map("user_warehouse_scopes")
 }
