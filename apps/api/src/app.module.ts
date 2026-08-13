@@ -1,6 +1,6 @@
 import { type MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { APP_FILTER, APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { I18nModule } from "nestjs-i18n";
 import { LoggerModule } from "nestjs-pino";
@@ -18,7 +18,7 @@ import { RedisModule } from "./infrastructure/redis/redis.module";
 import { TenantContextMiddleware } from "./infrastructure/tenant-context/tenant-context.middleware";
 import { RedisThrottlerStorage } from "./infrastructure/throttle/redis-throttler.storage";
 import { ThrottleModule } from "./infrastructure/throttle/throttle.module";
-import { WarehouseScopeMiddleware } from "./infrastructure/warehouse-scope/warehouse-scope.middleware";
+import { WarehouseScopeInterceptor } from "./infrastructure/warehouse-scope/warehouse-scope.interceptor";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
@@ -110,23 +110,37 @@ import { UsersModule } from "./modules/users/users.module";
     // permisos de claims ya verificados (firma + epoch). Sin
     // @RequirePermissions un endpoint solo exige estar logueado.
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    // F1-SCOPE-03 (remediación CRITICAL C1/C2, verify-report `sdd/f1-scope`):
+    // interceptor global, NO middleware — corre DESPUÉS de ThrottlerGuard y
+    // JwtAuthGuard, así que lee `req.user` (firma + epoch YA verificados) en
+    // vez de decodificar el token crudo. Ver el docblock de
+    // `WarehouseScopeInterceptor` para el detalle de por qué un middleware
+    // acá era explotable (cross-tenant read + amplificación de DB inmune al
+    // throttling) y NO volver a esa forma. Se registra dos veces a
+    // propósito: como provider normal (retornable/testeable vía
+    // `app.get(WarehouseScopeInterceptor)`) y como `APP_INTERCEPTOR` para
+    // que Nest lo enganche global — `useExisting` reusa la MISMA instancia
+    // singleton en ambos casos.
+    WarehouseScopeInterceptor,
+    { provide: APP_INTERCEPTOR, useExisting: WarehouseScopeInterceptor },
   ],
 })
 export class AppModule implements NestModule {
   // F1-LOCALE-02: LocaleResolverMiddleware corre en TODA request ('*'),
   // antes que los guards — necesario porque decodifica el claim `locale`
   // del Bearer token sin depender de que JwtAuthGuard ya haya poblado
-  // req.user (los middlewares siempre corren antes que los guards).
-  // F1-TENANT-01: mismo patrón para el claim `tenantId` (observabilidad de
-  // request; la única fuente de confianza para RLS es
-  // PrismaService.withTenantContext, no este middleware).
-  // F1-SCOPE-03: mismo patrón de decode-sin-firma, pero acá SÍ alimenta una
-  // decisión de negocio (`req.scope`) — ver el comentario de
-  // WarehouseScopeMiddleware para por qué es seguro igual (el valor solo se
-  // LEE después de que JwtAuthGuard ya corrió).
+  // req.user (los middlewares siempre corren antes que los guards). Solo
+  // alimenta UX (idioma de la respuesta), no una decisión de negocio.
+  // F1-TENANT-01: mismo patrón para el claim `tenantId`. Solo alimenta
+  // observabilidad del request (queda en el log estructurado); la única
+  // fuente de confianza para RLS sigue siendo
+  // PrismaService.withTenantContext, nunca este middleware — NO decide
+  // nada, no abre contexto RLS ni hace queries.
+  // F1-SCOPE-03: YA NO vive acá. Ver `WarehouseScopeInterceptor` (arriba, en
+  // `providers`) — a diferencia de locale/tenantId, esto SÍ alimenta una
+  // decisión de negocio (`req.scope`), y por eso no puede depender de claims
+  // sin verificar como los middlewares de arriba.
   configure(consumer: MiddlewareConsumer): void {
-    consumer
-      .apply(LocaleResolverMiddleware, TenantContextMiddleware, WarehouseScopeMiddleware)
-      .forRoutes("*");
+    consumer.apply(LocaleResolverMiddleware, TenantContextMiddleware).forRoutes("*");
   }
 }

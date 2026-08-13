@@ -10,7 +10,7 @@ function contextWithRequest(request: unknown): ExecutionContext {
 }
 
 describe("currentUserScopeFactory — @CurrentUserScope() (F1-SCOPE-04)", () => {
-  it("devuelve req.scope cuando WarehouseScopeMiddleware ya corrió", () => {
+  it("devuelve req.scope cuando WarehouseScopeInterceptor ya corrió", () => {
     const scope = { warehouseIds: ["w1", "w2"] };
     const ctx = contextWithRequest({ scope });
 
@@ -23,7 +23,7 @@ describe("currentUserScopeFactory — @CurrentUserScope() (F1-SCOPE-04)", () => 
     expect(currentUserScopeFactory(undefined, ctx)).toEqual({ warehouseIds: "all" });
   });
 
-  it("sin req.scope (middleware no corrió): fail-closed a warehouseIds: []", () => {
+  it("sin req.scope (interceptor no corrió): fail-closed a warehouseIds: []", () => {
     const ctx = contextWithRequest({});
 
     expect(currentUserScopeFactory(undefined, ctx)).toEqual({ warehouseIds: [] });

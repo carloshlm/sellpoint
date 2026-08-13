@@ -13,7 +13,7 @@ export function currentUserScopeFactory(_data: unknown, ctx: ExecutionContext): 
 }
 
 /**
- * F1-SCOPE-04: lee `req.scope`, adjuntado por `WarehouseScopeMiddleware`
+ * F1-SCOPE-04: lee `req.scope`, adjuntado por `WarehouseScopeInterceptor`
  * (F1-SCOPE-03). Igual que `@CurrentUser()`, solo tiene sentido en rutas
  * protegidas — a diferencia de `@CurrentUser()`, acá `getScope` SIEMPRE
  * devuelve un valor (fail-closed a `{ warehouseIds: [] }` en vez de
