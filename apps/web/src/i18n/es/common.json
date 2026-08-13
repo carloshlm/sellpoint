@@ -7,6 +7,21 @@
   "errors": {
     "network": "No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo."
   },
+  "session": {
+    "loading": "Cargando tu sesión…"
+  },
+  "layout": {
+    "navLabel": "Navegación principal",
+    "nav": {
+      "dashboard": "Panel"
+    },
+    "sidebarToggle": "Abrir o cerrar el menú",
+    "sidebarClose": "Cerrar el menú",
+    "userMenu": {
+      "label": "Menú de usuario",
+      "logout": "Cerrar sesión"
+    }
+  },
   "dashboard": {
     "title": "Panel",
     "welcome": "Hola, {{name}}",

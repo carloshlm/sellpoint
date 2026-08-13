@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "./i18n";
-import { login } from "./lib/auth/api";
+import { getMe, login, logout, refreshSession } from "./lib/auth/api";
+import { __resetSessionBootstrapForTests } from "./lib/auth/session-bootstrap";
 import { routeTree } from "./routeTree.gen";
 import { useAuthStore } from "./stores/auth.store";
 
@@ -14,9 +15,15 @@ vi.mock("./lib/auth/api", () => ({
   verifyEmail: vi.fn(),
   forgotPassword: vi.fn(),
   resetPassword: vi.fn(),
+  refreshSession: vi.fn(),
+  getMe: vi.fn(),
+  logout: vi.fn(),
 }));
 
 const loginMock = vi.mocked(login);
+const refreshSessionMock = vi.mocked(refreshSession);
+const getMeMock = vi.mocked(getMe);
+const logoutMock = vi.mocked(logout);
 
 const demoUser = {
   id: "u1",
@@ -53,6 +60,10 @@ describe("Flujos de auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    // Default: no hay cookie de refresh viva — el bootstrap cae a "anonymous".
+    // Los tests de reload con sesión pisan este mock con un resolve.
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
   });
 
   it("F1-WEB-AUTH-08: /dashboard sin sesión redirige a /login", async () => {
@@ -108,6 +119,100 @@ describe("Flujos de auth", () => {
     );
     expect(router.state.location.pathname).toBe("/login");
     expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+
+  it("Bootstrap: recargar con cookie viva mantiene /dashboard y rehidrata la sesión completa", async () => {
+    refreshSessionMock.mockResolvedValue({ accessToken: "jwt-revivido", expiresIn: 900 });
+    getMeMock.mockResolvedValue(demoUser);
+
+    const router = await renderRoute("/dashboard");
+
+    expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dashboard");
+    expect(useAuthStore.getState().accessToken).toBe("jwt-revivido");
+    expect(useAuthStore.getState().user).toEqual(demoUser);
+  });
+
+  it("Bootstrap: mientras el refresh está en vuelo muestra carga y NO redirige (sin flash de /login)", async () => {
+    // Refresh que nunca resuelve: congela el bootstrap en "pending".
+    refreshSessionMock.mockReturnValue(new Promise(() => {}));
+
+    const router = await renderRoute("/dashboard");
+
+    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dashboard");
+    expect(screen.queryByTestId("dashboard-title")).not.toBeInTheDocument();
+  });
+
+  it("F1-WEB-AUTH-09: layout autenticado con sidebar de navegación y el user en el header", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+
+    await renderRoute("/dashboard");
+
+    const nav = await screen.findByRole("navigation", { name: "Navegación principal" });
+    expect(within(nav).getByText("Panel")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ana" })).toBeInTheDocument();
+    // El nav placeholder de F0 ya no existe en las vistas autenticadas.
+    expect(screen.queryByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
+  });
+
+  it("F1-WEB-AUTH-09: el toggle colapsa el sidebar y lo anuncia con aria-expanded", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    await renderRoute("/dashboard");
+    const user = userEvent.setup();
+
+    const toggle = await screen.findByRole("button", { name: "Abrir o cerrar el menú" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+    expect(within(nav).queryByText("Panel")).not.toBeInTheDocument();
+  });
+
+  it("F1-WEB-AUTH-11: logout revoca en el backend, limpia el store y navega a /login", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    logoutMock.mockResolvedValue(undefined);
+    const router = await renderRoute("/dashboard");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Ana" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Cerrar sesión" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    expect(logoutMock).toHaveBeenCalled();
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it("F1-WEB-AUTH-11: si POST /auth/logout falla (red caída), igual limpia la sesión local y sale", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    logoutMock.mockRejectedValue({
+      statusCode: 0,
+      message: "Network Error",
+      error: "Network Error",
+    });
+    const router = await renderRoute("/dashboard");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Ana" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Cerrar sesión" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it("el nav placeholder de F0 tampoco aparece en las páginas de auth", async () => {
+    await renderRoute("/login");
+
+    await screen.findByRole("button", { name: "Entrar" });
+    expect(screen.queryByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
   });
 
   it("F1-WEB-AUTH-03/05: email sin verificar redirige a /verify con 'revisá tu email'", async () => {

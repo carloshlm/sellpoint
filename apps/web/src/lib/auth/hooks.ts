@@ -5,6 +5,7 @@ import {
   type LoginInput,
   type LoginResponse,
   login,
+  logout,
   type RegisterTenantInput,
   type RegisterTenantResponse,
   registerTenant,
@@ -30,6 +31,10 @@ export function useRegisterTenant() {
 
 export function useVerifyEmail() {
   return useMutation<void, ApiError, string>({ mutationFn: verifyEmail });
+}
+
+export function useLogout() {
+  return useMutation<void, ApiError, void>({ mutationFn: logout });
 }
 
 export function useForgotPassword() {

@@ -1018,7 +1018,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-AUTH-01
   - **Estimación:** 30 min
 
-- [ ] **F1-WEB-AUTH-09** — Layout autenticado (sidebar + header)
+- [x] **F1-WEB-AUTH-09** — Layout autenticado (sidebar + header)
   - **Salida:** `AppLayout` con sidebar colapsable y header con menú usuario
   - **Verificar:** se ve el layout en `/dashboard`, sidebar funciona
   - **Depende de:** F1-WEB-AUTH-08
@@ -1030,7 +1030,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-AUTH-09
   - **Estimación:** 1.5 h
 
-- [ ] **F1-WEB-AUTH-11** — Logout
+- [x] **F1-WEB-AUTH-11** — Logout
   - **Salida:** botón en header llama `/auth/logout`, limpia store, navega a `/login`
   - **Verificar:** después de logout, refresh no funciona
   - **Depende de:** F1-WEB-AUTH-09, F1-AUTH-10

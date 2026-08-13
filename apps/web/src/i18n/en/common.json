@@ -7,6 +7,21 @@
   "errors": {
     "network": "We couldn't reach the server. Check your connection and try again."
   },
+  "session": {
+    "loading": "Loading your session…"
+  },
+  "layout": {
+    "navLabel": "Main navigation",
+    "nav": {
+      "dashboard": "Dashboard"
+    },
+    "sidebarToggle": "Open or close the menu",
+    "sidebarClose": "Close the menu",
+    "userMenu": {
+      "label": "User menu",
+      "logout": "Log out"
+    }
+  },
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Hi, {{name}}",

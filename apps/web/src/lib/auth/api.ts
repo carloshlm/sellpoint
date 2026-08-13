@@ -51,3 +51,30 @@ export async function forgotPassword(email: string): Promise<void> {
 export async function resetPassword(token: string, password: string): Promise<void> {
   await api.post("/auth/reset-password", { token, password });
 }
+
+export interface RefreshResponse {
+  accessToken: string;
+  expiresIn: number;
+}
+
+/**
+ * Refresh EXPLÍCITO para el bootstrap de sesión (tras reload no hay token en
+ * memoria; autentica la cookie httpOnly). Va por la instancia principal SIN
+ * riesgo de recursión: `/auth/refresh` está en PUBLIC_AUTH_PATHS del
+ * interceptor, así que su propio 401 nunca dispara otro refresh.
+ */
+export async function refreshSession(): Promise<RefreshResponse> {
+  const { data } = await api.post<RefreshResponse>("/auth/refresh");
+  return data;
+}
+
+/** GET /me — identidad fresca del user autenticado (el JWT no trae email/firstName). */
+export async function getMe(): Promise<AuthUser> {
+  const { data } = await api.get<AuthUser>("/me");
+  return data;
+}
+
+/** Revoca la familia de refresh tokens y limpia la cookie httpOnly (204). */
+export async function logout(): Promise<void> {
+  await api.post("/auth/logout");
+}

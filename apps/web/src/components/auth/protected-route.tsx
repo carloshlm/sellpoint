@@ -1,24 +1,33 @@
 import { Navigate } from "@tanstack/react-router";
 import type * as React from "react";
 
+import { SessionLoading } from "@/components/auth/session-loading";
+import { useSessionStatus } from "@/lib/auth/session-bootstrap";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
- * F1-WEB-AUTH-08: sin token en memoria → redirige a /login. Es reactivo al
- * store, así un logout (o un refresh fallido cuando llegue F1-WEB-AUTH-02)
- * expulsa al usuario de la vista protegida al instante.
- *
- * NOTA: hasta que exista el interceptor de refresh (F1-WEB-AUTH-02), recargar
- * la página pierde el token en memoria y siempre redirige a /login.
+ * F1-WEB-AUTH-08 + bootstrap: la decisión es en este orden —
+ * 1. Hay token en memoria → sesión viva, se renderiza (da igual el bootstrap:
+ *    un login en caliente ya autenticó).
+ * 2. No hay token pero el bootstrap sigue `pending` → todavía no sabemos si
+ *    la cookie de refresh vale; mostrar carga y NO redirigir (evita el flash
+ *    de /login al recargar estando logueado).
+ * 3. No hay token y el bootstrap terminó → sesión muerta, a /login. Reactivo
+ *    al store: un logout o un refresh fallido expulsan al instante.
  */
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const accessToken = useAuthStore((state) => state.accessToken);
+  const status = useSessionStatus();
 
-  if (!accessToken) {
-    return <Navigate to="/login" replace />;
+  if (accessToken) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  if (status === "pending") {
+    return <SessionLoading />;
+  }
+
+  return <Navigate to="/login" replace />;
 }
 
 export { ProtectedRoute };

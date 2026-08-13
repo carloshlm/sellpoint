@@ -1,21 +1,22 @@
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
+import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { useSessionBootstrap } from "@/lib/auth/session-bootstrap";
 
 export const Route = createRootRoute({
   component: RootLayout,
 });
 
+/**
+ * Root SIN chrome propio: el nav placeholder de F0 murió con F1-WEB-AUTH-09.
+ * Las vistas autenticadas traen su AppLayout; las de auth, su AuthCard.
+ * El bootstrap de sesión arranca acá para que un reload en CUALQUIER ruta
+ * reviva la cookie de refresh antes de que ProtectedRoute decida.
+ */
 function RootLayout() {
+  useSessionBootstrap();
+
   return (
     <>
-      <nav className="flex gap-4 border-b p-4">
-        <Link to="/" className="[&.active]:font-bold">
-          Inicio
-        </Link>
-        <Link to="/login" className="[&.active]:font-bold">
-          Login
-        </Link>
-      </nav>
       <Outlet />
       {import.meta.env.DEV && <ReactQueryDevtools buttonPosition="bottom-right" />}
     </>
