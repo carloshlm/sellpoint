@@ -131,6 +131,14 @@ jobs:
           scp -i ~/.ssh/deploy_key -r \
             infrastructure/php-fpm/pool.d \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/php-fpm/"
+          # Contexto de build de la imagen php-fpm propia (pdo_pgsql): se
+          # buildea EN el server (deploy-remote.sh hace `compose build`),
+          # no pasa por GHCR.
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mkdir -p /opt/sellpoint/docker"
+          scp -i ~/.ssh/deploy_key \
+            infrastructure/docker/php-fpm.Dockerfile \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/docker/php-fpm.Dockerfile"
 
       # Migrate one-shot → pull+up -d → nginx -t/reload con evidencia →
       # smoke a /api/health → rollback si falla (D10). El script remoto es

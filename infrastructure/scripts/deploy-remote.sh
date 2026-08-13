@@ -52,7 +52,17 @@ if ! docker compose -f docker-compose.prod.yml run --rm migrate < /dev/null; the
 fi
 
 echo "Pull + up -d..."
-if ! docker compose -f docker-compose.prod.yml pull; then
+# `pull` ignora los servicios con build: (php-fpm) — su imagen se buildea
+# acá. Con cache es un no-op de ~1s cuando el Dockerfile no cambió.
+if ! docker compose -f docker-compose.prod.yml build php-fpm; then
+  echo "Build de php-fpm FALLÓ. Revirtiendo IMAGE_TAG sin desplegar."
+  write_image_tag "${PREV_TAG}"
+  exit 1
+fi
+# --ignore-buildable: sin esto, pull intenta bajar del registry la imagen
+# local de php-fpm (sellpoint-php-fpm:local, que no existe en ningún
+# registry) y aborta el deploy entero.
+if ! docker compose -f docker-compose.prod.yml pull --ignore-buildable; then
   echo "Pull FALLÓ. Revirtiendo IMAGE_TAG sin desplegar."
   write_image_tag "${PREV_TAG}"
   exit 1

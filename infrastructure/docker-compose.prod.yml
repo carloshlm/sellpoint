@@ -163,7 +163,15 @@ services:
   # solo verifica que el binario existe es teatro — si php-fpm está caído,
   # nginx devuelve 502 (visible e inequívoco).
   php-fpm:
-    image: php:8.3-fpm-alpine@sha256:bf90236449d333cef008b1f01c72a3d4f11a6470a74629665e4c6b6158f03fc8
+    # Imagen propia = la oficial pineada + pdo_pgsql (los sitios PHP con
+    # formularios persisten en Postgres). Se buildea EN el server en el
+    # deploy (build: en vez de image:) — no pasa por GHCR: cambia una vez
+    # cada muerte de obispo y el server tiene el contexto del repo en
+    # /opt/sellpoint tras el scp del pipeline.
+    build:
+      context: ./docker
+      dockerfile: php-fpm.Dockerfile
+    image: sellpoint-php-fpm:local
     container_name: sellpoint-php-fpm
     restart: unless-stopped
     # 160M: 5 children x ~25 MB (pm=ondemand, cero children en idle — solo
