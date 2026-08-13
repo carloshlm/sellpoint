@@ -970,7 +970,7 @@ Ejemplos:
 
 ### Módulo F1-WEB-AUTH — UI de Autenticación
 
-- [ ] **F1-WEB-AUTH-01** — Auth store con Zustand
+- [x] **F1-WEB-AUTH-01** — Auth store con Zustand
   - **Salida:** `useAuthStore` con `accessToken`, `user`, `setAuth`, `clearAuth`
   - **Verificar:** estado persiste durante navegación, no en localStorage
   - **Depende de:** F0-WEB-08
@@ -982,37 +982,37 @@ Ejemplos:
   - **Depende de:** F1-WEB-AUTH-01, F1-AUTH-09
   - **Estimación:** 1.5 h
 
-- [ ] **F1-WEB-AUTH-03** — Página `/login`
+- [x] **F1-WEB-AUTH-03** — Página `/login`
   - **Salida:** form con email + password, validación con Zod + React Hook Form, llama a `/auth/login`
   - **Verificar:** login exitoso navega a `/dashboard`
   - **Depende de:** F1-WEB-AUTH-02, F1-AUTH-07
   - **Estimación:** 1.5 h
 
-- [ ] **F1-WEB-AUTH-04** — Página `/register`
+- [x] **F1-WEB-AUTH-04** — Página `/register`
   - **Salida:** form de registro de tenant con validación de password en vivo
   - **Verificar:** registro exitoso muestra "revisa tu email"
   - **Depende de:** F1-WEB-AUTH-03, F1-AUTH-03
   - **Estimación:** 1.5 h
 
-- [ ] **F1-WEB-AUTH-05** — Página `/verify`
+- [x] **F1-WEB-AUTH-05** — Página `/verify`
   - **Salida:** lee token de URL, llama API, muestra éxito o error
   - **Verificar:** flujo completo desde registro hasta verificación
   - **Depende de:** F1-AUTH-05
   - **Estimación:** 45 min
 
-- [ ] **F1-WEB-AUTH-06** — Página `/forgot-password`
+- [x] **F1-WEB-AUTH-06** — Página `/forgot-password`
   - **Salida:** form simple con email
   - **Verificar:** request a API funciona, muestra "revisa tu email"
   - **Depende de:** F1-AUTH-11
   - **Estimación:** 30 min
 
-- [ ] **F1-WEB-AUTH-07** — Página `/reset-password`
+- [x] **F1-WEB-AUTH-07** — Página `/reset-password`
   - **Salida:** form con nuevo password (token de URL)
   - **Verificar:** reset exitoso navega a login
   - **Depende de:** F1-AUTH-12
   - **Estimación:** 45 min
 
-- [ ] **F1-WEB-AUTH-08** — Componente `ProtectedRoute`
+- [x] **F1-WEB-AUTH-08** — Componente `ProtectedRoute`
   - **Salida:** wrapper que redirige a `/login` si no hay sesión
   - **Verificar:** ir a `/dashboard` sin login redirige a `/login`
   - **Depende de:** F1-WEB-AUTH-01

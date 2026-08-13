@@ -1,6 +1,17 @@
 {
   "hello": "Hello",
   "welcome": "Welcome to SellPoint",
+  "form": {
+    "submitting": "Sending…"
+  },
+  "errors": {
+    "network": "We couldn't reach the server. Check your connection and try again."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Hi, {{name}}",
+    "placeholder": "Your dashboard will live here. We're building it."
+  },
   "theme": {
     "title": "Appearance",
     "brandLabel": "Platform theme",

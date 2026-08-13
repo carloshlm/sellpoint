@@ -33,9 +33,11 @@ describe("Router", () => {
     expect(screen.getByTestId("i18n-check")).toHaveTextContent("Bienvenido a SellPoint");
   });
 
-  it("la ruta /login renderiza el placeholder", async () => {
+  it("la ruta /login renderiza el form real de inicio de sesión", async () => {
     await renderRoute("/login");
 
-    expect(await screen.findByTestId("login-title")).toHaveTextContent("Login");
+    expect(await screen.findByRole("button", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Contraseña")).toBeInTheDocument();
   });
 });

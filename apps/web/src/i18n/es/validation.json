@@ -1,3 +1,5 @@
 {
-  "required": "Este campo es obligatorio"
+  "required": "Este campo es obligatorio",
+  "email": "Ingresá un email válido",
+  "passwordMin": "La contraseña debe tener al menos 12 caracteres"
 }

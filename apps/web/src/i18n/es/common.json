@@ -1,6 +1,17 @@
 {
   "hello": "Hola",
   "welcome": "Bienvenido a SellPoint",
+  "form": {
+    "submitting": "Enviando…"
+  },
+  "errors": {
+    "network": "No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo."
+  },
+  "dashboard": {
+    "title": "Panel",
+    "welcome": "Hola, {{name}}",
+    "placeholder": "Acá va a vivir tu panel. Estamos construyéndolo."
+  },
   "theme": {
     "title": "Apariencia",
     "brandLabel": "Tema de la plataforma",
