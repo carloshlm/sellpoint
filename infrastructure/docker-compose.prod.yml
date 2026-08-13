@@ -90,6 +90,15 @@ services:
     image: postgres:16-alpine
     container_name: sellpoint-postgres
     restart: unless-stopped
+    # Bind EXPLÍCITO a 127.0.0.1: el puerto queda accesible solo desde el
+    # localhost del server, NUNCA desde internet. Es lo que habilita
+    # inspeccionar la DB con un cliente gráfico a través de un túnel SSH
+    # (el túnel entra por SSH y de ahí sale a este localhost).
+    # ⚠️ Escribir "5432:5432" a secas publicaría en 0.0.0.0 — la DB entera
+    # expuesta al mundo, y ufw NO la protegería: Docker inserta sus reglas
+    # DNAT antes de la cadena de ufw. El prefijo 127.0.0.1 no es opcional.
+    ports:
+      - "127.0.0.1:5432:5432"
     # Tuning en `command:` (visible en git, sin postgresql.conf que mantener
     # sincronizado). synchronous_commit NO se toca — queda en `on` (D5).
     command:
