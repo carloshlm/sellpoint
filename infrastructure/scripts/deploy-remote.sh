@@ -85,6 +85,15 @@ if ! docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -t < /de
   exit 1
 fi
 
+# Mismo problema que nginx pero en php-fpm: sus configs (conf.d/pool.d)
+# entran por bind-mount, así que `up -d` NO recrea el container cuando solo
+# cambia su contenido — el proceso seguiría con la config vieja. USR2 es el
+# reload graceful de php-fpm (termina workers al vaciarse, relee TODO:
+# php.ini, extensiones, pools). Idempotente y barato — se hace SIEMPRE.
+echo "Recargando php-fpm (USR2 graceful)..."
+docker compose -f docker-compose.prod.yml exec -T php-fpm kill -USR2 1 < /dev/null || \
+  echo "AVISO: reload de php-fpm falló (¿container caído?) — up -d de arriba ya lo habría levantado"
+
 echo "nginx -t OK. Recargando (nginx -s reload)..."
 T0="$(date -u '+%Y-%m-%dT%H:%M:%S')"
 docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload < /dev/null
