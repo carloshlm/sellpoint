@@ -6,7 +6,14 @@ import { I18nextProvider } from "react-i18next";
 import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { i18n } from "./i18n";
+import { applyBrand } from "./lib/theme/apply-brand";
 import { routeTree } from "./routeTree.gen";
+
+// Marca por defecto ANTES del primer render: el login se pinta con la marca
+// de la plataforma porque todavía no sabemos a qué tenant pertenece quien
+// escribe su email (login por email global, decisión de f1-auth). Cuando el
+// login devuelva la config del tenant, se vuelve a llamar con `tenant.theme`.
+applyBrand();
 
 const queryClient = new QueryClient();
 const router = createRouter({ routeTree });
