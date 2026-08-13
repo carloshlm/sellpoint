@@ -1,4 +1,5 @@
 import axios, { type AxiosError } from "axios";
+import { installRefreshInterceptor } from "./auth/refresh-interceptor";
 
 export interface ApiError {
   statusCode: number;
@@ -16,6 +17,12 @@ export const api = axios.create({
   // La cookie de refresh es httpOnly host-only: sin esto nunca viaja.
   withCredentials: true,
 });
+
+// ORDEN IMPORTANTE: el interceptor de refresh va PRIMERO. Axios corre los
+// interceptores de respuesta en orden de registro, así que este recibe el
+// AxiosError CRUDO (con `config`, que necesita para reintentar la request).
+// El normalizador de abajo corre después, sobre lo que el refresh rechace.
+installRefreshInterceptor(api);
 
 // Normaliza errores al shape del AllExceptionsFilter del API
 api.interceptors.response.use(

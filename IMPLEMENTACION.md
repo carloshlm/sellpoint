@@ -976,7 +976,7 @@ Ejemplos:
   - **Depende de:** F0-WEB-08
   - **Estimación:** 30 min
 
-- [ ] **F1-WEB-AUTH-02** — Axios interceptor de refresh automático
+- [x] **F1-WEB-AUTH-02** — Axios interceptor de refresh automático
   - **Salida:** en respuesta 401, intenta `/auth/refresh`, si OK reintenta la request original
   - **Verificar:** test manual con access token expirado refresca y reintenta
   - **Depende de:** F1-WEB-AUTH-01, F1-AUTH-09

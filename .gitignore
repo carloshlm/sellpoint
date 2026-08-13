@@ -43,3 +43,4 @@ Thumbs.db
 
 # Salesforce CLI local cache (ajeno a este repo — no debe committearse)
 .sfdx/
+.playwright-mcp/
