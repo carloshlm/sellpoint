@@ -1,9 +1,10 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { applyBrand } from "./apply-brand";
 import { BRAND_IDS, BRAND_LIST, BRANDS, DEFAULT_BRAND, resolveBrand } from "./brands";
 
-const css = readFileSync(join(__dirname, "../../index.css"), "utf-8");
+const SRC_DIR = join(__dirname, "../..");
+const css = readFileSync(join(SRC_DIR, "index.css"), "utf-8");
 
 describe("catálogo de marcas", () => {
   it("expone cada marca declarada, con el id coincidiendo con su clave", () => {
@@ -67,6 +68,55 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
       expect(block).not.toContain("--warning:");
     }
     expect(css).toMatch(/:root\s*\{[^}]*--success:/);
+  });
+});
+
+/**
+ * S1 del verify de f1-web-auth. Una clase de paleta cruda (`bg-blue-500`) es
+ * invisible para el sistema de temas: `[data-brand="menta"]` repinta la app
+ * entera menos ese elemento, así que el tenant que elija otra marca ve un
+ * parche azul de la marca por defecto. No lo agarra ningún test de
+ * componente —las clases CSS no se asertan— ni el linter: solo se ve
+ * barriendo el código, que es lo que este test automatiza.
+ *
+ * Los hex SÍ están permitidos en `brands.ts`: ese es el catálogo de marcas,
+ * su lugar correcto. Lo prohibido es la paleta de Tailwind en la UI.
+ */
+const PALETA_CRUDA_TAILWIND =
+  /\b(?:bg|text|border|ring|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|\d{3})\b/;
+
+/**
+ * Solo código que se SIRVE al usuario: los `.test.*` no se empaquetan, y
+ * además tendrían que poder nombrar una clase prohibida para documentarla
+ * (este archivo mismo lo hace en el comentario de arriba).
+ */
+function listarFuentesDeProduccion(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const ruta = join(dir, entry.name);
+    if (entry.isDirectory()) return listarFuentesDeProduccion(ruta);
+    if (!/\.tsx?$/.test(entry.name)) return [];
+    if (/\.test\.tsx?$/.test(entry.name) || entry.name === "routeTree.gen.ts") return [];
+    return [ruta];
+  });
+}
+
+describe("theming: ningún color crudo de la paleta de Tailwind", () => {
+  const fuentes = listarFuentesDeProduccion(SRC_DIR);
+
+  it("hay fuentes que revisar (si esto falla, el barrido no está mirando nada)", () => {
+    expect(fuentes.length).toBeGreaterThan(20);
+  });
+
+  it("todo el color sale de tokens semánticos, nunca de la paleta", () => {
+    const infractores = fuentes
+      .map((ruta) => ({
+        ruta: ruta.slice(SRC_DIR.length + 1),
+        clase: readFileSync(ruta, "utf-8").match(PALETA_CRUDA_TAILWIND)?.[0],
+      }))
+      .filter((archivo) => archivo.clase !== undefined)
+      .map((archivo) => `${archivo.ruta}: ${archivo.clase}`);
+
+    expect(infractores).toEqual([]);
   });
 });
 

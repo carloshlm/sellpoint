@@ -1,6 +1,11 @@
 {
   "hello": "Hello",
   "welcome": "Welcome to SellPoint",
+  "home": {
+    "demoTotal": "Demo total: {{amount}}",
+    "tailwindCheck": "Tailwind is live",
+    "demoAction": "Try it"
+  },
   "form": {
     "submitting": "Sending…"
   },
