@@ -1,4 +1,6 @@
 import axios, { type AxiosError } from "axios";
+import { i18n } from "@/i18n";
+import { installAcceptLanguageInterceptor } from "./accept-language";
 import { installRefreshInterceptor } from "./auth/refresh-interceptor";
 
 export interface ApiError {
@@ -17,6 +19,11 @@ export const api = axios.create({
   // La cookie de refresh es httpOnly host-only: sin esto nunca viaja.
   withCredentials: true,
 });
+
+// W2: sin esto el backend elige el idioma de la respuesta con la preferencia
+// del NAVEGADOR, que no tiene relación con lo que el usuario eligió en la app.
+// Convive con el de refresh sin importar el orden: tocan headers distintos.
+installAcceptLanguageInterceptor(api, i18n);
 
 // ORDEN IMPORTANTE: el interceptor de refresh va PRIMERO. Axios corre los
 // interceptores de respuesta en orden de registro, así que este recibe el
