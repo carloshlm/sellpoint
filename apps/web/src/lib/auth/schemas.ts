@@ -51,8 +51,30 @@ export const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
+/**
+ * F1-WEB-AUTH-10. `currentPassword` solo se exige NO VACÍA: una password
+ * vieja de 8 caracteres (creada antes de la política NIST) tiene que poder
+ * viajar al backend y morir allá con `auth.invalid_credentials`. Validar su
+ * largo acá dejaría a ese usuario sin forma de cambiarla.
+ *
+ * La confirmación es 100% de cliente (el API no la conoce): existe para que
+ * un typo no te deje afuera de tu propia cuenta, ya que el cambio cierra
+ * todas las otras sesiones.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "validation.required"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "validation.required"),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: "validation.passwordMismatch",
+    path: ["confirmPassword"],
+  });
+
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type RegisterFormValues = z.input<typeof registerSchema>;
 export type RegisterPayloadValues = z.output<typeof registerSchema>;
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;

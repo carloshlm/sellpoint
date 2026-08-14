@@ -43,6 +43,23 @@ function isPublicAuthPath(url: string | undefined): boolean {
   return PUBLIC_AUTH_PATHS.some((path) => url.startsWith(path) || url.endsWith(path));
 }
 
+/**
+ * Un 401 no siempre significa "tu sesión expiró". `POST /auth/change-password`
+ * (F1-WEB-AUTH-10) responde 401 `auth.invalid_credentials` cuando la password
+ * ACTUAL está mal — refrescar el token y reintentar repetiría exactamente el
+ * mismo intento fallido: doble verificación argon2, doble fila de auditoría y
+ * doble consumo del throttle de IP (5 cada 15 min) por cada typo.
+ *
+ * Se distingue por la clave i18n cruda del backend, no por la URL: cualquier
+ * endpoint futuro que pida re-autenticación hereda el comportamiento correcto
+ * sin tocar esta lista. `auth.token_stale` / `auth.invalid_token` NO están
+ * acá: esos SÍ son sesión y deben refrescar.
+ */
+function isCredentialRejection(error: AxiosError): boolean {
+  const code = (error.response?.data as { code?: unknown } | undefined)?.code;
+  return code === "auth.invalid_credentials";
+}
+
 /** Marca interna: una request se reintenta A LO SUMO una vez. */
 type RetriableConfig = InternalAxiosRequestConfig & { _retriedAfterRefresh?: boolean };
 
@@ -91,7 +108,8 @@ export function installRefreshInterceptor(api: AxiosInstance): void {
         status === 401 &&
         config !== undefined &&
         config._retriedAfterRefresh !== true &&
-        !isPublicAuthPath(config.url);
+        !isPublicAuthPath(config.url) &&
+        !isCredentialRejection(error);
 
       if (!shouldTryRefresh) {
         return Promise.reject(error);

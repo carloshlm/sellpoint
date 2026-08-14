@@ -180,3 +180,74 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
     },
   );
 });
+
+/**
+ * F1-WEB-AUTH-10: `POST /auth/change-password` responde 401
+ * `auth.invalid_credentials` cuando la password ACTUAL está mal. Ese 401 no
+ * es "tu sesión expiró", así que refrescar y reintentar repetiría el mismo
+ * intento fallido: doble verificación argon2, doble fila de auditoría y doble
+ * consumo del throttle de IP (5 cada 15 min) por cada typo del usuario.
+ */
+describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () => {
+  beforeEach(() => {
+    __resetRefreshStateForTests();
+    useAuthStore.getState().setAuth("token-viejo", {
+      id: "u1",
+      email: "ana@test.com",
+      firstName: "Ana",
+      locale: "es",
+      permissions: [],
+    });
+  });
+
+  function buildCredentialHarness(code: string | undefined) {
+    const calls = { refresh: 0, changePassword: 0 };
+
+    const adapter: AxiosAdapter = async (config) => {
+      const url = config.url ?? "";
+
+      if (url.includes("/auth/refresh")) {
+        calls.refresh += 1;
+        return ok(config, { accessToken: "token-nuevo-1", expiresIn: 900 });
+      }
+
+      calls.changePassword += 1;
+      return Promise.reject(
+        Object.assign(new Error("unauthorized"), {
+          config,
+          response: ok(config, code ? { code } : {}, 401),
+        }),
+      );
+    };
+
+    const client: AxiosInstance = axios.create({ baseURL: "http://api.test", adapter });
+    installRefreshInterceptor(client);
+    return { client, calls };
+  }
+
+  it("401 con code auth.invalid_credentials: NO refresca ni reintenta (un solo intento)", async () => {
+    const { client, calls } = buildCredentialHarness("auth.invalid_credentials");
+
+    await expect(client.post("/auth/change-password", {})).rejects.toBeDefined();
+
+    expect(calls.refresh).toBe(0);
+    expect(calls.changePassword).toBe(1);
+  });
+
+  it("401 SIN code de credenciales (token vencido) sí refresca y reintenta una vez", async () => {
+    const { client, calls } = buildCredentialHarness(undefined);
+
+    await expect(client.post("/auth/change-password", {})).rejects.toBeDefined();
+
+    expect(calls.refresh).toBe(1);
+    expect(calls.changePassword).toBe(2);
+  });
+
+  it("401 con code auth.token_stale (epoch bumpeado) SÍ refresca: eso sí es sesión, no credenciales", async () => {
+    const { client, calls } = buildCredentialHarness("auth.token_stale");
+
+    await expect(client.get("/auth/sessions")).rejects.toBeDefined();
+
+    expect(calls.refresh).toBe(1);
+  });
+});

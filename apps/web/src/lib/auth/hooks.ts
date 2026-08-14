@@ -1,15 +1,21 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
 import {
+  type ActiveSession,
+  type ChangePasswordInput,
+  changePassword,
   forgotPassword,
+  getSessions,
   type LoginInput,
   type LoginResponse,
   login,
   logout,
+  type RefreshResponse,
   type RegisterTenantInput,
   type RegisterTenantResponse,
   registerTenant,
   resetPassword,
+  updateMyLocale,
   verifyEmail,
 } from "@/lib/auth/api";
 
@@ -45,4 +51,25 @@ export function useResetPassword() {
   return useMutation<void, ApiError, { token: string; password: string }>({
     mutationFn: ({ token, password }) => resetPassword(token, password),
   });
+}
+
+/** Clave de la lista de sesiones: el cambio de password la invalida (mató otras). */
+export const SESSIONS_QUERY_KEY = ["auth", "sessions"] as const;
+
+export function useChangePassword() {
+  return useMutation<RefreshResponse, ApiError, ChangePasswordInput>({
+    mutationFn: changePassword,
+  });
+}
+
+export function useActiveSessions(enabled = true) {
+  return useQuery<ActiveSession[], ApiError>({
+    queryKey: SESSIONS_QUERY_KEY,
+    queryFn: getSessions,
+    enabled,
+  });
+}
+
+export function useUpdateLocale() {
+  return useMutation<{ locale: string }, ApiError, "es" | "en">({ mutationFn: updateMyLocale });
 }

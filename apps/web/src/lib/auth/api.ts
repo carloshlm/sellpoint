@@ -78,3 +78,42 @@ export async function getMe(): Promise<AuthUser> {
 export async function logout(): Promise<void> {
   await api.post("/auth/logout");
 }
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * F1-WEB-AUTH-10. Devuelve un access token NUEVO que el llamador DEBE guardar:
+ * el backend bumpea `perm-epoch:{userId}` para matar las otras sesiones, y ese
+ * bump también invalida el token con el que se hizo esta request. El token
+ * devuelto se firmó después del bump, así que es el único vivo.
+ */
+export async function changePassword(input: ChangePasswordInput): Promise<RefreshResponse> {
+  const { data } = await api.post<RefreshResponse>("/auth/change-password", input);
+  return data;
+}
+
+/**
+ * Sesión activa = FAMILIA de refresh tokens viva. El backend no guarda
+ * userAgent ni IP, así que no hay "Chrome en Windows" para mostrar: solo
+ * cuándo empezó, cuándo vence y si es la sesión desde la que estás mirando.
+ */
+export interface ActiveSession {
+  familyId: string;
+  createdAt: string;
+  expiresAt: string;
+  current: boolean;
+}
+
+export async function getSessions(): Promise<ActiveSession[]> {
+  const { data } = await api.get<ActiveSession[]>("/auth/sessions");
+  return data;
+}
+
+/** F1-LOCALE-08: `PATCH /me` persiste el idioma preferido del usuario. */
+export async function updateMyLocale(locale: "es" | "en"): Promise<{ locale: string }> {
+  const { data } = await api.patch<{ locale: string }>("/me", { locale });
+  return data;
+}

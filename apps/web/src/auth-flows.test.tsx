@@ -4,7 +4,15 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "./i18n";
-import { getMe, login, logout, refreshSession } from "./lib/auth/api";
+import {
+  changePassword,
+  getMe,
+  getSessions,
+  login,
+  logout,
+  refreshSession,
+  updateMyLocale,
+} from "./lib/auth/api";
 import { __resetSessionBootstrapForTests } from "./lib/auth/session-bootstrap";
 import { routeTree } from "./routeTree.gen";
 import { useAuthStore } from "./stores/auth.store";
@@ -18,12 +26,18 @@ vi.mock("./lib/auth/api", () => ({
   refreshSession: vi.fn(),
   getMe: vi.fn(),
   logout: vi.fn(),
+  changePassword: vi.fn(),
+  getSessions: vi.fn(),
+  updateMyLocale: vi.fn(),
 }));
 
 const loginMock = vi.mocked(login);
 const refreshSessionMock = vi.mocked(refreshSession);
 const getMeMock = vi.mocked(getMe);
 const logoutMock = vi.mocked(logout);
+const changePasswordMock = vi.mocked(changePassword);
+const getSessionsMock = vi.mocked(getSessions);
+const updateMyLocaleMock = vi.mocked(updateMyLocale);
 
 const demoUser = {
   id: "u1",
@@ -231,5 +245,178 @@ describe("Flujos de auth", () => {
       expect(router.state.location.pathname).toBe("/verify");
     });
     expect(await screen.findByTestId("verify-check-email")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F1-WEB-AUTH-10 — página `/profile`. El cambio de password es la parte
+ * delicada: el backend mata las otras sesiones bumpeando el epoch, lo que
+ * también invalida el token con el que se hizo la request. Si el front no
+ * guarda el token nuevo que viene en la respuesta, el usuario se queda con un
+ * token muerto en memoria.
+ */
+describe("F1-WEB-AUTH-10 — /profile", () => {
+  const activeSessions = [
+    {
+      familyId: "fam-actual",
+      createdAt: "2026-08-12T10:00:00.000Z",
+      expiresAt: "2026-08-19T10:00:00.000Z",
+      current: true,
+    },
+    {
+      familyId: "fam-otra",
+      createdAt: "2026-08-10T10:00:00.000Z",
+      expiresAt: "2026-08-17T10:00:00.000Z",
+      current: false,
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+    getSessionsMock.mockResolvedValue(activeSessions);
+  });
+
+  async function fillChangePasswordForm(values: {
+    current: string;
+    next: string;
+    confirm?: string;
+  }) {
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Contraseña actual"), values.current);
+    await user.type(screen.getByLabelText("Contraseña nueva"), values.next);
+    await user.type(
+      screen.getByLabelText("Repetí la contraseña nueva"),
+      values.confirm ?? values.next,
+    );
+    return user;
+  }
+
+  it("sin sesión redirige a /login (está detrás de ProtectedRoute)", async () => {
+    const router = await renderRoute("/profile");
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+  });
+
+  it("muestra los datos del usuario del store y el shell autenticado", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    await renderRoute("/profile");
+
+    const details = await screen.findByTestId("profile-details");
+    expect(within(details).getByText("Ana")).toBeInTheDocument();
+    expect(within(details).getByText("ana@acme.mx")).toBeInTheDocument();
+    // El AppLayout de F1-WEB-AUTH-09 envuelve la página.
+    expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
+  });
+
+  it("lista las sesiones activas y marca SOLO la actual como 'Esta sesión'", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    await renderRoute("/profile");
+
+    const list = await screen.findByTestId("active-sessions");
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(within(list).getAllByText("Esta sesión")).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("Esta sesión");
+    // Jamás se muestra el identificador interno de la familia.
+    expect(list).not.toHaveTextContent("fam-actual");
+  });
+
+  it("cambio exitoso: guarda el token NUEVO en el store y avisa que cerró las otras sesiones", async () => {
+    useAuthStore.getState().setAuth("jwt-viejo", demoUser);
+    changePasswordMock.mockResolvedValue({ accessToken: "jwt-post-cambio", expiresIn: 900 });
+    await renderRoute("/profile");
+    await screen.findByLabelText("Contraseña actual");
+
+    const user = await fillChangePasswordForm({
+      current: "la de siempre",
+      next: "brand-new-password-12",
+    });
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+
+    expect(await screen.findByTestId("change-password-success")).toHaveTextContent(
+      "Cerramos las otras sesiones",
+    );
+    // LA invariante del front: sin esto el usuario queda con un token muerto.
+    await waitFor(() => {
+      expect(useAuthStore.getState().accessToken).toBe("jwt-post-cambio");
+    });
+    expect(changePasswordMock).toHaveBeenCalledWith(
+      { currentPassword: "la de siempre", newPassword: "brand-new-password-12" },
+      expect.anything(),
+    );
+  });
+
+  it("password actual incorrecta: muestra el message traducido del backend y NO pisa el token", async () => {
+    useAuthStore.getState().setAuth("jwt-viejo", demoUser);
+    changePasswordMock.mockRejectedValue({
+      statusCode: 401,
+      message: "Correo electrónico o contraseña incorrectos",
+      error: "Unauthorized",
+      code: "auth.invalid_credentials",
+    });
+    await renderRoute("/profile");
+    await screen.findByLabelText("Contraseña actual");
+
+    const user = await fillChangePasswordForm({
+      current: "la que no es",
+      next: "brand-new-password-12",
+    });
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+
+    expect(await screen.findByTestId("change-password-error")).toHaveTextContent(
+      "Correo electrónico o contraseña incorrectos",
+    );
+    expect(useAuthStore.getState().accessToken).toBe("jwt-viejo");
+  });
+
+  it("confirmación que no coincide: error en vivo y NUNCA llama al API", async () => {
+    useAuthStore.getState().setAuth("jwt-viejo", demoUser);
+    await renderRoute("/profile");
+    await screen.findByLabelText("Contraseña actual");
+
+    const user = await fillChangePasswordForm({
+      current: "la de siempre",
+      next: "brand-new-password-12",
+      confirm: "otra password larga",
+    });
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+
+    expect(await screen.findByText("Las contraseñas no coinciden")).toBeInTheDocument();
+    expect(changePasswordMock).not.toHaveBeenCalled();
+  });
+
+  it("password nueva de menos de 12 caracteres: error de política y NUNCA llama al API", async () => {
+    useAuthStore.getState().setAuth("jwt-viejo", demoUser);
+    await renderRoute("/profile");
+    await screen.findByLabelText("Contraseña actual");
+
+    const user = await fillChangePasswordForm({ current: "la de siempre", next: "once chars" });
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+
+    expect(
+      await screen.findByText("La contraseña debe tener al menos 12 caracteres"),
+    ).toBeInTheDocument();
+    expect(changePasswordMock).not.toHaveBeenCalled();
+  });
+
+  it("F1-LOCALE-08: cambiar el idioma persiste en PATCH /me y actualiza el usuario del store", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    updateMyLocaleMock.mockResolvedValue({ locale: "en" });
+    await renderRoute("/profile");
+
+    const selector = await screen.findByLabelText("Idioma de la interfaz");
+    await userEvent.setup().selectOptions(selector, "en");
+
+    await waitFor(() => {
+      expect(updateMyLocaleMock).toHaveBeenCalledWith("en", expect.anything());
+    });
+    await waitFor(() => {
+      expect(useAuthStore.getState().user?.locale).toBe("en");
+    });
   });
 });

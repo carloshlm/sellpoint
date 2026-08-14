@@ -1,4 +1,10 @@
-import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema } from "./schemas";
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "./schemas";
 
 describe("auth schemas", () => {
   describe("loginSchema", () => {
@@ -68,6 +74,47 @@ describe("auth schemas", () => {
       const short = resetPasswordSchema.safeParse({ password: "once once o" });
       expect(short.success).toBe(false);
       expect(short.error?.issues[0]?.message).toBe("validation.passwordMin");
+    });
+  });
+
+  describe("changePasswordSchema (F1-WEB-AUTH-10)", () => {
+    const valid = {
+      currentPassword: "la de siempre",
+      newPassword: "doce doce doce",
+      confirmPassword: "doce doce doce",
+    };
+
+    it("acepta actual + nueva de 12+ con confirmación coincidente", () => {
+      expect(changePasswordSchema.safeParse(valid).success).toBe(true);
+    });
+
+    it("la password actual solo se exige no vacía (una vieja corta debe poder mandarse y fallar en el backend)", () => {
+      expect(changePasswordSchema.safeParse({ ...valid, currentPassword: "abc" }).success).toBe(
+        true,
+      );
+      const empty = changePasswordSchema.safeParse({ ...valid, currentPassword: "" });
+      expect(empty.success).toBe(false);
+      expect(empty.error?.issues[0]?.message).toBe("validation.required");
+    });
+
+    it("la password nueva aplica la MISMA política de 12+ que registro y reset", () => {
+      const short = changePasswordSchema.safeParse({
+        ...valid,
+        newPassword: "once once o",
+        confirmPassword: "once once o",
+      });
+      expect(short.success).toBe(false);
+      expect(short.error?.issues[0]?.message).toBe("validation.passwordMin");
+    });
+
+    it("confirmación distinta → error apuntando al campo de confirmación", () => {
+      const result = changePasswordSchema.safeParse({
+        ...valid,
+        confirmPassword: "otra cosa larga",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("validation.passwordMismatch");
+      expect(result.error?.issues[0]?.path).toEqual(["confirmPassword"]);
     });
   });
 });

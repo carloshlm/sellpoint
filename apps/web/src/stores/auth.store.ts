@@ -27,6 +27,13 @@ interface AuthState {
   /** Solo token: lo usa el refresh (F1-WEB-AUTH-02), que no devuelve user. */
   setToken: (token: string) => void;
   clearToken: () => void;
+  /**
+   * Solo user: lo usa `/profile` al cambiar el idioma (F1-LOCALE-08), que
+   * devuelve el usuario actualizado pero no un token nuevo. No-op si no había
+   * sesión: sin `accessToken` un `user` suelto sería una sesión fantasma que
+   * ProtectedRoute no reconoce.
+   */
+  setUser: (user: AuthUser) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -36,4 +43,5 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearAuth: () => set({ accessToken: null, user: null }),
   setToken: (token) => set({ accessToken: token }),
   clearToken: () => set({ accessToken: null }),
+  setUser: (user) => set((state) => (state.user === null ? state : { user })),
 }));

@@ -13,13 +13,34 @@
   "layout": {
     "navLabel": "Navegación principal",
     "nav": {
-      "dashboard": "Panel"
+      "dashboard": "Panel",
+      "profile": "Mi perfil"
     },
     "sidebarToggle": "Abrir o cerrar el menú",
     "sidebarClose": "Cerrar el menú",
     "userMenu": {
       "label": "Menú de usuario",
+      "profile": "Mi perfil",
       "logout": "Cerrar sesión"
+    }
+  },
+  "profile": {
+    "title": "Mi perfil",
+    "details": {
+      "title": "Tus datos",
+      "name": "Nombre",
+      "email": "Email",
+      "language": "Idioma"
+    },
+    "preferences": {
+      "title": "Preferencias",
+      "languageLabel": "Idioma de la interfaz",
+      "languageHelp": "Se guarda en tu cuenta y te sigue en cualquier dispositivo.",
+      "languageError": "No pudimos guardar tu idioma. Intentá de nuevo.",
+      "languages": {
+        "es": "Español",
+        "en": "Inglés"
+      }
     }
   },
   "dashboard": {

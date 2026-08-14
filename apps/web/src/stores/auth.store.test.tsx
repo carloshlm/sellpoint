@@ -43,6 +43,22 @@ describe("useAuthStore", () => {
     expect(useAuthStore.getState().user).toBeNull();
   });
 
+  it("setUser cambia el usuario SIN tocar el token (cambio de locale en /profile)", () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+
+    useAuthStore.getState().setUser({ ...demoUser, locale: "en" });
+
+    expect(useAuthStore.getState().user?.locale).toBe("en");
+    expect(useAuthStore.getState().accessToken).toBe("jwt-demo");
+  });
+
+  it("setUser sin sesión no inventa una: si no había usuario, no hay nada que actualizar", () => {
+    useAuthStore.getState().setUser({ ...demoUser, locale: "en" });
+
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+
   it("NO persiste nada en localStorage (token solo en memoria)", () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser);
     expect(localStorage.length).toBe(0);

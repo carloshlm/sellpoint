@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, User } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useLogout } from "@/lib/auth/hooks";
@@ -53,6 +53,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <LayoutDashboard className="size-4 shrink-0" aria-hidden="true" />
             {expanded && <span className="truncate">{t("common.layout.nav.dashboard")}</span>}
+          </Link>
+          <Link
+            to="/profile"
+            aria-label={t("common.layout.nav.profile")}
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+          >
+            <User className="size-4 shrink-0" aria-hidden="true" />
+            {expanded && <span className="truncate">{t("common.layout.nav.profile")}</span>}
           </Link>
         </nav>
       </aside>
@@ -129,6 +137,15 @@ function UserMenu() {
               {user.email}
             </p>
           )}
+          <Link
+            to="/profile"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <User className="size-4" aria-hidden="true" />
+            {t("common.layout.userMenu.profile")}
+          </Link>
           <button
             type="button"
             role="menuitem"

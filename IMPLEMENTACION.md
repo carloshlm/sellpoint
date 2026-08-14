@@ -760,7 +760,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-ONBOARD-01, F1-LOCALE-01
   - **Estimación:** 1.5 h
 
-- [ ] **F1-LOCALE-08** — Selector de idioma en `/profile` (Mi perfil)
+- [x] **F1-LOCALE-08** — Selector de idioma en `/profile` (Mi perfil)
   - **Salida:** componente `<LanguageSelector>` en sección "Preferencias" de `/profile`. Submit llama `PATCH /me { locale }`. Al recibir respuesta OK, refresca `i18next` con el nuevo locale sin reload.
   - **Verificar:** user cambia idioma; UI cambia inmediatamente; al recargar, el idioma persiste.
   - **Depende de:** F1-LOCALE-05, F0-I18N-04
@@ -1024,7 +1024,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-AUTH-08
   - **Estimación:** 2 h
 
-- [ ] **F1-WEB-AUTH-10** — Página `/profile` (perfil básico)
+- [x] **F1-WEB-AUTH-10** — Página `/profile` (perfil básico)
   - **Salida:** muestra datos del usuario + form de cambiar password + sesiones activas (lista)
   - **Verificar:** cambio de password cierra otras sesiones
   - **Depende de:** F1-WEB-AUTH-09
