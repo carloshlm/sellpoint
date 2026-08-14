@@ -20,6 +20,11 @@ import { REDIS_CLIENT } from "../../infrastructure/redis/redis.module";
 import { AuditService } from "../audit/audit.service";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { TenantsService } from "../tenants/tenants.service";
+import {
+  authEmailThrottleKey,
+  authIpThrottleKey,
+  normalizeThrottleEmail,
+} from "./auth-throttle.keys";
 import { passwordSchema } from "./dto/register-tenant.dto";
 import { AuthRepository } from "./repositories/auth.repository";
 import { OneTimeTokenService } from "./services/one-time-token.service";
@@ -239,6 +244,15 @@ export class AuthService implements OnModuleInit {
     }
 
     const familyId = randomUUID();
+
+    // W2 del verify de f1-auth, cobrado en producción (2026-08-14): el
+    // throttle contaba TODOS los intentos, también los EXITOSOS. Un usuario
+    // que acierta su password gastaba presupuesto anti-fuerza-bruta, así que
+    // 5 logins legítimos en 15 min lo dejaban afuera — y a toda su oficina
+    // detrás del mismo NAT. Acertar la password DEMUESTRA que no sos un
+    // atacante adivinando: se liberan los dos contadores. Los intentos
+    // FALLIDOS siguen acumulando, que es lo único que el límite debe frenar.
+    await this.clearAuthThrottle(meta.ip, input.email);
 
     return this.prisma.withTenantContext(tenantId, async (tx) => {
       const permissions = await this.authRepository.resolvePermissionCodes(tx, user.id);
@@ -731,6 +745,31 @@ export class AuthService implements OnModuleInit {
     );
 
     return row && row.userId === userId ? row.familyId : null;
+  }
+
+  /**
+   * Libera los contadores de throttle tras una autenticación EXITOSA (ver el
+   * comentario en `login`). Fail-open con WARN, mismo criterio que el resto
+   * de lo que toca Redis: si Redis no responde, el peor caso es que el
+   * usuario conserve un contador que expira solo en 15 min — nunca romper un
+   * login que ya fue válido.
+   */
+  private async clearAuthThrottle(ip: string | undefined, email: string): Promise<void> {
+    const normalizedEmail = normalizeThrottleEmail(email);
+    const keys = [
+      authIpThrottleKey(ip),
+      ...(normalizedEmail ? [authEmailThrottleKey(normalizedEmail)] : []),
+    ];
+
+    try {
+      await this.redis.del(...keys);
+    } catch (error) {
+      this.logger.warn(
+        `Redis inalcanzable al liberar el throttle tras un login exitoso: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   /**

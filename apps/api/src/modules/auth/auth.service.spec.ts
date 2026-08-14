@@ -18,7 +18,7 @@ import type { OneTimeTokenService } from "./services/one-time-token.service";
 import type { RefreshTokenService } from "./services/refresh-token.service";
 import type { TokenService } from "./services/token.service";
 
-type FakeRedis = { set: jest.Mock };
+type FakeRedis = { set: jest.Mock; del: jest.Mock };
 
 const NOW = new Date("2026-08-12T12:00:00Z");
 
@@ -126,7 +126,10 @@ function buildService(overrides?: {
     get: (key: string) => ENV_DEFAULTS[key],
   } as unknown as ConfigService;
 
-  const redis: FakeRedis = { set: jest.fn().mockResolvedValue("OK") };
+  const redis: FakeRedis = {
+    set: jest.fn().mockResolvedValue("OK"),
+    del: jest.fn().mockResolvedValue(1),
+  };
 
   const service = new AuthService(
     tenantsService,
@@ -383,6 +386,47 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
     await expect(service.login(loginInput, {})).rejects.toMatchObject({
       response: { message: "auth.email_not_verified" },
     });
+  });
+
+  // W2 del verify de f1-auth, cobrado en producción (2026-08-14): el throttle
+  // contaba también los logins EXITOSOS, así que 5 entradas legítimas en 15
+  // min dejaban al usuario —y a su oficina detrás del mismo NAT— sin poder
+  // loguearse. Acertar la password prueba que no sos un atacante adivinando.
+  it("un login EXITOSO libera los contadores de throttle de IP y de email", async () => {
+    const { service, redis } = await initService({
+      userRow: activeUser(),
+      permissions: [],
+    });
+
+    await service.login(loginInput, { ip: "1.2.3.4", userAgent: "jest" });
+
+    expect(redis.del).toHaveBeenCalledWith(
+      "throttle:auth-ip:1.2.3.4",
+      `throttle:auth-email:${loginInput.email.toLowerCase()}`,
+    );
+  });
+
+  it("un login FALLIDO no libera nada: los intentos malos siguen acumulando", async () => {
+    const { service, redis } = await initService({
+      userRow: activeUser(),
+      verifyResult: false,
+    });
+
+    await expect(service.login(loginInput, { ip: "1.2.3.4" })).rejects.toBeDefined();
+
+    expect(redis.del).not.toHaveBeenCalled();
+  });
+
+  it("si Redis cae al liberar el throttle, el login NO se rompe (fail-open)", async () => {
+    const { service, redis } = await initService({
+      userRow: activeUser(),
+      permissions: [],
+    });
+    (redis.del as jest.Mock).mockRejectedValueOnce(new Error("redis caído"));
+
+    await expect(
+      service.login(loginInput, { ip: "1.2.3.4", userAgent: "jest" }),
+    ).resolves.toMatchObject({ accessToken: expect.any(String) });
   });
 
   it("login exitoso: crea refresh token con familyId nuevo, audita login_success, firma access con claims completos", async () => {

@@ -10,6 +10,11 @@ import { ConfigService } from "@nestjs/config";
 import type { Request } from "express";
 import type { Env } from "../../../config/env.schema";
 import { RedisThrottlerStorage } from "../../../infrastructure/throttle/redis-throttler.storage";
+import {
+  authEmailThrottleKey,
+  authIpThrottleKey,
+  normalizeThrottleEmail,
+} from "../auth-throttle.keys";
 
 // AUTH-REQ-12 / design AD-7: "10/hora por email" solo aplica en las rutas
 // donde un email puede usarse para hostigar a un tercero (adivinar password
@@ -87,7 +92,7 @@ export class AuthEmailThrottlerGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
 
     const ipBlocked = await this.checkLimit({
-      key: `throttle:auth-ip:${request.ip}`,
+      key: authIpThrottleKey(request.ip),
       limit: this.configService.get("THROTTLE_AUTH_IP_LIMIT", { infer: true }),
       ttlSec: this.configService.get("THROTTLE_AUTH_IP_TTL_SEC", { infer: true }),
       throttlerName: "auth-ip",
@@ -97,12 +102,12 @@ export class AuthEmailThrottlerGuard implements CanActivate {
       throw this.tooManyAttempts();
     }
 
-    const email = normalizeEmail((request.body as { email?: unknown } | undefined)?.email);
+    const email = normalizeThrottleEmail((request.body as { email?: unknown } | undefined)?.email);
 
     // "Si el body no trae email → no aplica (delega al de IP)" (design AD-7).
     if (EMAIL_TRACKED_HANDLERS.has(handlerName) && email) {
       const emailBlocked = await this.checkLimit({
-        key: `throttle:auth-email:${email}`,
+        key: authEmailThrottleKey(email),
         limit: this.configService.get("THROTTLE_AUTH_EMAIL_LIMIT", { infer: true }),
         ttlSec: this.configService.get("THROTTLE_AUTH_EMAIL_TTL_SEC", { infer: true }),
         throttlerName: "auth-email",
@@ -146,12 +151,4 @@ export class AuthEmailThrottlerGuard implements CanActivate {
   private tooManyAttempts(): HttpException {
     return new HttpException({ message: "auth.too_many_attempts" }, HttpStatus.TOO_MANY_REQUESTS);
   }
-}
-
-function normalizeEmail(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const trimmed = value.trim().toLowerCase();
-  return trimmed === "" ? undefined : trimmed;
 }
