@@ -211,4 +211,49 @@ export class AuthRepository {
       data: { revokedAt },
     });
   }
+
+  /**
+   * W1 (change-password): a diferencia de `revokeAllRefreshTokensForUser`
+   * (reset, donde el usuario NO controla ninguna sesión y hay que matarlas
+   * todas), acá el usuario está autenticado y su propia sesión debe
+   * sobrevivir — "cerrar las OTRAS sesiones". `exceptFamilyId === null`
+   * (sin cookie, o cookie de otro usuario) degrada a revocar todas: no hay
+   * familia legítima que preservar.
+   */
+  async revokeOtherRefreshTokenFamiliesForUser(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    exceptFamilyId: string | null,
+    revokedAt: Date,
+  ): Promise<void> {
+    await tx.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(exceptFamilyId ? { familyId: { not: exceptFamilyId } } : {}),
+      },
+      data: { revokedAt },
+    });
+  }
+
+  /**
+   * `GET /auth/sessions`: filas de refresh VIVAS (no revocadas, no vencidas)
+   * del usuario. `refresh_tokens` no tiene RLS (AD-3), así que el filtro por
+   * `tenantId` va explícito además del `userId` — defensa en profundidad, no
+   * confianza en el aislamiento de la fila.
+   *
+   * `select` acotado a propósito: NUNCA sale `tokenHash` del repositorio.
+   * Se devuelven todas las filas de cada familia (la rotación crea varias);
+   * agruparlas es trabajo de `groupSessionsByFamily`.
+   */
+  findActiveRefreshTokensForUser(
+    tenantId: string,
+    userId: string,
+    now: Date,
+  ): Promise<{ familyId: string; createdAt: Date; expiresAt: Date }[]> {
+    return this.prisma.refreshToken.findMany({
+      where: { tenantId, userId, revokedAt: null, expiresAt: { gt: now } },
+      select: { familyId: true, createdAt: true, expiresAt: true },
+    });
+  }
 }

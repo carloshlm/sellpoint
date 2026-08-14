@@ -209,3 +209,81 @@ describe("AuthController.forgotPassword/resetPassword — U5 (AUTH-REQ-08/09)", 
     });
   });
 });
+
+describe("AuthController.changePassword/listSessions — F1-WEB-AUTH-10 (W1 f1-auth)", () => {
+  const authUser = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    permissions: ["products:read"],
+    locale: "es" as const,
+  };
+
+  function buildController(authServiceOverrides: Partial<AuthService> = {}) {
+    const authService = {
+      changePassword: jest.fn().mockResolvedValue({ accessToken: "access-nuevo", expiresIn: 900 }),
+      listSessions: jest.fn().mockResolvedValue([]),
+      ...authServiceOverrides,
+    } as unknown as AuthService;
+    const controller = new AuthController(authService, buildConfigService());
+    return { controller, authService };
+  }
+
+  it("changePassword: pasa el user autenticado, el body y la cookie sp_refresh (para saber cuál familia preservar)", async () => {
+    const { controller, authService } = buildController();
+    const request = {
+      ip: "1.2.3.4",
+      headers: { "user-agent": "jest" },
+      cookies: { sp_refresh: "raw-refresh-1" },
+    } as never;
+
+    const body = await controller.changePassword(
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      authUser,
+      request,
+    );
+
+    expect(authService.changePassword).toHaveBeenCalledWith(
+      authUser,
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      "raw-refresh-1",
+      { ip: "1.2.3.4", userAgent: "jest" },
+    );
+    expect(body).toEqual({ accessToken: "access-nuevo", expiresIn: 900 });
+  });
+
+  it("changePassword: sin cookie sp_refresh pasa undefined (el servicio degrada a revocar todo)", async () => {
+    const { controller, authService } = buildController();
+    const request = { ip: "1.2.3.4", headers: {}, cookies: {} } as never;
+
+    await controller.changePassword(
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      authUser,
+      request,
+    );
+
+    expect(authService.changePassword).toHaveBeenCalledWith(
+      authUser,
+      expect.anything(),
+      undefined,
+      expect.anything(),
+    );
+  });
+
+  it("listSessions: delega con el user y la cookie, y devuelve las sesiones tal cual (sin hashes)", async () => {
+    const sessions = [
+      {
+        familyId: "fam-b",
+        createdAt: new Date("2026-08-12T10:00:00Z"),
+        expiresAt: new Date("2026-08-19T10:00:00Z"),
+        current: true,
+      },
+    ];
+    const { controller, authService } = buildController({
+      listSessions: jest.fn().mockResolvedValue(sessions),
+    });
+    const request = { headers: {}, cookies: { sp_refresh: "raw-refresh-1" } } as never;
+
+    await expect(controller.listSessions(authUser, request)).resolves.toEqual(sessions);
+    expect(authService.listSessions).toHaveBeenCalledWith(authUser, "raw-refresh-1");
+  });
+});

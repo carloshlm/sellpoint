@@ -183,6 +183,40 @@ describe("AuthEmailThrottlerGuard", () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
+  // F1-WEB-AUTH-10: `GET /auth/sessions` es una LECTURA autenticada que la
+  // página de perfil dispara en cada visita. Con 5/900s por IP, tres visitas
+  // dejarían al usuario (y a toda su oficina detrás del mismo NAT) sin poder
+  // ni siquiera loguearse. El throttle de IP existe para el adivinado de
+  // credenciales SIN autenticar; esta ruta ya exige un JWT válido.
+  it("listSessions queda EXENTO del throttle de IP (lectura autenticada, no superficie de adivinado)", async () => {
+    const { guard, storage } = buildGuard({
+      increment: () => Promise.resolve({ isBlocked: true }),
+    });
+    const context = buildContext({ handlerName: "listSessions" });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(storage.increment).not.toHaveBeenCalled();
+  });
+
+  it("changePassword SÍ consume el throttle de IP: verificar la password actual es adivinado de credenciales", async () => {
+    const { guard, storage } = buildGuard({
+      increment: () => Promise.resolve({ isBlocked: true }),
+    });
+    const context = buildContext({ handlerName: "changePassword" });
+
+    await expect(guard.canActivate(context)).rejects.toMatchObject({
+      status: HttpStatus.TOO_MANY_REQUESTS,
+      response: { message: "auth.too_many_attempts" },
+    });
+    expect(storage.increment).toHaveBeenCalledWith(
+      expect.stringContaining("throttle:auth-ip:"),
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+      "auth-ip",
+    );
+  });
+
   it("un error de throttle NO es instancia de HttpException genérica sin status — siempre HttpException 429", async () => {
     const { guard } = buildGuard({ increment: () => Promise.resolve({ isBlocked: true }) });
     const context = buildContext({ handlerName: "login" });

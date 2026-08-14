@@ -41,6 +41,7 @@ function buildService(overrides?: {
   isFamilyOverCap?: boolean;
   rotateResult?: boolean;
   passwordResetTokenRow?: Record<string, unknown> | null;
+  activeRefreshTokens?: Record<string, unknown>[];
 }) {
   const tenantsService = {
     provision: overrides?.provisionError
@@ -94,6 +95,10 @@ function buildService(overrides?: {
     markPasswordResetTokenUsed: jest.fn().mockResolvedValue(undefined),
     updateUserPassword: jest.fn().mockResolvedValue(undefined),
     revokeAllRefreshTokensForUser: jest.fn().mockResolvedValue(undefined),
+    revokeOtherRefreshTokenFamiliesForUser: jest.fn().mockResolvedValue(undefined),
+    findActiveRefreshTokensForUser: jest
+      .fn()
+      .mockResolvedValue(overrides?.activeRefreshTokens ?? []),
   } as unknown as AuthRepository;
 
   const mailer = { send: jest.fn().mockResolvedValue(undefined) } as unknown as MailerPort;
@@ -809,5 +814,320 @@ describe("AuthService.resetPassword (AUTH-REQ-09/10/13)", () => {
     await expect(
       service.resetPassword("raw-token", "twelve-characters", {}),
     ).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * F1-WEB-AUTH-10 / W1 del backlog de f1-auth. La secuencia es la parte
+ * peligrosa: verificar → validar → hashear afuera → tx → bump epoch →
+ * FIRMAR. Cada test de acá defiende un eslabón.
+ */
+describe("AuthService.changePassword (W1 f1-auth — AUTH-REQ-10/13)", () => {
+  const authUser = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    permissions: ["products:read"],
+    locale: "es" as const,
+  };
+
+  it("password actual incorrecta → 401 auth.invalid_credentials (misma clave que login) y NO toca el password", async () => {
+    const { service, authRepository, hasher } = await initService({
+      userRow: activeUser(),
+      verifyResult: false,
+    });
+
+    await expect(
+      service.changePassword(
+        authUser,
+        { currentPassword: "la-que-no-es", newPassword: "brand-new-password-12" },
+        "raw-cookie",
+        {},
+      ),
+    ).rejects.toMatchObject({ response: { message: "auth.invalid_credentials" } });
+
+    expect(authRepository.updateUserPassword).not.toHaveBeenCalled();
+    // (el único `hash` que sí ocurrió es el del dummy anti-timing de onModuleInit)
+    expect(hasher.hash).not.toHaveBeenCalledWith("brand-new-password-12");
+  });
+
+  it("password actual incorrecta: audita el intento fallido (auth.password.change_failed)", async () => {
+    const { service, auditService, tx } = await initService({
+      userRow: activeUser(),
+      verifyResult: false,
+    });
+
+    await expect(
+      service.changePassword(
+        authUser,
+        { currentPassword: "la-que-no-es", newPassword: "brand-new-password-12" },
+        "raw-cookie",
+        { ip: "1.2.3.4", userAgent: "jest" },
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(auditService.record).toHaveBeenCalledWith(tx, {
+      tenantId: "tenant-1",
+      userId: "user-1",
+      action: "auth.password.change_failed",
+      resourceType: "user",
+      resourceId: "user-1",
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+  });
+
+  it("password nueva de 11 caracteres → 400 auth.weak_password (misma política NIST que registro y reset)", async () => {
+    const { service, authRepository, hasher } = await initService({ userRow: activeUser() });
+
+    await expect(
+      service.changePassword(
+        authUser,
+        { currentPassword: "twelve-characters", newPassword: "once-chars." },
+        "raw-cookie",
+        {},
+      ),
+    ).rejects.toMatchObject({ response: { message: "auth.weak_password" } });
+
+    expect(authRepository.updateUserPassword).not.toHaveBeenCalled();
+    // El hash de la nueva password nunca se calcula si no pasó la política.
+    expect(hasher.hash).not.toHaveBeenCalledWith("once-chars.");
+  });
+
+  it("la validación de la password nueva corre DESPUÉS de verificar la actual: password actual mala + nueva débil → 401, no 400", async () => {
+    const { service } = await initService({ userRow: activeUser(), verifyResult: false });
+
+    await expect(
+      service.changePassword(
+        authUser,
+        { currentPassword: "la-que-no-es", newPassword: "corta" },
+        "raw-cookie",
+        {},
+      ),
+    ).rejects.toMatchObject({ response: { message: "auth.invalid_credentials" } });
+  });
+
+  it("camino feliz: hashea AFUERA de la tx, actualiza el password, revoca las OTRAS familias (no la propia) y audita", async () => {
+    const { service, hasher, authRepository, auditService, prisma, tx } = await initService({
+      userRow: activeUser(),
+      refreshRow: { id: "rt-1", userId: "user-1", tenantId: "tenant-1", familyId: "fam-actual" },
+    });
+
+    await service.changePassword(
+      authUser,
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      "raw-cookie",
+      { ip: "1.2.3.4", userAgent: "jest" },
+    );
+
+    expect(hasher.hash).toHaveBeenCalledWith("brand-new-password-12");
+    // AD-1: el hash se calculó antes de abrir CUALQUIER tx de escritura.
+    expect((hasher.hash as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      (authRepository.updateUserPassword as jest.Mock).mock.invocationCallOrder[0],
+    );
+    expect(authRepository.updateUserPassword).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      "hashed-password",
+      null,
+      false,
+    );
+    // El tablero dice "cierra OTRAS sesiones": la del usuario sobrevive.
+    expect(authRepository.revokeOtherRefreshTokenFamiliesForUser).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      "fam-actual",
+      NOW,
+    );
+    expect(authRepository.revokeAllRefreshTokensForUser).not.toHaveBeenCalled();
+    expect(auditService.record).toHaveBeenCalledWith(tx, {
+      tenantId: "tenant-1",
+      userId: "user-1",
+      action: "auth.password.changed",
+      resourceType: "user",
+      resourceId: "user-1",
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+    expect(prisma.withTenantContext).toHaveBeenCalledWith("tenant-1", expect.any(Function));
+  });
+
+  it("INVARIANTE CRÍTICA: el epoch se bumpea ANTES de firmar el token nuevo (si no, el usuario se auto-expulsa)", async () => {
+    const { service, redis, tokenService } = await initService({
+      userRow: activeUser(),
+      refreshRow: { id: "rt-1", userId: "user-1", tenantId: "tenant-1", familyId: "fam-actual" },
+    });
+
+    await service.changePassword(
+      authUser,
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      "raw-cookie",
+      {},
+    );
+
+    const bumpOrder = redis.set.mock.invocationCallOrder[0];
+    const signOrder = (tokenService.signAccessToken as jest.Mock).mock.invocationCallOrder[0];
+    expect(bumpOrder).toBeDefined();
+    expect(signOrder).toBeDefined();
+    // `JwtAuthGuard` compara `iat < maxEpoch`: firmar antes del bump haría
+    // que el token devuelto naciera muerto.
+    expect(bumpOrder).toBeLessThan(signOrder as number);
+    expect(redis.set).toHaveBeenCalledWith(
+      "perm-epoch:user-1",
+      String(Math.floor(NOW.getTime() / 1000)),
+    );
+  });
+
+  it("devuelve un access token NUEVO con permisos FRESCOS de DB y el TTL configurado", async () => {
+    const { service, tokenService } = await initService({
+      userRow: activeUser(),
+      permissions: ["products:read", "sales:create"],
+      refreshRow: { id: "rt-1", userId: "user-1", tenantId: "tenant-1", familyId: "fam-actual" },
+    });
+
+    const result = await service.changePassword(
+      authUser,
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      "raw-cookie",
+      {},
+    );
+
+    expect(result).toEqual({ accessToken: "signed-access-token", expiresIn: 900 });
+    expect(tokenService.signAccessToken).toHaveBeenCalledWith({
+      sub: "user-1",
+      tenantId: "tenant-1",
+      permissions: ["products:read", "sales:create"],
+      locale: "es",
+    });
+  });
+
+  it("sin cookie de refresh (o cookie muerta) revoca TODAS las familias: no hay sesión propia que preservar", async () => {
+    const { service, authRepository, tx } = await initService({
+      userRow: activeUser(),
+      refreshRow: null,
+    });
+
+    await service.changePassword(
+      authUser,
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      undefined,
+      {},
+    );
+
+    expect(authRepository.revokeOtherRefreshTokenFamiliesForUser).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      null,
+      NOW,
+    );
+  });
+
+  it("una cookie de refresh de OTRO usuario no preserva nada (no se puede salvar una familia ajena)", async () => {
+    const { service, authRepository, tx } = await initService({
+      userRow: activeUser(),
+      refreshRow: { id: "rt-9", userId: "otro-user", tenantId: "tenant-1", familyId: "fam-ajena" },
+    });
+
+    await service.changePassword(
+      authUser,
+      { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+      "cookie-ajena",
+      {},
+    );
+
+    expect(authRepository.revokeOtherRefreshTokenFamiliesForUser).toHaveBeenCalledWith(
+      tx,
+      "user-1",
+      null,
+      NOW,
+    );
+  });
+
+  it("un fallo de Redis al bumpear el epoch NO rompe el cambio de password (fail-open, igual que el reset)", async () => {
+    const { service, redis } = await initService({
+      userRow: activeUser(),
+      refreshRow: { id: "rt-1", userId: "user-1", tenantId: "tenant-1", familyId: "fam-actual" },
+    });
+    redis.set.mockRejectedValue(new Error("redis caído"));
+
+    await expect(
+      service.changePassword(
+        authUser,
+        { currentPassword: "twelve-characters", newPassword: "brand-new-password-12" },
+        "raw-cookie",
+        {},
+      ),
+    ).resolves.toEqual({ accessToken: "signed-access-token", expiresIn: 900 });
+  });
+});
+
+describe("AuthService.listSessions (F1-WEB-AUTH-10 — GET /auth/sessions)", () => {
+  const authUser = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    permissions: [],
+    locale: "es" as const,
+  };
+
+  it("colapsa las filas vivas en una entrada por familia y marca la de la cookie como current", async () => {
+    const { service, authRepository } = await initService({
+      refreshRow: { id: "rt-1", userId: "user-1", tenantId: "tenant-1", familyId: "fam-b" },
+      activeRefreshTokens: [
+        {
+          familyId: "fam-a",
+          createdAt: new Date("2026-08-10T10:00:00Z"),
+          expiresAt: new Date("2026-08-17T10:00:00Z"),
+        },
+        {
+          familyId: "fam-b",
+          createdAt: new Date("2026-08-12T10:00:00Z"),
+          expiresAt: new Date("2026-08-19T10:00:00Z"),
+        },
+        {
+          familyId: "fam-b",
+          createdAt: new Date("2026-08-13T10:00:00Z"),
+          expiresAt: new Date("2026-08-20T10:00:00Z"),
+        },
+      ],
+    });
+
+    const sessions = await service.listSessions(authUser, "raw-cookie");
+
+    expect(sessions).toEqual([
+      {
+        familyId: "fam-b",
+        createdAt: new Date("2026-08-12T10:00:00Z"),
+        expiresAt: new Date("2026-08-20T10:00:00Z"),
+        current: true,
+      },
+      {
+        familyId: "fam-a",
+        createdAt: new Date("2026-08-10T10:00:00Z"),
+        expiresAt: new Date("2026-08-17T10:00:00Z"),
+        current: false,
+      },
+    ]);
+    // La query filtra por usuario Y tenant, y descarta lo expirado con el reloj.
+    expect(authRepository.findActiveRefreshTokensForUser).toHaveBeenCalledWith(
+      "tenant-1",
+      "user-1",
+      NOW,
+    );
+  });
+
+  it("sin cookie: devuelve las sesiones igual, ninguna marcada como current", async () => {
+    const { service } = await initService({
+      activeRefreshTokens: [
+        {
+          familyId: "fam-a",
+          createdAt: new Date("2026-08-10T10:00:00Z"),
+          expiresAt: new Date("2026-08-17T10:00:00Z"),
+        },
+      ],
+    });
+
+    const sessions = await service.listSessions(authUser, undefined);
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]?.current).toBe(false);
   });
 });

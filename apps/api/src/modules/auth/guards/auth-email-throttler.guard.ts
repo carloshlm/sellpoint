@@ -20,6 +20,23 @@ import { RedisThrottlerStorage } from "../../../infrastructure/throttle/redis-th
 const EMAIL_TRACKED_HANDLERS = new Set(["login", "forgotPassword"]);
 
 /**
+ * F1-WEB-AUTH-10: excepciones al throttle de IP de AD-7. Ese límite (5 cada
+ * 15 min por IP) existe para frenar el adivinado de credenciales SIN
+ * autenticar. `GET /auth/sessions` es una LECTURA que ya exige un JWT válido
+ * y que la página de perfil dispara en cada visita: dejarla adentro haría que
+ * tres visitas dejaran al usuario —y a toda su oficina detrás del mismo NAT—
+ * sin poder ni siquiera loguearse. Un self-DoS, no una protección.
+ *
+ * `change-password` NO está acá a propósito: verifica la password actual, así
+ * que ES superficie de adivinado y consume el mismo presupuesto que login.
+ *
+ * El acoplamiento por nombre de handler falla SEGURO (renombrar el método
+ * pierde la exención y vuelve a throttlear, que es ruidoso pero no un hueco),
+ * al revés que `EMAIL_TRACKED_HANDLERS`.
+ */
+const IP_THROTTLE_EXEMPT_HANDLERS = new Set(["listSessions"]);
+
+/**
  * f1-auth AD-7 / U6-02: throttling de `/auth/*` — combina DOS dimensiones
  * independientes (IP siempre, email normalizado solo en login/forgot-password)
  * en un único guard para poder responder el MISMO 429 `auth.too_many_attempts`
@@ -52,6 +69,12 @@ export class AuthEmailThrottlerGuard implements CanActivate {
       return true;
     }
 
+    const handlerName = context.getHandler().name;
+
+    if (IP_THROTTLE_EXEMPT_HANDLERS.has(handlerName)) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
 
     const ipBlocked = await this.checkLimit({
@@ -65,7 +88,6 @@ export class AuthEmailThrottlerGuard implements CanActivate {
       throw this.tooManyAttempts();
     }
 
-    const handlerName = context.getHandler().name;
     const email = normalizeEmail((request.body as { email?: unknown } | undefined)?.email);
 
     // "Si el body no trae email → no aplica (delega al de IP)" (design AD-7).

@@ -20,10 +20,13 @@ import { REDIS_CLIENT } from "../../infrastructure/redis/redis.module";
 import { AuditService } from "../audit/audit.service";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { TenantsService } from "../tenants/tenants.service";
+import { passwordSchema } from "./dto/register-tenant.dto";
 import { AuthRepository } from "./repositories/auth.repository";
 import { OneTimeTokenService } from "./services/one-time-token.service";
 import { RefreshTokenService } from "./services/refresh-token.service";
+import { groupSessionsByFamily, type SessionSummary } from "./services/session-list";
 import { TokenService } from "./services/token.service";
+import type { AuthUser } from "./types/auth-user";
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 // AUTH-REQ-08: TTL fijo de 30 min (spec) — no es configurable por env, igual
@@ -570,6 +573,167 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
+   * W1 del backlog de f1-auth (AUTH-REQ-10/13) — cambio de password de un
+   * usuario YA autenticado. La secuencia es la parte peligrosa y está fijada
+   * por tests; no reordenar:
+   *
+   * 1. Verificar `currentPassword` → 401 `auth.invalid_credentials`, la MISMA
+   *    clave que login: un 401 distinto acá le diría a quien robó un access
+   *    token que la cuenta existe y que solo le falta la password.
+   * 2. Recién entonces validar la política de la password nueva. Al revés, un
+   *    atacante con token robado sabría si su intento fue rechazado por la
+   *    política (400) o por la password (401) — y cada intento fallido
+   *    quedaría sin auditar.
+   * 3. Hashear FUERA de toda transacción (AD-1: argon2 son ~80-150ms
+   *    reteniendo una conexión del pool de 50).
+   * 4. En una sola tx: password + revocación de las OTRAS familias + audit.
+   * 5. Bump de `perm-epoch:{userId}` DESPUÉS del commit (AD-8) — mata los
+   *    access tokens vivos de las otras sesiones.
+   * 6. Y RECIÉN AHÍ firmar el token nuevo. `JwtAuthGuard` compara
+   *    `iat < maxEpoch`: firmar antes del bump devolvería un token nacido
+   *    muerto y el usuario se auto-expulsaría al cambiar su propia password.
+   *
+   * Defensa en profundidad sobre el paso 6: aunque el cliente ignore el
+   * token devuelto, su próxima request dará 401 y el interceptor de refresh
+   * lo recupera solo, porque su familia sigue viva (es la única que no
+   * revocamos). Eso NO es excusa para no devolverlo — es la red debajo.
+   */
+  async changePassword(
+    user: AuthUser,
+    input: ChangePasswordInput,
+    rawRefreshToken: string | undefined,
+    meta: RequestMeta,
+  ): Promise<ChangePasswordResult> {
+    const now = this.clock.now();
+
+    // AD-1: lectura CORTA, cierra antes de verificar el hash.
+    const row = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      this.authRepository.findUserById(tx, user.userId),
+    );
+
+    // `passwordHash === null` es un usuario invitado que nunca fijó password:
+    // no puede haber llegado hasta acá con un JWT, pero si llegara, el
+    // `verify` contra el dummy mantiene el costo constante y el 401 idéntico.
+    const passwordValid = await this.hasher.verify(
+      row?.passwordHash ?? this.dummyHash,
+      input.currentPassword,
+    );
+
+    if (!row || row.passwordHash === null || !passwordValid) {
+      await this.prisma.withTenantContext(user.tenantId, (tx) =>
+        this.auditService.record(tx, {
+          tenantId: user.tenantId,
+          userId: user.userId,
+          action: "auth.password.change_failed",
+          resourceType: "user",
+          resourceId: user.userId,
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        }),
+      );
+      throw new UnauthorizedException({ message: "auth.invalid_credentials" });
+    }
+
+    // Paso 2: MISMO validador que register y reset (AUTH-REQ-10 exige la
+    // misma política en los tres) — importado del DTO, no reescrito acá.
+    if (!passwordSchema.safeParse(input.newPassword).success) {
+      throw new BadRequestException({ message: "auth.weak_password" });
+    }
+
+    // Paso 3: AD-1, argon2 SIEMPRE fuera de cualquier $transaction.
+    const passwordHash = await this.hasher.hash(input.newPassword);
+
+    const currentFamilyId = await this.resolveOwnFamilyId(rawRefreshToken, user.userId);
+
+    const permissions = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      await this.authRepository.updateUserPassword(tx, user.userId, passwordHash, null, false);
+      await this.authRepository.revokeOtherRefreshTokenFamiliesForUser(
+        tx,
+        user.userId,
+        currentFamilyId,
+        now,
+      );
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "auth.password.changed",
+        resourceType: "user",
+        resourceId: user.userId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+      // Frescos de DB, igual que en cada rotación de refresh.
+      return this.authRepository.resolvePermissionCodes(tx, user.userId);
+    });
+
+    // Paso 5 ANTES del paso 6 — ver el docblock. El reloj se relee acá para
+    // que el epoch quede lo más tarde posible (los ~100ms del argon2 de
+    // arriba son ventana en la que otra sesión podría emitir un token).
+    //
+    // Por qué este orden es una GARANTÍA y no una casualidad: `iat` y el
+    // epoch se miden ambos en unix SEGUNDOS. Con bump antes de la firma,
+    // `signTime >= bumpTime` ⇒ `floor(signTime) >= floor(bumpTime)` ⇒
+    // `iat >= epoch` SIEMPRE, y el guard (`iat < maxEpoch`) nunca lo rechaza.
+    // Invertirlo no rompe siempre: rompe solo cuando la firma y el bump caen
+    // a ambos lados de un borde de segundo — un deslogueo intermitente
+    // imposible de reproducir en soporte. Por eso el candado de este orden es
+    // el test UNITARIO de `invocationCallOrder` en auth.service.spec.ts: el
+    // e2e verifica el resultado, pero con granularidad de segundo no puede
+    // distinguir el orden de forma determinista.
+    await this.bumpPermEpoch(user.userId, this.clock.now());
+
+    const accessToken = this.tokenService.signAccessToken({
+      sub: user.userId,
+      tenantId: user.tenantId,
+      permissions,
+      locale: row.locale as "es" | "en",
+    });
+
+    return { accessToken, expiresIn: this.accessTtlSeconds };
+  }
+
+  /**
+   * F1-WEB-AUTH-10: sesiones activas del usuario = familias de refresh vivas.
+   * `RefreshToken` no guarda userAgent ni IP, así que se devuelve solo lo que
+   * existe; el agrupado por familia vive en una función pura testeada aparte.
+   */
+  async listSessions(
+    user: AuthUser,
+    rawRefreshToken: string | undefined,
+  ): Promise<SessionSummary[]> {
+    const rows = await this.authRepository.findActiveRefreshTokensForUser(
+      user.tenantId,
+      user.userId,
+      this.clock.now(),
+    );
+    const currentFamilyId = await this.resolveOwnFamilyId(rawRefreshToken, user.userId);
+
+    return groupSessionsByFamily(rows, currentFamilyId);
+  }
+
+  /**
+   * La familia de la cookie `sp_refresh` de ESTE request, o `null` si no hay
+   * cookie, el token no existe, o la fila pertenece a OTRO usuario. Ese
+   * último chequeo no es paranoia decorativa: sin él, presentar la cookie de
+   * un tercero decidiría qué familia se preserva / se marca como "esta
+   * sesión".
+   */
+  private async resolveOwnFamilyId(
+    rawRefreshToken: string | undefined,
+    userId: string,
+  ): Promise<string | null> {
+    if (!rawRefreshToken) {
+      return null;
+    }
+
+    const row = await this.authRepository.findRefreshTokenByHash(
+      this.oneTimeTokenService.hash(rawRefreshToken),
+    );
+
+    return row && row.userId === userId ? row.familyId : null;
+  }
+
+  /**
    * AD-8: `SET` SIN TTL (inevictable con volatile-ttl) — valor en unix
    * SEGUNDOS, misma unidad que `iat`. Fail-open consciente si Redis está
    * caído (mismo criterio que JwtAuthGuard): el peor caso es degradar a la
@@ -613,6 +777,16 @@ export interface RefreshResult {
   expiresIn: number;
   refreshToken: string;
   refreshExpiresAt: Date;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordResult {
+  accessToken: string;
+  expiresIn: number;
 }
 
 // C1 (verify #271): discriminada para que el callback de `withTenantContext`
