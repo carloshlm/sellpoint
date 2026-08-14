@@ -1,0 +1,30 @@
+{
+  "page": {
+    "title": "Users",
+    "subtitle": "Business users and their roles."
+  },
+  "table": {
+    "searchLabel": "Search by name or email",
+    "searchPlaceholder": "Search…",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "roles": "Roles",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "invited": "Invited",
+      "active": "Active",
+      "suspended": "Suspended"
+    },
+    "empty": "No users match your search.",
+    "loading": "Loading users…",
+    "error": "We couldn't load the users. Try again.",
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {{page}} of {{total}}"
+    }
+  }
+}

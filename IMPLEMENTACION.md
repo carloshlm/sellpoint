@@ -1041,8 +1041,8 @@ Ejemplos:
 
 ### Módulo F1-WEB-USERS — UI de Gestión de Usuarios
 
-- [ ] **F1-WEB-USERS-01** — Página `/system/users` — lista
-  - **Salida:** tabla con TanStack Table, paginación server-side, búsqueda
+- [x] **F1-WEB-USERS-01** — Página `/system/users` — lista
+  - **Salida:** tabla con TanStack Table, paginación **client-side** (`GET /users` no pagina; server-side queda para cuando duela — decisión del proposal #326), búsqueda
   - **Verificar:** lista de usuarios del tenant visible
   - **Depende de:** F1-RBAC-03, F1-WEB-AUTH-09
   - **Estimación:** 1.5 h

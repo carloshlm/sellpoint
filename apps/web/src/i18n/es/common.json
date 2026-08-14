@@ -19,7 +19,8 @@
     "navLabel": "Navegación principal",
     "nav": {
       "dashboard": "Panel",
-      "profile": "Mi perfil"
+      "profile": "Mi perfil",
+      "system": "Sistema"
     },
     "sidebarToggle": "Abrir o cerrar el menú",
     "sidebarClose": "Cerrar el menú",
@@ -28,6 +29,10 @@
       "profile": "Mi perfil",
       "logout": "Cerrar sesión"
     }
+  },
+  "permissionGate": {
+    "title": "Sin permiso",
+    "description": "No tenés permiso para ver esta sección."
   },
   "profile": {
     "title": "Mi perfil",

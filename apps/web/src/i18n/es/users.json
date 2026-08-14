@@ -1,0 +1,30 @@
+{
+  "page": {
+    "title": "Usuarios",
+    "subtitle": "Usuarios del negocio y sus roles."
+  },
+  "table": {
+    "searchLabel": "Buscar por nombre o email",
+    "searchPlaceholder": "Buscar…",
+    "columns": {
+      "name": "Nombre",
+      "email": "Email",
+      "roles": "Roles",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "status": {
+      "invited": "Invitado",
+      "active": "Activo",
+      "suspended": "Suspendido"
+    },
+    "empty": "No hay usuarios que coincidan con la búsqueda.",
+    "loading": "Cargando usuarios…",
+    "error": "No pudimos cargar los usuarios. Intentá de nuevo.",
+    "pagination": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "pageOf": "Página {{page}} de {{total}}"
+    }
+  }
+}

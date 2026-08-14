@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Menu, User } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, Settings, User } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useLogout } from "@/lib/auth/hooks";
+import { usePermissions } from "@/lib/auth/permissions";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -19,9 +20,14 @@ import { useAuthStore } from "@/stores/auth.store";
  */
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
+  const { has } = usePermissions();
   const [expanded, setExpanded] = React.useState(
     () => window.matchMedia?.("(min-width: 768px)")?.matches ?? true,
   );
+  // F1-WEB-USERS cross-cutting: "Sistema" es visible en modo SOLO LECTURA con
+  // users:read O roles:read (decisión #327) — los controles de mutación
+  // dentro de cada página se gatean por separado con `:manage`.
+  const canSeeSystemNav = has("users:read") || has("roles:read");
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
@@ -62,6 +68,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <User className="size-4 shrink-0" aria-hidden="true" />
             {expanded && <span className="truncate">{t("common.layout.nav.profile")}</span>}
           </Link>
+          {canSeeSystemNav && (
+            <Link
+              to="/system/users"
+              aria-label={t("common.layout.nav.system")}
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+            >
+              <Settings className="size-4 shrink-0" aria-hidden="true" />
+              {expanded && <span className="truncate">{t("common.layout.nav.system")}</span>}
+            </Link>
+          )}
         </nav>
       </aside>
 

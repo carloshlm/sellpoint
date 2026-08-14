@@ -19,7 +19,8 @@
     "navLabel": "Main navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "profile": "My profile"
+      "profile": "My profile",
+      "system": "System"
     },
     "sidebarToggle": "Open or close the menu",
     "sidebarClose": "Close the menu",
@@ -28,6 +29,10 @@
       "profile": "My profile",
       "logout": "Log out"
     }
+  },
+  "permissionGate": {
+    "title": "No permission",
+    "description": "You don't have permission to view this section."
   },
   "profile": {
     "title": "My profile",
