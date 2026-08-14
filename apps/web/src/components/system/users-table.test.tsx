@@ -25,10 +25,10 @@ function makeUser(overrides: Partial<UserDetail>): UserDetail {
   };
 }
 
-function renderTable(users: UserDetail[], canManage = false) {
+function renderTable(users: UserDetail[], canManage = false, onEdit = vi.fn()) {
   return render(
     <I18nextProvider i18n={createI18n()}>
-      <UsersTable users={users} canManage={canManage} />
+      <UsersTable users={users} canManage={canManage} onEdit={onEdit} />
     </I18nextProvider>,
   );
 }
@@ -101,6 +101,17 @@ describe("UsersTable", () => {
 
     renderTable(users, true);
     expect(screen.getByRole("columnheader", { name: "Acciones" })).toBeInTheDocument();
+  });
+
+  it("con canManage, cada fila tiene un botón Editar que llama onEdit con ese usuario (F1-WEB-USERS-03)", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    const ana = makeUser({ id: "1", firstName: "Ana", lastNamePaternal: "García" });
+    renderTable([ana], true, onEdit);
+
+    await user.click(screen.getByRole("button", { name: "Editar" }));
+
+    expect(onEdit).toHaveBeenCalledWith(ana);
   });
 
   it("sin resultados muestra el vacío explicado", async () => {

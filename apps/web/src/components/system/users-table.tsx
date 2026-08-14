@@ -44,10 +44,20 @@ function StatusBadge({ status }: { status: UserDetail["status"] }) {
  * + `getPaginationRowModel` resuelven todo en cliente.
  *
  * `canManage` viaja como PROP (D1): decide si se reserva la columna
- * "Acciones" — vacía en este batch, la llenan las acciones de fila de WU5.
+ * "Acciones". Batch 2 (F1-WEB-USERS-03) la llena con "Editar"; suspender/
+ * reactivar/reenviar/reset viven en el menú `⋮` de WU5 (Batch 3) — ese menú
+ * probablemente absorba este botón junto a las demás acciones.
  * Presentacional puro: sin queries ni store, testeable con solo props.
  */
-function UsersTable({ users, canManage }: { users: UserDetail[]; canManage: boolean }) {
+function UsersTable({
+  users,
+  canManage,
+  onEdit,
+}: {
+  users: UserDetail[];
+  canManage: boolean;
+  onEdit: (user: UserDetail) => void;
+}) {
   const { t } = useTranslation();
   const [globalFilter, setGlobalFilter] = React.useState("");
 
@@ -81,12 +91,16 @@ function UsersTable({ users, canManage }: { users: UserDetail[]; canManage: bool
       base.push({
         id: "actions",
         header: t("users.table.columns.actions"),
-        cell: () => null,
+        cell: ({ row }) => (
+          <Button type="button" variant="outline" size="sm" onClick={() => onEdit(row.original)}>
+            {t("users.table.editAction")}
+          </Button>
+        ),
       });
     }
 
     return base;
-  }, [canManage, t]);
+  }, [canManage, onEdit, t]);
 
   const table = useLegacyTable({
     data: users,

@@ -1047,13 +1047,13 @@ Ejemplos:
   - **Depende de:** F1-RBAC-03, F1-WEB-AUTH-09
   - **Estimación:** 1.5 h
 
-- [ ] **F1-WEB-USERS-02** — Form crear usuario (modal o página)
+- [x] **F1-WEB-USERS-02** — Form crear usuario (modal o página)
   - **Salida:** form completo con validación, envía invitación
   - **Verificar:** crear usuario lo agrega a la lista, envía email
   - **Depende de:** F1-WEB-USERS-01
   - **Estimación:** 1.5 h
 
-- [ ] **F1-WEB-USERS-03** — Form editar usuario
+- [x] **F1-WEB-USERS-03** — Form editar usuario
   - **Salida:** misma UI que crear, precargada
   - **Verificar:** cambios persisten
   - **Depende de:** F1-WEB-USERS-02

@@ -25,6 +25,28 @@
       "previous": "Anterior",
       "next": "Siguiente",
       "pageOf": "Página {{page}} de {{total}}"
-    }
+    },
+    "editAction": "Editar"
+  },
+  "form": {
+    "newUser": "Nuevo usuario",
+    "createTitle": "Nuevo usuario",
+    "editTitle": "Editar usuario",
+    "email": "Email",
+    "firstName": "Nombre",
+    "lastNamePaternal": "Apellido paterno",
+    "lastNameMaternal": "Apellido materno",
+    "locale": "Idioma",
+    "localeOptions": {
+      "es": "Español",
+      "en": "Inglés"
+    },
+    "roles": "Roles",
+    "rolesHint": "Un usuario necesita al menos un rol.",
+    "roleEscalationHint": "No podés asignar un rol con permisos que vos no tenés.",
+    "submitCreate": "Crear usuario",
+    "submitEdit": "Guardar cambios",
+    "createSuccess": "Se invitó a {{email}}. Va a recibir un correo para activar su cuenta.",
+    "editSuccess": "Los cambios se guardaron."
   }
 }

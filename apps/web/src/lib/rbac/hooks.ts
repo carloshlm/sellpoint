@@ -37,8 +37,12 @@ export function useUsers() {
   return useQuery<UserDetail[], ApiError>({ queryKey: USERS_QUERY_KEY, queryFn: listUsers });
 }
 
-export function useRoles() {
-  return useQuery<RoleSummary[], ApiError>({ queryKey: ROLES_QUERY_KEY, queryFn: listRoles });
+export function useRoles(options?: { enabled?: boolean }) {
+  return useQuery<RoleSummary[], ApiError>({
+    queryKey: ROLES_QUERY_KEY,
+    queryFn: listRoles,
+    enabled: options?.enabled ?? true,
+  });
 }
 
 /**

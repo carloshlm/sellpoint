@@ -25,6 +25,28 @@
       "previous": "Previous",
       "next": "Next",
       "pageOf": "Page {{page}} of {{total}}"
-    }
+    },
+    "editAction": "Edit"
+  },
+  "form": {
+    "newUser": "New user",
+    "createTitle": "New user",
+    "editTitle": "Edit user",
+    "email": "Email",
+    "firstName": "First name",
+    "lastNamePaternal": "Last name",
+    "lastNameMaternal": "Second last name",
+    "locale": "Language",
+    "localeOptions": {
+      "es": "Spanish",
+      "en": "English"
+    },
+    "roles": "Roles",
+    "rolesHint": "A user needs at least one role.",
+    "roleEscalationHint": "You can't assign a role with permissions you don't have.",
+    "submitCreate": "Create user",
+    "submitEdit": "Save changes",
+    "createSuccess": "{{email}} was invited. They'll get an email to activate their account.",
+    "editSuccess": "Changes saved."
   }
 }

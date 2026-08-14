@@ -99,6 +99,17 @@ describe("queries", () => {
     await waitFor(() => expect(result.current.data).toEqual([ROLE]));
   });
 
+  // F1-WEB-USERS WU4: el form de alta/edición solo necesita `roles` cuando
+  // `canManage` — pedirlo siempre sería la "request inútil" que S6 de
+  // f1-web-auth mandó evitar (un actor sin `users:manage` nunca ve el form).
+  it("useRoles(enabled: false) no dispara listRoles", async () => {
+    const { Wrapper } = wrapper();
+    renderHook(() => useRoles({ enabled: false }), { wrapper: Wrapper });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockedApi.listRoles).not.toHaveBeenCalled();
+  });
+
   it("usePermissionsCatalog trae el catálogo agrupado por módulo", async () => {
     const { Wrapper } = wrapper();
     const { result } = renderHook(() => usePermissionsCatalog(), { wrapper: Wrapper });

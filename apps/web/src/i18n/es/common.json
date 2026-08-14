@@ -7,7 +7,8 @@
     "demoAction": "Probar"
   },
   "form": {
-    "submitting": "Enviando…"
+    "submitting": "Enviando…",
+    "cancel": "Cancelar"
   },
   "errors": {
     "network": "No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo."

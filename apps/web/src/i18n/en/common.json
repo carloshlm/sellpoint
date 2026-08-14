@@ -7,7 +7,8 @@
     "demoAction": "Try it"
   },
   "form": {
-    "submitting": "Sending…"
+    "submitting": "Sending…",
+    "cancel": "Cancel"
   },
   "errors": {
     "network": "We couldn't reach the server. Check your connection and try again."
