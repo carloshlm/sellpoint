@@ -83,6 +83,20 @@ function shouldRetryQuery(failureCount: number, error: unknown): boolean {
  * - `A -> null` (logout / sesión muerta) y `A -> B` (login encima de otra
  *   sesión) son sujetos distintos -> se purga.
  *
+ * ── Por qué "dejar una identidad" y no "que la identidad cambie" (S6) ──
+ * `null -> A` también es un cambio, pero NO purga: es estrenar sesión sobre
+ * una caché que ya está vacía (el logout purga al SALIR, así que nunca queda
+ * nada de otro usuario esperando). Purgar ahí tenía un costo medido: el
+ * bootstrap hace `setToken` antes del `setAuth` —`GET /me` necesita el
+ * Bearer—, ProtectedRoute abre con solo el token, y las queries protegidas
+ * que salen en esa ventana se tiraban al llegar la identidad: una consulta
+ * extra por cada reload (1 -> 2 `getSessions`, medido en el re-verify). Con
+ * varias listas montadas a la vez —F1-WEB-USERS— se multiplica.
+ *
+ * La condición es entonces `previousUserId !== null`: solo se limpia lo que
+ * pudo haber quedado de ALGUIEN. El caso peligroso (`A -> B` sin logout) lo
+ * cubre igual, porque ahí el anterior no era null.
+ *
  * Nota: `clear()` vacía el mapa de queries, pero un observer YA montado
  * conserva su último resultado hasta que se desmonte. No importa en los
  * caminos reales —el logout desmonta el árbol protegido al instante— pero
@@ -98,7 +112,13 @@ function watchSessionIdentity(queryClient: QueryClient): void {
       return;
     }
 
+    // Se DEJA una identidad (había alguien): lo cacheado es suyo y no debe
+    // sobrevivirle. `null -> A` no entra acá — ver el comentario de arriba.
+    const abandonaIdentidad = previousUserId !== null;
     previousUserId = currentUserId;
-    queryClient.clear();
+
+    if (abandonaIdentidad) {
+      queryClient.clear();
+    }
   });
 }

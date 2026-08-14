@@ -75,6 +75,31 @@ describe("createQueryClient — la caché muere con la sesión (C1)", () => {
     expect(queryClient.getQueryData(CACHE_KEY)).toEqual(DATO_DE_ANA);
   });
 
+  /**
+   * S6 del re-verify: el bootstrap hace `setToken` (línea 54) ANTES del
+   * `setAuth` (56), porque `GET /me` necesita el Bearer. En esa ventana
+   * ProtectedRoute ya abre (le alcanza con el token) y las queries protegidas
+   * salen; cuando llega la identidad, el `null → u1` purgaba datos recién
+   * traídos -> una consulta EXTRA por cada reload. Medido: 1 → 2 `getSessions`.
+   * Con F1-WEB-USERS (varias listas montadas a la vez) se multiplica.
+   *
+   * La regla correcta no es "purgá cuando la identidad CAMBIA" sino "purgá
+   * cuando DEJÁS una identidad": estrenar sesión sobre una caché vacía no
+   * necesita limpieza (el logout ya purgó al salir).
+   */
+  it("estrenar sesión (null → usuario) NO purga: la caché del arranque es de este usuario", () => {
+    const queryClient = createQueryClient();
+    // El arranque real: token primero (para que `GET /me` lleve Bearer), y en
+    // esa ventana ya salen queries protegidas que llenan la caché.
+    useAuthStore.getState().setToken("jwt-ana");
+    queryClient.setQueryData(CACHE_KEY, DATO_DE_ANA);
+
+    // Llega la identidad: es el MISMO usuario que pidió esos datos.
+    useAuthStore.getState().setAuth("jwt-ana", ana);
+
+    expect(queryClient.getQueryData(CACHE_KEY)).toEqual(DATO_DE_ANA);
+  });
+
   it("cada cliente vigila su propia caché: dos pestañas no se pisan", () => {
     const primero = createQueryClient();
     const segundo = createQueryClient();
