@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { i18n } from "./i18n";
+import { createQueryClient } from "./lib/query-client";
 import { applyBrand } from "./lib/theme/apply-brand";
 import { routeTree } from "./routeTree.gen";
 
@@ -15,7 +16,10 @@ import { routeTree } from "./routeTree.gen";
 // login devuelva la config del tenant, se vuelve a llamar con `tenant.theme`.
 applyBrand();
 
-const queryClient = new QueryClient();
+// UN cliente por pestaña, construido SIEMPRE con la factory: trae la política
+// de reintentos (W5) y la purga de caché atada al cambio de sesión (C1).
+// Instanciarlo a mano acá se salta las dos cosas — ver `lib/query-client.ts`.
+const queryClient = createQueryClient();
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {

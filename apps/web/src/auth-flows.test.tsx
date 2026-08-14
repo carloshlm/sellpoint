@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "./i18n";
@@ -14,7 +15,9 @@ import {
   resetPassword,
   updateMyLocale,
 } from "./lib/auth/api";
+import { SESSIONS_QUERY_KEY } from "./lib/auth/hooks";
 import { __resetSessionBootstrapForTests } from "./lib/auth/session-bootstrap";
+import { createQueryClient } from "./lib/query-client";
 import { routeTree } from "./routeTree.gen";
 import { useAuthStore } from "./stores/auth.store";
 
@@ -49,7 +52,14 @@ const demoUser = {
   permissions: ["products:read"],
 };
 
-async function renderRoute(path: string) {
+/**
+ * `queryClient` es un parámetro a propósito: la app monta UN solo cliente por
+ * pestaña (`main.tsx`) y un arnés que crea uno nuevo en cada render aísla por
+ * construcción justo lo que producción comparte — así fue como C1 (caché
+ * sucia tras el logout) se escapó de esta suite. Los tests que ejercitan la
+ * vida de la caché entre sesiones pasan el MISMO cliente en las dos fases.
+ */
+async function renderRoute(path: string, queryClient: QueryClient = createQueryClient()) {
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -57,7 +67,7 @@ async function renderRoute(path: string) {
   await router.load();
   render(
     <I18nextProvider i18n={createI18n()}>
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>
     </I18nextProvider>,
@@ -492,5 +502,103 @@ describe("F1-WEB-AUTH-10 — /profile", () => {
     await waitFor(() => {
       expect(useAuthStore.getState().user?.locale).toBe("en");
     });
+  });
+});
+
+/**
+ * C1 del verify de f1-web-auth (CRITICAL). El logout limpiaba el store de
+ * Zustand y NADA más: la caché de React Query vive tanto como la pestaña, no
+ * tanto como la sesión. El usuario siguiente en la misma pestaña se comía los
+ * datos cacheados del anterior — y con login por email global (un email = un
+ * tenant) pueden ser de tenants DISTINTOS.
+ *
+ * Estos dos tests comparten UN solo `QueryClient` entre las dos sesiones, que
+ * es la topología real de `main.tsx`.
+ */
+describe("C1 — la caché de React Query muere con la sesión", () => {
+  const sesionesDeAna = [
+    {
+      familyId: "fam-ana-1",
+      createdAt: "2026-01-15T10:00:00.000Z",
+      expiresAt: "2026-01-22T10:00:00.000Z",
+      current: true,
+    },
+    {
+      familyId: "fam-ana-2",
+      createdAt: "2026-01-10T10:00:00.000Z",
+      expiresAt: "2026-01-17T10:00:00.000Z",
+      current: false,
+    },
+  ];
+
+  const beto = {
+    id: "u2",
+    email: "beto@otra-empresa.mx",
+    firstName: "Beto",
+    locale: "es" as const,
+    permissions: ["products:read"],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+    logoutMock.mockResolvedValue(undefined);
+  });
+
+  async function logoutPorElMenu(nombre: string) {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: nombre }));
+    await user.click(await screen.findByRole("menuitem", { name: "Cerrar sesión" }));
+    await waitFor(() => {
+      expect(useAuthStore.getState().accessToken).toBeNull();
+    });
+  }
+
+  it("el logout vacía la caché en el acto, sin disparar un refetch de despedida", async () => {
+    const queryClient = createQueryClient();
+    useAuthStore.getState().setAuth("jwt-ana", demoUser);
+    getSessionsMock.mockResolvedValue(sesionesDeAna);
+    await renderRoute("/profile", queryClient);
+    await screen.findByTestId("active-sessions");
+    // Precondición real: la caché quedó poblada con las 2 sesiones de Ana.
+    expect(queryClient.getQueryData(SESSIONS_QUERY_KEY)).toHaveLength(2);
+    const fetchsAntesDelLogout = getSessionsMock.mock.calls.length;
+
+    await logoutPorElMenu("Ana");
+
+    expect(queryClient.getQueryData(SESSIONS_QUERY_KEY)).toBeUndefined();
+    // Purgar no puede degenerar en "refetch con la sesión ya muerta": ese
+    // request saldría sin token, daría 401 y dispararía el interceptor de
+    // refresh contra una familia recién revocada.
+    expect(getSessionsMock.mock.calls.length).toBe(fetchsAntesDelLogout);
+  });
+
+  it("el usuario siguiente en la misma pestaña NO ve las sesiones del anterior", async () => {
+    const queryClient = createQueryClient();
+
+    // --- Usuario A: entra a /profile y su lista de sesiones se cachea -------
+    useAuthStore.getState().setAuth("jwt-ana", demoUser);
+    getSessionsMock.mockResolvedValue(sesionesDeAna);
+    await renderRoute("/profile", queryClient);
+    const listaDeAna = await screen.findByTestId("active-sessions");
+    expect(within(listaDeAna).getAllByRole("listitem")).toHaveLength(2);
+
+    await logoutPorElMenu("Ana");
+    cleanup();
+
+    // --- Usuario B: otro tenant, MISMA pestaña, su fetch queda colgado -----
+    // Colgado a propósito: si la caché sobrevivió, React Query pinta el dato
+    // viejo AL INSTANTE mientras refetchea (staleTime 0) — que es justo lo
+    // que reportó el verify.
+    getSessionsMock.mockReturnValue(new Promise(() => {}));
+    useAuthStore.getState().setAuth("jwt-beto", beto);
+    await renderRoute("/profile", queryClient);
+
+    // La página de B se renderizó de verdad (si no, lo de abajo no probaría nada).
+    expect(await screen.findByTestId("profile-details")).toHaveTextContent("beto@otra-empresa.mx");
+    expect(screen.queryByTestId("active-sessions")).not.toBeInTheDocument();
+    expect(screen.getByText("Cargando tus sesiones…")).toBeInTheDocument();
   });
 });
