@@ -35,13 +35,18 @@ vi.mock("../lib/rbac/api", () => ({
 // `POST /auth/forgot-password` (D del proposal) — mock PARCIAL, el resto del
 // módulo (login, logout, etc.) sigue real porque `ProtectedRoute`/`AppLayout`
 // lo necesitan intacto para montar la sesión ya seteada por `setAuth`.
+//
+// F1-WEB-USERS-05 (WU6, D3): editar el PROPIO usuario ahora dispara
+// `resyncSession()` (`useUpdateUser`, `lib/rbac/hooks.ts`) → `getMe()` real.
+// Se mockea también acá para no disparar una request de red de verdad.
 vi.mock("../lib/auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/auth/api")>();
-  return { ...actual, forgotPassword: vi.fn() };
+  return { ...actual, forgotPassword: vi.fn(), getMe: vi.fn() };
 });
 
 const mockedApi = vi.mocked(rbacApi);
 const mockedForgotPassword = vi.mocked(authApi.forgotPassword);
+const mockedGetMe = vi.mocked(authApi.getMe);
 
 const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
@@ -124,6 +129,7 @@ describe("/system/users", () => {
     useAuthStore.getState().clearAuth();
     mockedApi.listUsers.mockResolvedValue(USERS);
     mockedApi.listRoles.mockResolvedValue(ROLES);
+    mockedGetMe.mockResolvedValue(demoUser(["users:read", "users:manage", "sales:read"]));
   });
 
   it("sin users:read ni roles:read, el nav NO lista 'Sistema'", async () => {
@@ -285,6 +291,43 @@ describe("/system/users", () => {
       expect(await screen.findByText("Ana García Nueva")).toBeInTheDocument();
     });
 
+    // F1-WEB-USERS-05 (WU6, D3): gap dejado abierto en el batch 2 — editar el
+    // PROPIO usuario (no solo el propio ROL desde /system/roles) también debe
+    // re-sincronizar la sesión, porque `roleIds` viaja en `PATCH /users/:id`.
+    it("con users:manage: editar el PROPIO usuario dispara resync de sesión — el store queda con los permisos frescos de getMe", async () => {
+      const user = userEvent.setup();
+      useAuthStore
+        .getState()
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+      const [ana, beto] = USERS;
+      if (!ana || !beto) throw new Error("fixture USERS debe tener 2 elementos");
+      const updatedAna: rbacApi.UserDetail = { ...ana, lastNamePaternal: "García Nueva" };
+      mockedApi.listUsers.mockResolvedValueOnce(USERS).mockResolvedValueOnce([updatedAna, beto]);
+      mockedApi.updateUser.mockResolvedValue(updatedAna);
+      mockedGetMe.mockResolvedValue(demoUser(["users:read", "users:manage", "roles:manage"]));
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+      const lastNameInput = await screen.findByLabelText("Apellido paterno");
+      await user.clear(lastNameInput);
+      await user.type(lastNameInput, "García Nueva");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => expect(mockedApi.updateUser).toHaveBeenCalled());
+      await waitFor(() => expect(mockedGetMe).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(useAuthStore.getState().user?.permissions).toEqual([
+          "users:read",
+          "users:manage",
+          "roles:manage",
+        ]),
+      );
+    });
+
     it("con users:manage: un rol con permisos que el actor no posee aparece deshabilitado en el checklist (D8)", async () => {
       const user = userEvent.setup();
       useAuthStore
@@ -297,6 +340,60 @@ describe("/system/users", () => {
 
       expect(await screen.findByRole("checkbox", { name: "Cajero" })).toBeEnabled();
       expect(screen.getByRole("checkbox", { name: "Admin" })).toBeDisabled();
+    });
+
+    // Fix del desvío del batch 2 (documentado en apply-progress): el disabled
+    // era SIMÉTRICO — no dejaba QUITARLE a otro un rol que el actor no posee,
+    // aunque `assertNoRoleAssignmentEscalation` solo valida el delta AGREGADO
+    // (misma asimetría que D5). Beto (u2) ya tiene "Admin" asignado; el actor
+    // (Ana) no tiene roles:manage — debe poder desasignárselo igual.
+    it("con users:manage: un rol ya asignado que el actor no posee se puede QUITAR aunque no se pueda agregar (fix de asimetría D8)", async () => {
+      const user = userEvent.setup();
+      useAuthStore
+        .getState()
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+      const [, beto] = USERS;
+      if (!beto) throw new Error("fixture USERS debe tener al menos 2 elementos");
+      // Beto con AMBOS roles: quitarle "Admin" (escalado, no poseído por el
+      // actor) no debe dejarlo sin roles — `roleIds.min(1)` bloquearía el
+      // submit por una razón ajena a lo que este test verifica.
+      const betoConAmbosRoles: rbacApi.UserDetail = {
+        ...beto,
+        roles: [
+          { id: "r1", name: "Cajero" },
+          { id: "r2", name: "Admin" },
+        ],
+      };
+      const betoSinAdmin: rbacApi.UserDetail = { ...beto, roles: [{ id: "r1", name: "Cajero" }] };
+      mockedApi.listUsers.mockResolvedValueOnce([
+        USERS[0] as rbacApi.UserDetail,
+        betoConAmbosRoles,
+        ...USERS.slice(2),
+      ]);
+      mockedApi.updateUser.mockResolvedValue(betoSinAdmin);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[2] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+
+      const adminCheckbox = await screen.findByRole("checkbox", { name: "Admin" });
+      expect(adminCheckbox).toBeChecked();
+      expect(adminCheckbox).toBeEnabled();
+      await user.click(adminCheckbox);
+      expect(adminCheckbox).not.toBeChecked();
+
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() =>
+        expect(mockedApi.updateUser).toHaveBeenCalledWith("u2", {
+          firstName: "Beto",
+          lastNamePaternal: "López",
+          locale: "es",
+          roleIds: ["r1"],
+        }),
+      );
     });
   });
 

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
+import { resyncSession } from "@/lib/auth/session-resync";
+import { useAuthStore } from "@/stores/auth.store";
 import {
   type CreateRoleInput,
   type CreateUserInput,
@@ -68,12 +70,22 @@ export function useCreateUser() {
   });
 }
 
+/**
+ * D3 del design: si el actor edita sus PROPIOS roles vía `PATCH /users/:id`,
+ * re-sincroniza la sesión (`resyncSession()`) para que `user.permissions` del
+ * store no quede stale. Editar a OTRO usuario no toca el epoch del actor —
+ * pedir `/me` ahí sería la request inútil que S6 (f1-web-auth) mandó evitar.
+ */
 export function useUpdateUser() {
   const queryClient = useQueryClient();
+  const actorId = useAuthStore((state) => state.user?.id);
   return useMutation<UserDetail, ApiError, { id: string; input: UpdateUserInput }>({
     mutationFn: ({ id, input }) => updateUser(id, input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+      if (variables.id === actorId) {
+        void resyncSession();
+      }
     },
   });
 }
@@ -118,12 +130,19 @@ export function useCreateRole() {
   });
 }
 
+/**
+ * D3 del design: `roles.service.ts` bumpea el epoch de TENANT al mutar un
+ * rol — no hay forma barata de saber si el actor está en ese rol, así que
+ * SIEMPRE re-sincroniza. Es la conducta que hace verdadero "modificar
+ * permisos aplica en la próxima request" (criterio "Verificar" del tablero).
+ */
 export function useUpdateRole() {
   const queryClient = useQueryClient();
   return useMutation<RoleSummary, ApiError, { id: string; input: UpdateRoleInput }>({
     mutationFn: ({ id, input }) => updateRole(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ROLES_QUERY_KEY });
+      void resyncSession();
     },
   });
 }

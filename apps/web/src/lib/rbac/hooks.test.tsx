@@ -1,7 +1,9 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { resyncSession } from "@/lib/auth/session-resync";
 import { createQueryClient } from "@/lib/query-client";
+import { useAuthStore } from "@/stores/auth.store";
 import type { PermissionGroup, RoleSummary, UserDetail } from "./api";
 import * as rbacApi from "./api";
 import {
@@ -20,6 +22,17 @@ import {
   useUpdateUser,
   useUsers,
 } from "./hooks";
+
+// F1-WEB-USERS WU6 (D3 del design): `resyncSession()` refresca `user.permissions`
+// del store tras mutar roles con efecto en la sesión propia. Se mockea acá
+// (no la API cruda) para verificar SOLO que el hook la dispara — el
+// comportamiento de `resyncSession` en sí ya está cubierto en
+// `lib/auth/session-resync.test.ts`.
+vi.mock("@/lib/auth/session-resync", () => ({
+  resyncSession: vi.fn(),
+}));
+
+const resyncSessionMock = vi.mocked(resyncSession);
 
 // F1-WEB-USERS WU1: al contrario de `lib/auth/hooks.ts` (donde la
 // invalidación vive en cada container), acá vive DENTRO del hook — igual
@@ -70,6 +83,7 @@ function wrapper() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useAuthStore.getState().clearAuth();
   mockedApi.listUsers.mockResolvedValue([USER]);
   mockedApi.listRoles.mockResolvedValue([ROLE]);
   mockedApi.listPermissions.mockResolvedValue(PERMISSION_GROUPS);
@@ -194,5 +208,56 @@ describe("mutaciones de roles invalidan ROLES_QUERY_KEY", () => {
 
     // 1 inicial + 3 refrescos por cada mutación exitosa.
     await waitFor(() => expect(mockedApi.listRoles).toHaveBeenCalledTimes(4));
+  });
+});
+
+// F1-WEB-USERS WU6 (D3 del design): re-sync de sesión tras mutaciones que
+// pueden dejar `user.permissions` stale en el store.
+describe("re-sync de sesión (D3)", () => {
+  it("useUpdateRole SIEMPRE llama resyncSession — el epoch que bumpea PATCH /roles/:id es de TENANT, no del actor", async () => {
+    mockedApi.updateRole.mockResolvedValue(ROLE);
+    const { Wrapper } = wrapper();
+
+    const { result } = renderHook(() => useUpdateRole(), { wrapper: Wrapper });
+    result.current.mutate({ id: "r1", input: { permissionCodes: ["users:read"] } });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(resyncSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("useUpdateUser SÍ llama resyncSession cuando el target editado es el actor logueado", async () => {
+    mockedApi.updateUser.mockResolvedValue(USER);
+    useAuthStore.getState().setAuth("jwt-demo", {
+      id: "u1",
+      email: "ana@acme.mx",
+      firstName: "Ana",
+      locale: "es",
+      permissions: ["users:read"],
+    });
+    const { Wrapper } = wrapper();
+
+    const { result } = renderHook(() => useUpdateUser(), { wrapper: Wrapper });
+    result.current.mutate({ id: "u1", input: { firstName: "Ana2" } });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(resyncSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("useUpdateUser NO llama resyncSession cuando el target editado es OTRO usuario", async () => {
+    mockedApi.updateUser.mockResolvedValue(USER);
+    useAuthStore.getState().setAuth("jwt-demo", {
+      id: "actor-distinto",
+      email: "otro@acme.mx",
+      firstName: "Otro",
+      locale: "es",
+      permissions: ["users:manage"],
+    });
+    const { Wrapper } = wrapper();
+
+    const { result } = renderHook(() => useUpdateUser(), { wrapper: Wrapper });
+    result.current.mutate({ id: "u1", input: { firstName: "Ana2" } });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(resyncSessionMock).not.toHaveBeenCalled();
   });
 });

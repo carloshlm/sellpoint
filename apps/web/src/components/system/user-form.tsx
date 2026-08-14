@@ -153,19 +153,26 @@ function UserForm({
                   (code) => !actorPermissionCodes.includes(code),
                 );
                 const checked = selectedRoleIds.includes(role.id);
+                // Fix del desvío del batch 2: disabled ASIMÉTRICO (misma regla
+                // que D5). `assertNoRoleAssignmentEscalation` solo valida el
+                // delta AGREGADO — QUITARLE a alguien un rol que el actor no
+                // posee es legal en la API. Deshabilitarlo siempre sería más
+                // restrictivo que el backend y le impediría a un admin
+                // parcial arreglar una asignación indebida que ve en pantalla.
+                const disabled = escalates && !checked;
                 const inputId = `role-${role.id}`;
                 return (
                   <div key={role.id} className="flex items-center gap-2">
                     <Checkbox
                       id={inputId}
                       checked={checked}
-                      disabled={escalates}
+                      disabled={disabled}
                       onCheckedChange={(next) => toggleRole(role.id, next === true)}
                     />
                     <Label
                       htmlFor={inputId}
-                      className={escalates ? "text-muted-foreground" : undefined}
-                      title={escalates ? t("users.form.roleEscalationHint") : undefined}
+                      className={disabled ? "text-muted-foreground" : undefined}
+                      title={disabled ? t("users.form.roleEscalationHint") : undefined}
                     >
                       {role.name}
                     </Label>
