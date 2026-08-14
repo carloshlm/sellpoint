@@ -33,8 +33,17 @@ const EMAIL_TRACKED_HANDLERS = new Set(["login", "forgotPassword"]);
  * El acoplamiento por nombre de handler falla SEGURO (renombrar el método
  * pierde la exención y vuelve a throttlear, que es ruidoso pero no un hueco),
  * al revés que `EMAIL_TRACKED_HANDLERS`.
+ *
+ * `refresh` se sumó tras un self-DoS REAL en producción (2026-08-14): el
+ * bootstrap de sesión del front dispara `POST /auth/refresh` en CADA carga de
+ * página, así que **cinco navegaciones en 15 minutos dejaban a la IP sin
+ * poder loguearse ni verificar su email** — le pasó a Carlos justo al validar
+ * su cuenta. No es superficie de adivinado: autentica con una cookie httpOnly
+ * cuyo token es aleatorio de 256 bits, y el reuso ya revoca la familia
+ * entera (AD-6). Sigue cubierto por el throttler global (100/60s por IP), que
+ * es el que corresponde para volumen, no el presupuesto de credenciales.
  */
-const IP_THROTTLE_EXEMPT_HANDLERS = new Set(["listSessions"]);
+const IP_THROTTLE_EXEMPT_HANDLERS = new Set(["listSessions", "refresh"]);
 
 /**
  * f1-auth AD-7 / U6-02: throttling de `/auth/*` — combina DOS dimensiones

@@ -198,6 +198,22 @@ describe("AuthEmailThrottlerGuard", () => {
     expect(storage.increment).not.toHaveBeenCalled();
   });
 
+  // REGRESIÓN de un self-DoS real en producción (2026-08-14): el bootstrap de
+  // sesión del front llama `/auth/refresh` en CADA carga de página, así que 5
+  // navegaciones en 15 min dejaban a la IP sin poder loguearse NI verificar su
+  // email. No es superficie de adivinado (cookie httpOnly con token aleatorio
+  // de 256 bits + revocación de familia ante reuso); el volumen lo cubre el
+  // throttler global de 100/60s.
+  it("refresh queda EXENTO del throttle de IP: el bootstrap lo dispara en cada carga de página", async () => {
+    const { guard, storage } = buildGuard({
+      increment: () => Promise.resolve({ isBlocked: true }),
+    });
+    const context = buildContext({ handlerName: "refresh" });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(storage.increment).not.toHaveBeenCalled();
+  });
+
   it("changePassword SÍ consume el throttle de IP: verificar la password actual es adivinado de credenciales", async () => {
     const { guard, storage } = buildGuard({
       increment: () => Promise.resolve({ isBlocked: true }),
