@@ -231,7 +231,7 @@ describe("Flujos de auth", () => {
     expect(screen.queryByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
   });
 
-  it("F1-WEB-AUTH-03/05: email sin verificar redirige a /verify con 'revisá tu email'", async () => {
+  it("F1-WEB-AUTH-03/05: email sin verificar redirige a /verify-email con 'revisá tu email'", async () => {
     loginMock.mockRejectedValue({
       statusCode: 403,
       message: "Tenés que verificar tu email",
@@ -244,7 +244,7 @@ describe("Flujos de auth", () => {
     await fillAndSubmitLogin("ana@acme.mx", "una password larga");
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/verify");
+      expect(router.state.location.pathname).toBe("/verify-email");
     });
     expect(await screen.findByTestId("verify-check-email")).toBeInTheDocument();
   });

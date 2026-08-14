@@ -39,7 +39,9 @@ function LoginPage() {
       onError: (error: ApiError) => {
         // Cuenta sin verificar → la pantalla de verify explica qué hacer.
         if (error.code === "auth.email_not_verified") {
-          navigate({ to: "/verify" });
+          // Directo a la ruta canónica (la del link del mail), sin rebotar
+          // por el alias `/verify`.
+          navigate({ to: "/verify-email" });
           return;
         }
         // El backend traduce `message` con el Accept-Language; error de red no tiene backend.
