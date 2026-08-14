@@ -72,36 +72,41 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
 });
 
 /**
- * S1 del verify de f1-web-auth. Una clase de paleta cruda (`bg-blue-500`) es
- * invisible para el sistema de temas: `[data-brand="menta"]` repinta la app
- * entera menos ese elemento, así que el tenant que elija otra marca ve un
- * parche azul de la marca por defecto. No lo agarra ningún test de
- * componente —las clases CSS no se asertan— ni el linter: solo se ve
- * barriendo el código, que es lo que este test automatiza.
+ * S1 del verify de f1-web-auth. Una utilidad de la paleta cruda —prefijo de
+ * color + tono numérico— es invisible para el sistema de temas:
+ * `[data-brand="menta"]` repinta la app entera menos ese elemento, así que el
+ * tenant que elija otra marca ve un parche de la marca por defecto. No lo
+ * agarra ningún test de componente —las clases CSS no se asertan— ni el
+ * linter: solo se ve barriendo el código, que es lo que este test automatiza.
  *
- * Los hex SÍ están permitidos en `brands.ts`: ese es el catálogo de marcas,
- * su lugar correcto. Lo prohibido es la paleta de Tailwind en la UI.
+ * Los hex SÍ están permitidos en `brands.ts`: ese es el catálogo de marcas, su
+ * lugar correcto. Lo prohibido es la paleta de Tailwind en la UI.
+ *
+ * El patrón se ARMA por alternación a propósito: si estuviera escrito como
+ * clase completa en cualquier parte del archivo, Tailwind la encontraría al
+ * escanear y la emitiría al CSS servido —el propio guardarraíl metería el
+ * color muerto en el bundle—. Por eso tampoco se nombra ninguna en la prosa.
  */
 const PALETA_CRUDA_TAILWIND =
   /\b(?:bg|text|border|ring|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|\d{3})\b/;
 
 /**
- * Solo código que se SIRVE al usuario: los `.test.*` no se empaquetan, y
- * además tendrían que poder nombrar una clase prohibida para documentarla
- * (este archivo mismo lo hace en el comentario de arriba).
+ * Se barre TODO lo que Tailwind escanea, tests incluidos: el generador de CSS
+ * no distingue producción de test, así que una clase nombrada en un archivo
+ * `.test.*` termina igual en el CSS que se sirve. El único excluido es
+ * `routeTree.gen.ts`, que es generado.
  */
-function listarFuentesDeProduccion(dir: string): string[] {
+function listarFuentesEscaneadas(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const ruta = join(dir, entry.name);
-    if (entry.isDirectory()) return listarFuentesDeProduccion(ruta);
-    if (!/\.tsx?$/.test(entry.name)) return [];
-    if (/\.test\.tsx?$/.test(entry.name) || entry.name === "routeTree.gen.ts") return [];
+    if (entry.isDirectory()) return listarFuentesEscaneadas(ruta);
+    if (!/\.tsx?$/.test(entry.name) || entry.name === "routeTree.gen.ts") return [];
     return [ruta];
   });
 }
 
 describe("theming: ningún color crudo de la paleta de Tailwind", () => {
-  const fuentes = listarFuentesDeProduccion(SRC_DIR);
+  const fuentes = listarFuentesEscaneadas(SRC_DIR);
 
   it("hay fuentes que revisar (si esto falla, el barrido no está mirando nada)", () => {
     expect(fuentes.length).toBeGreaterThan(20);
