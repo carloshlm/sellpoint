@@ -52,10 +52,16 @@ printf 'ALERTA:%b\n' "${ALERTAS}"
 
 # Credenciales: solo del .env del server, nunca hardcodeadas.
 RESEND_API_KEY="$(grep '^RESEND_API_KEY=' .env 2>/dev/null | cut -d= -f2-)"
+# El remitente sale del MISMO MAIL_FROM que usa la app, no hardcodeado: el
+# dominio verificado en Resend es `system.laradoc.com`, y tenerlo escrito acá
+# como `laradoc.com` hizo que la primera alerta real muriera con
+# `403 domain is not verified` (2026-08-14). Si algún día cambia el dominio
+# de envío, cambia en un solo lugar.
+MAIL_FROM="$(grep '^MAIL_FROM=' .env 2>/dev/null | cut -d= -f2-)"
 ALERT_EMAIL="$(grep '^ALERT_EMAIL=' .env 2>/dev/null | cut -d= -f2-)"
 
-if [ -z "${RESEND_API_KEY}" ] || [ -z "${ALERT_EMAIL}" ]; then
-  echo "AVISO: RESEND_API_KEY o ALERT_EMAIL ausentes en .env — alerta solo por log"
+if [ -z "${RESEND_API_KEY}" ] || [ -z "${ALERT_EMAIL}" ] || [ -z "${MAIL_FROM}" ]; then
+  echo "AVISO: RESEND_API_KEY, ALERT_EMAIL o MAIL_FROM ausentes en .env — alerta solo por log"
   exit 0
 fi
 
@@ -63,8 +69,8 @@ HTTP_CODE="$(curl -s -o /tmp/resend-alert-response.json -w '%{http_code}' \
   -X POST https://api.resend.com/emails \
   -H "Authorization: Bearer ${RESEND_API_KEY}" \
   -H "Content-Type: application/json" \
-  -d "$(printf '{"from":"no-reply@laradoc.com","to":["%s"],"subject":"[sellpoint-prod] Certificados TLS por vencer","text":%s}' \
-       "${ALERT_EMAIL}" "$(printf '%s' "${MENSAJE}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null || printf '"%s"' "${MENSAJE}")")")"
+  -d "$(printf '{"from":"%s","to":["%s"],"subject":"[sellpoint-prod] Certificados TLS por vencer","text":%s}' \
+       "${MAIL_FROM}" "${ALERT_EMAIL}" "$(printf '%s' "${MENSAJE}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))' 2>/dev/null || printf '"%s"' "${MENSAJE}")")")"
 
 if [ "${HTTP_CODE}" = "200" ]; then
   echo "Email de alerta enviado a ${ALERT_EMAIL}"
