@@ -477,7 +477,8 @@ Ejemplos:
 
 - [ ] ⏸️ **F0-CI-03** — Branch protection rules en `main` — **DIFERIDA (2026-08-06)**
   - **Por qué:** choca con el diseño del walking skeleton ("push a main = deploy directo") y con un solo dev no protege de nada real. Los checks igual corren en cada push y frenan el deploy si fallan.
-  - **Trigger de reactivación:** cuando el flujo de PRs entre en uso (chained PRs en F1) o se sume un segundo dev — lo primero que ocurra.
+  - **Trigger de reactivación (actualizado 2026-08-14):** al **terminar el desarrollo del proyecto** — decisión de Carlos. Reemplaza al trigger original ("flujo de PRs en uso o segundo dev"), que se revisó y se descartó: los únicos PRs abiertos son de Dependabot y sigue habiendo un solo dev, así que exigir PRs hoy solo rompería el "push a main = deploy" sin proteger de nada.
+  - **Nota de riesgo asumido:** `main` no tiene NINGUNA protección (verificado 2026-08-14: `branches/main/protection` → 404). Se evaluó una protección mínima (bloquear `force-push` y borrado, sin exigir PRs — no rompía el flujo) y se decidió no aplicarla por ahora. El riesgo vivo es un `push --force` accidental que reescriba la historia.
   - **Salida original:** configuración en GitHub que requiere CI verde para mergear
   - **Depende de:** F0-CI-01
 
