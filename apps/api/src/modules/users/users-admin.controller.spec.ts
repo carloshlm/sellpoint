@@ -28,6 +28,7 @@ function buildController(overrides?: Partial<Record<keyof UsersAdminService, jes
     update: jest.fn().mockResolvedValue(DETAIL),
     suspend: jest.fn().mockResolvedValue({ ...DETAIL, status: "suspended" }),
     reactivate: jest.fn().mockResolvedValue({ ...DETAIL, status: "active" }),
+    resendInvitation: jest.fn().mockResolvedValue(DETAIL),
     ...overrides,
   } as unknown as UsersAdminService;
 
@@ -97,6 +98,18 @@ describe("UsersAdminController (F1-RBAC-03)", () => {
       userAgent: "jest",
     });
     expect(result.status).toBe("suspended");
+  });
+
+  it("POST /users/:id/resend-invitation delega en UsersAdminService.resendInvitation (gap S1)", async () => {
+    const { controller, usersAdminService, request } = buildController();
+
+    const result = await controller.resendInvitation("user-2", ACTOR, request);
+
+    expect(usersAdminService.resendInvitation).toHaveBeenCalledWith(ACTOR, "user-2", {
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
+    expect(result.status).toBe("invited");
   });
 
   it("POST /users/:id/reactivate delega en UsersAdminService.reactivate", async () => {

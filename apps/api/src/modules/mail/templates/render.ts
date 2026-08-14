@@ -12,6 +12,12 @@ export interface RenderedMail {
 const TEMPLATE_KEYS: Record<MailTemplate, string> = {
   "verify-email": "emails.verifyEmail",
   "reset-password": "emails.resetPassword",
+  // Gap S1 (f1-rbac): el alta administrativa de un usuario `invited` manda
+  // ESTE mail, no el de reset — aunque por debajo reusa el mismo
+  // PasswordResetToken. Quien lo recibe no pidió nada: el texto tiene que
+  // explicarle que lo dieron de alta y que el link define su PRIMERA
+  // contraseña.
+  "invite-user": "emails.inviteUser",
 };
 
 export function renderMailTemplate(

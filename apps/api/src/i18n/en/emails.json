@@ -13,5 +13,12 @@
     "body": "We received a request to reset your password.",
     "cta": "Reset password",
     "expiry": "This link expires in 30 minutes. If you didn't request this, ignore this email."
+  },
+  "inviteUser": {
+    "subject": "You've been invited to SellPoint",
+    "greeting": "Hi {firstName},",
+    "body": "You were added to SellPoint. Follow the link to set your password and activate your account.",
+    "cta": "Set my password",
+    "expiry": "This link expires in 7 days. If you weren't expecting this invitation, ignore this email."
   }
 }

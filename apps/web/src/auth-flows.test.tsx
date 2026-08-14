@@ -11,6 +11,7 @@ import {
   login,
   logout,
   refreshSession,
+  resetPassword,
   updateMyLocale,
 } from "./lib/auth/api";
 import { __resetSessionBootstrapForTests } from "./lib/auth/session-bootstrap";
@@ -38,6 +39,7 @@ const logoutMock = vi.mocked(logout);
 const changePasswordMock = vi.mocked(changePassword);
 const getSessionsMock = vi.mocked(getSessions);
 const updateMyLocaleMock = vi.mocked(updateMyLocale);
+const resetPasswordMock = vi.mocked(resetPassword);
 
 const demoUser = {
   id: "u1",
@@ -245,6 +247,78 @@ describe("Flujos de auth", () => {
       expect(router.state.location.pathname).toBe("/verify");
     });
     expect(await screen.findByTestId("verify-check-email")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Gap S1 (backlog de f1-rbac) — `/accept-invitation`. El backend manda al
+ * invitado un `PasswordResetToken` con TTL de 7 días y el canje es el
+ * endpoint EXISTENTE `POST /auth/reset-password` (que además promueve
+ * `invited -> active`). Por eso esta página comparte mutación y schema con
+ * `/reset-password` — lo único propio es el copy: quien llega acá no pidió
+ * recuperar nada, lo dieron de alta.
+ */
+describe("Gap S1 — /accept-invitation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+  });
+
+  it("con token válido define la primera password y navega a /login", async () => {
+    resetPasswordMock.mockResolvedValue(undefined);
+    const router = await renderRoute("/accept-invitation?token=tok-invitacion");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Definí tu contraseña"), "mi-primera-password");
+    await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    // `useResetPassword` desestructura el input, así que llega con 2 args
+    // exactos — sin el contexto que React Query agrega a los mutationFn
+    // pasados directo (ver el test de login más arriba).
+    expect(resetPasswordMock).toHaveBeenCalledWith("tok-invitacion", "mi-primera-password");
+  });
+
+  it("sin token en la URL no muestra el form: ofrece pedirle al admin que reenvíe", async () => {
+    await renderRoute("/accept-invitation");
+
+    expect(await screen.findByTestId("invitation-invalid")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Activar mi cuenta" })).not.toBeInTheDocument();
+  });
+
+  it("token vencido o ya usado muestra el message traducido del backend", async () => {
+    resetPasswordMock.mockRejectedValue({
+      statusCode: 400,
+      message: "El enlace no es válido o ya venció",
+      error: "Bad Request",
+      code: "auth.token_invalid",
+    });
+    await renderRoute("/accept-invitation?token=tok-vencido");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Definí tu contraseña"), "mi-primera-password");
+    await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
+
+    expect(await screen.findByTestId("invitation-api-error")).toHaveTextContent(
+      "El enlace no es válido o ya venció",
+    );
+  });
+
+  it("una password corta se corta en el cliente: nunca llega al API", async () => {
+    await renderRoute("/accept-invitation?token=tok-invitacion");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Definí tu contraseña"), "corta");
+    await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
+
+    expect(
+      await screen.findByText("La contraseña debe tener al menos 12 caracteres"),
+    ).toBeInTheDocument();
+    expect(resetPasswordMock).not.toHaveBeenCalled();
   });
 });
 

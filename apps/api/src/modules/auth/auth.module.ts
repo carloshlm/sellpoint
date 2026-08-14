@@ -26,6 +26,10 @@ import { TokenService } from "./services/token.service";
     TokenService,
     AuthEmailThrottlerGuard,
   ],
-  exports: [TokenService],
+  // AuthRepository + OneTimeTokenService se exportan para
+  // `UserInvitationService` (gap S1, UsersModule): la invitación emite un
+  // `PasswordResetToken` real y debe pasar por el MISMO repositorio y el
+  // MISMO generador de tokens que forgot-password — nunca por SQL propio.
+  exports: [TokenService, AuthRepository, OneTimeTokenService],
 })
 export class AuthModule {}

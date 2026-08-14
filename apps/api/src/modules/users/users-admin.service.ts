@@ -16,6 +16,7 @@ import { assertNoRoleAssignmentEscalation } from "../roles/role-assignment-guard
 import { assertTenantRetainsAdmin } from "../roles/tenant-admin-guard";
 import type { CreateUserDto } from "./dto/create-user.dto";
 import type { UpdateUserDto } from "./dto/update-user.dto";
+import { UserInvitationService } from "./user-invitation.service";
 
 export interface UserRoleRef {
   id: string;
@@ -63,10 +64,11 @@ export class UsersAdminService {
     private readonly auditService: AuditService,
     private readonly permEpochService: PermEpochService,
     @Inject(CLOCK) private readonly clock: ClockPort,
+    private readonly userInvitationService: UserInvitationService,
   ) {}
 
   async create(actor: AuthUser, input: CreateUserDto, meta: RequestMeta): Promise<UserDetail> {
-    return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
+    const detail = await this.prisma.withTenantContext(actor.tenantId, async (tx) => {
       const roles = await this.resolveRoles(tx, actor.tenantId, input.roleIds);
       // W1b (verify #274 pasada 2): un user nuevo arranca sin roles -> TODO
       // roleIds pedido es "delta agregado".
@@ -118,6 +120,73 @@ export class UsersAdminService {
 
       return this.toDetail(user, roles);
     });
+
+    // Gap S1: post-commit, nunca dentro de la tx (`password_reset_tokens` no
+    // tiene RLS, AD-3). Si el alta tiró (email duplicado, escalada W1b,
+    // roleIds inválidos) nunca se llega acá: no hay invitación para un
+    // usuario que no existe.
+    await this.userInvitationService.send({
+      tenantId: actor.tenantId,
+      userId: detail.id,
+      email: detail.email,
+      firstName: detail.firstName,
+      locale: detail.locale as "es" | "en",
+    });
+
+    return detail;
+  }
+
+  /**
+   * Gap S1: el mail se pierde, cae en spam, o el invitado deja vencer los 7
+   * días. Re-emitir INVALIDA el link anterior
+   * (`invalidatePendingPasswordResetTokens` dentro de
+   * `UserInvitationService.send`) — nunca hay dos links canjeables a la vez.
+   *
+   * Solo para `invited`: sobre un usuario `active` sería un reset de password
+   * disfrazado que un admin podría dispararle a cualquiera (el dueño de la
+   * cuenta tiene `POST /auth/forgot-password` para eso), y sobre uno
+   * `suspended` reviviría un acceso que se cortó a propósito.
+   */
+  async resendInvitation(actor: AuthUser, userId: string, meta: RequestMeta): Promise<UserDetail> {
+    const detail = await this.prisma.withTenantContext(actor.tenantId, async (tx) => {
+      const user = await tx.user.findFirst({
+        where: { id: userId, tenantId: actor.tenantId },
+        include: { roles: { select: { role: { select: { id: true, name: true } } } } },
+      });
+
+      if (!user) {
+        throw new NotFoundException({ message: "users.not_found" });
+      }
+
+      if (user.status !== "invited") {
+        throw new ConflictException({ message: "users.not_invited" });
+      }
+
+      await this.auditService.record(tx, {
+        tenantId: actor.tenantId,
+        userId: actor.userId,
+        action: "user.invitation_resent",
+        resourceType: "user",
+        resourceId: userId,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      return this.toDetail(
+        user,
+        user.roles.map((ur) => ur.role),
+      );
+    });
+
+    await this.userInvitationService.send({
+      tenantId: actor.tenantId,
+      userId: detail.id,
+      email: detail.email,
+      firstName: detail.firstName,
+      locale: detail.locale as "es" | "en",
+    });
+
+    return detail;
   }
 
   async list(actor: AuthUser): Promise<UserDetail[]> {

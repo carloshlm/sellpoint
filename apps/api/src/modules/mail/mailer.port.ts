@@ -5,7 +5,7 @@
 // loguea (la cola con reintentos es F6).
 export const MAILER = Symbol("MAILER");
 
-export type MailTemplate = "verify-email" | "reset-password";
+export type MailTemplate = "verify-email" | "reset-password" | "invite-user";
 
 export interface MailMessage {
   to: string;

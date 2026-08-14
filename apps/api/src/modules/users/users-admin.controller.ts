@@ -63,6 +63,20 @@ export class UsersAdminController {
     return this.usersAdminService.suspend(user, id, metaFrom(request));
   }
 
+  // Gap S1: re-emitir la invitación cuando el mail se pierde o vence.
+  // `users:manage` (el mismo permiso que la creó) y 200 — igual que
+  // suspend/reactivate, es una acción sobre un recurso existente.
+  @Post(":id/resend-invitation")
+  @HttpCode(200)
+  @RequirePermissions("users:manage")
+  resendInvitation(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.usersAdminService.resendInvitation(user, id, metaFrom(request));
+  }
+
   @Post(":id/reactivate")
   @HttpCode(200)
   @RequirePermissions("users:manage")

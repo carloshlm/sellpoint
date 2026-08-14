@@ -13,5 +13,12 @@
     "body": "Recibimos una solicitud para restablecer tu contraseña.",
     "cta": "Restablecer contraseña",
     "expiry": "Este link vence en 30 minutos. Si no pediste esto, ignorá este correo."
+  },
+  "inviteUser": {
+    "subject": "Te invitaron a SellPoint",
+    "greeting": "Hola {firstName},",
+    "body": "Te dieron de alta en SellPoint. Entrá al link para definir tu contraseña y activar tu cuenta.",
+    "cta": "Definir mi contraseña",
+    "expiry": "Este link vence en 7 días. Si no esperabas esta invitación, ignorá este correo."
   }
 }

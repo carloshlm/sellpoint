@@ -4,6 +4,7 @@ import type { ClockPort } from "../../infrastructure/clock/clock.port";
 import type { PermEpochService } from "../../infrastructure/redis/perm-epoch.service";
 import type { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import type { UserInvitationService } from "./user-invitation.service";
 import { UsersAdminService } from "./users-admin.service";
 
 const ACTOR: AuthUser = {
@@ -87,9 +88,18 @@ function buildService() {
     bumpUserEpoch: jest.fn().mockResolvedValue(undefined),
   } as unknown as PermEpochService;
   const clock = { now: () => NOW } as unknown as ClockPort;
+  const userInvitationService = {
+    send: jest.fn().mockResolvedValue(undefined),
+  } as unknown as UserInvitationService;
 
-  const service = new UsersAdminService(prisma as never, auditService, permEpochService, clock);
-  return { service, tx, auditService, permEpochService };
+  const service = new UsersAdminService(
+    prisma as never,
+    auditService,
+    permEpochService,
+    clock,
+    userInvitationService,
+  );
+  return { service, tx, auditService, permEpochService, userInvitationService };
 }
 
 describe("UsersAdminService.create (F1-RBAC-03)", () => {
@@ -155,6 +165,120 @@ describe("UsersAdminService.create (F1-RBAC-03)", () => {
         {},
       ),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+describe("UsersAdminService.create — gap S1: invitación", () => {
+  it("tras crear el user invited manda la invitación con su email/nombre/locale", async () => {
+    const { service, userInvitationService } = buildService();
+
+    await service.create(
+      ACTOR,
+      {
+        email: "nuevo@example.com",
+        firstName: "Bruno",
+        lastNamePaternal: "Díaz",
+        roleIds: ["role-1"],
+      },
+      {},
+    );
+
+    expect(userInvitationService.send).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      userId: "user-2",
+      email: "nuevo@example.com",
+      firstName: "Bruno",
+      locale: "es",
+    });
+  });
+
+  it("la invitación sale DESPUÉS del commit — nunca dentro de la transacción del alta", async () => {
+    const { service, tx, userInvitationService } = buildService();
+
+    await service.create(
+      ACTOR,
+      {
+        email: "nuevo@example.com",
+        firstName: "Bruno",
+        lastNamePaternal: "Díaz",
+        roleIds: ["role-1"],
+      },
+      {},
+    );
+
+    const createOrder = tx.user.create.mock.invocationCallOrder[0] as number;
+    const sendOrder = jest.mocked(userInvitationService.send).mock.invocationCallOrder[0] as number;
+    expect(createOrder).toBeLessThan(sendOrder);
+  });
+
+  it("si el alta falla (email duplicado) NO se emite ninguna invitación", async () => {
+    const { service, tx, userInvitationService } = buildService();
+    tx.user.create.mockRejectedValueOnce(uniqueViolation());
+
+    await expect(
+      service.create(
+        ACTOR,
+        { email: "dup@example.com", firstName: "X", lastNamePaternal: "Y", roleIds: ["role-1"] },
+        {},
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(userInvitationService.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("UsersAdminService.resendInvitation — gap S1", () => {
+  function invitedUser(tx: ReturnType<typeof buildService>["tx"], status = "invited") {
+    tx.user.findFirst.mockResolvedValue({
+      id: "user-2",
+      email: "nuevo@example.com",
+      firstName: "Bruno",
+      lastNamePaternal: "Díaz",
+      lastNameMaternal: null,
+      status,
+      locale: "en",
+      roles: [{ role: { id: "role-1", name: "Manager" } }],
+    });
+  }
+
+  it("re-emite la invitación de un usuario invited y la audita", async () => {
+    const { service, tx, userInvitationService, auditService } = buildService();
+    invitedUser(tx);
+
+    const result = await service.resendInvitation(ACTOR, "user-2", {});
+
+    expect(userInvitationService.send).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      userId: "user-2",
+      email: "nuevo@example.com",
+      firstName: "Bruno",
+      locale: "en",
+    });
+    expect(auditService.record).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ action: "user.invitation_resent", resourceId: "user-2" }),
+    );
+    expect(result).toMatchObject({ id: "user-2", status: "invited" });
+  });
+
+  it("usuario ya activo -> 409 users.not_invited, sin emitir token nuevo", async () => {
+    const { service, tx, userInvitationService } = buildService();
+    invitedUser(tx, "active");
+
+    await expect(service.resendInvitation(ACTOR, "user-2", {})).rejects.toMatchObject({
+      response: { message: "users.not_invited" },
+    });
+    expect(userInvitationService.send).not.toHaveBeenCalled();
+  });
+
+  it("usuario inexistente (o de otro tenant) -> 404 users.not_found", async () => {
+    const { service, tx, userInvitationService } = buildService();
+    tx.user.findFirst.mockResolvedValue(null);
+
+    await expect(service.resendInvitation(ACTOR, "ghost", {})).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(userInvitationService.send).not.toHaveBeenCalled();
   });
 });
 
