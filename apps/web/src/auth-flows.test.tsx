@@ -7,13 +7,16 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "./i18n";
 import {
   changePassword,
+  forgotPassword,
   getMe,
   getSessions,
   login,
   logout,
   refreshSession,
+  registerTenant,
   resetPassword,
   updateMyLocale,
+  verifyEmail,
 } from "./lib/auth/api";
 import { SESSIONS_QUERY_KEY } from "./lib/auth/hooks";
 import { __resetSessionBootstrapForTests } from "./lib/auth/session-bootstrap";
@@ -43,6 +46,9 @@ const changePasswordMock = vi.mocked(changePassword);
 const getSessionsMock = vi.mocked(getSessions);
 const updateMyLocaleMock = vi.mocked(updateMyLocale);
 const resetPasswordMock = vi.mocked(resetPassword);
+const registerTenantMock = vi.mocked(registerTenant);
+const verifyEmailMock = vi.mocked(verifyEmail);
+const forgotPasswordMock = vi.mocked(forgotPassword);
 
 const demoUser = {
   id: "u1",
@@ -257,6 +263,185 @@ describe("Flujos de auth", () => {
       expect(router.state.location.pathname).toBe("/verify-email");
     });
     expect(await screen.findByTestId("verify-check-email")).toBeInTheDocument();
+  });
+});
+
+/**
+ * W1 del verify f1-web-auth: estas cuatro páginas estaban implementadas y
+ * desplegadas, pero NINGÚN test las renderizaba — los mocks de
+ * registerTenant, verifyEmail y forgotPassword llevaban declarados sin uso
+ * desde el primer batch. Es la clase de hueco que ya costó un bug real: el
+ * mail de producción apuntaba a `/verify-email` cuando la única ruta era
+ * `/verify`, y ningún test podía verlo porque ninguno pasaba por la URL.
+ * Acá se cubre el criterio "Verificar:" del tablero de cada página.
+ */
+describe("F1-WEB-AUTH-04 — /register", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+  });
+
+  async function fillRegisterForm(overrides: { email?: string; password?: string } = {}) {
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Nombre del negocio"), "Ferretería El Tornillo");
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido paterno"), "García");
+    await user.type(screen.getByLabelText("Email"), overrides.email ?? "ana@acme.mx");
+    await user.type(
+      screen.getByLabelText("Contraseña"),
+      overrides.password ?? "una-password-de-doce",
+    );
+    return user;
+  }
+
+  it("registro exitoso muestra 'revisá tu email' con el email enviado", async () => {
+    registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
+    await renderRoute("/register");
+    await screen.findByRole("button", { name: "Crear cuenta" });
+
+    const user = await fillRegisterForm();
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(await screen.findByTestId("register-success")).toHaveTextContent(
+      "Te mandamos un enlace a ana@acme.mx",
+    );
+    // El apellido materno vacío viaja como undefined (el schema lo normaliza)
+    // y el locale sale del idioma de la UI, no del navegador.
+    expect(registerTenantMock).toHaveBeenCalledWith(
+      {
+        tenantName: "Ferretería El Tornillo",
+        firstName: "Ana",
+        lastNamePaternal: "García",
+        lastNameMaternal: undefined,
+        email: "ana@acme.mx",
+        password: "una-password-de-doce",
+        locale: "es",
+      },
+      expect.anything(),
+    );
+  });
+
+  it("la política de password se valida EN VIVO: el error aparece al tipear y el submit no llama al API", async () => {
+    await renderRoute("/register");
+    await screen.findByRole("button", { name: "Crear cuenta" });
+
+    const user = await fillRegisterForm({ password: "corta" });
+
+    // mode: "onChange" — el error tiene que estar visible SIN submit.
+    expect(
+      await screen.findByText("La contraseña debe tener al menos 12 caracteres"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+    expect(registerTenantMock).not.toHaveBeenCalled();
+  });
+
+  it("un email inválido muestra el error de validación y nunca llama al API", async () => {
+    await renderRoute("/register");
+    await screen.findByRole("button", { name: "Crear cuenta" });
+
+    const user = await fillRegisterForm({ email: "esto-no-es-un-email" });
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    expect(await screen.findByText("Ingresá un email válido")).toBeInTheDocument();
+    expect(registerTenantMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+  });
+
+  it("con token en la URL lo canjea contra el API una sola vez y muestra el éxito", async () => {
+    verifyEmailMock.mockResolvedValue(undefined);
+    await renderRoute("/verify-email?token=tok-verificacion");
+
+    expect(await screen.findByTestId("verify-success")).toBeInTheDocument();
+    // El token es de UN solo uso: un doble disparo lo quemaría en vano.
+    expect(verifyEmailMock).toHaveBeenCalledTimes(1);
+    expect(verifyEmailMock).toHaveBeenCalledWith("tok-verificacion", expect.anything());
+  });
+
+  it("token inválido o vencido muestra el message del backend y la salida a registrarse", async () => {
+    verifyEmailMock.mockRejectedValue({
+      statusCode: 400,
+      message: "El enlace no es válido o ya venció",
+      error: "Bad Request",
+      code: "auth.token_invalid",
+    });
+    await renderRoute("/verify-email?token=tok-vencido");
+
+    expect(await screen.findByTestId("verify-error")).toHaveTextContent(
+      "El enlace no es válido o ya venció",
+    );
+    expect(screen.getByRole("link", { name: "Volver a registrarme" })).toBeInTheDocument();
+  });
+});
+
+describe("F1-WEB-AUTH-06 — /forgot-password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+  });
+
+  it("enviar el email muestra 'revisá tu email' sin revelar si la cuenta existe (202 anti-enumeración)", async () => {
+    forgotPasswordMock.mockResolvedValue(undefined);
+    await renderRoute("/forgot-password");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Email"), "ana@acme.mx");
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
+
+    // El copy es condicional a propósito: mismo mensaje exista o no la cuenta.
+    expect(await screen.findByTestId("forgot-success")).toHaveTextContent(
+      "Si ana@acme.mx está registrado, te va a llegar un enlace",
+    );
+    expect(forgotPasswordMock).toHaveBeenCalledWith("ana@acme.mx", expect.anything());
+  });
+});
+
+describe("F1-WEB-AUTH-07 — /reset-password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    __resetSessionBootstrapForTests();
+    refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
+  });
+
+  it("con token y password nueva válida llama al API y navega a /login", async () => {
+    resetPasswordMock.mockResolvedValue(undefined);
+    const router = await renderRoute("/reset-password?token=tok-reset");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Nueva contraseña"), "password-nueva-larga");
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    // `useResetPassword` desestructura el input: exactamente (token, password).
+    expect(resetPasswordMock).toHaveBeenCalledWith("tok-reset", "password-nueva-larga");
+  });
+
+  it("una password de menos de 12 caracteres se corta en el cliente: nunca llega al API", async () => {
+    await renderRoute("/reset-password?token=tok-reset");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Nueva contraseña"), "corta");
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
+
+    expect(
+      await screen.findByText("La contraseña debe tener al menos 12 caracteres"),
+    ).toBeInTheDocument();
+    expect(resetPasswordMock).not.toHaveBeenCalled();
   });
 });
 
