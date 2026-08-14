@@ -8,11 +8,29 @@
 # que están cerrados (gotcha documentado en el proposal, D4).
 name: sellpoint
 
+# W4 del verify f1-web-auth: el driver json-file por defecto NO rota — el log
+# de nginx-edge crece con cada request (y llegó a guardar tokens de un solo
+# uso en texto plano; eso se corta en la config de nginx, esto acota cuánto
+# vive cualquier residuo y cuánto disco puede comerse un container en un VPS
+# de 2 GB). 10m x 3 archivos = tope de 30 MB por servicio, ~180 MB en el peor
+# caso con los 6 servicios de larga vida. Los one-shot (migrate, certbot)
+# corren con --rm y no lo necesitan.
+#
+# ⚠️ Cambiar `logging:` es config de DOCKER, no de nginx: el próximo `up -d`
+# RECREA los containers afectados (la excepción legítima a la regla D2 de
+# "config de nginx = reload, nunca recreate" — esto no entra por reload).
+x-logging: &log-rotado
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   nginx-edge:
     image: nginx:alpine
     container_name: sellpoint-nginx-edge
     restart: unless-stopped
+    logging: *log-rotado
     # Gobierno de recursos (D5 del proposal vps-multidominio): topes de
     # cgroup, NO reservas — sobre-suscribir la suma por encima de la RAM
     # física es correcto, lo que se compra es que ningún container solo
@@ -54,6 +72,7 @@ services:
     image: ghcr.io/carloshlm/sellpoint-web:${IMAGE_TAG}
     container_name: sellpoint-web
     restart: unless-stopped
+    logging: *log-rotado
     mem_limit: 24M
     cpu_shares: 256
     networks:
@@ -63,6 +82,7 @@ services:
     image: ghcr.io/carloshlm/sellpoint-api:${IMAGE_TAG}
     container_name: sellpoint-api
     restart: unless-stopped
+    logging: *log-rotado
     # 512M: 256 de heap (NODE_OPTIONS en .env) + young gen + buffers nativos +
     # argon2id (memoryCost=19456, contrato con f1-auth vía R2 del proposal).
     # memswap_limit = mem_limit deshabilita swap: un Node en swap thrashing
@@ -90,6 +110,7 @@ services:
     image: postgres:16-alpine
     container_name: sellpoint-postgres
     restart: unless-stopped
+    logging: *log-rotado
     # Bind EXPLÍCITO a 127.0.0.1: el puerto queda accesible solo desde el
     # localhost del server, NUNCA desde internet. Es lo que habilita
     # inspeccionar la DB con un cliente gráfico a través de un túnel SSH
@@ -137,6 +158,7 @@ services:
     image: redis:7-alpine
     container_name: sellpoint-redis
     restart: unless-stopped
+    logging: *log-rotado
     # maxmemory + volatile-ttl: solo evicta claves CON TTL. Los contadores de
     # throttle tienen TTL y son los primeros en caer; perm-epoch:* (f1-auth,
     # D8) se escribe SIN TTL y queda inevictable por construcción — jamás
@@ -174,6 +196,7 @@ services:
     image: sellpoint-php-fpm:local
     container_name: sellpoint-php-fpm
     restart: unless-stopped
+    logging: *log-rotado
     # 160M: 5 children x ~25 MB (pm=ondemand, cero children en idle — solo
     # el master, ~6 MB). cpus (cap DURO, no cpu_shares/peso): php-fpm es el
     # vecino menos confiable de este server (código sin tests, deploy
