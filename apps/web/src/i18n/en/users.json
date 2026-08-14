@@ -61,5 +61,34 @@
     "submitEdit": "Save changes",
     "createSuccess": "{{email}} was invited. They'll get an email to activate their account.",
     "editSuccess": "Changes saved."
+  },
+  "roles": {
+    "page": {
+      "title": "Roles",
+      "subtitle": "Business roles and their permissions."
+    },
+    "list": {
+      "newRole": "New role",
+      "delete": "Delete",
+      "deleteInUseHint": "This role has users assigned. It can't be deleted.",
+      "empty": "There are no roles yet."
+    },
+    "editor": {
+      "selectHint": "Pick a role from the list to view or edit its permissions.",
+      "readOnlyHint": "Read-only: you don't have permission to modify roles.",
+      "save": "Save changes",
+      "cancel": "Cancel",
+      "saveSuccess": "{{name}}'s permissions were saved.",
+      "userCount": "{{count}} user",
+      "userCount_other": "{{count}} users"
+    },
+    "form": {
+      "createTitle": "New role",
+      "name": "Role name",
+      "submitCreate": "Create role",
+      "createSuccess": "Role {{name}} was created."
+    },
+    "deleteConfirm": "Delete role {{name}}? This can't be undone.",
+    "deleteSuccess": "Role {{name}} was deleted."
   }
 }

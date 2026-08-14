@@ -61,5 +61,34 @@
     "submitEdit": "Guardar cambios",
     "createSuccess": "Se invitó a {{email}}. Va a recibir un correo para activar su cuenta.",
     "editSuccess": "Los cambios se guardaron."
+  },
+  "roles": {
+    "page": {
+      "title": "Roles",
+      "subtitle": "Roles del negocio y sus permisos."
+    },
+    "list": {
+      "newRole": "Nuevo rol",
+      "delete": "Eliminar",
+      "deleteInUseHint": "Este rol tiene usuarios asignados. No se puede eliminar.",
+      "empty": "Todavía no hay roles."
+    },
+    "editor": {
+      "selectHint": "Elegí un rol de la lista para ver o editar sus permisos.",
+      "readOnlyHint": "Solo lectura: no tenés permiso para modificar roles.",
+      "save": "Guardar cambios",
+      "cancel": "Cancelar",
+      "saveSuccess": "Los permisos de {{name}} se guardaron.",
+      "userCount": "{{count}} usuario",
+      "userCount_other": "{{count}} usuarios"
+    },
+    "form": {
+      "createTitle": "Nuevo rol",
+      "name": "Nombre del rol",
+      "submitCreate": "Crear rol",
+      "createSuccess": "Se creó el rol {{name}}."
+    },
+    "deleteConfirm": "¿Eliminar el rol {{name}}? Esta acción no se puede deshacer.",
+    "deleteSuccess": "Se eliminó el rol {{name}}."
   }
 }

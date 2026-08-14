@@ -1065,7 +1065,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-USERS-03
   - **Estimación:** 1 h
 
-- [ ] **F1-WEB-USERS-05** — Página `/system/roles` — lista y editor de permisos
+- [x] **F1-WEB-USERS-05** — Página `/system/roles` — lista y editor de permisos
   - **Salida:** sidebar con roles + checklist de permisos a la derecha
   - **Verificar:** modificar permisos persiste, aplica en próxima request del usuario
   - **Depende de:** F1-RBAC-04, F1-RBAC-05

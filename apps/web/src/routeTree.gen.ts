@@ -19,6 +19,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SystemRolesRoute = SystemRolesRouteImport.update({
+  id: '/system/roles',
+  path: '/system/roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemUsersRoute = SystemUsersRouteImport.update({
   id: '/system/users',
   path: '/system/users',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
 export interface FileRoutesById {
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/system/roles'
     | '/system/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/system/roles'
     | '/system/users'
   id:
     | '__root__'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/system/roles'
     | '/system/users'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyRoute: typeof VerifyRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
+  SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
 }
 
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/system/roles': {
+      id: '/system/roles'
+      path: '/system/roles'
+      fullPath: '/system/roles'
+      preLoaderRoute: typeof SystemRolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/users': {
       id: '/system/users'
       path: '/system/users'
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyRoute: VerifyRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
 }
 export const routeTree = rootRouteImport
