@@ -165,6 +165,32 @@ describe("/system/users", () => {
     await waitFor(() => expect(screen.getByLabelText("Sistema")).toBeInTheDocument());
   });
 
+  // Micro-tarea de cierre F1-WEB-USERS: dentro de "Sistema" cada link se
+  // gatea por SU PROPIO :read — antes solo existía un link a /system/users
+  // y /system/roles quedaba sin forma de navegar hacia él desde la UI.
+  it("con users:read (sin roles:read): el nav lista 'Usuarios' pero NO 'Roles'", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read"]));
+    await renderRoute("/dashboard");
+
+    const usersLink = await screen.findByRole("link", { name: "Usuarios" });
+    expect(usersLink).toHaveAttribute("href", "/system/users");
+    expect(screen.queryByRole("link", { name: "Roles" })).not.toBeInTheDocument();
+  });
+
+  it("con roles:read (sin users:read): el nav lista 'Roles' pero NO 'Usuarios', y navega a /system/roles", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read"]));
+    await renderRoute("/dashboard");
+
+    expect(screen.queryByRole("link", { name: "Usuarios" })).not.toBeInTheDocument();
+    const rolesLink = await screen.findByRole("link", { name: "Roles" });
+    expect(rolesLink).toHaveAttribute("href", "/system/roles");
+
+    await user.click(rolesLink);
+
+    expect(await screen.findByTestId("system-roles-title")).toBeInTheDocument();
+  });
+
   it("con users:manage la tabla reserva la columna de acciones (WU5 la llena)", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
     await renderRoute("/system/users");
