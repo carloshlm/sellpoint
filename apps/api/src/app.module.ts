@@ -44,6 +44,16 @@ import { UsersModule } from "./modules/users/users.module";
             "res.headers['set-cookie']",
             "*.password",
             "req.body.password",
+            // W6 del re-verify de f1-web-auth, probado en producción: los
+            // tokens de un solo uso viajan en la query string
+            // (/accept-invitation?token=... vive 7 DÍAS) y el navegador manda
+            // la URL COMPLETA del documento como Referer en las subrequests
+            // same-origin. pino loguea el objeto `headers` entero, así que el
+            // secreto quedaba en texto plano en el log de la api. Es el mismo
+            // vector que ya se tapó en los dos nginx con `map $http_referer`;
+            // acá faltaba. (El cierre definitivo es sacar el token de la URL.)
+            "req.headers.referer",
+            "req.headers.referrer",
           ],
           censor: "[REDACTED]",
         },

@@ -25,12 +25,23 @@ describe("useAuthStore", () => {
     expect(useAuthStore.getState().user).toBeNull();
   });
 
-  it("setea y limpia el token", () => {
-    useAuthStore.getState().setToken("jwt-demo");
-    expect(useAuthStore.getState().accessToken).toBe("jwt-demo");
+  it("setToken rota el token sin tocar al usuario (es lo que hace el refresh)", () => {
+    useAuthStore.getState().setAuth("jwt-viejo", demoUser);
 
-    useAuthStore.getState().clearToken();
-    expect(useAuthStore.getState().accessToken).toBeNull();
+    useAuthStore.getState().setToken("jwt-nuevo");
+
+    expect(useAuthStore.getState().accessToken).toBe("jwt-nuevo");
+    // Que `user` sobreviva es lo que evita que un refresh (cada ≤15 min) se
+    // lea como cambio de identidad y purgue la caché sin motivo.
+    expect(useAuthStore.getState().user).toEqual(demoUser);
+  });
+
+  // S8 del re-verify: existió un `clearToken` sin llamadores que borraba el
+  // token dejando `user` — desloguear con eso NO purgaba la caché (la purga
+  // mira `user.id`) y revivía el CRITICAL C1 en silencio. Se eliminó: cerrar
+  // sesión tiene UNA sola puerta.
+  it("no existe una forma de cerrar sesión que deje al usuario en el store", () => {
+    expect("clearToken" in useAuthStore.getState()).toBe(false);
   });
 
   it("setAuth guarda token + usuario y clearAuth limpia ambos", () => {

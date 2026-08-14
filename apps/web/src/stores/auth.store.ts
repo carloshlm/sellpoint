@@ -26,7 +26,12 @@ interface AuthState {
   clearAuth: () => void;
   /** Solo token: lo usa el refresh (F1-WEB-AUTH-02), que no devuelve user. */
   setToken: (token: string) => void;
-  clearToken: () => void;
+  // NO agregar un `clearToken` que solo borre el token: existió, no tenía
+  // llamadores, y era una trampa (S8 del re-verify). La purga de la caché de
+  // React Query se dispara al cambiar la IDENTIDAD (`user.id`), así que
+  // desloguear dejando `user` intacto NO purgaría y revivría en silencio el
+  // CRITICAL C1 (el siguiente usuario viendo datos del anterior). Para cerrar
+  // sesión hay UNA sola puerta: `clearAuth`.
   /**
    * Solo user: lo usa `/profile` al cambiar el idioma (F1-LOCALE-08), que
    * devuelve el usuario actualizado pero no un token nuevo. No-op si no había
@@ -42,6 +47,5 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (token, user) => set({ accessToken: token, user }),
   clearAuth: () => set({ accessToken: null, user: null }),
   setToken: (token) => set({ accessToken: token }),
-  clearToken: () => set({ accessToken: null }),
   setUser: (user) => set((state) => (state.user === null ? state : { user })),
 }));
