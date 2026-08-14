@@ -5,13 +5,23 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { UserForm } from "@/components/system/user-form";
-import { UsersTable } from "@/components/system/users-table";
+import { fullName, UsersTable } from "@/components/system/users-table";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
+import { useForgotPassword } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { UserDetail } from "@/lib/rbac/api";
-import { useCreateUser, useRoles, useUpdateUser, useUsers } from "@/lib/rbac/hooks";
+import {
+  useCreateUser,
+  useReactivateUser,
+  useResendInvitation,
+  useRoles,
+  useSuspendUser,
+  useUpdateUser,
+  useUsers,
+} from "@/lib/rbac/hooks";
 import type { UserFormValues } from "@/lib/rbac/schemas";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/system/users")({
@@ -22,7 +32,7 @@ export const Route = createFileRoute("/system/users")({
  * F1-WEB-USERS-01. Lista completa del tenant (`GET /users`, sin paginar en
  * servidor — decisión del proposal: server-side "cuando duela"). Gate por
  * `users:read` (D2); `canManage` viaja como PROP a `UsersTable` (D1) para
- * reservar la columna "Acciones" que llena F1-WEB-USERS-04 (WU5, Batch 3).
+ * reservar la columna "Acciones" (menú `⋮`, F1-WEB-USERS-04, WU5, Batch 3).
  */
 function SystemUsersPage() {
   return (
@@ -57,16 +67,26 @@ function SystemUsersContent() {
   const { data: roles } = useRoles({ enabled: canManage });
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
+  const suspendUserMutation = useSuspendUser();
+  const reactivateUserMutation = useReactivateUser();
+  const resendInvitationMutation = useResendInvitation();
+  const forgotPasswordMutation = useForgotPassword();
+  const actorId = useAuthStore((state) => state.user?.id ?? "");
 
   const [formState, setFormState] = useState<FormState | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   function openCreate() {
     setEmailError(null);
     setFormError(null);
     setConfirmation(null);
+    setActionFeedback(null);
     setFormState({ mode: "create" });
   }
 
@@ -74,6 +94,7 @@ function SystemUsersContent() {
     setEmailError(null);
     setFormError(null);
     setConfirmation(null);
+    setActionFeedback(null);
     setFormState({ mode: "edit", user });
   }
 
@@ -119,6 +140,70 @@ function SystemUsersContent() {
 
   const isSubmitting = createUserMutation.isPending || updateUserMutation.isPending;
 
+  /**
+   * Errores de las acciones de fila (suspender/reactivar/reenviar): el 409 se
+   * muestra como banner sin desmontar la tabla (D10) — los prevenibles ya
+   * están evitados client-side por `UserRowActions`, esto es la red de
+   * seguridad si igual llegan (p. ej. un cambio de estado concurrente).
+   */
+  function handleActionError(error: ApiError) {
+    setActionFeedback({
+      type: "error",
+      message: error.statusCode === 0 ? t("common.errors.network") : error.message,
+    });
+  }
+
+  function handleSuspend(user: UserDetail) {
+    setActionFeedback(null);
+    suspendUserMutation.mutate(user.id, {
+      onSuccess: () =>
+        setActionFeedback({
+          type: "success",
+          message: t("users.actions.suspendSuccess", { name: fullName(user) }),
+        }),
+      onError: handleActionError,
+    });
+  }
+
+  function handleReactivate(user: UserDetail) {
+    setActionFeedback(null);
+    reactivateUserMutation.mutate(user.id, {
+      onSuccess: () =>
+        setActionFeedback({
+          type: "success",
+          message: t("users.actions.reactivateSuccess", { name: fullName(user) }),
+        }),
+      onError: handleActionError,
+    });
+  }
+
+  function handleResendInvitation(user: UserDetail) {
+    setActionFeedback(null);
+    resendInvitationMutation.mutate(user.id, {
+      onSuccess: () =>
+        setActionFeedback({
+          type: "success",
+          message: t("users.actions.resendInvitationSuccess", { name: fullName(user) }),
+        }),
+      onError: handleActionError,
+    });
+  }
+
+  /**
+   * Reusa el endpoint público `POST /auth/forgot-password` (D del proposal:
+   * sin endpoint admin nuevo). Responde 202 anti-enumeración SIEMPRE — el
+   * copy de éxito NUNCA confirma que el correo existe, ni acá ni en
+   * `/forgot-password` (mismo criterio que `auth.forgot.successBody`).
+   */
+  function handleResetPassword(user: UserDetail) {
+    setActionFeedback(null);
+    forgotPasswordMutation.mutate(user.email, {
+      onSuccess: () =>
+        setActionFeedback({ type: "success", message: t("users.actions.resetPasswordSuccess") }),
+      onError: handleActionError,
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -141,6 +226,20 @@ function SystemUsersContent() {
           className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
         >
           {confirmation}
+        </p>
+      )}
+      {actionFeedback && (
+        <p
+          role={actionFeedback.type === "error" ? "alert" : "status"}
+          data-testid="user-action-feedback"
+          className={cn(
+            "rounded-md px-3 py-2 text-sm",
+            actionFeedback.type === "error"
+              ? "bg-destructive/10 text-destructive"
+              : "bg-success-soft text-success",
+          )}
+        >
+          {actionFeedback.message}
         </p>
       )}
       {isPending && (
@@ -166,7 +265,18 @@ function SystemUsersContent() {
           onCancel={closeForm}
         />
       )}
-      {data && <UsersTable users={data} canManage={canManage} onEdit={openEdit} />}
+      {data && (
+        <UsersTable
+          users={data}
+          canManage={canManage}
+          actorId={actorId}
+          onEdit={openEdit}
+          onSuspend={handleSuspend}
+          onReactivate={handleReactivate}
+          onResendInvitation={handleResendInvitation}
+          onResetPassword={handleResetPassword}
+        />
+      )}
     </div>
   );
 }

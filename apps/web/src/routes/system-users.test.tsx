@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { createI18n } from "../i18n";
+import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
 import * as rbacApi from "../lib/rbac/api";
 import { routeTree } from "../routeTree.gen";
@@ -30,7 +31,17 @@ vi.mock("../lib/rbac/api", () => ({
   listPermissions: vi.fn(),
 }));
 
+// F1-WEB-USERS-04 (WU5): "Restablecer contraseña" reusa el endpoint público
+// `POST /auth/forgot-password` (D del proposal) — mock PARCIAL, el resto del
+// módulo (login, logout, etc.) sigue real porque `ProtectedRoute`/`AppLayout`
+// lo necesitan intacto para montar la sesión ya seteada por `setAuth`.
+vi.mock("../lib/auth/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/auth/api")>();
+  return { ...actual, forgotPassword: vi.fn() };
+});
+
 const mockedApi = vi.mocked(rbacApi);
+const mockedForgotPassword = vi.mocked(authApi.forgotPassword);
 
 const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
@@ -60,6 +71,26 @@ const USERS: rbacApi.UserDetail[] = [
     status: "invited",
     locale: "es",
     roles: [{ id: "r2", name: "Admin" }],
+  },
+  {
+    id: "u3",
+    email: "carla@acme.mx",
+    firstName: "Carla",
+    lastNamePaternal: "Ruiz",
+    lastNameMaternal: null,
+    status: "active",
+    locale: "es",
+    roles: [{ id: "r1", name: "Cajero" }],
+  },
+  {
+    id: "u4",
+    email: "dana@acme.mx",
+    firstName: "Dana",
+    lastNamePaternal: "Soto",
+    lastNameMaternal: null,
+    status: "suspended",
+    locale: "es",
+    roles: [{ id: "r1", name: "Cajero" }],
   },
 ];
 
@@ -234,7 +265,8 @@ describe("/system/users", () => {
       await screen.findByText("Ana García");
 
       const rows = screen.getAllByRole("row");
-      await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Editar" }));
+      await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
 
       const lastNameInput = await screen.findByLabelText("Apellido paterno");
       expect(lastNameInput).toHaveValue("García");
@@ -265,6 +297,177 @@ describe("/system/users", () => {
 
       expect(await screen.findByRole("checkbox", { name: "Cajero" })).toBeEnabled();
       expect(screen.getByRole("checkbox", { name: "Admin" })).toBeDisabled();
+    });
+  });
+
+  // F1-WEB-USERS-04 (Batch 3, WU5): menú ⋮ de acciones por fila.
+  describe("acciones de fila (F1-WEB-USERS-04)", () => {
+    it("el menú de la propia fila (Ana) no ofrece 'Suspender' ni 'Reenviar invitación'", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Acciones" }));
+
+      expect(await screen.findByRole("menuitem", { name: "Editar" })).toBeInTheDocument();
+      expect(screen.queryByRole("menuitem", { name: "Suspender" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("menuitem", { name: "Reenviar invitación" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("el menú de un usuario 'active' distinto del actor NO ofrece 'Reenviar invitación'", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      // fila 3 = Carla (u3, active, no es el actor)
+      await user.click(within(rows[3] as HTMLElement).getByRole("button", { name: "Acciones" }));
+
+      expect(await screen.findByRole("menuitem", { name: "Suspender" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("menuitem", { name: "Reenviar invitación" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("suspender (con confirmación): llama suspendUser y la fila refresca con el estado nuevo", async () => {
+      const user = userEvent.setup();
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+      const [ana, beto, carla, dana] = USERS;
+      if (!ana || !beto || !carla || !dana) throw new Error("fixture USERS incompleta");
+      const suspendedCarla: rbacApi.UserDetail = { ...carla, status: "suspended" };
+      mockedApi.listUsers
+        .mockResolvedValueOnce(USERS)
+        .mockResolvedValueOnce([ana, beto, suspendedCarla, dana]);
+      mockedApi.suspendUser.mockResolvedValue(suspendedCarla);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[3] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Suspender" }));
+
+      expect(confirmSpy).toHaveBeenCalled();
+      await waitFor(() =>
+        expect(mockedApi.suspendUser).toHaveBeenCalledWith("u3", expect.anything()),
+      );
+      expect(await screen.findByText("Carla Ruiz quedó suspendido.")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(
+          within(screen.getAllByRole("row")[3] as HTMLElement).getByText("Suspendido"),
+        ).toBeInTheDocument(),
+      );
+      confirmSpy.mockRestore();
+    });
+
+    it("suspender: cancelar la confirmación NO llama suspendUser", async () => {
+      const user = userEvent.setup();
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[3] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Suspender" }));
+
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(mockedApi.suspendUser).not.toHaveBeenCalled();
+      confirmSpy.mockRestore();
+    });
+
+    it("reactivar: llama reactivateUser (sin confirmación) y la fila refresca con el estado nuevo", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+      const [ana, beto, carla, dana] = USERS;
+      if (!ana || !beto || !carla || !dana) throw new Error("fixture USERS incompleta");
+      const reactivatedDana: rbacApi.UserDetail = { ...dana, status: "active" };
+      mockedApi.listUsers
+        .mockResolvedValueOnce(USERS)
+        .mockResolvedValueOnce([ana, beto, carla, reactivatedDana]);
+      mockedApi.reactivateUser.mockResolvedValue(reactivatedDana);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[4] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Reactivar" }));
+
+      await waitFor(() =>
+        expect(mockedApi.reactivateUser).toHaveBeenCalledWith("u4", expect.anything()),
+      );
+      expect(await screen.findByText("Dana Soto quedó activo de nuevo.")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(
+          within(screen.getAllByRole("row")[4] as HTMLElement).getByText("Activo"),
+        ).toBeInTheDocument(),
+      );
+    });
+
+    it("reenviar invitación: llama resendInvitation (sin confirmación) y muestra el feedback", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+      const [, beto] = USERS;
+      if (!beto) throw new Error("fixture USERS incompleta");
+      mockedApi.resendInvitation.mockResolvedValue(beto);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[2] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Reenviar invitación" }));
+
+      await waitFor(() =>
+        expect(mockedApi.resendInvitation).toHaveBeenCalledWith("u2", expect.anything()),
+      );
+      expect(await screen.findByText("Se reenvió la invitación a Beto López.")).toBeInTheDocument();
+    });
+
+    it("reenviar invitación: el 409 users.not_invited se muestra como error sin romper la tabla", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+      mockedApi.resendInvitation.mockRejectedValue({
+        statusCode: 409,
+        message: "Este usuario ya no está invitado.",
+        error: "Conflict",
+        code: "users.not_invited",
+      });
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[2] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Reenviar invitación" }));
+
+      expect(await screen.findByText("Este usuario ya no está invitado.")).toBeInTheDocument();
+      expect(await screen.findByText("Ana García")).toBeInTheDocument();
+    });
+
+    it("restablecer contraseña: llama forgotPassword con el email del usuario y muestra el copy anti-enumeración", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+      mockedForgotPassword.mockResolvedValue(undefined);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      const rows = screen.getAllByRole("row");
+      // fila 3 = Carla (u3, active)
+      await user.click(within(rows[3] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Restablecer contraseña" }));
+
+      await waitFor(() =>
+        expect(mockedForgotPassword).toHaveBeenCalledWith("carla@acme.mx", expect.anything()),
+      );
+      expect(
+        await screen.findByText(
+          "Si el email existe, va a recibir instrucciones para restablecer la contraseña.",
+        ),
+      ).toBeInTheDocument();
     });
   });
 });

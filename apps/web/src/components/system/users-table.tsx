@@ -20,10 +20,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { UserDetail } from "@/lib/rbac/api";
+import { UserRowActions } from "./user-row-actions";
 
 const PAGE_SIZE = 10;
 
-function fullName(user: UserDetail): string {
+/** Reusado por `user-row-actions.tsx` (confirmación de "Suspender"). */
+export function fullName(user: UserDetail): string {
   return [user.firstName, user.lastNamePaternal, user.lastNameMaternal].filter(Boolean).join(" ");
 }
 
@@ -44,19 +46,30 @@ function StatusBadge({ status }: { status: UserDetail["status"] }) {
  * + `getPaginationRowModel` resuelven todo en cliente.
  *
  * `canManage` viaja como PROP (D1): decide si se reserva la columna
- * "Acciones". Batch 2 (F1-WEB-USERS-03) la llena con "Editar"; suspender/
- * reactivar/reenviar/reset viven en el menú `⋮` de WU5 (Batch 3) — ese menú
- * probablemente absorba este botón junto a las demás acciones.
+ * "Acciones", que ahora es el menú `⋮` (`UserRowActions`, F1-WEB-USERS-04,
+ * WU5, Batch 3) — absorbe el botón plano "Editar" del batch 2 junto con
+ * suspender/reactivar/reenviar invitación/restablecer contraseña.
  * Presentacional puro: sin queries ni store, testeable con solo props.
  */
 function UsersTable({
   users,
   canManage,
+  actorId,
   onEdit,
+  onSuspend,
+  onReactivate,
+  onResendInvitation,
+  onResetPassword,
 }: {
   users: UserDetail[];
   canManage: boolean;
+  /** id del actor autenticado — `UserRowActions` lo usa para bloquear la auto-suspensión. */
+  actorId: string;
   onEdit: (user: UserDetail) => void;
+  onSuspend: (user: UserDetail) => void;
+  onReactivate: (user: UserDetail) => void;
+  onResendInvitation: (user: UserDetail) => void;
+  onResetPassword: (user: UserDetail) => void;
 }) {
   const { t } = useTranslation();
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -92,15 +105,21 @@ function UsersTable({
         id: "actions",
         header: t("users.table.columns.actions"),
         cell: ({ row }) => (
-          <Button type="button" variant="outline" size="sm" onClick={() => onEdit(row.original)}>
-            {t("users.table.editAction")}
-          </Button>
+          <UserRowActions
+            user={row.original}
+            actorId={actorId}
+            onEdit={onEdit}
+            onSuspend={onSuspend}
+            onReactivate={onReactivate}
+            onResendInvitation={onResendInvitation}
+            onResetPassword={onResetPassword}
+          />
         ),
       });
     }
 
     return base;
-  }, [canManage, onEdit, t]);
+  }, [actorId, canManage, onEdit, onSuspend, onReactivate, onResendInvitation, onResetPassword, t]);
 
   const table = useLegacyTable({
     data: users,

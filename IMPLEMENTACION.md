@@ -1059,7 +1059,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-USERS-02
   - **Estimación:** 45 min
 
-- [ ] **F1-WEB-USERS-04** — Acciones: suspender / reactivar / reenviar invitación / reset password
+- [x] **F1-WEB-USERS-04** — Acciones: suspender / reactivar / reenviar invitación / reset password
   - **Salida:** menú `⋮` en cada fila con estas opciones
   - **Verificar:** cada acción funciona end-to-end
   - **Depende de:** F1-WEB-USERS-03

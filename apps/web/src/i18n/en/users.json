@@ -28,6 +28,19 @@
     },
     "editAction": "Edit"
   },
+  "actions": {
+    "menuLabel": "Actions",
+    "edit": "Edit",
+    "suspend": "Suspend",
+    "reactivate": "Reactivate",
+    "resendInvitation": "Resend invitation",
+    "resetPassword": "Reset password",
+    "confirmSuspend": "Suspend {{name}}? This closes all their active sessions.",
+    "suspendSuccess": "{{name}} was suspended.",
+    "reactivateSuccess": "{{name}} is active again.",
+    "resendInvitationSuccess": "Invitation resent to {{name}}.",
+    "resetPasswordSuccess": "If the email exists, they'll receive instructions to reset the password."
+  },
   "form": {
     "newUser": "New user",
     "createTitle": "New user",

@@ -28,6 +28,19 @@
     },
     "editAction": "Editar"
   },
+  "actions": {
+    "menuLabel": "Acciones",
+    "edit": "Editar",
+    "suspend": "Suspender",
+    "reactivate": "Reactivar",
+    "resendInvitation": "Reenviar invitación",
+    "resetPassword": "Restablecer contraseña",
+    "confirmSuspend": "¿Suspender a {{name}}? Esto cierra todas sus sesiones activas.",
+    "suspendSuccess": "{{name}} quedó suspendido.",
+    "reactivateSuccess": "{{name}} quedó activo de nuevo.",
+    "resendInvitationSuccess": "Se reenvió la invitación a {{name}}.",
+    "resetPasswordSuccess": "Si el email existe, va a recibir instrucciones para restablecer la contraseña."
+  },
   "form": {
     "newUser": "Nuevo usuario",
     "createTitle": "Nuevo usuario",

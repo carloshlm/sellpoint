@@ -25,10 +25,30 @@ function makeUser(overrides: Partial<UserDetail>): UserDetail {
   };
 }
 
-function renderTable(users: UserDetail[], canManage = false, onEdit = vi.fn()) {
+function renderTable(
+  users: UserDetail[],
+  canManage = false,
+  overrides: Partial<{
+    actorId: string;
+    onEdit: (user: UserDetail) => void;
+    onSuspend: (user: UserDetail) => void;
+    onReactivate: (user: UserDetail) => void;
+    onResendInvitation: (user: UserDetail) => void;
+    onResetPassword: (user: UserDetail) => void;
+  }> = {},
+) {
   return render(
     <I18nextProvider i18n={createI18n()}>
-      <UsersTable users={users} canManage={canManage} onEdit={onEdit} />
+      <UsersTable
+        users={users}
+        canManage={canManage}
+        actorId={overrides.actorId ?? "actor"}
+        onEdit={overrides.onEdit ?? vi.fn()}
+        onSuspend={overrides.onSuspend ?? vi.fn()}
+        onReactivate={overrides.onReactivate ?? vi.fn()}
+        onResendInvitation={overrides.onResendInvitation ?? vi.fn()}
+        onResetPassword={overrides.onResetPassword ?? vi.fn()}
+      />
     </I18nextProvider>,
   );
 }
@@ -103,13 +123,14 @@ describe("UsersTable", () => {
     expect(screen.getByRole("columnheader", { name: "Acciones" })).toBeInTheDocument();
   });
 
-  it("con canManage, cada fila tiene un botón Editar que llama onEdit con ese usuario (F1-WEB-USERS-03)", async () => {
+  it("con canManage, el menú ⋮ de cada fila tiene 'Editar' y llama onEdit con ese usuario (F1-WEB-USERS-04)", async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
     const ana = makeUser({ id: "1", firstName: "Ana", lastNamePaternal: "García" });
-    renderTable([ana], true, onEdit);
+    renderTable([ana], true, { onEdit });
 
-    await user.click(screen.getByRole("button", { name: "Editar" }));
+    await user.click(screen.getByRole("button", { name: "Acciones" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
 
     expect(onEdit).toHaveBeenCalledWith(ana);
   });
