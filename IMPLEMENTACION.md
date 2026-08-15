@@ -1099,7 +1099,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-ONBOARD-03, F1-WEB-USERS-02
   - **Estimación:** 1 h
 
-- [ ] **F1-WEB-ONBOARD-05** — Marcar `Tenant.onboarded = true` al finalizar
+- [x] **F1-WEB-ONBOARD-05** — Marcar `Tenant.onboarded = true` al finalizar
   - **Salida:** endpoint + redirect a `/dashboard`
   - **Verificar:** próximos logins van directo a dashboard, no a wizard
   - **Depende de:** F1-WEB-ONBOARD-04

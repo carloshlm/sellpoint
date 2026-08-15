@@ -28,6 +28,13 @@ interface StepInvitesProps {
    * deshabilitadas y NO se reenvían si el usuario reintenta.
    */
   rowResults?: Record<number, InviteRowResult>;
+  /**
+   * F1-WEB-ONBOARD-05: error de `POST /tenants/me/complete-onboarding`
+   * (network u otro 5xx) al cerrar el wizard desde "Enviar invitaciones" u
+   * "Omitir" — las filas mismas ya se resolvieron OK, esto es el paso
+   * siguiente fallando.
+   */
+  finishError?: string;
   onSubmit: (rows: InviteRowValues[]) => void;
   /** D6 (#347): "Omitir" avanza SIN validar ni requerir filas completas. */
   onSkip: () => void;
@@ -50,6 +57,7 @@ function StepInvites({
   rolesUnavailable = false,
   isSubmitting,
   rowResults = {},
+  finishError,
   onSubmit,
   onSkip,
 }: StepInvitesProps) {
@@ -156,6 +164,11 @@ function StepInvites({
           {t("onboarding.step4.addRow")}
         </Button>
       </div>
+      {finishError && (
+        <p role="alert" className="text-xs text-destructive">
+          {finishError}
+        </p>
+      )}
       <div className="flex gap-2">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? t("common.form.submitting") : t("onboarding.step4.sendInvites")}

@@ -74,6 +74,7 @@
     "sendInvites": "Enviar invitaciones",
     "skip": "Omitir",
     "rowSuccess": "Invitación enviada.",
-    "rowError": "No pudimos enviar esta invitación."
+    "rowError": "No pudimos enviar esta invitación.",
+    "finishError": "No pudimos finalizar la configuración."
   }
 }

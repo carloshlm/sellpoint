@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -10,7 +10,7 @@ import { StepWarehouse } from "@/components/onboarding/step-warehouse";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
 import type { ApiError } from "@/lib/api";
 import { useCreateUser, useRoles } from "@/lib/rbac/hooks";
-import { useUpdateMyTenant } from "@/lib/tenant/hooks";
+import { useCompleteOnboarding, useUpdateMyTenant } from "@/lib/tenant/hooks";
 import type { BusinessStepValues, InviteRowValues } from "@/lib/tenant/schemas";
 import { primerPasoIncompleto } from "@/lib/tenant/steps";
 import { useAuthStore } from "@/stores/auth.store";
@@ -60,23 +60,26 @@ function OnboardingContent() {
   const navigate = useNavigate({ from: "/onboarding" });
   const tenant = useAuthStore((state) => state.user?.tenant);
   const updateTenantMutation = useUpdateMyTenant();
+  const completeOnboardingMutation = useCompleteOnboarding();
   const { data: roles, isError: rolesError } = useRoles();
   const createUserMutation = useCreateUser();
   const [inviteResults, setInviteResults] = React.useState<Record<number, InviteRowResult>>({});
   const [isProcessingInvites, setIsProcessingInvites] = React.useState(false);
-  // F1-WEB-ONBOARD-04: paso 4 skippable (D6, #347). "Enviar invitaciones"
-  // y "Omitir" avanzan al cierre SIN marcar `tenant.onboarded` — eso es
-  // F1-WEB-ONBOARD-05 (fuera de esta tarea). Por eso este flag es LOCAL y
-  // efímero (no persistido, no toca `?step=`): una recarga vuelve a
-  // mostrar el paso 4. El cierre real (completeOnboarding + redirect) lo
-  // agrega la tarea 05 exactamente en este punto.
-  const [invitesClosed, setInvitesClosed] = React.useState(false);
 
   // accessToken && !user (ventana de bootstrap, S6/#321): ProtectedRoute ya
   // deja pasar con solo el token — acá todavía no hay tenant del que derivar
   // nada. Mismo remedio que ProtectedRoute: loading, nunca un salto en falso.
   if (!tenant) {
     return <SessionLoading />;
+  }
+
+  // Requirement transversal "Gate de redirect por estado de onboarding"
+  // (spec #348): un tenant YA onboarded que llega a /onboarding (a mano, un
+  // link viejo, o el botón atrás del navegador tras terminar el wizard)
+  // nunca vuelve a ver el wizard — se lo manda a /dashboard. `OnboardingGate`
+  // (A2) no cubre este caso porque, a propósito, NO se monta en esta ruta.
+  if (tenant.onboarded) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   const effectiveStep = Math.min(step, primerPasoIncompleto(tenant)) as 1 | 2 | 3 | 4;
@@ -162,12 +165,26 @@ function OnboardingContent() {
 
     const allSucceeded = rows.every((_, index) => nextResults[index]?.status === "success");
     if (allSucceeded) {
-      setInvitesClosed(true);
+      finishOnboarding();
     }
   }
 
   function handleInvitesSkip() {
-    setInvitesClosed(true);
+    finishOnboarding();
+  }
+
+  /**
+   * F1-WEB-ONBOARD-05 (design, flujo de datos): `completeOnboarding()` "no
+   * navega y espera" — el hook (`lib/tenant/hooks.ts`) ya esperó el resync
+   * (`await resyncSession()`) para cuando ESTE callback corre, así que el
+   * tenant fresco (`onboarded: true`) YA está en el store antes de navegar.
+   * Mismo patrón que `handleBusinessSubmit`/`handleTemplateSubmit`/
+   * `handleWarehouseSubmit`: navega SOLO en el `onSuccess` del `mutate()`.
+   */
+  function finishOnboarding() {
+    completeOnboardingMutation.mutate(undefined, {
+      onSuccess: () => navigate({ to: "/dashboard" }),
+    });
   }
 
   return (
@@ -210,22 +227,26 @@ function OnboardingContent() {
           onSubmit={handleWarehouseSubmit}
         />
       )}
-      {effectiveStep === 4 &&
-        (invitesClosed ? (
-          <p className="text-sm text-muted-foreground" data-testid="onboarding-coming-soon">
-            {t("onboarding.wizard.comingSoon")}
-          </p>
-        ) : (
-          <StepInvites
-            key={effectiveStep}
-            roles={roles ?? []}
-            rolesUnavailable={rolesError}
-            isSubmitting={isProcessingInvites}
-            rowResults={inviteResults}
-            onSubmit={handleInvitesSubmit}
-            onSkip={handleInvitesSkip}
-          />
-        ))}
+      {effectiveStep === 4 && (
+        <StepInvites
+          key={effectiveStep}
+          roles={roles ?? []}
+          rolesUnavailable={rolesError}
+          isSubmitting={isProcessingInvites || completeOnboardingMutation.isPending}
+          rowResults={inviteResults}
+          finishError={
+            completeOnboardingMutation.isError
+              ? formErrorMessage(
+                  t,
+                  "onboarding.step4.finishError",
+                  completeOnboardingMutation.error,
+                )
+              : undefined
+          }
+          onSubmit={handleInvitesSubmit}
+          onSkip={handleInvitesSkip}
+        />
+      )}
     </WizardShell>
   );
 }

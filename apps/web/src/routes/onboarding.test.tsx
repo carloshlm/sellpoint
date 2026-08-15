@@ -356,7 +356,7 @@ describe("/onboarding", () => {
     expect(mockedRbacApi.listRoles).toHaveBeenCalled();
   });
 
-  it("Enviar invitaciones: llama POST /users por cada fila y, si todas tienen éxito, avanza al cierre", async () => {
+  it("Enviar invitaciones: llama POST /users por cada fila y, si todas tienen éxito, cierra el onboarding y aterriza en /dashboard", async () => {
     const user = userEvent.setup();
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
     mockedRbacApi.createUser.mockImplementation(async (input) => ({
@@ -369,6 +369,9 @@ describe("/onboarding", () => {
       locale: "es",
       roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
     }));
+    const onboardedTenant = tenantReadyForInvites({ onboarded: true });
+    mockedTenantApi.completeOnboarding.mockResolvedValue(onboardedTenant);
+    mockedGetMe.mockResolvedValue(demoUser(onboardedTenant));
 
     await renderRoute("/onboarding?step=4");
     await screen.findByTestId("step-invites");
@@ -400,11 +403,13 @@ describe("/onboarding", () => {
     );
     expect(mockedRbacApi.createUser).toHaveBeenCalledTimes(2);
 
-    // Todas las filas tuvieron éxito: el wizard avanza al cierre (mismo
-    // placeholder genérico que los pasos aún sin finalizar — marcar
-    // `onboarded=true` y redirigir es F1-WEB-ONBOARD-05, fuera de esta
-    // tarea).
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    // Todas las filas tuvieron éxito: el wizard llama a
+    // `POST /tenants/me/complete-onboarding`, resincroniza la sesión y
+    // navega a /dashboard (F1-WEB-ONBOARD-05, criterio del tablero:
+    // "próximos logins van directo a dashboard, no a wizard").
+    expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
+    expect(mockedTenantApi.completeOnboarding).toHaveBeenCalledTimes(1);
+    expect(mockedGetMe).toHaveBeenCalledTimes(1);
   });
 
   it("Invitación múltiple con resultado parcial: la fila con email duplicado muestra su error y NO bloquea a las demás ni avanza", async () => {
@@ -456,17 +461,56 @@ describe("/onboarding", () => {
     expect(screen.queryByTestId("onboarding-coming-soon")).not.toBeInTheDocument();
   });
 
-  it("Omitir en el paso 4: avanza al cierre sin llamar createUser (D6, skippable)", async () => {
+  it("Omitir en el paso 4: cierra el onboarding sin llamar createUser y aterriza en /dashboard (D6, skippable)", async () => {
     const user = userEvent.setup();
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+    const onboardedTenant = tenantReadyForInvites({ onboarded: true });
+    mockedTenantApi.completeOnboarding.mockResolvedValue(onboardedTenant);
+    mockedGetMe.mockResolvedValue(demoUser(onboardedTenant));
 
     await renderRoute("/onboarding?step=4");
     await screen.findByTestId("step-invites");
 
     await user.click(screen.getByRole("button", { name: "Omitir" }));
 
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
     expect(mockedRbacApi.createUser).not.toHaveBeenCalled();
+    expect(mockedTenantApi.completeOnboarding).toHaveBeenCalledTimes(1);
+  });
+
+  it("Si completar el onboarding falla, se queda en el paso 4 con el error y NO navega", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+    mockedTenantApi.completeOnboarding.mockRejectedValue({
+      statusCode: 500,
+      message: "Internal error",
+      error: "Internal Server Error",
+    });
+
+    await renderRoute("/onboarding?step=4");
+    await screen.findByTestId("step-invites");
+
+    await user.click(screen.getByRole("button", { name: "Omitir" }));
+
+    expect(await screen.findByText("No pudimos finalizar la configuración.")).toBeInTheDocument();
+    expect(screen.getByTestId("step-invites")).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-title")).not.toBeInTheDocument();
+    expect(mockedGetMe).not.toHaveBeenCalled();
+  });
+
+  // F1-WEB-ONBOARD-05, requirement transversal "Gate de redirect por estado
+  // de onboarding": un tenant YA onboarded que navega directo a /onboarding
+  // (a mano, o un link viejo) nunca ve el wizard — va a /dashboard.
+  it("con tenant.onboarded=true, navegar a /onboarding redirige a /dashboard sin mostrar el wizard", async () => {
+    useAuthStore
+      .getState()
+      .setAuth("jwt-demo", demoUser(tenantReadyForInvites({ onboarded: true })));
+
+    await renderRoute("/onboarding");
+
+    expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("step-invites")).not.toBeInTheDocument();
   });
 
   it("con lng: 'en', el paso 4 se muestra en inglés", async () => {

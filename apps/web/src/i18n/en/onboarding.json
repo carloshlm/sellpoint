@@ -74,6 +74,7 @@
     "sendInvites": "Send invitations",
     "skip": "Skip",
     "rowSuccess": "Invitation sent.",
-    "rowError": "We couldn't send this invitation."
+    "rowError": "We couldn't send this invitation.",
+    "finishError": "We couldn't finish the setup."
   }
 }
