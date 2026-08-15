@@ -1081,7 +1081,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-AUTH-05
   - **Estimación:** 1 h
 
-- [ ] **F1-WEB-ONBOARD-02** — Step 2: placeholder de schema (se completa en F2)
+- [x] **F1-WEB-ONBOARD-02** — Step 2: placeholder de schema (se completa en F2)
   - **Salida:** pantalla con plantillas pero solo "elegir" sin editor aún
   - **Verificar:** decisión guardada en `Tenant.template_choice` (temporal)
   - **Depende de:** F1-WEB-ONBOARD-01
