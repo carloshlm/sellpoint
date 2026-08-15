@@ -29,5 +29,29 @@
     "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
     "continue": "Continuar",
     "error": "No pudimos guardar los datos del negocio."
+  },
+  "step2": {
+    "title": "Elegí una plantilla",
+    "subtitle": "Vas a poder ajustarla más adelante desde el editor de esquema.",
+    "continue": "Continuar",
+    "error": "No pudimos guardar la plantilla elegida.",
+    "templates": {
+      "pharmacy": {
+        "name": "Farmacia",
+        "description": "Productos con lote, caducidad y presentación."
+      },
+      "hardware": {
+        "name": "Ferretería",
+        "description": "Productos con unidad de medida y variantes por talle/color."
+      },
+      "grocery": {
+        "name": "Abarrotes",
+        "description": "Productos con código de barras y precio por peso."
+      },
+      "custom": {
+        "name": "Personalizado",
+        "description": "Empezá desde cero y definí tu propio esquema."
+      }
+    }
   }
 }

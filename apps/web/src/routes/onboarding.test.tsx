@@ -149,7 +149,7 @@ describe("/onboarding", () => {
 
     resolvePatch(updatedTenant);
 
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
     expect(mockedGetMe).toHaveBeenCalledTimes(1);
   });
 
@@ -172,5 +172,87 @@ describe("/onboarding", () => {
     expect(screen.getByLabelText("Tax ID")).toBeInTheDocument();
     expect(screen.getByLabelText("Operating currency")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+  });
+
+  // F1-WEB-ONBOARD-02, criterio del tablero: "decisión guardada en
+  // Tenant.template_choice (temporal)".
+  function tenantWithBusinessDone(overrides: Partial<AuthUser["tenant"]> = {}) {
+    return tenantFixture({
+      legalName: "Acme SA de CV",
+      taxId: "ACM010101AAA",
+      address: "Av. Siempre Viva 123",
+      ...overrides,
+    });
+  }
+
+  it("con negocio completo y sin plantilla, renderiza el paso 2 (elegir plantilla)", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
+
+    await renderRoute("/onboarding?step=2");
+
+    expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Ferretería" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Abarrotes" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Personalizado" })).toBeInTheDocument();
+  });
+
+  it("Elegir plantilla: completar el paso 2 llama PATCH /tenants/me con template_choice y avanza al paso 3 SOLO en onSuccess", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
+    const updatedTenant = tenantWithBusinessDone({ templateChoice: "pharmacy" });
+    let resolvePatch: (value: tenantApi.TenantBlock) => void = () => {};
+    mockedTenantApi.updateMyTenant.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    mockedGetMe.mockResolvedValue(demoUser(updatedTenant));
+
+    await renderRoute("/onboarding?step=2");
+    await user.click(await screen.findByRole("radio", { name: "Farmacia" }));
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(mockedTenantApi.updateMyTenant).toHaveBeenCalledWith(
+        { templateChoice: "pharmacy" },
+        expect.anything(),
+      ),
+    );
+    // Todavía no navegó: el PATCH sigue pendiente.
+    expect(screen.getByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
+
+    resolvePatch(updatedTenant);
+
+    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(mockedGetMe).toHaveBeenCalledTimes(1);
+  });
+
+  // Nota de la tarea 01 (steps.ts): con `template_choice` persistido, la
+  // derivación debe reconocer el paso 2 completo y retomar en el 3 al
+  // recargar — YA NO saltar directo a 4 (F1-WEB-ONBOARD-03 aún no existe).
+  // Mismo patrón que "recarga en ?step=3 con paso1 incompleto cae a 1"
+  // (01.19): se pide un paso por delante del piso server-derivado y el piso
+  // gana.
+  it("recarga en ?step=4 con negocio y plantilla completos: el piso server-derivado lo hace caer a 3", async () => {
+    useAuthStore
+      .getState()
+      .setAuth("jwt-demo", demoUser(tenantWithBusinessDone({ templateChoice: "grocery" })));
+
+    await renderRoute("/onboarding?step=4");
+
+    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Abarrotes" })).not.toBeInTheDocument();
+  });
+
+  it("con lng: 'en', las plantillas del paso 2 se muestran en inglés", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
+
+    await renderRoute("/onboarding?step=2", "en");
+
+    expect(await screen.findByRole("radio", { name: "Pharmacy" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Hardware store" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Grocery" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Custom" })).toBeInTheDocument();
   });
 });

@@ -29,5 +29,29 @@
     "currencyWarning": "You won't be able to change the currency once you record your first transaction.",
     "continue": "Continue",
     "error": "We couldn't save your business details."
+  },
+  "step2": {
+    "title": "Pick a template",
+    "subtitle": "You'll be able to adjust it later from the schema editor.",
+    "continue": "Continue",
+    "error": "We couldn't save the chosen template.",
+    "templates": {
+      "pharmacy": {
+        "name": "Pharmacy",
+        "description": "Products with batch, expiration and packaging."
+      },
+      "hardware": {
+        "name": "Hardware store",
+        "description": "Products with unit of measure and size/color variants."
+      },
+      "grocery": {
+        "name": "Grocery",
+        "description": "Products with barcode and price by weight."
+      },
+      "custom": {
+        "name": "Custom",
+        "description": "Start from scratch and define your own schema."
+      }
+    }
   }
 }

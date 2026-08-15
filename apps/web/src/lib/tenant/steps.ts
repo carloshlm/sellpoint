@@ -12,12 +12,14 @@ import type { TenantBlock } from "./api";
  *
  * Paso 2 (plantilla): completo cuando `templateChoice` no es null.
  *
- * Paso 3 (almacén): el spec lo define informativo, "continuar SIN persistir
- * campos nuevos" — no existe ningún campo de `TenantBlock` que distinga
- * "todavía no lo vio" de "ya avanzó". Con el paso 2 completo, el piso salta
- * directo a 4: no hay nada que perder al saltar un paso sin estado propio,
- * y `effectiveStep = min(stepPedido, piso)` igual deja visitarlo navegando
- * hacia adelante dentro de la misma sesión (F1-WEB-ONBOARD-02/03 lo cablean).
+ * Paso 3 (almacén, F1-WEB-ONBOARD-03, todavía sin implementar): con negocio
+ * y plantilla completos, el piso RETOMA en 3 — no salta directo a 4. La
+ * versión anterior (F1-WEB-ONBOARD-01) saltaba a 4 porque `templateChoice`
+ * todavía no existía como señal real; ahora que el paso 2 persiste de
+ * verdad, saltarlo ocultaría el paso 3 apenas se implemente. `tenant.onboarded`
+ * es la única excepción: si el wizard ya se completó, el piso defensivamente
+ * es 4 (el `OnboardingGate` de todas formas ya no monta el wizard en ese
+ * caso — ver test "tenant ya onboarded").
  */
 export function primerPasoIncompleto(tenant: TenantBlock): 1 | 2 | 3 | 4 {
   if (!tenant.legalName || !tenant.taxId || !tenant.address) {
@@ -26,5 +28,8 @@ export function primerPasoIncompleto(tenant: TenantBlock): 1 | 2 | 3 | 4 {
   if (!tenant.templateChoice) {
     return 2;
   }
-  return 4;
+  if (tenant.onboarded) {
+    return 4;
+  }
+  return 3;
 }

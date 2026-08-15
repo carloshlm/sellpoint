@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SessionLoading } from "@/components/auth/session-loading";
 import { StepBusiness } from "@/components/onboarding/step-business";
+import { StepTemplate, type TemplateChoice } from "@/components/onboarding/step-template";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
 import type { ApiError } from "@/lib/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
@@ -78,6 +79,15 @@ function OnboardingContent() {
     });
   }
 
+  function handleTemplateSubmit(templateChoice: TemplateChoice) {
+    updateTenantMutation.mutate(
+      { templateChoice },
+      {
+        onSuccess: () => goToStep(3),
+      },
+    );
+  }
+
   return (
     <WizardShell step={effectiveStep}>
       {effectiveStep === 1 && (
@@ -87,13 +97,26 @@ function OnboardingContent() {
           isSubmitting={updateTenantMutation.isPending}
           formError={
             updateTenantMutation.isError
-              ? formErrorMessage(t, updateTenantMutation.error)
+              ? formErrorMessage(t, "onboarding.step1.error", updateTenantMutation.error)
               : undefined
           }
           onSubmit={handleBusinessSubmit}
         />
       )}
-      {effectiveStep > 1 && (
+      {effectiveStep === 2 && (
+        <StepTemplate
+          key={effectiveStep}
+          tenant={tenant}
+          isSubmitting={updateTenantMutation.isPending}
+          formError={
+            updateTenantMutation.isError
+              ? formErrorMessage(t, "onboarding.step2.error", updateTenantMutation.error)
+              : undefined
+          }
+          onSubmit={handleTemplateSubmit}
+        />
+      )}
+      {effectiveStep > 2 && (
         <p className="text-sm text-muted-foreground" data-testid="onboarding-coming-soon">
           {t("onboarding.wizard.comingSoon")}
         </p>
@@ -102,6 +125,10 @@ function OnboardingContent() {
   );
 }
 
-function formErrorMessage(t: (key: string) => string, error: ApiError): string {
-  return error.statusCode === 0 ? t("common.errors.network") : t("onboarding.step1.error");
+function formErrorMessage(
+  t: (key: string) => string,
+  fallbackKey: string,
+  error: ApiError,
+): string {
+  return error.statusCode === 0 ? t("common.errors.network") : t(fallbackKey);
 }

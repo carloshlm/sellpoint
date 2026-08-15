@@ -49,14 +49,11 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     ).toBe(2);
   });
 
-  // Paso 3 (almacén) es puramente informativo — el spec exige "continuar SIN
-  // persistir campos nuevos" (Requirement "Paso 3"), así que no existe NINGÚN
-  // campo de Tenant que distinga "todavía no vio el paso 3" de "ya lo vio y
-  // avanzó". Con el negocio y la plantilla completos, el piso salta directo
-  // a 4 (invitar) — no hay nada que el paso 3 pueda perder al saltarse en un
-  // reload; `effectiveStep = min(stepPedido, piso)` igual deja visitarlo
-  // navegando hacia adelante dentro de la misma sesión.
-  it("con negocio y plantilla completos: paso 4 (el 3 no tiene estado propio que verificar)", () => {
+  // F1-WEB-ONBOARD-02: con negocio y plantilla completos, el piso retoma en
+  // el paso 3 (almacén) al recargar — YA NO salta directo a 4. El paso 2
+  // completo (`templateChoice` persistido) es una señal real; saltarlo
+  // ocultaría el paso 3 apenas se implemente (F1-WEB-ONBOARD-03).
+  it("con negocio y plantilla completos: paso 3 (retoma en almacén, no salta)", () => {
     expect(
       primerPasoIncompleto(
         tenant({
@@ -66,7 +63,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           templateChoice: "retail-basico",
         }),
       ),
-    ).toBe(4);
+    ).toBe(3);
   });
 
   it("tenant ya onboarded: el piso sigue siendo 4 (el gate ya no monta el wizard en este caso)", () => {
