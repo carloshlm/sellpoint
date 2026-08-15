@@ -4,6 +4,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
 
 export interface UserSummary {
   id: string;
@@ -26,6 +27,12 @@ export interface MeProfile {
   firstName: string;
   locale: string;
   permissions: string[];
+  /**
+   * A1 del design de f1-web-onboard: MISMO shape que `LoginResult.user.tenant`
+   * (auth.service.ts) — el `OnboardingGate` del front lo lee del store sin
+   * importar si llegó por login o por bootstrap/resync.
+   */
+  tenant: TenantBlock;
 }
 
 /**
@@ -49,12 +56,17 @@ export class UsersService {
    * la fuente que autoriza ESTA sesión.
    */
   async getMe(user: AuthUser): Promise<MeProfile> {
-    const row = await this.prisma.withTenantContext(user.tenantId, (tx) =>
-      tx.user.findUniqueOrThrow({
+    const { row, tenantRow } = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const row = await tx.user.findUniqueOrThrow({
         where: { id: user.userId },
         select: { id: true, email: true, firstName: true, locale: true },
-      }),
-    );
+      });
+      const tenantRow = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: TENANT_SELECT,
+      });
+      return { row, tenantRow };
+    });
 
     return {
       id: row.id,
@@ -62,6 +74,7 @@ export class UsersService {
       firstName: row.firstName,
       locale: row.locale,
       permissions: user.permissions,
+      tenant: toTenantBlock(tenantRow),
     };
   }
 

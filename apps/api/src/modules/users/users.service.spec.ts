@@ -12,6 +12,7 @@ const CURRENT_USER: AuthUser = {
 function buildService(overrides?: {
   currentUser?: Record<string, unknown> | null;
   updatedUser?: Record<string, unknown>;
+  tenantRow?: Record<string, unknown>;
 }) {
   const currentUser = overrides?.currentUser ?? {
     id: "user-1",
@@ -26,10 +27,25 @@ function buildService(overrides?: {
   const updatedUser =
     overrides?.updatedUser ?? ({ ...currentUser, locale: "en" } as Record<string, unknown>);
 
+  const tenantRow = overrides?.tenantRow ?? {
+    id: "tenant-1",
+    name: "Acme",
+    legalName: null,
+    taxId: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    onboarded: false,
+  };
+
   const tx = {
     user: {
       findUniqueOrThrow: jest.fn().mockResolvedValue(currentUser),
       update: jest.fn().mockResolvedValue(updatedUser),
+    },
+    tenant: {
+      findUniqueOrThrow: jest.fn().mockResolvedValue(tenantRow),
     },
   };
 
@@ -63,6 +79,17 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
       firstName: "Ana",
       locale: "es",
       permissions: ["products:read"],
+      tenant: {
+        id: "tenant-1",
+        name: "Acme",
+        legalName: null,
+        taxId: null,
+        address: null,
+        timezone: "America/Mexico_City",
+        currency: "MXN",
+        templateChoice: null,
+        onboarded: false,
+      },
     });
     expect(result).not.toHaveProperty("passwordHash");
   });

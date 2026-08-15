@@ -18,6 +18,10 @@ model Tenant {
   name      String
   legalName String?  @map("legal_name")
   taxId     String?  @map("tax_id")
+  // F1-WEB-ONBOARD-01 (paso 1 del wizard): aditivos, nullable — un tenant
+  // creado antes de esta migración sigue operando con ambos en NULL.
+  address        String? @map("address")
+  templateChoice String? @map("template_choice")
   timezone  String   @default("America/Mexico_City")
   // CHAR(3) con CHECK (currency IN ('MXN','USD')) — el CHECK vive en el SQL de
   // la migración porque Prisma no soporta constraints CHECK en el schema.

@@ -1,3 +1,4 @@
 {
-  "currency_locked": "No se puede cambiar la moneda de un tenant que ya tiene transacciones registradas"
+  "currency_locked": "No se puede cambiar la moneda de un tenant que ya tiene transacciones registradas",
+  "invalid_body": "Los datos enviados no son válidos"
 }

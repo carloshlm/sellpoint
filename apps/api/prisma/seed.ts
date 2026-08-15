@@ -24,6 +24,11 @@ const PERMISSIONS = [
   { code: "inventory:manage", module: "inventory", description: "Registrar movimientos" },
   { code: "pos:sell", module: "pos", description: "Operar el punto de venta" },
   { code: "reports:read", module: "reports", description: "Ver reportes" },
+  {
+    code: "tenants:manage",
+    module: "tenants",
+    description: "Configurar el perfil del negocio (razón social, dirección, moneda, onboarding)",
+  },
 ] as const;
 
 type PermissionCode = (typeof PERMISSIONS)[number]["code"];
@@ -34,7 +39,11 @@ const READ_CODES = ALL_CODES.filter((c) => c.endsWith(":read"));
 // Roles base que se seedean POR tenant
 const ROLES: Record<string, readonly PermissionCode[]> = {
   TenantAdmin: ALL_CODES,
-  Manager: ALL_CODES.filter((c) => c !== "users:manage" && c !== "roles:manage"),
+  // F1-WEB-ONBOARD-01 (D4 del design): tenants:manage tampoco es tarea de
+  // Manager, mismo criterio que users:manage/roles:manage.
+  Manager: ALL_CODES.filter(
+    (c) => c !== "users:manage" && c !== "roles:manage" && c !== "tenants:manage",
+  ),
   POS_Seller: ["pos:sell", "products:read"],
   Viewer: READ_CODES,
 };

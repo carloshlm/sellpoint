@@ -115,6 +115,19 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
         firstName: "Ana",
         locale: "es",
         permissions: expect.any(Array),
+        // F1-WEB-ONBOARD-01 (A1 del design): MISMO shape que `GET /me`
+        // `tenant` — ver el contrato en tenants-me.e2e-spec.ts.
+        tenant: {
+          id: user.tenantId,
+          name: expect.any(String),
+          legalName: null,
+          taxId: null,
+          address: null,
+          timezone: expect.any(String),
+          currency: "MXN",
+          templateChoice: null,
+          onboarded: false,
+        },
       },
     });
     expect(response.body).not.toHaveProperty("refreshToken");

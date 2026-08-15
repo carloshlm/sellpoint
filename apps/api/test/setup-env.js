@@ -7,6 +7,12 @@
 // integración/RLS "pasan" sin probar nada (canario en prisma.service.spec.ts).
 process.env.DATABASE_URL ??=
   "postgresql://sellpoint_app:sellpoint_app@localhost:5432/sellpoint_dev";
+// F1-WEB-ONBOARD-01: default de test para el cliente ADMIN (superuser,
+// bypasea RLS) que necesitan los tests que replayan SQL de data migrations
+// tal cual corre `prisma migrate deploy` (ver prisma.config.ts) — mismo
+// patrón que el default de DATABASE_URL de arriba, mismas credenciales de
+// docker-compose.dev.yml (ver .env.example).
+process.env.DATABASE_URL_ADMIN ??= "postgresql://sellpoint:sellpoint@localhost:5432/sellpoint_dev";
 process.env.REDIS_URL ??= "redis://localhost:6379";
 
 // f1-auth U6-02: apagado por defecto en TODA la suite (unit + e2e) — sin

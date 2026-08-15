@@ -19,6 +19,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { REDIS_CLIENT } from "../../infrastructure/redis/redis.module";
 import { AuditService } from "../audit/audit.service";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
+import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
 import { TenantsService } from "../tenants/tenants.service";
 import {
   authEmailThrottleKey,
@@ -256,6 +257,10 @@ export class AuthService implements OnModuleInit {
 
     return this.prisma.withTenantContext(tenantId, async (tx) => {
       const permissions = await this.authRepository.resolvePermissionCodes(tx, user.id);
+      const tenantRow = await tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: TENANT_SELECT,
+      });
       const { token: rawRefreshToken, tokenHash } = this.oneTimeTokenService.generate();
       const refreshExpiresAt = this.refreshTokenService.buildExpiry();
 
@@ -296,6 +301,7 @@ export class AuthService implements OnModuleInit {
           firstName: user.firstName,
           locale,
           permissions,
+          tenant: toTenantBlock(tenantRow),
         },
       };
     });
@@ -808,6 +814,9 @@ export interface LoginResult {
     firstName: string;
     locale: "es" | "en";
     permissions: string[];
+    // A1 del design de f1-web-onboard: MISMO shape que `MeProfile.tenant`
+    // (users.service.ts) — evita el store con dos emisores divergentes.
+    tenant: TenantBlock;
   };
 }
 

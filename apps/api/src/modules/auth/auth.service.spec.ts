@@ -42,6 +42,7 @@ function buildService(overrides?: {
   rotateResult?: boolean;
   passwordResetTokenRow?: Record<string, unknown> | null;
   activeRefreshTokens?: Record<string, unknown>[];
+  tenantRow?: Record<string, unknown>;
 }) {
   const tenantsService = {
     provision: overrides?.provisionError
@@ -106,7 +107,22 @@ function buildService(overrides?: {
     record: jest.fn().mockResolvedValue(undefined),
   } as unknown as AuditService;
 
-  const tx = {};
+  const tenantRow = overrides?.tenantRow ?? {
+    id: "tenant-1",
+    name: "Acme",
+    legalName: null,
+    taxId: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    onboarded: false,
+  };
+  const tx = {
+    tenant: {
+      findUniqueOrThrow: jest.fn().mockResolvedValue(tenantRow),
+    },
+  };
   const prisma = {
     withTenantContext: jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) => fn(tx)),
   } as unknown as PrismaService;
@@ -468,6 +484,19 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
         firstName: "Ana",
         locale: "es",
         permissions: ["sales:create"],
+        // F1-WEB-ONBOARD-01 (A1 del design): MISMO shape que `MeProfile.tenant`
+        // (users.service.ts) — ver el contrato en tenants-me.e2e-spec.ts.
+        tenant: {
+          id: "tenant-1",
+          name: "Acme",
+          legalName: null,
+          taxId: null,
+          address: null,
+          timezone: "America/Mexico_City",
+          currency: "MXN",
+          templateChoice: null,
+          onboarded: false,
+        },
       },
     });
   });

@@ -10,6 +10,7 @@ describe("resolveRolePermissionCodes", () => {
     "products:manage",
     "pos:sell",
     "reports:read",
+    "tenants:manage",
   ];
 
   it("TenantAdmin recibe TODOS los codes del catálogo", () => {
@@ -17,10 +18,13 @@ describe("resolveRolePermissionCodes", () => {
     expect(result.TenantAdmin).toEqual(catalog);
   });
 
-  it("Manager recibe todo salvo users:manage y roles:manage", () => {
+  it("Manager recibe todo salvo users:manage, roles:manage y tenants:manage", () => {
     const result = resolveRolePermissionCodes(catalog);
     expect(result.Manager).not.toContain("users:manage");
     expect(result.Manager).not.toContain("roles:manage");
+    // F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio tampoco es
+    // tarea de Manager.
+    expect(result.Manager).not.toContain("tenants:manage");
     expect(result.Manager).toContain("products:manage");
   });
 

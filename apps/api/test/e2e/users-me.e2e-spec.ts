@@ -94,6 +94,19 @@ describe("/me (e2e)", () => {
       firstName: "Ana",
       locale: "es",
       permissions: ["products:read"],
+      // F1-WEB-ONBOARD-01 (A1 del design): mismo shape que
+      // `LoginResult.user.tenant` — ver tenants-me.e2e-spec.ts "Contrato".
+      tenant: {
+        id: user.tenantId,
+        name: expect.any(String),
+        legalName: null,
+        taxId: null,
+        address: null,
+        timezone: expect.any(String),
+        currency: "MXN",
+        templateChoice: null,
+        onboarded: false,
+      },
     });
     expect(response.body).not.toHaveProperty("passwordHash");
   });

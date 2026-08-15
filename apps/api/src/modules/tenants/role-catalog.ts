@@ -13,7 +13,10 @@ export const TENANT_ROLE_NAMES = ["TenantAdmin", "Manager", "POS_Seller", "Viewe
 
 export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
 
-const MANAGER_EXCLUDED_CODES = new Set(["users:manage", "roles:manage"]);
+// F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio (razón social,
+// dirección, moneda, onboarding) tampoco es tarea de Manager — mismo criterio
+// que users:manage/roles:manage.
+const MANAGER_EXCLUDED_CODES = new Set(["users:manage", "roles:manage", "tenants:manage"]);
 const POS_SELLER_CODES = new Set(["pos:sell", "products:read"]);
 
 /**
