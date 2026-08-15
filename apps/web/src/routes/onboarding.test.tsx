@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
+import * as rbacApi from "../lib/rbac/api";
 import * as tenantApi from "../lib/tenant/api";
 import { routeTree } from "../routeTree.gen";
 
@@ -22,12 +23,21 @@ vi.mock("../lib/tenant/api", () => ({
   completeOnboarding: vi.fn(),
 }));
 
+// F1-WEB-ONBOARD-04: el paso 4 reusa `useRoles()`/`useCreateUser()`
+// (lib/rbac/hooks.ts) — mismo mock parcial que `system-users.test.tsx`,
+// SOLO los fetchers que el wizard toca.
+vi.mock("../lib/rbac/api", () => ({
+  listRoles: vi.fn(),
+  createUser: vi.fn(),
+}));
+
 vi.mock("../lib/auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/auth/api")>();
   return { ...actual, getMe: vi.fn() };
 });
 
 const mockedTenantApi = vi.mocked(tenantApi);
+const mockedRbacApi = vi.mocked(rbacApi);
 const mockedGetMe = vi.mocked(authApi.getMe);
 
 function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["tenant"] {
@@ -77,10 +87,16 @@ async function renderRoute(path: string, lng?: "es" | "en") {
   return router;
 }
 
+const ROLES: rbacApi.RoleSummary[] = [
+  { id: "r1", name: "Cajero", permissionCodes: ["sales:read"], userCount: 2 },
+  { id: "r2", name: "Admin", permissionCodes: ["users:manage"], userCount: 1 },
+];
+
 describe("/onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
+    mockedRbacApi.listRoles.mockResolvedValue(ROLES);
   });
 
   it("con el negocio incompleto, renderiza el paso 1 (datos del negocio)", async () => {
@@ -299,7 +315,9 @@ describe("/onboarding", () => {
 
     resolvePatch(updatedTenant);
 
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    // F1-WEB-ONBOARD-04: el paso 4 ya NO es el placeholder genérico — es
+    // `StepInvites` (invitar usuarios, skippable).
+    expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
     expect(mockedGetMe).toHaveBeenCalledTimes(1);
   });
 
@@ -314,8 +332,150 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding?step=4");
 
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    // F1-WEB-ONBOARD-04: el paso 4 ya NO es el placeholder genérico — es
+    // `StepInvites` (invitar usuarios, skippable).
+    expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
     expect(screen.queryByTestId("step-warehouse")).not.toBeInTheDocument();
+  });
+
+  // F1-WEB-ONBOARD-04, criterio del tablero: "invitaciones llegan". D5
+  // (#347): email+nombre+rol por fila, reusa `POST /users` (createUser)
+  // sin relajar el DTO — el mail real lo manda el backend (probado e2e en
+  // f1-invitations); acá solo se prueba que el wizard llama al endpoint
+  // correcto por cada fila.
+  function tenantReadyForInvites(overrides: Partial<AuthUser["tenant"]> = {}) {
+    return tenantWithTemplateDone({ warehouseStepSeen: true, ...overrides });
+  }
+
+  it("con warehouseStepSeen=true, renderiza el paso 4 (invitar usuarios) con una fila vacía", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+
+    await renderRoute("/onboarding?step=4");
+
+    expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
+    expect(mockedRbacApi.listRoles).toHaveBeenCalled();
+  });
+
+  it("Enviar invitaciones: llama POST /users por cada fila y, si todas tienen éxito, avanza al cierre", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+    mockedRbacApi.createUser.mockImplementation(async (input) => ({
+      id: `new-${input.email}`,
+      email: input.email,
+      firstName: input.firstName,
+      lastNamePaternal: input.lastNamePaternal,
+      lastNameMaternal: null,
+      status: "invited",
+      locale: "es",
+      roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
+    }));
+
+    await renderRoute("/onboarding?step=4");
+    await screen.findByTestId("step-invites");
+
+    await user.type(screen.getByLabelText("Email"), "ana@acme.mx");
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido paterno"), "García");
+    await user.selectOptions(screen.getByLabelText("Rol"), "Cajero");
+    await user.click(screen.getByRole("button", { name: "Agregar fila" }));
+    const rows = screen.getAllByTestId(/^invite-row-\d$/);
+    const secondRow = rows[1];
+    if (!secondRow) throw new Error("se esperaba una segunda fila");
+    await user.type(within(secondRow).getByLabelText("Email"), "beto@acme.mx");
+    await user.type(within(secondRow).getByLabelText("Nombre"), "Beto");
+    await user.type(within(secondRow).getByLabelText("Apellido paterno"), "López");
+    await user.selectOptions(within(secondRow).getByLabelText("Rol"), "Admin");
+
+    await user.click(screen.getByRole("button", { name: "Enviar invitaciones" }));
+
+    await waitFor(() =>
+      expect(mockedRbacApi.createUser).toHaveBeenCalledWith(
+        { email: "ana@acme.mx", firstName: "Ana", lastNamePaternal: "García", roleIds: ["r1"] },
+        expect.anything(),
+      ),
+    );
+    expect(mockedRbacApi.createUser).toHaveBeenCalledWith(
+      { email: "beto@acme.mx", firstName: "Beto", lastNamePaternal: "López", roleIds: ["r2"] },
+      expect.anything(),
+    );
+    expect(mockedRbacApi.createUser).toHaveBeenCalledTimes(2);
+
+    // Todas las filas tuvieron éxito: el wizard avanza al cierre (mismo
+    // placeholder genérico que los pasos aún sin finalizar — marcar
+    // `onboarded=true` y redirigir es F1-WEB-ONBOARD-05, fuera de esta
+    // tarea).
+    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+  });
+
+  it("Invitación múltiple con resultado parcial: la fila con email duplicado muestra su error y NO bloquea a las demás ni avanza", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+    mockedRbacApi.createUser.mockImplementation(async (input) => {
+      if (input.email === "ana@acme.mx") {
+        return Promise.reject({
+          statusCode: 409,
+          message: "Ese correo ya está en uso.",
+          error: "Conflict",
+          code: "users.email_taken",
+        });
+      }
+      return {
+        id: `new-${input.email}`,
+        email: input.email,
+        firstName: input.firstName,
+        lastNamePaternal: input.lastNamePaternal,
+        lastNameMaternal: null,
+        status: "invited",
+        locale: "es",
+        roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
+      };
+    });
+
+    await renderRoute("/onboarding?step=4");
+    await screen.findByTestId("step-invites");
+
+    await user.type(screen.getByLabelText("Email"), "ana@acme.mx");
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido paterno"), "García");
+    await user.selectOptions(screen.getByLabelText("Rol"), "Cajero");
+    await user.click(screen.getByRole("button", { name: "Agregar fila" }));
+    const secondRow = screen.getAllByTestId(/^invite-row-\d$/)[1];
+    if (!secondRow) throw new Error("se esperaba una segunda fila");
+    await user.type(within(secondRow).getByLabelText("Email"), "beto@acme.mx");
+    await user.type(within(secondRow).getByLabelText("Nombre"), "Beto");
+    await user.type(within(secondRow).getByLabelText("Apellido paterno"), "López");
+    await user.selectOptions(within(secondRow).getByLabelText("Rol"), "Admin");
+
+    await user.click(screen.getByRole("button", { name: "Enviar invitaciones" }));
+
+    expect(await screen.findByText("Ese correo ya está en uso.")).toBeInTheDocument();
+    expect(await within(secondRow).findByText("Invitación enviada.")).toBeInTheDocument();
+    // No todas tuvieron éxito: el wizard NO avanza, sigue en el paso 4 para
+    // que el usuario corrija la fila fallida.
+    expect(screen.getByTestId("step-invites")).toBeInTheDocument();
+    expect(screen.queryByTestId("onboarding-coming-soon")).not.toBeInTheDocument();
+  });
+
+  it("Omitir en el paso 4: avanza al cierre sin llamar createUser (D6, skippable)", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+
+    await renderRoute("/onboarding?step=4");
+    await screen.findByTestId("step-invites");
+
+    await user.click(screen.getByRole("button", { name: "Omitir" }));
+
+    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(mockedRbacApi.createUser).not.toHaveBeenCalled();
+  });
+
+  it("con lng: 'en', el paso 4 se muestra en inglés", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+
+    await renderRoute("/onboarding?step=4", "en");
+
+    expect(await screen.findByText("Invite your team")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send invitations" })).toBeInTheDocument();
   });
 
   it("con lng: 'en', el paso 3 se muestra en inglés", async () => {

@@ -1093,7 +1093,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-ONBOARD-02
   - **Estimación:** 20 min
 
-- [ ] **F1-WEB-ONBOARD-04** — Step 4: invitar usuarios
+- [x] **F1-WEB-ONBOARD-04** — Step 4: invitar usuarios
   - **Salida:** UI para mandar invitaciones por email (multi)
   - **Verificar:** invitaciones llegan
   - **Depende de:** F1-WEB-ONBOARD-03, F1-WEB-USERS-02

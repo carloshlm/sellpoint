@@ -59,5 +59,21 @@
     "subtitle": "Lo vamos a configurar más adelante — por ahora seguí con la configuración inicial.",
     "continue": "Continuar",
     "error": "No pudimos avanzar. Probá de nuevo."
+  },
+  "step4": {
+    "title": "Invitá a tu equipo",
+    "subtitle": "Este paso es opcional — podés invitar ahora o hacerlo más tarde desde Sistema → Usuarios.",
+    "email": "Email",
+    "firstName": "Nombre",
+    "lastNamePaternal": "Apellido paterno",
+    "role": "Rol",
+    "roleSelectPlaceholder": "Elegí un rol",
+    "rolesUnavailable": "No pudimos cargar los roles disponibles.",
+    "addRow": "Agregar fila",
+    "removeRow": "Quitar fila",
+    "sendInvites": "Enviar invitaciones",
+    "skip": "Omitir",
+    "rowSuccess": "Invitación enviada.",
+    "rowError": "No pudimos enviar esta invitación."
   }
 }

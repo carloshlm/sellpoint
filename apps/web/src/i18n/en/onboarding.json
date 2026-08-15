@@ -59,5 +59,21 @@
     "subtitle": "We'll set this up later — for now, continue with the initial setup.",
     "continue": "Continue",
     "error": "We couldn't move forward. Please try again."
+  },
+  "step4": {
+    "title": "Invite your team",
+    "subtitle": "This step is optional — you can invite people now or later from System → Users.",
+    "email": "Email",
+    "firstName": "First name",
+    "lastNamePaternal": "Last name",
+    "role": "Role",
+    "roleSelectPlaceholder": "Pick a role",
+    "rolesUnavailable": "We couldn't load the available roles.",
+    "addRow": "Add row",
+    "removeRow": "Remove row",
+    "sendInvites": "Send invitations",
+    "skip": "Skip",
+    "rowSuccess": "Invitation sent.",
+    "rowError": "We couldn't send this invitation."
   }
 }

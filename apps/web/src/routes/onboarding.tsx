@@ -1,14 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SessionLoading } from "@/components/auth/session-loading";
 import { StepBusiness } from "@/components/onboarding/step-business";
+import { type InviteRowResult, StepInvites } from "@/components/onboarding/step-invites";
 import { StepTemplate, type TemplateChoice } from "@/components/onboarding/step-template";
 import { StepWarehouse } from "@/components/onboarding/step-warehouse";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
 import type { ApiError } from "@/lib/api";
+import { useCreateUser, useRoles } from "@/lib/rbac/hooks";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
-import type { BusinessStepValues } from "@/lib/tenant/schemas";
+import type { BusinessStepValues, InviteRowValues } from "@/lib/tenant/schemas";
 import { primerPasoIncompleto } from "@/lib/tenant/steps";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -57,6 +60,17 @@ function OnboardingContent() {
   const navigate = useNavigate({ from: "/onboarding" });
   const tenant = useAuthStore((state) => state.user?.tenant);
   const updateTenantMutation = useUpdateMyTenant();
+  const { data: roles, isError: rolesError } = useRoles();
+  const createUserMutation = useCreateUser();
+  const [inviteResults, setInviteResults] = React.useState<Record<number, InviteRowResult>>({});
+  const [isProcessingInvites, setIsProcessingInvites] = React.useState(false);
+  // F1-WEB-ONBOARD-04: paso 4 skippable (D6, #347). "Enviar invitaciones"
+  // y "Omitir" avanzan al cierre SIN marcar `tenant.onboarded` — eso es
+  // F1-WEB-ONBOARD-05 (fuera de esta tarea). Por eso este flag es LOCAL y
+  // efímero (no persistido, no toca `?step=`): una recarga vuelve a
+  // mostrar el paso 4. El cierre real (completeOnboarding + redirect) lo
+  // agrega la tarea 05 exactamente en este punto.
+  const [invitesClosed, setInvitesClosed] = React.useState(false);
 
   // accessToken && !user (ventana de bootstrap, S6/#321): ProtectedRoute ya
   // deja pasar con solo el token — acá todavía no hay tenant del que derivar
@@ -103,6 +117,59 @@ function OnboardingContent() {
     );
   }
 
+  /**
+   * F1-WEB-ONBOARD-04 (D5, design A6): un `POST /users` por fila vía
+   * `Promise.allSettled` — NO todo-o-nada, `POST /users` no tiene versión
+   * bulk. Las filas ya exitosas (marcadas en `inviteResults`) NO se
+   * reenvían al reintentar. Solo avanza al cierre si TODAS las filas
+   * enviadas en este intento (nuevas + previamente exitosas) terminan en
+   * éxito — una fila en error mantiene el wizard en el paso 4 para que el
+   * usuario la corrija, sin bloquear a las que sí funcionaron.
+   */
+  async function handleInvitesSubmit(rows: InviteRowValues[]) {
+    setIsProcessingInvites(true);
+    const pending = rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ index }) => inviteResults[index]?.status !== "success");
+
+    const outcomes = await Promise.allSettled(
+      pending.map(({ row }) =>
+        createUserMutation.mutateAsync({
+          email: row.email,
+          firstName: row.firstName,
+          lastNamePaternal: row.lastNamePaternal,
+          roleIds: [row.roleId],
+        }),
+      ),
+    );
+
+    const nextResults: Record<number, InviteRowResult> = { ...inviteResults };
+    outcomes.forEach((outcome, i) => {
+      const pendingItem = pending[i];
+      if (!pendingItem) return;
+      if (outcome.status === "fulfilled") {
+        nextResults[pendingItem.index] = { status: "success" };
+        return;
+      }
+      const error = outcome.reason as ApiError;
+      nextResults[pendingItem.index] = {
+        status: "error",
+        message: error?.statusCode === 0 ? t("common.errors.network") : error?.message,
+      };
+    });
+    setInviteResults(nextResults);
+    setIsProcessingInvites(false);
+
+    const allSucceeded = rows.every((_, index) => nextResults[index]?.status === "success");
+    if (allSucceeded) {
+      setInvitesClosed(true);
+    }
+  }
+
+  function handleInvitesSkip() {
+    setInvitesClosed(true);
+  }
+
   return (
     <WizardShell step={effectiveStep}>
       {effectiveStep === 1 && (
@@ -143,11 +210,22 @@ function OnboardingContent() {
           onSubmit={handleWarehouseSubmit}
         />
       )}
-      {effectiveStep > 3 && (
-        <p className="text-sm text-muted-foreground" data-testid="onboarding-coming-soon">
-          {t("onboarding.wizard.comingSoon")}
-        </p>
-      )}
+      {effectiveStep === 4 &&
+        (invitesClosed ? (
+          <p className="text-sm text-muted-foreground" data-testid="onboarding-coming-soon">
+            {t("onboarding.wizard.comingSoon")}
+          </p>
+        ) : (
+          <StepInvites
+            key={effectiveStep}
+            roles={roles ?? []}
+            rolesUnavailable={rolesError}
+            isSubmitting={isProcessingInvites}
+            rowResults={inviteResults}
+            onSubmit={handleInvitesSubmit}
+            onSkip={handleInvitesSkip}
+          />
+        ))}
     </WizardShell>
   );
 }
