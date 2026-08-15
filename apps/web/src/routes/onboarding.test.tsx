@@ -149,6 +149,31 @@ describe("/onboarding", () => {
     expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
   });
 
+  // N1 (verify-report, pasada 2 — hallazgo del auditor sobre la remediación
+  // W1): el test de arriba entra por `/onboarding` DIRECTO, así que solo
+  // ejercita la derivación (`effectiveStep`) — nunca pasa por
+  // `OnboardingGate`. Y `onboarding-gate.test.tsx` monta un `/onboarding`
+  // de juguete (un `<p>`) que no puede ver en qué paso aterriza. Resultado:
+  // si alguien reintrodujera `search={{ step: 1 }}` en
+  // `onboarding-gate.tsx`, las 27 pruebas de gate+onboarding seguían
+  // verdes — nadie ejercitaba el camino REAL (gate redirige -> aterriza en
+  // el paso derivado). Este test entra por `/dashboard` con el `routeTree`
+  // real: `OnboardingGate` (montado de verdad ahí, no un doble) redirige, y
+  // se comprueba que el aterrizaje es en el paso derivado (4, negocio +
+  // plantilla completos) con la búsqueda LIMPIA — no en el paso 1.
+  it("N1: entrar a /dashboard con el wizard a mitad de camino, el gate REAL redirige y aterriza en el paso derivado (no en 1)", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+
+    const router = await renderRoute("/dashboard");
+
+    expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/onboarding");
+    // Búsqueda limpia: el gate NO fuerza `step=1` (ni ningún otro valor) al
+    // redirigir — el paso sale de derivar el tenant, no de la URL.
+    expect(router.state.location.search).not.toHaveProperty("step", 1);
+  });
+
   // 01.19: recarga a mitad del wizard — pedir ?step=3 con el paso 1
   // incompleto cae a 1, derivado del tenant del server (NO del state
   // pedido en la URL).
