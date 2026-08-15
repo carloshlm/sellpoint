@@ -1075,7 +1075,7 @@ Ejemplos:
 
 ### Módulo F1-WEB-ONBOARD — Wizard de Onboarding
 
-- [ ] **F1-WEB-ONBOARD-01** — Step 1: datos del negocio
+- [x] **F1-WEB-ONBOARD-01** — Step 1: datos del negocio
   - **Salida:** form con razón social, RFC/RUT, dirección, zona horaria
   - **Verificar:** datos persisten en `Tenant`
   - **Depende de:** F1-WEB-AUTH-05
