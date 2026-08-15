@@ -59,6 +59,10 @@ function SystemRolesContent() {
 
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // S2 (verify-report #341): updateRoleSchema/roleFormSchema aceptan `name`,
+  // pero el editor solo mandaba `permissionCodes` — el nombre quedaba
+  // congelado en la creación. Draft local, mismo criterio que `selected`.
+  const [nameDraft, setNameDraft] = useState("");
   const [creating, setCreating] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
@@ -84,6 +88,7 @@ function SystemRolesContent() {
     setCreating(false);
     setSelectedRoleId(roleId);
     setSelected(new Set(role?.permissionCodes ?? []));
+    setNameDraft(role?.name ?? "");
   }
 
   function handleToggle(code: string, checked: boolean) {
@@ -105,11 +110,12 @@ function SystemRolesContent() {
   function handleSave() {
     if (!selectedRole) return;
     resetFeedback();
+    const name = nameDraft.trim();
     updateRoleMutation.mutate(
-      { id: selectedRole.id, input: { permissionCodes: Array.from(selected) } },
+      { id: selectedRole.id, input: { name, permissionCodes: Array.from(selected) } },
       {
         onSuccess: () => {
-          setSaveSuccess(t("users.roles.editor.saveSuccess", { name: selectedRole.name }));
+          setSaveSuccess(t("users.roles.editor.saveSuccess", { name }));
         },
         onError: (error) => setSaveError(apiErrorMessage(error)),
       },
@@ -119,6 +125,7 @@ function SystemRolesContent() {
   function handleCancel() {
     if (selectedRole) {
       setSelected(new Set(selectedRole.permissionCodes));
+      setNameDraft(selectedRole.name);
     }
     resetFeedback();
   }
@@ -212,7 +219,18 @@ function SystemRolesContent() {
 
           {!creating && selectedRole && (
             <div className="flex flex-col gap-4">
-              <h2 className="text-lg font-semibold">{selectedRole.name}</h2>
+              {canManage ? (
+                // S2: editor de nombre — mismo TextField que RoleCreateForm,
+                // sin schema/RHF de por medio (no hay validación async, un
+                // solo campo controlado alcanza).
+                <TextField
+                  label={t("users.roles.form.name")}
+                  value={nameDraft}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                />
+              ) : (
+                <h2 className="text-lg font-semibold">{selectedRole.name}</h2>
+              )}
               {!canManage && (
                 <p className="text-sm text-muted-foreground">
                   {t("users.roles.editor.readOnlyHint")}
@@ -255,7 +273,7 @@ function SystemRolesContent() {
                   <Button
                     type="button"
                     onClick={handleSave}
-                    disabled={updateRoleMutation.isPending}
+                    disabled={updateRoleMutation.isPending || nameDraft.trim() === ""}
                   >
                     {t("users.roles.editor.save")}
                   </Button>

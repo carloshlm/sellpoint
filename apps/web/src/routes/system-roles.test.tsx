@@ -158,14 +158,17 @@ describe("/system/roles", () => {
     // `updateRole` viaja envuelto en un arrow inline (`({id, input}) => updateRole(id, input)`),
     // no como referencia directa — NO recibe el 2do argumento de contexto de
     // TanStack Query (gotcha documentado en batch 1, ver hooks.ts).
+    // S2: handleSave ahora manda `name` también (draft local, sin tocar en
+    // este test) — no solo permissionCodes.
     await waitFor(() =>
       expect(mockedApi.updateRole).toHaveBeenCalledWith("r1", {
+        name: "Cajero",
         permissionCodes: expect.arrayContaining(["sales:read", "sales:manage"]),
       }),
     );
     const [, updateInput] = mockedApi.updateRole.mock.calls[0] as [
       string,
-      { permissionCodes: string[] },
+      { name: string; permissionCodes: string[] },
     ];
     // Set COMPLETO, no delta: exactamente los 2 codes marcados, ninguno de más.
     expect(updateInput.permissionCodes).toHaveLength(2);
@@ -177,6 +180,35 @@ describe("/system/roles", () => {
         "roles:manage",
         "sales:manage",
       ]),
+    );
+  });
+
+  // S2 (verify-report #341): `updateRoleSchema` de la API y `roleFormSchema`
+  // aceptan `name`, pero el editor solo mandaba `permissionCodes` — el
+  // nombre quedaba congelado en la creación.
+  it("renombrar un rol: cambiar el nombre y guardar manda el name nuevo en el PATCH", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
+    const renamedCajero: rbacApi.RoleSummary = {
+      ...(ROLES[0] as rbacApi.RoleSummary),
+      name: "Cajero Senior",
+    };
+    mockedApi.updateRole.mockResolvedValue(renamedCajero);
+
+    await renderRoute("/system/roles");
+    await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
+
+    const nameInput = await screen.findByLabelText("Nombre del rol");
+    expect(nameInput).toHaveValue("Cajero");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Cajero Senior");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() =>
+      expect(mockedApi.updateRole).toHaveBeenCalledWith("r1", {
+        name: "Cajero Senior",
+        permissionCodes: ["sales:read"],
+      }),
     );
   });
 
