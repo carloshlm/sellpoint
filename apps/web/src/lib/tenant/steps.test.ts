@@ -17,7 +17,6 @@ function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
-    warehouseStepSeen: false,
     onboarded: false,
     ...overrides,
   };
@@ -50,11 +49,14 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     ).toBe(2);
   });
 
-  // F1-WEB-ONBOARD-02: con negocio y plantilla completos, el piso retoma en
-  // el paso 3 (almacén) al recargar — YA NO salta directo a 4. El paso 2
-  // completo (`templateChoice` persistido) es una señal real; saltarlo
-  // ocultaría el paso 3 apenas se implemente (F1-WEB-ONBOARD-03).
-  it("con negocio y plantilla completos: paso 3 (retoma en almacén, no salta)", () => {
+  // W4 (verify-report #357, revierte Deviation 6): el paso 3 es un
+  // placeholder SIN dato real — no hay ninguna señal server-side que
+  // distinga "recién llegó al paso 3" de "ya lo pasó", y no hace falta:
+  // con negocio y plantilla completos, el piso YA es 4. `effectiveStep =
+  // min(stepPedido, piso)` sigue mostrando el paso 3 cuando SE PIDE
+  // explícitamente (`goToStep(3)` tras terminar el paso 2) — lo que cambia
+  // es que el piso puro ya no "retiene" en 3 sin una escritura extra.
+  it("con negocio y plantilla completos: el piso YA es 4 (paso 3 no tiene estado propio que retener)", () => {
     expect(
       primerPasoIncompleto(
         tenant({
@@ -64,7 +66,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           templateChoice: "retail-basico",
         }),
       ),
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("tenant ya onboarded: el piso sigue siendo 4 (el gate ya no monta el wizard en este caso)", () => {
@@ -76,24 +78,6 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           address: "Av. Siempre Viva 123",
           templateChoice: "retail-basico",
           onboarded: true,
-        }),
-      ),
-    ).toBe(4);
-  });
-
-  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): `warehouseStepSeen` es
-  // la única señal server-side del paso 3 — sin ella, "retoma en 3" del test
-  // anterior sería el TECHO para siempre (ni Continuar en el paso 3 podría
-  // avanzar, con o sin recarga).
-  it("con negocio, plantilla y warehouseStepSeen=true: paso 4 (avanza, ya no retoma en 3)", () => {
-    expect(
-      primerPasoIncompleto(
-        tenant({
-          legalName: "Acme SA de CV",
-          taxId: "ACM010101AAA",
-          address: "Av. Siempre Viva 123",
-          templateChoice: "retail-basico",
-          warehouseStepSeen: true,
         }),
       ),
     ).toBe(4);

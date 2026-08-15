@@ -22,7 +22,6 @@ function buildService(overrides?: {
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
-    warehouseStepSeen: false,
     onboarded: false,
   };
   const updatedRow = overrides?.updatedRow ?? tenantRow;
@@ -91,42 +90,6 @@ describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
 });
 
 describe("TenantProfileService.update (F1-WEB-ONBOARD)", () => {
-  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): `warehouseStepSeen` NO es
-  // dato real de almacén (F2, D2) — es la única señal server-side de que el
-  // paso 3 (placeholder) ya se recorrió. Reusa el MISMO `PATCH /tenants/me`
-  // genérico, sin endpoint nuevo. El riesgo explícito: si `TENANT_SELECT`/
-  // `toTenantBlock` no incluyen el campo, `update()` lo persiste pero lo
-  // pierde en la respuesta — este test cae en ese caso.
-  it("acepta warehouseStepSeen y lo devuelve en el TenantBlock resultante", async () => {
-    const { service, tx } = buildService({
-      updatedRow: {
-        id: "tenant-1",
-        name: "Acme",
-        legalName: "Acme SA de CV",
-        taxId: "ACM010101AAA",
-        address: "Av. Siempre Viva 123",
-        timezone: "America/Mexico_City",
-        currency: "MXN",
-        templateChoice: "pharmacy",
-        warehouseStepSeen: true,
-        onboarded: false,
-      },
-    });
-
-    const result = await service.update(
-      ACTOR,
-      { warehouseStepSeen: true },
-      { ip: "1.2.3.4", userAgent: "jest" },
-    );
-
-    expect(tx.tenant.update).toHaveBeenCalledWith({
-      where: { id: "tenant-1" },
-      data: { warehouseStepSeen: true },
-      select: expect.any(Object),
-    });
-    expect(result.warehouseStepSeen).toBe(true);
-  });
-
   it("actualización parcial: solo los campos enviados van al update y se audita tenant.updated", async () => {
     const { service, tx, auditService } = buildService({
       updatedRow: {

@@ -7,9 +7,11 @@ import { StepWarehouse } from "./step-warehouse";
 /**
  * F1-WEB-ONBOARD-03 (tarea 02.3/02.4). Paso 3 del wizard, placeholder de
  * almacén — el CRUD real es F2 (D2). Acá no hay formulario: solo un mensaje
- * informativo y "Continuar". El submit real (PATCH /tenants/me con
- * `warehouseStepSeen: true`, apply-progress Deviation 6) lo hace el
- * container (`routes/onboarding.tsx`); acá solo se emite `onSubmit()`.
+ * informativo y "Continuar", que emite `onSubmit()` sin datos. W4
+ * (verify-report #357): el container (`routes/onboarding.tsx`) YA NO
+ * dispara ningún PATCH acá — `isSubmitting`/`formError` quedan como props
+ * genéricas del componente (útiles si este paso alguna vez gana un submit
+ * real en F2), sin wiring a ninguna mutación hoy.
  */
 function renderStep(props: Partial<React.ComponentProps<typeof StepWarehouse>> = {}) {
   const onSubmit = vi.fn();

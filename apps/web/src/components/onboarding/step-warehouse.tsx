@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
  * real (nombre, dirección, etc.) es F2 (D2, #347), acá SOLO hay un mensaje
  * informativo y "Continuar". Sin formulario, sin datos de almacén.
  *
- * El container (`routes/onboarding.tsx`) persiste `warehouseStepSeen: true`
- * vía `PATCH /tenants/me` en el `onSubmit` — NO es dato real de almacén, es
- * la única señal server-side de que este paso ya se recorrió (apply-progress
- * Deviation 6). Ese PATCH es el único "rastro" que deja este paso; el resto
- * (nombre/dirección de almacén) sigue fuera de alcance.
+ * W4 (verify-report #357, revierte Deviation 6): el container
+ * (`routes/onboarding.tsx`) NO dispara ningún PATCH en el `onSubmit` — el
+ * requirement original del tablero ("avanza al paso 4 sin llamada de
+ * escritura adicional") se cumple derivando el piso puro del wizard
+ * (`lib/tenant/steps.ts`), sin columna nueva ni escritura. Este paso no deja
+ * ningún rastro server-side.
  */
 interface StepWarehouseProps {
   isSubmitting: boolean;

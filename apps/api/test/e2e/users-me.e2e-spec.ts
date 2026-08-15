@@ -106,7 +106,6 @@ describe("/me (e2e)", () => {
         timezone: expect.any(String),
         currency: "MXN",
         templateChoice: null,
-        warehouseStepSeen: false,
         onboarded: false,
       },
     });

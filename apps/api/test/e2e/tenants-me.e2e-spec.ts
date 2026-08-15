@@ -175,27 +175,21 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       });
     });
 
-    // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): mismo PATCH genérico,
-    // sin endpoint nuevo — `warehouseStepSeen` NO es dato real de almacén
-    // (F2, D2), es la señal de que el paso 3 (placeholder) del wizard ya se
-    // recorrió.
-    it("PATCH warehouseStepSeen: persiste y un GET posterior lo refleja", async () => {
+    // W4 (verify-report #357, revierte Deviation 6): `warehouseStepSeen`
+    // existió y se eliminó — el DTO ya no lo acepta, así que enviarlo
+    // (junto con `legalName`, para que el body no quede vacío) simplemente
+    // se ignora, sin 400 ni columna que persistir.
+    it("W4: warehouseStepSeen ya NO es un campo del DTO — se ignora silenciosamente", async () => {
       const owner = await registerActiveOwner();
 
       const patchResponse = await request(app.getHttpServer())
         .patch("/tenants/me")
         .set("Authorization", bearer(owner.accessToken))
-        .send({ warehouseStepSeen: true })
+        .send({ legalName: "Acme SA de CV", warehouseStepSeen: true })
         .expect(200);
 
-      expect(patchResponse.body).toMatchObject({ warehouseStepSeen: true });
-
-      const getResponse = await request(app.getHttpServer())
-        .get("/tenants/me")
-        .set("Authorization", bearer(owner.accessToken))
-        .expect(200);
-
-      expect(getResponse.body).toMatchObject({ warehouseStepSeen: true });
+      expect(patchResponse.body).toMatchObject({ legalName: "Acme SA de CV" });
+      expect(patchResponse.body).not.toHaveProperty("warehouseStepSeen");
     });
 
     it("body vacío -> 400 tenants.invalid_body", async () => {
