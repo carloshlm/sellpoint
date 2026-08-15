@@ -45,13 +45,20 @@ import { UsersModule } from "./modules/users/users.module";
             "*.password",
             "req.body.password",
             // W6 del re-verify de f1-web-auth, probado en producción: los
-            // tokens de un solo uso viajan en la query string
-            // (/accept-invitation?token=... vive 7 DÍAS) y el navegador manda
-            // la URL COMPLETA del documento como Referer en las subrequests
+            // tokens de un solo uso viajaban en la query string
+            // (/accept-invitation?token=...) y el navegador manda la URL
+            // COMPLETA del documento como Referer en las subrequests
             // same-origin. pino loguea el objeto `headers` entero, así que el
             // secreto quedaba en texto plano en el log de la api. Es el mismo
             // vector que ya se tapó en los dos nginx con `map $http_referer`;
-            // acá faltaba. (El cierre definitivo es sacar el token de la URL.)
+            // acá faltaba.
+            //
+            // D3 (#347, cierre en f1-web-onboard): los links NUEVOS ya usan
+            // `#token=` (fragmento) — el fragmento NUNCA viaja en el Referer
+            // ni al servidor. Este redact queda como defensa en profundidad
+            // mientras vive el fallback a `?token=` de mails viejos (7 días
+            // desde el deploy de D3, ver DEFER.1); no se retira solo porque
+            // D3 cerró el vector principal.
             "req.headers.referer",
             "req.headers.referrer",
           ],

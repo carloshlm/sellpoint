@@ -82,6 +82,11 @@ const demoUser = {
  * vida de la caché entre sesiones pasan el MISMO cliente en las dos fases.
  */
 async function renderRoute(path: string, queryClient: QueryClient = createQueryClient()) {
+  // D3: `readTokenFromUrl` lee `window.location` de VERDAD (no el estado del
+  // router en memoria) — sincronizamos la URL real de jsdom con el path que
+  // se está "navegando" en el test, igual que hace un browser real cuando
+  // TanStack Router usa `createBrowserHistory`.
+  window.history.pushState(null, "", path);
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -398,6 +403,23 @@ describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
     );
     expect(screen.getByRole("link", { name: "Volver a registrarme" })).toBeInTheDocument();
   });
+
+  // D3 (#347): el link NUEVO que manda el backend usa `#token=`, no `?token=`.
+  it("D3: con el token en el FRAGMENTO (#token=, link nuevo) lo canjea igual", async () => {
+    verifyEmailMock.mockResolvedValue(undefined);
+    await renderRoute("/verify-email#token=tok-fragmento");
+
+    expect(await screen.findByTestId("verify-success")).toBeInTheDocument();
+    expect(verifyEmailMock).toHaveBeenCalledWith("tok-fragmento", expect.anything());
+  });
+
+  it("D3: tras leer el token de la URL, la barra de direcciones queda limpia (no reintroduce el secreto)", async () => {
+    verifyEmailMock.mockResolvedValue(undefined);
+    await renderRoute("/verify-email#token=tok-fragmento");
+
+    await screen.findByTestId("verify-success");
+    expect(window.location.hash).toBe("");
+  });
 });
 
 describe("F1-WEB-AUTH-06 — /forgot-password", () => {
@@ -458,6 +480,21 @@ describe("F1-WEB-AUTH-07 — /reset-password", () => {
       await screen.findByText("La contraseña debe tener al menos 12 caracteres"),
     ).toBeInTheDocument();
     expect(resetPasswordMock).not.toHaveBeenCalled();
+  });
+
+  // D3 (#347): el link NUEVO que manda el backend usa `#token=`, no `?token=`.
+  it("D3: con el token en el FRAGMENTO (#token=, link nuevo) funciona igual", async () => {
+    resetPasswordMock.mockResolvedValue(undefined);
+    const router = await renderRoute("/reset-password#token=tok-fragmento");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Nueva contraseña"), "password-nueva-larga");
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    expect(resetPasswordMock).toHaveBeenCalledWith("tok-fragmento", "password-nueva-larga");
   });
 });
 
@@ -530,6 +567,21 @@ describe("Gap S1 — /accept-invitation", () => {
       await screen.findByText("La contraseña debe tener al menos 12 caracteres"),
     ).toBeInTheDocument();
     expect(resetPasswordMock).not.toHaveBeenCalled();
+  });
+
+  // D3 (#347): el link NUEVO que manda el backend usa `#token=`, no `?token=`.
+  it("D3: con el token en el FRAGMENTO (#token=, link nuevo) acepta la invitación igual", async () => {
+    resetPasswordMock.mockResolvedValue(undefined);
+    const router = await renderRoute("/accept-invitation#token=tok-fragmento");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Definí tu contraseña"), "mi-primera-password");
+    await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/login");
+    });
+    expect(resetPasswordMock).toHaveBeenCalledWith("tok-fragmento", "mi-primera-password");
   });
 });
 

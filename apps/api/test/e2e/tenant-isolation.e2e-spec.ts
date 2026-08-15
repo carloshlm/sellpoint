@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
  * e2e de F1-TENANT-03: valida el aislamiento RLS entre 2 tenants con la DB
@@ -62,7 +63,7 @@ describe("Aislamiento RLS entre tenants (e2e, F1-TENANT-03)", () => {
 
     const mailer = app.get<NoopMailer>(MAILER);
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
 
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 

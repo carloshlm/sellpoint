@@ -9,6 +9,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { INVITATION_TTL_MS } from "../../src/modules/users/user-invitation.service";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const PASSWORD = "twelve-characters";
 const INVITEE_PASSWORD = "mi-primera-password-larga";
@@ -55,7 +56,7 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
   }
 
   function tokenFromLink(link: string | undefined): string {
-    const value = new URL(link ?? "", "http://localhost").searchParams.get("token");
+    const value = extractTokenFromLink(link);
     if (!value) {
       throw new Error(`Link sin token: ${link}`);
     }
@@ -144,7 +145,9 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
     expect(mail?.template).toBe("invite-user");
     // El locale del INVITADO manda, no el del admin que lo dio de alta.
     expect(mail?.locale).toBe("en");
-    expect(mail?.vars.link).toMatch(/\/accept-invitation\?token=.+/);
+    // D3 (#347): el link viaja por fragmento, no por query string.
+    expect(mail?.vars.link).toMatch(/\/accept-invitation#token=.+/);
+    expect(mail?.vars.link).not.toContain("?token=");
     expect(mail?.vars.firstName).toBe("Bruno");
 
     const row = await prisma.passwordResetToken.findFirst({

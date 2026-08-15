@@ -10,6 +10,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { REDIS_CLIENT } from "../../src/infrastructure/redis/redis.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const REFRESH_COOKIE_NAME = "sp_refresh";
 const PASSWORD = "twelve-characters";
@@ -69,7 +70,7 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
       .expect(201);
 
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     return { ...(registerResponse.body as { tenantId: string; userId: string }), email };
@@ -87,7 +88,7 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
     mailer.sent.length = 0;
     await request(app.getHttpServer()).post("/auth/forgot-password").send({ email }).expect(202);
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     if (!token) {
       throw new Error("token de reset no encontrado en el mail capturado");
     }
@@ -107,7 +108,9 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
 
     const sentMail = mailer.sent.find((m) => m.to === user.email);
     expect(sentMail?.template).toBe("reset-password");
-    expect(sentMail?.vars.link).toMatch(/\/reset-password\?token=.+/);
+    // D3 (#347): el link viaja por fragmento, no por query string.
+    expect(sentMail?.vars.link).toMatch(/\/reset-password#token=.+/);
+    expect(sentMail?.vars.link).not.toContain("?token=");
 
     const tokenRow = await prisma.passwordResetToken.findFirst({
       where: { userId: user.userId },

@@ -6,6 +6,7 @@ import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
  * e2e de U2 (f1-auth): register-tenant → verify-email, con Postgres/Redis
@@ -67,7 +68,9 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
     const sentMail = mailer.sent.find((m) => m.to === payload.email);
     expect(sentMail).toBeDefined();
     expect(sentMail?.template).toBe("verify-email");
-    expect(sentMail?.vars.link).toMatch(/\/verify-email\?token=.+/);
+    // D3 (#347): el link viaja por fragmento, no por query string.
+    expect(sentMail?.vars.link).toMatch(/\/verify-email#token=.+/);
+    expect(sentMail?.vars.link).not.toContain("?token=");
   });
 
   it("email ya usado en un tenant existente → 409 auth.email_taken", async () => {
@@ -96,7 +99,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
     await request(app.getHttpServer()).post("/auth/register-tenant").send(payload).expect(201);
 
     const sentMail = mailer.sent.find((m) => m.to === payload.email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     expect(token).toBeTruthy();
 
     const response = await request(app.getHttpServer())
@@ -111,7 +114,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
     const payload = registerPayload();
     await request(app.getHttpServer()).post("/auth/register-tenant").send(payload).expect(201);
     const sentMail = mailer.sent.find((m) => m.to === payload.email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
 
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 

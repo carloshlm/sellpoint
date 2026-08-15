@@ -8,6 +8,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const REFRESH_COOKIE_NAME = "sp_refresh";
 const PASSWORD = "twelve-characters";
@@ -64,7 +65,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
 
     const mailer = app.get<NoopMailer>(MAILER);
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     return { ...(registerResponse.body as { tenantId: string; userId: string }), email };

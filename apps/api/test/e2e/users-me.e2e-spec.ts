@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
  * e2e de F1-LOCALE-05 (PATCH /me). Login (U3 de f1-auth) todavía no existe
@@ -57,7 +58,7 @@ describe("/me (e2e)", () => {
 
     const mailer = app.get<NoopMailer>(MAILER);
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
 
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 

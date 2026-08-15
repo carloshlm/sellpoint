@@ -8,6 +8,7 @@ import { RequirePermissions } from "../../src/modules/auth/decorators/require-pe
 import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
  * e2e de F1-RBAC-01/02 + gate W3 del verify de f1-auth.
@@ -115,7 +116,7 @@ describe("RBAC: PermissionsGuard (e2e)", () => {
 
     const mailer = app.get<NoopMailer>(MAILER);
     const link = mailer.sent.find((m) => m.to === email)?.vars.link ?? "";
-    const token = new URL(link, "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     const login = await request(app.getHttpServer())

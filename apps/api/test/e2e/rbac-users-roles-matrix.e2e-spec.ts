@@ -12,6 +12,7 @@ import {
   TENANT_ROLE_NAMES,
   type TenantRoleName,
 } from "../../src/modules/tenants/role-catalog";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const PASSWORD = "twelve-characters";
 
@@ -71,7 +72,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
     tenantId = (registerResponse.body as { tenantId: string }).tenantId;
 
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     const login = await request(app.getHttpServer())

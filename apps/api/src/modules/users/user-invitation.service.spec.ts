@@ -89,7 +89,7 @@ describe("UserInvitationService (gap S1: aceptación de invitación)", () => {
     expect(mailer.send).toHaveBeenCalledWith({
       to: "bruno@example.com",
       template: "invite-user",
-      vars: { firstName: "Bruno", link: `${APP_URL}/accept-invitation?token=raw-token` },
+      vars: { firstName: "Bruno", link: `${APP_URL}/accept-invitation#token=raw-token` },
       locale: "en",
     });
   });

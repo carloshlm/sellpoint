@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -37,5 +37,29 @@ describe("links de mail ↔ rutas del front", () => {
 
   it("/verify sigue existiendo como alias: hay mails viejos apuntando ahí", () => {
     expect(archivosDeRutas).toContain("verify.tsx");
+  });
+});
+
+/**
+ * D3 (cierre de f1-web-onboard, decisión de Carlos en #347): el token de un
+ * link de mail NUNCA debe viajar por query string — así jamás termina en un
+ * access log de servidor. Este guardián lee el código FUENTE de los 3
+ * builders del backend (no ejecuta el servicio) y falla si alguno vuelve a
+ * escribir `?token=`.
+ */
+const BUILDERS_DE_LINKS_CON_TOKEN = [
+  join(__dirname, "../../../api/src/modules/auth/auth.service.ts"),
+  join(__dirname, "../../../api/src/modules/users/user-invitation.service.ts"),
+] as const;
+
+describe("D3 — el token de los links de mail viaja por fragmento, no por query", () => {
+  it.each(BUILDERS_DE_LINKS_CON_TOKEN)("%s no contiene '?token='", (path) => {
+    const source = readFileSync(path, "utf-8");
+    expect(source).not.toContain("?token=");
+  });
+
+  it.each(BUILDERS_DE_LINKS_CON_TOKEN)("%s sí usa '#token=' en al menos un link", (path) => {
+    const source = readFileSync(path, "utf-8");
+    expect(source).toContain("#token=");
   });
 });

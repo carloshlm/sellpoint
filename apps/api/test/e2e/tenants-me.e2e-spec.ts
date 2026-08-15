@@ -13,6 +13,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { TenantTransactionsGate } from "../../src/modules/tenants/tenant-transactions.gate";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const PASSWORD = "twelve-characters";
 
@@ -73,7 +74,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       .expect(201);
 
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     const login = await request(app.getHttpServer())
@@ -283,9 +284,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         })
         .expect(201);
       const sentMail = mailer.sent.find((m) => m.to === email);
-      const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get(
-        "token",
-      );
+      const token = extractTokenFromLink(sentMail?.vars.link);
       await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
       const loginResponse = await request(app.getHttpServer())

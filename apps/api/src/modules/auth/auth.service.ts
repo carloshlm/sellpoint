@@ -140,7 +140,10 @@ export class AuthService implements OnModuleInit {
       expiresAt,
     });
 
-    const link = `${this.appUrl}/verify-email?token=${token}`;
+    // D3 (#347): el token viaja por fragmento, no por query string, para que
+    // JAMÁS aparezca en un access log de servidor (el fragmento no viaja al
+    // servidor). Ver apps/web/src/lib/auth/token-from-url.ts.
+    const link = `${this.appUrl}/verify-email#token=${token}`;
 
     // Fire-and-forget: un fallo del proveedor de mail JAMÁS rompe el
     // request (AD-9) — el dominio de MAIL_FROM todavía no tiene SPF/DKIM
@@ -514,7 +517,8 @@ export class AuthService implements OnModuleInit {
       expiresAt,
     });
 
-    const link = `${this.appUrl}/reset-password?token=${token}`;
+    // D3 (#347): fragmento, no query string — ver nota en registerTenant().
+    const link = `${this.appUrl}/reset-password#token=${token}`;
     const locale = user.locale as "es" | "en";
 
     // Fire-and-forget (AD-9): un fallo del proveedor de mail JAMÁS rompe el

@@ -6,6 +6,7 @@ import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const PASSWORD = "twelve-characters";
 
@@ -50,7 +51,7 @@ describe("GET /permissions (e2e, F1-RBAC-05)", () => {
       .expect(201);
 
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     const login = await request(app.getHttpServer())

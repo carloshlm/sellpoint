@@ -8,6 +8,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const REFRESH_COOKIE_NAME = "sp_refresh";
 const PASSWORD = "twelve-characters";
@@ -51,7 +52,7 @@ describe("Ciclo completo de auth: register→verify→login→me→refresh→reu
   });
 
   function extractLinkToken(mail: { vars: Record<string, string> } | undefined): string {
-    const token = new URL(mail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(mail?.vars.link);
     if (!token) {
       throw new Error("token no encontrado en el mail capturado");
     }

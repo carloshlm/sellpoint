@@ -235,7 +235,7 @@ describe("AuthService.registerTenant (AUTH-REQ-01)", () => {
     expect(mailer.send).toHaveBeenCalledWith({
       to: "owner@acme.test",
       template: "verify-email",
-      vars: { firstName: "Ana", link: "https://app.example.com/verify-email?token=raw-token" },
+      vars: { firstName: "Ana", link: "https://app.example.com/verify-email#token=raw-token" },
       locale: "es",
     });
   });
@@ -735,7 +735,7 @@ describe("AuthService.forgotPassword (AUTH-REQ-08 — a prueba de enumeración)"
     expect(mailer.send).toHaveBeenCalledWith({
       to: "owner@acme.test",
       template: "reset-password",
-      vars: { firstName: "Ana", link: "https://app.example.com/reset-password?token=raw-token" },
+      vars: { firstName: "Ana", link: "https://app.example.com/reset-password#token=raw-token" },
       locale: "es",
     });
     void tx;

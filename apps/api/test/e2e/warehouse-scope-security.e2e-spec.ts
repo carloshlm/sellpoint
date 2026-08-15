@@ -10,6 +10,7 @@ import { WarehouseScopeInterceptor } from "../../src/infrastructure/warehouse-sc
 import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
  * e2e de remediación de los 2 CRITICAL del verify-report `sdd/f1-scope`
@@ -87,7 +88,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
 
     const mailer = app.get<NoopMailer>(MAILER);
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
 
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 

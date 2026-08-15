@@ -9,15 +9,15 @@ import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { useResetPassword } from "@/lib/auth/hooks";
 import { type ResetPasswordFormValues, resetPasswordSchema } from "@/lib/auth/schemas";
+import { readTokenFromUrl } from "@/lib/auth/token-from-url";
 
-interface AcceptInvitationSearch {
-  token?: string;
-}
-
+/**
+ * D3 (#347): el token ya NO se lee de `validateSearch` — viaja por
+ * `location.hash` (fallback a `?token=` para links viejos, A5 del design)
+ * vía `readTokenFromUrl()`, el mismo helper que `/verify-email` y
+ * `/reset-password`.
+ */
 export const Route = createFileRoute("/accept-invitation")({
-  validateSearch: (search: Record<string, unknown>): AcceptInvitationSearch => ({
-    token: typeof search.token === "string" && search.token !== "" ? search.token : undefined,
-  }),
   component: AcceptInvitationPage,
 });
 
@@ -39,7 +39,7 @@ export const Route = createFileRoute("/accept-invitation")({
 function AcceptInvitationPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { token } = Route.useSearch();
+  const [token] = useState(() => readTokenFromUrl());
   const acceptMutation = useResetPassword();
   const [apiError, setApiError] = useState<string | null>(null);
 

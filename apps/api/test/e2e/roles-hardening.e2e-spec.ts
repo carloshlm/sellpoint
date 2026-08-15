@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 const PASSWORD = "twelve-characters";
 
@@ -83,7 +84,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       .expect(201);
 
     const sentMail = mailer.sent.find((m) => m.to === email);
-    const token = new URL(sentMail?.vars.link ?? "", "http://localhost").searchParams.get("token");
+    const token = extractTokenFromLink(sentMail?.vars.link);
     await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
 
     const login = await request(app.getHttpServer())

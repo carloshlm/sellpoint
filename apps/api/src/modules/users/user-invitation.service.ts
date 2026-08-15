@@ -80,7 +80,8 @@ export class UserInvitationService {
       expiresAt: new Date(now.getTime() + INVITATION_TTL_MS),
     });
 
-    const link = `${this.appUrl}/accept-invitation?token=${token}`;
+    // D3 (#347): fragmento, no query string — ver auth.service.ts#registerTenant.
+    const link = `${this.appUrl}/accept-invitation#token=${token}`;
 
     this.mailer
       .send({
