@@ -164,6 +164,40 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
     expect(ttl).toBeLessThanOrEqual(INVITATION_TTL_MS + 60_000);
   });
 
+  // W5 (verify-report #357): la spec #348 pide "GIVEN el driver de mail de
+  // test/console activo, WHEN se invita a N personas, THEN el driver de
+  // test recibe N mensajes" — nadie probaba la frontera con N > 1. El único
+  // e2e existente (arriba) invita a UNA persona; el test del wizard en web
+  // mockea `POST /users` y nunca toca el driver de mail. Esta es la costura
+  // real: N invitaciones administrativas (mismo endpoint que usa el wizard,
+  // "Requirement: El paso 4 del wizard es un punto de entrada adicional")
+  // deben producir N mails `invite-user` DISTINTOS, uno por invitado.
+  it("W5: invitar a N personas (N=3) deja N mails invite-user en el driver de test, uno por invitado", async () => {
+    const owner = await registerActiveOwner();
+
+    const invitees = await Promise.all([
+      inviteUser(owner.accessToken),
+      inviteUser(owner.accessToken),
+      inviteUser(owner.accessToken),
+    ]);
+
+    expect(new Set(invitees.map((i) => i.email)).size).toBe(3);
+
+    const mailsForInvitees = invitees.map((invitee) => invitationMail(invitee.email));
+    for (const mail of mailsForInvitees) {
+      expect(mail).toBeDefined();
+      expect(mail?.template).toBe("invite-user");
+    }
+
+    // Cada invitado recibió SU PROPIO mail (mismo `to`), no uno compartido —
+    // y son 3 mensajes distintos en el driver, no el mismo contado 3 veces.
+    const uniqueLinks = new Set(mailsForInvitees.map((mail) => mail?.vars.link));
+    expect(uniqueLinks.size).toBe(3);
+
+    const totalInviteMailsSent = mailer.sent.filter((m) => m.template === "invite-user").length;
+    expect(totalInviteMailsSent).toBeGreaterThanOrEqual(3);
+  });
+
   it("el invitado canjea el token, queda ACTIVE con email verificado y puede loguear", async () => {
     const owner = await registerActiveOwner();
     const invitee = await inviteUser(owner.accessToken);
