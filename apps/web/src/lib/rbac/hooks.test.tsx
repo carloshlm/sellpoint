@@ -67,6 +67,18 @@ const USER: UserDetail = {
 
 const ROLE: RoleSummary = { id: "r1", name: "Cajero", permissionCodes: [], userCount: 0 };
 
+const DEMO_TENANT = {
+  id: "tenant-1",
+  name: "Acme",
+  legalName: null,
+  taxId: null,
+  address: null,
+  timezone: "America/Mexico_City",
+  currency: "MXN",
+  templateChoice: null,
+  onboarded: true,
+} as const;
+
 const PERMISSION_GROUPS: PermissionGroup[] = [
   { module: "users", permissions: [{ code: "users:read", description: null }] },
 ];
@@ -238,6 +250,7 @@ describe("re-sync de sesión (D3)", () => {
       firstName: "Ana",
       locale: "es",
       permissions: ["users:read"],
+      tenant: DEMO_TENANT,
     });
     const { Wrapper } = wrapper();
 
@@ -295,6 +308,7 @@ describe("re-sync de sesión (D3)", () => {
       firstName: "Ana",
       locale: "es",
       permissions: ["users:read"],
+      tenant: DEMO_TENANT,
     });
     const { promise, catchCalled } = trackedRejectedPromise();
     resyncSessionMock.mockReturnValueOnce(promise);
@@ -315,6 +329,7 @@ describe("re-sync de sesión (D3)", () => {
       firstName: "Otro",
       locale: "es",
       permissions: ["users:manage"],
+      tenant: DEMO_TENANT,
     });
     const { Wrapper } = wrapper();
 

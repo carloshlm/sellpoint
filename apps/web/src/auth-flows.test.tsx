@@ -50,12 +50,27 @@ const registerTenantMock = vi.mocked(registerTenant);
 const verifyEmailMock = vi.mocked(verifyEmail);
 const forgotPasswordMock = vi.mocked(forgotPassword);
 
+// F1-WEB-ONBOARD-01: tenant ya onboarded — estos flujos son de auth/perfil,
+// fuera del alcance del wizard; OnboardingGate no debe interceptarlos.
+const DEMO_TENANT = {
+  id: "tenant-1",
+  name: "Acme",
+  legalName: null,
+  taxId: null,
+  address: null,
+  timezone: "America/Mexico_City",
+  currency: "MXN",
+  templateChoice: null,
+  onboarded: true,
+} as const;
+
 const demoUser = {
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
   locale: "es" as const,
   permissions: ["products:read"],
+  tenant: DEMO_TENANT,
 };
 
 /**
@@ -722,6 +737,7 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     firstName: "Beto",
     locale: "es" as const,
     permissions: ["products:read"],
+    tenant: DEMO_TENANT,
   };
 
   beforeEach(() => {

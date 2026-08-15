@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuthStore } from "@/stores/auth.store";
@@ -12,9 +13,11 @@ export const Route = createFileRoute("/dashboard")({
 function DashboardPage() {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        <DashboardContent />
-      </AppLayout>
+      <OnboardingGate>
+        <AppLayout>
+          <DashboardContent />
+        </AppLayout>
+      </OnboardingGate>
     </ProtectedRoute>
   );
 }

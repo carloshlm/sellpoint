@@ -83,6 +83,17 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
       firstName: "Ana",
       locale: "es",
       permissions: [],
+      tenant: {
+        id: "tenant-1",
+        name: "Acme",
+        legalName: null,
+        taxId: null,
+        address: null,
+        timezone: "America/Mexico_City",
+        currency: "MXN",
+        templateChoice: null,
+        onboarded: true,
+      },
     });
   });
 
@@ -197,6 +208,17 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
       firstName: "Ana",
       locale: "es",
       permissions: [],
+      tenant: {
+        id: "tenant-1",
+        name: "Acme",
+        legalName: null,
+        taxId: null,
+        address: null,
+        timezone: "America/Mexico_City",
+        currency: "MXN",
+        templateChoice: null,
+        onboarded: true,
+      },
     });
   });
 

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -37,11 +38,13 @@ export const Route = createFileRoute("/system/users")({
 function SystemUsersPage() {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        <PermissionGate need="users:read">
-          <SystemUsersContent />
-        </PermissionGate>
-      </AppLayout>
+      <OnboardingGate>
+        <AppLayout>
+          <PermissionGate need="users:read">
+            <SystemUsersContent />
+          </PermissionGate>
+        </AppLayout>
+      </OnboardingGate>
     </ProtectedRoute>
   );
 }

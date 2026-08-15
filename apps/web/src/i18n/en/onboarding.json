@@ -1,0 +1,33 @@
+{
+  "wizard": {
+    "title": "Set up your business",
+    "stepLabel": "Step {{step}} of 4",
+    "comingSoon": "This step isn't available yet. Come back later."
+  },
+  "step1": {
+    "title": "Business details",
+    "subtitle": "Tell us about your business to finish setting it up.",
+    "legalName": "Legal name",
+    "taxId": "Tax ID",
+    "address": "Address",
+    "timezone": "Timezone",
+    "timezoneOptions": {
+      "America/Mexico_City": "Mexico City",
+      "America/Tijuana": "Tijuana",
+      "America/Monterrey": "Monterrey",
+      "America/Cancun": "Cancun",
+      "America/Bogota": "Bogota",
+      "America/Lima": "Lima",
+      "America/Santiago": "Santiago",
+      "America/Argentina/Buenos_Aires": "Buenos Aires"
+    },
+    "currency": "Operating currency",
+    "currencyOptions": {
+      "MXN": "Mexican peso (MXN)",
+      "USD": "US dollar (USD)"
+    },
+    "currencyWarning": "You won't be able to change the currency once you record your first transaction.",
+    "continue": "Continue",
+    "error": "We couldn't save your business details."
+  }
+}

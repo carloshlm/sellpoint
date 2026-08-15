@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ActiveSessions } from "@/components/profile/active-sessions";
@@ -20,9 +21,11 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   return (
     <ProtectedRoute>
-      <AppLayout>
-        <ProfileContent />
-      </AppLayout>
+      <OnboardingGate>
+        <AppLayout>
+          <ProfileContent />
+        </AppLayout>
+      </OnboardingGate>
     </ProtectedRoute>
   );
 }

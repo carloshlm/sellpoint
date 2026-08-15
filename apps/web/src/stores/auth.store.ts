@@ -1,8 +1,14 @@
 import { create } from "zustand";
+import type { TenantBlock } from "@/lib/tenant/api";
 
 /**
  * Usuario autenticado tal como lo devuelve `POST /auth/login` (LoginResult.user
  * del API). `permissions` alimenta el gating de UI por rol en fases siguientes.
+ *
+ * `tenant` (F1-WEB-ONBOARD-01, A1 del design): MISMO shape en `POST /auth/login`
+ * Y en `GET /me` — un solo punto de siembra para `OnboardingGate` y el wizard,
+ * sin importar si el store se llenó por login o por bootstrap/resync (ver
+ * discovery "El store de auth se llena por DOS emisores").
  */
 export interface AuthUser {
   id: string;
@@ -10,6 +16,7 @@ export interface AuthUser {
   firstName: string;
   locale: "es" | "en";
   permissions: string[];
+  tenant: TenantBlock;
 }
 
 interface AuthState {

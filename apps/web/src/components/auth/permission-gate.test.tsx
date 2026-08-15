@@ -17,7 +17,17 @@ function user(permissions: string[]): AuthUser {
     firstName: "Ana",
     locale: "es",
     permissions,
-    ...({} as Partial<AuthUser>),
+    tenant: {
+      id: "tenant-1",
+      name: "Acme",
+      legalName: null,
+      taxId: null,
+      address: null,
+      timezone: "America/Mexico_City",
+      currency: "MXN",
+      templateChoice: null,
+      onboarded: true,
+    },
   };
 }
 

@@ -4,12 +4,25 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { createQueryClient } from "./query-client";
 
+const DEMO_TENANT = {
+  id: "tenant-1",
+  name: "Acme",
+  legalName: null,
+  taxId: null,
+  address: null,
+  timezone: "America/Mexico_City",
+  currency: "MXN",
+  templateChoice: null,
+  onboarded: true,
+} as const;
+
 const ana: AuthUser = {
   id: "u-ana",
   email: "ana@acme.mx",
   firstName: "Ana",
   locale: "es",
   permissions: ["products:read"],
+  tenant: DEMO_TENANT,
 };
 
 const beto: AuthUser = {
@@ -18,6 +31,7 @@ const beto: AuthUser = {
   firstName: "Beto",
   locale: "es",
   permissions: ["products:read"],
+  tenant: DEMO_TENANT,
 };
 
 const CACHE_KEY = ["auth", "sessions"] as const;

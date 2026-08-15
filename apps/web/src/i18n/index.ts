@@ -4,19 +4,33 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 import enAuth from "./en/auth.json";
 import enCommon from "./en/common.json";
+import enOnboarding from "./en/onboarding.json";
 import enUsers from "./en/users.json";
 import enValidation from "./en/validation.json";
 import esAuth from "./es/auth.json";
 import esCommon from "./es/common.json";
+import esOnboarding from "./es/onboarding.json";
 import esUsers from "./es/users.json";
 import esValidation from "./es/validation.json";
 
 const resources = {
   es: {
-    translation: { common: esCommon, auth: esAuth, validation: esValidation, users: esUsers },
+    translation: {
+      common: esCommon,
+      auth: esAuth,
+      validation: esValidation,
+      users: esUsers,
+      onboarding: esOnboarding,
+    },
   },
   en: {
-    translation: { common: enCommon, auth: enAuth, validation: enValidation, users: enUsers },
+    translation: {
+      common: enCommon,
+      auth: enAuth,
+      validation: enValidation,
+      users: enUsers,
+      onboarding: enOnboarding,
+    },
   },
 };
 

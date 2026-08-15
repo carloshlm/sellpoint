@@ -20,6 +20,17 @@ const demoUser = {
   firstName: "Ana",
   locale: "es" as const,
   permissions: ["users:read"],
+  tenant: {
+    id: "tenant-1",
+    name: "Acme",
+    legalName: null,
+    taxId: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    onboarded: true,
+  },
 };
 
 describe("resyncSession", () => {
