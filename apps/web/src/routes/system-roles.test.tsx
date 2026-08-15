@@ -67,14 +67,20 @@ const PERMISSION_GROUPS: rbacApi.PermissionGroup[] = [
   },
 ];
 
-async function renderRoute(path: string) {
+// W2 (verify-report #341): `lng` opcional, mismo patrón que
+// `system-users.test.tsx` / `router.test.tsx`.
+async function renderRoute(path: string, lng?: "es" | "en") {
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();
+  const i18n = createI18n();
+  if (lng) {
+    await i18n.changeLanguage(lng);
+  }
   render(
-    <I18nextProvider i18n={createI18n()}>
+    <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={createQueryClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>
@@ -114,6 +120,19 @@ describe("/system/roles", () => {
     expect(screen.queryByRole("button", { name: "Guardar cambios" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nuevo rol" })).not.toBeInTheDocument();
+  });
+
+  // W2 (verify-report #341): el escenario "Cambio de idioma" tampoco tenía
+  // cobertura en /system/roles.
+  it("con lng: 'en': el título, la lista de roles y el editor se muestran en inglés", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
+    await renderRoute("/system/roles", "en");
+
+    expect(await screen.findByTestId("system-roles-title")).toHaveTextContent("Roles");
+    expect(screen.getByRole("button", { name: "New role" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cajero" }));
+    expect(await screen.findByRole("button", { name: "Save changes" })).toBeInTheDocument();
   });
 
   it("con roles:manage: togglear un permiso y guardar manda el SET COMPLETO por CÓDIGO, y dispara resync que refresca el store", async () => {

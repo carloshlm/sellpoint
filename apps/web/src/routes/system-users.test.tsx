@@ -107,14 +107,20 @@ const ROLES: rbacApi.RoleSummary[] = [
   { id: "r2", name: "Admin", permissionCodes: ["users:manage", "roles:manage"], userCount: 1 },
 ];
 
-async function renderRoute(path: string) {
+// W2 (verify-report #341): `lng` opcional — instancia hermética de i18n
+// (mismo patrón que `router.test.tsx`), sin depender de navigator.language.
+async function renderRoute(path: string, lng?: "es" | "en") {
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();
+  const i18n = createI18n();
+  if (lng) {
+    await i18n.changeLanguage(lng);
+  }
   render(
-    <I18nextProvider i18n={createI18n()}>
+    <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={createQueryClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>
@@ -199,6 +205,20 @@ describe("/system/users", () => {
 
     expect(await screen.findByText("Ana García")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Acciones" })).toBeInTheDocument();
+  });
+
+  // W2 (verify-report #341): el escenario "Cambio de idioma" del spec
+  // ("WHEN visita /system/users THEN todos los textos se muestran en
+  // inglés") no tenía NINGÚN test — nada guardaba la regresión si se
+  // agregaba una clave solo a es/users.json.
+  it("con lng: 'en': el título, las columnas y las acciones se muestran en inglés", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+    await renderRoute("/system/users", "en");
+
+    expect(await screen.findByTestId("system-users-title")).toHaveTextContent("Users");
+    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New user" })).toBeInTheDocument();
+    expect(screen.getByText("Ana García")).toBeInTheDocument();
   });
 
   // F1-WEB-USERS-02/03 (Batch 2): alta y edición de usuario.
