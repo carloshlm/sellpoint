@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SessionLoading } from "@/components/auth/session-loading";
 import { StepBusiness } from "@/components/onboarding/step-business";
@@ -16,15 +17,22 @@ import { primerPasoIncompleto } from "@/lib/tenant/steps";
 import { useAuthStore } from "@/stores/auth.store";
 
 interface OnboardingSearch {
-  step: 1 | 2 | 3 | 4;
+  // W1 (verify-report #357): `step` es OPCIONAL — ausente (entrada desde el
+  // gate, o `/onboarding` a secas) YA NO equivale a "pedí el paso 1". Ver
+  // `effectiveStep` en `OnboardingContent`: sin `step`, el paso por defecto
+  // es el DERIVADO del tenant (`primerPasoIncompleto`), no un fijo en 1.
+  step?: 1 | 2 | 3 | 4;
 }
 
-function clampStep(value: unknown): 1 | 2 | 3 | 4 {
+function clampStep(value: unknown): 1 | 2 | 3 | 4 | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
   const parsed = Number(value);
   if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 4) {
     return parsed as 1 | 2 | 3 | 4;
   }
-  return 1;
+  return undefined;
 }
 
 export const Route = createFileRoute("/onboarding")({
@@ -43,8 +51,38 @@ export const Route = createFileRoute("/onboarding")({
 function OnboardingPage() {
   return (
     <ProtectedRoute>
-      <OnboardingContent />
+      <OnboardingGateway />
     </ProtectedRoute>
+  );
+}
+
+/**
+ * C1 (verify-report #357): `ProtectedRoute` sola solo exige sesión, no
+ * permiso — cualquier usuario autenticado (Manager/Viewer de un tenant a
+ * medio configurar) podía escribir la URL y entrar al wizard entero, donde
+ * TODO botón termina en 403 sin mensaje útil (el backend SÍ gatea el PATCH,
+ * pero la ruta no lo evitaba). `PermissionGate` (mismo componente que
+ * `system.users.tsx`) corta acá con un panel explicando el motivo — nunca un
+ * redirect silencioso que esconda por qué el usuario rebotó (D2 del design).
+ *
+ * El chequeo `!tenant` (ventana de bootstrap, S6/#321: `accessToken && !user`
+ * — `ProtectedRoute` ya deja pasar con solo el token) va ANTES del
+ * `PermissionGate`: `usePermissions()` lee `user.permissions` del store, y
+ * sin `user` todavía `has()` devuelve `false` — meter el gate primero
+ * mostraría "Sin permiso" por un instante mientras el bootstrap resuelve,
+ * un falso negativo en vez de loading.
+ */
+function OnboardingGateway() {
+  const tenant = useAuthStore((state) => state.user?.tenant);
+
+  if (!tenant) {
+    return <SessionLoading />;
+  }
+
+  return (
+    <PermissionGate need="tenants:manage">
+      <OnboardingContent />
+    </PermissionGate>
   );
 }
 
@@ -53,6 +91,8 @@ function OnboardingPage() {
  * `validateSearch`. El paso EFECTIVO nunca es el pedido a ciegas —
  * `effectiveStep = min(stepPedido, primerPasoIncompleto(tenant))` — así que
  * escribir `?step=4` a mano no salta el negocio incompleto.
+ *
+ * `tenant` ya está garantizado no-nulo acá — lo resolvió `OnboardingGateway`.
  */
 function OnboardingContent() {
   const { t } = useTranslation();
@@ -63,12 +103,11 @@ function OnboardingContent() {
   const completeOnboardingMutation = useCompleteOnboarding();
   const { data: roles, isError: rolesError } = useRoles();
   const createUserMutation = useCreateUser();
-  const [inviteResults, setInviteResults] = React.useState<Record<number, InviteRowResult>>({});
+  // W3 (verify-report #357): por `field.id` de `useFieldArray`, NUNCA por
+  // posición del array — ver `components/onboarding/step-invites.tsx`.
+  const [inviteResults, setInviteResults] = React.useState<Record<string, InviteRowResult>>({});
   const [isProcessingInvites, setIsProcessingInvites] = React.useState(false);
 
-  // accessToken && !user (ventana de bootstrap, S6/#321): ProtectedRoute ya
-  // deja pasar con solo el token — acá todavía no hay tenant del que derivar
-  // nada. Mismo remedio que ProtectedRoute: loading, nunca un salto en falso.
   if (!tenant) {
     return <SessionLoading />;
   }
@@ -82,7 +121,12 @@ function OnboardingContent() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const effectiveStep = Math.min(step, primerPasoIncompleto(tenant)) as 1 | 2 | 3 | 4;
+  // W1 (verify-report #357): sin `step` en la URL (entrada desde el gate, o
+  // `/onboarding` a secas), el paso por defecto es el PISO derivado del
+  // tenant — no 1. Con `step` presente, sigue sin poder saltar el negocio
+  // incompleto (`min`).
+  const piso = primerPasoIncompleto(tenant);
+  const effectiveStep = (step === undefined ? piso : Math.min(step, piso)) as 1 | 2 | 3 | 4;
 
   function goToStep(next: 1 | 2 | 3 | 4) {
     navigate({ search: () => ({ step: next }) });
@@ -106,18 +150,14 @@ function OnboardingContent() {
     );
   }
 
-  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): el paso 3 no tiene
-  // formulario ni datos de almacén (F2, D2) — el ÚNICO PATCH que dispara es
-  // `warehouseStepSeen: true`, la señal server-side de que este paso ya se
-  // recorrió. Sin ella, `primerPasoIncompleto` seguiría devolviendo 3 y
-  // `effectiveStep` rebotaría al mismo paso, con o sin recarga.
+  // W4 (verify-report #357, revierte Deviation 6): el paso 3 no tiene
+  // formulario ni datos de almacén (F2, D2) y NO dispara ningún PATCH — el
+  // requirement original ("avanza al paso 4 sin llamada de escritura
+  // adicional", spec #348) se cumple derivando el piso puro
+  // (`primerPasoIncompleto`, lib/tenant/steps.ts): con negocio y plantilla
+  // completos el piso YA es 4, así que `goToStep(4)` alcanza solo.
   function handleWarehouseSubmit() {
-    updateTenantMutation.mutate(
-      { warehouseStepSeen: true },
-      {
-        onSuccess: () => goToStep(4),
-      },
-    );
+    goToStep(4);
   }
 
   /**
@@ -129,14 +169,15 @@ function OnboardingContent() {
    * éxito — una fila en error mantiene el wizard en el paso 4 para que el
    * usuario la corrija, sin bloquear a las que sí funcionaron.
    */
-  async function handleInvitesSubmit(rows: InviteRowValues[]) {
+  async function handleInvitesSubmit(rows: (InviteRowValues & { id: string })[]) {
     setIsProcessingInvites(true);
-    const pending = rows
-      .map((row, index) => ({ row, index }))
-      .filter(({ index }) => inviteResults[index]?.status !== "success");
+    // W3: filtra por `row.id` (field.id), no por índice — una fila ya
+    // exitosa NO se reenvía sin importar en qué posición quedó tras un
+    // remove().
+    const pending = rows.filter((row) => inviteResults[row.id]?.status !== "success");
 
     const outcomes = await Promise.allSettled(
-      pending.map(({ row }) =>
+      pending.map((row) =>
         createUserMutation.mutateAsync({
           email: row.email,
           firstName: row.firstName,
@@ -146,16 +187,16 @@ function OnboardingContent() {
       ),
     );
 
-    const nextResults: Record<number, InviteRowResult> = { ...inviteResults };
+    const nextResults: Record<string, InviteRowResult> = { ...inviteResults };
     outcomes.forEach((outcome, i) => {
       const pendingItem = pending[i];
       if (!pendingItem) return;
       if (outcome.status === "fulfilled") {
-        nextResults[pendingItem.index] = { status: "success" };
+        nextResults[pendingItem.id] = { status: "success" };
         return;
       }
       const error = outcome.reason as ApiError;
-      nextResults[pendingItem.index] = {
+      nextResults[pendingItem.id] = {
         status: "error",
         message: error?.statusCode === 0 ? t("common.errors.network") : error?.message,
       };
@@ -163,7 +204,7 @@ function OnboardingContent() {
     setInviteResults(nextResults);
     setIsProcessingInvites(false);
 
-    const allSucceeded = rows.every((_, index) => nextResults[index]?.status === "success");
+    const allSucceeded = rows.every((row) => nextResults[row.id]?.status === "success");
     if (allSucceeded) {
       finishOnboarding();
     }
@@ -216,16 +257,9 @@ function OnboardingContent() {
         />
       )}
       {effectiveStep === 3 && (
-        <StepWarehouse
-          key={effectiveStep}
-          isSubmitting={updateTenantMutation.isPending}
-          formError={
-            updateTenantMutation.isError
-              ? formErrorMessage(t, "onboarding.step3.error", updateTenantMutation.error)
-              : undefined
-          }
-          onSubmit={handleWarehouseSubmit}
-        />
+        // W4: sin PATCH, sin mutación que observar — "Continuar" navega
+        // sincrónico, nunca hay estado pendiente ni error que mostrar acá.
+        <StepWarehouse key={effectiveStep} isSubmitting={false} onSubmit={handleWarehouseSubmit} />
       )}
       {effectiveStep === 4 && (
         <StepInvites

@@ -24,10 +24,15 @@ interface StepInvitesProps {
   /**
    * F1-WEB-ONBOARD-04 (D5, design A6): un `POST /users` por fila
    * (`Promise.allSettled` en el container) — se reporta éxito/error por
-   * ÍNDICE de fila, sin bloquear a las demás. Las filas ya exitosas quedan
+   * fila, sin bloquear a las demás. Las filas ya exitosas quedan
    * deshabilitadas y NO se reenvían si el usuario reintenta.
+   *
+   * W3 (verify-report #357): indexado por `field.id` de `useFieldArray`
+   * (estable ante `remove`/`append`), NUNCA por posición del array — borrar
+   * una fila corre los índices y desplaza el resultado de la fila siguiente
+   * a la posición equivocada.
    */
-  rowResults?: Record<number, InviteRowResult>;
+  rowResults?: Record<string, InviteRowResult>;
   /**
    * F1-WEB-ONBOARD-05: error de `POST /tenants/me/complete-onboarding`
    * (network u otro 5xx) al cerrar el wizard desde "Enviar invitaciones" u
@@ -35,7 +40,8 @@ interface StepInvitesProps {
    * siguiente fallando.
    */
   finishError?: string;
-  onSubmit: (rows: InviteRowValues[]) => void;
+  /** W3: cada fila viaja con SU `field.id` — la clave estable de `rowResults`. */
+  onSubmit: (rows: (InviteRowValues & { id: string })[]) => void;
   /** D6 (#347): "Omitir" avanza SIN validar ni requerir filas completas. */
   onSkip: () => void;
 }
@@ -73,7 +79,17 @@ function StepInvites({
   });
   const { fields, append, remove } = useFieldArray({ control, name: "rows" });
 
-  const submit = handleSubmit((values) => onSubmit(values.rows));
+  // W3: `fields` y `values.rows` viajan en el MISMO orden (ambos derivan del
+  // mismo campo de array) — zipear por posición acá es seguro porque es
+  // instantáneo (no sobrevive a un remove/append entre medio); lo que NUNCA
+  // debe viajar por posición es el resultado GUARDADO en `rowResults`.
+  const submit = handleSubmit((values) => {
+    const rows = values.rows.flatMap((row, index) => {
+      const field = fields[index];
+      return field ? [{ id: field.id, ...row }] : [];
+    });
+    onSubmit(rows);
+  });
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4" data-testid="step-invites">
@@ -88,7 +104,7 @@ function StepInvites({
       )}
       <div className="flex flex-col gap-4">
         {fields.map((field, index) => {
-          const result = rowResults[index];
+          const result = rowResults[field.id];
           const rowDone = result?.status === "success";
           const rowErrors = errors.rows?.[index];
           return (
@@ -96,6 +112,7 @@ function StepInvites({
               key={field.id}
               className="flex flex-col gap-3 rounded-md border p-3"
               data-testid={`invite-row-${index}`}
+              data-field-id={field.id}
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <TextField

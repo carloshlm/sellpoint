@@ -50,13 +50,12 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
-    warehouseStepSeen: false,
     onboarded: false,
     ...overrides,
   };
 }
 
-function demoUser(tenant: AuthUser["tenant"]): AuthUser {
+function demoUser(tenant: AuthUser["tenant"], overrides: Partial<AuthUser> = {}): AuthUser {
   return {
     id: "u1",
     email: "ana@acme.mx",
@@ -64,6 +63,7 @@ function demoUser(tenant: AuthUser["tenant"]): AuthUser {
     locale: "es",
     permissions: ["tenants:manage"],
     tenant,
+    ...overrides,
   };
 }
 
@@ -108,6 +108,45 @@ describe("/onboarding", () => {
     expect(screen.getByLabelText("RFC / RUT")).toBeInTheDocument();
     expect(screen.getByLabelText("Dirección")).toBeInTheDocument();
     expect(screen.getByLabelText("Moneda operacional")).toBeInTheDocument();
+  });
+
+  // C1 (verify-report #357): la ruta SOLO tenía `ProtectedRoute` — cualquier
+  // usuario autenticado (con o sin `tenants:manage`) veía el wizard entero.
+  // `OnboardingGate` no cubre este caso a propósito (A2, no monta acá): la
+  // ruta misma debe cortar por permiso. Repro exacto del verify: un usuario
+  // con solo `products:read` entrando a mano a `/onboarding`.
+  it("C1: sin tenants:manage, /onboarding NO muestra el wizard — muestra el panel de permiso faltante", async () => {
+    useAuthStore
+      .getState()
+      .setAuth("jwt-demo", demoUser(tenantFixture(), { permissions: ["products:read"] }));
+
+    await renderRoute("/onboarding");
+
+    expect(await screen.findByText("No tenés permiso para ver esta sección.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+  });
+
+  // W1 (verify-report #357): entrar a /onboarding SIN `?step=` (el caso del
+  // `OnboardingGate`, que redirige sin pedir un paso puntual) debía aterrizar
+  // en el paso DERIVADO del tenant, no fijo en 1. Antes: `clampStep(undefined)`
+  // devolvía 1 y `effectiveStep = min(1, piso)` solo podía bajar, nunca subir
+  // — un tenant con el paso 1 ya completo volvía a ver el form del paso 1.
+  it("W1: entrar a /onboarding SIN ?step= retoma en el paso derivado del tenant (no fijo en 1)", async () => {
+    useAuthStore.getState().setAuth(
+      "jwt-demo",
+      demoUser(
+        tenantFixture({
+          legalName: "Acme SA de CV",
+          taxId: "ACM010101AAA",
+          address: "Av. Siempre Viva 123",
+        }),
+      ),
+    );
+
+    await renderRoute("/onboarding");
+
+    expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
   });
 
   // 01.19: recarga a mitad del wizard — pedir ?step=3 con el paso 1
@@ -168,6 +207,42 @@ describe("/onboarding", () => {
 
     expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
     expect(mockedGetMe).toHaveBeenCalledTimes(1);
+  });
+
+  // W2 (verify-report #357): el PATCH persistió del lado del server, pero el
+  // `.catch(() => {})` de `useUpdateMyTenant` (lib/tenant/hooks.ts) tragaba
+  // el fallo de `resyncSession()` — el store seguía con el tenant VIEJO, el
+  // wizard rebotaba al paso 1 sin un solo mensaje. Fix: mismo patrón que
+  // `useCompleteOnboarding` (no traga el error) — la mutación en sí queda en
+  // error y el form ya sabe pintarlo (`updateTenantMutation.isError`).
+  it("W2: si el PATCH persiste pero el resync de /me falla, se queda en el paso con un error visible (no rebota mudo)", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantFixture()));
+    const updatedTenant = tenantFixture({
+      legalName: "Acme SA de CV",
+      taxId: "ACM010101AAA",
+      address: "Av. Siempre Viva 123",
+    });
+    mockedTenantApi.updateMyTenant.mockResolvedValue(updatedTenant);
+    mockedGetMe.mockRejectedValue({
+      statusCode: 500,
+      message: "Internal error",
+      error: "Internal Server Error",
+    });
+
+    await renderRoute("/onboarding");
+    await screen.findByLabelText("Razón social");
+
+    await user.type(screen.getByLabelText("Razón social"), "Acme SA de CV");
+    await user.type(screen.getByLabelText("RFC / RUT"), "ACM010101AAA");
+    await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(
+      await screen.findByText("No pudimos guardar los datos del negocio."),
+    ).toBeInTheDocument();
+    // Se quedó en el paso 1 — NO avanzó con el store desactualizado.
+    expect(screen.getByLabelText("Razón social")).toBeInTheDocument();
   });
 
   it("sin sesión (accessToken && !user, ventana de bootstrap): muestra loading, no el form", async () => {
@@ -245,20 +320,19 @@ describe("/onboarding", () => {
     expect(mockedGetMe).toHaveBeenCalledTimes(1);
   });
 
-  // Nota de la tarea 01 (steps.ts): con `template_choice` persistido, la
-  // derivación debe reconocer el paso 2 completo y retomar en el 3 al
-  // recargar — YA NO saltar directo a 4. Mismo patrón que "recarga en
-  // ?step=3 con paso1 incompleto cae a 1" (01.19): se pide un paso por
-  // delante del piso server-derivado y el piso gana.
-  it("recarga en ?step=4 con negocio y plantilla completos (sin warehouseStepSeen): el piso server-derivado lo hace caer a 3", async () => {
+  // W4 (verify-report #357, revierte Deviation 6): con negocio y plantilla
+  // completos el piso YA es 4 — el paso 3 es un placeholder sin estado
+  // propio que retener, así que pedir `?step=4` directo (sin haber "visto"
+  // el paso 3) SÍ lo alcanza. Nada se pierde: el paso 3 no tiene datos.
+  it("recarga en ?step=4 con negocio y plantilla completos: entra directo al paso 4 (el piso ya es 4)", async () => {
     useAuthStore
       .getState()
       .setAuth("jwt-demo", demoUser(tenantWithBusinessDone({ templateChoice: "grocery" })));
 
     await renderRoute("/onboarding?step=4");
 
-    expect(await screen.findByTestId("step-warehouse")).toBeInTheDocument();
-    expect(screen.queryByRole("radio", { name: "Abarrotes" })).not.toBeInTheDocument();
+    expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
+    expect(screen.queryByTestId("step-warehouse")).not.toBeInTheDocument();
   });
 
   it("con lng: 'en', las plantillas del paso 2 se muestran en inglés", async () => {
@@ -287,55 +361,23 @@ describe("/onboarding", () => {
     expect(await screen.findByTestId("step-warehouse")).toBeInTheDocument();
   });
 
-  it("Continuar en el paso 3: llama PATCH /tenants/me con warehouseStepSeen y avanza al paso 4 SOLO en onSuccess", async () => {
+  // W4 (verify-report #357, revierte Deviation 6): "Continuar" en el paso 3
+  // avanza al paso 4 SIN llamada de escritura adicional — el requirement
+  // original del tablero, cumplido de nuevo (spec #348, paso 3: "avanza al
+  // paso 4 sin llamada de escritura adicional").
+  it("Continuar en el paso 3: avanza al paso 4 SIN llamar PATCH /tenants/me", async () => {
     const user = userEvent.setup();
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithTemplateDone()));
-    const updatedTenant = tenantWithTemplateDone({ warehouseStepSeen: true });
-    let resolvePatch: (value: tenantApi.TenantBlock) => void = () => {};
-    mockedTenantApi.updateMyTenant.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolvePatch = resolve;
-        }),
-    );
-    mockedGetMe.mockResolvedValue(demoUser(updatedTenant));
 
     await renderRoute("/onboarding?step=3");
     await screen.findByTestId("step-warehouse");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
-    await waitFor(() =>
-      expect(mockedTenantApi.updateMyTenant).toHaveBeenCalledWith(
-        { warehouseStepSeen: true },
-        expect.anything(),
-      ),
-    );
-    // Todavía no navegó: el PATCH sigue pendiente.
-    expect(screen.getByTestId("step-warehouse")).toBeInTheDocument();
-
-    resolvePatch(updatedTenant);
-
     // F1-WEB-ONBOARD-04: el paso 4 ya NO es el placeholder genérico — es
     // `StepInvites` (invitar usuarios, skippable).
     expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
-    expect(mockedGetMe).toHaveBeenCalledTimes(1);
-  });
-
-  // El punto delicado de esta tarea: sin `warehouseStepSeen` persistido, una
-  // recarga en `?step=4` cae de vuelta al paso 3 (test de arriba). CON la
-  // señal persistida, la recarga SÍ retoma en 4 — el paso se derivó del
-  // servidor, no de la URL pedida.
-  it("recarga en ?step=4 con warehouseStepSeen=true: el piso server-derivado permite el paso 4 (no cae a 3)", async () => {
-    useAuthStore
-      .getState()
-      .setAuth("jwt-demo", demoUser(tenantWithTemplateDone({ warehouseStepSeen: true })));
-
-    await renderRoute("/onboarding?step=4");
-
-    // F1-WEB-ONBOARD-04: el paso 4 ya NO es el placeholder genérico — es
-    // `StepInvites` (invitar usuarios, skippable).
-    expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
-    expect(screen.queryByTestId("step-warehouse")).not.toBeInTheDocument();
+    expect(mockedTenantApi.updateMyTenant).not.toHaveBeenCalled();
+    expect(mockedGetMe).not.toHaveBeenCalled();
   });
 
   // F1-WEB-ONBOARD-04, criterio del tablero: "invitaciones llegan". D5
@@ -344,10 +386,10 @@ describe("/onboarding", () => {
   // f1-invitations); acá solo se prueba que el wizard llama al endpoint
   // correcto por cada fila.
   function tenantReadyForInvites(overrides: Partial<AuthUser["tenant"]> = {}) {
-    return tenantWithTemplateDone({ warehouseStepSeen: true, ...overrides });
+    return tenantWithTemplateDone({ ...overrides });
   }
 
-  it("con warehouseStepSeen=true, renderiza el paso 4 (invitar usuarios) con una fila vacía", async () => {
+  it("con negocio y plantilla completos, renderiza el paso 4 (invitar usuarios) con una fila vacía", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
 
     await renderRoute("/onboarding?step=4");
@@ -459,6 +501,82 @@ describe("/onboarding", () => {
     // que el usuario corrija la fila fallida.
     expect(screen.getByTestId("step-invites")).toBeInTheDocument();
     expect(screen.queryByTestId("onboarding-coming-soon")).not.toBeInTheDocument();
+  });
+
+  // W3 (verify-report #357): `inviteResults` se indexaba por POSICIÓN del
+  // array. Repro exacto del verify: fila 0 (ana) falla con 409, fila 1
+  // (beto) tiene éxito; el usuario borra la fila fallida (única que puede
+  // borrarse — la exitosa está deshabilitada) y la fila restante (beto)
+  // hereda el índice 0, "robándose" el resultado de ana (su error) y
+  // perdiendo su propia marca de éxito. Al reenviar, `beto` se re-invita y
+  // en producción pega un 409 sobre alguien YA invitado. Fix: indexar por
+  // `field.id` de `useFieldArray` (estable ante `remove`/`append`).
+  it("W3: borrar la fila fallida NO corre el resultado de la fila exitosa a la fila equivocada", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantReadyForInvites()));
+    mockedRbacApi.createUser.mockImplementation(async (input) => {
+      if (input.email === "ana@acme.mx") {
+        return Promise.reject({
+          statusCode: 409,
+          message: "Ese correo ya está en uso.",
+          error: "Conflict",
+          code: "users.email_taken",
+        });
+      }
+      return {
+        id: `new-${input.email}`,
+        email: input.email,
+        firstName: input.firstName,
+        lastNamePaternal: input.lastNamePaternal,
+        lastNameMaternal: null,
+        status: "invited",
+        locale: "es",
+        roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
+      };
+    });
+    const onboardedTenant = tenantReadyForInvites({ onboarded: true });
+    mockedTenantApi.completeOnboarding.mockResolvedValue(onboardedTenant);
+    mockedGetMe.mockResolvedValue(demoUser(onboardedTenant));
+
+    await renderRoute("/onboarding?step=4");
+    await screen.findByTestId("step-invites");
+
+    await user.type(screen.getByLabelText("Email"), "ana@acme.mx");
+    await user.type(screen.getByLabelText("Nombre"), "Ana");
+    await user.type(screen.getByLabelText("Apellido paterno"), "García");
+    await user.selectOptions(screen.getByLabelText("Rol"), "Cajero");
+    await user.click(screen.getByRole("button", { name: "Agregar fila" }));
+    const secondRow = screen.getAllByTestId(/^invite-row-\d$/)[1];
+    if (!secondRow) throw new Error("se esperaba una segunda fila");
+    await user.type(within(secondRow).getByLabelText("Email"), "beto@acme.mx");
+    await user.type(within(secondRow).getByLabelText("Nombre"), "Beto");
+    await user.type(within(secondRow).getByLabelText("Apellido paterno"), "López");
+    await user.selectOptions(within(secondRow).getByLabelText("Rol"), "Admin");
+
+    await user.click(screen.getByRole("button", { name: "Enviar invitaciones" }));
+
+    expect(await screen.findByText("Ese correo ya está en uso.")).toBeInTheDocument();
+    expect(await within(secondRow).findByText("Invitación enviada.")).toBeInTheDocument();
+
+    // Borro la fila fallida (fila 0, ana) — es la única con el botón
+    // "Quitar fila" habilitado (la exitosa está deshabilitada).
+    const firstRow = screen.getByTestId("invite-row-0");
+    await user.click(within(firstRow).getByRole("button", { name: "Quitar fila" }));
+
+    // Queda 1 sola fila: la de beto. Debe conservar SU resultado (éxito),
+    // no el error de ana.
+    const remainingRow = screen.getByTestId("invite-row-0");
+    expect(within(remainingRow).getByLabelText("Email")).toHaveValue("beto@acme.mx");
+    expect(within(remainingRow).queryByText("Ese correo ya está en uso.")).not.toBeInTheDocument();
+    expect(within(remainingRow).getByText("Invitación enviada.")).toBeInTheDocument();
+
+    // Reenviar (con solo la fila de beto, ya exitosa) NO debe re-invitar a
+    // beto — todas las filas enviadas ya están en éxito, así que cierra el
+    // onboarding directo, sin una tercera llamada a createUser.
+    await user.click(screen.getByRole("button", { name: "Enviar invitaciones" }));
+
+    expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
+    expect(mockedRbacApi.createUser).toHaveBeenCalledTimes(2);
   });
 
   it("Omitir en el paso 4: cierra el onboarding sin llamar createUser y aterriza en /dashboard (D6, skippable)", async () => {

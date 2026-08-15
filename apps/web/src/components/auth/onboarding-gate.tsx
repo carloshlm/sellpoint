@@ -38,7 +38,12 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  return <Navigate to="/onboarding" search={{ step: 1 }} replace />;
+  // W1 (verify-report #357): SIN `step` — `/onboarding` deriva el paso
+  // efectivo del tenant (`primerPasoIncompleto`), no de un `step: 1` fijo
+  // impuesto acá. Forzarlo a 1 hacía que un tenant con pasos ya completos
+  // volviera a ver el form del paso 1 al recargar la página o volver días
+  // después.
+  return <Navigate to="/onboarding" replace />;
 }
 
 export { OnboardingGate };

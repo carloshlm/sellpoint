@@ -20,8 +20,9 @@ const ROLES: RoleSummary[] = [
 function renderStep(props: Partial<React.ComponentProps<typeof StepInvites>> = {}) {
   const onSubmit = vi.fn();
   const onSkip = vi.fn();
-  render(
-    <I18nextProvider i18n={createI18n()}>
+  const i18n = createI18n();
+  const { rerender: rerenderRaw } = render(
+    <I18nextProvider i18n={i18n}>
       <StepInvites
         roles={ROLES}
         isSubmitting={false}
@@ -31,11 +32,35 @@ function renderStep(props: Partial<React.ComponentProps<typeof StepInvites>> = {
       />
     </I18nextProvider>,
   );
-  return { onSubmit, onSkip };
+  // W3: re-renderiza el MISMO árbol montado (mismo fiber, mismo
+  // `useFieldArray` interno) con props nuevas — los `field.id` generados no
+  // se regeneran, a diferencia de un `render()` nuevo.
+  function rerender(nextProps: Partial<React.ComponentProps<typeof StepInvites>> = {}) {
+    rerenderRaw(
+      <I18nextProvider i18n={i18n}>
+        <StepInvites
+          roles={ROLES}
+          isSubmitting={false}
+          onSubmit={onSubmit}
+          onSkip={onSkip}
+          {...props}
+          {...nextProps}
+        />
+      </I18nextProvider>,
+    );
+  }
+  return { onSubmit, onSkip, rerender };
 }
 
 function row(index: number) {
   return screen.getByTestId(`invite-row-${index}`);
+}
+
+/** W3: el `field.id` real que `useFieldArray` le asignó a esta fila. */
+function fieldId(index: number): string {
+  const id = row(index).dataset.fieldId;
+  if (!id) throw new Error(`fila ${index} sin data-field-id`);
+  return id;
 }
 
 describe("StepInvites", () => {
@@ -77,7 +102,13 @@ describe("StepInvites", () => {
     await user.click(screen.getByRole("button", { name: "Enviar invitaciones" }));
 
     expect(onSubmit).toHaveBeenCalledWith([
-      { email: "ana@acme.mx", firstName: "Ana", lastNamePaternal: "García", roleId: "r1" },
+      {
+        id: fieldId(0),
+        email: "ana@acme.mx",
+        firstName: "Ana",
+        lastNamePaternal: "García",
+        roleId: "r1",
+      },
     ]);
   });
 
@@ -101,24 +132,63 @@ describe("StepInvites", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  // W3 (verify-report #357): `rowResults` se indexa por `field.id`, NUNCA
+  // por posición — se agrega la fila ANTES de rowResults para que el índice
+  // 1 exista, se leen los `field.id` reales, y se re-renderiza (mismo
+  // fiber) con `rowResults` construido con esos ids.
   it("muestra el resultado por fila: éxito en una, error en otra, sin bloquear ninguna", async () => {
     const user = userEvent.setup();
-    renderStep({
+    const { rerender } = renderStep();
+    await user.click(screen.getByRole("button", { name: "Agregar fila" }));
+    const id0 = fieldId(0);
+    const id1 = fieldId(1);
+
+    rerender({
       rowResults: {
-        0: { status: "success" },
-        1: { status: "error", message: "Ese correo ya está en uso." },
+        [id0]: { status: "success" },
+        [id1]: { status: "error", message: "Ese correo ya está en uso." },
       },
     });
-    await user.click(screen.getByRole("button", { name: "Agregar fila" }));
 
     expect(within(row(0)).getByText("Invitación enviada.")).toBeInTheDocument();
     expect(within(row(1)).getByRole("alert")).toHaveTextContent("Ese correo ya está en uso.");
   });
 
   it("una fila ya exitosa queda deshabilitada (no se reenvía al reintentar)", () => {
-    renderStep({ rowResults: { 0: { status: "success" } } });
+    const { rerender } = renderStep();
+    const id0 = fieldId(0);
+
+    rerender({ rowResults: { [id0]: { status: "success" } } });
 
     expect(within(row(0)).getByLabelText("Email")).toBeDisabled();
+  });
+
+  // W3: la fila fallida se borra, la exitosa hereda el índice 0 pero
+  // conserva SU resultado propio (no el de la fila borrada) porque el
+  // `field.id` de cada una nunca cambió.
+  it("W3: borrar una fila no corre el resultado de las filas restantes (indexado por field.id, no por posición)", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderStep();
+    await user.click(screen.getByRole("button", { name: "Agregar fila" }));
+    const failedId = fieldId(0);
+    const successId = fieldId(1);
+
+    rerender({
+      rowResults: {
+        [failedId]: { status: "error", message: "Ese correo ya está en uso." },
+        [successId]: { status: "success" },
+      },
+    });
+    expect(within(row(0)).getByRole("alert")).toHaveTextContent("Ese correo ya está en uso.");
+    expect(within(row(1)).getByText("Invitación enviada.")).toBeInTheDocument();
+
+    await user.click(within(row(0)).getByRole("button", { name: "Quitar fila" }));
+
+    // Queda 1 sola fila (la que era éxito) — debe seguir en éxito, no
+    // heredar el error de la fila borrada.
+    expect(screen.queryByTestId("invite-row-1")).not.toBeInTheDocument();
+    expect(within(row(0)).getByText("Invitación enviada.")).toBeInTheDocument();
+    expect(within(row(0)).queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("mientras isSubmitting, Enviar invitaciones queda deshabilitado", () => {

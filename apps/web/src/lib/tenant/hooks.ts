@@ -16,15 +16,27 @@ import {
  * seguiría viendo los datos viejos y el paso recién guardado se
  * re-mostraría (flash-back al paso anterior). Por eso `onSuccess` ES
  * async y SE ESPERA: React Query no resuelve `mutateAsync`/dispara el
- * `onSuccess` del call-site hasta que este termine. Con red de
- * seguridad (`.catch()`): si el resync falla, el PATCH ya se guardó del
- * lado del server — el usuario reintenta "Continuar" sin perder nada.
+ * `onSuccess` del call-site hasta que este termine.
+ *
+ * W2 (verify-report #357): NO se traga el error del resync con `.catch()`.
+ * El PATCH sí persistió, pero si `/me` falla acá el store queda MINTIENDO
+ * con el tenant viejo — dejar navegar igual (con el `.catch(() => {})`
+ * original) hacía que el call-site (`goToStep`) SÍ corriera con datos
+ * viejos: `effectiveStep` volvía a ver el piso anterior y el usuario
+ * rebotaba al paso de antes SIN un solo mensaje (`isError` seguía en
+ * `false` porque el PATCH, tomado aislado, tuvo éxito). Al no atrapar el
+ * error acá, React Query considera la MUTACIÓN completa en error (el
+ * `onSuccess` de nivel de hook lanzó) — el `onSuccess` del call-site
+ * (`goToStep`) nunca corre, y `updateTenantMutation.isError` sí queda en
+ * `true`, activando el mismo `formErrorMessage` que ya pinta cada paso.
+ * Mismo patrón que `useCompleteOnboarding` (abajo), que ya no tragaba este
+ * error y ya estaba testeado.
  */
 export function useUpdateMyTenant() {
   return useMutation<TenantBlock, ApiError, UpdateTenantInput>({
     mutationFn: updateMyTenant,
     onSuccess: async () => {
-      await resyncSession().catch(() => {});
+      await resyncSession();
     },
   });
 }
