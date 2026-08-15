@@ -14,21 +14,25 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  legalName String?  @map("legal_name")
-  taxId     String?  @map("tax_id")
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  legalName         String?  @map("legal_name")
+  taxId             String?  @map("tax_id")
   // F1-WEB-ONBOARD-01 (paso 1 del wizard): aditivos, nullable — un tenant
   // creado antes de esta migración sigue operando con ambos en NULL.
-  address        String? @map("address")
-  templateChoice String? @map("template_choice")
-  timezone  String   @default("America/Mexico_City")
+  address           String?  @map("address")
+  templateChoice    String?  @map("template_choice")
+  // F1-WEB-ONBOARD-03: NO es dato real de almacén (F2, D2) — es la única
+  // señal server-side de que el paso 3 (placeholder) del wizard ya se
+  // recorrió. NOT NULL con default: un tenant preexistente migra a `false`.
+  warehouseStepSeen Boolean  @default(false) @map("warehouse_step_seen")
+  timezone          String   @default("America/Mexico_City")
   // CHAR(3) con CHECK (currency IN ('MXN','USD')) — el CHECK vive en el SQL de
   // la migración porque Prisma no soporta constraints CHECK en el schema.
-  currency  String   @default("MXN") @db.Char(3)
-  onboarded Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  currency          String   @default("MXN") @db.Char(3)
+  onboarded         Boolean  @default(false)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   users                   User[]
   roles                   Role[]

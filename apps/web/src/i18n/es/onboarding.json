@@ -53,5 +53,11 @@
         "description": "Empezá desde cero y definí tu propio esquema."
       }
     }
+  },
+  "step3": {
+    "title": "Tu primer almacén",
+    "subtitle": "Lo vamos a configurar más adelante — por ahora seguí con la configuración inicial.",
+    "continue": "Continuar",
+    "error": "No pudimos avanzar. Probá de nuevo."
   }
 }

@@ -17,6 +17,7 @@ function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
+    warehouseStepSeen: false,
     onboarded: false,
     ...overrides,
   };
@@ -75,6 +76,24 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           address: "Av. Siempre Viva 123",
           templateChoice: "retail-basico",
           onboarded: true,
+        }),
+      ),
+    ).toBe(4);
+  });
+
+  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): `warehouseStepSeen` es
+  // la única señal server-side del paso 3 — sin ella, "retoma en 3" del test
+  // anterior sería el TECHO para siempre (ni Continuar en el paso 3 podría
+  // avanzar, con o sin recarga).
+  it("con negocio, plantilla y warehouseStepSeen=true: paso 4 (avanza, ya no retoma en 3)", () => {
+    expect(
+      primerPasoIncompleto(
+        tenant({
+          legalName: "Acme SA de CV",
+          taxId: "ACM010101AAA",
+          address: "Av. Siempre Viva 123",
+          templateChoice: "retail-basico",
+          warehouseStepSeen: true,
         }),
       ),
     ).toBe(4);

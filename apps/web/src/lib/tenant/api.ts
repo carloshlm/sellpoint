@@ -14,6 +14,13 @@ export interface TenantBlock {
   timezone: string;
   currency: string;
   templateChoice: string | null;
+  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): NO es dato real de
+  // almacén (esto sigue siendo F2, D2) — es la única señal server-side de
+  // que el paso 3 (placeholder) ya se recorrió. Sin esto, `primerPasoIncompleto`
+  // no tiene forma de distinguir "recién llegó al paso 3" de "ya lo pasó",
+  // así que `Continuar` en el paso 3 rebotaría al mismo paso (incluso sin
+  // recargar) en vez de avanzar al 4.
+  warehouseStepSeen: boolean;
   onboarded: boolean;
 }
 
@@ -21,7 +28,14 @@ export interface TenantBlock {
 export type UpdateTenantInput = Partial<
   Pick<
     TenantBlock,
-    "name" | "legalName" | "taxId" | "address" | "timezone" | "currency" | "templateChoice"
+    | "name"
+    | "legalName"
+    | "taxId"
+    | "address"
+    | "timezone"
+    | "currency"
+    | "templateChoice"
+    | "warehouseStepSeen"
   >
 >;
 

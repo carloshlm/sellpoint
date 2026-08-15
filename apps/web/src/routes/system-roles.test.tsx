@@ -55,6 +55,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
+    warehouseStepSeen: false,
     // Tests de F1-WEB-USERS: fuera del alcance de onboarding — el tenant ya
     // está onboarded para que OnboardingGate nunca intercepte estas rutas.
     onboarded: true,

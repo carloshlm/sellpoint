@@ -4,6 +4,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SessionLoading } from "@/components/auth/session-loading";
 import { StepBusiness } from "@/components/onboarding/step-business";
 import { StepTemplate, type TemplateChoice } from "@/components/onboarding/step-template";
+import { StepWarehouse } from "@/components/onboarding/step-warehouse";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
 import type { ApiError } from "@/lib/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
@@ -88,6 +89,20 @@ function OnboardingContent() {
     );
   }
 
+  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): el paso 3 no tiene
+  // formulario ni datos de almacén (F2, D2) — el ÚNICO PATCH que dispara es
+  // `warehouseStepSeen: true`, la señal server-side de que este paso ya se
+  // recorrió. Sin ella, `primerPasoIncompleto` seguiría devolviendo 3 y
+  // `effectiveStep` rebotaría al mismo paso, con o sin recarga.
+  function handleWarehouseSubmit() {
+    updateTenantMutation.mutate(
+      { warehouseStepSeen: true },
+      {
+        onSuccess: () => goToStep(4),
+      },
+    );
+  }
+
   return (
     <WizardShell step={effectiveStep}>
       {effectiveStep === 1 && (
@@ -116,7 +131,19 @@ function OnboardingContent() {
           onSubmit={handleTemplateSubmit}
         />
       )}
-      {effectiveStep > 2 && (
+      {effectiveStep === 3 && (
+        <StepWarehouse
+          key={effectiveStep}
+          isSubmitting={updateTenantMutation.isPending}
+          formError={
+            updateTenantMutation.isError
+              ? formErrorMessage(t, "onboarding.step3.error", updateTenantMutation.error)
+              : undefined
+          }
+          onSubmit={handleWarehouseSubmit}
+        />
+      )}
+      {effectiveStep > 3 && (
         <p className="text-sm text-muted-foreground" data-testid="onboarding-coming-soon">
           {t("onboarding.wizard.comingSoon")}
         </p>

@@ -40,6 +40,7 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
+    warehouseStepSeen: false,
     onboarded: false,
     ...overrides,
   };
@@ -224,24 +225,23 @@ describe("/onboarding", () => {
 
     resolvePatch(updatedTenant);
 
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(await screen.findByTestId("step-warehouse")).toBeInTheDocument();
     expect(mockedGetMe).toHaveBeenCalledTimes(1);
   });
 
   // Nota de la tarea 01 (steps.ts): con `template_choice` persistido, la
   // derivación debe reconocer el paso 2 completo y retomar en el 3 al
-  // recargar — YA NO saltar directo a 4 (F1-WEB-ONBOARD-03 aún no existe).
-  // Mismo patrón que "recarga en ?step=3 con paso1 incompleto cae a 1"
-  // (01.19): se pide un paso por delante del piso server-derivado y el piso
-  // gana.
-  it("recarga en ?step=4 con negocio y plantilla completos: el piso server-derivado lo hace caer a 3", async () => {
+  // recargar — YA NO saltar directo a 4. Mismo patrón que "recarga en
+  // ?step=3 con paso1 incompleto cae a 1" (01.19): se pide un paso por
+  // delante del piso server-derivado y el piso gana.
+  it("recarga en ?step=4 con negocio y plantilla completos (sin warehouseStepSeen): el piso server-derivado lo hace caer a 3", async () => {
     useAuthStore
       .getState()
       .setAuth("jwt-demo", demoUser(tenantWithBusinessDone({ templateChoice: "grocery" })));
 
     await renderRoute("/onboarding?step=4");
 
-    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(await screen.findByTestId("step-warehouse")).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "Abarrotes" })).not.toBeInTheDocument();
   });
 
@@ -254,5 +254,76 @@ describe("/onboarding", () => {
     expect(screen.getByRole("radio", { name: "Hardware store" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Grocery" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Custom" })).toBeInTheDocument();
+  });
+
+  // F1-WEB-ONBOARD-03, criterio del tablero: "continuar funciona" — placeholder
+  // informativo del primer almacén (el CRUD real es F2, D2). Mismo patrón que
+  // el paso 2.
+  function tenantWithTemplateDone(overrides: Partial<AuthUser["tenant"]> = {}) {
+    return tenantWithBusinessDone({ templateChoice: "pharmacy", ...overrides });
+  }
+
+  it("con negocio y plantilla completos, renderiza el paso 3 (placeholder de almacén)", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithTemplateDone()));
+
+    await renderRoute("/onboarding?step=3");
+
+    expect(await screen.findByTestId("step-warehouse")).toBeInTheDocument();
+  });
+
+  it("Continuar en el paso 3: llama PATCH /tenants/me con warehouseStepSeen y avanza al paso 4 SOLO en onSuccess", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithTemplateDone()));
+    const updatedTenant = tenantWithTemplateDone({ warehouseStepSeen: true });
+    let resolvePatch: (value: tenantApi.TenantBlock) => void = () => {};
+    mockedTenantApi.updateMyTenant.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePatch = resolve;
+        }),
+    );
+    mockedGetMe.mockResolvedValue(demoUser(updatedTenant));
+
+    await renderRoute("/onboarding?step=3");
+    await screen.findByTestId("step-warehouse");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await waitFor(() =>
+      expect(mockedTenantApi.updateMyTenant).toHaveBeenCalledWith(
+        { warehouseStepSeen: true },
+        expect.anything(),
+      ),
+    );
+    // Todavía no navegó: el PATCH sigue pendiente.
+    expect(screen.getByTestId("step-warehouse")).toBeInTheDocument();
+
+    resolvePatch(updatedTenant);
+
+    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(mockedGetMe).toHaveBeenCalledTimes(1);
+  });
+
+  // El punto delicado de esta tarea: sin `warehouseStepSeen` persistido, una
+  // recarga en `?step=4` cae de vuelta al paso 3 (test de arriba). CON la
+  // señal persistida, la recarga SÍ retoma en 4 — el paso se derivó del
+  // servidor, no de la URL pedida.
+  it("recarga en ?step=4 con warehouseStepSeen=true: el piso server-derivado permite el paso 4 (no cae a 3)", async () => {
+    useAuthStore
+      .getState()
+      .setAuth("jwt-demo", demoUser(tenantWithTemplateDone({ warehouseStepSeen: true })));
+
+    await renderRoute("/onboarding?step=4");
+
+    expect(await screen.findByTestId("onboarding-coming-soon")).toBeInTheDocument();
+    expect(screen.queryByTestId("step-warehouse")).not.toBeInTheDocument();
+  });
+
+  it("con lng: 'en', el paso 3 se muestra en inglés", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithTemplateDone()));
+
+    await renderRoute("/onboarding?step=3", "en");
+
+    expect(await screen.findByText("Your first warehouse")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
   });
 });

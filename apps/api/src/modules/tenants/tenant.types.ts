@@ -15,6 +15,10 @@ export interface TenantBlock {
   timezone: string;
   currency: string;
   templateChoice: string | null;
+  // F1-WEB-ONBOARD-03 (apply-progress Deviation 6): NO es dato real de
+  // almacén (F2, D2) — es la única señal server-side de que el paso 3
+  // (placeholder) del wizard ya se recorrió. Ver `lib/tenant/steps.ts` (web).
+  warehouseStepSeen: boolean;
   onboarded: boolean;
 }
 
@@ -28,6 +32,7 @@ export const TENANT_SELECT = {
   timezone: true,
   currency: true,
   templateChoice: true,
+  warehouseStepSeen: true,
   onboarded: true,
 } as const;
 
@@ -40,6 +45,7 @@ export type TenantRow = {
   timezone: string;
   currency: string;
   templateChoice: string | null;
+  warehouseStepSeen: boolean;
   onboarded: boolean;
 };
 
@@ -54,6 +60,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     timezone: row.timezone,
     currency: row.currency,
     templateChoice: row.templateChoice,
+    warehouseStepSeen: row.warehouseStepSeen,
     onboarded: row.onboarded,
   };
 }

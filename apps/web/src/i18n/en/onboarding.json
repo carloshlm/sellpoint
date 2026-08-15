@@ -53,5 +53,11 @@
         "description": "Start from scratch and define your own schema."
       }
     }
+  },
+  "step3": {
+    "title": "Your first warehouse",
+    "subtitle": "We'll set this up later — for now, continue with the initial setup.",
+    "continue": "Continue",
+    "error": "We couldn't move forward. Please try again."
   }
 }

@@ -26,6 +26,7 @@ function user(permissions: string[]): AuthUser {
       timezone: "America/Mexico_City",
       currency: "MXN",
       templateChoice: null,
+      warehouseStepSeen: false,
       onboarded: true,
     },
   };

@@ -15,6 +15,9 @@ export const updateTenantSchema = z
     timezone: z.string().trim().min(1).optional(),
     currency: z.enum(SUPPORTED_CURRENCIES).optional(),
     templateChoice: z.string().trim().min(1).optional(),
+    // F1-WEB-ONBOARD-03: señal de progreso del paso 3 (placeholder de
+    // almacén), NO dato real de almacén — ver tenant.types.ts.
+    warehouseStepSeen: z.boolean().optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "tenants.invalid_body",
