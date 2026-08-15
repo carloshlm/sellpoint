@@ -87,6 +87,11 @@ beforeEach(() => {
   mockedApi.listUsers.mockResolvedValue([USER]);
   mockedApi.listRoles.mockResolvedValue([ROLE]);
   mockedApi.listPermissions.mockResolvedValue(PERMISSION_GROUPS);
+  // W5 (verify-report #341): `resyncSession()` real SIEMPRE devuelve una
+  // Promise (es `async function`) — el fix agrega `.catch()` sobre ese
+  // valor. Sin un default acá, `vi.fn()` devuelve `undefined` y `.catch()`
+  // explota sincrónicamente dentro del `onSuccess` de la mutación.
+  resyncSessionMock.mockResolvedValue(undefined);
 });
 
 describe("query keys", () => {
@@ -241,6 +246,63 @@ describe("re-sync de sesión (D3)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(resyncSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  // W5 (verify-report #341): `void resyncSession()` sin `.catch()` en
+  // useUpdateRole/useUpdateUser deja una promesa sin dueño si getMe()
+  // rechaza (red caída, refresh fallido) — unhandled promise rejection en
+  // producción. La mutación en sí debe seguir resolviendo en éxito.
+  // Test de caja blanca deliberado: en vez de depender del timing del
+  // event loop de Node para un `unhandledRejection` (frágil bajo vitest),
+  // verificamos DIRECTAMENTE que el hook ata un `.catch()` a la promesa de
+  // `resyncSession()` — que es, literalmente, el fix de W5. Un mock que
+  // registra si se le llamó `.catch()` deja sin dueño CUALQUIER rechazo si
+  // el código de producción vuelve a hacer `void resyncSession()` a secas.
+  function trackedRejectedPromise(): { promise: Promise<void>; catchCalled: () => boolean } {
+    let catchCalled = false;
+    // Instancia REAL de Promise (evita un objeto-thenable ad hoc): solo
+    // sobreescribimos `.catch` en la instancia para detectar si el código
+    // de producción la llama, sin dejar de ser una Promise legítima.
+    const promise = Promise.reject(new Error("network down"));
+    const originalCatch = promise.catch.bind(promise);
+    promise.catch = (onRejected?: ((reason: unknown) => unknown) | null) => {
+      catchCalled = true;
+      return originalCatch(onRejected);
+    };
+    return { promise, catchCalled: () => catchCalled };
+  }
+
+  it("useUpdateRole ata un .catch() a resyncSession() — W5, no deja la promesa sin dueño si getMe() falla", async () => {
+    mockedApi.updateRole.mockResolvedValue(ROLE);
+    const { promise, catchCalled } = trackedRejectedPromise();
+    resyncSessionMock.mockReturnValueOnce(promise);
+    const { Wrapper } = wrapper();
+
+    const { result } = renderHook(() => useUpdateRole(), { wrapper: Wrapper });
+    result.current.mutate({ id: "r1", input: { permissionCodes: ["users:read"] } });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(catchCalled()).toBe(true));
+  });
+
+  it("useUpdateUser (self-edit) ata un .catch() a resyncSession() — W5", async () => {
+    mockedApi.updateUser.mockResolvedValue(USER);
+    useAuthStore.getState().setAuth("jwt-demo", {
+      id: "u1",
+      email: "ana@acme.mx",
+      firstName: "Ana",
+      locale: "es",
+      permissions: ["users:read"],
+    });
+    const { promise, catchCalled } = trackedRejectedPromise();
+    resyncSessionMock.mockReturnValueOnce(promise);
+    const { Wrapper } = wrapper();
+
+    const { result } = renderHook(() => useUpdateUser(), { wrapper: Wrapper });
+    result.current.mutate({ id: "u1", input: { firstName: "Ana2" } });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(catchCalled()).toBe(true));
   });
 
   it("useUpdateUser NO llama resyncSession cuando el target editado es OTRO usuario", async () => {

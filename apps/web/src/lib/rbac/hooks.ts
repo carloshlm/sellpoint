@@ -84,7 +84,13 @@ export function useUpdateUser() {
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
       if (variables.id === actorId) {
-        void resyncSession();
+        // W5 (verify-report #341): sin `.catch()`, un `getMe()` fallido acá
+        // (red caída, refresh de token revocado) queda como unhandled
+        // promise rejection. La mutación de `updateUser` ya tuvo éxito —
+        // degradamos con gracia: el store simplemente queda con los
+        // permisos viejos hasta el próximo resync exitoso (nav/gates lo
+        // intentan de nuevo en la siguiente mutación de roles).
+        void resyncSession().catch(() => {});
       }
     },
   });
@@ -142,7 +148,9 @@ export function useUpdateRole() {
     mutationFn: ({ id, input }) => updateRole(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ROLES_QUERY_KEY });
-      void resyncSession();
+      // W5 (verify-report #341): mismo fix que `useUpdateUser` — sin
+      // `.catch()`, un `getMe()` fallido queda como unhandled rejection.
+      void resyncSession().catch(() => {});
     },
   });
 }
