@@ -263,12 +263,14 @@ describe("re-sync de sesión (D3)", () => {
     // Instancia REAL de Promise (evita un objeto-thenable ad hoc): solo
     // sobreescribimos `.catch` en la instancia para detectar si el código
     // de producción la llama, sin dejar de ser una Promise legítima.
-    const promise = Promise.reject(new Error("network down"));
+    const promise = Promise.reject<void>(new Error("network down"));
     const originalCatch = promise.catch.bind(promise);
-    promise.catch = (onRejected?: ((reason: unknown) => unknown) | null) => {
+    promise.catch = (<TResult = never>(
+      onRejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null,
+    ) => {
       catchCalled = true;
       return originalCatch(onRejected);
-    };
+    }) as typeof promise.catch;
     return { promise, catchCalled: () => catchCalled };
   }
 
