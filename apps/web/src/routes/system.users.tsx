@@ -140,6 +140,9 @@ function SystemUsersContent() {
       {
         onSuccess: () => {
           setFormState(null);
+          // W3 (verify-report #341): editar un usuario no daba feedback de
+          // éxito — mismo patrón que la alta (`confirmation`).
+          setConfirmation(t("users.form.editSuccess"));
         },
         onError: handleApiError,
       },

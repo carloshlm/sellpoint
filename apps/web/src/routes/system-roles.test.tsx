@@ -205,9 +205,12 @@ describe("/system/roles", () => {
       ),
     );
     expect(await screen.findByRole("button", { name: "Soporte" })).toBeInTheDocument();
+    // W3 (verify-report #341): crear un rol no daba feedback de éxito —
+    // clave `users.roles.form.createSuccess` existía en es/en, 0 usos.
+    expect(await screen.findByText("Se creó el rol Soporte.")).toBeInTheDocument();
   });
 
-  it("eliminar rol sin usuarios asignados: confirma y llama deleteRole", async () => {
+  it("eliminar rol sin usuarios asignados: confirma y llama deleteRole, y muestra el feedback de éxito", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
@@ -223,6 +226,9 @@ describe("/system/roles", () => {
 
     expect(confirmSpy).toHaveBeenCalled();
     await waitFor(() => expect(mockedApi.deleteRole).toHaveBeenCalledWith("r2", expect.anything()));
+    // W3 (verify-report #341): eliminar un rol no daba feedback de éxito —
+    // clave `users.roles.deleteSuccess` existía en es/en, 0 usos.
+    expect(await screen.findByText("Se eliminó el rol Sin uso.")).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 

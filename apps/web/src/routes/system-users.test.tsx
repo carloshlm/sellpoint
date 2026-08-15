@@ -337,6 +337,11 @@ describe("/system/users", () => {
         }),
       );
       expect(await screen.findByText("Ana García Nueva")).toBeInTheDocument();
+      // W3 (verify-report #341): editar un usuario no daba NINGÚN feedback de
+      // éxito, a diferencia de la alta ("Se invitó a...") y del guardado de
+      // permisos (`roles.editor.saveSuccess`) — clave `users.form.editSuccess`
+      // existía en es/en pero con 0 usos en código.
+      expect(await screen.findByText("Los cambios se guardaron.")).toBeInTheDocument();
     });
 
     // C1 (verify-report #341): editar Ana y, SIN cerrar el form, editar Beto

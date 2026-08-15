@@ -63,7 +63,9 @@ function SystemRolesContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null);
 
   const selectedRole = roles?.find((role) => role.id === selectedRoleId) ?? null;
 
@@ -71,7 +73,9 @@ function SystemRolesContent() {
     setSaveError(null);
     setSaveSuccess(null);
     setDeleteError(null);
+    setDeleteSuccess(null);
     setCreateError(null);
+    setCreateSuccess(null);
   }
 
   function handleSelect(roleId: string) {
@@ -129,6 +133,9 @@ function SystemRolesContent() {
           setSelectedRoleId(null);
           setSelected(new Set());
         }
+        // W3 (verify-report #341): eliminar un rol no daba feedback de
+        // éxito — misma clave i18n que ya existía, 0 usos.
+        setDeleteSuccess(t("users.roles.deleteSuccess", { name: role.name }));
       },
       onError: (error) => setDeleteError(apiErrorMessage(error)),
     });
@@ -154,6 +161,9 @@ function SystemRolesContent() {
           setCreating(false);
           setSelectedRoleId(role.id);
           setSelected(new Set(role.permissionCodes));
+          // W3 (verify-report #341): crear un rol no daba feedback de éxito —
+          // misma clave i18n que ya existía, 0 usos.
+          setCreateSuccess(t("users.roles.form.createSuccess", { name: role.name }));
         },
         onError: (error) => setCreateError(apiErrorMessage(error)),
       },
@@ -172,6 +182,11 @@ function SystemRolesContent() {
       {deleteError && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {deleteError}
+        </p>
+      )}
+      {deleteSuccess && (
+        <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-sm text-success">
+          {deleteSuccess}
         </p>
       )}
 
@@ -217,6 +232,14 @@ function SystemRolesContent() {
                   className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
                 >
                   {saveSuccess}
+                </p>
+              )}
+              {createSuccess && (
+                <p
+                  role="status"
+                  className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
+                >
+                  {createSuccess}
                 </p>
               )}
               <PermissionChecklist
