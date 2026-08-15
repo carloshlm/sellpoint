@@ -317,6 +317,50 @@ describe("/system/users", () => {
       expect(await screen.findByText("Ana García Nueva")).toBeInTheDocument();
     });
 
+    // C1 (verify-report #341): editar Ana y, SIN cerrar el form, editar Beto
+    // — el form debe re-inicializarse con los datos de Beto (no seguir
+    // mostrando los de Ana) y el PATCH debe llevar los datos y roleIds de
+    // Beto, nunca los de Ana.
+    it("con users:manage: editar Ana y luego Beto SIN cerrar el form muestra los datos de Beto y el PATCH lleva los datos de Beto (C1)", async () => {
+      const user = userEvent.setup();
+      useAuthStore
+        .getState()
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+      const [, beto] = USERS;
+      if (!beto) throw new Error("fixture USERS debe tener al menos 2 elementos");
+      const updatedBeto: rbacApi.UserDetail = { ...beto, lastNamePaternal: "López Nuevo" };
+      mockedApi.updateUser.mockResolvedValue(updatedBeto);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+      expect(await screen.findByLabelText("Nombre")).toHaveValue("Ana");
+
+      // SIN cerrar el form: abrir "Editar" en la fila de Beto (u2).
+      await user.click(within(rows[2] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+
+      const firstNameInput = await screen.findByLabelText("Nombre");
+      await waitFor(() => expect(firstNameInput).toHaveValue("Beto"));
+      expect(screen.getByLabelText("Apellido paterno")).toHaveValue("López");
+
+      await user.clear(screen.getByLabelText("Apellido paterno"));
+      await user.type(screen.getByLabelText("Apellido paterno"), "López Nuevo");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() =>
+        expect(mockedApi.updateUser).toHaveBeenCalledWith("u2", {
+          firstName: "Beto",
+          lastNamePaternal: "López Nuevo",
+          locale: "es",
+          roleIds: ["r2"],
+        }),
+      );
+    });
+
     // F1-WEB-USERS-05 (WU6, D3): gap dejado abierto en el batch 2 — editar el
     // PROPIO usuario (no solo el propio ROL desde /system/roles) también debe
     // re-sincronizar la sesión, porque `roleIds` viaja en `PATCH /users/:id`.

@@ -254,6 +254,13 @@ function SystemUsersContent() {
       )}
       {formState && canManage && (
         <UserForm
+          // C1 (verify-report #341): sin `key`, React reconcilia la MISMA
+          // instancia del form al cambiar de fila (Ana → Beto sin cerrar) y
+          // react-hook-form ignora el cambio de `defaultValues` — el PATCH
+          // termina llevando los datos y roleIds del usuario ANTERIOR. La
+          // `key` fuerza un remount (y por lo tanto un `useForm` nuevo) cada
+          // vez que cambia el modo o el usuario editado.
+          key={formState.mode === "edit" ? formState.user.id : "create"}
           mode={formState.mode}
           user={formState.mode === "edit" ? formState.user : undefined}
           roles={roles ?? []}
