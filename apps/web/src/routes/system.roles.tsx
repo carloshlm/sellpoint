@@ -168,6 +168,12 @@ function SystemRolesContent() {
           setCreating(false);
           setSelectedRoleId(role.id);
           setSelected(new Set(role.permissionCodes));
+          // W6 (verify-report pasada 2, introducido por S2): misma clase de
+          // bug que C1 — el editor pasa a mostrar el rol RECIÉN CREADO, así
+          // que `nameDraft` tiene que resembrarse acá también, no solo en
+          // `handleSelect`. Sin esto, `handleSave` mandaba el nombre del
+          // rol seleccionado ANTES de crear (o vacío si no había ninguno).
+          setNameDraft(role.name);
           // W3 (verify-report #341): crear un rol no daba feedback de éxito —
           // misma clave i18n que ya existía, 0 usos.
           setCreateSuccess(t("users.roles.form.createSuccess", { name: role.name }));

@@ -242,6 +242,83 @@ describe("/system/roles", () => {
     expect(await screen.findByText("Se creó el rol Soporte.")).toBeInTheDocument();
   });
 
+  // W6 (verify-report pasada 2, introducido por el fix de S2): misma clase de
+  // bug que C1 — `nameDraft` (el draft del editor, S2) no se resiembra al
+  // crear un rol. `handleCreateSubmit` resiembra `selected` pero no
+  // `nameDraft`, y `handleSave` SIEMPRE manda `name: nameDraft.trim()`.
+  // Repro 1: estado limpio (sin selección previa) → crear "Soporte" → el
+  // campo nombre debe quedar en "Soporte" (no vacío, no bloquea Guardar).
+  it("crear un rol desde estado LIMPIO: el editor queda con el nombre del rol recién creado (W6)", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
+    const newRole: rbacApi.RoleSummary = {
+      id: "r3",
+      name: "Soporte",
+      permissionCodes: [],
+      userCount: 0,
+    };
+    mockedApi.listRoles.mockResolvedValueOnce(ROLES).mockResolvedValueOnce([...ROLES, newRole]);
+    mockedApi.createRole.mockResolvedValue(newRole);
+    mockedApi.updateRole.mockResolvedValue(newRole);
+
+    await renderRoute("/system/roles");
+    await screen.findByRole("button", { name: /^Cajero/ });
+    await user.click(screen.getByRole("button", { name: "Nuevo rol" }));
+    await user.type(screen.getByLabelText("Nombre del rol"), "Soporte");
+    await user.click(screen.getByRole("button", { name: "Crear rol" }));
+    await screen.findByRole("button", { name: /^Soporte/ });
+
+    const nameInput = await screen.findByLabelText("Nombre del rol");
+    expect(nameInput).toHaveValue("Soporte");
+    expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() =>
+      expect(mockedApi.updateRole).toHaveBeenCalledWith("r3", {
+        name: "Soporte",
+        permissionCodes: [],
+      }),
+    );
+  });
+
+  // Repro 2: seleccionar "Cajero" primero, crear "Soporte" SIN cerrar el
+  // editor previo — el nombre no debe arrastrar el de Cajero (409
+  // roles.name_taken en el backend por el unique [tenantId, name]).
+  it("crear un rol con OTRO rol seleccionado antes: el editor NO arrastra el nombre del rol anterior (W6)", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
+    const newRole: rbacApi.RoleSummary = {
+      id: "r3",
+      name: "Soporte",
+      permissionCodes: [],
+      userCount: 0,
+    };
+    mockedApi.listRoles.mockResolvedValueOnce(ROLES).mockResolvedValueOnce([...ROLES, newRole]);
+    mockedApi.createRole.mockResolvedValue(newRole);
+    mockedApi.updateRole.mockResolvedValue(newRole);
+
+    await renderRoute("/system/roles");
+    await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
+    expect(await screen.findByLabelText("Nombre del rol")).toHaveValue("Cajero");
+
+    await user.click(screen.getByRole("button", { name: "Nuevo rol" }));
+    await user.type(screen.getByLabelText("Nombre del rol"), "Soporte");
+    await user.click(screen.getByRole("button", { name: "Crear rol" }));
+    await screen.findByRole("button", { name: /^Soporte/ });
+
+    const nameInput = await screen.findByLabelText("Nombre del rol");
+    expect(nameInput).toHaveValue("Soporte");
+    expect(nameInput).not.toHaveValue("Cajero");
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() =>
+      expect(mockedApi.updateRole).toHaveBeenCalledWith("r3", {
+        name: "Soporte",
+        permissionCodes: [],
+      }),
+    );
+  });
+
   it("eliminar rol sin usuarios asignados: confirma y llama deleteRole, y muestra el feedback de éxito", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
