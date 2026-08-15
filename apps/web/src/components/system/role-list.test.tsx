@@ -53,9 +53,33 @@ describe("RoleList", () => {
   it("'Eliminar' está deshabilitado cuando userCount > 0 (previene roles.role_in_use)", () => {
     renderList();
 
-    const deleteButtons = screen.getAllByRole("button", { name: "Eliminar" });
+    // W4: el disabled trae un aria-label distinto ("Eliminar — motivo") —
+    // el regex matchea ambos botones, igual que el string exacto antes.
+    const deleteButtons = screen.getAllByRole("button", { name: /^Eliminar/ });
     const cajeroDelete = deleteButtons[0];
     expect(cajeroDelete).toBeDisabled();
+  });
+
+  // W4 (verify-report #341): `title` sobre un botón deshabilitado no dispara
+  // tooltip nativo en Firefox/Safari — el motivo del disabled debe ser
+  // accesible SIEMPRE, no solo con hover en Chromium.
+  it("el motivo de 'Eliminar' deshabilitado es accesible vía aria, no solo title", () => {
+    renderList();
+
+    const cajeroDelete = screen.getByRole("button", {
+      name: "Eliminar — Este rol tiene usuarios asignados. No se puede eliminar.",
+    });
+    expect(cajeroDelete).toBeDisabled();
+  });
+
+  // W4: el design pedía un sidebar con `userCount`, la clave
+  // `roles.editor.userCount(_other)` existía pero el número no se
+  // renderizaba en ningún lado.
+  it("muestra el userCount junto al nombre de cada rol", () => {
+    renderList();
+
+    expect(screen.getByText("3 usuarios")).toBeInTheDocument();
+    expect(screen.getByText("0 usuarios")).toBeInTheDocument();
   });
 
   it("'Eliminar' está habilitado cuando userCount === 0", async () => {
@@ -63,7 +87,7 @@ describe("RoleList", () => {
     const onDelete = vi.fn();
     renderList({ onDelete });
 
-    const deleteButtons = screen.getAllByRole("button", { name: "Eliminar" });
+    const deleteButtons = screen.getAllByRole("button", { name: /^Eliminar/ });
     const sinUsoDelete = deleteButtons[1];
     expect(sinUsoDelete).toBeEnabled();
     if (!sinUsoDelete) throw new Error("botón eliminar no encontrado");

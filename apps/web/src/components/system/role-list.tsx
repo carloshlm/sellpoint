@@ -41,6 +41,7 @@ function RoleList({
         )}
         {roles.map((role) => {
           const inUse = role.userCount > 0;
+          const deleteHint = inUse ? t("users.roles.list.deleteInUseHint") : undefined;
           return (
             <li key={role.id} className="flex items-center gap-1">
               <button
@@ -48,23 +49,38 @@ function RoleList({
                 onClick={() => onSelect(role.id)}
                 aria-current={role.id === selectedRoleId ? "true" : undefined}
                 className={cn(
-                  "flex-1 truncate rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+                  "flex flex-1 flex-col truncate rounded-md px-3 py-2 text-left text-sm font-medium hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
                   role.id === selectedRoleId && "bg-muted text-foreground",
                 )}
               >
-                {role.name}
+                <span className="truncate">{role.name}</span>
+                {/* W4 (verify-report #341): el design pedía un sidebar con
+                    `userCount` — la clave i18n existía, el número nunca se
+                    renderizaba. */}
+                <span className="truncate text-xs font-normal text-muted-foreground">
+                  {t("users.roles.editor.userCount", { count: role.userCount })}
+                </span>
               </button>
               {canManage && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={inUse}
-                  title={inUse ? t("users.roles.list.deleteInUseHint") : undefined}
-                  onClick={() => onDelete(role)}
-                >
-                  {t("users.roles.list.delete")}
-                </Button>
+                // W4: `title` sobre un <button disabled> no dispara tooltip
+                // nativo en Firefox/Safari. El <span title> envolvente sí lo
+                // hace en cualquier navegador, y el `aria-label` deja el
+                // motivo accesible a lectores de pantalla SIEMPRE, no solo
+                // con hover.
+                <span title={deleteHint}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={inUse}
+                    aria-label={
+                      inUse ? `${t("users.roles.list.delete")} — ${deleteHint}` : undefined
+                    }
+                    onClick={() => onDelete(role)}
+                  >
+                    {t("users.roles.list.delete")}
+                  </Button>
+                </span>
               )}
             </li>
           );

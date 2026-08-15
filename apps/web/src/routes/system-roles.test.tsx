@@ -112,7 +112,7 @@ describe("/system/roles", () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read"]));
     await renderRoute("/system/roles");
 
-    await user.click(await screen.findByRole("button", { name: "Cajero" }));
+    await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
 
     const salesReadCheckbox = await screen.findByRole("checkbox", { name: "sales:read" });
     expect(salesReadCheckbox).toBeChecked();
@@ -131,7 +131,7 @@ describe("/system/roles", () => {
 
     expect(await screen.findByTestId("system-roles-title")).toHaveTextContent("Roles");
     expect(screen.getByRole("button", { name: "New role" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Cajero" }));
+    await user.click(screen.getByRole("button", { name: /^Cajero/ }));
     expect(await screen.findByRole("button", { name: "Save changes" })).toBeInTheDocument();
   });
 
@@ -151,7 +151,7 @@ describe("/system/roles", () => {
     mockedGetMe.mockResolvedValue(demoUser(["roles:read", "roles:manage", "sales:manage"]));
 
     await renderRoute("/system/roles");
-    await user.click(await screen.findByRole("button", { name: "Cajero" }));
+    await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
     await user.click(await screen.findByRole("checkbox", { name: "sales:manage" }));
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
@@ -193,7 +193,7 @@ describe("/system/roles", () => {
     mockedApi.createRole.mockResolvedValue(newRole);
 
     await renderRoute("/system/roles");
-    await screen.findByRole("button", { name: "Cajero" });
+    await screen.findByRole("button", { name: /^Cajero/ });
     await user.click(screen.getByRole("button", { name: "Nuevo rol" }));
     await user.type(screen.getByLabelText("Nombre del rol"), "Soporte");
     await user.click(screen.getByRole("button", { name: "Crear rol" }));
@@ -204,7 +204,7 @@ describe("/system/roles", () => {
         expect.anything(),
       ),
     );
-    expect(await screen.findByRole("button", { name: "Soporte" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^Soporte/ })).toBeInTheDocument();
     // W3 (verify-report #341): crear un rol no daba feedback de éxito —
     // clave `users.roles.form.createSuccess` existía en es/en, 0 usos.
     expect(await screen.findByText("Se creó el rol Soporte.")).toBeInTheDocument();
@@ -220,8 +220,8 @@ describe("/system/roles", () => {
     mockedApi.deleteRole.mockResolvedValue(undefined);
 
     await renderRoute("/system/roles");
-    await screen.findByRole("button", { name: "Cajero" });
-    const deleteButtons = screen.getAllByRole("button", { name: "Eliminar" });
+    await screen.findByRole("button", { name: /^Cajero/ });
+    const deleteButtons = screen.getAllByRole("button", { name: /^Eliminar/ });
     await user.click(deleteButtons[1] as HTMLElement);
 
     expect(confirmSpy).toHaveBeenCalled();
@@ -236,8 +236,8 @@ describe("/system/roles", () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
 
     await renderRoute("/system/roles");
-    await screen.findByRole("button", { name: "Cajero" });
-    const deleteButtons = screen.getAllByRole("button", { name: "Eliminar" });
+    await screen.findByRole("button", { name: /^Cajero/ });
+    const deleteButtons = screen.getAllByRole("button", { name: /^Eliminar/ });
     expect(deleteButtons[0]).toBeDisabled();
   });
 
@@ -252,7 +252,7 @@ describe("/system/roles", () => {
     });
 
     await renderRoute("/system/roles");
-    await user.click(await screen.findByRole("button", { name: "Cajero" }));
+    await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
     await user.click(await screen.findByRole("checkbox", { name: "roles:manage" }));
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
@@ -260,7 +260,7 @@ describe("/system/roles", () => {
       await screen.findByText("No podés quitarle estos permisos al último administrador activo."),
     ).toBeInTheDocument();
     // La vista sigue en pie: el rol y su selección no desaparecen.
-    expect(screen.getByRole("button", { name: "Cajero" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Cajero/ })).toBeInTheDocument();
     expect(mockedGetMe).not.toHaveBeenCalled();
   });
 });
