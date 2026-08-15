@@ -1087,7 +1087,7 @@ Ejemplos:
   - **Depende de:** F1-WEB-ONBOARD-01
   - **Estimación:** 30 min
 
-- [ ] **F1-WEB-ONBOARD-03** — Step 3: placeholder de primer almacén (se completa en F2)
+- [x] **F1-WEB-ONBOARD-03** — Step 3: placeholder de primer almacén (se completa en F2)
   - **Salida:** pantalla skip con mensaje "lo haremos en el siguiente paso"
   - **Verificar:** continuar funciona
   - **Depende de:** F1-WEB-ONBOARD-02
