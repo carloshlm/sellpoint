@@ -129,7 +129,9 @@ describe("/system/users", () => {
     useAuthStore.getState().clearAuth();
     mockedApi.listUsers.mockResolvedValue(USERS);
     mockedApi.listRoles.mockResolvedValue(ROLES);
-    mockedGetMe.mockResolvedValue(demoUser(["users:read", "users:manage", "sales:read"]));
+    mockedGetMe.mockResolvedValue(
+      demoUser(["users:read", "users:manage", "roles:read", "sales:read"]),
+    );
   });
 
   it("sin users:read ni roles:read, el nav NO lista 'Sistema'", async () => {
@@ -214,7 +216,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const newUser: rbacApi.UserDetail = {
         id: "u3",
         email: "nueva@acme.mx",
@@ -260,7 +262,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       mockedApi.createUser.mockRejectedValue({
         statusCode: 409,
         message: "Ese correo ya está en uso.",
@@ -286,7 +288,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [ana, beto] = USERS;
       if (!ana || !beto) throw new Error("fixture USERS debe tener 2 elementos");
       const updatedAna: rbacApi.UserDetail = { ...ana, lastNamePaternal: "García Nueva" };
@@ -325,7 +327,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [, beto] = USERS;
       if (!beto) throw new Error("fixture USERS debe tener al menos 2 elementos");
       const updatedBeto: rbacApi.UserDetail = { ...beto, lastNamePaternal: "López Nuevo" };
@@ -368,7 +370,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [ana, beto] = USERS;
       if (!ana || !beto) throw new Error("fixture USERS debe tener 2 elementos");
       const updatedAna: rbacApi.UserDetail = { ...ana, lastNamePaternal: "García Nueva" };
@@ -402,7 +404,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
 
       await renderRoute("/system/users");
       await screen.findByText("Ana García");
@@ -421,7 +423,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       useAuthStore
         .getState()
-        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "sales:read"]));
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [, beto] = USERS;
       if (!beto) throw new Error("fixture USERS debe tener al menos 2 elementos");
       // Beto con AMBOS roles: quitarle "Admin" (escalado, no poseído por el
@@ -464,6 +466,26 @@ describe("/system/users", () => {
           roleIds: ["r1"],
         }),
       );
+    });
+
+    // W1 (verify-report #341): `users:manage` sin `roles:read` hoy dispara
+    // GET /roles igual y pega un 403 silencioso — 0 checkboxes, alta
+    // imposible sin ningún mensaje. El fix debe: (a) NO llamar listRoles sin
+    // roles:read, y (b) decirlo en el form en vez de mostrar un checklist
+    // vacío que bloquea el submit para siempre.
+    it("con users:manage pero SIN roles:read: no pide el catálogo de roles y el form explica por qué no hay checklist", async () => {
+      const user = userEvent.setup();
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read", "users:manage"]));
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+      await user.click(screen.getByRole("button", { name: "Nuevo usuario" }));
+
+      expect(mockedApi.listRoles).not.toHaveBeenCalled();
+      expect(
+        await screen.findByText("Hace falta el permiso roles:read para poder asignar roles."),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     });
   });
 

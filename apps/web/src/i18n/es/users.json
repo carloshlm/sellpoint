@@ -56,6 +56,7 @@
     },
     "roles": "Roles",
     "rolesHint": "Un usuario necesita al menos un rol.",
+    "rolesUnavailable": "Hace falta el permiso roles:read para poder asignar roles.",
     "roleEscalationHint": "No podés asignar un rol con permisos que vos no tenés.",
     "submitCreate": "Crear usuario",
     "submitEdit": "Guardar cambios",

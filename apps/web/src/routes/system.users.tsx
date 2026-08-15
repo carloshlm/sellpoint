@@ -53,18 +53,26 @@ type FormState = { mode: "create" } | { mode: "edit"; user: UserDetail };
  * form (`UserForm`) es presentacional puro, el wiring de mutaciones y el
  * mapeo del 409 `users.email_taken` a error de campo viven acá.
  *
- * `useRoles({ enabled: canManage })`: pedir el catálogo de roles sin
- * `users:manage` sería la request inútil que S6 (f1-web-auth) mandó evitar
- * — un actor solo-lectura nunca ve el form que la necesita.
+ * `useRoles({ enabled: canManage && canListRoles })`: pedir el catálogo de
+ * roles sin `users:manage` sería la request inútil que S6 (f1-web-auth)
+ * mandó evitar — un actor solo-lectura nunca ve el form que la necesita.
+ *
+ * W1 (verify-report #341): `GET /roles` exige `roles:read`, no
+ * `users:manage` — un rol custom con `users:manage` sin `roles:read` es
+ * perfectamente construible. Pedirlo igual pegaba un 403 silencioso (0
+ * checkboxes, alta imposible sin mensaje); ahora el fetch ni se dispara sin
+ * el permiso, y el form lo dice en vez de mostrar un checklist vacío.
  */
 function SystemUsersContent() {
   const { t } = useTranslation();
   const { has } = usePermissions();
   const canManage = has("users:manage");
+  const canListRoles = has("roles:read");
   const actorPermissionCodes = useAuthStore((state) => state.user?.permissions ?? []);
 
   const { data, isPending, isError } = useUsers();
-  const { data: roles } = useRoles({ enabled: canManage });
+  const { data: roles, isError: rolesError } = useRoles({ enabled: canManage && canListRoles });
+  const rolesUnavailable = !canListRoles || rolesError;
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const suspendUserMutation = useSuspendUser();
@@ -264,6 +272,7 @@ function SystemUsersContent() {
           mode={formState.mode}
           user={formState.mode === "edit" ? formState.user : undefined}
           roles={roles ?? []}
+          rolesUnavailable={rolesUnavailable}
           actorPermissionCodes={actorPermissionCodes}
           isSubmitting={isSubmitting}
           emailError={emailError}

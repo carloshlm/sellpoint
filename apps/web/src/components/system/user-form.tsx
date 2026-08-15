@@ -16,6 +16,8 @@ interface UserFormProps {
   /** Requerido en `mode: "edit"` — precarga el form (F1-WEB-USERS-03). */
   user?: UserDetail;
   roles: RoleSummary[];
+  /** W1: true si el catálogo de roles no se pudo cargar (sin `roles:read` o error de red) — reemplaza el checklist por un mensaje explicando por qué. */
+  rolesUnavailable?: boolean;
   /** Permisos del ACTOR (no del usuario editado) — alimenta D8. */
   actorPermissionCodes: string[];
   isSubmitting: boolean;
@@ -41,6 +43,7 @@ function UserForm({
   mode,
   user,
   roles,
+  rolesUnavailable = false,
   actorPermissionCodes,
   isSubmitting,
   emailError,
@@ -146,39 +149,47 @@ function UserForm({
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium">{t("users.form.roles")}</legend>
-            <p className="text-xs text-muted-foreground">{t("users.form.rolesHint")}</p>
+            {rolesUnavailable ? (
+              <p role="alert" className="text-xs text-destructive">
+                {t("users.form.rolesUnavailable")}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t("users.form.rolesHint")}</p>
+            )}
             <div className="flex flex-col gap-2">
-              {roles.map((role) => {
-                const escalates = role.permissionCodes.some(
-                  (code) => !actorPermissionCodes.includes(code),
-                );
-                const checked = selectedRoleIds.includes(role.id);
-                // Fix del desvío del batch 2: disabled ASIMÉTRICO (misma regla
-                // que D5). `assertNoRoleAssignmentEscalation` solo valida el
-                // delta AGREGADO — QUITARLE a alguien un rol que el actor no
-                // posee es legal en la API. Deshabilitarlo siempre sería más
-                // restrictivo que el backend y le impediría a un admin
-                // parcial arreglar una asignación indebida que ve en pantalla.
-                const disabled = escalates && !checked;
-                const inputId = `role-${role.id}`;
-                return (
-                  <div key={role.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={inputId}
-                      checked={checked}
-                      disabled={disabled}
-                      onCheckedChange={(next) => toggleRole(role.id, next === true)}
-                    />
-                    <Label
-                      htmlFor={inputId}
-                      className={disabled ? "text-muted-foreground" : undefined}
-                      title={disabled ? t("users.form.roleEscalationHint") : undefined}
-                    >
-                      {role.name}
-                    </Label>
-                  </div>
-                );
-              })}
+              {!rolesUnavailable &&
+                roles.map((role) => {
+                  const escalates = role.permissionCodes.some(
+                    (code) => !actorPermissionCodes.includes(code),
+                  );
+                  const checked = selectedRoleIds.includes(role.id);
+                  // Fix del desvío del batch 2: disabled ASIMÉTRICO (misma
+                  // regla que D5). `assertNoRoleAssignmentEscalation` solo
+                  // valida el delta AGREGADO — QUITARLE a alguien un rol que
+                  // el actor no posee es legal en la API. Deshabilitarlo
+                  // siempre sería más restrictivo que el backend y le
+                  // impediría a un admin parcial arreglar una asignación
+                  // indebida que ve en pantalla.
+                  const disabled = escalates && !checked;
+                  const inputId = `role-${role.id}`;
+                  return (
+                    <div key={role.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={inputId}
+                        checked={checked}
+                        disabled={disabled}
+                        onCheckedChange={(next) => toggleRole(role.id, next === true)}
+                      />
+                      <Label
+                        htmlFor={inputId}
+                        className={disabled ? "text-muted-foreground" : undefined}
+                        title={disabled ? t("users.form.roleEscalationHint") : undefined}
+                      >
+                        {role.name}
+                      </Label>
+                    </div>
+                  );
+                })}
             </div>
             {errors.roleIds?.message && (
               <p role="alert" className="text-xs text-destructive">
