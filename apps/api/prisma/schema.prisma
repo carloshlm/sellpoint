@@ -179,6 +179,29 @@ model Currency {
   @@map("currencies")
 }
 
+// Tabla MAESTRA de unidades de medida (global, sin tenant_id, sin RLS) —
+// F2-DB-01. Mismo molde que `currencies`: los INSERT viven en la migración (no
+// en el seed demo) para que lleguen a TODOS los entornos por el pipeline, y la
+// app solo LEE (REVOKE de escritura para sellpoint_app en la migración).
+//
+// `category` es lo que hace posible el conversor de F2-UOM: se convierte SOLO
+// dentro de una misma categoría (l↔ml, kg↔gr). Entre categorías no se hace —
+// depende de la densidad, y eso es responsabilidad de quien define las
+// presentaciones (ARQUITECTURA § 3.5). Su CHECK vive en la migración porque
+// Prisma no expresa CHECK constraints.
+//
+// También decide el default de `allow_fractional_input` de las presentaciones
+// (F2-PRESENT): `count` → solo enteros; el resto admite decimales.
+model Unit {
+  code     String  @id @db.VarChar(8)
+  nameEs   String  @map("name_es")
+  nameEn   String  @map("name_en")
+  category String  @db.VarChar(16)
+  isActive Boolean @default(true) @map("is_active")
+
+  @@map("units")
+}
+
 // Audit log de acciones críticas (append-only: sin updated_at, sin FK a users
 // para que el log sobreviva a borrados — user_id queda como referencia suave).
 model AuditLog {
