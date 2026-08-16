@@ -1,5 +1,14 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, LogOut, Menu, Settings, Shield, User } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Settings,
+  Shield,
+  User,
+  Warehouse,
+} from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useLogout } from "@/lib/auth/hooks";
@@ -30,6 +39,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const canSeeUsersNav = has("users:read");
   const canSeeRolesNav = has("roles:read");
   const canSeeSystemNav = canSeeUsersNav || canSeeRolesNav;
+
+  // F2: mismo criterio que "Sistema" — el grupo se ve con cualquier `:read`
+  // del dominio, y cada link se gatea por SU permiso.
+  const canSeeProductsNav = has("products:read");
+  const canSeeListsNav = has("catalogs:read");
+  const canSeeSchemaNav = has("catalogs:manage");
+  const canSeeCatalogNav = canSeeProductsNav || canSeeListsNav || canSeeSchemaNav;
+  const canSeeWarehousesNav = has("warehouses:read");
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
@@ -70,6 +87,68 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <User className="size-4 shrink-0" aria-hidden="true" />
             {expanded && <span className="truncate">{t("common.layout.nav.profile")}</span>}
           </Link>
+          {canSeeCatalogNav && (
+            <fieldset
+              aria-label={t("catalogs.nav.group")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
+            >
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("catalogs.nav.group")}
+                </span>
+              )}
+              {canSeeProductsNav && (
+                <Link
+                  to="/catalog/products"
+                  aria-label={t("catalogs.nav.products")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Package className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("catalogs.nav.products")}</span>}
+                </Link>
+              )}
+              {canSeeListsNav && (
+                <Link
+                  to="/catalog/lists"
+                  aria-label={t("catalogs.nav.lists")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Package className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("catalogs.nav.lists")}</span>}
+                </Link>
+              )}
+              {canSeeSchemaNav && (
+                <Link
+                  to="/catalog/schema"
+                  aria-label={t("catalogs.nav.schema")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Settings className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("catalogs.nav.schema")}</span>}
+                </Link>
+              )}
+            </fieldset>
+          )}
+
+          {canSeeWarehousesNav && (
+            <fieldset
+              aria-label={t("warehouses.nav.group")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
+            >
+              <Link
+                to="/warehouses"
+                aria-label={t("warehouses.nav.group")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <Warehouse className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && <span className="truncate">{t("warehouses.nav.group")}</span>}
+              </Link>
+            </fieldset>
+          )}
+
           {canSeeSystemNav && (
             <fieldset
               aria-label={t("common.layout.nav.system")}

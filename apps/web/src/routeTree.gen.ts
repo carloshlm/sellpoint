@@ -20,6 +20,8 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
+import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 
@@ -78,6 +80,16 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CatalogListsRoute = CatalogListsRouteImport.update({
+  id: '/catalog/lists',
+  path: '/catalog/lists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogSchemaRoute = CatalogSchemaRouteImport.update({
+  id: '/catalog/schema',
+  path: '/catalog/schema',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -101,6 +113,8 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/catalog/lists': typeof CatalogListsRoute
+  '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
@@ -116,6 +130,8 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/catalog/lists': typeof CatalogListsRoute
+  '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
@@ -132,6 +148,8 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/catalog/lists': typeof CatalogListsRoute
+  '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
@@ -149,6 +167,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/catalog/lists'
+    | '/catalog/schema'
     | '/system/roles'
     | '/system/users'
   fileRoutesByTo: FileRoutesByTo
@@ -164,6 +184,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/catalog/lists'
+    | '/catalog/schema'
     | '/system/roles'
     | '/system/users'
   id:
@@ -179,6 +201,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/catalog/lists'
+    | '/catalog/schema'
     | '/system/roles'
     | '/system/users'
   fileRoutesById: FileRoutesById
@@ -195,6 +219,8 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyRoute: typeof VerifyRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
+  CatalogListsRoute: typeof CatalogListsRoute
+  CatalogSchemaRoute: typeof CatalogSchemaRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
 }
@@ -278,6 +304,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/catalog/lists': {
+      id: '/catalog/lists'
+      path: '/catalog/lists'
+      fullPath: '/catalog/lists'
+      preLoaderRoute: typeof CatalogListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalog/schema': {
+      id: '/catalog/schema'
+      path: '/catalog/schema'
+      fullPath: '/catalog/schema'
+      preLoaderRoute: typeof CatalogSchemaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -307,6 +347,8 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyRoute: VerifyRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  CatalogListsRoute: CatalogListsRoute,
+  CatalogSchemaRoute: CatalogSchemaRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
 }

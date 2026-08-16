@@ -1,0 +1,76 @@
+{
+  "nav": {
+    "group": "Catalog",
+    "products": "Products",
+    "lists": "Sub-catalogs",
+    "schema": "Fields"
+  },
+  "schema": {
+    "title": "Catalog fields",
+    "subtitle": "Define what information you keep for each record. Changes apply as you save.",
+    "selector": "Catalog",
+    "newCatalog": "New sub-catalog",
+    "newCatalogName": "Sub-catalog name",
+    "preview": "Preview",
+    "previewHint": "This is how the form looks with the current fields."
+  },
+  "standard": {
+    "code": "Code",
+    "name": "Name",
+    "price": "Price",
+    "cost": "Cost",
+    "baseUnit": "Base unit"
+  },
+  "fields": {
+    "title": "Fields",
+    "add": "Add field",
+    "empty": "You haven't added any custom fields yet.",
+    "standardTitle": "Standard fields",
+    "standardHint": "They come with the catalog and can't be removed.",
+    "customTitle": "Custom fields",
+    "requiredBadge": "required",
+    "archivedBadge": "hidden",
+    "restore": "Restore",
+    "remove": "Remove",
+    "unknownCatalog": "unknown catalog",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "lookup": "List from another catalog"
+    },
+    "form": {
+      "label": "Field name",
+      "labelHint": "This is what you'll see on forms. You can change it anytime.",
+      "type": "Type",
+      "typeLocked": "You can't change the type because this field already has data.",
+      "lookupTarget": "Catalog it points to",
+      "lookupTargetPlaceholder": "Choose a catalog",
+      "lookupTargetEmpty": "You need another sub-catalog before you can use this type.",
+      "required": "Required"
+    },
+    "removeDialog": {
+      "title": "Remove field",
+      "body": "{{count}} records have data in \"{{label}}\". The field will be hidden, but its values aren't deleted and you can restore it.",
+      "confirm": "Hide field"
+    }
+  },
+  "form": {
+    "textPlaceholder": "",
+    "lookupPlaceholder": "Choose an option",
+    "lookupEmpty": "The catalog this field points to has no records yet."
+  },
+  "records": {
+    "title": "Records",
+    "add": "New record",
+    "empty": "This catalog has no records yet.",
+    "code": "Code",
+    "codeHint": "Short name that identifies it, for example \"kg\".",
+    "status": "Status",
+    "active": "Active",
+    "archived": "Archived",
+    "archive": "Archive",
+    "restore": "Restore",
+    "selector": "Sub-catalog",
+    "noCatalogs": "You haven't created sub-catalogs yet. You can create them from Fields."
+  }
+}

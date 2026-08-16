@@ -11,7 +11,13 @@
   },
   "form": {
     "submitting": "Enviando…",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "add": "Agregar",
+    "remove": "Quitar",
+    "search": "Buscar"
   },
   "errors": {
     "network": "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo."

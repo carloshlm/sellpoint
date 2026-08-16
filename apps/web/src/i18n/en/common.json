@@ -11,7 +11,13 @@
   },
   "form": {
     "submitting": "Sending…",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "add": "Add",
+    "remove": "Remove",
+    "search": "Search"
   },
   "errors": {
     "network": "We couldn't reach the server. Check your connection and try again."

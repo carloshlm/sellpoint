@@ -1,0 +1,76 @@
+{
+  "nav": {
+    "group": "Catálogo",
+    "products": "Productos",
+    "lists": "Subcatálogos",
+    "schema": "Campos"
+  },
+  "schema": {
+    "title": "Campos del catálogo",
+    "subtitle": "Define qué información guardas de cada registro. Los cambios aplican al guardar.",
+    "selector": "Catálogo",
+    "newCatalog": "Nuevo subcatálogo",
+    "newCatalogName": "Nombre del subcatálogo",
+    "preview": "Previsualización",
+    "previewHint": "Así se ve el formulario con los campos actuales."
+  },
+  "standard": {
+    "code": "Código",
+    "name": "Nombre",
+    "price": "Precio",
+    "cost": "Costo",
+    "baseUnit": "Unidad base"
+  },
+  "fields": {
+    "title": "Campos",
+    "add": "Agregar campo",
+    "empty": "Todavía no agregaste campos personalizados.",
+    "standardTitle": "Campos estándar",
+    "standardHint": "Vienen con el catálogo y no se pueden quitar.",
+    "customTitle": "Campos personalizados",
+    "requiredBadge": "requerido",
+    "archivedBadge": "oculto",
+    "restore": "Restaurar",
+    "remove": "Quitar",
+    "unknownCatalog": "catálogo desconocido",
+    "types": {
+      "text": "Texto",
+      "number": "Numérico",
+      "lookup": "Lista de otro catálogo"
+    },
+    "form": {
+      "label": "Nombre del campo",
+      "labelHint": "Es lo que verás en los formularios. Puedes cambiarlo cuando quieras.",
+      "type": "Tipo",
+      "typeLocked": "No puedes cambiar el tipo porque el campo ya tiene datos cargados.",
+      "lookupTarget": "Catálogo al que apunta",
+      "lookupTargetPlaceholder": "Elige un catálogo",
+      "lookupTargetEmpty": "Necesitas crear otro subcatálogo antes de usar este tipo.",
+      "required": "Es obligatorio"
+    },
+    "removeDialog": {
+      "title": "Quitar campo",
+      "body": "{{count}} registros tienen datos en «{{label}}». El campo se ocultará, pero sus valores no se borran y puedes restaurarlo.",
+      "confirm": "Ocultar campo"
+    }
+  },
+  "form": {
+    "textPlaceholder": "",
+    "lookupPlaceholder": "Elige una opción",
+    "lookupEmpty": "El catálogo al que apunta este campo todavía no tiene registros."
+  },
+  "records": {
+    "title": "Registros",
+    "add": "Nuevo registro",
+    "empty": "Este catálogo todavía no tiene registros.",
+    "code": "Código",
+    "codeHint": "Nombre corto que lo identifica, por ejemplo «kg».",
+    "status": "Estado",
+    "active": "Activo",
+    "archived": "Archivado",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "selector": "Subcatálogo",
+    "noCatalogs": "Todavía no creaste subcatálogos. Puedes crearlos desde Campos."
+  }
+}

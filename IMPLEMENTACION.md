@@ -1305,31 +1305,31 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 > `/catalog/schema` generalizado: edita los campos de CUALQUIER catálogo (el de productos y los subcatálogos). Acá nace `DynamicForm`, que reusan F2-SUBCAT y F2-PROD.
 
-- [ ] **F2-SCHEMA-01** — Ruta `/catalog/schema` + nav Catálogo + namespace i18n
+- [x] **F2-SCHEMA-01** — Ruta `/catalog/schema` + nav Catálogo + namespace i18n
   - **Salida:** ruta con gates compuestos (`PermissionGate need="catalogs:manage"`); grupo nav "Catálogo" (Productos → `products:read`, Subcatálogos → `catalogs:read`, Schema → `catalogs:manage`); selector de catálogo; namespace `catalogs` (es/en, copy neutro) cableado en `i18n/index.ts`
   - **Verificar:** sin permiso → panel del gate, no redirect; test por routeTree real
   - **Depende de:** F2-CAT-06
   - **Estimación:** 1.5 h
 
-- [ ] **F2-SCHEMA-02** — Lista de campos + agregar campo
+- [x] **F2-SCHEMA-02** — Lista de campos + agregar campo
   - **Salida:** lista (label, tipo, required, badge archivado) + alta: label, tipo Texto/Numérico/Lookup, catálogo destino si lookup, required; los **campos estándar se muestran fijos y sin botones** (Código/nombre en todos; en productos además precio, costo, unidad base, stock mínimo)
   - **Verificar:** alta llama al API y refresca; estándar no editable
   - **Depende de:** F2-SCHEMA-01
   - **Estimación:** 2 h
 
-- [ ] **F2-SCHEMA-03** — Guardas de edición en UI
+- [x] **F2-SCHEMA-03** — Guardas de edición en UI
   - **Salida:** editar label/required; archivar con datos → dialog con conteo ("N registros tienen este campo; se ocultará, no se borra") → `confirm: true`; restaurar archivado; cambio de tipo deshabilitado con datos (motivo visible)
   - **Verificar:** el flujo de confirmación manda `confirm`; 409 mapeado a mensaje
   - **Depende de:** F2-SCHEMA-02
   - **Estimación:** 2 h
 
-- [ ] **F2-SCHEMA-04** — Componente `DynamicForm`
+- [x] **F2-SCHEMA-04** — Componente `DynamicForm`
   - **Salida:** `components/catalog/dynamic-form.tsx`: campos → TextField (text), TextField numérico (number), picker de lookup (opciones de F2-CAT-06); integrado con react-hook-form; errores por campo i18n; **reusado por F2-SUBCAT y F2-PROD**
   - **Verificar:** tests por decisión (render por tipo, required, lookup carga opciones) — no copy
   - **Depende de:** F2-SCHEMA-01
   - **Estimación:** 3 h
 
-- [ ] **F2-SCHEMA-05** — Preview del form
+- [x] **F2-SCHEMA-05** — Preview del form
   - **Salida:** panel de previsualización: `DynamicForm` en vivo con los campos vigentes del catálogo elegido
   - **Verificar:** agregar campo → aparece en preview
   - **Depende de:** F2-SCHEMA-02, F2-SCHEMA-04
@@ -1339,19 +1339,19 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-SUBCAT — Registros de Subcatálogos (UI)
 
-- [ ] **F2-SUBCAT-01** — Ruta de registros con tabla dinámica
+- [x] **F2-SUBCAT-01** — Ruta de registros con tabla dinámica
   - **Salida:** ruta `/catalog/lists` con selector de subcatálogo (gate `catalogs:read`); tabla con columnas generadas de los campos activos (Código + dinámicos), lookup mostrado por code+display, filtro global client-side
   - **Verificar:** las columnas reflejan los campos del catálogo elegido (afirmado por key)
   - **Depende de:** F2-SCHEMA-04, F2-CAT-06
   - **Estimación:** 2 h
 
-- [ ] **F2-SUBCAT-02** — Alta/edición de registros
+- [x] **F2-SUBCAT-02** — Alta/edición de registros
   - **Salida:** form con campo estándar Código + `DynamicForm` (gate `catalogs:write`); remount por `key` en edición (lección C1 de f1-web-users); 409 de código duplicado mapeado al campo
   - **Verificar:** ciclo alta/edición con lookup elegido de otro catálogo
   - **Depende de:** F2-SUBCAT-01
   - **Estimación:** 2 h
 
-- [ ] **F2-SUBCAT-03** — Archivar registro + manejo del 409 de referencia
+- [x] **F2-SUBCAT-03** — Archivar registro + manejo del 409 de referencia
   - **Salida:** acción archivar con confirmación; si el API devuelve 409 (referenciado por lookup), mensaje que nombra dónde se usa
   - **Verificar:** el 409 se muestra, el registro no desaparece de la tabla
   - **Depende de:** F2-SUBCAT-02
