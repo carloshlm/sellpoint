@@ -18,7 +18,9 @@ import { CurrencySelector } from "./currency-selector";
 // el país tiene una sola zona. Canarias va aparte de Madrid porque su offset
 // difiere del peninsular; de Portugal solo se ofrece Lisboa (Madeira y Azores
 // quedaron fuera por decisión de Carlos). El dato alimenta el corte de día de
-// POS/reportes en F4-F5; hoy solo se persiste.
+// POS/reportes en F4-F5; hoy solo se persiste. "Sudamérica (UTC-4)" es una
+// entrada REGIONAL respaldada por America/La_Paz — UTC-4 estable, sin horario
+// de verano (por eso no sirve America/Santiago: Chile salta a UTC-3 en verano).
 const TIMEZONE_OPTIONS = [
   "America/Mexico_City",
   "America/Cancun",
@@ -44,6 +46,7 @@ const TIMEZONE_OPTIONS = [
   "Europe/Rome",
   "Europe/Berlin",
   "Europe/London",
+  "America/La_Paz",
 ] as const;
 
 interface StepBusinessProps {

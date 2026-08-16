@@ -35,7 +35,8 @@
       "Europe/Paris": "Francia (París)",
       "Europe/Rome": "Italia (Roma, Milán)",
       "Europe/Berlin": "Alemania (Berlín, Múnich)",
-      "Europe/London": "Reino Unido — Inglaterra (Londres)"
+      "Europe/London": "Reino Unido — Inglaterra (Londres)",
+      "America/La_Paz": "Sudamérica (UTC-4)"
     },
     "currency": "Moneda operacional",
     "currencyOptions": {

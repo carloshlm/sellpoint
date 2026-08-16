@@ -34,8 +34,21 @@ elegiría normalmente, no una restricción: el selector de moneda es libre.
 **Monedas habilitadas:** `MXN`, `USD`, `CAD`, `EUR`, `GBP` — definidas en
 `SUPPORTED_CURRENCIES` (`packages/shared/src/i18n.ts`), con test de contrato.
 
-**Fuera de alcance por ahora:** Sudamérica (se retiró de las zonas horarias el
-2026-08-16), y de Portugal quedaron fuera Madeira y Azores por decisión explícita.
+### Sudamérica (cobertura parcial)
+
+Existe una entrada **regional**: `"Sudamérica (UTC-4)"`, respaldada por la zona
+IANA `America/La_Paz` (UTC-4 estable, sin horario de verano). Cubre de facto
+Bolivia, Venezuela, Guyana y el Amazonas brasileño, **sin declarar ningún país
+sudamericano como mercado soportado** (por eso no aparecen en la tabla de
+arriba ni influyen en la discusión de etiquetas de la sección 2).
+
+> ⚠️ Chile NO queda cubierto por esta entrada: Santiago alterna UTC-4/UTC-3 con
+> el horario de verano. Si Chile se vuelve mercado, necesita `America/Santiago`
+> propio.
+
+**Fuera de alcance por ahora:** el resto de Sudamérica por ciudad (las zonas de
+Bogotá, Lima, Santiago y Buenos Aires se retiraron el 2026-08-16), y de
+Portugal quedaron fuera Madeira y Azores por decisión explícita.
 
 ---
 

@@ -52,6 +52,7 @@ const PAISES_SOPORTADOS = [
   "Italia",
   "Alemania",
   "Reino Unido",
+  "Sudamérica",
 ];
 
 describe("StepBusiness — zonas horarias", () => {
@@ -118,7 +119,7 @@ describe("StepBusiness — zonas horarias", () => {
     }
   });
 
-  it("ya no ofrece las zonas de Sudamérica que traía la lista original", () => {
+  it("no ofrece las zonas sudamericanas por ciudad retiradas de la lista original", () => {
     renderStep();
     const select = screen.getByLabelText("Zona horaria");
     const values = within(select as HTMLElement)
@@ -129,6 +130,16 @@ describe("StepBusiness — zonas horarias", () => {
     expect(values).not.toContain("America/Lima");
     expect(values).not.toContain("America/Santiago");
     expect(values).not.toContain("America/Argentina/Buenos_Aires");
+  });
+
+  it("ofrece la zona regional Sudamérica UTC-4 respaldada por La Paz (sin horario de verano)", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const options = within(select as HTMLElement).getAllByRole("option") as HTMLOptionElement[];
+
+    const laPaz = options.find((option) => option.value === "America/La_Paz");
+    expect(laPaz).toBeDefined();
+    expect(laPaz?.textContent).toBe("Sudamérica (UTC-4)");
   });
 
   it("ofrece las cinco monedas operacionales: MXN, USD, CAD, EUR y GBP", () => {
