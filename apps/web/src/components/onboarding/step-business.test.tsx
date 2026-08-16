@@ -40,8 +40,22 @@ function renderStep() {
   return { onSubmit };
 }
 
+// Países soportados por el selector: Norteamérica (2026-08-16) + Europa
+// (2026-08-16, al agregarse EUR y GBP como monedas operacionales).
+const PAISES_SOPORTADOS = [
+  "México",
+  "Estados Unidos",
+  "Canadá",
+  "Portugal",
+  "España",
+  "Francia",
+  "Italia",
+  "Alemania",
+  "Reino Unido",
+];
+
 describe("StepBusiness — zonas horarias", () => {
-  it("ofrece solo zonas de México, Estados Unidos y Canadá con etiquetas amigables", () => {
+  it("ofrece las zonas de Norteamérica con etiquetas amigables", () => {
     renderStep();
     const select = screen.getByLabelText("Zona horaria");
     const labels = within(select as HTMLElement)
@@ -53,9 +67,46 @@ describe("StepBusiness — zonas horarias", () => {
     expect(labels).toContain("Estados Unidos — Pacífico (Los Ángeles)");
     expect(labels).toContain("Canadá — Este (Toronto, Montreal)");
     expect(labels).toContain("Canadá — Pacífico (Vancouver)");
+  });
+
+  it("ofrece las zonas de los seis países europeos soportados", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const labels = within(select as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    expect(labels).toContain("Portugal — Continental (Lisboa)");
+    expect(labels).toContain("España — Peninsular (Madrid, Barcelona)");
+    expect(labels).toContain("Francia (París)");
+    expect(labels).toContain("Italia (Roma, Milán)");
+    expect(labels).toContain("Alemania (Berlín, Múnich)");
+    expect(labels).toContain("Reino Unido — Inglaterra (Londres)");
+  });
+
+  it("incluye los archipiélagos de España y Portugal, que tienen offset propio", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const labels = within(select as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    // Canarias va una hora atrás de la península y Azores dos de Lisboa:
+    // sin estas entradas, un negocio isleño elegiría una zona equivocada.
+    expect(labels).toContain("España — Canarias (Las Palmas, Tenerife)");
+    expect(labels).toContain("Portugal — Madeira (Funchal)");
+    expect(labels).toContain("Portugal — Azores (Ponta Delgada)");
+  });
+
+  it("no ofrece zonas fuera de los países soportados", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const labels = within(select as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => option.textContent ?? "");
 
     for (const label of labels) {
-      expect(label).toMatch(/^(México|Estados Unidos|Canadá) — /);
+      expect(PAISES_SOPORTADOS.some((pais) => label.startsWith(pais))).toBe(true);
     }
   });
 

@@ -10,10 +10,14 @@ import type { TenantBlock } from "@/lib/tenant/api";
 import { type BusinessStepValues, businessStepSchema } from "@/lib/tenant/schemas";
 import { CurrencySelector } from "./currency-selector";
 
-// Catálogo curado a México, Estados Unidos y Canadá (decisión de Carlos,
-// 2026-08-16). Las claves son IANA; las etiquetas viven en i18n con el formato
-// "País — Región (Ciudad)". El dato alimenta el corte de día de POS/reportes
-// en F4-F5; hoy solo se persiste.
+// Catálogo curado (decisiones de Carlos, 2026-08-16): Norteamérica —México,
+// Estados Unidos, Canadá— y Europa —Portugal, España, Francia, Italia,
+// Alemania y Reino Unido (Inglaterra)—, esta última tanda al habilitarse EUR
+// y GBP como monedas operacionales. Las claves son IANA; las etiquetas viven
+// en i18n con el formato "País — Región (Ciudad)", o "País (Ciudad)" cuando
+// el país tiene una sola zona. Los archipiélagos (Canarias, Madeira, Azores)
+// van aparte porque su offset difiere del continental. El dato alimenta el
+// corte de día de POS/reportes en F4-F5; hoy solo se persiste.
 const TIMEZONE_OPTIONS = [
   "America/Mexico_City",
   "America/Cancun",
@@ -32,6 +36,15 @@ const TIMEZONE_OPTIONS = [
   "America/Winnipeg",
   "America/Edmonton",
   "America/Vancouver",
+  "Europe/Lisbon",
+  "Atlantic/Madeira",
+  "Atlantic/Azores",
+  "Europe/Madrid",
+  "Atlantic/Canary",
+  "Europe/Paris",
+  "Europe/Rome",
+  "Europe/Berlin",
+  "Europe/London",
 ] as const;
 
 interface StepBusinessProps {

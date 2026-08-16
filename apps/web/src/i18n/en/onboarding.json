@@ -28,7 +28,16 @@
       "America/Toronto": "Canada — Eastern (Toronto, Montreal)",
       "America/Winnipeg": "Canada — Central (Winnipeg)",
       "America/Edmonton": "Canada — Mountain (Edmonton, Calgary)",
-      "America/Vancouver": "Canada — Pacific (Vancouver)"
+      "America/Vancouver": "Canada — Pacific (Vancouver)",
+      "Europe/Lisbon": "Portugal — Mainland (Lisbon)",
+      "Atlantic/Madeira": "Portugal — Madeira (Funchal)",
+      "Atlantic/Azores": "Portugal — Azores (Ponta Delgada)",
+      "Europe/Madrid": "Spain — Mainland (Madrid, Barcelona)",
+      "Atlantic/Canary": "Spain — Canary Islands (Las Palmas, Tenerife)",
+      "Europe/Paris": "France (Paris)",
+      "Europe/Rome": "Italy (Rome, Milan)",
+      "Europe/Berlin": "Germany (Berlin, Munich)",
+      "Europe/London": "United Kingdom — England (London)"
     },
     "currency": "Operating currency",
     "currencyOptions": {
