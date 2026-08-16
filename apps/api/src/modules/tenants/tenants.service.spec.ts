@@ -26,8 +26,9 @@ function buildTx() {
   };
   const rolePermission = { createMany: jest.fn().mockResolvedValue({ count: 0 }) };
   const userRole = { create: jest.fn().mockResolvedValue(undefined) };
+  const catalog = { create: jest.fn().mockResolvedValue({ id: "catalog-1" }) };
 
-  return { tenant, user, permission, role, rolePermission, userRole, roleIdByName };
+  return { tenant, user, permission, role, rolePermission, userRole, catalog, roleIdByName };
 }
 
 describe("TenantsService.provision (f1-auth design §4)", () => {
@@ -103,6 +104,37 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
       call[0].data.some((d: { roleId: string }) => d.roleId === adminRoleId),
     );
     expect(adminCall?.[0].data).toHaveLength(3);
+  });
+
+  // F2-CAT-01: el Catálogo de Productos es OBLIGATORIO y del sistema. Nace con
+  // el tenant, en la misma transacción que los roles, porque un tenant sin él
+  // no puede dar de alta un producto — y el motor no tendría dónde colgar los
+  // campos personalizados.
+  it("crea el Catálogo de Productos del sistema en la misma tx que el tenant", async () => {
+    const { service, tx } = buildService();
+
+    await service.provision(baseInput);
+
+    expect(tx.catalog.create).toHaveBeenCalledTimes(1);
+    expect(tx.catalog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        systemKey: "products",
+        isSystem: true,
+      }),
+    });
+  });
+
+  it("el catálogo se crea DESPUÉS de abrir el contexto de tenant (tiene RLS)", async () => {
+    const { service, tx, setTenantContext } = buildService();
+
+    await service.provision(baseInput);
+
+    // `catalogs` lleva policy tenant_isolation: crear la fila antes del
+    // set_config la rechazaría el WITH CHECK.
+    const contextOrder = setTenantContext.mock.invocationCallOrder[0] as number;
+    const catalogOrder = tx.catalog.create.mock.invocationCallOrder[0] as number;
+    expect(catalogOrder).toBeGreaterThan(contextOrder);
   });
 
   it("registra un AuditLog auth.register_tenant dentro de la misma tx", async () => {

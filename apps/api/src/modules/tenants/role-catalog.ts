@@ -28,6 +28,18 @@ export const TENANT_ROLE_NAMES = ["TenantAdmin", "Manager", "POS_Seller", "Viewe
 
 export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
 
+/**
+ * F2-CAT-01: identidad del Catálogo de Productos, el catálogo del sistema que
+ * todo tenant tiene desde que nace.
+ *
+ * `PRODUCTS_CATALOG_KEY` es la clave ESTABLE contra la que el código pregunta
+ * "¿cuál es el catálogo de productos de este tenant?" — nunca por nombre, que
+ * el tenant puede cambiar. Vive acá y no en el service para que la migración
+ * de backfill, el service y los tests hablen de lo mismo.
+ */
+export const PRODUCTS_CATALOG_KEY = "products";
+export const PRODUCTS_CATALOG_NAME = "Catálogo de Productos";
+
 // F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio (razón social,
 // dirección, moneda, onboarding) tampoco es tarea de Manager — mismo criterio
 // que users:manage/roles:manage.

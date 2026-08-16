@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
-import { resolveRolePermissionCodes, TENANT_ROLE_NAMES } from "./role-catalog";
+import {
+  PRODUCTS_CATALOG_KEY,
+  PRODUCTS_CATALOG_NAME,
+  resolveRolePermissionCodes,
+  TENANT_ROLE_NAMES,
+} from "./role-catalog";
 
 export interface ProvisionTenantInput {
   tenantName: string;
@@ -91,6 +96,27 @@ export class TenantsService {
       }
 
       await tx.userRole.create({ data: { userId: owner.id, roleId: ownerRoleId } });
+
+      // F2-CAT-01: el Catálogo de Productos es el catálogo PRINCIPAL y
+      // obligatorio del motor (ARQUITECTURA § 3.3). Nace con el tenant, en
+      // esta misma transacción, porque sin él no hay dónde colgar los campos
+      // personalizados y el alta de productos no tendría contra qué validar.
+      //
+      // `isSystem` + `systemKey` lo marcan como no borrable ni renombrable; el
+      // índice único parcial de (tenant_id, system_key) garantiza que haya uno
+      // solo. Va DESPUÉS de `setTenantContext` como todo lo que tiene RLS: su
+      // policy `tenant_isolation` rechazaría el INSERT sin contexto abierto.
+      //
+      // El NOMBRE visible queda en español neutro y el tenant puede cambiarlo
+      // — lo que no puede es borrarlo (F2-CAT-02).
+      await tx.catalog.create({
+        data: {
+          tenantId: tenant.id,
+          name: PRODUCTS_CATALOG_NAME,
+          systemKey: PRODUCTS_CATALOG_KEY,
+          isSystem: true,
+        },
+      });
 
       await this.auditService.record(tx, {
         tenantId: tenant.id,

@@ -1263,7 +1263,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 > El corazón de la fase. CRUD de catálogos, campos y registros con las guardas de la LEY (confirmación al archivar campo con datos, tipo bloqueado con datos, lookup con integridad a nivel servicio).
 
-- [ ] **F2-CAT-01** — Catálogo del sistema «products» por tenant
+- [x] **F2-CAT-01** — Catálogo del sistema «products» por tenant
   - **Salida:** `TenantsService.provision()` crea `Catalog { systemKey: 'products', isSystem: true }` en la misma tx que los roles base; migración data-only de backfill para los tenants existentes en producción
   - **Verificar:** e2e: registrar tenant nuevo → el catálogo existe; test de la migración de backfill
   - **Depende de:** F2-DB-02
