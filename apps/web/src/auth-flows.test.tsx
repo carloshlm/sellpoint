@@ -801,9 +801,9 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     logoutMock.mockResolvedValue(undefined);
   });
 
-  async function logoutPorElMenu(nombre: string) {
+  async function logoutFromMenu(userName: string) {
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: nombre }));
+    await user.click(await screen.findByRole("button", { name: userName }));
     await user.click(await screen.findByRole("menuitem", { name: "Cerrar sesión" }));
     await waitFor(() => {
       expect(useAuthStore.getState().accessToken).toBeNull();
@@ -820,7 +820,7 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     expect(queryClient.getQueryData(SESSIONS_QUERY_KEY)).toHaveLength(2);
     const fetchsAntesDelLogout = getSessionsMock.mock.calls.length;
 
-    await logoutPorElMenu("Ana");
+    await logoutFromMenu("Ana");
 
     expect(queryClient.getQueryData(SESSIONS_QUERY_KEY)).toBeUndefined();
     // Purgar no puede degenerar en "refetch con la sesión ya muerta": ese
@@ -839,7 +839,7 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     const listaDeAna = await screen.findByTestId("active-sessions");
     expect(within(listaDeAna).getAllByRole("listitem")).toHaveLength(2);
 
-    await logoutPorElMenu("Ana");
+    await logoutFromMenu("Ana");
     cleanup();
 
     // --- Usuario B: otro tenant, MISMA pestaña, su fetch queda colgado -----
