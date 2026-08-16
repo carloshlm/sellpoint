@@ -141,7 +141,8 @@ describe("Editor de campos (F2-SCHEMA)", () => {
       }),
     );
     // La key NO viaja: si viajara, el usuario podría fabricar colisiones.
-    expect(Object.keys(mockedApi.createField.mock.calls[0][1])).not.toContain("key");
+    const payload = mockedApi.createField.mock.calls[0]?.[1];
+    expect(payload && Object.keys(payload)).not.toContain("key");
   });
 
   it("un campo lookup exige catálogo destino antes de poder guardarse", async () => {
