@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import { UNIT_CODES, UNITS } from "@sellpoint/shared";
 import type { Env } from "../../config/env.schema";
 import { PrismaService } from "./prisma.service";
 
@@ -73,6 +74,32 @@ describe("units — tabla maestra (F2-DB-01)", () => {
     await expect(
       prisma.$executeRaw`INSERT INTO units (code, name_es, name_en, category) VALUES ('xx', 'x', 'x', 'count')`,
     ).rejects.toThrow(/permission denied|42501/i);
+  });
+
+  // F2-UOM-01: contrato entre las DOS fuentes de la misma verdad. La DB manda
+  // en la identidad (es la FK de `products.base_unit`); `@sellpoint/shared`
+  // manda en los factores (constantes físicas) y es lo que consume el front.
+  // Si divergen, el selector de unidad del web ofrecería algo que la DB
+  // rechaza, o el conversor no sabría convertir una unidad que sí existe.
+  it("el catálogo compartido y la tabla `units` contienen exactamente las mismas unidades", async () => {
+    const rows = await prisma.unit.findMany();
+    const inDatabase = rows.map((unit) => unit.code).sort();
+    const inShared = [...UNIT_CODES].sort();
+
+    expect(inDatabase).toEqual(inShared);
+  });
+
+  it("la categoría de cada unidad coincide entre la DB y el catálogo compartido", async () => {
+    const rows = await prisma.unit.findMany();
+
+    const mismatches = rows
+      .filter((row) => UNITS[row.code as keyof typeof UNITS]?.category !== row.category)
+      .map(
+        (row) =>
+          `${row.code}: DB dice "${row.category}", shared dice "${UNITS[row.code as keyof typeof UNITS]?.category}"`,
+      );
+
+    expect(mismatches).toEqual([]);
   });
 
   it("`category` está acotada por CHECK a las cuatro categorías conocidas", async () => {

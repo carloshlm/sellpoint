@@ -1245,13 +1245,13 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-UOM — Conversiones de Unidades
 
-- [ ] **F2-UOM-01** — Tipo `Unit` + catálogo compartido en `packages/shared`
+- [x] **F2-UOM-01** — Tipo `Unit` + catálogo compartido en `packages/shared`
   - **Salida:** `UNIT_CATEGORIES`, tipo `UnitCategory`, catálogo `UNITS` (code, category, factor a la unidad base de su categoría: ml/gr/cm/unit) — misma fuente para API y web (patrón `ISO_COUNTRY_CODES`)
   - **Verificar:** test de contrato: todo code del seed SQL de F2-DB-01 existe en el catálogo shared y viceversa
   - **Depende de:** F2-DB-01
   - **Estimación:** 45 min
 
-- [ ] **F2-UOM-02** — Helper `convertUnits()` misma-categoría
+- [x] **F2-UOM-02** — Helper `convertUnits()` misma-categoría
   - **Salida:** `convertUnits(value, from, to)` en shared; conversión solo dentro de la categoría (`l↔ml`, `kg↔gr`, `m↔cm`, `oz↔gr`, `lb↔kg`); categorías distintas lanzan (densidad = responsabilidad del usuario)
   - **Verificar:** tests RED→GREEN de la matriz de conversiones + el cruce de categorías que lanza
   - **Depende de:** F2-UOM-01
