@@ -35,7 +35,8 @@
       "MXN": "Peso mexicano (MXN)",
       "USD": "Dólar estadounidense (USD)",
       "CAD": "Dólar canadiense (CAD)",
-      "EUR": "Euro (EUR)"
+      "EUR": "Euro (EUR)",
+      "GBP": "Libra esterlina (GBP)"
     },
     "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
     "continue": "Continuar",

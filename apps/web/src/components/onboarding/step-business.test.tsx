@@ -72,7 +72,7 @@ describe("StepBusiness — zonas horarias", () => {
     expect(values).not.toContain("America/Argentina/Buenos_Aires");
   });
 
-  it("ofrece las cuatro monedas operacionales: MXN, USD, CAD y EUR", () => {
+  it("ofrece las cinco monedas operacionales: MXN, USD, CAD, EUR y GBP", () => {
     renderStep();
     const select = screen.getByLabelText("Moneda operacional");
     const labels = within(select as HTMLElement)
@@ -84,6 +84,7 @@ describe("StepBusiness — zonas horarias", () => {
       "Dólar estadounidense (USD)",
       "Dólar canadiense (CAD)",
       "Euro (EUR)",
+      "Libra esterlina (GBP)",
     ]);
   });
 

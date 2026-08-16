@@ -1,5 +1,5 @@
 export const SUPPORTED_LOCALES = ["es", "en"] as const;
-export const SUPPORTED_CURRENCIES = ["MXN", "USD", "CAD", "EUR"] as const;
+export const SUPPORTED_CURRENCIES = ["MXN", "USD", "CAD", "EUR", "GBP"] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];

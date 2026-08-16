@@ -28,7 +28,7 @@ model Tenant {
   // deriva 4 sin necesitar una señal server-side extra (ver
   // apps/web/src/lib/tenant/steps.ts).
   timezone       String   @default("America/Mexico_City")
-  // CHAR(3) con CHECK (currency IN ('MXN','USD','CAD','EUR')) — el CHECK vive en el SQL de
+  // CHAR(3) con CHECK (currency IN ('MXN','USD','CAD','EUR','GBP')) — el CHECK vive en el SQL de
   // la migración porque Prisma no soporta constraints CHECK en el schema.
   currency       String   @default("MXN") @db.Char(3)
   onboarded      Boolean  @default(false)

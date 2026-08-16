@@ -37,6 +37,14 @@ describe("formatMoney", () => {
     // Same fallback shape as USD/es and CAD/es: ISO code + NBSP (U+00A0).
     expect(formatMoney(1234.56, "EUR", "es")).toBe("EUR\u00A01,234.56");
   });
+  it("formats the foreign pair GBP/en with the pound sign (pinned against Node 22)", () => {
+    expect(formatMoney(1234.56, "GBP", "en")).toBe("£1,234.56");
+  });
+
+  it("formats the foreign pair GBP/es with the ICU ISO-code fallback (pinned against Node 22)", () => {
+    // Same fallback shape as USD/es, CAD/es and EUR/es: ISO code + NBSP (U+00A0).
+    expect(formatMoney(1234.56, "GBP", "es")).toBe("GBP\u00A01,234.56");
+  });
   it("defaults to DEFAULT_CURRENCY/DEFAULT_LOCALE (MXN/es) when called with only an amount", () => {
     expect(formatMoney(1234.56)).toBe("$1,234.56");
   });
