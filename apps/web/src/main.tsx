@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { i18n } from "./i18n";
+import { installAccountLanguageSync } from "./lib/auth/ui-language";
 import { createQueryClient } from "./lib/query-client";
 import { applyBrand } from "./lib/theme/apply-brand";
 import { routeTree } from "./routeTree.gen";
@@ -15,6 +16,12 @@ import { routeTree } from "./routeTree.gen";
 // escribe su email (login por email global, decisión de f1-auth). Cuando el
 // login devuelva la config del tenant, se vuelve a llamar con `tenant.theme`.
 applyBrand();
+
+// Las pantallas públicas arrancan en inglés (`INITIAL_LOCALE`), pero apenas
+// hay sesión manda el idioma de la CUENTA. Se instala una sola vez, acá, para
+// que ningún camino que cree sesión pueda olvidarse de aplicarlo — ver
+// `lib/auth/ui-language.ts`. Vive lo que vive la pestaña: no se desuscribe.
+installAccountLanguageSync(i18n);
 
 // UN cliente por pestaña, construido SIEMPRE con la factory: trae la política
 // de reintentos (W5) y la purga de caché atada al cambio de sesión (C1).

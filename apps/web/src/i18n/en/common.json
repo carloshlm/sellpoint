@@ -1,6 +1,9 @@
 {
   "hello": "Hello",
   "welcome": "Welcome to SellPoint",
+  "languageSwitcher": {
+    "label": "Language"
+  },
   "home": {
     "demoTotal": "Demo total: {{amount}}",
     "tailwindCheck": "Tailwind is live",

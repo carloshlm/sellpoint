@@ -175,6 +175,41 @@ resto del mundo. **Sin validación de formato** — fuera de alcance (opción C)
 americano neutro.** Aplica a la web, a los mensajes de error de la API y a los
 correos — todo lo que viva en `apps/web/src/i18n/**` y `apps/api/src/i18n/**`.
 
+### Con qué idioma arranca la app (2026-08-16)
+
+**Las pantallas públicas arrancan en INGLÉS**, aunque la mayoría de los
+clientes sean de México. Es una decisión de producto de Carlos, no un
+descuido, y tiene tres consecuencias que se implementaron juntas:
+
+1. **El detector de i18next NO mira `navigator`** (`apps/web/src/i18n/index.ts`,
+   `INITIAL_LOCALE`). Si lo mirara, un navegador en español entregaría español
+   y la decisión sería letra muerta. Solo pesan dos cosas: lo que la persona
+   eligió a mano (cache de localStorage, clave `sellpoint.locale`) y, si no
+   eligió nada, el inglés.
+2. **Hay un selector visible en toda pantalla pública** — vive en `AuthCard`,
+   así que lo heredan login, register, forgot/reset password, verify-email y
+   accept-invitation, y ninguna pantalla pública futura puede nacer sin él.
+   Es un control segmentado (`Español` / `English`) y no un `<select>`: con
+   dos idiomas, dos botones cambian con un clic y no se confunden con un campo
+   más del formulario. Los nombres son **endónimos** —cada idioma se nombra en
+   sí mismo, nunca "Inglés" ni "Spanish"— porque quien cae en una pantalla que
+   no entiende necesita reconocer su idioma escrito como él lo escribe.
+3. **El idioma elegido acá es el de la cuenta nueva**: `register.tsx` manda el
+   idioma vigente como `locale`, así que quien se registra en español recibe
+   su correo de verificación en español.
+
+> **Contrapeso obligatorio:** apenas hay sesión, manda el idioma de la
+> **cuenta** (`lib/auth/ui-language.ts`, suscrito al `auth.store`). Sin esto,
+> el inglés-first sería una regresión: un cliente mexicano con `locale: "es"`
+> entrando desde un navegador nuevo aterrizaría en un dashboard en inglés.
+> De paso cierra **W3 de f1-web-auth**, que estaba en backlog ("i18next no
+> sincroniza con `user.locale` al bootear").
+
+**No confundir con `DEFAULT_LOCALE`** (`es`, `packages/shared/src/i18n.ts`):
+ese sigue siendo el fallback del **backend** cuando una request llega sin
+`Accept-Language`, y el de formato de moneda. Son dos decisiones distintas y
+se mantienen separadas a propósito.
+
 ### Español: neutro, nunca voseo
 
 El producto es México-first y se vende a 26 mercados. El voseo rioplatense

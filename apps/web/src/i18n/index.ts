@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "@sellpoint/shared";
+import { DEFAULT_LOCALE, type Locale, SUPPORTED_LOCALES } from "@sellpoint/shared";
 import i18next, { type i18n as I18nInstance } from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
@@ -12,6 +12,25 @@ import esCommon from "./es/common.json";
 import esOnboarding from "./es/onboarding.json";
 import esUsers from "./es/users.json";
 import esValidation from "./es/validation.json";
+
+/**
+ * Idioma de la PRIMERA visita, cuando todavía nadie eligió nada (decisión de
+ * Carlos, 2026-08-16): las pantallas públicas arrancan en INGLÉS aunque la
+ * mayoría de los clientes sean de México. Es una decisión de producto.
+ *
+ * Por eso el detector NO mira `navigator`: si lo mirara, un navegador en
+ * español entregaría español y esta decisión sería letra muerta. Solo manda
+ * lo que la persona eligió a mano en el selector (localStorage) y, si no
+ * eligió nada, este valor.
+ *
+ * NO es `DEFAULT_LOCALE` (`es`, `@sellpoint/shared`), y la diferencia es a
+ * propósito: ese sigue siendo el fallback del BACKEND (request sin
+ * `Accept-Language`) y el de formato de moneda. Son dos decisiones distintas.
+ *
+ * El contrapeso vive en `lib/auth/ui-language.ts`: apenas hay sesión, el
+ * idioma de la CUENTA pisa a este.
+ */
+export const INITIAL_LOCALE: Locale = "en";
 
 const resources = {
   es: {
@@ -36,9 +55,10 @@ const resources = {
 
 interface CreateI18nOptions {
   /**
-   * Activa `i18next-browser-languagedetector` (localStorage → navigator).
-   * OFF por default para instancias herméticas de test; la instancia real
-   * de la app (singleton exportado más abajo) lo activa.
+   * Activa `i18next-browser-languagedetector` (SOLO localStorage — ver
+   * `INITIAL_LOCALE`). OFF por default para instancias herméticas de test,
+   * que arrancan en `DEFAULT_LOCALE`; la instancia real de la app (singleton
+   * exportado más abajo) lo activa y arranca en `INITIAL_LOCALE`.
    */
   withDetector?: boolean;
 }
@@ -60,7 +80,10 @@ export function createI18n(options: CreateI18nOptions = {}): I18nInstance {
   chain.init({
     resources,
     lng: withDetector ? undefined : DEFAULT_LOCALE,
-    fallbackLng: DEFAULT_LOCALE,
+    // Con detector, `fallbackLng` es lo que se usa cuando NO hay preferencia
+    // guardada: ahí entra el inglés-first. Sin detector (tests), el idioma ya
+    // viene fijado por `lng` y este valor solo cubre claves faltantes.
+    fallbackLng: withDetector ? INITIAL_LOCALE : DEFAULT_LOCALE,
     supportedLngs: [...SUPPORTED_LOCALES],
     load: "languageOnly",
     keySeparator: ".",
@@ -68,7 +91,8 @@ export function createI18n(options: CreateI18nOptions = {}): I18nInstance {
     react: { useSuspense: false },
     detection: withDetector
       ? {
-          order: ["localStorage", "navigator"],
+          // `navigator` queda FUERA a propósito — ver `INITIAL_LOCALE`.
+          order: ["localStorage"],
           lookupLocalStorage: "sellpoint.locale",
           caches: ["localStorage"],
         }

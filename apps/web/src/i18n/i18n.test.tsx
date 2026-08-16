@@ -71,6 +71,49 @@ describe("i18n wiring", () => {
 });
 
 /**
+ * IDIOMA DE LA PRIMERA VISITA (decisión de Carlos, 2026-08-16).
+ *
+ * Las pantallas públicas arrancan en INGLÉS aunque la mayoría de los clientes
+ * sean de México. Es una decisión de producto, no un descuido: por eso el
+ * detector NO mira `navigator`. Si lo mirara, un navegador en español vería
+ * español y la decisión sería letra muerta.
+ */
+describe("idioma inicial de la app (instancia con detector)", () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("arranca en inglés cuando todavía nadie eligió idioma", () => {
+    const i18n = createI18n({ withDetector: true });
+
+    expect(i18n.resolvedLanguage).toBe("en");
+  });
+
+  it("respeta la elección previa de la persona por encima del arranque en inglés", () => {
+    localStorage.setItem("sellpoint.locale", "es");
+
+    const i18n = createI18n({ withDetector: true });
+
+    expect(i18n.resolvedLanguage).toBe("es");
+  });
+
+  it("ignora el idioma del navegador: uno en español sigue viendo inglés", () => {
+    Object.defineProperty(window.navigator, "languages", {
+      value: ["es-MX", "es"],
+      configurable: true,
+    });
+    Object.defineProperty(window.navigator, "language", {
+      value: "es-MX",
+      configurable: true,
+    });
+
+    const i18n = createI18n({ withDetector: true });
+
+    expect(i18n.resolvedLanguage).toBe("en");
+  });
+});
+
+/**
  * GUARDARRAÍL DE VOZ DE LA UI (LEY, Carlos, 2026-08-16).
  *
  * El producto es México-first y se vende a 26 mercados: el voseo rioplatense
