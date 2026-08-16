@@ -9,8 +9,9 @@
 
 ## 1. Países soportados
 
-Nueve países, en dos bloques. La columna **Moneda esperada** es la que el negocio
-elegiría normalmente, no una restricción: el selector de moneda es libre.
+**26 países en cuatro bloques**: Norteamérica, Europa, Centroamérica y
+Sudamérica. La columna **Moneda** es la que el negocio elegiría normalmente, no
+una restricción: el selector de moneda es libre y ofrece las cinco habilitadas.
 
 ### Norteamérica
 
@@ -34,21 +35,49 @@ elegiría normalmente, no una restricción: el selector de moneda es libre.
 **Monedas habilitadas:** `MXN`, `USD`, `CAD`, `EUR`, `GBP` — definidas en
 `SUPPORTED_CURRENCIES` (`packages/shared/src/i18n.ts`), con test de contrato.
 
-### Sudamérica (cobertura parcial)
+### Centroamérica
 
-Existe una entrada **regional**: `"Sudamérica (UTC-4)"`, respaldada por la zona
-IANA `America/La_Paz` (UTC-4 estable, sin horario de verano). Cubre de facto
-Bolivia, Venezuela, Guyana y el Amazonas brasileño, **sin declarar ningún país
-sudamericano como mercado soportado** (por eso no aparecen en la tabla de
-arriba ni influyen en la discusión de etiquetas de la sección 2).
+Ninguno tiene horario de verano: su offset es estable todo el año.
 
-> ⚠️ Chile NO queda cubierto por esta entrada: Santiago alterna UTC-4/UTC-3 con
-> el horario de verano. Si Chile se vuelve mercado, necesita `America/Santiago`
-> propio.
+| País | Moneda por defecto | Zona horaria |
+|---|---|---|
+| Belice | USD | Belmopán (UTC-6) |
+| Costa Rica | USD | San José (UTC-6) |
+| El Salvador | USD | San Salvador (UTC-6) |
+| Guatemala | USD | Ciudad de Guatemala (UTC-6) |
+| Honduras | USD | Tegucigalpa (UTC-6) |
+| Nicaragua | USD | Managua (UTC-6) |
+| Panamá | USD | Ciudad de Panamá (UTC-5) |
 
-**Fuera de alcance por ahora:** el resto de Sudamérica por ciudad (las zonas de
-Bogotá, Lima, Santiago y Buenos Aires se retiraron el 2026-08-16), y de
-Portugal quedaron fuera Madeira y Azores por decisión explícita.
+### Sudamérica
+
+| País | Moneda por defecto | Zonas horarias ofrecidas |
+|---|---|---|
+| Argentina | USD | Buenos Aires (UTC-3) |
+| Bolivia | USD | La Paz (UTC-4) |
+| Brasil | USD | Brasilia (UTC-3), Amazonas (UTC-4), Acre (UTC-5) |
+| Chile | USD | Continental (UTC-4/-3), Isla de Pascua (UTC-6/-5) |
+| Colombia | USD | Bogotá (UTC-5) |
+| Ecuador | USD | Continental (UTC-5), Galápagos (UTC-6) |
+| Paraguay | USD | Asunción (UTC-3) |
+| Perú | USD | Lima (UTC-5) |
+| Uruguay | USD | Montevideo (UTC-3) |
+| Venezuela | USD | Caracas (UTC-4) |
+
+> **Sobre la moneda por defecto:** Latinoamérica opera con **USD** por decisión
+> operativa (2026-08-16), no porque su moneda local no exista. Cada moneda se
+> irá habilitando conforme lleguen clientes que la necesiten — el proceso es el
+> mismo que se usó para CAD, EUR y GBP: agregar el código a
+> `SUPPORTED_CURRENCIES`, una migración con el `CHECK` ampliado y la fila del
+> catálogo, y las etiquetas en ambos idiomas.
+
+> **Sobre el horario de verano:** solo **Chile** lo tiene activo (Santiago
+> alterna UTC-4/-3). Paraguay lo abolió en 2024 y Brasil en 2019. Por eso el
+> catálogo guarda ciudades IANA y no offsets crudos: un `UTC-4` fijo mentiría
+> media parte del año.
+
+**Fuera de alcance por ahora:** de Portugal quedaron fuera Madeira y Azores por
+decisión explícita.
 
 ---
 

@@ -18,9 +18,10 @@ import { CurrencySelector } from "./currency-selector";
 // el país tiene una sola zona. Canarias va aparte de Madrid porque su offset
 // difiere del peninsular; de Portugal solo se ofrece Lisboa (Madeira y Azores
 // quedaron fuera por decisión de Carlos). El dato alimenta el corte de día de
-// POS/reportes en F4-F5; hoy solo se persiste. "Sudamérica (UTC-4)" es una
-// entrada REGIONAL respaldada por America/La_Paz — UTC-4 estable, sin horario
-// de verano (por eso no sirve America/Santiago: Chile salta a UTC-3 en verano).
+// POS/reportes en F4-F5; hoy solo se persiste. Guardamos ciudades IANA y no
+// offsets crudos justamente porque el offset no es estable: Chile alterna
+// UTC-4/-3 con su horario de verano, y Paraguay (2024) y Brasil (2019) lo
+// abolieron. La zona IANA absorbe esos cambios sola.
 const TIMEZONE_OPTIONS = [
   "America/Mexico_City",
   "America/Cancun",
@@ -39,6 +40,31 @@ const TIMEZONE_OPTIONS = [
   "America/Winnipeg",
   "America/Edmonton",
   "America/Vancouver",
+  // Centroamérica — ninguno tiene horario de verano
+  "America/Belize",
+  "America/Costa_Rica",
+  "America/El_Salvador",
+  "America/Guatemala",
+  "America/Tegucigalpa",
+  "America/Managua",
+  "America/Panama",
+  // Sudamérica — alfabético por país; Brasil, Chile y Ecuador tienen zonas
+  // secundarias con offset propio
+  "America/Argentina/Buenos_Aires",
+  "America/La_Paz",
+  "America/Sao_Paulo",
+  "America/Manaus",
+  "America/Rio_Branco",
+  "America/Santiago",
+  "Pacific/Easter",
+  "America/Bogota",
+  "America/Guayaquil",
+  "Pacific/Galapagos",
+  "America/Asuncion",
+  "America/Lima",
+  "America/Montevideo",
+  "America/Caracas",
+  // Europa
   "Europe/Lisbon",
   "Europe/Madrid",
   "Atlantic/Canary",
@@ -46,7 +72,6 @@ const TIMEZONE_OPTIONS = [
   "Europe/Rome",
   "Europe/Berlin",
   "Europe/London",
-  "America/La_Paz",
 ] as const;
 
 interface StepBusinessProps {

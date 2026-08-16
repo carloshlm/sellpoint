@@ -40,8 +40,8 @@ function renderStep() {
   return { onSubmit };
 }
 
-// Países soportados por el selector: Norteamérica (2026-08-16) + Europa
-// (2026-08-16, al agregarse EUR y GBP como monedas operacionales).
+// Países soportados por el selector: Norteamérica + Europa + Latinoamérica
+// (Centro y Sudamérica), todos incorporados el 2026-08-16.
 const PAISES_SOPORTADOS = [
   "México",
   "Estados Unidos",
@@ -52,7 +52,23 @@ const PAISES_SOPORTADOS = [
   "Italia",
   "Alemania",
   "Reino Unido",
-  "Sudamérica",
+  "Belice",
+  "Costa Rica",
+  "El Salvador",
+  "Guatemala",
+  "Honduras",
+  "Nicaragua",
+  "Panamá",
+  "Argentina",
+  "Bolivia",
+  "Brasil",
+  "Chile",
+  "Colombia",
+  "Ecuador",
+  "Paraguay",
+  "Perú",
+  "Uruguay",
+  "Venezuela",
 ];
 
 describe("StepBusiness — zonas horarias", () => {
@@ -119,27 +135,62 @@ describe("StepBusiness — zonas horarias", () => {
     }
   });
 
-  it("no ofrece las zonas sudamericanas por ciudad retiradas de la lista original", () => {
+  it("ofrece los siete países de Centroamérica", () => {
     renderStep();
     const select = screen.getByLabelText("Zona horaria");
-    const values = within(select as HTMLElement)
+    const labels = within(select as HTMLElement)
       .getAllByRole("option")
-      .map((option) => (option as HTMLOptionElement).value);
+      .map((option) => option.textContent);
 
-    expect(values).not.toContain("America/Bogota");
-    expect(values).not.toContain("America/Lima");
-    expect(values).not.toContain("America/Santiago");
-    expect(values).not.toContain("America/Argentina/Buenos_Aires");
+    expect(labels).toContain("Belice (Belmopán)");
+    expect(labels).toContain("Costa Rica (San José)");
+    expect(labels).toContain("El Salvador (San Salvador)");
+    expect(labels).toContain("Guatemala (Ciudad de Guatemala)");
+    expect(labels).toContain("Honduras (Tegucigalpa)");
+    expect(labels).toContain("Nicaragua (Managua)");
+    expect(labels).toContain("Panamá (Ciudad de Panamá)");
   });
 
-  it("ofrece la zona regional Sudamérica UTC-4 respaldada por La Paz (sin horario de verano)", () => {
+  it("ofrece los diez países de Sudamérica", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const labels = within(select as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    expect(labels).toContain("Argentina (Buenos Aires)");
+    expect(labels).toContain("Bolivia (La Paz)");
+    expect(labels).toContain("Brasil — Brasilia (São Paulo, Río)");
+    expect(labels).toContain("Chile — Continental (Santiago)");
+    expect(labels).toContain("Colombia (Bogotá)");
+    expect(labels).toContain("Ecuador — Continental (Quito, Guayaquil)");
+    expect(labels).toContain("Paraguay (Asunción)");
+    expect(labels).toContain("Perú (Lima)");
+    expect(labels).toContain("Uruguay (Montevideo)");
+    expect(labels).toContain("Venezuela (Caracas)");
+  });
+
+  it("incluye las zonas secundarias de Brasil, Chile y Ecuador, con offset propio", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const labels = within(select as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+
+    expect(labels).toContain("Brasil — Amazonas (Manaos)");
+    expect(labels).toContain("Brasil — Acre (Rio Branco)");
+    expect(labels).toContain("Chile — Isla de Pascua");
+    expect(labels).toContain("Ecuador — Galápagos");
+  });
+
+  it("ya no ofrece la entrada regional 'Sudamérica (UTC-4)': La Paz ahora es Bolivia", () => {
     renderStep();
     const select = screen.getByLabelText("Zona horaria");
     const options = within(select as HTMLElement).getAllByRole("option") as HTMLOptionElement[];
 
     const laPaz = options.find((option) => option.value === "America/La_Paz");
-    expect(laPaz).toBeDefined();
-    expect(laPaz?.textContent).toBe("Sudamérica (UTC-4)");
+    expect(laPaz?.textContent).toBe("Bolivia (La Paz)");
+    expect(options.map((option) => option.textContent)).not.toContain("Sudamérica (UTC-4)");
   });
 
   it("ofrece las cinco monedas operacionales: MXN, USD, CAD, EUR y GBP", () => {
