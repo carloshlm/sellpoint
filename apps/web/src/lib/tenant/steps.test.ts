@@ -18,26 +18,30 @@ function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    country: null,
     ...overrides,
   };
 }
 
 describe("primerPasoIncompleto (matriz de tenants)", () => {
-  it("sin legalName/taxId/address: paso 1 (datos del negocio)", () => {
+  it("sin country/legalName/taxId/address: paso 1 (datos del negocio)", () => {
     expect(primerPasoIncompleto(tenant())).toBe(1);
   });
 
-  it("con legalName pero sin taxId: sigue en paso 1 (todos los campos son requeridos)", () => {
+  it("con legalName pero sin country/taxId: sigue en paso 1 (todos los campos son requeridos)", () => {
     expect(primerPasoIncompleto(tenant({ legalName: "Acme SA de CV" }))).toBe(1);
   });
 
-  it("con legalName y taxId pero sin address: sigue en paso 1", () => {
+  it("con legalName y taxId pero sin country/address: sigue en paso 1", () => {
     expect(
       primerPasoIncompleto(tenant({ legalName: "Acme SA de CV", taxId: "ACM010101AAA" })),
     ).toBe(1);
   });
 
-  it("con legalName+taxId+address, sin templateChoice: paso 2 (plantilla)", () => {
+  // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): `country` es un
+  // requerido MÁS del paso 1, no un sustituto de los otros tres — con los
+  // otros tres completos pero sin país, el piso sigue siendo 1.
+  it("con legalName+taxId+address pero sin country: sigue en paso 1", () => {
     expect(
       primerPasoIncompleto(
         tenant({
@@ -46,7 +50,36 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           address: "Av. Siempre Viva 123",
         }),
       ),
+    ).toBe(1);
+  });
+
+  it("con country+legalName+taxId+address, sin templateChoice: paso 2 (plantilla)", () => {
+    expect(
+      primerPasoIncompleto(
+        tenant({
+          country: "MX",
+          legalName: "Acme SA de CV",
+          taxId: "ACM010101AAA",
+          address: "Av. Siempre Viva 123",
+        }),
+      ),
     ).toBe(2);
+  });
+
+  // Consecuencia deliberada del cambio ad-hoc: un tenant que YA había
+  // pasado el paso 1 ANTES de que existiera `country` (los otros tres
+  // completos, `country` en NULL) vuelve a caer en el paso 1 hasta elegirlo.
+  it("tenant preexistente con legalName+taxId+address pero country=NULL (creado antes del campo país): vuelve al paso 1", () => {
+    expect(
+      primerPasoIncompleto(
+        tenant({
+          legalName: "Acme SA de CV",
+          taxId: "ACM010101AAA",
+          address: "Av. Siempre Viva 123",
+          templateChoice: "retail-basico",
+        }),
+      ),
+    ).toBe(1);
   });
 
   // W4 (verify-report #357, revierte Deviation 6): el paso 3 es un
@@ -60,6 +93,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     expect(
       primerPasoIncompleto(
         tenant({
+          country: "MX",
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
@@ -73,6 +107,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     expect(
       primerPasoIncompleto(
         tenant({
+          country: "MX",
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",

@@ -32,6 +32,10 @@ function CurrencySelector({ value, onChange, error }: CurrencySelectorProps) {
         }))}
       />
       <p className="text-xs text-muted-foreground">{t("onboarding.step1.currencyWarning")}</p>
+      {/* Decisión 5 (2026-08-16): la moneda SIEMPRE es visible y editable —
+          esta línea aclara que la lista de 5 no es un techo, solo lo
+          habilitado hoy. */}
+      <p className="text-xs text-muted-foreground">{t("onboarding.step1.currencyRequestHint")}</p>
     </div>
   );
 }

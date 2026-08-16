@@ -92,6 +92,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
         timezone: "America/Mexico_City",
         currency: "MXN",
         templateChoice: null,
+        country: "MX",
         onboarded: true,
       },
     });
@@ -217,6 +218,7 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
         timezone: "America/Mexico_City",
         currency: "MXN",
         templateChoice: null,
+        country: "MX",
         onboarded: true,
       },
     });

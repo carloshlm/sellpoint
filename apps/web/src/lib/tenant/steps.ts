@@ -6,9 +6,12 @@ import type { TenantBlock } from "./api";
  * `routes/onboarding.tsx` la usa como
  * `effectiveStep = min(stepPedido, primerPasoIncompleto(tenant))`.
  *
- * Paso 1 (negocio): completo cuando legalName + taxId + address están
- * presentes — los 3 son requeridos por el form del paso 1 (`timezone` y
- * `currency` siempre tienen default en el backend, no sirven como señal).
+ * Paso 1 (negocio): completo cuando country + legalName + taxId + address
+ * están presentes — los 4 son requeridos por el form del paso 1 (`timezone`
+ * y `currency` siempre tienen default en el backend, no sirven como señal).
+ * `country` se sumó ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2):
+ * consecuencia deliberada, un tenant que YA había completado el paso 1
+ * antes de este cambio (country en NULL) vuelve a caer acá hasta elegirlo.
  *
  * Paso 2 (plantilla): completo cuando `templateChoice` no es null.
  *
@@ -29,7 +32,7 @@ import type { TenantBlock } from "./api";
  * `templateChoice`, sin columna nueva ni escritura adicional.
  */
 export function primerPasoIncompleto(tenant: TenantBlock): 1 | 2 | 3 | 4 {
-  if (!tenant.legalName || !tenant.taxId || !tenant.address) {
+  if (!tenant.country || !tenant.legalName || !tenant.taxId || !tenant.address) {
     return 1;
   }
   if (!tenant.templateChoice) {

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Currency } from "@sellpoint/shared";
+import { type Currency, ISO_COUNTRY_CODES, localeToBcp47 } from "@sellpoint/shared";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -7,72 +7,30 @@ import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { TenantBlock } from "@/lib/tenant/api";
+import {
+  getCuratedTimezones,
+  getDefaultCurrency,
+  getTaxIdAbbreviation,
+} from "@/lib/tenant/markets";
 import { type BusinessStepValues, businessStepSchema } from "@/lib/tenant/schemas";
 import { CurrencySelector } from "./currency-selector";
 
-// Catálogo curado (decisiones de Carlos, 2026-08-16): Norteamérica —México,
-// Estados Unidos, Canadá— y Europa —Portugal, España, Francia, Italia,
-// Alemania y Reino Unido (Inglaterra)—, esta última tanda al habilitarse EUR
-// y GBP como monedas operacionales. Las claves son IANA; las etiquetas viven
-// en i18n con el formato "País — Región (Ciudad)", o "País (Ciudad)" cuando
-// el país tiene una sola zona. Canarias va aparte de Madrid porque su offset
-// difiere del peninsular; de Portugal solo se ofrece Lisboa (Madeira y Azores
-// quedaron fuera por decisión de Carlos). El dato alimenta el corte de día de
-// POS/reportes en F4-F5; hoy solo se persiste. Guardamos ciudades IANA y no
-// offsets crudos justamente porque el offset no es estable: Chile alterna
-// UTC-4/-3 con su horario de verano, y Paraguay (2024) y Brasil (2019) lo
-// abolieron. La zona IANA absorbe esos cambios sola.
-const TIMEZONE_OPTIONS = [
-  "America/Mexico_City",
-  "America/Cancun",
-  "America/Hermosillo",
-  "America/Tijuana",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Phoenix",
-  "America/Los_Angeles",
-  "America/Anchorage",
-  "Pacific/Honolulu",
-  "America/St_Johns",
-  "America/Halifax",
-  "America/Toronto",
-  "America/Winnipeg",
-  "America/Edmonton",
-  "America/Vancouver",
-  // Centroamérica — ninguno tiene horario de verano
-  "America/Belize",
-  "America/Costa_Rica",
-  "America/El_Salvador",
-  "America/Guatemala",
-  "America/Tegucigalpa",
-  "America/Managua",
-  "America/Panama",
-  // Sudamérica — alfabético por país; Brasil, Chile y Ecuador tienen zonas
-  // secundarias con offset propio
-  "America/Argentina/Buenos_Aires",
-  "America/La_Paz",
-  "America/Sao_Paulo",
-  "America/Manaus",
-  "America/Rio_Branco",
-  "America/Santiago",
-  "Pacific/Easter",
-  "America/Bogota",
-  "America/Guayaquil",
-  "Pacific/Galapagos",
-  "America/Asuncion",
-  "America/Lima",
-  "America/Montevideo",
-  "America/Caracas",
-  // Europa
-  "Europe/Lisbon",
-  "Europe/Madrid",
-  "Atlantic/Canary",
-  "Europe/Paris",
-  "Europe/Rome",
-  "Europe/Berlin",
-  "Europe/London",
-] as const;
+// Catálogo curado de zonas horarias por país (decisiones de Carlos,
+// 2026-08-16): vive en `@/lib/tenant/markets` (`CURATED_TIMEZONES`), acá
+// solo se traduce cada IANA id con las MISMAS 45 claves i18n que existían
+// antes de reorganizar el catálogo plano en un mapa país→zonas
+// (`onboarding.step1.timezoneOptions.*`, es/en) — ver `markets.ts` para el
+// detalle de qué zonas trae cada país curado.
+const ALL_TIMEZONES = Intl.supportedValuesOf("timeZone");
+const ALL_TIMEZONES_SET = new Set(ALL_TIMEZONES);
+
+function detectBrowserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "";
+  }
+}
 
 interface StepBusinessProps {
   tenant: TenantBlock;
@@ -85,12 +43,26 @@ interface StepBusinessProps {
  * F1-WEB-ONBOARD-01, paso 1. A4 del design: `defaultValues` SIEMPRE salen
  * del tenant del server (nunca de un draft en memoria); el container le pasa
  * `key={effectiveStep}` para forzar un remount limpio en cada paso.
+ *
+ * `country` (ad-hoc post-Fase 1, 2026-08-16, MERCADOS.md §2): PRIMER campo,
+ * requerido. Maneja tres derivaciones cuando el usuario CAMBIA de país (no
+ * al montar — `defaultValues` respeta A4 y nunca se pisa solo, decisión 7):
+ * 1. Etiqueta de identificación fiscal (sigla por país curado, genérica sin
+ *    sigla para el resto del mundo).
+ * 2. Zona horaria: país curado → SOLO sus zonas (si la actual no pertenece,
+ *    se resetea a la única del país o a elegir); país no curado → catálogo
+ *    IANA completo con la del navegador preseleccionada si es válida.
+ * 3. Moneda: se re-preselecciona SOLO si el usuario no la tocó
+ *    explícitamente — un `ref` booleano (no estado, no dispara re-render
+ *    por sí solo) marca el toque real en el `onChange` de `CurrencySelector`.
  */
 function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusinessProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const bcp47 = localeToBcp47(i18n.language.startsWith("en") ? "en" : "es");
 
   const defaultValues = React.useMemo<BusinessStepValues>(
     () => ({
+      country: tenant.country ?? "",
       legalName: tenant.legalName ?? "",
       taxId: tenant.taxId ?? "",
       address: tenant.address ?? "",
@@ -111,9 +83,65 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
     defaultValues,
   });
 
+  const country = watch("country");
   const currency = watch("currency");
 
+  // Decisión 7: solo re-preselecciona la moneda si el usuario NO la tocó a
+  // mano. `ref`, no `useState` — tocar la moneda no debe disparar un
+  // re-render extra, solo cambiar el comportamiento de la próxima derivación.
+  const currencyTouchedRef = React.useRef(false);
+
+  // Deriva timezone/moneda SOLO ante un cambio real de país post-mount — NO
+  // al montar (A4: `defaultValues` ya trae lo que el server tiene, nunca se
+  // pisa solo). `previousCountryRef` arranca en el país inicial del tenant
+  // para que el primer render nunca dispare la derivación.
+  const previousCountryRef = React.useRef(country);
+  React.useEffect(() => {
+    if (country === previousCountryRef.current) {
+      return;
+    }
+    previousCountryRef.current = country;
+
+    const curatedZones = country ? getCuratedTimezones(country) : undefined;
+    if (curatedZones) {
+      const currentTimezone = watch("timezone");
+      if (!curatedZones.includes(currentTimezone)) {
+        setValue("timezone", curatedZones.length === 1 ? (curatedZones.at(0) ?? "") : "", {
+          shouldValidate: true,
+        });
+      }
+    } else {
+      const browserTimezone = detectBrowserTimezone();
+      setValue("timezone", ALL_TIMEZONES_SET.has(browserTimezone) ? browserTimezone : "", {
+        shouldValidate: true,
+      });
+    }
+
+    if (!currencyTouchedRef.current) {
+      setValue("currency", getDefaultCurrency(country), { shouldValidate: true });
+    }
+    // `watch`/`setValue` son referencias estables de react-hook-form — se
+    // listan para satisfacer el linter, no porque cambien entre renders.
+  }, [country, watch, setValue]);
+
   const submit = handleSubmit((values) => onSubmit(values));
+
+  const countryOptions = React.useMemo(() => {
+    const displayNames = new Intl.DisplayNames([bcp47], { type: "region" });
+    return [...ISO_COUNTRY_CODES]
+      .map((code) => ({ value: code, label: displayNames.of(code) ?? code }))
+      .sort((a, b) => a.label.localeCompare(b.label, bcp47));
+  }, [bcp47]);
+
+  const taxIdAbbreviation = getTaxIdAbbreviation(country);
+  const taxIdLabel = taxIdAbbreviation
+    ? t("onboarding.step1.taxIdWithAbbr", { abbr: taxIdAbbreviation })
+    : t("onboarding.step1.taxId");
+
+  const curatedZones = getCuratedTimezones(country);
+  const timezoneOptions = curatedZones
+    ? curatedZones.map((tz) => ({ value: tz, label: t(`onboarding.step1.timezoneOptions.${tz}`) }))
+    : ALL_TIMEZONES.map((tz) => ({ value: tz, label: tz }));
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
@@ -130,13 +158,22 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
           {formError}
         </p>
       )}
+      <SelectField
+        label={t("onboarding.step1.country")}
+        error={errors.country?.message ? t(errors.country.message) : undefined}
+        options={[
+          { value: "", label: t("onboarding.step1.countryPlaceholder") },
+          ...countryOptions,
+        ]}
+        {...register("country")}
+      />
       <TextField
         label={t("onboarding.step1.legalName")}
         error={errors.legalName?.message ? t(errors.legalName.message) : undefined}
         {...register("legalName")}
       />
       <TextField
-        label={t("onboarding.step1.taxId")}
+        label={taxIdLabel}
         error={errors.taxId?.message ? t(errors.taxId.message) : undefined}
         {...register("taxId")}
       />
@@ -148,15 +185,15 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
       <SelectField
         label={t("onboarding.step1.timezone")}
         error={errors.timezone?.message ? t(errors.timezone.message) : undefined}
-        options={TIMEZONE_OPTIONS.map((tz) => ({
-          value: tz,
-          label: t(`onboarding.step1.timezoneOptions.${tz}`),
-        }))}
+        options={timezoneOptions}
         {...register("timezone")}
       />
       <CurrencySelector
         value={currency}
-        onChange={(next) => setValue("currency", next, { shouldValidate: true })}
+        onChange={(next) => {
+          currencyTouchedRef.current = true;
+          setValue("currency", next, { shouldValidate: true });
+        }}
         error={errors.currency?.message ? t(errors.currency.message) : undefined}
       />
       <div>

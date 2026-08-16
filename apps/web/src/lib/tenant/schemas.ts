@@ -8,7 +8,13 @@ import { z } from "zod";
  */
 const requiredString = z.string().trim().min(1, "validation.required");
 
+// `country` (ad-hoc post-Fase 1, 2026-08-16, MERCADOS.md §2): PRIMER campo
+// del paso 1, requerido — decisión de Carlos. Solo "no vacío" acá, igual que
+// `roleId` en `inviteRowSchema`: el select solo ofrece valores del catálogo
+// compartido (`ISO_COUNTRY_CODES`), la validación estricta contra el
+// catálogo vive en el DTO del backend (`updateTenantSchema`, `isCountryCode`).
 export const businessStepSchema = z.object({
+  country: requiredString,
   legalName: requiredString,
   taxId: requiredString,
   address: requiredString,

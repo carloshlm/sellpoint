@@ -22,6 +22,7 @@ function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    country: "MX",
     ...overrides,
   };
 }

@@ -32,6 +32,7 @@ function tenant(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["tenant"]
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
+    country: "MX",
     onboarded: false,
     ...overrides,
   };

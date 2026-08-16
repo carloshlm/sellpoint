@@ -16,6 +16,7 @@ const demoUser = {
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
+    country: "MX",
     onboarded: true,
   },
 };

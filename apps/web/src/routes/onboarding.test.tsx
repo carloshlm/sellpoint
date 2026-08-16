@@ -51,6 +51,9 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): sin país, como
+    // cualquier otro campo del paso 1 todavía sin completar.
+    country: null,
     ...overrides,
   };
 }
@@ -105,7 +108,10 @@ describe("/onboarding", () => {
     await renderRoute("/onboarding");
 
     expect(await screen.findByLabelText("Razón social")).toBeInTheDocument();
-    expect(screen.getByLabelText("RFC / RUT")).toBeInTheDocument();
+    // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): "RFC / RUT" murió —
+    // sin país elegido, la etiqueta fiscal es la genérica sin sigla.
+    expect(screen.getByLabelText("País")).toBeInTheDocument();
+    expect(screen.getByLabelText("Identificación fiscal")).toBeInTheDocument();
     expect(screen.getByLabelText("Dirección")).toBeInTheDocument();
     expect(screen.getByLabelText("Moneda operacional")).toBeInTheDocument();
   });
@@ -136,6 +142,7 @@ describe("/onboarding", () => {
       "jwt-demo",
       demoUser(
         tenantFixture({
+          country: "MX",
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
@@ -190,6 +197,7 @@ describe("/onboarding", () => {
     const user = userEvent.setup();
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantFixture()));
     const updatedTenant = tenantFixture({
+      country: "MX",
       legalName: "Acme SA de CV",
       taxId: "ACM010101AAA",
       address: "Av. Siempre Viva 123",
@@ -208,14 +216,18 @@ describe("/onboarding", () => {
     await renderRoute("/onboarding");
     await screen.findByLabelText("Razón social");
 
+    // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): país es el PRIMER
+    // campo requerido — sin elegirlo, el submit ni siquiera dispara el PATCH.
+    await user.selectOptions(screen.getByLabelText("País"), "MX");
     await user.type(screen.getByLabelText("Razón social"), "Acme SA de CV");
-    await user.type(screen.getByLabelText("RFC / RUT"), "ACM010101AAA");
+    await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
     await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
     await waitFor(() =>
       expect(mockedTenantApi.updateMyTenant).toHaveBeenCalledWith(
         {
+          country: "MX",
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
@@ -244,6 +256,7 @@ describe("/onboarding", () => {
     const user = userEvent.setup();
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantFixture()));
     const updatedTenant = tenantFixture({
+      country: "MX",
       legalName: "Acme SA de CV",
       taxId: "ACM010101AAA",
       address: "Av. Siempre Viva 123",
@@ -258,8 +271,9 @@ describe("/onboarding", () => {
     await renderRoute("/onboarding");
     await screen.findByLabelText("Razón social");
 
+    await user.selectOptions(screen.getByLabelText("País"), "MX");
     await user.type(screen.getByLabelText("Razón social"), "Acme SA de CV");
-    await user.type(screen.getByLabelText("RFC / RUT"), "ACM010101AAA");
+    await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
     await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
@@ -295,6 +309,7 @@ describe("/onboarding", () => {
   // Tenant.template_choice (temporal)".
   function tenantWithBusinessDone(overrides: Partial<AuthUser["tenant"]> = {}) {
     return tenantFixture({
+      country: "MX",
       legalName: "Acme SA de CV",
       taxId: "ACM010101AAA",
       address: "Av. Siempre Viva 123",

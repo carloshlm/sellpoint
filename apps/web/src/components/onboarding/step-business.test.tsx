@@ -1,14 +1,18 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { TenantBlock } from "@/lib/tenant/api";
 import { StepBusiness } from "./step-business";
 
 /**
- * F1-WEB-ONBOARD-01, paso 1 — catálogo de zonas horarias curado (decisión de
- * Carlos, 2026-08-16): solo México, Estados Unidos y Canadá, con etiquetas
- * "País — Región (Ciudades)". El dato no lo consume nadie en F1; alimenta el
- * corte de día de POS/reportes en F4-F5.
+ * F1-WEB-ONBOARD-01, paso 1. Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md
+ * §2): `country` es el PRIMER campo, requerido, y maneja la zona horaria
+ * curada por país y la etiqueta fiscal dinámica. La fixture arranca en
+ * México (`country: "MX"`) — la mayoría de los tests que necesitan OTRO
+ * país cambian la selección con `selectCountry` (decisión 7: la derivación
+ * de zona/moneda corre en el CAMBIO de país, no al montar — A4 del design,
+ * `defaultValues` nunca se pisan solos).
  */
 function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
   return {
@@ -21,16 +25,17 @@ function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    country: "MX",
     ...overrides,
   };
 }
 
-function renderStep() {
+function renderStep(overrides: Partial<TenantBlock> = {}) {
   const onSubmit = vi.fn();
   render(
     <I18nextProvider i18n={createI18n()}>
       <StepBusiness
-        tenant={tenantFixture()}
+        tenant={tenantFixture(overrides)}
         isSubmitting={false}
         formError={null}
         onSubmit={onSubmit}
@@ -40,159 +45,276 @@ function renderStep() {
   return { onSubmit };
 }
 
-// Países soportados por el selector: Norteamérica + Europa + Latinoamérica
-// (Centro y Sudamérica), todos incorporados el 2026-08-16.
-const PAISES_SOPORTADOS = [
-  "México",
-  "Estados Unidos",
-  "Canadá",
-  "Portugal",
-  "España",
-  "Francia",
-  "Italia",
-  "Alemania",
-  "Reino Unido",
-  "Belice",
-  "Costa Rica",
-  "El Salvador",
-  "Guatemala",
-  "Honduras",
-  "Nicaragua",
-  "Panamá",
-  "Argentina",
-  "Bolivia",
-  "Brasil",
-  "Chile",
-  "Colombia",
-  "Ecuador",
-  "Paraguay",
-  "Perú",
-  "Uruguay",
-  "Venezuela",
-];
+function timezoneSelect() {
+  return screen.getByLabelText("Zona horaria") as HTMLSelectElement;
+}
 
-describe("StepBusiness — zonas horarias", () => {
-  it("ofrece las zonas de Norteamérica con etiquetas amigables", () => {
+function timezoneLabels() {
+  return within(timezoneSelect())
+    .getAllByRole("option")
+    .map((option) => option.textContent);
+}
+
+function timezoneValues() {
+  return within(timezoneSelect())
+    .getAllByRole("option")
+    .map((option) => (option as HTMLOptionElement).value);
+}
+
+async function selectCountry(user: ReturnType<typeof userEvent.setup>, code: string) {
+  await user.selectOptions(screen.getByLabelText("País"), code);
+}
+
+describe("StepBusiness — país (ad-hoc post-Fase 1, 2026-08-16, MERCADOS.md §2)", () => {
+  it("es requerido: sin país en el tenant, el select arranca en el placeholder", () => {
+    renderStep({ country: null });
+    const select = screen.getByLabelText("País") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(screen.getByRole("option", { name: "Elegí un país" })).toBeInTheDocument();
+  });
+
+  it("ofrece nombres de país vía Intl.DisplayNames — nunca el código ISO crudo", () => {
     renderStep();
-    const select = screen.getByLabelText("Zona horaria");
+    const select = screen.getByLabelText("País");
     const labels = within(select as HTMLElement)
       .getAllByRole("option")
       .map((option) => option.textContent);
 
-    expect(labels).toContain("México — Centro (Ciudad de México)");
-    expect(labels).toContain("Estados Unidos — Este (Nueva York, Miami)");
-    expect(labels).toContain("Estados Unidos — Pacífico (Los Ángeles)");
-    expect(labels).toContain("Canadá — Este (Toronto, Montreal)");
-    expect(labels).toContain("Canadá — Pacífico (Vancouver)");
+    expect(labels).toContain("México");
+    expect(labels).toContain("Japón");
+    expect(labels).not.toContain("MX");
+    expect(labels).not.toContain("JP");
   });
 
-  it("ofrece las zonas de los seis países europeos soportados", () => {
-    renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const labels = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => option.textContent);
-
-    expect(labels).toContain("Portugal (Lisboa)");
-    expect(labels).toContain("España — Peninsular (Madrid, Barcelona)");
-    expect(labels).toContain("Francia (París)");
-    expect(labels).toContain("Italia (Roma, Milán)");
-    expect(labels).toContain("Alemania (Berlín, Múnich)");
-    expect(labels).toContain("Reino Unido — Inglaterra (Londres)");
+  it("conserva el país del tenant preseleccionado", () => {
+    renderStep({ country: "PT" });
+    expect((screen.getByLabelText("País") as HTMLSelectElement).value).toBe("PT");
   });
+});
 
-  it("incluye Canarias, que va una hora atrás de la península española", () => {
+describe("StepBusiness — zonas horarias curadas por país (decisión de Carlos, 2026-08-16)", () => {
+  it("país curado con varias zonas ofrece SOLO las suyas — México, sin mezclar otro país", () => {
     renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const labels = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => option.textContent);
-
-    expect(labels).toContain("España — Canarias (Las Palmas, Tenerife)");
-  });
-
-  it("de Portugal ofrece únicamente Lisboa (decisión de Carlos, 2026-08-16)", () => {
-    renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const values = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => (option as HTMLOptionElement).value);
-
-    expect(values).toContain("Europe/Lisbon");
-    expect(values).not.toContain("Atlantic/Madeira");
-    expect(values).not.toContain("Atlantic/Azores");
-  });
-
-  it("no ofrece zonas fuera de los países soportados", () => {
-    renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const labels = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => option.textContent ?? "");
-
-    for (const label of labels) {
-      expect(PAISES_SOPORTADOS.some((pais) => label.startsWith(pais))).toBe(true);
+    expect(timezoneLabels()).toEqual([
+      "México — Centro (Ciudad de México)",
+      "México — Sureste (Cancún)",
+      "México — Sonora (Hermosillo)",
+      "México — Pacífico (Tijuana)",
+    ]);
+    for (const label of timezoneLabels()) {
+      expect((label ?? "").startsWith("México")).toBe(true);
     }
   });
 
-  it("ofrece los siete países de Centroamérica", () => {
+  it("Estados Unidos: sus siete zonas, ninguna de otro país", async () => {
+    const user = userEvent.setup();
     renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const labels = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => option.textContent);
+    await selectCountry(user, "US");
 
-    expect(labels).toContain("Belice (Belmopán)");
-    expect(labels).toContain("Costa Rica (San José)");
-    expect(labels).toContain("El Salvador (San Salvador)");
-    expect(labels).toContain("Guatemala (Ciudad de Guatemala)");
-    expect(labels).toContain("Honduras (Tegucigalpa)");
-    expect(labels).toContain("Nicaragua (Managua)");
-    expect(labels).toContain("Panamá (Ciudad de Panamá)");
+    expect(timezoneLabels()).toEqual([
+      "Estados Unidos — Este (Nueva York, Miami)",
+      "Estados Unidos — Centro (Chicago, Dallas)",
+      "Estados Unidos — Montaña (Denver)",
+      "Estados Unidos — Arizona (Phoenix)",
+      "Estados Unidos — Pacífico (Los Ángeles)",
+      "Estados Unidos — Alaska (Anchorage)",
+      "Estados Unidos — Hawái (Honolulu)",
+    ]);
   });
 
-  it("ofrece los diez países de Sudamérica", () => {
+  it("Canadá: sus seis zonas", async () => {
+    const user = userEvent.setup();
     renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const labels = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => option.textContent);
+    await selectCountry(user, "CA");
 
-    expect(labels).toContain("Argentina (Buenos Aires)");
-    expect(labels).toContain("Bolivia (La Paz)");
-    expect(labels).toContain("Brasil — Brasilia (São Paulo, Río)");
-    expect(labels).toContain("Chile — Continental (Santiago)");
-    expect(labels).toContain("Colombia (Bogotá)");
-    expect(labels).toContain("Ecuador — Continental (Quito, Guayaquil)");
-    expect(labels).toContain("Paraguay (Asunción)");
-    expect(labels).toContain("Perú (Lima)");
-    expect(labels).toContain("Uruguay (Montevideo)");
-    expect(labels).toContain("Venezuela (Caracas)");
+    expect(timezoneLabels()).toEqual([
+      "Canadá — Terranova (St. John's)",
+      "Canadá — Atlántico (Halifax)",
+      "Canadá — Este (Toronto, Montreal)",
+      "Canadá — Centro (Winnipeg)",
+      "Canadá — Montaña (Edmonton, Calgary)",
+      "Canadá — Pacífico (Vancouver)",
+    ]);
   });
 
-  it("incluye las zonas secundarias de Brasil, Chile y Ecuador, con offset propio", () => {
+  it("España incluye Canarias, aparte de la peninsular (offset distinto)", async () => {
+    const user = userEvent.setup();
     renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const labels = within(select as HTMLElement)
-      .getAllByRole("option")
-      .map((option) => option.textContent);
+    await selectCountry(user, "ES");
 
-    expect(labels).toContain("Brasil — Amazonas (Manaos)");
-    expect(labels).toContain("Brasil — Acre (Rio Branco)");
-    expect(labels).toContain("Chile — Isla de Pascua");
-    expect(labels).toContain("Ecuador — Galápagos");
+    expect(timezoneLabels()).toEqual([
+      "España — Peninsular (Madrid, Barcelona)",
+      "España — Canarias (Las Palmas, Tenerife)",
+    ]);
   });
 
-  it("ya no ofrece la entrada regional 'Sudamérica (UTC-4)': La Paz ahora es Bolivia", () => {
+  it("Brasil incluye sus zonas secundarias con offset propio (Amazonas, Acre)", async () => {
+    const user = userEvent.setup();
     renderStep();
-    const select = screen.getByLabelText("Zona horaria");
-    const options = within(select as HTMLElement).getAllByRole("option") as HTMLOptionElement[];
+    await selectCountry(user, "BR");
 
-    const laPaz = options.find((option) => option.value === "America/La_Paz");
-    expect(laPaz?.textContent).toBe("Bolivia (La Paz)");
-    expect(options.map((option) => option.textContent)).not.toContain("Sudamérica (UTC-4)");
+    expect(timezoneLabels()).toEqual([
+      "Brasil — Brasilia (São Paulo, Río)",
+      "Brasil — Amazonas (Manaos)",
+      "Brasil — Acre (Rio Branco)",
+    ]);
   });
 
+  it("Chile incluye Isla de Pascua, aparte de la continental", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "CL");
+
+    expect(timezoneLabels()).toEqual(["Chile — Continental (Santiago)", "Chile — Isla de Pascua"]);
+  });
+
+  it("Ecuador incluye Galápagos, aparte de la continental", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "EC");
+
+    expect(timezoneLabels()).toEqual([
+      "Ecuador — Continental (Quito, Guayaquil)",
+      "Ecuador — Galápagos",
+    ]);
+  });
+
+  // Los 19 países curados restantes tienen UNA sola zona: se ofrece sola y
+  // preseleccionada. Incluye la cobertura original de "ya no ofrece la
+  // entrada regional 'Sudamérica (UTC-4)': La Paz ahora es Bolivia" (fila BO).
+  const SINGLE_ZONE_COUNTRIES: ReadonlyArray<readonly [string, string, string]> = [
+    ["BZ", "America/Belize", "Belice (Belmopán)"],
+    ["CR", "America/Costa_Rica", "Costa Rica (San José)"],
+    ["SV", "America/El_Salvador", "El Salvador (San Salvador)"],
+    ["GT", "America/Guatemala", "Guatemala (Ciudad de Guatemala)"],
+    ["HN", "America/Tegucigalpa", "Honduras (Tegucigalpa)"],
+    ["NI", "America/Managua", "Nicaragua (Managua)"],
+    ["PA", "America/Panama", "Panamá (Ciudad de Panamá)"],
+    ["AR", "America/Argentina/Buenos_Aires", "Argentina (Buenos Aires)"],
+    ["BO", "America/La_Paz", "Bolivia (La Paz)"],
+    ["CO", "America/Bogota", "Colombia (Bogotá)"],
+    ["PY", "America/Asuncion", "Paraguay (Asunción)"],
+    ["PE", "America/Lima", "Perú (Lima)"],
+    ["UY", "America/Montevideo", "Uruguay (Montevideo)"],
+    ["VE", "America/Caracas", "Venezuela (Caracas)"],
+    ["PT", "Europe/Lisbon", "Portugal (Lisboa)"],
+    ["FR", "Europe/Paris", "Francia (París)"],
+    ["IT", "Europe/Rome", "Italia (Roma, Milán)"],
+    ["DE", "Europe/Berlin", "Alemania (Berlín, Múnich)"],
+    ["GB", "Europe/London", "Reino Unido — Inglaterra (Londres)"],
+  ];
+
+  it.each(SINGLE_ZONE_COUNTRIES)(
+    "país de una sola zona (%s): la ofrece sola y preseleccionada",
+    async (code, tz, label) => {
+      const user = userEvent.setup();
+      renderStep();
+      await selectCountry(user, code);
+
+      expect(timezoneValues()).toEqual([tz]);
+      expect(timezoneLabels()).toEqual([label]);
+      expect(timezoneSelect().value).toBe(tz);
+    },
+  );
+
+  it("conserva el default del tenant (America/Mexico_City) seleccionado", () => {
+    renderStep();
+    expect(timezoneSelect().value).toBe("America/Mexico_City");
+  });
+
+  // Decisión 7: cambiar de país RE-DERIVA la zona horaria.
+  it("si la zona actual NO pertenece al país curado nuevo, se resetea a elegir (país con varias zonas)", async () => {
+    const user = userEvent.setup();
+    renderStep({ country: "MX", timezone: "America/Mexico_City" });
+    await selectCountry(user, "US");
+
+    expect(timezoneSelect().value).toBe("");
+  });
+
+  it("si la zona actual SÍ pertenece al país curado nuevo, se conserva (sin resetear)", async () => {
+    const user = userEvent.setup();
+    // Tenant sin país aún, con el timezone default del backend — elegir
+    // México por primera vez conserva ese default porque YA está entre sus
+    // cuatro zonas curadas.
+    renderStep({ country: null, timezone: "America/Mexico_City" });
+    await selectCountry(user, "MX");
+
+    expect(timezoneSelect().value).toBe("America/Mexico_City");
+  });
+
+  it("país curado de una sola zona: la actual se reemplaza por la única del país nuevo", async () => {
+    const user = userEvent.setup();
+    renderStep({ country: "MX", timezone: "America/Mexico_City" });
+    await selectCountry(user, "FR");
+
+    expect(timezoneSelect().value).toBe("Europe/Paris");
+  });
+});
+
+describe("StepBusiness — zonas horarias, país NO curado (fuera del catálogo de 26)", () => {
+  it("ofrece el catálogo IANA completo con la zona del navegador preseleccionada (mockeada)", async () => {
+    const user = userEvent.setup();
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockReturnValue({ timeZone: "Asia/Tokyo" } as Intl.ResolvedDateTimeFormatOptions);
+
+    try {
+      renderStep();
+      await selectCountry(user, "JP");
+
+      expect(timezoneSelect().value).toBe("Asia/Tokyo");
+      // Catálogo completo, no el curado: trae zonas de PAÍSES curados
+      // (identificador IANA tal cual, sin traducir) y bastantes más de 45.
+      expect(timezoneValues().length).toBeGreaterThan(45);
+      expect(timezoneValues()).toContain("Europe/Madrid");
+      expect(timezoneLabels()).toContain("Europe/Madrid");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("si la zona del navegador no es detectable/válida, queda sin elegir", async () => {
+    const user = userEvent.setup();
+    const spy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockReturnValue({ timeZone: "Not/AZone" } as Intl.ResolvedDateTimeFormatOptions);
+
+    try {
+      renderStep();
+      await selectCountry(user, "JP");
+
+      expect(timezoneSelect().value).toBe("");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe("StepBusiness — etiqueta fiscal dinámica (MERCADOS.md §2, RESUELTO)", () => {
+  it("México: 'Identificación fiscal (RFC)'", () => {
+    renderStep({ country: "MX" });
+    expect(screen.getByLabelText("Identificación fiscal (RFC)")).toBeInTheDocument();
+  });
+
+  it("Chile: 'Identificación fiscal (RUT)' — YA NO es la etiqueta genérica de todo el form", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "CL");
+
+    expect(screen.getByLabelText("Identificación fiscal (RUT)")).toBeInTheDocument();
+  });
+
+  it("país NO curado (Japón): etiqueta genérica sin sigla, nunca miente un país que no soportamos", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "JP");
+
+    expect(screen.getByLabelText("Identificación fiscal")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Identificación fiscal \(/)).not.toBeInTheDocument();
+  });
+});
+
+describe("StepBusiness — moneda: preselección editable por país (decisión 5)", () => {
   it("ofrece las cinco monedas operacionales: MXN, USD, CAD, EUR y GBP", () => {
     renderStep();
     const select = screen.getByLabelText("Moneda operacional");
@@ -209,9 +331,41 @@ describe("StepBusiness — zonas horarias", () => {
     ]);
   });
 
-  it("conserva el default del tenant (America/Mexico_City) seleccionado", () => {
+  it("cambiar a Alemania re-preselecciona EUR automáticamente", async () => {
+    const user = userEvent.setup();
+    renderStep({ country: "MX", currency: "MXN" });
+    await selectCountry(user, "DE");
+
+    expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("EUR");
+  });
+
+  it("cambiar a un país sudamericano re-preselecciona USD (decisión operativa, MERCADOS.md §1)", async () => {
+    const user = userEvent.setup();
+    renderStep({ country: "MX", currency: "MXN" });
+    await selectCountry(user, "AR");
+
+    expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("USD");
+  });
+
+  it("si el usuario YA tocó la moneda a mano, cambiar de país no la vuelve a re-preseleccionar", async () => {
+    const user = userEvent.setup();
+    renderStep({ country: "MX", currency: "MXN" });
+
+    await user.selectOptions(screen.getByLabelText("Moneda operacional"), "GBP");
+    await selectCountry(user, "DE"); // normalmente re-preseleccionaría EUR
+
+    expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("GBP");
+  });
+
+  it("la línea 'moneda no disponible' siempre está visible, junto a la de inmutabilidad", () => {
     renderStep();
-    const select = screen.getByLabelText("Zona horaria") as HTMLSelectElement;
-    expect(select.value).toBe("America/Mexico_City");
+    expect(
+      screen.getByText(
+        "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("¿Necesitás otra moneda? Escribinos y la habilitamos."),
+    ).toBeInTheDocument();
   });
 });

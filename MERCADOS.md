@@ -2,8 +2,9 @@
 
 > **Fuente de verdad de los países que SellPoint soporta**, y de las diferencias
 > de nomenclatura que la UI tiene que respetar en cada uno. Mantener sincronizado
-> con `packages/shared/src/i18n.ts` (monedas) y con el catálogo de zonas horarias
-> de `apps/web/src/components/onboarding/step-business.tsx`.
+> con `packages/shared/src/i18n.ts` (monedas), `packages/shared/src/countries.ts`
+> (catálogo ISO 3166-1 completo) y `apps/web/src/lib/tenant/markets.ts` (zonas
+> horarias curadas, moneda por defecto y sigla fiscal por país).
 
 ---
 
@@ -81,52 +82,74 @@ decisión explícita.
 
 ---
 
-## 2. El problema abierto: las etiquetas no son universales
+## 2. Las etiquetas no universales — RESUELTA (2026-08-16, ad-hoc post-Fase 1)
 
-El wizard de onboarding pide **identificación fiscal** con la etiqueta
-`"RFC / RUT"` en español. Eso está mal por dos motivos:
+El wizard de onboarding pedía **identificación fiscal** con la etiqueta fija
+`"RFC / RUT"` en español. Eso estaba mal por dos motivos:
 
-1. **RUT** es de Chile y Uruguay — países que **no** soportamos.
-2. **No nombra** el documento de los otros ocho países que sí soportamos.
+1. **RUT** es de Chile y Uruguay — países que en ese momento **no**
+   soportábamos (hoy sí, con su propia sigla — ver tabla).
+2. **No nombraba** el documento de los otros países que sí soportamos.
 
-La etiqueta en inglés (`"Tax ID"`) es genérica y no tiene ese problema.
+Se resolvió con la **opción B** del análisis original (campo `country` +
+etiquetas por país), sin la **C** (validación de formato por país — sigue
+fuera de alcance, cada país es un caso distinto y conviene diferirlo hasta
+que haya clientes reales que lo pidan).
 
-### Cómo se llama el identificador fiscal en cada país
+### Qué cambió
 
-| País | Nombre local | Formato típico |
-|---|---|---|
-| México | RFC — Registro Federal de Contribuyentes | 12 (moral) / 13 (física), alfanumérico |
-| Estados Unidos | EIN — Employer Identification Number | 9 dígitos (`12-3456789`) |
-| Canadá | BN — Business Number | 9 dígitos (+ `RT0001` para GST/HST) |
-| Portugal | NIF / NIPC — Número de Identificação Fiscal | 9 dígitos |
-| España | NIF (antes CIF para empresas) | letra + 8 caracteres (`B12345678`) |
-| Francia | SIREN / SIRET; TVA intracomunitario | SIREN 9, SIRET 14, TVA `FR` + 11 |
-| Italia | Partita IVA | 11 dígitos |
-| Alemania | USt-IdNr / Steuernummer | `DE` + 9 dígitos |
-| Reino Unido | Company Number / VAT number | CN 8 caracteres; VAT `GB` + 9 |
+- **`Tenant.country`**: `CHAR(2)` nullable, ISO 3166-1 alpha-2 — migración
+  aditiva, sin `CHECK` SQL (la validación vive en `updateTenantSchema` vía
+  `isCountryCode`, `packages/shared/src/countries.ts`). Un tenant que ya
+  había completado el paso 1 del wizard ANTES de este cambio tiene
+  `country = NULL` y vuelve a caer en el paso 1 hasta elegirlo — consecuencia
+  deliberada, no un bug.
+- **País es el PRIMER campo del paso 1**, requerido. Los nombres se
+  renderizan con `Intl.DisplayNames([locale], { type: "region" })` — CERO
+  claves i18n de países — ordenados por nombre localizado.
+- **Catálogo curado vs. resto del mundo** (`apps/web/src/lib/tenant/markets.ts`):
+  - Los **26 países curados** (§1 de este documento) ofrecen SOLO sus zonas
+    horarias propias en el selector (1 a 7 según el país; si es una sola,
+    queda preseleccionada) y una sigla fiscal exacta (tabla abajo).
+  - Cualquier otro país ISO válido (~230 más, ej. Japón) cae a los
+    fallbacks genéricos: el selector de zona horaria ofrece el catálogo
+    completo de `Intl.supportedValuesOf("timeZone")` con la zona del
+    navegador (`Intl.DateTimeFormat().resolvedOptions().timeZone`)
+    preseleccionada si es válida (etiquetas = identificador IANA tal cual,
+    sin traducir); la etiqueta fiscal es la genérica sin sigla
+    (`"Identificación fiscal"` / `"Tax ID"`); la moneda preselecciona USD.
+  - Cambiar de país **re-deriva** zona horaria y moneda (nunca al montar el
+    form, solo ante un cambio real del usuario): si la zona actual no
+    pertenece al país curado nuevo, se resetea (a la única del país o a
+    elegir); la moneda se re-preselecciona SOLO si el usuario no la tocó a
+    mano explícitamente.
+- **Zona horaria y moneda siguen SIEMPRE visibles y editables** — el país
+  solo preselecciona, nunca oculta ni fuerza un valor.
 
-### Lo que falta para resolverlo bien
+### Sigla fiscal exacta por país curado
 
-**`Tenant` no tiene campo de país.** Hoy el único dato geográfico es
-`timezone`, del que el país se puede *inferir* (nuestro catálogo es curado), pero
-esa inferencia es un acoplamiento implícito y frágil: el día que alguien agregue
-una zona compartida por dos países, se rompe en silencio.
+| País | Sigla | País | Sigla |
+|---|---|---|---|
+| México | RFC | Argentina | CUIT |
+| Estados Unidos | EIN | Bolivia | NIT |
+| Canadá | BN | Brasil | CNPJ |
+| Portugal | NIF | Chile | RUT |
+| España | NIF | Colombia | NIT |
+| Francia | SIREN/SIRET | Ecuador | RUC |
+| Italia | Partita IVA | Paraguay | RUC |
+| Alemania | USt-IdNr | Perú | RUC |
+| Reino Unido | Company Number / VAT | Uruguay | RUT |
+| Belice | TIN | Venezuela | RIF |
+| Costa Rica | Cédula Jurídica | | |
+| El Salvador | NIT | | |
+| Guatemala | NIT | | |
+| Honduras | RTN | | |
+| Nicaragua | RUC | | |
+| Panamá | RUC | | |
 
-Sin campo de país, la UI no puede decidir qué etiqueta mostrar. Por eso esta es
-una **decisión de arquitectura pendiente**, no un cambio de copy.
-
-### Opciones sobre la mesa
-
-| Opción | Qué implica | Costo |
-|---|---|---|
-| **A. Etiqueta genérica** | `"Identificación fiscal"` / `"Tax ID"`, con ejemplos en el placeholder | Trivial. No miente en ningún país, pero tampoco guía |
-| **B. Campo `country` + etiquetas por país** | Migración de `Tenant`, selector de país en el paso 1 (que además ordena las zonas horarias), etiqueta y placeholder dinámicos | Medio. Es la solución correcta a largo plazo |
-| **C. B + validación de formato** | Todo lo anterior más validación por país (regex de RFC, NIF, VAT…) | Alto. Cada país es un caso; conviene diferirlo |
-
-**Recomendación:** cerrar la sangría con **A** cuando se decida (una línea, deja
-de nombrar un país que no atendemos), y planificar **B** dentro de Fase 2, donde
-el campo `country` también sirve para ordenar el selector de zonas horarias y
-preparar impuestos. **C** se evalúa cuando haya clientes reales que lo pidan.
+Formato en UI: `"Identificación fiscal (RFC)"` / `"Tax ID (RFC)"` para un
+país curado; `"Identificación fiscal"` / `"Tax ID"` (sin paréntesis) para el
+resto del mundo. **Sin validación de formato** — fuera de alcance (opción C).
 
 ---
 

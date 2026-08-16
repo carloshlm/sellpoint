@@ -7,8 +7,11 @@
   "step1": {
     "title": "Datos del negocio",
     "subtitle": "Contanos sobre tu negocio para terminar de configurarlo.",
+    "country": "País",
+    "countryPlaceholder": "Elegí un país",
     "legalName": "Razón social",
-    "taxId": "RFC / RUT",
+    "taxId": "Identificación fiscal",
+    "taxIdWithAbbr": "Identificación fiscal ({{abbr}})",
     "address": "Dirección",
     "timezone": "Zona horaria",
     "timezoneOptions": {
@@ -67,6 +70,7 @@
       "GBP": "Libra esterlina (GBP)"
     },
     "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
+    "currencyRequestHint": "¿Necesitás otra moneda? Escribinos y la habilitamos.",
     "continue": "Continuar",
     "error": "No pudimos guardar los datos del negocio."
   },
