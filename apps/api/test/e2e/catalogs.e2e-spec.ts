@@ -12,6 +12,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { PRODUCTS_CATALOG_KEY } from "../../src/modules/tenants/role-catalog";
+import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
  * e2e del motor de catálogos (F2-CAT). Registra tenants REALES por el flujo
@@ -56,6 +57,40 @@ describe("Motor de catálogos (F2-CAT)", () => {
     return response.body as { tenantId: string; userId: string };
   }
 
+  /** Tenant verificado + logueado: devuelve su access token real. */
+  async function registerAndLogin(): Promise<{ tenantId: string; token: string }> {
+    const email = `owner-${randomUUID()}@example.com`;
+    const response = await request(app.getHttpServer())
+      .post("/auth/register-tenant")
+      .send({
+        tenantName: `Tenant catálogo ${randomUUID()}`,
+        email,
+        password: OWNER_PASSWORD,
+        firstName: "Ana",
+        lastNamePaternal: "Pérez",
+        locale: "es",
+      })
+      .expect(201);
+
+    const mailer = app.get<NoopMailer>(MAILER);
+    const token = extractTokenFromLink(mailer.sent.find((m) => m.to === email)?.vars.link);
+    await request(app.getHttpServer()).post("/auth/verify-email").send({ token }).expect(200);
+
+    const login = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email, password: OWNER_PASSWORD })
+      .expect(200);
+
+    return {
+      tenantId: (response.body as { tenantId: string }).tenantId,
+      token: (login.body as { accessToken: string }).accessToken,
+    };
+  }
+
+  function bearer(token: string) {
+    return `Bearer ${token}`;
+  }
+
   describe("F2-CAT-01 — Catálogo de Productos del sistema", () => {
     it("un tenant recién registrado ya tiene su Catálogo de Productos", async () => {
       const { tenantId } = await registerTenant();
@@ -67,12 +102,18 @@ describe("Motor de catálogos (F2-CAT)", () => {
     });
 
     it("cada tenant tiene el SUYO: el catálogo no se comparte entre negocios", async () => {
-      const [first, second] = await Promise.all([registerTenant(), registerTenant()]);
+      // Secuencial a propósito: la suite corre con `maxWorkers: 1` y el
+      // servidor efímero de supertest da ECONNRESET con flujos de registro
+      // concurrentes. La concurrencia acá no prueba nada extra.
+      const first = await registerTenant();
+      const second = await registerTenant();
 
-      const [firstCatalogs, secondCatalogs] = await Promise.all([
-        prisma.withTenantContext(first.tenantId, (tx) => tx.catalog.findMany()),
-        prisma.withTenantContext(second.tenantId, (tx) => tx.catalog.findMany()),
-      ]);
+      const firstCatalogs = await prisma.withTenantContext(first.tenantId, (tx) =>
+        tx.catalog.findMany(),
+      );
+      const secondCatalogs = await prisma.withTenantContext(second.tenantId, (tx) =>
+        tx.catalog.findMany(),
+      );
 
       expect(firstCatalogs).toHaveLength(1);
       expect(secondCatalogs).toHaveLength(1);
@@ -135,5 +176,163 @@ describe("Motor de catálogos (F2-CAT)", () => {
         await adminPrisma.$disconnect();
       }
     });
+  });
+
+  describe("F2-CAT-02 — CRUD de catálogos", () => {
+    it("GET /catalogs devuelve el del sistema primero", async () => {
+      const { token } = await registerAndLogin();
+
+      await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: "Aaa primero alfabeticamente" })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const catalogs = response.body as { isSystem: boolean; name: string }[];
+      expect(catalogs).toHaveLength(2);
+      // Aunque el subcatálogo gane por nombre, el del sistema va primero: es
+      // el que el usuario viene a editar el 90% de las veces.
+      expect(catalogs[0]?.isSystem).toBe(true);
+    });
+
+    it("crea un subcatálogo y lo renombra", async () => {
+      const { token } = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: "Unidades de medida" })
+        .expect(201);
+
+      const { id } = created.body as { id: string };
+      expect(created.body).toMatchObject({ isSystem: false, systemKey: null, isActive: true });
+
+      const renamed = await request(app.getHttpServer())
+        .patch(`/catalogs/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ name: "Unidades" })
+        .expect(200);
+
+      expect(renamed.body).toMatchObject({ name: "Unidades" });
+    });
+
+    it("nombre repetido dentro del tenant → 409", async () => {
+      const { token } = await registerAndLogin();
+      const payload = { name: `Proveedores ${randomUUID()}` };
+
+      await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send(payload)
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send(payload)
+        .expect(409);
+    });
+
+    it("el catálogo del sistema NO se renombra ni se archiva → 409", async () => {
+      const { token } = await registerAndLogin();
+      const list = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const system = (list.body as { id: string; isSystem: boolean }[]).find((c) => c.isSystem);
+
+      await request(app.getHttpServer())
+        .patch(`/catalogs/${system?.id}`)
+        .set("Authorization", bearer(token))
+        .send({ name: "Mis cosas" })
+        .expect(409);
+
+      await request(app.getHttpServer())
+        .patch(`/catalogs/${system?.id}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false })
+        .expect(409);
+    });
+
+    it("un tenant NO ve ni toca los catálogos de otro", async () => {
+      const first = await registerAndLogin();
+      const second = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(first.token))
+        .send({ name: `Privado ${randomUUID()}` })
+        .expect(201);
+      const { id } = created.body as { id: string };
+
+      // El de B solo ve SU catálogo del sistema.
+      const listB = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(second.token))
+        .expect(200);
+      expect(listB.body).toHaveLength(1);
+
+      // Y tocar el de A por id es 404, no 403: no se confirma que exista.
+      await request(app.getHttpServer())
+        .patch(`/catalogs/${id}`)
+        .set("Authorization", bearer(second.token))
+        .send({ name: "Robado" })
+        .expect(404);
+    });
+
+    it("sin autenticación no se llega al motor", async () => {
+      await request(app.getHttpServer()).get("/catalogs").expect(401);
+    });
+  });
+
+  it("un Viewer LEE los catálogos pero no puede crear ni modificar (403)", async () => {
+    // El gate declarativo es una línea por endpoint: `catalogs:read` para
+    // leer, `catalogs:manage` para tocar la estructura. Poner el code
+    // equivocado en un @RequirePermissions no rompe ningún otro test.
+    const owner = await registerAndLogin();
+
+    const roles = await request(app.getHttpServer())
+      .get("/roles")
+      .set("Authorization", bearer(owner.token))
+      .expect(200);
+    const viewerRoleId = (roles.body as { id: string; name: string }[]).find(
+      (role) => role.name === "Viewer",
+    )?.id;
+
+    const email = `viewer-${randomUUID()}@example.com`;
+    await request(app.getHttpServer())
+      .post("/users")
+      .set("Authorization", bearer(owner.token))
+      .send({ email, firstName: "Bruno", lastNamePaternal: "Díaz", roleIds: [viewerRoleId] })
+      .expect(201);
+
+    const mailer = app.get<NoopMailer>(MAILER);
+    const inviteToken = extractTokenFromLink(mailer.sent.find((m) => m.to === email)?.vars.link);
+    await request(app.getHttpServer())
+      .post("/auth/reset-password")
+      .send({ token: inviteToken, password: OWNER_PASSWORD })
+      .expect(204);
+
+    const login = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email, password: OWNER_PASSWORD })
+      .expect(200);
+    const viewerToken = (login.body as { accessToken: string }).accessToken;
+
+    await request(app.getHttpServer())
+      .get("/catalogs")
+      .set("Authorization", bearer(viewerToken))
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post("/catalogs")
+      .set("Authorization", bearer(viewerToken))
+      .send({ name: "No deberia poder" })
+      .expect(403);
   });
 });

@@ -107,8 +107,9 @@ export class TenantsService {
       // solo. Va DESPUÉS de `setTenantContext` como todo lo que tiene RLS: su
       // policy `tenant_isolation` rechazaría el INSERT sin contexto abierto.
       //
-      // El NOMBRE visible queda en español neutro y el tenant puede cambiarlo
-      // — lo que no puede es borrarlo (F2-CAT-02).
+      // El catálogo del sistema NO se renombra ni se archiva (F2-CAT-02): es
+      // la referencia estable que ve todo el equipo y que nombran los docs y
+      // el soporte. Los subcatálogos sí son libres.
       await tx.catalog.create({
         data: {
           tenantId: tenant.id,

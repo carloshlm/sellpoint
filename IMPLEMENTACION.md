@@ -1269,7 +1269,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - **Depende de:** F2-DB-02
   - **Estimación:** 1 h
 
-- [ ] **F2-CAT-02** — CRUD de catálogos (subcatálogos)
+- [x] **F2-CAT-02** — CRUD de catálogos (subcatálogos)
   - **Salida:** módulo `catalogs` (controller+service+DTOs zod): `POST/GET/PATCH /catalogs` (`catalogs:manage` escribe, `catalogs:read` lee); crear subcatálogo (name único por tenant → 409), renombrar, archivar; el catálogo del sistema **no** se archiva ni renombra (409); audit log en la misma tx
   - **Verificar:** e2e del ciclo + archivar el de productos falla + cross-tenant no ve
   - **Depende de:** F2-CAT-01, F2-DB-10
