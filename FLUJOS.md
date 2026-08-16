@@ -112,7 +112,7 @@ flowchart TD
     ActivateUser --> Wizard{Wizard de<br/>onboarding}
 
     Wizard --> Step1[Paso 1: Datos del negocio<br/>razón social, RFC, dirección, TZ]
-    Step1 --> Step2[Paso 2: Plantilla schema<br/>Farmacia / Ferretería / Abarrotes / Custom]
+    Step1 --> Step2[Paso 2: Definir campos<br/>del catálogo de productos]
     Step2 --> Step3[Paso 3: Crear primer almacén]
     Step3 --> Step4[Paso 4 opcional:<br/>Invitar usuarios]
     Step4 --> Done[Tenant marcado<br/>onboarded = true]

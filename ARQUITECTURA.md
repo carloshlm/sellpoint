@@ -174,10 +174,17 @@ export class TenantContextMiddleware implements NestMiddleware {
 > Schema como *contrato* muere (los campos como filas son la fuente de verdad) y **Ajv ya
 > no se usa**. Historial completo en engram: `topic_key: sellpoint/f2-atomizacion`.
 
-Cada tenant define **qué campos tiene su Catálogo de Productos** (farmacia: "Sustancia
-Activa", "Laboratorio"; cafetería: "Origen del Grano", "Tipo de Tueste") y puede crear
+Cada tenant define **qué campos tiene su Catálogo de Productos** y puede crear
 **subcatálogos** propios (ej. "Unidad de Medida": código `kg` → "kilogramos") ligados por
 campos lookup.
+
+> **LEY DE GENERICIDAD (Carlos, 2026-08-16).** El motor es **agnóstico del rubro**. Ni el
+> schema, ni las migraciones, ni el código del API nombran un giro de negocio. Que un
+> tenant llame a un campo "Sustancia Activa" o "Tipo de Tueste" es **dato que él carga**,
+> nunca algo que SellPoint traiga definido — esos nombres son filas de `catalog_fields`,
+> indistinguibles entre sí para el sistema. Las plantillas de campos por rubro (Layouts)
+> son una funcionalidad **posterior y opcional** que se limita a *sugerir* campos que el
+> tenant acepta o no (Fase 9.0); no existen en el core.
 
 #### Tablas del motor
 
@@ -202,7 +209,7 @@ catalog_records    id, tenant_id, catalog_id, code, attributes JSONB, is_active,
 
 `products` sigue siendo una tabla propia (sku, name, base_unit, is_composite, stock_min,
 `attributes JSONB + GIN`, `UNIQUE(tenant_id, sku)`) porque F3/F4/F5 le cuelgan FKs duras
-(presentaciones, recetas, stock, ventas) y columnas tipadas consultables. Lo que comparte
+(presentaciones, composición, stock, ventas) y columnas tipadas consultables. Lo que comparte
 con los subcatálogos es el **motor**: sus campos personalizados son `catalog_fields` del
 catálogo `products`, sus valores van al mismo `attributes JSONB`, y los valida el mismo
 validador. El precio y el costo NO son columnas de `products`: viven en
@@ -305,7 +312,7 @@ CREATE POLICY tenant_isolation ON user_warehouse_scopes
 
 ### 3.5 Modelo de Productos: Unidades, Presentaciones y Composición (BOM)
 
-> Este modelo es **parte del core** desde Fase 2. Cubre desde productos simples (caja de pastillas vendida entera) hasta productos a granel (café molido por gramo) y productos compuestos (café latte = leche + café + azúcar).
+> Este modelo es **parte del core** desde Fase 2. Cubre desde productos simples (caja de pastillas vendida entera) hasta productos a granel (café molido por gramo) y productos compuestos (un lente armado = armazón + cristales; un kit de herramientas; un café = café + leche + azúcar).
 >
 > **Confirmado en la atomización de F2 (Carlos, 2026-08-16): precio y costo viven ÚNICAMENTE acá**, en `product_presentations` — nunca como columnas de `products` (el `price` que § 3.3 tenía a nivel producto en el diseño original murió con la generalización). Para que se llenen desde la misma interfaz del catálogo, el form de producto captura precio/costo y crea automáticamente la presentación base **«Unidad ×1»** (factor 1, venta por defecto); editarlos después edita esa presentación. La lista de productos muestra el precio de la presentación default. Una sola fuente de verdad: el POS de F4 lee de acá.
 
@@ -359,17 +366,19 @@ CREATE TABLE product_presentations (
   UNIQUE (barcode) WHERE barcode IS NOT NULL
 );
 
--- Composición / Receta (BOM)
+-- Composición (BOM) — vocabulario NEUTRO: "componente", nunca "ingrediente"
+-- (LEY de genericidad, 2026-08-16: el motor sirve a una óptica que arma un
+-- lente, a una ferretería que arma un kit y a una cafetería que prepara un café)
 CREATE TABLE product_compositions (
   id                   UUID PRIMARY KEY,
   tenant_id            UUID NOT NULL,
   parent_product_id    UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  ingredient_product_id UUID NOT NULL REFERENCES products(id),
-  quantity             DECIMAL(14,4) NOT NULL,    -- en base_unit del ingrediente
-  waste_percentage     DECIMAL(5,2) NOT NULL DEFAULT 0,  -- merma de preparación (0-100)
+  component_product_id UUID NOT NULL REFERENCES products(id),
+  quantity             DECIMAL(14,4) NOT NULL,    -- en base_unit del componente
+  waste_percentage     DECIMAL(5,2) NOT NULL DEFAULT 0,  -- merma de armado (0-100)
   notes                TEXT NULL,
-  UNIQUE (parent_product_id, ingredient_product_id),
-  CHECK (parent_product_id != ingredient_product_id)
+  UNIQUE (parent_product_id, component_product_id),
+  CHECK (parent_product_id != component_product_id)
 );
 
 -- Stock: DECIMAL en lugar de INTEGER para soportar fracciones
@@ -382,21 +391,21 @@ ALTER TABLE stock_by_warehouse ALTER COLUMN quantity TYPE DECIMAL(14,4);
 | Tipo de producto | Stock | Reposición | Venta |
 |---|---|---|---|
 | **Simple no-compuesto** (`is_composite=false`) | Persistido en `stock_by_warehouse` en `base_unit` | Entrada Directa con presentación de compra (sistema convierte a base_unit) | POS con presentación de venta (sistema convierte) |
-| **Compuesto** (`is_composite=true`) | **NO se persiste.** Se **calcula** en vivo: `min(stock_ingrediente_i / qty_requerida_i)` para cada ingrediente | NO se "compra" — se prepara automáticamente al venderse | POS expande la receta y descuenta los ingredientes en transacción atómica |
+| **Compuesto** (`is_composite=true`) | **NO se persiste.** Se **calcula** en vivo: `min(stock_componente_i / qty_requerida_i)` para cada componente | NO se "compra" — se arma automáticamente al venderse | POS expande la composición y descuenta los componentes en transacción atómica |
 
 #### Conversiones entre unidades
 
 - **Dentro de la misma categoría** (ej: `l → ml`, `kg → gr`): conversión automática. El sistema sabe que `1 l = 1000 ml`.
 - **Entre categorías** (ej: `ml → gr` para café): **NO se hace.** Depende de la densidad y eso es responsabilidad del usuario al definir presentaciones.
 
-> Si una cafetería compra café molido en bolsa de 250 gr y vende lattes que usan 18 gr cada uno, ambos están en `gr` → cero conversión necesaria. Simple.
+> Si un negocio compra café molido en bolsa de 250 gr y arma productos que usan 18 gr cada uno, ambos están en `gr` → cero conversión necesaria. Simple.
 
 #### Validaciones críticas
 
-1. **Recursión en BOM**: un compuesto no puede ser ingrediente de sí mismo (directo o indirecto vía grafo). Se valida con DFS al guardar.
-2. **Cambio de `base_unit`**: bloqueado si el producto tiene stock > 0 o es ingrediente de otro producto. Sería ambiguo cambiarla.
-3. **Borrado de producto**: bloqueado si es ingrediente de otro (FK + mensaje claro).
-4. **Stock negativo**: bloqueado en cualquier movimiento que lo cause. En productos compuestos, falla la venta si CUALQUIER ingrediente no tiene stock suficiente.
+1. **Recursión en BOM**: un compuesto no puede ser componente de sí mismo (directo o indirecto vía grafo). Se valida con DFS al guardar.
+2. **Cambio de `base_unit`**: bloqueado si el producto tiene stock > 0 o es componente de otro producto. Sería ambiguo cambiarla.
+3. **Borrado de producto**: bloqueado si es componente de otro (FK + mensaje claro).
+4. **Stock negativo**: bloqueado en cualquier movimiento que lo cause. En productos compuestos, falla la venta si CUALQUIER componente no tiene stock suficiente.
 5. **Fracciones según presentación**: si `presentation.allow_fractional_input = false`, el backend rechaza cualquier `quantity` con parte decimal (`quantity % 1 !== 0`). El frontend (POS y movimientos) **oculta el botón `.` del numpad** para esa presentación → cero posibilidad de error de captura. Aplica a:
    - Productos con `base_unit` de categoría `count` (pastillas, cajas, blisters) → siempre solo enteros.
    - Productos con `base_unit` continua pero presentación cerrada (ej: "Botella 500ml" o "Paquete cerrado 250gr" donde solo se vende íntegra) → TenantAdmin marca `allow_fractional_input = false` al definir la presentación.
@@ -418,9 +427,9 @@ ALTER TABLE stock_by_warehouse ALTER COLUMN quantity TYPE DECIMAL(14,4);
 
 #### UX: filosofía de la UI
 
-El TenantAdmin gestiona presentaciones y recetas con la **mínima fricción posible**:
+El TenantAdmin gestiona presentaciones y composición con la **mínima fricción posible**:
 - **Presentaciones**: tabla inline en el form de Producto. Una fila por presentación. Botón "+ Agregar presentación".
-- **Receta**: tab "Receta" visible solo si `is_composite=true`. Tabla con `Ingrediente | Cantidad | Unidad | ✕`. Picker de productos con autocompletado. Costo y disponibilidad estimados en vivo.
+- **Composición**: tab "Composición" visible solo si `is_composite=true`. Tabla con `Componente | Cantidad | Unidad | ✕`. Picker de productos con autocompletado. Costo y unidades armables estimados en vivo.
 - **No hay wizards, ni pasos múltiples, ni drag-and-drop.** Solo tablas editables inline.
 
 ```
@@ -631,15 +640,15 @@ sellpoint/
 2. Módulo `units`: catálogo global de unidades (`ml`, `l`, `gr`, `kg`, `unit`, `m`, `cm`, etc.) + seed inicial + `convertUnits()` en shared
 3. Módulo `products`: CRUD con validador derivado de campos + columnas `base_unit` y `is_composite`; precio/costo crean la presentación base «Unidad ×1»
 4. Presentaciones por producto (caja, vaso, granel, con factor a `base_unit`, flags purchasable/sellable, barcode, precio, costo)
-5. Composición/BOM: recetas con validación anti-recursión (DFS), disponibilidad e ingrediente limitante calculados en vivo
+5. Composición/BOM: componentes con validación anti-recursión (DFS), unidades armables y componente limitante calculados en vivo
 6. Módulo `warehouses`: CRUD + FK de `user_warehouse_scopes` + interceptor de scope al default permisivo
 7. Frontend: editor de campos de cualquier catálogo + `DynamicForm` compartido + UI de registros de subcatálogos
-8. Frontend: formularios dinámicos para productos con tabs **Información**, **Presentaciones**, **Receta** (solo si `is_composite`)
+8. Frontend: formularios dinámicos para productos con tabs **Información**, **Presentaciones**, **Composición** (solo si `is_composite`)
 9. Importación masiva desde Excel con validación fila por fila + reporte de errores (incluye presentaciones; límite 5 MB síncrono)
 10. Búsqueda en productos con `pg_trgm` — por nombre, SKU y barcodes de cualquier presentación, paginada server-side
 11. Onboarding: pasos 2 (template siembra campos) y 3 (primer almacén) reales
 
-**Entregable:** un admin define los campos de su vertical, crea subcatálogos y los liga por lookup, crea productos simples, a granel (stock decimal) y compuestos (con receta), con todas sus presentaciones de compra/venta.
+**Entregable:** un admin de **cualquier rubro** define los campos de su catálogo, crea subcatálogos y los liga por lookup, crea productos simples, a granel (stock decimal) y compuestos (con composición), con todas sus presentaciones de compra/venta.
 
 ### Fase 3 — Movimientos de Inventario (2-3 semanas)
 
@@ -1050,9 +1059,9 @@ pnpm --filter api prisma studio
 | **Cotización / Pedido** | Documento previo a la venta con folio, líneas de productos del catálogo, validez y estados (draft → sent → approved → converted). Aplica a cualquier vertical B2B o consultivo. Tabla `quotes` (Fase 9). |
 | **Prescripción / Documento clínico** | Documento generado por un módulo vertical clínico (receta médica, plan dental, receta óptica, orden de servicio) con un **folio** que se referencia en el POS para pre-cargar las líneas de la venta. Tabla `clinical_documents` (Fase 9+). |
 | **Folio de prescripción / cotización** | Identificador único del documento. Input opcional en el POS que busca el documento y pre-carga el carrito. |
-| **Unidad base (`base_unit`)** | Unidad de medida interna en la que se guarda el stock de un producto (`unit`, `ml`, `gr`, `kg`, `l`, `m`, `cm`, etc.). Invariable una vez que el producto tiene stock o es ingrediente de otro. Definida en Fase 2. |
+| **Unidad base (`base_unit`)** | Unidad de medida interna en la que se guarda el stock de un producto (`unit`, `ml`, `gr`, `kg`, `l`, `m`, `cm`, etc.). Invariable una vez que el producto tiene stock o es componente de otro. Definida en Fase 2. |
 | **Presentación** | Cómo se compra o vende un producto (Caja 1L, Vaso 200ml, Granel por gr, etc.) con un **factor** de conversión a la `base_unit`. Un mismo producto puede tener N presentaciones — algunas comprables al proveedor, otras vendibles al cliente, otras ambas. Tabla `product_presentations` (Fase 2). |
-| **Producto compuesto / BOM (Bill of Materials)** | Producto vendible que se construye a partir de N ingredientes del catálogo con cantidades específicas en la `base_unit` del ingrediente (ej: un café latte = 200 ml de "Leche Lala" + 18 gr de "Café molido premium"). El producto compuesto **no persiste stock propio** — su disponibilidad se calcula en vivo desde el stock de sus ingredientes. Al venderse, el POS descuenta los ingredientes en transacción atómica. Tabla `product_compositions` (Fase 2 del core). |
+| **Producto compuesto / BOM (Bill of Materials)** | Producto vendible que se arma a partir de N **componentes** del catálogo con cantidades específicas en la `base_unit` del componente (ej: un lente armado = 1 armazón + 2 cristales; un café = 200 ml de leche + 18 gr de café molido). El producto compuesto **no persiste stock propio** — sus unidades armables se calculan en vivo desde el stock de sus componentes. Al venderse, el POS descuenta los componentes en transacción atómica. Tabla `product_compositions` (Fase 2 del core). El vocabulario es *componente*, nunca *ingrediente* — LEY de genericidad. |
 | **Stock decimal** | El stock se almacena con `DECIMAL(14,4)` (no INTEGER) para soportar fracciones (ml, gr, m). El POS y los reportes redondean para humanos según la presentación. |
 | **POS** | Punto de Venta. Interfaz PWA optimizada para venta rápida con escáner e impresora. |
 | **Ticket** | Comprobante de venta impreso en papel térmico (58 o 80mm) en formato ESC/POS. |

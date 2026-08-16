@@ -259,27 +259,34 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 └────────────────────────────────────────────────┘
 ```
 
-**Paso 2: Plantilla de Schema**
+**Paso 2: Campos de tu catálogo**
+
+> **Actualizado por la LEY de genericidad (2026-08-16):** el selector de rubros
+> (Farmacia / Ferretería / Abarrotes) desapareció de este paso. SellPoint **no trae
+> campos definidos para ningún giro** — el negocio nombra los suyos. Las plantillas
+> sugeridas por rubro (Layouts) son una funcionalidad posterior y opcional
+> (IMPLEMENTACION.md § Fase 9.0).
 
 ```
 ┌────────────────────────────────────────────────┐
 │  ○━━━━━●━━━━━○━━━━━○                          │
-│  Paso 2/4: Plantilla de productos              │
+│  Paso 2/4: Campos de tu catálogo               │
 │                                                │
-│   ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│   │ 💊       │  │ 🔧       │  │ 🛒       │    │
-│   │ Farmacia │  │ Ferretería  │ Abarrotes│    │
-│   └──────────┘  └──────────┘  └──────────┘    │
+│  Tus productos ya tienen lo esencial:          │
+│  Código, Nombre, Precio, Costo, Unidad base.   │
 │                                                │
-│   ┌──────────┐                                 │
-│   │ ✨       │                                 │
-│   │Personali-│                                 │
-│   │zado      │                                 │
-│   └──────────┘                                 │
+│  Agrega los campos propios de tu negocio:      │
 │                                                │
-│   {previsualización de campos según selección} │
+│   ┌──────────────────────────────────────┐    │
+│   │ (Nombre del campo)  ▼ Tipo   [+ Agregar]│  │
+│   └──────────────────────────────────────┘    │
 │                                                │
-│              [Atrás]  [Continuar]              │
+│   • {campos agregados hasta ahora}             │
+│                                                │
+│   Puedes hacerlo después desde Catálogo →      │
+│   Schema.                                      │
+│                                                │
+│      [Atrás]  [Definir después]  [Continuar]   │
 └────────────────────────────────────────────────┘
 ```
 
@@ -399,9 +406,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   Unidad base *               ¿Producto compuesto?            │
 │   ▼ Mililitro (ml)            ☐ Este producto se prepara      │
 │                                  a partir de otros del         │
-│                                  catálogo (ej: café latte)     │
+│                                  catálogo (kit, lente, etc.)   │
 │                                                                │
-│  ─── Atributos (Schema Farmacia v2) ──────────────────         │
+│  ─── Campos personalizados del tenant ───────────────         │
 │                                                                │
 │   Sustancia activa *                                           │
 │   (_________________________________________________)         │
@@ -415,8 +422,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Modo edición** — tabs: `[Información] [Presentaciones] [📝 Receta]* [Stock por almacén] [Kardex]`
-*(la pestaña "Receta" aparece solo si el producto es compuesto)*
+**Modo edición** — tabs: `[Información] [Presentaciones] [Composición]* [Stock por almacén] [Kardex]`
+*(la pestaña "Composición" aparece solo si el producto es compuesto)*
 
 ---
 
@@ -459,51 +466,54 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ---
 
-#### Tab "📝 Receta" — editor inline para productos compuestos
+#### Tab "Composición" — editor inline para productos compuestos
 
 > Aparece **solo** si el producto tiene `is_composite = true`.
+>
+> **Vocabulario neutro (LEY de genericidad):** *composición* y *componente*, nunca
+> *receta* ni *ingrediente*. El ejemplo de abajo es una óptica; el mismo editor sirve a
+> una ferretería que arma kits o a una cafetería que prepara bebidas.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  Café Latte — Receta                                               │
+│  Lente terminado monofocal — Composición                           │
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                    │
-│   🔍 (Buscar producto del catálogo para agregar como ingrediente)  │
+│   🔍 (Buscar producto del catálogo para agregar como componente)   │
 │                                                                    │
 │  ┌──────────────────────────────────────────────────────────────┐ │
-│  │ Ingrediente                  │ Cantidad │ Unidad │ Merma │ ✕ │ │
+│  │ Componente                   │ Cantidad │ Unidad │ Merma │ ✕ │ │
 │  ├──────────────────────────────────────────────────────────────┤ │
-│  │ 🥛 Leche Lala                │  (200)   │  ml    │ (0%)  │ ✕ │ │
-│  │ ☕ Café molido premium        │   (18)   │  gr    │ (0%)  │ ✕ │ │
-│  │ 🍯 Azúcar refinada           │    (5)   │  gr    │ (0%)  │ ✕ │ │
+│  │ Armazón acetato clásico      │    (1)   │ unidad │ (0%)  │ ✕ │ │
+│  │ Cristal CR-39 antirreflejo   │    (2)   │ unidad │ (5%)  │ ✕ │ │
+│  │ Estuche rígido               │    (1)   │ unidad │ (0%)  │ ✕ │ │
 │  └──────────────────────────────────────────────────────────────┘ │
 │                                                                    │
 │  ─── Resumen en vivo ───────────────────────────                  │
 │                                                                    │
-│   💵 Costo estimado de la receta:    $8.50                         │
-│      • Leche (200ml × $0.025): $5.00                               │
-│      • Café (18gr × $0.15):    $2.70                               │
-│      • Azúcar (5gr × $0.16):   $0.80                               │
+│   💵 Costo estimado:    $480.00                                    │
+│      • Armazón (1 × $260.00):  $260.00                             │
+│      • Cristal (2 × $100.00):  $200.00                             │
+│      • Estuche (1 × $20.00):    $20.00                             │
 │                                                                    │
-│   📦 Disponibilidad actual:  24 porciones                         │
-│      ⚠ Limitado por: Café molido premium (980gr ÷ 18gr = 54        │
-│         posibles, pero leche permite solo 22 — ya no, café 24)    │
+│   📦 Alcanza para:  18 unidades                                   │
+│      ⚠ Limitado por: Cristal CR-39 (38 en stock ÷ 2 por unidad)   │
 │                                                                    │
-│   💰 Precio de venta sugerido (margen 70%):  $28.30                │
+│   💰 Precio de venta sugerido (margen 70%):  $816.00               │
 │                                                                    │
-│                                       [Cancelar]  [Guardar receta] │
+│                                  [Cancelar]  [Guardar composición] │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
 **Acciones:**
-- Buscar ingrediente: autocompletado server-side. Muestra nombre + `base_unit` + stock global.
-- Agregar ingrediente: fila inline. Cantidad numérica. Unidad **pre-cargada y no editable** desde el `base_unit` del ingrediente. Merma % opcional (default 0).
-- Quitar ingrediente: ✕ inline.
-- Guardar: valida que no haya recursión (un producto no puede ser ingrediente de sí mismo, ni directa ni indirectamente). Mensaje claro si la hay.
+- Buscar componente: autocompletado server-side. Muestra nombre + `base_unit` + stock global.
+- Agregar componente: fila inline. Cantidad **por UNA unidad** del compuesto. Unidad **pre-cargada y no editable** desde el `base_unit` del componente. Merma % opcional (default 0).
+- Quitar componente: ✕ inline.
+- Guardar: valida que no haya recursión (un producto no puede ser componente de sí mismo, ni directa ni indirectamente). Mensaje claro si la hay.
 
 **Filosofía UX:** sin wizards, sin pasos, sin drag-and-drop. Solo una tabla editable y un picker. **El TenantAdmin no debería necesitar entrenamiento para usar esto.**
 
-**Casos de uso relacionados:** [CU-CAT-06](CASOS_DE_USO.md#cu-cat-06--definir-receta-de-producto-compuesto-bom).
+**Casos de uso relacionados:** [CU-CAT-06](CASOS_DE_USO.md#cu-cat-06--definir-la-composición-de-un-producto-compuesto-bom).
 
 ---
 
@@ -766,7 +776,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 **Casos de uso relacionados:** [CU-MOV-02](CASOS_DE_USO.md#cu-mov-02--salida-directa).
 
-**Selector de presentación y productos compuestos:** análogo a Entrada Directa. Si el motivo es `consumption` o `expired` y el producto es compuesto, se descuentan los ingredientes en transacción atómica (no el compuesto en sí).
+**Selector de presentación y productos compuestos:** análogo a Entrada Directa. Si el motivo es `consumption` o `expired` y el producto es compuesto, se descuentan los componentes en transacción atómica (no el compuesto en sí).
 
 ---
 
@@ -987,9 +997,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 **Productos compuestos:**
 - Se ven y suman al carrito como cualquier producto.
-- Internamente, al COBRAR, el sistema **expande la receta** y descuenta los ingredientes en transacción atómica (ver [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--entrada-directa)).
-- Si algún ingrediente no tiene stock suficiente en el almacén del POS → la venta falla con mensaje claro indicando qué ingrediente falta y cuántas porciones son posibles con el stock actual.
-- El stock visible del compuesto en el POS es el **calculado en vivo**: `min(stock_ingrediente_i / qty_i)`.
+- Internamente, al COBRAR, el sistema **expande la composición** y descuenta los componentes en transacción atómica (ver [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--entrada-directa)).
+- Si algún componente no tiene stock suficiente en el almacén del POS → la venta falla con mensaje claro indicando qué componente falta y cuántas unidades son posibles con el stock actual.
+- El stock visible del compuesto en el POS es el **calculado en vivo**: `min(stock_componente_i / qty_i)`.
 
 ---
 

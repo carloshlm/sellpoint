@@ -64,10 +64,10 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | Gestionar roles y permisos | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Cambiar mi password | ❌ | ✅ | ✅ | ✅ | ✅ |
 | **Catálogo** |  |  |  |  |  |
-| Definir/editar schema de productos | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Definir/editar campos de los catálogos | ❌ | ✅ | ❌ | ❌ | ❌ |
 | CRUD de productos | ❌ | ✅ | ✅ | 👁 | 👁 |
 | Definir unidad base y presentaciones | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Definir receta (producto compuesto / BOM) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Definir composición (producto compuesto / BOM) | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Importar productos desde Excel | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Almacenes** |  |  |  |  |  |
 | CRUD de almacenes | ❌ | ✅ | ✅ | 👁 | 👁 |
@@ -122,14 +122,14 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Precondición:** CU-AUTH-01 completado.
 - **Flujo principal:**
   1. Paso 1: Datos del negocio (razón social, RFC/RUT, dirección, zona horaria)
-  2. Paso 2: Elegir **plantilla de schema de producto** (Farmacia, Ferretería, Abarrotes, Personalizado)
+  2. Paso 2: Definir los campos del Catálogo de Productos (o dejarlo para después)
   3. Paso 3: Crear primer almacén
   4. Paso 4: (Opcional) Invitar usuarios adicionales
   5. Sistema marca tenant como `onboarded`
 - **Flujos alternativos:**
-  - 2a. Elige "Personalizado" → va directo al editor de schema
+  - 2a. Puede saltar el paso y definir los campos más tarde desde el editor
   - 4a. Salta el paso → puede invitar después desde Sistema → Usuarios
-- **Postcondición:** Tenant operativo, con schema inicial y al menos un almacén.
+- **Postcondición:** Tenant operativo, con sus campos definidos (o pendientes) y al menos un almacén.
 
 ---
 
@@ -321,12 +321,12 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   4. Completa campos dinámicos según los campos del catálogo de productos del tenant (incluye precio y costo, que crean la presentación base «Unidad ×1» — ver ARQUITECTURA § 3.5)
   5. Sistema valida atributos con el validador derivado de los campos (sin Ajv — ver ARQUITECTURA § 3.3)
   6. Guarda producto (sin presentaciones todavía — esas se definen en CU-CAT-05)
-  7. Sistema redirige a la página del producto con tabs habilitados: `Información`, `Presentaciones`, y `Receta` (este último solo si es compuesto)
+  7. Sistema redirige a la página del producto con tabs habilitados: `Información`, `Presentaciones`, y `Composición` (este último solo si es compuesto)
 - **Flujos alternativos:**
   - 2a. SKU duplicado en el tenant → error.
   - 2b. Si el producto no es compuesto, el sistema fuerza al menos una presentación con `is_sellable=true` antes de poder vender en POS.
   - 5a. Validación falla → muestra error por campo.
-- **Postcondición:** Producto creado con stock 0 en `base_unit` (el stock se agrega vía movimientos). Sin presentaciones ni receta todavía.
+- **Postcondición:** Producto creado con stock 0 en `base_unit` (el stock se agrega vía movimientos). Sin presentaciones ni composición todavía.
 
 ---
 
@@ -360,39 +360,44 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ---
 
-#### **CU-CAT-06 — Definir receta de producto compuesto (BOM)**
+#### **CU-CAT-06 — Definir la composición de un producto compuesto (BOM)**
+
+> **Vocabulario neutro (LEY de genericidad, 2026-08-16):** *composición* y *componente*,
+> nunca *receta* ni *ingrediente*. El mismo caso de uso sirve a una óptica que arma un
+> lente (armazón + cristales), a una ferretería que arma un kit y a una cafetería que
+> prepara un café.
 
 - **Actor:** TenantAdmin / Manager
 - **Precondición:** Existe el producto con `is_composite = true` (CU-CAT-02).
 - **Filosofía UX:** la UI es **una tabla inline simple**. Sin wizards. Sin pasos. Sin drag-and-drop.
 - **Flujo principal:**
-  1. Va al producto → tab "📝 Receta" (visible solo si es compuesto)
-  2. Ve la tabla de ingredientes (vacía al principio)
-  3. Click en el input de búsqueda "🔍 Agregar ingrediente del catálogo..."
+  1. Va al producto → tab "Composición" (visible solo si es compuesto)
+  2. Ve la tabla de componentes (vacía al principio)
+  3. Click en el input de búsqueda "🔍 Agregar componente del catálogo..."
   4. Empieza a tipear → autocompletado muestra productos del catálogo con su `base_unit`
-  5. Selecciona un producto → fila se inserta con: nombre del ingrediente, input de cantidad, unidad **pre-cargada** desde el `base_unit` del ingrediente (no editable), (opcional) merma %, ícono ✕ para quitar
-  6. Ingresa la cantidad (ej: 200 para 200 ml de leche)
+  5. Selecciona un producto → fila se inserta con: nombre del componente, input de cantidad, unidad **pre-cargada** desde el `base_unit` del componente (no editable), (opcional) merma %, ícono ✕ para quitar
+  6. Ingresa **cuánto lleva UNA unidad** del producto compuesto (ej: 200 para 200 ml)
   7. Sistema recalcula en vivo:
-     - **Costo estimado de la receta**: suma de `cost_promedio × quantity` por ingrediente
-     - **Disponibilidad actual**: `min(stock_ingrediente_i / quantity_i)` redondeado hacia abajo, en cualquier almacén
-  8. Repite para cada ingrediente
-  9. Click "Guardar receta"
+     - **Costo estimado**: suma de `costo unitario × quantity` por componente
+     - **Unidades armables**: `min(stock_componente_i / quantity_i)` redondeado hacia abajo, en cualquier almacén
+  8. Repite para cada componente
+  9. Click "Guardar composición"
 - **Flujos alternativos:**
-  - 5a. El ingrediente seleccionado es un producto compuesto → sistema lo permite (recetas anidadas), pero valida que **no haya recursión** (DFS sobre el grafo).
-  - 5b. Recursión detectada (A → B → A) → error claro: *"'X' ya usa este producto como ingrediente, indirectamente."*
-  - 5c. El ingrediente no tiene `base_unit` definida → bloqueado con CTA "Editá primero la unidad base de este producto".
-  - 9a. Receta vacía → guarda OK pero el producto compuesto no se podrá vender hasta tener al menos 1 ingrediente.
-- **Postcondición:** Receta guardada. Al vender el producto compuesto en POS, el sistema descuenta los ingredientes en transacción atómica.
+  - 5a. El componente seleccionado es un producto compuesto → sistema lo permite (composiciones anidadas), pero valida que **no haya recursión** (DFS sobre el grafo).
+  - 5b. Recursión detectada (A → B → A) → error claro: *"'X' ya usa este producto como componente, indirectamente."*
+  - 5c. El componente no tiene `base_unit` definida → bloqueado con CTA "Define primero la unidad base de este producto".
+  - 9a. Composición vacía → guarda OK pero el producto compuesto no se podrá vender hasta tener al menos 1 componente.
+- **Postcondición:** Composición guardada. Al vender el producto compuesto en POS, el sistema descuenta los componentes en transacción atómica.
 
 ---
 
-#### **CU-CAT-07 — Ver disponibilidad de productos compuestos**
+#### **CU-CAT-07 — Ver unidades armables de productos compuestos**
 
 - **Actor:** Cualquiera con `products:read`
 - **Flujo principal:**
   1. Catálogo → Productos → filtra por "Compuestos"
-  2. Tabla muestra por producto: nombre, presentación predeterminada, **porciones disponibles** (calculado: cuántas veces puedo hacer esta receta con el stock actual), ingrediente limitante (el que está más cerca de quedarse sin stock)
-- **Postcondición:** Visibilidad de capacidad real de producción.
+  2. Tabla muestra por producto: nombre, presentación predeterminada, **unidades armables** (calculado: cuántas veces alcanza el stock actual para armar el producto), componente limitante (el que está más cerca de quedarse sin stock)
+- **Postcondición:** Visibilidad de capacidad real de armado.
 
 ---
 

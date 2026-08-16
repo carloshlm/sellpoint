@@ -1124,7 +1124,15 @@ Ejemplos:
 
 ## Fase 2 — Catálogos Dinámicos + UOM + BOM
 
-> **Objetivo:** un TenantAdmin define la estructura de su catálogo sin tocar código — campos personalizados por vertical (farmacia: "Sustancia Activa", "Laboratorio"; cafetería: "Origen del Grano", "Tipo de Tueste"), subcatálogos propios ligados por lookup, productos con presentaciones/precios, relaciones entre productos (recetas/BOM) y almacenes reales. Atomizada el 2026-08-16 sobre el pedido de Carlos de un **motor de catálogos genérico** (decisiones completas en `topic_key: sellpoint/f2-atomizacion`). Incluye BOM + stock decimal + presentaciones desde el core (cliente cafetería comprometido). Ver [ARQUITECTURA.md § 3.3](ARQUITECTURA.md#33-motor-de-catálogos-dinámicos) y [§ 3.5](ARQUITECTURA.md#35-modelo-de-productos-unidades-presentaciones-y-composición-bom).
+> **Objetivo:** un TenantAdmin de **cualquier** negocio con inventario y venta define la estructura de su catálogo sin tocar código — campos personalizados que él nombra, subcatálogos propios ligados por lookup, productos con presentaciones/precios, composición entre productos y almacenes reales. Atomizada el 2026-08-16 sobre el pedido de Carlos de un **motor de catálogos genérico** (decisiones completas en `topic_key: sellpoint/f2-atomizacion`).
+>
+> **LEY DE GENERICIDAD (Carlos, 2026-08-16).** Esta fase construye un motor **agnóstico del rubro**. En el código, el schema y la UI no existe ningún concepto de farmacia, cafetería, ferretería ni ningún otro giro: existen *catálogos*, *campos*, *productos*, *componentes*. Que un tenant llame a un campo "Sustancia Activa" o "Tipo de Tueste" es **dato que él carga**, jamás algo que SellPoint traiga definido. Consecuencias duras:
+>
+> - **Cero campos de negocio en la base de datos.** Ninguna migración, seed o constante del API nombra un campo de un rubro.
+> - **Vocabulario neutro en todo el producto**: se dice *composición* y *componente*, nunca *receta* ni *ingrediente* (una óptica arma un lente con armazón + cristales; una ferretería arma un kit; una cafetería prepara un café — el motor es el mismo).
+> - Los **Layouts por rubro** (plantillas de campos sugeridas para farmacia, cafetería, etc.) son una funcionalidad **posterior y opcional**, fuera del MVP — ver Fase 9. Fase 2 no los incluye.
+>
+> Incluye composición + stock decimal + presentaciones desde el core. Ver [ARQUITECTURA.md § 3.3](ARQUITECTURA.md#33-motor-de-catálogos-dinámicos) y [§ 3.5](ARQUITECTURA.md#35-modelo-de-productos-unidades-presentaciones-y-composición-bom).
 
 ### Convenciones que esta fase codifica
 
@@ -1138,7 +1146,7 @@ Ejemplos:
 | `catalogs:write` | CRUD registros de subcatálogos | ✅ | ✅ | ❌ | ❌ |
 | `catalogs:manage` | Estructura: catálogos y campos | ✅ | ❌ (`MANAGER_EXCLUDED_CODES`) | ❌ | ❌ |
 | `products:read` | Ver productos (ya reservado en seed) | ✅ | ✅ | ✅ | ✅ |
-| `products:manage` | CRUD productos/presentaciones/recetas | ✅ | ✅ | ❌ | ❌ |
+| `products:manage` | CRUD productos/presentaciones/composición | ✅ | ✅ | ❌ | ❌ |
 | `warehouses:read` | Ver almacenes | ✅ | ✅ | ❌ | ✅ |
 | `warehouses:manage` | CRUD almacenes | ✅ | ✅ | ❌ | ❌ |
 
@@ -1152,14 +1160,16 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 |---|---|
 | Versionado de schema (CU-CAT-01 viejo) | **Diferido** — editor simple con guardas (Carlos, 2026-08-16): quitar campo con datos pide confirmación y archiva (recuperable, no borra valores); cambiar tipo con datos se bloquea |
 | Precio/costo | Viven en `product_presentations` (una fuente de verdad); el form de producto los pide y auto-crea la presentación **«Unidad ×1»** — se llenan desde la misma interfaz del catálogo (Carlos, 2026-08-16) |
-| Relaciones entre productos | Son la composición/BOM. "1 kg de azúcar alcanza para 50 cafés" se captura **por porción** (20 gr por café) y el "alcanza para N" es **resultado calculado en vivo** contra el stock, nunca dato capturado |
+| Relaciones entre productos | Son la **composición** (BOM). Se captura **cuánto de cada componente lleva UNA unidad** del producto compuesto, y el "alcanza para N" es **resultado calculado en vivo** contra el stock, nunca dato capturado. Ejemplo de Carlos: "1 kg de azúcar alcanza para 50 cafés" se guarda como "el café lleva 20 gr de azúcar" — así el N se recalcula solo cuando cambia el stock, en vez de mentir |
+| Vocabulario del dominio | **Neutro, agnóstico del rubro** (LEY de genericidad): *composición* y *componente*, nunca *receta* ni *ingrediente*; *unidades armables*, nunca *porciones*. Aplica a columnas, endpoints, código y copy |
+| Plantillas por rubro (Layouts) | **FUERA de F2** — sembrar campos de farmacia/cafetería/ferretería sería meter negocio específico en la base. `Tenant.templateChoice` se sigue registrando como preferencia, pero **no siembra nada**. Los Layouts llegan al final, como catálogo de sugerencias opcional (Fase 9) |
 | Validación de atributos | **Sin Ajv**: validador puro derivado de `catalog_fields` (required/tipo/lookup-existe), errores por campo i18n-ables. El JSON Schema draft-07 del diseño viejo muere |
 | Racks de almacén (VISTAS §7) | **Fuera de F2** — sin modelo de datos; se decide al llegar stock por ubicación |
 | Imágenes de producto (R2) | **Fuera de F2** — ningún CU las exige; la decisión R2 espera a que se necesiten |
 | Import async >5MB (CU-CAT-03 5a) | **Simplificado**: límite 5MB síncrono (413); async requiere notificaciones que no existen |
 | `StockByWarehouse` | **Nace en F2** (en 0) para que availability de BOM lea stock real; F3 la muta |
 | Búsqueda de productos | **pg_trgm/ILIKE** sobre sku+nombre+barcodes de presentaciones; paginación **server-side** (CU-CAT-04) — difiere del client-side de users (D6: "server cuando duela"; miles de productos duelen) |
-| Costo unitario de ingrediente | `cost/factor` de su presentación comprable default; F3 lo reemplaza por promedio ponderado |
+| Costo unitario de componente | `cost/factor` de su presentación comprable default; F3 lo reemplaza por promedio ponderado |
 | Scope sin filas | El interceptor pasa al **default permisivo documentado** (sin filas → todos los almacenes, ARQUITECTURA §3.4); el fail-closed `[]` de F1 era correcto cuando no existían almacenes |
 | `units` global | Se queda (el motor de conversiones necesita categorías); el subcatálogo "Unidad de Medida" del ejemplo de Carlos sigue siendo posible como catálogo libre para lookups |
 
@@ -1202,8 +1212,8 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - **Estimación:** 1 h
 
 - [ ] **F2-DB-06** — Modelo `ProductComposition`
-  - **Salida:** (tenant_id, parent_product_id FK CASCADE, ingredient_product_id FK **RESTRICT**, quantity DECIMAL(14,4) CHECK > 0, waste_percentage DECIMAL(5,2) default 0 CHECK 0-100, notes, timestamps; `@@unique([parentProductId, ingredientProductId])`; CHECK parent≠ingredient)
-  - **Verificar:** autorreferencia directa rechazada por CHECK; borrar un producto que es ingrediente falla por FK RESTRICT
+  - **Salida:** (tenant_id, parent_product_id FK CASCADE, **component_product_id** FK **RESTRICT**, quantity DECIMAL(14,4) CHECK > 0, waste_percentage DECIMAL(5,2) default 0 CHECK 0-100, notes, timestamps; `@@unique([parentProductId, componentProductId])`; CHECK parent≠component) — nombre neutro por la LEY de genericidad: `component`, nunca `ingredient`
+  - **Verificar:** autorreferencia directa rechazada por CHECK; borrar un producto que es componente falla por FK RESTRICT
   - **Depende de:** F2-DB-04
   - **Estimación:** 45 min
 
@@ -1374,7 +1384,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 ### Módulo F2-PROD — Productos (API + UI)
 
 - [ ] **F2-PROD-01** — API alta/edición de producto
-  - **Salida:** módulo `products` (`products:manage`): `POST /products` {sku, name, baseUnit, stockMin, isComposite, attributes, price?, cost?} — valida attributes contra los campos del catálogo products (F2-CAT-04 + existencia de lookups); sku único → 409; **auto-crea la presentación «Unidad ×1»** (factor 1, is_default_sale, allow_fractional_input derivado de la categoría, price/cost del form — decisión Carlos); `PATCH` edita; **cambio de base_unit → 409 si stock > 0 o es ingrediente de otro** (validación §3.5 #2)
+  - **Salida:** módulo `products` (`products:manage`): `POST /products` {sku, name, baseUnit, stockMin, isComposite, attributes, price?, cost?} — valida attributes contra los campos del catálogo products (F2-CAT-04 + existencia de lookups); sku único → 409; **auto-crea la presentación «Unidad ×1»** (factor 1, is_default_sale, allow_fractional_input derivado de la categoría, price/cost del form — decisión Carlos); `PATCH` edita; **cambio de base_unit → 409 si stock > 0 o es componente de otro** (validación §3.5 #2)
   - **Verificar:** e2e: alta crea producto + presentación base con precio; validación dinámica rechaza; RED→GREEN
   - **Depende de:** F2-CAT-04, F2-CAT-01, F2-DB-05
   - **Estimación:** 3 h
@@ -1386,8 +1396,8 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - **Estimación:** 2.5 h
 
 - [ ] **F2-PROD-03** — API detalle + borrado/desactivación
-  - **Salida:** `GET /products/:id` (presentaciones incluidas); `DELETE` (`products:manage`) **bloqueado si es ingrediente de otro** (FK RESTRICT → 409 nombrando a los padres, validación §3.5 #3); alternativa is_active
-  - **Verificar:** e2e: borrar ingrediente usado → 409 con los padres; desactivar funciona
+  - **Salida:** `GET /products/:id` (presentaciones incluidas); `DELETE` (`products:manage`) **bloqueado si es componente de otro** (FK RESTRICT → 409 nombrando a los padres, validación §3.5 #3); alternativa is_active
+  - **Verificar:** e2e: borrar componente usado → 409 con los padres; desactivar funciona
   - **Depende de:** F2-PROD-01
   - **Estimación:** 1.5 h
 
@@ -1398,7 +1408,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - **Estimación:** 2.5 h
 
 - [ ] **F2-PROD-05** — UI form alta/edición
-  - **Salida:** campos estándar (Código/SKU, nombre, unidad base — selector desde `UNITS` de shared —, stock mínimo, toggle compuesto, precio/costo) + `DynamicForm` para los dinámicos; en edición precio/costo **editan la presentación «Unidad ×1»** (misma interfaz, decisión Carlos); tabs Presentaciones/Receta como placeholder hasta sus módulos
+  - **Salida:** campos estándar (Código/SKU, nombre, unidad base — selector desde `UNITS` de shared —, stock mínimo, toggle compuesto, precio/costo) + `DynamicForm` para los dinámicos; en edición precio/costo **editan la presentación «Unidad ×1»** (misma interfaz, decisión Carlos); tabs Presentaciones/Composición como placeholder hasta sus módulos
   - **Verificar:** alta manda attributes correctos; edición de precio persiste en la presentación default
   - **Depende de:** F2-PROD-04, F2-SCHEMA-04
   - **Estimación:** 3 h
@@ -1439,36 +1449,36 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ---
 
-### Módulo F2-BOM — Recetas (Relaciones entre Productos)
+### Módulo F2-BOM — Composición de Productos (Relaciones entre Productos)
 
-> **El "apartado de relaciones entre productos" de Carlos.** "1 kg de azúcar alcanza para 50 cafés" se modela por porción (Café Regular usa 20 gr de Azúcar) y el "alcanza para N" se calcula en vivo — ver Convenciones. UI: tabla + picker, sin wizards.
+> **El "apartado de relaciones entre productos" de Carlos**, en vocabulario neutro: un producto compuesto se arma con N componentes del mismo catálogo. Sirve igual a una óptica (armazón + cristales → lente armado), una ferretería (kit), una papelería (paquete) o una cafetería (café + leche + azúcar). Se captura **cuánto lleva UNA unidad** del compuesto y el "alcanza para N" se calcula en vivo — ver Convenciones. UI: tabla + picker, sin wizards.
 
-- [ ] **F2-BOM-01** — API de receta con DFS anti-recursión
-  - **Salida:** `GET/PUT /products/:id/composition` (`products:manage`): filas {ingredientId, quantity en base_unit del ingrediente, wastePercentage, notes}; par único; **DFS sobre el grafo** rechaza recursión directa e indirecta (A→B→C→A) con mensaje que nombra el ciclo; receta vacía es válida (no vendible hasta F4)
+- [ ] **F2-BOM-01** — API de composición con DFS anti-recursión
+  - **Salida:** `GET/PUT /products/:id/composition` (`products:manage`): filas {componentId, quantity en base_unit del componente, wastePercentage, notes}; par único; **DFS sobre el grafo** rechaza recursión directa e indirecta (A→B→C→A) con mensaje que nombra el ciclo; composición vacía es válida (no vendible hasta F4)
   - **Verificar:** unit del DFS con ciclo indirecto RED→GREEN; e2e del PUT
   - **Depende de:** F2-DB-06, F2-PROD-01
   - **Estimación:** 3 h
 
 - [ ] **F2-BOM-02** — API availability + cost-estimate
-  - **Salida:** `GET /products/:id/availability` → porciones = `floor(min(stock_total_i / (qty_i × (1 + waste_i))))` + ingrediente limitante (recetas anidadas se expanden); `GET /products/:id/cost-estimate` → Σ(costo unitario × qty) con desglose, costo unitario = `cost/factor` de la presentación comprable default del ingrediente (F3 lo reemplaza por promedio ponderado); **contrato con stock 0 → 0 porciones** (F2 no tiene movimientos)
+  - **Salida:** `GET /products/:id/availability` → unidades armables = `floor(min(stock_total_i / (qty_i × (1 + waste_i))))` + componente limitante (composiciones anidadas se expanden); `GET /products/:id/cost-estimate` → Σ(costo unitario × qty) con desglose, costo unitario = `cost/factor` de la presentación comprable default del componente (F3 lo reemplaza por promedio ponderado); **contrato con stock 0 → 0 unidades** (F2 no tiene movimientos)
   - **Verificar:** unit de ambos cálculos con stock sembrado a mano en tests; anidado expande
   - **Depende de:** F2-BOM-01, F2-DB-08, F2-PRESENT-01
   - **Estimación:** 3 h
 
-- [ ] **F2-BOM-03** — UI tab Receta
-  - **Salida:** tab visible solo si `is_composite`: picker con autocompletado server-side (reusa `GET /products?query`), fila con cantidad + unidad precargada no editable (base_unit del ingrediente) + merma % + quitar
-  - **Verificar:** la unidad de la fila deriva del ingrediente elegido; agregar/quitar actualiza
+- [ ] **F2-BOM-03** — UI tab Composición
+  - **Salida:** tab visible solo si `is_composite`: picker con autocompletado server-side (reusa `GET /products?query`), fila con cantidad + unidad precargada no editable (base_unit del componente) + merma % + quitar
+  - **Verificar:** la unidad de la fila deriva del componente elegido; agregar/quitar actualiza
   - **Depende de:** F2-BOM-01, F2-PROD-05
   - **Estimación:** 2.5 h
 
 - [ ] **F2-BOM-04** — UI resumen en vivo
-  - **Salida:** panel bajo la receta: costo estimado con desglose + **"alcanza para N porciones"** + ingrediente limitante (el ejemplo azúcar/café de Carlos, ahora calculado); error de recursión del API mostrado con claridad
+  - **Salida:** panel bajo la composición: costo estimado con desglose + **"alcanza para N unidades"** + componente limitante (el ejemplo azúcar/café de Carlos, ahora calculado); error de recursión del API mostrado con claridad
   - **Verificar:** el resumen re-consulta al editar filas; render del limitante por id de producto
   - **Depende de:** F2-BOM-02, F2-BOM-03
   - **Estimación:** 1.5 h
 
-- [ ] **F2-BOM-05** — Filtro "Compuestos" con porciones disponibles
-  - **Salida:** en `/catalog/products`: filtro compuestos + columna porciones disponibles e ingrediente limitante (CU-CAT-07)
+- [ ] **F2-BOM-05** — Filtro "Compuestos" con unidades armables
+  - **Salida:** en `/catalog/products`: filtro compuestos + columna unidades armables y componente limitante (CU-CAT-07)
   - **Verificar:** el filtro pide al server; la columna solo aparece filtrando compuestos
   - **Depende de:** F2-BOM-02, F2-PROD-04
   - **Estimación:** 1.5 h
@@ -1529,17 +1539,19 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-ONBOARD — Wizard: Pasos 2 y 3 Reales
 
-- [ ] **F2-ONBOARD-01** — Plantillas de campos semilla por vertical
-  - **Salida:** definición de campos iniciales pharmacy/hardware/grocery en el API; aplicar template → siembra `catalog_fields` en el catálogo products del tenant **solo si aún no tiene campos custom** (no pisa); `custom` no siembra nada
-  - **Verificar:** unit de la siembra idempotente; e2e por template
-  - **Depende de:** F2-CAT-03
+> **LEY de genericidad aplicada:** el paso 2 **no siembra campos de ningún rubro**. El tenant arranca con los campos estándar y define los suyos, con sus propios nombres. Las plantillas por rubro (Layouts) son una funcionalidad posterior y opcional — ver Fase 9.
+
+- [ ] **F2-ONBOARD-01** — Paso 2 real: definir campos del catálogo
+  - **Salida:** el paso deja de ser un placeholder de plantillas: muestra los campos estándar del Catálogo de Productos y permite agregar campos personalizados ahí mismo (reusa `DynamicForm`/editor de F2-SCHEMA), con opción **"Definir después"** que avanza sin bloquear; `Tenant.templateChoice` se conserva como preferencia registrada (alimenta los Layouts futuros) pero **no dispara ninguna siembra**
+  - **Verificar:** e2e: completar el paso sin agregar campos avanza; agregar un campo lo deja creado; ninguna migración ni constante del API nombra un rubro (`rg -i "pharmacy|farmacia|cafeteria|hardware|grocery" apps/api/src apps/api/prisma` sin resultados)
+  - **Depende de:** F2-CAT-03, F2-SCHEMA-02
   - **Estimación:** 2 h
 
-- [ ] **F2-ONBOARD-02** — Paso 2 real del wizard
-  - **Salida:** elegir plantilla aplica la siembra (custom → CTA al editor de schema); preview de los campos que trae cada plantilla; re-elegir con campos ya creados no pisa (mensaje)
-  - **Verificar:** flujo completo con API mockeado; la guarda de no-pisar
+- [ ] **F2-ONBOARD-02** — Retiro del catálogo de plantillas del wizard
+  - **Salida:** `TEMPLATE_CHOICES` (`step-template.tsx`) deja de ofrecer rubros como si trajeran campos; el paso explica que los campos los define el negocio; copy neutro en es/en
+  - **Verificar:** no queda copy que prometa campos precargados por rubro
   - **Depende de:** F2-ONBOARD-01
-  - **Estimación:** 1.5 h
+  - **Estimación:** 1 h
 
 - [ ] **F2-ONBOARD-03** — Paso 3 real: primer almacén
   - **Salida:** form mínimo (nombre) que crea el almacén vía API; la derivación del paso en `lib/tenant/steps.ts` pasa a "¿existe ≥1 almacén?" (muere el paso skip de F1); tests de derivación actualizados
@@ -1557,11 +1569,12 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### ✅ Definición de "Fase 2 completa"
 
-- [ ] Un TenantAdmin define campos personalizados de su Catálogo de Productos (texto, numérico, lookup) sin tocar código
+- [ ] Un TenantAdmin de **cualquier rubro** define campos personalizados de su Catálogo de Productos (texto, numérico, lookup) sin tocar código
 - [ ] Crea subcatálogos (ej. "Unidad de Medida": `kg` → "kilogramos"), los llena y liga productos por lookup
 - [ ] Los campos estándar (Código, nombre, precio, costo, unidad base) no se pueden eliminar; el Código no se repite dentro de un catálogo
 - [ ] Crea productos simples, a granel (stock decimal) y compuestos, con presentaciones y precios desde la misma interfaz del catálogo
-- [ ] La receta de un compuesto muestra "alcanza para N porciones" + ingrediente limitante y bloquea recursión (directa e indirecta)
+- [ ] La composición de un compuesto muestra "alcanza para N unidades" + componente limitante y bloquea recursión (directa e indirecta)
+- [ ] **Genericidad verificable:** ni el schema, ni las migraciones, ni el código del API nombran un rubro (`rg -i "pharmacy|farmacia|cafeteria|hardware|grocery|receta|ingredient"` sobre `apps/api` y `apps/web/src` sin resultados de dominio)
 - [ ] Importa productos por Excel con validación previa y reporte de errores por fila
 - [ ] Dos tenants NO ven catálogos/productos/almacenes del otro (tests de integración RLS por tabla)
 - [ ] El alcance por almacén se asigna desde el form de usuario y el interceptor lo respeta (default permisivo documentado)
@@ -1579,7 +1592,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 - **F3-DB** — Modelos:
   - `StockMovement` con columnas: `direction` (entry|exit), `reason_code`, `reason_note`, `linked_warehouse_id` (NULL salvo transfer), `transfer_id` (NULL salvo transfer), `quantity` **DECIMAL(14,4)** (NO integer — soporta fracciones ml/gr/m), `unit_cost` (NULL salvo invoice), `presentation_id` (NULL si fue ingreso/egreso en base_unit puro; si vino de una presentación se referencia para auditoría), `product_id`, `warehouse_id`, `created_by`, `created_at`. Append-only.
-  - `StockByWarehouse` (`product_id`, `warehouse_id`, `quantity` **DECIMAL(14,4)**) — actualizada en cada movimiento. **NO se persiste para productos compuestos** (`is_composite=true`): su stock se calcula en vivo desde los ingredientes.
+  - `StockByWarehouse` (`product_id`, `warehouse_id`, `quantity` **DECIMAL(14,4)**) — actualizada en cada movimiento. **NO se persiste para productos compuestos** (`is_composite=true`): su stock se calcula en vivo desde los componentes.
   - `Transfer` con `id`, `folio`, `tenant_id`, `origin_warehouse_id`, `destination_warehouse_id`, `status` (in_transit|completed|canceled), `created_by`, `created_at`, `received_by`, `received_at`, `canceled_by`, `canceled_at`, `cancel_reason`, `discrepancies` JSONB (líneas con diferencia).
   - `TransferLine` con `transfer_id`, `product_id`, `quantity_sent`, `quantity_received` (NULL hasta confirmación).
   - Enum SQL para `reason_code`: `invoice | adjustment | transfer | customer_return | production | loss | consumption | expired | physical_count`.
@@ -1588,7 +1601,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - Acepta `{warehouse_id, reason_code, reason_note, linked_warehouse_id?, transfer_id?, lines[]}`. Cada línea: `{product_id, presentation_id?, quantity}` — si `presentation_id` viene, el sistema convierte a base_unit (`quantity × presentation.factor`) antes de persistir.
   - **Validación de fracciones**: si `presentation.allow_fractional_input = false`, el backend rechaza si `quantity % 1 !== 0` con error 422 y mensaje claro (`"La presentación '${name}' solo acepta cantidades enteras"`).
   - Validaciones contextuales según `reason_code` (factura requiere `unit_cost`, transfer requiere `linked_warehouse_id`, etc.).
-  - Validación: no se puede crear entrada directa para producto **compuesto** (`is_composite=true`) — su stock se calcula desde ingredientes, no se carga directo. Excepción: `reason_code='production'` (preparar lote de compuesto), que genera salidas de ingredientes + entrada del compuesto auditada.
+  - Validación: no se puede crear entrada directa para producto **compuesto** (`is_composite=true`) — su stock se calcula desde componentes, no se carga directo. Excepción: `reason_code='production'` (armar lote de compuesto), que genera salidas de componentes + entrada del compuesto auditada.
   - Si `reason_code='transfer'` y `transfer_id` presente: cierra el Transfer (status='completed', registra `quantity_received` por línea, calcula discrepancias).
   - UI con campos reactivos según motivo elegido + selector de presentación por línea.
 
@@ -1596,7 +1609,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - Acepta `{warehouse_id, reason_code, reason_note, linked_warehouse_id?, lines[]}`. Línea: `{product_id, presentation_id?, quantity}` con conversión a base_unit.
   - **Validación de fracciones**: idéntica a F3-ENTRY — rechaza decimales si la presentación no los permite.
   - Validación de stock disponible (FOR UPDATE para evitar oversell en concurrencia).
-  - **Productos compuestos en salida**: si se intenta dar salida de un compuesto (típicamente `reason='consumption'` o `expired`), el sistema expande la receta y genera N salidas de ingredientes en transacción atómica.
+  - **Productos compuestos en salida**: si se intenta dar salida de un compuesto (típicamente `reason='consumption'` o `expired`), el sistema expande la composición y genera N salidas de componentes en transacción atómica.
   - Si `reason_code='transfer'`: crea `Transfer` con status='in_transit', `TransferLine` por línea con `quantity_sent`, `linked_warehouse_id` apunta a destino.
   - UI con campos reactivos según motivo + validación en vivo de stock + selector de presentación.
 
@@ -1621,16 +1634,16 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 ## Fase 4 — POS PWA (outline)
 
 - **F4-DB** — Modelos `Sale`, `SaleItem` (con `product_id`, `presentation_id`, `quantity` DECIMAL, `unit_price`, `discount`), `CashboxSession`. **Reservar columnas nullable `Sale.clinical_document_id` y `Sale.quote_id`** para vincular ventas a documentos clínicos o cotizaciones cuando llegue Fase 9 (NO crear las tablas ahora, solo las FK nullable).
-- **F4-API** — Endpoints venta, anulación, cierre. La anulación de una venta de producto compuesto **revierte el descuento de ingredientes** (entradas de reverso con `reason_code='customer_return'`).
+- **F4-API** — Endpoints venta, anulación, cierre. La anulación de una venta de producto compuesto **revierte el descuento de componentes** (entradas de reverso con `reason_code='customer_return'`).
 - **F4-UI** — Pantalla principal de venta optimizada para tablet.
 - **F4-SCAN** — Integración escáner cámara (@zxing/browser). El barcode escaneado busca primero en `product_presentations.barcode` (si matchea, agrega esa presentación) y solo si no, en `products.barcode` (legacy).
 - **F4-CART** — Carrito con búsqueda predictiva. **Diseñar el "input principal" del POS como extensible** con strategy pattern: `SkuLookup`, `BarcodeLookup`, `TextSearchLookup` — para que agregar `PrescriptionLookup` y `QuoteLookup` en Fase 9 sea trivial. **Selector de presentación al agregar producto:** si tiene N presentaciones vendibles, mostrar selector inline; la marcada `is_default_sale` viene pre-seleccionada.
 - **F4-NUMPAD** — Numpad inteligente: oculta el botón `.` cuando la presentación elegida tiene `allow_fractional_input = false`. Maneja paste/keyboard: si recibe input con punto en presentación entera, trunca y muestra hint inline ("Solo enteros"). El backend revalida igualmente (defense in depth).
 - **F4-COMPOSITE** — Lógica de venta de productos compuestos:
-  - El compuesto se ve y suma al carrito como cualquier producto. Su stock visible es el calculado en vivo: `min(stock_ingrediente_i / qty_i)`.
-  - Al COBRAR, el sistema expande la receta de cada línea compuesta y genera N `stock_movements` de salida por ingrediente en **transacción atómica**.
-  - Si CUALQUIER ingrediente no tiene stock suficiente → falla la venta entera con mensaje claro (qué ingrediente falta, cuántas porciones son posibles).
-  - El recibo muestra el producto compuesto (no los ingredientes — el cliente no necesita saber que su latte llevó 18 gr de café).
+  - El compuesto se ve y suma al carrito como cualquier producto. Su stock visible es el calculado en vivo: `min(stock_componente_i / qty_i)`.
+  - Al COBRAR, el sistema expande la composición de cada línea compuesta y genera N `stock_movements` de salida por componente en **transacción atómica**.
+  - Si CUALQUIER componente no tiene stock suficiente → falla la venta entera con mensaje claro (qué componente falta, cuántas unidades son posibles).
+  - El recibo muestra el producto compuesto, no sus componentes (el cliente compra el producto armado, no su despiece).
 - **F4-CHECKOUT** — Modal de cobro (efectivo, tarjeta, transferencia).
 - **F4-PRINT-DESKTOP** — Impresión via `window.print` + CSS @page.
 - **F4-PRINT-BT** — Impresión Web Bluetooth (ESC/POS).
@@ -2103,7 +2116,15 @@ Aunque Fase 7 va al final, estas piezas **deben estar preparadas** para que la i
 **Clientes que motivan estos módulos:**
 - 👨‍⚕️ Consultorio médico (prospecto) → **F9-VERT-MEDICAL**
 
-> **Nota:** la cafetería (cliente **comprometido**) NO está en Fase 9 — productos compuestos + BOM + stock decimal son **parte del core desde Fase 2** (ver [ARQUITECTURA.md § 3.5](ARQUITECTURA.md#35-modelo-de-productos-unidades-presentaciones-y-composición-bom)). El add-on F9-GASTRO-PRO de abajo es **gastronomía avanzada** (KDS, modificadores, control por turno) — NO el core.
+> **Nota:** la cafetería (cliente **comprometido**) NO está en Fase 9 — productos compuestos + composición/BOM + stock decimal son **parte del core desde Fase 2** (ver [ARQUITECTURA.md § 3.5](ARQUITECTURA.md#35-modelo-de-productos-unidades-presentaciones-y-composición-bom)). El add-on F9-GASTRO-PRO de abajo es **gastronomía avanzada** (KDS, modificadores, control por turno) — NO el core.
+
+### 9.0 Layouts por rubro (plantillas de campos sugeridas)
+
+> **Diferido desde F2 por la LEY de genericidad (Carlos, 2026-08-16):** el motor de catálogos es agnóstico del rubro y **nada de negocio específico vive en la base de datos**. Los Layouts son azúcar sintáctica sobre ese motor: un catálogo de **sugerencias** que, si el tenant las acepta, se convierten en `catalog_fields` normales — indistinguibles de los que él hubiera creado a mano. Se construyen al final, cuando haya suficientes clientes reales para saber qué campos usa cada rubro de verdad en vez de inventarlos.
+
+- **F9-LAYOUT-DEF** — Catálogo de layouts como **datos**, no como código de negocio: cada layout es una lista de campos sugeridos (etiqueta, tipo, requerido) versionada fuera del schema del producto. Ningún nombre de rubro entra en migraciones ni en constantes del API.
+- **F9-LAYOUT-APPLY** — Endpoint que aplica un layout creando `catalog_fields` en el catálogo elegido, idempotente y sin pisar campos existentes. Aplicar es opcional y reversible (los campos se archivan como cualquier otro).
+- **F9-LAYOUT-UI** — Galería de layouts con preview de los campos que agregaría, disponible desde el editor de campos y desde el wizard. `Tenant.templateChoice` (registrado desde F1) preselecciona la sugerencia.
 
 ### 9.1 Add-on genérico — Cotizador / Pedidos
 
@@ -2192,7 +2213,9 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 
 ---
 
-- **2026-08-16 (ATOMIZACIÓN F2)** — **Fase 2 atomizada: motor de catálogos dinámicos** (12 módulos, 51 tareas). Pedido de Carlos: catálogos genéricos por tenant — Catálogo de Productos (principal, obligatorio, campos estándar no eliminables) + subcatálogos con la misma arquitectura, campos Texto/Numérico/**Lookup** entre catálogos por Código único. Decisiones de Carlos: (a) **precio/costo en `product_presentations`** con auto-presentación «Unidad ×1» desde el form de producto (una fuente de verdad, misma interfaz); (b) **editor de campos simple con guardas** en lugar del versionado v1/v2 de CU-CAT-01 (diferido); (c) las "relaciones entre productos" (1 kg azúcar → 50 cafés) son el BOM, capturadas por porción con "alcanza para N" calculado en vivo. Decisiones técnicas: productos siguen en tabla de primera clase (F3/F4/F5 le cuelgan FKs) compartiendo el motor de campos con los subcatálogos; **sin Ajv** (validador puro derivado de `catalog_fields`); lookup guarda id, muestra código; permisos `catalogs:read/write/manage` + `warehouses:read/manage` + `products:*` a producción; interceptor de scope pasa al default permisivo documentado; racks, imágenes (R2), import async y versionado quedan FUERA con nota. ARQUITECTURA §3.3 reescrita (muere JSONB+JSON Schema draft-07 como contrato; JSONB queda como storage), CU-CAT-01/VISTAS/FLUJOS sincronizados. — `topic_key: sellpoint/f2-atomizacion` — afecta: toda la Fase 2; hereda a F3 (StockByWarehouse nace acá en 0), F4 (POS lee precio de presentación default)
+- **2026-08-16 (ATOMIZACIÓN F2)** — **Fase 2 atomizada: motor de catálogos dinámicos** (12 módulos, 55 tareas). Pedido de Carlos: catálogos genéricos por tenant — Catálogo de Productos (principal, obligatorio, campos estándar no eliminables) + subcatálogos con la misma arquitectura, campos Texto/Numérico/**Lookup** entre catálogos por Código único. Decisiones de Carlos: (a) **precio/costo en `product_presentations`** con auto-presentación «Unidad ×1» desde el form de producto (una fuente de verdad, misma interfaz); (b) **editor de campos simple con guardas** en lugar del versionado v1/v2 de CU-CAT-01 (diferido); (c) las "relaciones entre productos" (1 kg azúcar → 50 cafés) son el BOM, capturadas por porción con "alcanza para N" calculado en vivo. Decisiones técnicas: productos siguen en tabla de primera clase (F3/F4/F5 le cuelgan FKs) compartiendo el motor de campos con los subcatálogos; **sin Ajv** (validador puro derivado de `catalog_fields`); lookup guarda id, muestra código; permisos `catalogs:read/write/manage` + `warehouses:read/manage` + `products:*` a producción; interceptor de scope pasa al default permisivo documentado; racks, imágenes (R2), import async y versionado quedan FUERA con nota. ARQUITECTURA §3.3 reescrita (muere JSONB+JSON Schema draft-07 como contrato; JSONB queda como storage), CU-CAT-01/VISTAS/FLUJOS sincronizados. — `topic_key: sellpoint/f2-atomizacion` — afecta: toda la Fase 2; hereda a F3 (StockByWarehouse nace acá en 0), F4 (POS lee precio de presentación default)
+
+- **2026-08-16 (LEY DE GENERICIDAD)** — **El producto es agnóstico del rubro; ningún negocio específico vive en la base de datos.** Corrección de Carlos sobre la atomización de F2 recién hecha, disparada por leer `F2-BOM-03 — UI tab Receta`: *"no sólo serán negocios de farmacia, comida o cafeterías, deben ser todo tipo de negocios que cuenten con inventario y venta de productos"*. Dos problemas de distinto peso, ambos cerrados: **(1) vocabulario de comida fosilizándose en el modelo** — la columna era `ingredient_product_id` y la UI decía "Receta"/"Ingrediente"/"porciones"; ahora es **`component_product_id`** y el vocabulario es **composición / componente / unidades armables** en todo el core (F2, F3 y F4 alineados; el add-on F9-GASTRO conserva vocabulario gastronómico porque ESE sí es el vertical de comida, y las "recetas médica/oftalmológica" de F9 son otro concepto). **(2) el problema real: `F2-ONBOARD-01` sembraba `catalog_fields` de pharmacy/hardware/grocery definidos en el API** — exactamente lo que la ley prohíbe. Se reemplazó por "el paso 2 permite definir los campos propios (o dejarlo para después)"; `Tenant.templateChoice` se sigue registrando como preferencia pero **no siembra nada**. Las **plantillas por rubro (Layouts)** se difirieron a **Fase 9.0** como catálogo de *sugerencias* que el tenant acepta o no, para construirlas cuando haya clientes reales que digan qué campos usa cada giro en vez de inventarlos. La Definición de Fase 2 completa incorpora un criterio **verificable por grep** (ningún rubro nombrado en `apps/api` ni `apps/web/src`). Sincronizados los cinco `.md`: ARQUITECTURA (DDL, glosario, reglas, UX), CASOS_DE_USO (CU-AUTH-02, CU-CAT-06/07), VISTAS (paso 2 del wizard, tab Composición con ejemplo de óptica), FLUJOS (paso 2). — `topic_key: sellpoint/f2-ley-genericidad` — afecta: toda la Fase 2 (vocabulario y F2-ONBOARD-01/02), F3 y F4 (outlines realineados), F9.0 (Layouts, nuevo)
 
 ---
 
