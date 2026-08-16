@@ -93,126 +93,91 @@ describe("StepBusiness — país (ad-hoc post-Fase 1, 2026-08-16, MERCADOS.md §
 });
 
 describe("StepBusiness — zonas horarias curadas por país (decisión de Carlos, 2026-08-16)", () => {
-  it("país curado con varias zonas ofrece SOLO las suyas — México, sin mezclar otro país", () => {
-    renderStep();
-    expect(timezoneLabels()).toEqual([
-      "México — Centro (Ciudad de México)",
-      "México — Sureste (Cancún)",
-      "México — Sonora (Hermosillo)",
-      "México — Pacífico (Tijuana)",
-    ]);
-    for (const label of timezoneLabels()) {
-      expect((label ?? "").startsWith("México")).toBe(true);
-    }
-  });
+  // Se afirma por identificador IANA, no por etiqueta: lo que este test
+  // protege es el FILTRADO por país (que no se cuele la zona de otro), no el
+  // copy. Así, cambiar una etiqueta no rompe la suite, pero romper el filtro
+  // sí. La cobertura de etiquetas vive en un único test más abajo.
+  const MULTI_ZONE_COUNTRIES: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ["MX", ["America/Mexico_City", "America/Cancun", "America/Hermosillo", "America/Tijuana"]],
+    [
+      "US",
+      [
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Phoenix",
+        "America/Los_Angeles",
+        "America/Anchorage",
+        "Pacific/Honolulu",
+      ],
+    ],
+    [
+      "CA",
+      [
+        "America/St_Johns",
+        "America/Halifax",
+        "America/Toronto",
+        "America/Winnipeg",
+        "America/Edmonton",
+        "America/Vancouver",
+      ],
+    ],
+    // Los archipiélagos van aparte del continente porque su offset difiere.
+    ["ES", ["Europe/Madrid", "Atlantic/Canary"]],
+    ["BR", ["America/Sao_Paulo", "America/Manaus", "America/Rio_Branco"]],
+    ["CL", ["America/Santiago", "Pacific/Easter"]],
+    ["EC", ["America/Guayaquil", "Pacific/Galapagos"]],
+  ];
 
-  it("Estados Unidos: sus siete zonas, ninguna de otro país", async () => {
-    const user = userEvent.setup();
-    renderStep();
-    await selectCountry(user, "US");
+  it.each(MULTI_ZONE_COUNTRIES)(
+    "país curado con varias zonas (%s) ofrece SOLO las suyas",
+    async (code, zonas) => {
+      const user = userEvent.setup();
+      renderStep();
+      await selectCountry(user, code);
 
-    expect(timezoneLabels()).toEqual([
-      "Estados Unidos — Este (Nueva York, Miami)",
-      "Estados Unidos — Centro (Chicago, Dallas)",
-      "Estados Unidos — Montaña (Denver)",
-      "Estados Unidos — Arizona (Phoenix)",
-      "Estados Unidos — Pacífico (Los Ángeles)",
-      "Estados Unidos — Alaska (Anchorage)",
-      "Estados Unidos — Hawái (Honolulu)",
-    ]);
-  });
+      expect(timezoneValues()).toEqual(zonas);
+    },
+  );
 
-  it("Canadá: sus seis zonas", async () => {
-    const user = userEvent.setup();
-    renderStep();
-    await selectCountry(user, "CA");
-
-    expect(timezoneLabels()).toEqual([
-      "Canadá — Terranova (St. John's)",
-      "Canadá — Atlántico (Halifax)",
-      "Canadá — Este (Toronto, Montreal)",
-      "Canadá — Centro (Winnipeg)",
-      "Canadá — Montaña (Edmonton, Calgary)",
-      "Canadá — Pacífico (Vancouver)",
-    ]);
-  });
-
-  it("España incluye Canarias, aparte de la peninsular (offset distinto)", async () => {
-    const user = userEvent.setup();
-    renderStep();
-    await selectCountry(user, "ES");
-
-    expect(timezoneLabels()).toEqual([
-      "España — Peninsular (Madrid, Barcelona)",
-      "España — Canarias (Las Palmas, Tenerife)",
-    ]);
-  });
-
-  it("Brasil incluye sus zonas secundarias con offset propio (Amazonas, Acre)", async () => {
-    const user = userEvent.setup();
-    renderStep();
-    await selectCountry(user, "BR");
-
-    expect(timezoneLabels()).toEqual([
-      "Brasil — Brasilia (São Paulo, Río)",
-      "Brasil — Amazonas (Manaos)",
-      "Brasil — Acre (Rio Branco)",
-    ]);
-  });
-
-  it("Chile incluye Isla de Pascua, aparte de la continental", async () => {
-    const user = userEvent.setup();
-    renderStep();
-    await selectCountry(user, "CL");
-
-    expect(timezoneLabels()).toEqual(["Chile — Continental (Santiago)", "Chile — Isla de Pascua"]);
-  });
-
-  it("Ecuador incluye Galápagos, aparte de la continental", async () => {
-    const user = userEvent.setup();
-    renderStep();
-    await selectCountry(user, "EC");
-
-    expect(timezoneLabels()).toEqual([
-      "Ecuador — Continental (Quito, Guayaquil)",
-      "Ecuador — Galápagos",
-    ]);
+  it("las zonas curadas se muestran con su etiqueta de i18n, no con el id IANA crudo", () => {
+    renderStep(); // fixture en México
+    expect(timezoneLabels()[0]).toBe("México — Centro (Ciudad de México)");
   });
 
   // Los 19 países curados restantes tienen UNA sola zona: se ofrece sola y
   // preseleccionada. Incluye la cobertura original de "ya no ofrece la
   // entrada regional 'Sudamérica (UTC-4)': La Paz ahora es Bolivia" (fila BO).
-  const SINGLE_ZONE_COUNTRIES: ReadonlyArray<readonly [string, string, string]> = [
-    ["BZ", "America/Belize", "Belice (Belmopán)"],
-    ["CR", "America/Costa_Rica", "Costa Rica (San José)"],
-    ["SV", "America/El_Salvador", "El Salvador (San Salvador)"],
-    ["GT", "America/Guatemala", "Guatemala (Ciudad de Guatemala)"],
-    ["HN", "America/Tegucigalpa", "Honduras (Tegucigalpa)"],
-    ["NI", "America/Managua", "Nicaragua (Managua)"],
-    ["PA", "America/Panama", "Panamá (Ciudad de Panamá)"],
-    ["AR", "America/Argentina/Buenos_Aires", "Argentina (Buenos Aires)"],
-    ["BO", "America/La_Paz", "Bolivia (La Paz)"],
-    ["CO", "America/Bogota", "Colombia (Bogotá)"],
-    ["PY", "America/Asuncion", "Paraguay (Asunción)"],
-    ["PE", "America/Lima", "Perú (Lima)"],
-    ["UY", "America/Montevideo", "Uruguay (Montevideo)"],
-    ["VE", "America/Caracas", "Venezuela (Caracas)"],
-    ["PT", "Europe/Lisbon", "Portugal (Lisboa)"],
-    ["FR", "Europe/Paris", "Francia (París)"],
-    ["IT", "Europe/Rome", "Italia (Roma, Milán)"],
-    ["DE", "Europe/Berlin", "Alemania (Berlín, Múnich)"],
-    ["GB", "Europe/London", "Reino Unido — Inglaterra (Londres)"],
+  const SINGLE_ZONE_COUNTRIES: ReadonlyArray<readonly [string, string]> = [
+    ["BZ", "America/Belize"],
+    ["CR", "America/Costa_Rica"],
+    ["SV", "America/El_Salvador"],
+    ["GT", "America/Guatemala"],
+    ["HN", "America/Tegucigalpa"],
+    ["NI", "America/Managua"],
+    ["PA", "America/Panama"],
+    ["AR", "America/Argentina/Buenos_Aires"],
+    ["BO", "America/La_Paz"],
+    ["CO", "America/Bogota"],
+    ["PY", "America/Asuncion"],
+    ["PE", "America/Lima"],
+    ["UY", "America/Montevideo"],
+    ["VE", "America/Caracas"],
+    ["PT", "Europe/Lisbon"],
+    ["FR", "Europe/Paris"],
+    ["IT", "Europe/Rome"],
+    ["DE", "Europe/Berlin"],
+    ["GB", "Europe/London"],
   ];
 
   it.each(SINGLE_ZONE_COUNTRIES)(
     "país de una sola zona (%s): la ofrece sola y preseleccionada",
-    async (code, tz, label) => {
+    async (code, tz) => {
       const user = userEvent.setup();
       renderStep();
       await selectCountry(user, code);
 
       expect(timezoneValues()).toEqual([tz]);
-      expect(timezoneLabels()).toEqual([label]);
       expect(timezoneSelect().value).toBe(tz);
     },
   );
@@ -355,15 +320,5 @@ describe("StepBusiness — moneda: preselección editable por país (decisión 5
     await selectCountry(user, "DE"); // normalmente re-preseleccionaría EUR
 
     expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("GBP");
-  });
-
-  it("bajo el selector queda SOLO la línea de 'moneda no disponible'", () => {
-    renderStep();
-    expect(
-      screen.getByText("¿Necesitas otra moneda? Escríbenos y la habilitamos."),
-    ).toBeInTheDocument();
-    // La advertencia de inmutabilidad se retiró (Carlos, 2026-08-16): la regla
-    // sigue viva en `TenantCurrencyChangeableGuard`, solo desapareció el copy.
-    expect(screen.queryByText(/no vas a poder cambiar la moneda/i)).not.toBeInTheDocument();
   });
 });

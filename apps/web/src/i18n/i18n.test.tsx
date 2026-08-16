@@ -315,17 +315,22 @@ describe("voz de la UI — español neutro, nunca voseo (LEY)", () => {
 
   const todasLasCadenas = ES_DIRS.flatMap((dir) => loadJsonFiles(dir));
 
-  it("hay cadenas en español para revisar (el guardián no está vacío)", () => {
+  // UN test, no uno por cadena: recorre todo y reporta TODAS las violaciones
+  // juntas. Un `it.each` sobre ~345 cadenas infla la suite y obliga a leer los
+  // fallos de a uno; acá el mensaje trae la lista completa de una vez.
+  it("ninguna cadena en español usa voseo", () => {
     expect(todasLasCadenas.length).toBeGreaterThan(0);
-  });
 
-  it.each(todasLasCadenas)("$file [$key] no usa voseo", ({ file, key, value }) => {
-    const match = value.match(FORMAS_VOSEANTES);
+    const violaciones = todasLasCadenas
+      .map(({ file, key, value }) => ({ file, key, value, match: value.match(FORMAS_VOSEANTES) }))
+      .filter((entry) => entry.match !== null)
+      .map(({ file, key, value, match }) => `  · "${match?.[0]}" en ${file} [${key}]: "${value}"`);
+
     expect(
-      match,
-      `Forma voseante "${match?.[0]}" en ${file} [${key}]: "${value}". ` +
+      violaciones,
+      `${violaciones.length} forma(s) voseante(s) en el copy en español:\n${violaciones.join("\n")}\n` +
         `LEY (MERCADOS.md §3): el copy en español se escribe en neutro, ` +
         `conjugado en "tú" (tienes, puedes, elige), nunca en voseo.`,
-    ).toBeNull();
+    ).toEqual([]);
   });
 });

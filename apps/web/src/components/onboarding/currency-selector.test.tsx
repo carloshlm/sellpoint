@@ -30,12 +30,6 @@ describe("CurrencySelector", () => {
     expect(screen.getByRole("option", { name: "Dólar estadounidense (USD)" })).toBeInTheDocument();
   });
 
-  it("no muestra la advertencia de inmutabilidad (retirada por Carlos, 2026-08-16)", () => {
-    renderSelector();
-
-    expect(screen.queryByText(/no vas a poder cambiar la moneda/i)).not.toBeInTheDocument();
-  });
-
   it("elegir USD emite onChange('USD') — la persistencia real la hace el form contenedor vía PATCH", async () => {
     const user = userEvent.setup();
     const { onChange } = renderSelector();

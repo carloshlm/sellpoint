@@ -29,6 +29,26 @@
 - API: `jest` (`pnpm --filter api test`, e2e con `test:e2e`) · Web: `vitest` (`pnpm --filter web test`)
 - Config/wiring puro no exige TDD, pero SÍ verificación explícita (el criterio de "hecho" de cada tarea del plan)
 
+### Qué SÍ y qué NO se testea (LEY, Carlos 2026-08-16)
+
+Criterio: **¿la aserción verifica una decisión que toma el código, o solo que
+una constante se pintó?**
+
+| ✅ Se testea | ❌ No se testea |
+|---|---|
+| "Elijo México → aparece la etiqueta (RFC)" — salida de la lógica de derivación | "La línea de ayuda existe" — copy estático |
+| "Elijo España → el selector ofrece solo sus 2 zonas" (afirmado por **id IANA**, no por etiqueta) | "La etiqueta dice exactamente 'España — Peninsular…'" |
+| Reglas transversales sobre datos (el guardián de voseo) | Que un texto de producto siga estando |
+
+Motivo: un test de copy no protege nada —si alguien borra la línea, no se rompe
+nada— y cobra peaje cada vez que se ajusta una palabra. Afirmar por
+identificador en vez de por etiqueta desacopla el test del copy sin perder
+cobertura de la lógica.
+
+Y si un guardián recorre muchas entradas, que sea **un** test que las recorra y
+reporte todas las violaciones juntas, no un `it.each` que infle la suite con una
+prueba por dato.
+
 ## Copy de la UI
 
 Español **neutro** (nunca voseo: `tienes`, no `tenés`) e inglés **americano**.
