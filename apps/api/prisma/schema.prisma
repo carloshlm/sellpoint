@@ -31,6 +31,14 @@ model Tenant {
   // CHAR(3) con CHECK (currency IN ('MXN','USD','CAD','EUR','GBP')) — el CHECK vive en el SQL de
   // la migración porque Prisma no soporta constraints CHECK en el schema.
   currency       String   @default("MXN") @db.Char(3)
+  // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): ISO 3166-1 alpha-2,
+  // nullable — un tenant preexistente la llena al pasar el paso 1 del
+  // wizard de nuevo (ver `apps/web/src/lib/tenant/steps.ts`). Sin CHECK SQL
+  // de países: la validación vive en `updateTenantSchema` vía
+  // `isCountryCode` (`@sellpoint/shared`), la misma fuente que consume el
+  // selector de país del front — un país que se agrega ahí queda válido acá
+  // sin nueva migración.
+  country        String?  @db.Char(2)
   onboarded      Boolean  @default(false)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

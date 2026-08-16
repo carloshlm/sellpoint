@@ -141,6 +141,52 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       expect(response.body).toMatchObject({ currency: "USD" });
     });
 
+    // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): `country` es ISO
+    // 3166-1 alpha-2, validado contra `isCountryCode` (`@sellpoint/shared`)
+    // — mismo catálogo que el selector del front, sin CHECK SQL.
+    it("país válido: PATCH country persiste y un GET posterior lo refleja", async () => {
+      const owner = await registerActiveOwner();
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ country: "MX" })
+        .expect(200);
+
+      expect(patchResponse.body).toMatchObject({ country: "MX" });
+
+      const getResponse = await request(app.getHttpServer())
+        .get("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+
+      expect(getResponse.body).toMatchObject({ country: "MX" });
+    });
+
+    it("país en formato inválido (minúsculas) -> 400 tenants.invalid_country", async () => {
+      const owner = await registerActiveOwner();
+
+      const response = await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ country: "mx" })
+        .expect(400);
+
+      expect(response.body).toMatchObject({ code: "tenants.invalid_country" });
+    });
+
+    it("país inexistente ('XX' no está en el catálogo) -> 400 tenants.invalid_country", async () => {
+      const owner = await registerActiveOwner();
+
+      const response = await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ country: "XX" })
+        .expect(400);
+
+      expect(response.body).toMatchObject({ code: "tenants.invalid_country" });
+    });
+
     it("actualización parcial exitosa: persiste y un GET posterior refleja los cambios", async () => {
       const owner = await registerActiveOwner();
 

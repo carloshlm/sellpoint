@@ -1,4 +1,5 @@
 {
   "currency_locked": "Cannot change the currency of a tenant that already has recorded transactions",
-  "invalid_body": "The submitted data is not valid"
+  "invalid_body": "The submitted data is not valid",
+  "invalid_country": "The country is not valid"
 }

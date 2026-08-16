@@ -107,6 +107,7 @@ describe("/me (e2e)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: false,
+        country: null,
       },
     });
     expect(response.body).not.toHaveProperty("passwordHash");
