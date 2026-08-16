@@ -76,7 +76,7 @@ describe("StepBusiness — zonas horarias", () => {
       .getAllByRole("option")
       .map((option) => option.textContent);
 
-    expect(labels).toContain("Portugal — Continental (Lisboa)");
+    expect(labels).toContain("Portugal (Lisboa)");
     expect(labels).toContain("España — Peninsular (Madrid, Barcelona)");
     expect(labels).toContain("Francia (París)");
     expect(labels).toContain("Italia (Roma, Milán)");
@@ -84,18 +84,26 @@ describe("StepBusiness — zonas horarias", () => {
     expect(labels).toContain("Reino Unido — Inglaterra (Londres)");
   });
 
-  it("incluye los archipiélagos de España y Portugal, que tienen offset propio", () => {
+  it("incluye Canarias, que va una hora atrás de la península española", () => {
     renderStep();
     const select = screen.getByLabelText("Zona horaria");
     const labels = within(select as HTMLElement)
       .getAllByRole("option")
       .map((option) => option.textContent);
 
-    // Canarias va una hora atrás de la península y Azores dos de Lisboa:
-    // sin estas entradas, un negocio isleño elegiría una zona equivocada.
     expect(labels).toContain("España — Canarias (Las Palmas, Tenerife)");
-    expect(labels).toContain("Portugal — Madeira (Funchal)");
-    expect(labels).toContain("Portugal — Azores (Ponta Delgada)");
+  });
+
+  it("de Portugal ofrece únicamente Lisboa (decisión de Carlos, 2026-08-16)", () => {
+    renderStep();
+    const select = screen.getByLabelText("Zona horaria");
+    const values = within(select as HTMLElement)
+      .getAllByRole("option")
+      .map((option) => (option as HTMLOptionElement).value);
+
+    expect(values).toContain("Europe/Lisbon");
+    expect(values).not.toContain("Atlantic/Madeira");
+    expect(values).not.toContain("Atlantic/Azores");
   });
 
   it("no ofrece zonas fuera de los países soportados", () => {

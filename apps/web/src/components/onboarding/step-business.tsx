@@ -15,9 +15,10 @@ import { CurrencySelector } from "./currency-selector";
 // Alemania y Reino Unido (Inglaterra)—, esta última tanda al habilitarse EUR
 // y GBP como monedas operacionales. Las claves son IANA; las etiquetas viven
 // en i18n con el formato "País — Región (Ciudad)", o "País (Ciudad)" cuando
-// el país tiene una sola zona. Los archipiélagos (Canarias, Madeira, Azores)
-// van aparte porque su offset difiere del continental. El dato alimenta el
-// corte de día de POS/reportes en F4-F5; hoy solo se persiste.
+// el país tiene una sola zona. Canarias va aparte de Madrid porque su offset
+// difiere del peninsular; de Portugal solo se ofrece Lisboa (Madeira y Azores
+// quedaron fuera por decisión de Carlos). El dato alimenta el corte de día de
+// POS/reportes en F4-F5; hoy solo se persiste.
 const TIMEZONE_OPTIONS = [
   "America/Mexico_City",
   "America/Cancun",
@@ -37,8 +38,6 @@ const TIMEZONE_OPTIONS = [
   "America/Edmonton",
   "America/Vancouver",
   "Europe/Lisbon",
-  "Atlantic/Madeira",
-  "Atlantic/Azores",
   "Europe/Madrid",
   "Atlantic/Canary",
   "Europe/Paris",
