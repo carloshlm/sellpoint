@@ -33,7 +33,8 @@
     "currency": "Operating currency",
     "currencyOptions": {
       "MXN": "Mexican peso (MXN)",
-      "USD": "US dollar (USD)"
+      "USD": "US dollar (USD)",
+      "CAD": "Canadian dollar (CAD)"
     },
     "currencyWarning": "You won't be able to change the currency once you record your first transaction.",
     "continue": "Continue",

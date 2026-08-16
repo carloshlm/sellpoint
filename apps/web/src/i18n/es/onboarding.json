@@ -33,7 +33,8 @@
     "currency": "Moneda operacional",
     "currencyOptions": {
       "MXN": "Peso mexicano (MXN)",
-      "USD": "Dólar estadounidense (USD)"
+      "USD": "Dólar estadounidense (USD)",
+      "CAD": "Dólar canadiense (CAD)"
     },
     "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
     "continue": "Continuar",

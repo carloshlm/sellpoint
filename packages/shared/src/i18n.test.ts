@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { localeToBcp47 } from "./i18n";
+import { localeToBcp47, SUPPORTED_CURRENCIES } from "./i18n";
+
+describe("SUPPORTED_CURRENCIES", () => {
+  it("soporta exactamente MXN, USD y CAD (decisión de Carlos, 2026-08-16)", () => {
+    expect(SUPPORTED_CURRENCIES).toEqual(["MXN", "USD", "CAD"]);
+  });
+});
 
 describe("localeToBcp47", () => {
   it("maps 'es' to the Mexico-first BCP-47 tag 'es-MX'", () => {
