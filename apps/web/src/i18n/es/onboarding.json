@@ -69,7 +69,6 @@
       "EUR": "Euro (EUR)",
       "GBP": "Libra esterlina (GBP)"
     },
-    "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
     "currencyRequestHint": "¿Necesitas otra moneda? Escríbenos y la habilitamos.",
     "continue": "Continuar",
     "error": "No pudimos guardar los datos del negocio."

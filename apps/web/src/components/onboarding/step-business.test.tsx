@@ -357,15 +357,13 @@ describe("StepBusiness — moneda: preselección editable por país (decisión 5
     expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("GBP");
   });
 
-  it("la línea 'moneda no disponible' siempre está visible, junto a la de inmutabilidad", () => {
+  it("bajo el selector queda SOLO la línea de 'moneda no disponible'", () => {
     renderStep();
-    expect(
-      screen.getByText(
-        "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
-      ),
-    ).toBeInTheDocument();
     expect(
       screen.getByText("¿Necesitas otra moneda? Escríbenos y la habilitamos."),
     ).toBeInTheDocument();
+    // La advertencia de inmutabilidad se retiró (Carlos, 2026-08-16): la regla
+    // sigue viva en `TenantCurrencyChangeableGuard`, solo desapareció el copy.
+    expect(screen.queryByText(/no vas a poder cambiar la moneda/i)).not.toBeInTheDocument();
   });
 });

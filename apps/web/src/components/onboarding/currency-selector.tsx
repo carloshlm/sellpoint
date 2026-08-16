@@ -12,9 +12,10 @@ interface CurrencySelectorProps {
  * F1-LOCALE-07 (F1-WEB-ONBOARD-01, paso 1). Presentacional puro: solo
  * emite `onChange`, NUNCA llama al API directo — la persistencia real la
  * hace `PATCH /tenants/me` desde el form contenedor (`step-business.tsx`).
- * El copy de advertencia es solo eso, copy: la regla de inmutabilidad
- * post-transacciones vive ÚNICAMENTE en `TenantCurrencyChangeableGuard`
- * (backend) — este componente no la reimplementa ni la valida.
+ * La regla de inmutabilidad post-transacciones vive ÚNICAMENTE en
+ * `TenantCurrencyChangeableGuard` (backend) — este componente no la
+ * reimplementa ni la valida. Su copy de advertencia se retiró el 2026-08-16
+ * (decisión de Carlos): la regla sigue en pie, solo dejó de anunciarse acá.
  */
 function CurrencySelector({ value, onChange, error }: CurrencySelectorProps) {
   const { t } = useTranslation();
@@ -31,7 +32,6 @@ function CurrencySelector({ value, onChange, error }: CurrencySelectorProps) {
           label: t(`onboarding.step1.currencyOptions.${currency}`),
         }))}
       />
-      <p className="text-xs text-muted-foreground">{t("onboarding.step1.currencyWarning")}</p>
       {/* Decisión 5 (2026-08-16): la moneda SIEMPRE es visible y editable —
           esta línea aclara que la lista de 5 no es un techo, solo lo
           habilitado hoy. */}
