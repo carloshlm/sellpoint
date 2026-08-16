@@ -10,7 +10,7 @@
 
 1. [Autenticación](#1-autenticación)
 2. [Onboarding de Tenant](#2-onboarding-de-tenant)
-3. [Gestión de Schema Dinámico](#3-gestión-de-schema-dinámico)
+3. [Gestión de Campos de Catálogo](#3-gestión-de-campos-de-catálogo)
 4. [Creación de Producto](#4-creación-de-producto)
 5. [Movimientos de Inventario](#5-movimientos-de-inventario)
 6. [Venta en POS](#6-venta-en-pos)
@@ -125,7 +125,11 @@ flowchart TD
 
 ---
 
-## 3. Gestión de Schema Dinámico
+## 3. Gestión de Campos de Catálogo
+
+> **Reescrito en la atomización de F2 (2026-08-16):** el flujo previo de versionado
+> (publicar v2, migrar/forzar, `schema_drift`, Ajv) quedó **diferido** — decisión de
+> Carlos: editor simple con guardas. Ver ARQUITECTURA § 3.3 y CU-CAT-01.
 
 ```mermaid
 sequenceDiagram
@@ -136,42 +140,31 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     A->>F: Va a Catálogo → Schema
-    F->>API: GET /product-schemas/active
-    API->>DB: SELECT schema WHERE tenant_id AND is_active
-    DB-->>API: schema v1
-    API-->>F: { version: 1, schema: {...} }
-    F-->>A: Muestra editor visual
+    F->>API: GET /catalogs (y campos del elegido)
+    API->>DB: SELECT catalogs / catalog_fields WHERE tenant_id (RLS)
+    API-->>F: catálogos + campos (estándar fijos + personalizados)
+    F-->>A: Muestra editor
 
-    A->>F: Agrega/edita campos (drag & drop)
-    F->>F: Valida JSON Schema localmente
-    A->>F: Click "Guardar nueva versión"
+    A->>F: Agrega campo (etiqueta, tipo Texto/Numérico/Lookup, requerido)
+    F->>API: POST /catalogs/:id/fields
+    API->>API: key única por catálogo · lookup exige catálogo destino vivo
+    API->>DB: INSERT catalog_field
+    API-->>F: 201 — el form dinámico ya lo incluye
 
-    F->>API: POST /product-schemas { schema }
-    API->>API: Valida JSON Schema (Ajv meta-schema)
-    API->>DB: SELECT products WHERE tenant_id
-
-    loop por cada producto
-        API->>API: Valida product.attributes<br/>contra nuevo schema
+    A->>F: Quita un campo
+    F->>API: DELETE /catalogs/:id/fields/:fieldId
+    alt El campo tiene datos
+        API-->>F: 409 { requiresConfirmation, count: N }
+        F-->>A: "N registros tienen este campo.<br/>Se ocultará, no se borra."
+        A->>F: Confirma
+        F->>API: DELETE ... { confirm: true }
+        API->>DB: UPDATE is_archived = true (valores intactos, restaurable)
+    else Sin datos
+        API->>DB: DELETE catalog_field
     end
 
-    alt Hay productos incompatibles
-        API-->>F: 409 { incompatible: [...] }
-        F-->>A: Muestra reporte: N productos<br/>no cumplen
-        A->>F: Elige acción
-        alt Cancelar
-            F-->>A: No guarda
-        else Migrar
-            F->>API: POST /product-schemas { schema, migrate: true }
-            API->>DB: Ejecuta migración<br/>(UPDATE attributes con defaults)
-        else Forzar
-            F->>API: POST /product-schemas { schema, force: true }
-            API->>DB: Marca productos<br/>schema_drift = true
-        end
-    else Todos compatibles
-        API->>DB: INSERT schema v+1, UPDATE v=inactive
-        API-->>F: 201 Created
-        F-->>A: "Schema v2 activo"
-    end
+    A->>F: Intenta cambiar el tipo de un campo con datos
+    F-->>A: Bloqueado (motivo visible) — 409 en el API si lo fuerza
 ```
 
 ---
@@ -181,8 +174,8 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     Start([Manager en<br/>Catálogo → Productos]) --> Click[Click 'Nuevo producto']
-    Click --> LoadSchema[Frontend lee<br/>schema activo del tenant]
-    LoadSchema --> RenderForm[Renderiza formulario:<br/>campos fijos + campos dinámicos]
+    Click --> LoadSchema[Frontend lee los campos<br/>del catálogo de productos]
+    LoadSchema --> RenderForm[Renderiza formulario:<br/>campos estándar + dinámicos]
     RenderForm --> Fill[Manager completa campos]
     Fill --> Submit[Submit]
     Submit --> ValidateFront{Validación<br/>frontend Zod}
@@ -190,14 +183,14 @@ flowchart LR
     ShowError1 --> Fill
     ValidateFront -->|OK| SendAPI[POST /products]
 
-    SendAPI --> ValidateDTO{class-validator<br/>DTO en NestJS}
+    SendAPI --> ValidateDTO{ZodValidationPipe<br/>DTO en NestJS}
     ValidateDTO -->|Fallo| Return400a[400 Bad Request]
-    ValidateDTO -->|OK| LoadSchemaBack[Lee schema activo<br/>del tenant]
-    LoadSchemaBack --> ValidateAjv{Ajv valida<br/>attributes vs schema}
-    ValidateAjv -->|Fallo| Return400b[400 con errores<br/>por campo]
-    ValidateAjv -->|OK| CheckSKU{SKU único<br/>en el tenant?}
+    ValidateDTO -->|OK| LoadSchemaBack[Lee catalog_fields del<br/>catálogo de productos]
+    LoadSchemaBack --> ValidateFields{Validador derivado<br/>de los campos}
+    ValidateFields -->|Fallo| Return400b[400 con errores<br/>por campo]
+    ValidateFields -->|OK| CheckSKU{SKU único<br/>en el tenant?}
     CheckSKU -->|No| Return409[409 Conflict]
-    CheckSKU -->|OK| Insert[INSERT product<br/>tenant_id = current tenant<br/>stock = 0]
+    CheckSKU -->|OK| Insert[INSERT product + presentación<br/>base «Unidad ×1» con precio/costo<br/>stock = 0]
     Insert --> AuditLog[Audit log entry]
     AuditLog --> Return201[201 Created]
     Return201 --> SuccessUI[Toast 'Producto creado']

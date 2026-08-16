@@ -285,21 +285,28 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ---
 
-#### **CU-CAT-01 — Definir/editar schema de productos del tenant**
+#### **CU-CAT-01 — Definir/editar campos de un catálogo (productos o subcatálogo)**
 
-- **Actor:** TenantAdmin
+> **Reescrito en la atomización de F2 (2026-08-16):** el versionado v1/v2 con flujos de
+> migrar/forzar y el flag `schema_drift` quedaron **diferidos** — decisión de Carlos: editor
+> simple con guardas (modelo Airtable/Notion, sin entrenamiento). Se generalizó además a
+> cualquier catálogo del tenant, no solo productos. Detalle: `topic_key: sellpoint/f2-atomizacion`.
+
+- **Actor:** TenantAdmin (permiso `catalogs:manage`)
 - **Precondición:** El tenant ya está onboarded.
 - **Flujo principal:**
-  1. Va a Catálogo → Schema de Productos
-  2. Ve el schema activo y su versión
-  3. Click "Editar" → abre el **editor visual de schema**
-  4. Agrega/edita/elimina campos custom: nombre, tipo (string, number, enum, boolean, date), required, opciones (si es enum), regex de validación
-  5. Click "Guardar" → sistema valida que productos existentes sigan cumpliendo el nuevo schema
-  6. Si hay productos incompatibles → muestra reporte con opciones: cancelar / migrar / forzar
-- **Flujos alternativos:**
-  - 5a. Tenant nunca tuvo productos → guarda directo
-  - 6a. Forzar → marca productos legacy con flag `schema_drift = true` para revisión manual
-- **Postcondición:** Schema nueva versión activa. Versiones previas archivadas (no se borran).
+  1. Va a Catálogo → Schema
+  2. Elige el catálogo (el de Productos o un subcatálogo; también puede crear un subcatálogo nuevo)
+  3. Ve los campos estándar (fijos, no eliminables: Código; en productos además nombre, precio, costo, unidad base) y los campos personalizados
+  4. Agrega campos personalizados: etiqueta, tipo (**Texto, Numérico, Lookup** hacia otro catálogo), requerido
+  5. Edita etiqueta/requerido/orden de campos existentes
+  6. Los cambios aplican al guardar cada campo — sin versiones ni publicación
+- **Flujos alternativos (las guardas):**
+  - 4a. Campo lookup → exige elegir el catálogo destino (vivo, del tenant)
+  - 5a. **Quitar un campo con datos** → confirmación explícita con el conteo ("N registros tienen este campo; se ocultará, no se borra"); el campo se archiva y sus valores se conservan (restaurable)
+  - 5b. **Cambiar el tipo de un campo con datos** → bloqueado (el sistema explica el porqué)
+  - 5c. Intentar tocar un campo estándar → no hay controles para hacerlo
+- **Postcondición:** Los forms y tablas del catálogo reflejan los campos vigentes de inmediato.
 
 ---
 
@@ -311,8 +318,8 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   1. Va a Catálogo → Productos → "Nuevo producto"
   2. Completa campos fijos: SKU, nombre, **unidad base** (selector: Unidad, ml, l, gr, kg, m, cm, etc.), stock mínimo
   3. Indica si es **producto compuesto** (toggle "Este producto se prepara a partir de otros del catálogo")
-  4. Completa campos dinámicos según el schema del tenant
-  5. Sistema valida atributos contra el JSON Schema (Ajv)
+  4. Completa campos dinámicos según los campos del catálogo de productos del tenant (incluye precio y costo, que crean la presentación base «Unidad ×1» — ver ARQUITECTURA § 3.5)
+  5. Sistema valida atributos con el validador derivado de los campos (sin Ajv — ver ARQUITECTURA § 3.3)
   6. Guarda producto (sin presentaciones todavía — esas se definen en CU-CAT-05)
   7. Sistema redirige a la página del producto con tabs habilitados: `Información`, `Presentaciones`, y `Receta` (este último solo si es compuesto)
 - **Flujos alternativos:**
@@ -381,7 +388,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 #### **CU-CAT-07 — Ver disponibilidad de productos compuestos**
 
-- **Actor:** Cualquiera con `catalog:read`
+- **Actor:** Cualquiera con `products:read`
 - **Flujo principal:**
   1. Catálogo → Productos → filtra por "Compuestos"
   2. Tabla muestra por producto: nombre, presentación predeterminada, **porciones disponibles** (calculado: cuántas veces puedo hacer esta receta con el stock actual), ingrediente limitante (el que está más cerca de quedarse sin stock)
@@ -408,7 +415,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 #### **CU-CAT-04 — Buscar y filtrar productos**
 
-- **Actor:** Cualquiera con `catalog:read`
+- **Actor:** Cualquiera con `products:read`
 - **Flujo principal:**
   1. Catálogo → Productos
   2. Ingresa texto en búsqueda (busca en SKU, código de barras, nombre)

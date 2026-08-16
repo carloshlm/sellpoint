@@ -63,7 +63,7 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 | Lenguaje | **TypeScript 5** | Type safety en todo el stack. Tipos compartidos con frontend vía `packages/shared`. |
 | ORM | **Prisma 5** | Type-safe, soporte nativo de JSONB en Postgres, migraciones declarativas, generación automática de tipos. |
 | Base de datos | **PostgreSQL 16** | JSONB + GIN indexes para atributos dinámicos. Row-Level Security nativo. Soporte transaccional ACID. |
-| Validación | **class-validator** + **Ajv** | class-validator para DTOs estáticos. Ajv para validar JSONB dinámico contra el schema del tenant. |
+| Validación | **Zod** (`ZodValidationPipe`) + **validador derivado** | Zod para DTOs estáticos (lo que F1 implementó de hecho). Los atributos dinámicos se validan con la función pura derivada de `catalog_fields` — sin Ajv (ver § 3.3, 2026-08-16). |
 | Auth | **JWT (access) + Refresh rotativo** | Access en memoria, refresh en cookie `httpOnly + Secure + SameSite=Strict`. RS256 (par de claves). |
 | Hash | **Argon2id** | Más resistente que bcrypt a ataques GPU/ASIC. Recomendación OWASP 2024. |
 | Rate limit | **@nestjs/throttler + Redis** | Por IP y por user. Agresivo en `/auth/*`. |
@@ -163,97 +163,96 @@ export class TenantContextMiddleware implements NestMiddleware {
 
 **Resultado:** aunque un developer escriba `SELECT * FROM products` sin filtro, Postgres devuelve solo los del tenant del request. **Imposible filtrar datos.**
 
-### 3.3 Esquemas de producto dinámicos
+### 3.3 Motor de catálogos dinámicos
 
-Cada tenant define **qué campos tienen sus productos**.
+> **Evolución del diseño (2026-08-16, atomización de F2, pedido de Carlos):** el diseño
+> original de esta sección era "UN schema de productos por tenant, expresado como JSON
+> Schema draft-07 y validado con Ajv". Se generalizó a un **motor de catálogos**: el
+> tenant define N catálogos (el de Productos es el principal, obligatorio y del sistema)
+> con campos personalizados tipados, incluido el tipo **lookup** entre catálogos — que el
+> JSON Schema no podía expresar. El JSONB se queda como *storage* de los valores; el JSON
+> Schema como *contrato* muere (los campos como filas son la fuente de verdad) y **Ajv ya
+> no se usa**. Historial completo en engram: `topic_key: sellpoint/f2-atomizacion`.
 
-#### Tablas principales
+Cada tenant define **qué campos tiene su Catálogo de Productos** (farmacia: "Sustancia
+Activa", "Laboratorio"; cafetería: "Origen del Grano", "Tipo de Tueste") y puede crear
+**subcatálogos** propios (ej. "Unidad de Medida": código `kg` → "kilogramos") ligados por
+campos lookup.
 
-```prisma
-model ProductSchema {
-  id        String   @id @default(uuid())
-  tenantId  String
-  version   Int      @default(1)
-  // JSON Schema (draft-07) que describe los campos custom
-  schema    Json
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+#### Tablas del motor
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+```
+catalogs           id, tenant_id, name, system_key NULL, is_system, is_active, timestamps
+                   UNIQUE(tenant_id, name)
+                   El Catálogo de Productos: system_key='products', is_system=true —
+                   se crea en TenantsService.provision(), no se borra ni renombra.
 
-  @@unique([tenantId, version])
-}
+catalog_fields     id, tenant_id, catalog_id, key, label,
+                   field_type ENUM('text','number','lookup'), lookup_catalog_id NULL,
+                   required, position, is_archived, timestamps
+                   UNIQUE(catalog_id, key)
+                   CHECK: field_type='lookup' ⇔ lookup_catalog_id IS NOT NULL
 
-model Product {
-  id          String   @id @default(uuid())
-  tenantId    String
-  sku         String
-  barcode     String?
-  name        String
-  price       Decimal  @db.Decimal(12, 2)
-  stockMin    Int      @default(0)
-  // Atributos custom según ProductSchema del tenant
-  attributes  Json     @default("{}")
-  // ...
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-
-  @@unique([tenantId, sku])
-  @@index([tenantId, barcode])
-  // GIN para queries dentro de JSONB
-  @@index([attributes], type: Gin)
-}
+catalog_records    id, tenant_id, catalog_id, code, attributes JSONB, is_active, timestamps
+                   UNIQUE(catalog_id, code) · GIN(attributes)
+                   ← SOLO filas de subcatálogos. Los productos NO viven acá.
 ```
 
-#### Ejemplo: Schema para farmacia
+#### Productos: tabla de primera clase que USA el motor
 
-```json
-{
-  "type": "object",
-  "required": ["sustancia_activa", "laboratorio"],
-  "properties": {
-    "sustancia_activa": { "type": "string" },
-    "laboratorio": { "type": "string" },
-    "forma_farmaceutica": {
-      "type": "string",
-      "enum": ["Tableta", "Cápsula", "Solución", "Comprimido", "Suspensión", "Gel"]
-    },
-    "tipo_medicamento": { "type": "string", "enum": ["Genérico", "Patente"] },
-    "registro_ssa": { "type": "string" },
-    "grupo_lgs_226": { "type": "string", "enum": ["I", "II", "III", "IV", "V"] }
-  }
-}
-```
+`products` sigue siendo una tabla propia (sku, name, base_unit, is_composite, stock_min,
+`attributes JSONB + GIN`, `UNIQUE(tenant_id, sku)`) porque F3/F4/F5 le cuelgan FKs duras
+(presentaciones, recetas, stock, ventas) y columnas tipadas consultables. Lo que comparte
+con los subcatálogos es el **motor**: sus campos personalizados son `catalog_fields` del
+catálogo `products`, sus valores van al mismo `attributes JSONB`, y los valida el mismo
+validador. El precio y el costo NO son columnas de `products`: viven en
+`product_presentations` (ver § 3.5) — el form de producto los captura y crea la
+presentación base «Unidad ×1».
 
-#### Validación en runtime
+#### Campos estándar y campo Código
 
-Al crear/actualizar un producto, el service valida `attributes` contra el schema activo del tenant usando **Ajv**:
+Todo catálogo tiene campos estándar **no eliminables** que la UI muestra fijos: **Código
+(Nombre Corto)** — único dentro del catálogo, definido por el cliente (`kg`, `PAR-500`) —
+y los del dominio (en productos: nombre, precio, costo, unidad base, stock mínimo). En
+`products` el Código es la columna `sku`; en subcatálogos, la columna `code`.
+
+#### Lookup: integridad a nivel servicio
+
+Un campo lookup guarda en `attributes` el **id** del registro destino (estable ante
+renombres de código) y se muestra por código + display. Reglas:
+
+- Al escribir: el registro destino debe existir, estar activo y pertenecer al catálogo
+  declarado en `lookup_catalog_id`.
+- Al archivar un registro referenciado por lookups de otros registros o productos → 409
+  con la referencia (query GIN inversa: `attributes @> {"<key>": "<id>"}`).
+
+#### Edición de campos: simple con guardas (sin versionado)
+
+Decisión de Carlos (2026-08-16): en lugar del versionado v1/v2 con flujos de migración,
+el editor es directo con tres guardas:
+
+1. **Archivar un campo con datos** exige confirmación explícita; los valores **no se
+   borran** (`is_archived` — el campo desaparece de forms y tablas, restaurable).
+2. **Cambiar el tipo de un campo con datos** se bloquea (409).
+3. Los campos estándar no se tocan.
+
+#### Validación en runtime: derivada de los campos, sin Ajv
 
 ```typescript
-async create(dto: CreateProductDto, tenantId: string) {
-  const schema = await this.schemaRepo.findActive(tenantId);
-  const validate = this.ajv.compile(schema.schema);
-  if (!validate(dto.attributes)) {
-    throw new BadRequestException({
-      message: 'Validación de atributos fallida',
-      errors: validate.errors,
-    });
-  }
-  return this.prisma.product.create({ data: { ...dto, tenantId } });
-}
+// Función PURA — testeable sin DB. Los campos son la fuente de verdad;
+// no hay JSON Schema intermedio que compilar.
+validateRecordAttributes(fields: CatalogField[], attributes: unknown): FieldError[]
+// reglas: required · text=string · number=finito · lookup=uuid existente
+// campos archivados se ignoran · claves desconocidas se rechazan
+// errores por campo con claves i18n (el backend traduce por Accept-Language)
 ```
 
 #### Frontend dinámico
 
-El frontend obtiene el schema del tenant en login y renderiza formularios dinámicos:
-
-```typescript
-const { data: schema } = useQuery({
-  queryKey: ['product-schema'],
-  queryFn: () => api.productSchemas.getActive(),
-});
-
-return <DynamicForm schema={schema} onSubmit={handleSubmit} />;
-```
+`<DynamicForm fields={fields} />` renderiza los campos del catálogo (TextField, campo
+numérico, picker de lookup alimentado por `GET /catalogs/:id/records?query=`). El mismo
+componente sirve al form de productos, al alta de registros de subcatálogos y al preview
+del editor de schema.
 
 ### 3.4 Alcance de usuarios por almacén (multi-sucursal)
 
@@ -307,6 +306,8 @@ CREATE POLICY tenant_isolation ON user_warehouse_scopes
 ### 3.5 Modelo de Productos: Unidades, Presentaciones y Composición (BOM)
 
 > Este modelo es **parte del core** desde Fase 2. Cubre desde productos simples (caja de pastillas vendida entera) hasta productos a granel (café molido por gramo) y productos compuestos (café latte = leche + café + azúcar).
+>
+> **Confirmado en la atomización de F2 (Carlos, 2026-08-16): precio y costo viven ÚNICAMENTE acá**, en `product_presentations` — nunca como columnas de `products` (el `price` que § 3.3 tenía a nivel producto en el diseño original murió con la generalización). Para que se llenen desde la misma interfaz del catálogo, el form de producto captura precio/costo y crea automáticamente la presentación base **«Unidad ×1»** (factor 1, venta por defecto); editarlos después edita esa presentación. La lista de productos muestra el precio de la presentación default. Una sola fuente de verdad: el POS de F4 lee de acá.
 
 #### Concepto clave
 
@@ -431,8 +432,8 @@ sellpoint/
 │   │   │   │   ├── auth/             # login, register, refresh, logout
 │   │   │   │   ├── tenants/          # gestión de tenants y onboarding
 │   │   │   │   ├── users/            # CRUD usuarios, roles, permisos
-│   │   │   │   ├── product-schemas/  # editor de schemas dinámicos
-│   │   │   │   ├── products/         # CRUD productos con validación Ajv
+│   │   │   │   ├── catalogs/         # motor de catálogos: catálogos, campos, registros
+│   │   │   │   ├── products/         # CRUD productos (validador derivado de campos)
 │   │   │   │   ├── warehouses/       # CRUD almacenes
 │   │   │   │   ├── inventory/        # entradas, salidas, inventario físico
 │   │   │   │   ├── pos/              # ventas, tickets, cierre de caja
@@ -554,7 +555,7 @@ sellpoint/
 | Helmet | CSP, HSTS, X-Frame-Options, X-Content-Type-Options |
 | Rate limit global | 100 req/min por IP |
 | Rate limit auth | 10 req/min por IP en `/auth/*` |
-| Input validation | class-validator (DTO) + Ajv (atributos dinámicos) |
+| Input validation | Zod vía `ZodValidationPipe` (DTO) + validador derivado de `catalog_fields` (atributos dinámicos) |
 | SQL injection | Imposible — Prisma usa queries parametrizadas |
 | CSRF | Cookie `SameSite=Strict`. Double-submit token en endpoints sensibles si se requiere |
 | Logging | Pino con redacción de `password`, `token`, `authorization`, `cookie` |
@@ -582,7 +583,7 @@ sellpoint/
 
 - [x] **A01 Broken Access Control** — Guards Nest + RLS Postgres
 - [x] **A02 Cryptographic Failures** — HTTPS forzado, Argon2id, KMS para backups
-- [x] **A03 Injection** — Prisma (SQL), Ajv (JSON), class-validator (input)
+- [x] **A03 Injection** — Prisma (SQL), Zod (input), validador derivado (JSON dinámico)
 - [x] **A04 Insecure Design** — Threat modeling al inicio de cada módulo crítico
 - [x] **A05 Security Misconfiguration** — Helmet, CSP, cabeceras revisadas
 - [x] **A06 Vulnerable Components** — Dependabot + `pnpm audit` en CI
@@ -622,20 +623,23 @@ sellpoint/
 
 **Entregable:** dos tenants pueden coexistir, sus usuarios no se ven entre sí, login funciona end-to-end.
 
-### Fase 2 — Catálogos Dinámicos + UOM + BOM (3-4 semanas)
+### Fase 2 — Catálogos Dinámicos + UOM + BOM (4-5 semanas)
 
-1. Módulo `product-schemas`: CRUD + versionado + validación del JSON Schema mismo
-2. Módulo `units`: catálogo global de unidades (`ml`, `l`, `gr`, `kg`, `unit`, `m`, `cm`, etc.) + seed inicial
-3. Módulo `products`: CRUD con validación Ajv dinámica + columnas `base_unit` y `is_composite`
-4. Módulo `product-presentations`: CRUD de presentaciones por producto (caja, vaso, granel, etc. con factor a `base_unit`, flags purchasable/sellable, barcode, precio, costo)
-5. Módulo `product-compositions` (BOM): CRUD de recetas con validación anti-recursión (DFS) y stock calculado en vivo para productos compuestos
-6. Módulo `warehouses`: CRUD
-7. Frontend: editor visual de schema (drag & drop campos, tipos, validaciones)
+> Atomizada el 2026-08-16 en IMPLEMENTACION.md (12 módulos, 55 tareas) — esta lista es el resumen.
+
+1. Módulo `catalogs` (motor): CRUD de catálogos, campos (Texto/Numérico/Lookup) con guardas y registros de subcatálogos con Código único — sin versionado (diferido, decisión de Carlos)
+2. Módulo `units`: catálogo global de unidades (`ml`, `l`, `gr`, `kg`, `unit`, `m`, `cm`, etc.) + seed inicial + `convertUnits()` en shared
+3. Módulo `products`: CRUD con validador derivado de campos + columnas `base_unit` y `is_composite`; precio/costo crean la presentación base «Unidad ×1»
+4. Presentaciones por producto (caja, vaso, granel, con factor a `base_unit`, flags purchasable/sellable, barcode, precio, costo)
+5. Composición/BOM: recetas con validación anti-recursión (DFS), disponibilidad e ingrediente limitante calculados en vivo
+6. Módulo `warehouses`: CRUD + FK de `user_warehouse_scopes` + interceptor de scope al default permisivo
+7. Frontend: editor de campos de cualquier catálogo + `DynamicForm` compartido + UI de registros de subcatálogos
 8. Frontend: formularios dinámicos para productos con tabs **Información**, **Presentaciones**, **Receta** (solo si `is_composite`)
-9. Importación masiva desde Excel con validación fila por fila + reporte de errores (incluye presentaciones y composición)
-10. Búsqueda full-text en productos (Postgres `tsvector` o `pg_trgm`) — busca por nombre, SKU y barcodes de cualquier presentación
+9. Importación masiva desde Excel con validación fila por fila + reporte de errores (incluye presentaciones; límite 5 MB síncrono)
+10. Búsqueda en productos con `pg_trgm` — por nombre, SKU y barcodes de cualquier presentación, paginada server-side
+11. Onboarding: pasos 2 (template siembra campos) y 3 (primer almacén) reales
 
-**Entregable:** un admin puede definir el schema de su vertical, crear productos simples, productos a granel (con stock decimal), productos compuestos (con receta), y todas sus presentaciones de compra/venta.
+**Entregable:** un admin define los campos de su vertical, crea subcatálogos y los liga por lookup, crea productos simples, a granel (stock decimal) y compuestos (con receta), con todas sus presentaciones de compra/venta.
 
 ### Fase 3 — Movimientos de Inventario (2-3 semanas)
 

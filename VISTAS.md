@@ -336,7 +336,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ### 6.1 Productos — Lista
 
-**Ruta:** `/catalog/products` · **Permiso:** `catalog:read`
+**Ruta:** `/catalog/products` · **Permiso:** `products:read`
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -379,7 +379,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ### 6.2 Producto — Detalle / Form
 
-**Rutas:** `/catalog/products/new` y `/catalog/products/{id}` · **Permiso:** `catalog:write`
+**Rutas:** `/catalog/products/new` y `/catalog/products/{id}` · **Permiso:** `products:manage`
 
 **Modo creación** — solo tab "Información" hasta guardar:
 
@@ -507,60 +507,52 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ---
 
-### 6.3 Editor de Schema
+### 6.3 Editor de Schema (campos de cualquier catálogo)
 
-**Ruta:** `/catalog/schema` · **Permiso:** `catalog:schema:write` (solo TenantAdmin)
+**Ruta:** `/catalog/schema` · **Permiso:** `catalogs:manage` (solo TenantAdmin)
+
+> **Actualizado en la atomización de F2 (2026-08-16):** sin versiones ni publicación —
+> editor simple con guardas (decisión de Carlos; el mockup previo con "v2/publicar/
+> historial/migrar" quedó obsoleto). Edita los campos de **cualquier** catálogo: el de
+> Productos o un subcatálogo del tenant.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Catálogo > Schema de Productos                                │
+│  Catálogo > Schema                                             │
 ├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  Versión activa: v2 (publicada 12 May 2026)                    │
-│  Productos afectados: 1,250                                    │
+│  Catálogo: ▼ Catálogo de Productos      [+ Nuevo subcatálogo]  │
 │                                                                │
 │  ┌──────────────────────────┐  ┌─────────────────────────┐    │
-│  │  CAMPOS DEL SCHEMA       │  │  PREVISUALIZACIÓN       │    │
-│  ├──────────────────────────┤  ├─────────────────────────┤    │
-│  │                          │  │                         │    │
-│  │ ☰ sustancia_activa  ✏️ 🗑│  │ Sustancia activa *      │    │
-│  │   string · required      │  │ (_______________)       │    │
-│  │                          │  │                         │    │
-│  │ ☰ laboratorio  ✏️ 🗑     │  │ Laboratorio *           │    │
-│  │   string · required      │  │ ▼ Seleccionar...        │    │
-│  │                          │  │                         │    │
-│  │ ☰ forma_farmaceutica ✏️🗑│  │ Forma farmacéutica *    │    │
-│  │   enum · required        │  │ ▼ Tableta               │    │
-│  │                          │  │                         │    │
-│  │ ☰ tipo_medicamento  ✏️ 🗑│  │ Tipo de medicamento     │    │
-│  │   enum · optional        │  │ ◉ Genérico ○ Patente   │    │
-│  │                          │  │                         │    │
-│  │ ☰ registro_ssa  ✏️ 🗑    │  │ Registro SSA            │    │
-│  │   string · optional      │  │ (_______________)       │    │
-│  │                          │  │                         │    │
-│  │ ☰ grupo_lgs_226 ✏️ 🗑    │  │ Grupo LGS Art. 226      │    │
-│  │   enum · optional        │  │ ▼ I/II/III/IV/V         │    │
-│  │                          │  │                         │    │
+│  │  CAMPOS ESTÁNDAR (fijos) │  │  PREVISUALIZACIÓN       │    │
+│  │  Código (SKU) · Nombre   │  ├─────────────────────────┤    │
+│  │  Precio · Costo · Unidad │  │ Código (SKU) *          │    │
+│  ├──────────────────────────┤  │ (_______________)       │    │
+│  │  CAMPOS PERSONALIZADOS   │  │ Sustancia activa *      │    │
+│  │                          │  │ (_______________)       │    │
+│  │ ☰ Sustancia activa  ✏️ 🗑│  │ Laboratorio *           │    │
+│  │   texto · requerido      │  │ ▼ Seleccionar...        │    │
+│  │ ☰ Laboratorio  ✏️ 🗑     │  │ {campos según el        │    │
+│  │   lookup → Laboratorios  │  │  catálogo elegido}      │    │
+│  │ ☰ Registro SSA  ✏️ 🗑    │  │                         │    │
+│  │   texto · opcional       │  │                         │    │
 │  │ [+ Agregar campo]        │  │                         │    │
 │  └──────────────────────────┘  └─────────────────────────┘    │
-│                                                                │
-│         [Ver historial de versiones]  [Guardar nueva versión]  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 **Acciones (solo TenantAdmin):**
-- Drag & drop para reordenar campos
-- ✏️ Editar campo (modal con tipo, validaciones, opciones si es enum)
-- 🗑 Eliminar campo (con advertencia si hay productos que lo usan)
-- ➕ Agregar campo
-- Guardar nueva versión → si hay incompatibilidades muestra modal de resolución (cancelar/migrar/forzar)
-- Ver historial de versiones (read-only)
+- Selector de catálogo + crear subcatálogo nuevo
+- ➕ Agregar campo (etiqueta, tipo **Texto / Numérico / Lookup** con catálogo destino, requerido)
+- ✏️ Editar etiqueta/requerido/orden
+- 🗑 Quitar campo **con guardas**: con datos pide confirmación explícita ("N registros tienen este campo; se ocultará, no se borra") y lo archiva recuperable; cambiar el tipo con datos está bloqueado
+- Los campos estándar se muestran fijos, sin controles de edición
+- Los cambios aplican al guardar cada campo — sin versiones, sin publicación
 
 ---
 
 ### 6.4 Importar desde Excel
 
-**Modal sobre `/catalog/products`** · **Permiso:** `catalog:write`
+**Modal sobre `/catalog/products`** · **Permiso:** `products:manage`
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -613,6 +605,12 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 **Form de creación/edición:**
 
+> **Actualizado en la atomización de F2 (2026-08-16):** la dirección es **texto libre
+> opcional** — el desglose colonia/alcaldía/estado del mockup previo era México-céntrico
+> y SellPoint vende a 26 mercados (MERCADOS.md §4: los formatos postales difieren). Los
+> **racks quedaron FUERA de F2**: no existen en ningún modelo de datos y se decidirán
+> cuando llegue el stock por ubicación.
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  Nuevo almacén                                                 │
@@ -621,30 +619,15 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   Nombre del almacén *                                         │
 │   (_________________________________________________)          │
 │                                                                │
-│   Calle *                                Número *              │
-│   (_______________________________)      (________)            │
-│                                                                │
-│   Colonia *                                                    │
+│   Dirección                                                    │
 │   (_________________________________________________)          │
-│                                                                │
-│   Municipio / Alcaldía *      Estado *                         │
-│   (_______________________)   ▼ CDMX                          │
-│                                                                │
-│   Código postal *                                              │
-│   (___________)                                                │
-│                                                                │
-│  ─── Racks (opcional) ─────────────────────────────            │
-│                                                                │
-│   Define ubicaciones internas (ej. A1-01, A1-02, B2-15):       │
-│   (___________________________________)  [Agregar]            │
-│                                                                │
-│   • A1-01  • A1-02  • A1-03  • B2-15                          │
+│   (_________________________________________________)          │
 │                                                                │
 │                            [Cancelar]  [Guardar almacén]       │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Acciones (TenantAdmin/Manager):** crear, editar, desactivar. Desactivar pide confirmación si tiene stock.
+**Acciones (TenantAdmin/Manager):** crear, editar, desactivar. Desactivar pide confirmación; la validación "no desactivar con stock" llega con F3 (hoy no hay movimientos).
 
 ---
 
@@ -1282,9 +1265,9 @@ Después de confirmar:
 │  │ ROLES        │  Permisos del rol seleccionado            │ │
 │  ├──────────────┼───────────────────────────────────────────┤ │
 │  │ • TenantAdmin│  ─── Catálogo ───                         │ │
-│  │ • Manager  ✓ │   ☑ catalog:read                          │ │
-│  │ • POS_Seller │   ☑ catalog:write                         │ │
-│  │ • Viewer     │   ☐ catalog:schema:write                  │ │
+│  │ • Manager  ✓ │   ☑ products:read                          │ │
+│  │ • POS_Seller │   ☑ products:manage                         │ │
+│  │ • Viewer     │   ☐ catalogs:manage                  │ │
 │  │              │                                           │ │
 │  │ [+ Nuevo rol]│  ─── Almacenes ───                        │ │
 │  │              │   ☑ warehouses:read                       │ │
