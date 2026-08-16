@@ -9,6 +9,21 @@
 // exista en cada entorno: si el catálogo está vacío (dev/CI/prod sin seed
 // corrido todavía), los roles nacen sin permisos — degradación aceptada,
 // no bloqueante para AUTH-REQ-01 (f1-rbac es quien gestiona permisos).
+//
+// CONVENCIÓN DE NOMBRES (decisión de Carlos, 2026-08-16): **PascalCase**.
+// `POS_Seller` es la ÚNICA excepción y tiene motivo: el guion bajo separa un
+// ACRÓNIMO de una palabra, porque `POSSeller` se lee mal. No es un estilo
+// alternativo — un rol nuevo de dos palabras se llama `StockKeeper`, no
+// `Stock_Keeper`. Se evaluó renombrar a `Tenant_Admin` para "seguir a
+// POS_Seller" y se DESCARTÓ: dejaría dos de cuatro roles con guion bajo sin
+// una regla que explique cuál lo lleva.
+//
+// Ojo si algún día se renombra igual: estos nombres son la columna
+// `roles.name` en DB, no una etiqueta de UI (el front pinta lo que llega del
+// API, no tiene i18n de roles). Un rename exige migración de datos para los
+// tenants ya provisionados. Lo que NO se rompe es la autorización: por la ley
+// de f1-scope, el bypass de TenantAdmin es por catálogo de permisos, nunca
+// por nombre de rol.
 export const TENANT_ROLE_NAMES = ["TenantAdmin", "Manager", "POS_Seller", "Viewer"] as const;
 
 export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
