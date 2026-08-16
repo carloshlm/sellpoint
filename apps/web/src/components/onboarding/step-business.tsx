@@ -10,15 +10,28 @@ import type { TenantBlock } from "@/lib/tenant/api";
 import { type BusinessStepValues, businessStepSchema } from "@/lib/tenant/schemas";
 import { CurrencySelector } from "./currency-selector";
 
+// Catálogo curado a México, Estados Unidos y Canadá (decisión de Carlos,
+// 2026-08-16). Las claves son IANA; las etiquetas viven en i18n con el formato
+// "País — Región (Ciudad)". El dato alimenta el corte de día de POS/reportes
+// en F4-F5; hoy solo se persiste.
 const TIMEZONE_OPTIONS = [
   "America/Mexico_City",
-  "America/Tijuana",
-  "America/Monterrey",
   "America/Cancun",
-  "America/Bogota",
-  "America/Lima",
-  "America/Santiago",
-  "America/Argentina/Buenos_Aires",
+  "America/Hermosillo",
+  "America/Tijuana",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Phoenix",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/St_Johns",
+  "America/Halifax",
+  "America/Toronto",
+  "America/Winnipeg",
+  "America/Edmonton",
+  "America/Vancouver",
 ] as const;
 
 interface StepBusinessProps {
