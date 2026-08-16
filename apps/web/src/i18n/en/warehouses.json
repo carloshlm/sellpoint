@@ -1,0 +1,16 @@
+{
+  "nav": { "group": "Warehouses" },
+  "page": { "title": "Warehouses" },
+  "add": "New warehouse",
+  "empty": "You haven't registered any warehouses yet.",
+  "status": "Status",
+  "active": "Active",
+  "inactive": "Inactive",
+  "deactivate": "Deactivate",
+  "reactivate": "Reactivate",
+  "form": {
+    "name": "Warehouse name",
+    "address": "Address",
+    "addressHint": "Optional. Write it the way it's used in your country."
+  }
+}

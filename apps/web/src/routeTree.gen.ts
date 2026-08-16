@@ -20,6 +20,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as WarehousesRouteImport } from './routes/warehouses'
 import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
@@ -80,6 +81,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
   path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WarehousesRoute = WarehousesRouteImport.update({
+  id: '/warehouses',
+  path: '/warehouses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CatalogListsRoute = CatalogListsRouteImport.update({
   id: '/catalog/lists',
   path: '/catalog/lists',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/warehouses': typeof WarehousesRoute
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/warehouses': typeof WarehousesRoute
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
+  '/warehouses': typeof WarehousesRoute
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/warehouses'
     | '/catalog/lists'
     | '/catalog/schema'
     | '/system/roles'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/warehouses'
     | '/catalog/lists'
     | '/catalog/schema'
     | '/system/roles'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/verify'
     | '/verify-email'
+    | '/warehouses'
     | '/catalog/lists'
     | '/catalog/schema'
     | '/system/roles'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   VerifyRoute: typeof VerifyRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
+  WarehousesRoute: typeof WarehousesRoute
   CatalogListsRoute: typeof CatalogListsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
   SystemRolesRoute: typeof SystemRolesRoute
@@ -304,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/warehouses': {
+      id: '/warehouses'
+      path: '/warehouses'
+      fullPath: '/warehouses'
+      preLoaderRoute: typeof WarehousesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/catalog/lists': {
       id: '/catalog/lists'
       path: '/catalog/lists'
@@ -347,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   VerifyRoute: VerifyRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  WarehousesRoute: WarehousesRoute,
   CatalogListsRoute: CatalogListsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
   SystemRolesRoute: SystemRolesRoute,

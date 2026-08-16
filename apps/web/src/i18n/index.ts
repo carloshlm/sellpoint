@@ -8,12 +8,14 @@ import enCommon from "./en/common.json";
 import enOnboarding from "./en/onboarding.json";
 import enUsers from "./en/users.json";
 import enValidation from "./en/validation.json";
+import enWarehouses from "./en/warehouses.json";
 import esAuth from "./es/auth.json";
 import esCatalogs from "./es/catalogs.json";
 import esCommon from "./es/common.json";
 import esOnboarding from "./es/onboarding.json";
 import esUsers from "./es/users.json";
 import esValidation from "./es/validation.json";
+import esWarehouses from "./es/warehouses.json";
 
 /**
  * Idioma de la PRIMERA visita, cuando todavía nadie eligió nada (decisión de
@@ -43,6 +45,7 @@ const resources = {
       users: esUsers,
       onboarding: esOnboarding,
       catalogs: esCatalogs,
+      warehouses: esWarehouses,
     },
   },
   en: {
@@ -53,6 +56,7 @@ const resources = {
       users: enUsers,
       onboarding: enOnboarding,
       catalogs: enCatalogs,
+      warehouses: enWarehouses,
     },
   },
 };

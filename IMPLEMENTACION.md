@@ -1361,19 +1361,19 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-WH — Almacenes
 
-- [ ] **F2-WH-01** — API CRUD de almacenes
+- [x] **F2-WH-01** — API CRUD de almacenes
   - **Salida:** módulo `warehouses` (`warehouses:read`/`warehouses:manage`): crear (name único por tenant → 409), listar, editar, desactivar; dirección texto libre; audit log; el guard de "no desactivar con stock" queda para F3 (documentado en el service)
   - **Verificar:** e2e del ciclo + cross-tenant no ve
   - **Depende de:** F2-DB-07, F2-DB-10
   - **Estimación:** 2 h
 
-- [ ] **F2-WH-02** — UI lista `/warehouses` + nav
+- [x] **F2-WH-02** — UI lista `/warehouses` + nav
   - **Salida:** ruta con gates (`warehouses:read`), tabla nombre/dirección/estado, grupo nav "Almacenes", estado vacío con CTA de creación, namespace i18n `warehouses`
   - **Verificar:** test por routeTree real; sin permiso → panel del gate
   - **Depende de:** F2-WH-01
   - **Estimación:** 1.5 h
 
-- [ ] **F2-WH-03** — UI form alta/edición + desactivar
+- [x] **F2-WH-03** — UI form alta/edición + desactivar
   - **Salida:** form (nombre requerido, dirección multiline opcional — internacional, sin colonia/alcaldía MX-only) con gate `warehouses:manage`; desactivar con dialog de confirmación
   - **Verificar:** ciclo completo contra API mockeado; 409 de nombre mapeado
   - **Depende de:** F2-WH-02

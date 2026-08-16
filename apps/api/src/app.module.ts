@@ -29,6 +29,7 @@ import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
+import { WarehousesModule } from "./modules/warehouses/warehouses.module";
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { UsersModule } from "./modules/users/users.module";
     UsersModule,
     RolesModule,
     CatalogsModule,
+    WarehousesModule,
     PermissionsModule,
   ],
   controllers: [HealthController, I18nDemoController],
