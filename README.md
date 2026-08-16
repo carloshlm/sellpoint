@@ -47,5 +47,6 @@ infrastructure/  # docker-compose, deploy, IaC
 | [CASOS_DE_USO.md](./CASOS_DE_USO.md) | Casos de uso por módulo y rol |
 | [FLUJOS.md](./FLUJOS.md) | Flujos de negocio (ventas, inventario, traspasos) |
 | [VISTAS.md](./VISTAS.md) | Especificación de pantallas y UX |
+| [MERCADOS.md](./MERCADOS.md) | Países soportados, monedas, zonas horarias y diferencias de nomenclatura |
 | [IMPLEMENTACION.md](./IMPLEMENTACION.md) | Plan de fases, tareas atomizadas, bitácora de decisiones |
 | [ControlDeInventario.md](./ControlDeInventario.md) · [PuntoDeVenta.md](./PuntoDeVenta.md) | Documentos de idea originales |
