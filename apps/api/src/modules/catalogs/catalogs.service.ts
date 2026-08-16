@@ -71,7 +71,7 @@ export class CatalogsService {
 
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
-        userId: user.id,
+        userId: user.userId,
         action: "catalogs.create",
         resourceType: "catalog",
         resourceId: catalog.id,
@@ -126,7 +126,7 @@ export class CatalogsService {
 
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
-        userId: user.id,
+        userId: user.userId,
         action: "catalogs.update",
         resourceType: "catalog",
         resourceId: id,

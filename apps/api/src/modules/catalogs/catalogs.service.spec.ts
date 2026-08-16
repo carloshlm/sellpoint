@@ -13,9 +13,9 @@ import { CatalogsService } from "./catalogs.service";
  * nombre, la RLS) vive en el e2e.
  */
 const ACTOR: AuthUser = {
-  id: "user-1",
+  userId: "user-1",
   tenantId: "tenant-1",
-  email: "ana@acme.mx",
+  locale: "es",
   permissions: ["catalogs:manage", "catalogs:read"],
 };
 

@@ -1,0 +1,32 @@
+{
+  // Verificación de tipos COMPLETA — incluye los tests, que ningún otro gate
+  // mira. Descubierto el 2026-08-16 con un deploy en rojo (F2-CAT):
+  //
+  //  - `tsconfig.build.json` (lo que corre `nest build` en CI) EXCLUYE
+  //    `**/*spec.ts` y `test/`.
+  //  - `ts-jest` no verifica tipos: `isolatedModules: true` en
+  //    tsconfig.base.json lo hace transpilar archivo por archivo.
+  //
+  // Con esos dos huecos, un `.spec.ts` podía construir un objeto con
+  // propiedades que el tipo no tiene y toda la suite pasaba en verde.
+  //
+  // ⚠ ESTADO ACTUAL: correr esto reporta 26 errores PREEXISTENTES en 8
+  // archivos de test (auth.controller.spec, token.service.spec y otros) que
+  // nunca pasaron por un verificador. Por eso NO está enganchado a CI todavía:
+  // engancharlo hoy dejaría el pipeline en rojo por deuda vieja. Se corre con
+  // `pnpm typecheck:full` y el objetivo es llegar a cero para poder sumarlo al
+  // gate — ahí este archivo deja de ser una nota y pasa a ser una defensa.
+  //
+  // `rootDir: "."` en vez de `"./src"` es lo que evita el error TS6059
+  // ("file is not under rootDir") al incluir `test/`: acá no se emite nada,
+  // así que la restricción de layout de salida no aplica.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "declaration": false,
+    "incremental": false
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src/generated"]
+}

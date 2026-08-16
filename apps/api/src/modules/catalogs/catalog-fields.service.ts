@@ -99,7 +99,7 @@ export class CatalogFieldsService {
 
         await this.auditService.record(tx, {
           tenantId: user.tenantId,
-          userId: user.id,
+          userId: user.userId,
           action: "catalogs.field_create",
           resourceType: "catalog_field",
           resourceId: field.id,
@@ -184,7 +184,7 @@ export class CatalogFieldsService {
 
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
-        userId: user.id,
+        userId: user.userId,
         action: "catalogs.field_update",
         resourceType: "catalog_field",
         resourceId: fieldId,
@@ -261,7 +261,7 @@ export class CatalogFieldsService {
   ): Promise<void> {
     await this.auditService.record(tx, {
       tenantId: user.tenantId,
-      userId: user.id,
+      userId: user.userId,
       action: archived ? "catalogs.field_archive" : "catalogs.field_delete",
       resourceType: "catalog_field",
       resourceId: fieldId,
