@@ -29,6 +29,13 @@
 - API: `jest` (`pnpm --filter api test`, e2e con `test:e2e`) · Web: `vitest` (`pnpm --filter web test`)
 - Config/wiring puro no exige TDD, pero SÍ verificación explícita (el criterio de "hecho" de cada tarea del plan)
 
+## Copy de la UI
+
+Español **neutro** (nunca voseo: `tienes`, no `tenés`) e inglés **americano**.
+Aplica a `apps/web/src/i18n/**` y `apps/api/src/i18n/**` — web, errores de API y
+correos. Detalle y tabla de equivalencias en [MERCADOS.md §3](./MERCADOS.md).
+Hay un test guardián que falla en CI si se cuela una forma voseante.
+
 ## Las 3 fuentes de verdad
 
 1. **Código** — lo que ES

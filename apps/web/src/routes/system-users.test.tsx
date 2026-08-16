@@ -166,7 +166,7 @@ describe("/system/users", () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["products:read"]));
     await renderRoute("/system/users");
 
-    expect(await screen.findByText("No tenés permiso para ver esta sección.")).toBeInTheDocument();
+    expect(await screen.findByText("No tienes permiso para ver esta sección.")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(mockedApi.listUsers).not.toHaveBeenCalled();
   });
@@ -693,7 +693,7 @@ describe("/system/users", () => {
       );
       expect(
         await screen.findByText(
-          "Si el email existe, va a recibir instrucciones para restablecer la contraseña.",
+          "Si el correo existe, va a recibir instrucciones para restablecer la contraseña.",
         ),
       ).toBeInTheDocument();
     });

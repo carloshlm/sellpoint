@@ -64,7 +64,7 @@ describe("UsersTable", () => {
     expect(screen.getByText("Ana García")).toBeInTheDocument();
     expect(screen.getByText("Beto López")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Buscar por nombre o email"), "beto");
+    await user.type(screen.getByLabelText("Buscar por nombre o correo"), "beto");
 
     expect(screen.queryByText("Ana García")).not.toBeInTheDocument();
     expect(screen.getByText("Beto López")).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe("UsersTable", () => {
       makeUser({ id: "2", firstName: "Beto", lastNamePaternal: "López", email: "beto@acme.mx" }),
     ]);
 
-    await user.type(screen.getByLabelText("Buscar por nombre o email"), "beto@acme.mx");
+    await user.type(screen.getByLabelText("Buscar por nombre o correo"), "beto@acme.mx");
 
     expect(screen.queryByText("Ana García")).not.toBeInTheDocument();
     expect(screen.getByText("Beto López")).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe("UsersTable", () => {
     const user = userEvent.setup();
     renderTable([makeUser({ id: "1", firstName: "Ana", email: "ana@acme.mx" })]);
 
-    await user.type(screen.getByLabelText("Buscar por nombre o email"), "zzz-no-existe");
+    await user.type(screen.getByLabelText("Buscar por nombre o correo"), "zzz-no-existe");
 
     expect(screen.getByText("No hay usuarios que coincidan con la búsqueda.")).toBeInTheDocument();
   });

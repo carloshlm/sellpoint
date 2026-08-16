@@ -1,24 +1,24 @@
 {
   "greeting": "Hola",
   "verifyEmail": {
-    "subject": "Verificá tu cuenta de SellPoint",
+    "subject": "Verifica tu cuenta de SellPoint",
     "greeting": "Hola {firstName},",
-    "body": "Gracias por registrarte en SellPoint. Confirmá tu email para activar tu cuenta.",
-    "cta": "Verificar email",
-    "expiry": "Este link vence en 24 horas. Si no creaste esta cuenta, ignorá este correo."
+    "body": "Gracias por registrarte en SellPoint. Confirma tu correo para activar tu cuenta.",
+    "cta": "Verificar correo",
+    "expiry": "Este link vence en 24 horas. Si no creaste esta cuenta, ignora este correo."
   },
   "resetPassword": {
-    "subject": "Restablecé tu contraseña de SellPoint",
+    "subject": "Restablece tu contraseña de SellPoint",
     "greeting": "Hola {firstName},",
     "body": "Recibimos una solicitud para restablecer tu contraseña.",
     "cta": "Restablecer contraseña",
-    "expiry": "Este link vence en 30 minutos. Si no pediste esto, ignorá este correo."
+    "expiry": "Este link vence en 30 minutos. Si no pediste esto, ignora este correo."
   },
   "inviteUser": {
     "subject": "Te invitaron a SellPoint",
     "greeting": "Hola {firstName},",
-    "body": "Te dieron de alta en SellPoint. Entrá al link para definir tu contraseña y activar tu cuenta.",
+    "body": "Te dieron de alta en SellPoint. Entra al link para definir tu contraseña y activar tu cuenta.",
     "cta": "Definir mi contraseña",
-    "expiry": "Este link vence en 7 días. Si no esperabas esta invitación, ignorá este correo."
+    "expiry": "Este link vence en 7 días. Si no esperabas esta invitación, ignora este correo."
   }
 }

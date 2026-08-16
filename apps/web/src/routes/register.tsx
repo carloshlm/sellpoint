@@ -14,7 +14,7 @@ export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-/** Container: form + mutación de registro. Éxito → card "revisá tu email". */
+/** Container: form + mutación de registro. Éxito → card "revisa tu correo". */
 function RegisterPage() {
   const { t, i18n } = useTranslation();
   const registerMutation = useRegisterTenant();

@@ -54,7 +54,7 @@ describe("PermissionGate", () => {
     renderGate(["roles:read"], "users:read");
 
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
-    expect(screen.getByText("No tenés permiso para ver esta sección.")).toBeInTheDocument();
+    expect(screen.getByText("No tienes permiso para ver esta sección.")).toBeInTheDocument();
   });
 
   it("con el permiso requerido, renderiza los children", () => {

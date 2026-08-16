@@ -116,7 +116,7 @@ describe("/system/roles", () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read"]));
     await renderRoute("/system/roles");
 
-    expect(await screen.findByText("No tenés permiso para ver esta sección.")).toBeInTheDocument();
+    expect(await screen.findByText("No tienes permiso para ver esta sección.")).toBeInTheDocument();
     expect(mockedApi.listRoles).not.toHaveBeenCalled();
     expect(mockedApi.listPermissions).not.toHaveBeenCalled();
   });
@@ -369,7 +369,7 @@ describe("/system/roles", () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
     mockedApi.updateRole.mockRejectedValue({
       statusCode: 409,
-      message: "No podés quitarle estos permisos al último administrador activo.",
+      message: "No puedes quitarle estos permisos al último administrador activo.",
       error: "Conflict",
       code: "roles.last_admin_protected",
     });
@@ -380,7 +380,7 @@ describe("/system/roles", () => {
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(
-      await screen.findByText("No podés quitarle estos permisos al último administrador activo."),
+      await screen.findByText("No puedes quitarle estos permisos al último administrador activo."),
     ).toBeInTheDocument();
     // La vista sigue en pie: el rol y su selección no desaparecen.
     expect(screen.getByRole("button", { name: /^Cajero/ })).toBeInTheDocument();

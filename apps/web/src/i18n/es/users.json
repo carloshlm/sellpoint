@@ -4,7 +4,7 @@
     "subtitle": "Usuarios del negocio y sus roles."
   },
   "table": {
-    "searchLabel": "Buscar por nombre o email",
+    "searchLabel": "Buscar por nombre o correo",
     "searchPlaceholder": "Buscar…",
     "columns": {
       "name": "Nombre",
@@ -20,7 +20,7 @@
     },
     "empty": "No hay usuarios que coincidan con la búsqueda.",
     "loading": "Cargando usuarios…",
-    "error": "No pudimos cargar los usuarios. Intentá de nuevo.",
+    "error": "No pudimos cargar los usuarios. Intenta de nuevo.",
     "pagination": {
       "previous": "Anterior",
       "next": "Siguiente",
@@ -39,7 +39,7 @@
     "suspendSuccess": "{{name}} quedó suspendido.",
     "reactivateSuccess": "{{name}} quedó activo de nuevo.",
     "resendInvitationSuccess": "Se reenvió la invitación a {{name}}.",
-    "resetPasswordSuccess": "Si el email existe, va a recibir instrucciones para restablecer la contraseña."
+    "resetPasswordSuccess": "Si el correo existe, va a recibir instrucciones para restablecer la contraseña."
   },
   "form": {
     "newUser": "Nuevo usuario",
@@ -57,7 +57,7 @@
     "roles": "Roles",
     "rolesHint": "Un usuario necesita al menos un rol.",
     "rolesUnavailable": "Hace falta el permiso roles:read para poder asignar roles.",
-    "roleEscalationHint": "No podés asignar un rol con permisos que vos no tenés.",
+    "roleEscalationHint": "No puedes asignar un rol con permisos que tú no tienes.",
     "submitCreate": "Crear usuario",
     "submitEdit": "Guardar cambios",
     "createSuccess": "Se invitó a {{email}}. Va a recibir un correo para activar su cuenta.",
@@ -75,8 +75,8 @@
       "empty": "Todavía no hay roles."
     },
     "editor": {
-      "selectHint": "Elegí un rol de la lista para ver o editar sus permisos.",
-      "readOnlyHint": "Solo lectura: no tenés permiso para modificar roles.",
+      "selectHint": "Elige un rol de la lista para ver o editar sus permisos.",
+      "readOnlyHint": "Solo lectura: no tienes permiso para modificar roles.",
       "save": "Guardar cambios",
       "cancel": "Cancelar",
       "saveSuccess": "Los permisos de {{name}} se guardaron.",

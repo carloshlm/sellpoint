@@ -16,7 +16,7 @@ export const Route = createFileRoute("/forgot-password")({
 
 /**
  * Container F1-WEB-AUTH-06. El backend responde 202 SIEMPRE (anti-enumeración),
- * así que el éxito muestra el mismo "revisá tu email" exista o no la cuenta.
+ * así que el éxito muestra el mismo "revisa tu correo" exista o no la cuenta.
  */
 function ForgotPasswordPage() {
   const { t } = useTranslation();

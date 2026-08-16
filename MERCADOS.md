@@ -153,7 +153,46 @@ resto del mundo. **Sin validación de formato** — fuera de alcance (opción C)
 
 ---
 
-## 3. Otras etiquetas a revisar con el mismo criterio
+## 3. Voz de la UI — LEY
+
+**Todo texto visible para el usuario se escribe en español neutro y en inglés
+americano neutro.** Aplica a la web, a los mensajes de error de la API y a los
+correos — todo lo que viva en `apps/web/src/i18n/**` y `apps/api/src/i18n/**`.
+
+### Español: neutro, nunca voseo
+
+El producto es México-first y se vende a 26 mercados. El voseo rioplatense
+(`podés`, `elegí`, `necesitás`, `escribinos`) suena extranjero en la mayoría de
+ellos, así que **no se usa**, aunque el equipo hable así.
+
+| ❌ Voseo | ✅ Neutro |
+|---|---|
+| No tenés permiso | No tienes permiso |
+| Elegí un país | Elige un país |
+| Revisá tu email | Revisa tu correo |
+| Ingresá un email válido | Ingresa un correo válido |
+| ¿Necesitás otra moneda? Escribinos | ¿Necesitas otra moneda? Escríbenos |
+| Probá de nuevo | Intenta de nuevo |
+
+Regla práctica: conjuga en **tú** (`tienes`, `puedes`, `eliges`) y usa
+imperativos de tú (`elige`, `revisa`, `ingresa`, `intenta`). Evita también
+regionalismos de cualquier país (`platicar`, `coger`, `ordenador`, `celu`).
+
+### Inglés: americano neutro
+
+Ortografía de EE. UU. (`color`, `organization`, `canceled`, `license` como
+sustantivo), sin britanismos (`colour`, `whilst`, `apologise`) ni modismos.
+
+### Guardarraíl
+
+`apps/web/src/i18n/i18n.test.tsx` incluye un test que **falla en CI** si
+aparece una forma voseante en cualquier archivo `es/*.json`. Igual que el
+guardián de links de correo: la convención no depende de que alguien la
+recuerde en el review.
+
+---
+
+## 4. Otras etiquetas a revisar con el mismo criterio
 
 Candidatas detectadas al escribir este documento; ninguna verificada en
 profundidad todavía:

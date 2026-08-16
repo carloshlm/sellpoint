@@ -128,7 +128,7 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding");
 
-    expect(await screen.findByText("No tenés permiso para ver esta sección.")).toBeInTheDocument();
+    expect(await screen.findByText("No tienes permiso para ver esta sección.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
   });
 

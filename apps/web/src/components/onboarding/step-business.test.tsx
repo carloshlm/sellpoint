@@ -70,7 +70,7 @@ describe("StepBusiness — país (ad-hoc post-Fase 1, 2026-08-16, MERCADOS.md §
     renderStep({ country: null });
     const select = screen.getByLabelText("País") as HTMLSelectElement;
     expect(select.value).toBe("");
-    expect(screen.getByRole("option", { name: "Elegí un país" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Elige un país" })).toBeInTheDocument();
   });
 
   it("ofrece nombres de país vía Intl.DisplayNames — nunca el código ISO crudo", () => {
@@ -365,7 +365,7 @@ describe("StepBusiness — moneda: preselección editable por país (decisión 5
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("¿Necesitás otra moneda? Escribinos y la habilitamos."),
+      screen.getByText("¿Necesitas otra moneda? Escríbenos y la habilitamos."),
     ).toBeInTheDocument();
   });
 });

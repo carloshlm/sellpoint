@@ -11,7 +11,7 @@
     "cancel": "Cancelar"
   },
   "errors": {
-    "network": "No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo."
+    "network": "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo."
   },
   "session": {
     "loading": "Cargando tu sesión…"
@@ -33,7 +33,7 @@
   },
   "permissionGate": {
     "title": "Sin permiso",
-    "description": "No tenés permiso para ver esta sección."
+    "description": "No tienes permiso para ver esta sección."
   },
   "profile": {
     "title": "Mi perfil",
@@ -47,7 +47,7 @@
       "title": "Preferencias",
       "languageLabel": "Idioma de la interfaz",
       "languageHelp": "Se guarda en tu cuenta y te sigue en cualquier dispositivo.",
-      "languageError": "No pudimos guardar tu idioma. Intentá de nuevo.",
+      "languageError": "No pudimos guardar tu idioma. Intenta de nuevo.",
       "languages": {
         "es": "Español",
         "en": "Inglés"

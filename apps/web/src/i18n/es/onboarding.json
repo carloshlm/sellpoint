@@ -2,13 +2,13 @@
   "wizard": {
     "title": "Configura tu negocio",
     "stepLabel": "Paso {{step}} de 4",
-    "comingSoon": "Este paso todavía no está disponible. Volvé más tarde."
+    "comingSoon": "Este paso todavía no está disponible. Vuelve más tarde."
   },
   "step1": {
     "title": "Datos del negocio",
-    "subtitle": "Contanos sobre tu negocio para terminar de configurarlo.",
+    "subtitle": "Cuéntanos sobre tu negocio para terminar de configurarlo.",
     "country": "País",
-    "countryPlaceholder": "Elegí un país",
+    "countryPlaceholder": "Elige un país",
     "legalName": "Razón social",
     "taxId": "Identificación fiscal",
     "taxIdWithAbbr": "Identificación fiscal ({{abbr}})",
@@ -70,12 +70,12 @@
       "GBP": "Libra esterlina (GBP)"
     },
     "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
-    "currencyRequestHint": "¿Necesitás otra moneda? Escribinos y la habilitamos.",
+    "currencyRequestHint": "¿Necesitas otra moneda? Escríbenos y la habilitamos.",
     "continue": "Continuar",
     "error": "No pudimos guardar los datos del negocio."
   },
   "step2": {
-    "title": "Elegí una plantilla",
+    "title": "Elige una plantilla",
     "subtitle": "Vas a poder ajustarla más adelante desde el editor de esquema.",
     "continue": "Continuar",
     "error": "No pudimos guardar la plantilla elegida.",
@@ -94,24 +94,24 @@
       },
       "custom": {
         "name": "Personalizado",
-        "description": "Empezá desde cero y definí tu propio esquema."
+        "description": "Empieza desde cero y define tu propio esquema."
       }
     }
   },
   "step3": {
     "title": "Tu primer almacén",
-    "subtitle": "Lo vamos a configurar más adelante — por ahora seguí con la configuración inicial.",
+    "subtitle": "Lo vamos a configurar más adelante — por ahora sigue con la configuración inicial.",
     "continue": "Continuar",
-    "error": "No pudimos avanzar. Probá de nuevo."
+    "error": "No pudimos avanzar. Intenta de nuevo."
   },
   "step4": {
     "title": "Invitá a tu equipo",
-    "subtitle": "Este paso es opcional — podés invitar ahora o hacerlo más tarde desde Sistema → Usuarios.",
+    "subtitle": "Este paso es opcional — puedes invitar ahora o hacerlo más tarde desde Sistema → Usuarios.",
     "email": "Email",
     "firstName": "Nombre",
     "lastNamePaternal": "Apellido paterno",
     "role": "Rol",
-    "roleSelectPlaceholder": "Elegí un rol",
+    "roleSelectPlaceholder": "Elige un rol",
     "rolesUnavailable": "No pudimos cargar los roles disponibles.",
     "addRow": "Agregar fila",
     "removeRow": "Quitar fila",

@@ -268,10 +268,10 @@ describe("Flujos de auth", () => {
     expect(screen.queryByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
   });
 
-  it("F1-WEB-AUTH-03/05: email sin verificar redirige a /verify-email con 'revisá tu email'", async () => {
+  it("F1-WEB-AUTH-03/05: email sin verificar redirige a /verify-email con 'revisa tu correo'", async () => {
     loginMock.mockRejectedValue({
       statusCode: 403,
-      message: "Tenés que verificar tu email",
+      message: "Tienes que verificar tu correo",
       error: "Forbidden",
       code: "auth.email_not_verified",
     });
@@ -317,7 +317,7 @@ describe("F1-WEB-AUTH-04 — /register", () => {
     return user;
   }
 
-  it("registro exitoso muestra 'revisá tu email' con el email enviado", async () => {
+  it("registro exitoso muestra 'revisa tu correo' con el email enviado", async () => {
     registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
     await renderRoute("/register");
     await screen.findByRole("button", { name: "Crear cuenta" });
@@ -366,7 +366,7 @@ describe("F1-WEB-AUTH-04 — /register", () => {
     const user = await fillRegisterForm({ email: "esto-no-es-un-email" });
     await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
-    expect(await screen.findByText("Ingresá un email válido")).toBeInTheDocument();
+    expect(await screen.findByText("Ingresa un correo válido")).toBeInTheDocument();
     expect(registerTenantMock).not.toHaveBeenCalled();
   });
 });
@@ -430,7 +430,7 @@ describe("F1-WEB-AUTH-06 — /forgot-password", () => {
     refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
   });
 
-  it("enviar el email muestra 'revisá tu email' sin revelar si la cuenta existe (202 anti-enumeración)", async () => {
+  it("enviar el email muestra 'revisa tu correo' sin revelar si la cuenta existe (202 anti-enumeración)", async () => {
     forgotPasswordMock.mockResolvedValue(undefined);
     await renderRoute("/forgot-password");
     const user = userEvent.setup();
@@ -519,7 +519,7 @@ describe("Gap S1 — /accept-invitation", () => {
     const router = await renderRoute("/accept-invitation?token=tok-invitacion");
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("Definí tu contraseña"), "mi-primera-password");
+    await user.type(await screen.findByLabelText("Define tu contraseña"), "mi-primera-password");
     await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
 
     await waitFor(() => {
@@ -548,7 +548,7 @@ describe("Gap S1 — /accept-invitation", () => {
     await renderRoute("/accept-invitation?token=tok-vencido");
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("Definí tu contraseña"), "mi-primera-password");
+    await user.type(await screen.findByLabelText("Define tu contraseña"), "mi-primera-password");
     await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
 
     expect(await screen.findByTestId("invitation-api-error")).toHaveTextContent(
@@ -560,7 +560,7 @@ describe("Gap S1 — /accept-invitation", () => {
     await renderRoute("/accept-invitation?token=tok-invitacion");
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("Definí tu contraseña"), "corta");
+    await user.type(await screen.findByLabelText("Define tu contraseña"), "corta");
     await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
 
     expect(
@@ -575,7 +575,7 @@ describe("Gap S1 — /accept-invitation", () => {
     const router = await renderRoute("/accept-invitation#token=tok-fragmento");
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("Definí tu contraseña"), "mi-primera-password");
+    await user.type(await screen.findByLabelText("Define tu contraseña"), "mi-primera-password");
     await user.click(screen.getByRole("button", { name: "Activar mi cuenta" }));
 
     await waitFor(() => {
@@ -625,7 +625,7 @@ describe("F1-WEB-AUTH-10 — /profile", () => {
     await user.type(screen.getByLabelText("Contraseña actual"), values.current);
     await user.type(screen.getByLabelText("Contraseña nueva"), values.next);
     await user.type(
-      screen.getByLabelText("Repetí la contraseña nueva"),
+      screen.getByLabelText("Repite la contraseña nueva"),
       values.confirm ?? values.next,
     );
     return user;
