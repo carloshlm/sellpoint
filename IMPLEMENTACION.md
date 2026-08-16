@@ -1181,7 +1181,7 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 > Todos los modelos Prisma de la fase + RLS + permisos, con el patrón canónico heredado: PK `gen_random_uuid()`, `@@map` snake_case, `tenant_id` desnormalizado en TODA tabla hija, CHECK/índices a mano en la migración, policy `tenant_isolation` con NULLIF + FORCE.
 
-- [ ] **F2-DB-01** — Tabla maestra `units` + seed data-only
+- [x] **F2-DB-01** — Tabla maestra `units` + seed data-only
   - **Salida:** modelo `Unit` global (code PK VARCHAR(8), name_es, name_en, category CHECK IN ('count','volume','weight','length'), is_active) sin tenant_id ni RLS; migración con INSERT de `unit, ml, l, gr, kg, m, cm, oz, lb` + REVOKE de escritura a `sellpoint_app` (patrón `currencies`)
   - **Verificar:** migración aplica limpia; INSERT como `sellpoint_app` falla por permisos
   - **Depende de:** —
