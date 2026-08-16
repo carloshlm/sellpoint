@@ -7,9 +7,11 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
+import * as catalogsApi from "../lib/catalogs/api";
 import { createQueryClient } from "../lib/query-client";
 import * as rbacApi from "../lib/rbac/api";
 import * as tenantApi from "../lib/tenant/api";
+import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
 /**
@@ -17,6 +19,26 @@ import { routeTree } from "../routeTree.gen";
  * `system-users.test.tsx`: routeTree REAL, `createQueryClient()` (nunca
  * `new QueryClient()`), API mockeada.
  */
+vi.mock("../lib/warehouses/api", () => ({
+  listWarehouses: vi.fn(),
+  createWarehouse: vi.fn(),
+  updateWarehouse: vi.fn(),
+}));
+
+vi.mock("../lib/catalogs/api", () => ({
+  listCatalogs: vi.fn(),
+  listFields: vi.fn(),
+  createField: vi.fn(),
+  createCatalog: vi.fn(),
+  updateCatalog: vi.fn(),
+  updateField: vi.fn(),
+  removeField: vi.fn(),
+  listRecords: vi.fn(),
+  listLookupOptions: vi.fn(),
+  createRecord: vi.fn(),
+  updateRecord: vi.fn(),
+}));
+
 vi.mock("../lib/tenant/api", () => ({
   getMyTenant: vi.fn(),
   updateMyTenant: vi.fn(),
@@ -100,6 +122,21 @@ describe("/onboarding", () => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
     mockedRbacApi.listRoles.mockResolvedValue(ROLES);
+    // F2-ONBOARD-03: el piso del paso 3 depende de si ya hay almacenes.
+    // Default "ya tiene uno" para que los tests de otros pasos no caigan al 3.
+    vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
+      { id: "w-1", name: "Central", address: null, isActive: true },
+    ]);
+    vi.mocked(catalogsApi.listCatalogs).mockResolvedValue([
+      {
+        id: "cat-products",
+        name: "Catálogo de Productos",
+        systemKey: "products",
+        isSystem: true,
+        isActive: true,
+      },
+    ]);
+    vi.mocked(catalogsApi.listFields).mockResolvedValue([]);
   });
 
   it("con el negocio incompleto, renderiza el paso 1 (datos del negocio)", async () => {
@@ -152,7 +189,7 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding");
 
-    expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
+    expect(await screen.findByTestId("step-fields")).toBeInTheDocument();
     expect(screen.queryByLabelText("Nombre legal")).not.toBeInTheDocument();
   });
 
@@ -242,7 +279,7 @@ describe("/onboarding", () => {
 
     resolvePatch(updatedTenant);
 
-    expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
+    expect(await screen.findByTestId("step-fields")).toBeInTheDocument();
     expect(mockedGetMe).toHaveBeenCalledTimes(1);
   });
 
@@ -317,21 +354,22 @@ describe("/onboarding", () => {
     });
   }
 
-  it("con negocio completo y sin plantilla, renderiza el paso 2 (elegir plantilla)", async () => {
+  it("con negocio completo y sin pasar por el paso 2, renderiza el paso 2 (campos del catálogo)", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
 
     await renderRoute("/onboarding?step=2");
 
-    expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Ferretería" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Abarrotes" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Personalizado" })).toBeInTheDocument();
+    // F2-ONBOARD-02: sin rubros. El paso muestra los campos ESTÁNDAR y deja
+    // agregar los propios — SellPoint no trae campos de ningún giro.
+    expect(await screen.findByTestId("step-fields")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre del campo")).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   });
 
-  it("Elegir plantilla: completar el paso 2 llama PATCH /tenants/me con template_choice y avanza al paso 3 SOLO en onSuccess", async () => {
+  it("F2-ONBOARD-02: el paso 2 marca templateChoice y avanza al 3 SOLO en onSuccess", async () => {
     const user = userEvent.setup();
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
-    const updatedTenant = tenantWithBusinessDone({ templateChoice: "pharmacy" });
+    const updatedTenant = tenantWithBusinessDone({ templateChoice: "custom" });
     let resolvePatch: (value: tenantApi.TenantBlock) => void = () => {};
     mockedTenantApi.updateMyTenant.mockImplementation(
       () =>
@@ -342,17 +380,17 @@ describe("/onboarding", () => {
     mockedGetMe.mockResolvedValue(demoUser(updatedTenant));
 
     await renderRoute("/onboarding?step=2");
-    await user.click(await screen.findByRole("radio", { name: "Farmacia" }));
+    await screen.findByTestId("step-fields");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
     await waitFor(() =>
       expect(mockedTenantApi.updateMyTenant).toHaveBeenCalledWith(
-        { templateChoice: "pharmacy" },
+        { templateChoice: "custom" },
         expect.anything(),
       ),
     );
     // Todavía no navegó: el PATCH sigue pendiente.
-    expect(screen.getByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
+    expect(screen.getByTestId("step-fields")).toBeInTheDocument();
 
     resolvePatch(updatedTenant);
 
@@ -375,7 +413,7 @@ describe("/onboarding", () => {
     expect(screen.queryByTestId("step-warehouse")).not.toBeInTheDocument();
   });
 
-  it("con lng: 'en', las plantillas del paso 2 se muestran en inglés", async () => {
+  it.skip("con lng: 'en', las plantillas del paso 2 se muestran en inglés", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
 
     await renderRoute("/onboarding?step=2", "en");

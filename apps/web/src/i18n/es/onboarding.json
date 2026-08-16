@@ -74,37 +74,26 @@
     "error": "No pudimos guardar los datos del negocio."
   },
   "step2": {
-    "title": "Elige una plantilla",
-    "subtitle": "Vas a poder ajustarla más adelante desde el editor de esquema.",
+    "title": "Campos de tu catálogo",
+    "subtitle": "Tus productos ya tienen lo esencial. Agrega los campos propios de tu negocio, o hazlo después.",
     "continue": "Continuar",
-    "error": "No pudimos guardar la plantilla elegida.",
-    "templates": {
-      "pharmacy": {
-        "name": "Farmacia",
-        "description": "Productos con lote, caducidad y presentación."
-      },
-      "hardware": {
-        "name": "Ferretería",
-        "description": "Productos con unidad de medida y variantes por talle/color."
-      },
-      "grocery": {
-        "name": "Abarrotes",
-        "description": "Productos con código de barras y precio por peso."
-      },
-      "custom": {
-        "name": "Personalizado",
-        "description": "Empieza desde cero y define tu propio esquema."
-      }
-    }
+    "error": "No pudimos guardar los campos.",
+    "standardTitle": "Campos estándar",
+    "fieldLabel": "Nombre del campo",
+    "fieldType": "Tipo",
+    "laterHint": "Puedes agregar o cambiar campos cuando quieras desde Catálogo → Campos."
   },
   "step3": {
     "title": "Tu primer almacén",
-    "subtitle": "Lo vamos a configurar más adelante — por ahora sigue con la configuración inicial.",
+    "subtitle": "Es donde vas a guardar el inventario. Puedes agregar más después.",
     "continue": "Continuar",
-    "error": "No pudimos avanzar. Intenta de nuevo."
+    "error": "No pudimos avanzar. Intenta de nuevo.",
+    "name": "Nombre del almacén",
+    "nameHint": "Por ejemplo: Central, Sucursal Norte.",
+    "existing": "Ya tienes el almacén «{{name}}»."
   },
   "step4": {
-    "title": "Invitá a tu equipo",
+    "title": "Invita a tu equipo",
     "subtitle": "Este paso es opcional — puedes invitar ahora o hacerlo más tarde desde Sistema → Usuarios.",
     "email": "Email",
     "firstName": "Nombre",

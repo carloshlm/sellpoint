@@ -26,6 +26,15 @@ async function bootstrap() {
   // Cookie de cada request — sin este middleware, POST /auth/refresh y
   // /auth/logout no tienen forma de leerla vía req.cookies.
   app.use(cookieParser());
+  // F2-IMPORT: el límite por default de Express es 100 kB, y la importación de
+  // catálogo manda el CSV como texto en el body (hasta 5 MB por regla de
+  // negocio). Se deja el tope del parser un poco por encima para que el 413
+  // que ve el usuario venga del service —con su mensaje traducido y su
+  // reporte— y no de un error crudo del parser, que salía como 500.
+  //
+  // El costo de subirlo es acotado: el throttler global (100 req/min por IP)
+  // y el `client_max_body_size` de nginx siguen siendo el techo real.
+  app.useBodyParser("json", { limit: "6mb" });
   app.enableCors({
     origin: configService.get("CORS_ORIGINS", { infer: true }),
     // credentials: la SPA (f1-web-auth) necesita mandar/recibir la cookie

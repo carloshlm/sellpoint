@@ -74,34 +74,23 @@
     "error": "We couldn't save your business details."
   },
   "step2": {
-    "title": "Pick a template",
-    "subtitle": "You'll be able to adjust it later from the schema editor.",
+    "title": "Your catalog fields",
+    "subtitle": "Your products already have the essentials. Add your business's own fields, or do it later.",
     "continue": "Continue",
-    "error": "We couldn't save the chosen template.",
-    "templates": {
-      "pharmacy": {
-        "name": "Pharmacy",
-        "description": "Products with batch, expiration and packaging."
-      },
-      "hardware": {
-        "name": "Hardware store",
-        "description": "Products with unit of measure and size/color variants."
-      },
-      "grocery": {
-        "name": "Grocery",
-        "description": "Products with barcode and price by weight."
-      },
-      "custom": {
-        "name": "Custom",
-        "description": "Start from scratch and define your own schema."
-      }
-    }
+    "error": "We couldn't save the fields.",
+    "standardTitle": "Standard fields",
+    "fieldLabel": "Field name",
+    "fieldType": "Type",
+    "laterHint": "You can add or change fields anytime from Catalog and Fields."
   },
   "step3": {
     "title": "Your first warehouse",
-    "subtitle": "We'll set this up later — for now, continue with the initial setup.",
+    "subtitle": "This is where your inventory lives. You can add more later.",
     "continue": "Continue",
-    "error": "We couldn't move forward. Please try again."
+    "error": "We couldn't move forward. Please try again.",
+    "name": "Warehouse name",
+    "nameHint": "For example: Main, North Branch.",
+    "existing": "You already have the warehouse {{name}}."
   },
   "step4": {
     "title": "Invite your team",

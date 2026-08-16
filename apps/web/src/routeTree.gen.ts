@@ -22,6 +22,7 @@ import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as WarehousesRouteImport } from './routes/warehouses'
 import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
+import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
@@ -91,6 +92,11 @@ const CatalogListsRoute = CatalogListsRouteImport.update({
   path: '/catalog/lists',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CatalogProductsRoute = CatalogProductsRouteImport.update({
+  id: '/catalog/products',
+  path: '/catalog/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CatalogSchemaRoute = CatalogSchemaRouteImport.update({
   id: '/catalog/schema',
   path: '/catalog/schema',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/warehouses': typeof WarehousesRoute
   '/catalog/lists': typeof CatalogListsRoute
+  '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/warehouses': typeof WarehousesRoute
   '/catalog/lists': typeof CatalogListsRoute
+  '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/warehouses': typeof WarehousesRoute
   '/catalog/lists': typeof CatalogListsRoute
+  '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -178,6 +187,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/warehouses'
     | '/catalog/lists'
+    | '/catalog/products'
     | '/catalog/schema'
     | '/system/roles'
     | '/system/users'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/warehouses'
     | '/catalog/lists'
+    | '/catalog/products'
     | '/catalog/schema'
     | '/system/roles'
     | '/system/users'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/warehouses'
     | '/catalog/lists'
+    | '/catalog/products'
     | '/catalog/schema'
     | '/system/roles'
     | '/system/users'
@@ -233,6 +245,7 @@ export interface RootRouteChildren {
   VerifyEmailRoute: typeof VerifyEmailRoute
   WarehousesRoute: typeof WarehousesRoute
   CatalogListsRoute: typeof CatalogListsRoute
+  CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
@@ -331,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogListsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/catalog/products': {
+      id: '/catalog/products'
+      path: '/catalog/products'
+      fullPath: '/catalog/products'
+      preLoaderRoute: typeof CatalogProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/catalog/schema': {
       id: '/catalog/schema'
       path: '/catalog/schema'
@@ -369,6 +389,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailRoute: VerifyEmailRoute,
   WarehousesRoute: WarehousesRoute,
   CatalogListsRoute: CatalogListsRoute,
+  CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,

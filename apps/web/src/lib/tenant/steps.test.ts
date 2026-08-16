@@ -53,7 +53,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     ).toBe(1);
   });
 
-  it("con country+legalName+taxId+address, sin templateChoice: paso 2 (plantilla)", () => {
+  it("con country+legalName+taxId+address, sin templateChoice: paso 2 (campos del catálogo)", () => {
     expect(
       primerPasoIncompleto(
         tenant({
@@ -76,7 +76,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
-          templateChoice: "retail-basico",
+          templateChoice: "custom",
         }),
       ),
     ).toBe(1);
@@ -97,7 +97,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
-          templateChoice: "retail-basico",
+          templateChoice: "custom",
         }),
       ),
     ).toBe(4);
@@ -111,7 +111,7 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
-          templateChoice: "retail-basico",
+          templateChoice: "custom",
           onboarded: true,
         }),
       ),

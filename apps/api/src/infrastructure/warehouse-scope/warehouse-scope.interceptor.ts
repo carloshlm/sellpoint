@@ -93,7 +93,24 @@ export class WarehouseScopeInterceptor implements NestInterceptor {
           select: { warehouseId: true },
         }),
       );
-      req.scope = { warehouseIds: scopes.map((scope) => scope.warehouseId) };
+      // F2-SCOPE-01 — DEFAULT PERMISIVO cuando el usuario no tiene ninguna
+      // fila asignada (ARQUITECTURA § 3.4: "otro rol sin scope asignado → ve
+      // todos los almacenes").
+      //
+      // Durante toda la Fase 1 esto degradaba a `[]`, y estaba bien: la tabla
+      // `warehouses` no existía, así que "sin filas" y "sin almacenes" eran lo
+      // mismo. Ahora que existen, `[]` significaría que un tenant chico —un
+      // solo almacén, nadie con scope asignado— no vería NADA de su propio
+      // inventario. La restricción es opt-in: se limita a quien se le asigna
+      // un alcance explícito.
+      //
+      // Ojo con la diferencia: esto es "sin filas" (nadie lo limitó). El
+      // fail-closed del catch de abajo sigue siendo `[]` — ahí sí falló algo y
+      // no se sabe qué puede ver.
+      req.scope =
+        scopes.length === 0
+          ? { warehouseIds: "all" }
+          : { warehouseIds: scopes.map((scope) => scope.warehouseId) };
     } catch (error) {
       // Fail-closed a propósito (a diferencia del fail-open de JwtAuthGuard
       // con Redis, AD-8): acá el peor caso de fallar cerrado es "ve 0

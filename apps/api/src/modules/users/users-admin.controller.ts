@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -6,8 +6,13 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { type CreateUserDto, createUserSchema } from "./dto/create-user.dto";
+import {
+  type ReplaceWarehouseScopeDto,
+  replaceWarehouseScopeSchema,
+} from "./dto/replace-warehouse-scope.dto";
 import { type UpdateUserDto, updateUserSchema } from "./dto/update-user.dto";
 import { UsersAdminService } from "./users-admin.service";
+import { WarehouseScopeService } from "./warehouse-scope.service";
 
 function metaFrom(request: Request) {
   return { ip: request.ip, userAgent: request.headers["user-agent"] };
@@ -19,7 +24,10 @@ function metaFrom(request: Request) {
 @ApiTags("users")
 @Controller("users")
 export class UsersAdminController {
-  constructor(private readonly usersAdminService: UsersAdminService) {}
+  constructor(
+    private readonly usersAdminService: UsersAdminService,
+    private readonly warehouseScopeService: WarehouseScopeService,
+  ) {}
 
   @Post()
   @RequirePermissions("users:manage")
@@ -35,6 +43,28 @@ export class UsersAdminController {
   @RequirePermissions("users:read")
   list(@CurrentUser() user: AuthUser) {
     return this.usersAdminService.list(user);
+  }
+
+  /**
+   * F2-SCOPE-02 (CU-SYS-04). Lista VACÍA = sin restricción: el interceptor le
+   * da todos los almacenes (default permisivo). No es "no ve nada".
+   */
+  @Get(":id/warehouse-scope")
+  @RequirePermissions("users:manage")
+  getWarehouseScope(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.warehouseScopeService.get(user, id);
+  }
+
+  @Put(":id/warehouse-scope")
+  @RequirePermissions("users:manage")
+  replaceWarehouseScope(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(replaceWarehouseScopeSchema, "users.invalid_body"))
+    dto: ReplaceWarehouseScopeDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.warehouseScopeService.replace(user, id, dto.warehouseIds, metaFrom(request));
   }
 
   @Get(":id")

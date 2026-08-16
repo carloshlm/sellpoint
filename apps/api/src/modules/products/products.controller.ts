@@ -9,14 +9,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CompositionService } from "./composition.service";
+import { type ImportProductsDto, importProductsSchema } from "./dto/import-products.dto";
 import {
   type ReplaceCompositionDto,
   replaceCompositionSchema,
@@ -34,6 +36,7 @@ import {
   type UpdateProductDto,
   updateProductSchema,
 } from "./dto/upsert-product.dto";
+import { ImportService } from "./import.service";
 import { PresentationsService } from "./presentations.service";
 import { ProductsService } from "./products.service";
 
@@ -53,7 +56,44 @@ export class ProductsController {
     private readonly productsService: ProductsService,
     private readonly presentationsService: PresentationsService,
     private readonly compositionService: CompositionService,
+    private readonly importService: ImportService,
   ) {}
+
+  /**
+   * F2-IMPORT-01. Devuelve CSV con BOM: Excel lo abre nativo y respeta los
+   * acentos. Las columnas salen de los campos vigentes del catálogo.
+   */
+  @Get("import/template")
+  @RequirePermissions("products:manage")
+  async template(@CurrentUser() user: AuthUser, @Res() response: Response) {
+    const csv = await this.importService.template(user);
+    response
+      .setHeader("Content-Type", "text/csv; charset=utf-8")
+      .setHeader("Content-Disposition", 'attachment; filename="productos.csv"')
+      .send(csv);
+  }
+
+  /**
+   * F2-IMPORT-02/03. `dryRun` devuelve el reporte sin escribir nada; sin él,
+   * importa. El contenido viaja como texto en JSON y no como multipart: evita
+   * una dependencia de parseo de formularios por un endpoint que se usa poco.
+   */
+  @Post("import")
+  @HttpCode(200)
+  @RequirePermissions("products:manage")
+  import(
+    @Body(new ZodValidationPipe(importProductsSchema, "products.invalid_body"))
+    dto: ImportProductsDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.importService.run(
+      user,
+      dto.content,
+      { dryRun: dto.dryRun, skipErrors: dto.skipErrors },
+      metaFrom(request),
+    );
+  }
 
   @Get()
   @RequirePermissions("products:read")

@@ -1,30 +1,54 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
+import type { ApiError } from "@/lib/api";
+import { useCreateWarehouse, useWarehouses } from "@/lib/warehouses/hooks";
 
-/**
- * F1-WEB-ONBOARD-03, paso 3 (CU-AUTH-02). Placeholder de almacén — el CRUD
- * real (nombre, dirección, etc.) es F2 (D2, #347), acá SOLO hay un mensaje
- * informativo y "Continuar". Sin formulario, sin datos de almacén.
- *
- * W4 (verify-report #357, revierte Deviation 6): el container
- * (`routes/onboarding.tsx`) NO dispara ningún PATCH en el `onSubmit` — el
- * requirement original del tablero ("avanza al paso 4 sin llamada de
- * escritura adicional") se cumple derivando el piso puro del wizard
- * (`lib/tenant/steps.ts`), sin columna nueva ni escritura. Este paso no deja
- * ningún rastro server-side.
- */
 interface StepWarehouseProps {
   isSubmitting: boolean;
   formError?: string | null;
   onSubmit: () => void;
 }
 
+/**
+ * F2-ONBOARD-03, paso 3 — ahora crea un almacén REAL.
+ *
+ * En F1 era un placeholder informativo porque la tabla `warehouses` no
+ * existía. Con F2-DB-07 existe, así que el paso hace lo que su título dice.
+ *
+ * Consecuencia en la derivación del paso (`lib/tenant/steps.ts`): el piso del
+ * wizard pasa a depender de "¿existe al menos un almacén?" en vez de saltar
+ * de 2 a 4. Un tenant que ya terminó el onboarding en Fase 1 y no tiene
+ * almacén vuelve a caer acá — deliberado: sin almacén no puede haber stock.
+ */
 function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps) {
   const { t } = useTranslation();
+  const { data: warehouses } = useWarehouses();
+  const createWarehouse = useCreateWarehouse();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const existing = warehouses ?? [];
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    onSubmit();
+    setError(null);
+
+    // Si ya hay uno (por ejemplo al volver atrás en el wizard), no se crea
+    // otro: se avanza.
+    if (existing.length > 0 && !name.trim()) {
+      onSubmit();
+      return;
+    }
+
+    createWarehouse.mutate(
+      { name },
+      {
+        onSuccess: () => onSubmit(),
+        onError: (apiError: ApiError) => setError(apiError.message),
+      },
+    );
   }
 
   return (
@@ -33,18 +57,40 @@ function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps
         <h2 className="text-lg font-semibold">{t("onboarding.step3.title")}</h2>
         <p className="text-sm text-muted-foreground">{t("onboarding.step3.subtitle")}</p>
       </div>
-      {formError && (
+
+      {(formError || error) && (
         <p
           role="alert"
           data-testid="step-warehouse-error"
           className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
-          {formError}
+          {formError ?? error}
         </p>
       )}
+
+      {existing.length > 0 ? (
+        <p className="text-sm text-muted-foreground" data-testid="step-warehouse-existing">
+          {t("onboarding.step3.existing", { name: existing[0]?.name })}
+        </p>
+      ) : (
+        <TextField
+          label={t("onboarding.step3.name")}
+          hint={t("onboarding.step3.nameHint")}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      )}
+
       <div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? t("common.form.submitting") : t("onboarding.step3.continue")}
+        <Button
+          type="submit"
+          disabled={
+            isSubmitting || createWarehouse.isPending || (existing.length === 0 && !name.trim())
+          }
+        >
+          {isSubmitting || createWarehouse.isPending
+            ? t("common.form.submitting")
+            : t("onboarding.step3.continue")}
         </Button>
       </div>
     </form>

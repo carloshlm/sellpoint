@@ -145,7 +145,7 @@ Ejemplos:
 |---|---|---|---|---|
 | **F0** | Setup + Walking Skeleton | ✅ Completada | 1.5-2 semanas | ✅ Sí |
 | **F1** | Multi-Tenant + Auth | ✅ Completada | 2-3 semanas | ✅ Sí |
-| **F2** | Catálogos Dinámicos | ⬜ Pendiente | 4-5 semanas | ✅ Sí |
+| **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
 | **F3** | Movimientos de Inventario | ⬜ Pendiente | 2-3 semanas | ⬜ Outline |
 | **F4** | POS PWA | ⬜ Pendiente | 3 semanas | ⬜ Outline |
 | **F5** | Reportes | ⬜ Pendiente | 1-2 semanas | ⬜ Outline |
@@ -1383,37 +1383,37 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-PROD — Productos (API + UI)
 
-- [ ] **F2-PROD-01** — API alta/edición de producto
+- [x] **F2-PROD-01** — API alta/edición de producto
   - **Salida:** módulo `products` (`products:manage`): `POST /products` {sku, name, baseUnit, stockMin, isComposite, attributes, price?, cost?} — valida attributes contra los campos del catálogo products (F2-CAT-04 + existencia de lookups); sku único → 409; **auto-crea la presentación «Unidad ×1»** (factor 1, is_default_sale, allow_fractional_input derivado de la categoría, price/cost del form — decisión Carlos); `PATCH` edita; **cambio de base_unit → 409 si stock > 0 o es componente de otro** (validación §3.5 #2)
   - **Verificar:** e2e: alta crea producto + presentación base con precio; validación dinámica rechaza; RED→GREEN
   - **Depende de:** F2-CAT-04, F2-CAT-01, F2-DB-05
   - **Estimación:** 3 h
 
-- [ ] **F2-PROD-02** — API lista con búsqueda server-side
+- [x] **F2-PROD-02** — API lista con búsqueda server-side
   - **Salida:** `GET /products?query&page&pageSize` (`products:read`): pg_trgm/ILIKE sobre sku, name y **barcodes de cualquier presentación**; filtros por campos dinámicos (`attributes @>` con GIN); cada fila trae precio de la presentación default + flag compuesto; paginación server-side
   - **Verificar:** e2e: encuentra por barcode de presentación; filtro dinámico filtra
   - **Depende de:** F2-PROD-01
   - **Estimación:** 2.5 h
 
-- [ ] **F2-PROD-03** — API detalle + borrado/desactivación
+- [x] **F2-PROD-03** — API detalle + borrado/desactivación
   - **Salida:** `GET /products/:id` (presentaciones incluidas); `DELETE` (`products:manage`) **bloqueado si es componente de otro** (FK RESTRICT → 409 nombrando a los padres, validación §3.5 #3); alternativa is_active
   - **Verificar:** e2e: borrar componente usado → 409 con los padres; desactivar funciona
   - **Depende de:** F2-PROD-01
   - **Estimación:** 1.5 h
 
-- [ ] **F2-PROD-04** — UI lista `/catalog/products`
+- [x] **F2-PROD-04** — UI lista `/catalog/products`
   - **Salida:** tabla server-side (paginación manual de TanStack Table — primera de la app), búsqueda, filtro "Compuestos", columna precio (formato `formatMoney` con currency del tenant), acciones por permiso; namespace i18n `products`
   - **Verificar:** cambio de página dispara request con page; sin `products:manage` no hay acciones de edición
   - **Depende de:** F2-PROD-02
   - **Estimación:** 2.5 h
 
-- [ ] **F2-PROD-05** — UI form alta/edición
+- [x] **F2-PROD-05** — UI form alta/edición
   - **Salida:** campos estándar (Código/SKU, nombre, unidad base — selector desde `UNITS` de shared —, stock mínimo, toggle compuesto, precio/costo) + `DynamicForm` para los dinámicos; en edición precio/costo **editan la presentación «Unidad ×1»** (misma interfaz, decisión Carlos); tabs Presentaciones/Composición como placeholder hasta sus módulos
   - **Verificar:** alta manda attributes correctos; edición de precio persiste en la presentación default
   - **Depende de:** F2-PROD-04, F2-SCHEMA-04
   - **Estimación:** 3 h
 
-- [ ] **F2-PROD-06** — Guardas de edición en UI
+- [x] **F2-PROD-06** — Guardas de edición en UI
   - **Salida:** base_unit deshabilitada con motivo cuando el API lo bloquearía; borrar con 409 → mensaje que nombra los productos padre
   - **Verificar:** los estados deshabilitados derivan de datos del producto, no de copy
   - **Depende de:** F2-PROD-05
@@ -1423,25 +1423,25 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-PRESENT — Presentaciones
 
-- [ ] **F2-PRESENT-01** — API CRUD de presentaciones
+- [x] **F2-PRESENT-01** — API CRUD de presentaciones
   - **Salida:** endpoints anidados en products (`products:manage`): validaciones factor>0, nombre único por producto, **barcode único por tenant → 409 nombrando al producto dueño**, `is_default_sale` exclusivo por producto (transacción), **`allow_fractional_input` derivado server-side** de `units.category` (count→false, resto→true) con override permitido; inactivar en vez de borrar
   - **Verificar:** e2e de cada validación; el default derivado y su override
   - **Depende de:** F2-PROD-01
   - **Estimación:** 3 h
 
-- [ ] **F2-PRESENT-02** — UI tab Presentaciones (tabla inline)
+- [x] **F2-PRESENT-02** — UI tab Presentaciones (tabla inline)
   - **Salida:** tab en el producto: filas editables (nombre, factor → unidad base, comprable, vendible, default radio, solo-enteros, barcode, precio, costo) + agregar fila; sin wizards ni drag-and-drop
   - **Verificar:** alta/edición inline contra API mockeado; el radio default es exclusivo
   - **Depende de:** F2-PRESENT-01, F2-PROD-05
   - **Estimación:** 3 h
 
-- [ ] **F2-PRESENT-03** — Derivación visible del solo-enteros + equivalencias
+- [x] **F2-PRESENT-03** — Derivación visible del solo-enteros + equivalencias
   - **Salida:** el toggle solo-enteros nace del estado derivado del server (badge "override" si difiere); línea de equivalencia por factor ("1 Caja = 1,000 ml") — sin stock (eso llega en F3)
   - **Verificar:** producto count → toggle activado por defecto; volume → apagado; override persiste
   - **Depende de:** F2-PRESENT-02
   - **Estimación:** 1.5 h
 
-- [ ] **F2-PRESENT-04** — Guardas UI: inactivar + 409 de barcode
+- [x] **F2-PRESENT-04** — Guardas UI: inactivar + 409 de barcode
   - **Salida:** inactivar con confirmación (la fila queda atenuada, no desaparece); 409 de barcode mapeado al campo con link al producto dueño
   - **Verificar:** ambos flujos por estado, no por copy
   - **Depende de:** F2-PRESENT-02
@@ -1453,31 +1453,31 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 > **El "apartado de relaciones entre productos" de Carlos**, en vocabulario neutro: un producto compuesto se arma con N componentes del mismo catálogo. Sirve igual a una óptica (armazón + cristales → lente armado), una ferretería (kit), una papelería (paquete) o una cafetería (café + leche + azúcar). Se captura **cuánto lleva UNA unidad** del compuesto y el "alcanza para N" se calcula en vivo — ver Convenciones. UI: tabla + picker, sin wizards.
 
-- [ ] **F2-BOM-01** — API de composición con DFS anti-recursión
+- [x] **F2-BOM-01** — API de composición con DFS anti-recursión
   - **Salida:** `GET/PUT /products/:id/composition` (`products:manage`): filas {componentId, quantity en base_unit del componente, wastePercentage, notes}; par único; **DFS sobre el grafo** rechaza recursión directa e indirecta (A→B→C→A) con mensaje que nombra el ciclo; composición vacía es válida (no vendible hasta F4)
   - **Verificar:** unit del DFS con ciclo indirecto RED→GREEN; e2e del PUT
   - **Depende de:** F2-DB-06, F2-PROD-01
   - **Estimación:** 3 h
 
-- [ ] **F2-BOM-02** — API availability + cost-estimate
+- [x] **F2-BOM-02** — API availability + cost-estimate
   - **Salida:** `GET /products/:id/availability` → unidades armables = `floor(min(stock_total_i / (qty_i × (1 + waste_i))))` + componente limitante (composiciones anidadas se expanden); `GET /products/:id/cost-estimate` → Σ(costo unitario × qty) con desglose, costo unitario = `cost/factor` de la presentación comprable default del componente (F3 lo reemplaza por promedio ponderado); **contrato con stock 0 → 0 unidades** (F2 no tiene movimientos)
   - **Verificar:** unit de ambos cálculos con stock sembrado a mano en tests; anidado expande
   - **Depende de:** F2-BOM-01, F2-DB-08, F2-PRESENT-01
   - **Estimación:** 3 h
 
-- [ ] **F2-BOM-03** — UI tab Composición
+- [x] **F2-BOM-03** — UI tab Composición
   - **Salida:** tab visible solo si `is_composite`: picker con autocompletado server-side (reusa `GET /products?query`), fila con cantidad + unidad precargada no editable (base_unit del componente) + merma % + quitar
   - **Verificar:** la unidad de la fila deriva del componente elegido; agregar/quitar actualiza
   - **Depende de:** F2-BOM-01, F2-PROD-05
   - **Estimación:** 2.5 h
 
-- [ ] **F2-BOM-04** — UI resumen en vivo
+- [x] **F2-BOM-04** — UI resumen en vivo
   - **Salida:** panel bajo la composición: costo estimado con desglose + **"alcanza para N unidades"** + componente limitante (el ejemplo azúcar/café de Carlos, ahora calculado); error de recursión del API mostrado con claridad
   - **Verificar:** el resumen re-consulta al editar filas; render del limitante por id de producto
   - **Depende de:** F2-BOM-02, F2-BOM-03
   - **Estimación:** 1.5 h
 
-- [ ] **F2-BOM-05** — Filtro "Compuestos" con unidades armables
+- [x] **F2-BOM-05** — Filtro "Compuestos" con unidades armables
   - **Salida:** en `/catalog/products`: filtro compuestos + columna unidades armables y componente limitante (CU-CAT-07)
   - **Verificar:** el filtro pide al server; la columna solo aparece filtrando compuestos
   - **Depende de:** F2-BOM-02, F2-PROD-04
@@ -1487,25 +1487,25 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ### Módulo F2-IMPORT — Importación desde Excel
 
-- [ ] **F2-IMPORT-01** — Generación de plantilla
+- [x] **F2-IMPORT-01** — Generación de plantilla
   - **Salida:** `GET /products/import/template` (`products:manage`): xlsx con columnas estándar + campos dinámicos vigentes del catálogo products + hoja de presentaciones referidas por SKU (librería a elegir en el propose del módulo)
   - **Verificar:** la plantilla refleja los campos del momento (agregar campo → columna nueva)
   - **Depende de:** F2-CAT-03, F2-PROD-01
   - **Estimación:** 2 h
 
-- [ ] **F2-IMPORT-02** — Validación previa (dry-run)
+- [x] **F2-IMPORT-02** — Validación previa (dry-run)
   - **Salida:** `POST /products/import?dryRun=true`: valida fila por fila (validador F2-CAT-04, SKUs y barcodes duplicados dentro del archivo y contra la DB) → resumen n válidas / m con error y detalle por fila; **límite 5 MB → 413** (async diferido)
   - **Verificar:** e2e con archivo mixto válidas+errores; el 413
   - **Depende de:** F2-IMPORT-01
   - **Estimación:** 3 h
 
-- [ ] **F2-IMPORT-03** — Importación real
+- [x] **F2-IMPORT-03** — Importación real
   - **Salida:** `POST /products/import` (+`skipErrors`): inserta válidas con sus presentaciones (filas fallidas no bloquean válidas), reporte final, audit log
   - **Verificar:** e2e: mixto importa las válidas y reporta las fallidas; todo-o-nada sin `skipErrors`
   - **Depende de:** F2-IMPORT-02
   - **Estimación:** 2.5 h
 
-- [ ] **F2-IMPORT-04** — UI modal de importación
+- [x] **F2-IMPORT-04** — UI modal de importación
   - **Salida:** modal en `/catalog/products`: descargar plantilla → dropzone → resumen del dry-run → checkbox "saltar filas con error" → resultado con descarga de errores
   - **Verificar:** el flujo llama dry-run antes del import; estados por datos
   - **Depende de:** F2-IMPORT-03, F2-PROD-04
@@ -1517,19 +1517,19 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 > Chico pero toca seguridad (el interceptor con 2 CRITICAL históricos): SDD COMPLETO.
 
-- [ ] **F2-SCOPE-01** — Interceptor al default permisivo documentado
+- [x] **F2-SCOPE-01** — Interceptor al default permisivo documentado
   - **Salida:** `WarehouseScopeInterceptor`: usuario sin filas en `user_warehouse_scopes` → `warehouseIds: "all"` (ARQUITECTURA §3.4 — el fail-closed `[]` de F1 era correcto sin almacenes); con filas → esas; bypass TenantAdmin intacto (por catálogo de permisos, nunca por rol); docblock actualizado con la historia
   - **Verificar:** tests del interceptor actualizados (los 3 estados) + e2e con usuario scoped
   - **Depende de:** F2-DB-07
   - **Estimación:** 2 h
 
-- [ ] **F2-SCOPE-02** — API de asignación de alcance
+- [x] **F2-SCOPE-02** — API de asignación de alcance
   - **Salida:** `GET/PUT /users/:id/warehouse-scope` (`users:manage`): lista de warehouseIds del tenant, vivos; reemplazo completo transaccional; audit
   - **Verificar:** e2e: asignar/quitar; warehouse ajeno o muerto → 422
   - **Depende de:** F2-SCOPE-01, F2-WH-01
   - **Estimación:** 1.5 h
 
-- [ ] **F2-SCOPE-03** — UI de alcance en el form de usuario
+- [x] **F2-SCOPE-03** — UI de alcance en el form de usuario
   - **Salida:** sección "Alcance por almacén" en `UserForm` (CU-SYS-04): checklist de almacenes; **deshabilitada si el usuario tiene rol TenantAdmin** con leyenda de acceso total; vacío = todos (leyenda del default permisivo)
   - **Verificar:** estados derivados de datos (rol, filas), no de copy
   - **Depende de:** F2-SCOPE-02
@@ -1541,25 +1541,25 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 > **LEY de genericidad aplicada:** el paso 2 **no siembra campos de ningún rubro**. El tenant arranca con los campos estándar y define los suyos, con sus propios nombres. Las plantillas por rubro (Layouts) son una funcionalidad posterior y opcional — ver Fase 9.
 
-- [ ] **F2-ONBOARD-01** — Paso 2 real: definir campos del catálogo
+- [x] **F2-ONBOARD-01** — Paso 2 real: definir campos del catálogo
   - **Salida:** el paso deja de ser un placeholder de plantillas: muestra los campos estándar del Catálogo de Productos y permite agregar campos personalizados ahí mismo (reusa `DynamicForm`/editor de F2-SCHEMA), con opción **"Definir después"** que avanza sin bloquear; `Tenant.templateChoice` se conserva como preferencia registrada (alimenta los Layouts futuros) pero **no dispara ninguna siembra**
   - **Verificar:** e2e: completar el paso sin agregar campos avanza; agregar un campo lo deja creado; ninguna migración ni constante del API nombra un rubro (`rg -i "pharmacy|farmacia|cafeteria|hardware|grocery" apps/api/src apps/api/prisma` sin resultados)
   - **Depende de:** F2-CAT-03, F2-SCHEMA-02
   - **Estimación:** 2 h
 
-- [ ] **F2-ONBOARD-02** — Retiro del catálogo de plantillas del wizard
+- [x] **F2-ONBOARD-02** — Retiro del catálogo de plantillas del wizard
   - **Salida:** `TEMPLATE_CHOICES` (`step-template.tsx`) deja de ofrecer rubros como si trajeran campos; el paso explica que los campos los define el negocio; copy neutro en es/en
   - **Verificar:** no queda copy que prometa campos precargados por rubro
   - **Depende de:** F2-ONBOARD-01
   - **Estimación:** 1 h
 
-- [ ] **F2-ONBOARD-03** — Paso 3 real: primer almacén
+- [x] **F2-ONBOARD-03** — Paso 3 real: primer almacén
   - **Salida:** form mínimo (nombre) que crea el almacén vía API; la derivación del paso en `lib/tenant/steps.ts` pasa a "¿existe ≥1 almacén?" (muere el paso skip de F1); tests de derivación actualizados
   - **Verificar:** tenant sin almacén cae al paso 3; con almacén avanza; RED del cambio de derivación
   - **Depende de:** F2-WH-01
   - **Estimación:** 2 h
 
-- [ ] **F2-ONBOARD-04** — Limpieza de residuos del placeholder
+- [x] **F2-ONBOARD-04** — Limpieza de residuos del placeholder
   - **Salida:** eliminar el valor legacy `"retail-basico"` de tests (`lib/tenant/steps.test.ts`), revisar copy neutro de los pasos, actualizar los textos "lo haremos en el siguiente paso"
   - **Verificar:** rg de `retail-basico` sin resultados; guardián de voseo verde
   - **Depende de:** F2-ONBOARD-02, F2-ONBOARD-03
@@ -2214,6 +2214,8 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 ---
 
 - **2026-08-16 (ATOMIZACIÓN F2)** — **Fase 2 atomizada: motor de catálogos dinámicos** (12 módulos, 55 tareas). Pedido de Carlos: catálogos genéricos por tenant — Catálogo de Productos (principal, obligatorio, campos estándar no eliminables) + subcatálogos con la misma arquitectura, campos Texto/Numérico/**Lookup** entre catálogos por Código único. Decisiones de Carlos: (a) **precio/costo en `product_presentations`** con auto-presentación «Unidad ×1» desde el form de producto (una fuente de verdad, misma interfaz); (b) **editor de campos simple con guardas** en lugar del versionado v1/v2 de CU-CAT-01 (diferido); (c) las "relaciones entre productos" (1 kg azúcar → 50 cafés) son el BOM, capturadas por porción con "alcanza para N" calculado en vivo. Decisiones técnicas: productos siguen en tabla de primera clase (F3/F4/F5 le cuelgan FKs) compartiendo el motor de campos con los subcatálogos; **sin Ajv** (validador puro derivado de `catalog_fields`); lookup guarda id, muestra código; permisos `catalogs:read/write/manage` + `warehouses:read/manage` + `products:*` a producción; interceptor de scope pasa al default permisivo documentado; racks, imágenes (R2), import async y versionado quedan FUERA con nota. ARQUITECTURA §3.3 reescrita (muere JSONB+JSON Schema draft-07 como contrato; JSONB queda como storage), CU-CAT-01/VISTAS/FLUJOS sincronizados. — `topic_key: sellpoint/f2-atomizacion` — afecta: toda la Fase 2; hereda a F3 (StockByWarehouse nace acá en 0), F4 (POS lee precio de presentación default)
+
+- **2026-08-16 (CIERRE)** — **FASE 2 COMPLETA — 55/55 tareas**, motor de catálogos dinámicos de punta a punta. Backend: 8 tablas con RLS, 7 permisos, motor de catálogos/campos/registros con lookups, productos con presentaciones y composición, almacenes, importación e alcance por almacén. Frontend: editor de campos, subcatálogos, productos con sus tres pestañas, almacenes y wizard de onboarding real. **Decisiones tomadas durante la ejecución autónoma** (Carlos pidió cerrar F2 sin consultas): (a) **la importación es CSV con BOM UTF-8, no .xlsx binario** — Excel lo abre y guarda nativo, la experiencia del usuario es idéntica y evita una dependencia de parseo binario; si un cliente exige xlsx real se cambia solo el serializador porque el service trabaja con filas, no con archivos; (b) el archivo viaja como TEXTO en el body JSON en vez de multipart, y el límite del body parser subió a 6 MB para que el 413 lo dé la regla de negocio (5 MB) y no un error crudo del parser; (c) **F2-SCOPE-01 invirtió el default del interceptor**: sin filas de alcance el usuario ve TODOS los almacenes (ARQUITECTURA § 3.4) — el fail-closed a `[]` de F1 era correcto cuando no existían almacenes, pero hoy dejaría a un tenant chico sin ver su propio inventario; el fail-closed del `catch` sigue en `[]`; (d) el paso 2 del onboarding **dejó de ofrecer rubros** y pasa a definir campos propios (LEY de genericidad), con `templateChoice` degradado a marca de "pasó por acá". **Hallazgos durante la ejecución:** un hook agregado después de un `return` temprano rompió el orden de hooks (lo cazó el test de la ruta); el `AuthUser` no tiene `id` sino `userId` y el deploy quedó en rojo porque los `.spec.ts` no los verifica NADIE (`tsconfig.build.json` los excluye y ts-jest transpila sin chequear por `isolatedModules`) → se agregó `pnpm typecheck` como gate local y `pnpm typecheck:full` que revela 26 errores preexistentes en tests viejos. **Números:** 444 unit API + 216 e2e API + 401 web + 41 shared. — `topic_key: sellpoint/f2-cierre` — cierra: Fase 2; hereda: F3 (StockByWarehouse nace en 0 y espera movimientos; la validación de fracciones por presentación ya tiene su flag), F4 (el POS lee precio de la presentación default y expande composición), Fase 9.0 (Layouts por rubro)
 
 - **2026-08-16 (LEY DE GENERICIDAD)** — **El producto es agnóstico del rubro; ningún negocio específico vive en la base de datos.** Corrección de Carlos sobre la atomización de F2 recién hecha, disparada por leer `F2-BOM-03 — UI tab Receta`: *"no sólo serán negocios de farmacia, comida o cafeterías, deben ser todo tipo de negocios que cuenten con inventario y venta de productos"*. Dos problemas de distinto peso, ambos cerrados: **(1) vocabulario de comida fosilizándose en el modelo** — la columna era `ingredient_product_id` y la UI decía "Receta"/"Ingrediente"/"porciones"; ahora es **`component_product_id`** y el vocabulario es **composición / componente / unidades armables** en todo el core (F2, F3 y F4 alineados; el add-on F9-GASTRO conserva vocabulario gastronómico porque ESE sí es el vertical de comida, y las "recetas médica/oftalmológica" de F9 son otro concepto). **(2) el problema real: `F2-ONBOARD-01` sembraba `catalog_fields` de pharmacy/hardware/grocery definidos en el API** — exactamente lo que la ley prohíbe. Se reemplazó por "el paso 2 permite definir los campos propios (o dejarlo para después)"; `Tenant.templateChoice` se sigue registrando como preferencia pero **no siembra nada**. Las **plantillas por rubro (Layouts)** se difirieron a **Fase 9.0** como catálogo de *sugerencias* que el tenant acepta o no, para construirlas cuando haya clientes reales que digan qué campos usa cada giro en vez de inventarlos. La Definición de Fase 2 completa incorpora un criterio **verificable por grep** (ningún rubro nombrado en `apps/api` ni `apps/web/src`). Sincronizados los cinco `.md`: ARQUITECTURA (DDL, glosario, reglas, UX), CASOS_DE_USO (CU-AUTH-02, CU-CAT-06/07), VISTAS (paso 2 del wizard, tab Composición con ejemplo de óptica), FLUJOS (paso 2). — `topic_key: sellpoint/f2-ley-genericidad` — afecta: toda la Fase 2 (vocabulario y F2-ONBOARD-01/02), F3 y F4 (outlines realineados), F9.0 (Layouts, nuevo)
 

@@ -1,54 +1,104 @@
-import { render, screen } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
+import { createQueryClient } from "@/lib/query-client";
+import * as warehousesApi from "@/lib/warehouses/api";
 import { StepWarehouse } from "./step-warehouse";
 
 /**
- * F1-WEB-ONBOARD-03 (tarea 02.3/02.4). Paso 3 del wizard, placeholder de
- * almacén — el CRUD real es F2 (D2). Acá no hay formulario: solo un mensaje
- * informativo y "Continuar", que emite `onSubmit()` sin datos. W4
- * (verify-report #357): el container (`routes/onboarding.tsx`) YA NO
- * dispara ningún PATCH acá — `isSubmitting`/`formError` quedan como props
- * genéricas del componente (útiles si este paso alguna vez gana un submit
- * real en F2), sin wiring a ninguna mutación hoy.
+ * F2-ONBOARD-03. El paso 3 dejó de ser un placeholder: crea un almacén REAL
+ * porque desde F2-DB-07 la tabla existe.
  */
-function renderStep(props: Partial<React.ComponentProps<typeof StepWarehouse>> = {}) {
-  const onSubmit = vi.fn();
+vi.mock("@/lib/warehouses/api", () => ({
+  listWarehouses: vi.fn(),
+  createWarehouse: vi.fn(),
+  updateWarehouse: vi.fn(),
+}));
+
+const mockedApi = vi.mocked(warehousesApi);
+
+function renderStep(onSubmit = vi.fn()) {
   render(
     <I18nextProvider i18n={createI18n()}>
-      <StepWarehouse isSubmitting={false} onSubmit={onSubmit} {...props} />
+      <QueryClientProvider client={createQueryClient()}>
+        <StepWarehouse isSubmitting={false} onSubmit={onSubmit} />
+      </QueryClientProvider>
     </I18nextProvider>,
   );
-  return { onSubmit };
+  return onSubmit;
 }
 
-describe("StepWarehouse", () => {
-  it("muestra el mensaje informativo del paso 3", () => {
+describe("StepWarehouse (F2-ONBOARD-03)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedApi.listWarehouses.mockResolvedValue([]);
+  });
+
+  it("sin almacenes pide un nombre y NO deja continuar vacío", async () => {
     renderStep();
 
-    expect(screen.getByTestId("step-warehouse")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continuar" })).toBeEnabled();
+    expect(await screen.findByLabelText(/almacén/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continuar/i })).toBeDisabled();
   });
 
-  it("Continuar emite onSubmit sin datos (sin formulario, sin CRUD de almacén en F1)", async () => {
+  it("crea el almacén y recién entonces avanza", async () => {
     const user = userEvent.setup();
-    const { onSubmit } = renderStep();
+    mockedApi.createWarehouse.mockResolvedValue({
+      id: "w-1",
+      name: "Central",
+      address: null,
+      isActive: true,
+    });
+    const onSubmit = renderStep();
 
-    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    await user.type(await screen.findByLabelText(/almacén/i), "Central");
+    await user.click(screen.getByRole("button", { name: /continuar/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith();
+    // React Query v5 suma un segundo argumento de contexto al mutationFn.
+    await waitFor(() =>
+      expect(mockedApi.createWarehouse).toHaveBeenCalledWith(
+        { name: "Central" },
+        expect.anything(),
+      ),
+    );
+    // El avance ocurre en onSuccess: si el POST falla, el wizard no se mueve.
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
   });
 
-  it("muestra el formError cuando el PATCH falla", () => {
-    renderStep({ formError: "No pudimos avanzar." });
+  it("si el alta falla, muestra el error y NO avanza", async () => {
+    const user = userEvent.setup();
+    mockedApi.createWarehouse.mockRejectedValue({
+      statusCode: 409,
+      message: "Ya existe un almacén con ese nombre",
+      error: "Conflict",
+    });
+    const onSubmit = renderStep();
 
-    expect(screen.getByRole("alert")).toHaveTextContent("No pudimos avanzar.");
+    await user.type(await screen.findByLabelText(/almacén/i), "Central");
+    await user.click(screen.getByRole("button", { name: /continuar/i }));
+
+    expect(await screen.findByTestId("step-warehouse-error")).toHaveTextContent(
+      "Ya existe un almacén",
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("mientras isSubmitting, Continuar queda deshabilitado", () => {
-    renderStep({ isSubmitting: true });
+  it("si el tenant YA tiene un almacén, avanza sin crear otro", async () => {
+    // Caso de volver atrás en el wizard: crear un segundo almacén sería un
+    // efecto colateral que el usuario no pidió.
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([
+      { id: "w-1", name: "Central", address: null, isActive: true },
+    ]);
+    const onSubmit = renderStep();
 
-    expect(screen.getByRole("button", { name: "Enviando…" })).toBeDisabled();
+    expect(await screen.findByTestId("step-warehouse-existing")).toHaveTextContent("Central");
+
+    await user.click(screen.getByRole("button", { name: /continuar/i }));
+
+    expect(mockedApi.createWarehouse).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalled();
   });
 });

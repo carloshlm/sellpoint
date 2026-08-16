@@ -13,16 +13,22 @@ import type { TenantBlock } from "./api";
  * consecuencia deliberada, un tenant que YA había completado el paso 1
  * antes de este cambio (country en NULL) vuelve a caer acá hasta elegirlo.
  *
- * Paso 2 (plantilla): completo cuando `templateChoice` no es null.
+ * Paso 2 (campos del catálogo, F2-ONBOARD-01/02): completo cuando
+ * `templateChoice` no es null. La columna SIGUE existiendo y se sigue
+ * escribiendo, pero ya NO significa "eligió una plantilla de rubro": desde la
+ * LEY de genericidad (2026-08-16) el paso 2 deja definir campos propios y
+ * `templateChoice` es solo la marca de "pasó por acá". Los Layouts por rubro
+ * son Fase 9.0.
  *
- * Paso 3 (almacén, F1-WEB-ONBOARD-03): placeholder informativo SIN dato
- * real (el CRUD sigue siendo F2, D2) — no hay, ni hace falta, una señal
- * server-side de "ya lo vi". Con negocio y plantilla completos el piso YA
- * es 4: `effectiveStep = min(stepPedido, primerPasoIncompleto(tenant))`
- * sigue mostrando el paso 3 cuando SE PIDE explícitamente (`goToStep(3)` al
- * terminar el paso 2, ver `routes/onboarding.tsx`), pero nada se pierde si
- * el piso ya permite saltar directo al 4 — el paso 3 no tiene estado que
- * conservar.
+ * Paso 3 (almacén, F2-ONBOARD-03): completo cuando el tenant tiene AL MENOS
+ * UN almacén. Dejó de ser un placeholder sin dato: desde F2-DB-07 la tabla
+ * existe y el paso crea uno de verdad, así que hay una señal server-side
+ * natural y no hace falta una columna "ya lo vi" (la Deviation 6 que W4
+ * revirtió).
+ *
+ * Consecuencia deliberada: un tenant que completó el onboarding en Fase 1
+ * vuelve a caer en el paso 3 hasta crear su primer almacén. Sin almacén no
+ * puede haber stock, así que el wizard estaría mintiendo si lo dejara pasar.
  *
  * W4 (verify-report #357): esto REVIERTE la Deviation 6
  * (`Tenant.warehouseStepSeen`, apply-progress F1-WEB-ONBOARD-03). La
@@ -31,12 +37,21 @@ import type { TenantBlock } from "./api";
  * alternativa correcta es dejar que el piso avance a 4 apenas hay
  * `templateChoice`, sin columna nueva ni escritura adicional.
  */
-export function primerPasoIncompleto(tenant: TenantBlock): 1 | 2 | 3 | 4 {
+export function primerPasoIncompleto(
+  tenant: TenantBlock,
+  options: { hasWarehouse?: boolean } = {},
+): 1 | 2 | 3 | 4 {
   if (!tenant.country || !tenant.legalName || !tenant.taxId || !tenant.address) {
     return 1;
   }
   if (!tenant.templateChoice) {
     return 2;
+  }
+  // `hasWarehouse` llega del container, que ya tiene la lista cargada. Se pasa
+  // como opción y no se consulta acá para que esta función siga siendo PURA y
+  // testeable sin React ni red.
+  if (options.hasWarehouse === false) {
+    return 3;
   }
   return 4;
 }

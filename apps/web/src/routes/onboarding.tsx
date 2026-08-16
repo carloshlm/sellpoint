@@ -5,8 +5,8 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { SessionLoading } from "@/components/auth/session-loading";
 import { StepBusiness } from "@/components/onboarding/step-business";
+import { StepFields } from "@/components/onboarding/step-fields";
 import { type InviteRowResult, StepInvites } from "@/components/onboarding/step-invites";
-import { StepTemplate, type TemplateChoice } from "@/components/onboarding/step-template";
 import { StepWarehouse } from "@/components/onboarding/step-warehouse";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
 import type { ApiError } from "@/lib/api";
@@ -14,6 +14,7 @@ import { useCreateUser, useRoles } from "@/lib/rbac/hooks";
 import { useCompleteOnboarding, useUpdateMyTenant } from "@/lib/tenant/hooks";
 import type { BusinessStepValues, InviteRowValues } from "@/lib/tenant/schemas";
 import { primerPasoIncompleto } from "@/lib/tenant/steps";
+import { useWarehouses } from "@/lib/warehouses/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
 interface OnboardingSearch {
@@ -107,6 +108,11 @@ function OnboardingContent() {
   // posición del array — ver `components/onboarding/step-invites.tsx`.
   const [inviteResults, setInviteResults] = React.useState<Record<string, InviteRowResult>>({});
   const [isProcessingInvites, setIsProcessingInvites] = React.useState(false);
+  // F2-ONBOARD-03: el piso del paso 3 depende de si ya existe un almacén.
+  // Va ACÁ, antes de cualquier return temprano: un hook después de un `if`
+  // que retorna rompe el orden de hooks entre renders (lo detectó el test de
+  // la ruta con "Rendered fewer hooks than expected").
+  const { data: warehouses } = useWarehouses();
 
   if (!tenant) {
     return <SessionLoading />;
@@ -125,7 +131,11 @@ function OnboardingContent() {
   // `/onboarding` a secas), el paso por defecto es el PISO derivado del
   // tenant — no 1. Con `step` presente, sigue sin poder saltar el negocio
   // incompleto (`min`).
-  const piso = primerPasoIncompleto(tenant);
+  const piso = primerPasoIncompleto(tenant, {
+    // `undefined` mientras carga: no se baja el piso a 3 con datos a medias,
+    // que haría parpadear el wizard.
+    hasWarehouse: warehouses === undefined ? undefined : warehouses.length > 0,
+  });
   const effectiveStep = (step === undefined ? piso : Math.min(step, piso)) as 1 | 2 | 3 | 4;
 
   function goToStep(next: 1 | 2 | 3 | 4) {
@@ -141,7 +151,11 @@ function OnboardingContent() {
     });
   }
 
-  function handleTemplateSubmit(templateChoice: TemplateChoice) {
+  function handleFieldsSubmit() {
+    // `templateChoice` sigue marcando "pasó por el paso 2". Ya no nombra un
+    // rubro: se escribe un valor neutro (LEY de genericidad — los Layouts por
+    // rubro son Fase 9.0).
+    const templateChoice = "custom";
     updateTenantMutation.mutate(
       { templateChoice },
       {
@@ -244,16 +258,15 @@ function OnboardingContent() {
         />
       )}
       {effectiveStep === 2 && (
-        <StepTemplate
+        <StepFields
           key={effectiveStep}
-          tenant={tenant}
           isSubmitting={updateTenantMutation.isPending}
           formError={
             updateTenantMutation.isError
               ? formErrorMessage(t, "onboarding.step2.error", updateTenantMutation.error)
               : undefined
           }
-          onSubmit={handleTemplateSubmit}
+          onSubmit={handleFieldsSubmit}
         />
       )}
       {effectiveStep === 3 && (

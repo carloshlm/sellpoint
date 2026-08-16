@@ -74,13 +74,32 @@ describe("WarehouseScopeInterceptor (remediación CRITICAL C1/C2, verify-report 
   });
 
   it("solo un permiso de gestión (Manager): NO hace bypass, filtra por DB", async () => {
-    const prisma = buildPrismaMock([]);
+    // El bypass exige LOS DOS codes de TenantAdmin. Con uno solo, el scope
+    // sale de la DB — se le asignan filas justamente para distinguir "filtró
+    // por DB" de "hizo bypass": ambos casos sin filas darían "all" desde
+    // F2-SCOPE-01 y el test no probaría nada.
+    const prisma = buildPrismaMock([{ warehouseId: "w-1" }]);
     const interceptor = new WarehouseScopeInterceptor(prisma as never);
     const req: Record<string, unknown> = { user: userWith({ permissions: ["users:manage"] }) };
 
     await interceptor.intercept(contextWithRequest(req), nextHandler);
 
-    expect(req.scope).toEqual({ warehouseIds: [] });
+    expect(req.scope).toEqual({ warehouseIds: ["w-1"] });
+    expect(prisma.withTenantContext).toHaveBeenCalledTimes(1);
+  });
+
+  it("F2-SCOPE-01: SIN filas asignadas ve TODOS los almacenes (default permisivo)", async () => {
+    // ARQUITECTURA § 3.4. La restricción por almacén es opt-in: se limita a
+    // quien se le asigna un alcance explícito. Con `[]`, un tenant chico —un
+    // almacén, nadie con scope— no vería nada de su propio inventario.
+    const prisma = buildPrismaMock([]);
+    const interceptor = new WarehouseScopeInterceptor(prisma as never);
+    const req: Record<string, unknown> = { user: userWith({ permissions: ["products:read"] }) };
+
+    await interceptor.intercept(contextWithRequest(req), nextHandler);
+
+    expect(req.scope).toEqual({ warehouseIds: "all" });
+    // Y NO por bypass: la consulta a la DB igual se hizo.
     expect(prisma.withTenantContext).toHaveBeenCalledTimes(1);
   });
 

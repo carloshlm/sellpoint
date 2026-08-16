@@ -7,6 +7,7 @@ import { UsersController } from "./users.controller";
 import { UsersService } from "./users.service";
 import { UsersAdminController } from "./users-admin.controller";
 import { UsersAdminService } from "./users-admin.service";
+import { WarehouseScopeService } from "./warehouse-scope.service";
 
 // F1-RBAC-03: UsersAdminController/-Service (CRUD admin bajo /users) viven
 // en el MISMO módulo que UsersController/-Service (PATCH /me, self-service)
@@ -20,6 +21,6 @@ import { UsersAdminService } from "./users-admin.service";
 @Module({
   imports: [AuditModule, AuthModule, MailModule],
   controllers: [UsersController, UsersAdminController],
-  providers: [UsersService, UsersAdminService, UserInvitationService],
+  providers: [UsersService, UsersAdminService, UserInvitationService, WarehouseScopeService],
 })
 export class UsersModule {}
