@@ -217,41 +217,83 @@ describe("StepBusiness — zonas horarias curadas por país (decisión de Carlos
 });
 
 describe("StepBusiness — zonas horarias, país NO curado (fuera del catálogo de 26)", () => {
-  it("ofrece el catálogo IANA completo con la zona del navegador preseleccionada (mockeada)", async () => {
+  // Decisión de Carlos (2026-08-16): el país filtra SIEMPRE que IANA sepa qué
+  // zonas tiene, no solo para los 26 curados. Elegir Japón deja Asia/Tokyo,
+  // no las 418 del mundo.
+  it("filtra a las zonas del país: Japón ofrece solo Asia/Tokyo, preseleccionada", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "JP");
+
+    expect(timezoneValues()).toEqual(["Asia/Tokyo"]);
+    expect(timezoneSelect().value).toBe("Asia/Tokyo");
+  });
+
+  it("país no curado con varias zonas: ofrece las suyas y ninguna ajena", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "AU");
+
+    const zonas = timezoneValues();
+    expect(zonas.length).toBeGreaterThan(1);
+    expect(zonas.every((tz) => tz.startsWith("Australia/") || tz.startsWith("Antarctica/"))).toBe(
+      true,
+    );
+    expect(zonas).not.toContain("Europe/Madrid");
+  });
+
+  // Regresión: `Intl.supportedValuesOf` devuelve alias LEGACY ("Asia/Calcutta"),
+  // así que filtrar el catálogo contra ESA lista borraba países enteros.
+  it.each([
+    ["IN", "Asia/Kolkata"],
+    ["VN", "Asia/Ho_Chi_Minh"],
+    ["NP", "Asia/Kathmandu"],
+  ])("país con nombre IANA moderno (%s) conserva su zona", async (code, tz) => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, code);
+
+    expect(timezoneValues()).toContain(tz);
+  });
+
+  it("preselecciona la zona del navegador si pertenece al país elegido", async () => {
     const user = userEvent.setup();
     const spy = vi
       .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
-      .mockReturnValue({ timeZone: "Asia/Tokyo" } as Intl.ResolvedDateTimeFormatOptions);
+      .mockReturnValue({ timeZone: "Australia/Perth" } as Intl.ResolvedDateTimeFormatOptions);
 
     try {
       renderStep();
-      await selectCountry(user, "JP");
+      await selectCountry(user, "AU");
 
-      expect(timezoneSelect().value).toBe("Asia/Tokyo");
-      // Catálogo completo, no el curado: trae zonas de PAÍSES curados
-      // (identificador IANA tal cual, sin traducir) y bastantes más de 45.
-      expect(timezoneValues().length).toBeGreaterThan(45);
-      expect(timezoneValues()).toContain("Europe/Madrid");
-      expect(timezoneLabels()).toContain("Europe/Madrid");
+      expect(timezoneSelect().value).toBe("Australia/Perth");
     } finally {
       spy.mockRestore();
     }
   });
 
-  it("si la zona del navegador no es detectable/válida, queda sin elegir", async () => {
+  it("si la zona del navegador no pertenece al país elegido, queda sin elegir", async () => {
     const user = userEvent.setup();
     const spy = vi
       .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
-      .mockReturnValue({ timeZone: "Not/AZone" } as Intl.ResolvedDateTimeFormatOptions);
+      .mockReturnValue({ timeZone: "Europe/Madrid" } as Intl.ResolvedDateTimeFormatOptions);
 
     try {
       renderStep();
-      await selectCountry(user, "JP");
+      await selectCountry(user, "AU");
 
       expect(timezoneSelect().value).toBe("");
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it("país sin zonas en IANA cae al catálogo completo (no deja al usuario sin opciones)", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "BV"); // Isla Bouvet: deshabitada, sin zona propia
+
+    expect(timezoneValues().length).toBeGreaterThan(45);
   });
 });
 

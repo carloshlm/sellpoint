@@ -11,6 +11,7 @@ import {
   getCuratedTimezones,
   getDefaultCurrency,
   getTaxIdAbbreviation,
+  resolveCountryTimezones,
 } from "@/lib/tenant/markets";
 import { type BusinessStepValues, businessStepSchema } from "@/lib/tenant/schemas";
 import { CurrencySelector } from "./currency-selector";
@@ -102,11 +103,16 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
     }
     previousCountryRef.current = country;
 
-    const curatedZones = country ? getCuratedTimezones(country) : undefined;
-    if (curatedZones) {
+    const countryZones = country ? resolveCountryTimezones(country) : undefined;
+    if (countryZones) {
       const currentTimezone = watch("timezone");
-      if (!curatedZones.includes(currentTimezone)) {
-        setValue("timezone", curatedZones.length === 1 ? (curatedZones.at(0) ?? "") : "", {
+      if (!countryZones.includes(currentTimezone)) {
+        // Con una sola zona no hay nada que elegir; con varias, se intenta la
+        // del navegador y si tampoco es de ese país, se deja vacío para que
+        // el usuario elija (nunca se le adjudica una zona ajena en silencio).
+        const browserTimezone = detectBrowserTimezone();
+        const fallback = countryZones.includes(browserTimezone) ? browserTimezone : "";
+        setValue("timezone", countryZones.length === 1 ? (countryZones.at(0) ?? "") : fallback, {
           shouldValidate: true,
         });
       }
@@ -138,10 +144,13 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
     ? t("onboarding.step1.taxIdWithAbbr", { abbr: taxIdAbbreviation })
     : t("onboarding.step1.taxId");
 
+  // Las zonas de un país curado tienen etiqueta propia en i18n; las del resto
+  // del mundo se muestran con su identificador IANA (no hay 418 traducciones).
   const curatedZones = getCuratedTimezones(country);
+  const countryZones = resolveCountryTimezones(country);
   const timezoneOptions = curatedZones
     ? curatedZones.map((tz) => ({ value: tz, label: t(`onboarding.step1.timezoneOptions.${tz}`) }))
-    : ALL_TIMEZONES.map((tz) => ({ value: tz, label: tz }));
+    : (countryZones ?? ALL_TIMEZONES).map((tz) => ({ value: tz, label: tz }));
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">

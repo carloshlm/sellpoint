@@ -1,4 +1,5 @@
 import type { CountryCode, Currency } from "@sellpoint/shared";
+import { getCountryTimezones } from "./country-timezones";
 
 /**
  * Ad-hoc post-Fase 1 (2026-08-16, decisiones de Carlos, MERCADOS.md §2 —
@@ -180,9 +181,23 @@ export function isCuratedCountry(country: string): country is CuratedCountry {
   return Object.hasOwn(CURATED_TIMEZONES, country);
 }
 
-/** `undefined` para un país no curado — el caller cae al catálogo completo de IANA. */
+/** `undefined` para un país no curado — el caller usa el mapa IANA o el catálogo completo. */
 export function getCuratedTimezones(country: string): readonly string[] | undefined {
   return isCuratedCountry(country) ? CURATED_TIMEZONES[country] : undefined;
+}
+
+/**
+ * Zonas horarias de CUALQUIER país, curado o no (decisión de Carlos,
+ * 2026-08-16): elegir Japón debe dejar `Asia/Tokyo`, no las 418 del mundo.
+ *
+ * Precedencia: para un país curado manda su lista a mano —más corta y con
+ * etiqueta propia— sobre la de IANA (México tiene 12 zonas IANA y nosotros
+ * ofrecemos 4). Para el resto, la de IANA. `undefined` solo si IANA no
+ * registra ninguna (territorios deshabitados como Isla Bouvet), y ahí el
+ * caller cae al catálogo completo para no dejar al usuario sin opciones.
+ */
+export function resolveCountryTimezones(country: string): readonly string[] | undefined {
+  return getCuratedTimezones(country) ?? getCountryTimezones(country);
 }
 
 /** Un país no curado (o vacío) cae a USD — mismo criterio que Centro/Sudamérica. */

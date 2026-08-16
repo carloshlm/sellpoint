@@ -111,13 +111,29 @@ que haya clientes reales que lo pidan).
   - Los **26 países curados** (§1 de este documento) ofrecen SOLO sus zonas
     horarias propias en el selector (1 a 7 según el país; si es una sola,
     queda preseleccionada) y una sigla fiscal exacta (tabla abajo).
-  - Cualquier otro país ISO válido (~230 más, ej. Japón) cae a los
-    fallbacks genéricos: el selector de zona horaria ofrece el catálogo
-    completo de `Intl.supportedValuesOf("timeZone")` con la zona del
-    navegador (`Intl.DateTimeFormat().resolvedOptions().timeZone`)
-    preseleccionada si es válida (etiquetas = identificador IANA tal cual,
-    sin traducir); la etiqueta fiscal es la genérica sin sigla
-    (`"Identificación fiscal"` / `"Tax ID"`); la moneda preselecciona USD.
+  - Cualquier otro país ISO válido (~224 más, ej. Japón) **también filtra
+    sus zonas** (decisión de Carlos, 2026-08-16): elegir Japón deja
+    `Asia/Tokyo`, no las 418 del mundo. El mapa país→zonas se genera desde
+    el `zone.tab` de IANA a `apps/web/src/lib/tenant/country-timezones.ts`
+    (247 países, 418 zonas) y lo resuelve `resolveCountryTimezones()`, que
+    da precedencia al catálogo curado. Si el país tiene varias zonas se
+    preselecciona la del navegador **solo si pertenece a ese país**; si no,
+    queda vacío para que el usuario elija. Etiquetas = identificador IANA
+    tal cual (no hay 418 traducciones). Solo los territorios sin zona en
+    IANA (deshabitados, ej. Isla Bouvet) caen al catálogo completo. La
+    etiqueta fiscal es la genérica sin sigla y la moneda preselecciona USD.
+
+> **Gotcha de `Intl` (costó dos bugs):** `Intl.supportedValuesOf("timeZone")`
+> devuelve los alias **legacy** (`Asia/Calcutta`), no los nombres modernos que
+> usa IANA (`Asia/Kolkata`) — aunque `Intl` sí **acepta** los modernos. Filtrar
+> el mapa contra esa lista borraba países enteros (India, Vietnam, Nepal,
+> Myanmar, Eritrea, Feroe). La validez de una zona se prueba construyendo un
+> `Intl.DateTimeFormat`, nunca consultando `supportedValuesOf`.
+>
+> **Gotcha de CLDR:** `Intl.DisplayNames` resuelve códigos ISO **retirados**
+> al nombre del país sucesor (`VD` → "Vietnam", `DY` → "Benín"), así que
+> generar el catálogo de países sin excluirlos produce entradas **duplicadas**
+> en el selector. Excluidos: `HV`, `DY`, `NH`, `RH`, `VD`.
   - Cambiar de país **re-deriva** zona horaria y moneda (nunca al montar el
     form, solo ante un cambio real del usuario): si la zona actual no
     pertenece al país curado nuevo, se resetea (a la única del país o a
