@@ -26,6 +26,7 @@ import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
 import { CatalogsModule } from "./modules/catalogs/catalogs.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
+import { ProductsModule } from "./modules/products/products.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -113,6 +114,7 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     RolesModule,
     CatalogsModule,
     WarehousesModule,
+    ProductsModule,
     PermissionsModule,
   ],
   controllers: [HealthController, I18nDemoController],
