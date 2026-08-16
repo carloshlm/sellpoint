@@ -1275,25 +1275,25 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - **Depende de:** F2-CAT-01, F2-DB-10
   - **Estimación:** 2 h
 
-- [ ] **F2-CAT-03** — CRUD de campos con guardas
+- [x] **F2-CAT-03** — CRUD de campos con guardas
   - **Salida:** endpoints de campos (`catalogs:manage`): agregar (key derivada del label, única por catálogo), editar label/required/position, **archivar con datos exige `confirm: true` y NO borra valores** (is_archived, restaurable), **cambiar field_type con datos → 409**, lookup exige catálogo destino vivo del tenant
   - **Verificar:** unit + e2e de cada guarda, RED→GREEN
   - **Depende de:** F2-CAT-02
   - **Estimación:** 3 h
 
-- [ ] **F2-CAT-04** — Validador derivado de campos (función pura)
+- [x] **F2-CAT-04** — Validador derivado de campos (función pura)
   - **Salida:** `validateRecordAttributes(fields, attributes)` → errores por campo con claves i18n; reglas: required, text=string, number=finito, lookup=uuid; campos archivados se ignoran; claves desconocidas se rechazan; **sin Ajv**
   - **Verificar:** suite unit exhaustiva de la matriz tipo×regla (pura, sin DB)
   - **Depende de:** F2-DB-02
   - **Estimación:** 2 h
 
-- [ ] **F2-CAT-05** — CRUD de registros de subcatálogos
+- [x] **F2-CAT-05** — CRUD de registros de subcatálogos
   - **Salida:** endpoints (`catalogs:write` escribe, `catalogs:read` lee): crear/editar/archivar registro; **code único por catálogo (409)**; attributes validado con F2-CAT-04 + existencia del registro lookup destino (vivo y del catálogo declarado en el campo); archivar un registro **referenciado por lookup** de otro registro o producto → 409 con la referencia (query GIN inversa)
   - **Verificar:** e2e del ciclo completo, el 409 de referencia y el lookup cross-catálogo rechazado
   - **Depende de:** F2-CAT-03, F2-CAT-04
   - **Estimación:** 3 h
 
-- [ ] **F2-CAT-06** — Opciones de lookup para pickers
+- [x] **F2-CAT-06** — Opciones de lookup para pickers
   - **Salida:** `GET /catalogs/:id/records?query=` (`catalogs:read`): id, code, display (primer campo texto activo o el code), solo activos, limitado/paginado
   - **Verificar:** e2e: filtra por query sobre code+display; no lista archivados
   - **Depende de:** F2-CAT-05

@@ -335,4 +335,394 @@ describe("Motor de catálogos (F2-CAT)", () => {
       .send({ name: "No deberia poder" })
       .expect(403);
   });
+
+  describe("F2-CAT-03 — campos con guardas", () => {
+    async function setup() {
+      const { token, tenantId } = await registerAndLogin();
+      const created = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: `Sub ${randomUUID()}` })
+        .expect(201);
+      // `tenantId` viene del registro y NO de consultar `catalogs`: sin
+      // contexto de tenant la RLS devuelve 0 filas — que es justo lo que
+      // queremos que haga.
+      return { token, tenantId, catalogId: (created.body as { id: string }).id };
+    }
+
+    function addField(token: string, catalogId: string, body: Record<string, unknown>) {
+      return request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send(body);
+    }
+
+    it("la key se deriva de la etiqueta y el usuario nunca la escribe", async () => {
+      const { token, catalogId } = await setup();
+
+      const response = await addField(token, catalogId, {
+        label: "Origen del Grano",
+        fieldType: "text",
+      }).expect(201);
+
+      expect(response.body).toMatchObject({ key: "origen_del_grano", position: 0 });
+    });
+
+    it("dos etiquetas que un humano lee igual chocan en la misma key → 409", async () => {
+      const { token, catalogId } = await setup();
+      await addField(token, catalogId, { label: "Color", fieldType: "text" }).expect(201);
+
+      await addField(token, catalogId, { label: "COLOR", fieldType: "text" }).expect(409);
+    });
+
+    it("un lookup hacia un catálogo ajeno o archivado se rechaza", async () => {
+      const { token, catalogId } = await setup();
+      const otro = await registerAndLogin();
+      const ajeno = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(otro.token))
+        .send({ name: `Ajeno ${randomUUID()}` })
+        .expect(201);
+
+      await addField(token, catalogId, {
+        label: "Proveedor",
+        fieldType: "lookup",
+        lookupCatalogId: (ajeno.body as { id: string }).id,
+      }).expect(409);
+    });
+
+    it("quitar un campo SIN datos lo borra de verdad y libera la key", async () => {
+      const { token, catalogId } = await setup();
+      const field = await addField(token, catalogId, {
+        label: "Temporal",
+        fieldType: "text",
+      }).expect(201);
+
+      const removed = await request(app.getHttpServer())
+        .delete(`/catalogs/${catalogId}/fields/${(field.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(removed.body).toMatchObject({ archived: false });
+
+      // La key vuelve a estar libre: nada quedó ocupándola.
+      await addField(token, catalogId, { label: "Temporal", fieldType: "text" }).expect(201);
+    });
+
+    it("quitar un campo CON datos exige confirmación y NO borra los valores", async () => {
+      const { token, tenantId, catalogId } = await setup();
+      const field = await addField(token, catalogId, {
+        label: "Medida",
+        fieldType: "text",
+      }).expect(201);
+      const fieldId = (field.body as { id: string }).id;
+
+      // Un registro que usa el campo. (F2-CAT-05 le pone endpoint; acá se
+      // siembra directo porque lo que se prueba es la guarda, no el alta.)
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.catalogRecord.create({
+          data: {
+            tenantId,
+            catalogId,
+            code: `kg-${randomUUID()}`,
+            attributes: { medida: "kilogramos" },
+          },
+        }),
+      );
+
+      // Sin confirmar: 409 con el CONTEO que la UI necesita para el diálogo.
+      const blocked = await request(app.getHttpServer())
+        .delete(`/catalogs/${catalogId}/fields/${fieldId}`)
+        .set("Authorization", bearer(token))
+        .expect(409);
+      expect(blocked.body).toMatchObject({ requiresConfirmation: true, recordCount: 1 });
+
+      // Confirmando: se ARCHIVA, no se borra.
+      const archived = await request(app.getHttpServer())
+        .delete(`/catalogs/${catalogId}/fields/${fieldId}?confirm=true`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(archived.body).toMatchObject({ archived: true });
+
+      // Y el VALOR sigue ahí: restaurar el campo lo devuelve entero.
+      const records = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.catalogRecord.findMany({ where: { catalogId } }),
+      );
+      expect(records[0]?.attributes).toMatchObject({ medida: "kilogramos" });
+
+      const restored = await request(app.getHttpServer())
+        .patch(`/catalogs/${catalogId}/fields/${fieldId}`)
+        .set("Authorization", bearer(token))
+        .send({ isArchived: false })
+        .expect(200);
+      expect(restored.body).toMatchObject({ isArchived: false, key: "medida" });
+    });
+
+    it("cambiar el TIPO de un campo con datos → 409; sin datos se permite", async () => {
+      const { token, tenantId, catalogId } = await setup();
+      const sinDatos = await addField(token, catalogId, {
+        label: "Sin datos",
+        fieldType: "text",
+      }).expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/catalogs/${catalogId}/fields/${(sinDatos.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ fieldType: "number" })
+        .expect(200);
+
+      const conDatos = await addField(token, catalogId, {
+        label: "Con datos",
+        fieldType: "text",
+      }).expect(201);
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.catalogRecord.create({
+          data: {
+            tenantId,
+            catalogId,
+            code: `c-${randomUUID()}`,
+            attributes: { con_datos: "aproximadamente 3" },
+          },
+        }),
+      );
+
+      await request(app.getHttpServer())
+        .patch(`/catalogs/${catalogId}/fields/${(conDatos.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ fieldType: "number" })
+        .expect(409);
+    });
+
+    it("renombrar la etiqueta NO mueve la key: los datos no se tocan", async () => {
+      const { token, catalogId } = await setup();
+      const field = await addField(token, catalogId, {
+        label: "Sustancia Activa",
+        fieldType: "text",
+      }).expect(201);
+
+      const renamed = await request(app.getHttpServer())
+        .patch(`/catalogs/${catalogId}/fields/${(field.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Principio activo" })
+        .expect(200);
+
+      expect(renamed.body).toMatchObject({ label: "Principio activo", key: "sustancia_activa" });
+    });
+  });
+
+  describe("F2-CAT-05/06 — registros y lookups", () => {
+    /**
+     * El ejemplo de Carlos, de punta a punta: un catálogo "Unidad de Medida"
+     * con Código + un campo personalizado, y otro catálogo que lo referencia
+     * por lookup.
+     */
+    async function setupUnidades() {
+      const { token, tenantId } = await registerAndLogin();
+
+      const unidades = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: `Unidad de Medida ${randomUUID()}` })
+        .expect(201);
+      const unidadesId = (unidades.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Medida", fieldType: "text", required: true })
+        .expect(201);
+
+      const kg = await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "kg", attributes: { medida: "kilogramos" } })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "lt", attributes: { medida: "litros" } })
+        .expect(201);
+
+      return { token, tenantId, unidadesId, kgId: (kg.body as { id: string }).id };
+    }
+
+    it("carga registros con su Código y su campo personalizado", async () => {
+      const { token, unidadesId } = await setupUnidades();
+
+      const list = await request(app.getHttpServer())
+        .get(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const records = list.body as { code: string; attributes: Record<string, string> }[];
+      expect(records.map((r) => r.code)).toEqual(["kg", "lt"]);
+      expect(records[0]?.attributes).toMatchObject({ medida: "kilogramos" });
+    });
+
+    it("el Código no se repite DENTRO del catálogo (409) pero sí entre catálogos", async () => {
+      const { token, unidadesId } = await setupUnidades();
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "kg", attributes: { medida: "otra cosa" } })
+        .expect(409);
+
+      const otro = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: `Otro ${randomUUID()}` })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/catalogs/${(otro.body as { id: string }).id}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "kg" })
+        .expect(201);
+    });
+
+    it("un requerido vacío o de tipo equivocado se rechaza con el error POR CAMPO", async () => {
+      const { token, unidadesId } = await setupUnidades();
+
+      const missing = await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "gr" })
+        .expect(400);
+      expect(missing.body).toMatchObject({
+        errors: [{ key: "medida", message: "catalogs.field_required" }],
+      });
+
+      const wrongType = await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "gr", attributes: { medida: 42 } })
+        .expect(400);
+      expect(wrongType.body).toMatchObject({
+        errors: [{ key: "medida", message: "catalogs.field_must_be_text" }],
+      });
+    });
+
+    it("una clave que no es de ningún campo no entra al JSONB", async () => {
+      const { token, unidadesId } = await setupUnidades();
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "gr", attributes: { medida: "gramos", colado: "x" } })
+        .expect(400);
+    });
+
+    it("un lookup guarda el id del destino y solo acepta uno que EXISTA", async () => {
+      const { token, unidadesId, kgId } = await setupUnidades();
+
+      const productos = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: `Insumos ${randomUUID()}` })
+        .expect(201);
+      const insumosId = (productos.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${insumosId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Unidad", fieldType: "lookup", lookupCatalogId: unidadesId })
+        .expect(201);
+
+      // Con el id real: entra.
+      await request(app.getHttpServer())
+        .post(`/catalogs/${insumosId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "azucar", attributes: { unidad: kgId } })
+        .expect(201);
+
+      // Con un UUID que no existe: la DB no puede frenarlo (es un id dentro
+      // de un JSONB), así que lo frena el service.
+      const orphan = await request(app.getHttpServer())
+        .post(`/catalogs/${insumosId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "cafe", attributes: { unidad: randomUUID() } })
+        .expect(400);
+      expect(orphan.body).toMatchObject({
+        errors: [{ key: "unidad", message: "catalogs.lookup_value_not_found" }],
+      });
+    });
+
+    it("archivar un registro REFERENCIADO por un lookup se bloquea, diciendo quién lo usa", async () => {
+      const { token, unidadesId, kgId } = await setupUnidades();
+      const insumos = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: `Insumos ref ${randomUUID()}` })
+        .expect(201);
+      const insumosId = (insumos.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${insumosId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Unidad", fieldType: "lookup", lookupCatalogId: unidadesId })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/catalogs/${insumosId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "azucar", attributes: { unidad: kgId } })
+        .expect(201);
+
+      const blocked = await request(app.getHttpServer())
+        .patch(`/catalogs/${unidadesId}/records/${kgId}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false })
+        .expect(409);
+      expect(blocked.body).toMatchObject({
+        message: expect.stringContaining("catalogs.record_referenced"),
+      });
+    });
+
+    it("F2-CAT-06: el picker devuelve código + display y filtra por ambos", async () => {
+      const { token, unidadesId } = await setupUnidades();
+
+      const all = await request(app.getHttpServer())
+        .get(`/catalogs/${unidadesId}/records/options`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(all.body).toEqual([
+        { id: expect.any(String), code: "kg", display: "kilogramos" },
+        { id: expect.any(String), code: "lt", display: "litros" },
+      ]);
+
+      // Por código...
+      const byCode = await request(app.getHttpServer())
+        .get(`/catalogs/${unidadesId}/records/options?query=kg`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(byCode.body).toHaveLength(1);
+
+      // ...y por lo que el usuario LEE, que es lo que va a tipear.
+      const byDisplay = await request(app.getHttpServer())
+        .get(`/catalogs/${unidadesId}/records/options?query=litro`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(byDisplay.body).toMatchObject([{ code: "lt" }]);
+    });
+
+    it("el picker no ofrece registros archivados", async () => {
+      const { token, unidadesId } = await setupUnidades();
+      const list = await request(app.getHttpServer())
+        .get(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const lt = (list.body as { id: string; code: string }[]).find((r) => r.code === "lt");
+
+      await request(app.getHttpServer())
+        .patch(`/catalogs/${unidadesId}/records/${lt?.id}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false })
+        .expect(200);
+
+      const options = await request(app.getHttpServer())
+        .get(`/catalogs/${unidadesId}/records/options`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(options.body).toMatchObject([{ code: "kg" }]);
+    });
+  });
 });

@@ -153,14 +153,15 @@ sequenceDiagram
 
     A->>F: Quita un campo
     F->>API: DELETE /catalogs/:id/fields/:fieldId
+    API->>DB: cuenta registros con esa key (jsonb_exists)
     alt El campo tiene datos
-        API-->>F: 409 { requiresConfirmation, count: N }
+        API-->>F: 409 { requiresConfirmation, recordCount: N }
         F-->>A: "N registros tienen este campo.<br/>Se ocultará, no se borra."
         A->>F: Confirma
-        F->>API: DELETE ... { confirm: true }
+        F->>API: DELETE ...?confirm=true
         API->>DB: UPDATE is_archived = true (valores intactos, restaurable)
     else Sin datos
-        API->>DB: DELETE catalog_field
+        API->>DB: DELETE catalog_field (la key queda libre)
     end
 
     A->>F: Intenta cambiar el tipo de un campo con datos
