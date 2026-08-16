@@ -107,7 +107,7 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding");
 
-    expect(await screen.findByLabelText("Razón social")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Nombre legal")).toBeInTheDocument();
     // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): "RFC / RUT" murió —
     // sin país elegido, la etiqueta fiscal es la genérica sin sigla.
     expect(screen.getByLabelText("País")).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("/onboarding", () => {
     await renderRoute("/onboarding");
 
     expect(await screen.findByText("No tienes permiso para ver esta sección.")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nombre legal")).not.toBeInTheDocument();
   });
 
   // W1 (verify-report #357): entrar a /onboarding SIN `?step=` (el caso del
@@ -153,7 +153,7 @@ describe("/onboarding", () => {
     await renderRoute("/onboarding");
 
     expect(await screen.findByRole("radio", { name: "Farmacia" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nombre legal")).not.toBeInTheDocument();
   });
 
   // N1 (verify-report, pasada 2 — hallazgo del auditor sobre la remediación
@@ -174,7 +174,7 @@ describe("/onboarding", () => {
     const router = await renderRoute("/dashboard");
 
     expect(await screen.findByTestId("step-invites")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nombre legal")).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/onboarding");
     // Búsqueda limpia: el gate NO fuerza `step=1` (ni ningún otro valor) al
     // redirigir — el paso sale de derivar el tenant, no de la URL.
@@ -189,7 +189,7 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding?step=3");
 
-    expect(await screen.findByLabelText("Razón social")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Nombre legal")).toBeInTheDocument();
     expect(screen.queryByTestId("onboarding-coming-soon")).not.toBeInTheDocument();
   });
 
@@ -214,12 +214,12 @@ describe("/onboarding", () => {
     mockedGetMe.mockResolvedValue(demoUser(updatedTenant));
 
     await renderRoute("/onboarding");
-    await screen.findByLabelText("Razón social");
+    await screen.findByLabelText("Nombre legal");
 
     // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): país es el PRIMER
     // campo requerido — sin elegirlo, el submit ni siquiera dispara el PATCH.
     await user.selectOptions(screen.getByLabelText("País"), "MX");
-    await user.type(screen.getByLabelText("Razón social"), "Acme SA de CV");
+    await user.type(screen.getByLabelText("Nombre legal"), "Acme SA de CV");
     await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
     await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
@@ -238,7 +238,7 @@ describe("/onboarding", () => {
       ),
     );
     // Todavía no navegó: el PATCH sigue pendiente.
-    expect(screen.getByLabelText("Razón social")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre legal")).toBeInTheDocument();
 
     resolvePatch(updatedTenant);
 
@@ -269,10 +269,10 @@ describe("/onboarding", () => {
     });
 
     await renderRoute("/onboarding");
-    await screen.findByLabelText("Razón social");
+    await screen.findByLabelText("Nombre legal");
 
     await user.selectOptions(screen.getByLabelText("País"), "MX");
-    await user.type(screen.getByLabelText("Razón social"), "Acme SA de CV");
+    await user.type(screen.getByLabelText("Nombre legal"), "Acme SA de CV");
     await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
     await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
@@ -281,7 +281,7 @@ describe("/onboarding", () => {
       await screen.findByText("No pudimos guardar los datos del negocio."),
     ).toBeInTheDocument();
     // Se quedó en el paso 1 — NO avanzó con el store desactualizado.
-    expect(screen.getByLabelText("Razón social")).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre legal")).toBeInTheDocument();
   });
 
   it("sin sesión (accessToken && !user, ventana de bootstrap): muestra loading, no el form", async () => {
@@ -291,7 +291,7 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding");
 
-    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nombre legal")).not.toBeInTheDocument();
   });
 
   it("con lng: 'en', el título y los labels del paso 1 se muestran en inglés", async () => {
@@ -667,7 +667,7 @@ describe("/onboarding", () => {
     await renderRoute("/onboarding");
 
     expect(await screen.findByTestId("dashboard-title")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Razón social")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Nombre legal")).not.toBeInTheDocument();
     expect(screen.queryByTestId("step-invites")).not.toBeInTheDocument();
   });
 

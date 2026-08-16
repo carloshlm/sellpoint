@@ -9,7 +9,7 @@
     "subtitle": "Cuéntanos sobre tu negocio para terminar de configurarlo.",
     "country": "País",
     "countryPlaceholder": "Elige un país",
-    "legalName": "Razón social",
+    "legalName": "Nombre legal",
     "taxId": "Identificación fiscal",
     "taxIdWithAbbr": "Identificación fiscal ({{abbr}})",
     "address": "Dirección",
