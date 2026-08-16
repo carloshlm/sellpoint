@@ -89,8 +89,155 @@ describe("i18n wiring", () => {
 // terminan en vocal acentuada, así que usamos límites propios que sí
 // reconocen letras acentuadas del español en vez de \b.
 const LETRA = "[A-Za-zÁÉÍÓÚÑÜáéíóúñü]";
+
+// Presente de indicativo voseante. Solo formas que NO existen en tuteo: "estás"
+// y "vas" quedan fuera a propósito porque son idénticas en ambos registros.
+const VOSEO_PRESENTE = [
+  "sos",
+  "podés",
+  "tenés",
+  "querés",
+  "necesitás",
+  "sabés",
+  "debés",
+  "hacés",
+  "ponés",
+  "venís",
+  "salís",
+  "decís",
+  "elegís",
+  "escribís",
+  "seguís",
+  "pedís",
+  "abrís",
+  "recibís",
+  "subís",
+  "vivís",
+  "imprimís",
+  "preferís",
+];
+
+// Imperativo afirmativo voseante (vocal final tónica). El acento es lo que los
+// distingue del tuteo: "revisá" vs "revisa", "creá" vs "crea".
+//
+// Compromiso conocido: las formas en -í ("pedí", "seguí", "definí", "abrí"…)
+// coinciden con el pretérito de primera persona del español estándar ("yo
+// pedí"). Se aceptan igual porque la primera persona no aparece en copy de
+// UI —que habla de "tú" o en tercera— y preferimos un falso positivo (que se
+// resuelve reescribiendo la frase) antes que dejar pasar voseo real.
+const VOSEO_IMPERATIVO = [
+  "activá",
+  "agregá",
+  "andá",
+  "abrí",
+  "buscá",
+  "cambiá",
+  "cerrá",
+  "completá",
+  "confirmá",
+  "configurá",
+  "contactá",
+  "creá",
+  "definí",
+  "dejá",
+  "descargá",
+  "editá",
+  "elegí",
+  "eliminá",
+  "empezá",
+  "entrá",
+  "enviá",
+  "esperá",
+  "filtrá",
+  "generá",
+  "guardá",
+  "hacé",
+  "ignorá",
+  "imprimí",
+  "iniciá",
+  "ingresá",
+  "instalá",
+  "intentá",
+  "llená",
+  "marcá",
+  "mirá",
+  "ordená",
+  "pagá",
+  "pedí",
+  "poné",
+  "probá",
+  "publicá",
+  "quitá",
+  "recargá",
+  "registrá",
+  "reintentá",
+  "repetí",
+  "restablecé",
+  "revisá",
+  "sacá",
+  "seguí",
+  "seleccioná",
+  "subí",
+  "sumá",
+  "tené",
+  "tocá",
+  "tomá",
+  "usá",
+  "vendé",
+  "vení",
+  "verificá",
+  "volvé",
+  "actualizá",
+  "escribí",
+];
+
+// Imperativo + pronombre enclítico: el acento se pierde al pegarse el pronombre
+// ("fijate", "contanos"), así que estas formas no las caza el patrón de arriba.
+const VOSEO_ENCLITICO = [
+  "abrilo",
+  "abrila",
+  "acordate",
+  "andate",
+  "avisame",
+  "avisanos",
+  "ayudame",
+  "ayudanos",
+  "contame",
+  "contanos",
+  "decime",
+  "decinos",
+  "dejame",
+  "dejanos",
+  "enviame",
+  "envianos",
+  "escribime",
+  "escribinos",
+  "fijate",
+  "logueate",
+  "mandame",
+  "mandanos",
+  "mostrame",
+  "mostranos",
+  "pedile",
+  "pedime",
+  "pedinos",
+  "quedate",
+  "registrate",
+  "seguinos",
+  "sumate",
+  "suscribite",
+];
+
+// Pronombre y muletilla rioplatense.
+const VOSEO_PRONOMBRE = ["vos", "dale"];
+
 const FORMAS_VOSEANTES = new RegExp(
-  `(?<!${LETRA})(podés|tenés|querés|necesitás|sabés|debés|hacés|ponés|venís|salís|elegí|revisá|ingresá|completá|seleccioná|agregá|guardá|probá|contactá|verificá|actualizá|volvé|mirá|creá|escribí|escribinos|escribime|andá|fijate|intentá|dale|vos)(?!${LETRA})`,
+  `(?<!${LETRA})(${[
+    ...VOSEO_PRESENTE,
+    ...VOSEO_IMPERATIVO,
+    ...VOSEO_ENCLITICO,
+    ...VOSEO_PRONOMBRE,
+  ].join("|")})(?!${LETRA})`,
   "i",
 );
 
@@ -124,6 +271,44 @@ function loadJsonFiles(dir: string): Array<{ file: string; key: string; value: s
   }
   return entries;
 }
+
+/**
+ * El guardián también se prueba. Sin esto, un patrón roto (como el `\b` que
+ * falla tras vocal acentuada) dejaría pasar todo mientras la suite sigue en
+ * verde: exactamente el modo de falla que este archivo existe para evitar.
+ */
+describe("el detector de voseo funciona (guardián del guardián)", () => {
+  const DEBE_DETECTAR = [
+    ["presente", "No tenés permiso para ver esta sección."],
+    ["presente sin tuteo equivalente", "Vos sos el administrador."],
+    ["presente en -ís", "Si no recibís el correo, revisa tu carpeta de spam."],
+    ["imperativo", "Elegí un país de la lista."],
+    ["imperativo tras acento (el caso del \\b)", "Revisá tu correo."],
+    ["imperativo nuevo", "Entrá con tu cuenta y definí una contraseña."],
+    ["enclítico", "¿Necesitas otra moneda? Escribinos y la habilitamos."],
+    ["enclítico sin acento", "Fijate que el total incluya impuestos."],
+    ["muletilla", "Dale, continuemos."],
+    ["mayúscula inicial", "Probá de nuevo más tarde."],
+  ] as const;
+
+  it.each(DEBE_DETECTAR)("detecta voseo (%s)", (_caso, texto) => {
+    expect(texto.match(FORMAS_VOSEANTES)).not.toBeNull();
+  });
+
+  const NO_DEBE_DETECTAR = [
+    ["tuteo equivalente", "No tienes permiso para ver esta sección."],
+    ["imperativos de tú", "Elige un país, revisa tu correo e intenta de nuevo."],
+    ["formas idénticas en ambos registros", "Estás a un paso: ya vas por la mitad."],
+    ["palabras agudas comunes", "El café está aquí, así que también sirve."],
+    ["verbos de tú sin acento", "El sistema crea, usa y paga la suscripción."],
+    ["voseo como subcadena de otra palabra", "Nosotros usamos el valor previo."],
+    ["'vos' dentro de palabra", "Convoso no es una palabra, pero no debe saltar."],
+  ] as const;
+
+  it.each(NO_DEBE_DETECTAR)("no marca español neutro (%s)", (_caso, texto) => {
+    expect(texto.match(FORMAS_VOSEANTES)).toBeNull();
+  });
+});
 
 describe("voz de la UI — español neutro, nunca voseo (LEY)", () => {
   const ES_DIRS = [join(__dirname, "es"), join(__dirname, "../../../api/src/i18n/es")] as const;
