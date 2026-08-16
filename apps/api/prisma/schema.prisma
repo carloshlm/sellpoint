@@ -50,6 +50,16 @@ model Tenant {
   passwordResetTokens     PasswordResetToken[]
   warehouseScopes         UserWarehouseScope[]
 
+  // Motor de catálogos (Fase 2)
+  catalogs       Catalog[]
+  catalogFields  CatalogField[]
+  catalogRecords CatalogRecord[]
+  products       Product[]
+  presentations  ProductPresentation[]
+  compositions   ProductComposition[]
+  warehouses     Warehouse[]
+  stock          StockByWarehouse[]
+
   @@map("tenants")
 }
 
@@ -179,6 +189,307 @@ model Currency {
   @@map("currencies")
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// MOTOR DE CATÁLOGOS DINÁMICOS (Fase 2) — ARQUITECTURA.md § 3.3
+//
+// LEY DE GENERICIDAD (Carlos, 2026-08-16): el motor es AGNÓSTICO DEL RUBRO.
+// Acá no hay ni habrá un campo de farmacia, cafetería ni ferretería: que un
+// tenant llame a un campo "Sustancia Activa" o "Tipo de Tueste" es DATO que
+// él carga en `catalog_fields`, indistinguible para el sistema.
+// ─────────────────────────────────────────────────────────────────────────
+
+// Un catálogo del tenant. El de PRODUCTOS es del sistema (`systemKey` =
+// 'products', `isSystem` = true, creado en `TenantsService.provision()`): no
+// se borra ni se renombra, y sus filas NO viven en `catalog_records` sino en
+// la tabla de primera clase `products` — porque F3/F4/F5 le cuelgan FKs duras
+// (presentaciones, composición, stock, ventas). Lo que comparte con los
+// subcatálogos es el MOTOR de campos, no la tabla de filas.
+model Catalog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  systemKey String?  @map("system_key")
+  isSystem  Boolean  @default(false) @map("is_system")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  fields        CatalogField[]  @relation("CatalogFields")
+  lookupTargets CatalogField[]  @relation("CatalogLookupTarget")
+  records       CatalogRecord[]
+
+  // El índice único parcial de (tenant_id, system_key) WHERE system_key IS NOT
+  // NULL vive en la migración: Prisma no expresa índices parciales, y sin él
+  // un tenant podría terminar con dos catálogos 'products'.
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("catalogs")
+}
+
+enum CatalogFieldType {
+  text
+  number
+  lookup
+
+  @@map("catalog_field_type")
+}
+
+// Un campo personalizado de un catálogo. `key` es el identificador estable
+// (derivado del label al crearlo) con el que se guarda el valor dentro del
+// JSONB `attributes` de los registros/productos; `label` es lo que el usuario
+// ve y puede cambiar sin migrar datos.
+//
+// `isArchived` es la guarda del editor (decisión de Carlos, 2026-08-16):
+// quitar un campo con datos NO borra sus valores — los oculta, y es
+// restaurable. Por eso no hay DELETE en caliente en el camino feliz.
+model CatalogField {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String           @map("tenant_id") @db.Uuid
+  catalogId       String           @map("catalog_id") @db.Uuid
+  key             String
+  label           String
+  fieldType       CatalogFieldType @map("field_type")
+  lookupCatalogId String?          @map("lookup_catalog_id") @db.Uuid
+  required        Boolean          @default(false)
+  position        Int              @default(0)
+  isArchived      Boolean          @default(false) @map("is_archived")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  catalog      Catalog  @relation("CatalogFields", fields: [catalogId], references: [id], onDelete: Cascade)
+  // `Restrict` explícito, NO el `SetNull` que Prisma pone por default en
+  // relaciones opcionales: con SetNull, borrar el catálogo destino dejaría el
+  // campo en `field_type='lookup'` con `lookup_catalog_id NULL` — un estado que
+  // el CHECK de abajo prohíbe, así que el DELETE fallaría igual pero con un
+  // error de constraint confuso en vez de uno de FK claro. El camino feliz es
+  // archivar el catálogo (`isActive`), no borrarlo.
+  lookupTarget Catalog? @relation("CatalogLookupTarget", fields: [lookupCatalogId], references: [id], onDelete: Restrict)
+
+  // El CHECK `field_type='lookup'` ⇔ `lookup_catalog_id IS NOT NULL` vive en la
+  // migración (Prisma no expresa CHECKs). Sin él existirían dos estados
+  // imposibles: un lookup que no apunta a nada, y un campo de texto con un
+  // destino colgado que nadie lee.
+  @@unique([catalogId, key])
+  @@index([tenantId])
+  @@index([lookupCatalogId])
+  @@map("catalog_fields")
+}
+
+// Una fila de un SUBCATÁLOGO (ej. "Unidad de Medida": code `kg` → "kilogramos").
+// Los productos NO viven acá: tienen su propia tabla de primera clase.
+//
+// `code` es el campo estándar "Código (Nombre Corto)" que define el cliente,
+// único dentro del catálogo — es la llave visible con la que los lookups
+// muestran a qué apuntan (aunque internamente guarden el `id`, que es estable
+// ante renombres del código).
+//
+// `attributes` guarda los valores de los campos personalizados, indexado por
+// la `key` de `catalog_fields`. Se valida contra esos campos en el service
+// (validador puro, sin Ajv — ARQUITECTURA § 3.3). El índice GIN vive en la
+// migración: Prisma no lo expresa, y sin él la query inversa que detecta
+// "¿alguien referencia este registro por lookup?" haría seq scan.
+model CatalogRecord {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  catalogId  String   @map("catalog_id") @db.Uuid
+  code       String
+  attributes Json     @default("{}")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  catalog Catalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, code])
+  @@index([tenantId])
+  // GIN DECLARADO ACÁ, no solo en SQL a mano: Prisma genera `DROP INDEX` para
+  // todo índice que exista en la DB y no conozca por el schema — un índice
+  // escrito solo en una migración sobrevive hasta la PRÓXIMA `migrate dev`, que
+  // lo borra en silencio. `JsonbPathOps` es el operador de `@>`, el único que
+  // usa la query inversa de lookups.
+  @@index([attributes(ops: JsonbPathOps)], type: Gin)
+  @@map("catalog_records")
+}
+
+// Un producto del Catálogo de Productos. Tabla de PRIMERA CLASE, no una fila de
+// `catalog_records`: F3/F4/F5 le cuelgan FKs duras (presentaciones,
+// composición, stock, líneas de venta) y necesita columnas tipadas
+// consultables. Lo que comparte con los subcatálogos es el MOTOR de campos —
+// sus campos personalizados son `catalog_fields` del catálogo `products` y sus
+// valores viven en el mismo `attributes` JSONB, validados por el mismo
+// validador (ARQUITECTURA § 3.3).
+//
+// `sku` es el campo estándar "Código (Nombre Corto)" de este catálogo: lo
+// define el cliente y es único por tenant.
+//
+// NO tiene `price` ni `cost`: viven en `product_presentations` (decisión de
+// Carlos, 2026-08-16 — una sola fuente de verdad). El form de alta los pide y
+// crea la presentación base «Unidad ×1»; editarlos después edita esa fila.
+model Product {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  sku         String
+  name        String
+  // Unidad interna del stock, invariable una vez que hay existencias o el
+  // producto es componente de otro (ARQUITECTURA § 3.5, validación #2).
+  baseUnit    String   @default("unit") @map("base_unit") @db.VarChar(8)
+  // Denormalizado a propósito: el POS y las listas filtran por esto en cada
+  // request y no pueden pagar un EXISTS sobre `product_compositions`.
+  isComposite Boolean  @default(false) @map("is_composite")
+  stockMin    Decimal  @default(0) @map("stock_min") @db.Decimal(14, 4)
+  attributes  Json     @default("{}")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant                @relation(fields: [tenantId], references: [id])
+  unit          Unit                  @relation(fields: [baseUnit], references: [code])
+  presentations ProductPresentation[]
+  components    ProductComposition[]  @relation("CompositionParent")
+  usedIn        ProductComposition[]  @relation("CompositionComponent")
+  stock         StockByWarehouse[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId])
+  // Declarados en el schema por el mismo motivo que en `catalog_records`: si
+  // solo vivieran en el SQL de la migración, la próxima `migrate dev` los
+  // borraría. La EXTENSIÓN pg_trgm sí queda en la migración (Prisma no la
+  // borra) — ver 20260816201225_products.
+  @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([attributes(ops: JsonbPathOps)], type: Gin)
+  @@map("products")
+}
+
+// Cómo se compra y cómo se vende un producto. Acá viven el PRECIO y el COSTO
+// (decisión de Carlos, 2026-08-16): una sola fuente de verdad, la que lee el
+// POS de F4. El form de alta de producto pide precio/costo y crea la
+// presentación base «Unidad ×1» (factor 1); editarlos después edita esa fila.
+//
+// `factor` es el equivalente en la `base_unit` del producto: "Caja 1L" de un
+// producto en `ml` tiene factor 1000.
+//
+// `allowFractionalInput` lo deriva el server de la categoría de la unidad base
+// (`count` → false, resto → true) y el TenantAdmin puede sobrescribirlo. NO es
+// cosmético: F3/F4 rechazan cantidades con decimales cuando está en false, y
+// el numpad del POS esconde el punto.
+model ProductPresentation {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String   @map("tenant_id") @db.Uuid
+  productId            String   @map("product_id") @db.Uuid
+  name                 String
+  factor               Decimal  @db.Decimal(14, 4)
+  isPurchasable        Boolean  @default(true) @map("is_purchasable")
+  isSellable           Boolean  @default(true) @map("is_sellable")
+  isDefaultSale        Boolean  @default(false) @map("is_default_sale")
+  allowFractionalInput Boolean  @map("allow_fractional_input")
+  barcode              String?
+  price                Decimal? @db.Decimal(14, 2)
+  cost                 Decimal? @db.Decimal(14, 2)
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // El CHECK de `factor > 0` y el índice único PARCIAL de (tenant_id, barcode)
+  // WHERE barcode IS NOT NULL viven en la migración. El índice tiene que ser
+  // parcial: un @@unique normal trataría a los NULL como valores y solo
+  // dejaría UN producto sin código de barras en todo el tenant.
+  @@unique([productId, name])
+  @@index([tenantId])
+  @@map("product_presentations")
+}
+
+// La COMPOSICIÓN de un producto compuesto: qué componentes lleva UNA unidad.
+// Vocabulario neutro por la LEY de genericidad — `component`, nunca
+// `ingredient`: esto arma un lente (armazón + cristales), un kit de ferretería
+// o un café, y el motor es el mismo.
+//
+// El "1 kg de azúcar alcanza para 50 cafés" del pedido de Carlos se guarda
+// como "el café lleva 20 gr de azúcar"; el "alcanza para N" se CALCULA en vivo
+// contra el stock (F2-BOM-02) en vez de guardarse, porque un número fijo
+// mentiría apenas cambiara el stock.
+model ProductComposition {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  parentProductId    String   @map("parent_product_id") @db.Uuid
+  componentProductId String   @map("component_product_id") @db.Uuid
+  // En la `base_unit` del COMPONENTE, no la del padre.
+  quantity           Decimal  @db.Decimal(14, 4)
+  wastePercentage    Decimal  @default(0) @map("waste_percentage") @db.Decimal(5, 2)
+  notes              String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  parent Product @relation("CompositionParent", fields: [parentProductId], references: [id], onDelete: Cascade)
+  // `Restrict`: borrar un producto que es componente de otro dejaría una
+  // composición rota en silencio. La UI ofrece desactivarlo en su lugar
+  // (ARQUITECTURA § 3.5, validación #3).
+  component Product @relation("CompositionComponent", fields: [componentProductId], references: [id], onDelete: Restrict)
+
+  // Los CHECK de `quantity > 0`, `waste_percentage` entre 0 y 100 y
+  // `parent <> component` viven en la migración. El de autorreferencia solo
+  // cubre el ciclo DIRECTO: los indirectos (A→B→C→A) los detecta el DFS del
+  // service (F2-BOM-01), porque SQL no puede recorrer el grafo en un CHECK.
+  @@unique([parentProductId, componentProductId])
+  @@index([tenantId])
+  @@index([componentProductId])
+  @@map("product_compositions")
+}
+
+// Un almacén del tenant. `address` es TEXTO LIBRE a propósito: SellPoint vende
+// a 26 mercados y los formatos postales difieren (MERCADOS.md § 4) — el
+// desglose colonia/alcaldía/estado del diseño original era México-céntrico.
+// Los racks quedaron FUERA de Fase 2 (se deciden con el stock por ubicación).
+model Warehouse {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant               @relation(fields: [tenantId], references: [id])
+  scopes UserWarehouseScope[]
+  stock  StockByWarehouse[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("warehouses")
+}
+
+// Existencias por producto y almacén, SIEMPRE en la `base_unit` del producto.
+// Nace en F2 (en 0) para que el cálculo de unidades armables de F2-BOM-02 lea
+// stock real en vez de un mock; quien la MUEVE es F3 (movimientos).
+//
+// NO se persiste stock de productos compuestos (`is_composite = true`): su
+// disponibilidad se calcula en vivo desde sus componentes (ARQUITECTURA § 3.5).
+model StockByWarehouse {
+  productId   String   @map("product_id") @db.Uuid
+  warehouseId String   @map("warehouse_id") @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  quantity    Decimal  @default(0) @db.Decimal(14, 4)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  // El CHECK `quantity >= 0` vive en la migración: stock negativo no es un
+  // estado válido del negocio en ningún momento (ARQUITECTURA § 3.5, #4).
+  @@id([productId, warehouseId])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("stock_by_warehouse")
+}
+
 // Tabla MAESTRA de unidades de medida (global, sin tenant_id, sin RLS) —
 // F2-DB-01. Mismo molde que `currencies`: los INSERT viven en la migración (no
 // en el seed demo) para que lleguen a TODOS los entornos por el pipeline, y la
@@ -198,6 +509,8 @@ model Unit {
   nameEn   String  @map("name_en")
   category String  @db.VarChar(16)
   isActive Boolean @default(true) @map("is_active")
+
+  products Product[]
 
   @@map("units")
 }
@@ -299,6 +612,9 @@ model UserWarehouseScope {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  // F2-DB-07: la FK que F1-SCOPE-01 dejó reservada (backlog S4 de f1-scope).
+  // Sin backfill: la columna nació NOT NULL y no hay filas legacy que reconciliar.
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
 
   @@id([userId, warehouseId])
   @@index([tenantId])

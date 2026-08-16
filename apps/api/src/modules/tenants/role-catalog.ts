@@ -31,7 +31,22 @@ export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
 // F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio (razón social,
 // dirección, moneda, onboarding) tampoco es tarea de Manager — mismo criterio
 // que users:manage/roles:manage.
-const MANAGER_EXCLUDED_CODES = new Set(["users:manage", "roles:manage", "tenants:manage"]);
+//
+// F2-DB-10 suma `catalogs:manage`: definir la ESTRUCTURA del catálogo (qué
+// campos existen, de qué tipo, qué lookups) cambia la forma de los datos de
+// todo el negocio, no es operación diaria. El Manager sí carga y edita
+// registros (`catalogs:write`) y productos (`products:manage`) — lo que no
+// hace es rediseñar el molde.
+//
+// Ojo con la regla implícita de abajo: todo code que NO esté acá le cae a
+// Manager automáticamente, y todo code terminado en `:read` le cae a Viewer.
+// Agregar un permiso nuevo sin pensar en esta lista lo reparte solo.
+const MANAGER_EXCLUDED_CODES = new Set([
+  "users:manage",
+  "roles:manage",
+  "tenants:manage",
+  "catalogs:manage",
+]);
 const POS_SELLER_CODES = new Set(["pos:sell", "products:read"]);
 
 /**

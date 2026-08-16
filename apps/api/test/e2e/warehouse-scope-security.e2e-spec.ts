@@ -32,7 +32,10 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
   let prisma: PrismaService;
   let tenantA: { tenantId: string; userId: string; email: string };
   let tenantB: { tenantId: string; userId: string; email: string };
-  const warehouseIdB = randomUUID();
+  // F2-DB-07: dejó de ser un UUID inventado. Desde que existe la tabla
+  // `warehouses`, la FK de `user_warehouse_scopes` exige un almacén REAL —
+  // se crea abajo, en el tenant B.
+  let warehouseIdB: string;
   const OWNER_PASSWORD = "twelve-characters";
 
   beforeAll(async () => {
@@ -53,11 +56,15 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
     // Fila de scope SOLO en el tenant B: si el vector cross-tenant sigue
     // vivo, un anónimo puede forzar una lectura contra esta fila usando el
     // tenantId de B sin tener credenciales de B.
-    await prisma.withTenantContext(tenantB.tenantId, (tx) =>
-      tx.userWarehouseScope.create({
+    await prisma.withTenantContext(tenantB.tenantId, async (tx) => {
+      const warehouse = await tx.warehouse.create({
+        data: { tenantId: tenantB.tenantId, name: `Almacén B ${randomUUID()}` },
+      });
+      warehouseIdB = warehouse.id;
+      await tx.userWarehouseScope.create({
         data: { userId: tenantB.userId, warehouseId: warehouseIdB, tenantId: tenantB.tenantId },
-      }),
-    );
+      });
+    });
   });
 
   afterAll(async () => {

@@ -14,7 +14,9 @@ describe("user_warehouse_scopes — RLS (F1-SCOPE-01/02)", () => {
   let tenantAId: string;
   let tenantBId: string;
   let userAId: string;
-  const warehouseId = "11111111-1111-4111-8111-111111111111";
+  // F2-DB-07: dejó de ser un UUID inventado. Desde que existe `warehouses`, la
+  // FK obliga a que el almacén sea real — es justamente lo que cierra S4.
+  let warehouseId: string;
 
   beforeAll(async () => {
     prisma = new PrismaService(
@@ -42,6 +44,13 @@ describe("user_warehouse_scopes — RLS (F1-SCOPE-01/02)", () => {
       }),
     );
     userAId = userA.id;
+
+    const warehouse = await prisma.withTenantContext(tenantAId, (tx) =>
+      tx.warehouse.create({
+        data: { tenantId: tenantAId, name: `Almacén scope ${Date.now()}` },
+      }),
+    );
+    warehouseId = warehouse.id;
 
     await prisma.withTenantContext(tenantAId, (tx) =>
       tx.userWarehouseScope.create({
@@ -90,7 +99,10 @@ describe("user_warehouse_scopes — RLS (F1-SCOPE-01/02)", () => {
     expect(privileges).toEqual([true, true, true, true]);
   });
 
-  it("warehouse_id NO tiene FK todavía (la tabla warehouses llega en F2)", async () => {
+  // F2-DB-07 dio vuelta este test: durante toda la Fase 1 afirmaba que
+  // `warehouse_id` NO tenía FK (la tabla `warehouses` no existía). Ahora existe
+  // y la FK está puesta — es el cierre del backlog S4 de f1-scope.
+  it("warehouse_id YA tiene FK a warehouses (F2-DB-07 cierra S4 de f1-scope)", async () => {
     const constraints = await prisma.$queryRaw<
       { constraint_name: string }[]
     >`SELECT tc.constraint_name FROM information_schema.table_constraints tc
@@ -100,6 +112,20 @@ describe("user_warehouse_scopes — RLS (F1-SCOPE-01/02)", () => {
         AND tc.constraint_type = 'FOREIGN KEY'
         AND kcu.column_name = 'warehouse_id'`;
 
-    expect(constraints).toHaveLength(0);
+    expect(constraints).toHaveLength(1);
+  });
+
+  it("un scope hacia un almacén inexistente es rechazado (lo que la FK compra)", async () => {
+    await expect(
+      prisma.withTenantContext(tenantAId, (tx) =>
+        tx.userWarehouseScope.create({
+          data: {
+            userId: userAId,
+            warehouseId: "11111111-1111-4111-8111-111111111111",
+            tenantId: tenantAId,
+          },
+        }),
+      ),
+    ).rejects.toThrow();
   });
 });

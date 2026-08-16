@@ -1187,55 +1187,55 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
   - **Depende de:** —
   - **Estimación:** 45 min
 
-- [ ] **F2-DB-02** — Modelos `Catalog` y `CatalogField`
+- [x] **F2-DB-02** — Modelos `Catalog` y `CatalogField`
   - **Salida:** `Catalog` (tenant_id, name, system_key nullable, is_system, is_active; `@@unique([tenantId, name])` + índice único parcial (tenant_id, system_key) WHERE NOT NULL); `CatalogField` (tenant_id, catalog_id, key, label, field_type ENUM('text','number','lookup'), lookup_catalog_id nullable FK, required, position, is_archived; `@@unique([catalogId, key])`); CHECK SQL: `field_type='lookup'` ⇔ `lookup_catalog_id IS NOT NULL`
   - **Verificar:** CHECK rechaza lookup sin catálogo destino y no-lookup con destino
   - **Depende de:** —
   - **Estimación:** 1 h
 
-- [ ] **F2-DB-03** — Modelo `CatalogRecord`
+- [x] **F2-DB-03** — Modelo `CatalogRecord`
   - **Salida:** (tenant_id, catalog_id, code, attributes JSONB default `{}`, is_active, timestamps; `@@unique([catalogId, code])`); índice GIN sobre attributes en SQL a mano
   - **Verificar:** código repetido dentro del catálogo rechazado, permitido en otro catálogo; GIN existe
   - **Depende de:** F2-DB-02
   - **Estimación:** 45 min
 
-- [ ] **F2-DB-04** — Modelo `Product`
+- [x] **F2-DB-04** — Modelo `Product`
   - **Salida:** (tenant_id, sku, name, base_unit FK `units.code` default 'unit', is_composite default false, stock_min DECIMAL(14,4) default 0, attributes JSONB default `{}` + GIN, is_active, timestamps; `@@unique([tenantId, sku])`); extensión `pg_trgm` + índices trigram en sku/name
   - **Verificar:** SKU duplicado en el mismo tenant rechazado, permitido en otro
   - **Depende de:** F2-DB-01
   - **Estimación:** 1 h
 
-- [ ] **F2-DB-05** — Modelo `ProductPresentation`
+- [x] **F2-DB-05** — Modelo `ProductPresentation`
   - **Salida:** (tenant_id, product_id FK CASCADE, name, factor DECIMAL(14,4) CHECK > 0, is_purchasable, is_sellable, is_default_sale, allow_fractional_input, barcode nullable, price DECIMAL(14,2) nullable, cost DECIMAL(14,2) nullable, is_active, timestamps; `@@unique([productId, name])`); índice único **parcial** (tenant_id, barcode) WHERE barcode IS NOT NULL
   - **Verificar:** CHECK factor>0; barcode duplicado en el tenant rechazado, NULL repetido permitido
   - **Depende de:** F2-DB-04
   - **Estimación:** 1 h
 
-- [ ] **F2-DB-06** — Modelo `ProductComposition`
+- [x] **F2-DB-06** — Modelo `ProductComposition`
   - **Salida:** (tenant_id, parent_product_id FK CASCADE, **component_product_id** FK **RESTRICT**, quantity DECIMAL(14,4) CHECK > 0, waste_percentage DECIMAL(5,2) default 0 CHECK 0-100, notes, timestamps; `@@unique([parentProductId, componentProductId])`; CHECK parent≠component) — nombre neutro por la LEY de genericidad: `component`, nunca `ingredient`
   - **Verificar:** autorreferencia directa rechazada por CHECK; borrar un producto que es componente falla por FK RESTRICT
   - **Depende de:** F2-DB-04
   - **Estimación:** 45 min
 
-- [ ] **F2-DB-07** — Modelo `Warehouse` + FK diferida de `user_warehouse_scopes`
+- [x] **F2-DB-07** — Modelo `Warehouse` + FK diferida de `user_warehouse_scopes`
   - **Salida:** (tenant_id, name, address TEXT nullable — texto libre internacional, is_active, timestamps; `@@unique([tenantId, name])`); migración agrega `FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE` a `user_warehouse_scopes` (**cierra S4 de f1-scope**, sin backfill — no hay filas legacy)
   - **Verificar:** FK activa; insertar scope con warehouse inexistente falla
   - **Depende de:** —
   - **Estimación:** 45 min
 
-- [ ] **F2-DB-08** — Modelo `StockByWarehouse`
+- [x] **F2-DB-08** — Modelo `StockByWarehouse`
   - **Salida:** (product_id, warehouse_id, tenant_id, quantity DECIMAL(14,4) default 0 CHECK >= 0, updated_at; PK compuesta product+warehouse) — nace en F2 en 0 para que availability de BOM lea stock real; **F3 la muta**
   - **Verificar:** PK compuesta rechaza duplicado; CHECK rechaza negativo
   - **Depende de:** F2-DB-04, F2-DB-07
   - **Estimación:** 30 min
 
-- [ ] **F2-DB-09** — RLS en las 8 tablas nuevas con tenant_id
+- [x] **F2-DB-09** — RLS en las 8 tablas nuevas con tenant_id
   - **Salida:** migración SQL: ENABLE + **FORCE** ROW LEVEL SECURITY + policy `tenant_isolation` (patrón NULLIF) en catalogs, catalog_fields, catalog_records, products, product_presentations, product_compositions, warehouses, stock_by_warehouse (`units` queda global sin RLS)
   - **Verificar:** tests de integración canónicos por tabla (contexto propio ve / ajeno 0 filas / sin set_config 0 filas / privilegios de `sellpoint_app`) — molde: `user-warehouse-scope-rls.integration.spec.ts`
   - **Depende de:** F2-DB-02 a F2-DB-08
   - **Estimación:** 2 h
 
-- [ ] **F2-DB-10** — Migración data-only de permisos de F2
+- [x] **F2-DB-10** — Migración data-only de permisos de F2
   - **Salida:** INSERT `ON CONFLICT DO NOTHING` de los 7 codes de la tabla de arriba + asignación a roles base existentes (SQL espejo de `resolveRolePermissionCodes`); `catalogs:manage` entra a `MANAGER_EXCLUDED_CODES` en `role-catalog.ts` con test
   - **Verificar:** `GET /permissions` muestra los nuevos; Manager sin `catalogs:manage`; Viewer con los `:read`; POS_Seller con `products:read`; gotcha documentado: usuarios ya logueados los ven tras su próximo refresh (una migración SQL no bumpea perm-epoch)
   - **Depende de:** —
