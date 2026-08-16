@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { localeToBcp47, SUPPORTED_CURRENCIES } from "./i18n";
 
 describe("SUPPORTED_CURRENCIES", () => {
-  it("soporta exactamente MXN, USD y CAD (decisión de Carlos, 2026-08-16)", () => {
-    expect(SUPPORTED_CURRENCIES).toEqual(["MXN", "USD", "CAD"]);
+  it("soporta exactamente MXN, USD, CAD y EUR (decisión de Carlos, 2026-08-16)", () => {
+    expect(SUPPORTED_CURRENCIES).toEqual(["MXN", "USD", "CAD", "EUR"]);
   });
 });
 

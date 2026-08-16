@@ -34,7 +34,8 @@
     "currencyOptions": {
       "MXN": "Peso mexicano (MXN)",
       "USD": "Dólar estadounidense (USD)",
-      "CAD": "Dólar canadiense (CAD)"
+      "CAD": "Dólar canadiense (CAD)",
+      "EUR": "Euro (EUR)"
     },
     "currencyWarning": "No vas a poder cambiar la moneda una vez que registres tu primer movimiento.",
     "continue": "Continuar",
