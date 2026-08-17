@@ -120,7 +120,17 @@ export class ProductsService {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const product = await tx.product.findFirst({
         where: { id, tenantId: user.tenantId },
-        include: { presentations: { orderBy: { factor: "asc" } } },
+        // `factor` a secas NO define un orden: dos presentaciones pueden
+        // empatar (pasa apenas alguien carga mal una equivalencia) y ahí
+        // Postgres devuelve lo que le conviene, que CAMBIA después de un
+        // UPDATE porque la fila se reubica. El resultado era una tabla que
+        // saltaba al tocar un checkbox. `createdAt` desempata por orden de
+        // alta; el `id` cierra el caso de las creadas en la MISMA transacción
+        // —`now()` es el del inicio de la transacción, así que la importación
+        // masiva las deja con el mismo timestamp al microsegundo—.
+        include: {
+          presentations: { orderBy: [{ factor: "asc" }, { createdAt: "asc" }, { id: "asc" }] },
+        },
       });
 
       if (!product) {

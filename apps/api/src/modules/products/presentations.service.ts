@@ -41,7 +41,9 @@ export class PresentationsService {
       await this.findProductOrFail(tx, user, productId);
       return tx.productPresentation.findMany({
         where: { productId },
-        orderBy: { factor: "asc" },
+        // Mismo orden TOTAL que el detalle del producto (ver `products.service`):
+        // si divergieran, la tabla saltaría según qué pantalla la haya cargado.
+        orderBy: [{ factor: "asc" }, { createdAt: "asc" }, { id: "asc" }],
       });
     });
   }

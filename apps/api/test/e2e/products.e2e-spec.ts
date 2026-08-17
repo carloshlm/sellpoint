@@ -369,6 +369,88 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       });
     });
 
+    it("el orden de la tabla NO cambia al editar: dos presentaciones con el mismo factor empatan", async () => {
+      // Carlos vio saltar las filas al tocar un checkbox. `ORDER BY factor` a
+      // secas no define nada cuando hay empate —sus dos bolsas quedaron en 1000
+      // por un error de carga— y Postgres devuelve el orden que le convenga,
+      // que cambia después de un UPDATE porque la fila se reubica en el heap.
+      const { token, tenantId } = await registerAndLogin();
+      const product = await createProduct(token, {
+        sku: `ORD-${randomUUID().slice(0, 8)}`,
+        name: "Con empate",
+        price: 1,
+      }).expect(201);
+      const id = (product.body as { id: string }).id;
+
+      // Se insertan con `createMany` en UNA sentencia: el `now()` de Postgres
+      // es el de la transacción, así que las dos comparten `created_at` al
+      // microsegundo —igual que las que crea la importación masiva— y el
+      // desempate tiene que caer en el `id`. Los ids se fijan a mano en orden
+      // INVERSO al de inserción: sin desempate el motor devuelve el orden del
+      // heap (el de inserción) y este test falla, que es justo lo que se quiere.
+      const primerId = `1${randomUUID().slice(1)}`;
+      const segundoId = `2${randomUUID().slice(1)}`;
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productPresentation.createMany({
+          data: [
+            {
+              id: segundoId,
+              tenantId,
+              productId: id,
+              name: "Bolsa 2 kg",
+              factor: 1000,
+              allowFractionalInput: true,
+            },
+            {
+              id: primerId,
+              tenantId,
+              productId: id,
+              name: "Bolsa 1 kg",
+              factor: 1000,
+              allowFractionalInput: true,
+            },
+          ],
+        }),
+      );
+
+      const names = async () => {
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        return (detail.body as { presentations: { name: string }[] }).presentations.map(
+          (item) => item.name,
+        );
+      };
+
+      const before = await names();
+      expect(before).toEqual(["Unidad", "Bolsa 1 kg", "Bolsa 2 kg"]);
+
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const first = (detail.body as { presentations: { id: string; name: string }[] })
+        .presentations[1];
+
+      await request(app.getHttpServer())
+        .patch(`/products/${id}/presentations/${first?.id}`)
+        .set("Authorization", bearer(token))
+        .send({ isPurchasable: false })
+        .expect(200);
+
+      // La fila editada se queda donde estaba.
+      expect(await names()).toEqual(before);
+
+      // El endpoint dedicado ordena igual: si divergieran, la tabla saltaría
+      // según qué pantalla la haya cargado.
+      const listed = await request(app.getHttpServer())
+        .get(`/products/${id}/presentations`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((listed.body as { name: string }[]).map((item) => item.name)).toEqual(before);
+    });
+
     it("el barcode es único por tenant y el nombre único por producto", async () => {
       const { token } = await registerAndLogin();
       const first = await createProduct(token, { sku: "A", name: "A" }).expect(201);
