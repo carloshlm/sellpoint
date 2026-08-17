@@ -16,6 +16,7 @@ vi.mock("@/lib/products/hooks", () => ({
 
 const basePresentation: Presentation = {
   id: "p1",
+  productId: "prod-1",
   name: "Unidad",
   factor: "1",
   isPurchasable: true,
