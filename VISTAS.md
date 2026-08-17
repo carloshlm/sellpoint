@@ -643,6 +643,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ## 8. Movimientos
 
+> **Evolución (atomización F3, 2026-08-17).** Los mockups de esta sección quedan alineados con el tablero de F3: **sin campo `Fecha`** en entradas y salidas (no hay backdating — `created_at` es el momento real, el kardex es cronología real); **sin `Producción interna`** (los compuestos nunca tienen stock persistido); "Merma / Daño" va bajo `adjustment` (o `loss` si es pérdida) — el enum no tiene `waste`; el motivo `transfer` **no aparece en el form de entrada** (la recepción se hace desde "Traspasos en tránsito"); en Inventario físico **no hay checkbox de bloqueo** y la plantilla es **SKU + cantidad** (sin lote/caducidad/ubicación — conceptos de rubro, LEY de genericidad); **aprobar** el conteo y **cancelar** un traspaso exigen `inventory:manage` (solo TenantAdmin). El detalle de producto gana dos tabs: **Kardex** y **Stock por almacén** (con total, bajo mínimo y en tránsito).
+
 ### 8.1 Entrada Directa
 
 **Ruta:** `/movements/entries/new` · **Permiso:** `inventory:movement`
@@ -656,8 +658,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │                                                                │
 │  ─── Cabecera ─────────────────────────────────────            │
 │                                                                │
-│   Almacén destino *           Fecha *                          │
-│   ▼ Central                   📅 17/05/2026                    │
+│   Almacén destino *                                            │
+│   ▼ Central                                                    │
 │                                                                │
 │   Motivo *                                                     │
 │   ▼ Factura/Compra                                             │
@@ -666,23 +668,24 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │     Ajuste                                                     │
 │     Traspaso (desde otro almacén)                              │
 │     Devolución de cliente                                      │
-│     Producción interna                                         │
+│                                                                │
 │                                                                │
 │  ─── Campos según motivo ─────────────────────                │
 │  {motivo = Factura}                                            │
-│   Nº de factura *         Proveedor *                          │
-│   (FAC-001-2026)          ▼ Genomma Lab                        │
+│   Referencia (nº de documento) *                               │
+│   (FAC-001-2026)                                               │
 │   Costo unitario por línea (columna adicional en la tabla)     │
+│   ℹ️ Sin catálogo de proveedores: si lo necesitás, armalo como  │
+│      subcatálogo. El nº de documento va en Referencia.          │
 │                                                                │
-│  {motivo = Traspaso}                                           │
-│   Almacén origen *        Folio del Transfer (opcional)        │
-│   ▼ Bodega Norte          (TRA-0124)  [Cargar líneas]         │
-│   ℹ️ Recomendado: usá la vista 'Traspasos en tránsito' para    │
-│      pre-cargar líneas con la cantidad enviada.                │
+│  {motivo = Traspaso}  ← no está en este form: la recepción     │
+│   se confirma desde "Traspasos en tránsito" (§ 8.3), que       │
+│   manda el transfer_id. Una entrada 'transfer' sin traspaso    │
+│   se rechaza; para corregir un traspaso mal hecho, usá Ajuste. │
 │                                                                │
-│  {motivo = Ajuste / Devolución / Producción}                  │
-│   Autoriza *              Nota *                               │
-│   ▼ Juan Pérez            (_____________________________)     │
+│  {motivo = Ajuste / Devolución}                                │
+│   Nota *                  Autoriza (opcional)                  │
+│   (_______________________)  ▼ Juan Pérez                     │
 │                                                                │
 │  ─── Productos ───────────────────────────────────             │
 │                                                                │
@@ -726,15 +729,15 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │  Movimientos > Nueva Salida Directa                            │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│   Almacén origen *            Fecha *                          │
-│   ▼ Central                   📅 17/05/2026                    │
+│   Almacén origen *                                             │
+│   ▼ Central                                                    │
 │                                                                │
 │   Motivo *                                                     │
 │   ▼ Ajuste                                                     │
 │     ──────────────                                             │
-│     Ajuste                                                     │
+│     Ajuste / Merma / Daño                                      │
 │     Traspaso (a otro almacén)                                  │
-│     Merma / Daño                                               │
+│                                                                │
 │     Pérdida / Robo                                             │
 │     Consumo interno                                            │
 │     Caducado                                                   │
@@ -865,11 +868,11 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   Almacén a inventariar *                                      │
 │   ▼ Central                                                    │
 │                                                                │
-│   ☑ Bloquear movimientos durante el conteo (recomendado)      │
+│   ℹ️ El conteo se aplica sobre el saldo del momento de aprobar │
 │                                                                │
-│   📥 [Descargar plantilla Excel]                              │
-│      (columnas: código_barras, lote, caducidad,                │
-│       cantidad, ubicación)                                     │
+│   📥 [Descargar plantilla .xlsx] [.csv]                       │
+│      (columnas: sku, nombre, unidad, teórico, contado)         │
+│                                                                │
 │                                                                │
 │   ─── Sube tu Excel completado ──                              │
 │   ┌──────────────────────────────────────┐                    │
@@ -914,7 +917,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ### 8.5 Histórico de Movimientos / Kardex
 
-**Ruta:** `/movements/history` o `/catalog/products/{id}#kardex` · **Permiso:** `inventory:read`
+**Ruta:** tab **Kardex** dentro de `/catalog/products` (detalle de producto) — `GET /products/:id/kardex` · **Permiso:** `inventory:read` · *(`/movements/history` como vista global no está en F3; el kardex es una vista del producto)*
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -1286,6 +1289,7 @@ Después de confirmar:
 │  │              │  ─── Inventario ───                       │ │
 │  │              │   ☑ inventory:read                        │ │
 │  │              │   ☑ inventory:movement                    │ │
+│  │              │   ☑ inventory:manage                      │ │
 │  │              │                                           │ │
 │  │              │  ─── POS ───                              │ │
 │  │              │   ☑ pos:sell                              │ │

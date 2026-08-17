@@ -12,7 +12,7 @@
 4. [Fase 0 — Setup + Walking Skeleton](#fase-0--setup--walking-skeleton)
 5. [Fase 1 — Multi-Tenant + Autenticación](#fase-1--multi-tenant--autenticación)
 6. [Fase 2 — Catálogos Dinámicos](#fase-2--catálogos-dinámicos--uom--bom)
-7. [Fase 3 — Movimientos de Inventario](#fase-3--movimientos-de-inventario-outline)
+7. [Fase 3 — Movimientos de Inventario](#fase-3--movimientos-de-inventario)
 8. [Fase 4 — POS PWA](#fase-4--pos-pwa-outline)
 9. [Fase 5 — Reportes](#fase-5--reportes-outline)
 10. [Fase 6 — Hardening de Producción](#fase-6--hardening-de-producción-outline)
@@ -49,8 +49,8 @@
 **Mapeo concreto por categoría:**
 
 - **SIN SDD**: F0-MONO-*, F0-DB-*, F0-SHARED-*, F0-I18N-01, F0-API-01, F0-WEB-01, F0-CI, F0-DOC. Bug fixes triviales.
-- **SDD LIGERO**: F0-DEPLOY, F0-I18N-02/03/04, F2-DB, F2-UOM, F2-SUBCAT, F2-WH, F2-ONBOARD, F5-EXPORT.
-- **SDD COMPLETO**: F1-AUTH, F1-RBAC, F1-LOCALE, F1-TENANT, F1-SCOPE, F2-CAT, F2-SCHEMA, F2-PRESENT, F2-BOM, F2-PROD, F2-IMPORT, F2-SCOPE, F3-* (todos), F4-CART, F4-COMPOSITE, F4-CHECKOUT, F4-NUMPAD, F4-PRINT-BT, F4-PWA, F5-API, F6-*, F7-*, F9-*.
+- **SDD LIGERO**: F0-DEPLOY, F0-I18N-02/03/04, F2-DB, F2-UOM, F2-SUBCAT, F2-WH, F2-ONBOARD, F3-DB, F3-GUARDS, F3-NAV, F5-EXPORT.
+- **SDD COMPLETO**: F1-AUTH, F1-RBAC, F1-LOCALE, F1-TENANT, F1-SCOPE, F2-CAT, F2-SCHEMA, F2-PRESENT, F2-BOM, F2-PROD, F2-IMPORT, F2-SCOPE, F3-CORE, F3-ENTRY, F3-EXIT, F3-TRANSFER, F3-COUNT, F3-KARDEX, F4-CART, F4-COMPOSITE, F4-CHECKOUT, F4-NUMPAD, F4-PRINT-BT, F4-PWA, F5-API, F6-*, F7-*, F9-*.
 
 **Cómo Claude lo comunica:**
 
@@ -146,7 +146,7 @@ Ejemplos:
 | **F0** | Setup + Walking Skeleton | ✅ Completada | 1.5-2 semanas | ✅ Sí |
 | **F1** | Multi-Tenant + Auth | ✅ Completada | 2-3 semanas | ✅ Sí |
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
-| **F3** | Movimientos de Inventario | ⬜ Pendiente | 2-3 semanas | ⬜ Outline |
+| **F3** | Movimientos de Inventario | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
 | **F4** | POS PWA | ⬜ Pendiente | 3 semanas | ⬜ Outline |
 | **F5** | Reportes | ⬜ Pendiente | 1-2 semanas | ⬜ Outline |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
@@ -1604,55 +1604,441 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 
 ---
 
-## Fase 3 — Movimientos de Inventario (outline)
+## Fase 3 — Movimientos de Inventario
 
-> **Modelo unificado:** 2 movimientos directos (Entrada Directa / Salida Directa) con campo `reason_code`. Traspaso = proceso de 2 pasos con confirmación + estado `in_transit` visible. Inventario físico es caso especial separado.
+> **Objetivo:** el stock deja de ser un número en cero y pasa a tener **historia**: todo cambio de existencias entra por un movimiento append-only con motivo, usuario y momento, dentro de una transacción atómica que no permite oversell ni stock negativo. Con eso, un negocio de **cualquier rubro** registra compras, ajustes, mermas, consumos, devoluciones y traspasos entre almacenes con confirmación en destino, hace inventario físico por planilla y consulta el kardex de cualquier producto. Atomizada el 2026-08-17 (decisiones completas en `topic_key: sellpoint/f3-atomizacion`).
+>
+> **LEY DE GENERICIDAD (Carlos, 2026-08-16).** Esta fase mueve *productos* entre *almacenes* por *motivos*. Nada en el schema, el código ni la UI nombra un rubro ni un concepto propio de uno: **no hay lote, caducidad ni ubicación** (son conceptos de farmacia/alimentos, se difieren fuera del MVP — Carlos, 2026-08-17); no hay «producción», «receta», «ingrediente» ni «porción» — hay *composición*, *componente* y *unidades armables*. Que un tenant use el motivo `consumption` para "insumos de limpieza" o `expired` para "vencidos" es uso suyo del vocabulario neutro. Verificable por grep (ver Definición de fase completa).
+>
+> Incluye entradas y salidas directas con motivo, traspasos en dos pasos con estado `in_transit`, inventario físico por planilla con reconciliación, kardex y stock por almacén respetando el alcance del usuario, y las guardas que F2 dejó preparadas para esta fase. Ver [ARQUITECTURA.md § 6 — Fase 3](ARQUITECTURA.md#fase-3--movimientos-de-inventario-2-3-semanas), [CASOS_DE_USO.md § 3.5](CASOS_DE_USO.md#35-movimientos-de-inventario), [VISTAS.md § 8](VISTAS.md#8-movimientos) y [FLUJOS.md § 5 y § 7](FLUJOS.md#5-movimientos-de-inventario).
 
-- **F3-DB** — Modelos:
-  - `StockMovement` con columnas: `direction` (entry|exit), `reason_code`, `reason_note`, `linked_warehouse_id` (NULL salvo transfer), `transfer_id` (NULL salvo transfer), `quantity` **DECIMAL(14,4)** (NO integer — soporta fracciones ml/gr/m), `unit_cost` (NULL salvo invoice), `presentation_id` (NULL si fue ingreso/egreso en base_unit puro; si vino de una presentación se referencia para auditoría), `product_id`, `warehouse_id`, `created_by`, `created_at`. Append-only.
-  - `StockByWarehouse` (`product_id`, `warehouse_id`, `quantity` **DECIMAL(14,4)**) — actualizada en cada movimiento. **NO se persiste para productos compuestos** (`is_composite=true`): su stock se calcula en vivo desde los componentes.
-  - `Transfer` con `id`, `folio`, `tenant_id`, `origin_warehouse_id`, `destination_warehouse_id`, `status` (in_transit|completed|canceled), `created_by`, `created_at`, `received_by`, `received_at`, `canceled_by`, `canceled_at`, `cancel_reason`, `discrepancies` JSONB (líneas con diferencia).
-  - `TransferLine` con `transfer_id`, `product_id`, `quantity_sent`, `quantity_received` (NULL hasta confirmación).
-  - Enum SQL para `reason_code`: `invoice | adjustment | transfer | customer_return | production | loss | consumption | expired | physical_count`.
+### Convenciones que esta fase codifica
 
-- **F3-ENTRY** — Endpoint `POST /inventory/entries` + UI única "Nueva Entrada Directa":
-  - Acepta `{warehouse_id, reason_code, reason_note, linked_warehouse_id?, transfer_id?, lines[]}`. Cada línea: `{product_id, presentation_id?, quantity}` — si `presentation_id` viene, el sistema convierte a base_unit (`quantity × presentation.factor`) antes de persistir.
-  - **Validación de fracciones**: si `presentation.allow_fractional_input = false`, el backend rechaza si `quantity % 1 !== 0` con error 422 y mensaje claro (`"La presentación '${name}' solo acepta cantidades enteras"`).
-  - Validaciones contextuales según `reason_code` (factura requiere `unit_cost`, transfer requiere `linked_warehouse_id`, etc.).
-  - Validación: no se puede crear entrada directa para producto **compuesto** (`is_composite=true`) — su stock se calcula desde componentes, no se carga directo. Excepción: `reason_code='production'` (armar lote de compuesto), que genera salidas de componentes + entrada del compuesto auditada.
-  - Si `reason_code='transfer'` y `transfer_id` presente: cierra el Transfer (status='completed', registra `quantity_received` por línea, calcula discrepancias).
-  - UI con campos reactivos según motivo elegido + selector de presentación por línea.
+**El modelo, en una frase:** `stock_movements` es la **única fuente de la historia** (append-only, blindada por privilegios: la app no puede hacer UPDATE ni DELETE) y `stock_by_warehouse` es su **proyección** (saldo actual por producto y almacén, la que lee el POS y la BOM); toda escritura pasa por UN servicio (`StockLedgerService.apply`) que agrupa líneas, bloquea filas con `FOR UPDATE` en orden determinista, valida, inserta movimientos y actualiza saldos en la misma transacción — entradas, salidas, recepción de traspaso, conteo físico y, en F4, la venta, son **llamadores** de ese servicio, nunca escritores propios.
 
-- **F3-EXIT** — Endpoint `POST /inventory/exits` + UI única "Nueva Salida Directa":
-  - Acepta `{warehouse_id, reason_code, reason_note, linked_warehouse_id?, lines[]}`. Línea: `{product_id, presentation_id?, quantity}` con conversión a base_unit.
-  - **Validación de fracciones**: idéntica a F3-ENTRY — rechaza decimales si la presentación no los permite.
-  - Validación de stock disponible (FOR UPDATE para evitar oversell en concurrencia).
-  - **Productos compuestos en salida**: si se intenta dar salida de un compuesto (típicamente `reason='consumption'` o `expired`), el sistema expande la composición y genera N salidas de componentes en transacción atómica.
-  - Si `reason_code='transfer'`: crea `Transfer` con status='in_transit', `TransferLine` por línea con `quantity_sent`, `linked_warehouse_id` apunta a destino.
-  - UI con campos reactivos según motivo + validación en vivo de stock + selector de presentación.
+**Primera vez del proyecto en dos cosas** — y por eso F3-CORE es el módulo crítico: hasta hoy no hay un solo `SELECT … FOR UPDATE` ni `$queryRaw` en código de negocio del API, y ningún service usa `Prisma.Decimal` (F2 pasa los Decimals por `Number()`). F3 introduce concurrencia real y aritmética decimal exacta. Ambas cosas se prueban con tests de integración contra Postgres real, no con mocks.
 
-- **F3-TRANSFER** — Endpoint `GET /transfers` (con filtros: pendientes_recibir, pendientes_enviar, por almacén, antigüedad) + Endpoint `POST /transfers/:id/cancel` (solo TenantAdmin, requiere justificación) + UI "Traspasos en Tránsito":
-  - Dos tabs (pendientes de recibir, pendientes de enviar) según scope del usuario.
-  - Modal de confirmación de recepción (dispara `POST /inventory/entries` con `reason_code='transfer'` y `transfer_id`).
-  - Validación: cantidad recibida > enviada → bloqueado con mensaje accionable.
-  - Badge naranja para traspasos > 7 días en tránsito.
+**Permisos nuevos** (llegan por migración data-only, patrón `ON CONFLICT DO NOTHING`):
 
-- **F3-INVENTORY** — Inventario físico (Excel + reconciliación) — caso especial con `reason_code='physical_count'`.
+| Code | Qué habilita | TenantAdmin | Manager | POS_Seller | Viewer |
+|---|---|:-:|:-:|:-:|:-:|
+| `inventory:read` | Kardex, stock por almacén, traspasos (ver), stock en tránsito | ✅ | ✅ | ❌ | ✅ (automático por `:read`) |
+| `inventory:movement` | Entradas, salidas, confirmar recepción, plantilla y reconciliación de conteo | ✅ | ✅ | ❌ | ❌ |
+| `inventory:manage` | Cancelar traspaso, **aprobar** inventario físico | ✅ | ❌ (`MANAGER_EXCLUDED_CODES`) | ❌ | ❌ |
 
-- **F3-KARDEX** — Endpoint `GET /products/:id/kardex` + UI con filtros por almacén, rango fechas, dirección, motivo.
+POS_Seller no recibe ninguno: F4 decide qué necesita el POS (`POS_SELLER_CODES` es un set explícito). Gotcha heredado: la migración no bumpea el perm-epoch — los usuarios logueados los ven tras su próximo refresh.
 
-- **F3-REPORT-TRANSIT** — Reporte de stock en tránsito (cantidad total por producto que no está en ningún almacén consolidado).
+**Motivos (`reason_code`) — el enum nace completo:**
 
-- **F3-AUDIT** — Audit log integrado en cada movimiento + entradas detalladas para discrepancias de traspasos (alta sensibilidad para auditorías).
+| `reason_code` | Dirección | Qué exige la API | Quién lo emite |
+|---|---|---|---|
+| `invoice` | entry | `reference` (nº de documento) + `unitCost` por línea | F3-ENTRY |
+| `adjustment` | entry / exit | `reasonNote` (`authorizedBy` opcional) | F3-ENTRY / F3-EXIT |
+| `transfer` | exit (despacho) / entry (recepción) | `linkedWarehouseId`; en recepción además `transferId` | F3-EXIT / F3-TRANSFER-03 |
+| `customer_return` | entry | `reasonNote` (`reference` opcional: referencia externa) | F3-ENTRY |
+| `loss` | exit | `reasonNote` | F3-EXIT |
+| `consumption` | exit | `reference` (área / concepto) | F3-EXIT |
+| `expired` | exit | `reasonNote` | F3-EXIT |
+| `physical_count` | entry + exit | interno: solo lo emite la aprobación del conteo | F3-COUNT-03 |
+| `sale` | exit | **reservado F4** (los endpoints directos lo rechazan con 422 `inventory.reason_not_allowed`) | F4 (llama al ledger) |
+| `sale_return` | entry | **reservado F4** (anulación / devolución ligada a venta; `customer_return` queda para la devolución manual sin venta) | F4 |
 
-**Estimación:** 2-3 semanas. **Atomizar cuando F2 esté ✅.**
+La lista, la dirección válida de cada motivo y las reglas de campos viven en `packages/shared` (`REASONS_BY_DIRECTION`, `REASON_RULES`) y son la misma fuente para el enum Prisma, el CHECK SQL, el `superRefine` de los DTOs y los formularios reactivos del front — con **test de contrato** para que no diverjan (patrón `UNITS` vs tabla `units`).
+
+**Códigos HTTP de esta fase:** `400` = forma inválida (Zod, errores por ruta `lines.0.quantity`) · `422` = regla de negocio sobre cantidades/estado del stock (stock insuficiente, presentación solo-enteros, almacén inactivo, motivo reservado) · `409` = conflicto de estado o unicidad (compuesto sin stock, traspaso ya cerrado, presentación en uso) · `403` = almacén fuera del alcance del usuario · `404` = no existe o no visible.
+
+**Frontend:** `routes/` + `components/inventory` + `lib/inventory` (la convención `features/` se abandonó en F2). Rutas nuevas: `/movements/entries/new`, `/movements/exits/new`, `/movements/transfers`, `/movements/inventory-count`; tabs **Kardex** y **Stock por almacén** dentro del detalle de producto (`/catalog/products`).
+
+**Decisiones de alcance (LEY de esta atomización):**
+
+| Tema | Decisión |
+|---|---|
+| Lote / caducidad / ubicación (VISTAS §8.4, CU-MOV-05) | **Fuera de F3 y del MVP** (Carlos, 2026-08-17): son conceptos de rubro; la plantilla de conteo es **SKU + cantidad**. Se anota como extensión vertical (Fase 9) |
+| Enum `reason_code` | Nace **completo** con `sale` y `sale_return` reservados para F4 (agregar valores a un enum Postgres después es una migración más y F4 ya sabe que los necesita); **`production` se elimina** |
+| Productos compuestos | **Nunca tienen stock persistido**: entrada directa de compuesto → 409 `inventory.composite_has_no_stock`; salida `consumption`/`expired` **expande** componentes; cualquier otro motivo → 409; excluidos de la plantilla de conteo y de traspasos |
+| Expansión de composición en salida | `cantidad × qty_i × (1 + waste_i)`, anidados en recursión — la **misma fórmula** que `availability` para que "alcanza para N" y lo que realmente se descuenta coincidan; cada movimiento generado guarda `parent_product_id` (el compuesto que lo originó) para que el kardex lo explique |
+| Costo promedio ponderado | **F5.** F3 solo **registra** `unit_cost` (obligatorio en `invoice`), como lo tecleó el usuario: costo por unidad de la presentación capturada, `DECIMAL(14,2)` con `moneyAmount()`; F5 lo lleva a base_unit con el `factor` de la presentación referenciada. `cost-estimate` de BOM sigue con `cost/factor` (solo cambia su nota) |
+| Bloqueo de almacén durante conteo | **No** (Carlos): la aprobación es una tx con `FOR UPDATE` que relee el teórico; si algo se movió entre reconciliación y aprobación queda como **drift auditado**, el saldo final es igual el contado |
+| Desempate cronológico del kardex | `stock_movements.seq BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE`: `now()` es el del inicio de la tx (las N líneas de una factura comparten `created_at`) y UUID v4 no ordena → sin `seq`, el `balanceAfter` por window function daría saldos intermedios **falsos** entre líneas del mismo lote (el bug del ORDER BY de F2-PRESENT, en su peor forma). Orden total del kardex: `created_at DESC, seq DESC`. `seq` no se expone como dato de negocio (el cursor de paginación puede ir opaco) |
+| Folio de traspaso | `TRA-000001` por tenant, secuencia en tabla `tenant_sequences (tenant_id, key, next_value)` con `INSERT … ON CONFLICT DO UPDATE … RETURNING` (atómico, serializa por tenant y clave, **reusable en F4 para el folio de ventas**); único por `(tenant_id, folio)`; se descartó `MAX+1` (requiere lock de tabla) y `SEQUENCE` global (revela volumen entre tenants) |
+| `discrepancies JSONB` en `Transfer` | **Se elimina**: la diferencia se **deriva** de `quantity_sent − quantity_received` en `transfer_lines` (una sola verdad); la nota explicativa es una por traspaso → `transfers.discrepancy_note TEXT` obligatoria si alguna línea recibió menos; el detalle por línea queda en el audit log |
+| Campos contextuales del outline (nº documento, proveedor, autorizador, referencia de venta, área/concepto) | Genérico: `reference VARCHAR(120)` (nº de documento, orden, concepto, referencia externa) + `authorized_by UUID NULL` FK `users` + el resto en `reason_note`; **sin FK a proveedor** (no existe catálogo de proveedores; un tenant puede armar el suyo como subcatálogo y F5+ decide si se liga) |
+| Agrupación de una operación | `batch_id UUID NOT NULL` en cada movimiento (generado por request, sin tabla): es el `movementId` que devuelve la API, lo que referencia el audit y lo que permite reconstruir "esta entrada tuvo 3 líneas" |
+| Fecha editable de los mockups (`Fecha *`) | **Sin backdating en F3**: `created_at = now()`; el kardex es cronología real; el campo no se renderiza. Si un caso lo pide, se evalúa en F5 con `effective_at` separado |
+| Traspaso: cuándo se mueve el stock | La salida `transfer` **descuenta el origen al despachar** (crea `Transfer in_transit`); la entrada al **confirmar** suma al destino lo **recibido**; el traspaso **cancelado NO devuelve stock** (queda como pérdida del origen hasta un `adjustment` explícito) |
+| Entrada `transfer` sin `transferId` (CU-MOV-01 4a, "huérfana") | **No permitida en F3** (422 `inventory.transfer_entry_requires_transfer`): la corrección de un traspaso mal registrado se hace con `adjustment`, que sí queda explicada; el motivo `transfer` no aparece en el form de entrada — se llega por la vista de traspasos |
+| Recepción de traspaso | Cantidades en **base_unit** (sin presentación: `quantity_sent` ya está en base); **todas** las líneas del traspaso deben venir; `0 ≤ recibido ≤ enviado` — recibido > enviado **bloqueado** (el excedente entra como `adjustment`); una recepción cierra el traspaso, no hay recepciones parciales |
+| Kardex | `GET /products/:id/kardex` (es una vista **del producto**, coincide con la tab de VISTAS §8.5 y CU-MOV-06; el controller vive en el módulo `inventory`); paginación server-side con orden total `created_at desc, seq desc`; **`balanceAfter` server-side** (window function por almacén sobre TODO el histórico del producto en scope, antes de filtrar y paginar) — un `SUM() OVER` es barato y sin saldo el kardex no sirve para auditar |
+| Stock en tránsito | Endpoint chico **incluido** (`GET /inventory/in-transit`, agregado por producto de líneas de traspasos `in_transit` con origen en scope) y mostrado como fila en la tab «Stock por almacén»; el reporte completo con exportación es F5 |
+| Tab «Stock por almacén» (VISTAS L425) | **Incluida**: `GET /products/:id/stock` por almacén dentro del scope + total + en tránsito + badge bajo `stock_min` |
+| Idempotencia (`Idempotency-Key`) | **No en F3** — deuda anotada para F4/POS, donde el doble tap importa |
+| Concurrencia | `SELECT … FOR UPDATE` sobre `stock_by_warehouse` **ordenado por (product_id, warehouse_id)** en TODA transacción del ledger (evita deadlocks entre operaciones cruzadas); líneas del mismo (producto, almacén) se **suman antes de validar**; fila inexistente → **upsert** (`INSERT … ON CONFLICT DO NOTHING`) antes del lock; el CHECK `>= 0` de F2 es la red, el guard es el service. `withTenantContext` (tx interactiva, timeout 10 s) alcanza: el `FOR UPDATE` va por `tx.$queryRaw` dentro; facturas grandes con **un** `createMany`, nunca N `create`; aislamiento READ COMMITTED (con REPEATABLE READ el `FOR UPDATE` daría errores de serialización en vez de esperar) |
+| Cantidades | `DECIMAL(14,4)`; máximo **4 decimales** en la entrada (`QUANTITY_DECIMALS` + `hasValidQuantityScale` en shared, misma regla en el form y en el DTO — patrón de `money`); `> 0` siempre; en servicios SIEMPRE `Prisma.Decimal` (`.plus/.minus/.lt`), nunca `Number()`; `$queryRaw` devuelve NUMERIC como string → envolver |
+| Inventario físico | **Sin tabla de sesiones de conteo** (stateless: `template` → `reconcile` puro/dry-run → `approve` transaccional); filas con `counted` vacío = "no contado" (se omiten y se reportan); solo las líneas con diferencia generan movimientos: **salida `physical_count` del teórico total + entrada `physical_count` del contado** (una lectura clara en el kardex; las iguales quedan como coincidencias en el audit) |
+| Alcance por almacén | Primer consumidor real de `@CurrentUserScope()`: helper único `assertWarehouseInScope` (403) + `warehouseScopeWhere`; el **destino** de un traspaso NO exige scope del emisor (se puede enviar a un almacén que no se administra); almacén inactivo → 422 en cualquier movimiento; `GET /warehouses?scoped=true` devuelve activos ∩ scope para los selectores |
+| UI de alcance por almacén en usuarios | **Se incluye en F3** (F3-NAV-03): F2-SCOPE-03 quedó solo en API y sin ella la demo "el Manager solo ve su almacén" no existe; son 2 h sobre un endpoint terminado |
+| Append-only | Reforzado por **privilegios**: `REVOKE UPDATE, DELETE ON stock_movements FROM sellpoint_app` (patrón `units`/`currencies`), además de que ningún service lo intente. FKs `ON DELETE RESTRICT` desde movimientos hacia productos, presentaciones y almacenes: el histórico no se borra |
+| Deudas F2 que se pagan acá | `assertDeletable` de presentaciones, "no desactivar almacén con stock", `products.remove` con movimientos, `TenantTransactionsGate`, `availability` con scope, comentario "su receta" en `products.service.ts:328` (LEY) |
+
+**Herencias de F2 que esta fase honra:**
+
+- `stock_by_warehouse` **ya existe** (F2-DB-08, PK `(product_id, warehouse_id)`, `quantity DECIMAL(14,4) CHECK >= 0`, RLS): F3 la **muta**, no la crea.
+- `product_presentations.factor` / `.allow_fractional_input` / `.is_purchasable` son la fuente de la conversión a base_unit y de la validación de enteros; el nombre de la presentación viaja en el error 422.
+- `presentations.service.ts#assertDeletable(tx, id)` es el punto ÚNICO de extensión para "presentación en uso" (409 `products.presentation_in_use`).
+- `warehouses` no tiene DELETE (desactivar); la guarda "no desactivar con stock" (CU-ALM-02) está documentada como pendiente de F3 en `warehouses.service.ts`.
+- `composition.service.ts#availability` suma todos los almacenes sin scope y `costEstimate` usa `cost/factor` con nota "F3 lo reemplaza": F3 aplica scope al primero y solo corrige la nota del segundo (→ F5).
+- `tenant-transactions.gate.ts#hasTransactions()` devuelve `false` con `TODO(F3-F4)`: F3 lo implementa (`stock_movements` > 0 bloquea cambio de currency).
+- `@CurrentUserScope()` (`UserScope { warehouseIds: string[] | "all" }`) existe sin consumidores; `products.service.ts#assertBaseUnitChangeable` ya cuenta stock > 0; `products.remove` no verifica movimientos.
+- Patrón RLS canónico (ENABLE + FORCE, `tenant_isolation` con NULLIF, `tenant_id` desnormalizado, 4 canarios por tabla — molde `f2-rls.integration.spec.ts` con `RLS_TABLES`); patrón permisos (migración data-only + `resolveRolePermissionCodes()` + test); orden TOTAL en listas; `ZodValidationPipe` con errores por ruta; guardián `message-keys.spec.ts` (toda clave emitida existe en es/en); e2e por módulo con `registerAndLogin()`; web con routeTree real + api mockeada.
+- Helpers a reusar: `lib/field-errors.ts#fieldErrorsOf`, `components/common/confirm-dialog.tsx`, `lib/products/money.ts` (`MONEY_STEP`, `moneyScaleError`) y `apps/api/.../products/money.ts#moneyAmount()`, `packages/shared/units.ts` (`unitName`, `convertUnits`), `products/spreadsheet.ts` (CSV/XLSX, base64) para la plantilla de conteo, `composition-graph.ts` para la expansión.
+
+**Clasificación SDD:** F3-CORE, F3-ENTRY, F3-EXIT, F3-TRANSFER, F3-COUNT, F3-KARDEX = **SDD COMPLETO** (feature de negocio sobre datos críticos, concurrencia y traspasos) · F3-DB, F3-GUARDS, F3-NAV = **SDD LIGERO** (modelado mecánico con patrón heredado, puntos de extensión ya documentados y wiring de UI) — matiza el "F3-* todos" de §1.1 con el mismo criterio que F2 aplicó a DB/UOM/WH.
+
+---
+
+### Módulo F3-DB — Modelos, Seguridad de Datos y Permisos
+
+> Patrón canónico heredado: PK `gen_random_uuid()`, `@@map` snake_case, `tenant_id` desnormalizado en TODA tabla, CHECK/índices/REVOKE a mano en la migración, RLS ENABLE + FORCE con `tenant_isolation`. Los CHECKs son la red; el guard de verdad vive en F3-CORE. Índices parciales, CHECKs, IDENTITY y REVOKE no viven en el schema Prisma: documentarlos en la migración y cubrirlos con el test de schema (mismo riesgo asumido en F2 con el UNIQUE parcial de barcode).
+
+- [ ] **F3-DB-01** — Enums + modelo `StockMovement` (append-only)
+  - **Salida:** enums Prisma `MovementDirection { entry, exit }` y `MovementReason { invoice, adjustment, transfer, customer_return, sale, sale_return, loss, consumption, expired, physical_count }`; modelo `StockMovement` → tabla `stock_movements`: id, **`seq BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE`** (desempate cronológico, en migración), tenant_id, batch_id UUID NOT NULL, product_id FK **RESTRICT**, warehouse_id FK **RESTRICT**, presentation_id UUID NULL FK **RESTRICT**, parent_product_id UUID NULL FK RESTRICT (compuesto que originó una salida expandida), direction, reason_code, reason_note TEXT NULL, reference VARCHAR(120) NULL, authorized_by UUID NULL FK users, linked_warehouse_id UUID NULL FK warehouses, transfer_id UUID NULL (FK se agrega en F3-DB-02), quantity DECIMAL(14,4), unit_cost DECIMAL(14,2) NULL, created_by UUID FK users, created_at timestamptz default now(); **sin `updated_at`**; CHECK `quantity > 0`; CHECK `unit_cost IS NULL OR unit_cost >= 0`; CHECK dirección×motivo (`entry` ∈ {invoice, adjustment, transfer, customer_return, sale_return, physical_count}; `exit` ∈ {adjustment, transfer, sale, loss, consumption, expired, physical_count}); CHECK `(reason_code = 'transfer') = (linked_warehouse_id IS NOT NULL)`; CHECK `linked_warehouse_id IS DISTINCT FROM warehouse_id`; índices `(tenant_id, product_id, created_at DESC, seq DESC)`, `(tenant_id, warehouse_id, created_at DESC)`, `(tenant_id, batch_id)`, `(presentation_id)`, `(transfer_id) WHERE transfer_id IS NOT NULL`
+  - **Verificar:** `inventory-schema.integration.spec.ts`: CHECK rechaza `quantity <= 0`, `entry`+`loss`, `transfer` sin `linked_warehouse_id`, `linked = warehouse`; FK RESTRICT impide borrar un producto o presentación con movimientos; `seq` es creciente entre dos inserts de la misma transacción; `prisma migrate` aplica limpia
+  - **Depende de:** —
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-DB-02** — Modelos `Transfer` y `TransferLine`
+  - **Salida:** enum `TransferStatus { in_transit, completed, canceled }`; `Transfer` → `transfers`: id, tenant_id, folio VARCHAR(20), origin_warehouse_id FK RESTRICT, destination_warehouse_id FK RESTRICT, status default in_transit, created_by/created_at, received_by/received_at NULL, canceled_by/canceled_at/cancel_reason NULL, discrepancy_note TEXT NULL, exit_batch_id UUID NOT NULL, entry_batch_id UUID NULL; `@@unique([tenantId, folio])`; CHECK `origin_warehouse_id <> destination_warehouse_id`; CHECK `(status = 'completed') = (received_at IS NOT NULL AND received_by IS NOT NULL)`; CHECK `(status = 'canceled') = (canceled_at IS NOT NULL AND cancel_reason IS NOT NULL)`; índices `(tenant_id, status, created_at DESC)`, parciales `(origin_warehouse_id) WHERE status = 'in_transit'` y `(destination_warehouse_id) WHERE status = 'in_transit'`. `TransferLine` → `transfer_lines`: id, tenant_id, transfer_id FK CASCADE (los transfers nunca se borran; cascade inocuo), product_id FK RESTRICT, quantity_sent DECIMAL(14,4) CHECK > 0, quantity_received DECIMAL(14,4) NULL CHECK `>= 0 AND <= quantity_sent`; `@@unique([transferId, productId])`; índice `(product_id)`. Migración agrega `FOREIGN KEY (transfer_id) REFERENCES transfers(id)` en `stock_movements`. **Sin `discrepancies JSONB`** (se deriva)
+  - **Verificar:** integración: folio repetido en el mismo tenant rechazado y permitido en otro; origen = destino rechazado; `quantity_received > quantity_sent` rechazado; `canceled` sin `cancel_reason` rechazado; `completed` sin `received_by` rechazado
+  - **Depende de:** F3-DB-01
+  - **Estimación:** 1 h
+
+- [ ] **F3-DB-03** — Tabla `tenant_sequences` + `nextFolio()`
+  - **Salida:** modelo `TenantSequence` → `tenant_sequences` (tenant_id, key VARCHAR(32), next_value BIGINT default 0; PK `(tenant_id, key)`); helper `nextFolio(tx, tenantId, key, prefix)` en `apps/api/src/modules/inventory/folio.ts` que ejecuta `INSERT … VALUES (tenant, key, 1) ON CONFLICT (tenant_id, key) DO UPDATE SET next_value = tenant_sequences.next_value + 1 RETURNING next_value` y formatea `${prefix}-${n.padStart(6,'0')}` (crece más allá de 6 dígitos sin romper; huecos por rollback aceptados y documentados); `TRANSFER_FOLIO_PREFIX = 'TRA'`; documentado como reusable por F4 (`VTA`)
+  - **Verificar:** integración: 20 llamadas concurrentes en transacciones separadas producen 20 folios distintos y consecutivos; dos tenants arrancan ambos en `TRA-000001`
+  - **Depende de:** —
+  - **Estimación:** 1 h
+
+- [ ] **F3-DB-04** — RLS + append-only en las 4 tablas nuevas
+  - **Salida:** migración SQL: ENABLE + **FORCE** ROW LEVEL SECURITY + policy `tenant_isolation` (NULLIF) en `stock_movements`, `transfers`, `transfer_lines`, `tenant_sequences`; `REVOKE UPDATE, DELETE ON stock_movements FROM sellpoint_app` (guardado con `IF EXISTS pg_roles`, patrón `units`; llega DESPUÉS del `ALTER DEFAULT PRIVILEGES` de F1, por eso hay que revocar explícito); `f3-rls.integration.spec.ts` con `RLS_TABLES = ['stock_movements','transfers','transfer_lines','tenant_sequences']` y los 4 canarios por tabla (propio ve / ajeno 0 / sin `set_config` 0 / WITH CHECK rechaza) + guardián estructural de FORCE
+  - **Verificar:** la suite de integración pasa; UPDATE y DELETE sobre `stock_movements` como `sellpoint_app` fallan con 42501; INSERT funciona; `tenant_sequences` sí admite UPDATE
+  - **Depende de:** F3-DB-01, F3-DB-02, F3-DB-03
+  - **Estimación:** 2 h
+
+- [ ] **F3-DB-05** — Migración data-only de permisos de F3
+  - **Salida:** INSERT `ON CONFLICT DO NOTHING` de `inventory:read`, `inventory:movement`, `inventory:manage` (módulo `inventory`) + asignación a roles base existentes (SQL espejo de `resolveRolePermissionCodes`: TenantAdmin los 3, Manager read+movement, Viewer read, POS_Seller ninguno); `inventory:manage` entra a `MANAGER_EXCLUDED_CODES` en `role-catalog.ts` con su test; docblock con el gotcha perm-epoch
+  - **Verificar:** `role-catalog.spec.ts` fija las 4 filas; e2e `permissions`: `GET /permissions` muestra los 3; Manager sin `inventory:manage`; Viewer con `inventory:read`
+  - **Depende de:** —
+  - **Estimación:** 1 h
+
+---
+
+### Módulo F3-CORE — El Ledger: Servicio de Aplicación de Movimientos
+
+> **El corazón de la fase.** Una sola transacción reusable — resolver líneas (presentación → base_unit, enteros, compuestos), bloquear en orden, validar, insertar movimientos, actualizar saldos, auditar — que consumen entradas, salidas, recepción, conteo y, en F4, la venta. Módulo `apps/api/src/modules/inventory/`. Es la primera concurrencia real y el primer `Prisma.Decimal` del proyecto: SDD COMPLETO, y F3-CORE-05 se prueba con transacciones concurrentes de verdad.
+
+- [ ] **F3-CORE-01** — Catálogo compartido de motivos y reglas en `packages/shared`
+  - **Salida:** `packages/shared/src/inventory.ts`: `MOVEMENT_DIRECTIONS`, `MOVEMENT_REASONS`, `REASONS_BY_DIRECTION` (la tabla de Convenciones), `DIRECT_ENTRY_REASONS` (`invoice|adjustment|customer_return`) y `DIRECT_EXIT_REASONS` (`adjustment|loss|consumption|expired|transfer`) para los formularios, `REASON_RULES[reason] = { requiresReference, requiresNote, requiresUnitCost, requiresLinkedWarehouse }`, `QUANTITY_DECIMALS = 4`, `hasValidQuantityScale()`, `TRANSFER_STALE_DAYS = 7`, `TRANSFER_STATUSES`; exportado desde `index.ts`
+  - **Verificar:** `inventory.test.ts` en shared (reglas y escala, incluye `1.00005` y `1e-7`); test de contrato en el API: todo valor de `MovementReason`/`MovementDirection`/`TransferStatus` de Prisma existe en shared y viceversa, y el CHECK dirección×motivo de la migración coincide con `REASONS_BY_DIRECTION` (patrón F2-UOM-01)
+  - **Depende de:** F3-DB-01, F3-DB-02
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-CORE-02** — Módulo `inventory` + DTOs Zod + namespace i18n
+  - **Salida:** `InventoryModule` registrado en `app.module.ts` (importa Prisma, Audit); `dto/movement-line.dto.ts` (`quantityAmount()`: positivo, ≤ `QUANTITY_DECIMALS`, ≤ 9 999 999 999.9999; `unitCost` con `moneyAmount()`; `productId`/`presentationId` uuid); `dto/create-entry.dto.ts` y `dto/create-exit.dto.ts` con `superRefine` que aplica `REASON_RULES` (errores por ruta: `reference`, `reasonNote`, `linkedWarehouseId`, `lines.N.unitCost`), `lines` no vacío (máx. 500); `apps/api/src/i18n/{es,en}/inventory.json` con TODAS las claves de la fase; controller vacío con `@ApiTags('inventory')`
+  - **Verificar:** unit de los schemas: `invoice` sin `unitCost` en la línea 1 → error en `lines.1.unitCost`; `consumption` sin `reference` → error en `reference`; `message-keys.spec.ts` verde con el namespace nuevo
+  - **Depende de:** F3-CORE-01, F3-DB-05
+  - **Estimación:** 2 h
+
+- [ ] **F3-CORE-03** — Alcance por almacén: helper único + `GET /warehouses?scoped=true`
+  - **Salida:** `apps/api/src/modules/inventory/warehouse-scope.helpers.ts`: `assertWarehouseInScope(scope, warehouseId)` → 403 `inventory.warehouse_out_of_scope`; `warehouseScopeWhere(scope)` → `{}` con `"all"` o `{ id: { in } }`; `assertActiveWarehouse(tx, tenantId, id)` → 404 `warehouses.not_found` / 422 `inventory.warehouse_inactive`; `WarehousesController.list` acepta `?scoped=true` (activos ∩ `@CurrentUserScope()`) — **primer consumidor real del decorator**
+  - **Verificar:** unit del helper (3 estados del scope); e2e `warehouse-scope-security`: Manager con scope [A] pide `?scoped=true` y recibe solo A; sin flag recibe todos (comportamiento F2 intacto)
+  - **Depende de:** —
+  - **Estimación:** 2 h
+
+- [ ] **F3-CORE-04** — Resolución de líneas (`resolveLines`)
+  - **Salida:** función `resolveLines(tx, tenantId, lines, { direction, reasonCode })` en `line-resolver.ts`: carga productos y presentaciones del tenant en 1 query cada uno; producto inexistente → 404 `inventory.product_not_found`; inactivo → 422 `inventory.product_inactive`; presentación ajena al producto o inactiva → 422 `inventory.presentation_invalid`; **`quantity × factor` → base_unit** (`Prisma.Decimal`, sin float); `allow_fractional_input=false` con decimales → 422 `inventory.integer_only_presentation` `{ presentationName, lineIndex }`; compuesto → 409 `inventory.composite_has_no_stock` salvo `direction='exit'` con `consumption|expired` (los devuelve marcados `expand: true` para F3-CORE-06); devuelve `ResolvedLine { productId, presentationId, quantityBase, quantityInput, unitCost, expand }`
+  - **Verificar:** `line-resolver.spec.ts` (mock de tx): matriz presentación×decimal×dirección×motivo RED→GREEN; 2 líneas del mismo producto con presentaciones distintas convierten independientes; `0.1 + 0.2` en Decimal no produce `0.30000000000000004`
+  - **Depende de:** F3-CORE-02
+  - **Estimación:** 3 h
+
+- [ ] **F3-CORE-05** — `StockLedgerService.apply()` — la transacción atómica
+  - **Salida:** `stock-ledger.service.ts#apply(tx, { tenantId, userId, direction, reasonCode, warehouseId, lines: ResolvedLine[], header: { reasonNote, reference, authorizedBy, linkedWarehouseId, transferId, batchId? } })`: (1) agrupa por `(productId, warehouseId)` sumando `quantityBase`; (2) `INSERT INTO stock_by_warehouse … ON CONFLICT DO NOTHING` para las filas faltantes (una sentencia con `unnest`); (3) `SELECT … FOR UPDATE` en UNA query `WHERE (product_id, warehouse_id) IN (…) ORDER BY product_id, warehouse_id` (`$queryRaw` tipado; NUMERIC llega como string → `new Prisma.Decimal`); (4) en `exit`, disponible ≥ solicitado agrupado → si no, 422 `inventory.insufficient_stock` `{ productId, sku, available, requested }` (la primera que falle, con `lineIndex`); (5) `createMany` de `stock_movements` con `batch_id` común (uno por línea original, no por grupo); (6) `UPDATE stock_by_warehouse SET quantity = quantity ± Δ`; devuelve `{ batchId, movements[], stock: [{ productId, warehouseId, quantity }] }`. `apply` **nunca abre transacción**: recibe la `tx` del llamador (mismo contrato que `AuditService.record`)
+  - **Verificar:** `stock-ledger.integration.spec.ts` (Postgres real): dos salidas concurrentes de 60 sobre stock 100 → una 201 y otra 422, saldo 40; dos transacciones con órdenes cruzados (A,B) y (B,A) terminan sin deadlock; primer movimiento sobre producto sin fila crea la fila; entrada + salida en la misma tx dejan `stock_movements` = líneas y saldo correcto; **test de reconciliación**: tras N movimientos aleatorios (entradas, salidas, traspasos) `stock_by_warehouse.quantity == Σentries − Σexits` por (product, warehouse) — es LA propiedad central de la fase
+  - **Depende de:** F3-CORE-04, F3-DB-04
+  - **Estimación:** 4 h
+
+- [ ] **F3-CORE-06** — Expansión de compuestos para salida (`expandComposition`)
+  - **Salida:** `composition-expander.ts#expand(tx, tenantId, lines)`: para cada línea `expand: true` carga el grafo de composición del tenant (reusa `composition-graph.ts`), recorre en recursión (anidados) y produce líneas de componente con `quantityBase = qty × cantidad_i × (1 + waste_i/100)`, agregadas por componente, cada una con `parentProductId` = compuesto raíz y `presentationId = null`; compuesto sin composición → 409 `inventory.composite_without_composition`
+  - **Verificar:** `composition-expander.spec.ts`: compuesto anidado (A → B → C) descuenta C con el producto de cantidades y mermas; el resultado coincide con lo que `availability` habría permitido; ciclo residual en datos → corta sin colgar
+  - **Depende de:** F3-CORE-04
+  - **Estimación:** 2 h
+
+- [ ] **F3-CORE-07** — Audit por lote de movimientos
+  - **Salida:** `movement-audit.ts#recordMovementAudit(tx, auditService, { user, action, batchId, warehouseId, reasonCode, lines: [{ productId, quantity, balanceAfter, parentProductId? }], extra? })` con `resourceType: 'stock_movement_batch'`, `resourceId: batchId`; acciones canónicas `inventory.entry`, `inventory.exit`, `inventory.transfer_dispatch`, `inventory.transfer_receive`, `inventory.transfer_cancel`, `inventory.physical_count_approve`
+  - **Verificar:** unit: el `after` incluye saldo posterior por línea; se llama DENTRO de la tx (mock verifica el mismo `tx`)
+  - **Depende de:** F3-CORE-05
+  - **Estimación:** 45 min
+
+---
+
+### Módulo F3-ENTRY — Entrada Directa (API + UI)
+
+- [ ] **F3-ENTRY-01** — `POST /inventory/entries`
+  - **Salida:** `InventoryController` (`inventory:movement`): body `{ warehouseId, reasonCode, reasonNote?, reference?, authorizedBy?, transferId?, lines: [{ productId, presentationId?, quantity, unitCost? }] }`; motivos aceptados: `DIRECT_ENTRY_REASONS` + `transfer` (solo con `transferId`, delega en F3-TRANSFER-03); `sale_return`/`physical_count` → 422 `inventory.reason_not_allowed`; scope (403) + almacén activo (422); `authorizedBy` debe ser usuario del tenant (422 `inventory.authorizer_invalid`); `withTenantContext` → `resolveLines` → `ledger.apply` → `recordMovementAudit('inventory.entry')`; 201 `{ batchId, movements: [{ id, productId, quantityBase, presentationId }], stock: [...] }`
+  - **Verificar:** `inventory-entries.e2e-spec.ts`: entrada `invoice` con presentación ×12 y 3 cajas → saldo 36 y `unit_cost` guardado; `invoice` sin `unitCost` → 400 en `lines.0.unitCost`; presentación solo-enteros con `1.5` → 422 nombrando la presentación; compuesto → 409; Manager fuera de scope → 403; Viewer → 403 por permiso; cross-tenant 404
+  - **Depende de:** F3-CORE-03, F3-CORE-05, F3-CORE-07
+  - **Estimación:** 3 h
+
+- [ ] **F3-ENTRY-02** — UI `/movements/entries/new`: cabecera reactiva
+  - **Salida:** ruta con `PermissionGate need="inventory:movement"`; `components/inventory/movement-header.tsx` reusable (`mode: 'entry' | 'exit'`): `WarehouseSelect` scoped, selector de motivo desde `DIRECT_ENTRY_REASONS` (labels i18n neutros), campos que aparecen/desaparecen según `REASON_RULES` (referencia, nota, autoriza — select de usuarios vía `GET /users`), sin campo Fecha; `lib/inventory/schemas.ts` (Zod compartido con las mismas reglas) + react-hook-form
+  - **Verificar:** `routes/movements-entries.test.tsx` (routeTree real): elegir `invoice` muestra Referencia y oculta Autoriza; elegir `adjustment` exige Nota; sin permiso → panel del gate
+  - **Depende de:** F3-ENTRY-01, F3-NAV-01, F3-NAV-02
+  - **Estimación:** 3 h
+
+- [ ] **F3-ENTRY-03** — UI tabla de líneas + selector de presentación + UX teclado
+  - **Salida:** `components/inventory/movement-lines-table.tsx` (reusable por salida): buscador con autocompletado server-side (`GET /products?query`, patrón del picker de BOM) que agrega fila con foco en Cantidad; por línea: SKU, nombre, **selector de presentación** (comprables activas; preselecciona la comprable por defecto o la base), cantidad (`step` 1 o `0.0001` según `allow_fractional_input`, error en vivo de escala), equivalencia en base_unit ("3 Caja = 36 unidad" con `unitName`), columna Costo unitario (`MONEY_STEP`) solo con `invoice` + total calculado, quitar; **teclado**: Enter en cantidad → vuelve al buscador, Esc en el buscador → limpia, `Ctrl/⌘+Enter` → confirmar; producto ya presente en la tabla → suma foco a esa fila en vez de duplicar (misma presentación) o agrega fila nueva (otra presentación)
+  - **Verificar:** test del componente: agregar producto con 2 presentaciones muestra el selector con la default marcada; cambiar presentación recalcula la equivalencia; presentación solo-enteros con `1.5` marca error antes de enviar; secuencia de teclado devuelve el foco al buscador
+  - **Depende de:** F3-ENTRY-02
+  - **Estimación:** 3 h
+
+- [ ] **F3-ENTRY-04** — Confirmar entrada + errores por ruta + resumen
+  - **Salida:** submit → `POST /inventory/entries` (`lib/inventory/api.ts#createEntry`), estado de envío, éxito → panel de resumen (líneas con saldo nuevo por producto) + "Nueva entrada" (limpia y enfoca el almacén); errores del API mapeados con `fieldErrorsOf` a la fila (`lines.N.quantity` / `lines.N.unitCost`), 409 compuesto y 422 solo-enteros con el nombre de la presentación bajo la fila; 403 de scope como mensaje de cabecera; `ConfirmDialog` si se abandona con líneas cargadas
+  - **Verificar:** test web: el body enviado tiene `quantity` en unidades de la presentación (la conversión es del server); 422 con `lineIndex` pinta la fila correcta; tras éxito el form queda vacío
+  - **Depende de:** F3-ENTRY-03
+  - **Estimación:** 2 h
+
+---
+
+### Módulo F3-EXIT — Salida Directa (API + UI)
+
+- [ ] **F3-EXIT-01** — `POST /inventory/exits` (incluye despacho de traspaso)
+  - **Salida:** (`inventory:movement`) body `{ warehouseId, reasonCode, reasonNote?, reference?, authorizedBy?, linkedWarehouseId?, lines[] }`; motivos `DIRECT_EXIT_REASONS`; `sale`/`physical_count` → 422 `inventory.reason_not_allowed`; scope + almacén activo; compuestos: `consumption|expired` → `expandComposition` y salidas de componentes en la misma tx, otros motivos → 409; **`transfer`**: `linkedWarehouseId` obligatorio, activo, del tenant, ≠ origen (422 `inventory.transfer_same_warehouse`), **sin exigir scope sobre el destino**; en la tx: `nextFolio('TRA')`, `Transfer { status: in_transit, exitBatchId }` + `TransferLine` (agrupadas por producto en base_unit, `quantity_sent`), movimientos con `transfer_id` y `linked_warehouse_id`; audit `inventory.exit` o `inventory.transfer_dispatch`; 201 `{ batchId, movements, stock, transfer?: { id, folio } }`
+  - **Verificar:** `inventory-exits.e2e-spec.ts`: salida > stock → 422 `{ sku, available, requested }` y saldo intacto; `consumption` de compuesto descuenta componentes con `parent_product_id` y saldo del compuesto no existe; `loss` de compuesto → 409; `transfer` crea `Transfer` `in_transit` con folio `TRA-000001`, baja el origen y NO toca el destino; segundo traspaso del tenant → `TRA-000002`; `transfer` a sí mismo → 422; Manager con scope [A] despacha de A hacia B (fuera de su scope) → 201
+  - **Depende de:** F3-CORE-03, F3-CORE-05, F3-CORE-06, F3-CORE-07, F3-DB-03
+  - **Estimación:** 3 h
+
+- [ ] **F3-EXIT-02** — UI `/movements/exits/new`: cabecera reactiva
+  - **Salida:** ruta con gate `inventory:movement`; reusa `movement-header.tsx` en `mode='exit'` con `DIRECT_EXIT_REASONS`; `transfer` muestra **Almacén destino** (`WarehouseSelect` de todos los activos menos el origen, no scoped) + leyenda "queda EN TRÁNSITO hasta que el destino confirme"; `consumption` muestra Área/Concepto (`reference`); `adjustment|loss|expired` muestran Autoriza + Nota
+  - **Verificar:** test web: elegir `transfer` muestra el destino y excluye el origen elegido; cambiar origen re-filtra el destino; sin permiso → gate
+  - **Depende de:** F3-EXIT-01, F3-ENTRY-02
+  - **Estimación:** 2.5 h
+
+- [ ] **F3-EXIT-03** — UI líneas con disponible en vivo
+  - **Salida:** `movement-lines-table.tsx` en `mode='exit'`: al agregar un producto consulta `GET /products/:id/stock` y muestra **Disponible** en el almacén elegido (en base_unit y en la presentación elegida: "120 unidad = 10 Caja"); cantidad que excede el disponible (sumando líneas del mismo producto) → error en vivo y confirmar deshabilitado; cambiar el almacén origen refresca disponibles; compuesto → fila con leyenda "se descontarán sus componentes" + unidades armables (`GET /products/:id/availability`) como techo
+  - **Verificar:** test del componente: disponible 10, cantidad 11 → error y botón deshabilitado; dos filas del mismo producto 6 + 5 → error; compuesto muestra el techo por unidades armables
+  - **Depende de:** F3-EXIT-02, F3-ENTRY-03, F3-KARDEX-03
+  - **Estimación:** 3 h
+
+- [ ] **F3-EXIT-04** — Confirmar salida + folio del traspaso
+  - **Salida:** submit → `POST /inventory/exits`; éxito con `transfer` → panel con el **folio** y link a `/movements/transfers` (tab Pendientes de enviar); éxito sin traspaso → resumen con saldos; 422 `insufficient_stock` (carrera con otro usuario) mapeado a la fila con el disponible real; resto de errores por ruta como en entrada
+  - **Verificar:** test web: respuesta con `transfer.folio` muestra el folio; 422 de stock actualiza el disponible de la fila y no vacía el form
+  - **Depende de:** F3-EXIT-03
+  - **Estimación:** 1.5 h
+
+---
+
+### Módulo F3-TRANSFER — Ciclo de Vida del Traspaso
+
+> El traspaso nace en F3-EXIT-01 (despacho). Acá vive el resto: listar según scope, ver detalle, **confirmar recepción** (una entrada `transfer` vinculada), cancelar. Recibido > enviado bloqueado; el cancelado no devuelve stock.
+
+- [ ] **F3-TRANSFER-01** — `GET /transfers`
+  - **Salida:** `TransfersController` (`inventory:read`) en el módulo inventory: filtros `status` (default `in_transit`), `direction=incoming|outgoing` (incoming = destino ∈ scope; outgoing = origen ∈ scope; sin filtro = cualquiera de los dos; con scope `"all"` ambos tabs ven todo), `originWarehouseId`, `destinationWarehouseId`, `from`, `to`, `olderThanDays`; `page/pageSize`; orden `created_at desc, id desc`; fila `{ id, folio, status, origin: {id,name}, destination: {id,name}, createdAt, createdBy: {id,name}, lineCount, daysInTransit, isStale (> TRANSFER_STALE_DAYS) }`; `meta { incomingCount, outgoingCount }` para los contadores de las tabs
+  - **Verificar:** `transfers.e2e-spec.ts`: Manager con scope [B] ve el traspaso A→B como incoming y no como outgoing; `olderThanDays=7` filtra; paginación estable con dos filas del mismo instante
+  - **Depende de:** F3-EXIT-01, F3-CORE-03
+  - **Estimación:** 2.5 h
+
+- [ ] **F3-TRANSFER-02** — `GET /transfers/:id`
+  - **Salida:** (`inventory:read`) cabecera completa (origen, destino, estado, created/received/canceled by+at con nombres, `cancelReason`, `discrepancyNote`) + `lines: [{ productId, sku, name, baseUnit, quantitySent, quantityReceived, difference }]` (difference derivada, null hasta confirmar); visible si origen **o** destino ∈ scope, si no 404
+  - **Verificar:** e2e: usuario del destino lo ve; usuario con scope ajeno a ambos → 404; `difference` = sent − received tras confirmar
+  - **Depende de:** F3-TRANSFER-01
+  - **Estimación:** 1 h
+
+- [ ] **F3-TRANSFER-03** — Recepción: `POST /inventory/entries` con `reasonCode='transfer'` + `transferId`
+  - **Salida:** rama en `InventoryService.createEntry` → `TransfersService.receive(tx, …)`: `transferId` obligatorio (sin él → 422 `inventory.transfer_entry_requires_transfer`); transfer del tenant y `in_transit` — se toma **primero** con `UPDATE … WHERE status='in_transit'` y `rowCount = 1` como lock lógico (409 `inventory.transfer_not_in_transit` si 0); `warehouseId` = destino (422 `inventory.transfer_wrong_destination`) y ∈ scope; `linkedWarehouseId` se completa server-side con el origen; líneas **sin presentación** (422), en base_unit, **todas** las del traspaso y ninguna ajena (422 `inventory.transfer_lines_incomplete` / `inventory.transfer_line_unknown`); `0 ≤ received ≤ sent` (422 `inventory.received_exceeds_sent` `{ productId, sent, received }`); alguna < → `reasonNote` obligatoria (400 en `reasonNote`) → `discrepancy_note`; en la tx: `ledger.apply` solo con líneas > 0, `quantity_received` por línea, `status='completed'`, `received_by/at`, `entry_batch_id`; audit `inventory.transfer_receive` con `{ folio, lines: [{ productId, sent, received, difference }], discrepancyNote }`; 201 con `transfer: { id, folio, status }`. La diferencia sent−received simplemente **no entra** al destino (ya salió del origen): no se crea un `loss` automático
+  - **Verificar:** e2e: recepción exacta → destino sube, `completed`; con faltante y nota → `discrepancy_note` guardada, audit con la diferencia; faltante sin nota → 400; recibido > enviado → 422 y nada cambia; dos recepciones concurrentes → una 201 y otra 409; línea con presentación → 422
+  - **Depende de:** F3-ENTRY-01, F3-EXIT-01
+  - **Estimación:** 3 h
+
+- [ ] **F3-TRANSFER-04** — `POST /transfers/:id/cancel`
+  - **Salida:** (`inventory:manage`) body `{ reason }` obligatoria (min 5); solo `in_transit` (409 `inventory.transfer_not_in_transit`); `status='canceled'`, `canceled_by/at`, `cancel_reason`; **el stock NO vuelve al origen** (docblock explica el porqué: la salida ya ocurrió y es historia; el reingreso es un `adjustment` explícito y auditado); audit `inventory.transfer_cancel`
+  - **Verificar:** e2e: TenantAdmin cancela → `canceled` y saldo del origen intacto; Manager → 403; sin `reason` → 400; cancelar uno `completed` → 409
+  - **Depende de:** F3-EXIT-01, F3-DB-05
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-TRANSFER-05** — UI `/movements/transfers`: dos tabs + filtros
+  - **Salida:** ruta con gate `inventory:read`; tabs "Pendientes de recibir (n)" / "Pendientes de enviar (n)" con contadores de `meta`; filtros origen/destino (`WarehouseSelect` no scoped), antigüedad (todos / > 7 días), rango de fechas; tabla folio, fecha, origen, destino, líneas, días con **badge** naranja `isStale`; paginación server-side; estado vacío por tab; `lib/inventory/transfers-api.ts` + hooks
+  - **Verificar:** `routes/movements-transfers.test.tsx`: cambiar de tab cambia `direction` en el request; fila con `isStale` muestra el badge (por dato, no por copy); sin permiso → gate
+  - **Depende de:** F3-TRANSFER-01, F3-NAV-02
+  - **Estimación:** 3 h
+
+- [ ] **F3-TRANSFER-06** — UI modal de recepción
+  - **Salida:** click en fila incoming (`inventory:movement`) → modal con `GET /transfers/:id`: cabecera (origen → destino, enviado por, fecha), tabla enviado / **recibido** (input pre-cargado = enviado) / diferencia; recibido > enviado → error inline + leyenda "registralo como Entrada Directa con motivo Ajuste" y confirmar deshabilitado; alguna diferencia → campo Nota obligatorio; confirmar → `POST /inventory/entries { reasonCode: 'transfer', transferId, warehouseId: destino, lines }`; éxito → cierra, invalida ambas tabs; 409 (ya cerrado por otro) → mensaje y refresco
+  - **Verificar:** test web: recibido 31 sobre 30 bloquea; 29 exige nota; el body enviado incluye todas las líneas sin `presentationId`
+  - **Depende de:** F3-TRANSFER-02, F3-TRANSFER-03, F3-TRANSFER-05
+  - **Estimación:** 3 h
+
+- [ ] **F3-TRANSFER-07** — UI cancelar traspaso
+  - **Salida:** acción "Cancelar traspaso" visible solo con `inventory:manage`, `ConfirmDialog` con textarea de justificación obligatoria y leyenda "el stock NO vuelve al origen; si reaparece, registralo como Entrada Directa con motivo Ajuste"; → `POST /transfers/:id/cancel`; refresco de tabs
+  - **Verificar:** test web: sin `inventory:manage` no hay acción; con justificación vacía el botón queda deshabilitado; el request lleva `reason`
+  - **Depende de:** F3-TRANSFER-04, F3-TRANSFER-05
+  - **Estimación:** 1.5 h
+
+---
+
+### Módulo F3-COUNT — Inventario Físico (plantilla, reconciliación, aprobación)
+
+> Tres pasos stateless: plantilla del almacén (SKU + teórico) → subir contado → reconciliar (puro) → aprobar (tx con `FOR UPDATE`, sin bloqueo previo del almacén). Solo `inventory:manage` aprueba. Sin lote/caducidad/ubicación (LEY).
+
+- [ ] **F3-COUNT-01** — `GET /inventory/counts/template?warehouseId&format=xlsx|csv`
+  - **Salida:** (`inventory:movement`) scope + almacén activo; filas = productos **activos y no compuestos** del tenant, columnas `sku, name, unit, theoretical, counted` (`counted` vacío; `theoretical` = `stock_by_warehouse` o 0), orden por sku; reusa `spreadsheet.ts` (`serializeSpreadsheet`), xlsx en base64 como F2-IMPORT-05; `count-template.service.ts`
+  - **Verificar:** `inventory-counts.e2e-spec.ts`: la plantilla trae el SKU con su teórico real tras una entrada; excluye compuestos; csv y xlsx round-trip por `parseSpreadsheet`
+  - **Depende de:** F3-CORE-02, F3-CORE-03
+  - **Estimación:** 2 h
+
+- [ ] **F3-COUNT-02** — `POST /inventory/counts/reconcile` (dry-run puro)
+  - **Salida:** (`inventory:movement`) body `{ warehouseId, file (base64), format }`; > 5 MB → 413 `inventory.count_file_too_large`; archivo ilegible → 400; por fila: `sku` existe, activo, no compuesto; `counted` numérico ≥ 0 con ≤ 4 decimales, **entero si la presentación base (factor 1) es solo-enteros**; sku duplicado en el archivo → error de fila; `counted` vacío → fila `skipped`; **no escribe nada**; responde `{ rows: [{ productId, sku, name, unit, theoretical, counted, difference }], summary: { counted, matches, discrepancies, skipped }, errors: [{ row, field, message }] }` (teórico leído en ese momento)
+  - **Verificar:** e2e: archivo mixto (2 iguales, 1 sobrante, 1 faltante, 1 vacío, 1 sku inexistente, 1 decimal en solo-enteros) → summary y errores esperados; ningún `stock_movement` creado
+  - **Depende de:** F3-COUNT-01, F3-CORE-04
+  - **Estimación:** 3 h
+
+- [ ] **F3-COUNT-03** — `POST /inventory/counts/approve` (transacción)
+  - **Salida:** (`inventory:manage`) body `{ warehouseId, lines: [{ productId, counted, theoreticalSeen }] }` (el resultado reconciliado, NO el archivo); scope; en UNA tx: `FOR UPDATE` ordenado sobre todas las filas, relee el teórico **fresco**; por línea con `counted ≠ theoreticalNow`: **salida `physical_count` del teórico total** (si > 0) + **entrada `physical_count` del contado** (si > 0), mismo `batch_id`; iguales → sin movimiento (el CHECK `quantity > 0` lo exige); audit `inventory.physical_count_approve` con `summary` y por línea `{ productId, theoreticalSeen, theoreticalAtApproval, counted, drifted: seen ≠ now }`; 201 `{ batchId, applied, unchanged, drifted }`
+  - **Verificar:** e2e: teórico 120 / contado 115 → dos movimientos (−120, +115), saldo 115; línea igual → 0 movimientos; entrada de +10 entre reconcile y approve → `drifted: true` en audit y saldo final = contado; Manager → 403
+  - **Depende de:** F3-COUNT-02, F3-CORE-05, F3-CORE-07
+  - **Estimación:** 3 h
+
+- [ ] **F3-COUNT-04** — UI `/movements/inventory-count` paso 1
+  - **Salida:** ruta con gate `inventory:movement`; `WarehouseSelect` scoped; botones "Descargar plantilla .xlsx / .csv"; control de archivo como botón (input `sr-only` + label, patrón F2-IMPORT-05); "Procesar" → `reconcile`; errores por fila en tabla con descarga csv; sin checkbox de bloqueo (decisión) y leyenda "el conteo se aplica sobre el saldo del momento de aprobar"
+  - **Verificar:** test web: la plantilla se pide con el `warehouseId` elegido; el archivo viaja en base64; errores de fila se listan por `row`
+  - **Depende de:** F3-COUNT-02, F3-NAV-01, F3-NAV-02
+  - **Estimación:** 2.5 h
+
+- [ ] **F3-COUNT-05** — UI paso 2: reconciliación y aprobación
+  - **Salida:** resumen (contados / coincidencias / discrepancias / omitidos), tabla SKU / teórico / contado / diferencia con filtro "solo discrepancias", descarga del reporte (csv client-side), leyenda de lo que se generará; botón **Aprobar** con gate `inventory:manage` (sin él: aviso "un TenantAdmin debe aprobar este conteo") → `ConfirmDialog` → `approve` con las líneas contadas; resultado con `drifted` destacado; "Nuevo conteo"
+  - **Verificar:** test web: sin `inventory:manage` el botón no existe y el aviso sí; el body de approve lleva `theoreticalSeen`; resultado con `drifted > 0` muestra la advertencia
+  - **Depende de:** F3-COUNT-03, F3-COUNT-04
+  - **Estimación:** 3 h
+
+---
+
+### Módulo F3-KARDEX — Kardex y Consultas de Stock
+
+- [ ] **F3-KARDEX-01** — `GET /products/:id/kardex`
+  - **Salida:** `KardexController` (`inventory:read`, en el módulo inventory): filtros `warehouseId` (∈ scope, si no 403), `from`, `to`, `direction`, `reasonCode`; `page/pageSize`; orden `created_at desc, seq desc`; **`balanceAfter`** con window function `SUM(CASE direction WHEN 'entry' THEN quantity ELSE -quantity END) OVER (PARTITION BY warehouse_id ORDER BY created_at, seq)` calculada en una CTE sobre TODO el histórico del producto en los almacenes del scope, y recién después filtros + paginación (`$queryRaw` tipado); fila `{ id, batchId, createdAt, direction, reasonCode, quantity, presentation: { id, name, factor, quantityInPresentation } | null, unitCost, warehouse: {id,name}, linkedWarehouse | null, transfer: { id, folio } | null, parentProduct: { id, sku, name } | null, reference, reasonNote, createdBy: {id,name}, balanceAfter }`
+  - **Verificar:** `kardex.e2e-spec.ts`: secuencia +50, −10, +5 en A y +7 en B → `balanceAfter` 50/40/45 en A y 7 en B; **una entrada de 3 líneas en la misma tx muestra saldos intermedios correctos y en orden estable** (es lo que `seq` garantiza); filtrar `reasonCode` no altera los saldos; Manager con scope [A] no ve filas de B y `warehouseId=B` → 403
+  - **Depende de:** F3-CORE-03, F3-CORE-05
+  - **Estimación:** 3.5 h
+
+- [ ] **F3-KARDEX-02** — UI tab Kardex en el detalle de producto
+  - **Salida:** tab "Kardex" en `catalog.products.tsx` (visible con `inventory:read`) → `components/inventory/kardex-tab.tsx`: filtros (almacén scoped, fechas, dirección, motivo), tabla fecha / tipo (badge por dirección + motivo i18n) / cantidad con signo y presentación / almacén / referencia-folio (link a traspasos) / usuario / **saldo en almacén**; paginación server-side; compuestos muestran aviso "los compuestos no tienen kardex propio: mirá sus componentes"
+  - **Verificar:** `routes/catalog-products.test.tsx` extendido: la tab existe con `inventory:read` y no sin él; cambiar filtro dispara request con `reasonCode`; el saldo se pinta desde `balanceAfter`
+  - **Depende de:** F3-KARDEX-01, F3-NAV-02
+  - **Estimación:** 3 h
+
+- [ ] **F3-KARDEX-03** — `GET /products/:id/stock`
+  - **Salida:** (`inventory:read`) filas por almacén **activo ∈ scope** `{ warehouseId, name, quantity, updatedAt }` (0 y `updatedAt: null` si no hay fila), `total`, `stockMin`, `belowMin`; `?warehouseId=` devuelve solo ese (lo usa la salida en vivo); compuesto → `{ isComposite: true, rows: [], availability: { units, limitingComponent } }` (reusa `availability`)
+  - **Verificar:** e2e: tras entradas en A y B, Manager con scope [A] recibe solo A y `total` = A; producto sin filas → filas en 0; compuesto responde availability
+  - **Depende de:** F3-CORE-03, F3-DB-02
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-KARDEX-04** — `GET /inventory/in-transit`
+  - **Salida:** (`inventory:read`) agregado por producto de `transfer_lines` de traspasos `in_transit` con **origen ∈ scope** (stock que salió y no fue confirmado): `{ productId, sku, name, baseUnit, quantity, transfers }`; filtros `productId`, `originWarehouseId`; paginado por sku; también expuesto como `inTransit` en la respuesta de F3-KARDEX-03 (por producto)
+  - **Verificar:** e2e: traspaso de 10 → `quantity: 10`; tras confirmar 9 → desaparece del listado (no hay parciales); cancelado → desaparece
+  - **Depende de:** F3-EXIT-01, F3-KARDEX-03
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-KARDEX-05** — UI tab "Stock por almacén"
+  - **Salida:** tab en el detalle de producto (`inventory:read`) → `components/inventory/stock-tab.tsx`: tabla almacén / cantidad (con `unitName`) / actualizado, fila **Total** con badge "bajo mínimo" si `belowMin`, fila **En tránsito** desde `inTransit`; compuesto → panel de unidades armables + componente limitante (reusa el resumen de BOM); links "Registrar entrada / salida" hacia los forms con el producto preseleccionado (query param) si tiene `inventory:movement`
+  - **Verificar:** test web: `belowMin: true` muestra el badge; compuesto renderiza availability y no la tabla; sin `inventory:movement` no hay links
+  - **Depende de:** F3-KARDEX-03, F3-KARDEX-04, F3-NAV-02
+  - **Estimación:** 2 h
+
+---
+
+### Módulo F3-GUARDS — Puntos de Extensión Heredados de F2
+
+> F2 dejó cinco lugares documentados "F3 lo completa". Se cierran acá, cada uno con su e2e, más una limpieza de vocabulario que exige la LEY. Criterio: **si el API tiene una guarda, la UI la muestra antes del clic** (disabled + title), no deja chocar con el 409.
+
+- [ ] **F3-GUARDS-01** — `presentations.service#assertDeletable`: presentación en uso
+  - **Salida:** el cuerpo vacío pasa a `tx.stockMovement.count({ where: { presentationId } }) > 0` → 409 `products.presentation_in_use` (claves i18n es/en); la UI de presentaciones (F2-PRESENT-04) mapea el 409 a "tiene movimientos: desactivala"; el FK RESTRICT de F3-DB-01 queda como red
+  - **Verificar:** e2e `products`: entrada con la presentación → `DELETE` 409; desactivar sigue funcionando; sin movimientos borra
+  - **Depende de:** F3-DB-01
+  - **Estimación:** 1 h
+
+- [ ] **F3-GUARDS-02** — `products.remove` y `assertBaseUnitChangeable` con movimientos
+  - **Salida:** `remove` → 409 `products.has_movements` si existen `stock_movements` con `product_id` **o** `parent_product_id` = id, o `transfer_lines`; `assertBaseUnitChangeable` suma 409 `products.base_unit_locked_by_movements` (con historia, la unidad no cambia aunque el saldo sea 0); UI mapea ambos (base_unit deshabilitada con motivo; borrar ofrece desactivar); el comentario "su receta" de `products.service.ts:328` pasa a "su composición" (LEY)
+  - **Verificar:** e2e: producto con una salida → `DELETE` 409 y `PATCH baseUnit` 409; `rg -n "receta" apps/api/src` sin resultados
+  - **Depende de:** F3-DB-01
+  - **Estimación:** 1 h
+
+- [ ] **F3-GUARDS-03** — Almacén: no desactivar con stock ni traspasos abiertos (CU-ALM-02)
+  - **Salida:** `warehouses.update` con `isActive: false` → 409 `warehouses.has_stock` si `Σ stock_by_warehouse.quantity > 0` en el almacén (con el total en el payload) o 409 `warehouses.has_transfers_in_transit` si es origen/destino de un `Transfer in_transit`; docblock de F2 actualizado; UI de almacenes mapea ambos y deshabilita el toggle con `title` cuando aplica
+  - **Verificar:** e2e `warehouses`: con saldo → 409; tras salida a 0 → desactiva; con traspaso pendiente → 409
+  - **Depende de:** F3-DB-02
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-GUARDS-04** — `TenantTransactionsGate.hasTransactions()` real
+  - **Salida:** `withTenantContext` → `stockMovement.count() > 0`; el `TODO(F3-F4)` pasa a `TODO(F4): sumar sales`; test unit del gate actualizado
+  - **Verificar:** e2e `tenants-me`: tenant recién creado cambia currency; tras una entrada → 409 (guard existente)
+  - **Depende de:** F3-DB-01
+  - **Estimación:** 1 h
+
+- [ ] **F3-GUARDS-05** — `availability` respeta el scope + nota de `costEstimate`
+  - **Salida:** `CompositionService.availability(user, productId, scope)` suma stock solo de `warehouseScopeWhere(scope)`; el controller pasa `@CurrentUserScope()`; `costEstimate` mantiene `cost/factor` y su docblock dice "promedio ponderado → F5" (decisión Carlos 2026-08-17); tests de availability actualizados con stock sembrado en dos almacenes y scope parcial; F2-BOM-05 (columna unidades armables en la lista) hereda el scope sin cambios de UI
+  - **Verificar:** unit: stock 10 en A y 10 en B, scope [A] → armables según A; e2e con Manager scoped
+  - **Depende de:** F3-CORE-03
+  - **Estimación:** 1.5 h
+
+---
+
+### Módulo F3-NAV — Navegación, Selector de Almacén y Alcance en UI
+
+- [ ] **F3-NAV-01** — Componente `WarehouseSelect`
+  - **Salida:** `components/inventory/warehouse-select.tsx`: props `scoped` (usa `GET /warehouses?scoped=true`) o todos los activos, `excludeIds`, `value/onChange`, auto-selección si hay uno solo, estado vacío con CTA a `/warehouses` (con `warehouses:manage`), integrado con react-hook-form; `lib/warehouses/hooks.ts` gana `useScopedWarehouses()`
+  - **Verificar:** test del componente: con `scoped` pide `?scoped=true`; con un solo almacén lo selecciona; `excludeIds` lo quita de las opciones
+  - **Depende de:** F3-CORE-03
+  - **Estimación:** 1.5 h
+
+- [ ] **F3-NAV-02** — Grupo nav "Movimientos" + rutas + namespace i18n web + cliente API
+  - **Salida:** grupo "Movimientos" en `app-layout.tsx` (Entrada → `inventory:movement`, Salida → `inventory:movement`, Traspasos → `inventory:read`, Inventario físico → `inventory:movement`; el grupo aparece si alguno); rutas registradas con `PermissionGate` y placeholders hasta sus módulos; `apps/web/src/i18n/{es,en}/inventory.json` (motivos, direcciones, estados de traspaso, copy neutro) cableado en `i18n/index.ts`; `lib/inventory/api.ts` + `hooks.ts` + `types.ts` base (tipos de respuesta del API, `useCreateEntry/useCreateExit` con invalidación de `products`, `stock`, `transfers`)
+  - **Verificar:** test por routeTree real: Viewer ve solo Traspasos; Manager ve los cuatro; sin ningún permiso el grupo no existe; guardián de voseo verde con el namespace nuevo
+  - **Depende de:** F3-DB-05
+  - **Estimación:** 2 h
+
+- [ ] **F3-NAV-03** — UI de alcance por almacén en `UserForm` (deuda de F2-SCOPE-03)
+  - **Salida:** sección "Alcance por almacén" en `components/system/user-form.tsx` (CU-SYS-04): checklist de almacenes vía `GET/PUT /users/:id/warehouse-scope`; **deshabilitada si el usuario tiene rol TenantAdmin** con leyenda de acceso total; vacío = todos (leyenda del default permisivo); `lib/rbac/api.ts` gana los dos calls
+  - **Verificar:** `routes/system-users.test.tsx`: estados derivados de datos (rol, filas), no de copy; guardar manda el reemplazo completo de ids
+  - **Depende de:** —
+  - **Estimación:** 2 h
+
+---
+
+### ✅ Definición de "Fase 3 completa"
+
+- [ ] Un Manager registra una **entrada** por factura con presentación (cajas → base_unit), costo unitario y referencia; el saldo del almacén sube y el movimiento aparece en el kardex con su presentación
+- [ ] Una **salida** por más de lo disponible falla con `{ sku, available, requested }` y no toca el saldo; dos salidas concurrentes nunca dejan stock negativo (`stock-ledger.integration.spec.ts`)
+- [ ] Salida por consumo de un **compuesto** descuenta sus componentes (anidados incluidos) y ningún compuesto tiene fila en `stock_by_warehouse`; entrada directa de compuesto → 409
+- [ ] Un **traspaso** completo: despacho (folio `TRA-000001`, origen baja, `in_transit`) → visible en "Pendientes de recibir" del destino y "Pendientes de enviar" del origen → recepción con faltante y nota → `completed`, destino sube lo recibido, diferencia derivada y auditada; recibido > enviado bloqueado; cancelación solo TenantAdmin con justificación y **sin** devolver stock; badge > 7 días
+- [ ] **Inventario físico**: plantilla SKU + teórico → planilla contada → reconciliación con resumen → aprobación (solo `inventory:manage`) genera salida del teórico + entrada del contado por línea con diferencia y audita el drift si algo se movió en el medio
+- [ ] **Kardex** del producto con filtros y `balanceAfter` correcto por almacén **y en orden estable dentro de un mismo lote** (`seq`), y tab **Stock por almacén** con total, bajo mínimo y en tránsito — ambos respetando el scope del usuario (Manager con scope [A] no ve B)
+- [ ] `stock_movements` es append-only por privilegios (UPDATE/DELETE como `sellpoint_app` fallan) y las 4 tablas nuevas pasan los 4 canarios RLS
+- [ ] **Propiedad de reconciliación**: tras N movimientos aleatorios, `stock_by_warehouse.quantity == Σentradas − Σsalidas` por (producto, almacén) (test de integración)
+- [ ] Las guardas heredadas cerradas: presentación con movimientos no se borra, producto con movimientos no se borra ni cambia base_unit, almacén con stock o traspaso abierto no se desactiva, tenant con movimientos no cambia currency, `availability` respeta scope
+- [ ] El alcance por almacén se asigna desde el form de usuario y `GET /warehouses?scoped=true` lo refleja en todos los selectores
+- [ ] **Genericidad verificable:** `rg -i "pharmacy|farmacia|cafeteria|hardware|grocery|receta|ingredient|porci[oó]n|lote|caducidad|batch_number|expiry|expiration|location_code|production" apps/api/src apps/api/prisma/schema.prisma apps/web/src packages/shared/src` sin resultados de dominio (se toleran solo comentarios que citan la LEY para explicar qué NO existe; `expired` como motivo es vocabulario neutro y no matchea)
+- [ ] `REASONS_BY_DIRECTION` de shared, el enum Prisma y el CHECK SQL coinciden (test de contrato verde)
+- [ ] Suites verdes (api unit+integration+e2e, web, shared) + tsc (`typecheck:full`) + Biome + deploy verde
+- [ ] Tag `v0.4.0-fase3` creado
+
+**Estimación: 3-4 semanas** (~95 h en 45 tareas; el outline decía 2-3 pero no contaba kardex con saldo, stock por almacén, el conteo completo ni las guardas heredadas).
 
 ---
 
 ## Fase 4 — POS PWA (outline)
 
+> **Hereda de F3 (atomización del 2026-08-17):** el enum `reason_code` ya trae `sale` y `sale_return` reservados; la venta **NO escribe `stock_movements` propios** — llama a `StockLedgerService.apply(tx, …)` con `reason='sale'` (y `sale_return` para la anulación), que es quien bloquea, valida y proyecta a `stock_by_warehouse`. La anulación de un compuesto vendido revierte por `sale_return` (no `customer_return`, que queda para la devolución manual sin venta). El folio de venta sale de `nextFolio(tx, tenantId, 'sale', 'VTA')` sobre `tenant_sequences`. **`Idempotency-Key`** en el checkout es deuda anotada en F3 para acá (doble tap). Alcance por almacén: `assertWarehouseInScope` + `warehouseScopeWhere` de F3-CORE-03. `TenantTransactionsGate.hasTransactions()` debe sumar `sales` (`TODO(F4)` dejado en F3-GUARDS-04).
+
 - **F4-DB** — Modelos `Sale`, `SaleItem` (con `product_id`, `presentation_id`, `quantity` DECIMAL, `unit_price`, `discount`), `CashboxSession`. **Reservar columnas nullable `Sale.clinical_document_id` y `Sale.quote_id`** para vincular ventas a documentos clínicos o cotizaciones cuando llegue Fase 9 (NO crear las tablas ahora, solo las FK nullable).
-- **F4-API** — Endpoints venta, anulación, cierre. La anulación de una venta de producto compuesto **revierte el descuento de componentes** (entradas de reverso con `reason_code='customer_return'`).
+- **F4-API** — Endpoints venta, anulación, cierre. La anulación de una venta de producto compuesto **revierte el descuento de componentes** (entradas de reverso con `reason_code='sale_return'` vía el ledger de F3).
 - **F4-UI** — Pantalla principal de venta optimizada para tablet.
 - **F4-SCAN** — Integración escáner cámara (@zxing/browser). El barcode escaneado busca primero en `product_presentations.barcode` (si matchea, agrega esa presentación) y solo si no, en `products.barcode` (legacy).
 - **F4-CART** — Carrito con búsqueda predictiva. **Diseñar el "input principal" del POS como extensible** con strategy pattern: `SkuLookup`, `BarcodeLookup`, `TextSearchLookup` — para que agregar `PrescriptionLookup` y `QuoteLookup` en Fase 9 sea trivial. **Selector de presentación al agregar producto:** si tiene N presentaciones vendibles, mostrar selector inline; la marcada `is_default_sale` viene pre-seleccionada.
@@ -1673,6 +2059,8 @@ Los `catalog:read/write/schema:write` que usaba VISTAS.md quedan renombrados a e
 ---
 
 ## Fase 5 — Reportes (outline)
+
+> **Hereda de F3 (2026-08-17):** el **costo promedio ponderado** se difirió a esta fase (decisión de Carlos): F3 registra `unit_cost` en cada entrada `invoice` (costo por unidad de la presentación capturada); F5 lo lleva a base_unit con el `factor` de la presentación referenciada, calcula el promedio ponderado por producto (decidir si global o por almacén) y lo expone en el reporte de valorización y en `cost-estimate` de BOM (hoy `cost/factor`). También heredan de F3 el **reporte de stock en tránsito** completo con export (F3 dejó el endpoint chico `GET /inventory/in-transit`) y el **kardex detallado exportable** (F3 dejó `GET /products/:id/kardex` con `balanceAfter`). Si algún caso pide **backdating** de movimientos, se evalúa acá con `effective_at` separado de `created_at`.
 
 - **F5-API** — Endpoints de reportes con paginación server-side y filtros
 - **F5-EXPORT** — Generación Excel (síncrono y asíncrono con cola Redis)
@@ -2145,6 +2533,10 @@ Aunque Fase 7 va al final, estas piezas **deben estar preparadas** para que la i
 - **F9-LAYOUT-APPLY** — Endpoint que aplica un layout creando `catalog_fields` en el catálogo elegido, idempotente y sin pisar campos existentes. Aplicar es opcional y reversible (los campos se archivan como cualquier otro).
 - **F9-LAYOUT-UI** — Galería de layouts con preview de los campos que agregaría, disponible desde el editor de campos y desde el wizard. `Tenant.templateChoice` (registrado desde F1) preselecciona la sugerencia.
 
+### 9.0b Lotes, caducidad y ubicaciones (extensión vertical diferida desde F3)
+
+Diferido en la atomización de F3 (Carlos, 2026-08-17) por la LEY de genericidad: lote, fecha de caducidad y ubicación en rack son conceptos de **rubro** (farmacia, alimentos), no del motor. Cuando un cliente real lo exija, es un módulo entero y no una columna: `stock_by_warehouse` y `stock_movements` a granularidad de lote, FEFO en la salida, alertas de vencimiento, y la plantilla de conteo gana esas columnas. Debe construirse **sobre** el ledger de F3 (`StockLedgerService.apply`) sin romper el contrato de las fases intermedias.
+
 ### 9.1 Add-on genérico — Cotizador / Pedidos
 
 - **F9-QUOTE-DB** — Tabla `quotes` (`id`, `tenant_id`, `folio`, `customer_id` nullable, `valid_until`, `status` enum [draft|sent|approved|rejected|expired|converted], `lines[]` con productos del catálogo, `total`, `discount`).
@@ -2275,6 +2667,8 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-08-17 (DEFER.1 — LISTO, ESPERANDO FECHA)** — **El retiro del fallback `?token=` está hecho y commiteado en la rama `defer-1-retirar-fallback-token` (`6bb59e2`). NO mergear antes del 2026-08-22.** La fecha es una cuenta, no una preferencia: el deploy de D3 (`#token=` en el fragmento) fue el **2026-08-15** y el TTL más largo de un link de mail es el de la **invitación: 7 días** → el último link con formato viejo muere el **22**. La verificación de email (24 h) venció el 16 y el reset de password (30 min) el mismo 15. Mergearlo antes deja a quien tenga una invitación pendiente frente a una pantalla que no reacciona; el remedio es reenviarla desde el panel, pero primero ve algo roto. **El 22: `git merge defer-1-retirar-fallback-token` y push.** La entrada completa con el detalle técnico viaja en la rama y entra sola con el merge. — `topic_key: sellpoint/defer-1-token-query`
 
 - **2026-08-17 (el gate se cayó en su PRIMER uso)** — **`pnpm --filter api typecheck:full` no construye `@sellpoint/shared`, y en CI no hay `dist` de una corrida anterior.** El paso recién agregado tumbó el build con doce `Cannot find module '@sellpoint/shared'`. En local había pasado por una razón que no vale: el `dist` ya estaba de haberlo construido antes en la sesión — el clásico "en mi máquina funciona", con la máquina limpia dando lo contrario. La causa es de orquestación: `pnpm --filter` invoca el script directo y **saltea el grafo de dependencias**, mientras que `pnpm test` va por `turbo run test`, cuyo task declara `dependsOn: ["^build"]`. Se agregó el task `typecheck:full` a `turbo.json` con la misma dependencia y un script en la raíz, así que el paso de CI es `pnpm typecheck:full`. **Contraprueba hecha, no supuesta:** se borró `packages/shared/dist` y se corrió el gate — turbo construyó `shared` y después el typecheck, que es exactamente lo que hace un runner limpio. Regla que queda: **cualquier paso de CI que compile contra `shared` va por turbo, nunca por `pnpm --filter`**. — `topic_key: sellpoint/f6-typecheck-tests` — afecta: `turbo.json`, `package.json`, `.github/workflows/checks.yml`
+
+- **2026-08-17 (ATOMIZACIÓN F3)** — **Fase 3 atomizada: 45 tareas en 9 módulos, ~95 h, 3-4 semanas** (el outline decía 2-3 y no contaba kardex con saldo, stock por almacén, el conteo completo ni las guardas heredadas). Se resolvieron primero las **contradicciones internas del outline** (compuestos "sin stock" pero `production` "arma lote"; `StockByWarehouse` listada como modelo nuevo cuando ya existe desde F2-DB-08; Excel de conteo con lote/caducidad/ubicación que no existen en el modelo). **Seis decisiones de Carlos, LEY:** (1) **sin lote/caducidad/ubicación** — son conceptos de rubro, contra la LEY de genericidad; la plantilla de conteo es SKU + cantidad; va a Fase 9.0b; (2) el enum `reason_code` nace **completo** con `sale`/`sale_return` reservados para F4 y **sin `production`**; (3) los compuestos **nunca** tienen stock persistido; (4) el **costo promedio ponderado va a F5** — F3 solo registra `unit_cost` en `invoice`; (5) **sin bloqueo** de almacén durante el conteo — la aprobación relee con `FOR UPDATE` y audita el drift; (6) **tres permisos** `inventory:read/movement/manage`, con `manage` solo TenantAdmin (`MANAGER_EXCLUDED_CODES`). **Decisiones de diseño** (cruce de un agente de tablero y un revisor de modelo, verificadas contra el código): `stock_movements.seq BIGINT IDENTITY` como desempate cronológico —`now()` es del inicio de la tx y UUID v4 no ordena, así que sin `seq` el `balanceAfter` del kardex daría saldos intermedios **falsos** entre líneas de la misma factura: el bug del ORDER BY de F2-PRESENT en su peor forma—; `batch_id` por operación; `parent_product_id` en salidas expandidas; `reference` + `authorized_by` en vez de columnas de rubro; `discrepancies JSONB` **eliminado** (se deriva de `transfer_lines`); folio por `tenant_sequences` con `ON CONFLICT DO UPDATE … RETURNING` (reusable por F4); CHECKs de coherencia dirección×motivo y estado×timestamps como red; **append-only por `REVOKE UPDATE, DELETE`** a `sellpoint_app`; FKs `RESTRICT` desde movimientos (convierten el `assertDeletable` vacío de F2 en red de DB); la tabla de motivos vive en `packages/shared` con test de contrato contra el enum Prisma y el CHECK SQL; sin backdating, sin idempotencia (→ F4), sin recepciones parciales, entrada `transfer` huérfana no permitida, traspaso cancelado no devuelve stock; kardex bajo `/products/:id/kardex` con `balanceAfter` server-side; tránsito y stock por almacén incluidos; conteo stateless; `FOR UPDATE` ordenado por `(product_id, warehouse_id)` en TODA tx del ledger; UI de alcance por almacén en usuarios entra (deuda F2-SCOPE-03). **Hallazgo que sube el peso de F3-CORE:** este proyecto **nunca** hizo un `FOR UPDATE` ni un `$queryRaw` en código de negocio, ni usa `Prisma.Decimal` en un service — F3 es la primera concurrencia real y la primera aritmética decimal exacta; por eso el ledger (F3-CORE-05) es la tarea más grande y se prueba con transacciones concurrentes contra Postgres real. **Siete puntos de extensión que F2 dejó con nombre y F3 cierra:** `assertDeletable`, nota de `costEstimate`, `TenantTransactionsGate`, "no desactivar almacén con stock", `@CurrentUserScope()` (sin ningún consumidor hasta hoy), `availability` sin scope, `products.remove` sin guarda — más una violación viva de la LEY (`products.service.ts:328`, "su receta"). Clasificación SDD matizada como en F2: CORE/ENTRY/EXIT/TRANSFER/COUNT/KARDEX completo, DB/GUARDS/NAV ligero. Sincronizados ARQUITECTURA, CASOS_DE_USO, VISTAS y FLUJOS. — `topic_key: sellpoint/f3-atomizacion` — afecta: toda la Fase 3; hereda: F4 (`sale`/`sale_return`, ledger como único escritor, `nextFolio('VTA')`, `Idempotency-Key`, `hasTransactions` + sales), F5 (promedio ponderado, tránsito y kardex exportables, `effective_at`), F9.0b (lotes/caducidad/ubicación)
 
 ---
 

@@ -76,7 +76,8 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | Salida Directa (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Confirmar recepción de traspaso | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Ver traspasos en tránsito | ❌ | ✅ | ✅ | 👁 | 👁 |
-| Inventario físico | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Inventario físico (plantilla + reconciliar) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Inventario físico (**aprobar**) · Cancelar traspaso | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Ver kardex | ❌ | ✅ | ✅ | 👁 | 👁 |
 | **POS** |  |  |  |  |  |
 | Operar POS (vender) | ❌ | ✅ | ✅ | ✅ | ❌ |
@@ -468,10 +469,13 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | `invoice` — Factura/Compra (proveedor, costo) | `adjustment` — Ajuste/Merma/Daño |
 | `adjustment` — Ajuste por sobrante | `transfer` — Traspaso a otro almacén (pide destino) |
 | `transfer` — Traspaso desde otro almacén (pide origen) | `loss` — Pérdida/Robo |
-| `customer_return` — Devolución de cliente | `consumption` — Consumo interno |
-| `production` — Producción interna | `expired` — Caducado |
+| `customer_return` — Devolución de cliente (manual, sin venta) | `expired` — Caducado |
+| `sale_return` — **reservado F4**: anulación / devolución ligada a una venta | `sale` — **reservado F4**: venta desde el POS |
+| `physical_count` — solo lo emite la aprobación del inventario físico (CU-MOV-05) | `physical_count` — ídem |
 
 > Cuando el motivo es `transfer`, el sistema vincula el movimiento al `Transfer` correspondiente. Para todos los demás motivos, el movimiento es independiente.
+>
+> **Evolución (atomización F3, 2026-08-17):** el enum nace **completo** — `sale`/`sale_return` quedan reservados para F4 (los endpoints directos los rechazan) y **`production` se eliminó**: los productos compuestos **nunca** tienen stock persistido (se arman al vender, F4), así que no existe "producción interna" en el MVP. Los campos contextuales se modelan de forma genérica (LEY de genericidad): `reference` (nº de documento, orden, área/concepto, referencia externa) + `authorized_by` (usuario del tenant) + `reason_note`; **no hay catálogo de proveedores** (un tenant puede armarlo como subcatálogo). Los tres permisos de la fase son `inventory:read`, `inventory:movement` e `inventory:manage` (cancelar traspaso y aprobar conteo — solo TenantAdmin).
 
 ---
 
@@ -482,13 +486,12 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Flujo principal:**
   1. Movimientos → "Nueva Entrada Directa"
   2. Selecciona almacén destino
-  3. Elige **motivo** (`reason_code`) del enum: factura, ajuste, traspaso, devolución, producción
+  3. Elige **motivo** (`reason_code`): factura, ajuste, devolución de cliente (el motivo traspaso no se elige acá — ver CU-MOV-03)
   4. Completa campos contextuales según motivo:
-     - `invoice` → número de documento, proveedor, costo unitario por línea
-     - `adjustment` → texto libre con explicación + usuario autorizador
-     - `transfer` → selector "Almacén origen" + (opcional) folio del `Transfer` para auto-cargar líneas
-     - `customer_return` → referencia a la venta original
-     - `production` → orden de producción (texto libre por ahora)
+     - `invoice` → `reference` (nº de documento) obligatoria + costo unitario por línea obligatorio
+     - `adjustment` → `reason_note` obligatoria + `authorized_by` opcional
+     - `transfer` → **no se elige acá**: la recepción de un traspaso se hace desde la vista "Traspasos en tránsito" (CU-MOV-03), que manda `transfer_id`
+     - `customer_return` → `reason_note` obligatoria + `reference` opcional (referencia externa; la devolución ligada a una venta del POS es `sale_return`, F4)
   5. Agrega productos: escanea código de barras o busca por SKU, ingresa cantidad
   6. Sistema valida cantidades > 0 y producto activo. **Si la presentación elegida tiene `allow_fractional_input=false`, valida también que la cantidad no tenga parte decimal** (error claro: *"La presentación 'Caja 30 tab' solo acepta cantidades enteras"*).
   7. Click "Confirmar" → **transacción atómica**:
@@ -497,7 +500,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
      - Si `reason_code='transfer'`: marca el `Transfer` vinculado como `completed` (ver CU-MOV-03)
      - Registra audit log
 - **Flujos alternativos:**
-  - 4a. Motivo `transfer` sin folio → se crea entrada huérfana (caso edge para corregir un traspaso mal registrado). Requiere confirmación explícita.
+  - 4a. Motivo `transfer` sin `transfer_id` → **rechazado** (422 `inventory.transfer_entry_requires_transfer`; decisión F3, 2026-08-17). Una entrada `transfer` "huérfana" no explica de dónde vino el stock; la corrección de un traspaso mal registrado se hace con `adjustment`, que sí queda explicada y auditada.
 - **Postcondición:** Stock sumado al almacén. Kardex actualizado. Si era traspaso vinculado, ciclo cerrado.
 
 ---
@@ -571,15 +574,14 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Actor:** TenantAdmin / Manager
 - **Flujo principal:**
   1. Movimientos → Inventario físico → "Nuevo conteo"
-  2. Selecciona almacén
-  3. Sistema bloquea movimientos sobre ese almacén durante el conteo (opcional, configurable por tenant)
-  4. Sube Excel con columnas: código de barras, lote, caducidad, cantidad, ubicación
+  2. Selecciona almacén y descarga la plantilla (SKU, nombre, unidad, teórico, contado vacío) — solo productos activos y no compuestos
+  3. *(Sin bloqueo del almacén — decisión F3, 2026-08-17: la aprobación relee el teórico con `FOR UPDATE`; lo que se movió entre reconciliar y aprobar queda como **drift auditado**.)*
+  4. Sube la planilla contada con columnas **`sku` + `counted`** (sin lote, caducidad ni ubicación: son conceptos de rubro — LEY de genericidad; ver Fase 9.0b)
   5. Sistema reconcilia:
-     - Genera salida total del stock teórico actual (movimientos con `direction='exit'` y `reason_code='physical_count'`)
-     - Genera entrada del stock contado (`direction='entry'`, `reason_code='physical_count'`)
-     - Calcula diferencias y muestra reporte
-  6. Usuario revisa y confirma
-- **Postcondición:** Inventario reconciliado. Discrepancias registradas en audit log.
+     - Reconcilia en seco (sin escribir): teórico vs contado por fila, resumen (coincidencias / discrepancias / omitidas / errores)
+     - Filas con `counted` vacío = no contadas → se omiten y se reportan
+  6. Usuario revisa; **aprueba solo quien tenga `inventory:manage`** (TenantAdmin) → transacción atómica que, **solo para las líneas con diferencia**, genera salida `physical_count` del teórico total + entrada `physical_count` del contado (mismo `batch_id`); las líneas iguales no generan movimiento
+- **Postcondición:** Inventario reconciliado al contado. Discrepancias y drift (si el teórico cambió entre reconciliar y aprobar) registrados en audit log.
 
 ---
 

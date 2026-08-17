@@ -222,16 +222,13 @@ sequenceDiagram
     F->>API: GET /warehouses
     API-->>F: lista de almacenes (filtrada por scope)
     M->>F: Selecciona almacén destino
-    M->>F: Elige motivo (invoice, adjustment, transfer, customer_return, production)
+    M->>F: Elige motivo (invoice, adjustment, customer_return)
+    Note over M,F: 'transfer' NO se elige acá: la recepción<br/>se confirma desde "Traspasos en tránsito"<br/>(manda transfer_id — flujo 5.3, tramo B)
 
     alt motivo = invoice
-        M->>F: Completa proveedor + costos por línea
-    else motivo = transfer
-        M->>F: Selecciona almacén origen<br/>(opcional: folio del Transfer)
-        F->>API: GET /transfers/:folio/lines
-        API-->>F: líneas pre-cargadas
+        M->>F: Completa referencia (nº de documento)<br/>+ costo unitario por línea
     else otro motivo
-        M->>F: Completa autorizador + nota explicativa
+        M->>F: Completa nota explicativa<br/>(+ autoriza, opcional)
     end
 
     M->>F: Escanea código + ingresa cantidad
@@ -408,8 +405,7 @@ sequenceDiagram
     end
 
     API->>DB: INSERT sale + sale_items
-    API->>DB: UPDATE product_stock<br/>(resta cantidades vendidas)
-    API->>DB: INSERT stock_movements tipo='salida_venta'
+    Note over API,DB: F4 NO escribe stock propio: llama a<br/>StockLedgerService.apply(tx, reason='sale')<br/>que hace FOR UPDATE ordenado, INSERT<br/>stock_movements y UPDATE stock_by_warehouse
     API->>DB: INSERT audit_log
     API->>DB: COMMIT
     API-->>F: 201 { saleId, ticket }
@@ -433,9 +429,8 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     Start([Manager: Movimientos →<br/>Inventario Físico → Nuevo]) --> SelWh[Selecciona almacén]
-    SelWh --> Lock[Sistema bloquea<br/>movimientos sobre almacén]
-    Lock --> Template[Descarga plantilla Excel:<br/>código, lote, caducidad,<br/>cantidad, ubicación]
-    Template --> Count[Equipo cuenta físicamente<br/>llena el Excel]
+    SelWh --> Template[Descarga plantilla .xlsx/.csv:<br/>sku, nombre, unidad,<br/>teórico, contado vacío]
+    Template --> Count[Equipo cuenta físicamente<br/>llena la columna contado]
     Count --> Upload[Sube archivo]
 
     Upload --> ParseFile{Parseo OK?}
@@ -443,17 +438,12 @@ flowchart TD
     Errors --> Count
     ParseFile -->|Sí| Reconcile[Sistema compara:<br/>stock teórico vs contado]
 
-    Reconcile --> Diff{Hay<br/>diferencias?}
-    Diff -->|No| AutoOk[Aprueba automático]
-    Diff -->|Sí| ShowReport[Muestra reporte<br/>de discrepancias]
-    ShowReport --> Review[Manager revisa<br/>y aprueba o cancela]
+    Reconcile --> ShowReport[Reconciliación en seco:<br/>resumen + tabla teórico/contado/diferencia<br/>filas vacías = omitidas]
+    ShowReport --> Review[TenantAdmin con inventory:manage<br/>revisa y aprueba o cancela]
     Review --> Approve{Aprueba?}
     Approve -->|No| Cancel([Cancela conteo])
-    Approve -->|Sí| AutoOk
-
-    AutoOk --> TX[TX atómica:<br/>1. Salida total stock teórico<br/>2. Entrada total stock contado<br/>3. Registra discrepancias en audit log]
-    TX --> Unlock[Desbloquea almacén]
-    Unlock --> Done([Inventario reconciliado])
+    Approve -->|Sí| TX[TX atómica con FOR UPDATE:<br/>relee teórico FRESCO;<br/>solo líneas con diferencia:<br/>salida physical_count del teórico<br/>+ entrada physical_count del contado;<br/>audit con drift si el teórico cambió]
+    TX --> Done([Inventario reconciliado<br/>al contado — sin bloqueo previo])
 
     style Start fill:#e3f2fd
     style Done fill:#c8e6c9

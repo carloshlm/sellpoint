@@ -552,7 +552,7 @@ sellpoint/
 
 - **RBAC con scoping de dos capas**: roles + permisos definen QUÉ; `user_warehouse_scopes` define DÓNDE (ver § 3.4).
 - Roles por tenant: `admin`, `manager`, `pos_seller`, `viewer` (extensibles).
-- Permisos granulares (formato `recurso:accion`): `catalog:read`, `catalog:write`, `inventory:movement`, `pos:sell`, `reports:view`, `users:manage`, etc.
+- Permisos granulares (formato `recurso:accion`): `catalogs:read/write/manage`, `products:read/manage`, `warehouses:read/manage`, `inventory:read/movement/manage` (F3: `manage` = cancelar traspaso y aprobar conteo, solo TenantAdmin), `pos:sell`, `reports:view`, `users:manage`, etc.
 - Decorator: `@RequirePermissions('inventory:movement')`.
 - `TenantAdmin` bypasea el scoping de almacenes; el resto de roles, si tiene scope asignado, queda filtrado automáticamente en repos.
 
@@ -650,21 +650,26 @@ sellpoint/
 
 **Entregable:** un admin de **cualquier rubro** define los campos de su catálogo, crea subcatálogos y los liga por lookup, crea productos simples, a granel (stock decimal) y compuestos (con composición), con todas sus presentaciones de compra/venta.
 
-### Fase 3 — Movimientos de Inventario (2-3 semanas)
+### Fase 3 — Movimientos de Inventario (3-4 semanas)
 
-1. Módulo `inventory` con **2 movimientos directos** + procesos especiales:
-   - **Entrada Directa** con campo `reason_code` (factura, ajuste, traspaso, devolución de cliente, producción, etc.) + `reason_note`
-   - **Salida Directa** con `reason_code` (ajuste, traspaso, merma, pérdida, consumo interno, caducado, etc.) + `reason_note`
-   - Cuando `reason_code='transfer'`: la Salida pide **almacén destino** y la Entrada pide **almacén origen** (vinculados a un `transfer_id`)
-   - **Inventario físico** (carga Excel + reconciliación con discrepancias) — caso especial separado
-2. **Traspaso = proceso de 2 pasos**: Salida con motivo Traspaso → crea `Transfer` con estado `in_transit` → almacén destino lo ve como "pendiente de recibir" → Entrada con motivo Traspaso lo confirma → `Transfer` pasa a `completed`. Si hay diferencias en cantidades recibidas, se registran como discrepancia auditada.
-3. Transacciones atómicas Postgres para no perder stock en concurrencia
-4. Tabla `stock_movements` (kardex) — append-only. Tabla `transfers` para el ciclo de vida del traspaso (estado, vinculación de movimientos).
-5. Validaciones: stock no negativo, cantidades > 0, traspaso entre almacenes del mismo tenant, stock en tránsito visible en reportes
-6. Frontend: 2 pantallas de movimientos + vista "Traspasos en tránsito" (pendientes de enviar/recibir) + UX optimizada para teclado
-7. Audit log de cada movimiento (usuario, timestamp, motivo, antes/después)
+> **Evolución (atomización, 2026-08-17 — detalle en IMPLEMENTACION.md § Fase 3 y `topic_key: sellpoint/f3-atomizacion`).** El diseño se mantiene; se fijan las decisiones que el outline dejaba abiertas y se sube la estimación (kardex con saldo, stock por almacén, conteo completo y guardas heredadas de F2 no estaban contadas).
 
-**Entregable:** se puede mover stock entre almacenes con trazabilidad total y stock en tránsito visible.
+1. Módulo `inventory` con **2 movimientos directos** + procesos especiales, todos escribiendo por **un único servicio** (`StockLedgerService.apply`): agrupa líneas, bloquea `stock_by_warehouse` con `SELECT … FOR UPDATE` **ordenado por (product_id, warehouse_id)** (anti-deadlock), valida, inserta en `stock_movements` y actualiza saldos en la misma transacción. Entradas, salidas, recepción de traspaso, conteo y (F4) la venta son **llamadores**, nunca escritores propios.
+   - **Entrada Directa** con `reason_code` ∈ {`invoice`, `adjustment`, `customer_return`} + `reason_note`; `invoice` exige `reference` (nº de documento) y `unit_cost` por línea. La entrada `transfer` solo existe como **recepción** de un traspaso (con `transfer_id`) desde la vista de tránsito.
+   - **Salida Directa** con `reason_code` ∈ {`adjustment`, `transfer`, `loss`, `consumption`, `expired`}; `transfer` pide **almacén destino** (no exige scope del emisor sobre el destino) y crea el `Transfer`.
+   - **Inventario físico** (plantilla **SKU + cantidad**, reconciliación en seco, aprobación transaccional) — caso especial separado; **sin bloqueo del almacén**: la aprobación relee el teórico con `FOR UPDATE` y audita el drift.
+   - El enum `reason_code` nace **completo**: `invoice | adjustment | transfer | customer_return | sale | sale_return | loss | consumption | expired | physical_count` — `sale`/`sale_return` **reservados para F4**; **no hay `production`** (los compuestos nunca tienen stock persistido: salida `consumption`/`expired` expande componentes con la misma fórmula que `availability`; cualquier otro movimiento sobre un compuesto → 409).
+2. **Traspaso = proceso de 2 pasos**: Salida `transfer` → `Transfer` `in_transit` (folio `TRA-000001` por tenant, secuencia en `tenant_sequences`) → el destino lo ve "pendiente de recibir" → recepción (todas las líneas, en base_unit, `0 ≤ recibido ≤ enviado`, nota obligatoria si hay faltante) → `completed`. La discrepancia se **deriva** de `transfer_lines` (`quantity_sent − quantity_received`), no se guarda como JSONB. **Cancelar** (solo `inventory:manage`) **no devuelve stock** al origen: la salida ya es historia; el reingreso es un `adjustment` explícito.
+3. Concurrencia real: transacciones interactivas (`withTenantContext`, READ COMMITTED) + `FOR UPDATE` ordenado + upsert de la fila de stock antes del lock; `Prisma.Decimal` en toda aritmética (nunca `Number()`). Es la **primera** vez del proyecto en ambas cosas: se prueba con transacciones concurrentes contra Postgres real y con un test de propiedad (`stock_by_warehouse == Σentradas − Σsalidas`).
+4. Tabla `stock_movements` (kardex) — **append-only por privilegios** (`REVOKE UPDATE, DELETE` a `sellpoint_app`), con `seq BIGINT IDENTITY` como desempate cronológico (`now()` es del inicio de la tx; UUID v4 no ordena), `batch_id` por operación, `parent_product_id` en salidas expandidas, `reference` + `authorized_by` como campos contextuales genéricos, y CHECKs de coherencia (dirección × motivo, `transfer ⇔ linked_warehouse_id`). FKs `RESTRICT` desde movimientos hacia productos, presentaciones y almacenes: el histórico no se borra. Tablas `transfers` + `transfer_lines` para el ciclo de vida. `tenant_sequences` para folios por tenant (reusable por F4).
+5. Validaciones: stock no negativo (CHECK como red, el guard es el service), cantidades > 0 con hasta 4 decimales, enteros si la presentación es solo-enteros, traspaso entre almacenes del mismo tenant y distintos, almacén activo, alcance por almacén (`@CurrentUserScope()` — primer consumidor real), stock en tránsito visible.
+6. Frontend: 2 pantallas de movimientos (cabecera reactiva por motivo, selector de presentación por línea, disponible en vivo en salida, UX teclado) + vista "Traspasos en tránsito" (dos tabs por scope, modal de recepción, badge > 7 días) + inventario físico en 2 pasos + tabs **Kardex** (con `balanceAfter` server-side) y **Stock por almacén** en el detalle de producto + selector de almacén reusable + UI de alcance por almacén en usuarios (deuda F2-SCOPE-03).
+7. Audit log de cada lote de movimientos (usuario, momento, motivo, saldo posterior por línea) y entradas detalladas para discrepancias y drift.
+8. **Se cierran los puntos de extensión que F2 dejó para F3**: `assertDeletable` (presentación con movimientos → 409), `products.remove`/`assertBaseUnitChangeable` con movimientos, almacén no desactivable con stock o traspaso abierto (CU-ALM-02), `TenantTransactionsGate.hasTransactions()`, `availability` con scope. Diferidos con nombre: **costo promedio ponderado → F5**, **lote/caducidad/ubicación → Fase 9.0b** (conceptos de rubro, LEY de genericidad), **idempotencia → F4**, **backdating → F5 si se pide**.
+
+**Permisos:** `inventory:read` (kardex, stock, tránsito — Viewer automático), `inventory:movement` (entradas, salidas, recepción, conteo — Manager), `inventory:manage` (cancelar traspaso, aprobar conteo — solo TenantAdmin).
+
+**Entregable:** se puede mover stock entre almacenes con trazabilidad total, sin oversell bajo concurrencia, con stock en tránsito visible y kardex con saldo por almacén.
 
 ### Fase 4 — POS PWA (3 semanas)
 
@@ -1048,11 +1053,11 @@ pnpm --filter api prisma studio
 | **Product Schema** | Definición (JSON Schema) de los campos custom que un tenant decide tener en sus productos. Versionable. |
 | **Almacén** | Ubicación física donde se guarda stock. Un tenant puede tener N almacenes. |
 | **Movimiento** | Cualquier cambio de stock: Entrada Directa, Salida Directa o Inventario físico. Registrado append-only en `stock_movements` (kardex). |
-| **Entrada Directa** | Movimiento de entrada de stock a un almacén con un **motivo** (`reason_code`): factura, ajuste, traspaso, devolución de cliente, producción, etc. Si el motivo es traspaso, pide almacén origen. |
+| **Entrada Directa** | Movimiento de entrada de stock a un almacén con un **motivo** (`reason_code`): factura (`invoice`, exige referencia y costo unitario), ajuste, devolución de cliente. La entrada con motivo traspaso es la **recepción** de un `Transfer` y se hace desde la vista de tránsito. `sale_return` queda reservado para F4. |
 | **Salida Directa** | Movimiento de salida de stock de un almacén con un **motivo**: ajuste, traspaso, merma, pérdida, consumo interno, caducado, etc. Si el motivo es traspaso, pide almacén destino. |
-| **Traspaso** | Proceso de 2 pasos entre dos almacenes del mismo tenant: (1) Salida Directa motivo traspaso → crea `Transfer` con estado `in_transit`; (2) Entrada Directa motivo traspaso en el destino confirma la recepción → `Transfer` pasa a `completed`. Discrepancias en cantidades quedan auditadas. |
+| **Traspaso** | Proceso de 2 pasos entre dos almacenes del mismo tenant: (1) Salida Directa motivo traspaso → crea `Transfer` con estado `in_transit` y folio `TRA-000001`; (2) recepción en el destino (desde la vista de tránsito, todas las líneas, `0 ≤ recibido ≤ enviado`) → `Transfer` pasa a `completed`. La discrepancia se deriva de las líneas y queda auditada. **Cancelar (solo TenantAdmin) no devuelve stock al origen**: el reingreso es un `adjustment` explícito. |
 | **Stock en tránsito** | Stock que salió del almacén origen pero todavía no fue confirmado por el destino. Visible en reportes y en la vista "Traspasos en tránsito". |
-| **Inventario físico** | Conteo real del almacén. Sistema genera salida del stock teórico + entrada del stock real. Reporta discrepancias. Caso especial, separado de Entrada/Salida Directa. |
+| **Inventario físico** | Conteo real del almacén con plantilla **SKU + cantidad** (sin lote/caducidad/ubicación: conceptos de rubro). Reconciliación en seco y aprobación (solo `inventory:manage`) que, para cada línea con diferencia, genera salida del teórico + entrada del contado con `reason_code='physical_count'`. **Sin bloqueo del almacén**: la aprobación relee con `FOR UPDATE` y audita el drift. Caso especial, separado de Entrada/Salida Directa. |
 | **Kardex** | Histórico completo de movimientos de un producto. Trazabilidad total. |
 | **Vertical** | Especialización del sistema para un rubro específico (farmacia, consultorio, óptica, gastronomía, etc.). El core es vertical-agnóstico; los verticales se agregan como add-ons opcionales en Fase 9+. |
 | **Add-on / Módulo activable** | Módulo opcional que un tenant activa en `/settings/modules` con precio independiente del plan base. Stripe lo modela como `subscription_item` adicional (Fase 7 + Fase 9). |
