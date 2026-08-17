@@ -291,8 +291,29 @@ describe("Importación de productos (F2-IMPORT)", () => {
     expect((report.body as { errors: ImportRowError[] }).errors[0]).toMatchObject({
       row: 2,
       field: "precio",
-      message: "products.too_many_decimals",
+      code: "products.too_many_decimals",
     });
+  });
+
+  it("los errores del reporte llegan TRADUCIDOS, no como clave i18n", async () => {
+    // El dry-run responde 200: su reporte no pasa por el filtro de excepciones,
+    // así que si el service no tradujera, el usuario vería
+    // `products.import_missing_required` en pantalla.
+    const token = await registerAndLogin();
+    const content = "sku,nombre\n,Sin código";
+
+    const es = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .set("Accept-Language", "es")
+      .send({ content, dryRun: true })
+      .expect(200);
+
+    const error = (es.body as { errors: ImportRowError[] }).errors[0];
+    expect(error?.message).not.toMatch(/^products\./);
+    expect(error?.message).toContain("código");
+    // La clave cruda sigue disponible para discriminar sin parsear texto.
+    expect(error?.code).toBe("products.import_missing_required");
   });
 
   it("dos decimales entran sin problema, incluido el caso que rompe al punto flotante", async () => {
@@ -432,7 +453,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
       expect((report.body as { errors: ImportRowError[] }).errors[0]).toMatchObject({
         row: 2,
         field: "proveedor",
-        message: "catalogs.lookup_value_not_found",
+        code: "catalogs.lookup_value_not_found",
       });
     });
   });

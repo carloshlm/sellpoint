@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
-import { getUnit } from "@sellpoint/shared";
+import { getUnit, type Locale } from "@sellpoint/shared";
+import { I18nService } from "nestjs-i18n";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -25,8 +26,11 @@ const STANDARD_COLUMNS = [
 
 export interface ImportRowError {
   row: number;
+  /** Ya TRADUCIDO al salir del service. */
   message: string;
   field?: string;
+  /** Clave i18n cruda, para que el front discrimine sin parsear texto. */
+  code?: string;
 }
 
 export interface ImportReport {
@@ -86,6 +90,7 @@ export class ImportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly i18n: I18nService,
   ) {}
 
   /**
@@ -156,7 +161,12 @@ export class ImportService {
   async run(
     user: AuthUser,
     content: string,
-    options: { format: SpreadsheetFormat; dryRun: boolean; skipErrors: boolean },
+    options: {
+      format: SpreadsheetFormat;
+      dryRun: boolean;
+      skipErrors: boolean;
+      locale: Locale;
+    },
     meta: RequestMeta,
   ): Promise<ImportReport> {
     // Se mide el contenido REAL: en base64 un archivo pesa ~33% más y el
@@ -329,7 +339,17 @@ export class ImportService {
     const report: ImportReport = {
       valid: importable.length,
       failed: errors.length,
-      errors,
+      // Traducidos ACÁ y no en el front: el dry-run responde 200, así que su
+      // reporte no pasa por el filtro de excepciones, y la ley del proyecto es
+      // que el backend traduce (la infra i18n sirve a cualquier cliente del
+      // API, no solo a la SPA — ver `all-exceptions.filter.ts`).
+      errors: errors.map((rowError) => ({
+        ...rowError,
+        message: this.translate(rowError.message, options.locale),
+        // `code` mantiene la clave cruda: el front discrimina por ella sin
+        // parsear texto, mismo contrato que el filtro de excepciones.
+        code: rowError.message,
+      })),
       created,
       updated,
       imported: 0,
@@ -414,6 +434,12 @@ export class ImportService {
     });
 
     return { ...report, imported: importable.length };
+  }
+
+  /** La clave cruda si no hay entrada: mejor eso que una celda vacía. */
+  private translate(key: string, locale: Locale): string {
+    const translated = this.i18n.translate(key, { lang: locale });
+    return typeof translated === "string" ? translated : key;
   }
 
   /**

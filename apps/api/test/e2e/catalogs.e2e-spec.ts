@@ -589,7 +589,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .send({ code: "gr" })
         .expect(400);
       expect(missing.body).toMatchObject({
-        errors: [{ key: "medida", message: "catalogs.field_required" }],
+        errors: [{ key: "medida", code: "catalogs.field_required" }],
       });
 
       const wrongType = await request(app.getHttpServer())
@@ -598,7 +598,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .send({ code: "gr", attributes: { medida: 42 } })
         .expect(400);
       expect(wrongType.body).toMatchObject({
-        errors: [{ key: "medida", message: "catalogs.field_must_be_text" }],
+        errors: [{ key: "medida", code: "catalogs.field_must_be_text" }],
       });
     });
 
@@ -643,7 +643,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .send({ code: "cafe", attributes: { unidad: randomUUID() } })
         .expect(400);
       expect(orphan.body).toMatchObject({
-        errors: [{ key: "unidad", message: "catalogs.lookup_value_not_found" }],
+        errors: [{ key: "unidad", code: "catalogs.lookup_value_not_found" }],
       });
     });
 
@@ -673,7 +673,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .send({ isActive: false })
         .expect(409);
       expect(blocked.body).toMatchObject({
-        message: expect.stringContaining("catalogs.record_referenced"),
+        code: "catalogs.record_referenced",
       });
     });
 

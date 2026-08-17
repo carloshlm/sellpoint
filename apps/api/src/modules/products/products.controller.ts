@@ -14,6 +14,7 @@ import {
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -97,7 +98,15 @@ export class ProductsController {
     return this.importService.run(
       user,
       dto.content,
-      { format: dto.format, dryRun: dto.dryRun, skipErrors: dto.skipErrors },
+      {
+        format: dto.format,
+        dryRun: dto.dryRun,
+        skipErrors: dto.skipErrors,
+        // El dry-run responde 200, así que su reporte NO pasa por el filtro de
+        // excepciones: el locale tiene que llegar hasta el service para que los
+        // errores por fila salgan traducidos igual que los demás.
+        locale: getLocale(request as Request & RequestWithLocale),
+      },
       metaFrom(request),
     );
   }

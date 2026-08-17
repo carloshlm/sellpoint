@@ -426,7 +426,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .expect(409);
 
       expect(blocked.body).toMatchObject({
-        message: expect.stringContaining("products.composition_cycle"),
+        code: "products.composition_cycle",
       });
     });
 
@@ -440,7 +440,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .expect(409);
 
       expect(blocked.body).toMatchObject({
-        message: expect.stringContaining("products.is_component"),
+        code: "products.is_component",
       });
     });
 

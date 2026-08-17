@@ -90,21 +90,66 @@ export class AllExceptionsFilter implements ExceptionFilter {
     body: Record<string, unknown>,
     request: Request & RequestWithLocale,
   ): Record<string, unknown> {
-    const rawKey = body.message;
-    if (typeof rawKey !== "string" || !I18N_KEY_PATTERN.test(rawKey)) {
-      return body;
-    }
-
     const locale = getLocale(request);
-    const translated = this.i18n.translate(rawKey, { lang: locale });
+    const translated = this.translateKey(body.message, locale);
 
-    // nestjs-i18n devuelve la clave sin traducir si no hay entrada — no
-    // hay traducción disponible, dejamos el body como estaba (la clave
-    // cruda sigue siendo mejor que romper la respuesta).
-    if (typeof translated !== "string" || translated === rawKey) {
-      return body;
+    // Los errores POR CAMPO viajan aparte del `message` de arriba y son los que
+    // el formulario pinta bajo cada input. Sin esto se mostraban crudos —era el
+    // `catalogs.field_required` que se veía en pantalla— aunque el mensaje
+    // general saliera perfecto.
+    const errors = this.translateFieldErrors(body.errors, locale);
+
+    return {
+      ...body,
+      ...(translated ? { message: translated.text, code: translated.key } : {}),
+      ...(errors ? { errors } : {}),
+    };
+  }
+
+  /**
+   * Traduce si el valor es una clave i18n Y existe la entrada. Devuelve `null`
+   * cuando no hay nada que cambiar, para que el llamador deje el body intacto:
+   * la clave cruda es mejor que romper la respuesta.
+   */
+  private translateKey(value: unknown, locale: string): { text: string; key: string } | null {
+    if (typeof value !== "string" || !I18N_KEY_PATTERN.test(value)) {
+      return null;
     }
 
-    return { ...body, message: translated, code: rawKey };
+    // nestjs-i18n devuelve la clave misma cuando no hay entrada.
+    const translated = this.i18n.translate(value, { lang: locale });
+    if (typeof translated !== "string" || translated === value) {
+      return null;
+    }
+
+    return { text: translated, key: value };
+  }
+
+  /**
+   * `errors: [{ key, message }]` — el contrato de los errores por campo que
+   * emiten el validador de atributos y el pipe de Zod. Cualquier otra forma
+   * (por ejemplo el reporte de la importación, que trae `row`/`field`) se
+   * devuelve intacta.
+   */
+  private translateFieldErrors(value: unknown, locale: string): unknown[] | null {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+
+    let changed = false;
+    const translated = value.map((item) => {
+      if (item === null || typeof item !== "object") {
+        return item;
+      }
+      const entry = item as Record<string, unknown>;
+      const result = this.translateKey(entry.message, locale);
+      if (!result) {
+        return item;
+      }
+      changed = true;
+      return { ...entry, message: result.text, code: result.key };
+    });
+
+    return changed ? translated : null;
   }
 }

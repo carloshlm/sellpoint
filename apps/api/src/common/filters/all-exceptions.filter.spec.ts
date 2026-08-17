@@ -1,5 +1,6 @@
 import {
   ArgumentsHost,
+  BadRequestException,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -107,6 +108,79 @@ describe("AllExceptionsFilter", () => {
       statusCode: 401,
       error: "Unauthorized",
       message: "auth.some_key_without_translation",
+    });
+  });
+
+  it("traduce también los errores POR CAMPO, que son los que el formulario pinta", () => {
+    // El caso que Carlos fotografió: el `message` de arriba se traducía, pero
+    // `errors[].message` viajaba crudo y el front lo pintaba tal cual bajo el
+    // input — `catalogs.field_required` en la cara del usuario.
+    translateMock.mockImplementation((key: string) =>
+      key === "catalogs.field_required" ? "Este campo es obligatorio." : key,
+    );
+    const request = { method: "POST", url: "/products", locale: "es" };
+
+    filter.catch(
+      new BadRequestException({
+        message: "products.invalid_attributes",
+        errors: [{ key: "proveedor", message: "catalogs.field_required" }],
+      }),
+      buildHost(request),
+    );
+
+    expect(jsonMock).toHaveBeenCalledWith({
+      statusCode: 400,
+      error: "Bad Request",
+      // Sin traducción disponible, esta queda cruda: es el comportamiento ya
+      // establecido y no lo cambia esta mejora.
+      message: "products.invalid_attributes",
+      errors: [
+        {
+          key: "proveedor",
+          message: "Este campo es obligatorio.",
+          // La clave cruda sobrevive para que el front discrimine sin parsear
+          // texto, igual que el `code` de nivel superior.
+          code: "catalogs.field_required",
+        },
+      ],
+    });
+  });
+
+  it("un error por campo sin traducción conserva su clave y no inventa `code`", () => {
+    translateMock.mockImplementation((key: string) => key);
+    const request = { method: "POST", url: "/products", locale: "es" };
+
+    filter.catch(
+      new BadRequestException({
+        message: "products.invalid_attributes",
+        errors: [{ key: "proveedor", message: "catalogs.sin_traduccion" }],
+      }),
+      buildHost(request),
+    );
+
+    expect(jsonMock).toHaveBeenCalledWith({
+      statusCode: 400,
+      error: "Bad Request",
+      message: "products.invalid_attributes",
+      errors: [{ key: "proveedor", message: "catalogs.sin_traduccion" }],
+    });
+  });
+
+  it("no toca `errors` cuando no es la lista de errores por campo", () => {
+    // El reporte de importación viaja en `errors` con OTRA forma (row/field) y
+    // sus mensajes ya se traducen en el front fila por fila.
+    translateMock.mockImplementation((key: string) => key);
+
+    filter.catch(
+      new BadRequestException({ message: "products.import_has_errors", errors: "no soy un array" }),
+      buildHost({ method: "POST", url: "/products/import", locale: "es" }),
+    );
+
+    expect(jsonMock).toHaveBeenCalledWith({
+      statusCode: 400,
+      error: "Bad Request",
+      message: "products.import_has_errors",
+      errors: "no soy un array",
     });
   });
 });

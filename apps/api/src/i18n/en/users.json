@@ -6,5 +6,6 @@
   "cannot_suspend_self": "You cannot suspend your own account",
   "not_suspended": "The user is not suspended",
   "not_invited": "The invitation can only be resent to a user who hasn't accepted it yet",
-  "cannot_assign_unheld_role_permission": "You cannot assign a role that grants permissions you do not have yourself"
+  "cannot_assign_unheld_role_permission": "You cannot assign a role that grants permissions you do not have yourself",
+  "warehouse_scope_invalid": "One or more selected warehouses do not exist in this business"
 }

@@ -1,0 +1,5 @@
+{
+  "not_found": "This warehouse doesn't exist.",
+  "name_taken": "You already have a warehouse with that name.",
+  "empty_update": "There are no changes to save."
+}
