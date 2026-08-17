@@ -147,6 +147,33 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(presentations[0]?.price).toBe("22");
     });
 
+    it("un importe con más de dos decimales se rechaza en vez de redondearse solo", async () => {
+      // `DECIMAL(14,2)`: sin esta validación Postgres guardaría 15.56 y nadie
+      // se enteraría de que el número que se escribió no es el que quedó.
+      const { token } = await registerAndLogin();
+
+      await createProduct(token, {
+        sku: `DEC-${randomUUID().slice(0, 8)}`,
+        name: "Tres decimales",
+        price: 15.555,
+      }).expect(400);
+
+      const ok = await createProduct(token, {
+        sku: `DEC-${randomUUID().slice(0, 8)}`,
+        name: "Dos decimales",
+        price: 15.55,
+        cost: 9.9,
+      }).expect(201);
+
+      // La edición cierra la otra mitad de la puerta: sin esto se podría dar de
+      // alta bien y ensuciar el precio después.
+      await request(app.getHttpServer())
+        .patch(`/products/${(ok.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ cost: 0.001 })
+        .expect(400);
+    });
+
     it("SKU repetido en el tenant → 409; unidad desconocida → 400", async () => {
       const { token } = await registerAndLogin();
       const sku = `DUP-${randomUUID().slice(0, 8)}`;
@@ -201,6 +228,29 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
   });
 
   describe("F2-PRESENT — presentaciones", () => {
+    it("la presentación tampoco acepta importes de tres decimales", async () => {
+      // Misma regla, otra puerta: el precio de una presentación va a la misma
+      // columna `DECIMAL(14,2)` que el del producto.
+      const { token } = await registerAndLogin();
+      const product = await createProduct(token, {
+        sku: `PDEC-${randomUUID().slice(0, 8)}`,
+        name: "Con presentaciones",
+      }).expect(201);
+      const id = (product.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .post(`/products/${id}/presentations`)
+        .set("Authorization", bearer(token))
+        .send({ name: "Caja", factor: 10, price: 199.999 })
+        .expect(400);
+
+      await request(app.getHttpServer())
+        .post(`/products/${id}/presentations`)
+        .set("Authorization", bearer(token))
+        .send({ name: "Caja", factor: 10, price: 199.99 })
+        .expect(201);
+    });
+
     it("el barcode es único por tenant y el nombre único por producto", async () => {
       const { token } = await registerAndLogin();
       const first = await createProduct(token, { sku: "A", name: "A" }).expect(201);

@@ -15,6 +15,7 @@ import {
 import type { ApiError } from "@/lib/api";
 import type { Presentation } from "@/lib/products/api";
 import { useCreatePresentation, useUpdatePresentation } from "@/lib/products/hooks";
+import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 
 interface PresentationsTabProps {
   productId: string;
@@ -189,7 +190,10 @@ function NewPresentationRow({
   const createPresentation = useCreatePresentation(productId);
 
   const factorValue = Number(factor);
-  const canSubmit = name.trim().length > 0 && factorValue > 0;
+  // El precio de una presentación va a la MISMA columna `DECIMAL(14,2)` que el
+  // del producto: misma regla, misma barrera antes de mandar.
+  const priceError = moneyScaleError(price);
+  const canSubmit = name.trim().length > 0 && factorValue > 0 && !priceError;
 
   return (
     <form
@@ -238,10 +242,16 @@ function NewPresentationRow({
         <Input
           id="new-presentation-price"
           type="number"
-          step="any"
+          step={MONEY_STEP}
+          aria-invalid={priceError ? true : undefined}
           value={price}
           onChange={(event) => setPrice(event.target.value)}
         />
+        {priceError && (
+          <p role="alert" className="text-destructive">
+            {t("products.too_many_decimals")}
+          </p>
+        )}
       </div>
       <Button type="submit" size="sm" disabled={!canSubmit || createPresentation.isPending}>
         {t("common.form.add")}

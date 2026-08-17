@@ -278,6 +278,40 @@ describe("Importación de productos (F2-IMPORT)", () => {
       .expect(400);
   });
 
+  it("un precio con tres decimales falla la fila en vez de redondearse solo", async () => {
+    const token = await registerAndLogin();
+
+    const report = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,precio\nDEC-1,Con centavos de más,15.555", dryRun: true })
+      .expect(200);
+
+    expect(report.body).toMatchObject({ valid: 0, failed: 1 });
+    expect((report.body as { errors: ImportRowError[] }).errors[0]).toMatchObject({
+      row: 2,
+      field: "precio",
+      message: "products.too_many_decimals",
+    });
+  });
+
+  it("dos decimales entran sin problema, incluido el caso que rompe al punto flotante", async () => {
+    const token = await registerAndLogin();
+
+    // 1.15 * 100 = 114.99999999999999: una validación ingenua lo rechazaría.
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,precio,costo\nDEC-2,Válido,1.15,0.01" })
+      .expect(200);
+
+    const list = await request(app.getHttpServer())
+      .get("/products")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    expect((list.body as { items: { price: string }[] }).items[0]?.price).toBe("1.15");
+  });
+
   describe("campos lookup: en la planilla va el CÓDIGO, adentro el id", () => {
     /**
      * Arma un subcatálogo con un registro y un campo lookup en productos que le

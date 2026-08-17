@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { moneyAmount } from "../money";
 
 /**
  * F2-PROD-01. `price` y `cost` viajan acá aunque NO sean columnas de
@@ -13,8 +14,8 @@ export const createProductSchema = z.object({
   stockMin: z.number().nonnegative().default(0),
   isComposite: z.boolean().default(false),
   attributes: z.record(z.string(), z.unknown()).default({}),
-  price: z.number().nonnegative().optional(),
-  cost: z.number().nonnegative().optional(),
+  price: moneyAmount().optional(),
+  cost: moneyAmount().optional(),
 });
 
 export const updateProductSchema = z
@@ -25,8 +26,8 @@ export const updateProductSchema = z
     stockMin: z.number().nonnegative().optional(),
     isComposite: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),
-    price: z.number().nonnegative().nullable().optional(),
-    cost: z.number().nonnegative().nullable().optional(),
+    price: moneyAmount().nullable().optional(),
+    cost: moneyAmount().nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "products.empty_update" });

@@ -38,6 +38,7 @@ import {
   useProducts,
   useUpdateProduct,
 } from "@/lib/products/hooks";
+import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 
 export const Route = createFileRoute("/catalog/products")({
   component: ProductsPage,
@@ -324,6 +325,13 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const { data: availability } = useAvailability(product?.id, Boolean(product?.isComposite));
   void availability;
 
+  // Los importes tienen dos decimales (`DECIMAL(14,2)`): se avisa MIENTRAS se
+  // escribe y se bloquea el submit. El API lo rechaza igual —esta validación no
+  // reemplaza a la de allá, la adelanta— pero enterarse al guardar, después de
+  // llenar todo el formulario, es la peor forma de enterarse.
+  const priceError = moneyScaleError(price) ? t("products.too_many_decimals") : undefined;
+  const costError = moneyScaleError(cost) ? t("products.too_many_decimals") : undefined;
+
   function handleError(apiError: ApiError) {
     const errors = (apiError as unknown as { errors?: { key: string; message: string }[] }).errors;
     if (errors?.length) {
@@ -404,8 +412,9 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
       <TextField
         label={t("products.form.price")}
         type="number"
-        step="any"
+        step={MONEY_STEP}
         hint={t("products.form.priceHint")}
+        error={priceError}
         value={price}
         disabled={!canManage}
         onChange={(event) => setPrice(event.target.value)}
@@ -413,7 +422,8 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
       <TextField
         label={t("products.form.cost")}
         type="number"
-        step="any"
+        step={MONEY_STEP}
+        error={costError}
         value={cost}
         disabled={!canManage}
         onChange={(event) => setCost(event.target.value)}
@@ -439,7 +449,16 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
 
       {canManage && (
         <div className="flex gap-2">
-          <Button type="submit" disabled={isSubmitting || !sku.trim() || !name.trim()}>
+          <Button
+            type="submit"
+            disabled={
+              isSubmitting ||
+              !sku.trim() ||
+              !name.trim() ||
+              Boolean(priceError) ||
+              Boolean(costError)
+            }
+          >
             {isSubmitting ? t("common.form.submitting") : t("common.form.save")}
           </Button>
           <Button type="button" variant="outline" onClick={onDone}>

@@ -7,6 +7,8 @@
   "searchPlaceholder": "Code, name or barcode",
   "onlyComposite": "Composite only",
   "compositeBadge": "Composite",
+  "too_many_decimals": "Amounts allow at most 2 decimal places.",
+  "composition_cycle": "That relationship forms a cycle: one of the products would end up containing itself. Remove the reverse composition before adding this one.",
   "availableUnits": "Can build",
   "pagination": "{{total}} products",
   "previous": "Previous",

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { moneyAmount } from "../money";
 
 /**
  * F2-PRESENT-01. `allowFractionalInput` es OPCIONAL a propósito: si no viene,
@@ -13,8 +14,8 @@ export const createPresentationSchema = z.object({
   isDefaultSale: z.boolean().default(false),
   allowFractionalInput: z.boolean().optional(),
   barcode: z.string().trim().min(1).max(64).optional(),
-  price: z.number().nonnegative().optional(),
-  cost: z.number().nonnegative().optional(),
+  price: moneyAmount().optional(),
+  cost: moneyAmount().optional(),
 });
 
 export const updatePresentationSchema = z
@@ -26,8 +27,8 @@ export const updatePresentationSchema = z
     isDefaultSale: z.boolean().optional(),
     allowFractionalInput: z.boolean().optional(),
     barcode: z.string().trim().min(1).max(64).nullable().optional(),
-    price: z.number().nonnegative().nullable().optional(),
-    cost: z.number().nonnegative().nullable().optional(),
+    price: moneyAmount().nullable().optional(),
+    cost: moneyAmount().nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "products.empty_update" });

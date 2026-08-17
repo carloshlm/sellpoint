@@ -7,6 +7,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
+import { hasValidMoneyScale } from "./money";
 import { derivesFractionalInput } from "./products.service";
 import { parseSpreadsheet, type SpreadsheetFormat, serializeSpreadsheet } from "./spreadsheet";
 
@@ -273,14 +274,38 @@ export class ImportService {
         continue;
       }
 
+      // Importes con más de dos decimales: la planilla es justamente donde más
+      // fácil se cuelan (una división en Excel deja 12 decimales sin que nadie
+      // los vea) y donde el redondeo silencioso de Postgres pasa más
+      // desapercibido, porque nadie revisa 400 filas a ojo.
+      const money: Record<string, number | null> = { precio: null, costo: null };
+      let moneyError: ImportRowError | null = null;
+      for (const column of ["precio", "costo"]) {
+        const raw = value(column);
+        if (!raw) {
+          continue;
+        }
+        const amount = Number(raw);
+        if (!hasValidMoneyScale(amount)) {
+          moneyError = { row: rowNumber, field: column, message: "products.too_many_decimals" };
+          break;
+        }
+        money[column] = amount;
+      }
+
+      if (moneyError) {
+        errors.push(moneyError);
+        continue;
+      }
+
       parsed.push({
         row: rowNumber,
         sku,
         name,
         baseUnit,
         stockMin: Number(value("stock_minimo")) || 0,
-        price: value("precio") ? Number(value("precio")) : null,
-        cost: value("costo") ? Number(value("costo")) : null,
+        price: money.precio ?? null,
+        cost: money.costo ?? null,
         attributes,
       });
     }

@@ -1,5 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney } from "./money";
+import { formatMoney, hasValidMoneyScale, MONEY_DECIMALS } from "./money";
+
+/**
+ * La columna es `DECIMAL(14,2)`: Postgres REDONDEA en silencio lo que no entra.
+ * Estos casos existen para que el usuario se entere de que su número no cabe,
+ * en vez de descubrir semanas después que su costo cambió solo.
+ */
+describe("hasValidMoneyScale", () => {
+  it("acepta enteros y hasta dos decimales", () => {
+    expect(MONEY_DECIMALS).toBe(2);
+    for (const amount of [0, 15, 15.5, 15.55, 0.01, 999999.99]) {
+      expect(hasValidMoneyScale(amount)).toBe(true);
+    }
+  });
+
+  it("rechaza tres decimales o más", () => {
+    for (const amount of [15.555, 0.001, 1.234567, 9.999, 1.005]) {
+      expect(hasValidMoneyScale(amount)).toBe(false);
+    }
+  });
+
+  it("no se deja engañar por el punto flotante", () => {
+    // Multiplicar por 100 daría 114.99999999999999 y rechazaría un precio bueno.
+    expect(1.15 * 100).not.toBe(115);
+    expect(hasValidMoneyScale(1.15)).toBe(true);
+  });
+
+  it("rechaza la notación exponencial, que esconde decimales sin punto", () => {
+    expect(hasValidMoneyScale(1e-7)).toBe(false);
+    expect(hasValidMoneyScale(1.5e-3)).toBe(false);
+  });
+
+  it("rechaza lo que no es un número finito", () => {
+    for (const amount of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(hasValidMoneyScale(amount)).toBe(false);
+    }
+  });
+});
 
 describe("formatMoney", () => {
   it("formats the native pair MXN/es with the shared '$' symbol (anchor)", () => {

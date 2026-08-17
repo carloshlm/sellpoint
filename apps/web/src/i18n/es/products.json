@@ -7,6 +7,8 @@
   "searchPlaceholder": "Código, nombre o código de barras",
   "onlyComposite": "Solo compuestos",
   "compositeBadge": "Compuesto",
+  "too_many_decimals": "El importe admite como máximo 2 decimales.",
+  "composition_cycle": "Esa relación forma un ciclo: uno de los productos terminaría llevándose a sí mismo. Quita la composición inversa antes de agregar esta.",
   "availableUnits": "Alcanza para",
   "pagination": "{{total}} productos",
   "previous": "Anterior",
