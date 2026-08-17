@@ -1,3 +1,4 @@
+import { unitName } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import type { Presentation } from "@/lib/products/api";
 import { useCreatePresentation, useUpdatePresentation } from "@/lib/products/hooks";
@@ -38,17 +40,23 @@ function PresentationsTab({
   presentations,
   canManage,
 }: PresentationsTabProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const updatePresentation = useUpdatePresentation(productId);
+
+  // El nombre en PLURAL y en minúscula: las dos frases que lo usan hablan de
+  // cantidades y lo insertan en medio de la oración ("Equivale en gramos"). La
+  // minúscula la decide la frase, no la unidad — por eso `unitName` devuelve el
+  // nombre capitalizado y se baja acá.
+  const baseUnitLabel = unitName(baseUnit, resolveUiLocale(i18n), { plural: true }).toLowerCase();
 
   const onError = (apiError: ApiError) => setError(apiError.message);
 
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">
-        {t("products.presentations.baseUnitHint", { unit: baseUnit })}
+        {t("products.presentations.baseUnitHint", { unit: baseUnitLabel })}
       </p>
 
       {error && (
@@ -65,7 +73,7 @@ function PresentationsTab({
         <TableHeader>
           <TableRow>
             <TableHead>{t("products.presentations.name")}</TableHead>
-            <TableHead>{t("products.presentations.factor", { unit: baseUnit })}</TableHead>
+            <TableHead>{t("products.presentations.factor", { unit: baseUnitLabel })}</TableHead>
             <TableHead>{t("products.presentations.purchasable")}</TableHead>
             <TableHead>{t("products.presentations.sellable")}</TableHead>
             <TableHead>{t("products.presentations.default")}</TableHead>

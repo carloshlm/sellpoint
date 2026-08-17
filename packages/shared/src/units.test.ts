@@ -33,6 +33,27 @@ describe("unitName", () => {
 
   it("un código desconocido devuelve el código: mejor eso que una etiqueta vacía", () => {
     expect(unitName("no-existe", "es")).toBe("no-existe");
+    expect(unitName("no-existe", "es", { plural: true })).toBe("no-existe");
+  });
+
+  it("da el plural para las frases: «Equivale en gramos», no «en gramo»", () => {
+    expect(unitName("gr", "es", { plural: true })).toBe("Gramos");
+    expect(unitName("gr", "en", { plural: true })).toBe("Grams");
+    expect(unitName("cm", "es", { plural: true })).toBe("Centímetros");
+  });
+
+  it("el plural es un DATO y no una regla: «Unidad» no pluraliza con una `s`", () => {
+    // Este es el caso que hace imposible derivarlo con `+ "s"`. Si alguien
+    // "simplifica" el catálogo a una regla, este test lo frena.
+    expect(unitName("unit", "es", { plural: true })).toBe("Unidades");
+    expect(unitName("unit", "en", { plural: true })).toBe("Units");
+  });
+
+  it("todas las unidades tienen plural en los dos idiomas", () => {
+    const incompletas = UNIT_CODES.filter(
+      (code) => !UNITS[code].namePluralEs.trim() || !UNITS[code].namePluralEn.trim(),
+    );
+    expect(incompletas).toEqual([]);
   });
 });
 

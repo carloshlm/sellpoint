@@ -40,27 +40,97 @@ export interface UnitDefinition {
    */
   readonly nameEs: string;
   readonly nameEn: string;
+  /**
+   * El plural es un DATO, no una regla. En español "Unidad" hace "Unidades", no
+   * "Unidads": cualquier intento de derivarlo agregando una `s` se rompe en la
+   * primera unidad y produce texto que se lee mal delante del cliente.
+   */
+  readonly namePluralEs: string;
+  readonly namePluralEn: string;
 }
 
 export const UNITS = {
   // count — cosas que se cuentan de a una. No admite fracciones (de acá sale
   // el default de `allow_fractional_input` de las presentaciones).
-  unit: { category: "count", factor: 1, nameEs: "Unidad", nameEn: "Unit" },
+  unit: {
+    category: "count",
+    factor: 1,
+    nameEs: "Unidad",
+    nameEn: "Unit",
+    namePluralEs: "Unidades",
+    namePluralEn: "Units",
+  },
 
   // volume — base: mililitro
-  ml: { category: "volume", factor: 1, nameEs: "Mililitro", nameEn: "Milliliter" },
-  l: { category: "volume", factor: 1000, nameEs: "Litro", nameEn: "Liter" },
+  ml: {
+    category: "volume",
+    factor: 1,
+    nameEs: "Mililitro",
+    nameEn: "Milliliter",
+    namePluralEs: "Mililitros",
+    namePluralEn: "Milliliters",
+  },
+  l: {
+    category: "volume",
+    factor: 1000,
+    nameEs: "Litro",
+    nameEn: "Liter",
+    namePluralEs: "Litros",
+    namePluralEn: "Liters",
+  },
 
   // weight — base: gramo. Los factores imperiales son las definiciones
   // internacionales exactas (1 lb = 453.59237 gr por acuerdo de 1959).
-  gr: { category: "weight", factor: 1, nameEs: "Gramo", nameEn: "Gram" },
-  kg: { category: "weight", factor: 1000, nameEs: "Kilogramo", nameEn: "Kilogram" },
-  oz: { category: "weight", factor: 28.349523125, nameEs: "Onza", nameEn: "Ounce" },
-  lb: { category: "weight", factor: 453.59237, nameEs: "Libra", nameEn: "Pound" },
+  gr: {
+    category: "weight",
+    factor: 1,
+    nameEs: "Gramo",
+    nameEn: "Gram",
+    namePluralEs: "Gramos",
+    namePluralEn: "Grams",
+  },
+  kg: {
+    category: "weight",
+    factor: 1000,
+    nameEs: "Kilogramo",
+    nameEn: "Kilogram",
+    namePluralEs: "Kilogramos",
+    namePluralEn: "Kilograms",
+  },
+  oz: {
+    category: "weight",
+    factor: 28.349523125,
+    nameEs: "Onza",
+    nameEn: "Ounce",
+    namePluralEs: "Onzas",
+    namePluralEn: "Ounces",
+  },
+  lb: {
+    category: "weight",
+    factor: 453.59237,
+    nameEs: "Libra",
+    nameEn: "Pound",
+    namePluralEs: "Libras",
+    namePluralEn: "Pounds",
+  },
 
   // length — base: centímetro
-  cm: { category: "length", factor: 1, nameEs: "Centímetro", nameEn: "Centimeter" },
-  m: { category: "length", factor: 100, nameEs: "Metro", nameEn: "Meter" },
+  cm: {
+    category: "length",
+    factor: 1,
+    nameEs: "Centímetro",
+    nameEn: "Centimeter",
+    namePluralEs: "Centímetros",
+    namePluralEn: "Centimeters",
+  },
+  m: {
+    category: "length",
+    factor: 100,
+    nameEs: "Metro",
+    nameEn: "Meter",
+    namePluralEs: "Metros",
+    namePluralEn: "Meters",
+  },
 } as const satisfies Record<string, UnitDefinition>;
 
 export type UnitCode = keyof typeof UNITS;
@@ -79,14 +149,23 @@ export function getUnit(code: string): UnitDefinition | undefined {
 /**
  * Nombre de la unidad para mostrarle a una persona.
  *
+ * `plural` para las frases que hablan de cantidades ("Equivale en gramos"); el
+ * singular es para etiquetas sueltas, como cada opción del selector de unidad
+ * base. Devuelve el nombre CAPITALIZADO en ambos casos: quien lo inserta en
+ * medio de una oración lo baja a minúscula donde corresponde, que es una
+ * decisión de la frase y no de la unidad.
+ *
  * Un código desconocido se devuelve tal cual: si un producto viejo quedó con
  * una unidad que ya no está en el catálogo, ver `xx` es mucho mejor que ver una
  * celda vacía y no entender qué pasó.
  */
-export function unitName(code: string, locale: Locale): string {
+export function unitName(code: string, locale: Locale, options?: { plural?: boolean }): string {
   const unit = getUnit(code);
   if (!unit) {
     return code;
+  }
+  if (options?.plural) {
+    return locale === "en" ? unit.namePluralEn : unit.namePluralEs;
   }
   return locale === "en" ? unit.nameEn : unit.nameEs;
 }
