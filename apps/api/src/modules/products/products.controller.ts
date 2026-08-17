@@ -60,17 +60,24 @@ export class ProductsController {
   ) {}
 
   /**
-   * F2-IMPORT-01. Devuelve CSV con BOM: Excel lo abre nativo y respeta los
-   * acentos. Las columnas salen de los campos vigentes del catálogo.
+   * F2-IMPORT-01. `?format=xlsx` devuelve la planilla de Excel; por omisión,
+   * CSV con BOM (Excel lo abre nativo y respeta los acentos). Las columnas
+   * salen de los campos vigentes del catálogo y las filas, de los productos ya
+   * dados de alta: descargar, editar y volver a subir es el camino principal.
    */
   @Get("import/template")
   @RequirePermissions("products:manage")
-  async template(@CurrentUser() user: AuthUser, @Res() response: Response) {
-    const csv = await this.importService.template(user);
+  async template(
+    @Query("format") rawFormat: string | undefined,
+    @CurrentUser() user: AuthUser,
+    @Res() response: Response,
+  ) {
+    const format = rawFormat === "xlsx" ? "xlsx" : "csv";
+    const { body, contentType, filename } = await this.importService.template(user, format);
     response
-      .setHeader("Content-Type", "text/csv; charset=utf-8")
-      .setHeader("Content-Disposition", 'attachment; filename="productos.csv"')
-      .send(csv);
+      .setHeader("Content-Type", contentType)
+      .setHeader("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(body);
   }
 
   /**
@@ -90,7 +97,7 @@ export class ProductsController {
     return this.importService.run(
       user,
       dto.content,
-      { dryRun: dto.dryRun, skipErrors: dto.skipErrors },
+      { format: dto.format, dryRun: dto.dryRun, skipErrors: dto.skipErrors },
       metaFrom(request),
     );
   }

@@ -62,15 +62,20 @@
   "import": {
     "open": "Importar",
     "title": "Importar productos",
-    "step1": "1. Descarga la plantilla con los campos de tu catálogo.",
-    "downloadTemplate": "Descargar plantilla",
-    "step2": "2. Llena la plantilla y súbela.",
+    "step1": "1. Descarga la plantilla: trae los campos de tu catálogo y los productos que ya diste de alta.",
+    "downloadCsv": "Plantilla CSV",
+    "downloadXlsx": "Plantilla Excel",
+    "step2": "2. Edítala y súbela (CSV o Excel).",
+    "chooseFile": "Elegir archivo",
+    "noFile": "Ningún archivo elegido",
     "valid": "{{count}} filas válidas",
     "failed": "{{count}} con error",
+    "breakdown": "{{created}} para dar de alta · {{updated}} para actualizar",
     "rowError": "Fila {{row}}: {{message}}",
     "skipErrors": "Importar solo las filas válidas y saltear las que tienen error",
     "confirm": "Importar {{count}}",
     "done": "Se importaron {{count}} productos.",
+    "doneBreakdown": "{{created}} nuevos · {{updated}} actualizados",
     "close": "Cerrar"
   }
 }

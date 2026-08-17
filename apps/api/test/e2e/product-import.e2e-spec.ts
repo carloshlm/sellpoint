@@ -186,6 +186,97 @@ describe("Importación de productos (F2-IMPORT)", () => {
       .expect(413);
   });
 
+  it("la plantilla trae los productos ya dados de alta, no solo los encabezados", async () => {
+    const token = await registerAndLogin();
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,precio\nEXIST-1,Ya existe,33.50" })
+      .expect(200);
+
+    const template = await request(app.getHttpServer())
+      .get("/products/import/template")
+      .set("Authorization", bearer(token))
+      .expect(200);
+
+    expect(template.text).toContain("EXIST-1");
+    expect(template.text).toContain("Ya existe");
+    // El precio vive en la presentación default: si no viajara, bajar la
+    // plantilla y volver a subirla borraría los precios.
+    expect(template.text).toContain("33.5");
+  });
+
+  it("volver a subir la plantilla ACTUALIZA en vez de fallar por SKU repetido", async () => {
+    const token = await registerAndLogin();
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,precio\nUP-1,Nombre viejo,10" })
+      .expect(200);
+
+    const result = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,precio\nUP-1,Nombre nuevo,25" })
+      .expect(200);
+
+    // Se reconoce como actualización ANTES de escribir: el usuario lo ve en el
+    // dry-run, no se entera después.
+    expect(result.body).toMatchObject({ created: 0, updated: 1, imported: 1 });
+
+    const list = await request(app.getHttpServer())
+      .get("/products")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const body = list.body as { total: number; items: { name: string; price: string }[] };
+    // Sigue habiendo UNO: se actualizó, no se duplicó.
+    expect(body.total).toBe(1);
+    expect(body.items[0]?.name).toBe("Nombre nuevo");
+    expect(body.items[0]?.price).toBe("25");
+  });
+
+  it("la plantilla xlsx se descarga y se vuelve a subir tal cual (round-trip binario)", async () => {
+    const token = await registerAndLogin();
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre,precio\nXLS-1,Producto Excel,15" })
+      .expect(200);
+
+    const template = await request(app.getHttpServer())
+      .get("/products/import/template?format=xlsx")
+      .set("Authorization", bearer(token))
+      .responseType("blob")
+      .expect(200);
+
+    expect(template.headers["content-type"]).toContain("spreadsheetml");
+    // Firma de un ZIP: un .xlsx es un ZIP. Si saliera CSV, esto no coincide.
+    expect((template.body as Buffer).subarray(0, 2).toString()).toBe("PK");
+
+    const report = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({
+        content: (template.body as Buffer).toString("base64"),
+        format: "xlsx",
+        dryRun: true,
+      })
+      .expect(200);
+
+    // La fila del producto existente se lee y se reconoce como actualización.
+    expect(report.body).toMatchObject({ valid: 1, failed: 0, created: 0, updated: 1 });
+  });
+
+  it("un xlsx recortado se rechaza con 400, no revienta el proceso", async () => {
+    const token = await registerAndLogin();
+
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: Buffer.from("no soy un xlsx").toString("base64"), format: "xlsx" })
+      .expect(400);
+  });
+
   it("los productos importados nacen con su presentación base y su precio", async () => {
     const token = await registerAndLogin();
 

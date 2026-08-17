@@ -62,15 +62,20 @@
   "import": {
     "open": "Import",
     "title": "Import products",
-    "step1": "1. Download the template with your catalog's fields.",
-    "downloadTemplate": "Download template",
-    "step2": "2. Fill in the template and upload it.",
+    "step1": "1. Download the template: it includes your catalog's fields and the products you already have.",
+    "downloadCsv": "CSV template",
+    "downloadXlsx": "Excel template",
+    "step2": "2. Edit it and upload it (CSV or Excel).",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen",
     "valid": "{{count}} valid rows",
     "failed": "{{count}} with errors",
+    "breakdown": "{{created}} to create · {{updated}} to update",
     "rowError": "Row {{row}}: {{message}}",
     "skipErrors": "Import only valid rows and skip the ones with errors",
     "confirm": "Import {{count}}",
     "done": "{{count}} products imported.",
+    "doneBreakdown": "{{created}} new · {{updated}} updated",
     "close": "Close"
   }
 }
