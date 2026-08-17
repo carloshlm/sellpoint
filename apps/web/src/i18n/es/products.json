@@ -40,6 +40,8 @@
     "setDefault": "Usar «{{name}}» como predeterminada",
     "wholeOnly": "Solo enteros",
     "wholeOnlyFor": "Solo enteros en «{{name}}»",
+    "purchasableFor": "Se compra en «{{name}}»",
+    "sellableFor": "Se vende en «{{name}}»",
     "barcode": "Código de barras",
     "price": "Precio",
     "deactivate": "Desactivar",

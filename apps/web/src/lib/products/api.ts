@@ -147,6 +147,10 @@ export async function updatePresentation(
   return data;
 }
 
+export async function deletePresentation(productId: string, presentationId: string): Promise<void> {
+  await api.delete(`/products/${productId}/presentations/${presentationId}`);
+}
+
 export interface CompositionInput {
   lines: {
     componentId: string;

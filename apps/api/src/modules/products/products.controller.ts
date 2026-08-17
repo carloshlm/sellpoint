@@ -193,6 +193,23 @@ export class ProductsController {
     return this.presentationsService.update(user, id, presentationId, dto, metaFrom(request));
   }
 
+  /**
+   * Borrado REAL, no baja lógica: solo pasa si nadie usó la presentación. La
+   * predeterminada, la última y (desde F3/F4) una ya usada devuelven 409 — para
+   * esas el camino es desactivar.
+   */
+  @Delete(":id/presentations/:presentationId")
+  @HttpCode(204)
+  @RequirePermissions("products:manage")
+  async removePresentation(
+    @Param("id") id: string,
+    @Param("presentationId") presentationId: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    await this.presentationsService.remove(user, id, presentationId, metaFrom(request));
+  }
+
   @Get(":id/composition")
   @RequirePermissions("products:read")
   getComposition(@Param("id") id: string, @CurrentUser() user: AuthUser) {

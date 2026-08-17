@@ -20,9 +20,14 @@ import { derivesFractionalInput } from "./products.service";
  * 2. **`isDefaultSale` es exclusivo por producto**: marcar una desmarca la
  *    anterior en la misma transacción. Dos predeterminadas dejarían al POS
  *    eligiendo al azar.
- * 3. **No se borran, se desactivan**: F4 va a referenciarlas desde las líneas
- *    de venta, y un ticket que apunta a una presentación borrada es un
- *    agujero en el histórico.
+ * 3. **Se borran solo si nadie las usó** (decisión de Carlos, 2026-08-17). Una
+ *    presentación recién creada con el factor equivocado se elimina de verdad;
+ *    una que ya participó de una venta, no —un ticket que apunta a una
+ *    presentación borrada es un agujero en el histórico—, y para esa el camino
+ *    es desactivarla. Ver `assertDeletable`.
+ * 4. **El producto nunca se queda sin presentación de venta preseleccionada.**
+ *    Ese agujero se entra por TRES puertas —quitarle el default, desactivarla,
+ *    borrarla— y las tres están tapadas. El POS de F4 no sabría qué ofrecer.
  */
 @Injectable()
 export class PresentationsService {
@@ -109,6 +114,12 @@ export class PresentationsService {
         throw new ConflictException({ message: "products.default_presentation_required" });
       }
 
+      // Desactivarla es el MISMO agujero por otra puerta: la marca de default
+      // sobreviviría apuntando a una presentación que no se puede vender.
+      if (input.isActive === false && current.isDefaultSale) {
+        throw new ConflictException({ message: "products.default_presentation_required" });
+      }
+
       try {
         if (input.isDefaultSale === true && !current.isDefaultSale) {
           await this.clearDefault(tx, productId);
@@ -149,6 +160,76 @@ export class PresentationsService {
         throw translateUniqueViolation(error);
       }
     });
+  }
+
+  /**
+   * F2-PRESENT — borrado real, condicionado.
+   *
+   * El caso que lo motiva: cargar "Bolsa 2 kg" con factor 1000 por error.
+   * Desactivarla la dejaría para siempre en la lista, gris, sin haber servido
+   * nunca para nada.
+   */
+  async remove(
+    user: AuthUser,
+    productId: string,
+    presentationId: string,
+    meta: RequestMeta,
+  ): Promise<void> {
+    await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      await this.findProductOrFail(tx, user, productId);
+
+      const current = await tx.productPresentation.findFirst({
+        where: { id: presentationId, productId },
+        select: { id: true, name: true, isDefaultSale: true },
+      });
+
+      if (!current) {
+        throw new NotFoundException({ message: "products.presentation_not_found" });
+      }
+
+      if (current.isDefaultSale) {
+        // Marcar otra como predeterminada primero; recién ahí esta se puede ir.
+        throw new ConflictException({ message: "products.default_presentation_required" });
+      }
+
+      const total = await tx.productPresentation.count({ where: { productId } });
+      if (total <= 1) {
+        throw new ConflictException({ message: "products.last_presentation" });
+      }
+
+      await this.assertDeletable(tx, presentationId);
+
+      await tx.productPresentation.delete({ where: { id: presentationId } });
+
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "products.presentation_delete",
+        resourceType: "product_presentation",
+        resourceId: presentationId,
+        before: { name: current.name },
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    });
+  }
+
+  /**
+   * ¿Alguien ya usó esta presentación? Punto ÚNICO de extensión: hoy no hay
+   * ninguna tabla que la referencie —`stock_by_warehouse` cuelga del producto,
+   * no de la presentación—, así que no hay nada que chequear todavía.
+   *
+   * **F3 y F4 agregan su chequeo ACÁ**, no en el `remove`: los movimientos de
+   * inventario y las líneas de venta van a apuntar a `product_presentations`, y
+   * a partir de ese momento borrar una usada rompe el histórico. Cuando eso
+   * pase, este método lanza 409 `products.presentation_in_use` y la UI ofrece
+   * desactivar en lugar de borrar.
+   */
+  private async assertDeletable(
+    _tx: Prisma.TransactionClient,
+    _presentationId: string,
+  ): Promise<void> {
+    return;
   }
 
   private async clearDefault(tx: Prisma.TransactionClient, productId: string): Promise<void> {

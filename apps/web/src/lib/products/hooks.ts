@@ -7,6 +7,7 @@ import {
   type CostEstimate,
   createPresentation,
   createProduct,
+  deletePresentation,
   deleteProduct,
   getAvailability,
   getComposition,
@@ -108,6 +109,16 @@ export function useUpdatePresentation(productId: string) {
     { presentationId: string; input: UpsertPresentationInput }
   >({
     mutationFn: ({ presentationId, input }) => updatePresentation(productId, presentationId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeletePresentation(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (presentationId) => deletePresentation(productId, presentationId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["products"] });
     },

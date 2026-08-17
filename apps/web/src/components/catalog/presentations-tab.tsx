@@ -16,7 +16,11 @@ import {
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import type { Presentation } from "@/lib/products/api";
-import { useCreatePresentation, useUpdatePresentation } from "@/lib/products/hooks";
+import {
+  useCreatePresentation,
+  useDeletePresentation,
+  useUpdatePresentation,
+} from "@/lib/products/hooks";
 import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 
 interface PresentationsTabProps {
@@ -43,7 +47,12 @@ function PresentationsTab({
   const { t, i18n } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // Edición EXPLÍCITA, no campos que guardan al salir del foco: acá hay
+  // precios, y un typo que se guarda solo sin confirmar es una venta mal
+  // cobrada.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const updatePresentation = useUpdatePresentation(productId);
+  const deletePresentation = useDeletePresentation(productId);
 
   // El nombre en PLURAL y en minúscula: las dos frases que lo usan hablan de
   // cantidades y lo insertan en medio de la oración ("Equivale en gramos"). La
@@ -84,82 +93,145 @@ function PresentationsTab({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {presentations.map((presentation) => (
-            <TableRow
-              key={presentation.id}
-              data-testid={`presentation-${presentation.id}`}
-              className={presentation.isActive ? undefined : "opacity-50"}
-            >
-              <TableCell className="font-medium">{presentation.name}</TableCell>
-              <TableCell>{presentation.factor}</TableCell>
-              <TableCell>{presentation.isPurchasable ? "✓" : "—"}</TableCell>
-              <TableCell>{presentation.isSellable ? "✓" : "—"}</TableCell>
-              <TableCell>
-                <input
-                  type="radio"
-                  name="default-presentation"
-                  aria-label={t("products.presentations.setDefault", {
-                    name: presentation.name,
-                  })}
-                  checked={presentation.isDefaultSale}
-                  disabled={!canManage}
-                  onChange={() => {
-                    setError(null);
-                    updatePresentation.mutate(
-                      { presentationId: presentation.id, input: { isDefaultSale: true } },
-                      { onError },
-                    );
-                  }}
-                />
-              </TableCell>
-              <TableCell>
-                <Checkbox
-                  aria-label={t("products.presentations.wholeOnlyFor", {
-                    name: presentation.name,
-                  })}
-                  // Estado derivado del SERVER: `false` significa que admite
-                  // decimales, así que "solo enteros" es su negación.
-                  checked={!presentation.allowFractionalInput}
-                  disabled={!canManage}
-                  onCheckedChange={(checked) => {
-                    setError(null);
-                    updatePresentation.mutate(
-                      {
-                        presentationId: presentation.id,
-                        input: { allowFractionalInput: checked !== true },
-                      },
-                      { onError },
-                    );
-                  }}
-                />
-              </TableCell>
-              <TableCell>{presentation.barcode ?? "—"}</TableCell>
-              <TableCell>{presentation.price ?? "—"}</TableCell>
-              {canManage && (
-                <TableCell className="text-right">
-                  {/* No se BORRA: F4 va a referenciarlas desde las ventas. */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
+          {presentations.map((presentation) =>
+            editingId === presentation.id ? (
+              <EditPresentationRow
+                key={presentation.id}
+                productId={productId}
+                presentation={presentation}
+                onDone={() => setEditingId(null)}
+                onError={onError}
+              />
+            ) : (
+              <TableRow
+                key={presentation.id}
+                data-testid={`presentation-${presentation.id}`}
+                className={presentation.isActive ? undefined : "opacity-50"}
+              >
+                <TableCell className="font-medium">{presentation.name}</TableCell>
+                <TableCell>{presentation.factor}</TableCell>
+                {/* Compra y venta se cambian acá mismo, como "solo enteros":
+                    eran un ✓ muerto que obligaba a no-poder-hacer-nada. */}
+                <TableCell>
+                  <Checkbox
+                    aria-label={t("products.presentations.purchasableFor", {
+                      name: presentation.name,
+                    })}
+                    checked={presentation.isPurchasable}
+                    disabled={!canManage}
+                    onCheckedChange={(checked) => {
                       setError(null);
                       updatePresentation.mutate(
                         {
                           presentationId: presentation.id,
-                          input: { isActive: !presentation.isActive },
+                          input: { isPurchasable: checked === true },
                         },
                         { onError },
                       );
                     }}
-                  >
-                    {presentation.isActive
-                      ? t("products.presentations.deactivate")
-                      : t("products.presentations.reactivate")}
-                  </Button>
+                  />
                 </TableCell>
-              )}
-            </TableRow>
-          ))}
+                <TableCell>
+                  <Checkbox
+                    aria-label={t("products.presentations.sellableFor", {
+                      name: presentation.name,
+                    })}
+                    checked={presentation.isSellable}
+                    disabled={!canManage}
+                    onCheckedChange={(checked) => {
+                      setError(null);
+                      updatePresentation.mutate(
+                        {
+                          presentationId: presentation.id,
+                          input: { isSellable: checked === true },
+                        },
+                        { onError },
+                      );
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="radio"
+                    name="default-presentation"
+                    aria-label={t("products.presentations.setDefault", {
+                      name: presentation.name,
+                    })}
+                    checked={presentation.isDefaultSale}
+                    disabled={!canManage}
+                    onChange={() => {
+                      setError(null);
+                      updatePresentation.mutate(
+                        { presentationId: presentation.id, input: { isDefaultSale: true } },
+                        { onError },
+                      );
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Checkbox
+                    aria-label={t("products.presentations.wholeOnlyFor", {
+                      name: presentation.name,
+                    })}
+                    // Estado derivado del SERVER: `false` significa que admite
+                    // decimales, así que "solo enteros" es su negación.
+                    checked={!presentation.allowFractionalInput}
+                    disabled={!canManage}
+                    onCheckedChange={(checked) => {
+                      setError(null);
+                      updatePresentation.mutate(
+                        {
+                          presentationId: presentation.id,
+                          input: { allowFractionalInput: checked !== true },
+                        },
+                        { onError },
+                      );
+                    }}
+                  />
+                </TableCell>
+                <TableCell>{presentation.barcode ?? "—"}</TableCell>
+                <TableCell>{presentation.price ?? "—"}</TableCell>
+                {canManage && (
+                  <TableCell className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="sm" onClick={() => setEditingId(presentation.id)}>
+                      {t("common.form.edit")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setError(null);
+                        updatePresentation.mutate(
+                          {
+                            presentationId: presentation.id,
+                            input: { isActive: !presentation.isActive },
+                          },
+                          { onError },
+                        );
+                      }}
+                    >
+                      {presentation.isActive
+                        ? t("products.presentations.deactivate")
+                        : t("products.presentations.reactivate")}
+                    </Button>
+                    {/* Borrado REAL. El API lo rechaza con 409 si es la
+                        predeterminada, la última o (desde F3/F4) una ya usada:
+                        para esas el camino sigue siendo desactivar. */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setError(null);
+                        deletePresentation.mutate(presentation.id, { onError });
+                      }}
+                    >
+                      {t("common.form.delete")}
+                    </Button>
+                  </TableCell>
+                )}
+              </TableRow>
+            ),
+          )}
         </TableBody>
       </Table>
 
@@ -178,6 +250,101 @@ function PresentationsTab({
           </div>
         ))}
     </div>
+  );
+}
+
+/**
+ * La fila en modo edición. Se cambian los datos que describen la presentación
+ * —nombre, equivalencia, código de barras, precio—; los interruptores (compra,
+ * venta, predeterminada, solo enteros) NO están acá porque se operan de un
+ * clic en la fila normal y meterlos duplicaría el mismo control en dos lugares.
+ */
+function EditPresentationRow({
+  productId,
+  presentation,
+  onDone,
+  onError,
+}: {
+  productId: string;
+  presentation: Presentation;
+  onDone: () => void;
+  onError: (error: ApiError) => void;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(presentation.name);
+  const [factor, setFactor] = useState(presentation.factor);
+  const [barcode, setBarcode] = useState(presentation.barcode ?? "");
+  const [price, setPrice] = useState(presentation.price ?? "");
+  const updatePresentation = useUpdatePresentation(productId);
+
+  const factorValue = Number(factor);
+  const priceError = moneyScaleError(price);
+  const canSubmit = name.trim().length > 0 && factorValue > 0 && !priceError;
+
+  function save() {
+    updatePresentation.mutate(
+      {
+        presentationId: presentation.id,
+        input: {
+          name: name.trim(),
+          factor: factorValue,
+          // Vaciar el campo BORRA el código de barras (`null`), no lo deja como
+          // estaba: si no, no habría forma de quitarlo.
+          barcode: barcode.trim() || null,
+          price: price === "" ? null : Number(price),
+        },
+      },
+      { onSuccess: onDone, onError },
+    );
+  }
+
+  return (
+    <TableRow data-testid={`presentation-${presentation.id}-editing`}>
+      <TableCell>
+        <Input
+          aria-label={t("products.presentations.name")}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          aria-label={t("products.presentations.factorShort")}
+          type="number"
+          step="any"
+          value={factor}
+          onChange={(event) => setFactor(event.target.value)}
+        />
+      </TableCell>
+      {/* Los interruptores siguen siendo los de la fila normal: no se editan
+          acá para no tener el mismo control dos veces. */}
+      <TableCell colSpan={4} />
+      <TableCell>
+        <Input
+          aria-label={t("products.presentations.barcode")}
+          value={barcode}
+          onChange={(event) => setBarcode(event.target.value)}
+        />
+      </TableCell>
+      <TableCell>
+        <Input
+          aria-label={t("products.presentations.price")}
+          type="number"
+          step={MONEY_STEP}
+          aria-invalid={priceError ? true : undefined}
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
+        />
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        <Button size="sm" disabled={!canSubmit || updatePresentation.isPending} onClick={save}>
+          {t("common.form.save")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onDone}>
+          {t("common.form.cancel")}
+        </Button>
+      </TableCell>
+    </TableRow>
   );
 }
 

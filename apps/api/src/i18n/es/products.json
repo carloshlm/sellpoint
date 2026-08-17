@@ -21,5 +21,6 @@
   "import_missing_required": "Faltan el código o el nombre.",
   "import_duplicate_sku": "Este código está repetido dentro del archivo.",
   "import_has_errors": "El archivo tiene filas con error. Corrígelas o marca la opción para importar solo las válidas.",
-  "invalid_body": "Los datos enviados no son válidos."
+  "invalid_body": "Los datos enviados no son válidos.",
+  "last_presentation": "Es la única presentación del producto: sin ella no habría forma de venderlo. Agrega otra antes de eliminar esta."
 }

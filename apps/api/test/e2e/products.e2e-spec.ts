@@ -251,6 +251,124 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .expect(201);
     });
 
+    /**
+     * Borrado y desactivación (decisión de Carlos, 2026-08-17). Una presentación
+     * mal cargada —factor equivocado, nombre repetido— se borra de verdad
+     * mientras nadie la haya usado. Lo que NO se puede es dejar al producto sin
+     * una presentación de venta preseleccionada: el POS de F4 no sabría qué
+     * ofrecer, y ese agujero se entra por tres puertas distintas.
+     */
+    describe("F2-PRESENT — borrar y desactivar", () => {
+      async function productWithTwo(token: string) {
+        const product = await createProduct(token, {
+          sku: `DEL-${randomUUID().slice(0, 8)}`,
+          name: "Con presentaciones",
+          price: 10,
+        }).expect(201);
+        const id = (product.body as { id: string }).id;
+
+        const extra = await request(app.getHttpServer())
+          .post(`/products/${id}/presentations`)
+          .set("Authorization", bearer(token))
+          .send({ name: "Bolsa 1 kg", factor: 1000, price: 100 })
+          .expect(201);
+
+        return { id, extraId: (extra.body as { id: string }).id };
+      }
+
+      it("una presentación que nadie usó se borra de verdad", async () => {
+        const { token } = await registerAndLogin();
+        const { id, extraId } = await productWithTwo(token);
+
+        await request(app.getHttpServer())
+          .delete(`/products/${id}/presentations/${extraId}`)
+          .set("Authorization", bearer(token))
+          .expect(204);
+
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        // Desaparece de verdad: no queda inactiva ensuciando la lista.
+        expect((detail.body as { presentations: unknown[] }).presentations).toHaveLength(1);
+      });
+
+      it("la PREDETERMINADA no se borra sin nombrar otra antes", async () => {
+        const { token } = await registerAndLogin();
+        const { id } = await productWithTwo(token);
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const base = (
+          detail.body as { presentations: { id: string; isDefaultSale: boolean }[] }
+        ).presentations.find((item) => item.isDefaultSale);
+
+        const blocked = await request(app.getHttpServer())
+          .delete(`/products/${id}/presentations/${base?.id}`)
+          .set("Authorization", bearer(token))
+          .expect(409);
+
+        expect(blocked.body).toMatchObject({ code: "products.default_presentation_required" });
+      });
+
+      it("tampoco se DESACTIVA la predeterminada: es el mismo agujero por otra puerta", async () => {
+        // El API ya bloqueaba quitarle la marca de default. Desactivarla dejaba
+        // al producto igual de huérfano y pasaba sin chistar.
+        const { token } = await registerAndLogin();
+        const { id } = await productWithTwo(token);
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const base = (
+          detail.body as { presentations: { id: string; isDefaultSale: boolean }[] }
+        ).presentations.find((item) => item.isDefaultSale);
+
+        const blocked = await request(app.getHttpServer())
+          .patch(`/products/${id}/presentations/${base?.id}`)
+          .set("Authorization", bearer(token))
+          .send({ isActive: false })
+          .expect(409);
+
+        expect(blocked.body).toMatchObject({ code: "products.default_presentation_required" });
+      });
+
+      it("la ÚLTIMA presentación no se borra: el producto quedaría sin cómo venderse", async () => {
+        const { token } = await registerAndLogin();
+        const product = await createProduct(token, {
+          sku: `SOLO-${randomUUID().slice(0, 8)}`,
+          name: "Una sola",
+          price: 5,
+        }).expect(201);
+        const id = (product.body as { id: string }).id;
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const only = (detail.body as { presentations: { id: string }[] }).presentations[0];
+
+        await request(app.getHttpServer())
+          .delete(`/products/${id}/presentations/${only?.id}`)
+          .set("Authorization", bearer(token))
+          .expect(409);
+      });
+
+      it("borrar una presentación de OTRO producto no se puede: 404", async () => {
+        const { token } = await registerAndLogin();
+        const { extraId } = await productWithTwo(token);
+        const otro = await createProduct(token, {
+          sku: `OTRO-${randomUUID().slice(0, 8)}`,
+          name: "Otro",
+        }).expect(201);
+
+        await request(app.getHttpServer())
+          .delete(`/products/${(otro.body as { id: string }).id}/presentations/${extraId}`)
+          .set("Authorization", bearer(token))
+          .expect(404);
+      });
+    });
+
     it("el barcode es único por tenant y el nombre único por producto", async () => {
       const { token } = await registerAndLogin();
       const first = await createProduct(token, { sku: "A", name: "A" }).expect(201);

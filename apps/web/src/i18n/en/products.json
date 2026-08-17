@@ -40,6 +40,8 @@
     "setDefault": "Use \"{{name}}\" as default",
     "wholeOnly": "Whole units only",
     "wholeOnlyFor": "Whole units only for \"{{name}}\"",
+    "purchasableFor": "Purchased as \"{{name}}\"",
+    "sellableFor": "Sold as \"{{name}}\"",
     "barcode": "Barcode",
     "price": "Price",
     "deactivate": "Deactivate",
