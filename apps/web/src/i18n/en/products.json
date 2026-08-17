@@ -48,7 +48,12 @@
     "price": "Price",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",
-    "baseUnitHint": "Equivalences are expressed in the product's base unit: {{unit}}."
+    "baseUnitHint": "Equivalences are expressed in the product's base unit: {{unit}}.",
+    "removeDialog": {
+      "title": "Delete presentation",
+      "body": "You are about to delete \"{{name}}\" along with its barcode and price. This can not be undone. If you only want to stop using it, deactivate it instead.",
+      "confirm": "Delete presentation"
+    }
   },
   "composition": {
     "empty": "This product has no components yet.",

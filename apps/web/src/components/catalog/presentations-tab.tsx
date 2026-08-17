@@ -51,6 +51,7 @@ function PresentationsTab({
   // precios, y un typo que se guarda solo sin confirmar es una venta mal
   // cobrada.
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<Presentation | null>(null);
   const updatePresentation = useUpdatePresentation(productId);
   const deletePresentation = useDeletePresentation(productId);
 
@@ -222,7 +223,7 @@ function PresentationsTab({
                       size="sm"
                       onClick={() => {
                         setError(null);
-                        deletePresentation.mutate(presentation.id, { onError });
+                        setPendingRemoval(presentation);
                       }}
                     >
                       {t("common.form.delete")}
@@ -234,6 +235,48 @@ function PresentationsTab({
           )}
         </TableBody>
       </Table>
+
+      {/* La confirmación va SOLO acá: "Desactivar" se revierte de un clic, pero
+          borrar se lleva el código de barras, el precio y no hay «deshacer». Y
+          los dos botones están pegados en la misma fila. Pedir confirmación
+          para todo entrenaría al usuario a aceptar sin leer. */}
+      {pendingRemoval && (
+        <div
+          role="alertdialog"
+          aria-label={t("products.presentations.removeDialog.title")}
+          data-testid="remove-presentation-dialog"
+          className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3"
+        >
+          <p className="text-sm">
+            {t("products.presentations.removeDialog.body", { name: pendingRemoval.name })}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={deletePresentation.isPending}
+              onClick={() => {
+                setError(null);
+                deletePresentation.mutate(pendingRemoval.id, {
+                  onSuccess: () => setPendingRemoval(null),
+                  onError: (apiError) => {
+                    // El diálogo se cierra igual: el motivo del rechazo (es la
+                    // predeterminada, es la última) se muestra arriba y no se
+                    // arregla insistiendo con el mismo botón.
+                    setPendingRemoval(null);
+                    onError(apiError);
+                  },
+                });
+              }}
+            >
+              {t("products.presentations.removeDialog.confirm")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPendingRemoval(null)}>
+              {t("common.form.cancel")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {canManage &&
         (adding ? (

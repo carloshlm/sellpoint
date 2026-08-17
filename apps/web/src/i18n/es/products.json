@@ -48,7 +48,12 @@
     "price": "Precio",
     "deactivate": "Desactivar",
     "reactivate": "Reactivar",
-    "baseUnitHint": "Las equivalencias se expresan en la unidad base del producto: {{unit}}."
+    "baseUnitHint": "Las equivalencias se expresan en la unidad base del producto: {{unit}}.",
+    "removeDialog": {
+      "title": "Eliminar presentación",
+      "body": "Vas a eliminar «{{name}}» con su código de barras y su precio. Esta acción no se puede deshacer. Si solo quieres dejar de usarla, desactívala.",
+      "confirm": "Eliminar presentación"
+    }
   },
   "composition": {
     "empty": "Este producto todavía no tiene componentes.",

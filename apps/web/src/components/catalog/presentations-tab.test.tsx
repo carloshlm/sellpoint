@@ -156,14 +156,62 @@ describe("PresentationsTab — la fila se puede operar", () => {
     expect(update.mock.calls[0]?.[0].input.barcode).toBeNull();
   });
 
-  it("eliminar llama al borrado real, no a desactivar", async () => {
-    const user = userEvent.setup();
-    renderTab("gr");
+  /**
+   * El borrado es REAL e irreversible (a diferencia de Desactivar, que se puede
+   * revertir de un clic), y los dos botones están pegados en la misma fila. Sin
+   * confirmación, un clic de más borra una presentación con su código de barras
+   * y su precio, y no hay «deshacer».
+   */
+  describe("confirmación de borrado", () => {
+    it("el primer clic PREGUNTA, no borra", async () => {
+      const user = userEvent.setup();
+      renderTab("gr");
 
-    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+      await user.click(screen.getByRole("button", { name: "Eliminar" }));
 
-    expect(remove).toHaveBeenCalledWith("p1", expect.anything());
-    expect(update).not.toHaveBeenCalled();
+      const dialog = await screen.findByTestId("remove-presentation-dialog");
+      // Nombra lo que se va a borrar: en una tabla de varias filas, el usuario
+      // tiene que poder ver que apuntó a la correcta.
+      expect(dialog).toHaveTextContent("Unidad");
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("recién al confirmar se borra", async () => {
+      const user = userEvent.setup();
+      renderTab("gr");
+
+      await user.click(screen.getByRole("button", { name: "Eliminar" }));
+      await user.click(await screen.findByRole("button", { name: "Eliminar presentación" }));
+
+      expect(remove).toHaveBeenCalledWith("p1", expect.anything());
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it("cancelar cierra el diálogo y no toca nada", async () => {
+      const user = userEvent.setup();
+      renderTab("gr");
+
+      await user.click(screen.getByRole("button", { name: "Eliminar" }));
+      await user.click(await screen.findByRole("button", { name: "Cancelar" }));
+
+      expect(screen.queryByTestId("remove-presentation-dialog")).not.toBeInTheDocument();
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it("desactivar sigue siendo de un clic: es reversible", async () => {
+      // La confirmación va SOLO donde no hay vuelta atrás. Pedirla para todo
+      // entrena al usuario a aceptar sin leer.
+      const user = userEvent.setup();
+      renderTab("gr");
+
+      await user.click(screen.getByRole("button", { name: "Desactivar" }));
+
+      expect(update).toHaveBeenCalledWith(
+        { presentationId: "p1", input: { isActive: false } },
+        expect.anything(),
+      );
+      expect(screen.queryByTestId("remove-presentation-dialog")).not.toBeInTheDocument();
+    });
   });
 
   it("sin permiso de gestión no aparece ninguna acción", () => {
