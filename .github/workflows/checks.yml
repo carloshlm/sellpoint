@@ -90,8 +90,14 @@ jobs:
       # la firma vieja y la suite sigue en verde — pasó con
       # `updateUserPassword` y con `UsersAdminController`, que perdieron
       # cobertura sin que nadie se enterara.
+      #
+      # Va por TURBO y no por `pnpm --filter`: el task declara
+      # `dependsOn: ["^build"]`, así que construye `@sellpoint/shared` antes.
+      # Con `--filter` a secas el paso corría sin `shared/dist` y fallaba con
+      # "Cannot find module '@sellpoint/shared'" — en local pasaba solo porque
+      # el `dist` ya estaba de una corrida anterior.
       - name: typecheck de los tests del api
-        run: pnpm --filter api typecheck:full
+        run: pnpm typecheck:full
 
       - name: tests (unit + integración, sellpoint_app + RLS real)
         run: pnpm test
