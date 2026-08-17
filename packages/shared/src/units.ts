@@ -14,6 +14,8 @@
  * `apps/api` verifica que las dos fuentes no diverjan.
  */
 
+import type { Locale } from "./i18n";
+
 export const UNIT_CATEGORIES = ["count", "volume", "weight", "length"] as const;
 
 export type UnitCategory = (typeof UNIT_CATEGORIES)[number];
@@ -30,27 +32,35 @@ export interface UnitDefinition {
    * movimiento tras movimiento.
    */
   readonly factor: number;
+  /**
+   * Nombre para MOSTRAR. El código (`kg`, `oz`) es lo que se guarda y lo que
+   * viaja en la planilla de importación; nadie que no sea del oficio reconoce
+   * "oz" en un desplegable. Los textos son los MISMOS que la tabla maestra
+   * `units` — el test de contrato de `apps/api` falla si divergen.
+   */
+  readonly nameEs: string;
+  readonly nameEn: string;
 }
 
 export const UNITS = {
   // count — cosas que se cuentan de a una. No admite fracciones (de acá sale
   // el default de `allow_fractional_input` de las presentaciones).
-  unit: { category: "count", factor: 1 },
+  unit: { category: "count", factor: 1, nameEs: "Unidad", nameEn: "Unit" },
 
   // volume — base: mililitro
-  ml: { category: "volume", factor: 1 },
-  l: { category: "volume", factor: 1000 },
+  ml: { category: "volume", factor: 1, nameEs: "Mililitro", nameEn: "Milliliter" },
+  l: { category: "volume", factor: 1000, nameEs: "Litro", nameEn: "Liter" },
 
   // weight — base: gramo. Los factores imperiales son las definiciones
   // internacionales exactas (1 lb = 453.59237 gr por acuerdo de 1959).
-  gr: { category: "weight", factor: 1 },
-  kg: { category: "weight", factor: 1000 },
-  oz: { category: "weight", factor: 28.349523125 },
-  lb: { category: "weight", factor: 453.59237 },
+  gr: { category: "weight", factor: 1, nameEs: "Gramo", nameEn: "Gram" },
+  kg: { category: "weight", factor: 1000, nameEs: "Kilogramo", nameEn: "Kilogram" },
+  oz: { category: "weight", factor: 28.349523125, nameEs: "Onza", nameEn: "Ounce" },
+  lb: { category: "weight", factor: 453.59237, nameEs: "Libra", nameEn: "Pound" },
 
   // length — base: centímetro
-  cm: { category: "length", factor: 1 },
-  m: { category: "length", factor: 100 },
+  cm: { category: "length", factor: 1, nameEs: "Centímetro", nameEn: "Centimeter" },
+  m: { category: "length", factor: 100, nameEs: "Metro", nameEn: "Meter" },
 } as const satisfies Record<string, UnitDefinition>;
 
 export type UnitCode = keyof typeof UNITS;
@@ -64,6 +74,21 @@ export function isUnitCode(code: string): code is UnitCode {
 /** `undefined` para un código desconocido — el caller decide si eso es un error. */
 export function getUnit(code: string): UnitDefinition | undefined {
   return isUnitCode(code) ? UNITS[code] : undefined;
+}
+
+/**
+ * Nombre de la unidad para mostrarle a una persona.
+ *
+ * Un código desconocido se devuelve tal cual: si un producto viejo quedó con
+ * una unidad que ya no está en el catálogo, ver `xx` es mucho mejor que ver una
+ * celda vacía y no entender qué pasó.
+ */
+export function unitName(code: string, locale: Locale): string {
+  const unit = getUnit(code);
+  if (!unit) {
+    return code;
+  }
+  return locale === "en" ? unit.nameEn : unit.nameEs;
 }
 
 /**

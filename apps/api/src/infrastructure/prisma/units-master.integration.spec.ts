@@ -102,6 +102,32 @@ describe("units — tabla maestra (F2-DB-01)", () => {
     expect(mismatches).toEqual([]);
   });
 
+  // El nombre descriptivo es lo que el usuario ve en el selector de unidad
+  // base. Vive en las dos fuentes: la DB (para cualquier cliente del API) y
+  // `@sellpoint/shared` (para que el front lo tenga sin pedirlo por red). Si
+  // divergen, el desplegable diría "Kilogramo" y un reporte del backend diría
+  // otra cosa para la misma unidad.
+  it("el nombre de cada unidad coincide entre la DB y el catálogo compartido, en ambos idiomas", async () => {
+    const rows = await prisma.unit.findMany();
+
+    const mismatches = rows.flatMap((row) => {
+      const shared = UNITS[row.code as keyof typeof UNITS];
+      if (!shared) {
+        return [];
+      }
+      return [
+        shared.nameEs === row.nameEs
+          ? null
+          : `${row.code} (es): DB dice "${row.nameEs}", shared dice "${shared.nameEs}"`,
+        shared.nameEn === row.nameEn
+          ? null
+          : `${row.code} (en): DB dice "${row.nameEn}", shared dice "${shared.nameEn}"`,
+      ].filter((message): message is string => message !== null);
+    });
+
+    expect(mismatches).toEqual([]);
+  });
+
   it("`category` está acotada por CHECK a las cuatro categorías conocidas", async () => {
     const [constraint] = await prisma.$queryRaw<
       { definition: string }[]

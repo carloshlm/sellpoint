@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, type Locale, SUPPORTED_LOCALES } from "@sellpoint/shared";
 import type { AxiosInstance } from "axios";
 
 /**
@@ -37,6 +38,21 @@ export interface UiLanguageSource {
  */
 export function resolveUiLanguage(source: UiLanguageSource): string {
   return source.resolvedLanguage ?? source.language;
+}
+
+/**
+ * Igual que `resolveUiLanguage`, pero acotado al tipo `Locale` para los helpers
+ * de `@sellpoint/shared` que eligen texto por idioma (por ejemplo `unitName`).
+ *
+ * Un idioma fuera de los soportados cae al default en vez de propagarse: llega
+ * hasta acá solo si i18next todavía no resolvió, y en ese instante mostrar el
+ * idioma por omisión es mejor que romper el tipo.
+ */
+export function resolveUiLocale(source: UiLanguageSource): Locale {
+  const language = resolveUiLanguage(source);
+  return (SUPPORTED_LOCALES as readonly string[]).includes(language)
+    ? (language as Locale)
+    : DEFAULT_LOCALE;
 }
 
 /**

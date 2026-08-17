@@ -1,7 +1,11 @@
 import type { AxiosAdapter, AxiosResponse } from "axios";
 import axios from "axios";
 import { createI18n } from "@/i18n";
-import { installAcceptLanguageInterceptor, resolveUiLanguage } from "./accept-language";
+import {
+  installAcceptLanguageInterceptor,
+  resolveUiLanguage,
+  resolveUiLocale,
+} from "./accept-language";
 
 /**
  * W2 del verify de f1-web-auth. El backend SÍ traduce (verificado contra
@@ -18,6 +22,24 @@ describe("resolveUiLanguage — qué idioma se declara", () => {
 
   it("sin idioma resuelto cae al declarado (i18next todavía inicializando)", () => {
     expect(resolveUiLanguage({ language: "en", resolvedLanguage: undefined })).toBe("en");
+  });
+});
+
+/**
+ * `resolveUiLocale` acota el idioma al tipo `Locale` para los helpers de
+ * `@sellpoint/shared` que eligen texto —hoy `unitName`, en el selector de
+ * unidad base—. El header acepta cualquier tag; estos helpers, no.
+ */
+describe("resolveUiLocale — idioma acotado a los soportados", () => {
+  it("normaliza al idioma soportado que el usuario está leyendo", () => {
+    expect(resolveUiLocale({ language: "es-MX", resolvedLanguage: "en" })).toBe("en");
+    expect(resolveUiLocale({ language: "es" })).toBe("es");
+  });
+
+  it("un idioma no soportado cae al default en vez de romper el tipo", () => {
+    // Pasa solo mientras i18next resuelve; ahí el default es mejor que un
+    // `label` en un idioma que no existe.
+    expect(resolveUiLocale({ language: "fr" })).toBe("es");
   });
 });
 

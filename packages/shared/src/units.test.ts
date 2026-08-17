@@ -1,5 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { convertUnits, getUnit, isUnitCode, UNIT_CATEGORIES, UNIT_CODES, UNITS } from "./units";
+import {
+  convertUnits,
+  getUnit,
+  isUnitCode,
+  UNIT_CATEGORIES,
+  UNIT_CODES,
+  UNITS,
+  unitName,
+} from "./units";
+
+/**
+ * F2-UOM: el selector mostraba el CÓDIGO (`kg`, `oz`, `cm`), que es lo que se
+ * guarda pero no lo que una persona reconoce. El nombre descriptivo ya vivía en
+ * la tabla maestra `units`; acá se agrega al catálogo compartido para que el
+ * front lo tenga sin pedirlo por red, y un test de integración en `apps/api`
+ * verifica que las dos fuentes no divergan.
+ */
+describe("unitName", () => {
+  it("devuelve el nombre descriptivo en el idioma pedido", () => {
+    expect(unitName("kg", "es")).toBe("Kilogramo");
+    expect(unitName("kg", "en")).toBe("Kilogram");
+    expect(unitName("cm", "es")).toBe("Centímetro");
+    expect(unitName("cm", "en")).toBe("Centimeter");
+  });
+
+  it("todas las unidades tienen nombre en los dos idiomas", () => {
+    const incompletas = UNIT_CODES.filter(
+      (code) => !UNITS[code].nameEs.trim() || !UNITS[code].nameEn.trim(),
+    );
+    expect(incompletas).toEqual([]);
+  });
+
+  it("un código desconocido devuelve el código: mejor eso que una etiqueta vacía", () => {
+    expect(unitName("no-existe", "es")).toBe("no-existe");
+  });
+});
 
 /**
  * F2-UOM-01/02. Este catálogo es la fuente COMPARTIDA entre API y web —

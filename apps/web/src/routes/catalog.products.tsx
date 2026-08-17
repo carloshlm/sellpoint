@@ -1,4 +1,4 @@
-import { UNIT_CODES } from "@sellpoint/shared";
+import { UNIT_CODES, unitName } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
@@ -293,7 +294,8 @@ function ProductDetailPanel({
 }
 
 function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLocale = resolveUiLocale(i18n);
   const { has } = usePermissions();
   const canManage = has("products:manage");
   const { data: catalogs } = useCatalogs();
@@ -391,11 +393,14 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         disabled={!canManage}
         onChange={(event) => setName(event.target.value)}
       />
+      {/* Se elige por NOMBRE ("Kilogramo") y se guarda el CÓDIGO (`kg`): nadie
+          que no sea del oficio reconoce `oz` en un desplegable, pero el código
+          es lo que viaja a la DB y a la planilla de importación. */}
       <SelectField
         label={t("products.form.baseUnit")}
         value={baseUnit}
         disabled={!canManage}
-        options={UNIT_CODES.map((code) => ({ value: code, label: code }))}
+        options={UNIT_CODES.map((code) => ({ value: code, label: unitName(code, uiLocale) }))}
         onChange={(event) => setBaseUnit(event.target.value)}
       />
       <TextField

@@ -1,3 +1,4 @@
+import { unitName } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import {
   useAvailability,
@@ -43,7 +45,8 @@ interface DraftLine {
  * inventario.
  */
 function CompositionTab({ productId, canManage }: CompositionTabProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLocale = resolveUiLocale(i18n);
   const { data: saved } = useComposition(productId);
   const { data: availability } = useAvailability(productId);
   const { data: cost } = useCostEstimate(productId);
@@ -145,7 +148,7 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
                 </TableCell>
                 {/* La unidad viene del COMPONENTE y no se edita: la cantidad
                     siempre está expresada en su unidad base. */}
-                <TableCell>{line.baseUnit}</TableCell>
+                <TableCell>{unitName(line.baseUnit, uiLocale)}</TableCell>
                 <TableCell>
                   <Input
                     type="number"
@@ -218,7 +221,8 @@ function ComponentPicker({
   excludeIds: readonly string[];
   onPick: (product: { id: string; sku: string; name: string; baseUnit: string }) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const uiLocale = resolveUiLocale(i18n);
   const [query, setQuery] = useState("");
   const { data } = useProducts({ query: query.trim() || undefined, pageSize: 10 });
 
@@ -237,7 +241,7 @@ function ComponentPicker({
           {candidates.map((product) => (
             <li key={product.id}>
               <Button variant="outline" size="sm" onClick={() => onPick(product)}>
-                {product.sku} — {product.name} ({product.baseUnit})
+                {product.sku} — {product.name} ({unitName(product.baseUnit, uiLocale)})
               </Button>
             </li>
           ))}
