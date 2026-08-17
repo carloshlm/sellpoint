@@ -292,7 +292,7 @@ sequenceDiagram
 
     API->>DB: BEGIN TRANSACTION
     API->>DB: SELECT stock_by_warehouse FOR UPDATE
-    API->>API: Valida stock suficiente por línea
+    API->>API: Valida stock suficiente por línea<br/>(producto con lotes sin lot_id → reparte FEFO<br/>por expires_at ASC en la misma tx)
 
     alt Stock insuficiente
         API->>DB: ROLLBACK
@@ -429,7 +429,7 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     Start([Manager: Movimientos →<br/>Inventario Físico → Nuevo]) --> SelWh[Selecciona almacén]
-    SelWh --> Template[Descarga plantilla .xlsx/.csv:<br/>sku, nombre, unidad,<br/>teórico, contado vacío]
+    SelWh --> Template[Descarga plantilla .xlsx/.csv:<br/>sku, nombre, unidad, lote, caducidad,<br/>ubicación, teórico, contado vacío<br/>— una fila por lote/ubicación<br/>si el producto controla lotes]
     Template --> Count[Equipo cuenta físicamente<br/>llena la columna contado]
     Count --> Upload[Sube archivo]
 
@@ -442,7 +442,7 @@ flowchart TD
     ShowReport --> Review[TenantAdmin con inventory:manage<br/>revisa y aprueba o cancela]
     Review --> Approve{Aprueba?}
     Approve -->|No| Cancel([Cancela conteo])
-    Approve -->|Sí| TX[TX atómica con FOR UPDATE:<br/>relee teórico FRESCO;<br/>solo líneas con diferencia:<br/>salida physical_count del teórico<br/>+ entrada physical_count del contado;<br/>audit con drift si el teórico cambió]
+    Approve -->|Sí| TX[TX atómica con FOR UPDATE:<br/>crea lotes nuevos; relee teórico FRESCO<br/>por lote cuando aplica;<br/>solo líneas con diferencia:<br/>salida physical_count del teórico<br/>+ entrada physical_count del contado<br/>con lot_id/location;<br/>audit con drift si el teórico cambió]
     TX --> Done([Inventario reconciliado<br/>al contado — sin bloqueo previo])
 
     style Start fill:#e3f2fd

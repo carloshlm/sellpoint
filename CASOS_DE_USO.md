@@ -475,7 +475,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 > Cuando el motivo es `transfer`, el sistema vincula el movimiento al `Transfer` correspondiente. Para todos los demás motivos, el movimiento es independiente.
 >
-> **Evolución (atomización F3, 2026-08-17):** el enum nace **completo** — `sale`/`sale_return` quedan reservados para F4 (los endpoints directos los rechazan) y **`production` se eliminó**: los productos compuestos **nunca** tienen stock persistido (se arman al vender, F4), así que no existe "producción interna" en el MVP. Los campos contextuales se modelan de forma genérica (LEY de genericidad): `reference` (nº de documento, orden, área/concepto, referencia externa) + `authorized_by` (usuario del tenant) + `reason_note`; **no hay catálogo de proveedores** (un tenant puede armarlo como subcatálogo). Los tres permisos de la fase son `inventory:read`, `inventory:movement` e `inventory:manage` (cancelar traspaso y aprobar conteo — solo TenantAdmin).
+> **Evolución (atomización F3, 2026-08-17):** el enum nace **completo** — `sale`/`sale_return` quedan reservados para F4 (los endpoints directos los rechazan) y **`production` se eliminó**: los productos compuestos **nunca** tienen stock persistido (se arman al vender, F4), así que no existe "producción interna" en el MVP. Los campos contextuales se modelan de forma genérica (LEY de genericidad): `reference` (nº de documento, orden, área/concepto, referencia externa) + `authorized_by` (usuario del tenant) + `reason_note`; **no hay catálogo de proveedores** (un tenant puede armarlo como subcatálogo). Los tres permisos de la fase son `inventory:read`, `inventory:movement` e `inventory:manage` (cancelar traspaso y aprobar conteo — solo TenantAdmin). **Lotes (F3-LOTS, mismo día):** un producto puede activar `tracks_lots`; entonces toda entrada exige `lote` (+ `caducidad`, propiedad del lote) y opcionalmente `ubicación` (parte el stock), y toda salida sin lote explícito aplica **FEFO** (sale primero el que vence antes) — el POS de F4 lo hereda. Los productos sin `tracks_lots` nunca ven un lote.
 
 ---
 
@@ -518,7 +518,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
      - `transfer` → selector "Almacén destino"
      - `consumption` → área o concepto (texto libre)
   5. Agrega productos y cantidades
-  6. Sistema valida stock suficiente (`stock_by_warehouse.quantity >= cantidad solicitada`). **Si la presentación elegida tiene `allow_fractional_input=false`, valida también cantidad entera**.
+  6. Sistema valida stock suficiente (`stock_by_warehouse.quantity >= cantidad solicitada`). **Si la presentación elegida tiene `allow_fractional_input=false`, valida también cantidad entera**. Si el producto controla lotes y la línea no trae uno, el sistema reparte la cantidad **FEFO** (por `expires_at` ascendente) entre los lotes con saldo del almacén; el usuario puede forzar un lote.
   7. Click "Confirmar" → **transacción atómica**:
      - Inserta `stock_movement` por línea con `direction='exit'`, `reason_code`, `reason_note`, `presentation_id`, `linked_warehouse_id` (si transfer). La `quantity` se persiste en `base_unit` (convertida con `presentation.factor`).
      - Decrementa `stock_by_warehouse`
@@ -574,9 +574,9 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Actor:** TenantAdmin / Manager
 - **Flujo principal:**
   1. Movimientos → Inventario físico → "Nuevo conteo"
-  2. Selecciona almacén y descarga la plantilla (SKU, nombre, unidad, teórico, contado vacío) — solo productos activos y no compuestos
+  2. Selecciona almacén y descarga la plantilla (`sku, nombre, unidad, lote, caducidad, ubicación, teórico, contado`) — solo productos activos y no compuestos; los productos con `tracks_lots` ocupan **una fila por (lote, ubicación)**, los demás una fila con las columnas de lote vacías
   3. *(Sin bloqueo del almacén — decisión F3, 2026-08-17: la aprobación relee el teórico con `FOR UPDATE`; lo que se movió entre reconciliar y aprobar queda como **drift auditado**.)*
-  4. Sube la planilla contada con columnas **`sku` + `counted`** (sin lote, caducidad ni ubicación: son conceptos de rubro — LEY de genericidad; ver Fase 9.0b)
+  4. Sube la planilla contada: la clave de cada fila es `sku` (+ `lote` y `ubicación` si el producto controla lotes); un `lote` nuevo se **crea** al aprobar (exige `caducidad` si el producto la maneja); un lote en un producto sin `tracks_lots` es error de fila (decisión F3-LOTS, 2026-08-17: lote/caducidad/ubicación son dimensiones **genéricas** del stock, opt-in por producto)
   5. Sistema reconcilia:
      - Reconcilia en seco (sin escribir): teórico vs contado por fila, resumen (coincidencias / discrepancias / omitidas / errores)
      - Filas con `counted` vacío = no contadas → se omiten y se reportan

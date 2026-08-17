@@ -643,7 +643,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ## 8. Movimientos
 
-> **Evolución (atomización F3, 2026-08-17).** Los mockups de esta sección quedan alineados con el tablero de F3: **sin campo `Fecha`** en entradas y salidas (no hay backdating — `created_at` es el momento real, el kardex es cronología real); **sin `Producción interna`** (los compuestos nunca tienen stock persistido); "Merma / Daño" va bajo `adjustment` (o `loss` si es pérdida) — el enum no tiene `waste`; el motivo `transfer` **no aparece en el form de entrada** (la recepción se hace desde "Traspasos en tránsito"); en Inventario físico **no hay checkbox de bloqueo** y la plantilla es **SKU + cantidad** (sin lote/caducidad/ubicación — conceptos de rubro, LEY de genericidad); **aprobar** el conteo y **cancelar** un traspaso exigen `inventory:manage` (solo TenantAdmin). El detalle de producto gana dos tabs: **Kardex** y **Stock por almacén** (con total, bajo mínimo y en tránsito).
+> **Evolución (atomización F3, 2026-08-17).** Los mockups de esta sección quedan alineados con el tablero de F3: **sin campo `Fecha`** en entradas y salidas (no hay backdating — `created_at` es el momento real, el kardex es cronología real); **sin `Producción interna`** (los compuestos nunca tienen stock persistido); "Merma / Daño" va bajo `adjustment` (o `loss` si es pérdida) — el enum no tiene `waste`; el motivo `transfer` **no aparece en el form de entrada** (la recepción se hace desde "Traspasos en tránsito"); en Inventario físico **no hay checkbox de bloqueo** y la plantilla es **una sola**: `sku, nombre, unidad, lote, caducidad, ubicación, teórico, contado` — los productos que controlan lotes (`tracks_lots`) ocupan una fila por (lote, ubicación), los demás una fila con esas columnas vacías (F3-LOTS, mismo día: lote/caducidad/ubicación son dimensiones genéricas del stock, opt-in por producto; la salida y el POS aplican **FEFO**); **aprobar** el conteo y **cancelar** un traspaso exigen `inventory:manage` (solo TenantAdmin). El detalle de producto gana dos tabs: **Kardex** y **Stock por almacén** (con total, bajo mínimo y en tránsito).
 
 ### 8.1 Entrada Directa
 
@@ -871,8 +871,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   ℹ️ El conteo se aplica sobre el saldo del momento de aprobar │
 │                                                                │
 │   📥 [Descargar plantilla .xlsx] [.csv]                       │
-│      (columnas: sku, nombre, unidad, teórico, contado)         │
-│                                                                │
+│      (columnas: sku, nombre, unidad, lote, caducidad,          │
+│       ubicación, teórico, contado — lote/cad./ubic. vacíos     │
+│       en productos que no controlan lotes)                     │
 │                                                                │
 │   ─── Sube tu Excel completado ──                              │
 │   ┌──────────────────────────────────────┐                    │
