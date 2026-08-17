@@ -4,7 +4,6 @@
   "empty_update": "No hay cambios que guardar.",
   "system_cannot_be_renamed": "El catálogo de productos no se puede renombrar.",
   "system_cannot_be_archived": "El catálogo de productos no se puede archivar.",
-
   "field_not_found": "El campo no existe.",
   "field_key_taken": "Ya existe un campo con ese nombre en este catálogo.",
   "field_label_not_usable": "Ese nombre no se puede usar: escribe al menos una letra o un número.",
@@ -14,17 +13,16 @@
   "field_must_be_reference": "Elige un registro del catálogo al que apunta este campo.",
   "field_has_data": "Este campo tiene datos cargados. Confirma para ocultarlo: sus valores se conservan.",
   "field_type_locked_by_data": "No se puede cambiar el tipo de un campo que ya tiene datos.",
-
   "attributes_must_be_object": "Los datos del registro no tienen el formato esperado.",
   "invalid_attributes": "Revisa los campos marcados.",
-
   "lookup_target_required": "Elige a qué catálogo apunta este campo.",
   "lookup_target_not_allowed": "Solo los campos de tipo lista apuntan a otro catálogo.",
   "lookup_target_unusable": "Ese catálogo no se puede usar como destino.",
   "lookup_target_mismatch": "El catálogo destino no coincide con el del campo.",
   "lookup_value_not_found": "No encontramos ese código en el catálogo destino.",
-
   "record_not_found": "El registro no existe.",
   "record_code_taken": "Ya existe un registro con ese código en este catálogo.",
-  "record_referenced": "No se puede archivar: hay registros que lo usan."
+  "record_referenced": "No se puede archivar: hay registros que lo usan.",
+  "invalid_body": "Los datos enviados no son válidos.",
+  "invalid_query": "Los filtros de búsqueda no son válidos."
 }

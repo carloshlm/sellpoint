@@ -90,4 +90,39 @@ describe("i18n de errores en AllExceptionsFilter (e2e) — verify #271 C2", () =
       message: "Invalid authentication token",
     });
   });
+
+  /**
+   * Los errores POR CAMPO del `ZodValidationPipe` (2026-08-17). Se prueban acá,
+   * en una ruta SIN autenticar, porque en un request con Bearer el idioma sale
+   * del claim del JWT y no del header: verificarlo con token daría verde por el
+   * motivo equivocado.
+   */
+  it("un campo inválido dice QUÉ campo, en el idioma del header y con su clave cruda", async () => {
+    const body = {
+      tenantName: "   ",
+      email: "ana@example.com",
+      password: "twelve-characters",
+      firstName: "Ana",
+      lastNamePaternal: "Pérez",
+    };
+
+    const es = await request(app.getHttpServer())
+      .post("/auth/register-tenant")
+      .set("Accept-Language", "es")
+      .send(body)
+      .expect(400);
+
+    const en = await request(app.getHttpServer())
+      .post("/auth/register-tenant")
+      .set("Accept-Language", "en")
+      .send(body)
+      .expect(400);
+
+    expect(es.body.errors).toEqual([
+      { key: "tenantName", code: "validation.min_length", message: "Mínimo 1 caracteres." },
+    ]);
+    expect(en.body.errors[0].message).toBe("1 characters min.");
+    // El insumo de la traducción no se filtra al cliente.
+    expect(es.body.errors[0]).not.toHaveProperty("args");
+  });
 });

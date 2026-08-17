@@ -20,8 +20,18 @@ import { SUPPORTED_LOCALES } from "@sellpoint/shared";
 const SRC = path.join(__dirname, "..");
 const I18N = __dirname;
 
-/** `message: "dominio.clave"` — el patrón con el que se emiten los errores. */
-const MESSAGE_KEY = /message:\s*"([a-z_]+\.[a-z_.]+)"/g;
+/**
+ * Los DOS canales por los que una clave llega a una respuesta de error:
+ *
+ * 1. `message: "dominio.clave"` — el throw directo.
+ * 2. El `fallbackKey` de `ZodValidationPipe`, que viaja como ARGUMENTO del
+ *    constructor. La primera versión de este guardián solo miraba el canal 1 y
+ *    por eso dejó pasar `products.invalid_body`, que Carlos vio en pantalla.
+ */
+const KEY_PATTERNS = [
+  /message:\s*"([a-z_]+\.[a-z_.]+)"/g,
+  /ZodValidationPipe\([^)]*?"([a-z_]+\.[a-z_.]+)"/g,
+];
 
 /**
  * La usa `all-exceptions.filter.spec.ts` para probar justamente el caso de una
@@ -44,10 +54,12 @@ function emittedKeys(): string[] {
   const keys = new Set<string>();
   for (const file of collectSourceFiles(SRC)) {
     const content = fs.readFileSync(file, "utf8");
-    for (const match of content.matchAll(MESSAGE_KEY)) {
-      const key = match[1];
-      if (key && !DELIBERATELY_UNTRANSLATED.has(key)) {
-        keys.add(key);
+    for (const pattern of KEY_PATTERNS) {
+      for (const match of content.matchAll(pattern)) {
+        const key = match[1];
+        if (key && !DELIBERATELY_UNTRANSLATED.has(key)) {
+          keys.add(key);
+        }
       }
     }
   }
@@ -82,6 +94,8 @@ describe("Claves de error traducidas", () => {
     // es la forma más silenciosa de perder una red de seguridad.
     expect(emitted.length).toBeGreaterThan(50);
     expect(emitted).toContain("catalogs.field_required");
+    // Del canal 2: si el patrón del pipe se rompiera, este caso lo canta.
+    expect(emitted).toContain("products.invalid_body");
   });
 
   it.each(SUPPORTED_LOCALES)("cada clave emitida existe en %s", (locale) => {

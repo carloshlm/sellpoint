@@ -4,7 +4,6 @@
   "empty_update": "There are no changes to save.",
   "system_cannot_be_renamed": "The product catalog can't be renamed.",
   "system_cannot_be_archived": "The product catalog can't be archived.",
-
   "field_not_found": "This field doesn't exist.",
   "field_key_taken": "A field with that name already exists in this catalog.",
   "field_label_not_usable": "That name can't be used: include at least one letter or number.",
@@ -14,17 +13,16 @@
   "field_must_be_reference": "Pick a record from the catalog this field points to.",
   "field_has_data": "This field has data. Confirm to hide it — its values are kept.",
   "field_type_locked_by_data": "You can't change the type of a field that already has data.",
-
   "attributes_must_be_object": "The record data isn't in the expected format.",
   "invalid_attributes": "Check the highlighted fields.",
-
   "lookup_target_required": "Choose which catalog this field points to.",
   "lookup_target_not_allowed": "Only list fields can point to another catalog.",
   "lookup_target_unusable": "That catalog can't be used as a target.",
   "lookup_target_mismatch": "The target catalog doesn't match the field's.",
   "lookup_value_not_found": "We couldn't find that code in the target catalog.",
-
   "record_not_found": "This record doesn't exist.",
   "record_code_taken": "A record with that code already exists in this catalog.",
-  "record_referenced": "Can't archive it: other records are using it."
+  "record_referenced": "Can't archive it: other records are using it.",
+  "invalid_body": "The submitted data isn't valid.",
+  "invalid_query": "The search filters aren't valid."
 }

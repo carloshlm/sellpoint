@@ -111,13 +111,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
    * cuando no hay nada que cambiar, para que el llamador deje el body intacto:
    * la clave cruda es mejor que romper la respuesta.
    */
-  private translateKey(value: unknown, locale: string): { text: string; key: string } | null {
+  private translateKey(
+    value: unknown,
+    locale: string,
+    args?: Record<string, unknown>,
+  ): { text: string; key: string } | null {
     if (typeof value !== "string" || !I18N_KEY_PATTERN.test(value)) {
       return null;
     }
 
     // nestjs-i18n devuelve la clave misma cuando no hay entrada.
-    const translated = this.i18n.translate(value, { lang: locale });
+    const translated = this.i18n.translate(value, { lang: locale, args });
     if (typeof translated !== "string" || translated === value) {
       return null;
     }
@@ -142,12 +146,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         return item;
       }
       const entry = item as Record<string, unknown>;
-      const result = this.translateKey(entry.message, locale);
+      const args = entry.args as Record<string, unknown> | undefined;
+      const result = this.translateKey(entry.message, locale, args);
       if (!result) {
         return item;
       }
       changed = true;
-      return { ...entry, message: result.text, code: result.key };
+      // `args` era el insumo de la traducción: ya cumplió su función y no le
+      // dice nada al cliente. Se va del body para no filtrar ruido interno.
+      const { args: _discarded, ...rest } = entry;
+      return { ...rest, message: result.text, code: result.key };
     });
 
     return changed ? translated : null;

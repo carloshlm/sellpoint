@@ -430,6 +430,35 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       });
     });
 
+    it("una merma fuera de rango dice QUÉ campo y CUÁL es el límite, en el idioma del usuario", async () => {
+      // El caso exacto que Carlos vio: escribió 1000 en Merma % y el formulario
+      // le devolvió `products.invalid_body`, sin campo ni motivo.
+      const { token, tenantId } = await registerAndLogin();
+      const { cafeId, azucarId } = await setupCafe(token, tenantId);
+
+      const es = await request(app.getHttpServer())
+        .post(`/products/${cafeId}/composition`)
+        .set("Authorization", bearer(token))
+        .set("Accept-Language", "es")
+        .send({ lines: [{ componentId: azucarId, quantity: 20, wastePercentage: 1000 }] })
+        .expect(400);
+
+      expect(es.body.errors).toEqual([
+        {
+          // La ruta completa: el formulario sabe qué fila pintar.
+          key: "lines.0.wastePercentage",
+          code: "validation.max",
+          message: "Debe ser 100 o menos.",
+        },
+      ]);
+
+      // En un request AUTENTICADO el idioma sale del claim `locale` del JWT y
+      // NO del header (cascada de `i18n/request-locale.ts`): mandar
+      // `Accept-Language: en` con el token de una cuenta en español seguiría
+      // devolviendo español, y el test pasaría por el motivo equivocado.
+      expect(es.body.errors[0].message).not.toContain("{max}");
+    });
+
     it("borrar un producto que es COMPONENTE de otro se bloquea diciendo quién lo usa", async () => {
       const { token, tenantId } = await registerAndLogin();
       const { azucarId } = await setupCafe(token, tenantId);

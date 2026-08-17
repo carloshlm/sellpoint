@@ -1,0 +1,17 @@
+{
+  "required": "This value is missing or isn't in the expected format.",
+  "invalid_format": "The format isn't valid.",
+  "invalid_value": "This value isn't valid.",
+  "unknown_field": "This field isn't recognized.",
+
+  "max": "Must be {max} or less.",
+  "less_than": "Must be less than {max}.",
+  "min": "Must be {min} or more.",
+  "greater_than": "Must be greater than {min}.",
+
+  "max_length": "{max} characters max.",
+  "min_length": "{min} characters min.",
+
+  "max_items": "{max} items max.",
+  "min_items": "{min} items min."
+}
