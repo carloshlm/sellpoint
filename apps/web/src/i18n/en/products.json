@@ -89,5 +89,10 @@
     "done": "{{count}} products imported.",
     "doneBreakdown": "{{created}} new · {{updated}} updated",
     "close": "Close"
+  },
+  "removeDialog": {
+    "title": "Delete product",
+    "body": "You are about to delete \"{{name}}\" with all its presentations, barcodes and composition. This can not be undone.",
+    "confirm": "Delete product"
   }
 }

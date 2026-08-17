@@ -51,7 +51,9 @@
     "removeDialog": {
       "title": "Quitar campo",
       "body": "{{count}} registros tienen datos en «{{label}}». El campo se ocultará, pero sus valores no se borran y puedes restaurarlo.",
-      "confirm": "Ocultar campo"
+      "confirm": "Ocultar campo",
+      "bodyEmpty": "Vas a eliminar el campo «{{label}}». Todavía no tiene datos cargados, así que se borra por completo. Esta acción no se puede deshacer.",
+      "confirmEmpty": "Eliminar campo"
     }
   },
   "form": {

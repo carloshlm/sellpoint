@@ -333,9 +333,11 @@ describe("/system/roles", () => {
     );
   });
 
-  it("eliminar rol sin usuarios asignados: confirma y llama deleteRole, y muestra el feedback de éxito", async () => {
+  it("eliminar rol sin usuarios asignados: confirma en el diálogo y llama deleteRole, con feedback de éxito", async () => {
+    // La confirmación era un `window.confirm` (no traducible, no estilable,
+    // bloquea el hilo). Ahora es el mismo `ConfirmDialog` que el resto de los
+    // borrados del sistema.
     const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
     mockedApi.listRoles
       .mockResolvedValueOnce(ROLES)
@@ -347,12 +349,31 @@ describe("/system/roles", () => {
     const deleteButtons = screen.getAllByRole("button", { name: /^Eliminar/ });
     await user.click(deleteButtons[1] as HTMLElement);
 
-    expect(confirmSpy).toHaveBeenCalled();
+    // El primer clic PREGUNTA y nombra el rol.
+    const dialog = await screen.findByTestId("remove-role-dialog");
+    expect(dialog).toHaveTextContent("Sin uso");
+    expect(mockedApi.deleteRole).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Eliminar rol" }));
+
     await waitFor(() => expect(mockedApi.deleteRole).toHaveBeenCalledWith("r2", expect.anything()));
     // W3 (verify-report #341): eliminar un rol no daba feedback de éxito —
     // clave `users.roles.deleteSuccess` existía en es/en, 0 usos.
     expect(await screen.findByText("Se eliminó el rol Sin uso.")).toBeInTheDocument();
-    confirmSpy.mockRestore();
+  });
+
+  it("cancelar en el diálogo no elimina el rol", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(["roles:read", "roles:manage"]));
+    mockedApi.listRoles.mockResolvedValue(ROLES);
+
+    await renderRoute("/system/roles");
+    await screen.findByRole("button", { name: /^Cajero/ });
+    await user.click(screen.getAllByRole("button", { name: /^Eliminar/ })[1] as HTMLElement);
+    await user.click(await screen.findByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByTestId("remove-role-dialog")).not.toBeInTheDocument();
+    expect(mockedApi.deleteRole).not.toHaveBeenCalled();
   });
 
   it("eliminar rol CON usuarios asignados: 'Eliminar' está deshabilitado (previene roles.role_in_use)", async () => {

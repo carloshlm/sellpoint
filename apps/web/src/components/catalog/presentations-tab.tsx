@@ -1,6 +1,7 @@
 import { unitName } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -241,41 +242,28 @@ function PresentationsTab({
           los dos botones están pegados en la misma fila. Pedir confirmación
           para todo entrenaría al usuario a aceptar sin leer. */}
       {pendingRemoval && (
-        <div
-          role="alertdialog"
-          aria-label={t("products.presentations.removeDialog.title")}
+        <ConfirmDialog
           data-testid="remove-presentation-dialog"
-          className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3"
-        >
-          <p className="text-sm">
-            {t("products.presentations.removeDialog.body", { name: pendingRemoval.name })}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={deletePresentation.isPending}
-              onClick={() => {
-                setError(null);
-                deletePresentation.mutate(pendingRemoval.id, {
-                  onSuccess: () => setPendingRemoval(null),
-                  onError: (apiError) => {
-                    // El diálogo se cierra igual: el motivo del rechazo (es la
-                    // predeterminada, es la última) se muestra arriba y no se
-                    // arregla insistiendo con el mismo botón.
-                    setPendingRemoval(null);
-                    onError(apiError);
-                  },
-                });
-              }}
-            >
-              {t("products.presentations.removeDialog.confirm")}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setPendingRemoval(null)}>
-              {t("common.form.cancel")}
-            </Button>
-          </div>
-        </div>
+          title={t("products.presentations.removeDialog.title")}
+          body={t("products.presentations.removeDialog.body", { name: pendingRemoval.name })}
+          confirmLabel={t("products.presentations.removeDialog.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          busy={deletePresentation.isPending}
+          onCancel={() => setPendingRemoval(null)}
+          onConfirm={() => {
+            setError(null);
+            deletePresentation.mutate(pendingRemoval.id, {
+              onSuccess: () => setPendingRemoval(null),
+              onError: (apiError) => {
+                // El diálogo se cierra igual: el motivo del rechazo (es la
+                // predeterminada, es la última) se muestra arriba y no se
+                // arregla insistiendo con el mismo botón.
+                setPendingRemoval(null);
+                onError(apiError);
+              },
+            });
+          }}
+        />
       )}
 
       {canManage &&

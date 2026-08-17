@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { FieldForm, type FieldFormValues } from "@/components/catalog/field-form";
 import { FieldList } from "@/components/catalog/field-list";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -55,9 +56,11 @@ function CatalogSchemaContent() {
   const [editing, setEditing] = useState<CatalogField | null>(null);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // `recordCount: null` = todavía no se sabe si el campo tiene datos (primer
+  // paso). Un número = el API ya dijo cuántos registros lo usan.
   const [pendingRemoval, setPendingRemoval] = useState<{
     field: CatalogField;
-    recordCount: number;
+    recordCount: number | null;
   } | null>(null);
 
   // Sin selección explícita manda el primero, que el API ya devuelve con el
@@ -116,17 +119,28 @@ function CatalogSchemaContent() {
     createField.mutate(payload, { onSuccess: closeForm, onError });
   }
 
-  function requestRemoval(field: CatalogField) {
+  /**
+   * Quitar un campo pregunta SIEMPRE, en dos pasos:
+   *
+   * 1. Confirmación normal. Antes se llamaba al API de una: un campo sin datos
+   *    se borraba de verdad al primer clic, sin preguntar nada.
+   * 2. Si el API responde 409, el campo TIENE datos y no se borra sino que se
+   *    oculta. Eso es información nueva —cuántos registros lo usan y que los
+   *    valores se conservan—, así que el diálogo cambia de texto y se vuelve a
+   *    preguntar. No es preguntar dos veces lo mismo: es otra pregunta.
+   */
+  function confirmRemoval(field: CatalogField, recordCount: number | null) {
     removeField.mutate(
-      { fieldId: field.id },
+      { fieldId: field.id, ...(recordCount === null ? {} : { confirm: true }) },
       {
+        onSuccess: () => setPendingRemoval(null),
         onError: (error: ApiError) => {
-          // 409 con el conteo: el campo tiene datos y hay que confirmar.
           const count = (error as unknown as { recordCount?: number }).recordCount;
-          if (error.statusCode === 409) {
+          if (error.statusCode === 409 && recordCount === null) {
             setPendingRemoval({ field, recordCount: count ?? 0 });
             return;
           }
+          setPendingRemoval(null);
           setFormError(error.message);
         },
       },
@@ -192,35 +206,31 @@ function CatalogSchemaContent() {
             )}
 
             {pendingRemoval && (
-              <div
-                role="alertdialog"
-                aria-label={t("catalogs.fields.removeDialog.title")}
+              <ConfirmDialog
                 data-testid="remove-field-dialog"
-                className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3"
-              >
-                <p className="text-sm">
-                  {t("catalogs.fields.removeDialog.body", {
-                    count: pendingRemoval.recordCount,
-                    label: pendingRemoval.field.label,
-                  })}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      removeField.mutate(
-                        { fieldId: pendingRemoval.field.id, confirm: true },
-                        { onSuccess: () => setPendingRemoval(null) },
-                      );
-                    }}
-                  >
-                    {t("catalogs.fields.removeDialog.confirm")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setPendingRemoval(null)}>
-                    {t("common.form.cancel")}
-                  </Button>
-                </div>
-              </div>
+                title={t("catalogs.fields.removeDialog.title")}
+                // Dos textos para dos situaciones distintas: sin datos el campo
+                // se BORRA; con datos se oculta y sus valores se conservan.
+                body={
+                  pendingRemoval.recordCount === null
+                    ? t("catalogs.fields.removeDialog.bodyEmpty", {
+                        label: pendingRemoval.field.label,
+                      })
+                    : t("catalogs.fields.removeDialog.body", {
+                        count: pendingRemoval.recordCount,
+                        label: pendingRemoval.field.label,
+                      })
+                }
+                confirmLabel={
+                  pendingRemoval.recordCount === null
+                    ? t("catalogs.fields.removeDialog.confirmEmpty")
+                    : t("catalogs.fields.removeDialog.confirm")
+                }
+                cancelLabel={t("common.form.cancel")}
+                busy={removeField.isPending}
+                onCancel={() => setPendingRemoval(null)}
+                onConfirm={() => confirmRemoval(pendingRemoval.field, pendingRemoval.recordCount)}
+              />
             )}
 
             <FieldList
@@ -233,7 +243,7 @@ function CatalogSchemaContent() {
                 setFormError(null);
                 setEditing(field);
               }}
-              onRemove={requestRemoval}
+              onRemove={(field) => setPendingRemoval({ field, recordCount: null })}
               onRestore={(field) =>
                 updateField.mutate({ fieldId: field.id, input: { isArchived: false } })
               }

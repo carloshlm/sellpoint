@@ -9,6 +9,7 @@ import { CompositionTab } from "@/components/catalog/composition-tab";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { PresentationsTab } from "@/components/catalog/presentations-tab";
 import { ProductImportDialog } from "@/components/catalog/product-import-dialog";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -316,6 +317,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const [attributes, setAttributes] = useState<Record<string, unknown>>(product?.attributes ?? {});
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -474,22 +476,39 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
             {t("common.form.cancel")}
           </Button>
           {product && (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                setError(null);
-                deleteProduct.mutate(product.id, {
-                  onSuccess: onDone,
-                  // 409 si es componente de otro: el mensaje nombra a quiénes.
-                  onError: handleError,
-                });
-              }}
-            >
+            <Button type="button" variant="destructive" onClick={() => setConfirmingDelete(true)}>
               {t("common.form.remove")}
             </Button>
           )}
         </div>
+      )}
+
+      {/* Borrar un producto se lleva sus presentaciones, sus códigos de barras
+          y su composición. Es lo más caro que se puede hacer desde esta
+          pantalla y era lo ÚNICO que no preguntaba. */}
+      {confirmingDelete && product && (
+        <ConfirmDialog
+          data-testid="remove-product-dialog"
+          title={t("products.removeDialog.title")}
+          body={t("products.removeDialog.body", { name: product.name })}
+          confirmLabel={t("products.removeDialog.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          busy={deleteProduct.isPending}
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={() => {
+            setError(null);
+            deleteProduct.mutate(product.id, {
+              onSuccess: onDone,
+              // 409 si es componente de otro: el mensaje nombra a quiénes. El
+              // diálogo se cierra porque insistir con el mismo botón no lo
+              // arregla — hay que deshacer la composición primero.
+              onError: (apiError) => {
+                setConfirmingDelete(false);
+                handleError(apiError);
+              },
+            });
+          }}
+        />
       )}
     </form>
   );

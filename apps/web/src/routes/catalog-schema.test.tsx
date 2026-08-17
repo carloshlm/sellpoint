@@ -170,10 +170,31 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     expect(target).toHaveTextContent("Unidad de Medida");
   });
 
-  it("quitar un campo CON datos abre el diálogo con el conteo y solo entonces confirma", async () => {
+  it("quitar un campo pregunta ANTES de tocar el API, aunque no tenga datos", async () => {
+    // Antes se llamaba al API al primer clic: un campo sin datos se borraba de
+    // verdad sin preguntar nada, y el diálogo solo aparecía si el 409 lo
+    // forzaba.
     const user = userEvent.setup();
     mockedApi.listFields.mockResolvedValue([textField()]);
-    // Primer intento: el API responde 409 con cuántos registros lo usan.
+    mockedApi.removeField.mockResolvedValue({ archived: false });
+    await renderSchema();
+
+    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+
+    expect(await screen.findByTestId("remove-field-dialog")).toHaveTextContent("Sustancia Activa");
+    expect(mockedApi.removeField).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Eliminar campo" }));
+
+    await waitFor(() =>
+      expect(mockedApi.removeField).toHaveBeenCalledWith("cat-products", "f1", undefined),
+    );
+  });
+
+  it("un campo CON datos vuelve a preguntar, ahora con el conteo: ya no se borra, se oculta", async () => {
+    const user = userEvent.setup();
+    mockedApi.listFields.mockResolvedValue([textField()]);
+    // El API responde 409 con cuántos registros lo usan.
     mockedApi.removeField.mockRejectedValueOnce({
       statusCode: 409,
       message: "El campo tiene datos",
@@ -184,12 +205,13 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     await renderSchema();
 
     await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar campo" }));
 
+    // Segunda pregunta, y NO es la misma: cambió lo que va a pasar (se oculta,
+    // los valores se conservan) y ahora se sabe a cuántos registros afecta.
     const dialog = await screen.findByTestId("remove-field-dialog");
     expect(dialog).toHaveTextContent("847");
-    // Todavía NO se archivó: solo se preguntó.
     expect(mockedApi.removeField).toHaveBeenCalledTimes(1);
-    expect(mockedApi.removeField).toHaveBeenLastCalledWith("cat-products", "f1", undefined);
 
     await user.click(screen.getByRole("button", { name: "Ocultar campo" }));
 

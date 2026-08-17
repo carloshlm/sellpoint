@@ -51,7 +51,9 @@
     "removeDialog": {
       "title": "Remove field",
       "body": "{{count}} records have data in \"{{label}}\". The field will be hidden, but its values aren't deleted and you can restore it.",
-      "confirm": "Hide field"
+      "confirm": "Hide field",
+      "bodyEmpty": "You are about to delete the \"{{label}}\" field. It has no data yet, so it will be removed entirely. This can not be undone.",
+      "confirmEmpty": "Delete field"
     }
   },
   "form": {

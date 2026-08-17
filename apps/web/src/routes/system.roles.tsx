@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PermissionChecklist } from "@/components/system/permission-checklist";
@@ -70,6 +71,7 @@ function SystemRolesContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<RoleSummary | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
@@ -133,9 +135,12 @@ function SystemRolesContent() {
     resetFeedback();
   }
 
+  /**
+   * La confirmación era un `window.confirm`: no se puede traducir con el resto
+   * del sistema, no se puede estilar y bloquea el hilo del navegador. Se
+   * reemplazó por el `ConfirmDialog` que usan los demás borrados.
+   */
   function handleDelete(role: RoleSummary) {
-    const confirmed = window.confirm(t("users.roles.deleteConfirm", { name: role.name }));
-    if (!confirmed) return;
     resetFeedback();
     deleteRoleMutation.mutate(role.id, {
       onSuccess: () => {
@@ -146,8 +151,12 @@ function SystemRolesContent() {
         // W3 (verify-report #341): eliminar un rol no daba feedback de
         // éxito — misma clave i18n que ya existía, 0 usos.
         setDeleteSuccess(t("users.roles.deleteSuccess", { name: role.name }));
+        setPendingRemoval(null);
       },
-      onError: (error) => setDeleteError(apiErrorMessage(error)),
+      onError: (error) => {
+        setPendingRemoval(null);
+        setDeleteError(apiErrorMessage(error));
+      },
     });
   }
 
@@ -206,13 +215,26 @@ function SystemRolesContent() {
         </p>
       )}
 
+      {pendingRemoval && (
+        <ConfirmDialog
+          data-testid="remove-role-dialog"
+          title={t("users.roles.removeDialog.title")}
+          body={t("users.roles.removeDialog.body", { name: pendingRemoval.name })}
+          confirmLabel={t("users.roles.removeDialog.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          busy={deleteRoleMutation.isPending}
+          onCancel={() => setPendingRemoval(null)}
+          onConfirm={() => handleDelete(pendingRemoval)}
+        />
+      )}
+
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <RoleList
           roles={roles ?? []}
           selectedRoleId={selectedRoleId}
           canManage={canManage}
           onSelect={handleSelect}
-          onDelete={handleDelete}
+          onDelete={setPendingRemoval}
           onCreate={handleCreate}
         />
 

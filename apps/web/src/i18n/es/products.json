@@ -89,5 +89,10 @@
     "done": "Se importaron {{count}} productos.",
     "doneBreakdown": "{{created}} nuevos · {{updated}} actualizados",
     "close": "Cerrar"
+  },
+  "removeDialog": {
+    "title": "Eliminar producto",
+    "body": "Vas a eliminar «{{name}}» con todas sus presentaciones, códigos de barras y su composición. Esta acción no se puede deshacer.",
+    "confirm": "Eliminar producto"
   }
 }

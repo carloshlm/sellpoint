@@ -90,6 +90,11 @@
       "createSuccess": "Se creó el rol {{name}}."
     },
     "deleteConfirm": "¿Eliminar el rol {{name}}? Esta acción no se puede deshacer.",
-    "deleteSuccess": "Se eliminó el rol {{name}}."
+    "deleteSuccess": "Se eliminó el rol {{name}}.",
+    "removeDialog": {
+      "title": "Eliminar rol",
+      "body": "Vas a eliminar el rol «{{name}}». Las personas que lo tengan asignado pierden los permisos que les daba. Esta acción no se puede deshacer.",
+      "confirm": "Eliminar rol"
+    }
   }
 }

@@ -90,6 +90,11 @@
       "createSuccess": "Role {{name}} was created."
     },
     "deleteConfirm": "Delete role {{name}}? This can't be undone.",
-    "deleteSuccess": "Role {{name}} was deleted."
+    "deleteSuccess": "Role {{name}} was deleted.",
+    "removeDialog": {
+      "title": "Delete role",
+      "body": "You are about to delete the \"{{name}}\" role. Anyone assigned to it loses the permissions it granted. This can not be undone.",
+      "confirm": "Delete role"
+    }
   }
 }
