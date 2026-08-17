@@ -158,12 +158,18 @@ function CatalogSchemaContent() {
         <NewCatalogButton onCreated={(id) => setSelectedId(id)} />
       </div>
 
+      {/* `min-w-0` en las tarjetas NO es decorativo: un ítem de grid tiene
+          `min-width: auto`, o sea que se niega a encoger por debajo del ancho
+          mínimo de su contenido. En un celular angosto eso ensancha la columna
+          más allá de la pantalla y la tarjeta entera se sale del margen —era
+          justo lo que se veía—. Con `min-w-0` la columna puede encoger y el
+          `truncate` de adentro recién ahí tiene efecto. */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>{t("catalogs.fields.title")}</CardTitle>
+        <Card className="min-w-0">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle className="min-w-0 truncate">{t("catalogs.fields.title")}</CardTitle>
             {!creating && !editing && (
-              <Button size="sm" onClick={() => setCreating(true)}>
+              <Button size="sm" className="shrink-0" onClick={() => setCreating(true)}>
                 {t("catalogs.fields.add")}
               </Button>
             )}
@@ -235,7 +241,7 @@ function CatalogSchemaContent() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>{t("catalogs.schema.preview")}</CardTitle>
           </CardHeader>

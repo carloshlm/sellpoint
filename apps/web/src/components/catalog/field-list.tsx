@@ -65,11 +65,14 @@ function FieldList({
               <li
                 key={field.id}
                 data-testid={`field-${field.key}`}
-                className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+                // En pantalla angosta los botones bajan a su propia línea en vez
+                // de empujar la fila fuera de la tarjeta: con dos acciones
+                // ("Editar" y "Quitar") no queda ancho para el nombre del campo.
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-md border border-border px-3 py-2"
               >
-                <div className="flex min-w-0 flex-col">
-                  <span className="flex items-center gap-2 truncate text-sm font-medium">
-                    {field.label}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                    <span className="truncate">{field.label}</span>
                     {field.isArchived && (
                       <Badge variant="warning" data-testid={`field-${field.key}-archived`}>
                         {t("catalogs.fields.archivedBadge")}
