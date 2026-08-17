@@ -102,6 +102,27 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       });
     });
 
+    it("la presentación base se llama como su UNIDAD, no «Unidad» a secas", async () => {
+      // Carlos vio una presentación llamada "Unidad" en un producto medido en
+      // gramos: valía 1 gramo y el nombre no lo decía.
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `AZU-${randomUUID().slice(0, 8)}`,
+        name: "Azúcar",
+        baseUnit: "gr",
+        price: 0.02,
+      }).expect(201);
+
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${(created.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect((detail.body as { presentations: { name: string }[] }).presentations[0]?.name).toBe(
+        "Gramo",
+      );
+    });
+
     it("una unidad base continua deriva allowFractionalInput en true", async () => {
       const { token } = await registerAndLogin();
 
@@ -172,6 +193,30 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .set("Authorization", bearer(token))
         .send({ cost: 0.001 })
         .expect(400);
+    });
+
+    it("un importe que no cabe en la columna se rechaza diciendo que es GRANDE, no que tiene decimales", async () => {
+      // `DECIMAL(14,2)` son 12 enteros: pasarse no se redondea callado como los
+      // decimales, lo lanza Postgres como overflow crudo. Y el motivo importa:
+      // decir "2 decimales" mandaría a mirar el lugar equivocado.
+      const { token } = await registerAndLogin();
+
+      const tooBig = await createProduct(token, {
+        sku: `BIG-${randomUUID().slice(0, 8)}`,
+        name: "Un billón",
+        price: 1000000000000,
+      }).expect(400);
+      expect(tooBig.body.errors[0]).toMatchObject({
+        key: "price",
+        code: "products.amount_too_large",
+      });
+
+      // El máximo exacto sí entra: el límite es inclusivo.
+      await createProduct(token, {
+        sku: `MAX-${randomUUID().slice(0, 8)}`,
+        name: "El máximo",
+        price: 999999999999.99,
+      }).expect(201);
     });
 
     it("SKU repetido en el tenant → 409; unidad desconocida → 400", async () => {

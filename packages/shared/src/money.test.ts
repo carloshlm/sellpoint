@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, hasValidMoneyScale, MONEY_DECIMALS } from "./money";
+import { formatMoney, hasValidMoneyScale, MONEY_DECIMALS, MONEY_MAX } from "./money";
 
 /**
  * La columna es `DECIMAL(14,2)`: Postgres REDONDEA en silencio lo que no entra.
@@ -35,6 +35,29 @@ describe("hasValidMoneyScale", () => {
     for (const amount of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       expect(hasValidMoneyScale(amount)).toBe(false);
     }
+  });
+});
+
+/**
+ * `DECIMAL(14,2)` son 14 dígitos en total: 12 enteros y 2 decimales. Pasarse
+ * NO se redondea en silencio como los decimales — Postgres lanza un error de
+ * overflow numérico, crudo, que el usuario no entiende.
+ */
+describe("MONEY_MAX", () => {
+  it("el tope es el que de verdad entra en la columna", () => {
+    expect(MONEY_MAX).toBe(999999999999.99);
+  });
+
+  it("acepta el máximo exacto y rechaza el peso siguiente", () => {
+    expect(hasValidMoneyScale(MONEY_MAX)).toBe(true);
+    expect(hasValidMoneyScale(1000000000000)).toBe(false);
+  });
+
+  it("rechaza también en negativo: el módulo es lo que tiene que caber", () => {
+    // `nonnegative()` ya frena los negativos en el DTO, pero esta función se
+    // usa sola en el front y no debería dar por buenos números que la columna
+    // no puede guardar.
+    expect(hasValidMoneyScale(-1000000000000)).toBe(false);
   });
 });
 

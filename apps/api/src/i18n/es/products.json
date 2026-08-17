@@ -22,5 +22,6 @@
   "import_duplicate_sku": "Este código está repetido dentro del archivo.",
   "import_has_errors": "El archivo tiene filas con error. Corrígelas o marca la opción para importar solo las válidas.",
   "invalid_body": "Los datos enviados no son válidos.",
-  "last_presentation": "Es la única presentación del producto: sin ella no habría forma de venderlo. Agrega otra antes de eliminar esta."
+  "last_presentation": "Es la única presentación del producto: sin ella no habría forma de venderlo. Agrega otra antes de eliminar esta.",
+  "amount_too_large": "El importe es demasiado grande. El máximo es 999,999,999,999.99"
 }

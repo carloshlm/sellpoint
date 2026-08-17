@@ -1,5 +1,7 @@
 {
-  "page": { "title": "Products" },
+  "page": {
+    "title": "Products"
+  },
   "add": "New product",
   "open": "Open",
   "back": "Back to list",
@@ -63,6 +65,7 @@
     "availability": "Can build {{count}} units",
     "limitedBy": "Limited by: {{name}}"
   },
+  "amount_too_large": "The amount is too large. The maximum is 999,999,999,999.99",
   "import": {
     "open": "Import",
     "title": "Import products",

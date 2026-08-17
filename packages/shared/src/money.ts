@@ -17,7 +17,19 @@ import {
 export const MONEY_DECIMALS = 2;
 
 /**
- * ¿El importe cabe en la escala del sistema?
+ * Importe máximo: `DECIMAL(14,2)` son 14 dígitos en total, o sea **12 enteros**
+ * y 2 decimales.
+ *
+ * Pasarse no se parece en nada a pasarse de decimales. Los decimales de más
+ * Postgres los redondea callado; los enteros de más lanzan un error de
+ * overflow numérico crudo, que llega al usuario sin traducir y sin decirle qué
+ * campo lo causó.
+ */
+export const MONEY_MAX = 999999999999.99;
+
+/**
+ * ¿El importe cabe en la columna? Escala Y magnitud, que son los dos límites
+ * reales de `DECIMAL(14,2)`.
  *
  * Vive en `shared` porque la regla entra por las dos puntas: el formulario la
  * usa para avisar mientras se escribe y el API para rechazar. Tenerla dos veces
@@ -30,6 +42,12 @@ export const MONEY_DECIMALS = 2;
  */
 export function hasValidMoneyScale(amount: number): boolean {
   if (!Number.isFinite(amount)) {
+    return false;
+  }
+  // El MÓDULO: `nonnegative()` frena los negativos en el DTO, pero esta
+  // función se usa sola en el front y no debe dar por bueno un número que la
+  // columna no puede guardar en ninguno de los dos signos.
+  if (Math.abs(amount) > MONEY_MAX) {
     return false;
   }
   return Number(amount.toFixed(MONEY_DECIMALS)) === amount;

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { getUnit } from "@sellpoint/shared";
+import { getUnit, type Locale, unitName } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -23,8 +23,17 @@ import type {
  * lleva el precio y el costo que el usuario carga en el form del catálogo
  * (decisión de Carlos, 2026-08-16): el precio vive en `product_presentations`,
  * una sola fuente de verdad, pero se edita desde la misma pantalla.
+ *
+ * Se llama como la UNIDAD BASE, no "Unidad" a secas (corrección de Carlos,
+ * 2026-08-17): un producto en gramos mostraba una presentación llamada
+ * "Unidad" que en realidad valía 1 gramo, y eso confunde justo donde no
+ * conviene. Va en el idioma de quien crea el producto porque es un dato del
+ * tenant —editable, como cualquier otro nombre de presentación—, no una
+ * etiqueta que se traduzca al vuelo.
  */
-export const BASE_PRESENTATION_NAME = "Unidad";
+export function basePresentationName(baseUnit: string, locale: Locale): string {
+  return unitName(baseUnit, locale);
+}
 
 export interface ProductListItem {
   id: string;
@@ -166,7 +175,7 @@ export class ProductsService {
           data: {
             tenantId: user.tenantId,
             productId: product.id,
-            name: BASE_PRESENTATION_NAME,
+            name: basePresentationName(input.baseUnit, user.locale),
             factor: 1,
             isPurchasable: true,
             isSellable: true,

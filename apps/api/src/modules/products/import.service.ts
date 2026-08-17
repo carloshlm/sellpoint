@@ -8,8 +8,8 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
-import { hasValidMoneyScale } from "./money";
-import { derivesFractionalInput } from "./products.service";
+import { hasValidMoneyScale, MONEY_MAX } from "./money";
+import { basePresentationName, derivesFractionalInput } from "./products.service";
 import { parseSpreadsheet, type SpreadsheetFormat, serializeSpreadsheet } from "./spreadsheet";
 
 /** 5 MB de contenido REAL (ya decodificado, no en base64). */
@@ -297,7 +297,13 @@ export class ImportService {
         }
         const amount = Number(raw);
         if (!hasValidMoneyScale(amount)) {
-          moneyError = { row: rowNumber, field: column, message: "products.too_many_decimals" };
+          // Se distingue el motivo: decir "2 decimales" cuando lo que no entra
+          // es la magnitud manda al usuario a buscar en el lugar equivocado.
+          const message =
+            Math.abs(amount) > MONEY_MAX
+              ? "products.amount_too_large"
+              : "products.too_many_decimals";
+          moneyError = { row: rowNumber, field: column, message };
           break;
         }
         money[column] = amount;
@@ -412,7 +418,7 @@ export class ImportService {
           data: {
             tenantId: user.tenantId,
             productId: product.id,
-            name: "Unidad",
+            name: basePresentationName(item.baseUnit, options.locale),
             factor: 1,
             isDefaultSale: true,
             allowFractionalInput: derivesFractionalInput(item.baseUnit),

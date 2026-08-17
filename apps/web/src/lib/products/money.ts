@@ -1,4 +1,4 @@
-import { hasValidMoneyScale } from "@sellpoint/shared";
+import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
 
 /**
  * Paso de los inputs de importe: las flechitas del `type="number"` se mueven de
@@ -9,21 +9,29 @@ import { hasValidMoneyScale } from "@sellpoint/shared";
 export const MONEY_STEP = "0.01";
 
 /**
- * ¿El texto del input es un importe con demasiados decimales?
+ * ¿Qué le pasa a este importe? Devuelve la CLAVE i18n del problema, o `null` si
+ * no hay ninguno.
+ *
+ * Devuelve la clave y no un booleano porque los dos límites de `DECIMAL(14,2)`
+ * fallan por motivos distintos: decir "admite 2 decimales" cuando lo que no
+ * entra es la magnitud manda al usuario a mirar el lugar equivocado.
  *
  * Trabaja sobre el string crudo del `<input>`, no sobre un número, porque eso
  * es lo que hay mientras se escribe. Vacío y a-medio-escribir NO son error: el
  * campo es opcional, y marcar en rojo a alguien que todavía está tipeando es
- * ruido. Lo que no cabe es un número completo y válido que excede la escala.
+ * ruido.
  */
-export function moneyScaleError(raw: string): boolean {
+export function moneyScaleError(raw: string): string | null {
   const text = raw.trim();
   if (!text) {
-    return false;
+    return null;
   }
   const amount = Number(text);
   if (Number.isNaN(amount)) {
-    return false;
+    return null;
   }
-  return !hasValidMoneyScale(amount);
+  if (Math.abs(amount) > MONEY_MAX) {
+    return "products.amount_too_large";
+  }
+  return hasValidMoneyScale(amount) ? null : "products.too_many_decimals";
 }

@@ -1,5 +1,7 @@
 {
-  "page": { "title": "Productos" },
+  "page": {
+    "title": "Productos"
+  },
   "add": "Nuevo producto",
   "open": "Abrir",
   "back": "Volver a la lista",
@@ -63,6 +65,7 @@
     "availability": "Alcanza para {{count}} unidades",
     "limitedBy": "Limitado por: {{name}}"
   },
+  "amount_too_large": "El importe es demasiado grande. El máximo es 999,999,999,999.99",
   "import": {
     "open": "Importar",
     "title": "Importar productos",

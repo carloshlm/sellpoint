@@ -1,4 +1,4 @@
-import { hasValidMoneyScale } from "@sellpoint/shared";
+import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -10,11 +10,21 @@ import { z } from "zod";
  * alta y edición de presentación— más la importación por planilla. Un solo
  * `moneyAmount()` es lo que evita que un día se corrija en tres de las cinco.
  */
-export { hasValidMoneyScale, MONEY_DECIMALS } from "@sellpoint/shared";
+export { hasValidMoneyScale, MONEY_DECIMALS, MONEY_MAX } from "@sellpoint/shared";
 
-/** Importe no negativo con, como mucho, dos decimales. */
+/**
+ * Importe no negativo que cabe en `DECIMAL(14,2)`.
+ *
+ * Los dos límites se validan por SEPARADO porque fallan por motivos distintos y
+ * el usuario necesita saber cuál le tocó: "admite 2 decimales" sería una
+ * mentira si lo que escribió fue un billón. El `.max()` corre antes que el
+ * `refine`, así que un número enorme con decimales de más reporta el problema
+ * más grave.
+ */
 export function moneyAmount() {
-  return z.number().nonnegative().refine(hasValidMoneyScale, {
-    message: "products.too_many_decimals",
-  });
+  return z
+    .number()
+    .nonnegative()
+    .max(MONEY_MAX, "products.amount_too_large")
+    .refine(hasValidMoneyScale, { message: "products.too_many_decimals" });
 }

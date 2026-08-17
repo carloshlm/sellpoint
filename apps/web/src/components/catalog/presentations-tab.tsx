@@ -424,7 +424,7 @@ function NewPresentationRow({
         />
         {priceError && (
           <p role="alert" className="text-destructive">
-            {t("products.too_many_decimals")}
+            {t(priceError)}
           </p>
         )}
       </div>

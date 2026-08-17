@@ -331,8 +331,12 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   // escribe y se bloquea el submit. El API lo rechaza igual —esta validación no
   // reemplaza a la de allá, la adelanta— pero enterarse al guardar, después de
   // llenar todo el formulario, es la peor forma de enterarse.
-  const priceError = moneyScaleError(price) ? t("products.too_many_decimals") : undefined;
-  const costError = moneyScaleError(cost) ? t("products.too_many_decimals") : undefined;
+  // La clave la elige el helper: hay dos motivos distintos por los que un
+  // importe no entra y el texto tiene que decir cuál.
+  const priceErrorKey = moneyScaleError(price);
+  const costErrorKey = moneyScaleError(cost);
+  const priceError = priceErrorKey ? t(priceErrorKey) : undefined;
+  const costError = costErrorKey ? t(costErrorKey) : undefined;
 
   function handleError(apiError: ApiError) {
     const errors = (apiError as unknown as { errors?: { key: string; message: string }[] }).errors;
