@@ -7,6 +7,7 @@ import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import type { ImportRowError } from "../../src/modules/products/import.service";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
 
 /**
@@ -275,6 +276,131 @@ describe("Importación de productos (F2-IMPORT)", () => {
       .set("Authorization", bearer(token))
       .send({ content: Buffer.from("no soy un xlsx").toString("base64"), format: "xlsx" })
       .expect(400);
+  });
+
+  describe("campos lookup: en la planilla va el CÓDIGO, adentro el id", () => {
+    /**
+     * Arma un subcatálogo con un registro y un campo lookup en productos que le
+     * apunta. Devuelve lo necesario para verificar la traducción en los dos
+     * sentidos.
+     */
+    async function setupLookup(token: string) {
+      const catalogs = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const productsCatalog = (catalogs.body as { id: string; isSystem: boolean }[]).find(
+        (catalog) => catalog.isSystem,
+      );
+
+      const subcatalog = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: `Proveedores ${randomUUID()}` })
+        .expect(201);
+      const subcatalogId = (subcatalog.body as { id: string }).id;
+
+      const record = await request(app.getHttpServer())
+        .post(`/catalogs/${subcatalogId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "ACME", attributes: {} })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${productsCatalog?.id}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Proveedor", fieldType: "lookup", lookupCatalogId: subcatalogId })
+        .expect(201);
+
+      return { recordId: (record.body as { id: string }).id };
+    }
+
+    it("la plantilla muestra el código, NUNCA el uuid del registro", async () => {
+      const token = await registerAndLogin();
+      const { recordId } = await setupLookup(token);
+
+      await request(app.getHttpServer())
+        .post("/products")
+        .set("Authorization", bearer(token))
+        .send({ sku: "LK-1", name: "Con proveedor", attributes: { proveedor: recordId } })
+        .expect(201);
+
+      const template = await request(app.getHttpServer())
+        .get("/products/import/template")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect(template.text).toContain("ACME");
+      // Lo que Carlos vio en su planilla y no debe volver a ver.
+      expect(template.text).not.toContain(recordId);
+    });
+
+    it("subir el código lo resuelve al id internamente", async () => {
+      const token = await registerAndLogin();
+      const { recordId } = await setupLookup(token);
+
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,proveedor\nLK-2,Importado,ACME" })
+        .expect(200);
+
+      const list = await request(app.getHttpServer())
+        .get("/products?search=LK-2")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${(list.body as { items: { id: string }[] }).items[0]?.id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      // Adentro sigue siendo el id: renombrar el código no rompe el producto.
+      expect((detail.body as { attributes: Record<string, string> }).attributes.proveedor).toBe(
+        recordId,
+      );
+    });
+
+    it("un código en otra caja (ACME vs acme) se resuelve igual: es un typo, no otro registro", async () => {
+      const token = await registerAndLogin();
+      const { recordId } = await setupLookup(token);
+
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,proveedor\nLK-3,Importado,acme" })
+        .expect(200);
+
+      const list = await request(app.getHttpServer())
+        .get("/products?search=LK-3")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${(list.body as { items: { id: string }[] }).items[0]?.id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect((detail.body as { attributes: Record<string, string> }).attributes.proveedor).toBe(
+        recordId,
+      );
+    });
+
+    it("un código que no existe falla la FILA, con el campo señalado", async () => {
+      const token = await registerAndLogin();
+      await setupLookup(token);
+
+      const report = await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,proveedor\nLK-4,Importado,NO-EXISTE", dryRun: true })
+        .expect(200);
+
+      expect(report.body).toMatchObject({ valid: 0, failed: 1 });
+      expect((report.body as { errors: ImportRowError[] }).errors[0]).toMatchObject({
+        row: 2,
+        field: "proveedor",
+        message: "catalogs.lookup_value_not_found",
+      });
+    });
   });
 
   it("los productos importados nacen con su presentación base y su precio", async () => {

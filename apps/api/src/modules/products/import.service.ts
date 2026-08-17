@@ -39,6 +39,22 @@ export interface ImportReport {
   imported: number;
 }
 
+/**
+ * Traducción entre lo que ve el humano (el **código** del registro) y lo que se
+ * guarda (su **id**). El id se queda como está en `attributes`: es estable ante
+ * renombres, mientras que el código es justamente lo que el tenant puede
+ * cambiar. La planilla es la frontera con la persona, así que la conversión
+ * vive acá y no en el modelo.
+ */
+interface LookupIndex {
+  /** id → código, para escribir la plantilla. */
+  codeById: Map<string, string>;
+  /** código exacto → id. */
+  idByCode: Map<string, string>;
+  /** código en minúsculas → id, o `null` si dos códigos colisionan al bajarlos. */
+  idByLowerCode: Map<string, string | null>;
+}
+
 interface ParsedRow {
   row: number;
   sku: string;
@@ -81,8 +97,10 @@ export class ImportService {
     format: SpreadsheetFormat,
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     const fields = await this.loadFields(user);
-    const custom = fields.filter((field) => !field.isArchived).map((field) => field.key);
+    const active = fields.filter((field) => !field.isArchived);
+    const custom = active.map((field) => field.key);
     const header = [...STANDARD_COLUMNS, ...custom];
+    const lookups = await this.loadLookupIndexes(user, active);
 
     const products = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.product.findMany({
@@ -109,7 +127,17 @@ export class ImportService {
         base?.cost?.toString() ?? "",
         ...custom.map((key) => {
           const value = attributes[key];
-          return value === undefined || value === null ? "" : String(value);
+          if (value === undefined || value === null) {
+            return "";
+          }
+          const index = lookups.get(key);
+          if (!index) {
+            return String(value);
+          }
+          // El id apunta a un registro que ya no está (borrado o inactivo): se
+          // deja la celda vacía. Escribir el UUID sería mostrar basura, y
+          // volver a subirlo la reviviría.
+          return index.codeById.get(String(value)) ?? "";
         }),
       ];
     });
@@ -157,7 +185,9 @@ export class ImportService {
 
     const header = rows[0]?.map((cell) => cell.trim()) ?? [];
     const fields = await this.loadFields(user);
-    const knownKeys = new Set(fields.filter((field) => !field.isArchived).map((f) => f.key));
+    const active = fields.filter((field) => !field.isArchived);
+    const knownKeys = new Set(active.map((f) => f.key));
+    const lookups = await this.loadLookupIndexes(user, active);
 
     const errors: ImportRowError[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
@@ -194,6 +224,7 @@ export class ImportService {
       }
 
       const attributes: Record<string, unknown> = {};
+      let lookupError: ImportRowError | null = null;
       for (const column of header) {
         if (!knownKeys.has(column)) {
           continue;
@@ -202,8 +233,31 @@ export class ImportService {
         if (!raw) {
           continue;
         }
+
+        const index = lookups.get(column);
+        if (index) {
+          // En la planilla va el CÓDIGO del subcatálogo, nunca el id. Se
+          // traduce acá: adentro se sigue guardando el id.
+          const resolved = resolveLookupCode(index, raw);
+          if (!resolved) {
+            lookupError = {
+              row: rowNumber,
+              field: column,
+              message: "catalogs.lookup_value_not_found",
+            };
+            break;
+          }
+          attributes[column] = resolved;
+          continue;
+        }
+
         const field = fields.find((item) => item.key === column);
         attributes[column] = field?.fieldType === "number" ? Number(raw) : raw;
+      }
+
+      if (lookupError) {
+        errors.push(lookupError);
+        continue;
       }
 
       const attributeErrors = validateRecordAttributes(
@@ -337,6 +391,68 @@ export class ImportService {
     return { ...report, imported: importable.length };
   }
 
+  /**
+   * Índice `id ↔ código` por cada campo lookup, en UNA sola query para todos los
+   * catálogos destino: resolver registro por registro dentro del bucle de filas
+   * convertiría un archivo de 400 productos en 400 queries.
+   *
+   * Solo registros ACTIVOS, igual que el alta por formulario: un archivado no
+   * se puede elegir en la UI y tampoco por planilla.
+   */
+  private async loadLookupIndexes(
+    user: AuthUser,
+    fields: readonly FieldDefinition[],
+  ): Promise<Map<string, LookupIndex>> {
+    const lookupFields = fields.filter(
+      (field) => field.fieldType === "lookup" && field.lookupCatalogId,
+    );
+    if (lookupFields.length === 0) {
+      return new Map();
+    }
+
+    const catalogIds = [...new Set(lookupFields.map((field) => field.lookupCatalogId as string))];
+    const records = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      tx.catalogRecord.findMany({
+        where: { catalogId: { in: catalogIds }, isActive: true },
+        select: { id: true, catalogId: true, code: true },
+      }),
+    );
+
+    const byCatalog = new Map<string, LookupIndex>();
+    for (const catalogId of catalogIds) {
+      byCatalog.set(catalogId, {
+        codeById: new Map(),
+        idByCode: new Map(),
+        idByLowerCode: new Map(),
+      });
+    }
+
+    for (const record of records) {
+      const index = byCatalog.get(record.catalogId);
+      if (!index) {
+        continue;
+      }
+      index.codeById.set(record.id, record.code);
+      index.idByCode.set(record.code, record.id);
+
+      // `UNIQUE(catalog_id, code)` es sensible a mayúsculas: "kg" y "KG" pueden
+      // convivir. Si eso pasa, el índice laxo se marca ambiguo con `null` y ese
+      // código exige coincidencia exacta.
+      const lower = record.code.toLowerCase();
+      index.idByLowerCode.set(lower, index.idByLowerCode.has(lower) ? null : record.id);
+    }
+
+    // Dos campos pueden apuntar al MISMO catálogo: comparten índice.
+    const byField = new Map<string, LookupIndex>();
+    for (const field of lookupFields) {
+      const index = byCatalog.get(field.lookupCatalogId as string);
+      if (index) {
+        byField.set(field.key, index);
+      }
+    }
+    return byField;
+  }
+
   private async loadFields(user: AuthUser): Promise<FieldDefinition[]> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const catalog = await tx.catalog.findFirst({
@@ -360,4 +476,14 @@ export class ImportService {
       });
     });
   }
+}
+
+/**
+ * Código → id. Primero coincidencia exacta; recién si no la hay se prueba sin
+ * distinguir mayúsculas, y solo cuando ese código es inequívoco. Escribir `KG`
+ * donde el catálogo dice `kg` es un typo, no una intención de crear algo nuevo,
+ * y hacer fallar la fila por eso sería hostil sin ganar nada.
+ */
+function resolveLookupCode(index: LookupIndex, raw: string): string | null {
+  return index.idByCode.get(raw) ?? index.idByLowerCode.get(raw.toLowerCase()) ?? null;
 }
