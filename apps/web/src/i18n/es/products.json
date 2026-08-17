@@ -53,7 +53,8 @@
       "title": "Eliminar presentación",
       "body": "Vas a eliminar «{{name}}» con su código de barras y su precio. Esta acción no se puede deshacer. Si solo quieres dejar de usarla, desactívala.",
       "confirm": "Eliminar presentación"
-    }
+    },
+    "defaultLocked": "Es la presentación predeterminada: marca otra como predeterminada antes de desactivarla o eliminarla."
   },
   "composition": {
     "empty": "Este producto todavía no tiene componentes.",

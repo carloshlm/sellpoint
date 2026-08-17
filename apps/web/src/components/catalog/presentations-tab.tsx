@@ -195,12 +195,28 @@ function PresentationsTab({
                 <TableCell>{presentation.price ?? "—"}</TableCell>
                 {canManage && (
                   <TableCell className="text-right whitespace-nowrap">
+                    {/* EDITAR queda disponible incluso en la predeterminada: es
+                        lo que permite convertir la presentación base «×1» en
+                        una de lote (renombrarla y cambiarle la equivalencia),
+                        que es un caso real de negocios que solo venden por
+                        caja. Bloquearlo no daría seguridad, quitaría capacidad. */}
                     <Button variant="ghost" size="sm" onClick={() => setEditingId(presentation.id)}>
                       {t("common.form.edit")}
                     </Button>
+                    {/* Desactivar y eliminar la PREDETERMINADA los rechaza el
+                        API con 409 —el producto quedaría sin presentación de
+                        venta preseleccionada—. Se muestran deshabilitados con
+                        el motivo: antes se veían iguales que en cualquier fila
+                        y el límite se descubría a los golpes. */}
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={presentation.isDefaultSale}
+                      title={
+                        presentation.isDefaultSale
+                          ? t("products.presentations.defaultLocked")
+                          : undefined
+                      }
                       onClick={() => {
                         setError(null);
                         updatePresentation.mutate(
@@ -216,12 +232,15 @@ function PresentationsTab({
                         ? t("products.presentations.deactivate")
                         : t("products.presentations.reactivate")}
                     </Button>
-                    {/* Borrado REAL. El API lo rechaza con 409 si es la
-                        predeterminada, la última o (desde F3/F4) una ya usada:
-                        para esas el camino sigue siendo desactivar. */}
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={presentation.isDefaultSale}
+                      title={
+                        presentation.isDefaultSale
+                          ? t("products.presentations.defaultLocked")
+                          : undefined
+                      }
                       onClick={() => {
                         setError(null);
                         setPendingRemoval(presentation);

@@ -19,6 +19,12 @@ vi.mock("@/lib/products/hooks", () => ({
   useDeletePresentation: () => ({ mutate: remove, isPending: false }),
 }));
 
+/**
+ * NO es la predeterminada a propósito: la predeterminada tiene sus acciones
+ * destructivas bloqueadas, así que usarla de fixture haría que los casos de
+ * borrado probaran otra cosa. El caso de la predeterminada tiene sus propios
+ * tests, con un fixture explícito.
+ */
 const basePresentation: Presentation = {
   id: "p1",
   productId: "prod-1",
@@ -26,13 +32,15 @@ const basePresentation: Presentation = {
   factor: "1",
   isPurchasable: true,
   isSellable: true,
-  isDefaultSale: true,
+  isDefaultSale: false,
   allowFractionalInput: true,
   barcode: null,
   price: "0.02",
   cost: null,
   isActive: true,
 };
+
+const defaultPresentation: Presentation = { ...basePresentation, isDefaultSale: true };
 
 function renderTab(baseUnit: string) {
   render(
@@ -196,6 +204,42 @@ describe("PresentationsTab — la fila se puede operar", () => {
 
       expect(screen.queryByTestId("remove-presentation-dialog")).not.toBeInTheDocument();
       expect(remove).not.toHaveBeenCalled();
+    });
+
+    /**
+     * La predeterminada NO se puede eliminar ni desactivar —el API lo rechaza
+     * con 409— pero la tabla mostraba los tres botones iguales en todas las
+     * filas: el usuario descubría el límite haciendo clic. Editar SÍ queda
+     * disponible: es lo que permite convertir la presentación base en una de
+     * lote ("ENGRANERELOJ 100K"), que es un caso real.
+     */
+    it("en la predeterminada, Eliminar y Desactivar se ven bloqueados y dicen por qué", () => {
+      render(
+        <I18nextProvider i18n={createI18n()}>
+          <PresentationsTab
+            productId="prod-1"
+            baseUnit="gr"
+            presentations={[defaultPresentation]}
+            canManage
+          />
+        </I18nextProvider>,
+      );
+
+      const eliminar = screen.getByRole("button", { name: "Eliminar" });
+      const desactivar = screen.getByRole("button", { name: "Desactivar" });
+
+      expect(eliminar).toBeDisabled();
+      expect(desactivar).toBeDisabled();
+      expect(eliminar).toHaveAttribute("title", expect.stringContaining("predeterminada"));
+      // Editar NO se bloquea.
+      expect(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
+    });
+
+    it("una presentación que NO es la predeterminada conserva sus tres acciones", () => {
+      renderTab("gr");
+
+      expect(screen.getByRole("button", { name: "Eliminar" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Desactivar" })).toBeEnabled();
     });
 
     it("desactivar sigue siendo de un clic: es reversible", async () => {

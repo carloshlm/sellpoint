@@ -53,7 +53,8 @@
       "title": "Delete presentation",
       "body": "You are about to delete \"{{name}}\" along with its barcode and price. This can not be undone. If you only want to stop using it, deactivate it instead.",
       "confirm": "Delete presentation"
-    }
+    },
+    "defaultLocked": "This is the default presentation: set another one as default before deactivating or deleting it."
   },
   "composition": {
     "empty": "This product has no components yet.",
