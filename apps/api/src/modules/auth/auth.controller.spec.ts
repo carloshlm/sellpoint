@@ -1,4 +1,6 @@
 import type { ConfigService } from "@nestjs/config";
+import type { Response } from "express";
+import type { Env } from "../../config/env.schema";
 import { AuthController } from "./auth.controller";
 import type { AuthService } from "./auth.service";
 
@@ -18,8 +20,13 @@ const ENV_DEFAULTS: Record<string, unknown> = {
   REFRESH_TOKEN_TTL_DAYS: 7,
 };
 
-function buildConfigService(): ConfigService {
-  return { get: (key: string) => ENV_DEFAULTS[key] } as unknown as ConfigService;
+/**
+ * `ConfigService` a secas es `ConfigService<Record<string|symbol, unknown>,
+ * false>`, que NO es lo que el controller pide. Tiparlo con `<Env, true>` es lo
+ * que hace que el mock tenga que parecerse al servicio real.
+ */
+function buildConfigService(): ConfigService<Env, true> {
+  return { get: (key: string) => ENV_DEFAULTS[key] } as unknown as ConfigService<Env, true>;
 }
 
 describe("AuthController.registerTenant — F1-LOCALE-09 (fallback de Accept-Language)", () => {
@@ -72,8 +79,13 @@ describe("AuthController.registerTenant — F1-LOCALE-09 (fallback de Accept-Lan
   });
 });
 
-function buildResponse() {
-  return { cookie: jest.fn() } as never;
+/**
+ * `as never` dejaba el mock tipado como `never`, así que `response.cookie` no
+ * existía para TypeScript y las aserciones sobre la cookie no se chequeaban.
+ * Se declara el espía en el tipo para poder afirmarlo.
+ */
+function buildResponse(): Response & { cookie: jest.Mock } {
+  return { cookie: jest.fn() } as unknown as Response & { cookie: jest.Mock };
 }
 
 describe("AuthController.login/refresh/logout — cookie builder (AD-5)", () => {

@@ -251,7 +251,7 @@ describe("AuthRepository (f1-auth U2/U3/U4 — único lugar con queries de auth)
       const update = jest.fn().mockResolvedValue(undefined);
       const tx = { user: { update } } as unknown as Prisma.TransactionClient;
 
-      await repo.updateUserPassword(tx, "user-1", "new-hash", null);
+      await repo.updateUserPassword(tx, "user-1", "new-hash", null, false);
 
       expect(update).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -265,11 +265,32 @@ describe("AuthRepository (f1-auth U2/U3/U4 — único lugar con queries de auth)
       const tx = { user: { update } } as unknown as Prisma.TransactionClient;
       const now = new Date("2026-08-12T12:00:00Z");
 
-      await repo.updateUserPassword(tx, "user-1", "new-hash", now);
+      await repo.updateUserPassword(tx, "user-1", "new-hash", now, false);
 
       expect(update).toHaveBeenCalledWith({
         where: { id: "user-1" },
         data: { passwordHash: "new-hash", emailVerifiedAt: now },
+      });
+    });
+
+    /**
+     * `promoteToActive` es el QUINTO parámetro, agregado cuando el aceptar una
+     * invitación pasó a activar la cuenta. Los dos casos de arriba llamaban con
+     * cuatro argumentos y seguían pasando —ts-jest transpila sin chequear—, así
+     * que llegaba `undefined`, se comportaba como `false` y **nadie probaba la
+     * promoción**. Lo destapó `pnpm typecheck:full`.
+     */
+    it("updateUserPassword promueve la cuenta a `active` cuando se lo piden", async () => {
+      const { repo } = buildRepo();
+      const update = jest.fn().mockResolvedValue(undefined);
+      const tx = { user: { update } } as unknown as Prisma.TransactionClient;
+      const now = new Date("2026-08-12T12:00:00Z");
+
+      await repo.updateUserPassword(tx, "user-1", "new-hash", now, true);
+
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "user-1" },
+        data: { passwordHash: "new-hash", emailVerifiedAt: now, status: "active" },
       });
     });
 

@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";
 import type { ClockPort } from "../../infrastructure/clock/clock.port";
 import type { HashPort } from "../../infrastructure/crypto/hash.port";
@@ -140,7 +141,7 @@ function buildService(overrides?: {
 
   const configService = {
     get: (key: string) => ENV_DEFAULTS[key],
-  } as unknown as ConfigService;
+  } as unknown as ConfigService<Env, true>;
 
   const redis: FakeRedis = {
     set: jest.fn().mockResolvedValue("OK"),
@@ -994,9 +995,15 @@ describe("AuthService.changePassword (W1 f1-auth — AUTH-REQ-10/13)", () => {
 
     expect(hasher.hash).toHaveBeenCalledWith("brand-new-password-12");
     // AD-1: el hash se calculó antes de abrir CUALQUIER tx de escritura.
-    expect((hasher.hash as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
-      (authRepository.updateUserPassword as jest.Mock).mock.invocationCallOrder[0],
-    );
+    // Se afirma que AMBOS se llamaron antes de comparar el orden: si alguno no
+    // se llamó, `invocationCallOrder[0]` es `undefined` y la comparación pasaría
+    // por vacío en vez de probar la precedencia.
+    const hashOrder = (hasher.hash as jest.Mock).mock.invocationCallOrder[0];
+    const updateOrder = (authRepository.updateUserPassword as jest.Mock).mock
+      .invocationCallOrder[0];
+    expect(hashOrder).toBeDefined();
+    expect(updateOrder).toBeDefined();
+    expect(hashOrder as number).toBeLessThan(updateOrder as number);
     expect(authRepository.updateUserPassword).toHaveBeenCalledWith(
       tx,
       "user-1",

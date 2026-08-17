@@ -1,4 +1,5 @@
 import type { ConfigService } from "@nestjs/config";
+import type { Env } from "../../config/env.schema";
 import type { ClockPort } from "../../infrastructure/clock/clock.port";
 import type { AuthRepository } from "../auth/repositories/auth.repository";
 import type { OneTimeTokenService } from "../auth/services/one-time-token.service";
@@ -33,7 +34,7 @@ function buildService(overrides?: { mailerFails?: boolean }) {
   } as unknown as MailerPort;
 
   const clock = { now: () => NOW } as ClockPort;
-  const configService = { get: () => APP_URL } as unknown as ConfigService;
+  const configService = { get: () => APP_URL } as unknown as ConfigService<Env, true>;
 
   const service = new UserInvitationService(
     authRepository,

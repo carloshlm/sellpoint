@@ -84,6 +84,15 @@ jobs:
       - name: lint (biome)
         run: pnpm lint
 
+      # F6-TYPECHECK-TESTS. `pnpm build` NO chequea los tests: `tsconfig.build`
+      # los excluye y los runners transpilan sin tipos (vitest usa esbuild,
+      # ts-jest usa isolatedModules). Sin este paso, un mock puede quedarse con
+      # la firma vieja y la suite sigue en verde — pasó con
+      # `updateUserPassword` y con `UsersAdminController`, que perdieron
+      # cobertura sin que nadie se enterara.
+      - name: typecheck de los tests del api
+        run: pnpm --filter api typecheck:full
+
       - name: tests (unit + integración, sellpoint_app + RLS real)
         run: pnpm test
 

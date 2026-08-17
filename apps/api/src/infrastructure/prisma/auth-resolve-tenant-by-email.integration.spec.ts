@@ -37,7 +37,10 @@ describe("auth_resolve_tenant_by_email() — SECURITY DEFINER", () => {
       { tenant_id: string | null }[]
     >`SELECT auth_resolve_tenant_by_email(${email}) AS tenant_id`;
 
-    expect(rows[0].tenant_id).toBe(tenantId);
+    // Se afirma la fila ANTES de leerla: con `?.` a secas, un resultado
+    // vacío daría `undefined` y el test pasaría por el motivo equivocado.
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.tenant_id).toBe(tenantId);
   });
 
   it("devuelve NULL para un email que no existe (sin filtrar existencia por otro medio)", async () => {
@@ -45,7 +48,8 @@ describe("auth_resolve_tenant_by_email() — SECURITY DEFINER", () => {
       { tenant_id: string | null }[]
     >`SELECT auth_resolve_tenant_by_email('no-existe-nadie@example.com') AS tenant_id`;
 
-    expect(rows[0].tenant_id).toBeNull();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.tenant_id).toBeNull();
   });
 
   it("normaliza el email (case-insensitive + trim) igual que la unicidad global", async () => {
@@ -53,7 +57,8 @@ describe("auth_resolve_tenant_by_email() — SECURITY DEFINER", () => {
       { tenant_id: string | null }[]
     >`SELECT auth_resolve_tenant_by_email(${`  ${email.toUpperCase()}  `}) AS tenant_id`;
 
-    expect(rows[0].tenant_id).toBe(tenantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.tenant_id).toBe(tenantId);
   });
 
   it("EXECUTE está revocado de PUBLIC (solo sellpoint_app puede invocarla)", async () => {
@@ -71,7 +76,8 @@ describe("auth_resolve_tenant_by_email() — SECURITY DEFINER", () => {
     const appExecuteGrant = await prisma.$queryRaw<
       { has_privilege: boolean }[]
     >`SELECT has_function_privilege('sellpoint_app', 'public.auth_resolve_tenant_by_email(text)', 'EXECUTE') AS has_privilege`;
-    expect(appExecuteGrant[0].has_privilege).toBe(true);
+    expect(appExecuteGrant).toHaveLength(1);
+    expect(appExecuteGrant[0]?.has_privilege).toBe(true);
   });
 
   it("el índice único de email es GLOBAL (case-insensitive) — un mismo email no puede repetirse ni en OTRO tenant", async () => {

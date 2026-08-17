@@ -61,7 +61,7 @@ describe("TokenService", () => {
 
     const token = service.signAccessToken(claims);
     const [headerB64] = token.split(".");
-    const header = JSON.parse(Buffer.from(headerB64, "base64url").toString("utf-8"));
+    const header = JSON.parse(Buffer.from(headerB64 ?? "", "base64url").toString("utf-8"));
 
     expect(header.kid).toBe(kid);
     expect(header.alg).toBe("RS256");
@@ -141,15 +141,20 @@ describe("TokenService", () => {
 
     const token = service.signAccessToken(claims);
     const parts = token.split(".");
+    // Un JWT son SIEMPRE tres partes: afirmarlo antes de tocar la firma evita
+    // que un cambio en el formato del token convierta esto en un test que
+    // altera `undefined` y sigue pasando.
+    expect(parts).toHaveLength(3);
+    const signature = parts[2] ?? "";
     // Alterar un char cerca del FINAL de una firma RSA-2048 (256 bytes ≡ 1
-    // mod 3) es un no-op: los últimos 4 bits del último sextето base64url
+    // mod 3) es un no-op: los últimos 4 bits del último sexteto base64url
     // son padding puro, ignorados al decodificar — no cambian los bytes
     // reales de la firma. Tocamos un char bien adentro para garantizar que
     // sí mueve bits significativos.
     const index = 10;
-    const original = parts[2][index];
+    const original = signature[index];
     const replacement = original === "A" ? "B" : "A";
-    parts[2] = parts[2].slice(0, index) + replacement + parts[2].slice(index + 1);
+    parts[2] = signature.slice(0, index) + replacement + signature.slice(index + 1);
 
     expect(() => service.verifyAccessToken(parts.join("."))).toThrow(TokenVerificationError);
   });

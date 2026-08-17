@@ -226,9 +226,8 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .set("Cookie", owner.refreshCookieHeader)
       .expect(200);
 
-    const claims = JSON.parse(
-      Buffer.from((refreshed.body.accessToken as string).split(".")[1], "base64url").toString(),
-    );
+    const payloadB64 = (refreshed.body.accessToken as string).split(".")[1] ?? "";
+    const claims = JSON.parse(Buffer.from(payloadB64, "base64url").toString());
     expect(claims.permissions).not.toContain("users:read");
     expect(claims.permissions).toContain("users:manage");
   });

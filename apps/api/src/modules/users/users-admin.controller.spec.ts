@@ -1,6 +1,7 @@
 import type { AuthUser } from "../auth/types/auth-user";
 import { UsersAdminController } from "./users-admin.controller";
 import type { UserDetail, UsersAdminService } from "./users-admin.service";
+import type { WarehouseScopeService } from "./warehouse-scope.service";
 
 const ACTOR: AuthUser = {
   userId: "actor-1",
@@ -32,9 +33,20 @@ function buildController(overrides?: Partial<Record<keyof UsersAdminService, jes
     ...overrides,
   } as unknown as UsersAdminService;
 
-  const controller = new UsersAdminController(usersAdminService);
+  /**
+   * El controller ganó `WarehouseScopeService` en F2-SCOPE-02 y este spec
+   * siguió construyéndolo con UN argumento: los tests pasaban porque ninguno
+   * tocaba el alcance —quedaba `undefined`—, así que los dos endpoints de
+   * scope no tenían cobertura acá. Lo destapó `pnpm typecheck:full`.
+   */
+  const warehouseScopeService = {
+    get: jest.fn().mockResolvedValue(["wh-1"]),
+    replace: jest.fn().mockResolvedValue(["wh-1", "wh-2"]),
+  } as unknown as WarehouseScopeService;
+
+  const controller = new UsersAdminController(usersAdminService, warehouseScopeService);
   const request = { ip: "1.2.3.4", headers: { "user-agent": "jest" } } as never;
-  return { controller, usersAdminService, request };
+  return { controller, usersAdminService, warehouseScopeService, request };
 }
 
 describe("UsersAdminController (F1-RBAC-03)", () => {
@@ -122,5 +134,32 @@ describe("UsersAdminController (F1-RBAC-03)", () => {
       userAgent: "jest",
     });
     expect(result.status).toBe("active");
+  });
+
+  // F2-SCOPE-02. Sin cobertura hasta hoy: el spec construía el controller sin
+  // `WarehouseScopeService` y nadie lo notó porque los tests no lo tocaban.
+  it("GET /users/:id/warehouse-scope delega en WarehouseScopeService.get", async () => {
+    const { controller, warehouseScopeService } = buildController();
+
+    const result = await controller.getWarehouseScope("user-2", ACTOR);
+
+    expect(warehouseScopeService.get).toHaveBeenCalledWith(ACTOR, "user-2");
+    expect(result).toEqual(["wh-1"]);
+  });
+
+  it("PUT /users/:id/warehouse-scope reemplaza la lista COMPLETA, no agrega", async () => {
+    const { controller, warehouseScopeService, request } = buildController();
+
+    await controller.replaceWarehouseScope(
+      "user-2",
+      { warehouseIds: ["wh-1", "wh-2"] },
+      ACTOR,
+      request,
+    );
+
+    expect(warehouseScopeService.replace).toHaveBeenCalledWith(ACTOR, "user-2", ["wh-1", "wh-2"], {
+      ip: "1.2.3.4",
+      userAgent: "jest",
+    });
   });
 });

@@ -109,9 +109,11 @@ describe("Aislamiento RLS entre tenants (e2e, F1-TENANT-03)", () => {
   });
 
   it("corriendo como sellpoint_app (sin bypass): current_user no es el superuser", async () => {
-    const [{ current_user: currentUser }] = await prisma.$queryRaw<
-      Array<{ current_user: string }>
-    >`SELECT current_user`;
+    const rows = await prisma.$queryRaw<Array<{ current_user: string }>>`SELECT current_user`;
+    // `SELECT current_user` devuelve SIEMPRE una fila; afirmarlo evita
+    // desestructurar `undefined` si algún día la consulta cambia.
+    expect(rows).toHaveLength(1);
+    const currentUser = rows[0]?.current_user;
 
     expect(currentUser).toBe("sellpoint_app");
   });

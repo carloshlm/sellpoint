@@ -42,7 +42,13 @@ describe("JwtAuthGuard", () => {
       verifyAccessToken: jest.fn().mockReturnValue(validPayload),
     };
     const redis = {
-      mget: jest.fn(overrides?.mget ?? (() => Promise.resolve([null, null]))),
+      // El default se tipa como TUPLA: `[null, null]` se infiere como `null[]`,
+      // que no es la forma que devuelve `mget` (dos posiciones, cada una
+      // `string | null`) y hacía que el override y el default no coincidieran.
+      mget: jest.fn(
+        overrides?.mget ??
+          ((): Promise<[string | null, string | null]> => Promise.resolve([null, null])),
+      ),
     };
     const guard = new JwtAuthGuard(reflector, tokenService as never, redis as never);
     return { guard, reflector, tokenService, redis };

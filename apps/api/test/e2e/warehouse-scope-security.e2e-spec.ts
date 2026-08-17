@@ -5,6 +5,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import type { Env } from "../../src/config/env.schema";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { WarehouseScopeInterceptor } from "../../src/infrastructure/warehouse-scope/warehouse-scope.interceptor";
 import { TokenService } from "../../src/modules/auth/services/token.service";
@@ -179,7 +180,10 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
   // #296 — un test cuyo nombre promete más de lo que prueba es una trampa
   // para el que confíe en él).
   it("AD-7: los requests rechazados por el THROTTLER (429) no ejecutan withTenantContext", async () => {
-    const configService = app.get(ConfigService);
+    // Tipado con `<Env, true>`: `app.get(ConfigService)` a secas devuelve el
+    // genérico laxo, donde `get(clave, { infer: true })` no compila porque la
+    // clave se infiere como `never`.
+    const configService = app.get<ConfigService<Env, true>>(ConfigService);
     const withTenantContextSpy = jest.spyOn(prisma, "withTenantContext");
     configService.set("THROTTLE_ENABLED", true);
 

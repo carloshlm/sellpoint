@@ -19,12 +19,30 @@ const UPDATED: UserSummary = {
   locale: "en",
 };
 
+/**
+ * `GET /me` devuelve el bloque `tenant` desde f1-web-onboard (el
+ * `OnboardingGate` del front lo lee del store), pero este mock se quedó sin él
+ * y el test seguía pasando: ts-jest transpila sin chequear tipos, así que el
+ * controller devolvía un perfil que en producción nunca existiría.
+ */
 const ME: MeProfile = {
   id: "user-1",
   email: "owner@example.com",
   firstName: "Ana",
   locale: "es",
   permissions: [],
+  tenant: {
+    id: "tenant-1",
+    name: "Acme",
+    legalName: null,
+    taxId: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    onboarded: true,
+    country: "MX",
+  },
 };
 
 describe("UsersController.me (GET /me, F1-WEB-AUTH bootstrap)", () => {
