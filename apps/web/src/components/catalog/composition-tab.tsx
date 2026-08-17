@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
+import { fieldErrorsOf } from "@/lib/field-errors";
 import {
   useAvailability,
   useComposition,
@@ -53,6 +54,22 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
   const replaceComposition = useReplaceComposition(productId);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftLine[] | null>(null);
+  // Errores POR CAMPO indexados por su ruta (`lines.1.wastePercentage`). El API
+  // ya dice cuál falló; antes se mostraba solo el mensaje general arriba y con
+  // cinco componentes había que adivinar en qué fila estaba el número malo.
+  const [fieldErrors, setFieldErrors] = useState<Map<string, string>>(new Map());
+
+  /** Limpia el error de un campo apenas se lo toca: ya no describe lo que hay. */
+  function clearFieldError(path: string) {
+    setFieldErrors((current) => {
+      if (!current.has(path)) {
+        return current;
+      }
+      const next = new Map(current);
+      next.delete(path);
+      return next;
+    });
+  }
 
   const lines: DraftLine[] =
     draft ??
@@ -67,6 +84,7 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
 
   function save(next: DraftLine[]) {
     setError(null);
+    setFieldErrors(new Map());
     replaceComposition.mutate(
       {
         lines: next.map((line) => ({
@@ -77,7 +95,14 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
       },
       {
         onSuccess: () => setDraft(null),
-        onError: (apiError: ApiError) => setError(apiError.message),
+        onError: (apiError: ApiError) => {
+          const byField = fieldErrorsOf(apiError);
+          setFieldErrors(byField);
+          // El mensaje general solo cuando NO hay campos señalados: repetir
+          // arriba lo que ya está pintado en la fila es ruido, y un 409 de
+          // negocio (el ciclo de composición) no señala ninguna.
+          setError(byField.size > 0 ? null : apiError.message);
+        },
       },
     );
   }
@@ -133,15 +158,18 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
               <TableRow key={line.componentId} data-testid={`composition-${line.sku}`}>
                 <TableCell className="font-medium">{line.name}</TableCell>
                 <TableCell>
-                  <Input
-                    type="number"
-                    step="any"
-                    aria-label={t("products.composition.quantityFor", { name: line.name })}
+                  <LineField
+                    label={t("products.composition.quantityFor", { name: line.name })}
                     value={line.quantity}
+                    // La ruta es la MISMA que arma el pipe de Zod en el API:
+                    // por eso el error cae en el input correcto sin traducir
+                    // nada entre las dos puntas.
+                    error={fieldErrors.get(`lines.${index}.quantity`)}
                     disabled={!canManage}
-                    onChange={(event) => {
+                    onChange={(value) => {
+                      clearFieldError(`lines.${index}.quantity`);
                       const next = [...lines];
-                      next[index] = { ...line, quantity: event.target.value };
+                      next[index] = { ...line, quantity: value };
                       setDraft(next);
                     }}
                   />
@@ -150,15 +178,15 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
                     siempre está expresada en su unidad base. */}
                 <TableCell>{unitName(line.baseUnit, uiLocale)}</TableCell>
                 <TableCell>
-                  <Input
-                    type="number"
-                    step="any"
-                    aria-label={t("products.composition.wasteFor", { name: line.name })}
+                  <LineField
+                    label={t("products.composition.wasteFor", { name: line.name })}
                     value={line.wastePercentage}
+                    error={fieldErrors.get(`lines.${index}.wastePercentage`)}
                     disabled={!canManage}
-                    onChange={(event) => {
+                    onChange={(value) => {
+                      clearFieldError(`lines.${index}.wastePercentage`);
                       const next = [...lines];
-                      next[index] = { ...line, wastePercentage: event.target.value };
+                      next[index] = { ...line, wastePercentage: value };
                       setDraft(next);
                     }}
                   />
@@ -214,6 +242,47 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
 }
 
 /** Autocompletado server-side: reusa la búsqueda de productos de F2-PROD-02. */
+/**
+ * Un número de la fila, con su error debajo.
+ *
+ * El mensaje va DENTRO de la celda y no arriba de la tabla: con cinco
+ * componentes, "Debe ser 100 o menos" en el encabezado obliga a revisar las
+ * cinco filas a ojo. Se usa `aria-invalid` + `role="alert"` para que un lector
+ * de pantalla anuncie el problema en el campo donde está.
+ */
+function LineField({
+  label,
+  value,
+  error,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  error?: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Input
+        type="number"
+        step="any"
+        aria-label={label}
+        aria-invalid={error ? true : undefined}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ComponentPicker({
   excludeIds,
   onPick,

@@ -31,6 +31,7 @@ import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
+import { fieldErrorsOf } from "@/lib/field-errors";
 import type { ProductDetail } from "@/lib/products/api";
 import {
   useAvailability,
@@ -341,9 +342,13 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const costError = costErrorKey ? t(costErrorKey) : undefined;
 
   function handleError(apiError: ApiError) {
-    const errors = (apiError as unknown as { errors?: { key: string; message: string }[] }).errors;
-    if (errors?.length) {
-      setFieldErrors(Object.fromEntries(errors.map((item) => [item.key, t(item.message)])));
+    // Mismo helper que la pestaña de composición: el casteo del `errors` del
+    // API vivía duplicado y con su propio criterio en cada formulario.
+    const byField = fieldErrorsOf(apiError);
+    if (byField.size > 0) {
+      // `t()` es una red por si alguna clave llega sin traducir del backend;
+      // con texto ya traducido i18next devuelve el mismo string.
+      setFieldErrors(Object.fromEntries([...byField].map(([key, message]) => [key, t(message)])));
       return;
     }
     setError(apiError.message);
