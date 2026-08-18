@@ -1,0 +1,253 @@
+import { randomUUID } from "node:crypto";
+import { ConfigService } from "@nestjs/config";
+import type { Env } from "../../config/env.schema";
+import { PrismaService } from "./prisma.service";
+
+/**
+ * Integration (Postgres real, `sellpoint_app`) — F3-DB-01: el libro mayor de
+ * movimientos de stock.
+ *
+ * `stock_movements` es la primera tabla APPEND-ONLY con reglas de negocio en
+ * el propio schema. Acá se prueban las invariantes que Prisma no expresa —
+ * CHECKs, IDENTITY y la dirección de los borrados — porque son las que
+ * definen qué es imposible de corromper aunque el service de F3-CORE tenga un
+ * bug. El guard con mensaje claro vive en el service; esto es la red.
+ */
+describe("stock_movements — invariantes de schema (F3-DB-01)", () => {
+  let prisma: PrismaService;
+  let tenantId: string;
+  let userId: string;
+  let productId: string;
+  let presentationId: string;
+  let warehouseId: string;
+  let otherWarehouseId: string;
+
+  beforeAll(async () => {
+    prisma = new PrismaService(
+      new ConfigService<Env, true>({ DATABASE_URL: process.env.DATABASE_URL }),
+    );
+    await prisma.onModuleInit();
+
+    const stamp = Date.now();
+    const tenant = await prisma.tenant.create({ data: { name: `Tenant inventario ${stamp}` } });
+    tenantId = tenant.id;
+
+    await prisma.withTenantContext(tenantId, async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          tenantId,
+          email: `movimientos-${stamp}@example.com`,
+          firstName: "Quien",
+          lastNamePaternal: "Movió",
+        },
+      });
+      const product = await tx.product.create({
+        data: { tenantId, sku: `MOV-${stamp}`, name: "Producto con movimientos" },
+      });
+      const presentation = await tx.productPresentation.create({
+        data: {
+          tenantId,
+          productId: product.id,
+          name: "Unidad ×1",
+          factor: 1,
+          allowFractionalInput: false,
+        },
+      });
+      const [warehouse, other] = await Promise.all([
+        tx.warehouse.create({ data: { tenantId, name: `Central ${stamp}` } }),
+        tx.warehouse.create({ data: { tenantId, name: `Sucursal ${stamp}` } }),
+      ]);
+
+      userId = user.id;
+      productId = product.id;
+      presentationId = presentation.id;
+      warehouseId = warehouse.id;
+      otherWarehouseId = other.id;
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.onModuleDestroy();
+  });
+
+  /** Un movimiento válido mínimo; cada test rompe UNA cosa sobre esta base. */
+  function movement(overrides: Record<string, unknown> = {}) {
+    return {
+      tenantId,
+      batchId: randomUUID(),
+      productId,
+      warehouseId,
+      direction: "entry" as const,
+      reasonCode: "invoice" as const,
+      quantity: 5,
+      createdBy: userId,
+      ...overrides,
+    };
+  }
+
+  function create(overrides: Record<string, unknown> = {}) {
+    return prisma.withTenantContext(tenantId, (tx) =>
+      // biome-ignore lint/suspicious/noExplicitAny: los overrides prueban combinaciones que el tipo prohíbe
+      tx.stockMovement.create({ data: movement(overrides) as any }),
+    );
+  }
+
+  describe("cantidades e importes", () => {
+    it("rechaza `quantity = 0`: un movimiento que no mueve nada no es un movimiento", async () => {
+      await expect(create({ quantity: 0 })).rejects.toThrow();
+    });
+
+    it("rechaza `quantity` negativa: el signo lo pone `direction`, nunca la cantidad", async () => {
+      await expect(create({ quantity: -5 })).rejects.toThrow();
+    });
+
+    it("rechaza `unit_cost` negativo, pero lo acepta nulo (solo `invoice` lo exige)", async () => {
+      await expect(create({ unitCost: -1 })).rejects.toThrow();
+      await expect(create({ unitCost: null, reasonCode: "adjustment" })).resolves.toBeDefined();
+    });
+  });
+
+  describe("coherencia dirección × motivo", () => {
+    it.each([
+      ["entry", "loss"],
+      ["entry", "consumption"],
+      ["entry", "expired"],
+      ["entry", "sale"],
+      ["exit", "invoice"],
+      ["exit", "customer_return"],
+      ["exit", "sale_return"],
+    ])("rechaza la combinación imposible %s + %s", async (direction, reasonCode) => {
+      await expect(create({ direction, reasonCode })).rejects.toThrow();
+    });
+
+    it.each([
+      ["entry", "invoice"],
+      ["entry", "adjustment"],
+      ["entry", "customer_return"],
+      ["entry", "sale_return"],
+      ["entry", "physical_count"],
+      ["exit", "adjustment"],
+      ["exit", "sale"],
+      ["exit", "loss"],
+      ["exit", "consumption"],
+      ["exit", "expired"],
+      ["exit", "physical_count"],
+    ])("acepta la combinación válida %s + %s", async (direction, reasonCode) => {
+      await expect(create({ direction, reasonCode })).resolves.toBeDefined();
+    });
+  });
+
+  describe("traspasos: el motivo y el almacén enlazado van juntos o no van", () => {
+    it("rechaza `transfer` sin `linked_warehouse_id`: un traspaso sin contraparte no existe", async () => {
+      await expect(create({ reasonCode: "transfer" })).rejects.toThrow();
+    });
+
+    it("rechaza `linked_warehouse_id` en un motivo que no es traspaso", async () => {
+      await expect(
+        create({ reasonCode: "adjustment", linkedWarehouseId: otherWarehouseId }),
+      ).rejects.toThrow();
+    });
+
+    it("rechaza que el almacén enlazado sea el mismo que el del movimiento", async () => {
+      await expect(
+        create({ reasonCode: "transfer", linkedWarehouseId: warehouseId }),
+      ).rejects.toThrow();
+    });
+
+    it("acepta el traspaso bien formado: motivo `transfer` y otro almacén", async () => {
+      await expect(
+        create({ reasonCode: "transfer", linkedWarehouseId: otherWarehouseId }),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe("append-only y trazabilidad", () => {
+    it("no tiene `updated_at`: una fila del libro mayor se escribe una sola vez", async () => {
+      const columns = await prisma.$queryRaw<{ column_name: string }[]>`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'stock_movements'`;
+
+      expect(columns.map((c) => c.column_name)).not.toContain("updated_at");
+    });
+
+    /**
+     * EL test de `seq`. `now()` en Postgres es el instante en que ARRANCÓ la
+     * transacción, así que las N líneas de una misma factura comparten
+     * `created_at` al microsegundo. Sin `seq`, ordenar el kardex por
+     * `created_at` deja el desempate al azar y los saldos intermedios que
+     * calcula la window function de F3-KARDEX-01 salen FALSOS.
+     */
+    it("`seq` desempata dos movimientos que comparten `created_at` dentro de la misma transacción", async () => {
+      const batchId = randomUUID();
+
+      const [first, second] = await prisma.withTenantContext(tenantId, async (tx) => {
+        const a = await tx.stockMovement.create({ data: movement({ batchId }) });
+        const b = await tx.stockMovement.create({ data: movement({ batchId }) });
+        return [a, b];
+      });
+
+      expect(second.createdAt.getTime()).toBe(first.createdAt.getTime());
+      expect(second.seq).toBeGreaterThan(first.seq);
+    });
+
+    it("`seq` es de la base: un INSERT no puede elegir el suyo (GENERATED ALWAYS)", async () => {
+      await expect(
+        prisma.withTenantContext(
+          tenantId,
+          (tx) => tx.$executeRaw`
+            INSERT INTO stock_movements
+              (seq, tenant_id, batch_id, product_id, warehouse_id, direction, reason_code, quantity, created_by)
+            VALUES
+              (1, ${tenantId}::uuid, ${randomUUID()}::uuid, ${productId}::uuid, ${warehouseId}::uuid,
+               'entry', 'invoice', 5, ${userId}::uuid)`,
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("borrados: un producto con historia no se borra", () => {
+    it("FK RESTRICT sobre `product_id`: borrar el producto falla si tiene movimientos", async () => {
+      await create();
+
+      await expect(
+        prisma.withTenantContext(tenantId, (tx) => tx.product.delete({ where: { id: productId } })),
+      ).rejects.toThrow();
+    });
+
+    it("FK RESTRICT sobre `presentation_id`: borrar la presentación usada falla", async () => {
+      await create({ presentationId });
+
+      await expect(
+        prisma.withTenantContext(tenantId, (tx) =>
+          tx.productPresentation.delete({ where: { id: presentationId } }),
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("índices que sostienen las consultas de la fase", () => {
+    it("están los cinco índices del kardex, el almacén, el lote y el traspaso", async () => {
+      const indexes = await prisma.$queryRaw<{ indexname: string }[]>`
+        SELECT indexname FROM pg_indexes WHERE tablename = 'stock_movements'`;
+      const names = indexes.map((i) => i.indexname);
+
+      expect(names).toEqual(
+        expect.arrayContaining([
+          "stock_movements_tenant_id_product_id_created_at_seq_idx",
+          "stock_movements_tenant_id_warehouse_id_created_at_idx",
+          "stock_movements_tenant_id_batch_id_idx",
+          "stock_movements_presentation_id_idx",
+          "stock_movements_transfer_id_idx",
+        ]),
+      );
+    });
+
+    it("`seq` es único: es la clave de desempate, no puede repetirse", async () => {
+      const [unique] = await prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT count(*) FROM pg_indexes
+        WHERE tablename = 'stock_movements' AND indexdef LIKE '%UNIQUE%seq%'`;
+
+      expect(Number(unique?.count)).toBeGreaterThan(0);
+    });
+  });
+});

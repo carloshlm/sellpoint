@@ -60,6 +60,9 @@ model Tenant {
   warehouses     Warehouse[]
   stock          StockByWarehouse[]
 
+  // Movimientos de inventario (Fase 3)
+  stockMovements StockMovement[]
+
   @@map("tenants")
 }
 
@@ -100,6 +103,10 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   warehouseScopes         UserWarehouseScope[]
+  // Dos relaciones al mismo modelo: quién REGISTRÓ el movimiento (siempre) y
+  // quién lo AUTORIZÓ (opcional, para mermas y ajustes que piden visto bueno).
+  movementsCreated        StockMovement[]          @relation("MovementCreatedBy")
+  movementsAuthorized     StockMovement[]          @relation("MovementAuthorizedBy")
 
   @@index([tenantId])
   @@map("users")
@@ -345,12 +352,16 @@ model Product {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant        Tenant                @relation(fields: [tenantId], references: [id])
-  unit          Unit                  @relation(fields: [baseUnit], references: [code])
-  presentations ProductPresentation[]
-  components    ProductComposition[]  @relation("CompositionParent")
-  usedIn        ProductComposition[]  @relation("CompositionComponent")
-  stock         StockByWarehouse[]
+  tenant            Tenant                @relation(fields: [tenantId], references: [id])
+  unit              Unit                  @relation(fields: [baseUnit], references: [code])
+  presentations     ProductPresentation[]
+  components        ProductComposition[]  @relation("CompositionParent")
+  usedIn            ProductComposition[]  @relation("CompositionComponent")
+  stock             StockByWarehouse[]
+  movements         StockMovement[]       @relation("MovementProduct")
+  // Salidas de COMPONENTES que originó este compuesto al expandirse: le da al
+  // kardex del componente la respuesta a "¿de dónde salió esto?".
+  movementsAsParent StockMovement[]       @relation("MovementParentProduct")
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -393,8 +404,9 @@ model ProductPresentation {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant    Tenant          @relation(fields: [tenantId], references: [id])
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
 
   // El CHECK de `factor > 0` y el índice único PARCIAL de (tenant_id, barcode)
   // WHERE barcode IS NOT NULL viven en la migración. El índice tiene que ser
@@ -426,8 +438,8 @@ model ProductComposition {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  parent Product @relation("CompositionParent", fields: [parentProductId], references: [id], onDelete: Cascade)
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  parent    Product @relation("CompositionParent", fields: [parentProductId], references: [id], onDelete: Cascade)
   // `Restrict`: borrar un producto que es componente de otro dejaría una
   // composición rota en silencio. La UI ofrece desactivarlo en su lugar
   // (ARQUITECTURA § 3.5, validación #3).
@@ -456,9 +468,12 @@ model Warehouse {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant Tenant               @relation(fields: [tenantId], references: [id])
-  scopes UserWarehouseScope[]
-  stock  StockByWarehouse[]
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  scopes          UserWarehouseScope[]
+  stock           StockByWarehouse[]
+  movements       StockMovement[]      @relation("MovementWarehouse")
+  // La contraparte de un traspaso: el almacén del OTRO lado del movimiento.
+  movementsLinked StockMovement[]      @relation("MovementLinkedWarehouse")
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -488,6 +503,127 @@ model StockByWarehouse {
   @@index([tenantId])
   @@index([warehouseId])
   @@map("stock_by_warehouse")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 3 — Movimientos de inventario
+// ─────────────────────────────────────────────────────────────────────────
+
+enum MovementDirection {
+  entry
+  exit
+}
+
+// El enum nace COMPLETO (decisión de Carlos, 2026-08-17): `sale` y
+// `sale_return` están RESERVADOS para el POS de F4 y ningún endpoint de F3 los
+// acepta. Ampliar un enum de Postgres después es otra migración, y el kardex
+// tiene que poder distinguir una venta de un ajuste desde el día uno.
+//
+// No existe `production`: un producto compuesto NUNCA persiste stock — se arma
+// al vender, expandiendo componentes (ARQUITECTURA § 3.5).
+enum MovementReason {
+  invoice
+  adjustment
+  transfer
+  customer_return
+  sale
+  sale_return
+  loss
+  consumption
+  expired
+  physical_count
+}
+
+/// EL LIBRO MAYOR del inventario: cada fila es un hecho que ya pasó.
+///
+/// APPEND-ONLY — sin `updated_at`, y la migración hace REVOKE de UPDATE/DELETE
+/// para `sellpoint_app` (F3-DB-04). Corregir un movimiento equivocado se hace
+/// con OTRO movimiento (`adjustment`), nunca editando la historia: es lo que
+/// hace auditable el stock.
+///
+/// La cantidad SIEMPRE es positiva y SIEMPRE está en la `base_unit` del
+/// producto; el signo lo pone `direction`. `presentationId` guarda en qué
+/// presentación se capturó ("2 cajas") para que el kardex pueda mostrarlo, pero
+/// `quantity` ya viene convertida.
+model StockMovement {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Desempate cronológico. `now()` es el instante en que ARRANCÓ la
+  /// transacción, así que las N líneas de una misma factura comparten
+  /// `created_at` al microsegundo y un UUID v4 no ordena. Sin esta columna, el
+  /// `balanceAfter` que calcula la window function de F3-KARDEX-01 daría
+  /// saldos intermedios FALSOS. Orden total del kardex: `created_at DESC, seq DESC`.
+  /// En la migración es `GENERATED ALWAYS AS IDENTITY`: la base la asigna y
+  /// nadie puede elegirla.
+  seq               BigInt            @unique @default(autoincrement())
+  tenantId          String            @map("tenant_id") @db.Uuid
+  /// Agrupa las líneas de UNA operación ("esta entrada tuvo 3 productos"). Se
+  /// genera por request, sin tabla propia: es el `movementId` que devuelve la API.
+  batchId           String            @map("batch_id") @db.Uuid
+  productId         String            @map("product_id") @db.Uuid
+  warehouseId       String            @map("warehouse_id") @db.Uuid
+  presentationId    String?           @map("presentation_id") @db.Uuid
+  /// El compuesto que originó esta salida al expandirse en sus componentes.
+  parentProductId   String?           @map("parent_product_id") @db.Uuid
+  direction         MovementDirection
+  reasonCode        MovementReason    @map("reason_code")
+  reasonNote        String?           @map("reason_note")
+  /// Campo contextual genérico: número de factura, remisión, vale de salida.
+  /// Sin catálogo de proveedores — un tenant que lo necesite lo arma como
+  /// subcatálogo del motor de F2 (LEY de genericidad).
+  reference         String?           @db.VarChar(120)
+  authorizedBy      String?           @map("authorized_by") @db.Uuid
+  /// El OTRO almacén de un traspaso. Va con `reason_code = 'transfer'` o no va.
+  linkedWarehouseId String?           @map("linked_warehouse_id") @db.Uuid
+  /// La FK real se agrega en F3-DB-02, cuando existe la tabla `transfers`.
+  transferId        String?           @map("transfer_id") @db.Uuid
+  quantity          Decimal           @db.Decimal(14, 4)
+  /// Obligatorio en entradas por factura (regla del service, F3-ENTRY-01). F3
+  /// solo lo REGISTRA; el costo promedio ponderado se calcula en F5.
+  unitCost          Decimal?          @map("unit_cost") @db.Decimal(14, 2)
+  createdBy         String            @map("created_by") @db.Uuid
+  /// `transaction_timestamp()` y no `now()`: con `@default(now())` **Prisma pone el
+  /// timestamp del lado del CLIENTE** y lo manda en el INSERT — verificado el
+  /// 2026-08-18 con una contraprueba (dos INSERT crudos con `DEFAULT
+  /// CURRENT_TIMESTAMP` en una misma transacción dan UN timestamp aunque haya
+  /// un sleep de 50 ms en medio; dos `create` de Prisma dan DOS, separados 1 ms).
+  ///
+  /// En un libro mayor eso es la hora de un reloj de APLICACIÓN: entre varias
+  /// instancias no está sincronizado y puede ir para atrás con un ajuste de
+  /// NTP, así que dos movimientos de dos pods pueden quedar guardados en orden
+  /// invertido. La hora del asiento la pone la BASE, que es una sola.
+  ///
+  /// Se escribe `transaction_timestamp()` y no `CURRENT_TIMESTAMP` (son el
+  /// mismo valor) por dos razones: dice explícitamente que es la hora de
+  /// INICIO DE LA TRANSACCIÓN — que es justo por lo que existe `seq` — y
+  /// además Prisma normaliza `CURRENT_TIMESTAMP` a su propio `now()` al
+  /// introspeccionar, lo que deja un drift permanente en `migrate diff`.
+  createdAt         DateTime          @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  // TODAS las FK van `Restrict`, incluidas las opcionales. Prisma les pone
+  // `SetNull` por defecto y en una tabla APPEND-ONLY eso es un UPDATE
+  // SILENCIOSO de la historia: borrar una presentación reescribiría
+  // movimientos ya asentados y el kardex dejaría de explicar en qué
+  // presentación se capturó. Si algo tiene historia, no se borra.
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  product         Product              @relation("MovementProduct", fields: [productId], references: [id])
+  parentProduct   Product?             @relation("MovementParentProduct", fields: [parentProductId], references: [id], onDelete: Restrict)
+  warehouse       Warehouse            @relation("MovementWarehouse", fields: [warehouseId], references: [id])
+  linkedWarehouse Warehouse?           @relation("MovementLinkedWarehouse", fields: [linkedWarehouseId], references: [id], onDelete: Restrict)
+  presentation    ProductPresentation? @relation(fields: [presentationId], references: [id], onDelete: Restrict)
+  creator         User                 @relation("MovementCreatedBy", fields: [createdBy], references: [id])
+  authorizer      User?                @relation("MovementAuthorizedBy", fields: [authorizedBy], references: [id], onDelete: Restrict)
+
+  // Los CHECKs (cantidad > 0, costo >= 0, dirección × motivo, traspaso ↔
+  // almacén enlazado) y el índice PARCIAL de `transfer_id` viven en la
+  // migración: Prisma no los expresa. El UNIQUE de `seq` sí se declara acá
+  // a propósito — si solo viviera en el SQL, el próximo `migrate dev` lo
+  // borraría (mismo motivo que los índices GIN de `products`). Los cubre
+  // `inventory-schema.integration.spec.ts`.
+  @@index([tenantId, productId, createdAt(sort: Desc), seq(sort: Desc)])
+  @@index([tenantId, warehouseId, createdAt(sort: Desc)])
+  @@index([tenantId, batchId])
+  @@index([presentationId])
+  @@map("stock_movements")
 }
 
 // Tabla MAESTRA de unidades de medida (global, sin tenant_id, sin RLS) —
@@ -610,8 +746,8 @@ model UserWarehouseScope {
   tenantId    String   @map("tenant_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
   // F2-DB-07: la FK que F1-SCOPE-01 dejó reservada (backlog S4 de f1-scope).
   // Sin backfill: la columna nació NOT NULL y no hay filas legacy que reconciliar.
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
