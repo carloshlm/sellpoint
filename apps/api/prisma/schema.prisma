@@ -66,6 +66,7 @@ model Tenant {
   transferLines  TransferLine[]
   documents      InventoryDocument[]
   documentLines  InventoryDocumentLine[]
+  sequences      TenantSequence[]
 
   @@map("tenants")
 }
@@ -851,6 +852,39 @@ model InventoryDocumentLine {
   @@index([productId])
   @@index([tenantId])
   @@map("inventory_document_lines")
+}
+
+/// El contador de folios: una fila por (tenant, serie).
+///
+/// Es una TABLA y no un `SEQUENCE` de Postgres a propósito. Un sequence no se
+/// deshace con un ROLLBACK, así que cada transacción fallida dejaría un hueco
+/// permanente en la numeración; acá el incremento es transaccional y el número
+/// vuelve. Además, un sequence global filtraría volumen entre tenants: por el
+/// salto entre dos folios se puede estimar cuánto vende el vecino.
+///
+/// Se descartó `MAX(folio)+1`: exige bloquear la tabla de documentos entera
+/// para no entregar el mismo número dos veces.
+///
+/// El precio del diseño es un lock por fila que dura hasta el COMMIT — por eso
+/// `nextFolio` se llama en una transacción CORTA propia (ver `folio.ts`).
+model TenantSequence {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  /// La serie. Coincide con el tipo de documento (`entry`, `exit`,
+  /// `physical_count`) y en F4 sumará el de ventas.
+  key       String   @db.VarChar(32)
+  nextValue BigInt   @default(0) @map("next_value")
+  /// Cuándo avanzó la serie por última vez. **Sin `@updatedAt`**: ese atributo
+  /// hace que el timestamp lo ponga el CLIENTE de Prisma, y esta tabla la
+  /// escribe únicamente `nextFolio` por `$queryRaw` — el raw lo saltearía y el
+  /// NOT NULL reventaría. La base lo pone al insertar y el helper lo refresca
+  /// en el UPDATE. (Misma familia de sorpresa que `@default(now())`, ver
+  /// `StockMovement.createdAt`.)
+  updatedAt DateTime @default(dbgenerated("transaction_timestamp()")) @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@id([tenantId, key])
+  @@map("tenant_sequences")
 }
 
 // Tabla MAESTRA de unidades de medida (global, sin tenant_id, sin RLS) —
