@@ -1,4 +1,42 @@
 {
   "document_not_found": "This movement doesn't exist.",
-  "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up."
+  "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up.",
+  "document_empty": "This movement has no lines: add at least one product before confirming.",
+
+  "warehouse_out_of_scope": "You don't have access to this warehouse.",
+  "warehouse_inactive": "This warehouse is inactive: stock can't be moved in it.",
+
+  "reference_required": "The reference is missing (document number or purpose).",
+  "note_required": "An explanation is missing: this reason requires a note.",
+  "linked_warehouse_required": "The destination warehouse is missing.",
+  "unit_cost_required": "The unit cost is missing.",
+  "reason_not_allowed": "This reason can't be chosen here.",
+  "authorizer_invalid": "The authorizing person isn't a user of this business.",
+
+  "quantity_must_be_positive": "The quantity must be greater than zero.",
+  "quantity_too_large": "The quantity is too large.",
+  "quantity_too_many_decimals": "Quantities allow at most 4 decimal places.",
+
+  "product_not_found": "One of the products doesn't exist.",
+  "product_inactive": "This product is inactive.",
+  "presentation_invalid": "The chosen presentation doesn't belong to this product or is inactive.",
+  "integer_only_presentation": "The presentation \"{presentationName}\" only accepts whole quantities.",
+  "composite_has_no_stock": "A composite product has no stock of its own: it's assembled when sold or consumed.",
+  "composite_without_composition": "This composite product has no components defined.",
+  "insufficient_stock": "Not enough stock of \"{sku}\": there are {available} and {requested} were requested.",
+
+  "lot_required": "This product is tracked by lot: please indicate which one.",
+  "lot_not_tracked": "This product isn't tracked by lot.",
+  "lot_expiry_mismatch": "Lot \"{lotCode}\" already exists with a different expiry date.",
+  "insufficient_lot_stock": "Lot \"{lotCode}\" has {available} and {requested} were requested.",
+
+  "transfer_same_warehouse": "The destination warehouse must be different from the origin.",
+  "transfer_entry_requires_transfer": "A transfer entry is confirmed from the in-transit transfers view.",
+  "transfer_not_in_transit": "This transfer was already received or canceled.",
+  "transfer_wrong_destination": "This transfer isn't headed to this warehouse.",
+  "transfer_lines_incomplete": "Some transfer line is missing confirmation.",
+  "transfer_line_unknown": "One of the lines doesn't belong to this transfer.",
+  "received_exceeds_sent": "You can't receive more than what was sent: {sent} were sent and {received} are declared.",
+
+  "count_file_too_large": "The file is over 5 MB. Please split it into smaller parts."
 }

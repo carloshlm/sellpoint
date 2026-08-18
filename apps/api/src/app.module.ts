@@ -24,6 +24,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
 import { CatalogsModule } from "./modules/catalogs/catalogs.module";
+import { InventoryModule } from "./modules/inventory/inventory.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -114,6 +115,7 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     RolesModule,
     CatalogsModule,
     WarehousesModule,
+    InventoryModule,
     ProductsModule,
     PermissionsModule,
   ],
