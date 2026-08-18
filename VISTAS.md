@@ -649,9 +649,11 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ### 8.1 Entradas
 
-**Ruta:** `/movements/entries/new` · **Permiso:** `inventory:movement`
+**Rutas:** `/movements/entries` (listado con buscador por folio + botón «Nueva entrada») → `/movements/documents/$documentId` (captura) · **Permiso:** `inventory:movement`
 
 > Una sola pantalla cubre todos los casos de entrada. El campo **Motivo** dispara campos contextuales adicionales.
+>
+> La captura vive en la pantalla del documento, que es común a Entradas, Salidas e Inventario Físico: el borrador nace con folio, así que se puede cerrar el sistema a mitad de la carga y retomarlo buscándolo por folio.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -763,9 +765,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ### 8.2 Salidas
 
-**Ruta:** `/movements/exits/new` · **Permiso:** `inventory:movement`
+**Rutas:** `/movements/exits` (listado con buscador por folio + botón «Nueva salida») → `/movements/documents/$documentId` (captura) · **Permiso:** `inventory:movement`
 
-> Una sola pantalla cubre todos los casos de salida. El campo **Motivo** dispara campos contextuales y validaciones.
+> Una sola pantalla cubre todos los casos de salida. El campo **Motivo** dispara campos contextuales y validaciones. Entre ellos, **Traspaso**: ver § 8.3.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -835,6 +837,15 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 > Stock que está fuera del almacén origen pero todavía no fue confirmado en el destino. Visibilidad crítica para detectar pérdidas o demoras.
 
+**El traspaso no tiene pantalla de captura propia ni serie de folios propia.** Es un par de documentos que ya existen:
+
+| Etapa | Qué es | Dónde se captura | Folio |
+|---|---|---|---|
+| Despacho | **Salida** con motivo `transfer` + almacén destino | § 8.2 Salidas | `SAL-…` |
+| Recepción | **Entrada** con motivo `transfer`, líneas precargadas con lo enviado | § 8.1 Entradas | `ENT-…` |
+
+Al confirmar la salida, el stock baja en el origen y queda **en tránsito**: no suma en el destino hasta que alguien confirma la entrada. Esta pantalla no captura nada — muestra el **estado del viaje** (qué salió y todavía no llegó, y hace cuánto), que es lo único que no se ve desde Entradas ni Salidas.
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  Movimientos > Traspasos en Tránsito                           │
@@ -850,46 +861,41 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │  ┌────────────────────────────────────────────────────────┐   │
 │  │ Folio   │ Fecha   │ Origen   │ Destino │ Líneas │ Días │   │
 │  ├────────────────────────────────────────────────────────┤   │
-│  │ TRA-127 │ 17/05   │ Norte    │ Central │   8    │  0   │   │
-│  │ TRA-124 │ 16/05   │ Norte    │ Central │   3    │  1   │   │
-│  │ TRA-118 │ 09/05   │ Sur      │ Central │  12    │ 🟠 8 │   │
+│  │ SAL-127 │ 17/05   │ Norte    │ Central │   8    │  0   │   │
+│  │ SAL-124 │ 16/05   │ Norte    │ Central │   3    │  1   │   │
+│  │ SAL-118 │ 09/05   │ Sur      │ Central │  12    │ 🟠 8 │   │
 │  └────────────────────────────────────────────────────────┘   │
 │                                                                │
 │   🟠 = más de 7 días en tránsito (revisar si llegó)           │
 │                                                                │
-│   {Click en una fila → modal de confirmación de recepción}     │
+│   {Click en una fila → confirmar que vas a recibirlo}          │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Modal de confirmación de recepción** (al hacer click en un traspaso pendiente de recibir):
+**Confirmación de intención** (al hacer click en un traspaso pendiente de recibir):
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│  Confirmar recepción — traspaso de SAL-000124                  │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│   Origen: Bodega Norte → Destino: Central                      │
-│   Enviado: 16/05/2026  ·  Autorizó: María López                │
-│                                                                │
-│  ─── Productos a recibir ─────────────────────                 │
-│                                                                │
-│   ┌──────────────────────────────────────────────────────┐    │
-│   │ SKU     │ Producto    │ Enviado │ Recibido │ Dif. │  │    │
-│   ├──────────────────────────────────────────────────────┤    │
-│   │ PAR-500 │ Paracetamol │   50    │   (50)   │  0   │  │    │
-│   │ IBU-400 │ Ibuprofeno  │   30    │   (29)   │ -1 ⚠ │  │    │
-│   └──────────────────────────────────────────────────────┘    │
-│                                                                │
-│   ⚠ Hay diferencias. Nota explicativa (obligatoria):           │
-│   (Faltó 1 caja, posible robo en tránsito___________)         │
-│                                                                │
-│   ❌ Cantidad recibida > enviada → bloqueado.                 │
-│      Si te llegó excedente, registralo como Entrada   │
-│      con motivo Ajuste.                                        │
-│                                                                │
-│                  [Cancelar]  [Confirmar recepción]             │
-└────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│  Recibir el traspaso SAL-000124                        │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│   Bodega Norte → Central  ·  3 líneas                  │
+│   Enviado: 16/05/2026  ·  Autorizó: María López        │
+│                                                        │
+│   Se va a crear una Entrada en borrador con las        │
+│   cantidades enviadas ya cargadas. Ahí ajustas lo      │
+│   que realmente llegó y la confirmas.                  │
+│                                                        │
+│                     [Cancelar]  [Crear entrada]        │
+└────────────────────────────────────────────────────────┘
 ```
+
+Este diálogo **no captura cantidades**: `POST /transfers/:id/receipt-draft` crea el borrador `ENT-…` y navega a `/movements/documents/$id`. El conteo real ocurre ahí, en la misma pantalla de documento que cualquier entrada — con las mismas columnas, las mismas validaciones y, sobre todo, con folio: si el sistema se cierra a mitad de la descarga del camión, la recepción se retoma buscando ese folio. Un modal no sobrevive a un F5.
+
+En la pantalla del documento, la cara de recepción agrega la columna **Enviado** junto a la cantidad, y:
+
+- **Recibido < enviado** → nota explicativa obligatoria; la diferencia queda como merma del traspaso.
+- **Recibido > enviado** → bloqueado. Si llegó excedente, se registra como Entrada aparte con motivo Ajuste.
 
 **Acciones (TenantAdmin/Manager del almacén destino):**
 - Confirmar sin diferencias
@@ -902,7 +908,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ### 8.4 Inventario Físico
 
-**Ruta:** `/movements/inventory-count` · **Permiso:** `inventory:movement`
+**Rutas:** `/movements/counts` (listado con buscador por folio + botón «Nuevo conteo») → `/movements/documents/$documentId` (captura) · **Permiso:** `inventory:movement`
 
 **Paso 1 — Iniciar conteo:**
 
