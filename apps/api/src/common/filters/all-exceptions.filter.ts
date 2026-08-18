@@ -91,7 +91,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     request: Request & RequestWithLocale,
   ): Record<string, unknown> {
     const locale = getLocale(request);
-    const translated = this.translateKey(body.message, locale);
+    // `args` viaja en el cuerpo de la excepción junto al `message`, y hay que
+    // pasarlo: sin él, un mensaje con interpolación llega al usuario con el
+    // placeholder crudo («La presentación «{presentationName}» solo acepta…»).
+    // El bug estuvo latente desde F2 porque hasta ahora ningún mensaje general
+    // interpolaba — los que sí lo hacían eran los errores POR CAMPO, que ya
+    // pasaban sus `args` unas líneas más abajo.
+    const translated = this.translateKey(
+      body.message,
+      locale,
+      body.args as Record<string, unknown> | undefined,
+    );
 
     // Los errores POR CAMPO viajan aparte del `message` de arriba y son los que
     // el formulario pinta bajo cada input. Sin esto se mostraban crudos —era el
@@ -99,8 +109,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // general saliera perfecto.
     const errors = this.translateFieldErrors(body.errors, locale);
 
+    // `args` no sale en la respuesta: es insumo de la traducción, no dato para
+    // el cliente (mismo criterio que los errores por campo).
+    const { args: _discarded, ...rest } = body;
     return {
-      ...body,
+      ...rest,
       ...(translated ? { message: translated.text, code: translated.key } : {}),
       ...(errors ? { errors } : {}),
     };

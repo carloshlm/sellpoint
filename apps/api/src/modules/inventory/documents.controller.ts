@@ -19,6 +19,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { ConfirmService } from "./confirm.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
 import { DocumentsService } from "./documents.service";
@@ -35,7 +36,9 @@ import {
   listDocumentsQuerySchema,
   type ReplaceDocumentLinesDto,
   replaceDocumentLinesSchema,
+  type UpdateDocumentDto,
   type UpsertDocumentLineDto,
+  updateDocumentSchema,
   upsertDocumentLineSchema,
 } from "./dto/document.dto";
 
@@ -53,6 +56,7 @@ export class DocumentsController {
     private readonly documents: DocumentsService,
     private readonly lines: DocumentLinesService,
     private readonly imports: DocumentImportService,
+    private readonly confirmService: ConfirmService,
   ) {}
 
   /**
@@ -108,6 +112,32 @@ export class DocumentsController {
   @RequirePermissions("inventory:read")
   detail(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.documents.detail(user, id);
+  }
+
+  /** Autoguardado de la cabecera: motivo, referencia, nota, autorizador. */
+  @Patch(":id")
+  @RequirePermissions("inventory:movement")
+  updateHeader(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateDocumentSchema, "inventory.invalid_body"))
+    dto: UpdateDocumentDto,
+  ) {
+    return this.documents.updateHeader(user, id, dto);
+  }
+
+  /**
+   * Sella el documento: escribe los movimientos, mueve el stock y lo deja
+   * confirmado. No lleva body — todo está en el borrador.
+   */
+  @Post(":id/confirm")
+  @RequirePermissions("inventory:movement")
+  confirm(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Param("id") id: string,
+  ) {
+    return this.confirmService.confirm(user, id, scope);
   }
 
   @Post(":id/cancel")

@@ -4,7 +4,7 @@ import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
-import type { ListDocumentsQueryDto } from "./dto/document.dto";
+import type { ListDocumentsQueryDto, UpdateDocumentDto } from "./dto/document.dto";
 import { nextFolio } from "./folio";
 import { resolveLines } from "./line-resolver";
 import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
@@ -126,6 +126,37 @@ export class DocumentsService {
           canceledBy: user.userId,
           canceledAt: new Date(),
           cancelReason: reason ?? null,
+        },
+      });
+    });
+  }
+
+  /**
+   * Edita la cabecera del borrador: motivo, referencia, nota, autorizador.
+   *
+   * Es autoguardado, igual que las líneas — cada cambio en el formulario cae
+   * acá. Por eso NO valida las reglas del motivo: elegir «Factura» y todavía no
+   * haber escrito el número es un estado normal mientras se carga. Lo que
+   * valida duro es el confirm.
+   */
+  async updateHeader(
+    user: AuthUser,
+    documentId: string,
+    dto: UpdateDocumentDto,
+  ): Promise<InventoryDocument> {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      await this.assertDraft(tx, user.tenantId, documentId);
+
+      return tx.inventoryDocument.update({
+        where: { id: documentId },
+        data: {
+          ...(dto.reasonCode !== undefined && { reasonCode: dto.reasonCode }),
+          ...(dto.reference !== undefined && { reference: dto.reference ?? null }),
+          ...(dto.reasonNote !== undefined && { reasonNote: dto.reasonNote ?? null }),
+          ...(dto.authorizedBy !== undefined && { authorizedBy: dto.authorizedBy ?? null }),
+          ...(dto.linkedWarehouseId !== undefined && {
+            linkedWarehouseId: dto.linkedWarehouseId ?? null,
+          }),
         },
       });
     });

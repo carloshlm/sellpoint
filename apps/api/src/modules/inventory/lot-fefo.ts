@@ -1,6 +1,6 @@
 import { UnprocessableEntityException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma/client";
-import type { ResolvedLine } from "./line-resolver";
+import type { ExpandedLine } from "./composition-expander";
 
 /**
  * F3-CORE-08 — FEFO: *First Expired, First Out*.
@@ -33,8 +33,8 @@ export async function resolveLotsFefo(
   tx: Prisma.TransactionClient,
   tenantId: string,
   warehouseId: string,
-  lines: ResolvedLine[],
-): Promise<ResolvedLine[]> {
+  lines: ExpandedLine[],
+): Promise<ExpandedLine[]> {
   // Solo las líneas que NO traen lote forzado necesitan reparto. El resto
   // pasa tal cual: si el usuario eligió un lote, sabe algo que el sistema no.
   const necesitanFefo = lines.filter((l) => l.lotId === undefined);
@@ -65,7 +65,7 @@ export async function resolveLotsFefo(
   // Lo ya comprometido por líneas anteriores del MISMO movimiento: dos líneas
   // del mismo producto no pueden repartirse el mismo saldo dos veces.
   const comprometido = new Map<string, Prisma.Decimal>();
-  const resultado: ResolvedLine[] = [];
+  const resultado: ExpandedLine[] = [];
 
   for (const line of lines) {
     if (line.lotId !== undefined) {

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { ConfirmService } from "./confirm.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
 import { DocumentsController } from "./documents.controller";
@@ -16,7 +17,19 @@ import { StockLedgerService } from "./stock-ledger.service";
 @Module({
   imports: [AuditModule],
   controllers: [DocumentsController],
-  providers: [DocumentsService, DocumentLinesService, DocumentImportService, StockLedgerService],
-  exports: [DocumentsService, DocumentLinesService, DocumentImportService, StockLedgerService],
+  providers: [
+    DocumentsService,
+    DocumentLinesService,
+    DocumentImportService,
+    StockLedgerService,
+    ConfirmService,
+  ],
+  exports: [
+    DocumentsService,
+    DocumentLinesService,
+    DocumentImportService,
+    StockLedgerService,
+    ConfirmService,
+  ],
 })
 export class InventoryModule {}

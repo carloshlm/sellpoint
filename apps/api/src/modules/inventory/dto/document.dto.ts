@@ -1,4 +1,8 @@
-import { INVENTORY_DOCUMENT_TYPES } from "@sellpoint/shared";
+import {
+  INVENTORY_DOCUMENT_TYPES,
+  SELECTABLE_ENTRY_REASONS,
+  SELECTABLE_EXIT_REASONS,
+} from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../../products/money";
 import { quantityAmount } from "./movement.dto";
@@ -77,3 +81,21 @@ export const listDocumentsQuerySchema = z.object({
 });
 
 export type ListDocumentsQueryDto = z.infer<typeof listDocumentsQuerySchema>;
+
+/**
+ * La cabecera del borrador: lo que se edita mientras se carga (autoguardado).
+ *
+ * `reasonCode` acepta **todos** los motivos seleccionables de las dos
+ * direcciones porque el mismo endpoint sirve a entradas y salidas; que el
+ * motivo corresponda al TIPO del documento lo valida el confirm, que es quien
+ * sabe qué documento es.
+ */
+export const updateDocumentSchema = z.object({
+  reasonCode: z.enum([...SELECTABLE_ENTRY_REASONS, ...SELECTABLE_EXIT_REASONS]).optional(),
+  reference: z.string().trim().min(1).max(120).nullish(),
+  reasonNote: z.string().trim().min(1).nullish(),
+  authorizedBy: z.uuid().nullish(),
+  linkedWarehouseId: z.uuid().nullish(),
+});
+
+export type UpdateDocumentDto = z.infer<typeof updateDocumentSchema>;
