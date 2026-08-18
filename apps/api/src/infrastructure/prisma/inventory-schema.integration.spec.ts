@@ -21,6 +21,12 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
   let presentationId: string;
   let warehouseId: string;
   let otherWarehouseId: string;
+  /** Todo movimiento cuelga de un documento: sin él no se puede insertar ninguno. */
+  let documentId: string;
+  /** Segundo tenant, con almacén y usuario propios: el folio es único POR tenant. */
+  let otherTenantId: string;
+  let otherTenantWarehouseId: string;
+  let otherTenantUserId: string;
 
   beforeAll(async () => {
     prisma = new PrismaService(
@@ -58,11 +64,49 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
         tx.warehouse.create({ data: { tenantId, name: `Sucursal ${stamp}` } }),
       ]);
 
+      // El documento contenedor de los movimientos de prueba. Nace confirmado
+      // porque los movimientos solo existen del lado de lo ya asentado.
+      const document = await tx.inventoryDocument.create({
+        data: {
+          tenantId,
+          folio: "ENT-000001",
+          type: "entry",
+          status: "confirmed",
+          warehouseId: warehouse.id,
+          reasonCode: "invoice",
+          createdBy: user.id,
+          confirmedBy: user.id,
+          confirmedAt: new Date(),
+        },
+      });
+
+      documentId = document.id;
       userId = user.id;
       productId = product.id;
       presentationId = presentation.id;
       warehouseId = warehouse.id;
       otherWarehouseId = other.id;
+    });
+
+    // Segundo tenant con almacén y usuario propios: el folio es único POR
+    // tenant, y las FK no cruzan la frontera aunque el número se repita.
+    const other = await prisma.tenant.create({ data: { name: `Tenant vecino ${stamp}` } });
+    otherTenantId = other.id;
+
+    await prisma.withTenantContext(otherTenantId, async (tx) => {
+      const [user, warehouse] = await Promise.all([
+        tx.user.create({
+          data: {
+            tenantId: otherTenantId,
+            email: `vecino-${stamp}@example.com`,
+            firstName: "Del",
+            lastNamePaternal: "Vecino",
+          },
+        }),
+        tx.warehouse.create({ data: { tenantId: otherTenantId, name: `Vecino ${stamp}` } }),
+      ]);
+      otherTenantUserId = user.id;
+      otherTenantWarehouseId = warehouse.id;
     });
   });
 
@@ -74,7 +118,7 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
   function movement(overrides: Record<string, unknown> = {}) {
     return {
       tenantId,
-      batchId: randomUUID(),
+      documentId,
       productId,
       warehouseId,
       direction: "entry" as const,
@@ -179,11 +223,9 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
        * calcula la window function de F3-KARDEX-01 salen FALSOS.
        */
       it("`seq` desempata dos movimientos que comparten `created_at` dentro de la misma transacción", async () => {
-        const batchId = randomUUID();
-
         const [first, second] = await prisma.withTenantContext(tenantId, async (tx) => {
-          const a = await tx.stockMovement.create({ data: movement({ batchId }) });
-          const b = await tx.stockMovement.create({ data: movement({ batchId }) });
+          const a = await tx.stockMovement.create({ data: movement() });
+          const b = await tx.stockMovement.create({ data: movement() });
           return [a, b];
         });
 
@@ -197,9 +239,9 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
             tenantId,
             (tx) => tx.$executeRaw`
             INSERT INTO stock_movements
-              (seq, tenant_id, batch_id, product_id, warehouse_id, direction, reason_code, quantity, created_by)
+              (seq, tenant_id, document_id, product_id, warehouse_id, direction, reason_code, quantity, created_by)
             VALUES
-              (1, ${tenantId}::uuid, ${randomUUID()}::uuid, ${productId}::uuid, ${warehouseId}::uuid,
+              (1, ${tenantId}::uuid, ${documentId}::uuid, ${productId}::uuid, ${warehouseId}::uuid,
                'entry', 'invoice', 5, ${userId}::uuid)`,
           ),
         ).rejects.toThrow();
@@ -229,7 +271,7 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
     });
 
     describe("índices que sostienen las consultas de la fase", () => {
-      it("están los cinco índices del kardex, el almacén, el lote y el traspaso", async () => {
+      it("están los índices del kardex, el almacén y el documento", async () => {
         const indexes = await prisma.$queryRaw<{ indexname: string }[]>`
         SELECT indexname FROM pg_indexes WHERE tablename = 'stock_movements'`;
         const names = indexes.map((i) => i.indexname);
@@ -238,9 +280,8 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
           expect.arrayContaining([
             "stock_movements_tenant_id_product_id_created_at_seq_idx",
             "stock_movements_tenant_id_warehouse_id_created_at_idx",
-            "stock_movements_tenant_id_batch_id_idx",
+            "stock_movements_document_id_idx",
             "stock_movements_presentation_id_idx",
-            "stock_movements_transfer_id_idx",
           ]),
         );
       });
@@ -431,6 +472,238 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
         ]) {
           expect(byName.get(name)).toContain("in_transit");
         }
+      });
+    });
+  });
+  /**
+   * F3-DOC-01 — el ENCABEZADO de toda operación que toca stock. Nace en
+   * borrador con su folio (para poder retomarlo si se cierra el sistema) y al
+   * confirmar escribe sus movimientos.
+   *
+   * `inventory_document_lines` guarda lo que el usuario CAPTURÓ; los
+   * `stock_movements` lo que el ledger HIZO. No es duplicación: FEFO parte una
+   * línea en N movimientos y un compuesto la expande en componentes.
+   */
+  describe("inventory_documents e inventory_document_lines (F3-DOC-01)", () => {
+    // El folio es único POR TENANT y cada corrida usa un tenant nuevo, así que
+    // un contador alcanza. Arranca alto para no chocar con el del fixture.
+    let folioSeq = 100;
+    const nextFolio = (prefix = "ENT") => `${prefix}-${String(folioSeq++).padStart(6, "0")}`;
+
+    function doc(overrides: Record<string, unknown> = {}) {
+      return {
+        tenantId,
+        folio: nextFolio(),
+        type: "entry" as const,
+        warehouseId,
+        createdBy: userId,
+        ...overrides,
+      };
+    }
+
+    function createDoc(overrides: Record<string, unknown> = {}, owner = tenantId) {
+      // Un documento de otro tenant tiene que colgar de SUS almacenes y SUS
+      // usuarios: las FK no cruzan la frontera aunque el folio se repita.
+      const own =
+        owner === tenantId
+          ? {}
+          : { warehouseId: otherTenantWarehouseId, createdBy: otherTenantUserId };
+      return prisma.withTenantContext(owner, (tx) =>
+        tx.inventoryDocument.create({
+          // biome-ignore lint/suspicious/noExplicitAny: los overrides prueban combinaciones que el tipo prohíbe
+          data: { ...doc(overrides), ...own, tenantId: owner } as any,
+        }),
+      );
+    }
+
+    describe("folio y ciclo de vida", () => {
+      it("nace en `draft`, sin motivo elegido todavía", async () => {
+        const created = await createDoc();
+
+        expect(created.status).toBe("draft");
+        expect(created.reasonCode).toBeNull();
+        expect(created.confirmedAt).toBeNull();
+      });
+
+      it("el folio es único por tenant, y el mismo número vale en otro tenant", async () => {
+        const folio = nextFolio();
+        await createDoc({ folio });
+        await createDoc({ folio }, otherTenantId);
+
+        await expect(createDoc({ folio })).rejects.toThrow();
+      });
+
+      it("rechaza `confirmed` sin quién ni cuándo confirmó", async () => {
+        await expect(
+          createDoc({ status: "confirmed", reasonCode: "invoice", confirmedAt: new Date() }),
+        ).rejects.toThrow();
+        await expect(
+          createDoc({ status: "confirmed", reasonCode: "invoice", confirmedBy: userId }),
+        ).rejects.toThrow();
+      });
+
+      /**
+       * El motivo se elige DENTRO del borrador, así que puede faltar mientras
+       * se carga. Pero un documento confirmado sin motivo no se puede leer en
+       * el kardex ni imprimir: ahí ya es obligatorio.
+       */
+      it("rechaza confirmar sin motivo, aunque el borrador sí pueda no tenerlo", async () => {
+        await expect(createDoc({ reasonCode: null })).resolves.toBeDefined();
+        await expect(
+          createDoc({ status: "confirmed", confirmedAt: new Date(), confirmedBy: userId }),
+        ).rejects.toThrow();
+      });
+
+      it("rechaza `canceled` sin cuándo se anuló", async () => {
+        await expect(createDoc({ status: "canceled" })).rejects.toThrow();
+        await expect(
+          createDoc({ status: "canceled", canceledAt: new Date(), canceledBy: userId }),
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe("el enlace con el traspaso", () => {
+      async function createTransferFixture() {
+        return prisma.withTenantContext(tenantId, (tx) =>
+          tx.transfer.create({
+            data: {
+              tenantId,
+              originWarehouseId: warehouseId,
+              destinationWarehouseId: otherWarehouseId,
+              createdBy: userId,
+            },
+          }),
+        );
+      }
+
+      /**
+       * Un traspaso tiene a lo sumo DOS documentos: la salida que lo despacha
+       * y la entrada que lo recibe. El UNIQUE parcial `(transfer_id, type)` lo
+       * garantiza sin necesidad de un guard en el service.
+       */
+      it("un traspaso admite una salida y una entrada, pero no dos del mismo tipo", async () => {
+        const transfer = await createTransferFixture();
+
+        await createDoc({ type: "exit", transferId: transfer.id });
+        await createDoc({ type: "entry", transferId: transfer.id });
+
+        await expect(createDoc({ type: "exit", transferId: transfer.id })).rejects.toThrow();
+      });
+
+      it("dos documentos SIN traspaso conviven: el índice es parcial", async () => {
+        await createDoc({ type: "exit" });
+        await expect(createDoc({ type: "exit" })).resolves.toBeDefined();
+      });
+
+      it("no se puede borrar un traspaso referenciado por un documento (RESTRICT)", async () => {
+        const transfer = await createTransferFixture();
+        await createDoc({ type: "exit", transferId: transfer.id });
+
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.transfer.delete({ where: { id: transfer.id } }),
+          ),
+        ).rejects.toThrow();
+      });
+    });
+
+    describe("las líneas capturadas", () => {
+      function createLine(documentId: string, overrides: Record<string, unknown> = {}) {
+        return prisma.withTenantContext(tenantId, (tx) =>
+          tx.inventoryDocumentLine.create({
+            data: { tenantId, documentId, lineNo: 1, productId, quantity: 3, ...overrides },
+          }),
+        );
+      }
+
+      it("admite una línea a medio llenar: es un borrador, no un asiento", async () => {
+        const created = await createDoc();
+
+        await expect(createLine(created.id, { quantity: null })).resolves.toBeDefined();
+      });
+
+      it("el número de línea no se repite dentro del mismo documento", async () => {
+        const created = await createDoc();
+        await createLine(created.id, { lineNo: 1 });
+
+        await expect(createLine(created.id, { lineNo: 1 })).rejects.toThrow();
+        await expect(createLine(created.id, { lineNo: 2 })).resolves.toBeDefined();
+      });
+
+      it("borrar el documento se lleva sus líneas (CASCADE)", async () => {
+        const created = await createDoc();
+        await createLine(created.id);
+
+        await prisma.withTenantContext(tenantId, (tx) =>
+          tx.inventoryDocument.delete({ where: { id: created.id } }),
+        );
+        const left = await prisma.withTenantContext(tenantId, (tx) =>
+          tx.inventoryDocumentLine.count({ where: { documentId: created.id } }),
+        );
+
+        expect(left).toBe(0);
+      });
+
+      it("un producto con líneas capturadas no se borra (RESTRICT)", async () => {
+        const created = await createDoc();
+        await createLine(created.id);
+
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.product.delete({ where: { id: productId } }),
+          ),
+        ).rejects.toThrow();
+      });
+    });
+
+    describe("el movimiento cuelga del documento", () => {
+      it("`stock_movements` ya no tiene `batch_id` ni `transfer_id`: son datos de cabecera", async () => {
+        const columns = await prisma.$queryRaw<{ column_name: string }[]>`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'stock_movements'`;
+        const names = columns.map((c) => c.column_name);
+
+        expect(names).toContain("document_id");
+        expect(names).not.toContain("batch_id");
+        expect(names).not.toContain("transfer_id");
+      });
+
+      it("no se puede insertar un movimiento huérfano", async () => {
+        await expect(
+          prisma.withTenantContext(
+            tenantId,
+            (tx) => tx.$executeRaw`
+              INSERT INTO stock_movements
+                (tenant_id, product_id, warehouse_id, direction, reason_code, quantity, created_by)
+              VALUES
+                (${tenantId}::uuid, ${productId}::uuid, ${warehouseId}::uuid,
+                 'entry', 'invoice', 5, ${userId}::uuid)`,
+          ),
+        ).rejects.toThrow();
+      });
+
+      it("un documento con movimientos no se borra (RESTRICT): la historia no se pierde", async () => {
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocument.delete({ where: { id: documentId } }),
+          ),
+        ).rejects.toThrow();
+      });
+    });
+
+    describe("índices que sostienen los tres listados", () => {
+      it("están los del listado por serie, la búsqueda por folio y el parcial del traspaso", async () => {
+        const indexes = await prisma.$queryRaw<{ indexname: string; indexdef: string }[]>`
+          SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'inventory_documents'`;
+        const byName = new Map(indexes.map((i) => [i.indexname, i.indexdef]));
+
+        expect(byName.has("inventory_documents_tenant_id_type_status_created_at_idx")).toBe(true);
+        expect(byName.has("inventory_documents_tenant_id_folio_idx")).toBe(true);
+        expect(byName.has("inventory_documents_tenant_id_created_by_status_idx")).toBe(true);
+        // Parcial: la enorme mayoría de los documentos no son de traspaso.
+        expect(byName.get("inventory_documents_transfer_id_type_key")).toContain(
+          "transfer_id IS NOT NULL",
+        );
       });
     });
   });

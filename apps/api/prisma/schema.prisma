@@ -64,6 +64,8 @@ model Tenant {
   stockMovements StockMovement[]
   transfers      Transfer[]
   transferLines  TransferLine[]
+  documents      InventoryDocument[]
+  documentLines  InventoryDocumentLine[]
 
   @@map("tenants")
 }
@@ -112,6 +114,10 @@ model User {
   transfersCreated        Transfer[]               @relation("TransferCreatedBy")
   transfersReceived       Transfer[]               @relation("TransferReceivedBy")
   transfersCanceled       Transfer[]               @relation("TransferCanceledBy")
+  documentsCreated        InventoryDocument[]      @relation("DocumentCreatedBy")
+  documentsAuthorized     InventoryDocument[]      @relation("DocumentAuthorizedBy")
+  documentsConfirmed      InventoryDocument[]      @relation("DocumentConfirmedBy")
+  documentsCanceled       InventoryDocument[]      @relation("DocumentCanceledBy")
 
   @@index([tenantId])
   @@map("users")
@@ -357,17 +363,18 @@ model Product {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant            Tenant                @relation(fields: [tenantId], references: [id])
-  unit              Unit                  @relation(fields: [baseUnit], references: [code])
+  tenant            Tenant                  @relation(fields: [tenantId], references: [id])
+  unit              Unit                    @relation(fields: [baseUnit], references: [code])
   presentations     ProductPresentation[]
-  components        ProductComposition[]  @relation("CompositionParent")
-  usedIn            ProductComposition[]  @relation("CompositionComponent")
+  components        ProductComposition[]    @relation("CompositionParent")
+  usedIn            ProductComposition[]    @relation("CompositionComponent")
   stock             StockByWarehouse[]
-  movements         StockMovement[]       @relation("MovementProduct")
+  movements         StockMovement[]         @relation("MovementProduct")
   // Salidas de COMPONENTES que originó este compuesto al expandirse: le da al
   // kardex del componente la respuesta a "¿de dónde salió esto?".
-  movementsAsParent StockMovement[]       @relation("MovementParentProduct")
+  movementsAsParent StockMovement[]         @relation("MovementParentProduct")
   transferLines     TransferLine[]
+  documentLines     InventoryDocumentLine[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -410,9 +417,10 @@ model ProductPresentation {
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant    Tenant          @relation(fields: [tenantId], references: [id])
-  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  movements StockMovement[]
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id])
+  product       Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  movements     StockMovement[]
+  documentLines InventoryDocumentLine[]
 
   // El CHECK de `factor > 0` y el índice único PARCIAL de (tenant_id, barcode)
   // WHERE barcode IS NOT NULL viven en la migración. El índice tiene que ser
@@ -482,6 +490,8 @@ model Warehouse {
   movementsLinked StockMovement[]      @relation("MovementLinkedWarehouse")
   transfersOut    Transfer[]           @relation("TransferOrigin")
   transfersIn     Transfer[]           @relation("TransferDestination")
+  documents       InventoryDocument[]  @relation("DocumentWarehouse")
+  documentsLinked InventoryDocument[]  @relation("DocumentLinkedWarehouse")
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -564,9 +574,10 @@ model StockMovement {
   /// nadie puede elegirla.
   seq               BigInt            @unique @default(autoincrement())
   tenantId          String            @map("tenant_id") @db.Uuid
-  /// Agrupa las líneas de UNA operación ("esta entrada tuvo 3 productos"). Se
-  /// genera por request, sin tabla propia: es el `movementId` que devuelve la API.
-  batchId           String            @map("batch_id") @db.Uuid
+  /// La línea cuelga de su encabezado. Antes era un `batch_id` implícito —un
+  /// UUID sin fila propia donde colgar folio, tipo o motivo—; F3-DOC-01 lo
+  /// reemplazó por el documento, que además es lo que se busca y se imprime.
+  documentId        String            @map("document_id") @db.Uuid
   productId         String            @map("product_id") @db.Uuid
   warehouseId       String            @map("warehouse_id") @db.Uuid
   presentationId    String?           @map("presentation_id") @db.Uuid
@@ -582,8 +593,6 @@ model StockMovement {
   authorizedBy      String?           @map("authorized_by") @db.Uuid
   /// El OTRO almacén de un traspaso. Va con `reason_code = 'transfer'` o no va.
   linkedWarehouseId String?           @map("linked_warehouse_id") @db.Uuid
-  /// La FK real se agrega en F3-DB-02, cuando existe la tabla `transfers`.
-  transferId        String?           @map("transfer_id") @db.Uuid
   quantity          Decimal           @db.Decimal(14, 4)
   /// Obligatorio en entradas por factura (regla del service, F3-ENTRY-01). F3
   /// solo lo REGISTRA; el costo promedio ponderado se calcula en F5.
@@ -613,6 +622,7 @@ model StockMovement {
   // movimientos ya asentados y el kardex dejaría de explicar en qué
   // presentación se capturó. Si algo tiene historia, no se borra.
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  document        InventoryDocument    @relation(fields: [documentId], references: [id], onDelete: Restrict)
   product         Product              @relation("MovementProduct", fields: [productId], references: [id])
   parentProduct   Product?             @relation("MovementParentProduct", fields: [parentProductId], references: [id], onDelete: Restrict)
   warehouse       Warehouse            @relation("MovementWarehouse", fields: [warehouseId], references: [id])
@@ -629,7 +639,7 @@ model StockMovement {
   // `inventory-schema.integration.spec.ts`.
   @@index([tenantId, productId, createdAt(sort: Desc), seq(sort: Desc)])
   @@index([tenantId, warehouseId, createdAt(sort: Desc)])
-  @@index([tenantId, batchId])
+  @@index([documentId])
   @@index([presentationId])
   @@map("stock_movements")
 }
@@ -673,13 +683,14 @@ model Transfer {
   cancelReason           String?        @map("cancel_reason")
   updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant         @relation(fields: [tenantId], references: [id])
-  origin      Warehouse      @relation("TransferOrigin", fields: [originWarehouseId], references: [id], onDelete: Restrict)
-  destination Warehouse      @relation("TransferDestination", fields: [destinationWarehouseId], references: [id], onDelete: Restrict)
-  creator     User           @relation("TransferCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
-  receiver    User?          @relation("TransferReceivedBy", fields: [receivedBy], references: [id], onDelete: Restrict)
-  canceller   User?          @relation("TransferCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  origin      Warehouse           @relation("TransferOrigin", fields: [originWarehouseId], references: [id], onDelete: Restrict)
+  destination Warehouse           @relation("TransferDestination", fields: [destinationWarehouseId], references: [id], onDelete: Restrict)
+  creator     User                @relation("TransferCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  receiver    User?               @relation("TransferReceivedBy", fields: [receivedBy], references: [id], onDelete: Restrict)
+  canceller   User?               @relation("TransferCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
   lines       TransferLine[]
+  documents   InventoryDocument[]
 
   // Los CHECK (origen ≠ destino, estado ↔ sus campos) y los índices PARCIALES
   // de `in_transit` viven en la migración: Prisma no los expresa. Los cubre
@@ -716,6 +727,130 @@ model TransferLine {
   @@index([productId])
   @@index([tenantId])
   @@map("transfer_lines")
+}
+
+enum InventoryDocumentType {
+  entry
+  exit
+  physical_count
+}
+
+enum DocumentStatus {
+  draft
+  confirmed
+  canceled
+}
+
+/// El ENCABEZADO de toda operación que toca stock: folio, tipo, estado,
+/// almacén, motivo, quién y cuándo.
+///
+/// **Nace en `draft` con su folio** (decisión de Carlos, 2026-08-18): es lo que
+/// permite cargar 80 productos, cerrar el sistema y retomar el movimiento
+/// buscándolo por su número — incluso desde otra máquina o por otro usuario,
+/// que es la razón de que el borrador viva acá y no en el navegador. Al
+/// **confirmar** nacen los `stock_movements` y recién ahí se mueve el saldo;
+/// al abandonarlo queda `canceled` CON su folio, así la serie no pierde
+/// números.
+///
+/// **Tres tipos y nada más.** Un traspaso es un `exit` con
+/// `reason_code='transfer'` y su recepción un `entry` con el mismo motivo: el
+/// motivo viaja adentro del documento, nunca en el folio.
+///
+/// A diferencia de `stock_movements`, esta tabla **no puede blindarse con
+/// REVOKE** — un borrador se edita. La inmutabilidad de lo confirmado la
+/// impone un trigger (F3-DOC-02).
+model InventoryDocument {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String                @map("tenant_id") @db.Uuid
+  folio             String                @db.VarChar(20)
+  type              InventoryDocumentType
+  status            DocumentStatus        @default(draft)
+  warehouseId       String                @map("warehouse_id") @db.Uuid
+  /// El OTRO almacén, cuando el motivo es traspaso.
+  linkedWarehouseId String?               @map("linked_warehouse_id") @db.Uuid
+  /// Nullable a propósito: el motivo se elige DENTRO del borrador. Un CHECK lo
+  /// vuelve obligatorio al confirmar.
+  reasonCode        MovementReason?       @map("reason_code")
+  reference         String?               @db.VarChar(120)
+  reasonNote        String?               @map("reason_note")
+  authorizedBy      String?               @map("authorized_by") @db.Uuid
+  /// El ÚNICO puntero entre documento y traspaso. Al revés sería imposible:
+  /// el documento se confirma DESPUÉS de crear el traspaso, y uno confirmado
+  /// ya no admite que le rellenen una columna hacia atrás.
+  transferId        String?               @map("transfer_id") @db.Uuid
+  confirmedBy       String?               @map("confirmed_by") @db.Uuid
+  confirmedAt       DateTime?             @map("confirmed_at") @db.Timestamptz(6)
+  canceledBy        String?               @map("canceled_by") @db.Uuid
+  canceledAt        DateTime?             @map("canceled_at") @db.Timestamptz(6)
+  cancelReason      String?               @map("cancel_reason")
+  createdBy         String                @map("created_by") @db.Uuid
+  createdAt         DateTime              @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Todas las FK en `Restrict`, incluidas las opcionales: aunque el documento
+  // sea editable en borrador, lo confirmado es historia y un `SetNull` la
+  // reescribiría en silencio (regla nacida en F3-DB-01).
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  warehouse       Warehouse               @relation("DocumentWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
+  linkedWarehouse Warehouse?              @relation("DocumentLinkedWarehouse", fields: [linkedWarehouseId], references: [id], onDelete: Restrict)
+  transfer        Transfer?               @relation(fields: [transferId], references: [id], onDelete: Restrict)
+  authorizer      User?                   @relation("DocumentAuthorizedBy", fields: [authorizedBy], references: [id], onDelete: Restrict)
+  confirmer       User?                   @relation("DocumentConfirmedBy", fields: [confirmedBy], references: [id], onDelete: Restrict)
+  canceller       User?                   @relation("DocumentCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+  creator         User                    @relation("DocumentCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  lines           InventoryDocumentLine[]
+  movements       StockMovement[]
+
+  // Los CHECK de estado y el UNIQUE PARCIAL `(transfer_id, type)` viven en la
+  // migración: Prisma no expresa ni CHECKs ni índices únicos parciales. Los
+  // cubre `inventory-schema.integration.spec.ts`.
+  @@unique([tenantId, folio])
+  @@index([tenantId, type, status, createdAt(sort: Desc)])
+  @@index([tenantId, folio])
+  @@index([tenantId, warehouseId, createdAt(sort: Desc)])
+  @@index([tenantId, createdBy, status])
+  @@map("inventory_documents")
+}
+
+/// Lo que el usuario CAPTURÓ, línea por línea. Distinto de los
+/// `stock_movements`, que son lo que el ledger HIZO: la línea dice "3 cajas de
+/// PAR-500" y los movimientos "36 unidades del lote st10 + 12 del st30",
+/// porque FEFO parte una línea en N movimientos y un compuesto la expande en
+/// sus componentes. Se conservan las dos después de confirmar: la línea
+/// explica el papel, el movimiento explica el saldo.
+model InventoryDocumentLine {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  documentId     String    @map("document_id") @db.Uuid
+  lineNo         Int       @map("line_no")
+  productId      String    @map("product_id") @db.Uuid
+  presentationId String?   @map("presentation_id") @db.Uuid
+  /// Nullable: un borrador admite una línea a medio llenar. La validación dura
+  /// es del `confirm`, no de la captura.
+  quantity       Decimal?  @db.Decimal(14, 4)
+  unitCost       Decimal?  @map("unit_cost") @db.Decimal(14, 2)
+  lotCode        String?   @map("lot_code") @db.VarChar(64)
+  expiresAt      DateTime? @map("expires_at") @db.Date
+  location       String?   @db.VarChar(64)
+  /// Solo en `physical_count`: el teórico que el sistema mostró y lo que la
+  /// persona contó.
+  theoretical    Decimal?  @db.Decimal(14, 4)
+  counted        Decimal?  @db.Decimal(14, 4)
+  createdAt      DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  // CASCADE: borrar un borrador tiene que llevarse sus líneas. Lo confirmado
+  // no se borra (lo impide el trigger de F3-DOC-02 y el RESTRICT de los
+  // movimientos), así que el cascade solo alcanza a borradores.
+  document     InventoryDocument    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  presentation ProductPresentation? @relation(fields: [presentationId], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, lineNo])
+  @@index([productId])
+  @@index([tenantId])
+  @@map("inventory_document_lines")
 }
 
 // Tabla MAESTRA de unidades de medida (global, sin tenant_id, sin RLS) —
