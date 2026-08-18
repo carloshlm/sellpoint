@@ -9,11 +9,14 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
+import { I18nService } from "nestjs-i18n";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -22,6 +25,7 @@ import type { AuthUser } from "../auth/types/auth-user";
 import { ConfirmService } from "./confirm.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
+import { DocumentPdfService } from "./document-pdf.service";
 import { DocumentsService } from "./documents.service";
 import {
   type CancelDocumentDto,
@@ -57,6 +61,8 @@ export class DocumentsController {
     private readonly lines: DocumentLinesService,
     private readonly imports: DocumentImportService,
     private readonly confirmService: ConfirmService,
+    private readonly pdfService: DocumentPdfService,
+    private readonly i18n: I18nService,
   ) {}
 
   /**
@@ -112,6 +118,29 @@ export class DocumentsController {
   @RequirePermissions("inventory:read")
   detail(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.documents.detail(user, id);
+  }
+
+  /**
+   * El PDF firmable. Binario y no base64 en JSON: el front lo baja con axios
+   * `responseType: 'blob'` porque un `<a href>` plano iría sin el Bearer.
+   */
+  @Get(":id/pdf")
+  @RequirePermissions("inventory:read")
+  async pdf(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.pdfService.render(user, id, (key) =>
+      this.i18n.translate(key, { lang: locale }),
+    );
+
+    response
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   /** Autoguardado de la cabecera: motivo, referencia, nota, autorizador. */

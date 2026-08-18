@@ -3,6 +3,7 @@ import { AuditModule } from "../audit/audit.module";
 import { ConfirmService } from "./confirm.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
+import { DocumentPdfService } from "./document-pdf.service";
 import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
 import { StockLedgerService } from "./stock-ledger.service";
@@ -23,6 +24,7 @@ import { StockLedgerService } from "./stock-ledger.service";
     DocumentImportService,
     StockLedgerService,
     ConfirmService,
+    DocumentPdfService,
   ],
   exports: [
     DocumentsService,
@@ -30,6 +32,7 @@ import { StockLedgerService } from "./stock-ledger.service";
     DocumentImportService,
     StockLedgerService,
     ConfirmService,
+    DocumentPdfService,
   ],
 })
 export class InventoryModule {}

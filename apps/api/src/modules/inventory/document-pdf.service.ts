@@ -1,0 +1,147 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { InventoryDocumentType } from "@sellpoint/shared";
+import PdfPrinter from "pdfmake";
+import type { TDocumentDefinitions } from "pdfmake/interfaces";
+import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import type { AuthUser } from "../auth/types/auth-user";
+import { buildDocumentDefinition, type PdfRow } from "./document-pdf.renderer";
+
+/**
+ * Las fuentes estándar de PDF (Helvetica y familia) vienen dentro de todo
+ * visor: no hay que embeber archivos ni sumar megas a la imagen de Docker. El
+ * documento es una tabla de datos, no una pieza de diseño.
+ */
+const FONTS = {
+  Roboto: {
+    normal: "Helvetica",
+    bold: "Helvetica-Bold",
+    italics: "Helvetica-Oblique",
+    bolditalics: "Helvetica-BoldOblique",
+  },
+};
+
+@Injectable()
+export class DocumentPdfService {
+  private readonly printer = new PdfPrinter(FONTS);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * F3-DOC-07 — genera el PDF de un documento.
+   *
+   * Un documento CONFIRMADO se arma con sus `stock_movements` —lo que
+   * realmente pasó, incluida la partición FEFO en varios lotes— y no con las
+   * líneas capturadas. Un borrador no tiene movimientos, así que sale de sus
+   * líneas y va marcado.
+   */
+  async render(
+    user: AuthUser,
+    documentId: string,
+    t: (key: string) => string,
+  ): Promise<{ body: Buffer; filename: string }> {
+    const { input, folio } = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const document = await tx.inventoryDocument.findFirst({
+        where: { id: documentId, tenantId: user.tenantId },
+        include: {
+          warehouse: { select: { name: true } },
+          linkedWarehouse: { select: { name: true } },
+          creator: { select: { firstName: true, lastNamePaternal: true } },
+          authorizer: { select: { firstName: true, lastNamePaternal: true } },
+          lines: {
+            orderBy: { lineNo: "asc" },
+            include: {
+              product: { select: { sku: true, name: true, baseUnit: true } },
+              presentation: { select: { name: true } },
+            },
+          },
+          movements: {
+            orderBy: { seq: "asc" },
+            include: {
+              product: { select: { sku: true, name: true, baseUnit: true } },
+              presentation: { select: { name: true } },
+              lot: { select: { lotCode: true, expiresAt: true } },
+            },
+          },
+        },
+      });
+      if (document === null) {
+        throw new NotFoundException({ message: "inventory.document_not_found" });
+      }
+
+      const tenant = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { name: true, legalName: true, taxId: true },
+      });
+
+      const nombre = (p: { firstName: string; lastNamePaternal: string } | null) =>
+        p === null ? null : `${p.firstName} ${p.lastNamePaternal}`;
+
+      const rows: PdfRow[] =
+        document.status === "confirmed" && document.movements.length > 0
+          ? document.movements.map((m, index) => ({
+              lineNo: index + 1,
+              sku: m.product.sku,
+              name: m.product.name,
+              presentationName: m.presentation?.name ?? null,
+              quantityInput: m.quantity.toString(),
+              quantityBase: m.quantity.toString(),
+              baseUnit: m.product.baseUnit,
+              unitCost: m.unitCost?.toString() ?? null,
+              lotCode: m.lot?.lotCode ?? null,
+              expiresAt: m.lot?.expiresAt ?? null,
+              location: m.location,
+              theoretical: null,
+              counted: null,
+            }))
+          : document.lines.map((l) => ({
+              lineNo: l.lineNo,
+              sku: l.product.sku,
+              name: l.product.name,
+              presentationName: l.presentation?.name ?? null,
+              quantityInput: l.quantity?.toString() ?? null,
+              quantityBase: l.quantity?.toString() ?? null,
+              baseUnit: l.product.baseUnit,
+              unitCost: l.unitCost?.toString() ?? null,
+              lotCode: l.lotCode,
+              expiresAt: l.expiresAt,
+              location: l.location,
+              theoretical: l.theoretical?.toString() ?? null,
+              counted: l.counted?.toString() ?? null,
+            }));
+
+      return {
+        folio: document.folio,
+        input: {
+          tenant,
+          document: {
+            folio: document.folio,
+            type: document.type as InventoryDocumentType,
+            status: document.status,
+            warehouseName: document.warehouse.name,
+            linkedWarehouseName: document.linkedWarehouse?.name ?? null,
+            reasonCode: document.reasonCode,
+            reference: document.reference,
+            reasonNote: document.reasonNote,
+            createdAt: document.createdAt,
+            createdByName: nombre(document.creator) ?? "",
+            authorizedByName: nombre(document.authorizer),
+          },
+          rows,
+        },
+      };
+    });
+
+    const definition = buildDocumentDefinition(input, t) as unknown as TDocumentDefinitions;
+    const pdf = this.printer.createPdfKitDocument(definition);
+
+    const body = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
+      pdf.on("end", () => resolve(Buffer.concat(chunks)));
+      pdf.on("error", reject);
+      pdf.end();
+    });
+
+    return { body, filename: `${folio}.pdf` };
+  }
+}

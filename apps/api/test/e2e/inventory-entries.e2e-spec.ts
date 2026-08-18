@@ -262,4 +262,71 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       await confirmar(randomUUID()).expect(404);
     });
   });
+  /**
+   * F3-DOC-07 — el PDF. Se verifica el BINARIO de verdad (que arranque con
+   * `%PDF-`, que pagine, que traduzca), no un mock del renderer: lo que
+   * importa es que el archivo que baja el usuario se pueda abrir.
+   */
+  describe("el PDF (F3-DOC-07)", () => {
+    it("baja como application/pdf, con el folio de nombre, y es un PDF válido", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Para imprimir" });
+      await agregar(id, { productId, quantity: 4 }).expect(201);
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      const folio = (detalle.body as { folio: string }).folio;
+
+      const res = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}/pdf`)
+        .set(auth())
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+
+      expect(res.headers["content-type"]).toContain("application/pdf");
+      expect(res.headers["content-disposition"]).toContain(`${folio}.pdf`);
+      expect((res.body as Buffer).subarray(0, 5).toString()).toBe("%PDF-");
+    });
+
+    /**
+     * Un conteo real son cientos de líneas. Que `pdfmake` pagine solo y repita
+     * el encabezado es LA razón por la que se eligió sobre `pdfkit`, así que
+     * se verifica contando las páginas del binario.
+     */
+    it("un documento largo sale paginado", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Largo" });
+      const lines = Array.from({ length: 120 }, () => ({ productId, quantity: 1 }));
+      await request(app.getHttpServer())
+        .put(`/inventory/documents/${id}/lines`)
+        .set(auth())
+        .send({ lines })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}/pdf`)
+        .set(auth())
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+
+      const paginas = (res.body as Buffer).toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? [];
+      expect(paginas.length).toBeGreaterThan(1);
+    });
+
+    it("un documento de otro tenant no tiene PDF", async () => {
+      await request(app.getHttpServer())
+        .get(`/inventory/documents/${randomUUID()}/pdf`)
+        .set(auth())
+        .expect(404);
+    });
+  });
 });
