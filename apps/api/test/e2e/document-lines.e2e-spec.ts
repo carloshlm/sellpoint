@@ -380,4 +380,150 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       await importar(id, csv([[sku, "", "1", "", "", "", ""]])).expect(409);
     });
   });
+  /**
+   * F3-DOC-06 — el listado por serie y **el detalle como VISTA PREVIA**.
+   *
+   * No hay endpoint de previa aparte: el detalle del borrador resuelve sus
+   * líneas contra el saldo del momento y devuelve qué pasaría. Que sea la
+   * MISMA `resolveLines` que usa el confirm es lo que garantiza que lo que se
+   * ve sea lo que se asienta.
+   */
+  describe("listado y vista previa (F3-DOC-06)", () => {
+    const listar = (query: string) =>
+      request(app.getHttpServer()).get(`/inventory/documents?${query}`).set(auth());
+
+    it("lista por tipo, más nuevos primero", async () => {
+      await nuevoBorrador("entry");
+      const res = await listar("type=entry").expect(200);
+
+      const rows = (res.body as { rows: { type: string }[] }).rows;
+      expect(rows.length).toBeGreaterThanOrEqual(1);
+      expect(rows.every((r) => r.type === "entry")).toBe(true);
+    });
+
+    it("la búsqueda por folio es parcial y no distingue mayúsculas", async () => {
+      const id = await nuevoBorrador("entry");
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      const folio = (detalle.body as { folio: string }).folio;
+      const numero = folio.split("-")[1] ?? "";
+
+      const porNumero = await listar(`type=entry&folio=${numero}`).expect(200);
+      const porPrefijoMinuscula = await listar("type=entry&folio=ent").expect(200);
+
+      expect((porNumero.body as { rows: { folio: string }[] }).rows.map((r) => r.folio)).toContain(
+        folio,
+      );
+      expect((porPrefijoMinuscula.body as { rows: unknown[] }).rows.length).toBeGreaterThan(0);
+    });
+
+    it("por defecto NO trae los anulados; con el filtro sí", async () => {
+      const id = await nuevoBorrador("entry");
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/cancel`)
+        .set(auth())
+        .send({ reason: "Prueba" })
+        .expect(200);
+
+      const porDefecto = await listar("type=entry").expect(200);
+      const conAnulados = await listar("type=entry&status=canceled").expect(200);
+
+      const ids = (rows: unknown) => (rows as { id: string }[]).map((r) => r.id);
+      expect(ids((porDefecto.body as { rows: unknown }).rows)).not.toContain(id);
+      expect(ids((conAnulados.body as { rows: unknown }).rows)).toContain(id);
+    });
+
+    it("cada fila trae cuántas líneas tiene, sin pedir el detalle", async () => {
+      const id = await nuevoBorrador("entry");
+      await agregar(id, { productId, quantity: 1 }).expect(201);
+      await agregar(id, { productId: otherProductId, quantity: 1 }).expect(201);
+
+      const res = await listar("type=entry&pageSize=100").expect(200);
+      const fila = (res.body as { rows: { id: string; lineCount: number }[] }).rows.find(
+        (r) => r.id === id,
+      );
+
+      expect(fila?.lineCount).toBe(2);
+    });
+
+    describe("el detalle ES la vista previa", () => {
+      it("muestra el stock actual y el resultante SIN tocar el saldo real", async () => {
+        const id = await nuevoBorrador("entry");
+        await agregar(id, { productId, quantity: 36 }).expect(201);
+
+        const detalle = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+
+        const fila = (detalle.body as { rows: { stockBefore: string; stockAfter: string }[] })
+          .rows[0];
+        expect(Number(fila?.stockBefore)).toBe(0);
+        expect(Number(fila?.stockAfter)).toBe(36);
+
+        // Y el saldo REAL sigue intacto: mirar es gratis.
+        const otra = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+        expect(
+          Number((otra.body as { rows: { stockBefore: string }[] }).rows[0]?.stockBefore),
+        ).toBe(0);
+      });
+
+      it("una presentación ×N convierte a unidad base en la previa", async () => {
+        const id = await nuevoBorrador("entry");
+        await agregar(id, { productId, presentationId, quantity: 3 }).expect(201);
+
+        const detalle = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+
+        const fila = (detalle.body as { rows: { quantityBase: string }[] }).rows[0];
+        expect(Number(fila?.quantityBase)).toBe(3);
+      });
+
+      /**
+       * La previa junta TODOS los errores en vez de tirar el primero: quien
+       * cargó 80 líneas necesita ver las cinco que están mal de una vez, no
+       * descubrirlas de a una.
+       */
+      it("una línea sin cantidad aparece con su error, y el resumen lo cuenta", async () => {
+        const id = await nuevoBorrador("entry");
+        await agregar(id, { productId }).expect(201);
+        await agregar(id, { productId: otherProductId, quantity: 5 }).expect(201);
+
+        const detalle = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+
+        const body = detalle.body as {
+          rows: { errors: { code: string }[] }[];
+          summary: { errors: number; lines: number };
+        };
+        expect(body.summary.lines).toBe(2);
+        expect(body.summary.errors).toBe(1);
+        expect(body.rows[0]?.errors).toHaveLength(1);
+        expect(body.rows[1]?.errors).toHaveLength(0);
+      });
+
+      it("una salida sin saldo se marca con el disponible, no revienta la previa", async () => {
+        const id = await nuevoBorrador("exit");
+        await agregar(id, { productId, quantity: 999 }).expect(201);
+
+        const detalle = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+
+        const body = detalle.body as { rows: { errors: { code: string }[]; available: string }[] };
+        expect(body.rows[0]?.errors[0]?.code).toBe("inventory.insufficient_stock");
+        expect(Number(body.rows[0]?.available)).toBe(0);
+      });
+    });
+  });
 });

@@ -1,10 +1,12 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { FOLIO_PREFIXES, type InventoryDocumentType } from "@sellpoint/shared";
-import type { InventoryDocument, Prisma } from "../../generated/prisma/client";
+import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import type { ListDocumentsQueryDto } from "./dto/document.dto";
 import { nextFolio } from "./folio";
+import { resolveLines } from "./line-resolver";
 import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 export interface CreateDraftInput {
@@ -130,19 +132,182 @@ export class DocumentsService {
   }
 
   /**
-   * El detalle con sus líneas. En F3-DOC-06 crece hasta ser la VISTA PREVIA
-   * (con stock actual y resultante); por ahora devuelve lo capturado.
+   * El listado de una serie. Los tres menús (Entradas, Salidas, Inventario)
+   * son el MISMO componente con distinto `type`, por eso el filtro es
+   * obligatorio.
+   *
+   * La búsqueda por folio es PARCIAL y sin distinguir mayúsculas: se busca por
+   * el número que trae el papel en la mano, y quien lo dicta por teléfono dice
+   * "cuarenta y dos", no "ENT-000042".
+   */
+  async list(user: AuthUser, query: ListDocumentsQueryDto, scope: UserScope) {
+    const where: Prisma.InventoryDocumentWhereInput = {
+      tenantId: user.tenantId,
+      type: query.type,
+      // Sin filtro explícito no se muestran los anulados: crear un borrador es
+      // barato y va a haber anulados vacíos que no tienen por qué ensuciar la
+      // vista de todos los días.
+      status: query.status ?? { in: ["draft", "confirmed"] },
+      ...(query.warehouseId !== undefined && { warehouseId: query.warehouseId }),
+      ...(query.createdBy !== undefined && { createdBy: query.createdBy }),
+      ...(query.folio !== undefined && {
+        folio: { contains: query.folio, mode: "insensitive" as const },
+      }),
+      ...((query.from !== undefined || query.to !== undefined) && {
+        createdAt: {
+          ...(query.from !== undefined && { gte: new Date(query.from) }),
+          ...(query.to !== undefined && { lte: new Date(`${query.to}T23:59:59.999Z`) }),
+        },
+      }),
+      // El alcance del usuario: un Manager no ve documentos de un almacén que
+      // no administra.
+      ...(scope.warehouseIds !== "all" && { warehouseId: { in: scope.warehouseIds } }),
+    };
+
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const [total, rows] = await Promise.all([
+        tx.inventoryDocument.count({ where }),
+        tx.inventoryDocument.findMany({
+          where,
+          // Orden TOTAL: `created_at` solo puede empatar entre dos documentos
+          // creados en el mismo instante, y el folio los desempata.
+          orderBy: [{ createdAt: "desc" }, { folio: "desc" }],
+          skip: (query.page - 1) * query.pageSize,
+          take: query.pageSize,
+          include: {
+            warehouse: { select: { id: true, name: true } },
+            creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
+            _count: { select: { lines: true } },
+          },
+        }),
+      ]);
+
+      return {
+        rows: rows.map((d) => ({
+          id: d.id,
+          folio: d.folio,
+          type: d.type,
+          status: d.status,
+          warehouse: d.warehouse,
+          reasonCode: d.reasonCode,
+          reference: d.reference,
+          lineCount: d._count.lines,
+          createdAt: d.createdAt,
+          createdBy: d.creator,
+          confirmedAt: d.confirmedAt,
+        })),
+        total,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
+    });
+  }
+
+  /**
+   * **El detalle ES la vista previa.** No hay endpoint aparte: resuelve las
+   * líneas del borrador contra el saldo del momento y devuelve qué pasaría,
+   * sin escribir nada.
+   *
+   * Usa la MISMA `resolveLines` que el confirm (en modo `preview`), y esa es
+   * toda la garantía de que lo que se ve sea lo que se asienta.
    */
   async detail(user: AuthUser, documentId: string) {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const document = await tx.inventoryDocument.findFirst({
         where: { id: documentId, tenantId: user.tenantId },
-        include: { lines: { orderBy: { lineNo: "asc" } } },
+        include: {
+          lines: { orderBy: { lineNo: "asc" } },
+          warehouse: { select: { id: true, name: true } },
+        },
       });
       if (document === null) {
         throw new NotFoundException({ message: "inventory.document_not_found" });
       }
-      return document;
+
+      const direction = document.type === "exit" ? "exit" : "entry";
+      const resolved = await resolveLines(
+        tx,
+        user.tenantId,
+        document.lines.map((l) => ({
+          productId: l.productId,
+          presentationId: l.presentationId,
+          quantity: l.quantity,
+          unitCost: l.unitCost,
+          lotCode: l.lotCode,
+          expiresAt: l.expiresAt,
+          location: l.location,
+        })),
+        { direction, reasonCode: document.reasonCode ?? "adjustment", mode: "preview" },
+      );
+
+      // El saldo actual de los productos involucrados, en UNA query.
+      const productIds = [...new Set(document.lines.map((l) => l.productId))];
+      const saldos =
+        productIds.length === 0
+          ? []
+          : await tx.stockByWarehouse.findMany({
+              where: { productId: { in: productIds }, warehouseId: document.warehouseId },
+              select: { productId: true, quantity: true },
+            });
+      const saldoPorProducto = new Map(
+        saldos.map((s) => [s.productId, new Prisma.Decimal(s.quantity.toString())]),
+      );
+
+      const signo = direction === "entry" ? 1 : -1;
+      // Acumulado por producto: dos líneas del mismo producto tienen que
+      // mostrar el efecto ENCADENADO, no las dos partiendo del mismo saldo.
+      const acumulado = new Map<string, Prisma.Decimal>();
+
+      const rows = document.lines.map((line, index) => {
+        const res = resolved[index];
+        const antes =
+          acumulado.get(line.productId) ??
+          saldoPorProducto.get(line.productId) ??
+          new Prisma.Decimal(0);
+        const delta = (res?.quantityBase ?? new Prisma.Decimal(0)).mul(signo);
+        const despues = antes.plus(delta);
+        acumulado.set(line.productId, despues);
+
+        const errors = [...(res?.errors ?? [])];
+        // La previa de una SALIDA avisa antes de confirmar; el rechazo duro lo
+        // hace el ledger, con la fila ya bloqueada.
+        if (direction === "exit" && despues.lessThan(0) && errors.length === 0) {
+          errors.push({
+            field: "quantity",
+            code: "inventory.insufficient_stock",
+            args: { available: antes.toString(), requested: delta.abs().toString() },
+          });
+        }
+
+        return {
+          lineNo: line.lineNo,
+          productId: line.productId,
+          sku: res?.sku ?? "",
+          presentationId: line.presentationId,
+          quantityInput: line.quantity?.toString() ?? null,
+          quantityBase: res?.quantityBase.toString() ?? null,
+          unitCost: line.unitCost?.toString() ?? null,
+          lotCode: line.lotCode,
+          expiresAt: line.expiresAt,
+          location: line.location,
+          newLot: res?.newLot ?? false,
+          available: antes.toString(),
+          stockBefore: antes.toString(),
+          stockAfter: despues.toString(),
+          errors,
+        };
+      });
+
+      return {
+        ...document,
+        rows,
+        summary: {
+          lines: rows.length,
+          products: productIds.length,
+          newLots: rows.filter((r) => r.newLot).length,
+          errors: rows.filter((r) => r.errors.length > 0).length,
+        },
+      };
     });
   }
 

@@ -54,3 +54,26 @@ export const documentTemplateQuerySchema = z.object({
 
 export type ImportDocumentLinesDto = z.infer<typeof importDocumentLinesSchema>;
 export type DocumentTemplateQueryDto = z.infer<typeof documentTemplateQuerySchema>;
+
+/**
+ * Filtros del listado. `type` es obligatorio porque las tres pantallas
+ * (Entradas, Salidas, Inventario) son el MISMO componente con distinto tipo:
+ * un listado sin tipo no corresponde a ninguna.
+ *
+ * `status` por defecto trae borradores y confirmados. Los anulados quedan
+ * fuera salvo que se pidan: crear un borrador es barato y va a haber anulados
+ * vacíos, que no tienen por qué ensuciar la vista de todos los días.
+ */
+export const listDocumentsQuerySchema = z.object({
+  type: z.enum(INVENTORY_DOCUMENT_TYPES),
+  status: z.enum(["draft", "confirmed", "canceled"]).optional(),
+  warehouseId: z.uuid().optional(),
+  createdBy: z.uuid().optional(),
+  folio: z.string().trim().min(1).max(20).optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+});
+
+export type ListDocumentsQueryDto = z.infer<typeof listDocumentsQuerySchema>;

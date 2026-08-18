@@ -31,6 +31,8 @@ import {
   documentTemplateQuerySchema,
   type ImportDocumentLinesDto,
   importDocumentLinesSchema,
+  type ListDocumentsQueryDto,
+  listDocumentsQuerySchema,
   type ReplaceDocumentLinesDto,
   replaceDocumentLinesSchema,
   type UpsertDocumentLineDto,
@@ -85,6 +87,21 @@ export class DocumentsController {
     dto: CreateDocumentDto,
   ) {
     return this.documents.createDraft(user, dto, scope);
+  }
+
+  /**
+   * El listado de una serie. Los tres menús son el mismo componente con
+   * distinto `type`, así que el filtro es obligatorio.
+   */
+  @Get()
+  @RequirePermissions("inventory:read")
+  list(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(listDocumentsQuerySchema, "inventory.invalid_body"))
+    query: ListDocumentsQueryDto,
+  ) {
+    return this.documents.list(user, query, scope);
   }
 
   @Get(":id")
