@@ -292,13 +292,43 @@ export class DocumentsService {
 
       // El saldo actual de los productos involucrados, en UNA query.
       const productIds = [...new Set(document.lines.map((l) => l.productId))];
-      const saldos =
+      const [saldos, catalogo] = await Promise.all([
         productIds.length === 0
-          ? []
-          : await tx.stockByWarehouse.findMany({
+          ? Promise.resolve([])
+          : tx.stockByWarehouse.findMany({
               where: { productId: { in: productIds }, warehouseId: document.warehouseId },
               select: { productId: true, quantity: true },
-            });
+            }),
+        // El catálogo de lo que YA está en el documento: la pantalla necesita
+        // la unidad base y el factor para decir "3 Caja = 36 unidad", y el
+        // listado de presentaciones para poder cambiarla. Va acá y no en una
+        // query por fila: un documento de 80 líneas haría 80 viajes desde el
+        // navegador para pintar una frase.
+        productIds.length === 0
+          ? Promise.resolve([])
+          : tx.product.findMany({
+              where: { id: { in: productIds }, tenantId: user.tenantId },
+              select: {
+                id: true,
+                sku: true,
+                name: true,
+                baseUnit: true,
+                isComposite: true,
+                presentations: {
+                  where: { isActive: true },
+                  orderBy: { factor: "asc" },
+                  select: {
+                    id: true,
+                    name: true,
+                    factor: true,
+                    allowFractionalInput: true,
+                    isPurchasable: true,
+                    isSellable: true,
+                  },
+                },
+              },
+            }),
+      ]);
       const saldoPorProducto = new Map(
         saldos.map((s) => [s.productId, new Prisma.Decimal(s.quantity.toString())]),
       );
@@ -351,6 +381,15 @@ export class DocumentsService {
       return {
         ...document,
         rows,
+        products: catalogo.map((p) => ({
+          ...p,
+          // `factor` sale como string decimal, igual que toda cantidad del
+          // API: mandarlo como number lo redondearía en el JSON.
+          presentations: p.presentations.map((pr) => ({
+            ...pr,
+            factor: pr.factor.toString(),
+          })),
+        })),
         summary: {
           lines: rows.length,
           products: productIds.length,

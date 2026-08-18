@@ -189,4 +189,83 @@ describe("DocumentsService — ciclo de vida (F3-DOC-03)", () => {
       await expect(service.cancel(ajeno, draft.id, "no deberías poder")).rejects.toThrow();
     });
   });
+
+  /**
+   * F3-ENTRY-02 — la pantalla necesita decir "3 Caja = 36 unidad", y para eso
+   * hace falta el nombre de la unidad base y el factor de la presentación.
+   *
+   * Va en el DETALLE y no en una query aparte del front: si cada fila fuera a
+   * buscar las presentaciones de su producto, un documento de 80 líneas haría
+   * 80 viajes desde el navegador. Acá sale en UNA query junto con lo demás.
+   */
+  describe("el catálogo de lo que ya está en el documento (F3-ENTRY-02)", () => {
+    it("devuelve `products` con la unidad base y las presentaciones de cada producto", async () => {
+      const draft = await service.createDraft(user, { type: "entry", warehouseId });
+      const { productId, presentationId } = await prisma.withTenantContext(
+        user.tenantId,
+        async (tx) => {
+          const product = await tx.product.create({
+            data: {
+              tenantId: user.tenantId,
+              sku: `EQ-${Date.now()}`,
+              name: "Paracetamol 500mg",
+              baseUnit: "unit",
+            },
+          });
+          const presentation = await tx.productPresentation.create({
+            data: {
+              tenantId: user.tenantId,
+              productId: product.id,
+              name: "Caja",
+              factor: 12,
+              allowFractionalInput: false,
+            },
+          });
+          await tx.inventoryDocumentLine.create({
+            data: {
+              tenantId: user.tenantId,
+              documentId: draft.id,
+              lineNo: 1,
+              productId: product.id,
+              presentationId: presentation.id,
+              quantity: 3,
+            },
+          });
+          return { productId: product.id, presentationId: presentation.id };
+        },
+      );
+
+      const detail = await service.detail(user, draft.id);
+
+      expect(detail.products).toEqual([
+        expect.objectContaining({
+          id: productId,
+          sku: expect.any(String),
+          name: "Paracetamol 500mg",
+          baseUnit: "unit",
+          isComposite: false,
+          presentations: [
+            expect.objectContaining({
+              id: presentationId,
+              name: "Caja",
+              factor: "12",
+              allowFractionalInput: false,
+            }),
+          ],
+        }),
+      ]);
+    });
+
+    /**
+     * Un documento vacío no puede reventar la pantalla: es el estado en que
+     * nace TODO borrador.
+     */
+    it("un borrador sin líneas devuelve el catálogo vacío, no undefined", async () => {
+      const draft = await service.createDraft(user, { type: "entry", warehouseId });
+
+      const detail = await service.detail(user, draft.id);
+
+      expect(detail.products).toEqual([]);
+    });
+  });
 });

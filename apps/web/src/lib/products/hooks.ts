@@ -36,12 +36,15 @@ export function productQueryKey(id: string) {
   return ["products", id] as const;
 }
 
-export function useProducts(params: ListProductsParams) {
+export function useProducts(params: ListProductsParams, options?: { enabled?: boolean }) {
   return useQuery<ProductPage, ApiError>({
     queryKey: productsQueryKey(params),
     queryFn: () => listProducts(params),
     // El server pagina: sin esto la tabla parpadearía en cada cambio de página.
     placeholderData: (previous) => previous,
+    // El buscador de líneas (F3-ENTRY-02) no consulta hasta que hay término:
+    // sin esto, abrir la pantalla del documento traería medio catálogo.
+    enabled: options?.enabled ?? true,
   });
 }
 

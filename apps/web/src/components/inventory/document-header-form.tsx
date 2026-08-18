@@ -1,0 +1,193 @@
+import { type MovementReason, REASON_RULES } from "@sellpoint/shared";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  type HeaderValues,
+  headerErrors,
+  REASONS_WITH_AUTHORIZATION,
+  selectableReasons,
+} from "@/lib/inventory/entry-schema";
+import { useUpdateDocumentHeader } from "@/lib/inventory/hooks";
+import type { DocumentDetail } from "@/lib/inventory/types";
+import { useUsers } from "@/lib/rbac/hooks";
+
+const DEBOUNCE_MS = 400;
+
+interface DocumentHeaderFormProps {
+  document: DocumentDetail;
+}
+
+/**
+ * F3-ENTRY-02 — la cabecera reactiva del documento.
+ *
+ * **El motivo manda.** Elegirlo cambia qué campos se piden, y esa regla NO
+ * vive acá: sale de `REASON_RULES` (`@sellpoint/shared`), la misma tabla que
+ * aplica el `superRefine` del API. Duplicarla en el componente sería garantizar
+ * que un día el formulario pida un campo que el servidor no exige — o que
+ * calle uno que sí.
+ *
+ * El motivo se guarda al instante (es un cambio deliberado, de un clic); los
+ * textos van con debounce, por lo mismo que las cantidades: sin él, escribir
+ * "F-8891" haría seis requests.
+ */
+export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
+  const { t } = useTranslation();
+  const guardar = useUpdateDocumentHeader(document.id);
+  const reasons = selectableReasons(document.type);
+
+  const rules = document.reasonCode === null ? null : REASON_RULES[document.reasonCode];
+  const muestraAutoriza =
+    document.reasonCode !== null && REASONS_WITH_AUTHORIZATION.includes(document.reasonCode);
+
+  return (
+    <div className="flex flex-wrap items-start gap-4 rounded-md border border-input p-4">
+      <Campo htmlFor="document-reason" label={t("inventory.document.reason")}>
+        <select
+          id="document-reason"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={document.reasonCode ?? ""}
+          onChange={(event) => {
+            guardar.mutate({ reasonCode: event.target.value as MovementReason });
+          }}
+        >
+          <option value="" disabled>
+            {t("inventory.document.reasonPlaceholder")}
+          </option>
+          {reasons.map((reason) => (
+            <option key={reason} value={reason}>
+              {t(`inventory.reason.${reason}`)}
+            </option>
+          ))}
+        </select>
+      </Campo>
+
+      {rules?.requiresReference && (
+        <TextoAutoguardado
+          document={document}
+          field="reference"
+          label={t("inventory.document.reference")}
+          placeholder={t("inventory.document.referencePlaceholder")}
+        />
+      )}
+
+      {rules?.requiresNote && (
+        <TextoAutoguardado
+          document={document}
+          field="reasonNote"
+          label={t("inventory.document.note")}
+          placeholder={t("inventory.document.notePlaceholder")}
+        />
+      )}
+
+      {muestraAutoriza && <AutorizaSelect document={document} />}
+    </div>
+  );
+}
+
+/**
+ * Quién firma el movimiento. Es OPCIONAL en el API (`authorizedBy` no lo exige
+ * ningún motivo), así que acá se OFRECE y no se exige: en un ajuste o una
+ * merma alguien suele tener que dar el visto bueno, pero un negocio de una
+ * persona no tiene a quién pedírselo.
+ */
+function AutorizaSelect({ document }: { document: DocumentDetail }) {
+  const { t } = useTranslation();
+  const guardar = useUpdateDocumentHeader(document.id);
+  const { data: users } = useUsers();
+
+  return (
+    <Campo htmlFor="document-authorized-by" label={t("inventory.document.authorizedBy")}>
+      <select
+        id="document-authorized-by"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        value={document.authorizedBy ?? ""}
+        onChange={(event) => {
+          guardar.mutate({ authorizedBy: event.target.value || null });
+        }}
+      >
+        <option value="">{t("inventory.document.authorizedByNone")}</option>
+        {(users ?? [])
+          .filter((user) => user.status === "active")
+          .map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.firstName} {user.lastNamePaternal}
+            </option>
+          ))}
+      </select>
+    </Campo>
+  );
+}
+
+/**
+ * Un campo de texto de la cabecera, con el MISMO autoguardado que las
+ * cantidades: debounce y sin disparar en el primer render.
+ */
+function TextoAutoguardado({
+  document,
+  field,
+  label,
+  placeholder,
+}: {
+  document: DocumentDetail;
+  field: "reference" | "reasonNote";
+  label: string;
+  placeholder: string;
+}) {
+  const { t } = useTranslation();
+  const guardar = useUpdateDocumentHeader(document.id);
+  const guardado = document[field] ?? "";
+  const [value, setValue] = useState(guardado);
+
+  useEffect(() => {
+    if (value === guardado) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      guardar.mutate({ [field]: value.trim() === "" ? null : value.trim() });
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [value, guardado, field, guardar.mutate]);
+
+  // El error se calcula sobre lo GUARDADO y no sobre lo tecleado: mientras
+  // alguien escribe la nota no hay que gritarle que falta.
+  const error = headerErrors(document.reasonCode, {
+    [field]: guardado,
+  } as HeaderValues).get(field);
+
+  const id = `document-${field}`;
+
+  return (
+    <Campo htmlFor={id} label={label} error={error === undefined ? undefined : t(error)}>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => setValue(event.target.value)}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      />
+    </Campo>
+  );
+}
+
+function Campo({
+  htmlFor,
+  label,
+  error,
+  children,
+}: {
+  htmlFor: string;
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-52 flex-1 flex-col gap-1">
+      <label htmlFor={htmlFor} className="font-medium text-sm">
+        {label}
+      </label>
+      {children}
+      {error !== undefined && <p className="text-destructive text-xs">{error}</p>}
+    </div>
+  );
+}

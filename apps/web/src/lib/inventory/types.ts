@@ -61,11 +61,41 @@ export interface DocumentRow {
   errors: DocumentRowError[];
 }
 
+/**
+ * Una presentación del producto, con su factor a la unidad base. `factor` es
+ * un string decimal como toda cantidad del API: mandarlo como number lo
+ * redondearía en el JSON.
+ */
+export interface DocumentPresentation {
+  id: string;
+  name: string;
+  factor: string;
+  allowFractionalInput: boolean;
+  isPurchasable: boolean;
+  isSellable: boolean;
+}
+
+/**
+ * El catálogo de lo que YA está en el documento. Viaja con el detalle y no se
+ * pide por fila: un documento de 80 líneas haría 80 viajes desde el navegador
+ * solo para pintar la equivalencia "3 Caja = 36 unidades".
+ */
+export interface DocumentProduct {
+  id: string;
+  sku: string;
+  name: string;
+  /** Código de unidad (`unit`, `g`, `ml`…), no su nombre: lo traduce `unitName`. */
+  baseUnit: string;
+  isComposite: boolean;
+  presentations: DocumentPresentation[];
+}
+
 export interface DocumentDetail extends DocumentSummary {
   reasonNote: string | null;
   authorizedBy: string | null;
   linkedWarehouseId: string | null;
   rows: DocumentRow[];
+  products: DocumentProduct[];
   summary: { lines: number; products: number; newLots: number; errors: number };
 }
 

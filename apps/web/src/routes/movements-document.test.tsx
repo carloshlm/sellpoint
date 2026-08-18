@@ -6,7 +6,9 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
+import * as productsApi from "../lib/products/api";
 import { createQueryClient } from "../lib/query-client";
+import * as rbacApi from "../lib/rbac/api";
 import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 import { type AuthUser, useAuthStore } from "../stores/auth.store";
@@ -33,9 +35,13 @@ vi.mock("../lib/inventory/api", () => ({
   importDocumentLines: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
+vi.mock("../lib/products/api", () => ({ listProducts: vi.fn() }));
+vi.mock("../lib/rbac/api", () => ({ listUsers: vi.fn() }));
 
 const mocked = vi.mocked(inventoryApi);
 const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
+const mockedProducts = vi.mocked(productsApi.listProducts);
+const mockedUsers = vi.mocked(rbacApi.listUsers);
 
 const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
@@ -91,6 +97,16 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
       errors: [],
     },
   ],
+  products: [
+    {
+      id: "p1",
+      sku: "PAR-500",
+      name: "Paracetamol 500mg",
+      baseUnit: "unit",
+      isComposite: false,
+      presentations: [],
+    },
+  ],
   summary: { lines: 1, products: 1, newLots: 0, errors: 0 },
   ...overrides,
 });
@@ -122,6 +138,10 @@ beforeEach(() => {
   mockedWarehouses.mockResolvedValue([
     { id: "w1", name: "Central", address: null, isActive: true },
   ]);
+  mockedProducts.mockReset();
+  mockedProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });
+  mockedUsers.mockReset();
+  mockedUsers.mockResolvedValue([]);
   mocked.getDocument.mockResolvedValue(detalle());
 });
 

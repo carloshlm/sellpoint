@@ -1,16 +1,22 @@
+import { REASON_RULES, unitName } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { updateDocumentLine } from "@/lib/inventory/api";
+import { headerErrors } from "@/lib/inventory/entry-schema";
 import {
   DOCUMENTS_QUERY_KEY,
   useCancelDocument,
   useConfirmDocument,
   useDocument,
 } from "@/lib/inventory/hooks";
-import type { DocumentRow } from "@/lib/inventory/types";
+import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
+import { MONEY_STEP } from "@/lib/products/money";
+import { AddLineForm } from "./add-line-form";
+import { DocumentHeaderForm } from "./document-header-form";
 import { DownloadDocumentButton } from "./download-document-button";
 
 const DEBOUNCE_MS = 400;
@@ -20,7 +26,7 @@ interface DocumentDetailProps {
 }
 
 /**
- * F3-DOC-09 — la pantalla del documento.
+ * F3-DOC-09 + F3-ENTRY-02 — la pantalla del documento.
  *
  * **Una sola pantalla con dos caras.** En `draft` es captura con autoguardado y
  * previa en vivo; en `confirmed` o `canceled` es solo lectura de lo que
@@ -31,12 +37,18 @@ interface DocumentDetailProps {
  * El panel de previa no es un extra: es lo que evita confirmar a ciegas. Cada
  * fila dice qué hay HOY y en qué queda, y las que están mal se marcan antes de
  * que el stock se mueva.
+ *
+ * Lo que agrega F3-ENTRY-02: el MOTIVO, que decide qué campos pide la cabecera
+ * y si las líneas llevan costo. Esa reactividad sale de `REASON_RULES` —la
+ * misma tabla que valida el API—, así que el formulario no puede pedir algo
+ * distinto de lo que el servidor exige.
  */
 export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const { t } = useTranslation();
   const { has } = usePermissions();
   const { data: document, isPending } = useDocument(documentId);
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
+  const [confirmado, setConfirmado] = useState(false);
 
   const confirmDocument = useConfirmDocument(documentId);
   const cancelDocument = useCancelDocument(documentId);
@@ -49,6 +61,15 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const conErrores = document.summary.errors > 0;
   const sinLineas = document.rows.length === 0;
 
+  // La cabecera se valida ANTES de mandar: descubrir que faltaba la nota por
+  // un 400 sería enterarse de un requisito que la pantalla nunca mostró.
+  const faltaCabecera =
+    document.reasonCode === null || headerErrors(document.reasonCode, document).size > 0;
+
+  const rules = document.reasonCode === null ? null : REASON_RULES[document.reasonCode];
+  const conCosto = rules?.requiresUnitCost ?? false;
+  const productosPorId = new Map(document.products.map((p) => [p.id, p]));
+
   return (
     <section className="flex flex-col gap-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -58,13 +79,13 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
             {t(`inventory.documentType.${document.type}`)} · {document.warehouse.name} ·{" "}
             {t(`inventory.status.${document.status}`)}
           </p>
-          {document.reasonCode !== null && (
+          {!editable && document.reasonCode !== null && (
             <p className="text-muted-foreground text-sm">
               {t(`inventory.reason.${document.reasonCode}`)}
               {document.reference !== null && ` · ${document.reference}`}
             </p>
           )}
-          {document.reasonNote !== null && (
+          {!editable && document.reasonNote !== null && (
             <p className="text-muted-foreground text-sm italic">{document.reasonNote}</p>
           )}
         </div>
@@ -83,7 +104,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
               <button
                 type="button"
                 onClick={() => setDialog("confirm")}
-                disabled={conErrores || sinLineas || confirmDocument.isPending}
+                disabled={conErrores || sinLineas || faltaCabecera || confirmDocument.isPending}
                 className="rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm font-medium disabled:opacity-50"
               >
                 {t("inventory.document.confirm")}
@@ -92,6 +113,23 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           )}
         </div>
       </header>
+
+      {confirmado && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-primary/10 px-4 py-3 text-sm"
+        >
+          <div className="flex flex-col">
+            <span className="font-medium">{t("inventory.document.confirmedTitle")}</span>
+            <span className="text-muted-foreground">
+              {t("inventory.document.confirmedBody", { folio: document.folio })}
+            </span>
+          </div>
+          <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+        </div>
+      )}
+
+      {editable && <DocumentHeaderForm document={document} />}
 
       {!editable && document.status !== "draft" && (
         <p className="rounded-md bg-muted px-3 py-2 text-muted-foreground text-sm">
@@ -105,6 +143,8 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         </p>
       )}
 
+      {editable && <AddLineForm documentId={documentId} />}
+
       {sinLineas ? (
         <p className="text-muted-foreground text-sm">{t("inventory.document.emptyLines")}</p>
       ) : (
@@ -112,14 +152,23 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           <thead>
             <tr className="border-b text-left text-muted-foreground">
               <th className="py-2 font-medium">#</th>
-              <th className="py-2 font-medium">{t("inventory.list.folio")}</th>
+              <th className="py-2 font-medium">{t("inventory.document.product")}</th>
+              <th className="py-2 font-medium">{t("inventory.document.presentation")}</th>
               <th className="py-2 font-medium">{t("inventory.document.quantity")}</th>
+              {conCosto && <th className="py-2 font-medium">{t("inventory.document.unitCost")}</th>}
               <th className="py-2 font-medium">{t("inventory.document.stockChange")}</th>
             </tr>
           </thead>
           <tbody>
             {document.rows.map((row) => (
-              <LineRow key={row.lineNo} documentId={documentId} row={row} editable={editable} />
+              <LineRow
+                key={row.lineNo}
+                documentId={documentId}
+                row={row}
+                product={productosPorId.get(row.productId)}
+                editable={editable}
+                conCosto={conCosto}
+              />
             ))}
           </tbody>
         </table>
@@ -138,7 +187,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           busy={confirmDocument.isPending}
           onCancel={() => setDialog(null)}
           onConfirm={() => {
-            confirmDocument.mutate(undefined, { onSettled: () => setDialog(null) });
+            confirmDocument.mutate(undefined, {
+              onSuccess: () => setConfirmado(true),
+              onSettled: () => setDialog(null),
+            });
           }}
         />
       )}
@@ -169,25 +221,45 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
 function LineRow({
   documentId,
   row,
+  product,
   editable,
+  conCosto,
 }: {
   documentId: string;
   row: DocumentRow;
+  product: DocumentProduct | undefined;
   editable: boolean;
+  conCosto: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(row.quantityInput ?? "");
+  const [unitCost, setUnitCost] = useState(row.unitCost ?? "");
   const primeraCarga = useRef(true);
+  const primeraCargaCosto = useRef(true);
+
+  const invalidar = () => {
+    // Recargar el documento es lo que refresca la PREVIA: el stock resultante
+    // lo calcula el servidor, no la pantalla.
+    void queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, documentId] });
+  };
 
   const guardar = useMutation({
     mutationFn: (value: number | null) =>
       updateDocumentLine(documentId, String(row.lineNo), { quantity: value }),
-    onSuccess: () => {
-      // Recargar el documento es lo que refresca la PREVIA: el stock resultante
-      // lo calcula el servidor, no la pantalla.
-      void queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, documentId] });
-    },
+    onSuccess: invalidar,
+  });
+
+  const guardarCosto = useMutation({
+    mutationFn: (value: number | null) =>
+      updateDocumentLine(documentId, String(row.lineNo), { unitCost: value }),
+    onSuccess: invalidar,
+  });
+
+  const guardarPresentacion = useMutation({
+    mutationFn: (presentationId: string | null) =>
+      updateDocumentLine(documentId, String(row.lineNo), { presentationId }),
+    onSuccess: invalidar,
   });
 
   useEffect(() => {
@@ -206,12 +278,57 @@ function LineRow({
     return () => clearTimeout(timer);
   }, [quantity, row.quantityInput, guardar.mutate]);
 
+  useEffect(() => {
+    if (primeraCargaCosto.current) {
+      primeraCargaCosto.current = false;
+      return;
+    }
+    if (unitCost === (row.unitCost ?? "")) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const parsed = unitCost.trim() === "" ? null : Number(unitCost);
+      guardarCosto.mutate(Number.isFinite(parsed) ? parsed : null);
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [unitCost, row.unitCost, guardarCosto.mutate]);
+
   const conError = row.errors.length > 0;
+  const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
 
   return (
     <tr className={`border-b last:border-0 ${conError ? "bg-destructive/5" : ""}`}>
       <td className="py-2">{row.lineNo}</td>
-      <td className="py-2">{row.sku}</td>
+      <td className="py-2">
+        <span className="font-mono">{row.sku}</span>
+        {product !== undefined && (
+          <span className="ml-2 text-muted-foreground">{product.name}</span>
+        )}
+      </td>
+      <td className="py-2">
+        {editable && product !== undefined ? (
+          <>
+            <label htmlFor={`line-${row.lineNo}-presentation`} className="sr-only">
+              {t("inventory.document.presentation")}
+            </label>
+            <select
+              id={`line-${row.lineNo}-presentation`}
+              value={row.presentationId ?? ""}
+              onChange={(event) => guardarPresentacion.mutate(event.target.value || null)}
+              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            >
+              <option value="">{t("inventory.document.presentationBase")}</option>
+              {product.presentations.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          (presentacion?.name ?? t("inventory.document.presentationBase"))
+        )}
+      </td>
       <td className="py-2">
         {editable ? (
           <>
@@ -235,7 +352,29 @@ function LineRow({
         ) : (
           (row.quantityInput ?? "—")
         )}
+        <Equivalencia row={row} product={product} locale={resolveUiLocale(i18n)} />
       </td>
+      {conCosto && (
+        <td className="py-2">
+          {editable ? (
+            <>
+              <label htmlFor={`line-${row.lineNo}-unit-cost`} className="sr-only">
+                {t("inventory.document.unitCost")}
+              </label>
+              <input
+                id={`line-${row.lineNo}-unit-cost`}
+                type="number"
+                step={MONEY_STEP}
+                value={unitCost}
+                onChange={(event) => setUnitCost(event.target.value)}
+                className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+              />
+            </>
+          ) : (
+            (row.unitCost ?? "—")
+          )}
+        </td>
+      )}
       <td className="py-2">
         {row.stockBefore} → {row.stockAfter}
         {row.newLot && (
@@ -250,5 +389,44 @@ function LineRow({
         </td>
       )}
     </tr>
+  );
+}
+
+/**
+ * "3 Caja = 36 unidades" — la traducción entre lo que la persona teclea y lo
+ * que el stock va a mover.
+ *
+ * Solo aparece con presentación elegida: sin ella la cantidad YA está en
+ * unidad base y repetirla sería ruido. El nombre en plural y minúscula lo
+ * decide la frase, no la unidad — mismo criterio que `presentations-tab.tsx`.
+ */
+function Equivalencia({
+  row,
+  product,
+  locale,
+}: {
+  row: DocumentRow;
+  product: DocumentProduct | undefined;
+  locale: Parameters<typeof unitName>[1];
+}) {
+  const { t } = useTranslation();
+
+  if (product === undefined || row.presentationId === null || row.quantityBase === null) {
+    return null;
+  }
+  const presentacion = product.presentations.find((p) => p.id === row.presentationId);
+  if (presentacion === undefined || row.quantityInput === null) {
+    return null;
+  }
+
+  return (
+    <span className="ml-2 block text-muted-foreground text-xs">
+      {t("inventory.document.equivalence", {
+        quantity: row.quantityInput,
+        presentation: presentacion.name,
+        base: row.quantityBase,
+        unit: unitName(product.baseUnit, locale, { plural: true }).toLowerCase(),
+      })}
+    </span>
   );
 }
