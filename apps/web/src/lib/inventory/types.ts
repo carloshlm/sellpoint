@@ -58,6 +58,12 @@ export interface DocumentRow {
   available: string;
   stockBefore: string;
   stockAfter: string;
+  /**
+   * El reparto FEFO que se APLICARÍA. Sale del mismo `allocateFefo` que usa el
+   * confirm, así que es de donde realmente va a salir la mercancía. `null` en
+   * entradas, en líneas con lote forzado y en productos sin lotes.
+   */
+  lotPlan: LotPlanTake[] | null;
   errors: DocumentRowError[];
 }
 
@@ -80,6 +86,14 @@ export interface DocumentPresentation {
  * pide por fila: un documento de 80 líneas haría 80 viajes desde el navegador
  * solo para pintar la equivalencia "3 Caja = 36 unidades".
  */
+/** De qué lote saldría una línea, y cuánto de cada uno (F3-EXIT-02). */
+export interface LotPlanTake {
+  lotCode: string;
+  expiresAt: string | null;
+  location: string;
+  quantity: string;
+}
+
 export interface DocumentProduct {
   id: string;
   sku: string;
@@ -87,6 +101,12 @@ export interface DocumentProduct {
   /** Código de unidad (`unit`, `g`, `ml`…), no su nombre: lo traduce `unitName`. */
   baseUnit: string;
   isComposite: boolean;
+  tracksLots: boolean;
+  /**
+   * Unidades ARMABLES de un compuesto, con los componentes DE ESTE ALMACÉN.
+   * `null` en los productos simples: su saldo ya lo dice.
+   */
+  availableUnits: number | null;
   presentations: DocumentPresentation[];
 }
 

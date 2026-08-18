@@ -12,6 +12,6 @@ import { ProductsService } from "./products.service";
   imports: [AuditModule],
   controllers: [ProductsController],
   providers: [ProductsService, PresentationsService, CompositionService, ImportService],
-  exports: [ProductsService],
+  exports: [ProductsService, CompositionService],
 })
 export class ProductsModule {}

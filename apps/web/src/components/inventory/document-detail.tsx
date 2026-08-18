@@ -8,6 +8,7 @@ import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { updateDocumentLine } from "@/lib/inventory/api";
 import { headerErrors } from "@/lib/inventory/entry-schema";
+import { formatCalendarDate } from "@/lib/inventory/format-date";
 import {
   DOCUMENTS_QUERY_KEY,
   useCancelDocument,
@@ -368,6 +369,8 @@ function LineRow({
         )}
         <Equivalencia row={row} product={product} locale={resolveUiLocale(i18n)} />
         {esSalida && <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />}
+        {esSalida && <RepartoFefo row={row} />}
+        {esSalida && product?.isComposite === true && <Compuesto product={product} />}
       </td>
       {conCosto && (
         <td className="py-2">
@@ -460,6 +463,64 @@ function Disponible({
         quantity: mostrado,
         presentation: presentacion.name,
       })}
+    </span>
+  );
+}
+
+/**
+ * De qué lote va a salir la mercancía.
+ *
+ * Sale del MISMO `allocateFefo` que usa el confirm, así que esto no es una
+ * estimación: es el reparto que se va a asentar. La CADUCIDAD se muestra
+ * porque es el dato por el que alguien querría forzar otro lote — sin ella,
+ * "saldrá de st10" no le dice nada a quien está mirando la caja.
+ */
+function RepartoFefo({ row }: { row: DocumentRow }) {
+  const { t, i18n } = useTranslation();
+
+  if (row.lotPlan === null || row.lotPlan.length === 0) {
+    return null;
+  }
+
+  // `formatCalendarDate` y no un `DateTimeFormat` a secas: una caducidad es
+  // una fecha de CALENDARIO, y el huso local la corría un día hacia atrás.
+  const fecha = (iso: string | null) =>
+    iso === null ? null : formatCalendarDate(iso, resolveUiLocale(i18n));
+
+  return (
+    <span className="mt-1 block text-muted-foreground text-xs">
+      {t("inventory.document.lotPlan")}:{" "}
+      {row.lotPlan.map((take, index) => {
+        const vence = fecha(take.expiresAt);
+        return (
+          <span key={`${take.lotCode}-${take.location}`}>
+            {index > 0 && " · "}
+            {t("inventory.document.lotPlanTake", {
+              quantity: take.quantity,
+              lotCode: take.lotCode,
+            })}
+            {vence !== null && ` (${t("inventory.document.lotExpires", { date: vence })})`}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * Un compuesto no tiene saldo propio: se arma al consumirlo. Lo que se
+ * descuenta son sus COMPONENTES, y el techo son las unidades armables con lo
+ * que hay EN ESTE almacén — no en todos, que es lo que diría la ficha del
+ * producto y sería mentira acá.
+ */
+function Compuesto({ product }: { product: DocumentProduct }) {
+  const { t } = useTranslation();
+
+  return (
+    <span className="mt-1 block text-muted-foreground text-xs">
+      {t("inventory.document.compositeHint")}
+      {product.availableUnits !== null &&
+        ` ${t("inventory.document.compositeCeiling", { units: product.availableUnits })}`}
     </span>
   );
 }

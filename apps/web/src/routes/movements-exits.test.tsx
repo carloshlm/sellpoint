@@ -90,6 +90,7 @@ const fila = (overrides: Partial<DocumentRow> = {}): DocumentRow => ({
   available: "10",
   stockBefore: "10",
   stockAfter: "7",
+  lotPlan: null,
   errors: [],
   ...overrides,
 });
@@ -117,6 +118,8 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
       name: "Paracetamol 500mg",
       baseUnit: "unit",
       isComposite: false,
+      tracksLots: false,
+      availableUnits: null,
       presentations: [CAJA],
     },
   ],
@@ -368,6 +371,125 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
         within(filas[1] as HTMLElement).getByText(/No hay suficiente existencia/i),
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /^confirmar$/i })).toBeDisabled();
+    });
+  });
+
+  /**
+   * F3-EXIT-02 — el reparto FEFO y el techo de un compuesto.
+   *
+   * El reparto sale del MISMO `allocateFefo` que usa el confirm: lo que se ve
+   * acá es de donde realmente va a salir la mercancía, no una estimación.
+   */
+  describe("de qué lote va a salir", () => {
+    it("dice el lote y su caducidad, por línea", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          reasonCode: "loss",
+          reasonNote: "rota",
+          rows: [
+            fila({
+              quantityInput: "1",
+              quantityBase: "1",
+              lotPlan: [{ lotCode: "st10", expiresAt: "2026-07-01", location: "", quantity: "1" }],
+            }),
+          ],
+          products: [
+            {
+              id: "p1",
+              sku: "PAR-500",
+              name: "Paracetamol 500mg",
+              baseUnit: "unit",
+              isComposite: false,
+              tracksLots: true,
+              availableUnits: null,
+              presentations: [],
+            },
+          ],
+        }),
+      );
+      await renderDoc();
+
+      const filaProducto = (await screen.findByText("PAR-500")).closest("tr") as HTMLElement;
+
+      expect(within(filaProducto).getByText(/st10/)).toBeInTheDocument();
+      expect(within(filaProducto).getByText(/01\/07\/2026/)).toBeInTheDocument();
+    });
+
+    /** Cuando el primero no alcanza, se ven los DOS de dónde sale. */
+    it("muestra el reparto entre varios lotes", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          reasonCode: "loss",
+          reasonNote: "rota",
+          rows: [
+            fila({
+              quantityInput: "5",
+              quantityBase: "5",
+              lotPlan: [
+                { lotCode: "st10", expiresAt: "2026-07-01", location: "", quantity: "2" },
+                { lotCode: "st30", expiresAt: "2026-09-30", location: "", quantity: "3" },
+              ],
+            }),
+          ],
+          products: [
+            {
+              id: "p1",
+              sku: "PAR-500",
+              name: "Paracetamol 500mg",
+              baseUnit: "unit",
+              isComposite: false,
+              tracksLots: true,
+              availableUnits: null,
+              presentations: [],
+            },
+          ],
+        }),
+      );
+      await renderDoc();
+
+      const filaProducto = (await screen.findByText("PAR-500")).closest("tr") as HTMLElement;
+
+      expect(within(filaProducto).getByText(/st10/)).toBeInTheDocument();
+      expect(within(filaProducto).getByText(/st30/)).toBeInTheDocument();
+    });
+
+    /** Un producto sin lotes no tiene reparto que mostrar. */
+    it("sin lotes no dice nada de lotes", async () => {
+      mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "loss", reasonNote: "rota" }));
+      await renderDoc();
+
+      await screen.findByText("PAR-500");
+      expect(screen.queryByText(/saldrá del lote/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("un producto compuesto", () => {
+    it("avisa que se descuentan sus componentes y cuántas unidades se pueden armar", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          reasonCode: "consumption",
+          reference: "cocina",
+          products: [
+            {
+              id: "p1",
+              sku: "PAR-500",
+              name: "Pan",
+              baseUnit: "unit",
+              isComposite: true,
+              tracksLots: false,
+              availableUnits: 3,
+              presentations: [],
+            },
+          ],
+        }),
+      );
+      await renderDoc();
+
+      const filaProducto = (await screen.findByText("PAR-500")).closest("tr") as HTMLElement;
+
+      expect(within(filaProducto).getByText(/se descontarán sus componentes/i)).toBeInTheDocument();
+      // El techo son las unidades ARMABLES con lo que hay EN ESTE almacén.
+      expect(within(filaProducto).getByText(/se pueden armar 3/i)).toBeInTheDocument();
     });
   });
 });

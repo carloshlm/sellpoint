@@ -110,7 +110,12 @@
     "referenceConsumptionPlaceholder": "Limpieza, producción, mantenimiento…",
     "availableBase": "Disponible: {{quantity}} {{unit}}",
     "availableWithPresentation": "Disponible: {{base}} {{unit}} = {{quantity}} {{presentation}}",
-    "goToTransfers": "Ver traspasos en tránsito"
+    "goToTransfers": "Ver traspasos en tránsito",
+    "lotPlan": "Saldrá del lote",
+    "lotPlanTake": "{{quantity}} de {{lotCode}}",
+    "lotExpires": "vence {{date}}",
+    "compositeHint": "Se descontarán sus componentes, no el compuesto en sí.",
+    "compositeCeiling": "Con lo que hay en este almacén se pueden armar {{units}}."
   },
   "document_not_found": "El movimiento no existe.",
   "document_not_draft": "Este movimiento ya no es un borrador: alguien lo confirmó o lo anuló. Actualiza la pantalla para ver cómo quedó.",

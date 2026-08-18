@@ -9,9 +9,11 @@ import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { CompositionService } from "../products/composition.service";
 import type { ListDocumentsQueryDto, UpdateDocumentDto } from "./dto/document.dto";
 import { nextFolio } from "./folio";
 import { resolveLines } from "./line-resolver";
+import { planLotsFefo } from "./lot-fefo";
 import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 export interface CreateDraftInput {
@@ -30,7 +32,10 @@ export interface CreateDraftInput {
  */
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly composition: CompositionService,
+  ) {}
 
   /**
    * Crea el encabezado vacío con su folio y lo devuelve para que la pantalla
@@ -314,6 +319,7 @@ export class DocumentsService {
                 name: true,
                 baseUnit: true,
                 isComposite: true,
+                tracksLots: true,
                 presentations: {
                   where: { isActive: true },
                   orderBy: { factor: "asc" },
@@ -332,6 +338,59 @@ export class DocumentsService {
       const saldoPorProducto = new Map(
         saldos.map((s) => [s.productId, new Prisma.Decimal(s.quantity.toString())]),
       );
+
+      // El reparto FEFO que se APLICARÍA, solo en salidas y solo para las líneas
+      // sin lote forzado. Sale del MISMO `allocateFefo` que usa el confirm: si
+      // fueran dos repartos podrían elegir lotes distintos y la previa mentiría
+      // justo en el dato por el que existe.
+      const planPorLinea = new Map<
+        number,
+        { lotCode: string; expiresAt: Date | null; location: string; quantity: string }[]
+      >();
+      if (direction === "exit") {
+        const conCantidad = document.lines
+          .map((line, index) => ({ line, index, res: resolved[index] }))
+          // Con lote FORZADO no hay reparto que mostrar: el usuario ya eligió.
+          .filter(
+            (item) =>
+              item.line.lotCode === null && item.res !== undefined && item.res.errors?.length === 0,
+          );
+
+        const planes = await planLotsFefo(
+          tx,
+          user.tenantId,
+          document.warehouseId,
+          conCantidad.map((item) => ({
+            lineIndex: item.index,
+            productId: item.line.productId,
+            quantityBase: item.res?.quantityBase ?? new Prisma.Decimal(0),
+          })),
+        );
+        for (const plan of planes) {
+          if (plan.takes.length > 0) {
+            planPorLinea.set(
+              plan.lineIndex,
+              plan.takes.map((take) => ({
+                lotCode: take.lotCode,
+                expiresAt: take.expiresAt,
+                location: take.location,
+                quantity: take.quantity.toString(),
+              })),
+            );
+          }
+        }
+      }
+
+      // Un compuesto no tiene saldo propio: se arma al consumirlo. Su techo son
+      // las unidades ARMABLES con los componentes DE ESTE ALMACÉN — sumar todos
+      // diría que se pueden armar 10 cuando están en otra bodega.
+      const unidadesArmables = new Map<string, number>();
+      for (const p of catalogo) {
+        if (p.isComposite) {
+          const { units } = await this.composition.availability(user, p.id, document.warehouseId);
+          unidadesArmables.set(p.id, units);
+        }
+      }
 
       const signo = direction === "entry" ? 1 : -1;
       // Acumulado por producto: dos líneas del mismo producto tienen que
@@ -374,6 +433,7 @@ export class DocumentsService {
           available: antes.toString(),
           stockBefore: antes.toString(),
           stockAfter: despues.toString(),
+          lotPlan: planPorLinea.get(index) ?? null,
           errors,
         };
       });
@@ -383,6 +443,7 @@ export class DocumentsService {
         rows,
         products: catalogo.map((p) => ({
           ...p,
+          availableUnits: unidadesArmables.get(p.id) ?? null,
           // `factor` sale como string decimal, igual que toda cantidad del
           // API: mandarlo como number lo redondearía en el JSON.
           presentations: p.presentations.map((pr) => ({

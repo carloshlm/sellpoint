@@ -144,7 +144,17 @@ export class CompositionService {
    * Con stock 0 devuelve 0: en Fase 2 no hay movimientos todavía, así que ese
    * es el resultado honesto — F3 lo llena.
    */
-  async availability(user: AuthUser, productId: string): Promise<AvailabilityResult> {
+  async availability(
+    user: AuthUser,
+    productId: string,
+    /**
+     * Acota el cálculo a UN almacén. Sin él suma todos, que es lo correcto
+     * para la ficha del producto ("cuántos puedo armar en total") pero MENTIRÍA
+     * como techo de una línea de movimiento: diría que se pueden armar 10
+     * cuando los componentes están en otra bodega (F3-EXIT-02).
+     */
+    warehouseId?: string,
+  ): Promise<AvailabilityResult> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.findProductOrFail(tx, user, productId);
 
@@ -154,6 +164,7 @@ export class CompositionService {
       const stock = await tx.stockByWarehouse.groupBy({
         by: ["productId"],
         _sum: { quantity: true },
+        ...(warehouseId !== undefined ? { where: { warehouseId } } : {}),
       });
       const stockByProduct = new Map(
         stock.map((row) => [row.productId, Number(row._sum.quantity ?? 0)]),

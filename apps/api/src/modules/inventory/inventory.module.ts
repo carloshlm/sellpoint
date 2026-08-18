@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { ProductsModule } from "../products/products.module";
 import { ConfirmService } from "./confirm.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
@@ -18,7 +19,7 @@ import { StockLedgerService } from "./stock-ledger.service";
  * la MISMA transacción que lo escribe (F3-CORE-07).
  */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, ProductsModule],
   controllers: [DocumentsController, LotsController],
   providers: [
     DocumentsService,
