@@ -1,0 +1,4 @@
+{
+  "document_not_found": "El movimiento no existe.",
+  "document_not_draft": "Este movimiento ya no es un borrador: alguien lo confirmó o lo anuló. Actualiza la pantalla para ver cómo quedó."
+}

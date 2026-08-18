@@ -1,0 +1,4 @@
+{
+  "document_not_found": "This movement doesn't exist.",
+  "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up."
+}
