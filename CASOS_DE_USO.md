@@ -72,8 +72,8 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | **Almacenes** |  |  |  |  |  |
 | CRUD de almacenes | ❌ | ✅ | ✅ | 👁 | 👁 |
 | **Movimientos** |  |  |  |  |  |
-| Entrada Directa (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
-| Salida Directa (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Entrada (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Salida (cualquier motivo) | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Confirmar recepción de traspaso | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Ver traspasos en tránsito | ❌ | ✅ | ✅ | 👁 | 👁 |
 | Inventario físico (plantilla + reconciliar) | ❌ | ✅ | ✅ | ❌ | ❌ |
@@ -341,7 +341,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   3. Click "Agregar presentación" → fila inline editable:
      - **Nombre** (ej: "Caja 1L", "Vaso 200ml", "Granel por gramo")
      - **Factor** (cuántas `base_unit` equivale — ej: 1000 para 1L si la base es ml)
-     - **Comprable** (toggle): aparece en Entrada Directa
+     - **Comprable** (toggle): aparece en Entrada
      - **Vendible** (toggle): aparece en POS
      - **Predeterminada para venta** (radio, una sola por producto)
      - **🔢 Solo enteros** (toggle): si está activo, esta presentación NO acepta cantidades decimales en compra/venta. Default automático:
@@ -460,11 +460,11 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ### 3.5 Movimientos de Inventario
 
-> **Modelo unificado:** existen **2 movimientos directos** (Entrada Directa, Salida Directa) cada uno con un campo **motivo** (`reason_code`) que diferencia el caso de uso. El traspaso entre almacenes es un **proceso de 2 pasos con confirmación** (CU-MOV-01 con motivo `transfer` en origen + CU-MOV-03 en destino). **Toda operación es un DOCUMENTO con folio y estado** (decisiones de Carlos, 2026-08-18): **tres series por tenant** — `ENT` Entrada Directa, `SAL` Salida Directa, `INV` Inventario físico. **Un traspaso es una `SAL` con motivo Traspaso y su recepción una `ENT` con el mismo motivo**: el motivo va dentro del documento, nunca en el folio. El documento **nace en borrador** al pulsar «Crear» desde el listado de su serie, se carga a mano o por Excel guardándose sola, y **se puede retomar por su folio** si se cierra el sistema (CU-MOV-08). Su detalle es la **vista previa**: muestra el stock resultante antes de escribir. Al **confirmar** nacen los movimientos y se mueve el stock; abandonarlo lo deja anulado con su folio.
+> **Modelo unificado:** existen **2 tipos de movimiento** (Entradas y Salidas) — se llamaban «Entrada/Salida Directa» hasta el 2026-08-18, cuando Carlos pidió quitarle el «Directa»: desde que un traspaso ES una salida con motivo, la palabra excluía justo lo que el concepto abarca — cada uno con un campo **motivo** (`reason_code`) que diferencia el caso de uso. El traspaso entre almacenes es un **proceso de 2 pasos con confirmación** (CU-MOV-01 con motivo `transfer` en origen + CU-MOV-03 en destino). **Toda operación es un DOCUMENTO con folio y estado** (decisiones de Carlos, 2026-08-18): **tres series por tenant** — `ENT` Entrada, `SAL` Salida, `INV` Inventario físico. **Un traspaso es una `SAL` con motivo Traspaso y su recepción una `ENT` con el mismo motivo**: el motivo va dentro del documento, nunca en el folio. El documento **nace en borrador** al pulsar «Crear» desde el listado de su serie, se carga a mano o por Excel guardándose sola, y **se puede retomar por su folio** si se cierra el sistema (CU-MOV-08). Su detalle es la **vista previa**: muestra el stock resultante antes de escribir. Al **confirmar** nacen los movimientos y se mueve el stock; abandonarlo lo deja anulado con su folio.
 
 #### Motivos soportados
 
-| Entrada Directa | Salida Directa |
+| Entrada | Salida |
 |---|---|
 | `invoice` — Factura/Compra (proveedor, costo) | `adjustment` — Ajuste/Merma/Daño |
 | `adjustment` — Ajuste por sobrante | `transfer` — Traspaso a otro almacén (pide destino) |
@@ -479,7 +479,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ---
 
-#### **CU-MOV-01 — Entrada Directa**
+#### **CU-MOV-01 — Registrar una entrada**
 
 - **Actor:** TenantAdmin / Manager
 - **Precondición:** El usuario tiene scope sobre el almacén destino. Si el motivo es `transfer`, debe existir un `Transfer` en estado `in_transit` con destino a ese almacén (ver CU-MOV-03 para el flujo de confirmación de traspaso, que es la forma recomendada).
@@ -509,7 +509,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ---
 
-#### **CU-MOV-02 — Salida Directa**
+#### **CU-MOV-02 — Registrar una salida**
 
 - **Actor:** TenantAdmin / Manager
 - **Precondición:** El usuario tiene scope sobre el almacén origen. Hay stock disponible.
@@ -543,7 +543,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Flujo principal:**
   1. Movimientos → "Traspasos en tránsito" → tab "Pendientes de recibir"
   2. Selecciona el traspaso a confirmar (muestra origen, fecha de salida, líneas con cantidades enviadas)
-  3. Click "Confirmar recepción" → se crea un **borrador de Entrada Directa** con motivo Traspaso (`ENT-000043`) **precargado con las líneas enviadas**, y se abre la misma pantalla que cualquier entrada
+  3. Click "Confirmar recepción" → se crea un **borrador de Entrada** con motivo Traspaso (`ENT-000043`) **precargado con las líneas enviadas**, y se abre la misma pantalla que cualquier entrada
   4. Usuario verifica cantidades. Puede:
      - Confirmar **iguales** (cantidad recibida = cantidad enviada)
      - Confirmar **con diferencia** (cantidad recibida < cantidad enviada — faltante por pérdida/robo en tránsito)
@@ -554,7 +554,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
      - Cambia `Transfer.status='completed'` con timestamp + usuario que confirmó
      - Audit log detallado de la discrepancia (importante para auditorías)
 - **Flujos alternativos:**
-  - 4a. Cantidad recibida > enviada → bloqueado. No tiene sentido operacional (¿de dónde salió el excedente?). El operador debe registrar el excedente como Entrada Directa con motivo `adjustment`.
+  - 4a. Cantidad recibida > enviada → bloqueado. No tiene sentido operacional (¿de dónde salió el excedente?). El operador debe registrar el excedente como Entrada con motivo `adjustment`.
   - 5a. Si NUNCA llega el traspaso (vehículo robado, accidente) → SuperAdmin/TenantAdmin puede cancelar el `Transfer` (estado `canceled`) con justificación; el stock NO retorna al origen automáticamente — queda como pérdida del origen hasta que se haga un ajuste explícito.
 - **Postcondición:** `Transfer.status='completed'`. Stock entra al destino con las cantidades realmente recibidas. Cualquier discrepancia auditada.
 
@@ -578,7 +578,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 - **Actor:** TenantAdmin / Manager
 - **Flujo principal:**
-  1. Movimientos → Inventario físico → "Nuevo conteo"
+  1. Movimientos → **Inventario**: listado con buscador por folio y estatus → botón **"Crear conteo"** → nace el borrador con su folio (`INV-000002`)
   2. Selecciona almacén y descarga la plantilla (`sku, nombre, unidad, lote, caducidad, ubicación, teórico, contado`) — solo productos activos y no compuestos; los productos con `tracks_lots` ocupan **una fila por (lote, ubicación)**, los demás una fila con las columnas de lote vacías
   3. *(Sin bloqueo del almacén — decisión F3, 2026-08-17: la aprobación relee el teórico con `FOR UPDATE`; lo que se movió entre reconciliar y aprobar queda como **drift auditado**.)*
   4. Sube la planilla contada: la clave de cada fila es `sku` (+ `lote` y `ubicación` si el producto controla lotes); un `lote` nuevo se **crea** al aprobar (exige `caducidad` si el producto la maneja); un lote en un producto sin `tracks_lots` es error de fila (decisión F3-LOTS, 2026-08-17: lote/caducidad/ubicación son dimensiones **genéricas** del stock, opt-in por producto)

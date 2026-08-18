@@ -208,7 +208,7 @@ flowchart LR
 
 ## 5. Movimientos de Inventario
 
-### 5.1 Entrada Directa (transacción atómica, cualquier motivo)
+### 5.1 Entradas (transacción atómica, cualquier motivo)
 
 ```mermaid
 sequenceDiagram
@@ -289,7 +289,7 @@ sequenceDiagram
 
 > **Por qué el folio se toma al crear el borrador y no al confirmar:** es lo que permite retomar un movimiento a medio cargar buscándolo por su número. Y sale más barato: el lock de `tenant_sequences` se toma en una transacción corta propia y se suelta enseguida, en vez de sostenerse durante todo el posteo. La serie igual no pierde números — un borrador abandonado queda `canceled` con su folio. **F4 hereda el patrón**: el POS puede tomar folio al abrir el carrito.
 
-### 5.2 Salida Directa (transacción atómica, cualquier motivo)
+### 5.2 Salidas (transacción atómica, cualquier motivo)
 
 ```mermaid
 sequenceDiagram
@@ -351,7 +351,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Start([Origen: Manager crea<br/>Salida Directa motivo=transfer]) --> A1[Selecciona almacén origen<br/>y almacén destino]
+    Start([Origen: Manager crea<br/>Salida motivo=transfer]) --> A1[Selecciona almacén origen<br/>y almacén destino]
     A1 --> A2[Agrega productos y cantidades]
     A2 --> A3{Stock suficiente<br/>en origen?}
     A3 -->|No| A4[Bloquea confirmación<br/>con detalle del faltante]
@@ -367,7 +367,7 @@ flowchart TD
     B4 --> B5{Cantidad recibida<br/>vs enviada?}
     B5 -->|Iguales| B6[Confirma 'sin diferencia']
     B5 -->|Menor| B7[Pide nota explicativa<br/>obligatoria sobre el faltante]
-    B5 -->|Mayor| B8[❌ BLOQUEADO<br/>'Registrar excedente como<br/>Entrada Directa motivo ajuste']
+    B5 -->|Mayor| B8[❌ BLOQUEADO<br/>'Registrar excedente como<br/>Entrada motivo ajuste']
     B8 --> B4
     B7 --> B6
     B6 --> B9[TX: suma stock destino con cantidades RECIBIDAS<br/>INSERT stock_movement direction=entry reason=transfer<br/>UPDATE transfers status=completed<br/>received_by, received_at<br/>discrepancies si hubo faltante]

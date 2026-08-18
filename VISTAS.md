@@ -24,8 +24,8 @@
    - 6.4 Importar desde Excel
 7. [Almacenes](#7-almacenes)
 8. [Movimientos](#8-movimientos)
-   - 8.1 Entrada Directa
-   - 8.2 Salida Directa
+   - 8.1 Entrada
+   - 8.2 Salida
    - 8.3 Traspasos en Tránsito
    - 8.4 Inventario Físico
    - 8.5 Histórico de Movimientos / Kardex
@@ -647,7 +647,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 >
 > **Evolución (documentos con borrador, 2026-08-18).** Cada serie tiene ahora **su propio menú y su propio listado** — Entradas, Salidas, Inventario — con buscador por folio, filtro de estatus y botón de crear (§ 8.6, un mismo componente montado tres veces). Ese botón **crea el borrador con su folio** y abre la pantalla del documento (§ 8.7), que es una sola: en `draft` es captura con **autoguardado** y panel de previa en vivo (stock actual → resultante), y en `confirmed` es solo lectura. Un movimiento a medio cargar **se retoma buscando su folio**, incluso desde otra máquina u otro usuario. **Tres series y nada más**: `ENT`, `SAL`, `INV` — un traspaso es una `SAL` con motivo Traspaso y su recepción una `ENT` con el mismo motivo, porque el motivo no cambia el tipo de papel.
 
-### 8.1 Entrada Directa
+### 8.1 Entradas
 
 **Ruta:** `/movements/entries/new` · **Permiso:** `inventory:movement`
 
@@ -655,7 +655,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Movimientos > Nueva Entrada Directa                           │
+│  Movimientos > Nueva Entrada                           │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
 │  ─── Cabecera ─────────────────────────────────────            │
@@ -755,13 +755,13 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 - **Confirmar** dispara la transacción atómica; el folio ya lo tenía desde que nació el borrador
 - **Anular** deja el documento `canceled` con su folio (la serie no pierde números)
 
-**Casos de uso relacionados:** [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--entrada-directa).
+**Casos de uso relacionados:** [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--registrar-una-entrada).
 
 **Selector de presentación al agregar línea:** cuando el usuario escanea o busca un producto, si tiene varias **presentaciones comprables**, aparece un selector inline (ej: "Caja 1L" / "Caja 2L" / "Granel"). El sistema convierte automáticamente la cantidad ingresada a la `base_unit` del producto al persistir el movimiento.
 
 ---
 
-### 8.2 Salida Directa
+### 8.2 Salidas
 
 **Ruta:** `/movements/exits/new` · **Permiso:** `inventory:movement`
 
@@ -769,7 +769,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Movimientos > Nueva Salida Directa                            │
+│  Movimientos > Nueva Salida                            │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
 │   Almacén origen *                                             │
@@ -823,9 +823,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 - El panel de previa suma el **Disponible** por línea y, en productos con lote, **de qué lote saldría por FEFO** ("saldrá 1 del lote st10, vence 01/07/2026")
 - El folio es `SAL-000019` **también cuando el motivo es Traspaso**: un traspaso no tiene serie propia, y la nota de envío es el PDF de esa salida
 
-**Casos de uso relacionados:** [CU-MOV-02](CASOS_DE_USO.md#cu-mov-02--salida-directa).
+**Casos de uso relacionados:** [CU-MOV-02](CASOS_DE_USO.md#cu-mov-02--registrar-una-salida).
 
-**Selector de presentación y productos compuestos:** análogo a Entrada Directa. Si el motivo es `consumption` o `expired` y el producto es compuesto, se descuentan los componentes en transacción atómica (no el compuesto en sí).
+**Selector de presentación y productos compuestos:** análogo a Entrada. Si el motivo es `consumption` o `expired` y el producto es compuesto, se descuentan los componentes en transacción atómica (no el compuesto en sí).
 
 ---
 
@@ -884,7 +884,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   (Faltó 1 caja, posible robo en tránsito___________)         │
 │                                                                │
 │   ❌ Cantidad recibida > enviada → bloqueado.                 │
-│      Si te llegó excedente, registralo como Entrada Directa   │
+│      Si te llegó excedente, registralo como Entrada   │
 │      con motivo Ajuste.                                        │
 │                                                                │
 │                  [Cancelar]  [Confirmar recepción]             │
@@ -1030,7 +1030,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  ENT-000042   ✓ Confirmado          [ Descargar PDF ]          │
-│  Entrada Directa · Almacén Central · 18/08/2026 19:42          │
+│  Entrada · Almacén Central · 18/08/2026 19:42          │
 │  Motivo: Factura de compra · Ref: F-88213 · Registró: A. Ruiz  │
 ├────────────────────────────────────────────────────────────────┤
 │  #  SKU      Producto      Present.   Cantidad   Costo         │
@@ -1046,7 +1046,7 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 ```
 ┌──────────────────────────────────────────────┐
 │ DISTRIBUIDORA DEL NORTE S.A. DE C.V.         │
-│ RFC: DNO010203AB4        ENTRADA DIRECTA     │
+│ RFC: DNO010203AB4        ENTRADA     │
 │                          Folio: ENT-000042   │
 ├──────────────────────────────────────────────┤
 │ Almacén: Central      Fecha: 18/08/2026 19:42│
@@ -1132,7 +1132,7 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 
 **Productos compuestos:**
 - Se ven y suman al carrito como cualquier producto.
-- Internamente, al COBRAR, el sistema **expande la composición** y descuenta los componentes en transacción atómica (ver [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--entrada-directa)).
+- Internamente, al COBRAR, el sistema **expande la composición** y descuenta los componentes en transacción atómica (ver [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--registrar-una-entrada)).
 - Si algún componente no tiene stock suficiente en el almacén del POS → la venta falla con mensaje claro indicando qué componente falta y cuántas unidades son posibles con el stock actual.
 - El stock visible del compuesto en el POS es el **calculado en vivo**: `min(stock_componente_i / qty_i)`.
 
