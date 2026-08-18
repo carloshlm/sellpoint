@@ -15,6 +15,40 @@ set -euo pipefail
 NEW_TAG="$1"
 cd /opt/sellpoint
 
+# Una semana de imágenes. Es lo que necesita el rollback: `rollback_and_exit`
+# hace `up -d` SIN pull, o sea que cuenta con que la imagen previa siga local.
+IMAGE_RETENTION="168h"
+# Lo que ocupan las 3 imágenes de un deploy, con holgura.
+MIN_FREE_MB=3000
+
+# ── Higiene de disco: ANTES de necesitar espacio, no después ─────────────
+#
+# Incidente 2026-08-18: el disco llegó a 100% con 380 imágenes (37 GB) y el
+# deploy murió en el PRIMER `sed` del .env — o sea antes de poder llegar a la
+# limpieza, que vivía al final del script. Un cleanup que necesita disco sano
+# para correr no sirve justo cuando hace falta. Por eso ahora va acá arriba.
+#
+# `-a` y no `prune` pelado: TODAS las imágenes de este server están
+# etiquetadas con su SHA, así que NINGUNA es "dangling" y el prune sin `-a`
+# borraba 0 bytes. Corrió en cada deploy exitoso durante meses sin liberar
+# nada — el log del run 32183405990 lo dice literal: "Total reclaimed space: 0B".
+#
+# Sin `|| true` un fallo de la limpieza abortaría un deploy que probablemente
+# habría funcionado igual: es higiene, no un requisito.
+echo "Limpiando imágenes de más de ${IMAGE_RETENTION} (las en uso se conservan solas)..."
+docker image prune -af --filter "until=${IMAGE_RETENTION}" || true
+
+# Guarda de disco. Si aun así queda poco, es mejor abortar acá —con un mensaje
+# que dice qué pasa y dónde mirar— que a mitad del deploy con un críptico
+# "sed: couldn't flush <unknown>: No space left on device".
+DISK_FREE_MB="$(df -Pm /opt/sellpoint | awk 'NR==2 {print $4}')"
+if [ "${DISK_FREE_MB}" -lt "${MIN_FREE_MB}" ]; then
+  echo "ABORTA: quedan ${DISK_FREE_MB} MB libres y el deploy necesita al menos ${MIN_FREE_MB} MB."
+  echo "Nada fue modificado. Revisá 'docker system df' y 'du -sh /var/lib/docker/*' en el server."
+  exit 1
+fi
+echo "Disco OK: ${DISK_FREE_MB} MB libres."
+
 PREV_TAG="$(grep '^IMAGE_TAG=' .env | cut -d= -f2)"
 echo "Tag previo: ${PREV_TAG} -> Tag nuevo: ${NEW_TAG}"
 
@@ -128,8 +162,11 @@ for i in $(seq 1 30); do
 done
 
 if [ "${SMOKE_OK}" -eq 1 ]; then
-  echo "Smoke OK. Limpiando imagenes viejas."
-  docker image prune -f
+  # La limpieza NO va acá: corre al principio del script. Ponerla al final
+  # ataba la higiene al éxito del deploy, así que cada fallo dejaba basura y
+  # apretaba el trinquete — y encima no podía correr con el disco lleno, que
+  # es exactamente cuando hacía falta.
+  echo "Smoke OK. Deploy completo en ${NEW_TAG}."
 else
   echo "Smoke FALLÓ."
   rollback_and_exit
