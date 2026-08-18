@@ -1,6 +1,10 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { DocumentImportService } from "./document-import.service";
+import { DocumentLinesService } from "./document-lines.service";
+import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
+import { StockLedgerService } from "./stock-ledger.service";
 
 /**
  * F3-CORE-02 — el módulo de la Fase 3.
@@ -11,7 +15,8 @@ import { DocumentsService } from "./documents.service";
  */
 @Module({
   imports: [AuditModule],
-  providers: [DocumentsService],
-  exports: [DocumentsService],
+  controllers: [DocumentsController],
+  providers: [DocumentsService, DocumentLinesService, DocumentImportService, StockLedgerService],
+  exports: [DocumentsService, DocumentLinesService, DocumentImportService, StockLedgerService],
 })
 export class InventoryModule {}

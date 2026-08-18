@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
 import { getUnit, type Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import {
+  parseSpreadsheet,
+  type SpreadsheetFormat,
+  serializeSpreadsheet,
+} from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -10,7 +15,6 @@ import { type FieldDefinition, validateRecordAttributes } from "../catalogs/vali
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
 import { basePresentationName, derivesFractionalInput } from "./products.service";
-import { parseSpreadsheet, type SpreadsheetFormat, serializeSpreadsheet } from "./spreadsheet";
 
 /** 5 MB de contenido REAL (ya decodificado, no en base64). */
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;

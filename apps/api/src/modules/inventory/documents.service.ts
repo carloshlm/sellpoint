@@ -2,8 +2,10 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { FOLIO_PREFIXES, type InventoryDocumentType } from "@sellpoint/shared";
 import type { InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "./folio";
+import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 export interface CreateDraftInput {
   type: InventoryDocumentType;
@@ -39,8 +41,19 @@ export class DocumentsService {
    * Es también lo que permite retomar un movimiento por su folio: el número
    * existe desde el primer momento, no desde que se confirma.
    */
-  async createDraft(user: AuthUser, input: CreateDraftInput): Promise<InventoryDocument> {
+  async createDraft(
+    user: AuthUser,
+    input: CreateDraftInput,
+    scope?: UserScope,
+  ): Promise<InventoryDocument> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      if (scope !== undefined) {
+        assertWarehouseInScope(scope, input.warehouseId);
+      }
+      // Un borrador contra un almacén desactivado no se podría confirmar
+      // nunca: mejor frenarlo antes de que alguien cargue 80 líneas.
+      await assertActiveWarehouse(tx, user.tenantId, input.warehouseId);
+
       const folio = await nextFolio(tx, user.tenantId, input.type, FOLIO_PREFIXES[input.type]);
 
       return tx.inventoryDocument.create({
@@ -113,6 +126,23 @@ export class DocumentsService {
           cancelReason: reason ?? null,
         },
       });
+    });
+  }
+
+  /**
+   * El detalle con sus líneas. En F3-DOC-06 crece hasta ser la VISTA PREVIA
+   * (con stock actual y resultante); por ahora devuelve lo capturado.
+   */
+  async detail(user: AuthUser, documentId: string) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const document = await tx.inventoryDocument.findFirst({
+        where: { id: documentId, tenantId: user.tenantId },
+        include: { lines: { orderBy: { lineNo: "asc" } } },
+      });
+      if (document === null) {
+        throw new NotFoundException({ message: "inventory.document_not_found" });
+      }
+      return document;
     });
   }
 
