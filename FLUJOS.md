@@ -218,7 +218,11 @@ sequenceDiagram
     participant API as API
     participant DB as PostgreSQL
 
-    M->>F: Va a Movimientos → Nueva Entrada Directa
+    M->>F: Movimientos → Entradas → "Crear entrada"
+    F->>API: POST /inventory/documents { type: 'entry' }
+    Note over API,DB: TX CORTA: nextFolio('entry') + INSERT documento<br/>en estado DRAFT. El lock de la serie dura ms,<br/>no todo el posteo
+    API-->>F: 201 { id, folio: 'ENT-000042', status: 'draft' }
+    F-->>M: Abre el borrador ENT-000042
     F->>API: GET /warehouses
     API-->>F: lista de almacenes (filtrada por scope)
     M->>F: Selecciona almacén destino
@@ -231,45 +235,42 @@ sequenceDiagram
         M->>F: Completa nota explicativa<br/>(+ autoriza, opcional)
     end
 
-    alt Carga a mano
-        M->>F: Escanea código + ingresa cantidad
-        F->>API: GET /products?barcode=XXX
-        API-->>F: producto encontrado
-        F->>F: Agrega línea a la tabla
-        Note over M,F: Repite para N productos
-    else Carga por Excel
-        M->>F: Descarga la plantilla y sube el archivo
-        F->>F: Lee el archivo (base64 si es xlsx)
+    loop mientras carga
+        alt A mano
+            M->>F: Escanea código + ingresa cantidad
+            F->>API: POST /inventory/documents/:id/lines
+        else Por Excel
+            M->>F: Sube el archivo con la plantilla
+            F->>API: POST /inventory/documents/:id/lines/import
+        end
+        API->>DB: INSERT inventory_document_lines
+        F->>API: GET /inventory/documents/:id
+        Note over API,DB: EL BORRADOR ES LA PREVIA: resuelve y valida<br/>contra el saldo actual, SIN escribir nada
+        API-->>F: { rows: [{ …, stockBefore, stockAfter, newLot }],<br/>summary, errors[] }
+        F-->>M: Previa en vivo · indicador "Guardado"
     end
 
-    M->>F: Click "Ver vista previa"
-    F->>API: POST /inventory/entries/preview<br/>{ warehouse, reason_code, lines[] O file+format }
-    Note over API,DB: SOLO LECTURA: mismas validaciones que el commit,<br/>pero no escribe nada y NO consume folio
-    API->>DB: SELECT productos, presentaciones, lotes y saldos
-    API-->>F: { rows: [{ …, stockBefore, stockAfter, newLot }],<br/>summary, errors[] }
-    F-->>M: Tabla de previa: stock actual → resultante por línea,<br/>errores marcados sobre su fila
-
-    alt Hay errores
-        M->>F: "Volver a editar" (las líneas se conservan)
+    opt Se cierra el sistema
+        M->>F: Vuelve más tarde (o entra otro usuario)
+        F->>API: GET /inventory/documents?type=entry&folio=ENT-000042
+        API-->>F: el borrador con sus 41 líneas
+        F-->>M: Continúa donde quedó
     end
 
     M->>F: Click "Confirmar entrada"
-    F->>API: POST /inventory/entries<br/>{ warehouse, reason_code, reason_note,<br/>linked_warehouse_id?, transfer_id?, lines[] }
+    F->>API: POST /inventory/documents/:id/confirm
 
     API->>DB: BEGIN TRANSACTION
-
-    API->>DB: nextFolio('entry') → INSERT … ON CONFLICT DO UPDATE<br/>RETURNING next_value  (toma el lock de la serie)
-    API->>DB: INSERT inventory_document<br/>(folio 'ENT-000042', type, warehouse, reason_code,<br/>reference, authorized_by, line_count)
-    Note over API,DB: El folio se toma ACÁ, dentro de la tx:<br/>si algo falla el número vuelve y no queda hueco
+    API->>DB: UPDATE inventory_documents SET status='confirmed'<br/>WHERE id = ? AND status = 'draft'
+    Note over API,DB: rowCount = 1 o 409: dos confirmaciones<br/>simultáneas no duplican el saldo
 
     loop por cada línea
         API->>DB: SELECT product (lock for update)
-        API->>DB: INSERT stock_movement<br/>(document_id, direction='entry', reason_code,<br/>reason_note, linked_warehouse_id, transfer_id)
+        API->>DB: INSERT stock_movement<br/>(document_id, direction='entry', reason_code)
         API->>DB: UPDATE stock_by_warehouse<br/>SET quantity += línea.quantity
     end
 
     opt reason_code = 'transfer' y hay transfer_id
-        API->>DB: nextFolio('transfer_receipt') → INSERT inventory_document<br/>('REC-000007', ligado al mismo transfer_id que el TRA)
         API->>DB: UPDATE transfers<br/>SET status='completed', received_at=NOW()
     end
 
@@ -281,12 +282,12 @@ sequenceDiagram
         API-->>F: 500 Internal Error
         F-->>M: "Error, volvé a intentar"
     else Éxito
-        API-->>F: 201 { document: { id, folio, type }, movements, stock }
-        F-->>M: "Entrada registrada — folio ENT-000042"<br/>[Descargar PDF] [Ver documento]
+        API-->>F: 201 { document: { id, folio, status: 'confirmed' }, movements, stock }
+        F-->>M: La misma pantalla pasa a solo lectura<br/>[Descargar PDF]
     end
 ```
 
-> **Por qué el folio se toma dentro de la transacción y no antes:** la serie no tiene huecos porque un `ROLLBACK` deshace también el `UPDATE` de `tenant_sequences`. El precio es que el lock de esa fila serializa las operaciones del mismo tipo del mismo tenant mientras dura la tx — barato en inventario, **a medir antes de reusarlo para el folio de ventas del POS en F4**.
+> **Por qué el folio se toma al crear el borrador y no al confirmar:** es lo que permite retomar un movimiento a medio cargar buscándolo por su número. Y sale más barato: el lock de `tenant_sequences` se toma en una transacción corta propia y se suelta enseguida, en vez de sostenerse durante todo el posteo. La serie igual no pierde números — un borrador abandonado queda `canceled` con su folio. **F4 hereda el patrón**: el POS puede tomar folio al abrir el carrito.
 
 ### 5.2 Salida Directa (transacción atómica, cualquier motivo)
 
@@ -298,7 +299,9 @@ sequenceDiagram
     participant API as API
     participant DB as PostgreSQL
 
-    M->>F: Va a Movimientos → Nueva Salida Directa
+    M->>F: Movimientos → Salidas → "Crear salida"
+    F->>API: POST /inventory/documents { type: 'exit' }
+    API-->>F: 201 { folio: 'SAL-000019', status: 'draft' }
     M->>F: Selecciona almacén origen
     M->>F: Elige motivo (adjustment, transfer, loss, consumption, expired)
 
@@ -308,19 +311,17 @@ sequenceDiagram
         M->>F: Completa autorizador + nota explicativa
     end
 
-    M->>F: Agrega productos y cantidades<br/>(a mano o subiendo un Excel)
-
-    M->>F: Click "Ver vista previa"
-    F->>API: POST /inventory/exits/preview
-    Note over API,DB: SOLO LECTURA: no escribe ni consume folio
+    M->>F: Agrega productos y cantidades<br/>(a mano o subiendo un Excel; se guarda solo)
+    F->>API: GET /inventory/documents/:id
+    Note over API,DB: EL BORRADOR ES LA PREVIA: no escribe nada
     API-->>F: { rows: [{ …, available, stockBefore, stockAfter,<br/>fefoPlan: [{ lotCode, expiresAt, quantity }] }], errors[] }
     F-->>M: Previa: disponible, stock resultante y<br/>de qué lote saldría por FEFO
 
     M->>F: Click "Confirmar salida"
-    F->>API: POST /inventory/exits<br/>{ warehouse, reason_code, reason_note,<br/>linked_warehouse_id?, lines[] }
+    F->>API: POST /inventory/documents/:id/confirm
 
     API->>DB: BEGIN TRANSACTION
-    API->>DB: nextFolio → INSERT inventory_document<br/>('SAL-000018', o 'TRA-000007' si es traspaso)
+    Note over API,DB: El folio ya lo tenía el borrador.<br/>Si el motivo es Traspaso sigue siendo un SAL-…:<br/>un traspaso no tiene serie propia
     API->>DB: SELECT stock_by_warehouse FOR UPDATE
     API->>API: Valida stock suficiente por línea<br/>(producto con lotes sin lot_id → reparte FEFO<br/>por expires_at ASC en la misma tx)
 

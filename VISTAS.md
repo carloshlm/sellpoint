@@ -645,7 +645,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 > **Evolución (atomización F3, 2026-08-17).** Los mockups de esta sección quedan alineados con el tablero de F3: **sin campo `Fecha`** en entradas y salidas (no hay backdating — `created_at` es el momento real, el kardex es cronología real); **sin `Producción interna`** (los compuestos nunca tienen stock persistido); "Merma / Daño" va bajo `adjustment` (o `loss` si es pérdida) — el enum no tiene `waste`; el motivo `transfer` **no aparece en el form de entrada** (la recepción se hace desde "Traspasos en tránsito"); en Inventario físico **no hay checkbox de bloqueo** y la plantilla es **una sola**: `sku, nombre, unidad, lote, caducidad, ubicación, teórico, contado` — los productos que controlan lotes (`tracks_lots`) ocupan una fila por (lote, ubicación), los demás una fila con esas columnas vacías (F3-LOTS, mismo día: lote/caducidad/ubicación son dimensiones genéricas del stock, opt-in por producto; la salida y el POS aplican **FEFO**); **aprobar** el conteo y **cancelar** un traspaso exigen `inventory:manage` (solo TenantAdmin). El detalle de producto gana dos tabs: **Kardex** y **Stock por almacén** (con total, bajo mínimo y en tránsito).
 >
-> **Evolución (folios, vista previa y PDF, 2026-08-18).** Entradas y salidas pasan a **dos pasos**: capturar (a mano **o subiendo un Excel** con plantilla descargable) → **vista previa** con el stock actual y el resultante por línea → confirmar. El botón principal del paso 1 deja de ser "Confirmar" y pasa a ser **"Ver vista previa"**. Toda operación confirmada crea un **documento con folio** (`ENT`, `SAL`, `TRA`, `REC`, `INV` — una serie por tipo y por tenant) que se muestra en el panel de éxito con un botón de **Descargar PDF**, aparece como link en cada fila del kardex y se puede buscar después en la sección nueva **§ 8.6 Documentos de inventario**. El folio se asigna **al confirmar**: mirar la previa no consume número.
+> **Evolución (documentos con borrador, 2026-08-18).** Cada serie tiene ahora **su propio menú y su propio listado** — Entradas, Salidas, Inventario — con buscador por folio, filtro de estatus y botón de crear (§ 8.6, un mismo componente montado tres veces). Ese botón **crea el borrador con su folio** y abre la pantalla del documento (§ 8.7), que es una sola: en `draft` es captura con **autoguardado** y panel de previa en vivo (stock actual → resultante), y en `confirmed` es solo lectura. Un movimiento a medio cargar **se retoma buscando su folio**, incluso desde otra máquina u otro usuario. **Tres series y nada más**: `ENT`, `SAL`, `INV` — un traspaso es una `SAL` con motivo Traspaso y su recepción una `ENT` con el mismo motivo, porque el motivo no cambia el tipo de papel.
 
 ### 8.1 Entrada Directa
 
@@ -703,7 +703,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │                                                                │
 │                                       Total: $950.00           │
 │                                                                │
-│                          [Cancelar]  [Ver vista previa →]      │
+│   💾 Guardado · ENT-000042 · Borrador                          │
+│                          [Anular]        [Confirmar entrada]   │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -717,11 +718,11 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   📎 [ Elegir archivo ]  entrada-agosto.xlsx                   │
 ```
 
-**Paso 2 — Vista previa (antes de tocar el stock):**
+**Panel de previa (siempre visible, se actualiza al editar):**
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Vista previa — Entrada Directa · Almacén Central              │
+│  Previa — ENT-000042 · Borrador · Almacén Central              │
 │  Motivo: Factura de compra · Ref: F-88213                      │
 ├────────────────────────────────────────────────────────────────┤
 │  12 líneas · 12 productos · 1 lote nuevo · 1 error             │
@@ -732,16 +733,16 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │  3 XXX-999  —                          10     —                │
 │    ⚠ Fila 3: no existe un producto con ese código             │
 │                                                                │
-│           [← Volver a editar]   [Confirmar entrada]            │
-│                                  (bloqueado: hay 1 error)      │
+│                            [Confirmar entrada]                 │
+│                             (bloqueado: hay 1 error)           │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Paso 3 — Éxito:**
+**Al confirmar,** la misma pantalla pasa a solo lectura:
 
 ```
-│  ✅ Entrada registrada — folio ENT-000042                      │
-│     [ Descargar PDF ]  [ Ver documento ]  [ Nueva entrada ]    │
+│  ENT-000042 · Confirmado · 18/08/2026 19:42                    │
+│     [ Descargar PDF ]              [ Volver a Entradas ]       │
 ```
 
 **Acciones:**
@@ -750,7 +751,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 - Descargar la plantilla y subir un archivo (reemplaza o suma líneas a la tabla)
 - Editar cantidad (y costo unitario si motivo=Factura) en cada línea
 - Eliminar línea
-- **Ver vista previa** (no escribe nada, no consume folio) → revisar el stock resultante → **Confirmar** (dispara la transacción atómica y toma el folio)
+- Todo se **guarda solo** con debounce; el indicador dice "Guardado". Se puede cerrar el sistema y volver por el folio (§ 8.6)
+- **Confirmar** dispara la transacción atómica; el folio ya lo tenía desde que nació el borrador
+- **Anular** deja el documento `canceled` con su folio (la serie no pierde números)
 
 **Casos de uso relacionados:** [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--entrada-directa).
 
@@ -808,7 +811,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   └──────────────────────────────────────────────────────┘    │
 │   ⚠ Validación en vivo: bloquea cantidad > stock disponible   │
 │                                                                │
-│                          [Cancelar]  [Ver vista previa →]      │
+│   💾 Guardado · SAL-000019 · Borrador                          │
+│                          [Anular]        [Confirmar salida]    │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -816,8 +820,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 - Cambiar motivo dispara campos contextuales
 - Validación en vivo de stock disponible (no permite confirmar si excede)
 - Descargar plantilla (`sku, presentacion, cantidad, lote, ubicacion` — sin costo: una salida no tiene precio de compra) y subir un Excel
-- **Ver vista previa**: además del stock resultante, cada línea muestra el **Disponible** y, en productos con lote, **de qué lote saldría por FEFO** ("saldrá 1 del lote st10, vence 01/07/2026") — todo antes de escribir
-- Al confirmar, el folio: `SAL-000018` en una salida directa, `TRA-000007` si es traspaso; el panel de éxito ofrece **Descargar PDF** (la nota de envío del traspaso es ese mismo PDF)
+- El panel de previa suma el **Disponible** por línea y, en productos con lote, **de qué lote saldría por FEFO** ("saldrá 1 del lote st10, vence 01/07/2026")
+- El folio es `SAL-000019` **también cuando el motivo es Traspaso**: un traspaso no tiene serie propia, y la nota de envío es el PDF de esa salida
 
 **Casos de uso relacionados:** [CU-MOV-02](CASOS_DE_USO.md#cu-mov-02--salida-directa).
 
@@ -861,7 +865,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Confirmar recepción — TRA-0124                                │
+│  Confirmar recepción — traspaso de SAL-000124                  │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
 │   Origen: Bodega Norte → Destino: Central                      │
@@ -986,30 +990,56 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ---
 
-### 8.6 Documentos de inventario
+### 8.6 Listados por serie (Entradas · Salidas · Inventario)
 
-**Ruta:** `/movements/documents` · **Permiso:** `inventory:read`
+**Rutas:** `/movements/entries` · `/movements/exits` · `/movements/counts` — **el mismo componente montado tres veces**, parametrizado por tipo · **Permiso:** `inventory:read` (crear exige `inventory:movement`)
 
-> Toda operación que tocó stock dejó un documento con folio. Acá se buscan y se reimprimen. **No se editan ni se borran**: son append-only — corregir es registrar otro movimiento.
+> Es la puerta de entrada de cada serie: acá se busca por folio, se ve el estatus y se crea. **El botón de crear es el que genera el folio y el borrador.**
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│  Movimientos > Documentos                                      │
+│  Movimientos > Entradas                    [ + Crear entrada ] │
 ├────────────────────────────────────────────────────────────────┤
 │  🔍 [ folio…            ]                                      │
-│  [Tipo ▾] [Almacén ▾] [Desde][Hasta] [Usuario ▾]              │
+│  ( Borradores )( Confirmados )( Anulados )                     │
+│  [Almacén ▾] [Desde][Hasta] [Usuario ▾]                        │
 ├────────────────────────────────────────────────────────────────┤
-│  Folio       Tipo        Almacén   Fecha      Líneas  Quién    │
-│  ENT-000042  Entrada     Central   18/08/26     12    A. Ruiz  │
-│  SAL-000018  Salida      Central   18/08/26      3    A. Ruiz  │
-│  REC-000007  Recepción   Sucursal  17/08/26      8    J. Paz   │
-│  TRA-000007  Traspaso    Central   17/08/26      8    A. Ruiz  │
-│  INV-000002  Inventario  Sucursal  15/08/26    145    C. Díaz  │
+│  Folio       Estado      Almacén   Motivo      Líneas  Quién   │
+│  ENT-000043  ● Borrador  Central   Traspaso      8     J. Paz  │
+│  ENT-000042  ✓ Confirmado Central  Factura      12     A. Ruiz │
+│  ENT-000041  ✓ Confirmado Sucursal Devolución    2     C. Díaz │
 │                                              ‹ 1 2 3 ›         │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Detalle** (`/movements/documents/$documentId`): cabecera completa (folio grande, tipo, almacén — y destino si es traspaso —, fecha, motivo, referencia, nota, quién registró y quién autorizó), tabla de líneas con la equivalencia en unidad base y las columnas de lote **solo si alguna línea las trae**, link al traspaso si lo hay, y **[Descargar PDF]**.
+- Por defecto **no lista los anulados**; entran con su chip.
+- Un **borrador** se abre y se sigue cargando donde quedó ([CU-MOV-08](CASOS_DE_USO.md#cu-mov-08--retomar-un-movimiento-a-medio-cargar)).
+- Sin `inventory:movement` el listado se ve pero el botón de crear no existe.
+- En **Salidas**, los traspasos aparecen como cualquier salida, con motivo «Traspaso» y su destino.
+
+---
+
+### 8.7 Documento (captura y detalle)
+
+**Ruta:** `/movements/documents/$documentId` · **Permiso:** `inventory:read` (editar y confirmar, `inventory:movement`; confirmar un conteo, `inventory:manage`)
+
+> **Una sola pantalla con dos caras.** En `draft` es el formulario de captura con autoguardado y previa en vivo (los mockups de § 8.1 y § 8.2). En `confirmed` o `canceled` es solo lectura de lo que realmente pasó.
+
+**Cabecera del confirmado:**
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  ENT-000042   ✓ Confirmado          [ Descargar PDF ]          │
+│  Entrada Directa · Almacén Central · 18/08/2026 19:42          │
+│  Motivo: Factura de compra · Ref: F-88213 · Registró: A. Ruiz  │
+├────────────────────────────────────────────────────────────────┤
+│  #  SKU      Producto      Present.   Cantidad   Costo         │
+│  1  PAR-500  Paracetamol   Caja x12   3 = 36 u   $15.50        │
+│  2  IBU-400  Ibuprofeno    Unidad         50 u   $ 9.00        │
+└────────────────────────────────────────────────────────────────┘
+```
+
+En un documento confirmado las líneas muestran **lo que el ledger asentó**: si FEFO partió una línea en dos lotes, se ven los dos.
 
 **El PDF:**
 
@@ -1035,12 +1065,13 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 ```
 
 **Notas de diseño:**
+- El PDF de un **borrador** sale con marca de agua «BORRADOR» y el de un anulado, «ANULADO». Un papel sin marca es un papel que alguien va a firmar.
 - **No hay un "total de unidades"**: sumar 36 unidades + 2.5 kg + 400 ml da un número que no significa nada. El pie cuenta **líneas**; la cantidad va por línea con su unidad.
 - El cuerpo cambia por tipo: un inventario físico muestra **teórico / contado / diferencia** en vez de presentación y costo.
 - Se renderiza en el servidor y se baja con el token en la cabecera (un `<a href>` plano daría 401), con el folio como nombre de archivo.
 - Un documento de cientos de líneas sale paginado con el encabezado de la tabla repetido.
 
-**Casos de uso relacionados:** [CU-MOV-07](CASOS_DE_USO.md#cu-mov-07--buscar-un-documento-y-reimprimir-su-pdf).
+**Casos de uso relacionados:** [CU-MOV-07](CASOS_DE_USO.md#cu-mov-07--buscar-un-documento-y-reimprimir-su-pdf), [CU-MOV-08](CASOS_DE_USO.md#cu-mov-08--retomar-un-movimiento-a-medio-cargar).
 
 ---
 
