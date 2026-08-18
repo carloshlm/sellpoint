@@ -30,6 +30,7 @@ import { Route as MovementsExitsRouteImport } from './routes/movements.exits'
 import { Route as MovementsTransfersRouteImport } from './routes/movements.transfers'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
+import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -136,6 +137,12 @@ const SystemUsersRoute = SystemUsersRouteImport.update({
   path: '/system/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MovementsDocumentsDocumentIdRoute =
+  MovementsDocumentsDocumentIdRouteImport.update({
+    id: '/movements/documents/$documentId',
+    path: '/movements/documents/$documentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -182,6 +190,7 @@ export interface FileRoutesByTo {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -206,6 +215,7 @@ export interface FileRoutesById {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
+    | '/movements/documents/$documentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
+    | '/movements/documents/$documentId'
   id:
     | '__root__'
     | '/'
@@ -277,6 +289,7 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
+    | '/movements/documents/$documentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -301,6 +314,7 @@ export interface RootRouteChildren {
   MovementsTransfersRoute: typeof MovementsTransfersRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
+  MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -452,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SystemUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/movements/documents/$documentId': {
+      id: '/movements/documents/$documentId'
+      path: '/movements/documents/$documentId'
+      fullPath: '/movements/documents/$documentId'
+      preLoaderRoute: typeof MovementsDocumentsDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -477,6 +498,7 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsTransfersRoute: MovementsTransfersRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
+  MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

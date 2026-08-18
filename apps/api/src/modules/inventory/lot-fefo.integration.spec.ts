@@ -1,4 +1,3 @@
-import { UnprocessableEntityException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";

@@ -51,7 +51,16 @@
     "noResults": "No movement matches your search.",
     "lines": "Lines",
     "date": "Date",
-    "who": "Recorded by"
+    "who": "Recorded by",
+    "folio": "Number",
+    "status": "Status",
+    "reason": "Reason"
   },
-  "placeholder": "This screen ships with its module."
+  "placeholder": "This screen ships with its module.",
+  "filter": {
+    "active": "Active",
+    "drafts": "Drafts",
+    "confirmed": "Confirmed",
+    "canceled": "Voided"
+  }
 }

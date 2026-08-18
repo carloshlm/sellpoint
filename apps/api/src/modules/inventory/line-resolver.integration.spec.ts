@@ -1,8 +1,8 @@
-import { ConflictException, UnprocessableEntityException } from "@nestjs/common";
+import { ConflictException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
-import { resolveLines } from "./line-resolver";
+import { type RawLine, type ResolveOptions, resolveLines } from "./line-resolver";
 
 /**
  * Integration (Postgres real) — F3-CORE-04: de lo que el usuario capturó a lo
@@ -81,19 +81,13 @@ describe("resolveLines (F3-CORE-04)", () => {
     await prisma.onModuleDestroy();
   });
 
-  const resolve = (lines: Record<string, unknown>[], opts: Record<string, unknown> = {}) =>
+  const resolve = (lines: RawLine[], opts: Partial<ResolveOptions> = {}) =>
     prisma.withTenantContext(tenantId, (tx) =>
-      // biome-ignore lint/suspicious/noExplicitAny: el test empuja formas que el tipo restringe
-      resolveLines(
-        tx,
-        tenantId,
-        lines as any,
-        {
-          direction: "entry",
-          reasonCode: "invoice",
-          ...opts,
-        } as any,
-      ),
+      resolveLines(tx, tenantId, lines, {
+        direction: "entry",
+        reasonCode: "invoice",
+        ...opts,
+      }),
     );
 
   describe("conversión a unidad base", () => {

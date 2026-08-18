@@ -51,7 +51,16 @@
     "noResults": "Ningún movimiento coincide con lo que buscas.",
     "lines": "Líneas",
     "date": "Fecha",
-    "who": "Registró"
+    "who": "Registró",
+    "folio": "Folio",
+    "status": "Estado",
+    "reason": "Motivo"
   },
-  "placeholder": "Esta pantalla llega con su módulo."
+  "placeholder": "Esta pantalla llega con su módulo.",
+  "filter": {
+    "active": "Activos",
+    "drafts": "Borradores",
+    "confirmed": "Confirmados",
+    "canceled": "Anulados"
+  }
 }
