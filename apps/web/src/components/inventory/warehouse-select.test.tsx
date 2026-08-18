@@ -22,7 +22,7 @@ function renderSelect(props: Partial<Parameters<typeof WarehouseSelect>[0]> = {}
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <I18nextProvider i18n={createI18n("es")}>
+      <I18nextProvider i18n={createI18n()}>
         <WarehouseSelect
           value={props.value ?? null}
           onChange={props.onChange ?? (() => {})}
