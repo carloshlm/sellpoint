@@ -325,7 +325,7 @@ export class ProductsService {
 
   /**
    * Cambiar la unidad base es ambiguo si ya hay existencias (¿los 500 que hay
-   * eran gramos o kilos?) o si el producto es componente de otro (su receta
+   * eran gramos o kilos?) o si el producto es componente de otro (su composición
    * está expresada en la unidad vieja) — ARQUITECTURA § 3.5, validación #2.
    */
   private async assertBaseUnitChangeable(

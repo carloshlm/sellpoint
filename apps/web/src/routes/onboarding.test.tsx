@@ -405,7 +405,7 @@ describe("/onboarding", () => {
   it("recarga en ?step=4 con negocio y plantilla completos: entra directo al paso 4 (el piso ya es 4)", async () => {
     useAuthStore
       .getState()
-      .setAuth("jwt-demo", demoUser(tenantWithBusinessDone({ templateChoice: "grocery" })));
+      .setAuth("jwt-demo", demoUser(tenantWithBusinessDone({ templateChoice: "sin-plantilla" })));
 
     await renderRoute("/onboarding?step=4");
 
@@ -413,22 +413,11 @@ describe("/onboarding", () => {
     expect(screen.queryByTestId("step-warehouse")).not.toBeInTheDocument();
   });
 
-  it.skip("con lng: 'en', las plantillas del paso 2 se muestran en inglés", async () => {
-    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
-
-    await renderRoute("/onboarding?step=2", "en");
-
-    expect(await screen.findByRole("radio", { name: "Pharmacy" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Hardware store" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Grocery" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Custom" })).toBeInTheDocument();
-  });
-
   // F1-WEB-ONBOARD-03, criterio del tablero: "continuar funciona" — placeholder
   // informativo del primer almacén (el CRUD real es F2, D2). Mismo patrón que
   // el paso 2.
   function tenantWithTemplateDone(overrides: Partial<AuthUser["tenant"]> = {}) {
-    return tenantWithBusinessDone({ templateChoice: "pharmacy", ...overrides });
+    return tenantWithBusinessDone({ templateChoice: "sin-plantilla", ...overrides });
   }
 
   it("con negocio y plantilla completos, renderiza el paso 3 (placeholder de almacén)", async () => {
