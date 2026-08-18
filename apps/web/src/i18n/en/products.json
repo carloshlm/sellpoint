@@ -29,7 +29,9 @@
     "price": "Price",
     "priceHint": "This is the selling price for one unit.",
     "cost": "Cost",
-    "isComposite": "Built from other products in the catalog"
+    "isComposite": "Built from other products in the catalog",
+    "tracksLots": "This product is tracked by lot and expiry date",
+    "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first."
   },
   "presentations": {
     "add": "Add presentation",

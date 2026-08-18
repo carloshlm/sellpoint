@@ -13,6 +13,8 @@ export const createProductSchema = z.object({
   baseUnit: z.string().trim().min(1).max(8).default("unit"),
   stockMin: z.number().nonnegative().default(0),
   isComposite: z.boolean().default(false),
+  /** Opt-in al control de lote y caducidad. Ver la guarda de `update`. */
+  tracksLots: z.boolean().default(false),
   attributes: z.record(z.string(), z.unknown()).default({}),
   price: moneyAmount().optional(),
   cost: moneyAmount().optional(),
@@ -25,6 +27,7 @@ export const updateProductSchema = z
     baseUnit: z.string().trim().min(1).max(8).optional(),
     stockMin: z.number().nonnegative().optional(),
     isComposite: z.boolean().optional(),
+    tracksLots: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),
     price: moneyAmount().nullable().optional(),
     cost: moneyAmount().nullable().optional(),

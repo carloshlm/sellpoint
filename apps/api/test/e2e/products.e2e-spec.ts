@@ -729,4 +729,170 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .expect(409);
     });
   });
+
+  /**
+   * F3-LOTS-01 — el opt-in por producto al control de lote y caducidad.
+   *
+   * **Encender siempre se puede; apagar con saldo por lote, no.** La asimetría
+   * es a propósito: al encenderlo, el saldo previo queda "sin lote" y se
+   * asigna después por inventario físico. Al apagarlo con saldo, en cambio,
+   * las filas de `stock_lots` quedarían huérfanas y se rompería la invariante
+   * `Σ stock_lots == stock_by_warehouse` que el ledger sostiene.
+   */
+  describe("F3-LOTS-01 — control por lote", () => {
+    async function crearConLotes(token: string) {
+      const created = await createProduct(token, {
+        sku: `LOT-${randomUUID().slice(0, 8)}`,
+        name: "Suero con caducidad",
+        baseUnit: "unit",
+        tracksLots: true,
+      }).expect(201);
+      return (created.body as { id: string }).id;
+    }
+
+    it("un producto nace SIN control de lote salvo que se pida", async () => {
+      const { token } = await registerAndLogin();
+
+      const created = await createProduct(token, {
+        sku: `NL-${randomUUID().slice(0, 8)}`,
+        name: "Sin lotes",
+        baseUnit: "unit",
+      }).expect(201);
+
+      expect((created.body as { tracksLots: boolean }).tracksLots).toBe(false);
+    });
+
+    it("se puede crear ya con control de lote", async () => {
+      const { token } = await registerAndLogin();
+
+      const id = await crearConLotes(token);
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect((detail.body as { tracksLots: boolean }).tracksLots).toBe(true);
+    });
+
+    it("encenderlo sobre un producto que ya existía siempre se puede", async () => {
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `ON-${randomUUID().slice(0, 8)}`,
+        name: "Se enciende después",
+        baseUnit: "unit",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      const updated = await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ tracksLots: true })
+        .expect(200);
+
+      expect((updated.body as { tracksLots: boolean }).tracksLots).toBe(true);
+    });
+
+    it("apagarlo SIN saldo por lote se puede", async () => {
+      const { token } = await registerAndLogin();
+      const id = await crearConLotes(token);
+
+      const updated = await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ tracksLots: false })
+        .expect(200);
+
+      expect((updated.body as { tracksLots: boolean }).tracksLots).toBe(false);
+    });
+
+    it("apagarlo CON saldo por lote da 409 y dice cuánto hay en cada lote", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const id = await crearConLotes(token);
+
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `Central lots ${randomUUID().slice(0, 8)}` },
+        });
+        const lot = await tx.productLot.create({
+          data: { tenantId, productId: id, lotCode: "st10", expiresAt: new Date("2026-07-01") },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lot.id, warehouseId: warehouse.id, quantity: 7 },
+        });
+      });
+
+      const rejected = await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ tracksLots: false })
+        .expect(409);
+
+      const body = rejected.body as {
+        message: string;
+        lots?: { lotCode: string; quantity: string }[];
+      };
+      expect(body.message).toContain("lote");
+      // El payload dice DÓNDE está el saldo: sin eso, "no se puede apagar" deja
+      // a quien lo intenta sin saber qué mover para poder hacerlo.
+      expect(body.lots).toEqual([expect.objectContaining({ lotCode: "st10", quantity: "7" })]);
+    });
+
+    /** Un lote agotado no bloquea: lo que estorba es el SALDO, no el registro. */
+    it("un lote en cero no impide apagarlo", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const id = await crearConLotes(token);
+
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `Vacío ${randomUUID().slice(0, 8)}` },
+        });
+        const lot = await tx.productLot.create({
+          data: { tenantId, productId: id, lotCode: "agotado" },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lot.id, warehouseId: warehouse.id, quantity: 0 },
+        });
+      });
+
+      await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ tracksLots: false })
+        .expect(200);
+    });
+
+    /**
+     * El formulario necesita saber si el checkbox va deshabilitado ANTES de
+     * que el usuario lo intente: un 409 después es explicar tarde algo que la
+     * pantalla podía haber dicho de entrada.
+     */
+    it("el detalle dice si hay saldo por lote (`hasLotStock`)", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const id = await crearConLotes(token);
+
+      const sinSaldo = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((sinSaldo.body as { hasLotStock: boolean }).hasLotStock).toBe(false);
+
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `Con saldo ${randomUUID().slice(0, 8)}` },
+        });
+        const lot = await tx.productLot.create({
+          data: { tenantId, productId: id, lotCode: "st30" },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lot.id, warehouseId: warehouse.id, quantity: 3 },
+        });
+      });
+
+      const conSaldo = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((conSaldo.body as { hasLotStock: boolean }).hasLotStock).toBe(true);
+    });
+  });
 });

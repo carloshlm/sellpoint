@@ -146,7 +146,15 @@ export class ProductsService {
         throw new NotFoundException({ message: "products.not_found" });
       }
 
-      return product;
+      // Lo necesita el FORMULARIO: sin esto el checkbox de "controla lotes" no
+      // sabe si tiene que ir deshabilitado, y el usuario se enteraría con un
+      // 409 después de intentarlo — explicar tarde algo que la pantalla podía
+      // decir de entrada.
+      const lotStock = await tx.stockLot.count({
+        where: { quantity: { gt: 0 }, lot: { productId: id } },
+      });
+
+      return { ...product, hasLotStock: lotStock > 0 };
     });
   }
 
@@ -164,6 +172,7 @@ export class ProductsService {
             baseUnit: input.baseUnit,
             stockMin: input.stockMin,
             isComposite: input.isComposite,
+            tracksLots: input.tracksLots,
             attributes: input.attributes as Prisma.InputJsonValue,
           },
         });
@@ -224,6 +233,12 @@ export class ProductsService {
         await this.assertBaseUnitChangeable(tx, id);
       }
 
+      // Solo al APAGARLO. Encenderlo siempre se puede: el saldo previo queda
+      // "sin lote" y se asigna después por inventario físico.
+      if (input.tracksLots === false && current.tracksLots) {
+        await this.assertLotsCanBeDisabled(tx, id);
+      }
+
       try {
         const product = await tx.product.update({
           where: { id },
@@ -233,6 +248,7 @@ export class ProductsService {
             ...(input.baseUnit !== undefined ? { baseUnit: input.baseUnit } : {}),
             ...(input.stockMin !== undefined ? { stockMin: input.stockMin } : {}),
             ...(input.isComposite !== undefined ? { isComposite: input.isComposite } : {}),
+            ...(input.tracksLots !== undefined ? { tracksLots: input.tracksLots } : {}),
             ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
             ...(input.attributes !== undefined
               ? { attributes: input.attributes as Prisma.InputJsonValue }
@@ -328,6 +344,43 @@ export class ProductsService {
    * eran gramos o kilos?) o si el producto es componente de otro (su composición
    * está expresada en la unidad vieja) — ARQUITECTURA § 3.5, validación #2.
    */
+  /**
+   * Apagar el control de lote con saldo dejaría las filas de `stock_lots`
+   * huérfanas y rompería la invariante `Σ stock_lots == stock_by_warehouse`
+   * que el ledger sostiene. El saldo no desaparece: simplemente ya nadie
+   * sabría a qué lote pertenece.
+   *
+   * El 409 lleva el DETALLE por lote a propósito. "No se puede apagar" a secas
+   * deja a quien lo intenta sin saber qué mover para poder hacerlo; con el
+   * listado sabe exactamente qué sacar o consumir primero.
+   *
+   * Un lote en CERO no estorba: lo que bloquea es el saldo, no el registro
+   * histórico del lote (que además no se borra nunca — los movimientos lo
+   * referencian).
+   */
+  private async assertLotsCanBeDisabled(
+    tx: Prisma.TransactionClient,
+    productId: string,
+  ): Promise<void> {
+    const conSaldo = await tx.stockLot.findMany({
+      where: { quantity: { gt: 0 }, lot: { productId } },
+      select: { quantity: true, lot: { select: { lotCode: true } } },
+      orderBy: { lot: { lotCode: "asc" } },
+    });
+
+    if (conSaldo.length === 0) {
+      return;
+    }
+
+    throw new ConflictException({
+      message: "products.lots_in_stock",
+      lots: conSaldo.map((row) => ({
+        lotCode: row.lot.lotCode,
+        quantity: row.quantity.toString(),
+      })),
+    });
+  }
+
   private async assertBaseUnitChangeable(
     tx: Prisma.TransactionClient,
     productId: string,

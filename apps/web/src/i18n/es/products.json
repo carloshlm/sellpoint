@@ -29,7 +29,9 @@
     "price": "Precio",
     "priceHint": "Es el precio de venta de una unidad.",
     "cost": "Costo",
-    "isComposite": "Se arma a partir de otros productos del catálogo"
+    "isComposite": "Se arma a partir de otros productos del catálogo",
+    "tracksLots": "Este producto se controla por lote y caducidad",
+    "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero."
   },
   "presentations": {
     "add": "Agregar presentación",

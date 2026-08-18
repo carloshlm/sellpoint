@@ -26,6 +26,7 @@ const STANDARD_COLUMNS = [
   "stock_minimo",
   "precio",
   "costo",
+  "controla_lotes",
 ] as const;
 
 export interface ImportRowError {
@@ -64,6 +65,23 @@ interface LookupIndex {
   idByLowerCode: Map<string, string | null>;
 }
 
+/**
+ * Una celda de sí/no de la planilla. Acepta las formas que de verdad escribe
+ * la gente —y las que emite Excel según el idioma— porque rechazar "SI" por no
+ * ser "true" sería pedirle al usuario que hable como la base de datos.
+ *
+ * Vacío devuelve `null` y NO es `false`: "no vino el dato" y "vino que no" son
+ * cosas distintas. Confundirlas apagaría el control de lote de todo producto
+ * cuya planilla simplemente no traiga la columna.
+ */
+function parseBooleanCell(raw: string): boolean | null {
+  const value = raw.trim().toLowerCase();
+  if (value === "") {
+    return null;
+  }
+  return ["si", "sí", "yes", "true", "1", "x", "verdadero"].includes(value);
+}
+
 interface ParsedRow {
   row: number;
   sku: string;
@@ -72,6 +90,8 @@ interface ParsedRow {
   stockMin: number;
   price: number | null;
   cost: number | null;
+  /** `null` = la columna no vino: NO se toca lo que ya estaba. */
+  tracksLots: boolean | null;
   attributes: Record<string, unknown>;
   existingId: string | null;
 }
@@ -326,6 +346,7 @@ export class ImportService {
         stockMin: Number(value("stock_minimo")) || 0,
         price: money.precio ?? null,
         cost: money.costo ?? null,
+        tracksLots: parseBooleanCell(value("controla_lotes")),
         attributes,
       });
     }
@@ -338,10 +359,43 @@ export class ImportService {
       }),
     );
     const idBySku = new Map(existing.map((product) => [product.sku, product.id]));
-    const importable: ParsedRow[] = parsed.map((item) => ({
+    const conId: ParsedRow[] = parsed.map((item) => ({
       ...item,
       existingId: idBySku.get(item.sku) ?? null,
     }));
+
+    // La importación escribe con `tx.product.update` DIRECTO, así que no pasa
+    // por la guarda de `ProductsService.update`. Sin esto, una planilla podría
+    // apagar el control de lote de un producto CON saldo y romper en silencio
+    // la invariante `Σ stock_lots == stock_by_warehouse` — justo lo que el 409
+    // del formulario evita. El error va POR FILA, como todo en la importación.
+    const apagando = conId.filter((item) => item.tracksLots === false && item.existingId !== null);
+    const bloqueados = new Set<string>();
+    if (apagando.length > 0) {
+      const ids = apagando.map((item) => item.existingId as string);
+      const conSaldo = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+        tx.stockLot.findMany({
+          where: { quantity: { gt: 0 }, lot: { productId: { in: ids } } },
+          select: { lot: { select: { productId: true } } },
+        }),
+      );
+      for (const row of conSaldo) {
+        bloqueados.add(row.lot.productId);
+      }
+    }
+
+    const importable: ParsedRow[] = [];
+    for (const item of conId) {
+      if (item.existingId !== null && bloqueados.has(item.existingId)) {
+        errors.push({
+          row: item.row,
+          field: "controla_lotes",
+          message: "products.lots_in_stock",
+        });
+        continue;
+      }
+      importable.push(item);
+    }
 
     const created = importable.filter((item) => !item.existingId).length;
     const updated = importable.length - created;
@@ -385,6 +439,8 @@ export class ImportService {
               name: item.name,
               baseUnit: item.baseUnit,
               stockMin: item.stockMin,
+              // `null` = la columna no vino: no se toca lo que ya estaba.
+              ...(item.tracksLots !== null ? { tracksLots: item.tracksLots } : {}),
               attributes: item.attributes as Prisma.InputJsonValue,
             },
           });
@@ -414,6 +470,7 @@ export class ImportService {
             name: item.name,
             baseUnit: item.baseUnit,
             stockMin: item.stockMin,
+            tracksLots: item.tracksLots ?? false,
             attributes: item.attributes as Prisma.InputJsonValue,
           },
         });

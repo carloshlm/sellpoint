@@ -160,3 +160,81 @@ describe("Borrar un producto (F2-PROD)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("componente de otro");
   });
 });
+
+/**
+ * F3-LOTS-01 — el opt-in al control de lote y caducidad.
+ *
+ * Encender siempre se puede; apagar con saldo asignado a lotes, no — dejaría
+ * las filas de `stock_lots` huérfanas. La pantalla lo dice ANTES: un checkbox
+ * deshabilitado con su explicación es mejor que un 409 después de intentarlo.
+ */
+describe("Control por lote de un producto (F3-LOTS-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "0.02" }],
+    });
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("sin saldo por lote el checkbox se puede tocar y viaja en el PATCH", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    mockedProducts.updateProduct.mockResolvedValue(PRODUCT);
+    const user = await openProduct();
+
+    const checkbox = await screen.findByLabelText(/controla por lote/i);
+    expect(checkbox).toBeEnabled();
+
+    await user.click(checkbox);
+    await user.click(screen.getByRole("button", { name: /guardar/i }));
+
+    await waitFor(() => {
+      expect(mockedProducts.updateProduct).toHaveBeenCalledWith(
+        "prod-1",
+        expect.objectContaining({ tracksLots: true }),
+      );
+    });
+  });
+
+  /**
+   * El `title` no es decoración: es el ÚNICO lugar donde el usuario se entera
+   * de por qué no puede. Un checkbox gris sin explicación se lee como un bug.
+   */
+  it("con saldo por lote el checkbox va deshabilitado y explica por qué", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: true,
+      hasLotStock: true,
+    });
+    await openProduct();
+
+    const checkbox = await screen.findByLabelText(/controla por lote/i);
+
+    expect(checkbox).toBeDisabled();
+    expect(checkbox).toHaveAttribute(
+      "title",
+      expect.stringMatching(/existencias asignadas a lotes/i),
+    );
+  });
+
+  /** Con saldo pero ya APAGADO no hay nada que proteger: encenderlo se puede. */
+  it("con saldo por lote pero el control apagado, se puede encender", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: true,
+    });
+    await openProduct();
+
+    expect(await screen.findByLabelText(/controla por lote/i)).toBeEnabled();
+  });
+});

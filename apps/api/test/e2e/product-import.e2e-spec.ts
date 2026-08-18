@@ -5,6 +5,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import type { ImportRowError } from "../../src/modules/products/import.service";
@@ -15,6 +16,7 @@ import { extractTokenFromLink } from "./support/extract-token-from-link";
  * fila, y recién después la importación real.
  */
 describe("Importación de productos (F2-IMPORT)", () => {
+  let prisma: PrismaService;
   let app: INestApplication<App> & NestExpressApplication;
   const OWNER_PASSWORD = "twelve-characters";
 
@@ -30,15 +32,16 @@ describe("Importación de productos (F2-IMPORT)", () => {
     // archivo grande mediría al parser, no a la regla de negocio.
     (app as NestExpressApplication).useBodyParser("json", { limit: "6mb" });
     await app.init();
+    prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  async function registerAndLogin(): Promise<string> {
+  async function registerAndLogin(): Promise<{ token: string; tenantId: string }> {
     const email = `owner-${randomUUID()}@example.com`;
-    await request(app.getHttpServer())
+    const registered = await request(app.getHttpServer())
       .post("/auth/register-tenant")
       .send({
         tenantName: `Tenant import ${randomUUID()}`,
@@ -58,13 +61,16 @@ describe("Importación de productos (F2-IMPORT)", () => {
       .post("/auth/login")
       .send({ email, password: OWNER_PASSWORD })
       .expect(200);
-    return (login.body as { accessToken: string }).accessToken;
+    return {
+      token: (login.body as { accessToken: string }).accessToken,
+      tenantId: (registered.body as { tenantId: string }).tenantId,
+    };
   }
 
   const bearer = (token: string) => `Bearer ${token}`;
 
   it("la plantilla incluye los campos VIGENTES del catálogo", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const catalogs = await request(app.getHttpServer())
       .get("/catalogs")
       .set("Authorization", bearer(token))
@@ -92,7 +98,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("el dry-run reporta sin escribir NADA", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const content = "sku,nombre\nPAR-500,Paracetamol\n,,\nSIN-NOMBRE,";
 
     const report = await request(app.getHttpServer())
@@ -111,7 +117,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("sin skipErrors es TODO O NADA: un archivo con errores no importa nada", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const content = "sku,nombre\nOK-1,Bueno\nSIN-NOMBRE,";
 
     await request(app.getHttpServer())
@@ -128,7 +134,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("con skipErrors importa las válidas y reporta las fallidas", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const content = "sku,nombre,precio\nOK-1,Bueno,10\nSIN-NOMBRE,\nOK-2,Otro,20";
 
     const result = await request(app.getHttpServer())
@@ -149,7 +155,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   it("detecta SKU repetido DENTRO del archivo, no solo contra la base", async () => {
     // La DB no lo vería hasta el segundo INSERT, y para entonces el primero
     // ya entró.
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const content = "sku,nombre\nDUP,Uno\nDUP,Dos";
 
     const report = await request(app.getHttpServer())
@@ -163,7 +169,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("el número de fila que se reporta es el que el usuario ve en Excel", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     // Fila 1 = encabezado, fila 2 = primer producto, fila 3 = el que falla.
     const content = "sku,nombre\nOK,Bueno\n,Sin sku";
 
@@ -177,7 +183,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("un archivo de más de 5 MB se rechaza con 413", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const huge = `sku,nombre\n${"X".repeat(5 * 1024 * 1024 + 10)},Grande`;
 
     await request(app.getHttpServer())
@@ -188,7 +194,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("la plantilla trae los productos ya dados de alta, no solo los encabezados", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     await request(app.getHttpServer())
       .post("/products/import")
       .set("Authorization", bearer(token))
@@ -208,7 +214,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("volver a subir la plantilla ACTUALIZA en vez de fallar por SKU repetido", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     await request(app.getHttpServer())
       .post("/products/import")
       .set("Authorization", bearer(token))
@@ -237,7 +243,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("la plantilla xlsx se descarga y se vuelve a subir tal cual (round-trip binario)", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     await request(app.getHttpServer())
       .post("/products/import")
       .set("Authorization", bearer(token))
@@ -269,7 +275,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("un xlsx recortado se rechaza con 400, no revienta el proceso", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
 
     await request(app.getHttpServer())
       .post("/products/import")
@@ -279,7 +285,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("un precio con tres decimales falla la fila en vez de redondearse solo", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
 
     const report = await request(app.getHttpServer())
       .post("/products/import")
@@ -299,7 +305,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
     // El dry-run responde 200: su reporte no pasa por el filtro de excepciones,
     // así que si el service no tradujera, el usuario vería
     // `products.import_missing_required` en pantalla.
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
     const content = "sku,nombre\n,Sin código";
 
     const es = await request(app.getHttpServer())
@@ -317,7 +323,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("dos decimales entran sin problema, incluido el caso que rompe al punto flotante", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
 
     // 1.15 * 100 = 114.99999999999999: una validación ingenua lo rechazaría.
     await request(app.getHttpServer())
@@ -371,7 +377,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
     }
 
     it("la plantilla muestra el código, NUNCA el uuid del registro", async () => {
-      const token = await registerAndLogin();
+      const { token } = await registerAndLogin();
       const { recordId } = await setupLookup(token);
 
       await request(app.getHttpServer())
@@ -391,7 +397,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
     });
 
     it("subir el código lo resuelve al id internamente", async () => {
-      const token = await registerAndLogin();
+      const { token } = await registerAndLogin();
       const { recordId } = await setupLookup(token);
 
       await request(app.getHttpServer())
@@ -416,7 +422,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
     });
 
     it("un código en otra caja (ACME vs acme) se resuelve igual: es un typo, no otro registro", async () => {
-      const token = await registerAndLogin();
+      const { token } = await registerAndLogin();
       const { recordId } = await setupLookup(token);
 
       await request(app.getHttpServer())
@@ -440,7 +446,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
     });
 
     it("un código que no existe falla la FILA, con el campo señalado", async () => {
-      const token = await registerAndLogin();
+      const { token } = await registerAndLogin();
       await setupLookup(token);
 
       const report = await request(app.getHttpServer())
@@ -459,7 +465,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
   });
 
   it("los productos importados nacen con su presentación base y su precio", async () => {
-    const token = await registerAndLogin();
+    const { token } = await registerAndLogin();
 
     await request(app.getHttpServer())
       .post("/products/import")
@@ -483,5 +489,125 @@ describe("Importación de productos (F2-IMPORT)", () => {
       (detail.body as { presentations: { allowFractionalInput: boolean }[] }).presentations[0]
         ?.allowFractionalInput,
     ).toBe(true);
+  });
+
+  /**
+   * F3-LOTS-01 — la columna `controla_lotes` de la planilla.
+   *
+   * Importante: la importación escribe con `tx.product.update` DIRECTO, así
+   * que no pasa por la guarda de `ProductsService.update`. Sin una validación
+   * propia acá, una planilla podría apagar el control de lote de un producto
+   * CON saldo y romper en silencio la invariante que sostiene el ledger —
+   * justo lo que el 409 del formulario evita.
+   */
+  describe("F3-LOTS-01 — columna controla_lotes", () => {
+    it("la plantilla ofrece la columna", async () => {
+      const { token } = await registerAndLogin();
+
+      const template = await request(app.getHttpServer())
+        .get("/products/import/template")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect(template.text).toContain("controla_lotes");
+    });
+
+    it("enciende el control de lote desde la planilla", async () => {
+      const { token } = await registerAndLogin();
+
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,controla_lotes\nLOT-IMP,Suero,si" })
+        .expect(200);
+
+      const list = await request(app.getHttpServer())
+        .get("/products?query=LOT-IMP")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const id = (list.body as { items: { id: string }[] }).items[0]?.id;
+
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect((detail.body as { tracksLots: boolean }).tracksLots).toBe(true);
+    });
+
+    /** Sin la columna, un producto que ya lo tenía encendido NO se apaga. */
+    it("omitir la columna no cambia lo que ya estaba", async () => {
+      const { token } = await registerAndLogin();
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,controla_lotes\nKEEP-1,Se mantiene,si" })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,precio\nKEEP-1,Se mantiene,12" })
+        .expect(200);
+
+      const list = await request(app.getHttpServer())
+        .get("/products?query=KEEP-1")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const id = (list.body as { items: { id: string }[] }).items[0]?.id;
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect((detail.body as { tracksLots: boolean }).tracksLots).toBe(true);
+    });
+
+    it("apagarlo por planilla CON saldo por lote falla en su fila, no en silencio", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,controla_lotes\nBLOCK-1,Con saldo,si" })
+        .expect(200);
+
+      const list = await request(app.getHttpServer())
+        .get("/products?query=BLOCK-1")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const id = (list.body as { items: { id: string }[] }).items[0]?.id as string;
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `Imp ${randomUUID().slice(0, 8)}` },
+        });
+        const lot = await tx.productLot.create({
+          data: { tenantId, productId: id, lotCode: "st10" },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lot.id, warehouseId: warehouse.id, quantity: 4 },
+        });
+      });
+
+      const result = await request(app.getHttpServer())
+        .post("/products/import")
+        .set("Authorization", bearer(token))
+        .send({ content: "sku,nombre,controla_lotes\nBLOCK-1,Con saldo,no" })
+        // 400 y no 200: la importación es TODO O NADA sin `skipErrors`, y este
+        // error entra por la misma puerta que los demás en vez de inventar un
+        // camino propio.
+        .expect(400);
+
+      const body = result.body as {
+        report: { failed: number; errors: { row: number; field?: string; code?: string }[] };
+      };
+      expect(body.report.failed).toBe(1);
+      expect(body.report.errors[0]).toEqual(
+        expect.objectContaining({
+          row: 2,
+          field: "controla_lotes",
+          code: "products.lots_in_stock",
+        }),
+      );
+    });
   });
 });

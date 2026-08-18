@@ -31,6 +31,15 @@ export interface Presentation {
 export interface ProductDetail extends Omit<ProductListItem, "price"> {
   stockMin: string;
   presentations: Presentation[];
+  /** Opt-in al control de lote y caducidad (F3-LOTS-01). */
+  tracksLots?: boolean;
+  /**
+   * Si hay existencias asignadas a lotes. Lo calcula el servidor para que el
+   * formulario sepa deshabilitar el checkbox ANTES de que el usuario lo
+   * intente: el 409 después sería explicar tarde algo que la pantalla podía
+   * decir de entrada.
+   */
+  hasLotStock?: boolean;
 }
 
 export interface CompositionLine {
@@ -89,6 +98,7 @@ export interface UpsertProductInput {
   baseUnit?: string;
   stockMin?: number;
   isComposite?: boolean;
+  tracksLots?: boolean;
   attributes?: Record<string, unknown>;
   price?: number | null;
   cost?: number | null;

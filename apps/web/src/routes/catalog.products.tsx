@@ -313,9 +313,11 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const [baseUnit, setBaseUnit] = useState(product?.baseUnit ?? "unit");
   const [stockMin, setStockMin] = useState(product?.stockMin ?? "0");
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
+  const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(basePresentation?.price ?? "");
   const [cost, setCost] = useState(basePresentation?.cost ?? "");
   const [attributes, setAttributes] = useState<Record<string, unknown>>(product?.attributes ?? {});
+  const lotesBloqueados = Boolean(product?.hasLotStock) && (product?.tracksLots ?? false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -367,6 +369,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
           baseUnit,
           stockMin: Number(stockMin) || 0,
           isComposite,
+          tracksLots,
           attributes,
           ...(price !== "" ? { price: Number(price) } : {}),
           ...(cost !== "" ? { cost: Number(cost) } : {}),
@@ -453,6 +456,24 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
           onCheckedChange={(checked) => setIsComposite(checked === true)}
         />
         <Label htmlFor="is-composite">{t("products.form.isComposite")}</Label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="tracks-lots"
+          checked={tracksLots}
+          // Solo se bloquea para APAGARLO con saldo asignado a lotes: eso
+          // dejaría las filas de `stock_lots` huérfanas. Encenderlo siempre se
+          // puede — el saldo previo queda "sin lote" y se asigna después por
+          // inventario físico.
+          disabled={!canManage || lotesBloqueados}
+          // El `title` no es decoración: es el ÚNICO lugar donde el usuario se
+          // entera de por qué no puede. Un checkbox gris sin explicación se lee
+          // como un bug de la pantalla.
+          title={lotesBloqueados ? t("products.form.tracksLotsLocked") : undefined}
+          onCheckedChange={(checked) => setTracksLots(checked === true)}
+        />
+        <Label htmlFor="tracks-lots">{t("products.form.tracksLots")}</Label>
       </div>
 
       <DynamicForm
