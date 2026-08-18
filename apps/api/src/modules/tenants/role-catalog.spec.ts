@@ -66,4 +66,44 @@ describe("resolveRolePermissionCodes", () => {
       expect(result[role]).toEqual([]);
     }
   });
+  /**
+   * F3-DB-05. Los tres permisos de inventario reparten así:
+   *
+   *  · `inventory:read`     — kardex, stock, traspasos, documentos (Viewer lo
+   *    recibe solo porque termina en `:read`, que es la regla implícita).
+   *  · `inventory:movement` — crear y confirmar movimientos.
+   *  · `inventory:manage`   — cancelar un traspaso (el stock NO vuelve) y
+   *    aprobar un inventario físico (reescribe el saldo contra lo contado).
+   *    Las dos son decisiones que un Manager no debería poder tomar solo, por
+   *    eso entra a `MANAGER_EXCLUDED_CODES`.
+   */
+  describe("permisos de inventario (F3-DB-05)", () => {
+    const CODES = ["inventory:read", "inventory:movement", "inventory:manage"];
+
+    it("TenantAdmin recibe los tres", () => {
+      const result = resolveRolePermissionCodes(CODES);
+      expect(result.TenantAdmin).toEqual(expect.arrayContaining(CODES));
+    });
+
+    it("Manager mueve inventario pero NO aprueba conteos ni cancela traspasos", () => {
+      const result = resolveRolePermissionCodes(CODES);
+
+      expect(result.Manager).toEqual(
+        expect.arrayContaining(["inventory:read", "inventory:movement"]),
+      );
+      expect(result.Manager).not.toContain("inventory:manage");
+    });
+
+    it("Viewer solo lee", () => {
+      const result = resolveRolePermissionCodes(CODES);
+
+      expect(result.Viewer).toEqual(["inventory:read"]);
+    });
+
+    it("POS_Seller no recibe ninguno: F4 decide qué necesita el POS", () => {
+      const result = resolveRolePermissionCodes(CODES);
+
+      expect(result.POS_Seller).toEqual([]);
+    });
+  });
 });

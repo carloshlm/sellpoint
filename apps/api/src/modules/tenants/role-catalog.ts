@@ -58,6 +58,12 @@ const MANAGER_EXCLUDED_CODES = new Set([
   "roles:manage",
   "tenants:manage",
   "catalogs:manage",
+  // F3-DB-05: `inventory:manage` habilita las dos operaciones de inventario
+  // que NO se deshacen solas — cancelar un traspaso (el stock ya salió del
+  // origen y NO vuelve) y aprobar un inventario físico (reescribe el saldo
+  // contra lo que alguien contó a mano). Mover mercancía es tarea diaria de
+  // un Manager; decidir que un faltante se da por perdido, no.
+  "inventory:manage",
 ]);
 const POS_SELLER_CODES = new Set(["pos:sell", "products:read"]);
 

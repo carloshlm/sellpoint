@@ -67,6 +67,8 @@ model Tenant {
   documents      InventoryDocument[]
   documentLines  InventoryDocumentLine[]
   sequences      TenantSequence[]
+  productLots    ProductLot[]
+  stockLots      StockLot[]
 
   @@map("tenants")
 }
@@ -358,6 +360,11 @@ model Product {
   // Denormalizado a propósito: el POS y las listas filtran por esto en cada
   // request y no pueden pagar un EXISTS sobre `product_compositions`.
   isComposite Boolean  @default(false) @map("is_composite")
+  /// Opt-in por producto (F3-LOTS): quien lo enciende exige lote en cada
+  /// entrada y sale FEFO; quien no, no ve un lote jamás. NO se puede apagar
+  /// si el producto tiene saldo en `stock_lots` — esa guarda vive en el
+  /// service, no en la base.
+  tracksLots  Boolean  @default(false) @map("tracks_lots")
   stockMin    Decimal  @default(0) @map("stock_min") @db.Decimal(14, 4)
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
@@ -374,6 +381,7 @@ model Product {
   // Salidas de COMPONENTES que originó este compuesto al expandirse: le da al
   // kardex del componente la respuesta a "¿de dónde salió esto?".
   movementsAsParent StockMovement[]         @relation("MovementParentProduct")
+  lots              ProductLot[]
   transferLines     TransferLine[]
   documentLines     InventoryDocumentLine[]
 
@@ -493,6 +501,7 @@ model Warehouse {
   transfersIn     Transfer[]           @relation("TransferDestination")
   documents       InventoryDocument[]  @relation("DocumentWarehouse")
   documentsLinked InventoryDocument[]  @relation("DocumentLinkedWarehouse")
+  stockLots       StockLot[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -594,6 +603,11 @@ model StockMovement {
   authorizedBy      String?           @map("authorized_by") @db.Uuid
   /// El OTRO almacén de un traspaso. Va con `reason_code = 'transfer'` o no va.
   linkedWarehouseId String?           @map("linked_warehouse_id") @db.Uuid
+  /// Qué LOTE movió esta línea, y desde/hacia qué ubicación. NULL en los
+  /// productos que no manejan lotes. Sin esto el kardex no podría explicar
+  /// de cuál partida salió cada unidad, que es para lo que existen.
+  lotId             String?           @map("lot_id") @db.Uuid
+  location          String?           @db.VarChar(64)
   quantity          Decimal           @db.Decimal(14, 4)
   /// Obligatorio en entradas por factura (regla del service, F3-ENTRY-01). F3
   /// solo lo REGISTRA; el costo promedio ponderado se calcula en F5.
@@ -623,6 +637,7 @@ model StockMovement {
   // movimientos ya asentados y el kardex dejaría de explicar en qué
   // presentación se capturó. Si algo tiene historia, no se borra.
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  lot             ProductLot?          @relation(fields: [lotId], references: [id], onDelete: Restrict)
   document        InventoryDocument    @relation(fields: [documentId], references: [id], onDelete: Restrict)
   product         Product              @relation("MovementProduct", fields: [productId], references: [id])
   parentProduct   Product?             @relation("MovementParentProduct", fields: [parentProductId], references: [id], onDelete: Restrict)
@@ -708,6 +723,10 @@ model TransferLine {
   tenantId         String   @map("tenant_id") @db.Uuid
   transferId       String   @map("transfer_id") @db.Uuid
   productId        String   @map("product_id") @db.Uuid
+  /// Un traspaso mueve un lote CONCRETO, no "algo de este producto": lo que
+  /// sale del origen entra al destino como el MISMO lote, con su misma
+  /// caducidad. Por eso dos lotes del mismo producto son dos líneas.
+  lotId            String?  @map("lot_id") @db.Uuid
   /// SIEMPRE en la `base_unit` del producto: la recepción no elige presentación
   /// (lo enviado ya viene convertido), así que no hay `presentation_id` acá.
   quantitySent     Decimal  @map("quantity_sent") @db.Decimal(14, 4)
@@ -715,16 +734,22 @@ model TransferLine {
   createdAt        DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
   // CASCADE y no RESTRICT: un traspaso no se borra nunca (se cancela), así que
   // el cascade es inocuo — y si algún día se borrara uno, dejar líneas
   // huérfanas sería peor.
-  transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  transfer Transfer    @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  lot      ProductLot? @relation(fields: [lotId], references: [id], onDelete: Restrict)
 
   // El CHECK de cantidades (`sent > 0`, `0 <= received <= sent`) vive en la
   // migración. `lot_id` y el UNIQUE por lote llegan en F3-DB-07.
-  @@unique([transferId, productId])
+  // El UNIQUE vive en la migración como DOS índices PARCIALES y no acá, por la
+  // semántica de NULL de Postgres: en un unique normal dos NULL se consideran
+  // DISTINTOS, así que `(traspaso, producto, NULL)` no colisionaría consigo
+  // mismo y un producto sin lote podría repetirse en el mismo traspaso. Los
+  // dos parciales dicen la regla tal cual es: sin lote, un producto una sola
+  // vez; con lote, uno por lote. (Mismo gotcha que el unique de `barcode`.)
   @@index([productId])
   @@index([tenantId])
   @@map("transfer_lines")
@@ -885,6 +910,68 @@ model TenantSequence {
 
   @@id([tenantId, key])
   @@map("tenant_sequences")
+}
+
+/// Una PARTIDA de un producto: el `lot_code` que trae la caja y, si aplica, su
+/// caducidad.
+///
+/// **La caducidad vive acá y no en el stock** porque es una propiedad del lote,
+/// no del lugar donde está: el mismo lote st10 en dos almacenes vence el mismo
+/// día. Guardarla por almacén permitiría que las dos filas se contradigan.
+///
+/// Solo existen lotes para productos con `tracks_lots = true` (opt-in, F3-LOTS).
+model ProductLot {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  productId String    @map("product_id") @db.Uuid
+  lotCode   String    @map("lot_code") @db.VarChar(64)
+  /// Nullable: hay rubros que manejan lote sin vencimiento (una partida de
+  /// tornillos, un número de serie de fabricación).
+  expiresAt DateTime? @map("expires_at") @db.Date
+  createdAt DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  stock         StockLot[]
+  movements     StockMovement[]
+  transferLines TransferLine[]
+
+  @@unique([productId, lotCode])
+  // Por acá ordena FEFO: el lote que vence antes sale primero.
+  @@index([tenantId, productId, expiresAt])
+  @@map("product_lots")
+}
+
+/// El saldo de un lote en un almacén y una ubicación.
+///
+/// **La ubicación PARTE el stock**: "hay 5 en A-3 y 15 en B-1" son dos filas,
+/// no una fila con una etiqueta. Por eso `location` entra en la clave primaria
+/// y es `NOT NULL DEFAULT ''` — un NULL en una PK no se puede, y `''` significa
+/// "sin ubicación" para quien no las usa. Texto libre a propósito: no hay
+/// catálogo de racks hasta que un cliente demuestre que lo necesita.
+///
+/// `stock_by_warehouse` sigue siendo el TOTAL y esta tabla el detalle. La
+/// invariante `Σ stock_lots == stock_by_warehouse` la sostiene el ledger
+/// (F3-CORE-05), que mueve las dos en la misma transacción — la base no puede
+/// expresarla, así que la fija un test de propiedad.
+model StockLot {
+  lotId       String   @map("lot_id") @db.Uuid
+  warehouseId String   @map("warehouse_id") @db.Uuid
+  location    String   @default("") @db.VarChar(64)
+  tenantId    String   @map("tenant_id") @db.Uuid
+  quantity    Decimal  @default(0) @db.Decimal(14, 4)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  lot       ProductLot @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  // El CHECK `quantity >= 0` vive en la migración: saldo negativo por lote no
+  // es un estado válido, igual que en `stock_by_warehouse`.
+  @@id([lotId, warehouseId, location])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("stock_lots")
 }
 
 // Tabla MAESTRA de unidades de medida (global, sin tenant_id, sin RLS) —
