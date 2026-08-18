@@ -62,5 +62,23 @@
     "drafts": "Borradores",
     "confirmed": "Confirmados",
     "canceled": "Anulados"
+  },
+  "document": {
+    "downloadPdf": "Descargar PDF",
+    "pdfFailed": "No se pudo generar el PDF. Intenta de nuevo.",
+    "saved": "Guardado",
+    "saving": "Guardando…",
+    "confirm": "Confirmar",
+    "cancel": "Anular",
+    "confirmTitle": "Confirmar {{type}}",
+    "confirmBody": "Se van a asentar {{lines}} líneas y el stock del almacén va a cambiar. Un movimiento confirmado no se puede editar: corregirlo exige registrar otro.",
+    "cancelTitle": "Anular {{folio}}",
+    "cancelBody": "El folio {{folio}} queda anulado y no se reutiliza. Las líneas cargadas se pierden.",
+    "hasErrors": "Corrige las líneas marcadas antes de confirmar.",
+    "quantity": "Cantidad",
+    "stockChange": "Stock",
+    "newLot": "Lote nuevo",
+    "emptyLines": "Todavía no hay líneas. Agrega productos o sube una planilla.",
+    "readOnly": "Este movimiento ya fue confirmado: es historia y no se edita."
   }
 }

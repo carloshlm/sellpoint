@@ -1,0 +1,262 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { I18nextProvider } from "react-i18next";
+import { createI18n } from "../i18n";
+import * as inventoryApi from "../lib/inventory/api";
+import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
+import { createQueryClient } from "../lib/query-client";
+import * as warehousesApi from "../lib/warehouses/api";
+import { routeTree } from "../routeTree.gen";
+import { type AuthUser, useAuthStore } from "../stores/auth.store";
+
+/**
+ * F3-DOC-09 — la pantalla del documento.
+ *
+ * **Una sola pantalla con dos caras.** En `draft` es captura con autoguardado
+ * y previa en vivo; en `confirmed` es solo lectura de lo que realmente pasó.
+ * Tenerlas separadas obligaría a mantener dos veces la misma tabla y las haría
+ * divergir.
+ */
+vi.mock("../lib/inventory/api", () => ({
+  getDocument: vi.fn(),
+  updateDocumentHeader: vi.fn(),
+  updateDocumentLine: vi.fn(),
+  removeDocumentLine: vi.fn(),
+  confirmDocument: vi.fn(),
+  cancelDocument: vi.fn(),
+  downloadDocumentPdf: vi.fn(),
+  listDocuments: vi.fn(),
+  createDocument: vi.fn(),
+  addDocumentLine: vi.fn(),
+  importDocumentLines: vi.fn(),
+}));
+vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
+
+const mocked = vi.mocked(inventoryApi);
+const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
+
+const demoUser = (permissions: string[]): AuthUser => ({
+  id: "u1",
+  email: "ana@acme.mx",
+  firstName: "Ana",
+  locale: "es",
+  permissions,
+  tenant: {
+    id: "tenant-1",
+    name: "Acme",
+    legalName: null,
+    taxId: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    country: "MX",
+    onboarded: true,
+  },
+});
+
+const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
+  id: "doc-1",
+  folio: "ENT-000042",
+  type: "entry",
+  status: "draft",
+  warehouse: { id: "w1", name: "Central" },
+  reasonCode: "adjustment",
+  reference: null,
+  reasonNote: "Sobrante de conteo",
+  authorizedBy: null,
+  linkedWarehouseId: null,
+  lineCount: 1,
+  createdAt: "2026-08-18T19:42:00.000Z",
+  createdBy: { id: "u1", firstName: "Ana", lastNamePaternal: "Pérez" },
+  confirmedAt: null,
+  rows: [
+    {
+      lineNo: 1,
+      productId: "p1",
+      sku: "PAR-500",
+      presentationId: null,
+      quantityInput: "10",
+      quantityBase: "10",
+      unitCost: null,
+      lotCode: null,
+      expiresAt: null,
+      location: null,
+      newLot: false,
+      available: "5",
+      stockBefore: "5",
+      stockAfter: "15",
+      errors: [],
+    },
+  ],
+  summary: { lines: 1, products: 1, newLots: 0, errors: 0 },
+  ...overrides,
+});
+
+async function renderDoc(permissions: string[] = ["inventory:read", "inventory:movement"]) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: ["/movements/documents/doc-1"] }),
+  });
+  await router.load();
+  render(
+    <I18nextProvider i18n={createI18n()}>
+      <QueryClientProvider client={createQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </I18nextProvider>,
+  );
+  return router;
+}
+
+beforeEach(() => {
+  for (const fn of Object.values(mocked)) {
+    if (typeof fn === "function" && "mockReset" in fn) {
+      (fn as { mockReset: () => void }).mockReset();
+    }
+  }
+  mockedWarehouses.mockReset();
+  mockedWarehouses.mockResolvedValue([
+    { id: "w1", name: "Central", address: null, isActive: true },
+  ]);
+  mocked.getDocument.mockResolvedValue(detalle());
+});
+
+afterEach(() => {
+  useAuthStore.getState().clearAuth();
+});
+
+describe("Pantalla del documento (F3-DOC-09)", () => {
+  describe("la cara del borrador", () => {
+    it("muestra el folio y sus líneas", async () => {
+      await renderDoc();
+
+      expect(await screen.findByText("ENT-000042")).toBeInTheDocument();
+      expect(screen.getByText("PAR-500")).toBeInTheDocument();
+    });
+
+    /**
+     * El panel de previa es lo que evita confirmar a ciegas: se ve qué hay y
+     * en qué queda, ANTES de tocar el stock.
+     */
+    it("el panel de previa muestra el stock actual y el resultante", async () => {
+      await renderDoc();
+
+      await screen.findByText("PAR-500");
+      expect(screen.getByText(/5\s*→\s*15/)).toBeInTheDocument();
+    });
+
+    it("editar una cantidad dispara el PATCH con debounce", async () => {
+      const user = userEvent.setup();
+      mocked.updateDocumentLine.mockResolvedValue({});
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const input = screen.getByLabelText(/cantidad/i);
+      await user.clear(input);
+      await user.type(input, "7");
+
+      await waitFor(
+        () => {
+          expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
+            "doc-1",
+            expect.any(String),
+            expect.objectContaining({ quantity: 7 }),
+          );
+        },
+        { timeout: 2000 },
+      );
+    });
+
+    it("una línea con error se marca y el confirmar queda deshabilitado", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [
+            {
+              // `detalle().rows[0]` es `DocumentRow | undefined` para TS: se
+              // estrecha acá en vez de castear en cada uso.
+              ...(detalle().rows[0] as DocumentRow),
+              errors: [{ field: "quantity", code: "inventory.quantity_must_be_positive" }],
+            },
+          ],
+          summary: { lines: 1, products: 1, newLots: 0, errors: 1 },
+        }),
+      );
+
+      await renderDoc();
+
+      await screen.findByText("PAR-500");
+      expect(screen.getByRole("button", { name: /confirmar/i })).toBeDisabled();
+    });
+
+    it("confirmar pide confirmación antes de mover stock", async () => {
+      const user = userEvent.setup();
+      mocked.confirmDocument.mockResolvedValue({ document: detalle({ status: "confirmed" }) });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.click(screen.getByRole("button", { name: /confirmar/i }));
+
+      // El diálogo aparece; el API todavía NO se llamó.
+      expect(mocked.confirmDocument).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: /^confirmar entrada$/i }));
+
+      await waitFor(() => {
+        expect(mocked.confirmDocument).toHaveBeenCalledWith("doc-1");
+      });
+    });
+  });
+
+  describe("la cara del confirmado", () => {
+    it("no renderiza inputs ni el botón de confirmar", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({ status: "confirmed", confirmedAt: "2026-08-18T20:00:00.000Z" }),
+      );
+
+      await renderDoc();
+
+      await screen.findByText("PAR-500");
+      expect(screen.queryByLabelText(/cantidad/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /confirmar/i })).not.toBeInTheDocument();
+    });
+
+    it("un anulado tampoco se edita", async () => {
+      mocked.getDocument.mockResolvedValue(detalle({ status: "canceled" }));
+
+      await renderDoc();
+
+      await screen.findByText("PAR-500");
+      expect(screen.queryByLabelText(/cantidad/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("el PDF", () => {
+    it("se puede bajar en cualquier estado, con el folio de nombre", async () => {
+      const user = userEvent.setup();
+      mocked.downloadDocumentPdf.mockResolvedValue(undefined);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.click(screen.getByRole("button", { name: /pdf/i }));
+
+      await waitFor(() => {
+        expect(mocked.downloadDocumentPdf).toHaveBeenCalledWith("doc-1", "ENT-000042");
+      });
+    });
+  });
+
+  describe("permisos", () => {
+    it("sin `inventory:movement` se ve pero no se edita ni se confirma", async () => {
+      await renderDoc(["inventory:read"]);
+
+      await screen.findByText("PAR-500");
+      expect(screen.queryByLabelText(/cantidad/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /confirmar/i })).not.toBeInTheDocument();
+      // Pero el PDF sí: auditar es leer.
+      expect(screen.getByRole("button", { name: /pdf/i })).toBeInTheDocument();
+    });
+  });
+});

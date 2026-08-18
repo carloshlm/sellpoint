@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { DocumentDetail } from "@/components/inventory/document-detail";
 import { AppLayout } from "@/components/layout/app-layout";
 
 /**
- * Placeholder hasta F3-DOC-09 (la pantalla del documento con autoguardado y
- * previa en vivo). La ruta existe desde ahora porque el botón «Crear» de
- * F3-DOC-08 navega acá: crear un borrador y caer en un 404 sería peor que no
- * poder crearlo.
+ * F3-DOC-09 — la pantalla del documento, con sus dos caras.
+ *
+ * El gate es `inventory:read`: quien AUDITA entra y puede imprimir. Lo que
+ * exige `inventory:movement` es editar y confirmar, y eso lo decide el
+ * componente por dentro.
  */
 function DocumentRoute() {
-  const { t } = useTranslation();
   const { documentId } = Route.useParams();
 
   return (
@@ -20,10 +20,7 @@ function DocumentRoute() {
       <OnboardingGate>
         <AppLayout>
           <PermissionGate need="inventory:read">
-            <section className="flex flex-col gap-2">
-              <h1 className="font-semibold text-xl">{documentId}</h1>
-              <p className="text-muted-foreground text-sm">{t("inventory.placeholder")}</p>
-            </section>
+            <DocumentDetail documentId={documentId} />
           </PermissionGate>
         </AppLayout>
       </OnboardingGate>

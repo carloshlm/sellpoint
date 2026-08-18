@@ -62,5 +62,23 @@
     "drafts": "Drafts",
     "confirmed": "Confirmed",
     "canceled": "Voided"
+  },
+  "document": {
+    "downloadPdf": "Download PDF",
+    "pdfFailed": "The PDF couldn't be generated. Please try again.",
+    "saved": "Saved",
+    "saving": "Saving…",
+    "confirm": "Confirm",
+    "cancel": "Void",
+    "confirmTitle": "Confirm {{type}}",
+    "confirmBody": "{{lines}} lines will be posted and the warehouse stock will change. A confirmed movement can't be edited: fixing it requires recording another one.",
+    "cancelTitle": "Void {{folio}}",
+    "cancelBody": "Number {{folio}} will be voided and never reused. The lines you loaded will be lost.",
+    "hasErrors": "Fix the flagged lines before confirming.",
+    "quantity": "Quantity",
+    "stockChange": "Stock",
+    "newLot": "New lot",
+    "emptyLines": "No lines yet. Add products or upload a spreadsheet.",
+    "readOnly": "This movement was already confirmed: it's history and can't be edited."
   }
 }
