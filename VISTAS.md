@@ -64,7 +64,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│  🏪 SellPoint   {Tenant: Farmacia San Juan}      🔔  👤 {Nombre} ▼    │
+│  🏪 SellPoint   {Tenant: Farmacia Arcangel Uriel}   🔔  👤 {Nombre} ▼  │
 ├──────────────┬─────────────────────────────────────────────────────────┤
 │              │                                                         │
 │  📊 Dashboard│                                                         │
@@ -644,6 +644,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 ## 8. Movimientos
 
 > **Evolución (atomización F3, 2026-08-17).** Los mockups de esta sección quedan alineados con el tablero de F3: **sin campo `Fecha`** en entradas y salidas (no hay backdating — `created_at` es el momento real, el kardex es cronología real); **sin `Producción interna`** (los compuestos nunca tienen stock persistido); "Merma / Daño" va bajo `adjustment` (o `loss` si es pérdida) — el enum no tiene `waste`; el motivo `transfer` **no aparece en el form de entrada** (la recepción se hace desde "Traspasos en tránsito"); en Inventario físico **no hay checkbox de bloqueo** y la plantilla es **una sola**: `sku, nombre, unidad, lote, caducidad, ubicación, teórico, contado` — los productos que controlan lotes (`tracks_lots`) ocupan una fila por (lote, ubicación), los demás una fila con esas columnas vacías (F3-LOTS, mismo día: lote/caducidad/ubicación son dimensiones genéricas del stock, opt-in por producto; la salida y el POS aplican **FEFO**); **aprobar** el conteo y **cancelar** un traspaso exigen `inventory:manage` (solo TenantAdmin). El detalle de producto gana dos tabs: **Kardex** y **Stock por almacén** (con total, bajo mínimo y en tránsito).
+>
+> **Evolución (folios, vista previa y PDF, 2026-08-18).** Entradas y salidas pasan a **dos pasos**: capturar (a mano **o subiendo un Excel** con plantilla descargable) → **vista previa** con el stock actual y el resultante por línea → confirmar. El botón principal del paso 1 deja de ser "Confirmar" y pasa a ser **"Ver vista previa"**. Toda operación confirmada crea un **documento con folio** (`ENT`, `SAL`, `TRA`, `REC`, `INV` — una serie por tipo y por tenant) que se muestra en el panel de éxito con un botón de **Descargar PDF**, aparece como link en cada fila del kardex y se puede buscar después en la sección nueva **§ 8.6 Documentos de inventario**. El folio se asigna **al confirmar**: mirar la previa no consume número.
 
 ### 8.1 Entrada Directa
 
@@ -701,16 +703,54 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │                                                                │
 │                                       Total: $950.00           │
 │                                                                │
-│                          [Cancelar]  [Confirmar entrada]       │
+│                          [Cancelar]  [Ver vista previa →]      │
 └────────────────────────────────────────────────────────────────┘
+```
+
+**Carga por Excel (alternativa a cargar producto por producto):**
+
+```
+│  ─── Cargar desde archivo ─────────────────────────            │
+│   📥 [Descargar plantilla .xlsx] [.csv]                        │
+│      (columnas: sku, presentacion, cantidad,                   │
+│       costo_unitario, lote, caducidad, ubicacion)              │
+│   📎 [ Elegir archivo ]  entrada-agosto.xlsx                   │
+```
+
+**Paso 2 — Vista previa (antes de tocar el stock):**
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Vista previa — Entrada Directa · Almacén Central              │
+│  Motivo: Factura de compra · Ref: F-88213                      │
+├────────────────────────────────────────────────────────────────┤
+│  12 líneas · 12 productos · 1 lote nuevo · 1 error             │
+│                                                                │
+│  # SKU      Producto      Present.  Cant.   Stock              │
+│  1 PAR-500  Paracetamol   Caja x12  3 = 36   10 → 46           │
+│  2 IBU-400  Ibuprofeno    Unidad        50    0 → 50  🆕 lote  │
+│  3 XXX-999  —                          10     —                │
+│    ⚠ Fila 3: no existe un producto con ese código             │
+│                                                                │
+│           [← Volver a editar]   [Confirmar entrada]            │
+│                                  (bloqueado: hay 1 error)      │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Paso 3 — Éxito:**
+
+```
+│  ✅ Entrada registrada — folio ENT-000042                      │
+│     [ Descargar PDF ]  [ Ver documento ]  [ Nueva entrada ]    │
 ```
 
 **Acciones:**
 - Cambiar el motivo dispara reactividad en la UI (muestra/oculta campos contextuales)
 - Escanear con cámara o buscar manualmente (predictivo por SKU/nombre/barcode)
+- Descargar la plantilla y subir un archivo (reemplaza o suma líneas a la tabla)
 - Editar cantidad (y costo unitario si motivo=Factura) en cada línea
 - Eliminar línea
-- Confirmar (dispara transacción atómica)
+- **Ver vista previa** (no escribe nada, no consume folio) → revisar el stock resultante → **Confirmar** (dispara la transacción atómica y toma el folio)
 
 **Casos de uso relacionados:** [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--entrada-directa).
 
@@ -768,14 +808,16 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │   └──────────────────────────────────────────────────────┘    │
 │   ⚠ Validación en vivo: bloquea cantidad > stock disponible   │
 │                                                                │
-│                          [Cancelar]  [Confirmar salida]        │
+│                          [Cancelar]  [Ver vista previa →]      │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 **Acciones:**
 - Cambiar motivo dispara campos contextuales
 - Validación en vivo de stock disponible (no permite confirmar si excede)
-- Si motivo=Traspaso → después de confirmar, muestra el folio del Transfer generado con opción de imprimir nota de envío
+- Descargar plantilla (`sku, presentacion, cantidad, lote, ubicacion` — sin costo: una salida no tiene precio de compra) y subir un Excel
+- **Ver vista previa**: además del stock resultante, cada línea muestra el **Disponible** y, en productos con lote, **de qué lote saldría por FEFO** ("saldrá 1 del lote st10, vence 01/07/2026") — todo antes de escribir
+- Al confirmar, el folio: `SAL-000018` en una salida directa, `TRA-000007` si es traspaso; el panel de éxito ofrece **Descargar PDF** (la nota de envío del traspaso es ese mismo PDF)
 
 **Casos de uso relacionados:** [CU-MOV-02](CASOS_DE_USO.md#cu-mov-02--salida-directa).
 
@@ -941,6 +983,64 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │  [📤 Exportar Excel]                                          │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### 8.6 Documentos de inventario
+
+**Ruta:** `/movements/documents` · **Permiso:** `inventory:read`
+
+> Toda operación que tocó stock dejó un documento con folio. Acá se buscan y se reimprimen. **No se editan ni se borran**: son append-only — corregir es registrar otro movimiento.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Movimientos > Documentos                                      │
+├────────────────────────────────────────────────────────────────┤
+│  🔍 [ folio…            ]                                      │
+│  [Tipo ▾] [Almacén ▾] [Desde][Hasta] [Usuario ▾]              │
+├────────────────────────────────────────────────────────────────┤
+│  Folio       Tipo        Almacén   Fecha      Líneas  Quién    │
+│  ENT-000042  Entrada     Central   18/08/26     12    A. Ruiz  │
+│  SAL-000018  Salida      Central   18/08/26      3    A. Ruiz  │
+│  REC-000007  Recepción   Sucursal  17/08/26      8    J. Paz   │
+│  TRA-000007  Traspaso    Central   17/08/26      8    A. Ruiz  │
+│  INV-000002  Inventario  Sucursal  15/08/26    145    C. Díaz  │
+│                                              ‹ 1 2 3 ›         │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Detalle** (`/movements/documents/$documentId`): cabecera completa (folio grande, tipo, almacén — y destino si es traspaso —, fecha, motivo, referencia, nota, quién registró y quién autorizó), tabla de líneas con la equivalencia en unidad base y las columnas de lote **solo si alguna línea las trae**, link al traspaso si lo hay, y **[Descargar PDF]**.
+
+**El PDF:**
+
+```
+┌──────────────────────────────────────────────┐
+│ DISTRIBUIDORA DEL NORTE S.A. DE C.V.         │
+│ RFC: DNO010203AB4        ENTRADA DIRECTA     │
+│                          Folio: ENT-000042   │
+├──────────────────────────────────────────────┤
+│ Almacén: Central      Fecha: 18/08/2026 19:42│
+│ Motivo: Factura de compra   Ref: F-88213     │
+│ Registró: Ana Ruiz                           │
+├──────────────────────────────────────────────┤
+│ #  SKU      Producto        Present.   Cant. │
+│ 1  PAR-500  Paracetamol   Caja x12    3 = 36 │
+│ 2  IBU-400  Ibuprofeno     Unidad         50 │
+├──────────────────────────────────────────────┤
+│ Total de líneas: 2                           │
+│                                              │
+│ ____________  ____________  ____________     │
+│   Entregó       Recibió       Autorizó       │
+└──────────────────────────────────────────────┘
+```
+
+**Notas de diseño:**
+- **No hay un "total de unidades"**: sumar 36 unidades + 2.5 kg + 400 ml da un número que no significa nada. El pie cuenta **líneas**; la cantidad va por línea con su unidad.
+- El cuerpo cambia por tipo: un inventario físico muestra **teórico / contado / diferencia** en vez de presentación y costo.
+- Se renderiza en el servidor y se baja con el token en la cabecera (un `<a href>` plano daría 401), con el folio como nombre de archivo.
+- Un documento de cientos de líneas sale paginado con el encabezado de la tabla repetido.
+
+**Casos de uso relacionados:** [CU-MOV-07](CASOS_DE_USO.md#cu-mov-07--buscar-un-documento-y-reimprimir-su-pdf).
 
 ---
 

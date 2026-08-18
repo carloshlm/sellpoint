@@ -460,7 +460,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ### 3.5 Movimientos de Inventario
 
-> **Modelo unificado:** existen **2 movimientos directos** (Entrada Directa, Salida Directa) cada uno con un campo **motivo** (`reason_code`) que diferencia el caso de uso. El traspaso entre almacenes es un **proceso de 2 pasos con confirmación** (CU-MOV-01 con motivo `transfer` en origen + CU-MOV-03 en destino).
+> **Modelo unificado:** existen **2 movimientos directos** (Entrada Directa, Salida Directa) cada uno con un campo **motivo** (`reason_code`) que diferencia el caso de uso. El traspaso entre almacenes es un **proceso de 2 pasos con confirmación** (CU-MOV-01 con motivo `transfer` en origen + CU-MOV-03 en destino). **Toda operación genera un DOCUMENTO con folio** (decisión de Carlos, 2026-08-18): `ENT` entrada directa, `SAL` salida directa, `TRA` despacho de traspaso, `REC` recepción, `INV` inventario físico — una serie por tipo y por tenant, y el motivo va dentro del documento, no en el folio. Las líneas se cargan **a mano o subiendo un Excel**, y en los dos casos hay un **paso de vista previa** que muestra el stock resultante antes de escribir. Cualquier documento se busca por folio y se baja en PDF (CU-MOV-07).
 
 #### Motivos soportados
 
@@ -492,16 +492,19 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
      - `adjustment` → `reason_note` obligatoria + `authorized_by` opcional
      - `transfer` → **no se elige acá**: la recepción de un traspaso se hace desde la vista "Traspasos en tránsito" (CU-MOV-03), que manda `transfer_id`
      - `customer_return` → `reason_note` obligatoria + `reference` opcional (referencia externa; la devolución ligada a una venta del POS es `sale_return`, F4)
-  5. Agrega productos: escanea código de barras o busca por SKU, ingresa cantidad
-  6. Sistema valida cantidades > 0 y producto activo. **Si la presentación elegida tiene `allow_fractional_input=false`, valida también que la cantidad no tenga parte decimal** (error claro: *"La presentación 'Caja 30 tab' solo acepta cantidades enteras"*).
-  7. Click "Confirmar" → **transacción atómica**:
+  5. Carga las líneas por **cualquiera de las dos vías**: a mano (escanea código de barras o busca por SKU e ingresa cantidad) o **subiendo un Excel/CSV** con la plantilla descargable (`sku, presentacion, cantidad, costo_unitario, lote, caducidad, ubicacion`). Las dos vías terminan en la misma tabla.
+  6. Click **"Ver vista previa"** → el sistema resuelve y valida TODO sin escribir nada: cantidades > 0, producto activo, presentación válida, **si la presentación tiene `allow_fractional_input=false` la cantidad no puede tener decimales** (*"La presentación 'Caja 30 tab' solo acepta cantidades enteras"*), lotes. Devuelve la tabla de previa con **el stock actual y el resultante de cada línea**, los lotes que se crearían y los errores marcados sobre su fila. **No consume folio.**
+  7. Usuario revisa. Puede volver a editar, o click "Confirmar entrada" (deshabilitado si hay errores) → **transacción atómica**:
+     - Toma el folio `ENT-000001` y crea el **documento** (`inventory_documents`) con almacén, motivo, referencia, nota y autorizador
      - Inserta `stock_movement` por línea con `direction='entry'`, `reason_code`, `reason_note`, `presentation_id`, `linked_warehouse_id` (si transfer). La `quantity` se persiste en `base_unit` (convertida con `presentation.factor`).
      - Actualiza `stock_by_warehouse`
      - Si `reason_code='transfer'`: marca el `Transfer` vinculado como `completed` (ver CU-MOV-03)
-     - Registra audit log
+     - Registra audit log anclado en el documento (el folio es lo que se busca al auditar)
 - **Flujos alternativos:**
+  - 6a. El archivo trae filas con error (sku inexistente, escala inválida, lote en producto que no los controla) → la previa las marca con su número de fila y el resto sigue visible; confirmar queda bloqueado hasta corregir.
+  - 7a. El usuario se arrepiente y no confirma → **no se consume folio**: la serie sigue en el número anterior. Mirar es gratis.
   - 4a. Motivo `transfer` sin `transfer_id` → **rechazado** (422 `inventory.transfer_entry_requires_transfer`; decisión F3, 2026-08-17). Una entrada `transfer` "huérfana" no explica de dónde vino el stock; la corrección de un traspaso mal registrado se hace con `adjustment`, que sí queda explicada y auditada.
-- **Postcondición:** Stock sumado al almacén. Kardex actualizado. Si era traspaso vinculado, ciclo cerrado.
+- **Postcondición:** Stock sumado al almacén. Documento `ENT-…` creado y descargable en PDF. Kardex actualizado con el folio en cada línea. Si era traspaso vinculado, ciclo cerrado.
 
 ---
 
@@ -517,9 +520,10 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
      - `adjustment` / `loss` / `expired` → texto libre con explicación + usuario autorizador
      - `transfer` → selector "Almacén destino"
      - `consumption` → área o concepto (texto libre)
-  5. Agrega productos y cantidades
-  6. Sistema valida stock suficiente (`stock_by_warehouse.quantity >= cantidad solicitada`). **Si la presentación elegida tiene `allow_fractional_input=false`, valida también cantidad entera**. Si el producto controla lotes y la línea no trae uno, el sistema reparte la cantidad **FEFO** (por `expires_at` ascendente) entre los lotes con saldo del almacén; el usuario puede forzar un lote.
-  7. Click "Confirmar" → **transacción atómica**:
+  5. Carga las líneas a mano o **subiendo un Excel/CSV** (plantilla `sku, presentacion, cantidad, lote, ubicacion` — sin costo: una salida no tiene precio de compra)
+  6. Click **"Ver vista previa"**: el sistema valida stock suficiente (`stock_by_warehouse.quantity >= cantidad solicitada`). **Si la presentación elegida tiene `allow_fractional_input=false`, valida también cantidad entera**. Si el producto controla lotes y la línea no trae uno, el sistema reparte la cantidad **FEFO** (por `expires_at` ascendente) entre los lotes con saldo del almacén; el usuario puede forzar un lote. **La previa muestra, línea por línea, el disponible, el stock resultante y de qué lote saldría** — sin escribir nada ni consumir folio.
+  7. Usuario revisa y click "Confirmar salida" → **transacción atómica**:
+     - Toma el folio (`SAL-000001`, o `TRA-000001` si es traspaso) y crea el **documento**
      - Inserta `stock_movement` por línea con `direction='exit'`, `reason_code`, `reason_note`, `presentation_id`, `linked_warehouse_id` (si transfer). La `quantity` se persiste en `base_unit` (convertida con `presentation.factor`).
      - Decrementa `stock_by_warehouse`
      - Si `reason_code='transfer'`: crea registro en tabla `transfers` con estado `in_transit`, almacenes origen + destino, líneas
@@ -527,7 +531,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Flujos alternativos:**
   - 6a. Stock insuficiente → error con detalle de cuánto hay disponible.
   - 7a. Si motivo es `transfer` y se confirma → el stock sale del origen y queda "en tránsito". NO entra automáticamente al destino. El destino tiene que confirmar con CU-MOV-03.
-- **Postcondición:** Stock restado del origen. Si era traspaso, `Transfer` queda `in_transit` esperando recepción.
+- **Postcondición:** Stock restado del origen. Documento `SAL-…` (o `TRA-…`) creado y descargable en PDF. Si era traspaso, `Transfer` queda `in_transit` esperando recepción.
 
 ---
 
@@ -546,6 +550,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   6. Click "Confirmar" → genera internamente una Entrada Directa con `reason_code='transfer'` vinculada al `Transfer`:
      - Inserta `stock_movement` `direction='entry'` por línea con cantidad RECIBIDA
      - Si recibido < enviado: registra `discrepancy` en `transfer.discrepancies` con la diferencia + nota
+     - Crea su propio documento con folio `REC-000001`, ligado al mismo traspaso que el `TRA-…` del despacho
      - Cambia `Transfer.status='completed'` con timestamp + usuario que confirmó
      - Audit log detallado de la discrepancia (importante para auditorías)
 - **Flujos alternativos:**
@@ -580,8 +585,8 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   5. Sistema reconcilia:
      - Reconcilia en seco (sin escribir): teórico vs contado por fila, resumen (coincidencias / discrepancias / omitidas / errores)
      - Filas con `counted` vacío = no contadas → se omiten y se reportan
-  6. Usuario revisa; **aprueba solo quien tenga `inventory:manage`** (TenantAdmin) → transacción atómica que, **solo para las líneas con diferencia**, genera salida `physical_count` del teórico total + entrada `physical_count` del contado (mismo `batch_id`); las líneas iguales no generan movimiento
-- **Postcondición:** Inventario reconciliado al contado. Discrepancias y drift (si el teórico cambió entre reconciliar y aprobar) registrados en audit log.
+  6. Usuario revisa; **aprueba solo quien tenga `inventory:manage`** (TenantAdmin) → transacción atómica que, **solo para las líneas con diferencia**, genera salida `physical_count` del teórico total + entrada `physical_count` del contado, todo bajo **un** documento con folio `INV-000001`; las líneas iguales no generan movimiento
+- **Postcondición:** Inventario reconciliado al contado. Documento `INV-…` creado y descargable en PDF (con las columnas teórico / contado / diferencia). Discrepancias y drift (si el teórico cambió entre reconciliar y aprobar) registrados en audit log.
 
 ---
 
@@ -592,7 +597,26 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   1. Catálogo → Productos → selecciona producto → tab "Kardex"
   2. Sistema muestra histórico completo de movimientos del producto en todos los almacenes accesibles según el scope del usuario
   3. Filtros: rango de fechas, almacén, dirección (entrada/salida), motivo (`reason_code`)
+  4. Cada línea muestra el **folio** del documento que la originó, y es un link a ese documento
 - **Postcondición:** Visualización de trazabilidad.
+
+---
+
+#### **CU-MOV-07 — Buscar un documento y reimprimir su PDF**
+
+- **Actor:** Cualquiera con `inventory:read`
+- **Precondición:** El documento pertenece a un almacén dentro del scope del usuario.
+- **Motivación:** El proveedor llama y dicta un folio; el contador pide el papel de una entrada del mes pasado; se traspapeló la copia firmada. El folio existe justamente para poder volver.
+- **Flujo principal:**
+  1. Movimientos → "Documentos"
+  2. Busca por **folio** (parcial, sin distinguir mayúsculas: `ENT`, `000042`, `ent-42`) o filtra por tipo, almacén, rango de fechas y usuario
+  3. Sistema lista los documentos de los almacenes en su scope, más nuevos primero
+  4. Click en una fila → detalle con la cabecera completa (folio, tipo, almacén, fecha, motivo, referencia, nota, quién registró y quién autorizó) y sus líneas
+  5. Click "Descargar PDF" → se baja el documento con el folio como nombre de archivo
+- **Flujos alternativos:**
+  - 3a. El documento pertenece a un almacén fuera del scope → no aparece en el listado y su detalle da 404 (no se filtra "para que no lo vea": no existe para ese usuario).
+  - 5a. El documento tiene cientos de líneas → el PDF sale paginado con el encabezado de la tabla repetido en cada hoja.
+- **Postcondición:** Ninguna — es solo lectura. Un documento **no se puede editar ni borrar**: es append-only. Corregirlo es registrar otro movimiento (`adjustment`), que queda explicado y auditado.
 
 ---
 
