@@ -147,3 +147,19 @@ export interface UpsertLineInput {
   location?: string | null;
   counted?: number | null;
 }
+
+/**
+ * Una línea de "próximos a vencer". `daysLeft` es negativo en lo YA vencido, y
+ * eso aparece igual: sigue en el estante y hay que sacarlo.
+ */
+export interface ExpiringRow {
+  productId: string;
+  sku: string;
+  name: string;
+  lot: { id: string; lotCode: string; expiresAt: string };
+  warehouse: { id: string; name: string };
+  location: string;
+  quantity: string;
+  daysLeft: number;
+  expired: boolean;
+}

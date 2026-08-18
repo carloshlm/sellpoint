@@ -6,11 +6,31 @@ import {
   createDocument,
   getDocument,
   listDocuments,
+  listExpiring,
   updateDocumentHeader,
 } from "./api";
-import type { DocumentDetail, DocumentPage, DocumentSummary, ListDocumentsParams } from "./types";
+import type {
+  DocumentDetail,
+  DocumentPage,
+  DocumentSummary,
+  ExpiringRow,
+  ListDocumentsParams,
+} from "./types";
 
 export const DOCUMENTS_QUERY_KEY = ["inventory", "documents"] as const;
+export const EXPIRING_QUERY_KEY = ["inventory", "expiring"] as const;
+
+/** Lo que está por vencerse. Sin cron: se consulta al abrir la pantalla. */
+export function useExpiring(
+  params: { days: number; warehouseId?: string },
+  options?: { enabled?: boolean },
+) {
+  return useQuery<ExpiringRow[], ApiError>({
+    queryKey: [...EXPIRING_QUERY_KEY, params],
+    queryFn: () => listExpiring(params),
+    enabled: options?.enabled ?? true,
+  });
+}
 
 export function useDocuments(params: ListDocumentsParams) {
   return useQuery<DocumentPage, ApiError>({

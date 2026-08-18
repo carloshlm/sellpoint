@@ -27,6 +27,7 @@ import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as MovementsCountsRouteImport } from './routes/movements.counts'
 import { Route as MovementsEntriesRouteImport } from './routes/movements.entries'
 import { Route as MovementsExitsRouteImport } from './routes/movements.exits'
+import { Route as MovementsExpiringRouteImport } from './routes/movements.expiring'
 import { Route as MovementsTransfersRouteImport } from './routes/movements.transfers'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
@@ -122,6 +123,11 @@ const MovementsExitsRoute = MovementsExitsRouteImport.update({
   path: '/movements/exits',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MovementsExpiringRoute = MovementsExpiringRouteImport.update({
+  id: '/movements/expiring',
+  path: '/movements/expiring',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MovementsTransfersRoute = MovementsTransfersRouteImport.update({
   id: '/movements/transfers',
   path: '/movements/transfers',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
+  '/movements/expiring': typeof MovementsExpiringRoute
   '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
+  '/movements/expiring': typeof MovementsExpiringRoute
   '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
+  '/movements/expiring': typeof MovementsExpiringRoute
   '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
+    | '/movements/expiring'
     | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
+    | '/movements/expiring'
     | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
+    | '/movements/expiring'
     | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
@@ -311,6 +323,7 @@ export interface RootRouteChildren {
   MovementsCountsRoute: typeof MovementsCountsRoute
   MovementsEntriesRoute: typeof MovementsEntriesRoute
   MovementsExitsRoute: typeof MovementsExitsRoute
+  MovementsExpiringRoute: typeof MovementsExpiringRoute
   MovementsTransfersRoute: typeof MovementsTransfersRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MovementsExitsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/movements/expiring': {
+      id: '/movements/expiring'
+      path: '/movements/expiring'
+      fullPath: '/movements/expiring'
+      preLoaderRoute: typeof MovementsExpiringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/movements/transfers': {
       id: '/movements/transfers'
       path: '/movements/transfers'
@@ -495,6 +515,7 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsCountsRoute: MovementsCountsRoute,
   MovementsEntriesRoute: MovementsEntriesRoute,
   MovementsExitsRoute: MovementsExitsRoute,
+  MovementsExpiringRoute: MovementsExpiringRoute,
   MovementsTransfersRoute: MovementsTransfersRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,

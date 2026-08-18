@@ -3,6 +3,7 @@ import {
   ArrowDownToLine,
   ArrowLeftRight,
   ArrowUpFromLine,
+  CalendarClock,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -176,6 +177,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   ["/movements/exits", "inventory.nav.exits", ArrowUpFromLine],
                   ["/movements/transfers", "inventory.nav.transfers", ArrowLeftRight],
                   ["/movements/counts", "inventory.nav.counts", ClipboardList],
+                  ["/movements/expiring", "inventory.nav.expiring", CalendarClock],
                 ] as const
               ).map(([to, label, Icon]) => (
                 <Link

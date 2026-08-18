@@ -154,5 +154,24 @@
   "document_line_not_found": "That line doesn't exist in this movement.",
   "import_unreadable": "We couldn't read the file. Make sure it's the CSV or Excel template.",
   "import_empty": "The file has no rows to load.",
-  "reason_required": "The movement reason is missing."
+  "reason_required": "The movement reason is missing.",
+  "expiring": {
+    "title": "Expiring soon",
+    "days7": "7 days",
+    "days30": "30 days",
+    "days90": "90 days",
+    "empty": "Nothing expiring within this window.",
+    "expired": "Expired",
+    "daysLeft": "{{count}} days",
+    "daysLeft_one": "{{count}} day",
+    "expiresAt": "Expires",
+    "location": "Location",
+    "quantity": "Quantity",
+    "warehouse": "Warehouse",
+    "product": "Product",
+    "lot": "Lot",
+    "discard": "Write off as expired",
+    "discardFailed": "The exit could not be created. Try again.",
+    "card": "Expiring soon"
+  }
 }

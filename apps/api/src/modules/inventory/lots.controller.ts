@@ -38,6 +38,27 @@ export class LotsController {
     });
   }
 
+  /**
+   * Lo que está por vencerse. `days` es un número de días, no una fecha: la
+   * pantalla ofrece 7/30/90 y así el cliente no tiene que calcular nada.
+   */
+  @Get("inventory/expiring")
+  @RequirePermissions("inventory:read")
+  expiring(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query("days") days?: string,
+    @Query("warehouseId") warehouseId?: string,
+  ) {
+    const parsed = Number(days);
+    return this.lots.listExpiring(user, scope, {
+      // 30 días es el default del tablero. Un `days` basura cae acá y no en un
+      // 500: pedir "próximos a vencer" sin decir cuántos días es razonable.
+      days: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 30,
+      warehouseId: warehouseId === "" ? undefined : warehouseId,
+    });
+  }
+
   @Get("warehouses/:id/locations")
   @RequirePermissions("inventory:read")
   warehouseLocations(

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { ExpiringCard } from "@/components/inventory/expiring-card";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -36,6 +37,7 @@ function DashboardContent() {
           {t("common.dashboard.welcome", { name: user.firstName })}
         </p>
       )}
+      <ExpiringCard />
       <p className="text-sm text-muted-foreground">{t("common.dashboard.placeholder")}</p>
     </div>
   );

@@ -3,11 +3,20 @@ import type {
   DocumentDetail,
   DocumentPage,
   DocumentSummary,
+  ExpiringRow,
   InventoryDocumentType,
   ListDocumentsParams,
   MovementReason,
   UpsertLineInput,
 } from "./types";
+
+export async function listExpiring(params: {
+  days: number;
+  warehouseId?: string;
+}): Promise<ExpiringRow[]> {
+  const { data } = await api.get<ExpiringRow[]>("/inventory/expiring", { params });
+  return data;
+}
 
 export async function listDocuments(params: ListDocumentsParams): Promise<DocumentPage> {
   const { data } = await api.get<DocumentPage>("/inventory/documents", { params });

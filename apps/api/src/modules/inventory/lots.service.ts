@@ -20,6 +20,19 @@ export interface ProductLotRow {
   byWarehouse: LotStockRow[];
 }
 
+export interface ExpiringRow {
+  productId: string;
+  sku: string;
+  name: string;
+  lot: { id: string; lotCode: string; expiresAt: Date };
+  warehouse: { id: string; name: string };
+  location: string;
+  quantity: string;
+  /** Negativo si ya venció. */
+  daysLeft: number;
+  expired: boolean;
+}
+
 export interface ListLotsOptions {
   withStock?: boolean;
   warehouseId?: string;
@@ -147,6 +160,83 @@ export class LotsService {
       });
 
       return rows.map((row) => row.location);
+    });
+  }
+
+  /**
+   * Lo que está por vencerse — y lo que YA venció.
+   *
+   * **Sin cron y sin notificaciones, a propósito.** Es una consulta que la
+   * pantalla hace cuando alguien la abre. Un job que manda mails es una
+   * decisión de producto (y de costos) que F5/F6 tomarán con más información;
+   * construir esa maquinaria ahora sería infraestructura para una necesidad
+   * que todavía nadie expresó.
+   *
+   * Lo ya vencido aparece SIEMPRE, sin importar el `days` pedido: sigue en el
+   * estante y hay que sacarlo. Esconderlo porque "ya pasó" es exactamente el
+   * error que esta consulta viene a evitar.
+   *
+   * Los lotes SIN caducidad no aparecen nunca: no vencen, así que no hay nada
+   * que alertar.
+   */
+  async listExpiring(
+    user: AuthUser,
+    scope: UserScope,
+    options: { days: number; warehouseId?: string },
+  ): Promise<ExpiringRow[]> {
+    if (options.warehouseId !== undefined) {
+      assertWarehouseInScope(scope, options.warehouseId);
+    }
+
+    // Medianoche UTC: `expires_at` es una columna DATE y compararla contra un
+    // instante con hora correría el corte según el huso del servidor.
+    const hoy = new Date();
+    hoy.setUTCHours(0, 0, 0, 0);
+    const limite = new Date(hoy);
+    limite.setUTCDate(limite.getUTCDate() + options.days);
+
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const rows = await tx.stockLot.findMany({
+        where: {
+          tenantId: user.tenantId,
+          quantity: { gt: 0 },
+          ...this.stockWhere(scope, options.warehouseId),
+          lot: { expiresAt: { not: null, lte: limite } },
+        },
+        select: {
+          location: true,
+          quantity: true,
+          warehouse: { select: { id: true, name: true } },
+          lot: {
+            select: {
+              id: true,
+              lotCode: true,
+              expiresAt: true,
+              product: { select: { id: true, sku: true, name: true } },
+            },
+          },
+        },
+        orderBy: [{ lot: { expiresAt: "asc" } }, { lot: { lotCode: "asc" } }],
+      });
+
+      const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+      return rows.map((row) => {
+        const expiresAt = row.lot.expiresAt as Date;
+        const daysLeft = Math.round((expiresAt.getTime() - hoy.getTime()) / MS_POR_DIA);
+
+        return {
+          productId: row.lot.product.id,
+          sku: row.lot.product.sku,
+          name: row.lot.product.name,
+          lot: { id: row.lot.id, lotCode: row.lot.lotCode, expiresAt },
+          warehouse: row.warehouse,
+          location: row.location,
+          quantity: row.quantity.toString(),
+          daysLeft,
+          expired: daysLeft < 0,
+        };
+      });
     });
   }
 

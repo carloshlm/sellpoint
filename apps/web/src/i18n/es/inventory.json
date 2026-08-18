@@ -154,5 +154,24 @@
   "document_line_not_found": "Esa línea no existe en este movimiento.",
   "import_unreadable": "No pudimos leer el archivo. Verifica que sea el CSV o el Excel de la plantilla.",
   "import_empty": "El archivo no tiene filas para cargar.",
-  "reason_required": "Falta elegir el motivo del movimiento."
+  "reason_required": "Falta elegir el motivo del movimiento.",
+  "expiring": {
+    "title": "Próximos a vencer",
+    "days7": "7 días",
+    "days30": "30 días",
+    "days90": "90 días",
+    "empty": "No hay nada por vencer en este plazo.",
+    "expired": "Vencido",
+    "daysLeft": "{{count}} días",
+    "daysLeft_one": "{{count}} día",
+    "expiresAt": "Vence",
+    "location": "Ubicación",
+    "quantity": "Cantidad",
+    "warehouse": "Almacén",
+    "product": "Producto",
+    "lot": "Lote",
+    "discard": "Dar salida por caducado",
+    "discardFailed": "No se pudo crear la salida. Intenta de nuevo.",
+    "card": "Próximos a vencer"
+  }
 }

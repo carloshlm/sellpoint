@@ -320,4 +320,214 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       expect(body.find((l) => l.lotCode === "st10")?.totalQuantity).toBe("0");
     });
   });
+
+  /**
+   * F3-LOTS-03 — qué está por vencerse.
+   *
+   * **Sin cron y sin notificaciones**: es una CONSULTA que la pantalla hace
+   * cuando alguien la abre. Un job que manda mails es una decisión de producto
+   * (y de costos) que F5/F6 tomarán con más información; adelantarla acá sería
+   * construir infraestructura para una necesidad que todavía nadie expresó.
+   */
+  describe("GET /inventory/expiring", () => {
+    /** Una fecha a N días de hoy, en formato de columna DATE. */
+    function enDias(dias: number): Date {
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d;
+    }
+
+    async function conCaducidades() {
+      const { token, tenantId } = await registerAndLogin();
+      const datos = await prisma.withTenantContext(tenantId, async (tx) => {
+        const producto = await tx.product.create({
+          data: {
+            tenantId,
+            sku: `EXP-${randomUUID().slice(0, 8)}`,
+            name: "Yogur",
+            tracksLots: true,
+          },
+        });
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `Central ${randomUUID().slice(0, 6)}` },
+        });
+
+        const [pronto, lejos, vencido, agotado] = await Promise.all([
+          tx.productLot.create({
+            data: { tenantId, productId: producto.id, lotCode: "bbb-en10", expiresAt: enDias(10) },
+          }),
+          tx.productLot.create({
+            data: { tenantId, productId: producto.id, lotCode: "aaa-en90", expiresAt: enDias(90) },
+          }),
+          tx.productLot.create({
+            data: { tenantId, productId: producto.id, lotCode: "zzz-ayer", expiresAt: enDias(-1) },
+          }),
+          tx.productLot.create({
+            data: { tenantId, productId: producto.id, lotCode: "ccc-vacio", expiresAt: enDias(5) },
+          }),
+        ]);
+
+        await tx.stockLot.createMany({
+          data: [
+            { tenantId, lotId: pronto.id, warehouseId: warehouse.id, location: "A-1", quantity: 4 },
+            { tenantId, lotId: lejos.id, warehouseId: warehouse.id, quantity: 7 },
+            { tenantId, lotId: vencido.id, warehouseId: warehouse.id, quantity: 2 },
+            // Sin saldo: no hay nada que se pueda echar a perder.
+            { tenantId, lotId: agotado.id, warehouseId: warehouse.id, quantity: 0 },
+          ],
+        });
+
+        return { productId: producto.id, warehouseId: warehouse.id };
+      });
+      return { token, tenantId, ...datos };
+    }
+
+    it("con `days=30` trae el que vence en 10 y no el que vence en 90", async () => {
+      const { token } = await conCaducidades();
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=30")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const codigos = (res.body as { lot: { lotCode: string } }[]).map((r) => r.lot.lotCode);
+      expect(codigos).toContain("bbb-en10");
+      expect(codigos).not.toContain("aaa-en90");
+    });
+
+    it("con `days=7` ya no trae el que vence en 10", async () => {
+      const { token } = await conCaducidades();
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=7")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const codigos = (res.body as { lot: { lotCode: string } }[]).map((r) => r.lot.lotCode);
+      expect(codigos).not.toContain("bbb-en10");
+    });
+
+    /**
+     * Lo YA vencido es lo más urgente: sigue en el estante y hay que sacarlo.
+     * Esconderlo porque "ya pasó" es justamente el error que esta pantalla
+     * viene a evitar.
+     */
+    it("lo ya vencido aparece SIEMPRE, marcado y primero", async () => {
+      const { token } = await conCaducidades();
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=7")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const filas = res.body as { lot: { lotCode: string }; expired: boolean; daysLeft: number }[];
+      // Alfabéticamente "zzz-ayer" iría ÚLTIMO: que salga primero solo puede
+      // deberse a que se ordenó por caducidad.
+      expect(filas[0]?.lot.lotCode).toBe("zzz-ayer");
+      expect(filas[0]?.expired).toBe(true);
+      expect(filas[0]?.daysLeft).toBe(-1);
+    });
+
+    it("un lote sin saldo no aparece: no hay nada que se eche a perder", async () => {
+      const { token } = await conCaducidades();
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=90")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const codigos = (res.body as { lot: { lotCode: string } }[]).map((r) => r.lot.lotCode);
+      expect(codigos).not.toContain("ccc-vacio");
+    });
+
+    it("cada fila dice dónde está y cuánto hay", async () => {
+      const { token, productId, warehouseId: whId } = await conCaducidades();
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=30")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const fila = (res.body as { lot: { lotCode: string } }[]).find(
+        (r) => r.lot.lotCode === "bbb-en10",
+      );
+      expect(fila).toEqual(
+        expect.objectContaining({
+          productId,
+          sku: expect.stringContaining("EXP-"),
+          name: "Yogur",
+          location: "A-1",
+          quantity: "4",
+          daysLeft: 10,
+          expired: false,
+          warehouse: expect.objectContaining({ id: whId }),
+        }),
+      );
+    });
+
+    it("`?warehouseId=` acota a ese almacén y deja fuera el resto", async () => {
+      const { token, tenantId, productId, warehouseId: central } = await conCaducidades();
+
+      // El MISMO producto, con un lote más, en OTRA bodega.
+      const lejano = await prisma.withTenantContext(tenantId, async (tx) => {
+        const otro = await tx.warehouse.create({
+          data: { tenantId, name: `Lejos ${randomUUID().slice(0, 6)}` },
+        });
+        const lot = await tx.productLot.create({
+          data: { tenantId, productId, lotCode: "solo-alla", expiresAt: enDias(3) },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lot.id, warehouseId: otro.id, quantity: 9 },
+        });
+        return otro.id;
+      });
+
+      const enCentral = await request(app.getHttpServer())
+        .get(`/inventory/expiring?days=90&warehouseId=${central}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const enLejos = await request(app.getHttpServer())
+        .get(`/inventory/expiring?days=90&warehouseId=${lejano}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const codigos = (body: unknown) =>
+        (body as { lot: { lotCode: string } }[]).map((r) => r.lot.lotCode);
+
+      expect(codigos(enCentral.body)).not.toContain("solo-alla");
+      expect(codigos(enLejos.body)).toEqual(["solo-alla"]);
+    });
+
+    /** Un lote sin caducidad no vence nunca: no tiene por qué alertar. */
+    it("los lotes sin fecha no aparecen", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const producto = await tx.product.create({
+          data: {
+            tenantId,
+            sku: `NF-${randomUUID().slice(0, 8)}`,
+            name: "Tornillos",
+            tracksLots: true,
+          },
+        });
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `W ${randomUUID().slice(0, 6)}` },
+        });
+        const lot = await tx.productLot.create({
+          data: { tenantId, productId: producto.id, lotCode: "sinFecha" },
+        });
+        await tx.stockLot.create({
+          data: { tenantId, lotId: lot.id, warehouseId: warehouse.id, quantity: 50 },
+        });
+      });
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?days=3650")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect(res.body).toEqual([]);
+    });
+  });
 });
