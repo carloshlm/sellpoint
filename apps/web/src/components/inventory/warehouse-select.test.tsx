@@ -84,6 +84,49 @@ describe("WarehouseSelect (F3-NAV-01)", () => {
     });
   });
 
+  /**
+   * La auto-selección avisa UNA sola vez por montaje, aunque el padre le pase
+   * un `onChange` nuevo en cada render y el `value` SIGA en null.
+   *
+   * Ese es el estado real cuando el PATCH que dispara el aviso **falla** (403,
+   * 422, red caída): el documento nunca refleja el cambio, `value` se queda
+   * nulo para siempre y, sin un guardia, el efecto vuelve a avisar en cada
+   * render — un bucle que martilla el servidor con el mismo PATCH que ya
+   * falló. Lo destapó F3-EXIT-02 con el almacén destino del traspaso, como
+   * "Maximum update depth exceeded".
+   */
+  it("auto-selecciona UNA sola vez aunque el value nunca se actualice", async () => {
+    mocked.mockResolvedValue({ data: [almacen("unico", "Central")] });
+    const onChange = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const arbol = (marca: number) => (
+      <QueryClientProvider client={client}>
+        <I18nextProvider i18n={createI18n()}>
+          <WarehouseSelect
+            value={null}
+            // Identidad nueva en cada render, como `onChange={(id) => mutate(...)}`.
+            onChange={(id) => onChange(id, marca)}
+            excludeIds={[]}
+          />
+        </I18nextProvider>
+      </QueryClientProvider>
+    );
+
+    const { rerender } = render(arbol(0));
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    // Diez renders más con el value todavía en null: el PATCH falló y nadie
+    // lo va a arreglar. Ninguno debe volver a avisar.
+    for (let i = 1; i <= 10; i++) {
+      rerender(arbol(i));
+    }
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it("con dos almacenes NO elige por el usuario", async () => {
     mocked.mockResolvedValue({ data: [almacen("a", "Central"), almacen("b", "Sucursal")] });
     const onChange = vi.fn();

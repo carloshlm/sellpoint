@@ -1,5 +1,6 @@
 import { REASON_RULES, unitName } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -125,7 +126,17 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
               {t("inventory.document.confirmedBody", { folio: document.folio })}
             </span>
           </div>
-          <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+          <div className="flex items-center gap-2">
+            {document.reasonCode === "transfer" && (
+              <Link
+                to="/movements/transfers"
+                className="rounded-md border border-input px-3 py-2 text-sm"
+              >
+                {t("inventory.document.goToTransfers")}
+              </Link>
+            )}
+            <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+          </div>
         </div>
       )}
 
@@ -168,6 +179,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                 product={productosPorId.get(row.productId)}
                 editable={editable}
                 conCosto={conCosto}
+                esSalida={document.type === "exit"}
               />
             ))}
           </tbody>
@@ -224,12 +236,14 @@ function LineRow({
   product,
   editable,
   conCosto,
+  esSalida,
 }: {
   documentId: string;
   row: DocumentRow;
   product: DocumentProduct | undefined;
   editable: boolean;
   conCosto: boolean;
+  esSalida: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -353,6 +367,7 @@ function LineRow({
           (row.quantityInput ?? "—")
         )}
         <Equivalencia row={row} product={product} locale={resolveUiLocale(i18n)} />
+        {esSalida && <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />}
       </td>
       {conCosto && (
         <td className="py-2">
@@ -389,6 +404,63 @@ function LineRow({
         </td>
       )}
     </tr>
+  );
+}
+
+/**
+ * Lo que HAY, junto a lo que se pide. Solo en salidas: en una entrada el
+ * disponible no restringe nada y sería ruido.
+ *
+ * `row.available` viene ENCADENADO por el servidor — la segunda línea de un
+ * mismo producto ya parte del saldo que dejó la primera. Ese es justo el caso
+ * que se escapa cuando cada fila se valida sola.
+ *
+ * Con presentación elegida se dice también en esa presentación, porque quien
+ * saca en cajas necesita el número en cajas y no hacer la división de cabeza
+ * sobre el mostrador. Y se REDONDEA HACIA ABAJO cuando la presentación no
+ * admite fracciones: de 125 unidades salen 10 cajas, no 10.4167 — mostrar el
+ * decimal invitaría a teclear una cantidad que el API rechaza.
+ */
+function Disponible({
+  row,
+  product,
+  locale,
+}: {
+  row: DocumentRow;
+  product: DocumentProduct | undefined;
+  locale: Parameters<typeof unitName>[1];
+}) {
+  const { t } = useTranslation();
+
+  if (product === undefined) {
+    return null;
+  }
+  const unidad = unitName(product.baseUnit, locale, { plural: true }).toLowerCase();
+  const presentacion = product.presentations.find((p) => p.id === row.presentationId);
+
+  if (presentacion === undefined) {
+    return (
+      <span className="block text-muted-foreground text-xs">
+        {t("inventory.document.availableBase", { quantity: row.available, unit: unidad })}
+      </span>
+    );
+  }
+
+  const factor = Number(presentacion.factor);
+  const enPresentacion = Number(row.available) / factor;
+  const mostrado = presentacion.allowFractionalInput
+    ? Number(enPresentacion.toFixed(4))
+    : Math.floor(enPresentacion);
+
+  return (
+    <span className="block text-muted-foreground text-xs">
+      {t("inventory.document.availableWithPresentation", {
+        base: row.available,
+        unit: unidad,
+        quantity: mostrado,
+        presentation: presentacion.name,
+      })}
+    </span>
   );
 }
 

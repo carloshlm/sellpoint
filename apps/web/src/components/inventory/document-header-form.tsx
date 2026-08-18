@@ -10,6 +10,7 @@ import {
 import { useUpdateDocumentHeader } from "@/lib/inventory/hooks";
 import type { DocumentDetail } from "@/lib/inventory/types";
 import { useUsers } from "@/lib/rbac/hooks";
+import { WarehouseSelect } from "./warehouse-select";
 
 const DEBOUNCE_MS = 400;
 
@@ -65,8 +66,19 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
         <TextoAutoguardado
           document={document}
           field="reference"
-          label={t("inventory.document.reference")}
-          placeholder={t("inventory.document.referencePlaceholder")}
+          // El consumo pide el ÁREA, no un "número de referencia": reusar la
+          // etiqueta genérica dejaría a quien registra un consumo de limpieza
+          // buscando qué número inventar.
+          label={t(
+            document.reasonCode === "consumption"
+              ? "inventory.document.referenceConsumption"
+              : "inventory.document.reference",
+          )}
+          placeholder={t(
+            document.reasonCode === "consumption"
+              ? "inventory.document.referenceConsumptionPlaceholder"
+              : "inventory.document.referencePlaceholder",
+          )}
         />
       )}
 
@@ -80,6 +92,41 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
       )}
 
       {muestraAutoriza && <AutorizaSelect document={document} />}
+
+      {rules?.requiresLinkedWarehouse && <DestinoSelect document={document} />}
+    </div>
+  );
+}
+
+/**
+ * El OTRO almacén del traspaso.
+ *
+ * `scoped={false}` a propósito: el alcance limita desde dónde MOVÉS, no hacia
+ * dónde mandás. Quien administra la Bodega Norte tiene que poder despachar a
+ * Central aunque Central no sea suya — si no, un traspaso solo sería posible
+ * entre almacenes de un mismo responsable.
+ *
+ * El origen se excluye porque mandarse mercancía a sí mismo no existe: la base
+ * lo rechaza con un CHECK, y un 500 después sería explicar tarde algo que la
+ * pantalla no debió ofrecer.
+ */
+function DestinoSelect({ document }: { document: DocumentDetail }) {
+  const { t } = useTranslation();
+  const guardar = useUpdateDocumentHeader(document.id);
+
+  return (
+    <div className="flex min-w-52 flex-1 flex-col gap-1">
+      <label htmlFor="document-linked-warehouse" className="font-medium text-sm">
+        {t("inventory.document.linkedWarehouse")}
+      </label>
+      <WarehouseSelect
+        id="document-linked-warehouse"
+        value={document.linkedWarehouseId}
+        onChange={(warehouseId) => guardar.mutate({ linkedWarehouseId: warehouseId })}
+        scoped={false}
+        excludeIds={[document.warehouse.id]}
+      />
+      <p className="text-muted-foreground text-xs">{t("inventory.document.transferHint")}</p>
     </div>
   );
 }

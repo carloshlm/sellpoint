@@ -103,7 +103,14 @@
     "removeLine": "Remove line",
     "product": "Product",
     "confirmedTitle": "Movement confirmed",
-    "confirmedBody": "Folio {{folio}} was posted and stock has moved."
+    "confirmedBody": "Folio {{folio}} was posted and stock has moved.",
+    "linkedWarehouse": "Destination warehouse",
+    "transferHint": "On confirmation the goods leave this warehouse and stay IN TRANSIT: they do not add up at the destination until someone there confirms receipt.",
+    "referenceConsumption": "Area or purpose",
+    "referenceConsumptionPlaceholder": "Cleaning, production, maintenance…",
+    "availableBase": "Available: {{quantity}} {{unit}}",
+    "availableWithPresentation": "Available: {{base}} {{unit}} = {{quantity}} {{presentation}}",
+    "goToTransfers": "View transfers in transit"
   },
   "document_not_found": "This movement doesn't exist.",
   "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up.",

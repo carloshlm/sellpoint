@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useScopedWarehouses, useWarehouses } from "@/lib/warehouses/hooks";
 
@@ -46,12 +46,26 @@ export function WarehouseSelect({
     [query.data, excludeIds],
   );
 
+  // El aviso se dispara UNA vez por montaje. Ni `onChange` ni `excludeIds`
+  // son estables entre renders (los llamadores pasan literales:
+  // `onChange={(id) => mutate(...)}`, `excludeIds={[origen]}`), así que sin
+  // este guardia el efecto se re-dispara mientras `value` siga en null — y
+  // `value` se queda en null para siempre si el PATCH que el aviso dispara
+  // FALLA. Eso no es un render de más: es martillar al servidor con el mismo
+  // PATCH que ya falló.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const yaAviso = useRef(false);
+
   const unico = opciones.length === 1 ? opciones[0] : undefined;
+  const unicoId = unico?.id;
   useEffect(() => {
-    if (unico !== undefined && value === null) {
-      onChange(unico.id);
+    if (unicoId === undefined || value !== null || yaAviso.current) {
+      return;
     }
-  }, [unico, value, onChange]);
+    yaAviso.current = true;
+    onChangeRef.current(unicoId);
+  }, [unicoId, value]);
 
   if (query.isPending) {
     return <p className="text-muted-foreground text-sm">{t("inventory.warehouse.loading")}</p>;

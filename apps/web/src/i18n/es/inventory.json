@@ -103,7 +103,14 @@
     "removeLine": "Quitar línea",
     "product": "Producto",
     "confirmedTitle": "Movimiento confirmado",
-    "confirmedBody": "El folio {{folio}} quedó asentado y el stock ya se movió."
+    "confirmedBody": "El folio {{folio}} quedó asentado y el stock ya se movió.",
+    "linkedWarehouse": "Almacén destino",
+    "transferHint": "Al confirmar, la mercancía sale de este almacén y queda EN TRÁNSITO: no suma en el destino hasta que alguien allá confirme la recepción.",
+    "referenceConsumption": "Área o concepto",
+    "referenceConsumptionPlaceholder": "Limpieza, producción, mantenimiento…",
+    "availableBase": "Disponible: {{quantity}} {{unit}}",
+    "availableWithPresentation": "Disponible: {{base}} {{unit}} = {{quantity}} {{presentation}}",
+    "goToTransfers": "Ver traspasos en tránsito"
   },
   "document_not_found": "El movimiento no existe.",
   "document_not_draft": "Este movimiento ya no es un borrador: alguien lo confirmó o lo anuló. Actualiza la pantalla para ver cómo quedó.",
