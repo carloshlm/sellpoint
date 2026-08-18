@@ -1,9 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { warehouseScopeWhere } from "../inventory/warehouse-scope.helpers";
 import type { CreateWarehouseDto, UpdateWarehouseDto } from "./dto/upsert-warehouse.dto";
 
 export interface WarehouseSummary {
@@ -35,6 +37,20 @@ export class WarehousesService {
   async list(user: AuthUser): Promise<WarehouseSummary[]> {
     return this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.warehouse.findMany({ orderBy: { name: "asc" } }),
+    );
+  }
+
+  /**
+   * F3-CORE-03: los almacenes ACTIVOS dentro del alcance del usuario, que es
+   * lo que alimenta los selectores de movimientos. Un almacén desactivado no
+   * aparece aunque esté en el alcance: no se puede mover stock contra él.
+   */
+  async listScoped(user: AuthUser, scope: UserScope): Promise<WarehouseSummary[]> {
+    return this.prisma.withTenantContext(user.tenantId, (tx) =>
+      tx.warehouse.findMany({
+        where: { isActive: true, ...warehouseScopeWhere(scope) },
+        orderBy: { name: "asc" },
+      }),
     );
   }
 

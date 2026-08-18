@@ -31,3 +31,137 @@ export const FOLIO_PREFIXES: Record<InventoryDocumentType, string> = {
  * ticket también será un documento con folio.
  */
 export const RESERVED_FOLIO_PREFIXES = ["VTA"] as const;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Motivos de movimiento — la fuente ÚNICA
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Esta tabla alimenta cuatro lugares que tienen que decir lo mismo: el enum
+// `MovementReason` de Prisma, el CHECK dirección×motivo de la migración de
+// F3-DB-01, el `superRefine` de los DTOs y los formularios del front. Un test
+// de contrato en el API fija que no diverjan — el mismo molde que `UNITS`
+// contra la tabla `units`.
+
+export const MOVEMENT_DIRECTIONS = ["entry", "exit"] as const;
+export type MovementDirection = (typeof MOVEMENT_DIRECTIONS)[number];
+
+export const MOVEMENT_REASONS = [
+  "invoice",
+  "adjustment",
+  "transfer",
+  "customer_return",
+  "sale",
+  "sale_return",
+  "loss",
+  "consumption",
+  "expired",
+  "physical_count",
+] as const;
+export type MovementReason = (typeof MOVEMENT_REASONS)[number];
+
+/**
+ * Qué motivo vale en qué dirección. La mitad de las 20 combinaciones posibles
+ * son imposibles en el negocio: una "entrada por merma" o una "salida por
+ * factura de compra" son errores de programación, no estados del inventario.
+ *
+ * `transfer` y `physical_count` van en las DOS: el traspaso sale del origen y
+ * entra al destino; el conteo saca el teórico y mete lo contado.
+ */
+export const REASONS_BY_DIRECTION: Record<MovementDirection, readonly MovementReason[]> = {
+  entry: ["invoice", "adjustment", "transfer", "customer_return", "sale_return", "physical_count"],
+  exit: ["adjustment", "transfer", "sale", "loss", "consumption", "expired", "physical_count"],
+};
+
+/**
+ * Los motivos que un usuario puede ELEGIR en un formulario. Subconjunto
+ * estricto de los válidos: `sale`/`sale_return` los emite solo el POS de F4,
+ * `physical_count` solo la aprobación del conteo, y `transfer` en ENTRADA solo
+ * la recepción de un traspaso (que se llega desde la vista de tránsito, no
+ * eligiendo el motivo).
+ *
+ * Ofrecer cualquiera de esos en un desplegable dejaría al usuario armar un
+ * movimiento que el API rechaza con 422 — el formulario mentiría.
+ */
+export const SELECTABLE_ENTRY_REASONS = ["invoice", "adjustment", "customer_return"] as const;
+export const SELECTABLE_EXIT_REASONS = [
+  "adjustment",
+  "transfer",
+  "loss",
+  "consumption",
+  "expired",
+] as const;
+
+export interface ReasonRules {
+  /** Nº de documento, orden, área o concepto — según el motivo. */
+  requiresReference: boolean;
+  /** Explicación en texto libre: por qué se ajustó, qué se perdió. */
+  requiresNote: boolean;
+  /** Costo unitario por línea (solo la compra lo tiene). */
+  requiresUnitCost: boolean;
+  /** El OTRO almacén del traspaso. */
+  requiresLinkedWarehouse: boolean;
+}
+
+const NADA: ReasonRules = {
+  requiresReference: false,
+  requiresNote: false,
+  requiresUnitCost: false,
+  requiresLinkedWarehouse: false,
+};
+
+/**
+ * Qué campos exige cada motivo. Es lo que hace reactivo al formulario y lo que
+ * valida el DTO: una sola definición para los dos lados.
+ *
+ * Los motivos que emite el SISTEMA (`sale`, `sale_return`, `physical_count`)
+ * no piden nada porque no hay una persona llenando un formulario detrás.
+ */
+export const REASON_RULES: Record<MovementReason, ReasonRules> = {
+  // La compra: el número de factura y el costo son el dato que F5 va a
+  // necesitar para el promedio ponderado.
+  invoice: { ...NADA, requiresReference: true, requiresUnitCost: true },
+  // Ajustar el saldo sin comprobante exige explicar por qué.
+  adjustment: { ...NADA, requiresNote: true },
+  transfer: { ...NADA, requiresLinkedWarehouse: true },
+  customer_return: { ...NADA, requiresNote: true },
+  loss: { ...NADA, requiresNote: true },
+  // El área o el concepto al que se consumió: "limpieza", "producción".
+  consumption: { ...NADA, requiresReference: true },
+  expired: { ...NADA, requiresNote: true },
+  sale: NADA,
+  sale_return: NADA,
+  physical_count: NADA,
+};
+
+export const TRANSFER_STATUSES = ["in_transit", "completed", "canceled"] as const;
+export type TransferStatus = (typeof TRANSFER_STATUSES)[number];
+
+/** Un traspaso que lleva más de una semana en tránsito se marca en el listado. */
+export const TRANSFER_STALE_DAYS = 7;
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cantidades
+// ─────────────────────────────────────────────────────────────────────────
+
+export const QUANTITY_DECIMALS = 4;
+/** Lo que entra en `DECIMAL(14,4)`: 10 enteros + 4 decimales. */
+export const QUANTITY_MAX = 9_999_999_999.9999;
+
+/**
+ * Misma forma que `hasValidMoneyScale`: se compara contra el `toFixed` en vez
+ * de multiplicar por 10^4, porque `1.15 * 100` da `114.99999999999999` y una
+ * cantidad legítima quedaría rechazada.
+ *
+ * Se valida acá y no solo en la base porque un quinto decimal no explota: la
+ * columna lo REDONDEA en silencio, y el usuario vería un saldo que no es el
+ * que escribió.
+ */
+export function hasValidQuantityScale(quantity: number): boolean {
+  if (!Number.isFinite(quantity)) {
+    return false;
+  }
+  if (Math.abs(quantity) > QUANTITY_MAX) {
+    return false;
+  }
+  return Number(quantity.toFixed(QUANTITY_DECIMALS)) === quantity;
+}

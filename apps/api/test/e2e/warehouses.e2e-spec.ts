@@ -128,4 +128,67 @@ describe("Almacenes (F2-WH)", () => {
       .send({ name: "Robado" })
       .expect(404);
   });
+  /**
+   * F3-CORE-03 — `?scoped=true`, el primer consumidor real de
+   * `@CurrentUserScope()`. Lo usan los selectores de almacén de toda la Fase 3:
+   * un Manager no tiene que poder ni siquiera ELEGIR un almacén que no
+   * administra.
+   */
+  describe("F3-CORE-03 — ?scoped=true", () => {
+    it("sin el flag lista todos: el comportamiento de F2 queda intacto", async () => {
+      const token = await registerAndLogin();
+      await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: `Central ${randomUUID()}` })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: `Sucursal ${randomUUID()}` })
+        .expect(201);
+
+      const all = await request(app.getHttpServer())
+        .get("/warehouses")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect((all.body as unknown[]).length).toBeGreaterThanOrEqual(2);
+    });
+
+    /**
+     * El TenantAdmin que registra el tenant no tiene filas de alcance, así que
+     * su scope es `all` por el default permisivo de F2-SCOPE-01 — y con el flag
+     * sigue viendo todos. Lo que el flag SÍ filtra siempre es lo inactivo:
+     * contra un almacén desactivado no se puede mover stock.
+     */
+    it("con el flag esconde los almacenes DESACTIVADOS", async () => {
+      const token = await registerAndLogin();
+      const activo = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: `Activo ${randomUUID()}` })
+        .expect(201);
+      const inactivo = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: `Inactivo ${randomUUID()}` })
+        .expect(201);
+      const inactivoId = (inactivo.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .patch(`/warehouses/${inactivoId}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false })
+        .expect(200);
+
+      const scoped = await request(app.getHttpServer())
+        .get("/warehouses?scoped=true")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const ids = (scoped.body as { id: string }[]).map((w) => w.id);
+      expect(ids).toContain((activo.body as { id: string }).id);
+      expect(ids).not.toContain(inactivoId);
+    });
+  });
 });

@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -22,10 +24,24 @@ function metaFrom(request: Request) {
 export class WarehousesController {
   constructor(private readonly warehousesService: WarehousesService) {}
 
+  /**
+   * `?scoped=true` acota a los almacenes ACTIVOS dentro del alcance del
+   * usuario — es lo que consumen los selectores de la Fase 3, para que un
+   * Manager no pueda ni siquiera elegir un almacén que no administra.
+   *
+   * Sin el flag, el comportamiento de F2 queda intacto: la pantalla de
+   * administración de almacenes los lista todos.
+   */
   @Get()
   @RequirePermissions("warehouses:read")
-  list(@CurrentUser() user: AuthUser) {
-    return this.warehousesService.list(user);
+  list(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query("scoped") scoped?: string,
+  ) {
+    return scoped === "true"
+      ? this.warehousesService.listScoped(user, scope)
+      : this.warehousesService.list(user);
   }
 
   @Post()
