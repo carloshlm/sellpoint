@@ -5,6 +5,7 @@ import { initReactI18next } from "react-i18next";
 import enAuth from "./en/auth.json";
 import enCatalogs from "./en/catalogs.json";
 import enCommon from "./en/common.json";
+import enInventory from "./en/inventory.json";
 import enOnboarding from "./en/onboarding.json";
 import enProducts from "./en/products.json";
 import enUsers from "./en/users.json";
@@ -13,6 +14,7 @@ import enWarehouses from "./en/warehouses.json";
 import esAuth from "./es/auth.json";
 import esCatalogs from "./es/catalogs.json";
 import esCommon from "./es/common.json";
+import esInventory from "./es/inventory.json";
 import esOnboarding from "./es/onboarding.json";
 import esProducts from "./es/products.json";
 import esUsers from "./es/users.json";
@@ -48,6 +50,7 @@ const resources = {
       onboarding: esOnboarding,
       catalogs: esCatalogs,
       warehouses: esWarehouses,
+      inventory: esInventory,
       products: esProducts,
     },
   },
@@ -60,6 +63,7 @@ const resources = {
       onboarding: enOnboarding,
       catalogs: enCatalogs,
       warehouses: enWarehouses,
+      inventory: enInventory,
       products: enProducts,
     },
   },

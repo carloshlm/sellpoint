@@ -14,7 +14,19 @@ export const WAREHOUSES_QUERY_KEY = ["warehouses"] as const;
 export function useWarehouses() {
   return useQuery<Warehouse[], ApiError>({
     queryKey: WAREHOUSES_QUERY_KEY,
-    queryFn: listWarehouses,
+    queryFn: () => listWarehouses(),
+  });
+}
+
+/**
+ * Los almacenes que el usuario puede operar: activos ∩ su alcance. Clave de
+ * caché distinta porque devuelven cosas distintas — compartirla haría que la
+ * pantalla de administración pisara la lista de los selectores.
+ */
+export function useScopedWarehouses() {
+  return useQuery<Warehouse[], ApiError>({
+    queryKey: [...WAREHOUSES_QUERY_KEY, "scoped"],
+    queryFn: () => listWarehouses({ scoped: true }),
   });
 }
 

@@ -19,8 +19,15 @@ export interface UpdateWarehouseInput {
   isActive?: boolean;
 }
 
-export async function listWarehouses(): Promise<Warehouse[]> {
-  const { data } = await api.get<Warehouse[]>("/warehouses");
+/**
+ * `scoped` acota a los almacenes ACTIVOS dentro del alcance del usuario — lo
+ * que consumen los selectores de la Fase 3. Sin el flag lista todos, que es lo
+ * que necesita la pantalla de administración de almacenes.
+ */
+export async function listWarehouses(options: { scoped?: boolean } = {}): Promise<Warehouse[]> {
+  const { data } = await api.get<Warehouse[]>("/warehouses", {
+    params: options.scoped === true ? { scoped: true } : {},
+  });
   return data;
 }
 

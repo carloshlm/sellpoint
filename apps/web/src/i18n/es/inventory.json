@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "group": "Movimientos",
+    "entries": "Entradas",
+    "exits": "Salidas",
+    "transfers": "Traspasos",
+    "counts": "Inventario",
+    "expiring": "Próximos a vencer"
+  },
+  "warehouse": {
+    "label": "Almacén",
+    "placeholder": "Elige un almacén",
+    "loading": "Cargando almacenes…",
+    "empty": "No hay almacenes disponibles. Crea uno antes de registrar movimientos."
+  },
+  "direction": {
+    "entry": "Entrada",
+    "exit": "Salida"
+  },
+  "reason": {
+    "invoice": "Factura de compra",
+    "adjustment": "Ajuste",
+    "transfer": "Traspaso",
+    "customer_return": "Devolución de cliente",
+    "sale": "Venta",
+    "sale_return": "Devolución de venta",
+    "loss": "Merma o pérdida",
+    "consumption": "Consumo interno",
+    "expired": "Caducado",
+    "physical_count": "Inventario físico"
+  },
+  "documentType": {
+    "entry": "Entrada",
+    "exit": "Salida",
+    "physical_count": "Inventario físico"
+  },
+  "status": {
+    "draft": "Borrador",
+    "confirmed": "Confirmado",
+    "canceled": "Anulado"
+  },
+  "transferStatus": {
+    "in_transit": "En tránsito",
+    "completed": "Recibido",
+    "canceled": "Cancelado"
+  },
+  "list": {
+    "searchFolio": "Buscar por folio…",
+    "create": "Crear",
+    "empty": "Todavía no hay movimientos de este tipo.",
+    "noResults": "Ningún movimiento coincide con lo que buscas.",
+    "lines": "Líneas",
+    "date": "Fecha",
+    "who": "Registró"
+  },
+  "placeholder": "Esta pantalla llega con su módulo."
+}

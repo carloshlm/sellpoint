@@ -2118,17 +2118,19 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F3-NAV — Navegación, Selector de Almacén y Alcance en UI
 
-- [ ] **F3-NAV-01** — Componente `WarehouseSelect`
+- [x] **F3-NAV-01** — Componente `WarehouseSelect`
   - **Salida:** `components/inventory/warehouse-select.tsx`: props `scoped` (usa `GET /warehouses?scoped=true`) o todos los activos, `excludeIds`, `value/onChange`, auto-selección si hay uno solo, estado vacío con CTA a `/warehouses` (con `warehouses:manage`), integrado con react-hook-form; `lib/warehouses/hooks.ts` gana `useScopedWarehouses()`
   - **Verificar:** test del componente: con `scoped` pide `?scoped=true`; con un solo almacén lo selecciona; `excludeIds` lo quita de las opciones
   - **Depende de:** F3-CORE-03
   - **Estimación:** 1.5 h
+  - **Hecho** (2026-08-18: `components/inventory/warehouse-select.tsx` + `useScopedWarehouses()`, 7 tests). Dos comportamientos que parecen detalles: **auto-selección con un solo almacén** (la mayoría de los negocios tiene uno, y obligarlo a elegirlo en cada movimiento es fricción pura) y **estado vacío en vez de un `<select>` sin opciones**, que no diría qué hacer. `useScopedWarehouses` usa una clave de caché distinta: compartirla haría que la pantalla de administración pisara la lista de los selectores
 
-- [ ] **F3-NAV-02** — Grupo nav "Movimientos" + rutas + namespace i18n web + cliente API
+- [x] **F3-NAV-02** — Grupo nav "Movimientos" + rutas + namespace i18n web + cliente API
   - **Salida:** grupo "Movimientos" en `app-layout.tsx` (**Entradas**, **Salidas** e **Inventario** → `inventory:read` — los tres abren su listado con buscador por folio y botón de crear, que exige `inventory:movement`; Traspasos → `inventory:read`; Próximos a vencer → `inventory:read` **solo si el tenant tiene productos con `tracks_lots`**; el grupo aparece si alguno); rutas registradas con `PermissionGate` y placeholders hasta sus módulos; `apps/web/src/i18n/{es,en}/inventory.json` (motivos, direcciones, estados de traspaso, copy neutro) cableado en `i18n/index.ts`; `lib/inventory/api.ts` + `hooks.ts` + `types.ts` base (tipos de respuesta del API, `useCreateEntry/useCreateExit` con invalidación de `products`, `stock`, `transfers`)
   - **Verificar:** test por routeTree real: el Viewer ve los cinco listados pero sin botón de crear; el Manager los ve con el botón; sin ningún permiso el grupo no existe; guardián de voseo verde con el namespace nuevo
   - **Depende de:** F3-DB-05
   - **Estimación:** 2 h
+  - **Hecho** (2026-08-18: grupo nav, 4 rutas placeholder con `PermissionGate`, `i18n/{es,en}/inventory.json`, `lib/inventory/{api,hooks,types}.ts`; 3 tests de nav por routeTree real). El menú se gatea con **`inventory:read`, no `:movement`**: quien AUDITA tiene que poder mirar sin poder mover; el botón de crear vive dentro de cada pantalla. Las rutas existen desde ahora aunque sean placeholders — un menú que ofrece algo que da 404 es peor que un menú más corto. `useConfirmDocument` invalida `documents`, `products`, `stock` y `transfers`: olvidar una deja la pantalla mintiendo hasta el próximo refresco
 
 - [ ] **F3-NAV-03** — UI de alcance por almacén en `UserForm` (deuda de F2-SCOPE-03)
   - **Salida:** sección "Alcance por almacén" en `components/system/user-form.tsx` (CU-SYS-04): checklist de almacenes vía `GET/PUT /users/:id/warehouse-scope`; **deshabilitada si el usuario tiene rol TenantAdmin** con leyenda de acceso total; vacío = todos (leyenda del default permisivo); `lib/rbac/api.ts` gana los dos calls

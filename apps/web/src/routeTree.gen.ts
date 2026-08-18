@@ -24,6 +24,10 @@ import { Route as WarehousesRouteImport } from './routes/warehouses'
 import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
+import { Route as MovementsCountsRouteImport } from './routes/movements.counts'
+import { Route as MovementsEntriesRouteImport } from './routes/movements.entries'
+import { Route as MovementsExitsRouteImport } from './routes/movements.exits'
+import { Route as MovementsTransfersRouteImport } from './routes/movements.transfers'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 
@@ -102,6 +106,26 @@ const CatalogSchemaRoute = CatalogSchemaRouteImport.update({
   path: '/catalog/schema',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MovementsCountsRoute = MovementsCountsRouteImport.update({
+  id: '/movements/counts',
+  path: '/movements/counts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MovementsEntriesRoute = MovementsEntriesRouteImport.update({
+  id: '/movements/entries',
+  path: '/movements/entries',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MovementsExitsRoute = MovementsExitsRouteImport.update({
+  id: '/movements/exits',
+  path: '/movements/exits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MovementsTransfersRoute = MovementsTransfersRouteImport.update({
+  id: '/movements/transfers',
+  path: '/movements/transfers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -129,6 +153,10 @@ export interface FileRoutesByFullPath {
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
+  '/movements/counts': typeof MovementsCountsRoute
+  '/movements/entries': typeof MovementsEntriesRoute
+  '/movements/exits': typeof MovementsExitsRoute
+  '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
@@ -148,6 +176,10 @@ export interface FileRoutesByTo {
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
+  '/movements/counts': typeof MovementsCountsRoute
+  '/movements/entries': typeof MovementsEntriesRoute
+  '/movements/exits': typeof MovementsExitsRoute
+  '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
@@ -168,6 +200,10 @@ export interface FileRoutesById {
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
+  '/movements/counts': typeof MovementsCountsRoute
+  '/movements/entries': typeof MovementsEntriesRoute
+  '/movements/exits': typeof MovementsExitsRoute
+  '/movements/transfers': typeof MovementsTransfersRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
 }
@@ -189,6 +225,10 @@ export interface FileRouteTypes {
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
+    | '/movements/counts'
+    | '/movements/entries'
+    | '/movements/exits'
+    | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
   fileRoutesByTo: FileRoutesByTo
@@ -208,6 +248,10 @@ export interface FileRouteTypes {
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
+    | '/movements/counts'
+    | '/movements/entries'
+    | '/movements/exits'
+    | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
   id:
@@ -227,6 +271,10 @@ export interface FileRouteTypes {
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
+    | '/movements/counts'
+    | '/movements/entries'
+    | '/movements/exits'
+    | '/movements/transfers'
     | '/system/roles'
     | '/system/users'
   fileRoutesById: FileRoutesById
@@ -247,6 +295,10 @@ export interface RootRouteChildren {
   CatalogListsRoute: typeof CatalogListsRoute
   CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
+  MovementsCountsRoute: typeof MovementsCountsRoute
+  MovementsEntriesRoute: typeof MovementsEntriesRoute
+  MovementsExitsRoute: typeof MovementsExitsRoute
+  MovementsTransfersRoute: typeof MovementsTransfersRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
 }
@@ -358,6 +410,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogSchemaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/movements/counts': {
+      id: '/movements/counts'
+      path: '/movements/counts'
+      fullPath: '/movements/counts'
+      preLoaderRoute: typeof MovementsCountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/movements/entries': {
+      id: '/movements/entries'
+      path: '/movements/entries'
+      fullPath: '/movements/entries'
+      preLoaderRoute: typeof MovementsEntriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/movements/exits': {
+      id: '/movements/exits'
+      path: '/movements/exits'
+      fullPath: '/movements/exits'
+      preLoaderRoute: typeof MovementsExitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/movements/transfers': {
+      id: '/movements/transfers'
+      path: '/movements/transfers'
+      fullPath: '/movements/transfers'
+      preLoaderRoute: typeof MovementsTransfersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -391,6 +471,10 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogListsRoute: CatalogListsRoute,
   CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
+  MovementsCountsRoute: MovementsCountsRoute,
+  MovementsEntriesRoute: MovementsEntriesRoute,
+  MovementsExitsRoute: MovementsExitsRoute,
+  MovementsTransfersRoute: MovementsTransfersRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
 }

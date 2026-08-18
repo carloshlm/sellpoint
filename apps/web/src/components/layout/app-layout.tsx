@@ -1,5 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowDownToLine,
+  ArrowLeftRight,
+  ArrowUpFromLine,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -47,6 +51,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const canSeeSchemaNav = has("catalogs:manage");
   const canSeeCatalogNav = canSeeProductsNav || canSeeListsNav || canSeeSchemaNav;
   const canSeeWarehousesNav = has("warehouses:read");
+  // F3-NAV-02: los cinco listados de movimientos se ven con `inventory:read`.
+  // El botón de CREAR, que exige `inventory:movement`, vive dentro de cada
+  // pantalla: quien audita tiene que poder mirar sin poder mover.
+  const canSeeInventoryNav = has("inventory:read");
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
@@ -146,6 +154,40 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 <Warehouse className="size-4 shrink-0" aria-hidden="true" />
                 {expanded && <span className="truncate">{t("warehouses.nav.group")}</span>}
               </Link>
+            </fieldset>
+          )}
+
+          {canSeeInventoryNav && (
+            <fieldset
+              aria-label={t("inventory.nav.group")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
+            >
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("inventory.nav.group")}
+                </span>
+              )}
+              {(
+                [
+                  ["/movements/entries", "inventory.nav.entries", ArrowDownToLine],
+                  ["/movements/exits", "inventory.nav.exits", ArrowUpFromLine],
+                  ["/movements/transfers", "inventory.nav.transfers", ArrowLeftRight],
+                  ["/movements/counts", "inventory.nav.counts", ClipboardList],
+                ] as const
+              ).map(([to, label, Icon]) => (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-label={t(label)}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t(label)}</span>}
+                </Link>
+              ))}
             </fieldset>
           )}
 

@@ -1,0 +1,57 @@
+{
+  "nav": {
+    "group": "Movements",
+    "entries": "Entries",
+    "exits": "Exits",
+    "transfers": "Transfers",
+    "counts": "Stock count",
+    "expiring": "Expiring soon"
+  },
+  "warehouse": {
+    "label": "Warehouse",
+    "placeholder": "Choose a warehouse",
+    "loading": "Loading warehouses…",
+    "empty": "There are no warehouses available. Create one before recording movements."
+  },
+  "direction": {
+    "entry": "Entry",
+    "exit": "Exit"
+  },
+  "reason": {
+    "invoice": "Purchase invoice",
+    "adjustment": "Adjustment",
+    "transfer": "Transfer",
+    "customer_return": "Customer return",
+    "sale": "Sale",
+    "sale_return": "Sale return",
+    "loss": "Loss or damage",
+    "consumption": "Internal consumption",
+    "expired": "Expired",
+    "physical_count": "Stock count"
+  },
+  "documentType": {
+    "entry": "Entry",
+    "exit": "Exit",
+    "physical_count": "Stock count"
+  },
+  "status": {
+    "draft": "Draft",
+    "confirmed": "Confirmed",
+    "canceled": "Voided"
+  },
+  "transferStatus": {
+    "in_transit": "In transit",
+    "completed": "Received",
+    "canceled": "Canceled"
+  },
+  "list": {
+    "searchFolio": "Search by number…",
+    "create": "Create",
+    "empty": "There are no movements of this type yet.",
+    "noResults": "No movement matches your search.",
+    "lines": "Lines",
+    "date": "Date",
+    "who": "Recorded by"
+  },
+  "placeholder": "This screen ships with its module."
+}
