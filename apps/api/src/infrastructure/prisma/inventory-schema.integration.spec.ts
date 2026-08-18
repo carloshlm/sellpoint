@@ -707,4 +707,164 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
       });
     });
   });
+  /**
+   * F3-DOC-02 — lo confirmado es intocable.
+   *
+   * `stock_movements` se blinda con `REVOKE UPDATE, DELETE` (igual que `units`
+   * y `currencies`): la app NO PUEDE tocarlo, punto. Acá eso no sirve, porque
+   * un borrador SÍ se edita — si le quitáramos el privilegio, no habría forma
+   * de cargar un movimiento. La barrera no puede ser QUIÉN escribe sino EN QUÉ
+   * ESTADO está la fila, y eso solo lo sabe un trigger.
+   */
+  describe("inmutabilidad de lo confirmado (F3-DOC-02)", () => {
+    let folioSeq = 500;
+    const nextFolio = () => `SAL-${String(folioSeq++).padStart(6, "0")}`;
+
+    function createDoc(status: "draft" | "confirmed" | "canceled" = "draft") {
+      const sealed =
+        status === "confirmed"
+          ? { reasonCode: "adjustment" as const, confirmedBy: userId, confirmedAt: new Date() }
+          : status === "canceled"
+            ? { canceledBy: userId, canceledAt: new Date(), cancelReason: "Me arrepentí" }
+            : {};
+      return prisma.withTenantContext(tenantId, (tx) =>
+        tx.inventoryDocument.create({
+          data: {
+            tenantId,
+            folio: nextFolio(),
+            type: "exit",
+            status,
+            warehouseId,
+            createdBy: userId,
+            ...sealed,
+          },
+        }),
+      );
+    }
+
+    function addLine(documentId: string, lineNo = 1) {
+      return prisma.withTenantContext(tenantId, (tx) =>
+        tx.inventoryDocumentLine.create({
+          data: { tenantId, documentId, lineNo, productId, quantity: 2 },
+        }),
+      );
+    }
+
+    const editDoc = (id: string, data: Record<string, unknown>) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        // biome-ignore lint/suspicious/noExplicitAny: el test empuja transiciones que el tipo permite pero la base no
+        tx.inventoryDocument.update({ where: { id }, data: data as any }),
+      );
+
+    describe("el documento", () => {
+      it("un borrador se edita: es justamente para lo que existe", async () => {
+        const draft = await createDoc();
+
+        await expect(editDoc(draft.id, { reference: "F-1234" })).resolves.toBeDefined();
+      });
+
+      it("confirmar ES la transición permitida: `draft` → `confirmed` pasa", async () => {
+        const draft = await createDoc();
+
+        await expect(
+          editDoc(draft.id, {
+            status: "confirmed",
+            reasonCode: "adjustment",
+            confirmedBy: userId,
+            confirmedAt: new Date(),
+          }),
+        ).resolves.toMatchObject({ status: "confirmed" });
+      });
+
+      it("un confirmado no se edita, ni siquiera un campo inocente como la referencia", async () => {
+        const confirmed = await createDoc("confirmed");
+
+        await expect(editDoc(confirmed.id, { reference: "F-9999" })).rejects.toThrow(/42501/);
+      });
+
+      it("no se puede volver de `confirmed` a `draft`: lo asentado no se reabre", async () => {
+        const confirmed = await createDoc("confirmed");
+
+        await expect(editDoc(confirmed.id, { status: "draft" })).rejects.toThrow(/42501/);
+      });
+
+      it("un anulado también queda congelado: su folio ya contó", async () => {
+        const canceled = await createDoc("canceled");
+
+        await expect(editDoc(canceled.id, { reference: "F-0001" })).rejects.toThrow(/42501/);
+      });
+
+      it("un confirmado no se borra", async () => {
+        const confirmed = await createDoc("confirmed");
+
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocument.delete({ where: { id: confirmed.id } }),
+          ),
+        ).rejects.toThrow(/42501/);
+      });
+
+      it("un borrador sí se borra, y el trigger no estorba al CASCADE de sus líneas", async () => {
+        const draft = await createDoc();
+        await addLine(draft.id);
+
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocument.delete({ where: { id: draft.id } }),
+          ),
+        ).resolves.toBeDefined();
+      });
+    });
+
+    describe("las líneas siguen el estado de su documento", () => {
+      it("en un borrador se agregan, se editan y se quitan", async () => {
+        const draft = await createDoc();
+        const line = await addLine(draft.id);
+
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocumentLine.update({ where: { id: line.id }, data: { quantity: 5 } }),
+          ),
+        ).resolves.toBeDefined();
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocumentLine.delete({ where: { id: line.id } }),
+          ),
+        ).resolves.toBeDefined();
+      });
+
+      /**
+       * El agujero más fácil de dejar abierto: el documento queda intocable
+       * pero alguien le agrega una línea después de confirmado, y el papel
+       * impreso deja de coincidir con lo que dice la base.
+       */
+      it("a un confirmado NO se le agrega una línea nueva", async () => {
+        const confirmed = await createDoc("confirmed");
+
+        await expect(addLine(confirmed.id)).rejects.toThrow(/42501/);
+      });
+
+      it("las líneas de un confirmado no se editan ni se borran", async () => {
+        const draft = await createDoc();
+        const line = await addLine(draft.id);
+        await editDoc(draft.id, {
+          status: "confirmed",
+          reasonCode: "adjustment",
+          confirmedBy: userId,
+          confirmedAt: new Date(),
+        });
+
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocumentLine.update({ where: { id: line.id }, data: { quantity: 99 } }),
+          ),
+        ).rejects.toThrow(/42501/);
+        await expect(
+          prisma.withTenantContext(tenantId, (tx) =>
+            tx.inventoryDocumentLine.delete({ where: { id: line.id } }),
+          ),
+        ).rejects.toThrow(/42501/);
+      });
+    });
+  });
 });
