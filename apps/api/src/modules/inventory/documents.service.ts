@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { FOLIO_PREFIXES, type InventoryDocumentType } from "@sellpoint/shared";
 import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -145,7 +150,21 @@ export class DocumentsService {
     dto: UpdateDocumentDto,
   ): Promise<InventoryDocument> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.assertDraft(tx, user.tenantId, documentId);
+      const document = await this.assertDraft(tx, user.tenantId, documentId);
+
+      // El destino se valida ACÁ aunque el resto de la cabecera no: un almacén
+      // igual al origen o inexistente no es un estado "a medio llenar", es
+      // imposible — y la base lo rechaza con un CHECK o una FK, que sin este
+      // guard llegan al usuario como un 500 sin explicación.
+      if (dto.linkedWarehouseId !== undefined && dto.linkedWarehouseId !== null) {
+        if (dto.linkedWarehouseId === document.warehouseId) {
+          throw new UnprocessableEntityException({
+            message: "inventory.transfer_same_warehouse",
+            args: { field: "linkedWarehouseId" },
+          });
+        }
+        await assertActiveWarehouse(tx, user.tenantId, dto.linkedWarehouseId);
+      }
 
       return tx.inventoryDocument.update({
         where: { id: documentId },

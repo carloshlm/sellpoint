@@ -1,11 +1,11 @@
 import { Injectable, UnprocessableEntityException } from "@nestjs/common";
 import { REASON_RULES, SELECTABLE_ENTRY_REASONS, SELECTABLE_EXIT_REASONS } from "@sellpoint/shared";
-import type { InventoryDocument, Prisma } from "../../generated/prisma/client";
+import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
-import { expandComposition } from "./composition-expander";
+import { type ExpandedLine, expandComposition } from "./composition-expander";
 import { DocumentsService } from "./documents.service";
 import { resolveLines } from "./line-resolver";
 import { resolveLotsFefo } from "./lot-fefo";
@@ -89,7 +89,17 @@ export class ConfirmService {
           ? await resolveLotsFefo(tx, user.tenantId, document.warehouseId, expanded)
           : expanded;
 
-      // 4. Asentar. Acá es donde el stock se mueve, con las filas bloqueadas.
+      // 4. El traspaso, ANTES de asentar y de sellar. El orden importa dos
+      //    veces: el documento todavía es `draft`, así que el trigger deja
+      //    ponerle el `transfer_id`; y si el ledger rechazara por falta de
+      //    stock, la transacción entera se deshace y no queda un traspaso
+      //    huérfano apuntando a un despacho que nunca salió.
+      const transfer =
+        reasonCode === "transfer" && direction === "exit"
+          ? await this.createTransfer(tx, user, document, conLotes)
+          : null;
+
+      // 5. Asentar. Acá es donde el stock se mueve, con las filas bloqueadas.
       const result = await this.ledger.apply(tx, {
         tenantId: user.tenantId,
         userId: user.userId,
@@ -128,7 +138,7 @@ export class ConfirmService {
         })),
       });
 
-      // 5. Sellar. ÚLTIMO: a partir de acá el trigger congela el documento.
+      // 6. Sellar. ÚLTIMO: a partir de acá el trigger congela el documento.
       const confirmed = await this.documents.markConfirmed(
         tx,
         user.tenantId,
@@ -146,8 +156,85 @@ export class ConfirmService {
         movements: result.movements,
         stock: result.stock,
         lots: result.lots,
+        ...(transfer !== null && { transfer: { id: transfer.id } }),
       };
     });
+  }
+
+  /**
+   * Crea el traspaso y sus líneas, y le cuelga el `transfer_id` al documento.
+   *
+   * El destino se valida ACTIVO y del tenant, pero **no se le exige scope**:
+   * un encargado puede despachar hacia un almacén que no administra — de
+   * hecho es lo normal, porque el que recibe es otra persona. Lo que sí exige
+   * scope es el ORIGEN, que es de donde sale la mercancía.
+   *
+   * Las líneas se agrupan por (producto, lote) en unidad base: el traspaso
+   * viaja en unidades reales, no en las cajas que alguien tecleó, porque
+   * quien recibe cuenta lo que llega.
+   */
+  private async createTransfer(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    document: InventoryDocument,
+    lines: ExpandedLine[],
+  ) {
+    const destinationId = document.linkedWarehouseId;
+    if (destinationId === null) {
+      throw new UnprocessableEntityException({
+        message: "inventory.linked_warehouse_required",
+        args: { field: "linkedWarehouseId" },
+      });
+    }
+    if (destinationId === document.warehouseId) {
+      throw new UnprocessableEntityException({
+        message: "inventory.transfer_same_warehouse",
+        args: { field: "linkedWarehouseId" },
+      });
+    }
+    await assertActiveWarehouse(tx, user.tenantId, destinationId);
+
+    const transfer = await tx.transfer.create({
+      data: {
+        tenantId: user.tenantId,
+        originWarehouseId: document.warehouseId,
+        destinationWarehouseId: destinationId,
+        createdBy: user.userId,
+      },
+    });
+
+    const porProductoYLote = new Map<
+      string,
+      { productId: string; lotId: string | null; sent: Prisma.Decimal }
+    >();
+    for (const line of lines) {
+      const key = `${line.productId}|${line.lotId ?? ""}`;
+      const previo = porProductoYLote.get(key);
+      porProductoYLote.set(key, {
+        productId: line.productId,
+        lotId: line.lotId ?? null,
+        sent: (previo?.sent ?? new Prisma.Decimal(0)).plus(line.quantityBase),
+      });
+    }
+
+    await tx.transferLine.createMany({
+      data: [...porProductoYLote.values()].map((linea) => ({
+        tenantId: user.tenantId,
+        transferId: transfer.id,
+        productId: linea.productId,
+        lotId: linea.lotId,
+        quantitySent: linea.sent,
+      })),
+    });
+
+    // El documento todavía es borrador: el trigger permite este UPDATE. Un
+    // segundo más tarde, ya confirmado, lo rechazaría con 42501.
+    await tx.inventoryDocument.update({
+      where: { id: document.id },
+      data: { transferId: transfer.id },
+    });
+
+    return transfer;
   }
 
   /**
