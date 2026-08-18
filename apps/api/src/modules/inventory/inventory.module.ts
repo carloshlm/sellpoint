@@ -6,6 +6,8 @@ import { DocumentLinesService } from "./document-lines.service";
 import { DocumentPdfService } from "./document-pdf.service";
 import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
+import { LotsController } from "./lots.controller";
+import { LotsService } from "./lots.service";
 import { StockLedgerService } from "./stock-ledger.service";
 
 /**
@@ -17,7 +19,7 @@ import { StockLedgerService } from "./stock-ledger.service";
  */
 @Module({
   imports: [AuditModule],
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, LotsController],
   providers: [
     DocumentsService,
     DocumentLinesService,
@@ -25,6 +27,7 @@ import { StockLedgerService } from "./stock-ledger.service";
     StockLedgerService,
     ConfirmService,
     DocumentPdfService,
+    LotsService,
   ],
   exports: [
     DocumentsService,
@@ -33,6 +36,7 @@ import { StockLedgerService } from "./stock-ledger.service";
     StockLedgerService,
     ConfirmService,
     DocumentPdfService,
+    LotsService,
   ],
 })
 export class InventoryModule {}
