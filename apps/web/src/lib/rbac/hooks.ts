@@ -8,12 +8,14 @@ import {
   createRole,
   createUser,
   deleteRole,
+  getWarehouseScope,
   listPermissions,
   listRoles,
   listUsers,
   type PermissionGroup,
   type RoleSummary,
   reactivateUser,
+  replaceWarehouseScope,
   resendInvitation,
   suspendUser,
   type UpdateRoleInput,
@@ -34,6 +36,9 @@ import {
 export const USERS_QUERY_KEY = ["rbac", "users"] as const;
 export const ROLES_QUERY_KEY = ["rbac", "roles"] as const;
 export const PERMISSIONS_QUERY_KEY = ["rbac", "permissions"] as const;
+/** Clave POR usuario: el alcance de Ana no puede pisar el de Beto en caché. */
+export const warehouseScopeQueryKey = (userId: string) =>
+  ["rbac", "users", userId, "warehouse-scope"] as const;
 
 export function useUsers() {
   return useQuery<UserDetail[], ApiError>({ queryKey: USERS_QUERY_KEY, queryFn: listUsers });
@@ -92,6 +97,33 @@ export function useUpdateUser() {
         // intentan de nuevo en la siguiente mutación de roles).
         void resyncSession().catch(() => {});
       }
+    },
+  });
+}
+
+/**
+ * F3-NAV-03. `enabled` porque en el alta todavía no hay id que consultar: el endpoint
+ * necesita un `:id` y el usuario nace recién al guardar.
+ */
+export function useWarehouseScope(userId: string | undefined) {
+  return useQuery<string[], ApiError>({
+    queryKey: warehouseScopeQueryKey(userId ?? "nuevo"),
+    queryFn: () => getWarehouseScope(userId as string),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useReplaceWarehouseScope() {
+  const queryClient = useQueryClient();
+  return useMutation<string[], ApiError, { userId: string; warehouseIds: string[] }>({
+    mutationFn: ({ userId, warehouseIds }) => replaceWarehouseScope(userId, warehouseIds),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: warehouseScopeQueryKey(variables.userId),
+      });
+      // El alcance cambia lo que ese usuario ve en TODOS los selectores de
+      // almacén, así que la lista acotada queda vieja al instante.
+      void queryClient.invalidateQueries({ queryKey: ["warehouses"] });
     },
   });
 }

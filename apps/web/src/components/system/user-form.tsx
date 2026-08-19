@@ -11,6 +11,12 @@ import { Label } from "@/components/ui/label";
 import type { RoleSummary, UserDetail } from "@/lib/rbac/api";
 import { type UserFormValues, userFormSchema } from "@/lib/rbac/schemas";
 
+/** Lo mínimo que el checklist necesita — no el `Warehouse` entero. */
+interface WarehouseOption {
+  id: string;
+  name: string;
+}
+
 interface UserFormProps {
   mode: "create" | "edit";
   /** Requerido en `mode: "edit"` — precarga el form (F1-WEB-USERS-03). */
@@ -20,6 +26,14 @@ interface UserFormProps {
   rolesUnavailable?: boolean;
   /** Permisos del ACTOR (no del usuario editado) — alimenta D8. */
   actorPermissionCodes: string[];
+  /**
+   * F3-NAV-03. Los almacenes del tenant para el checklist de alcance. En
+   * `mode: "create"` no se pasa: el endpoint necesita un `:id` que todavía no
+   * existe (ver el comentario de la sección).
+   */
+  warehouses?: WarehouseOption[];
+  /** Ids que el usuario YA tiene. Vacío = sin restricción (default permisivo). */
+  warehouseScope?: string[];
   isSubmitting: boolean;
   /** 409 `users.email_taken`, ya traducido por el backend (D10). */
   emailError?: string | null;
@@ -45,6 +59,8 @@ function UserForm({
   roles,
   rolesUnavailable = false,
   actorPermissionCodes,
+  warehouses,
+  warehouseScope,
   isSubmitting,
   emailError,
   formError,
@@ -62,8 +78,9 @@ function UserForm({
       locale:
         (user?.locale as "es" | "en" | undefined) ?? (i18n.language.startsWith("en") ? "en" : "es"),
       roleIds: user?.roles.map((role) => role.id) ?? [],
+      warehouseIds: warehouseScope ?? [],
     }),
-    [user, i18n.language],
+    [user, i18n.language, warehouseScope],
   );
 
   const {
@@ -84,6 +101,36 @@ function UserForm({
       ? [...selectedRoleIds, roleId]
       : selectedRoleIds.filter((id) => id !== roleId);
     setValue("roleIds", next, { shouldValidate: true });
+  }
+
+  const selectedWarehouseIds = watch("warehouseIds") ?? [];
+
+  /**
+   * F3-NAV-03. Quién "ve todos los almacenes pase lo que pase". Se deriva de
+   * los PERMISOS de los roles marcados AHORA mismo, no del nombre del rol ni
+   * de `user.roles`:
+   *
+   * - por permisos y no por nombre, porque es el MISMO criterio que usa el
+   *   API (`TENANT_ADMIN_PERMISSION_CODES` en `tenant-admin-guard.ts`, que el
+   *   interceptor de alcance reutiliza para el bypass). Atarse al nombre
+   *   "Admin" rompería con un rol renombrado o traducido;
+   * - de lo marcado y no de lo guardado, porque si no la pantalla mentiría
+   *   hasta el próximo refresh: marcás el rol que da acceso total y la lista
+   *   de almacenes seguiría ofreciendo una restricción que ya no va a existir.
+   */
+  const TENANT_ADMIN_PERMISSION_CODES = ["roles:manage", "users:manage"];
+  const grantedPermissionCodes = new Set(
+    roles.filter((role) => selectedRoleIds.includes(role.id)).flatMap((r) => r.permissionCodes),
+  );
+  const seesAllWarehouses = TENANT_ADMIN_PERMISSION_CODES.every((code) =>
+    grantedPermissionCodes.has(code),
+  );
+
+  function toggleWarehouse(warehouseId: string, checked: boolean) {
+    const next = checked
+      ? [...selectedWarehouseIds, warehouseId]
+      : selectedWarehouseIds.filter((id) => id !== warehouseId);
+    setValue("warehouseIds", next, { shouldValidate: true });
   }
 
   const submit = handleSubmit((values) => onSubmit(values));
@@ -197,6 +244,65 @@ function UserForm({
               </p>
             )}
           </fieldset>
+
+          {/*
+            El checklist solo existe en edición: `PUT /users/:id/warehouse-scope`
+            necesita un id, y el usuario nace recién al guardar. Encadenar las
+            dos llamadas en el alta dejaría un usuario creado con el alcance sin
+            aplicar si la segunda falla — una escritura parcial sin transacción.
+          */}
+          {mode === "edit" && warehouses && (
+            <fieldset className="flex flex-col gap-2" data-testid="user-form-warehouse-scope">
+              <legend className="text-sm font-medium">{t("users.form.warehouseScope")}</legend>
+              {seesAllWarehouses ? (
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid="warehouse-scope-admin-hint"
+                >
+                  {t("users.form.warehouseScopeAdminHint")}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {t("users.form.warehouseScopeHint")}
+                </p>
+              )}
+              <div className="flex flex-col gap-2">
+                {warehouses.map((warehouse) => {
+                  const inputId = `warehouse-scope-${warehouse.id}`;
+                  return (
+                    <div key={warehouse.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={inputId}
+                        data-testid={inputId}
+                        checked={selectedWarehouseIds.includes(warehouse.id)}
+                        disabled={seesAllWarehouses}
+                        onCheckedChange={(next) => toggleWarehouse(warehouse.id, next === true)}
+                      />
+                      <Label
+                        htmlFor={inputId}
+                        className={seesAllWarehouses ? "text-muted-foreground" : undefined}
+                      >
+                        {warehouse.name}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+              {/*
+                Vacío NO es "no ve nada": sin filas el API le da todos los
+                almacenes. Decirlo es obligatorio — quien desmarca todo tiene
+                que saber que acaba de AMPLIAR el acceso, no de quitarlo.
+              */}
+              {!seesAllWarehouses && selectedWarehouseIds.length === 0 && (
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid="warehouse-scope-empty-hint"
+                >
+                  {t("users.form.warehouseScopeEmptyHint")}
+                </p>
+              )}
+            </fieldset>
+          )}
 
           <div className="flex gap-2">
             <Button type="submit" disabled={isSubmitting}>

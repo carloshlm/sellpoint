@@ -31,6 +31,15 @@ export const userFormSchema = z.object({
     .optional(),
   locale: z.enum(["es", "en"]).optional(),
   roleIds: z.array(z.string()).min(1, "validation.rolesRequired"),
+  /**
+   * F3-NAV-03. Sin `.min(1)` a propósito: vacío significa "todos los
+   * almacenes" (default permisivo del API), no "ninguno". Exigir al menos uno
+   * prohibiría el estado más común. `.optional()` y no `.default([])`: este schema se
+   * declara ESPEJO de `create-user.dto.ts`, y el alta del API no acepta este
+   * campo — el alcance es otro recurso. Además el default desalinearía los
+   * tipos de entrada y salida que react-hook-form exige iguales.
+   */
+  warehouseIds: z.array(z.string()).optional(),
 });
 
 export const roleFormSchema = z.object({

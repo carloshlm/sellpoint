@@ -9,6 +9,7 @@ import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
 import * as rbacApi from "../lib/rbac/api";
+import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
 /**
@@ -29,6 +30,14 @@ vi.mock("../lib/rbac/api", () => ({
   updateRole: vi.fn(),
   deleteRole: vi.fn(),
   listPermissions: vi.fn(),
+  getWarehouseScope: vi.fn(),
+  replaceWarehouseScope: vi.fn(),
+}));
+
+vi.mock("../lib/warehouses/api", () => ({
+  listWarehouses: vi.fn(),
+  createWarehouse: vi.fn(),
+  updateWarehouse: vi.fn(),
 }));
 
 // F1-WEB-USERS-04 (WU5): "Restablecer contraseña" reusa el endpoint público
@@ -45,6 +54,7 @@ vi.mock("../lib/auth/api", async (importOriginal) => {
 });
 
 const mockedApi = vi.mocked(rbacApi);
+const mockedWarehouses = vi.mocked(warehousesApi);
 const mockedForgotPassword = vi.mocked(authApi.forgotPassword);
 const mockedGetMe = vi.mocked(authApi.getMe);
 
@@ -121,6 +131,12 @@ const ROLES: rbacApi.RoleSummary[] = [
   { id: "r2", name: "Admin", permissionCodes: ["users:manage", "roles:manage"], userCount: 1 },
 ];
 
+// F3-NAV-03: los almacenes del checklist de alcance.
+const ALMACENES: warehousesApi.Warehouse[] = [
+  { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+  { id: "w2", name: "Bodega Norte", address: null, isActive: true, deactivationBlockedBy: null },
+];
+
 // W2 (verify-report #341): `lng` opcional — instancia hermética de i18n
 // (mismo patrón que `router.test.tsx`), sin depender de navigator.language.
 async function renderRoute(path: string, lng?: "es" | "en") {
@@ -152,6 +168,9 @@ describe("/system/users", () => {
     mockedGetMe.mockResolvedValue(
       demoUser(["users:read", "users:manage", "roles:read", "sales:read"]),
     );
+    mockedWarehouses.listWarehouses.mockResolvedValue(ALMACENES);
+    mockedApi.getWarehouseScope.mockResolvedValue([]);
+    mockedApi.replaceWarehouseScope.mockResolvedValue([]);
   });
 
   it("sin users:read ni roles:read, el nav NO lista 'Sistema'", async () => {
@@ -696,6 +715,120 @@ describe("/system/users", () => {
           "Si el correo existe, va a recibir instrucciones para restablecer la contraseña.",
         ),
       ).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * F3-NAV-03 (CU-SYS-04) — deuda de F2-SCOPE-03: el API existe desde F2 y
+   * la cara nunca se construyó, así que "el Encargado solo ve su almacén" no
+   * se podía configurar desde la app.
+   *
+   * Los estados salen de DATOS (permisos de los roles marcados, filas del
+   * scope), nunca del nombre del rol ni de una cadena de copy.
+   */
+  describe("Alcance por almacén en el form de usuario (F3-NAV-03)", () => {
+    /** Abre "Editar" en la fila que contiene ese nombre. */
+    async function abrirEdicionDe(user: ReturnType<typeof userEvent.setup>, nombre: string) {
+      if (!useAuthStore.getState().user) {
+        useAuthStore
+          .getState()
+          .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read"]));
+      }
+      await renderRoute("/system/users");
+      await screen.findByText(nombre);
+      const fila = screen.getByText(nombre).closest("tr") as HTMLElement;
+      await user.click(within(fila).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+    }
+
+    it("lista un checkbox por almacén, marcando los que el usuario ya tiene", async () => {
+      const user = userEvent.setup();
+      mockedApi.getWarehouseScope.mockResolvedValue(["w2"]);
+
+      await abrirEdicionDe(user, "Ana García");
+
+      expect(await screen.findByTestId("warehouse-scope-w1")).not.toBeChecked();
+      expect(screen.getByTestId("warehouse-scope-w2")).toBeChecked();
+      expect(mockedApi.getWarehouseScope).toHaveBeenCalledWith("u1");
+    });
+
+    it("guardar manda el REEMPLAZO completo de ids, no un delta", async () => {
+      const user = userEvent.setup();
+      mockedApi.getWarehouseScope.mockResolvedValue(["w2"]);
+      mockedApi.updateUser.mockResolvedValue(USERS[0] as rbacApi.UserDetail);
+
+      await abrirEdicionDe(user, "Ana García");
+      await user.click(await screen.findByTestId("warehouse-scope-w1"));
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      // Manda LOS DOS, no solo el agregado: el endpoint reemplaza el set.
+      await waitFor(() =>
+        expect(mockedApi.replaceWarehouseScope).toHaveBeenCalledWith("u1", ["w2", "w1"]),
+      );
+    });
+
+    it("sin nada marcado avisa que el usuario ve TODOS (default permisivo)", async () => {
+      const user = userEvent.setup();
+      mockedApi.getWarehouseScope.mockResolvedValue([]);
+
+      await abrirEdicionDe(user, "Ana García");
+
+      expect(await screen.findByTestId("warehouse-scope-empty-hint")).toBeInTheDocument();
+    });
+
+    /**
+     * El corazón de la tarea: quien administra el tenant ve todo pase lo que
+     * pase, así que la lista sería una promesa falsa. El estado sale de los
+     * PERMISOS de los roles marcados (`roles:manage` + `users:manage`, el
+     * mismo criterio que `TENANT_ADMIN_PERMISSION_CODES` usa en el API),
+     * NUNCA del nombre "Admin".
+     */
+    it("con un rol que administra el tenant, la lista queda deshabilitada", async () => {
+      const user = userEvent.setup();
+      mockedApi.getWarehouseScope.mockResolvedValue([]);
+
+      await abrirEdicionDe(user, "Beto López");
+
+      expect(await screen.findByTestId("warehouse-scope-admin-hint")).toBeInTheDocument();
+      expect(screen.getByTestId("warehouse-scope-w1")).toBeDisabled();
+    });
+
+    it("y al guardar a ese usuario NO se toca su alcance", async () => {
+      const user = userEvent.setup();
+      mockedApi.getWarehouseScope.mockResolvedValue([]);
+      mockedApi.updateUser.mockResolvedValue(USERS[1] as rbacApi.UserDetail);
+
+      await abrirEdicionDe(user, "Beto López");
+      await user.click(await screen.findByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => expect(mockedApi.updateUser).toHaveBeenCalled());
+      expect(mockedApi.replaceWarehouseScope).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Derivado de datos y EN VIVO: marcar el rol que da el combo de admin
+     * apaga la lista en el acto, sin guardar ni recargar. Si dependiera de
+     * `user.roles` (lo que vino del server), la pantalla mentiría hasta el
+     * próximo refresh.
+     */
+    it("marcar el rol de admin apaga la lista en el acto", async () => {
+      const user = userEvent.setup();
+      // Este actor SÍ tiene roles:manage, así que puede marcar "Admin".
+      useAuthStore
+        .getState()
+        .setAuth(
+          "jwt-demo",
+          demoUser(["users:read", "users:manage", "roles:read", "roles:manage"]),
+        );
+      mockedApi.getWarehouseScope.mockResolvedValue(["w1"]);
+
+      await abrirEdicionDe(user, "Ana García");
+      expect(await screen.findByTestId("warehouse-scope-w1")).toBeEnabled();
+
+      await user.click(screen.getByLabelText("Admin"));
+
+      expect(await screen.findByTestId("warehouse-scope-admin-hint")).toBeInTheDocument();
+      expect(screen.getByTestId("warehouse-scope-w1")).toBeDisabled();
     });
   });
 });

@@ -61,7 +61,11 @@
     "submitCreate": "Crear usuario",
     "submitEdit": "Guardar cambios",
     "createSuccess": "Se invitó a {{email}}. Va a recibir un correo para activar su cuenta.",
-    "editSuccess": "Los cambios se guardaron."
+    "editSuccess": "Los cambios se guardaron.",
+    "warehouseScope": "Alcance por almacén",
+    "warehouseScopeHint": "Marca los almacenes que este usuario puede operar.",
+    "warehouseScopeEmptyHint": "Sin almacenes marcados este usuario ve TODOS. Marca al menos uno para limitarlo.",
+    "warehouseScopeAdminHint": "Sus roles administran el negocio, así que ve todos los almacenes. Esta lista no se le aplica."
   },
   "roles": {
     "page": {

@@ -95,6 +95,28 @@ export async function resendInvitation(id: string): Promise<UserDetail> {
   return data;
 }
 
+/**
+ * F2-SCOPE-02 / F3-NAV-03 — alcance por almacén de un usuario (CU-SYS-04).
+ *
+ * Lista VACÍA es un estado válido y SIGNIFICATIVO: sin filas el interceptor
+ * del API le da todos los almacenes (default permisivo). O sea que "quitarle
+ * todos los alcances" es literalmente "sacarle la restricción", no dejarlo
+ * sin ver nada.
+ */
+export async function getWarehouseScope(userId: string): Promise<string[]> {
+  const { data } = await api.get<string[]>(`/users/${userId}/warehouse-scope`);
+  return data;
+}
+
+/** Reemplaza el SET completo, no un delta — la UI manda lo que quedó marcado. */
+export async function replaceWarehouseScope(
+  userId: string,
+  warehouseIds: string[],
+): Promise<string[]> {
+  const { data } = await api.put<string[]>(`/users/${userId}/warehouse-scope`, { warehouseIds });
+  return data;
+}
+
 export async function listRoles(): Promise<RoleSummary[]> {
   const { data } = await api.get<RoleSummary[]>("/roles");
   return data;

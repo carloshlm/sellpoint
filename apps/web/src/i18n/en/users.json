@@ -61,7 +61,11 @@
     "submitCreate": "Create user",
     "submitEdit": "Save changes",
     "createSuccess": "{{email}} was invited. They'll get an email to activate their account.",
-    "editSuccess": "Changes saved."
+    "editSuccess": "Changes saved.",
+    "warehouseScope": "Warehouse scope",
+    "warehouseScopeHint": "Check the warehouses this user can work in.",
+    "warehouseScopeEmptyHint": "With no warehouses checked, this user sees ALL of them. Check at least one to limit them.",
+    "warehouseScopeAdminHint": "Their roles administer the business, so they see every warehouse. This list does not apply to them."
   },
   "roles": {
     "page": {

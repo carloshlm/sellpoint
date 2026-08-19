@@ -15,14 +15,17 @@ import type { UserDetail } from "@/lib/rbac/api";
 import {
   useCreateUser,
   useReactivateUser,
+  useReplaceWarehouseScope,
   useResendInvitation,
   useRoles,
   useSuspendUser,
   useUpdateUser,
   useUsers,
+  useWarehouseScope,
 } from "@/lib/rbac/hooks";
 import type { UserFormValues } from "@/lib/rbac/schemas";
 import { cn } from "@/lib/utils";
+import { useWarehouses } from "@/lib/warehouses/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/system/users")({
@@ -78,6 +81,7 @@ function SystemUsersContent() {
   const rolesUnavailable = !canListRoles || rolesError;
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
+  const replaceScopeMutation = useReplaceWarehouseScope();
   const suspendUserMutation = useSuspendUser();
   const reactivateUserMutation = useReactivateUser();
   const resendInvitationMutation = useResendInvitation();
@@ -85,6 +89,11 @@ function SystemUsersContent() {
   const actorId = useAuthStore((state) => state.user?.id ?? "");
 
   const [formState, setFormState] = useState<FormState | null>(null);
+
+  // F3-NAV-03: el alcance del usuario que se está editando (en alta, `enabled: false`).
+  const editingUserId = formState?.mode === "edit" ? formState.user.id : undefined;
+  const warehouseScopeQuery = useWarehouseScope(editingUserId);
+  const { data: warehousesData } = useWarehouses();
   const [emailError, setEmailError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
@@ -127,7 +136,10 @@ function SystemUsersContent() {
     setFormError(null);
 
     if (formState.mode === "create") {
-      createUserMutation.mutate(values, {
+      // `warehouseIds` no viaja en el alta: el endpoint de alcance necesita un
+      // `:id` que nace recién ahora, y `createUserSchema` no lo acepta.
+      const { warehouseIds: _scope, ...alta } = values;
+      createUserMutation.mutate(alta, {
         onSuccess: () => {
           setFormState(null);
           setConfirmation(t("users.form.createSuccess", { email: values.email }));
@@ -137,11 +149,23 @@ function SystemUsersContent() {
       return;
     }
 
-    const { email: _email, ...input } = values;
+    const { email: _email, warehouseIds: scopeSeleccionado, ...input } = values;
+    const warehouseIds = scopeSeleccionado ?? [];
+    const userId = formState.user.id;
     updateUserMutation.mutate(
-      { id: formState.user.id, input },
+      { id: userId, input },
       {
         onSuccess: () => {
+          // El alcance es OTRO recurso (`PUT /users/:id/warehouse-scope`), así
+          // que va en su propia llamada — y solo si cambió: un PUT idéntico
+          // ensuciaría la auditoría con un cambio que no ocurrió.
+          const anterior = warehouseScopeQuery.data ?? [];
+          const cambio =
+            anterior.length !== warehouseIds.length ||
+            warehouseIds.some((id) => !anterior.includes(id));
+          if (cambio) {
+            replaceScopeMutation.mutate({ userId, warehouseIds });
+          }
           setFormState(null);
           // W3 (verify-report #341): editar un usuario no daba feedback de
           // éxito — mismo patrón que la alta (`confirmation`).
@@ -266,7 +290,7 @@ function SystemUsersContent() {
           {t("users.table.error")}
         </p>
       )}
-      {formState && canManage && (
+      {formState && canManage && (formState.mode === "create" || warehouseScopeQuery.isSuccess) && (
         <UserForm
           // C1 (verify-report #341): sin `key`, React reconcilia la MISMA
           // instancia del form al cambiar de fila (Ana → Beto sin cerrar) y
@@ -280,6 +304,8 @@ function SystemUsersContent() {
           roles={roles ?? []}
           rolesUnavailable={rolesUnavailable}
           actorPermissionCodes={actorPermissionCodes}
+          warehouses={warehousesData}
+          warehouseScope={warehouseScopeQuery.data}
           isSubmitting={isSubmitting}
           emailError={emailError}
           formError={formError}
