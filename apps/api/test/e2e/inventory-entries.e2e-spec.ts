@@ -233,9 +233,12 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       // sumó nada. Si el lock lógico fallara, acá habría 10 de más.
       const despues = saldoDe(primera, productId);
       const segundoDoc = await borrador({ reasonCode: "adjustment", reasonNote: "Control" });
-      await agregar(segundoDoc, { productId, quantity: 0.0001 }).expect(201);
+      // Entero a propósito: la línea nace con la presentación de factor 1 y un
+      // producto `count` ya no acepta fracciones — el 0.0001 de antes pasaba
+      // por el bypass de la unidad base que se cerró en la revisión manual.
+      await agregar(segundoDoc, { productId, quantity: 1 }).expect(201);
       const control = await confirmar(segundoDoc).expect(201);
-      expect(saldoDe(control, productId)).toBeCloseTo(despues + 0.0001, 4);
+      expect(saldoDe(control, productId)).toBeCloseTo(despues + 1, 4);
     });
   });
 

@@ -161,6 +161,46 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
      * presentación son líneas distintas, porque "2 cajas" y "3 unidades" no se
      * pueden sumar sin convertir.
      */
+    /**
+     * Revisión manual de Carlos (2026-08-19): una línea recién agregada nacía
+     * con `presentationId: null` y el selector ofrecía "Unidad base" ADEMÁS
+     * de la "Unidad" que el alta creó — dos nombres para lo mismo, y el
+     * camino null esquivaba `allowFractionalInput`. La línea nace ahora con
+     * la presentación de factor 1: matemáticamente neutra (cantidad × 1),
+     * pero bien nombrada y con la regla de enteros puesta.
+     */
+    it("sin presentación explícita, la línea nace con la de factor 1", async () => {
+      const id = await nuevoBorrador();
+
+      const res = await agregar(id, { productId, quantity: 2 }).expect(201);
+
+      expect((res.body as { presentationId: string | null }).presentationId).toBe(presentationId);
+    });
+
+    /** Y por eso escanear dos veces SIN presentación suma con la que nació. */
+    it("dos agregados sin presentación caen en la misma línea", async () => {
+      const id = await nuevoBorrador();
+      await agregar(id, { productId, quantity: 2 }).expect(201);
+      await agregar(id, { productId, presentationId, quantity: 3 }).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      const rows = (detalle.body as { rows: { quantityInput: string }[] }).rows;
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.quantityInput).toBe("5");
+    });
+
+    /** `null` EXPLÍCITO sigue siendo la unidad base: el default es solo para lo no dicho. */
+    it("con null explícito la línea queda en unidad base", async () => {
+      const id = await nuevoBorrador();
+
+      const res = await agregar(id, { productId, presentationId: null, quantity: 2 }).expect(201);
+
+      expect((res.body as { presentationId: string | null }).presentationId).toBeNull();
+    });
+
     it("el mismo producto y presentación suma en vez de duplicar", async () => {
       const id = await nuevoBorrador();
       await agregar(id, { productId, presentationId, quantity: 2 }).expect(201);

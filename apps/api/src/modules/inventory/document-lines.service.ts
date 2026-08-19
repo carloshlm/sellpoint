@@ -35,11 +35,27 @@ export class DocumentLinesService {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.documents.assertDraft(tx, user.tenantId, documentId);
 
+      // Sin presentación EXPLÍCITA (undefined, no null), la línea nace con la
+      // de factor 1 del producto: matemáticamente neutra (cantidad × 1), pero
+      // bien nombrada y con `allowFractionalInput` aplicando — el camino null
+      // esquivaba la regla de enteros y duplicaba la opción en el selector.
+      // `null` explícito sigue siendo la unidad base: el default es solo para
+      // lo que el cliente no dijo.
+      let presentationId = dto.presentationId ?? null;
+      if (dto.presentationId === undefined) {
+        const base = await tx.productPresentation.findFirst({
+          where: { productId: dto.productId, factor: 1, isActive: true },
+          orderBy: { isDefaultSale: "desc" },
+          select: { id: true },
+        });
+        presentationId = base?.id ?? null;
+      }
+
       const existente = await tx.inventoryDocumentLine.findFirst({
         where: {
           documentId,
           productId: dto.productId,
-          presentationId: dto.presentationId ?? null,
+          presentationId,
           lotCode: dto.lotCode ?? null,
         },
       });
@@ -68,7 +84,7 @@ export class DocumentLinesService {
           documentId,
           lineNo: (ultimo._max.lineNo ?? 0) + 1,
           productId: dto.productId,
-          presentationId: dto.presentationId ?? null,
+          presentationId,
           quantity: dto.quantity ?? null,
           unitCost: dto.unitCost ?? null,
           lotCode: dto.lotCode ?? null,
