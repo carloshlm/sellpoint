@@ -1,6 +1,10 @@
 {
-  "nav": { "group": "Almacenes" },
-  "page": { "title": "Almacenes" },
+  "nav": {
+    "group": "Almacenes"
+  },
+  "page": {
+    "title": "Almacenes"
+  },
   "add": "Nuevo almacén",
   "empty": "Todavía no registraste almacenes.",
   "status": "Estado",
@@ -8,6 +12,10 @@
   "inactive": "Inactivo",
   "deactivate": "Desactivar",
   "reactivate": "Reactivar",
+  "blocked": {
+    "stock": "No puedes desactivarlo: todavía tiene existencias. Muévelas a otro almacén primero.",
+    "transfersInTransit": "No puedes desactivarlo: tiene traspasos en camino. Recíbelos antes de cerrarlo."
+  },
   "form": {
     "name": "Nombre del almacén",
     "address": "Dirección",

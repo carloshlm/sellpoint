@@ -227,11 +227,25 @@ export class PresentationsService {
    * pase, este método lanza 409 `products.presentation_in_use` y la UI ofrece
    * desactivar en lugar de borrar.
    */
+  /**
+   * F3-GUARDS-01 — una presentación con la que YA se capturó no se borra.
+   *
+   * El kardex tiene que poder seguir explicando en qué presentación se capturó
+   * cada línea ("3 Caja ×12"). Borrarla dejaría movimientos que nadie puede
+   * reinterpretar — y por eso la FK de F3-DB-01 es `Restrict`: esto es la
+   * puerta amable, el FK es la red.
+   *
+   * La salida no destructiva existe y el mensaje la nombra: DESACTIVARLA la
+   * saca de los formularios sin tocar la historia.
+   */
   private async assertDeletable(
-    _tx: Prisma.TransactionClient,
-    _presentationId: string,
+    tx: Prisma.TransactionClient,
+    presentationId: string,
   ): Promise<void> {
-    return;
+    const movimientos = await tx.stockMovement.count({ where: { presentationId } });
+    if (movimientos > 0) {
+      throw new ConflictException({ message: "products.presentation_in_use" });
+    }
   }
 
   private async clearDefault(tx: Prisma.TransactionClient, productId: string): Promise<void> {

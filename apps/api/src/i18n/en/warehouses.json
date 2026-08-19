@@ -2,5 +2,7 @@
   "not_found": "This warehouse doesn't exist.",
   "name_taken": "You already have a warehouse with that name.",
   "empty_update": "There are no changes to save.",
-  "invalid_body": "The submitted data isn't valid."
+  "invalid_body": "The submitted data isn't valid.",
+  "has_stock": "This warehouse still holds {total} in stock: it cannot be deactivated. Move it or write it off before closing it.",
+  "has_transfers_in_transit": "This warehouse has unconfirmed transfers in transit: it cannot be deactivated until they are received or canceled."
 }

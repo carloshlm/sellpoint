@@ -24,5 +24,8 @@
   "invalid_body": "The submitted data isn't valid.",
   "last_presentation": "This is the product's only presentation: without it there would be no way to sell it. Add another one before deleting this.",
   "amount_too_large": "The amount is too large. The maximum is 999,999,999,999.99",
-  "lots_in_stock": "Lot tracking cannot be turned off: there is still stock assigned to lots. Move it out or consume it first."
+  "lots_in_stock": "Lot tracking cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",
+  "presentation_in_use": "This presentation already has recorded movements: it cannot be deleted. Deactivate it so it stops being offered without losing history.",
+  "has_movements": "This product already has inventory movements: it cannot be deleted. Deactivate it so it stops being offered without losing history.",
+  "base_unit_locked_by_movements": "The base unit cannot be changed: movements were already recorded in this unit and changing it would reinterpret history."
 }

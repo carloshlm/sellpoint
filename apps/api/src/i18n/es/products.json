@@ -24,5 +24,8 @@
   "invalid_body": "Los datos enviados no son válidos.",
   "last_presentation": "Es la única presentación del producto: sin ella no habría forma de venderlo. Agrega otra antes de eliminar esta.",
   "amount_too_large": "El importe es demasiado grande. El máximo es 999,999,999,999.99",
-  "lots_in_stock": "No se puede quitar el control por lote: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero."
+  "lots_in_stock": "No se puede quitar el control por lote: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
+  "presentation_in_use": "Esta presentación ya tiene movimientos registrados: no se puede borrar. Desactívala para que deje de ofrecerse sin perder el historial.",
+  "has_movements": "Este producto ya tiene movimientos de inventario: no se puede borrar. Desactívalo para que deje de ofrecerse sin perder el historial.",
+  "base_unit_locked_by_movements": "La unidad base no se puede cambiar: ya hay movimientos registrados en esta unidad y cambiarla reinterpretaría el historial."
 }

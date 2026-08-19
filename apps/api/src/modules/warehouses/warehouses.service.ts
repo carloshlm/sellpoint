@@ -16,6 +16,19 @@ export interface WarehouseSummary {
 }
 
 /**
+ * F3-GUARDS-03. Por qué este almacén no se puede desactivar, o `null` si sí.
+ *
+ * Es un motivo y no dos banderas porque `update` corta en el saldo antes de
+ * mirar los traspasos: dos banderas prometerían un orden que la guarda no
+ * respeta. Esto dice exactamente con qué error se va a chocar.
+ */
+export type DeactivationBlock = "stock" | "transfers_in_transit" | null;
+
+export interface WarehouseListItem extends WarehouseSummary {
+  deactivationBlockedBy: DeactivationBlock;
+}
+
+/**
  * F2-WH-01. Mismo molde que el resto: `withTenantContext`, `where` con
  * `tenantId` además de la RLS y auditoría en la misma transacción.
  *
@@ -34,10 +47,49 @@ export class WarehousesService {
     private readonly auditService: AuditService,
   ) {}
 
-  async list(user: AuthUser): Promise<WarehouseSummary[]> {
-    return this.prisma.withTenantContext(user.tenantId, (tx) =>
-      tx.warehouse.findMany({ orderBy: { name: "asc" } }),
-    );
+  /**
+   * F3-GUARDS-03: el listado trae, además del almacén, el motivo por el que no
+   * se puede cerrar. El criterio del módulo es que la UI muestre la guarda
+   * ANTES del clic — sin esto, la única forma de enterarse sería chocando con
+   * el 409, y para entonces el usuario ya creyó que iba a poder.
+   *
+   * Los dos agregados replican la condición de `update`, en el mismo orden.
+   */
+  async list(user: AuthUser): Promise<WarehouseListItem[]> {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const [warehouses, conSaldo, enTransito] = await Promise.all([
+        tx.warehouse.findMany({ orderBy: { name: "asc" } }),
+        tx.stockByWarehouse.groupBy({
+          by: ["warehouseId"],
+          where: { quantity: { gt: 0 } },
+          _sum: { quantity: true },
+        }),
+        tx.transfer.findMany({
+          where: { status: "in_transit" },
+          select: { originWarehouseId: true, destinationWarehouseId: true },
+        }),
+      ]);
+
+      const idsConSaldo = new Set(
+        conSaldo.filter((fila) => fila._sum.quantity?.greaterThan(0)).map((f) => f.warehouseId),
+      );
+      const idsEnTransito = new Set(
+        enTransito.flatMap((t) => [t.originWarehouseId, t.destinationWarehouseId]),
+      );
+
+      return warehouses.map((warehouse) => ({
+        ...warehouse,
+        // Uno ya desactivado no tiene bloqueo que mostrar: la guarda solo
+        // corre al pasar de activo a inactivo, igual que aquí.
+        deactivationBlockedBy: !warehouse.isActive
+          ? null
+          : idsConSaldo.has(warehouse.id)
+            ? "stock"
+            : idsEnTransito.has(warehouse.id)
+              ? "transfers_in_transit"
+              : null,
+      }));
+    });
   }
 
   /**
@@ -98,6 +150,38 @@ export class WarehousesService {
 
       if (!current) {
         throw new NotFoundException({ message: "warehouses.not_found" });
+      }
+
+      // F3-GUARDS-03 (CU-ALM-02): un almacén con mercancía adentro no se
+      // cierra. Desactivarlo lo saca de los selectores, y el saldo quedaría
+      // ahí sin que nadie pudiera sacarlo ni verlo — una pérdida silenciosa.
+      // Primero hay que vaciarlo, y el error dice cuánto falta mover.
+      if (input.isActive === false && current.isActive) {
+        const [saldo, enTransito] = await Promise.all([
+          tx.stockByWarehouse.aggregate({
+            where: { warehouseId: id, quantity: { gt: 0 } },
+            _sum: { quantity: true },
+          }),
+          // Origen O destino: si es destino hay mercancía en camino que nadie
+          // podría recibir; si es origen, un traspaso sin quien lo despache.
+          tx.transfer.count({
+            where: {
+              status: "in_transit",
+              OR: [{ originWarehouseId: id }, { destinationWarehouseId: id }],
+            },
+          }),
+        ]);
+
+        const total = saldo._sum.quantity;
+        if (total?.greaterThan(0)) {
+          throw new ConflictException({
+            message: "warehouses.has_stock",
+            total: total.toString(),
+          });
+        }
+        if (enTransito > 0) {
+          throw new ConflictException({ message: "warehouses.has_transfers_in_transit" });
+        }
       }
 
       let updated: WarehouseSummary;

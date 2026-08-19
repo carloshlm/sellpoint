@@ -15,6 +15,8 @@ import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
+import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -231,8 +233,14 @@ export class ProductsController {
 
   @Get(":id/availability")
   @RequirePermissions("products:read")
-  availability(@Param("id") id: string, @CurrentUser() user: AuthUser) {
-    return this.compositionService.availability(user, id);
+  availability(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+  ) {
+    // El alcance viaja: las unidades armables son las que ESTE usuario puede
+    // armar con el stock que administra, no las del negocio entero.
+    return this.compositionService.availability(user, id, undefined, scope);
   }
 
   @Get(":id/cost-estimate")

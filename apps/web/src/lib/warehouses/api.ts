@@ -6,6 +6,12 @@ export interface Warehouse {
   name: string;
   address: string | null;
   isActive: boolean;
+  /**
+   * F3-GUARDS-03. Por qué NO se puede desactivar, o `null` si sí se puede.
+   * Llega en el listado para que el botón se deshabilite antes del clic en vez
+   * de mandar al usuario a chocar con un 409.
+   */
+  deactivationBlockedBy: "stock" | "transfers_in_transit" | null;
 }
 
 export interface CreateWarehouseInput {

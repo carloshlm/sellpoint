@@ -2,5 +2,7 @@
   "not_found": "El almacén no existe.",
   "name_taken": "Ya tienes un almacén con ese nombre.",
   "empty_update": "No hay cambios que guardar.",
-  "invalid_body": "Los datos enviados no son válidos."
+  "invalid_body": "Los datos enviados no son válidos.",
+  "has_stock": "Este almacén todavía tiene {total} en existencia: no se puede desactivar. Muévela a otro almacén o regístrale una salida antes de cerrarlo.",
+  "has_transfers_in_transit": "Este almacén tiene traspasos en tránsito sin confirmar: no se puede desactivar hasta que se reciban o se cancelen."
 }

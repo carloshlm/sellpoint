@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -154,6 +155,12 @@ export class CompositionService {
      * cuando los componentes están en otra bodega (F3-EXIT-02).
      */
     warehouseId?: string,
+    /**
+     * F3-GUARDS-05: el ALCANCE del usuario. Sin él, un Manager de una bodega
+     * vería unidades armables que no puede armar — los componentes están en un
+     * almacén que no administra. Distinto de `warehouseId`, que acota a UNO.
+     */
+    scope?: UserScope,
   ): Promise<AvailabilityResult> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.findProductOrFail(tx, user, productId);
@@ -161,10 +168,17 @@ export class CompositionService {
       const compositions = await tx.productComposition.findMany({
         include: { component: { select: { id: true, sku: true, name: true, isComposite: true } } },
       });
+      const dondePuedeVer =
+        warehouseId !== undefined
+          ? { warehouseId }
+          : scope === undefined || scope.warehouseIds === "all"
+            ? undefined
+            : { warehouseId: { in: scope.warehouseIds } };
+
       const stock = await tx.stockByWarehouse.groupBy({
         by: ["productId"],
         _sum: { quantity: true },
-        ...(warehouseId !== undefined ? { where: { warehouseId } } : {}),
+        ...(dondePuedeVer !== undefined ? { where: dondePuedeVer } : {}),
       });
       const stockByProduct = new Map(
         stock.map((row) => [row.productId, Number(row._sum.quantity ?? 0)]),

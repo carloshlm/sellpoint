@@ -1,6 +1,10 @@
 {
-  "nav": { "group": "Warehouses" },
-  "page": { "title": "Warehouses" },
+  "nav": {
+    "group": "Warehouses"
+  },
+  "page": {
+    "title": "Warehouses"
+  },
   "add": "New warehouse",
   "empty": "You haven't registered any warehouses yet.",
   "status": "Status",
@@ -8,6 +12,10 @@
   "inactive": "Inactive",
   "deactivate": "Deactivate",
   "reactivate": "Reactivate",
+  "blocked": {
+    "stock": "You can't deactivate it: it still holds stock. Move it to another warehouse first.",
+    "transfersInTransit": "You can't deactivate it: it has transfers on the way. Receive them before closing it."
+  },
   "form": {
     "name": "Warehouse name",
     "address": "Address",

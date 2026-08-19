@@ -107,44 +107,61 @@ function WarehousesContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(warehouses ?? []).map((warehouse) => (
-              <TableRow key={warehouse.id} data-testid={`warehouse-${warehouse.id}`}>
-                <TableCell className="font-medium">{warehouse.name}</TableCell>
-                <TableCell>{warehouse.address ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={warehouse.isActive ? "success" : "default"}>
-                    {warehouse.isActive ? t("warehouses.active") : t("warehouses.inactive")}
-                  </Badge>
-                </TableCell>
-                {canManage && (
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setCreating(false);
-                        setEditing(warehouse);
-                      }}
-                    >
-                      {t("common.form.edit")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setError(null);
-                        updateWarehouse.mutate(
-                          { id: warehouse.id, input: { isActive: !warehouse.isActive } },
-                          { onError: (apiError: ApiError) => setError(apiError.message) },
-                        );
-                      }}
-                    >
-                      {warehouse.isActive ? t("warehouses.deactivate") : t("warehouses.reactivate")}
-                    </Button>
+            {(warehouses ?? []).map((warehouse) => {
+              // F3-GUARDS-03: el motivo del API decide el `title`. Reactivar
+              // nunca se bloquea — la guarda solo corre al cerrar.
+              const bloqueo =
+                warehouse.isActive && warehouse.deactivationBlockedBy
+                  ? t(
+                      warehouse.deactivationBlockedBy === "stock"
+                        ? "warehouses.blocked.stock"
+                        : "warehouses.blocked.transfersInTransit",
+                    )
+                  : null;
+
+              return (
+                <TableRow key={warehouse.id} data-testid={`warehouse-${warehouse.id}`}>
+                  <TableCell className="font-medium">{warehouse.name}</TableCell>
+                  <TableCell>{warehouse.address ?? "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant={warehouse.isActive ? "success" : "default"}>
+                      {warehouse.isActive ? t("warehouses.active") : t("warehouses.inactive")}
+                    </Badge>
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
+                  {canManage && (
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setCreating(false);
+                          setEditing(warehouse);
+                        }}
+                      >
+                        {t("common.form.edit")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={bloqueo !== null}
+                        title={bloqueo ?? undefined}
+                        onClick={() => {
+                          setError(null);
+                          updateWarehouse.mutate(
+                            { id: warehouse.id, input: { isActive: !warehouse.isActive } },
+                            { onError: (apiError: ApiError) => setError(apiError.message) },
+                          );
+                        }}
+                      >
+                        {warehouse.isActive
+                          ? t("warehouses.deactivate")
+                          : t("warehouses.reactivate")}
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

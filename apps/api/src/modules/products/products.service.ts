@@ -311,6 +311,24 @@ export class ProductsService {
         throw new NotFoundException({ message: "products.not_found" });
       }
 
+      // F3-GUARDS-02: con historia detrás, un producto NO se borra. El kardex
+      // lo referencia y el histórico no se reescribe (las FK son `Restrict`);
+      // esta es la puerta amable y el FK es la red. La salida no destructiva
+      // es DESACTIVARLO: deja de ofrecerse sin borrar lo que pasó.
+      //
+      // Cuenta las cuatro formas de tener historia: movimientos propios,
+      // movimientos donde fue el COMPUESTO que se expandió, líneas de traspaso
+      // y lotes registrados.
+      const [movimientos, comoCompuesto, enTraspasos, lotes] = await Promise.all([
+        tx.stockMovement.count({ where: { productId: id } }),
+        tx.stockMovement.count({ where: { parentProductId: id } }),
+        tx.transferLine.count({ where: { productId: id } }),
+        tx.productLot.count({ where: { productId: id } }),
+      ]);
+      if (movimientos + comoCompuesto + enTraspasos + lotes > 0) {
+        throw new ConflictException({ message: "products.has_movements" });
+      }
+
       const parents = await tx.productComposition.findMany({
         where: { componentProductId: id },
         select: { parent: { select: { sku: true, name: true } } },
@@ -385,11 +403,18 @@ export class ProductsService {
     tx: Prisma.TransactionClient,
     productId: string,
   ): Promise<void> {
-    const [withStock, usedAsComponent] = await Promise.all([
+    const [withStock, usedAsComponent, movimientos] = await Promise.all([
       tx.stockByWarehouse.count({ where: { productId, quantity: { gt: 0 } } }),
       tx.productComposition.count({ where: { componentProductId: productId } }),
+      tx.stockMovement.count({ where: { productId } }),
     ]);
 
+    // Con historia la unidad queda fija AUNQUE el saldo esté en cero: los
+    // movimientos se escribieron EN esa unidad, y reinterpretarlos cambiaría
+    // números ya asentados sin tocar una fila.
+    if (movimientos > 0) {
+      throw new ConflictException({ message: "products.base_unit_locked_by_movements" });
+    }
     if (withStock > 0) {
       throw new ConflictException({ message: "products.base_unit_locked_by_stock" });
     }
