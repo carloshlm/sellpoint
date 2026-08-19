@@ -137,7 +137,7 @@ export function DocumentList({ type }: DocumentListProps) {
       </div>
 
       {isPending ? (
-        <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
+        <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>
       ) : rows.length === 0 ? (
         // Dos vacíos distintos: "todavía no hay" invita a crear el primero;
         // "no encontré nada" dice que el filtro es el problema, no el sistema.

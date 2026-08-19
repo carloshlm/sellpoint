@@ -51,7 +51,7 @@ export function ExpiringList() {
       </header>
 
       {isPending ? (
-        <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
+        <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>
       ) : (data?.length ?? 0) === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.expiring.empty")}</p>
       ) : (

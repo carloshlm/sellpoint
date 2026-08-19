@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { resolveUiLocale } from "@/lib/accept-language";
+import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { removeDocumentLine, updateDocumentLine } from "@/lib/inventory/api";
 import { headerErrors } from "@/lib/inventory/entry-schema";
@@ -52,6 +53,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const { data: document, isPending } = useDocument(documentId);
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
   const [confirmado, setConfirmado] = useState(false);
+  // El error del confirm/anular. Sin esto el fallo era SILENCIOSO: el diálogo
+  // se cerraba y el usuario veía "no pasa nada" — indebuggeable hasta para
+  // quien lo reporta. El filtro del API ya manda el mensaje traducido.
+  const [actionError, setActionError] = useState<string | null>(null);
   const [drifted, setDrifted] = useState(0);
   const [soloDiscrepancias, setSoloDiscrepancias] = useState(false);
 
@@ -59,7 +64,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const cancelDocument = useCancelDocument(documentId);
 
   if (isPending || document === undefined) {
-    return <p className="text-muted-foreground text-sm">{t("common.loading")}</p>;
+    return <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>;
   }
 
   const esConteo = document.type === "physical_count";
@@ -154,6 +159,12 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
             <DownloadDocumentButton documentId={documentId} folio={document.folio} />
           </div>
         </div>
+      )}
+
+      {actionError !== null && (
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
+          {actionError}
+        </p>
       )}
 
       {editable && esConteo && <CountPanel document={document} />}
@@ -261,15 +272,17 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           confirmLabel={`${t("inventory.document.confirm")} ${t(
             `inventory.documentType.${document.type}`,
           ).toLowerCase()}`}
-          cancelLabel={t("common.actions.cancel")}
+          cancelLabel={t("common.form.cancel")}
           busy={confirmDocument.isPending}
           onCancel={() => setDialog(null)}
           onConfirm={() => {
+            setActionError(null);
             confirmDocument.mutate(undefined, {
               onSuccess: (res) => {
                 setConfirmado(true);
                 setDrifted((res as { drifted?: number }).drifted ?? 0);
               },
+              onError: (apiError: ApiError) => setActionError(apiError.message),
               onSettled: () => setDialog(null),
             });
           }}
@@ -281,11 +294,15 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           title={t("inventory.document.cancelTitle", { folio: document.folio })}
           body={t("inventory.document.cancelBody", { folio: document.folio })}
           confirmLabel={t("inventory.document.cancel")}
-          cancelLabel={t("common.actions.cancel")}
+          cancelLabel={t("common.form.cancel")}
           busy={cancelDocument.isPending}
           onCancel={() => setDialog(null)}
           onConfirm={() => {
-            cancelDocument.mutate(undefined, { onSettled: () => setDialog(null) });
+            setActionError(null);
+            cancelDocument.mutate(undefined, {
+              onError: (apiError: ApiError) => setActionError(apiError.message),
+              onSettled: () => setDialog(null),
+            });
           }}
         />
       )}

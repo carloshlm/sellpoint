@@ -99,7 +99,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
       </div>
 
       {isPending ? (
-        <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
+        <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>
       ) : (data?.rows.length ?? 0) === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.kardex.empty")}</p>
       ) : (

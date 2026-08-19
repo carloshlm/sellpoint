@@ -350,6 +350,36 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
    * `tracksLots` (`inventory.lot_required`) pero la cara de entrada NUNCA
    * pintaba los inputs — el error pedía algo que la pantalla no dejaba dar.
    */
+  /**
+   * Revisión manual de Carlos: "la ENT-000002 no se puede guardar" — el
+   * confirm fallaba y el diálogo se cerraba SIN MOSTRAR NADA, porque el
+   * mutate no tenía onError. Un fallo silencioso es indebuggeable hasta
+   * para quien lo reporta.
+   */
+  describe("el confirm que falla LO DICE", () => {
+    it("un 409 del confirmar aparece como error visible, no se traga", async () => {
+      const user = userEvent.setup();
+      mocked.confirmDocument.mockRejectedValue(
+        Object.assign(new Error("Ya fue confirmado por alguien más."), { statusCode: 409 }),
+      );
+      const d = detalle();
+      d.reasonCode = "invoice";
+      d.reference = "F-001";
+      mocked.getDocument.mockResolvedValue(d);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.click(screen.getByRole("button", { name: "Confirmar" }));
+      await user.click(await screen.findByRole("button", { name: /confirmar entrada/i }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Ya fue confirmado por alguien más.",
+      );
+      // Y sigue siendo borrador a la vista: no se fingió el éxito.
+      expect(screen.getByText(/borrador/i)).toBeInTheDocument();
+    });
+  });
+
   describe("la captura de lote en la entrada (F3-LOTS)", () => {
     function detalleConLotes() {
       const d = detalle();

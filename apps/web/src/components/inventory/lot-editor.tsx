@@ -112,7 +112,7 @@ export function LotEditor({
           onClick={onClose}
           className="rounded-md border border-input px-3 py-2 text-sm"
         >
-          {t("common.actions.cancel")}
+          {t("common.form.cancel")}
         </button>
       </div>
 
@@ -121,7 +121,7 @@ export function LotEditor({
           title={t("inventory.kardex.expiryWarningTitle", { lotCode: lot.lotCode })}
           body={t("inventory.kardex.expiryWarning")}
           confirmLabel={t("inventory.kardex.expiryConfirm")}
-          cancelLabel={t("common.actions.cancel")}
+          cancelLabel={t("common.form.cancel")}
           busy={guardar.isPending}
           onCancel={() => setConfirmando(false)}
           onConfirm={() => guardar.mutate()}

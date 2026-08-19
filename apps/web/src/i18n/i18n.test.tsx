@@ -353,6 +353,53 @@ describe("el detector de voseo funciona (guardián del guardián)", () => {
   });
 });
 
+describe("toda clave usada existe en el catálogo", () => {
+  /**
+   * Revisión manual de Carlos (2026-08-19): el diálogo de confirmar mostraba
+   * `common.actions.cancel` crudo — la clave se usaba en CINCO componentes y
+   * nunca se definió. Una clave inventada compila, pasa typecheck y llega a
+   * producción como texto crudo; la única red posible es comparar lo USADO
+   * contra lo DEFINIDO. Solo literales: los template (`documentType.${...}`)
+   * y los códigos del API (`t(error.code)`) no se pueden verificar acá.
+   */
+  it('ningún t("...") literal apunta a una clave que no existe', () => {
+    const definidas = new Set<string>();
+    for (const fileName of readdirSync(join(__dirname, "es"))) {
+      if (!fileName.endsWith(".json")) continue;
+      const parsed = JSON.parse(readFileSync(join(__dirname, "es", fileName), "utf-8"));
+      const leaves: Array<{ key: string; value: string }> = [];
+      collectStringLeaves(parsed, "", leaves);
+      const ns = fileName.replace(/\.json$/, "");
+      for (const leaf of leaves) {
+        definidas.add(`${ns}.${leaf.key}`);
+      }
+    }
+    expect(definidas.size).toBeGreaterThan(0);
+
+    const raiz = join(__dirname, "..");
+    const usadas: Array<{ file: string; key: string }> = [];
+    for (const entry of readdirSync(raiz, { recursive: true }) as string[]) {
+      const nombre = String(entry);
+      if (!/\.(ts|tsx)$/.test(nombre)) continue;
+      if (/\.test\.|\.spec\./.test(nombre)) continue;
+      const contenido = readFileSync(join(raiz, nombre), "utf-8");
+      for (const match of contenido.matchAll(/\bt\(\s*"([^"]+)"/g)) {
+        usadas.push({ file: nombre, key: match[1] as string });
+      }
+    }
+    expect(usadas.length).toBeGreaterThan(0);
+
+    const rotas = [
+      ...new Map(usadas.filter(({ key }) => !definidas.has(key)).map((u) => [u.key, u])).values(),
+    ].map(({ file, key }) => `  · "${key}" (por ejemplo en ${file})`);
+
+    expect(
+      rotas,
+      `Claves usadas con t("...") que no existen en src/i18n/es/*.json:\n${rotas.join("\n")}`,
+    ).toEqual([]);
+  });
+});
+
 describe("voz de la UI — español neutro, nunca voseo (LEY)", () => {
   const ES_DIRS = [join(__dirname, "es"), join(__dirname, "../../../api/src/i18n/es")] as const;
 

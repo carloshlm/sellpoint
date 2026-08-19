@@ -30,7 +30,7 @@ export function StockTab({ productId }: { productId: string }) {
   const puedeEditar = has("inventory:movement");
 
   if (isPending || data === undefined) {
-    return <p className="text-muted-foreground text-sm">{t("common.loading")}</p>;
+    return <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>;
   }
 
   const unidad = unitName(data.baseUnit, resolveUiLocale(i18n), { plural: true }).toLowerCase();

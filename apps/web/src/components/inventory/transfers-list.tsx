@@ -80,7 +80,7 @@ export function TransfersList() {
       </div>
 
       {isPending ? (
-        <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
+        <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>
       ) : filas.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.transfers.empty")}</p>
       ) : (
@@ -219,7 +219,7 @@ function DialogoRecepcion({ row, onClose }: { row: TransferRow; onClose: () => v
         who: row.createdBy.name,
       })} — ${t("inventory.transfers.receiveBody")}`}
       confirmLabel={t("inventory.transfers.receiveConfirm")}
-      cancelLabel={t("common.actions.cancel")}
+      cancelLabel={t("common.form.cancel")}
       busy={crear.isPending}
       error={error ?? undefined}
       onCancel={onClose}
@@ -258,7 +258,7 @@ function DialogoCancelar({ row, onClose }: { row: TransferRow; onClose: () => vo
       title={t("inventory.transfers.cancelTitle", { folio: row.folio })}
       body={t("inventory.transfers.cancelWarning")}
       confirmLabel={t("inventory.transfers.cancel")}
-      cancelLabel={t("common.actions.cancel")}
+      cancelLabel={t("common.form.cancel")}
       busy={cancelar.isPending}
       error={error ?? undefined}
       // El API pide 5 caracteres mínimo: la pantalla lo dice ANTES en vez de
