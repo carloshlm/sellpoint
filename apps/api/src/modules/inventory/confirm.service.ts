@@ -1,4 +1,4 @@
-import { Injectable, UnprocessableEntityException } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnprocessableEntityException } from "@nestjs/common";
 import { REASON_RULES, SELECTABLE_ENTRY_REASONS, SELECTABLE_EXIT_REASONS } from "@sellpoint/shared";
 import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -10,7 +10,7 @@ import { DocumentsService } from "./documents.service";
 import { resolveLines } from "./line-resolver";
 import { resolveLotsFefo } from "./lot-fefo";
 import { recordMovementAudit } from "./movement-audit";
-import { StockLedgerService } from "./stock-ledger.service";
+import { type LedgerHeader, StockLedgerService } from "./stock-ledger.service";
 import { TransfersService } from "./transfers.service";
 import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
 
@@ -52,8 +52,18 @@ export class ConfirmService {
       assertWarehouseInScope(scope, document.warehouseId);
       await assertActiveWarehouse(tx, user.tenantId, document.warehouseId);
 
+      // Aprobar un conteo puede reescribir el saldo de todo un almacén de una
+      // vez: es el único tipo que no basta con `inventory:movement`. La guarda
+      // vive acá y no en el decorador porque el permiso depende del TIPO, que
+      // solo se sabe leyendo el documento.
+      if (document.type === "physical_count" && !user.permissions?.includes("inventory:manage")) {
+        throw new ForbiddenException({ message: "inventory.count_requires_manage" });
+      }
+
       const direction = document.type === "exit" ? "exit" : "entry";
-      this.assertReason(document, direction);
+      if (document.type !== "physical_count") {
+        this.assertReason(document, direction);
+      }
 
       const lines = await tx.inventoryDocumentLine.findMany({
         where: { documentId },
@@ -73,7 +83,10 @@ export class ConfirmService {
         lines.map((l) => ({
           productId: l.productId,
           presentationId: l.presentationId,
-          quantity: l.quantity,
+          // En un conteo la cantidad de la línea es lo CONTADO: la línea dice
+          // cuánto HAY, no cuánto se mueve. Lo que se mueve lo calcula
+          // `expandCount` contra el teórico fresco.
+          quantity: document.type === "physical_count" ? l.counted : l.quantity,
           unitCost: l.unitCost,
           lotCode: l.lotCode,
           expiresAt: l.expiresAt,
@@ -109,22 +122,36 @@ export class ConfirmService {
           ? await this.transfers.receive(tx, user, document, conLotes)
           : null;
 
+      // 4-ter. El CONTEO no mueve lo capturado: mueve la DIFERENCIA contra el
+      //        teórico releído fresco. Una línea que difiere se asienta como
+      //        DOS movimientos —salida del teórico entero y entrada de lo
+      //        contado— y no como un ajuste por el delta: así el kardex cuenta
+      //        "había 40, se contó 35" en vez de un "-5" sin origen.
+      const conteo =
+        document.type === "physical_count"
+          ? await this.expandCount(tx, user, document, lines, conLotes)
+          : null;
+
       // 5. Asentar. Acá es donde el stock se mueve, con las filas bloqueadas.
-      const result = await this.ledger.apply(tx, {
-        tenantId: user.tenantId,
-        userId: user.userId,
-        direction,
-        reasonCode,
-        warehouseId: document.warehouseId,
-        lines: conLotes,
-        header: {
-          documentId,
-          reasonNote: document.reasonNote,
-          reference: document.reference,
-          authorizedBy: document.authorizedBy,
-          linkedWarehouseId: document.linkedWarehouseId,
-        },
-      });
+      const header = {
+        documentId,
+        reasonNote: document.reasonNote,
+        reference: document.reference,
+        authorizedBy: document.authorizedBy,
+        linkedWarehouseId: document.linkedWarehouseId,
+      };
+      const result =
+        conteo !== null
+          ? await this.applyCount(tx, user, document, conteo, header)
+          : await this.ledger.apply(tx, {
+              tenantId: user.tenantId,
+              userId: user.userId,
+              direction,
+              reasonCode,
+              warehouseId: document.warehouseId,
+              lines: conLotes,
+              header,
+            });
 
       const saldoPorProducto = new Map(result.stock.map((s) => [s.productId, s.quantity]));
       await recordMovementAudit(tx, this.auditService, {
@@ -148,6 +175,18 @@ export class ConfirmService {
         })),
       });
 
+      // El motivo de un conteo lo pone la APROBACIÓN, no la captura: nadie lo
+      // elige en un desplegable (`physical_count` no está en
+      // `SELECTABLE_*_REASONS`). Va antes de sellar, mientras el documento
+      // sigue siendo borrador y el trigger deja tocarlo — y lo exige el CHECK
+      // `inventory_documents_reason_on_confirm_check`.
+      if (document.type === "physical_count") {
+        await tx.inventoryDocument.update({
+          where: { id: documentId },
+          data: { reasonCode: "physical_count" },
+        });
+      }
+
       // 6. Sellar. ÚLTIMO: a partir de acá el trigger congela el documento.
       const confirmed = await this.documents.markConfirmed(
         tx,
@@ -166,6 +205,10 @@ export class ConfirmService {
         movements: result.movements,
         stock: result.stock,
         lots: result.lots,
+        ...(conteo !== null && {
+          applied: conteo.exit.length + conteo.entry.length,
+          drifted: conteo.drifted,
+        }),
         ...(transfer !== null && { transfer: { id: transfer.id } }),
         // La recepción devuelve el folio del DESPACHO: es como el usuario
         // conoce a ese traspaso, no por su uuid.
@@ -178,6 +221,139 @@ export class ConfirmService {
         }),
       };
     });
+  }
+
+  /**
+   * F3-COUNT-03 — de lo CONTADO a los movimientos que lo asientan.
+   *
+   * Una línea que difiere se asienta como **dos** movimientos: salida del
+   * teórico entero y entrada de lo contado. No como un ajuste por la
+   * diferencia — así el kardex cuenta "había 40, se contó 35" en vez de un
+   * "-5" que no dice de dónde salió, y el saldo final es exactamente lo que
+   * alguien vio con los ojos.
+   *
+   * El teórico se relee **bajo el mismo lock** que va a usar el ledger y en el
+   * MISMO orden (`product_id`, y `lot_id, location` para los lotes): un conteo
+   * puede tardar horas, y leerlo sin bloquear dejaría una carrera con
+   * cualquier venta que entre en el medio.
+   */
+  private async expandCount(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    document: InventoryDocument,
+    lines: { lineNo: number; counted: Prisma.Decimal | null; quantity: Prisma.Decimal | null }[],
+    resolved: ExpandedLine[],
+  ): Promise<{ exit: ExpandedLine[]; entry: ExpandedLine[]; drifted: number }> {
+    const contadas = resolved.filter((_line, index) => lines[index]?.counted !== null);
+    if (contadas.length === 0) {
+      return { exit: [], entry: [], drifted: 0 };
+    }
+
+    const productIds = [...new Set(contadas.map((l) => l.productId))].sort();
+    const lotIds = [...new Set(contadas.map((l) => l.lotId).filter(Boolean))].sort() as string[];
+
+    // El MISMO `FOR UPDATE` ordenado del ledger: tomarlo acá primero evita
+    // leer un teórico que cambie antes de asentarlo.
+    const saldos = await tx.$queryRaw<{ product_id: string; quantity: string }[]>`
+      SELECT product_id, quantity::text AS quantity
+        FROM stock_by_warehouse
+       WHERE tenant_id = ${user.tenantId}::uuid
+         AND warehouse_id = ${document.warehouseId}::uuid
+         AND product_id = ANY(${productIds}::uuid[])
+       ORDER BY product_id
+         FOR UPDATE`;
+    const porProducto = new Map(saldos.map((r) => [r.product_id, new Prisma.Decimal(r.quantity)]));
+
+    const porLote = new Map<string, Prisma.Decimal>();
+    if (lotIds.length > 0) {
+      const filas = await tx.$queryRaw<{ lot_id: string; location: string; quantity: string }[]>`
+        SELECT lot_id, location, quantity::text AS quantity
+          FROM stock_lots
+         WHERE tenant_id = ${user.tenantId}::uuid
+           AND warehouse_id = ${document.warehouseId}::uuid
+           AND lot_id = ANY(${lotIds}::uuid[])
+         ORDER BY lot_id, location
+           FOR UPDATE`;
+      for (const fila of filas) {
+        porLote.set(`${fila.lot_id}|${fila.location}`, new Prisma.Decimal(fila.quantity));
+      }
+    }
+
+    const exit: ExpandedLine[] = [];
+    const entry: ExpandedLine[] = [];
+    let drifted = 0;
+
+    for (const [index, line] of resolved.entries()) {
+      const capturada = lines[index];
+      if (capturada?.counted === null || capturada === undefined) {
+        continue;
+      }
+      const contado = new Prisma.Decimal(capturada.counted.toString());
+      const teorico =
+        line.lotId === undefined
+          ? (porProducto.get(line.productId) ?? new Prisma.Decimal(0))
+          : (porLote.get(`${line.lotId}|${line.location ?? ""}`) ?? new Prisma.Decimal(0));
+
+      // `quantity` guarda el teórico que se VIO al capturar la línea. Si el de
+      // ahora es otro, alguien movió el saldo entre contar y aprobar: gana lo
+      // contado —es lo que se vio con los ojos— pero queda registrado.
+      const visto = capturada.quantity;
+      if (visto !== null && !new Prisma.Decimal(visto.toString()).equals(teorico)) {
+        drifted += 1;
+      }
+
+      if (contado.equals(teorico)) {
+        continue;
+      }
+      // El CHECK `quantity > 0` del ledger no admite movimientos en cero.
+      if (teorico.greaterThan(0)) {
+        exit.push({ ...line, quantityBase: teorico });
+      }
+      if (contado.greaterThan(0)) {
+        entry.push({ ...line, quantityBase: contado });
+      }
+    }
+
+    return { exit, entry, drifted };
+  }
+
+  /**
+   * Aplica `expandCount`. Son DOS pasadas del ledger porque cada una tiene su
+   * dirección, y el ledger asienta una sola por llamada. Van en la misma
+   * transacción y con los locks ya tomados, así que entre una y otra nadie se
+   * mete.
+   */
+  private async applyCount(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    document: InventoryDocument,
+    conteo: { exit: ExpandedLine[]; entry: ExpandedLine[]; drifted: number },
+    header: LedgerHeader,
+  ) {
+    const base = {
+      tenantId: user.tenantId,
+      userId: user.userId,
+      reasonCode: "physical_count" as const,
+      warehouseId: document.warehouseId,
+      header,
+    };
+
+    const salida =
+      conteo.exit.length > 0
+        ? await this.ledger.apply(tx, { ...base, direction: "exit" as const, lines: conteo.exit })
+        : null;
+    const entrada =
+      conteo.entry.length > 0
+        ? await this.ledger.apply(tx, { ...base, direction: "entry" as const, lines: conteo.entry })
+        : null;
+
+    // El saldo que vale es el de la ÚLTIMA pasada: la entrada corre después de
+    // la salida, así que su foto ya incluye las dos.
+    return {
+      movements: [...(salida?.movements ?? []), ...(entrada?.movements ?? [])],
+      stock: entrada?.stock ?? salida?.stock ?? [],
+      lots: entrada?.lots ?? salida?.lots ?? [],
+    };
   }
 
   /**

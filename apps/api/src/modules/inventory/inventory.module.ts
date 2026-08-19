@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { ProductsModule } from "../products/products.module";
 import { ConfirmService } from "./confirm.service";
+import { CountTemplateService } from "./count-template.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
 import { DocumentPdfService } from "./document-pdf.service";
@@ -32,6 +33,7 @@ import { TransfersService } from "./transfers.service";
     DocumentPdfService,
     LotsService,
     TransfersService,
+    CountTemplateService,
   ],
   exports: [
     DocumentsService,
@@ -42,6 +44,7 @@ import { TransfersService } from "./transfers.service";
     DocumentPdfService,
     LotsService,
     TransfersService,
+    CountTemplateService,
   ],
 })
 export class InventoryModule {}

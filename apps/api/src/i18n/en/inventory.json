@@ -37,5 +37,6 @@
   "import_unreadable": "We couldn't read the file. Make sure it's the CSV or Excel template.",
   "import_empty": "The file has no rows to load.",
   "reason_required": "The movement reason is missing.",
-  "transfer_not_found": "The transfer does not exist."
+  "transfer_not_found": "The transfer does not exist.",
+  "count_requires_manage": "Approving a physical count requires the manage permission: it can rewrite a whole warehouse's balance."
 }

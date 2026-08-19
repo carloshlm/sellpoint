@@ -23,7 +23,17 @@ export interface LedgerInput {
 
 export interface LedgerResult {
   documentId: string;
-  movements: { productId: string; quantityBase: string; lotId: string | null }[];
+  /**
+   * `direction` viaja en cada movimiento porque un CONTEO devuelve las dos en
+   * la misma respuesta (salida del teórico + entrada de lo contado): sin ella,
+   * quien la lee no puede distinguirlas.
+   */
+  movements: {
+    productId: string;
+    direction: MovementDirection;
+    quantityBase: string;
+    lotId: string | null;
+  }[];
   stock: { productId: string; warehouseId: string; quantity: string }[];
   lots: { lotId: string; warehouseId: string; location: string; quantity: string }[];
 }
@@ -247,6 +257,7 @@ export class StockLedgerService {
       documentId: input.header.documentId,
       movements: lines.map((l) => ({
         productId: l.productId,
+        direction,
         quantityBase: l.quantityBase.toString(),
         lotId: l.lotId ?? null,
       })),

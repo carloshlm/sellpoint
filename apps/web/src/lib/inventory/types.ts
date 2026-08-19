@@ -66,6 +66,10 @@ export interface DocumentRow {
    * entradas, en líneas con lote forzado y en productos sin lotes.
    */
   lotPlan: LotPlanTake[] | null;
+  /** Solo en un conteo (`physical_count`). `null` en las líneas sin contar. */
+  theoretical?: string;
+  counted?: string | null;
+  difference?: string | null;
   errors: DocumentRowError[];
 }
 
@@ -118,6 +122,14 @@ export interface DocumentDetail extends DocumentSummary {
   linkedWarehouseId: string | null;
   rows: DocumentRow[];
   products: DocumentProduct[];
+  /** Solo en un conteo: el resumen de la reconciliación. */
+  countSummary?: {
+    counted: number;
+    matches: number;
+    discrepancies: number;
+    skipped: number;
+    newLots: number;
+  };
   summary: { lines: number; products: number; newLots: number; errors: number };
 }
 

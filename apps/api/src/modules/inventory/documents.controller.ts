@@ -23,6 +23,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { ConfirmService } from "./confirm.service";
+import { CountTemplateService } from "./count-template.service";
 import { DocumentImportService } from "./document-import.service";
 import { DocumentLinesService } from "./document-lines.service";
 import { DocumentPdfService } from "./document-pdf.service";
@@ -63,6 +64,7 @@ export class DocumentsController {
     private readonly confirmService: ConfirmService,
     private readonly pdfService: DocumentPdfService,
     private readonly i18n: I18nService,
+    private readonly countTemplate: CountTemplateService,
   ) {}
 
   /**
@@ -73,11 +75,19 @@ export class DocumentsController {
   @Get("template")
   @RequirePermissions("inventory:movement")
   async template(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
     @Query(new ZodValidationPipe(documentTemplateQuerySchema, "inventory.invalid_body"))
     query: DocumentTemplateQueryDto,
     @Res() response: Response,
   ) {
-    const file = await this.imports.template(query.type, query.format);
+    // Con `warehouseId` y tipo conteo, la plantilla sale POBLADA con el
+    // teórico de ese almacén. Sin él —o para los otros tipos— es la vacía con
+    // su fila de ejemplo.
+    const file =
+      query.type === "physical_count" && query.warehouseId !== undefined
+        ? await this.countTemplate.build(user, scope, query.warehouseId, query.format)
+        : await this.imports.template(query.type, query.format);
     response
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)

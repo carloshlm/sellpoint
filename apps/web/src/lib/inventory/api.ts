@@ -82,6 +82,29 @@ export async function removeDocumentLine(id: string, lineId: string): Promise<vo
   await api.delete(`/inventory/documents/${id}/lines/${lineId}`);
 }
 
+/**
+ * La plantilla de conteo, POBLADA con el teórico de ese almacén.
+ *
+ * Siempre como `blob`: el XLSX es binario y pedirlo como texto lo corrompe
+ * (misma razón que `downloadImportTemplate` de productos).
+ */
+export async function downloadCountTemplate(
+  warehouseId: string,
+  format: "csv" | "xlsx" = "xlsx",
+): Promise<void> {
+  const { data } = await api.get<Blob>("/inventory/documents/template", {
+    params: { type: "physical_count", warehouseId, format },
+    responseType: "blob",
+  });
+
+  const url = URL.createObjectURL(data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `conteo-fisico.${format}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function importDocumentLines(
   id: string,
   input: { file: string; format: "csv" | "xlsx"; mode: "replace" | "append" },

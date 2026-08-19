@@ -37,5 +37,6 @@
   "import_unreadable": "No pudimos leer el archivo. Verifica que sea el CSV o el Excel de la plantilla.",
   "import_empty": "El archivo no tiene filas para cargar.",
   "reason_required": "Falta elegir el motivo del movimiento.",
-  "transfer_not_found": "El traspaso no existe."
+  "transfer_not_found": "El traspaso no existe.",
+  "count_requires_manage": "Aprobar un inventario físico requiere permiso de administración: puede reescribir el saldo de todo un almacén."
 }

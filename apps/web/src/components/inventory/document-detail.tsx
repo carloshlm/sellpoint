@@ -18,6 +18,7 @@ import {
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
 import { MONEY_STEP } from "@/lib/products/money";
 import { AddLineForm } from "./add-line-form";
+import { CountPanel, CountSummary } from "./count-panel";
 import { DocumentHeaderForm } from "./document-header-form";
 import { DownloadDocumentButton } from "./download-document-button";
 
@@ -51,6 +52,8 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const { data: document, isPending } = useDocument(documentId);
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
   const [confirmado, setConfirmado] = useState(false);
+  const [drifted, setDrifted] = useState(0);
+  const [soloDiscrepancias, setSoloDiscrepancias] = useState(false);
 
   const confirmDocument = useConfirmDocument(documentId);
   const cancelDocument = useCancelDocument(documentId);
@@ -59,14 +62,23 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
     return <p className="text-muted-foreground text-sm">{t("common.loading")}</p>;
   }
 
+  const esConteo = document.type === "physical_count";
   const editable = document.status === "draft" && has("inventory:movement");
+  // Aprobar un conteo puede reescribir el saldo de todo un almacén: es el
+  // único tipo que exige `inventory:manage`. Sin él el borrador se captura
+  // igual y queda esperando a quien pueda firmarlo.
+  const puedeConfirmar = editable && (!esConteo || has("inventory:manage"));
   const conErrores = document.summary.errors > 0;
   const sinLineas = document.rows.length === 0;
 
   // La cabecera se valida ANTES de mandar: descubrir que faltaba la nota por
   // un 400 sería enterarse de un requisito que la pantalla nunca mostró.
+  // Un CONTEO no tiene motivo que elegir: se lo pone la aprobación
+  // (`physical_count` no está en `SELECTABLE_*_REASONS`). Exigírselo dejaría el
+  // confirmar trabado para siempre.
   const faltaCabecera =
-    document.reasonCode === null || headerErrors(document.reasonCode, document).size > 0;
+    !esConteo &&
+    (document.reasonCode === null || headerErrors(document.reasonCode, document).size > 0);
 
   const rules = document.reasonCode === null ? null : REASON_RULES[document.reasonCode];
   const conCosto = rules?.requiresUnitCost ?? false;
@@ -94,7 +106,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
 
         <div className="flex items-start gap-2">
           <DownloadDocumentButton documentId={documentId} folio={document.folio} />
-          {editable && (
+          {puedeConfirmar && (
             <>
               <button
                 type="button"
@@ -141,11 +153,25 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         </div>
       )}
 
-      {editable && <DocumentHeaderForm document={document} />}
+      {editable && esConteo && <CountPanel document={document} />}
+      {esConteo && <CountSummary document={document} />}
+      {editable && !esConteo && <DocumentHeaderForm document={document} />}
 
       {!editable && document.status !== "draft" && (
         <p className="rounded-md bg-muted px-3 py-2 text-muted-foreground text-sm">
           {t("inventory.document.readOnly")}
+        </p>
+      )}
+
+      {esConteo && editable && !puedeConfirmar && (
+        <p className="rounded-md bg-muted px-3 py-2 text-muted-foreground text-sm">
+          {t("inventory.count.needsManage")}
+        </p>
+      )}
+
+      {drifted > 0 && (
+        <p className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">
+          {t("inventory.count.drifted", { count: drifted })}
         </p>
       )}
 
@@ -155,7 +181,18 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         </p>
       )}
 
-      {editable && <AddLineForm documentId={documentId} />}
+      {editable && !esConteo && <AddLineForm documentId={documentId} />}
+
+      {esConteo && !sinLineas && (
+        <label className="flex w-fit items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={soloDiscrepancias}
+            onChange={(event) => setSoloDiscrepancias(event.target.checked)}
+          />
+          {t("inventory.count.onlyDiscrepancies")}
+        </label>
+      )}
 
       {sinLineas ? (
         <p className="text-muted-foreground text-sm">{t("inventory.document.emptyLines")}</p>
@@ -172,17 +209,27 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
             </tr>
           </thead>
           <tbody>
-            {document.rows.map((row) => (
-              <LineRow
-                key={row.lineNo}
-                documentId={documentId}
-                row={row}
-                product={productosPorId.get(row.productId)}
-                editable={editable}
-                conCosto={conCosto}
-                esSalida={document.type === "exit"}
-              />
-            ))}
+            {document.rows
+              .filter(
+                (row) =>
+                  !esConteo ||
+                  !soloDiscrepancias ||
+                  (row.difference !== null &&
+                    row.difference !== undefined &&
+                    row.difference !== "0"),
+              )
+              .map((row) => (
+                <LineRow
+                  key={row.lineNo}
+                  documentId={documentId}
+                  row={row}
+                  product={productosPorId.get(row.productId)}
+                  editable={editable}
+                  conCosto={conCosto}
+                  esSalida={document.type === "exit"}
+                  esConteo={esConteo}
+                />
+              ))}
           </tbody>
         </table>
       )}
@@ -201,7 +248,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           onCancel={() => setDialog(null)}
           onConfirm={() => {
             confirmDocument.mutate(undefined, {
-              onSuccess: () => setConfirmado(true),
+              onSuccess: (res) => {
+                setConfirmado(true);
+                setDrifted((res as { drifted?: number }).drifted ?? 0);
+              },
               onSettled: () => setDialog(null),
             });
           }}
@@ -238,6 +288,7 @@ function LineRow({
   editable,
   conCosto,
   esSalida,
+  esConteo,
 }: {
   documentId: string;
   row: DocumentRow;
@@ -245,6 +296,7 @@ function LineRow({
   editable: boolean;
   conCosto: boolean;
   esSalida: boolean;
+  esConteo: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -393,9 +445,31 @@ function LineRow({
           )}
         </td>
       )}
+      {esConteo && (
+        <>
+          <td className="py-2">{row.theoretical}</td>
+          <td className="py-2">
+            {row.counted ?? "—"}
+            {row.newLot && (
+              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
+                {t("inventory.count.newLot")}
+              </span>
+            )}
+          </td>
+          <td
+            className={`py-2 ${
+              row.difference !== null && row.difference !== undefined && row.difference !== "0"
+                ? "font-medium text-destructive"
+                : ""
+            }`}
+          >
+            {row.difference ?? "—"}
+          </td>
+        </>
+      )}
       <td className="py-2">
         {row.stockBefore} → {row.stockAfter}
-        {row.newLot && (
+        {!esConteo && row.newLot && (
           <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
             {t("inventory.document.newLot")}
           </span>

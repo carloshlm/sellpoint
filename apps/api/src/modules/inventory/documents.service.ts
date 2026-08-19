@@ -280,13 +280,17 @@ export class DocumentsService {
       }
 
       const direction = document.type === "exit" ? "exit" : "entry";
+      const esConteo = document.type === "physical_count";
       const resolved = await resolveLines(
         tx,
         user.tenantId,
         document.lines.map((l) => ({
           productId: l.productId,
           presentationId: l.presentationId,
-          quantity: l.quantity,
+          // En un conteo la cantidad vive en `counted`: la línea dice cuánto
+          // HAY, no cuánto se mueve. Sin esto, `resolveLines` la marcaba como
+          // "cantidad faltante" y ni siquiera llegaba a resolver el lote.
+          quantity: esConteo ? l.counted : l.quantity,
           unitCost: l.unitCost,
           lotCode: l.lotCode,
           expiresAt: l.expiresAt,
@@ -392,6 +396,50 @@ export class DocumentsService {
         }
       }
 
+      // ── La RECONCILIACIÓN del conteo físico (F3-COUNT-02) ────────────
+      //
+      // No hay endpoint aparte: el detalle del borrador ES la reconciliación.
+      // Un lugar menos donde el teórico podría calcularse distinto.
+      //
+      // El teórico de un producto CON lote se lee por (lote, ubicación) y no
+      // del total del producto: contar el estante B-2 no dice nada del A-1.
+      const teoricoPorLinea = new Map<number, Prisma.Decimal>();
+      if (esConteo && document.lines.length > 0) {
+        const conLote = document.lines.filter((l) => l.lotCode !== null);
+        const lotes =
+          conLote.length === 0
+            ? []
+            : await tx.stockLot.findMany({
+                where: {
+                  warehouseId: document.warehouseId,
+                  lot: {
+                    productId: { in: conLote.map((l) => l.productId) },
+                    lotCode: { in: conLote.map((l) => l.lotCode as string) },
+                  },
+                },
+                select: {
+                  location: true,
+                  quantity: true,
+                  lot: { select: { productId: true, lotCode: true } },
+                },
+              });
+        const porLote = new Map(
+          lotes.map((l) => [
+            `${l.lot.productId}|${l.lot.lotCode}|${l.location}`,
+            new Prisma.Decimal(l.quantity.toString()),
+          ]),
+        );
+
+        for (const line of document.lines) {
+          const teorico =
+            line.lotCode === null
+              ? (saldoPorProducto.get(line.productId) ?? new Prisma.Decimal(0))
+              : (porLote.get(`${line.productId}|${line.lotCode}|${line.location ?? ""}`) ??
+                new Prisma.Decimal(0));
+          teoricoPorLinea.set(line.lineNo, teorico);
+        }
+      }
+
       const signo = direction === "entry" ? 1 : -1;
       // Acumulado por producto: dos líneas del mismo producto tienen que
       // mostrar el efecto ENCADENADO, no las dos partiendo del mismo saldo.
@@ -407,7 +455,11 @@ export class DocumentsService {
         const despues = antes.plus(delta);
         acumulado.set(line.productId, despues);
 
-        const errors = [...(res?.errors ?? [])];
+        // Una línea de conteo SIN contar está omitida, no mal: quien contaba
+        // no llegó a esa fila. Marcarla en rojo sería acusarlo de un error que
+        // no cometió.
+        const omitida = esConteo && line.counted === null;
+        const errors = omitida ? [] : [...(res?.errors ?? [])];
         // La previa de una SALIDA avisa antes de confirmar; el rechazo duro lo
         // hace el ledger, con la fila ya bloqueada.
         if (direction === "exit" && despues.lessThan(0) && errors.length === 0) {
@@ -439,6 +491,18 @@ export class DocumentsService {
           stockBefore: antes.toString(),
           stockAfter: despues.toString(),
           lotPlan: planPorLinea.get(index) ?? null,
+          ...(esConteo
+            ? {
+                theoretical: (teoricoPorLinea.get(line.lineNo) ?? new Prisma.Decimal(0)).toString(),
+                counted: line.counted?.toString() ?? null,
+                difference:
+                  line.counted === null
+                    ? null
+                    : new Prisma.Decimal(line.counted.toString())
+                        .minus(teoricoPorLinea.get(line.lineNo) ?? new Prisma.Decimal(0))
+                        .toString(),
+              }
+            : {}),
           errors,
         };
       });
@@ -456,6 +520,22 @@ export class DocumentsService {
             factor: pr.factor.toString(),
           })),
         })),
+        ...(esConteo
+          ? {
+              countSummary: {
+                // `counted` son las filas que alguien SÍ contó. Una fila vacía
+                // es "no llegué a esa", que es distinto de contar cero.
+                counted: rows.filter((r) => r.counted !== null && r.counted !== undefined).length,
+                matches: rows.filter((r) => r.difference === "0").length,
+                discrepancies: rows.filter(
+                  (r) =>
+                    r.difference !== null && r.difference !== undefined && r.difference !== "0",
+                ).length,
+                skipped: rows.filter((r) => r.counted === null || r.counted === undefined).length,
+                newLots: rows.filter((r) => r.newLot).length,
+              },
+            }
+          : {}),
         summary: {
           lines: rows.length,
           products: productIds.length,

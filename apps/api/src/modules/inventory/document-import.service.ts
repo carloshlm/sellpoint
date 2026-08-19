@@ -177,6 +177,46 @@ export class DocumentImportService {
       // sin `product_id` no cabe en la tabla. Las demás vuelven en la respuesta
       // marcadas, para que la pantalla las muestre y el usuario las corrija.
       const guardables = parsed.filter((r) => r.productId !== null);
+
+      // En un CONTEO, `quantity` guarda el teórico que había CUANDO se capturó
+      // la fila. No es la cantidad de un movimiento —un conteo no mueve lo
+      // capturado sino la diferencia—: es la foto contra la que se compara al
+      // aprobar. Sin ella no habría forma de saber que alguien movió el saldo
+      // entre contar y aprobar, que es justo lo que el `drifted` reporta.
+      const teoricoAlCapturar = new Map<number, string>();
+      if (document.type === "physical_count" && guardables.length > 0) {
+        const productIds = [...new Set(guardables.map((r) => r.productId as string))];
+        const [saldos, lotes] = await Promise.all([
+          tx.stockByWarehouse.findMany({
+            where: { warehouseId: document.warehouseId, productId: { in: productIds } },
+            select: { productId: true, quantity: true },
+          }),
+          tx.stockLot.findMany({
+            where: { warehouseId: document.warehouseId, lot: { productId: { in: productIds } } },
+            select: {
+              location: true,
+              quantity: true,
+              lot: { select: { productId: true, lotCode: true } },
+            },
+          }),
+        ]);
+        const porProducto = new Map(saldos.map((r) => [r.productId, r.quantity.toString()]));
+        const porLote = new Map(
+          lotes.map((l) => [
+            `${l.lot.productId}|${l.lot.lotCode}|${l.location}`,
+            l.quantity.toString(),
+          ]),
+        );
+        for (const r of guardables) {
+          const clave = `${r.productId}|${r.lotCode ?? ""}|${r.location ?? ""}`;
+          teoricoAlCapturar.set(
+            r.row,
+            r.lotCode === null
+              ? (porProducto.get(r.productId as string) ?? "0")
+              : (porLote.get(clave) ?? "0"),
+          );
+        }
+      }
       let lineNo = desde._max.lineNo ?? 0;
       await tx.inventoryDocumentLine.createMany({
         data: guardables.map((r) => ({
@@ -185,7 +225,8 @@ export class DocumentImportService {
           lineNo: ++lineNo,
           productId: r.productId as string,
           presentationId: r.presentationId,
-          quantity: document.type === "physical_count" ? null : r.quantity,
+          quantity:
+            document.type === "physical_count" ? (teoricoAlCapturar.get(r.row) ?? "0") : r.quantity,
           unitCost: r.unitCost,
           lotCode: r.lotCode,
           expiresAt: r.expiresAt ? new Date(r.expiresAt) : null,

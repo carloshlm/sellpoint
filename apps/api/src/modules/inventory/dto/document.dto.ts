@@ -54,6 +54,12 @@ export const importDocumentLinesSchema = z.object({
 export const documentTemplateQuerySchema = z.object({
   type: z.enum(INVENTORY_DOCUMENT_TYPES),
   format: z.enum(["csv", "xlsx"]).default("csv"),
+  /**
+   * Solo el conteo físico lo usa: su plantilla sale POBLADA con el teórico de
+   * ese almacén (F3-COUNT-01). Los otros dos tipos siguen bajando la plantilla
+   * vacía con su fila de ejemplo.
+   */
+  warehouseId: z.uuid().optional(),
 });
 
 export type ImportDocumentLinesDto = z.infer<typeof importDocumentLinesSchema>;
