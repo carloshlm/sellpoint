@@ -115,7 +115,9 @@
     "lotPlanTake": "{{quantity}} from {{lotCode}}",
     "lotExpires": "expires {{date}}",
     "compositeHint": "Its components will be deducted, not the composite itself.",
-    "compositeCeiling": "With what is in this warehouse, {{units}} can be assembled."
+    "compositeCeiling": "With what is in this warehouse, {{units}} can be assembled.",
+    "lotCode": "Lot",
+    "lotExpiresAt": "Expiry"
   },
   "document_not_found": "This movement doesn't exist.",
   "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up.",

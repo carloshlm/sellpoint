@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
-import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
+import type { DocumentDetail, DocumentProduct, DocumentRow } from "../lib/inventory/types";
 import * as productsApi from "../lib/products/api";
 import { createQueryClient } from "../lib/query-client";
 import * as rbacApi from "../lib/rbac/api";
@@ -300,6 +300,128 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
 
       await screen.findByText("PAR-500");
       expect(screen.queryByText(/=/)).not.toBeInTheDocument();
+    });
+
+    /**
+     * Hallazgo de la revisión manual de Carlos (2026-08-19): el alta de
+     * producto crea sola la presentación "Unidad" (factor 1), y el selector
+     * ofrecía ADEMÁS la opción sintética "Unidad base" — dos nombres para la
+     * misma cosa. Peor que la confusión: la sintética no pasa por
+     * `allowFractionalInput`, así que elegirla era un bypass de "solo
+     * enteros" (0.9999 tabletas aceptadas).
+     */
+    it("con una presentación de factor 1, la opción sintética de unidad base desaparece", async () => {
+      const UNIDAD = { ...CAJA, id: "pres-unidad", name: "Unidad", factor: "1" };
+      const producto = detalle();
+      (producto.products[0] as DocumentProduct).presentations = [UNIDAD, CAJA];
+      producto.rows = [fila({ presentationId: "pres-unidad", quantityBase: "3" })];
+      mocked.getDocument.mockResolvedValue(producto);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const opciones = Array.from(
+        screen.getByLabelText(/presentación/i).querySelectorAll("option"),
+      ).map((o) => o.textContent);
+      expect(opciones).toEqual(["Unidad", "Caja"]);
+    });
+
+    /**
+     * La transición: una línea vieja guardada SIN presentación (null) sigue
+     * mostrando su estado real aunque el producto ya tenga la de factor 1 —
+     * esconderle la opción activa mentiría sobre lo que hay guardado.
+     */
+    it("pero una línea que sigue en unidad base no pierde su opción", async () => {
+      const UNIDAD = { ...CAJA, id: "pres-unidad", name: "Unidad", factor: "1" };
+      const producto = detalle();
+      (producto.products[0] as DocumentProduct).presentations = [UNIDAD, CAJA];
+      mocked.getDocument.mockResolvedValue(producto);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const opciones = Array.from(
+        screen.getByLabelText(/presentación/i).querySelectorAll("option"),
+      ).map((o) => o.textContent);
+      expect(opciones[0]).toMatch(/unidad base/i);
+    });
+  });
+
+  /**
+   * Hallazgo de la misma revisión: el API exige `lotCode` en un producto con
+   * `tracksLots` (`inventory.lot_required`) pero la cara de entrada NUNCA
+   * pintaba los inputs — el error pedía algo que la pantalla no dejaba dar.
+   */
+  describe("la captura de lote en la entrada (F3-LOTS)", () => {
+    function detalleConLotes() {
+      const d = detalle();
+      (d.products[0] as DocumentProduct).tracksLots = true;
+      return d;
+    }
+
+    it("un producto con lotes pinta lote y caducidad en su fila", async () => {
+      mocked.getDocument.mockResolvedValue(detalleConLotes());
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      expect(screen.getByLabelText(/^lote/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/caducidad/i)).toBeInTheDocument();
+    });
+
+    it("uno sin lotes no pinta nada de eso", async () => {
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      expect(screen.queryByLabelText(/^lote/i)).not.toBeInTheDocument();
+    });
+
+    it("escribir el lote manda el PATCH de esa línea", async () => {
+      const user = userEvent.setup();
+      mocked.updateDocumentLine.mockResolvedValue({});
+      mocked.getDocument.mockResolvedValue(detalleConLotes());
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.type(screen.getByLabelText(/^lote/i), "L-2026-01");
+
+      await waitFor(() => {
+        expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          "line-1",
+          expect.objectContaining({ lotCode: "L-2026-01" }),
+        );
+      });
+    });
+
+    it("la caducidad viaja como fecha, y vaciarla manda null", async () => {
+      const user = userEvent.setup();
+      mocked.updateDocumentLine.mockResolvedValue({});
+      const d = detalleConLotes();
+      d.rows = [fila({ lotCode: "L-1", expiresAt: "2027-01-15" })];
+      mocked.getDocument.mockResolvedValue(d);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const fecha = screen.getByLabelText(/caducidad/i);
+      expect(fecha).toHaveValue("2027-01-15");
+      await user.clear(fecha);
+
+      await waitFor(() => {
+        expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          "line-1",
+          expect.objectContaining({ expiresAt: null }),
+        );
+      });
+    });
+
+    /** En una salida el lote lo elige FEFO — la captura es solo de entrada. */
+    it("una salida no pinta la captura aunque el producto controle lotes", async () => {
+      const d = detalleConLotes();
+      d.type = "exit";
+      mocked.getDocument.mockResolvedValue(d);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      expect(screen.queryByLabelText(/^lote/i)).not.toBeInTheDocument();
     });
   });
 

@@ -302,8 +302,12 @@ function LineRow({
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(row.quantityInput ?? "");
   const [unitCost, setUnitCost] = useState(row.unitCost ?? "");
+  const [lotCode, setLotCode] = useState(row.lotCode ?? "");
+  const [expiresAt, setExpiresAt] = useState(row.expiresAt?.slice(0, 10) ?? "");
   const primeraCarga = useRef(true);
   const primeraCargaCosto = useRef(true);
+  const primeraCargaLote = useRef(true);
+  const primeraCargaCaducidad = useRef(true);
 
   const invalidar = () => {
     // Recargar el documento es lo que refresca la PREVIA: el stock resultante
@@ -320,6 +324,18 @@ function LineRow({
   const guardarCosto = useMutation({
     mutationFn: (value: number | null) =>
       updateDocumentLine(documentId, row.id, { unitCost: value }),
+    onSuccess: invalidar,
+  });
+
+  const guardarLote = useMutation({
+    mutationFn: (value: string | null) =>
+      updateDocumentLine(documentId, row.id, { lotCode: value }),
+    onSuccess: invalidar,
+  });
+
+  const guardarCaducidad = useMutation({
+    mutationFn: (value: string | null) =>
+      updateDocumentLine(documentId, row.id, { expiresAt: value }),
     onSuccess: invalidar,
   });
 
@@ -360,6 +376,34 @@ function LineRow({
     return () => clearTimeout(timer);
   }, [unitCost, row.unitCost, guardarCosto.mutate]);
 
+  useEffect(() => {
+    if (primeraCargaLote.current) {
+      primeraCargaLote.current = false;
+      return;
+    }
+    if (lotCode === (row.lotCode ?? "")) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      guardarLote.mutate(lotCode.trim() === "" ? null : lotCode.trim());
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [lotCode, row.lotCode, guardarLote.mutate]);
+
+  useEffect(() => {
+    if (primeraCargaCaducidad.current) {
+      primeraCargaCaducidad.current = false;
+      return;
+    }
+    if (expiresAt === (row.expiresAt?.slice(0, 10) ?? "")) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      guardarCaducidad.mutate(expiresAt === "" ? null : expiresAt);
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [expiresAt, row.expiresAt, guardarCaducidad.mutate]);
+
   const conError = row.errors.length > 0;
   const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
 
@@ -370,6 +414,36 @@ function LineRow({
         <span className="font-mono">{row.sku}</span>
         {product !== undefined && (
           <span className="ml-2 text-muted-foreground">{product.name}</span>
+        )}
+        {/*
+          F3-LOTS: la captura del lote vive en la ENTRADA — en la salida lo
+          elige FEFO (RepartoFefo) y en el conteo viene por la planilla. Sin
+          estos inputs, `inventory.lot_required` pedía algo que la pantalla
+          no dejaba dar.
+        */}
+        {editable && !esSalida && !esConteo && product?.tracksLots === true && (
+          <div className="mt-1 flex items-center gap-2">
+            <label htmlFor={`line-${row.lineNo}-lot`} className="text-muted-foreground text-xs">
+              {t("inventory.document.lotCode")}
+            </label>
+            <input
+              id={`line-${row.lineNo}-lot`}
+              type="text"
+              value={lotCode}
+              onChange={(event) => setLotCode(event.target.value)}
+              className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
+            />
+            <label htmlFor={`line-${row.lineNo}-expires`} className="text-muted-foreground text-xs">
+              {t("inventory.document.lotExpiresAt")}
+            </label>
+            <input
+              id={`line-${row.lineNo}-expires`}
+              type="date"
+              value={expiresAt}
+              onChange={(event) => setExpiresAt(event.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            />
+          </div>
         )}
       </td>
       <td className="py-2">
@@ -384,7 +458,18 @@ function LineRow({
               onChange={(event) => guardarPresentacion.mutate(event.target.value || null)}
               className="rounded-md border border-input bg-background px-2 py-1 text-sm"
             >
-              <option value="">{t("inventory.document.presentationBase")}</option>
+              {/*
+                La opción sintética "Unidad base" solo existe si ninguna
+                presentación ya la representa (factor 1) — dos nombres para lo
+                mismo confunden, y peor: la sintética no pasa por
+                `allowFractionalInput`, así que era un bypass de "solo
+                enteros". Se conserva únicamente mientras la línea siga
+                guardada sin presentación, para no mentir sobre su estado.
+              */}
+              {(!product.presentations.some((p) => Number(p.factor) === 1) ||
+                row.presentationId === null) && (
+                <option value="">{t("inventory.document.presentationBase")}</option>
+              )}
               {product.presentations.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
