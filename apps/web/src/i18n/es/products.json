@@ -19,7 +19,9 @@
     "label": "Secciones del producto",
     "info": "Información",
     "presentations": "Presentaciones",
-    "composition": "Composición"
+    "composition": "Composición",
+    "kardex": "Kardex",
+    "stock": "Stock por almacén"
   },
   "form": {
     "sku": "Código",

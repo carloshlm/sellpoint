@@ -12,6 +12,8 @@ import { ProductImportDialog } from "@/components/catalog/product-import-dialog"
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
+import { KardexTab } from "@/components/inventory/kardex-tab";
+import { StockTab } from "@/components/inventory/stock-tab";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -234,8 +236,14 @@ function ProductDetailPanel({
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const { has } = usePermissions();
   const { data: product, isPending } = useProduct(productId);
-  const [tab, setTab] = useState<"info" | "presentations" | "composition">("info");
+  const [tab, setTab] = useState<"info" | "presentations" | "composition" | "stock" | "kardex">(
+    "info",
+  );
+  // `inventory:read` y no `products:read`: ver el catálogo no implica ver
+  // cuánto hay ni cómo se movió.
+  const canReadInventory = has("inventory:read");
 
   if (isPending || !product) {
     return <p role="status">{t("common.form.loading")}</p>;
@@ -248,6 +256,14 @@ function ProductDetailPanel({
     // para uno simple no hay nada que armar.
     ...(product.isComposite
       ? [{ id: "composition" as const, label: t("products.tabs.composition") }]
+      : []),
+    // Kardex y stock son de INVENTARIO, no de catálogo: quien administra
+    // productos no necesariamente puede ver cuánto hay.
+    ...(canReadInventory
+      ? [
+          { id: "stock" as const, label: t("products.tabs.stock") },
+          { id: "kardex" as const, label: t("products.tabs.kardex") },
+        ]
       : []),
   ];
 
@@ -291,6 +307,14 @@ function ProductDetailPanel({
         />
       )}
       {tab === "composition" && <CompositionTab productId={product.id} canManage={canManage} />}
+      {tab === "stock" && <StockTab productId={product.id} />}
+      {tab === "kardex" && (
+        <KardexTab
+          productId={product.id}
+          tracksLots={product.tracksLots ?? false}
+          isComposite={product.isComposite}
+        />
+      )}
     </div>
   );
 }
