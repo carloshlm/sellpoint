@@ -38,5 +38,7 @@
   "import_empty": "El archivo no tiene filas para cargar.",
   "reason_required": "Falta elegir el motivo del movimiento.",
   "transfer_not_found": "El traspaso no existe.",
-  "count_requires_manage": "Aprobar un inventario físico requiere permiso de administración: puede reescribir el saldo de todo un almacén."
+  "count_requires_manage": "Aprobar un inventario físico requiere permiso de administración: puede reescribir el saldo de todo un almacén.",
+  "lot_code_taken": "Ese código de lote ya lo usa otro lote de este producto.",
+  "lot_not_found": "El lote no existe."
 }

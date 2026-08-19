@@ -1,11 +1,13 @@
 import { unitName } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { useInTransit, useStock } from "@/lib/inventory/kardex-hooks";
+import { LotEditor } from "./lot-editor";
 
 /**
  * F3-KARDEX-05 — dónde está el stock de un producto.
@@ -24,6 +26,8 @@ export function StockTab({ productId }: { productId: string }) {
   const { has } = usePermissions();
   const { data, isPending } = useStock(productId);
   const { data: transito } = useInTransit(productId);
+  const [editando, setEditando] = useState<string | null>(null);
+  const puedeEditar = has("inventory:movement");
 
   if (isPending || data === undefined) {
     return <p className="text-muted-foreground text-sm">{t("common.loading")}</p>;
@@ -104,9 +108,31 @@ export function StockTab({ productId }: { productId: string }) {
                     {lot.expiresAt === null
                       ? "—"
                       : formatCalendarDate(lot.expiresAt, resolveUiLocale(i18n))}
+                    {puedeEditar && (
+                      <button
+                        type="button"
+                        onClick={() => setEditando(editando === lot.lotId ? null : lot.lotId)}
+                        className="ml-2 underline"
+                      >
+                        {t("inventory.kardex.editLot")}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
+              {(row.lots ?? [])
+                .filter((lot) => lot.lotId === editando)
+                .map((lot) => (
+                  <tr key={`${lot.lotId}-editor`}>
+                    <td colSpan={3} className="py-2">
+                      <LotEditor
+                        productId={productId}
+                        lot={lot}
+                        onClose={() => setEditando(null)}
+                      />
+                    </td>
+                  </tr>
+                ))}
             </>
           ))}
         </tbody>

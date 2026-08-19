@@ -101,3 +101,20 @@ export async function getInTransit(productId: string): Promise<{ rows: InTransit
   });
   return data;
 }
+
+/**
+ * Corregir un lote mal cargado. Cambiar `expiresAt` REORDENA el FEFO de todo
+ * el stock de ese lote — por eso el API lo audita con before/after y la
+ * pantalla lo advierte antes de mandar.
+ */
+export async function updateLot(
+  productId: string,
+  lotId: string,
+  input: { lotCode?: string; expiresAt?: string | null },
+): Promise<{ id: string; lotCode: string; expiresAt: string | null }> {
+  const { data } = await api.patch<{ id: string; lotCode: string; expiresAt: string | null }>(
+    `/products/${productId}/lots/${lotId}`,
+    input,
+  );
+  return data;
+}

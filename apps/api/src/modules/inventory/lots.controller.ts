@@ -1,5 +1,8 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
+import { z } from "zod";
+import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -18,6 +21,16 @@ import { LotsService } from "./lots.service";
  * El permiso es `inventory:read` y no `products:read` por lo mismo: quien
  * puede ver el catálogo no necesariamente puede ver cuánto hay.
  */
+/**
+ * Los dos campos que un lote mal cargado necesita corregir. `expiresAt`
+ * `nullish` a propósito: `null` es "este lote no vence", que es distinto de
+ * "no lo toques" (`undefined`).
+ */
+const updateLotSchema = z.object({
+  lotCode: z.string().trim().min(1).max(64).optional(),
+  expiresAt: z.iso.date().nullish(),
+});
+
 @ApiTags("inventory")
 @Controller()
 export class LotsController {
@@ -67,5 +80,26 @@ export class LotsController {
     @Param("id") id: string,
   ) {
     return this.lots.listWarehouseLocations(user, scope, id);
+  }
+
+  /**
+   * `inventory:movement` y no `inventory:read`: corregir una caducidad
+   * REORDENA de qué partida sale la próxima venta. Es una operación de
+   * inventario, aunque parezca una edición de catálogo.
+   */
+  @Patch("products/:id/lots/:lotId")
+  @RequirePermissions("inventory:movement")
+  updateLot(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Param("lotId") lotId: string,
+    @Body(new ZodValidationPipe(updateLotSchema, "inventory.invalid_body"))
+    dto: z.infer<typeof updateLotSchema>,
+    @Req() request: Request,
+  ) {
+    return this.lots.updateLot(user, id, lotId, dto, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
   }
 }

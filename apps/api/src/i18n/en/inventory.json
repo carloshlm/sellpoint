@@ -38,5 +38,7 @@
   "import_empty": "The file has no rows to load.",
   "reason_required": "The movement reason is missing.",
   "transfer_not_found": "The transfer does not exist.",
-  "count_requires_manage": "Approving a physical count requires the manage permission: it can rewrite a whole warehouse's balance."
+  "count_requires_manage": "Approving a physical count requires the manage permission: it can rewrite a whole warehouse's balance.",
+  "lot_code_taken": "That lot code is already used by another lot of this product.",
+  "lot_not_found": "The lot does not exist."
 }

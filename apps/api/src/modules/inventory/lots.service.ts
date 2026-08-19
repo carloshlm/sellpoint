@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
+import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { assertWarehouseInScope } from "./warehouse-scope.helpers";
 
@@ -55,7 +56,10 @@ export interface ListLotsOptions {
  */
 @Injectable()
 export class LotsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async listProductLots(
     user: AuthUser,
@@ -160,6 +164,79 @@ export class LotsService {
       });
 
       return rows.map((row) => row.location);
+    });
+  }
+
+  /**
+   * F3-LOTS-04 — corregir un lote mal cargado.
+   *
+   * **Cambiar `expiresAt` cambia qué se vende primero.** No es una edición
+   * cosmética: FEFO ordena por caducidad, así que corregir una fecha reordena
+   * TODO el stock de ese lote en todos los almacenes, y la próxima salida va a
+   * tomar otra partida. Por eso se audita con `before`/`after`: sin el
+   * "antes", nadie podría explicar por qué el orden de salida cambió de un día
+   * para el otro.
+   *
+   * Un lote NO se borra. Los movimientos lo referencian y el histórico no se
+   * reescribe (FK `Restrict`); sin saldo simplemente deja de aparecer con
+   * `withStock=true`, que es el comportamiento que la pantalla ya usa.
+   */
+  async updateLot(
+    user: AuthUser,
+    productId: string,
+    lotId: string,
+    input: { lotCode?: string; expiresAt?: string | null },
+    meta: { ip?: string; userAgent?: string } = {},
+  ) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const lote = await tx.productLot.findFirst({
+        where: { id: lotId, productId, tenantId: user.tenantId },
+        select: { id: true, lotCode: true, expiresAt: true },
+      });
+      if (lote === null) {
+        throw new NotFoundException({ message: "inventory.lot_not_found" });
+      }
+
+      if (input.lotCode !== undefined && input.lotCode !== lote.lotCode) {
+        const tomado = await tx.productLot.findFirst({
+          where: { productId, tenantId: user.tenantId, lotCode: input.lotCode },
+          select: { id: true },
+        });
+        if (tomado !== null) {
+          throw new ConflictException({ message: "inventory.lot_code_taken" });
+        }
+      }
+
+      const nuevaFecha =
+        input.expiresAt === undefined
+          ? undefined
+          : input.expiresAt === null
+            ? null
+            : new Date(input.expiresAt);
+
+      const actualizado = await tx.productLot.update({
+        where: { id: lotId },
+        data: {
+          ...(input.lotCode !== undefined ? { lotCode: input.lotCode } : {}),
+          ...(nuevaFecha !== undefined ? { expiresAt: nuevaFecha } : {}),
+        },
+        select: { id: true, lotCode: true, expiresAt: true },
+      });
+
+      const fecha = (value: Date | null) => value?.toISOString().slice(0, 10) ?? null;
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "inventory.lot_update",
+        resourceType: "product_lot",
+        resourceId: lotId,
+        before: { lotCode: lote.lotCode, expiresAt: fecha(lote.expiresAt) },
+        after: { lotCode: actualizado.lotCode, expiresAt: fecha(actualizado.expiresAt) },
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      return { ...actualizado, expiresAt: fecha(actualizado.expiresAt) };
     });
   }
 

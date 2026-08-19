@@ -252,6 +252,14 @@
     "assemblable": "With what is available, {{units}} can be assembled.",
     "limitedBy": "Limited by {{sku}} — {{name}}.",
     "registerEntry": "Record entry",
-    "registerExit": "Record exit"
+    "registerExit": "Record exit",
+    "editLot": "Edit lot",
+    "lotCode": "Lot code",
+    "expiresAt": "Expiry date",
+    "save": "Save",
+    "expiryWarningTitle": "Change the expiry date of {{lotCode}}",
+    "expiryWarning": "The expiry date decides which lot is sold first. Changing it means the next exit may take a different batch than it would today.",
+    "expiryConfirm": "Change the expiry date",
+    "saveFailed": "The lot could not be saved."
   }
 }

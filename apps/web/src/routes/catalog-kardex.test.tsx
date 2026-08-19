@@ -29,6 +29,7 @@ vi.mock("../lib/inventory/kardex-api", () => ({
   getKardex: vi.fn(),
   getStock: vi.fn(),
   getInTransit: vi.fn(),
+  updateLot: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 
@@ -115,6 +116,7 @@ beforeEach(() => {
   mocked.getKardex.mockReset();
   mocked.getStock.mockReset();
   mocked.getInTransit.mockReset();
+  mocked.updateLot.mockReset();
   vi.mocked(warehousesApi.listWarehouses).mockReset();
   vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
     { id: "w1", name: "Central", address: null, isActive: true },
@@ -331,5 +333,111 @@ describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
     renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
 
     expect(await screen.findByRole("link", { name: /registrar entrada/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * F3-LOTS-04 — corregir un lote desde la tab de stock.
+ *
+ * **Cambiar la caducidad reordena qué se vende primero.** Por eso la pantalla
+ * lo advierte ANTES de guardar: quien corrige un typo en un código no está
+ * haciendo lo mismo que quien corrige una fecha, aunque el formulario sea el
+ * mismo.
+ */
+describe("Editar un lote (F3-LOTS-04)", () => {
+  const conLotes = () =>
+    resumen({
+      rows: [
+        {
+          warehouseId: "w1",
+          name: "Central",
+          quantity: "5",
+          updatedAt: "2026-08-19T10:00:00.000Z",
+          lots: [
+            {
+              lotId: "l1",
+              lotCode: "st10",
+              expiresAt: "2027-01-01",
+              location: "A-1",
+              quantity: "5",
+              expiringSoon: false,
+            },
+          ],
+        },
+      ],
+    });
+
+  it("sin `inventory:movement` no ofrece editar", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    renderTab(<StockTab productId="p1" />, ["inventory:read"]);
+
+    await screen.findByText("st10");
+    expect(screen.queryByRole("button", { name: /editar lote/i })).not.toBeInTheDocument();
+  });
+
+  it("cambiar solo el código guarda sin preguntar", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    mocked.updateLot.mockResolvedValue({ id: "l1", lotCode: "L-0001", expiresAt: "2027-01-01" });
+    const user = renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+    await screen.findByText("st10");
+
+    await user.click(screen.getByRole("button", { name: /editar lote/i }));
+    const codigo = await screen.findByLabelText(/código/i);
+    await user.clear(codigo);
+    await user.type(codigo, "L-0001");
+    await user.click(screen.getByRole("button", { name: /^guardar$/i }));
+
+    await waitFor(() => {
+      expect(mocked.updateLot).toHaveBeenCalledWith("p1", "l1", { lotCode: "L-0001" });
+    });
+    // Un typo en el código no cambia de dónde sale la mercancía: no hay
+    // por qué frenar a nadie con un diálogo.
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  /** Cambiar la fecha SÍ pregunta: reordena de qué partida sale la próxima venta. */
+  it("cambiar la caducidad advierte antes de guardar", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    mocked.updateLot.mockResolvedValue({ id: "l1", lotCode: "st10", expiresAt: "2026-06-01" });
+    const user = renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+    await screen.findByText("st10");
+
+    await user.click(screen.getByRole("button", { name: /editar lote/i }));
+    const fecha = await screen.findByLabelText(/caducidad/i);
+    await user.clear(fecha);
+    await user.type(fecha, "2026-06-01");
+    await user.click(screen.getByRole("button", { name: /^guardar$/i }));
+
+    const dialogo = await screen.findByRole("alertdialog");
+    expect(within(dialogo).getByText(/se vende primero/i)).toBeInTheDocument();
+    // Todavía no se guardó nada.
+    expect(mocked.updateLot).not.toHaveBeenCalled();
+
+    await user.click(within(dialogo).getByRole("button", { name: /cambiar la caducidad/i }));
+
+    await waitFor(() => {
+      expect(mocked.updateLot).toHaveBeenCalledWith("p1", "l1", { expiresAt: "2026-06-01" });
+    });
+  });
+
+  it("un código repetido se explica sobre el formulario", async () => {
+    mocked.getStock.mockResolvedValue(conLotes());
+    // El filtro del API devuelve el mensaje YA traducido (mismo contrato que
+    // `fieldErrorsOf`): el mock lo replica en vez de mandar solo el código.
+    mocked.updateLot.mockRejectedValue({
+      statusCode: 409,
+      code: "inventory.lot_code_taken",
+      message: "Ese código de lote ya lo usa otro lote de este producto.",
+    });
+    const user = renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+    await screen.findByText("st10");
+
+    await user.click(screen.getByRole("button", { name: /editar lote/i }));
+    const codigo = await screen.findByLabelText(/código/i);
+    await user.clear(codigo);
+    await user.type(codigo, "repetido");
+    await user.click(screen.getByRole("button", { name: /^guardar$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/ya lo usa otro lote/i);
   });
 });

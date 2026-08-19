@@ -252,6 +252,14 @@
     "assemblable": "Con lo que hay se pueden armar {{units}}.",
     "limitedBy": "Lo limita {{sku}} — {{name}}.",
     "registerEntry": "Registrar entrada",
-    "registerExit": "Registrar salida"
+    "registerExit": "Registrar salida",
+    "editLot": "Editar lote",
+    "lotCode": "Código de lote",
+    "expiresAt": "Caducidad",
+    "save": "Guardar",
+    "expiryWarningTitle": "Cambiar la caducidad de {{lotCode}}",
+    "expiryWarning": "La caducidad decide qué lote se vende primero. Al cambiarla, la próxima salida puede tomar otra partida distinta de la que se tomaría hoy.",
+    "expiryConfirm": "Cambiar la caducidad",
+    "saveFailed": "No se pudo guardar el lote."
   }
 }

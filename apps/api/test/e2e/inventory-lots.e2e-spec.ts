@@ -530,4 +530,173 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       expect(res.body).toEqual([]);
     });
   });
+
+  /**
+   * F3-LOTS-04 — corregir un lote mal cargado.
+   *
+   * **Cambiar la caducidad cambia qué se vende primero.** No es una edición
+   * cosmética: FEFO ordena por `expires_at`, así que corregir una fecha
+   * reordena todo el stock de ese lote en todos los almacenes. Por eso se
+   * audita con before/after y por eso la pantalla lo advierte antes.
+   *
+   * Un lote NO se borra: los movimientos lo referencian y el histórico no se
+   * reescribe. Sin saldo simplemente deja de aparecer con `withStock=true`.
+   */
+  describe("F3-LOTS-04 — editar un lote", () => {
+    const editar = (
+      token: string,
+      productId: string,
+      lotId: string,
+      body: Record<string, unknown>,
+    ) =>
+      request(app.getHttpServer())
+        .patch(`/products/${productId}/lots/${lotId}`)
+        .set("Authorization", bearer(token))
+        .send(body);
+
+    async function conDosLotes() {
+      const { token, tenantId } = await registerAndLogin();
+      const datos = await prisma.withTenantContext(tenantId, async (tx) => {
+        const stamp = randomUUID().slice(0, 6);
+        const producto = await tx.product.create({
+          data: { tenantId, sku: `ED-${stamp}`, name: "Editable", tracksLots: true },
+        });
+        const warehouse = await tx.warehouse.create({ data: { tenantId, name: `W ${stamp}` } });
+        // "pronto" vence antes que "tarde": es el primero en salir.
+        const [pronto, tarde] = await Promise.all([
+          tx.productLot.create({
+            data: {
+              tenantId,
+              productId: producto.id,
+              lotCode: "pronto",
+              expiresAt: new Date("2027-01-01"),
+            },
+          }),
+          tx.productLot.create({
+            data: {
+              tenantId,
+              productId: producto.id,
+              lotCode: "tarde",
+              expiresAt: new Date("2027-12-01"),
+            },
+          }),
+        ]);
+        await tx.stockLot.createMany({
+          data: [
+            { tenantId, lotId: pronto.id, warehouseId: warehouse.id, quantity: 5 },
+            { tenantId, lotId: tarde.id, warehouseId: warehouse.id, quantity: 5 },
+          ],
+        });
+        await tx.stockByWarehouse.create({
+          data: { tenantId, productId: producto.id, warehouseId: warehouse.id, quantity: 10 },
+        });
+        return {
+          productId: producto.id,
+          warehouseId: warehouse.id,
+          prontoId: pronto.id,
+          tardeId: tarde.id,
+        };
+      });
+      return { token, tenantId, ...datos };
+    }
+
+    it("corregir el código lo deja guardado", async () => {
+      const { token, productId, prontoId } = await conDosLotes();
+
+      const res = await editar(token, productId, prontoId, { lotCode: "L-0001" }).expect(200);
+
+      expect((res.body as { lotCode: string }).lotCode).toBe("L-0001");
+    });
+
+    it("un código ya usado por otro lote del mismo producto da 409", async () => {
+      const { token, productId, prontoId } = await conDosLotes();
+
+      await editar(token, productId, prontoId, { lotCode: "tarde" }).expect(409);
+    });
+
+    /**
+     * **El caso que justifica la auditoría**: corregir la fecha reordena FEFO,
+     * así que la próxima salida sale de OTRA partida.
+     */
+    it("cambiar la caducidad cambia de qué lote sale la próxima salida", async () => {
+      const { token, productId, warehouseId, tardeId } = await conDosLotes();
+
+      // Antes: sale "pronto" (2027-01-01). Se corrige "tarde" a 2026-06-01,
+      // que pasa a vencer primero.
+      await editar(token, productId, tardeId, { expiresAt: "2026-06-01" }).expect(200);
+
+      const lotes = await request(app.getHttpServer())
+        .get(`/products/${productId}/lots?withStock=true&warehouseId=${warehouseId}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      // El orden es FEFO: ahora "tarde" va primero.
+      expect((lotes.body as { lotCode: string }[]).map((l) => l.lotCode)).toEqual([
+        "tarde",
+        "pronto",
+      ]);
+    });
+
+    it("queda auditado con el antes y el después", async () => {
+      const { token, tenantId, productId, tardeId } = await conDosLotes();
+
+      await editar(token, productId, tardeId, { expiresAt: "2026-06-01" }).expect(200);
+
+      const entrada = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.auditLog.findFirst({
+          where: { action: "inventory.lot_update", resourceId: tardeId },
+          select: { before: true, after: true },
+        }),
+      );
+
+      expect(entrada).not.toBeNull();
+      // Sin el `before` nadie podría explicar por qué el orden de salida
+      // cambió de un día para el otro.
+      expect(entrada?.before).toEqual(expect.objectContaining({ expiresAt: "2027-12-01" }));
+      expect(entrada?.after).toEqual(expect.objectContaining({ expiresAt: "2026-06-01" }));
+    });
+
+    it("quitar la caducidad manda el lote al final del orden", async () => {
+      const { token, productId, warehouseId, prontoId } = await conDosLotes();
+
+      await editar(token, productId, prontoId, { expiresAt: null }).expect(200);
+
+      const lotes = await request(app.getHttpServer())
+        .get(`/products/${productId}/lots?withStock=true&warehouseId=${warehouseId}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      // Un lote sin fecha no corre riesgo de vencerse: sale último.
+      expect((lotes.body as { lotCode: string }[]).map((l) => l.lotCode)).toEqual([
+        "tarde",
+        "pronto",
+      ]);
+    });
+
+    it("un lote de otro producto no se edita desde acá", async () => {
+      const { token, prontoId } = await conDosLotes();
+      const otro = await conDosLotes();
+
+      await editar(token, otro.productId, prontoId, { lotCode: "X" }).expect(404);
+    });
+
+    it("sin `inventory:movement` no se edita", async () => {
+      const { tenantId, productId, prontoId } = await conDosLotes();
+      // Solo lectura: puede VER los lotes y no corregirlos. Corregir una
+      // caducidad reordena de qué partida sale la próxima venta.
+      const tokenService = app.get(TokenService);
+      const userId = await prisma.withTenantContext(tenantId, async (tx) => {
+        const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+        return owner.id;
+      });
+      const soloLectura = tokenService.signAccessToken({
+        sub: userId,
+        tenantId,
+        permissions: ["inventory:read"],
+        locale: "es",
+      });
+
+      await editar(soloLectura, productId, prontoId, { lotCode: "X" }).expect(403);
+    });
+  });
 });
