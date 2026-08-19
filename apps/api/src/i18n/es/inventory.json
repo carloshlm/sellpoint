@@ -36,5 +36,6 @@
   "document_line_not_found": "Esa línea no existe en este movimiento.",
   "import_unreadable": "No pudimos leer el archivo. Verifica que sea el CSV o el Excel de la plantilla.",
   "import_empty": "El archivo no tiene filas para cargar.",
-  "reason_required": "Falta elegir el motivo del movimiento."
+  "reason_required": "Falta elegir el motivo del movimiento.",
+  "transfer_not_found": "El traspaso no existe."
 }

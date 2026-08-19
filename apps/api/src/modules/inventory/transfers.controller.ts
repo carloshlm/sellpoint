@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { TRANSFER_STATUSES } from "@sellpoint/shared";
 import type { TransferStatus } from "../../generated/prisma/client";
@@ -62,5 +62,15 @@ export class TransfersController {
       page: entero(query.page),
       pageSize: entero(query.pageSize),
     });
+  }
+
+  @Get(":id")
+  @RequirePermissions("inventory:read")
+  detail(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Param("id") id: string,
+  ) {
+    return this.transfers.detail(user, scope, id);
   }
 }

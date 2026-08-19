@@ -36,5 +36,6 @@
   "document_line_not_found": "That line doesn't exist in this movement.",
   "import_unreadable": "We couldn't read the file. Make sure it's the CSV or Excel template.",
   "import_empty": "The file has no rows to load.",
-  "reason_required": "The movement reason is missing."
+  "reason_required": "The movement reason is missing.",
+  "transfer_not_found": "The transfer does not exist."
 }

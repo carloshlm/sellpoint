@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { TRANSFER_STALE_DAYS } from "@sellpoint/shared";
 import type { Prisma, TransferStatus } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -134,6 +134,120 @@ export class TransfersService {
       pageSize,
       meta: { incomingCount, outgoingCount },
     };
+  }
+
+  /**
+   * El detalle: lo que mira quien va a recibir.
+   *
+   * `difference` se DERIVA de `sent - received` y no se guarda — una sola
+   * verdad, la misma decisión que tomó F3-DB-02 al descartar un JSONB de
+   * discrepancias. Y es `null` mientras nadie recibió, porque **`null` no es
+   * lo mismo que 0**: recibir cero significa "llegó vacío", una pérdida total
+   * que hay que ver; confundirlos la borraría del reporte.
+   *
+   * 404 —y no 403— para quien no está en ninguna de las dos puntas: ese
+   * traspaso no existe para él. Un 403 confirmaría que sí, y de paso revelaría
+   * que hay movimiento entre dos bodegas que no le tocan.
+   */
+  async detail(user: AuthUser, scope: UserScope, id: string) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const transfer = await tx.transfer.findFirst({
+        where: { id, tenantId: user.tenantId },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          receivedAt: true,
+          canceledAt: true,
+          cancelReason: true,
+          discrepancyNote: true,
+          originWarehouseId: true,
+          destinationWarehouseId: true,
+          origin: { select: { id: true, name: true } },
+          destination: { select: { id: true, name: true } },
+          creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
+          receiver: { select: { id: true, firstName: true, lastNamePaternal: true } },
+          canceller: { select: { id: true, firstName: true, lastNamePaternal: true } },
+          documents: {
+            where: { type: "exit" },
+            select: { id: true, folio: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+          lines: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              productId: true,
+              quantitySent: true,
+              quantityReceived: true,
+              product: { select: { sku: true, name: true, baseUnit: true } },
+              lot: { select: { id: true, lotCode: true, expiresAt: true } },
+            },
+          },
+        },
+      });
+
+      if (transfer === null) {
+        throw new NotFoundException({ message: "inventory.transfer_not_found" });
+      }
+
+      // Basta con estar en UNA de las dos puntas: al origen le importa que
+      // llegue y al destino que le llegue.
+      const alcanzable =
+        scope.warehouseIds === "all" ||
+        scope.warehouseIds.includes(transfer.originWarehouseId) ||
+        scope.warehouseIds.includes(transfer.destinationWarehouseId);
+      if (!alcanzable) {
+        throw new NotFoundException({ message: "inventory.transfer_not_found" });
+      }
+
+      const despacho = transfer.documents[0];
+
+      return {
+        id: transfer.id,
+        documentId: despacho?.id ?? null,
+        folio: despacho?.folio ?? null,
+        status: transfer.status,
+        origin: transfer.origin,
+        destination: transfer.destination,
+        createdAt: transfer.createdAt,
+        createdBy: this.persona(transfer.creator),
+        receivedAt: transfer.receivedAt,
+        receivedBy: this.persona(transfer.receiver),
+        canceledAt: transfer.canceledAt,
+        canceledBy: this.persona(transfer.canceller),
+        cancelReason: transfer.cancelReason,
+        discrepancyNote: transfer.discrepancyNote,
+        lines: transfer.lines.map((line) => ({
+          id: line.id,
+          productId: line.productId,
+          sku: line.product.sku,
+          name: line.product.name,
+          baseUnit: line.product.baseUnit,
+          // El lote no está en el contrato del tablero, pero la RECEPCIÓN lo
+          // necesita: lo que sale del origen entra al destino como el MISMO
+          // lote (F3-TRANSFER-03). Omitirlo obligaría a tocar este endpoint de
+          // nuevo en la tarea siguiente.
+          lot: line.lot,
+          quantitySent: line.quantitySent.toString(),
+          quantityReceived: line.quantityReceived?.toString() ?? null,
+          difference:
+            line.quantityReceived === null
+              ? null
+              : line.quantitySent.minus(line.quantityReceived).toString(),
+        })),
+      };
+    });
+  }
+
+  /** `null` cuando todavía no hay nadie: sin recibir, sin cancelar. */
+  private persona(
+    row: { id: string; firstName: string; lastNamePaternal: string } | null,
+  ): { id: string; name: string } | null {
+    return row === null
+      ? null
+      : { id: row.id, name: `${row.firstName} ${row.lastNamePaternal}`.trim() };
   }
 
   /**

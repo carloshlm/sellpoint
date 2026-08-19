@@ -380,4 +380,134 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       expect(res.body.total).toBe(3);
     });
   });
+
+  /**
+   * F3-TRANSFER-02 — el detalle.
+   *
+   * Es lo que mira quien va a recibir: qué viene, cuánto se envió y —una vez
+   * confirmado— cuánto llegó de verdad. `difference` se DERIVA de
+   * `sent - received` y no se guarda: una sola verdad, sin JSONB, igual que
+   * decidió F3-DB-02.
+   */
+  describe("GET /transfers/:id (F3-TRANSFER-02)", () => {
+    const detalle = (token: string, id: string) =>
+      request(app.getHttpServer()).get(`/transfers/${id}`).set("Authorization", bearer(token));
+
+    it("trae la cabecera completa y las líneas con lo enviado", async () => {
+      const { token, central, norte, productId, despachar } = await escenario();
+      const { transfer, document } = await despachar(central, norte, 10);
+
+      const res = await detalle(token, transfer.id).expect(200);
+      const body = res.body as Record<string, unknown>;
+
+      expect(body).toEqual(
+        expect.objectContaining({
+          id: transfer.id,
+          status: "in_transit",
+          folio: document.folio,
+          origin: expect.objectContaining({ id: central }),
+          destination: expect.objectContaining({ id: norte }),
+          createdBy: expect.objectContaining({ name: "Ana Pérez" }),
+          receivedBy: null,
+          canceledBy: null,
+          discrepancyNote: null,
+        }),
+      );
+      expect(body.lines).toEqual([
+        expect.objectContaining({
+          productId,
+          quantitySent: "10",
+          // Todavía nadie recibió: `null` NO es lo mismo que recibir 0, que
+          // sería "llegó vacío". Confundirlos borraría una pérdida real.
+          quantityReceived: null,
+          difference: null,
+        }),
+      ]);
+    });
+
+    it("la línea dice qué producto es, no solo su id", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 7);
+
+      const res = await detalle(token, transfer.id).expect(200);
+      const linea = (res.body as { lines: Record<string, unknown>[] }).lines[0];
+
+      expect(linea).toEqual(
+        expect.objectContaining({
+          sku: expect.stringContaining("TR-"),
+          name: "Caja",
+          baseUnit: "unit",
+        }),
+      );
+    });
+
+    it("tras recibir, `difference` es lo enviado menos lo recibido", async () => {
+      const { token, tenantId, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+        await tx.transferLine.updateMany({
+          where: { transferId: transfer.id },
+          data: { quantityReceived: 8 },
+        });
+        await tx.transfer.update({
+          where: { id: transfer.id },
+          data: {
+            status: "completed",
+            receivedBy: owner.id,
+            receivedAt: new Date(),
+            discrepancyNote: "Faltó una caja",
+          },
+        });
+      });
+
+      const res = await detalle(token, transfer.id).expect(200);
+      const body = res.body as { lines: { difference: string }[]; discrepancyNote: string };
+
+      expect(body.lines[0]?.difference).toBe("2");
+      expect(body.discrepancyNote).toBe("Faltó una caja");
+    });
+
+    /**
+     * Las DOS puntas lo ven: al destino le importa que le llegue, y al origen
+     * que llegue — sigue siendo su mercancía hasta que alguien la confirme.
+     */
+    it("el usuario del ORIGEN también lo ve", async () => {
+      const { tenantId, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      const scoped = await tokenConAlcance(tenantId, [central]);
+
+      await detalle(scoped, transfer.id).expect(200);
+    });
+
+    it("el usuario del DESTINO lo ve", async () => {
+      const { tenantId, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      const scoped = await tokenConAlcance(tenantId, [norte]);
+
+      await detalle(scoped, transfer.id).expect(200);
+    });
+
+    /**
+     * 404 y no 403: para quien no está en ninguna de las dos puntas, ese
+     * traspaso simplemente no existe. Un 403 confirmaría que sí — y de paso
+     * revelaría que hay movimiento entre dos bodegas que no le tocan.
+     */
+    it("un usuario ajeno a las dos puntas recibe 404", async () => {
+      const { tenantId, central, norte, sur, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      const scoped = await tokenConAlcance(tenantId, [sur]);
+
+      await detalle(scoped, transfer.id).expect(404);
+    });
+
+    it("un traspaso de otro tenant no existe", async () => {
+      const { central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      const ajeno = await registerAndLogin();
+
+      await detalle(ajeno.token, transfer.id).expect(404);
+    });
+  });
 });
