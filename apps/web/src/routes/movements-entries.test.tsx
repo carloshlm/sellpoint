@@ -447,6 +447,45 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       });
     });
 
+    /**
+     * Pedido de la revisión manual: quitar una línea del borrador. El DELETE
+     * existía en el API desde F3-DOC (204, mismo `row.id` que el PATCH) y la
+     * clave i18n también — solo faltaba el botón.
+     */
+    it("quitar una línea del borrador manda el DELETE y refresca", async () => {
+      const user = userEvent.setup();
+      mocked.removeDocumentLine.mockResolvedValue(undefined);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.click(screen.getByRole("button", { name: "Quitar línea" }));
+
+      await waitFor(() => {
+        expect(mocked.removeDocumentLine).toHaveBeenCalledWith("doc-1", "line-1");
+      });
+    });
+
+    it("un confirmado no ofrece quitar líneas", async () => {
+      const d = detalle();
+      d.status = "confirmed";
+      mocked.getDocument.mockResolvedValue(d);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      expect(screen.queryByRole("button", { name: "Quitar línea" })).not.toBeInTheDocument();
+    });
+
+    /** En el conteo las líneas vienen de la planilla: no se quitan una a una. */
+    it("un conteo tampoco", async () => {
+      const d = detalle();
+      d.type = "physical_count";
+      mocked.getDocument.mockResolvedValue(d);
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      expect(screen.queryByRole("button", { name: "Quitar línea" })).not.toBeInTheDocument();
+    });
+
     /** En una salida el lote lo elige FEFO — la captura es solo de entrada. */
     it("una salida no pinta la captura aunque el producto controle lotes", async () => {
       const d = detalleConLotes();

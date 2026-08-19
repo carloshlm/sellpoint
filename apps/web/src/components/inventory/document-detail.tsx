@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
-import { updateDocumentLine } from "@/lib/inventory/api";
+import { removeDocumentLine, updateDocumentLine } from "@/lib/inventory/api";
 import { headerErrors } from "@/lib/inventory/entry-schema";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import {
@@ -221,6 +221,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                   </>
                 )}
                 <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
+                {editable && !esConteo && <th className="px-2 py-2" />}
               </tr>
             </thead>
             <tbody>
@@ -343,6 +344,11 @@ function LineRow({
   const guardarCosto = useMutation({
     mutationFn: (value: number | null) =>
       updateDocumentLine(documentId, row.id, { unitCost: value }),
+    onSuccess: invalidar,
+  });
+
+  const quitar = useMutation({
+    mutationFn: () => removeDocumentLine(documentId, row.id),
     onSuccess: invalidar,
   });
 
@@ -603,6 +609,23 @@ function LineRow({
           </span>
         )}
       </td>
+      {/*
+        Quitar una línea del BORRADOR no toca el ledger: la línea todavía no
+        movió nada. Por eso no hay diálogo de confirmación — pedirla acá
+        entrenaría a aceptar sin leer (mismo criterio que LotEditor).
+      */}
+      {editable && !esConteo && (
+        <td className="px-2 py-2 text-right">
+          <button
+            type="button"
+            onClick={() => quitar.mutate()}
+            disabled={quitar.isPending}
+            className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
+          >
+            {t("inventory.document.removeLine")}
+          </button>
+        </td>
+      )}
       {conError && (
         <td className="px-2 py-2 text-destructive text-xs">
           {row.errors.map((error) => t(error.code, error.args)).join(" · ")}
