@@ -160,7 +160,11 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
   }
 
   /** Un token con permisos reducidos: fuerza el camino de scope por DB. */
-  async function tokenConAlcance(tenantId: string, warehouseIds: string[]): Promise<string> {
+  async function tokenConAlcance(
+    tenantId: string,
+    warehouseIds: string[],
+    permissions: string[] = ["inventory:read"],
+  ): Promise<string> {
     const tokenService = app.get(TokenService);
     const userId = await prisma.withTenantContext(tenantId, async (tx) => {
       const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
@@ -172,7 +176,7 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
     return tokenService.signAccessToken({
       sub: userId,
       tenantId,
-      permissions: ["inventory:read"],
+      permissions,
       locale: "es",
     });
   }
@@ -793,6 +797,106 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
 
         expect(codigos).toEqual([201, 409]);
       });
+    });
+  });
+
+  /**
+   * F3-TRANSFER-04 — cancelar.
+   *
+   * **El stock NO vuelve al origen.** Es la decisión que más cuesta explicar y
+   * la más importante: la salida ya ocurrió y es historia. Si la mercancía
+   * reaparece, vuelve a entrar con un `adjustment` explícito y auditado, hecho
+   * por alguien que sabe qué pasó. Devolverla sola sería inventar un
+   * movimiento que nadie autorizó, y encima borraría la evidencia de que hubo
+   * un problema.
+   */
+  describe("Cancelar un traspaso (F3-TRANSFER-04)", () => {
+    const cancelar = (token: string, id: string, body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post(`/transfers/${id}/cancel`)
+        .set("Authorization", bearer(token))
+        .send(body);
+
+    it("lo deja cancelado con su justificación, y el origen NO recupera el saldo", async () => {
+      const { token, central, norte, productId, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+
+      await cancelar(token, transfer.id, { reason: "El camión nunca salió del patio" }).expect(200);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/transfers/${transfer.id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const body = detalle.body as {
+        status: string;
+        cancelReason: string;
+        canceledBy: { name: string };
+      };
+      expect(body.status).toBe("canceled");
+      expect(body.cancelReason).toBe("El camión nunca salió del patio");
+      expect(body.canceledBy.name).toBe("Ana Pérez");
+
+      // El origen sigue en cero: la salida ya ocurrió y es historia. Si la
+      // mercancía reaparece, entra con un ajuste explícito.
+      const lotes = await request(app.getHttpServer())
+        .get(`/products/${productId}/lots?warehouseId=${central}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect(lotes.body).toEqual([]);
+    });
+
+    it("sin justificación, 400", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+
+      await cancelar(token, transfer.id, {}).expect(400);
+    });
+
+    /** Una justificación de dos letras no es una justificación. */
+    it("una justificación demasiado corta también se rechaza", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+
+      await cancelar(token, transfer.id, { reason: "no" }).expect(400);
+    });
+
+    it("uno ya recibido no se cancela: eso se corrige con otro movimiento", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      const borrador = (
+        await request(app.getHttpServer())
+          .post(`/transfers/${transfer.id}/receipt-draft`)
+          .set("Authorization", bearer(token))
+          .send({})
+          .expect(201)
+      ).body as { id: string };
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${borrador.id}/confirm`)
+        .set("Authorization", bearer(token))
+        .send({})
+        .expect(201);
+
+      await cancelar(token, transfer.id, { reason: "me arrepentí" }).expect(409);
+    });
+
+    /**
+     * Cancelar es una decisión de gestión, no de operación: quien mueve
+     * mercancía todos los días no debería poder borrar un traspaso de un clic.
+     */
+    it("sin `inventory:manage` no se puede cancelar", async () => {
+      const { tenantId, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      // El operario SÍ tiene `inventory:movement` —mueve mercancía todos los
+      // días— y aun así no puede cancelar. Sin ese permiso el test no
+      // distinguiría `manage` de `movement` y pasaría por el motivo
+      // equivocado.
+      const operario = await tokenConAlcance(
+        tenantId,
+        [central],
+        ["inventory:read", "inventory:movement"],
+      );
+
+      await cancelar(operario, transfer.id, { reason: "no debería poder" }).expect(403);
     });
   });
 });

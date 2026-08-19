@@ -173,5 +173,32 @@
     "discard": "Write off as expired",
     "discardFailed": "The exit could not be created. Try again.",
     "card": "Expiring soon"
+  },
+  "transfers": {
+    "title": "Transfers in transit",
+    "incoming": "Pending receipt",
+    "outgoing": "Pending dispatch",
+    "empty": "No transfers in this state.",
+    "origin": "Origin",
+    "destination": "Destination",
+    "lines": "Lines",
+    "days": "Days",
+    "sentBy": "Sent by",
+    "staleTitle": "More than a week in transit: check whether it already arrived.",
+    "olderThan": "Age",
+    "olderThanAll": "All",
+    "olderThanStale": "Over 7 days",
+    "receive": "Receive",
+    "receiveTitle": "Receive transfer {{folio}}",
+    "receiveBody": "A draft Entry will be created with the sent quantities already loaded. There you adjust what actually arrived and confirm it.",
+    "receiveSummary": "{{folio}} · {{origin}} → {{destination}} · {{lines}} lines · sent by {{who}}",
+    "receiveConfirm": "Create entry",
+    "receiveFailed": "The entry could not be created. Someone may have already received or canceled it.",
+    "cancel": "Cancel transfer",
+    "cancelTitle": "Cancel transfer {{folio}}",
+    "cancelWarning": "Stock does NOT return to the origin: the exit already happened and is history. If the goods reappear, record them as an Entry with reason Adjustment.",
+    "cancelReason": "Justification",
+    "cancelReasonPlaceholder": "Why this transfer is being canceled",
+    "cancelFailed": "It could not be canceled. Refresh the screen to see how it ended up."
   }
 }

@@ -9,6 +9,19 @@ interface ConfirmDialogProps {
   confirmLabel: string;
   cancelLabel: string;
   busy?: boolean;
+  /**
+   * Contenido extra ENTRE el cuerpo y los botones: una justificación
+   * obligatoria, una casilla de "entiendo". No sustituye al `body` — el texto
+   * que explica qué se pierde sigue siendo obligatorio.
+   */
+  children?: React.ReactNode;
+  /**
+   * Bloquea el confirmar cuando falta algo que el diálogo mismo pide. Decirlo
+   * ANTES del clic es mejor que dejar chocar con el 400 del API.
+   */
+  confirmDisabled?: boolean;
+  /** Un fallo del servidor, contado DENTRO del diálogo y no en otra parte. */
+  error?: string;
   "data-testid"?: string;
   onConfirm: () => void;
   onCancel: () => void;
@@ -38,6 +51,9 @@ function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   busy = false,
+  children,
+  confirmDisabled = false,
+  error,
   "data-testid": testId,
   onConfirm,
   onCancel,
@@ -50,13 +66,25 @@ function ConfirmDialog({
       className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3"
     >
       <p className="text-sm">{body}</p>
+      {children}
+      {error !== undefined && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
       <div className="flex gap-2">
         {/* `type="button"` NO es opcional: un `<button>` sin type dentro de un
             `<form>` es `submit`. Con el diálogo montado dentro del formulario
             de producto, confirmar disparaba TAMBIÉN el submit — que empieza
             limpiando el error y se comía el mensaje del rechazo. Lo cazó el
             test del 409 "es componente de otro". */}
-        <Button type="button" size="sm" variant="destructive" disabled={busy} onClick={onConfirm}>
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          disabled={busy || confirmDisabled}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={onCancel}>

@@ -1,6 +1,9 @@
-import { Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { TRANSFER_STATUSES } from "@sellpoint/shared";
+import type { Request } from "express";
+import { z } from "zod";
+import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { TransferStatus } from "../../generated/prisma/client";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -22,6 +25,11 @@ function entero(raw?: string): number | undefined {
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : undefined;
 }
+
+/** Una justificación de dos letras no es una justificación. */
+const cancelTransferSchema = z.object({
+  reason: z.string().trim().min(5).max(500),
+});
 
 @ApiTags("inventory")
 @Controller("transfers")
@@ -87,5 +95,26 @@ export class TransfersController {
     @Param("id") id: string,
   ) {
     return this.transfers.createReceiptDraft(user, scope, id);
+  }
+
+  /**
+   * `inventory:manage` y no `inventory:movement`: cancelar es una decisión de
+   * gestión. Quien mueve mercancía todos los días no debería poder borrar un
+   * traspaso de un clic.
+   */
+  @Post(":id/cancel")
+  @HttpCode(200)
+  @RequirePermissions("inventory:manage")
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(cancelTransferSchema, "inventory.invalid_body"))
+    dto: z.infer<typeof cancelTransferSchema>,
+    @Req() request: Request,
+  ) {
+    return this.transfers.cancel(user, id, dto.reason, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
   }
 }

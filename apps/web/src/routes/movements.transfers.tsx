@@ -1,24 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
+import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { TransfersList } from "@/components/inventory/transfers-list";
+import { AppLayout } from "@/components/layout/app-layout";
 
 /**
- * F3-NAV-02 — placeholder hasta que llegue su módulo (F3-DOC-08).
+ * F3-TRANSFER-05 — traspasos en tránsito.
  *
- * La ruta existe desde ahora para que el grupo de navegación no lleve a un
- * 404: un menú que ofrece algo que no está es peor que un menú más corto.
+ * El gate es `inventory:read`: ver qué está en viaje es leer. Recibir exige
+ * `inventory:movement` y cancelar `inventory:manage`, y eso lo decide el
+ * componente por dentro.
  */
-function MovementsRoute() {
-  const { t } = useTranslation();
-
+function TransfersRoute() {
   return (
-    <PermissionGate need="inventory:read">
-      <section className="flex flex-col gap-2">
-        <h1 className="font-semibold text-xl">{t("inventory.nav.transfers")}</h1>
-        <p className="text-muted-foreground text-sm">{t("inventory.placeholder")}</p>
-      </section>
-    </PermissionGate>
+    <ProtectedRoute>
+      <OnboardingGate>
+        <AppLayout>
+          <PermissionGate need="inventory:read">
+            <TransfersList />
+          </PermissionGate>
+        </AppLayout>
+      </OnboardingGate>
+    </ProtectedRoute>
   );
 }
 
-export const Route = createFileRoute("/movements/transfers")({ component: MovementsRoute });
+export const Route = createFileRoute("/movements/transfers")({ component: TransfersRoute });

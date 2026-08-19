@@ -173,5 +173,32 @@
     "discard": "Dar salida por caducado",
     "discardFailed": "No se pudo crear la salida. Intenta de nuevo.",
     "card": "Próximos a vencer"
+  },
+  "transfers": {
+    "title": "Traspasos en tránsito",
+    "incoming": "Pendientes de recibir",
+    "outgoing": "Pendientes de enviar",
+    "empty": "No hay traspasos en este estado.",
+    "origin": "Origen",
+    "destination": "Destino",
+    "lines": "Líneas",
+    "days": "Días",
+    "sentBy": "Envió",
+    "staleTitle": "Más de una semana en tránsito: revisa si ya llegó.",
+    "olderThan": "Antigüedad",
+    "olderThanAll": "Todos",
+    "olderThanStale": "Más de 7 días",
+    "receive": "Recibir",
+    "receiveTitle": "Recibir el traspaso {{folio}}",
+    "receiveBody": "Se va a crear una Entrada en borrador con las cantidades enviadas ya cargadas. Ahí ajustas lo que realmente llegó y la confirmas.",
+    "receiveSummary": "{{folio}} · {{origin}} → {{destination}} · {{lines}} líneas · envió {{who}}",
+    "receiveConfirm": "Crear entrada",
+    "receiveFailed": "No se pudo crear la entrada. Puede que alguien más ya lo haya recibido o cancelado.",
+    "cancel": "Cancelar traspaso",
+    "cancelTitle": "Cancelar el traspaso {{folio}}",
+    "cancelWarning": "El stock NO vuelve al origen: la salida ya ocurrió y es historia. Si la mercancía reaparece, regístrala como Entrada con motivo Ajuste.",
+    "cancelReason": "Justificación",
+    "cancelReasonPlaceholder": "Por qué se cancela este traspaso",
+    "cancelFailed": "No se pudo cancelar. Actualiza la pantalla para ver cómo quedó."
   }
 }

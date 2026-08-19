@@ -14,6 +14,7 @@ import type { TransferStatus } from "../../generated/prisma/client";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
+import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "./folio";
 import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
@@ -46,7 +47,10 @@ const MS_POR_DIA = 24 * 60 * 60 * 1000;
  */
 @Injectable()
 export class TransfersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async list(user: AuthUser, scope: UserScope, options: ListTransfersOptions = {}) {
     const page = Math.max(1, options.page ?? 1);
@@ -147,6 +151,88 @@ export class TransfersService {
       pageSize,
       meta: { incomingCount, outgoingCount },
     };
+  }
+
+  /**
+   * Cancelar un traspaso en tránsito.
+   *
+   * **El stock NO vuelve al origen**, y esta es la decisión más difícil de
+   * explicar de todo el módulo. La salida ya ocurrió: hay un `SAL-…`
+   * confirmado, movimientos asentados y un saldo que bajó. Todo eso es
+   * historia y el sistema es append-only.
+   *
+   * Si la mercancía reaparece —volvió el camión, estaba en otro pallet— entra
+   * con un `adjustment` explícito, hecho por alguien que sabe qué pasó y que
+   * queda auditado con su nombre. Devolverla automáticamente sería inventar un
+   * movimiento que nadie autorizó y, peor, **borrar la evidencia de que hubo
+   * un problema**: mañana nadie podría explicar por qué el saldo bajó y subió
+   * solo.
+   *
+   * Por eso también pide `inventory:manage` y no `inventory:movement`: es una
+   * decisión de gestión, no una operación de todos los días.
+   */
+  async cancel(
+    user: AuthUser,
+    id: string,
+    reason: string,
+    meta: { ip?: string; userAgent?: string } = {},
+  ) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const transfer = await tx.transfer.findFirst({
+        where: { id, tenantId: user.tenantId },
+        select: {
+          id: true,
+          documents: {
+            where: { type: "exit" },
+            select: { id: true, folio: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+        },
+      });
+      if (transfer === null) {
+        throw new NotFoundException({ message: "inventory.transfer_not_found" });
+      }
+
+      // El MISMO lock lógico de la recepción: solo se cancela lo que sigue en
+      // viaje, y `rowCount` decide sin releer.
+      const tomados = await tx.transfer.updateMany({
+        where: { id, tenantId: user.tenantId, status: "in_transit" },
+        data: {
+          status: "canceled",
+          canceledBy: user.userId,
+          canceledAt: new Date(),
+          cancelReason: reason,
+        },
+      });
+      if (tomados.count !== 1) {
+        throw new ConflictException({ message: "inventory.transfer_not_in_transit" });
+      }
+
+      const despacho = transfer.documents[0];
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "inventory.transfer_cancel",
+        resourceType: "transfer",
+        resourceId: id,
+        before: undefined,
+        after: {
+          dispatchFolio: despacho?.folio ?? null,
+          reason,
+          // Dicho explícitamente en el rastro: quien audite mañana no tiene
+          // que deducir que el saldo no volvió.
+          stockReturned: false,
+        } as unknown as Prisma.InputJsonValue,
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+
+      return tx.transfer.findFirstOrThrow({
+        where: { id },
+        select: { id: true, status: true, cancelReason: true, canceledAt: true },
+      });
+    });
   }
 
   /**
