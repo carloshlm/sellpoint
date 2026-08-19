@@ -82,6 +82,9 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
 
   const rules = document.reasonCode === null ? null : REASON_RULES[document.reasonCode];
   const conCosto = rules?.requiresUnitCost ?? false;
+  // Columnas de lote solo si el documento es una entrada Y algún producto los
+  // controla — en los demás documentos serían ancho muerto.
+  const conLote = document.type === "entry" && document.products.some((p) => p.tracksLots === true);
   const productosPorId = new Map(document.products.map((p) => [p.id, p]));
 
   return (
@@ -197,41 +200,55 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
       {sinLineas ? (
         <p className="text-muted-foreground text-sm">{t("inventory.document.emptyLines")}</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="py-2 font-medium">#</th>
-              <th className="py-2 font-medium">{t("inventory.document.product")}</th>
-              <th className="py-2 font-medium">{t("inventory.document.presentation")}</th>
-              <th className="py-2 font-medium">{t("inventory.document.quantity")}</th>
-              {conCosto && <th className="py-2 font-medium">{t("inventory.document.unitCost")}</th>}
-              <th className="py-2 font-medium">{t("inventory.document.stockChange")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {document.rows
-              .filter(
-                (row) =>
-                  !esConteo ||
-                  !soloDiscrepancias ||
-                  (row.difference !== null &&
-                    row.difference !== undefined &&
-                    row.difference !== "0"),
-              )
-              .map((row) => (
-                <LineRow
-                  key={row.lineNo}
-                  documentId={documentId}
-                  row={row}
-                  product={productosPorId.get(row.productId)}
-                  editable={editable}
-                  conCosto={conCosto}
-                  esSalida={document.type === "exit"}
-                  esConteo={esConteo}
-                />
-              ))}
-          </tbody>
-        </table>
+        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="px-2 py-2 font-medium">#</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.document.product")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.document.presentation")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.document.quantity")}</th>
+                {conCosto && (
+                  <th className="px-2 py-2 font-medium">{t("inventory.document.unitCost")}</th>
+                )}
+                {conLote && (
+                  <>
+                    <th className="px-2 py-2 font-medium">{t("inventory.document.lotCode")}</th>
+                    <th className="px-2 py-2 font-medium">
+                      {t("inventory.document.lotExpiresAt")}
+                    </th>
+                  </>
+                )}
+                <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {document.rows
+                .filter(
+                  (row) =>
+                    !esConteo ||
+                    !soloDiscrepancias ||
+                    (row.difference !== null &&
+                      row.difference !== undefined &&
+                      row.difference !== "0"),
+                )
+                .map((row) => (
+                  <LineRow
+                    key={row.lineNo}
+                    documentId={documentId}
+                    row={row}
+                    product={productosPorId.get(row.productId)}
+                    editable={editable}
+                    conCosto={conCosto}
+                    conLote={conLote}
+                    esSalida={document.type === "exit"}
+                    esConteo={esConteo}
+                  />
+                ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {dialog === "confirm" && (
@@ -287,6 +304,7 @@ function LineRow({
   product,
   editable,
   conCosto,
+  conLote,
   esSalida,
   esConteo,
 }: {
@@ -295,6 +313,7 @@ function LineRow({
   product: DocumentProduct | undefined;
   editable: boolean;
   conCosto: boolean;
+  conLote: boolean;
   esSalida: boolean;
   esConteo: boolean;
 }) {
@@ -409,44 +428,14 @@ function LineRow({
 
   return (
     <tr className={`border-b last:border-0 ${conError ? "bg-destructive/5" : ""}`}>
-      <td className="py-2">{row.lineNo}</td>
-      <td className="py-2">
+      <td className="px-2 py-2">{row.lineNo}</td>
+      <td className="px-2 py-2">
         <span className="font-mono">{row.sku}</span>
         {product !== undefined && (
           <span className="ml-2 text-muted-foreground">{product.name}</span>
         )}
-        {/*
-          F3-LOTS: la captura del lote vive en la ENTRADA — en la salida lo
-          elige FEFO (RepartoFefo) y en el conteo viene por la planilla. Sin
-          estos inputs, `inventory.lot_required` pedía algo que la pantalla
-          no dejaba dar.
-        */}
-        {editable && !esSalida && !esConteo && product?.tracksLots === true && (
-          <div className="mt-1 flex items-center gap-2">
-            <label htmlFor={`line-${row.lineNo}-lot`} className="text-muted-foreground text-xs">
-              {t("inventory.document.lotCode")}
-            </label>
-            <input
-              id={`line-${row.lineNo}-lot`}
-              type="text"
-              value={lotCode}
-              onChange={(event) => setLotCode(event.target.value)}
-              className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
-            />
-            <label htmlFor={`line-${row.lineNo}-expires`} className="text-muted-foreground text-xs">
-              {t("inventory.document.lotExpiresAt")}
-            </label>
-            <input
-              id={`line-${row.lineNo}-expires`}
-              type="date"
-              value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-            />
-          </div>
-        )}
       </td>
-      <td className="py-2">
+      <td className="px-2 py-2">
         {editable && product !== undefined ? (
           <>
             <label htmlFor={`line-${row.lineNo}-presentation`} className="sr-only">
@@ -481,7 +470,7 @@ function LineRow({
           (presentacion?.name ?? t("inventory.document.presentationBase"))
         )}
       </td>
-      <td className="py-2">
+      <td className="px-2 py-2">
         {editable ? (
           <>
             <label htmlFor={`line-${row.lineNo}-quantity`} className="sr-only">
@@ -510,7 +499,7 @@ function LineRow({
         {esSalida && product?.isComposite === true && <Compuesto product={product} />}
       </td>
       {conCosto && (
-        <td className="py-2">
+        <td className="px-2 py-2">
           {editable ? (
             <>
               <label htmlFor={`line-${row.lineNo}-unit-cost`} className="sr-only">
@@ -532,8 +521,8 @@ function LineRow({
       )}
       {esConteo && (
         <>
-          <td className="py-2">{row.theoretical}</td>
-          <td className="py-2">
+          <td className="px-2 py-2">{row.theoretical}</td>
+          <td className="px-2 py-2">
             {row.counted ?? "—"}
             {row.newLot && (
               <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
@@ -542,7 +531,7 @@ function LineRow({
             )}
           </td>
           <td
-            className={`py-2 ${
+            className={`px-2 py-2 ${
               row.difference !== null && row.difference !== undefined && row.difference !== "0"
                 ? "font-medium text-destructive"
                 : ""
@@ -552,7 +541,61 @@ function LineRow({
           </td>
         </>
       )}
-      <td className="py-2">
+      {/*
+        F3-LOTS: la captura del lote vive en la ENTRADA — en la salida lo
+        elige FEFO (RepartoFefo) y en el conteo viene por la planilla. Sin
+        estos inputs, `inventory.lot_required` pedía algo que la pantalla no
+        dejaba dar. Encabezado en la columna, label sr-only en el input.
+      */}
+      {conLote && (
+        <>
+          <td className="px-2 py-2">
+            {product?.tracksLots === true ? (
+              editable ? (
+                <>
+                  <label htmlFor={`line-${row.lineNo}-lot`} className="sr-only">
+                    {t("inventory.document.lotCode")}
+                  </label>
+                  <input
+                    id={`line-${row.lineNo}-lot`}
+                    type="text"
+                    value={lotCode}
+                    onChange={(event) => setLotCode(event.target.value)}
+                    className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                </>
+              ) : (
+                (row.lotCode ?? "—")
+              )
+            ) : (
+              "—"
+            )}
+          </td>
+          <td className="px-2 py-2">
+            {product?.tracksLots === true ? (
+              editable ? (
+                <>
+                  <label htmlFor={`line-${row.lineNo}-expires`} className="sr-only">
+                    {t("inventory.document.lotExpiresAt")}
+                  </label>
+                  <input
+                    id={`line-${row.lineNo}-expires`}
+                    type="date"
+                    value={expiresAt}
+                    onChange={(event) => setExpiresAt(event.target.value)}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                </>
+              ) : (
+                (row.expiresAt?.slice(0, 10) ?? "—")
+              )
+            ) : (
+              "—"
+            )}
+          </td>
+        </>
+      )}
+      <td className="px-2 py-2">
         {row.stockBefore} → {row.stockAfter}
         {!esConteo && row.newLot && (
           <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
@@ -561,7 +604,7 @@ function LineRow({
         )}
       </td>
       {conError && (
-        <td className="py-2 text-destructive text-xs">
+        <td className="px-2 py-2 text-destructive text-xs">
           {row.errors.map((error) => t(error.code, error.args)).join(" · ")}
         </td>
       )}

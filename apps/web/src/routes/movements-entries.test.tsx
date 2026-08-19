@@ -366,6 +366,40 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       expect(screen.getByLabelText(/caducidad/i)).toBeInTheDocument();
     });
 
+    /**
+     * Revisión manual en celular (2026-08-19): los inputs incrustados en la
+     * celda del producto reventaban el ancho. Lote y Caducidad son COLUMNAS,
+     * con su encabezado — y solo existen cuando algún producto del documento
+     * controla lotes, para no gastar ancho en documentos que no los usan.
+     */
+    it("lote y caducidad son columnas con encabezado propio", async () => {
+      mocked.getDocument.mockResolvedValue(detalleConLotes());
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      expect(encabezados).toContain("Lote");
+      expect(encabezados).toContain("Caducidad");
+    });
+
+    it("sin productos con lote, esas columnas no existen", async () => {
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
+      expect(encabezados).not.toContain("Lote");
+    });
+
+    /** El margen no se revienta: la tabla scrollea dentro de su contenedor. */
+    it("la tabla vive en un contenedor con scroll horizontal", async () => {
+      mocked.getDocument.mockResolvedValue(detalleConLotes());
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const tabla = screen.getAllByRole("table")[0] as HTMLElement;
+      expect(tabla.parentElement?.className).toContain("overflow-x-auto");
+    });
+
     it("uno sin lotes no pinta nada de eso", async () => {
       await renderDoc();
       await screen.findByText("PAR-500");
