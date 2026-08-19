@@ -11,6 +11,7 @@ import { resolveLines } from "./line-resolver";
 import { resolveLotsFefo } from "./lot-fefo";
 import { recordMovementAudit } from "./movement-audit";
 import { StockLedgerService } from "./stock-ledger.service";
+import { TransfersService } from "./transfers.service";
 import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 /**
@@ -42,6 +43,7 @@ export class ConfirmService {
     private readonly documents: DocumentsService,
     private readonly ledger: StockLedgerService,
     private readonly auditService: AuditService,
+    private readonly transfers: TransfersService,
   ) {}
 
   async confirm(user: AuthUser, documentId: string, scope: UserScope) {
@@ -97,6 +99,14 @@ export class ConfirmService {
       const transfer =
         reasonCode === "transfer" && direction === "exit"
           ? await this.createTransfer(tx, user, document, conLotes)
+          : null;
+
+      // 4-bis. La RECEPCIÓN, también antes de asentar: si el traspaso no está
+      //        en tránsito o alguna línea no cuadra, la transacción se deshace
+      //        entera y el destino no sube nada. El lock lógico vive adentro.
+      const received =
+        reasonCode === "transfer" && direction === "entry"
+          ? await this.transfers.receive(tx, user, document, conLotes)
           : null;
 
       // 5. Asentar. Acá es donde el stock se mueve, con las filas bloqueadas.
@@ -157,6 +167,15 @@ export class ConfirmService {
         stock: result.stock,
         lots: result.lots,
         ...(transfer !== null && { transfer: { id: transfer.id } }),
+        // La recepción devuelve el folio del DESPACHO: es como el usuario
+        // conoce a ese traspaso, no por su uuid.
+        ...(received !== null && {
+          transfer: {
+            id: received.id,
+            status: received.status,
+            dispatchFolio: received.dispatchFolio,
+          },
+        }),
       };
     });
   }
@@ -252,7 +271,14 @@ export class ConfirmService {
         args: { field: "reasonCode" },
       });
     }
-    if (!permitidos.includes(document.reasonCode)) {
+    // `transfer` en una ENTRADA no lo puede ELEGIR un humano (por eso no está
+    // en `SELECTABLE_ENTRY_REASONS`), pero el borrador de recepción lo lleva
+    // legítimamente: lo creó el sistema desde el traspaso. La distinción es
+    // "qué se puede elegir" contra "qué es válido", y acá manda la segunda.
+    const porRecepcion =
+      direction === "entry" && document.reasonCode === "transfer" && document.transferId !== null;
+
+    if (!permitidos.includes(document.reasonCode) && !porRecepcion) {
       throw new UnprocessableEntityException({
         message: "inventory.reason_not_allowed",
         args: { field: "reasonCode" },

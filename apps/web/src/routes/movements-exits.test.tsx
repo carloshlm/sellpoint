@@ -76,6 +76,7 @@ const CAJA = {
 };
 
 const fila = (overrides: Partial<DocumentRow> = {}): DocumentRow => ({
+  id: "line-1",
   lineNo: 1,
   productId: "p1",
   sku: "PAR-500",

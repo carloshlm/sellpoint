@@ -44,6 +44,8 @@ export interface DocumentRowError {
  * usuario mira antes de confirmar: qué hay y en qué queda.
  */
 export interface DocumentRow {
+  /** El identificador que piden el PATCH y el DELETE de la línea. */
+  id: string;
   lineNo: number;
   productId: string;
   sku: string;

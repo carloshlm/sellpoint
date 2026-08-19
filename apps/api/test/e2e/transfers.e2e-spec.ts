@@ -510,4 +510,289 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       await detalle(ajeno.token, transfer.id).expect(404);
     });
   });
+
+  /**
+   * F3-TRANSFER-03 — la recepción, donde el ciclo se cierra.
+   *
+   * **La recepción es una ENTRADA normal**, no una pantalla aparte: el
+   * borrador nace con motivo `transfer`, el almacén destino y las líneas
+   * precargadas con lo enviado, y el usuario solo corrige lo que llegó de
+   * menos. Así usa exactamente la misma pantalla que cualquier entrada.
+   *
+   * La regla de negocio que más cuesta explicar y hay que respetar: la
+   * diferencia `enviado − recibido` **no entra** al destino y **no genera una
+   * merma automática**. Ya salió del origen; qué pasó en el camino lo decide
+   * una persona, no el sistema.
+   */
+  describe("Recepción de un traspaso (F3-TRANSFER-03)", () => {
+    const pedirBorrador = (token: string, transferId: string) =>
+      request(app.getHttpServer())
+        .post(`/transfers/${transferId}/receipt-draft`)
+        .set("Authorization", bearer(token))
+        .send({});
+
+    const confirmarDoc = (token: string, documentId: string) =>
+      request(app.getHttpServer())
+        .post(`/inventory/documents/${documentId}/confirm`)
+        .set("Authorization", bearer(token))
+        .send({});
+
+    /**
+     * El PATCH pide el ID de la línea, no su número. Se resuelve desde el
+     * detalle —que es de donde lo saca la pantalla real— en vez de fabricarlo.
+     */
+    async function editarLinea(
+      token: string,
+      documentId: string,
+      lineNo: number,
+      body: Record<string, unknown>,
+      esperado = 200,
+    ) {
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${documentId}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const fila = (detalle.body as { rows: { id: string; lineNo: number }[] }).rows.find(
+        (r) => r.lineNo === lineNo,
+      );
+      return request(app.getHttpServer())
+        .patch(`/inventory/documents/${documentId}/lines/${fila?.id}`)
+        .set("Authorization", bearer(token))
+        .send(body)
+        .expect(esperado);
+    }
+
+    describe("el borrador", () => {
+      it("nace como ENT con motivo traspaso, en el DESTINO y precargado", async () => {
+        const { token, central, norte, productId, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+
+        const res = await pedirBorrador(token, transfer.id).expect(201);
+        const doc = res.body as {
+          id: string;
+          folio: string;
+          type: string;
+          warehouse: { id: string };
+        };
+
+        expect(doc.folio).toMatch(/^ENT-/);
+        expect(doc.type).toBe("entry");
+        expect(doc.warehouse.id).toBe(norte);
+
+        const detalleDoc = await request(app.getHttpServer())
+          .get(`/inventory/documents/${doc.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const cuerpo = detalleDoc.body as {
+          reasonCode: string;
+          linkedWarehouseId: string;
+          rows: { productId: string; quantityInput: string }[];
+        };
+        expect(cuerpo.reasonCode).toBe("transfer");
+        // El origen lo completa el servidor: quien recibe no tiene por qué
+        // saber de dónde vino, y dejarlo elegir sería dejarlo equivocarse.
+        expect(cuerpo.linkedWarehouseId).toBe(central);
+        expect(cuerpo.rows).toEqual([expect.objectContaining({ productId, quantityInput: "10" })]);
+      });
+
+      /** Pedirlo dos veces devuelve el MISMO: lo garantiza el UNIQUE parcial. */
+      it("es idempotente", async () => {
+        const { token, central, norte, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+
+        const uno = await pedirBorrador(token, transfer.id).expect(201);
+        const dos = await pedirBorrador(token, transfer.id).expect(201);
+
+        expect((dos.body as { id: string }).id).toBe((uno.body as { id: string }).id);
+      });
+
+      it("un traspaso ya recibido no da borrador", async () => {
+        const { token, tenantId, central, norte, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        await prisma.withTenantContext(tenantId, async (tx) => {
+          const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+          await tx.transfer.update({
+            where: { id: transfer.id },
+            data: { status: "completed", receivedBy: owner.id, receivedAt: new Date() },
+          });
+        });
+
+        await pedirBorrador(token, transfer.id).expect(409);
+      });
+    });
+
+    describe("confirmar la recepción", () => {
+      it("recepción exacta: el destino sube y el traspaso queda completado", async () => {
+        const { token, central, norte, productId, despachar } = await escenario();
+        const { transfer, document: despacho } = await despachar(central, norte, 10);
+        const borrador = (await pedirBorrador(token, transfer.id).expect(201)).body as {
+          id: string;
+          folio: string;
+        };
+
+        const res = await confirmarDoc(token, borrador.id).expect(201);
+        const body = res.body as {
+          stock: { productId: string; warehouseId: string; quantity: string }[];
+          transfer: { id: string; status: string; dispatchFolio: string };
+        };
+
+        expect(body.transfer.status).toBe("completed");
+        // El folio del DESPACHO viaja en la respuesta: es como el usuario
+        // conoce a ese traspaso.
+        expect(body.transfer.dispatchFolio).toBe(despacho.folio);
+        const enDestino = body.stock.find(
+          (s) => s.warehouseId === norte && s.productId === productId,
+        );
+        expect(Number(enDestino?.quantity)).toBe(10);
+
+        const detalleTr = await request(app.getHttpServer())
+          .get(`/transfers/${transfer.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const tr = detalleTr.body as { status: string; lines: { quantityReceived: string }[] };
+        expect(tr.status).toBe("completed");
+        expect(tr.lines[0]?.quantityReceived).toBe("10");
+      });
+
+      it("con faltante y nota: guarda la nota y la diferencia NO entra al destino", async () => {
+        const { token, central, norte, productId, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        const borrador = (await pedirBorrador(token, transfer.id).expect(201)).body as {
+          id: string;
+        };
+
+        await editarLinea(token, borrador.id, 1, { quantity: 8 });
+        await request(app.getHttpServer())
+          .patch(`/inventory/documents/${borrador.id}`)
+          .set("Authorization", bearer(token))
+          .send({ reasonNote: "Faltó una caja en el camión" })
+          .expect(200);
+
+        const res = await confirmarDoc(token, borrador.id).expect(201);
+        const body = res.body as {
+          stock: { warehouseId: string; productId: string; quantity: string }[];
+        };
+
+        // Entran 8, no 10. Los 2 que faltan NO se convierten en merma
+        // automática: ya salieron del origen, y qué pasó lo decide una persona.
+        const enDestino = body.stock.find(
+          (s) => s.warehouseId === norte && s.productId === productId,
+        );
+        expect(Number(enDestino?.quantity)).toBe(8);
+
+        const detalleTr = await request(app.getHttpServer())
+          .get(`/transfers/${transfer.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const tr = detalleTr.body as {
+          discrepancyNote: string;
+          lines: { quantitySent: string; quantityReceived: string; difference: string }[];
+        };
+        expect(tr.discrepancyNote).toBe("Faltó una caja en el camión");
+        expect(tr.lines[0]).toEqual(
+          expect.objectContaining({ quantitySent: "10", quantityReceived: "8", difference: "2" }),
+        );
+      });
+
+      /** Sin explicación no hay faltante: alguien tiene que hacerse cargo. */
+      it("con faltante y SIN nota, 400 sobre `reasonNote`", async () => {
+        const { token, central, norte, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        const borrador = (await pedirBorrador(token, transfer.id).expect(201)).body as {
+          id: string;
+        };
+
+        await editarLinea(token, borrador.id, 1, { quantity: 8 });
+
+        await confirmarDoc(token, borrador.id).expect(400);
+      });
+
+      it("recibir MÁS de lo enviado se rechaza y no cambia nada", async () => {
+        const { token, central, norte, productId, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        const borrador = (await pedirBorrador(token, transfer.id).expect(201)).body as {
+          id: string;
+        };
+
+        await editarLinea(token, borrador.id, 1, { quantity: 11 });
+
+        await confirmarDoc(token, borrador.id).expect(422);
+
+        // Nada se movió: el traspaso sigue en tránsito y el destino en cero.
+        const detalleTr = await request(app.getHttpServer())
+          .get(`/transfers/${transfer.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect((detalleTr.body as { status: string }).status).toBe("in_transit");
+        const lotes = await request(app.getHttpServer())
+          .get(`/products/${productId}/lots`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect(lotes.body).toEqual([]);
+      });
+
+      /**
+       * El escenario que protege el lock DEL TRASPASO, y que el lock del
+       * documento no cubre: el borrador se creó con el traspaso en tránsito, y
+       * para cuando alguien lo confirma el traspaso ya cambió de estado (lo
+       * canceló un admin, o lo recibió otra persona por otra vía).
+       *
+       * Sin el `WHERE status='in_transit'` del UPDATE, esa confirmación
+       * entraría igual y sumaría al destino mercancía de un traspaso que ya no
+       * está en viaje.
+       */
+      it("si el traspaso deja de estar en tránsito entre el borrador y el confirm, 409", async () => {
+        const { token, tenantId, central, norte, productId, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        const borrador = (await pedirBorrador(token, transfer.id).expect(201)).body as {
+          id: string;
+        };
+
+        await prisma.withTenantContext(tenantId, async (tx) => {
+          const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+          await tx.transfer.update({
+            where: { id: transfer.id },
+            data: {
+              status: "canceled",
+              canceledBy: owner.id,
+              canceledAt: new Date(),
+              cancelReason: "El camión nunca salió",
+            },
+          });
+        });
+
+        await confirmarDoc(token, borrador.id).expect(409);
+
+        // Y el destino sigue sin recibir nada.
+        const lotes = await request(app.getHttpServer())
+          .get(`/products/${productId}/lots`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect(lotes.body).toEqual([]);
+      });
+
+      /**
+       * El lock lógico: `UPDATE … WHERE status='in_transit'` con `rowCount = 1`.
+       * Sin él, dos personas confirmando a la vez duplicarían el saldo del
+       * destino — el mismo bug que `markConfirmed` evita en el documento.
+       */
+      it("dos recepciones simultáneas: una pasa y la otra da 409", async () => {
+        const { token, central, norte, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        const borrador = (await pedirBorrador(token, transfer.id).expect(201)).body as {
+          id: string;
+        };
+
+        const resultados = await Promise.allSettled([
+          confirmarDoc(token, borrador.id),
+          confirmarDoc(token, borrador.id),
+        ]);
+        const codigos = resultados
+          .map((r) => (r.status === "fulfilled" ? r.value.status : 0))
+          .sort();
+
+        expect(codigos).toEqual([201, 409]);
+      });
+    });
+  });
 });

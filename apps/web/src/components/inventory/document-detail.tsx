@@ -261,19 +261,19 @@ function LineRow({
 
   const guardar = useMutation({
     mutationFn: (value: number | null) =>
-      updateDocumentLine(documentId, String(row.lineNo), { quantity: value }),
+      updateDocumentLine(documentId, row.id, { quantity: value }),
     onSuccess: invalidar,
   });
 
   const guardarCosto = useMutation({
     mutationFn: (value: number | null) =>
-      updateDocumentLine(documentId, String(row.lineNo), { unitCost: value }),
+      updateDocumentLine(documentId, row.id, { unitCost: value }),
     onSuccess: invalidar,
   });
 
   const guardarPresentacion = useMutation({
     mutationFn: (presentationId: string | null) =>
-      updateDocumentLine(documentId, String(row.lineNo), { presentationId }),
+      updateDocumentLine(documentId, row.id, { presentationId }),
     onSuccess: invalidar,
   });
 

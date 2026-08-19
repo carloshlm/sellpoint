@@ -80,6 +80,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   confirmedAt: null,
   rows: [
     {
+      id: "line-1",
       lineNo: 1,
       productId: "p1",
       sku: "PAR-500",

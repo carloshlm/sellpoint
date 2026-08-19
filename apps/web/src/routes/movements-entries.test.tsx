@@ -73,6 +73,7 @@ const CAJA = {
 };
 
 const fila = (overrides: Partial<DocumentRow> = {}): DocumentRow => ({
+  id: "line-1",
   lineNo: 1,
   productId: "p1",
   sku: "PAR-500",
@@ -282,9 +283,12 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       await user.selectOptions(screen.getByLabelText(/presentación/i), "pres-caja");
 
       await waitFor(() => {
+        // El ID de la línea, no su NÚMERO: la ruta del PATCH pide un uuid, y
+        // mandarle el `lineNo` daba 500 en cada autoguardado. Este test
+        // afirmaba el bug — lo destapó el e2e de la recepción de traspaso.
         expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
           "doc-1",
-          "1",
+          "line-1",
           expect.objectContaining({ presentationId: "pres-caja" }),
         );
       });

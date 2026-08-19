@@ -419,6 +419,11 @@ export class DocumentsService {
         }
 
         return {
+          // El id ES lo que el PATCH/DELETE de la línea piden en la URL. Sin
+          // exponerlo, el front no tenía con qué llamarlos y mandaba el
+          // `lineNo`, que la ruta interpreta como uuid → 500 en cada
+          // autoguardado. Lo destapó el e2e de la recepción.
+          id: line.id,
           lineNo: line.lineNo,
           productId: line.productId,
           sku: res?.sku ?? "",

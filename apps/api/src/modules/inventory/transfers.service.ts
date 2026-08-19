@@ -1,9 +1,22 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { TRANSFER_STALE_DAYS } from "@sellpoint/shared";
-import type { Prisma, TransferStatus } from "../../generated/prisma/client";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { FOLIO_PREFIXES, TRANSFER_STALE_DAYS } from "@sellpoint/shared";
+import type { TransferStatus } from "../../generated/prisma/client";
+// `Prisma` va como VALOR y no como `import type`: `Prisma.Decimal` es un
+// constructor que se USA en runtime, no solo un espacio de tipos. Con
+// `import type` compila igual y revienta en producción con
+// "ReferenceError: Prisma is not defined".
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { nextFolio } from "./folio";
+import { assertActiveWarehouse, assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 export interface ListTransfersOptions {
   status?: TransferStatus;
@@ -134,6 +147,240 @@ export class TransfersService {
       pageSize,
       meta: { incomingCount, outgoingCount },
     };
+  }
+
+  /**
+   * Recibir un traspaso. Corre DENTRO de la transacción del `confirm`.
+   *
+   * **El lock es lógico y va PRIMERO**: `UPDATE … WHERE status='in_transit'`
+   * con `rowCount = 1`. Sin él, dos personas confirmando la misma recepción a
+   * la vez duplicarían el saldo del destino — el mismo bug que `markConfirmed`
+   * evita en el documento. Tomarlo antes de validar nada más es lo que hace
+   * que la segunda vea 409 en vez de trabajar de gusto.
+   *
+   * **La diferencia `enviado − recibido` NO entra al destino y NO genera una
+   * merma automática.** Ya salió del origen; qué pasó en el camino —robo,
+   * rotura, error de conteo— lo decide una persona con un ajuste explícito.
+   * Inventar el asiento sería adivinar la causa.
+   */
+  async receive(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    document: {
+      id: string;
+      transferId: string | null;
+      warehouseId: string;
+      reasonNote: string | null;
+    },
+    lines: { productId: string; lotId?: string; quantityBase: Prisma.Decimal }[],
+  ) {
+    if (document.transferId === null) {
+      throw new UnprocessableEntityException({
+        message: "inventory.transfer_entry_requires_transfer",
+        args: { field: "transferId" },
+      });
+    }
+
+    // El lock, antes que todo lo demás.
+    const tomados = await tx.transfer.updateMany({
+      where: { id: document.transferId, tenantId: user.tenantId, status: "in_transit" },
+      data: { status: "completed", receivedBy: user.userId, receivedAt: new Date() },
+    });
+    if (tomados.count !== 1) {
+      throw new ConflictException({ message: "inventory.transfer_not_in_transit" });
+    }
+
+    const transfer = await tx.transfer.findFirstOrThrow({
+      where: { id: document.transferId, tenantId: user.tenantId },
+      select: {
+        id: true,
+        originWarehouseId: true,
+        destinationWarehouseId: true,
+        lines: { select: { id: true, productId: true, lotId: true, quantitySent: true } },
+        documents: {
+          where: { type: "exit" },
+          select: { folio: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (document.warehouseId !== transfer.destinationWarehouseId) {
+      throw new UnprocessableEntityException({
+        message: "inventory.transfer_wrong_destination",
+        args: { field: "warehouseId" },
+      });
+    }
+
+    // Se identifica por producto + LOTE: lo que salió de un lote entra al
+    // mismo lote, con su misma caducidad. Dos lotes del mismo producto son dos
+    // líneas y no se pueden confundir entre sí.
+    const clave = (productId: string, lotId: string | null | undefined) =>
+      `${productId}|${lotId ?? ""}`;
+    const esperadas = new Map(transfer.lines.map((l) => [clave(l.productId, l.lotId), l]));
+
+    const recibido = new Map<string, Prisma.Decimal>();
+    for (const line of lines) {
+      const key = clave(line.productId, line.lotId);
+      if (!esperadas.has(key)) {
+        throw new UnprocessableEntityException({
+          message: "inventory.transfer_line_unknown",
+          args: { productId: line.productId },
+        });
+      }
+      recibido.set(key, (recibido.get(key) ?? new Prisma.Decimal(0)).plus(line.quantityBase));
+    }
+
+    let hayFaltante = false;
+    const detalle: { productId: string; sent: string; received: string; difference: string }[] = [];
+
+    for (const [key, esperada] of esperadas) {
+      const cantidad = recibido.get(key);
+      if (cantidad === undefined) {
+        // Recibir CERO es un estado válido (la línea se perdió entera), pero
+        // hay que declararlo: omitir la línea es dejar el traspaso a medio
+        // cerrar, y el saldo del origen ya se fue.
+        throw new UnprocessableEntityException({
+          message: "inventory.transfer_lines_incomplete",
+          args: { productId: esperada.productId },
+        });
+      }
+      if (cantidad.greaterThan(esperada.quantitySent)) {
+        throw new UnprocessableEntityException({
+          message: "inventory.received_exceeds_sent",
+          args: {
+            productId: esperada.productId,
+            sent: esperada.quantitySent.toString(),
+            received: cantidad.toString(),
+          },
+        });
+      }
+      const diferencia = esperada.quantitySent.minus(cantidad);
+      if (diferencia.greaterThan(0)) {
+        hayFaltante = true;
+      }
+      detalle.push({
+        productId: esperada.productId,
+        sent: esperada.quantitySent.toString(),
+        received: cantidad.toString(),
+        difference: diferencia.toString(),
+      });
+      await tx.transferLine.update({
+        where: { id: esperada.id },
+        data: { quantityReceived: cantidad },
+      });
+    }
+
+    // Un faltante sin explicación no se acepta: alguien tiene que hacerse
+    // cargo de la diferencia, y la nota es dónde queda dicho.
+    if (hayFaltante) {
+      const nota = document.reasonNote?.trim() ?? "";
+      if (nota === "") {
+        throw new BadRequestException({
+          message: "inventory.note_required",
+          errors: [{ key: "reasonNote", message: "inventory.note_required" }],
+        });
+      }
+      await tx.transfer.update({
+        where: { id: transfer.id },
+        data: { discrepancyNote: nota },
+      });
+    }
+
+    return {
+      id: transfer.id,
+      status: "completed" as const,
+      originWarehouseId: transfer.originWarehouseId,
+      dispatchFolio: transfer.documents[0]?.folio ?? null,
+      lines: detalle,
+    };
+  }
+
+  /**
+   * El borrador de RECEPCIÓN: una Entrada normal, precargada.
+   *
+   * **La recepción no tiene pantalla propia.** Este borrador nace con motivo
+   * `transfer`, el almacén destino y las líneas con lo que se envió, así que
+   * se completa en la misma pantalla que cualquier entrada — quien recibe solo
+   * corrige lo que llegó de menos.
+   *
+   * El `linkedWarehouseId` (el origen) lo pone el SERVIDOR: quien recibe no
+   * tiene por qué saber de dónde vino, y dejarlo elegir sería dejarlo
+   * equivocarse.
+   *
+   * **Idempotente**, y no por un guard sino por el UNIQUE parcial
+   * `(transfer_id, type) WHERE transfer_id IS NOT NULL`: pedirlo dos veces
+   * devuelve el mismo. Se busca primero por el camino feliz y se reintenta la
+   * búsqueda si el INSERT chocó, que es la única forma de cubrir la carrera
+   * entre dos pedidos simultáneos.
+   */
+  async createReceiptDraft(user: AuthUser, scope: UserScope, transferId: string) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const transfer = await tx.transfer.findFirst({
+        where: { id: transferId, tenantId: user.tenantId },
+        select: {
+          id: true,
+          status: true,
+          originWarehouseId: true,
+          destinationWarehouseId: true,
+          lines: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              productId: true,
+              quantitySent: true,
+              lot: { select: { lotCode: true } },
+            },
+          },
+        },
+      });
+      if (transfer === null) {
+        throw new NotFoundException({ message: "inventory.transfer_not_found" });
+      }
+
+      const existente = await tx.inventoryDocument.findFirst({
+        where: { transferId, type: "entry", tenantId: user.tenantId },
+        include: { warehouse: { select: { id: true, name: true } } },
+      });
+      if (existente !== null) {
+        return existente;
+      }
+
+      // Después de la idempotencia: si el borrador YA existe, devolverlo aunque
+      // el traspaso esté completado es lo correcto —es el documento con el que
+      // se recibió—. Lo que no se puede es abrir uno nuevo.
+      if (transfer.status !== "in_transit") {
+        throw new ConflictException({ message: "inventory.transfer_not_in_transit" });
+      }
+      assertWarehouseInScope(scope, transfer.destinationWarehouseId);
+      await assertActiveWarehouse(tx, user.tenantId, transfer.destinationWarehouseId);
+
+      const folio = await nextFolio(tx, user.tenantId, "entry", FOLIO_PREFIXES.entry);
+      const document = await tx.inventoryDocument.create({
+        data: {
+          tenantId: user.tenantId,
+          folio,
+          type: "entry",
+          warehouseId: transfer.destinationWarehouseId,
+          reasonCode: "transfer",
+          transferId: transfer.id,
+          linkedWarehouseId: transfer.originWarehouseId,
+          createdBy: user.userId,
+          lines: {
+            create: transfer.lines.map((line, index) => ({
+              tenantId: user.tenantId,
+              lineNo: index + 1,
+              productId: line.productId,
+              quantity: line.quantitySent,
+              lotCode: line.lot?.lotCode ?? null,
+            })),
+          },
+        },
+        include: { warehouse: { select: { id: true, name: true } } },
+      });
+
+      return document;
+    });
   }
 
   /**

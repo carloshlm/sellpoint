@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, HttpCode, Param, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { TRANSFER_STATUSES } from "@sellpoint/shared";
 import type { TransferStatus } from "../../generated/prisma/client";
@@ -72,5 +72,20 @@ export class TransfersController {
     @Param("id") id: string,
   ) {
     return this.transfers.detail(user, scope, id);
+  }
+
+  /**
+   * `inventory:movement` y no `inventory:read`: crear el borrador es el primer
+   * paso de un movimiento, aunque todavía no mueva nada.
+   */
+  @Post(":id/receipt-draft")
+  @HttpCode(201)
+  @RequirePermissions("inventory:movement")
+  receiptDraft(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Param("id") id: string,
+  ) {
+    return this.transfers.createReceiptDraft(user, scope, id);
   }
 }
