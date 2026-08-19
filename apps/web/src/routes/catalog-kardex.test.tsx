@@ -119,8 +119,8 @@ beforeEach(() => {
   mocked.updateLot.mockReset();
   vi.mocked(warehousesApi.listWarehouses).mockReset();
   vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
-    { id: "w1", name: "Central", address: null, isActive: true },
-    { id: "w2", name: "Norte", address: null, isActive: true },
+    { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+    { id: "w2", name: "Norte", address: null, isActive: true, deactivationBlockedBy: null },
   ]);
   mocked.getKardex.mockResolvedValue({
     rows: [movimiento()],

@@ -50,6 +50,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
       name: "Central",
       address: null,
       isActive: true,
+      deactivationBlockedBy: null,
     });
     const onSubmit = renderStep();
 
@@ -90,7 +91,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     // efecto colateral que el usuario no pidió.
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([
-      { id: "w-1", name: "Central", address: null, isActive: true },
+      { id: "w-1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
     ]);
     const onSubmit = renderStep();
 

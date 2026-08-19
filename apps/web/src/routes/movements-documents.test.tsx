@@ -172,7 +172,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     it("el botón postea y navega al borrador recién creado", async () => {
       const user = userEvent.setup();
       mockedWarehouses.mockResolvedValue([
-        { id: "w1", name: "Central", address: null, isActive: true },
+        { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
       ]);
       mockedCreate.mockResolvedValue({ ...documento("ENT-000043", "draft"), id: "nuevo-id" });
       const router = await renderRuta("/movements/entries");

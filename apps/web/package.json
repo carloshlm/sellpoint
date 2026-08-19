@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
+    "typecheck:full": "tsc -b",
     "preview": "vite preview",
     "test": "vitest run"
   },

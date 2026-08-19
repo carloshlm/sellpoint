@@ -140,7 +140,7 @@ beforeEach(() => {
   }
   mockedWarehouses.mockReset();
   mockedWarehouses.mockResolvedValue([
-    { id: "w1", name: "Central", address: null, isActive: true },
+    { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
   ]);
   mockedProducts.mockReset();
   mockedProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });

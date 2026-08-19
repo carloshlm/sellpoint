@@ -95,7 +95,7 @@ beforeEach(() => {
   }
   mockedWarehouses.mockReset();
   mockedWarehouses.mockResolvedValue([
-    { id: "w1", name: "Central", address: null, isActive: true },
+    { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
   ]);
   mocked.listExpiring.mockResolvedValue([fila()]);
 });
