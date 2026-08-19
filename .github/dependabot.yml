@@ -16,6 +16,20 @@ updates:
         update-types:
           - "minor"
           - "patch"
+        # Las 0.x NO se agrupan. Semver dice que mientras la mayor sea 0
+        # cualquier cambio puede romper: el hueco del minor ES el de la major.
+        # Dependabot lee "0.2 -> 0.3" como minor y lo barre junto con otros
+        # veintipico — asi entro pdfmake 0.3 y reventó la DI del modulo entero.
+        # Excluirlas no las congela: llegan igual, pero cada una en su PR, que
+        # es donde se puede leer el changelog antes de decir que si.
+        # La lista la fija apps/web/src/lib/repo/dependabot-groups.test.ts.
+        exclude-patterns:
+          - "@types/pdfmake"
+          - "argon2"
+          - "class-variance-authority"
+          - "pdfmake"
+          - "reflect-metadata"
+          - "source-map-support"
     commit-message:
       prefix: "chore"
 
