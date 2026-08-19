@@ -216,6 +216,68 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
     });
   });
 
+  /**
+   * El caso EXACTO de la ENT-000002 de producción (2026-08-19): el borrador
+   * pasó por motivo Traspaso (que le puso `linkedWarehouseId`), después el
+   * motivo cambió a Ajuste — y el destino quedó pegado, invisible porque su
+   * selector desaparece de la pantalla. El CHECK de `stock_movements`
+   * (`(reason='transfer') = (linked IS NOT NULL)`) lo rechazaba en el confirm
+   * como un 500 indescifrable.
+   */
+  describe("cambiar el motivo limpia lo que ya no aplica", () => {
+    it("salir de Traspaso suelta el almacén vinculado y el confirm pasa", async () => {
+      const destino = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set(auth())
+        .send({ name: `Destino ${randomUUID()}` })
+        .expect(201);
+
+      const id = await borrador({
+        reasonCode: "transfer",
+        linkedWarehouseId: (destino.body as { id: string }).id,
+      });
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}`)
+        .set(auth())
+        .send({ reasonCode: "adjustment", reasonNote: "Cambio de idea" })
+        .expect(200);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      expect((detalle.body as { linkedWarehouseId: string | null }).linkedWarehouseId).toBeNull();
+
+      await agregar(id, { productId, quantity: 3 }).expect(201);
+      await confirmar(id).expect(201);
+    });
+
+    /** Volver a elegir Traspaso en el MISMO patch sí conserva el destino. */
+    it("mandar motivo y destino juntos no se pisa", async () => {
+      const destino = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set(auth())
+        .send({ name: `Destino ${randomUUID()}` })
+        .expect(201);
+      const destinoId = (destino.body as { id: string }).id;
+
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "x" });
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}`)
+        .set(auth())
+        .send({ reasonCode: "transfer", linkedWarehouseId: destinoId })
+        .expect(200);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      expect((detalle.body as { linkedWarehouseId: string | null }).linkedWarehouseId).toBe(
+        destinoId,
+      );
+    });
+  });
+
   describe("confirmar es idempotente por la vía dura", () => {
     /**
      * Dos personas dando clic en Confirmar desde dos pantallas: si las dos

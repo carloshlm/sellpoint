@@ -171,6 +171,11 @@ export class DocumentsService {
         await assertActiveWarehouse(tx, user.tenantId, dto.linkedWarehouseId);
       }
 
+      // Se mira el motivo RESULTANTE, no el que venía: un patch que solo trae
+      // `reasonCode` deja el resto como estaba.
+      const motivoFinal = dto.reasonCode ?? document.reasonCode;
+      const dejaDeSerTraspaso = motivoFinal !== "transfer";
+
       return tx.inventoryDocument.update({
         where: { id: documentId },
         data: {
@@ -178,9 +183,18 @@ export class DocumentsService {
           ...(dto.reference !== undefined && { reference: dto.reference ?? null }),
           ...(dto.reasonNote !== undefined && { reasonNote: dto.reasonNote ?? null }),
           ...(dto.authorizedBy !== undefined && { authorizedBy: dto.authorizedBy ?? null }),
-          ...(dto.linkedWarehouseId !== undefined && {
-            linkedWarehouseId: dto.linkedWarehouseId ?? null,
-          }),
+          // El destino SOLO existe en un traspaso: al salir de ese motivo hay
+          // que soltarlo aunque el cliente no lo mande. Su selector desaparece
+          // de la pantalla junto con el motivo, así que quedaba pegado e
+          // INVISIBLE — y el CHECK de `stock_movements`
+          // (`(reason='transfer') = (linked IS NOT NULL)`) reventaba recién en
+          // el confirm, como un 500 sin explicación. Es lo que le pasó a la
+          // ENT-000002 de producción.
+          ...(dejaDeSerTraspaso
+            ? { linkedWarehouseId: null }
+            : dto.linkedWarehouseId !== undefined && {
+                linkedWarehouseId: dto.linkedWarehouseId ?? null,
+              }),
         },
       });
     });
