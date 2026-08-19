@@ -59,6 +59,7 @@ model Tenant {
   compositions   ProductComposition[]
   warehouses     Warehouse[]
   stock          StockByWarehouse[]
+  services       Service[]
 
   // Movimientos de inventario (Fase 3)
   stockMovements StockMovement[]
@@ -506,6 +507,34 @@ model Warehouse {
   @@unique([tenantId, name])
   @@index([tenantId])
   @@map("warehouses")
+}
+
+// F3-SVC-01. Lo que el negocio VENDE pero no almacena: un corte de pelo, una
+// reparación, una consulta. Tabla propia y no un `Product` con bandera —
+// `Product` arrastra `base_unit`, `tracks_lots`, `stock_min`, composición y
+// presentaciones, todo sin sentido acá; y el costo real de la bandera no es el
+// schema sino el `WHERE is_service = false` que alguien va a olvidar en alguna
+// query de inventario.
+//
+// `code` es el "nombre corto" con el que se busca en el POS (espejo del `sku`).
+// Genérico por LEY: cero campos de rubro.
+model Service {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  code        String   @db.VarChar(64)
+  name        String
+  description String?
+  cost        Decimal? @db.Decimal(14, 2)
+  price       Decimal? @db.Decimal(14, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("services")
 }
 
 // Existencias por producto y almacén, SIEMPRE en la `base_unit` del producto.

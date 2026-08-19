@@ -69,6 +69,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | Definir unidad base y presentaciones | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Definir composición (producto compuesto / BOM) | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Importar productos desde Excel | ❌ | ✅ | ✅ | ❌ | ❌ |
+| CRUD de servicios | ❌ | ✅ | ✅ | 👁 | 👁 |
 | **Almacenes** |  |  |  |  |  |
 | CRUD de almacenes | ❌ | ✅ | ✅ | 👁 | 👁 |
 | **Movimientos** |  |  |  |  |  |
@@ -428,6 +429,27 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   3. (Opcional) Aplica filtros por campos custom del schema
   4. Tabla se actualiza con paginación server-side
 - **Postcondición:** Lista filtrada.
+
+---
+
+#### **CU-CAT-08 — Registrar y mantener un servicio**
+
+> **Nuevo en F3-SVC (2026-08-19):** el negocio también vende lo que no almacena — un corte de pelo, una reparación, una consulta. Un servicio NO mueve inventario: no aparece en Entradas, Salidas, Conteos ni Kardex. — `topic_key: sellpoint/catalogo-servicios`
+
+- **Actor:** TenantAdmin / Manager (`services:manage`)
+- **Precondición:** Ninguna. El catálogo de servicios es independiente del de productos y de los almacenes.
+- **Flujo principal:**
+  1. Catálogo → Servicios → «Nuevo servicio»
+  2. Captura código (el nombre corto con el que lo buscará al cobrar), nombre, y opcionalmente descripción, costo y precio
+  3. Click «Guardar»
+  4. El sistema valida que el código no exista ya en el tenant y lo registra
+  5. El servicio queda disponible para el POS (Fase 4)
+- **Flujos alternativos:**
+  - 4a. Código repetido en el tenant → 409 «Ya tienes un servicio con ese código». El mismo código en OTRO tenant es legal: el catálogo es de cada negocio.
+  - 4b. Precio o costo negativo o con más de dos decimales → 400 (misma regla de dinero que los productos).
+  - 5a. **Dejar de ofrecerlo:** «Desactivar» lo esconde del POS sin borrarlo, y se deshace con un clic (no pide confirmación).
+  - 5b. **Eliminar** lo borra sin vuelta atrás y **sí** pide confirmación; el diálogo nombra desactivar como alternativa. Cuando F4 traiga ventas, un servicio ya vendido dará 409 y desactivar será la única salida.
+- **Postcondición:** El servicio existe en el catálogo del tenant, con su precio, y es vendible desde el POS.
 
 ---
 

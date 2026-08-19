@@ -29,6 +29,7 @@ import { MailModule } from "./modules/mail/mail.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { RolesModule } from "./modules/roles/roles.module";
+import { ServicesModule } from "./modules/services/services.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
 import { WarehousesModule } from "./modules/warehouses/warehouses.module";
@@ -114,6 +115,7 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     UsersModule,
     RolesModule,
     CatalogsModule,
+    ServicesModule,
     WarehousesModule,
     InventoryModule,
     ProductsModule,

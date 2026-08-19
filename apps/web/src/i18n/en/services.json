@@ -1,0 +1,29 @@
+{
+  "nav": { "item": "Services" },
+  "page": { "title": "Services" },
+  "add": "New service",
+  "empty": "You haven't registered any services yet.",
+  "search": "Search service",
+  "searchPlaceholder": "Code or name…",
+  "status": "Status",
+  "active": "Active",
+  "inactive": "Inactive",
+  "deactivate": "Deactivate",
+  "reactivate": "Reactivate",
+  "form": {
+    "createTitle": "New service",
+    "editTitle": "Edit service",
+    "code": "Code",
+    "codeHint": "The short name you use to find it when charging.",
+    "name": "Name",
+    "description": "Description",
+    "cost": "Cost",
+    "price": "Price",
+    "priceHint": "What you charge for this service."
+  },
+  "delete": {
+    "title": "Delete \"{{name}}\"",
+    "body": "The service is deleted permanently. If you just want to stop offering it, deactivate it instead.",
+    "confirm": "Delete service"
+  }
+}

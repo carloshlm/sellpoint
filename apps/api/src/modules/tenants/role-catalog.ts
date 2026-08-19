@@ -65,7 +65,10 @@ const MANAGER_EXCLUDED_CODES = new Set([
   // un Manager; decidir que un faltante se da por perdido, no.
   "inventory:manage",
 ]);
-const POS_SELLER_CODES = new Set(["pos:sell", "products:read"]);
+// F3-SVC-02: `services:read` entra acá porque el POS de F4 vende servicios
+// además de mercancía, y sin leer el catálogo no habría qué vender. NO se le da
+// `services:manage`: cambiar un precio no es tarea de mostrador.
+const POS_SELLER_CODES = new Set(["pos:sell", "products:read", "services:read"]);
 
 /**
  * Dado el set de codes que EXISTE hoy en el catálogo global de permisos,

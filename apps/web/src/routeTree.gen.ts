@@ -24,6 +24,7 @@ import { Route as WarehousesRouteImport } from './routes/warehouses'
 import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
+import { Route as CatalogServicesRouteImport } from './routes/catalog.services'
 import { Route as MovementsCountsRouteImport } from './routes/movements.counts'
 import { Route as MovementsEntriesRouteImport } from './routes/movements.entries'
 import { Route as MovementsExitsRouteImport } from './routes/movements.exits'
@@ -108,6 +109,11 @@ const CatalogSchemaRoute = CatalogSchemaRouteImport.update({
   path: '/catalog/schema',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CatalogServicesRoute = CatalogServicesRouteImport.update({
+  id: '/catalog/services',
+  path: '/catalog/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MovementsCountsRoute = MovementsCountsRouteImport.update({
   id: '/movements/counts',
   path: '/movements/counts',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
+  '/catalog/services': typeof CatalogServicesRoute
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
+  '/catalog/services': typeof CatalogServicesRoute
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
@@ -217,6 +225,7 @@ export interface FileRoutesById {
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
+  '/catalog/services': typeof CatalogServicesRoute
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
+    | '/catalog/services'
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
+    | '/catalog/services'
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
+    | '/catalog/services'
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
@@ -320,6 +332,7 @@ export interface RootRouteChildren {
   CatalogListsRoute: typeof CatalogListsRoute
   CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
+  CatalogServicesRoute: typeof CatalogServicesRoute
   MovementsCountsRoute: typeof MovementsCountsRoute
   MovementsEntriesRoute: typeof MovementsEntriesRoute
   MovementsExitsRoute: typeof MovementsExitsRoute
@@ -437,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogSchemaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/catalog/services': {
+      id: '/catalog/services'
+      path: '/catalog/services'
+      fullPath: '/catalog/services'
+      preLoaderRoute: typeof CatalogServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/movements/counts': {
       id: '/movements/counts'
       path: '/movements/counts'
@@ -512,6 +532,7 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogListsRoute: CatalogListsRoute,
   CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
+  CatalogServicesRoute: CatalogServicesRoute,
   MovementsCountsRoute: MovementsCountsRoute,
   MovementsEntriesRoute: MovementsEntriesRoute,
   MovementsExitsRoute: MovementsExitsRoute,

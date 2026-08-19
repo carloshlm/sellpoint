@@ -1,0 +1,29 @@
+{
+  "nav": { "item": "Servicios" },
+  "page": { "title": "Servicios" },
+  "add": "Nuevo servicio",
+  "empty": "Todavía no registraste servicios.",
+  "search": "Buscar servicio",
+  "searchPlaceholder": "Código o nombre…",
+  "status": "Estado",
+  "active": "Activo",
+  "inactive": "Inactivo",
+  "deactivate": "Desactivar",
+  "reactivate": "Reactivar",
+  "form": {
+    "createTitle": "Nuevo servicio",
+    "editTitle": "Editar servicio",
+    "code": "Código",
+    "codeHint": "El nombre corto con el que lo buscas al cobrar.",
+    "name": "Nombre",
+    "description": "Descripción",
+    "cost": "Costo",
+    "price": "Precio",
+    "priceHint": "Lo que cobras por este servicio."
+  },
+  "delete": {
+    "title": "Eliminar «{{name}}»",
+    "body": "El servicio se borra y no se puede recuperar. Si solo quieres dejar de ofrecerlo, desactívalo.",
+    "confirm": "Eliminar servicio"
+  }
+}

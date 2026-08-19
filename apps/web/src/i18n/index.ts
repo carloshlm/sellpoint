@@ -8,6 +8,7 @@ import enCommon from "./en/common.json";
 import enInventory from "./en/inventory.json";
 import enOnboarding from "./en/onboarding.json";
 import enProducts from "./en/products.json";
+import enServices from "./en/services.json";
 import enUsers from "./en/users.json";
 import enValidation from "./en/validation.json";
 import enWarehouses from "./en/warehouses.json";
@@ -17,6 +18,7 @@ import esCommon from "./es/common.json";
 import esInventory from "./es/inventory.json";
 import esOnboarding from "./es/onboarding.json";
 import esProducts from "./es/products.json";
+import esServices from "./es/services.json";
 import esUsers from "./es/users.json";
 import esValidation from "./es/validation.json";
 import esWarehouses from "./es/warehouses.json";
@@ -52,6 +54,7 @@ const resources = {
       warehouses: esWarehouses,
       inventory: esInventory,
       products: esProducts,
+      services: esServices,
     },
   },
   en: {
@@ -65,6 +68,7 @@ const resources = {
       warehouses: enWarehouses,
       inventory: enInventory,
       products: enProducts,
+      services: enServices,
     },
   },
 };

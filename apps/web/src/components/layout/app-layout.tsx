@@ -13,6 +13,7 @@ import {
   Shield,
   User,
   Warehouse,
+  Wrench,
 } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
@@ -50,7 +51,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const canSeeProductsNav = has("products:read");
   const canSeeListsNav = has("catalogs:read");
   const canSeeSchemaNav = has("catalogs:manage");
-  const canSeeCatalogNav = canSeeProductsNav || canSeeListsNav || canSeeSchemaNav;
+  const canSeeServicesNav = has("services:read");
+  const canSeeCatalogNav =
+    canSeeProductsNav || canSeeServicesNav || canSeeListsNav || canSeeSchemaNav;
   const canSeeWarehousesNav = has("warehouses:read");
   // F3-NAV-02: los cinco listados de movimientos se ven con `inventory:read`.
   // El botón de CREAR, que exige `inventory:movement`, vive dentro de cada
@@ -117,6 +120,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <Package className="size-4 shrink-0" aria-hidden="true" />
                   {expanded && <span className="truncate">{t("catalogs.nav.products")}</span>}
+                </Link>
+              )}
+              {canSeeServicesNav && (
+                <Link
+                  to="/catalog/services"
+                  aria-label={t("services.nav.item")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Wrench className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("services.nav.item")}</span>}
                 </Link>
               )}
               {canSeeListsNav && (

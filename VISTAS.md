@@ -592,6 +592,70 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ---
 
+### 6.5 Servicios — Lista y alta
+
+**Ruta:** `/catalog/services` · **Permiso:** `services:read`
+
+> **Nuevo en F3-SVC (2026-08-19):** el catálogo de lo que el negocio **vende pero no almacena** — un corte de pelo, una reparación, una consulta. Tabla propia y no un producto con bandera: un servicio no tiene unidad base, ni lotes, ni stock, ni presentaciones, y nunca aparece en Entradas, Salidas, Conteos ni Kardex. El POS de F4 lo cobra igual que a un producto.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Catálogo › Servicios                     [➕ Nuevo servicio]   │
+│                                                                │
+│  Buscar servicio                                               │
+│  ┌──────────────────────────┐                                  │
+│  │ Código o nombre…         │                                  │
+│  └──────────────────────────┘                                  │
+│                                                                │
+│  │ Código │ Nombre          │ Costo │ Precio │ Estado │       │
+│  ├────────┼─────────────────┼───────┼────────┼────────┼───────┤│
+│  │ CORTE  │ Corte de cabello│  40   │  150   │ Activo │ ⋮     ││
+│  │ TINTE  │ Tinte completo  │ 120   │  450   │ Activo │ ⋮     ││
+│  │ MANI   │ Manicura        │  30   │  120   │Inactivo│ ⋮     ││
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Form (alta y edición, en línea sobre la tabla):**
+
+```
+┌──────────────────────────────────────────────┐
+│  Nuevo servicio                              │
+│                                              │
+│  Código *              Nombre *              │
+│  ┌──────────────┐      ┌──────────────────┐  │
+│  │ CORTE        │      │ Corte de cabello │  │
+│  └──────────────┘      └──────────────────┘  │
+│  El nombre corto con el                      │
+│  que lo buscas al cobrar.                    │
+│                                              │
+│  Descripción                                 │
+│  ┌────────────────────────────────────────┐  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  Costo                 Precio                │
+│  ┌──────────────┐      ┌──────────────────┐  │
+│  │ 40.00        │      │ 150.00           │  │
+│  └──────────────┘      └──────────────────┘  │
+│                        Lo que cobras por     │
+│                        este servicio.        │
+│                                              │
+│             [Guardar]  [Cancelar]            │
+└──────────────────────────────────────────────┘
+```
+
+**Acciones disponibles por rol**
+
+| Acción | TenantAdmin | Manager | POS_Seller | Viewer |
+|---|---|---|---|---|
+| Ver el catálogo | ✅ | ✅ | ✅ (para vender) | ✅ |
+| Crear / editar | ✅ | ✅ | ❌ | ❌ |
+| Desactivar | ✅ | ✅ | ❌ | ❌ |
+| Eliminar | ✅ | ✅ | ❌ | ❌ |
+
+**Desactivar vs eliminar:** desactivar lo esconde del POS y se deshace con un clic — **no pide confirmación**. Eliminar lo borra sin vuelta atrás y **sí** la pide, con el diálogo nombrando la alternativa. Cuando F4 traiga ventas, un servicio ya vendido dejará de poder eliminarse (409) y desactivar será la única salida.
+
+---
+
 ## 7. Almacenes
 
 **Ruta:** `/warehouses` · **Permiso:** `warehouses:read`

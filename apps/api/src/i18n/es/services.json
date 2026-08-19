@@ -1,0 +1,7 @@
+{
+  "not_found": "El servicio no existe.",
+  "code_taken": "Ya tienes un servicio con ese código.",
+  "empty_update": "No hay cambios que guardar.",
+  "invalid_body": "Los datos enviados no son válidos.",
+  "invalid_query": "Los filtros de búsqueda no son válidos."
+}

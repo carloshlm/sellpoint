@@ -106,4 +106,38 @@ describe("resolveRolePermissionCodes", () => {
       expect(result.POS_Seller).toEqual([]);
     });
   });
+
+  /**
+   * F3-SVC-02 — el catálogo de servicios.
+   *
+   * A diferencia de `inventory:manage`, gestionar servicios NO entra a
+   * `MANAGER_EXCLUDED_CODES`: dar de alta un corte de pelo o cambiarle el
+   * precio es tarea diaria, y nada de eso reescribe historia.
+   *
+   * La excepción real está en POS_Seller: es el ÚNICO set explícito, y sin
+   * `services:read` el vendedor no tendría qué vender cuando llegue F4.
+   */
+  describe("permisos de servicios (F3-SVC-02)", () => {
+    const CODES = ["services:read", "services:manage"];
+
+    it("TenantAdmin recibe los dos", () => {
+      expect(resolveRolePermissionCodes(CODES).TenantAdmin).toEqual(expect.arrayContaining(CODES));
+    });
+
+    it("Manager también los dos: gestionar servicios es tarea diaria", () => {
+      expect(resolveRolePermissionCodes(CODES).Manager).toEqual(expect.arrayContaining(CODES));
+    });
+
+    it("Viewer solo lee", () => {
+      expect(resolveRolePermissionCodes(CODES).Viewer).toEqual(["services:read"]);
+    });
+
+    it("POS_Seller LEE servicios: en F4 los vende, y sin leerlos no hay qué vender", () => {
+      const result = resolveRolePermissionCodes(CODES);
+
+      expect(result.POS_Seller).toEqual(["services:read"]);
+      // Pero no los administra: cambiar un precio no es tarea de mostrador.
+      expect(result.POS_Seller).not.toContain("services:manage");
+    });
+  });
 });
