@@ -10,6 +10,8 @@ import { DocumentsService } from "./documents.service";
 import { LotsController } from "./lots.controller";
 import { LotsService } from "./lots.service";
 import { StockLedgerService } from "./stock-ledger.service";
+import { TransfersController } from "./transfers.controller";
+import { TransfersService } from "./transfers.service";
 
 /**
  * F3-CORE-02 — el módulo de la Fase 3.
@@ -20,7 +22,7 @@ import { StockLedgerService } from "./stock-ledger.service";
  */
 @Module({
   imports: [AuditModule, ProductsModule],
-  controllers: [DocumentsController, LotsController],
+  controllers: [DocumentsController, LotsController, TransfersController],
   providers: [
     DocumentsService,
     DocumentLinesService,
@@ -29,6 +31,7 @@ import { StockLedgerService } from "./stock-ledger.service";
     ConfirmService,
     DocumentPdfService,
     LotsService,
+    TransfersService,
   ],
   exports: [
     DocumentsService,
@@ -38,6 +41,7 @@ import { StockLedgerService } from "./stock-ledger.service";
     ConfirmService,
     DocumentPdfService,
     LotsService,
+    TransfersService,
   ],
 })
 export class InventoryModule {}
