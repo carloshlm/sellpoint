@@ -157,6 +157,29 @@ export class DocumentsService {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const document = await this.assertDraft(tx, user.tenantId, documentId);
 
+      // En un documento que NACIÓ de un traspaso, DOS campos son derivados y
+      // el resto no. El motivo y el otro almacén los fijó `createReceiptDraft`
+      // desde el traspaso; cambiarlos deja una recepción que ya no apunta a
+      // ningún despacho. El agujero llegaba por la pantalla: el `<select>` de
+      // motivo no ofrece "Traspaso", así que quien intentaba corregir lo que
+      // veía solo podía elegir otro motivo — y ese patch limpia el
+      // `linked_warehouse_id` unas líneas más abajo.
+      //
+      // Lo que SÍ se edita, y por eso el bloqueo no puede ser de toda la
+      // cabecera: la NOTA, que es donde se explica el faltante ("llegaron 8 de
+      // 10"). Un primer intento bloqueó el PATCH entero y rompió justo ese
+      // caso — lo cazó el e2e de recepción con faltante. Las cantidades van
+      // por `DocumentLinesService`, no por acá.
+      if (document.transferId !== null) {
+        const tocaDerivados =
+          (dto.reasonCode !== undefined && dto.reasonCode !== document.reasonCode) ||
+          (dto.linkedWarehouseId !== undefined &&
+            dto.linkedWarehouseId !== document.linkedWarehouseId);
+        if (tocaDerivados) {
+          throw new ConflictException({ message: "inventory.transfer_header_locked" });
+        }
+      }
+
       // El destino se valida ACÁ aunque el resto de la cabecera no: un almacén
       // igual al origen o inexistente no es un estado "a medio llenar", es
       // imposible — y la base lo rechaza con un CHECK o una FK, que sin este

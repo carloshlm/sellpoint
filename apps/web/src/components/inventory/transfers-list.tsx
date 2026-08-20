@@ -135,15 +135,32 @@ export function TransfersList() {
                     )}
                   </td>
                   <td className="flex justify-end gap-2 py-2">
-                    {tab === "incoming" && has("inventory:movement") && (
-                      <button
-                        type="button"
-                        onClick={() => setRecibiendo(row)}
-                        className="rounded-md border border-input px-3 py-1.5 text-sm"
-                      >
-                        {t("inventory.transfers.receive")}
-                      </button>
-                    )}
+                    {/* Recepción ya empezada: el diálogo no tiene nada que
+                        anunciar —el borrador existe— y repetir "Recibir" hace
+                        parecer que el clic anterior se perdió. Se va derecho
+                        al documento, con su folio a la vista. */}
+                    {tab === "incoming" &&
+                      has("inventory:movement") &&
+                      (row.receipt === null ? (
+                        <button
+                          type="button"
+                          onClick={() => setRecibiendo(row)}
+                          className="rounded-md border border-input px-3 py-1.5 text-sm"
+                        >
+                          {t("inventory.transfers.receive")}
+                        </button>
+                      ) : (
+                        <Link
+                          to="/movements/documents/$documentId"
+                          params={{ documentId: row.receipt.id }}
+                          data-testid="continue-receipt"
+                          className="rounded-md border border-input px-3 py-1.5 text-sm"
+                        >
+                          {t("inventory.transfers.continueReceipt", {
+                            folio: row.receipt.folio,
+                          })}
+                        </Link>
+                      ))}
                     {has("inventory:manage") && (
                       <button
                         type="button"

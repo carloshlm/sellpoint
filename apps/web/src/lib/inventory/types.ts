@@ -120,6 +120,16 @@ export interface DocumentDetail extends DocumentSummary {
   reasonNote: string | null;
   authorizedBy: string | null;
   linkedWarehouseId: string | null;
+  /**
+   * El traspaso que ORIGINÓ este documento, si lo hay.
+   *
+   * No es un adorno: mientras no sea `null`, la cabecera **no es del usuario**.
+   * El motivo, el otro almacén y las líneas los dicta el traspaso, y la
+   * pantalla los muestra en vez de ofrecerlos. Una recepción nace con él; un
+   * despacho en borrador todavía no lo tiene (se sella al confirmar), así que
+   * ahí la cabecera sí se edita.
+   */
+  transferId: string | null;
   rows: DocumentRow[];
   products: DocumentProduct[];
   /** Solo en un conteo: el resumen de la reconciliación. */

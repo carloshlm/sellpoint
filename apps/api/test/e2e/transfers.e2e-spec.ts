@@ -899,4 +899,128 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       await cancelar(operario, transfer.id, { reason: "no debería poder" }).expect(403);
     });
   });
+
+  /**
+   * Tres defectos que salieron de recibir un traspaso de verdad en producción
+   * (SAL-000002 → ENT-000002) y que tienen una sola causa: la recepción se
+   * trataba como un documento cualquiera, cuando su cabecera es DERIVADA.
+   */
+  describe("La recepción es derivada, no editable", () => {
+    it("el borrador trae la caducidad del lote, para poder cotejarla contra la caja", async () => {
+      const { token, tenantId, central, norte } = await escenario();
+      const auth = () => ({ Authorization: bearer(token) });
+
+      const loteado = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.product.create({
+          data: {
+            tenantId,
+            sku: `LOT-${randomUUID().slice(0, 8)}`,
+            name: "Jarabe",
+            tracksLots: true,
+          },
+          select: { id: true },
+        }),
+      );
+
+      const nuevoDoc = async (
+        type: "entry" | "exit",
+        header: Record<string, unknown>,
+        wh: string,
+      ) => {
+        const res = await request(app.getHttpServer())
+          .post("/inventory/documents")
+          .set(auth())
+          .send({ type, warehouseId: wh })
+          .expect(201);
+        const id = (res.body as { id: string }).id;
+        await request(app.getHttpServer())
+          .patch(`/inventory/documents/${id}`)
+          .set(auth())
+          .send(header)
+          .expect(200);
+        return id;
+      };
+
+      // Carga con lote y caducidad en el origen.
+      const carga = await nuevoDoc(
+        "entry",
+        { reasonCode: "adjustment", reasonNote: "carga" },
+        central,
+      );
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${carga}/lines`)
+        .set(auth())
+        .send({ productId: loteado.id, quantity: 10, lotCode: "L-777", expiresAt: "2027-01-31" })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${carga}/confirm`)
+        .set(auth())
+        .send({})
+        .expect(201);
+
+      // Despacho por traspaso.
+      const salida = await nuevoDoc(
+        "exit",
+        { reasonCode: "transfer", linkedWarehouseId: norte },
+        central,
+      );
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${salida}/lines`)
+        .set(auth())
+        .send({ productId: loteado.id, quantity: 10 })
+        .expect(201);
+      const despachado = await request(app.getHttpServer())
+        .post(`/inventory/documents/${salida}/confirm`)
+        .set(auth())
+        .send({})
+        .expect(201);
+      const { transfer } = despachado.body as { transfer: { id: string } };
+
+      const borrador = await request(app.getHttpServer())
+        .post(`/transfers/${transfer.id}/receipt-draft`)
+        .set(auth())
+        .send({})
+        .expect(201);
+      const draftId = (borrador.body as { id: string }).id;
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${draftId}`)
+        .set(auth())
+        .expect(200);
+      const fila = (
+        detalle.body as { rows: { lotCode: string | null; expiresAt: string | null }[] }
+      ).rows[0];
+
+      expect(fila?.lotCode).toBe("L-777");
+      // Quien descarga el camión tiene que VER la fecha para cotejarla. Que el
+      // lote la tenga guardada no alcanza: recibir a ciegas es no recibir.
+      expect(fila?.expiresAt).not.toBeNull();
+      expect(String(fila?.expiresAt)).toContain("2027-01-31");
+    });
+
+    it("cambiarle el motivo a una recepción se rechaza: rompería el vínculo con el traspaso", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 5);
+
+      const borrador = await request(app.getHttpServer())
+        .post(`/transfers/${transfer.id}/receipt-draft`)
+        .set({ Authorization: bearer(token) })
+        .send({})
+        .expect(201);
+      const draftId = (borrador.body as { id: string }).id;
+
+      // Es el patch que mandaba la pantalla cuando alguien intentaba "corregir"
+      // el motivo que el `<select>` mostraba mal.
+      const res = await request(app.getHttpServer())
+        .patch(`/inventory/documents/${draftId}`)
+        .set({ Authorization: bearer(token) })
+        .send({ reasonCode: "adjustment" })
+        .expect(409);
+
+      // El mensaje llega TRADUCIDO, no como clave: `message-keys.spec.ts` ya
+      // garantiza que `inventory.transfer_header_locked` existe en los dos
+      // idiomas, así que acá se afirma lo que de verdad lee quien recibe.
+      expect((res.body as { message: string }).message).toContain("no se editan desde la entrada");
+    });
+  });
 });

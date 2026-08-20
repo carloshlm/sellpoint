@@ -27,6 +27,7 @@
   "transfer_same_warehouse": "The destination warehouse must be different from the origin.",
   "transfer_entry_requires_transfer": "A transfer entry is confirmed from the in-transit transfers view.",
   "transfer_not_in_transit": "This transfer was already received or canceled.",
+  "transfer_header_locked": "The reason and warehouse of a transfer are set by the transfer itself: they cannot be edited from the entry.",
   "transfer_wrong_destination": "This transfer isn't headed to this warehouse.",
   "transfer_lines_incomplete": "Some transfer line is missing confirmation.",
   "transfer_line_unknown": "One of the lines doesn't belong to this transfer.",

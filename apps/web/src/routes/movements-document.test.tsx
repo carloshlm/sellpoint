@@ -74,6 +74,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   reasonNote: "Sobrante de conteo",
   authorizedBy: null,
   linkedWarehouseId: null,
+  transferId: null,
   lineCount: 1,
   createdAt: "2026-08-18T19:42:00.000Z",
   createdBy: { id: "u1", firstName: "Ana", lastNamePaternal: "Pérez" },
@@ -282,5 +283,59 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       // Pero el PDF sí: auditar es leer.
       expect(screen.getByRole("button", { name: /pdf/i })).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * La cabecera de una recepción de traspaso es DERIVADA, no editable.
+ *
+ * El bug que esto cierra: el `<select>` de motivo no ofrece "Traspaso" —a
+ * propósito, para que nadie convierta una entrada común en traspaso sin que
+ * exista el traspaso—, así que un `<select>` controlado con `value="transfer"`
+ * caía a su primera opción y la recepción se anunciaba como "Factura de
+ * compra". Quien intentara corregir lo que veía solo podía elegir otro motivo,
+ * y ese PATCH suelta el `linkedWarehouseId`: la recepción quedaba sin traspaso.
+ */
+describe("Cabecera de una recepción de traspaso", () => {
+  const recepcion = () =>
+    detalle({
+      folio: "ENT-000002",
+      type: "entry",
+      transferId: "tr-1",
+      reasonCode: "transfer",
+      linkedWarehouseId: "w2",
+      warehouse: { id: "w1", name: "Almacén Sur" },
+    });
+
+  it("el motivo se MUESTRA como traspaso y no se puede cambiar", async () => {
+    mocked.getDocument.mockResolvedValue(recepcion());
+    await renderDoc();
+
+    expect(await screen.findByTestId("transfer-reason")).toHaveTextContent("Traspaso");
+    expect(screen.queryByLabelText(/motivo/i)).not.toBeInTheDocument();
+  });
+
+  it("el otro almacén se llama ORIGEN, porque es de donde vino la mercancía", async () => {
+    mocked.getDocument.mockResolvedValue(recepcion());
+    await renderDoc();
+
+    expect(await screen.findByText("Almacén origen")).toBeInTheDocument();
+    expect(screen.queryByText("Almacén destino")).not.toBeInTheDocument();
+  });
+
+  it("no se ofrece el selector de almacén: el traspaso ya lo fijó", async () => {
+    mocked.getDocument.mockResolvedValue(recepcion());
+    await renderDoc();
+
+    await screen.findByTestId("transfer-reason");
+    expect(document.getElementById("document-linked-warehouse")).toBeNull();
+  });
+
+  it("una entrada COMÚN sigue con su cabecera editable", async () => {
+    mocked.getDocument.mockResolvedValue(detalle({ transferId: null }));
+    await renderDoc();
+
+    expect(await screen.findByLabelText(/motivo/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("transfer-reason")).not.toBeInTheDocument();
   });
 });

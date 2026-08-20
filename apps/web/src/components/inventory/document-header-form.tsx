@@ -10,6 +10,7 @@ import {
 import { useUpdateDocumentHeader } from "@/lib/inventory/hooks";
 import type { DocumentDetail } from "@/lib/inventory/types";
 import { useUsers } from "@/lib/rbac/hooks";
+import { useWarehouses } from "@/lib/warehouses/hooks";
 import { WarehouseSelect } from "./warehouse-select";
 
 const DEBOUNCE_MS = 400;
@@ -35,6 +36,13 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
   const { t } = useTranslation();
   const guardar = useUpdateDocumentHeader(document.id);
   const reasons = selectableReasons(document.type);
+
+  // Un documento de traspaso no tiene cabecera EDITABLE: la tiene DERIVADA.
+  // Ver `CabeceraDeTraspaso` para por qué esto no es una comodidad sino un
+  // guardarraíl contra la pérdida del vínculo.
+  if (document.transferId !== null) {
+    return <CabeceraDeTraspaso document={document} />;
+  }
 
   const rules = document.reasonCode === null ? null : REASON_RULES[document.reasonCode];
   const muestraAutoriza =
@@ -94,6 +102,77 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
       {muestraAutoriza && <AutorizaSelect document={document} />}
 
       {rules?.requiresLinkedWarehouse && <DestinoSelect document={document} />}
+    </div>
+  );
+}
+
+/**
+ * La cabecera de un documento que NACIÓ de un traspaso: se muestra, no se pide.
+ *
+ * **Por qué no basta con agregar "Traspaso" al desplegable.** El `<select>`
+ * recibía `value="transfer"`, que no figura entre `SELECTABLE_ENTRY_REASONS`
+ * —y no figura a propósito: nadie debe poder convertir una entrada común en
+ * traspaso sin que exista el traspaso—. Un `<select>` controlado cuyo `value`
+ * no está entre sus opciones cae a la primera, así que la recepción se
+ * anunciaba como "Factura de compra". Peor todavía: quien intentara corregir
+ * lo que veía solo podía elegir `adjustment` o `customer_return`, y ese PATCH
+ * suelta el `linked_warehouse_id` y **rompe el vínculo con el traspaso**.
+ *
+ * Entonces la regla no es cosmética: mientras haya `transfer_id`, el motivo y
+ * el otro almacén son datos DERIVADOS, y un dato derivado no es un campo. El
+ * API lo rechaza igual (`inventory.transfer_header_locked`) — esto de acá solo
+ * evita ofrecer lo que allá se niega.
+ *
+ * **El otro almacén cambia de nombre según el lado.** En la ENTRADA es de
+ * DONDE VINO la mercancía; en la salida es a DÓNDE VA. Llamarlo "destino" en
+ * los dos casos —como se hacía— le decía a quien recibía en Almacén Sur que su
+ * destino era Almacén Central.
+ */
+function CabeceraDeTraspaso({ document }: { document: DocumentDetail }) {
+  const { t } = useTranslation();
+  const almacenes = useWarehouses();
+
+  const otro = (almacenes.data ?? []).find((w) => w.id === document.linkedWarehouseId);
+  const esRecepcion = document.type === "entry";
+
+  return (
+    <div className="flex flex-wrap items-start gap-4 rounded-md border border-input p-4">
+      <Dato label={t("inventory.document.reason")} testId="transfer-reason">
+        {t("inventory.reason.transfer")}
+      </Dato>
+
+      <Dato
+        label={t(
+          esRecepcion ? "inventory.document.originWarehouse" : "inventory.document.linkedWarehouse",
+        )}
+        testId="transfer-linked-warehouse"
+      >
+        {otro?.name ?? "—"}
+      </Dato>
+
+      <p className="w-full text-muted-foreground text-xs">
+        {t(esRecepcion ? "inventory.document.receptionHint" : "inventory.document.transferHint")}
+      </p>
+    </div>
+  );
+}
+
+/** Un valor que se lee. Mismo espaciado que `Campo`, sin control ni `<label>`. */
+function Dato({
+  label,
+  testId,
+  children,
+}: {
+  label: string;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-52 flex-1 flex-col gap-1">
+      <span className="font-medium text-sm">{label}</span>
+      <span data-testid={testId} className="py-2 text-sm">
+        {children}
+      </span>
     </div>
   );
 }

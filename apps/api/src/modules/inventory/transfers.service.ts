@@ -93,14 +93,18 @@ export class TransfersService {
               destination: { select: { id: true, name: true } },
               creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
               _count: { select: { lines: true } },
-              // El folio del DESPACHO: un traspaso no tiene serie propia. Los
-              // documentos de un traspaso son dos —la salida que lo despacha y
-              // la entrada que lo recibe—, así que se filtra por tipo.
+              // Los DOS documentos del traspaso: la salida que lo despacha y,
+              // si ya alguien empezó a recibir, la entrada en borrador. Un
+              // traspaso no tiene serie propia, por eso se distinguen por tipo.
+              //
+              // La entrada se trae para no MENTIR en la lista: el traspaso
+              // sigue "en tránsito" hasta que esa entrada se CONFIRMA —y está
+              // bien que así sea, porque antes de contar lo que llegó nada
+              // debe sumar en el destino—, pero un botón que sigue diciendo
+              // "Recibir" hace parecer que el clic anterior no hizo nada.
               documents: {
-                where: { type: "exit" },
-                select: { id: true, folio: true },
+                select: { id: true, folio: true, type: true },
                 orderBy: { createdAt: "asc" },
-                take: 1,
               },
             },
           }),
@@ -127,12 +131,15 @@ export class TransfersService {
           0,
           Math.floor((ahora - row.createdAt.getTime()) / MS_POR_DIA),
         );
-        const despacho = row.documents[0];
+        const despacho = row.documents.find((d) => d.type === "exit");
+        const recepcion = row.documents.find((d) => d.type === "entry");
 
         return {
           id: row.id,
           documentId: despacho?.id ?? null,
           folio: despacho?.folio ?? null,
+          /** El borrador de recepción, si alguien ya lo abrió. */
+          receipt: recepcion ? { id: recepcion.id, folio: recepcion.folio } : null,
           status: row.status,
           origin: row.origin,
           destination: row.destination,
@@ -415,7 +422,7 @@ export class TransfersService {
             select: {
               productId: true,
               quantitySent: true,
-              lot: { select: { lotCode: true } },
+              lot: { select: { lotCode: true, expiresAt: true } },
             },
           },
         },
@@ -459,6 +466,13 @@ export class TransfersService {
               productId: line.productId,
               quantity: line.quantitySent,
               lotCode: line.lot?.lotCode ?? null,
+              // La caducidad viaja con el lote, así que al confirmar se
+              // resolvería igual desde `product_lots` — pero quien descarga el
+              // camión necesita VERLA para cotejarla contra la caja física.
+              // Recibir mercancía controlada sin poder mirar la fecha es no
+              // recibirla. Va la del lote, no una que el receptor teclee: si
+              // difieren, `resolveLot` corta con `lot_expiry_mismatch`.
+              expiresAt: line.lot?.expiresAt ?? null,
             })),
           },
         },

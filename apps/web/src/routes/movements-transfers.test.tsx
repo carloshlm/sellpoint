@@ -58,6 +58,7 @@ const fila = (overrides: Partial<TransferRow> = {}): TransferRow => ({
   destination: { id: "w2", name: "Central" },
   createdAt: "2026-08-16T10:00:00.000Z",
   createdBy: { id: "u9", name: "María López" },
+  receipt: null,
   lineCount: 3,
   daysInTransit: 1,
   isStale: false,
@@ -329,5 +330,34 @@ describe("Cancelar un traspaso (F3-TRANSFER-07)", () => {
     await waitFor(() => {
       expect(mocked.cancelTransfer).toHaveBeenCalledWith("tr-1", "El camión nunca salió del patio");
     });
+  });
+});
+
+/**
+ * El traspaso NO se cierra al crear el borrador de recepción: se cierra al
+ * CONFIRMARLO, porque hasta entonces nadie contó lo que llegó. Eso es correcto
+ * y no se toca. Lo que estaba mal era la pantalla: seguía ofreciendo "Recibir"
+ * como si el clic anterior no hubiera hecho nada, y quien recibía volvía a
+ * apretarlo esperando otra cosa.
+ */
+describe("Recepción ya empezada", () => {
+  it("con borrador abierto, el botón lleva a ese documento en vez de ofrecer recibir de nuevo", async () => {
+    mocked.listTransfers.mockResolvedValue(
+      pagina([fila({ receipt: { id: "doc-ent-2", folio: "ENT-000002" } })]),
+    );
+    await renderTransfers();
+
+    const continuar = await screen.findByTestId("continue-receipt");
+    expect(continuar).toHaveTextContent("ENT-000002");
+    expect(continuar).toHaveAttribute("href", "/movements/documents/doc-ent-2");
+    expect(screen.queryByRole("button", { name: /^recibir$/i })).not.toBeInTheDocument();
+  });
+
+  it("sin borrador, el botón de recibir sigue estando", async () => {
+    mocked.listTransfers.mockResolvedValue(pagina([fila({ receipt: null })]));
+    await renderTransfers();
+
+    expect(await screen.findByRole("button", { name: /^recibir$/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("continue-receipt")).not.toBeInTheDocument();
   });
 });

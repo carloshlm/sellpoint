@@ -13,6 +13,14 @@ export interface TransferRow {
   destination: { id: string; name: string };
   createdAt: string;
   createdBy: { id: string; name: string };
+  /**
+   * El borrador de recepción, si alguien ya lo abrió.
+   *
+   * Que exista NO cierra el traspaso: sigue en tránsito hasta que esa entrada
+   * se confirme, porque hasta entonces nadie contó lo que llegó. Sirve para
+   * que el botón deje de decir "Recibir" cuando la recepción ya empezó.
+   */
+  receipt: { id: string; folio: string } | null;
   lineCount: number;
   daysInTransit: number;
   /** Más de una semana en viaje: el aviso de "revisá si llegó". */

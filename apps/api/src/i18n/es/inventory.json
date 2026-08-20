@@ -27,6 +27,7 @@
   "transfer_same_warehouse": "El almacén destino tiene que ser distinto del origen.",
   "transfer_entry_requires_transfer": "Una entrada por traspaso se confirma desde la vista de traspasos en tránsito.",
   "transfer_not_in_transit": "Este traspaso ya fue recibido o cancelado.",
+  "transfer_header_locked": "El motivo y el almacén de un traspaso los define el traspaso: no se editan desde la entrada.",
   "transfer_wrong_destination": "Este traspaso no viene hacia este almacén.",
   "transfer_lines_incomplete": "Falta confirmar alguna línea del traspaso.",
   "transfer_line_unknown": "Una de las líneas no pertenece a este traspaso.",
