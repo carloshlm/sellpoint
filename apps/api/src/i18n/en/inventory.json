@@ -20,6 +20,8 @@
   "composite_has_no_stock": "A composite product has no stock of its own: it's assembled when sold or consumed.",
   "composite_without_composition": "This composite product has no components defined.",
   "insufficient_stock": "Not enough stock of \"{sku}\": there are {available} and {requested} were requested.",
+  "expired_lot_not_sellable": "Lot {{lotCode}} of {{sku}} expired on {{expiresAt}}: it cannot be sold. Use an expiry write-off to remove it from inventory.",
+  "expired_stock_not_sellable": "{{sku}} has {{expired}} in stock, but it is expired: it cannot be sold. Use an expiry write-off to remove it from inventory.",
   "lot_required": "This product is tracked by lot: please indicate which one.",
   "lot_not_tracked": "This product isn't tracked by lot.",
   "lot_expiry_mismatch": "Lot \"{lotCode}\" already exists with a different expiry date.",

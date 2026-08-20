@@ -248,4 +248,58 @@ describe("resolveLines (F3-CORE-04)", () => {
 
     expect(lines).toHaveLength(3);
   });
+
+  /**
+   * La otra puerta del bloqueo de vencidos. FEFO ya se niega a ELEGIR un lote
+   * caducado para una venta, pero eso solo cubre las líneas sin lote. Si esto
+   * no estuviera, bastaría con teclear el código del lote para saltarse la
+   * regla — y quien lo teclea suele ser justo quien tiene apuro por sacarlo.
+   */
+  describe("un lote vencido elegido A MANO tampoco se vende", () => {
+    const codigo = `cad-${Date.now()}`;
+
+    beforeAll(async () => {
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.create({
+          data: {
+            tenantId,
+            productId: loteadoId,
+            lotCode: codigo,
+            expiresAt: new Date("2020-01-01"),
+          },
+        }),
+      );
+    });
+
+    it("con motivo `sale` lo rechaza aunque el usuario lo haya escrito", async () => {
+      await expect(
+        resolve([{ productId: loteadoId, quantity: 1, lotCode: codigo }], {
+          direction: "exit",
+          reasonCode: "sale",
+        }),
+      ).rejects.toMatchObject({
+        response: { message: "inventory.expired_lot_not_sellable" },
+      });
+    });
+
+    it("con motivo `expired` lo acepta: es el camino para darlo de baja", async () => {
+      const [line] = await resolve([{ productId: loteadoId, quantity: 1, lotCode: codigo }], {
+        direction: "exit",
+        reasonCode: "expired",
+      });
+
+      // En modo `strict` un problema se lanza, no se acumula: que la llamada
+      // devuelva la línea con su `lotId` YA prueba que no lo rechazó.
+      expect(line?.lotId).toBeDefined();
+    });
+
+    it("con motivo `transfer` también lo acepta", async () => {
+      const [line] = await resolve([{ productId: loteadoId, quantity: 1, lotCode: codigo }], {
+        direction: "exit",
+        reasonCode: "transfer",
+      });
+
+      expect(line?.lotId).toBeDefined();
+    });
+  });
 });

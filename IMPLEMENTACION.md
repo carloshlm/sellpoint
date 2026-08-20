@@ -2404,9 +2404,10 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 - [ ] **F4-QUOTE-01** — API de cotización: crear, listar, cancelar
   - **Salida:** `POST /pos/quotes` (**`pos:quote`**, SIN turno): almacén = el asignado del cotizador (o elegido dentro de su alcance), folio `COT` en la tx de creación, líneas producto/servicio con **precio de referencia** tomado del catálogo server-side; `GET /pos/quotes` (lista con búsqueda por folio) y `GET /pos/quotes/:id`; `POST /pos/quotes/:id/cancel`; una cotización NO escribe un solo `stock_movement` ni exige caja — es una lista con folio, no una operación
-  - **Verificar:** e2e: cotizar sin turno abierto funciona; folio `COT-000001` y la serie avanza; el stock NO cambió; sin `pos:quote` → 403; aislamiento entre tenants
+  - **Verificar:** e2e: cotizar sin turno abierto funciona; folio `COT-000001` y la serie avanza; el stock NO cambió; sin `pos:quote` → 403; aislamiento entre tenants; **un producto cuyo único stock está vencido NO se puede cotizar**
   - **Depende de:** F4-DB-02, F4-DB-03
   - **Estimación:** 2.5 h
+  - **Hereda una regla del ledger (2026-08-20):** "no puedes vender un producto vencido, y por ahora sólo se bloquea para venta y cotización" (Carlos). La VENTA ya está cubierta desde F3: `REASONS_REJECTING_EXPIRED_LOTS` en `@sellpoint/shared` hace que FEFO no elija un lote caducado y que el resolver rechace uno elegido a mano. La COTIZACIÓN **no pasa por ahí** —no genera movimiento de inventario, así que no tiene `reason_code`—, de modo que su bloqueo hay que ponerlo en la disponibilidad que consulta esta tarea. Es el único lado de la regla que F3 no pudo cerrar.
 
 - [ ] **F4-QUOTE-02** — Cargar la cotización en la venta: el recálculo
   - **Salida:** `GET /pos/quotes/folio/:folio/for-sale` (**`pos:sell`**, turno abierto): devuelve las líneas con **precios RECALCULADOS del catálogo vigente** (decisión de Carlos: la cotización no congela precios) y la **disponibilidad contra el almacén del TURNO** — faltantes y servicios no ofrecidos ahí vienen marcados, no escondidos; al cobrar, `Sale.quote_id` se vincula y la quote pasa a `loaded`; una `loaded` o `canceled` no se carga de nuevo (409)

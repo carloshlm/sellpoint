@@ -1,4 +1,5 @@
 import { UnprocessableEntityException } from "@nestjs/common";
+import { type MovementReason, rejectsExpiredLots } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import type { ExpandedLine } from "./composition-expander";
 
@@ -54,6 +55,15 @@ export interface FefoLinePlan {
   takes: FefoTake[];
   /** `0` si el reparto se completó. */
   shortfall: Prisma.Decimal;
+  /**
+   * Cuánto había, pero VENCIDO, y por eso no se tomó.
+   *
+   * Sin este dato el faltante mentiría: diría "disponible 0" mientras el
+   * anaquel tiene doce cajas a la vista. Quien lee eso concluye que el sistema
+   * está roto. Con el dato, el mensaje puede decir la verdad —hay stock, está
+   * vencido— y hacia dónde ir.
+   */
+  expiredSkipped: Prisma.Decimal;
 }
 
 /**
@@ -92,6 +102,19 @@ async function fetchCandidates(
 }
 
 /**
+ * Medianoche de hoy en UTC.
+ *
+ * La comparación con `<` y no con `<=` es deliberada: **el día que vence, el
+ * lote todavía sirve**. Un producto que caduca hoy se puede vender hoy; recién
+ * mañana está vencido. Mismo criterio que la pestaña de existencias.
+ */
+function comienzoDelDiaUtc(): Date {
+  const hoy = new Date();
+  hoy.setUTCHours(0, 0, 0, 0);
+  return hoy;
+}
+
+/**
  * **El reparto, y NADA más.** Función pura: no consulta, no tira excepciones,
  * no escribe. Devuelve de qué lote sale cada línea y cuánto faltó.
  *
@@ -106,14 +129,37 @@ async function fetchCandidates(
 export function allocateFefo(
   candidatesByProduct: Map<string, LotCandidate[]>,
   lines: { lineIndex: number; productId: string; quantityBase: Prisma.Decimal }[],
+  options: { excludeExpired?: boolean } = {},
 ): FefoLinePlan[] {
   // Lo ya comprometido por líneas anteriores del MISMO movimiento: dos líneas
   // del mismo producto no pueden repartirse el mismo saldo dos veces.
   const comprometido = new Map<string, Prisma.Decimal>();
   const planes: FefoLinePlan[] = [];
+  const hoy = comienzoDelDiaUtc();
 
   for (const line of lines) {
-    const candidatos = candidatesByProduct.get(line.productId) ?? [];
+    // `todos` vs `candidatos` NO es una sutileza de estilo: el `shortfall` de
+    // abajo distingue "este producto no lleva lotes" de "sí lleva, pero todos
+    // están vencidos" mirando `todos`. Si el filtro se aplicara antes, un
+    // producto con TODO su stock caducado se vería igual que uno sin lotes y
+    // FEFO no reportaría faltante — la venta pasaría sin lote asignado.
+    const todos = candidatesByProduct.get(line.productId) ?? [];
+    const candidatos =
+      options.excludeExpired === true
+        ? todos.filter((c) => c.expires_at === null || c.expires_at >= hoy)
+        : todos;
+
+    // Lo que había pero estaba vencido. Solo cuenta lo que aún no comprometió
+    // otra línea del mismo movimiento.
+    let vencidoOmitido = new Prisma.Decimal(0);
+    if (options.excludeExpired === true) {
+      for (const c of todos) {
+        if (c.expires_at !== null && c.expires_at < hoy) {
+          vencidoOmitido = vencidoOmitido.plus(new Prisma.Decimal(c.quantity));
+        }
+      }
+    }
+
     const takes: FefoTake[] = [];
     let restante = line.quantityBase;
 
@@ -146,7 +192,10 @@ export function allocateFefo(
       takes,
       // Un producto SIN lotes no es un faltante: simplemente no es asunto de
       // FEFO. Si controla lotes y no hay saldo, lo rechaza el ledger al validar.
-      shortfall: candidatos.length === 0 ? new Prisma.Decimal(0) : restante,
+      // Se mira `todos` y no `candidatos` justamente para que "sí lleva lotes,
+      // pero están todos vencidos" SÍ cuente como faltante.
+      shortfall: todos.length === 0 ? new Prisma.Decimal(0) : restante,
+      expiredSkipped: vencidoOmitido,
     });
   }
 
@@ -165,6 +214,7 @@ export async function planLotsFefo(
   tenantId: string,
   warehouseId: string,
   lines: { lineIndex: number; productId: string; quantityBase: Prisma.Decimal }[],
+  reasonCode?: MovementReason | null,
 ): Promise<FefoLinePlan[]> {
   if (lines.length === 0) {
     return [];
@@ -172,7 +222,7 @@ export async function planLotsFefo(
   const candidatos = await fetchCandidates(tx, tenantId, warehouseId, [
     ...new Set(lines.map((l) => l.productId)),
   ]);
-  return allocateFefo(candidatos, lines);
+  return allocateFefo(candidatos, lines, { excludeExpired: rejectsExpiredLots(reasonCode) });
 }
 
 export async function resolveLotsFefo(
@@ -180,6 +230,7 @@ export async function resolveLotsFefo(
   tenantId: string,
   warehouseId: string,
   lines: ExpandedLine[],
+  reasonCode?: MovementReason | null,
 ): Promise<ExpandedLine[]> {
   // Solo las líneas que NO traen lote forzado necesitan reparto. El resto
   // pasa tal cual: si el usuario eligió un lote, sabe algo que el sistema no.
@@ -201,6 +252,7 @@ export async function resolveLotsFefo(
       productId: line.productId,
       quantityBase: line.quantityBase,
     })),
+    { excludeExpired: rejectsExpiredLots(reasonCode) },
   );
 
   const resultado: ExpandedLine[] = [];
@@ -216,6 +268,25 @@ export async function resolveLotsFefo(
     siguiente += 1;
 
     if (plan.shortfall.greaterThan(0)) {
+      // Decir "no hay stock" cuando el anaquel tiene doce cajas a la vista es
+      // la peor forma de tener razón: quien lo lee concluye que el sistema
+      // está roto y termina vendiéndolo por fuera. Si lo que falta es
+      // exactamente lo que se omitió por vencido, el mensaje lo dice y apunta
+      // a la salida por caducado.
+      if (plan.expiredSkipped.greaterThan(0)) {
+        throw new UnprocessableEntityException({
+          message: "inventory.expired_stock_not_sellable",
+          args: {
+            productId: line.productId,
+            sku: line.sku,
+            expired: plan.expiredSkipped.toString(),
+            available: line.quantityBase.minus(plan.shortfall).toString(),
+            requested: line.quantityBase.toString(),
+            lineIndex: line.lineIndex,
+          },
+        });
+      }
+
       throw new UnprocessableEntityException({
         message: "inventory.insufficient_stock",
         args: {

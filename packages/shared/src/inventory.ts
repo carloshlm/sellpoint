@@ -91,6 +91,36 @@ export const SELECTABLE_EXIT_REASONS = [
   "expired",
 ] as const;
 
+/**
+ * Los motivos que NO pueden mover un lote **vencido**.
+ *
+ * "No puedes vender un producto vencido" (Carlos, 2026-08-20). La lista es
+ * corta a propósito, y lo que NO está en ella importa tanto como lo que está:
+ *
+ *  · `expired` existe justamente para desechar lo caducado — bloquearlo dejaría
+ *    la mercancía vencida encerrada en el sistema para siempre;
+ *  · `adjustment` y `physical_count` tienen que poder tocar cualquier lote, o
+ *    un conteo físico no podría cuadrar nunca contra lo que hay en el anaquel;
+ *  · `loss` es la merma, que es a dónde va lo caducado cuando no se usó el
+ *    motivo específico;
+ *  · `transfer` queda FUERA por decisión de Carlos: concentrar lo vencido en el
+ *    CEDIS para devolverlo al proveedor o destruirlo es un flujo legítimo.
+ *
+ * La COTIZACIÓN de F4 también tiene que respetar esta regla, pero no entra acá:
+ * una cotización no genera movimiento de inventario, así que su bloqueo va en
+ * el lookup de disponibilidad (`F4-QUOTE`), no en un motivo.
+ */
+export const REASONS_REJECTING_EXPIRED_LOTS = ["sale"] as const;
+
+/** ¿Este motivo tiene prohibido tocar un lote vencido? */
+export function rejectsExpiredLots(reason: MovementReason | null | undefined): boolean {
+  return (
+    reason !== null &&
+    reason !== undefined &&
+    (REASONS_REJECTING_EXPIRED_LOTS as readonly string[]).includes(reason)
+  );
+}
+
 export interface ReasonRules {
   /** Nº de documento, orden, área o concepto — según el motivo. */
   requiresReference: boolean;

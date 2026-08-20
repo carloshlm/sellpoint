@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import type { MovementReason } from "@sellpoint/shared";
 import type { Env } from "../../config/env.schema";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -87,8 +88,10 @@ describe("resolveLotsFefo (F3-CORE-08)", () => {
     ...extra,
   });
 
-  const fefo = (lines: ResolvedLine[]) =>
-    prisma.withTenantContext(tenantId, (tx) => resolveLotsFefo(tx, tenantId, warehouseId, lines));
+  const fefo = (lines: ResolvedLine[], reasonCode?: MovementReason) =>
+    prisma.withTenantContext(tenantId, (tx) =>
+      resolveLotsFefo(tx, tenantId, warehouseId, lines, reasonCode),
+    );
 
   it("el ejemplo de Carlos: salida de 1 sale del lote que vence el 01/07", async () => {
     const result = await fefo([linea(1)]);
@@ -150,5 +153,88 @@ describe("resolveLotsFefo (F3-CORE-08)", () => {
     const result = await fefo([linea(12)]);
 
     expect(result.every((r) => r.lineIndex === 0)).toBe(true);
+  });
+
+  /**
+   * "No puedes vender un producto vencido" (Carlos, 2026-08-20).
+   *
+   * El agujero era silencioso y peor que un error: FEFO ordena por caducidad
+   * ASCENDENTE, así que el lote VENCIDO era literalmente el PRIMERO que
+   * elegía. El sistema no es que permitiera vender caducado — es que lo
+   * prefería.
+   *
+   * El bloqueo se aplica SOLO a los motivos de `REASONS_REJECTING_EXPIRED_LOTS`.
+   * `expired`, `loss`, `adjustment`, `physical_count` y `transfer` siguen
+   * pudiendo mover lo vencido, o la mercancía caducada quedaría encerrada en el
+   * sistema sin forma de darla de baja ni de cuadrar un conteo.
+   */
+  describe("Un lote vencido no se vende", () => {
+    /** `st10` vence el 01/07/2026: para hoy ya es pasado. */
+    it("con motivo `sale` FEFO salta el vencido y toma el siguiente", async () => {
+      const result = await fefo([linea(1)], "sale");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]?.lotId).toBe(st30);
+      expect(result[0]?.lotId).not.toBe(st10);
+    });
+
+    it("con motivo `expired` sigue tomando el vencido: es justo para lo que existe", async () => {
+      const result = await fefo([linea(1)], "expired");
+
+      expect(result[0]?.lotId).toBe(st10);
+    });
+
+    it("con motivo `transfer` también lo toma: Carlos lo dejó fuera del bloqueo", async () => {
+      const result = await fefo([linea(1)], "transfer");
+
+      expect(result[0]?.lotId).toBe(st10);
+    });
+
+    /**
+     * El mensaje importa tanto como el bloqueo. "No hay stock" con doce cajas
+     * en el anaquel hace que la persona concluya que el sistema está roto.
+     */
+    it("si TODO el stock está vencido, el error dice que está vencido y no que falta", async () => {
+      const stamp = Date.now();
+      const { otroProducto, otroAlmacen } = await prisma.withTenantContext(tenantId, async (tx) => {
+        const product = await tx.product.create({
+          data: { tenantId, sku: `CAD-${stamp}`, name: "Todo vencido", tracksLots: true },
+        });
+        const warehouse = await tx.warehouse.create({
+          data: { tenantId, name: `Cad ${stamp}` },
+        });
+        const lot = await tx.productLot.create({
+          data: {
+            tenantId,
+            productId: product.id,
+            lotCode: `viejo-${stamp}`,
+            expiresAt: new Date("2020-01-01"),
+          },
+        });
+        await tx.stockLot.create({
+          data: {
+            tenantId,
+            lotId: lot.id,
+            warehouseId: warehouse.id,
+            location: "",
+            quantity: 12,
+          },
+        });
+        return { otroProducto: product.id, otroAlmacen: warehouse.id };
+      });
+
+      const lineas = [linea(3, { productId: otroProducto, sku: "CAD" })];
+
+      await expect(
+        prisma.withTenantContext(tenantId, (tx) =>
+          resolveLotsFefo(tx, tenantId, otroAlmacen, lineas, "sale"),
+        ),
+      ).rejects.toMatchObject({
+        response: {
+          message: "inventory.expired_stock_not_sellable",
+          args: expect.objectContaining({ expired: "12" }),
+        },
+      });
+    });
   });
 });

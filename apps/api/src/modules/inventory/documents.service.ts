@@ -406,6 +406,10 @@ export class DocumentsService {
             productId: item.line.productId,
             quantityBase: item.res?.quantityBase ?? new Prisma.Decimal(0),
           })),
+          // El MISMO motivo que usará el confirm. Sin esto, una venta vería en
+          // la previa un lote vencido que después el confirm se niega a tomar
+          // — y la previa existe justamente para que eso no pase.
+          document.reasonCode,
         );
         for (const plan of planes) {
           if (plan.takes.length > 0) {

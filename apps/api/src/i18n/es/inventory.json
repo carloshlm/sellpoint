@@ -20,6 +20,8 @@
   "composite_has_no_stock": "Un producto compuesto no tiene existencias propias: se arma al venderlo o consumirlo.",
   "composite_without_composition": "Este producto compuesto no tiene componentes definidos.",
   "insufficient_stock": "No hay suficiente existencia de «{sku}»: hay {available} y se piden {requested}.",
+  "expired_lot_not_sellable": "El lote {{lotCode}} de {{sku}} venció el {{expiresAt}}: no se puede vender. Para sacarlo del inventario usa una salida por caducado.",
+  "expired_stock_not_sellable": "De {{sku}} hay {{expired}} en existencia, pero está vencido: no se puede vender. Para sacarlo del inventario usa una salida por caducado.",
   "lot_required": "Este producto se controla por lote: falta indicar cuál.",
   "lot_not_tracked": "Este producto no se controla por lote.",
   "lot_expiry_mismatch": "El lote «{lotCode}» ya existe con otra fecha de caducidad.",

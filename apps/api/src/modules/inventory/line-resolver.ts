@@ -1,5 +1,5 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
-import type { MovementDirection, MovementReason } from "@sellpoint/shared";
+import { type MovementDirection, type MovementReason, rejectsExpiredLots } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 
 /** Lo que el usuario capturó, antes de resolverse contra el catálogo. */
@@ -345,6 +345,34 @@ async function resolveLot(
         args: { lotCode, lineIndex, field: "expiresAt" },
       });
     }
+    // Elegir el lote a mano NO es una llave maestra. FEFO ya se niega a tomar
+    // un vencido para una venta; si esto no estuviera, bastaría con teclear el
+    // código del lote para saltarse la regla — y quien lo teclea suele ser
+    // justo quien tiene apuro por sacarlo.
+    //
+    // Solo se mira acá, en el camino del `lotCode`: `lotId` no está en el DTO,
+    // así que no hay forma de llegar por ese lado desde afuera.
+    if (
+      options.direction === "exit" &&
+      rejectsExpiredLots(options.reasonCode) &&
+      existing.expiresAt !== null
+    ) {
+      const hoy = new Date();
+      hoy.setUTCHours(0, 0, 0, 0);
+      if (existing.expiresAt < hoy) {
+        throw new UnprocessableEntityException({
+          message: "inventory.expired_lot_not_sellable",
+          args: {
+            sku: product.sku,
+            lotCode,
+            expiresAt: existing.expiresAt.toISOString().slice(0, 10),
+            lineIndex,
+            field: "lotCode",
+          },
+        });
+      }
+    }
+
     return { lotId: existing.id, location };
   }
 

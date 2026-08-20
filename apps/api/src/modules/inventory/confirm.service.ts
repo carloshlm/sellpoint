@@ -101,7 +101,7 @@ export class ConfirmService {
       // 3. FEFO: las salidas sin lote elegido salen del que vence antes.
       const conLotes =
         direction === "exit"
-          ? await resolveLotsFefo(tx, user.tenantId, document.warehouseId, expanded)
+          ? await resolveLotsFefo(tx, user.tenantId, document.warehouseId, expanded, reasonCode)
           : expanded;
 
       // 4. El traspaso, ANTES de asentar y de sellar. El orden importa dos
