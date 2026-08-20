@@ -21,7 +21,7 @@ describe("expandComposition (F3-CORE-06)", () => {
   let azucarId: string;
   let vasoId: string;
   let comboId: string;
-  let sinRecetaId: string;
+  let sinComposicionId: string;
 
   beforeAll(async () => {
     prisma = new PrismaService(
@@ -37,7 +37,7 @@ describe("expandComposition (F3-CORE-06)", () => {
       const nuevo = (sku: string, name: string, isComposite = false) =>
         tx.product.create({ data: { tenantId, sku: `${sku}-${stamp}`, name, isComposite } });
 
-      const [azucar, vaso, cafe, combo, sinReceta] = await Promise.all([
+      const [azucar, vaso, cafe, combo, sinComposicion] = await Promise.all([
         nuevo("AZU", "Azúcar"),
         nuevo("VAS", "Vaso"),
         nuevo("CAF", "Café", true),
@@ -67,7 +67,7 @@ describe("expandComposition (F3-CORE-06)", () => {
       vasoId = vaso.id;
       cafeId = cafe.id;
       comboId = combo.id;
-      sinRecetaId = sinReceta.id;
+      sinComposicionId = sinComposicion.id;
     });
   });
 
@@ -141,7 +141,7 @@ describe("expandComposition (F3-CORE-06)", () => {
   });
 
   it("un compuesto sin componentes definidos se rechaza en vez de descontar nada", async () => {
-    await expect(expand([linea(sinRecetaId, 1)])).rejects.toThrow(ConflictException);
+    await expect(expand([linea(sinComposicionId, 1)])).rejects.toThrow(ConflictException);
   });
 
   it("las líneas que no son compuestas pasan de largo", async () => {

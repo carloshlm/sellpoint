@@ -32,6 +32,11 @@ const RLS_TABLES = [
   "transfers",
   "transfer_lines",
   "tenant_sequences",
+  // F3-DB-06: los lotes tenían el test ESTRUCTURAL en `lots-schema` pero no
+  // los cuatro canarios de comportamiento — lo destapó el checklist de cierre
+  // de la fase. Una policy que existe no es una policy que filtra.
+  "product_lots",
+  "stock_lots",
 ] as const;
 
 describe("RLS y append-only de Fase 3 (F3-DB-04)", () => {
@@ -140,6 +145,22 @@ describe("RLS y append-only de Fase 3 (F3-DB-04)", () => {
         },
       });
 
+      const lote = await tx.productLot.create({
+        data: {
+          tenantId: tenantAId,
+          productId: product.id,
+          lotCode: `RLS-${Date.now()}`,
+        },
+      });
+      await tx.stockLot.create({
+        data: {
+          tenantId: tenantAId,
+          warehouseId: origin.id,
+          lotId: lote.id,
+          quantity: 1,
+        },
+      });
+
       documentId = document.id;
       movementId = movement.id;
     });
@@ -213,7 +234,8 @@ describe("RLS y append-only de Fase 3 (F3-DB-04)", () => {
         JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public'
          AND c.relname = ANY(ARRAY['stock_movements','inventory_documents','inventory_document_lines',
-                                   'transfers','transfer_lines','tenant_sequences'])`;
+                                   'transfers','transfer_lines','tenant_sequences',
+                                   'product_lots','stock_lots'])`;
 
     const violations = rows
       .filter((r) => !r.relrowsecurity || !r.relforcerowsecurity || Number(r.policies) !== 1)

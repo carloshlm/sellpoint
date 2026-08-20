@@ -188,5 +188,31 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       expect(json).toContain("pdf.receivedBy");
       expect(json).toContain("pdf.authorizedBy");
     });
+
+    /**
+     * Criterio de cierre de F3: «uno de 300 líneas sale paginado con el
+     * encabezado repetido». `headerRows: 1` es lo que hace que pdfmake repita
+     * la fila de títulos en cada hoja — sin él, de la página 2 en adelante hay
+     * números sin decir de qué columna son. Estaba implementado y **sin un
+     * solo test**: lo destapó ejecutar el checklist en vez de leerlo.
+     */
+    it("una tabla larga repite el encabezado en cada hoja", () => {
+      const largo = {
+        ...base,
+        rows: Array.from({ length: 300 }, (_, indice) => ({
+          ...(base.rows[0] as (typeof base.rows)[number]),
+          lineNo: indice + 1,
+        })),
+      };
+
+      const definicion = buildDocumentDefinition(largo, t) as unknown as {
+        content: { table?: { headerRows?: number; body: unknown[] } }[];
+      };
+      const tabla = definicion.content.find((bloque) => bloque.table !== undefined)?.table;
+
+      expect(tabla?.headerRows).toBe(1);
+      // 300 líneas + la fila de encabezado.
+      expect(tabla?.body).toHaveLength(301);
+    });
   });
 });
