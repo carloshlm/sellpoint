@@ -2311,7 +2311,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 - [x] **Genericidad verificable:** `rg -i "pharmacy|farmacia|cafeteria|hardware|grocery|receta|ingredient|porci[oó]n|production" apps/api/src apps/api/prisma/schema.prisma apps/web/src packages/shared/src` sin resultados de dominio (se toleran solo comentarios que citan la LEY para explicar qué NO existe). Lote, caducidad y ubicación **sí** existen y son genéricos — lo que la LEY prohíbe son campos de rubro, no dimensiones del stock; y son opt-in por producto
 - [x] `REASONS_BY_DIRECTION` de shared, el enum Prisma y el CHECK SQL coinciden (test de contrato verde)
 - [x] Suites verdes (api unit+integration+e2e, web, shared) + tsc (`typecheck:full`) + Biome + deploy verde
-- [ ] Tag `v0.4.0-fase3` creado
+- [x] Tag `v0.4.0-fase3` creado sobre `38661b7` — el commit cuyo Deploy cerró VERDE y verificado en el log, no en la insignia (precedente de F2: el tag fue a `3d5af37` y no al commit obvio justamente porque el de aquel quedó en rojo)
 
 > **Ejecutado criterio por criterio el 2026-08-20** (no leído — el precedente de F1/F2 exige correrlo). **Tres salieron falsos o sin verificar y se corrigieron antes de marcarlos:**
 > 1. **RLS de las tablas nuevas:** `product_lots` y `stock_lots` tenían el test ESTRUCTURAL en `lots-schema` pero **no los 4 canarios de comportamiento**. Agregados a `f3-rls.integration.spec.ts` (array y `ARRAY[...]` del estructural, los dos, que están duplicados a propósito). Contraprueba: borrar la policy de `stock_lots` pone los 10 tests en rojo.
