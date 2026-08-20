@@ -31,8 +31,11 @@ function metaFrom(request: Request) {
 }
 
 /**
- * F3-SVC-03. Un servicio NO mueve inventario, así que no hay alcance por
- * almacén que aplicar: el catálogo es del tenant entero.
+ * F3-SVC-03. Un servicio NO mueve inventario, pero SÍ tiene almacenes
+ * (F3-SVC-07): el catálogo es maestro del tenant y cada servicio declara en
+ * qué almacenes se ofrece. Esa lista viaja en el create/update — vive en el
+ * form, no en una pantalla aparte, así que servicio y asociaciones se escriben
+ * en una sola transacción.
  */
 @ApiTags("services")
 @Controller("services")

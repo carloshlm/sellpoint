@@ -10,6 +10,8 @@ export interface Service {
   cost: string | null;
   price: string | null;
   isActive: boolean;
+  /** F3-SVC-07. En qué almacenes se ofrece. Vacío = no se vende en ninguno. */
+  warehouseIds: string[];
 }
 
 export interface CreateServiceInput {
@@ -18,6 +20,8 @@ export interface CreateServiceInput {
   description?: string;
   cost?: number;
   price?: number;
+  /** Requerido: olvidarlo crearía un servicio invendible en silencio. */
+  warehouseIds: string[];
 }
 
 export interface UpdateServiceInput {
@@ -27,6 +31,8 @@ export interface UpdateServiceInput {
   cost?: number | null;
   price?: number | null;
   isActive?: boolean;
+  /** Presente = reemplazo completo del set. Ausente = no tocar. */
+  warehouseIds?: string[];
 }
 
 export async function listServices(params: { query?: string } = {}): Promise<Service[]> {

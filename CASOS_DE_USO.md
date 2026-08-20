@@ -458,19 +458,24 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 > **Nuevo en F3-SVC (2026-08-19):** el negocio también vende lo que no almacena — un corte de pelo, una reparación, una consulta. Un servicio NO mueve inventario: no aparece en Entradas, Salidas, Conteos ni Kardex. — `topic_key: sellpoint/catalogo-servicios`
 
 - **Actor:** TenantAdmin / Manager (`services:manage`)
-- **Precondición:** Ninguna. El catálogo de servicios es independiente del de productos y de los almacenes.
+- **Precondición:** Existe al menos un almacén (el tenant nace con el suyo, F3-HOME-03). El catálogo de servicios es independiente del de productos, pero **no de los almacenes**: cada servicio declara dónde se ofrece.
 - **Flujo principal:**
   1. Catálogo → Servicios → «Nuevo servicio»
   2. Captura código (el nombre corto con el que lo buscará al cobrar), nombre, y opcionalmente descripción, costo y precio
-  3. Click «Guardar»
-  4. El sistema valida que el código no exista ya en el tenant y lo registra
-  5. El servicio queda disponible para el POS (Fase 4)
+  3. Marca **en qué almacenes se ofrece** (nacen todos marcados; desmarcar restringe)
+  4. Click «Guardar»
+  5. El sistema valida que el código no exista ya en el tenant, y que los almacenes existan, sean suyos y estén activos
+  6. El servicio queda disponible para el POS (Fase 4) **en los almacenes marcados**
 - **Flujos alternativos:**
-  - 4a. Código repetido en el tenant → 409 «Ya tienes un servicio con ese código». El mismo código en OTRO tenant es legal: el catálogo es de cada negocio.
-  - 4b. Precio o costo negativo o con más de dos decimales → 400 (misma regla de dinero que los productos).
-  - 5a. **Dejar de ofrecerlo:** «Desactivar» lo esconde del POS sin borrarlo, y se deshace con un clic (no pide confirmación).
-  - 5b. **Eliminar** lo borra sin vuelta atrás y **sí** pide confirmación; el diálogo nombra desactivar como alternativa. Cuando F4 traiga ventas, un servicio ya vendido dará 409 y desactivar será la única salida.
-- **Postcondición:** El servicio existe en el catálogo del tenant, con su precio, y es vendible desde el POS.
+  - 5a. Código repetido en el tenant → 409 «Ya tienes un servicio con ese código». El mismo código en OTRO tenant es legal: el catálogo es de cada negocio.
+  - 5b. Precio o costo negativo o con más de dos decimales → 400 (misma regla de dinero que los productos).
+  - 5c. Un almacén ajeno o desactivado → 409 `services.warehouses_invalid`.
+  - 6a. **Sin ningún almacén marcado** el servicio existe pero NO se vende en ninguno. Es válido (un servicio en preparación) y el form lo avisa antes de guardar.
+  - 6b. **Dejar de ofrecerlo:** «Desactivar» lo esconde del POS sin borrarlo, y se deshace con un clic (no pide confirmación).
+  - 6c. **Eliminar** lo borra sin vuelta atrás y **sí** pide confirmación; el diálogo nombra desactivar como alternativa. Cuando F4 traiga ventas, un servicio ya vendido dará 409 y desactivar será la única salida.
+- **Postcondición:** El servicio existe en el catálogo maestro del tenant, con su precio, y es vendible desde el POS **en los almacenes asociados**.
+
+> **Nota operativa:** un **almacén nuevo nace sin servicios**. Al abrir una sucursal hay que pasar por los servicios que ahí se prestan y marcarla. Es la contracara de la semántica explícita: nada se ofrece por accidente, pero nada se ofrece solo.
 
 ---
 

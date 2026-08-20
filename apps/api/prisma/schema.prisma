@@ -60,6 +60,7 @@ model Tenant {
   warehouses     Warehouse[]
   stock          StockByWarehouse[]
   services       Service[]
+  serviceWarehouses ServiceWarehouse[]
 
   // Movimientos de inventario (Fase 3)
   stockMovements StockMovement[]
@@ -501,6 +502,7 @@ model Warehouse {
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   scopes          UserWarehouseScope[]
   defaultOfUsers  User[]               @relation("UserDefaultWarehouse")
+  services        ServiceWarehouse[]
   stock           StockByWarehouse[]
   movements       StockMovement[]      @relation("MovementWarehouse")
   // La contraparte de un traspaso: el almacén del OTRO lado del movimiento.
@@ -537,11 +539,40 @@ model Service {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  warehouses ServiceWarehouse[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@map("services")
+}
+
+// F3-SVC-06. En qué almacenes se ofrece cada servicio.
+//
+// Semántica EXPLÍCITA (decisión de Carlos, 2026-08-19): sin filas, el servicio
+// NO se vende en ningún lado — al revés que `user_warehouse_scopes`, donde la
+// lista vacía significa "todos". El checklist del form ES la disponibilidad.
+//
+// A diferencia de aquella tabla, esta SÍ lleva índice por `warehouse_id`: la
+// query estrella del POS de F4 es la inversa —«qué servicios se ofrecen en
+// ESTE almacén»— y sin el índice cada búsqueda del carrito sería un scan.
+model ServiceWarehouse {
+  serviceId   String   @map("service_id") @db.Uuid
+  warehouseId String   @map("warehouse_id") @db.Uuid
+  // Redundante a propósito: es la columna que la policy `tenant_isolation`
+  // compara directo, sin depender de un JOIN (mismo patrón que
+  // `user_warehouse_scopes`).
+  tenantId    String   @map("tenant_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  service   Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@id([serviceId, warehouseId])
+  @@index([tenantId])
+  @@index([warehouseId])
+  @@map("service_warehouses")
 }
 
 // Existencias por producto y almacén, SIEMPRE en la `base_unit` del producto.

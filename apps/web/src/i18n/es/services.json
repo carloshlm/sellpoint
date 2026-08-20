@@ -1,6 +1,10 @@
 {
-  "nav": { "item": "Servicios" },
-  "page": { "title": "Servicios" },
+  "nav": {
+    "item": "Servicios"
+  },
+  "page": {
+    "title": "Servicios"
+  },
   "add": "Nuevo servicio",
   "empty": "Todavía no registraste servicios.",
   "search": "Buscar servicio",
@@ -25,5 +29,14 @@
     "title": "Eliminar «{{name}}»",
     "body": "El servicio se borra y no se puede recuperar. Si solo quieres dejar de ofrecerlo, desactívalo.",
     "confirm": "Eliminar servicio"
+  },
+  "warehouses": {
+    "legend": "Almacenes donde se ofrece",
+    "column": "Almacenes",
+    "hint": "Marca dónde se puede vender este servicio.",
+    "emptyHint": "Sin almacenes marcados, este servicio NO se podrá vender en ninguno.",
+    "selectAll": "Seleccionar todos",
+    "clearAll": "Deseleccionar todos",
+    "count": "{{count}} de {{total}}"
   }
 }

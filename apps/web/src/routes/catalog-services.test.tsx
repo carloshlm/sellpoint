@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
 import * as servicesApi from "../lib/services/api";
+import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
 /**
@@ -23,7 +24,19 @@ vi.mock("../lib/services/api", () => ({
   removeService: vi.fn(),
 }));
 
+vi.mock("../lib/warehouses/api", () => ({
+  listWarehouses: vi.fn(),
+  createWarehouse: vi.fn(),
+  updateWarehouse: vi.fn(),
+}));
+
 const mockedApi = vi.mocked(servicesApi);
+const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
+
+const ALMACENES: warehousesApi.Warehouse[] = [
+  { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+  { id: "w2", name: "Bodega Norte", address: null, isActive: true, deactivationBlockedBy: null },
+];
 
 const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
@@ -53,6 +66,7 @@ const servicio = (over: Partial<servicesApi.Service> = {}): servicesApi.Service 
   cost: "40",
   price: "150",
   isActive: true,
+  warehouseIds: ["w1", "w2"],
   ...over,
 });
 
@@ -77,6 +91,7 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
     mockedApi.listServices.mockResolvedValue([servicio()]);
+    mockedWarehouses.mockResolvedValue(ALMACENES);
   });
 
   it("lista los servicios con su código, nombre y precio", async () => {
@@ -104,7 +119,14 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
       // React Query pasa su contexto como segundo argumento cuando el
       // `mutationFn` es la función del api directamente.
       expect(mockedApi.createService).toHaveBeenCalledWith(
-        expect.objectContaining({ code: "TINTE", name: "Tinte", price: 300 }),
+        // F3-SVC-08: el alta nace con TODOS marcados — el negocio chico no
+        // gestiona nada, y desmarcar es restringir.
+        expect.objectContaining({
+          code: "TINTE",
+          name: "Tinte",
+          price: 300,
+          warehouseIds: ["w1", "w2"],
+        }),
         expect.anything(),
       );
     });
@@ -158,6 +180,92 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
       "Ya tienes un servicio con ese código.",
     );
     expect(screen.getByText("Corte de cabello")).toBeInTheDocument();
+  });
+
+  /**
+   * F3-SVC-08 — el checklist de almacenes.
+   *
+   * Semántica EXPLÍCITA (decisión de Carlos): sin almacenes marcados el
+   * servicio NO se vende en ningún lado. Por eso el alta nace con todos
+   * marcados: el caso común no gestiona nada y desmarcar es restringir.
+   */
+  describe("los almacenes donde se ofrece (F3-SVC-08)", () => {
+    it("editar precarga los almacenes del servicio", async () => {
+      const user = userEvent.setup();
+      mockedApi.listServices.mockResolvedValue([servicio({ warehouseIds: ["w2"] })]);
+      await renderServices();
+      await screen.findByText("Corte de cabello");
+
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+
+      expect(await screen.findByTestId("service-warehouse-w2")).toBeChecked();
+      expect(screen.getByTestId("service-warehouse-w1")).not.toBeChecked();
+    });
+
+    it("desmarcar restringe: el PATCH manda solo los que quedaron", async () => {
+      const user = userEvent.setup();
+      mockedApi.updateService.mockResolvedValue(servicio());
+      await renderServices();
+      await screen.findByText("Corte de cabello");
+
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+      await user.click(await screen.findByTestId("service-warehouse-w2"));
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+      await waitFor(() =>
+        expect(mockedApi.updateService).toHaveBeenCalledWith(
+          "s1",
+          // Sin `expect.anything()`: `updateService` va por un wrapper
+          // (`({id, input}) => updateService(id, input)`), así que React Query
+          // NO le pasa su contexto — al revés que `createService`.
+          expect.objectContaining({ warehouseIds: ["w1"] }),
+        ),
+      );
+    });
+
+    it("«Deseleccionar todos» los quita, y vuelve a ofrecer seleccionarlos", async () => {
+      const user = userEvent.setup();
+      await renderServices();
+      await screen.findByText("Corte de cabello");
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+
+      await user.click(await screen.findByRole("button", { name: "Deseleccionar todos" }));
+      expect(screen.getByTestId("service-warehouse-w1")).not.toBeChecked();
+      expect(screen.getByTestId("service-warehouse-w2")).not.toBeChecked();
+
+      // El botón alterna: con cero marcados ofrece seleccionarlos.
+      await user.click(screen.getByRole("button", { name: "Seleccionar todos" }));
+      expect(screen.getByTestId("service-warehouse-w1")).toBeChecked();
+    });
+
+    /** Cero almacenes es un estado VÁLIDO (un servicio en preparación), pero
+     * el usuario tiene que saber que no se venderá en ningún lado. */
+    it("con cero marcados avisa que no se venderá, y aun así guarda", async () => {
+      const user = userEvent.setup();
+      mockedApi.updateService.mockResolvedValue(servicio({ warehouseIds: [] }));
+      await renderServices();
+      await screen.findByText("Corte de cabello");
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+
+      await user.click(await screen.findByRole("button", { name: "Deseleccionar todos" }));
+      expect(screen.getByTestId("service-warehouses-empty-hint")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      await waitFor(() =>
+        expect(mockedApi.updateService).toHaveBeenCalledWith(
+          "s1",
+          expect.objectContaining({ warehouseIds: [] }),
+        ),
+      );
+    });
+
+    it("el listado muestra en cuántos almacenes se ofrece", async () => {
+      mockedApi.listServices.mockResolvedValue([servicio({ warehouseIds: ["w1"] })]);
+      await renderServices();
+
+      const fila = (await screen.findByText("Corte de cabello")).closest("tr") as HTMLElement;
+      expect(within(fila).getByText("1 de 2")).toBeInTheDocument();
+    });
   });
 
   it("sin services:manage la pantalla es de solo lectura", async () => {

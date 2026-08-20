@@ -15,6 +15,13 @@ export const createServiceSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   cost: moneyAmount().optional(),
   price: moneyAmount().optional(),
+  /**
+   * F3-SVC-07. En qué almacenes se ofrece. Semántica EXPLÍCITA: `[]` es válido
+   * y significa que el servicio **no se vende en ningún lado** todavía — al
+   * revés que el alcance de usuarios, donde vacío = todos. Requerido en el
+   * alta porque el form siempre lo manda (nace con todos marcados).
+   */
+  warehouseIds: z.array(z.uuid()).max(200),
 });
 
 export const updateServiceSchema = z
@@ -25,6 +32,8 @@ export const updateServiceSchema = z
     cost: moneyAmount().nullable().optional(),
     price: moneyAmount().nullable().optional(),
     isActive: z.boolean().optional(),
+    /** Presente = REEMPLAZO completo del set. Ausente = no tocar. */
+    warehouseIds: z.array(z.uuid()).max(200).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "services.empty_update" });
 

@@ -597,6 +597,8 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 **Ruta:** `/catalog/services` · **Permiso:** `services:read`
 
 > **Nuevo en F3-SVC (2026-08-19):** el catálogo de lo que el negocio **vende pero no almacena** — un corte de pelo, una reparación, una consulta. Tabla propia y no un producto con bandera: un servicio no tiene unidad base, ni lotes, ni stock, ni presentaciones, y nunca aparece en Entradas, Salidas, Conteos ni Kardex. El POS de F4 lo cobra igual que a un producto.
+>
+> **Extendido en F3-SVC-06..09 (servicios por almacén):** esta pantalla es el **catálogo MAESTRO**, y cada servicio declara **en qué almacenes se ofrece**. Semántica explícita: **sin almacenes marcados, el servicio no se vende en ninguno** (al revés que el alcance de usuarios, donde vacío = todos). El alta nace con todos marcados —desmarcar es restringir— y el POS de F4 solo ofrece los asociados al almacén del turno. **Consecuencia a tener presente: un almacén nuevo nace sin servicios** hasta que alguien los asocie desde acá.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -607,11 +609,11 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │  │ Código o nombre…         │                                  │
 │  └──────────────────────────┘                                  │
 │                                                                │
-│  │ Código │ Nombre          │ Costo │ Precio │ Estado │       │
+│  │ Código │ Nombre          │ Costo │ Precio │Almacén│ Estado│       │
 │  ├────────┼─────────────────┼───────┼────────┼────────┼───────┤│
-│  │ CORTE  │ Corte de cabello│  40   │  150   │ Activo │ ⋮     ││
-│  │ TINTE  │ Tinte completo  │ 120   │  450   │ Activo │ ⋮     ││
-│  │ MANI   │ Manicura        │  30   │  120   │Inactivo│ ⋮     ││
+│  │ CORTE  │ Corte de cabello│  40   │  150   │ 2 de 2│ Activo│ ⋮   ││
+│  │ TINTE  │ Tinte completo  │ 120   │  450   │ 1 de 2│ Activo│ ⋮   ││
+│  │ MANI   │ Manicura        │  30   │  120   │ 0 de 2│Inactivo│ ⋮  ││
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -639,9 +641,17 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 │                        Lo que cobras por     │
 │                        este servicio.        │
 │                                              │
+│  Almacenes donde se ofrece                   │
+│                        [Deseleccionar todos] │
+│  Marca dónde se puede vender este servicio.  │
+│    ☑ Almacén Central                         │
+│    ☑ Sucursal Norte                          │
+│                                              │
 │             [Guardar]  [Cancelar]            │
 └──────────────────────────────────────────────┘
 ```
+
+Con **cero almacenes marcados** el form avisa: «Sin almacenes marcados, este servicio NO se podrá vender en ninguno». Es un estado **válido** —un servicio en preparación— pero nunca silencioso.
 
 **Acciones disponibles por rol**
 

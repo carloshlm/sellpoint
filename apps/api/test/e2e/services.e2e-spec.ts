@@ -64,7 +64,7 @@ describe("Servicios (F3-SVC)", () => {
     const created = await request(app.getHttpServer())
       .post("/services")
       .set("Authorization", bearer(token))
-      .send({ code: "CORTE", name: "Corte de cabello", cost: 40, price: 150 })
+      .send({ code: "CORTE", name: "Corte de cabello", cost: 40, price: 150, warehouseIds: [] })
       .expect(201);
     const id = (created.body as { id: string }).id;
     // Los importes viajan como string, igual que en productos: un Decimal
@@ -107,13 +107,13 @@ describe("Servicios (F3-SVC)", () => {
     await request(app.getHttpServer())
       .post("/services")
       .set("Authorization", bearer(token))
-      .send({ code: "LAVADO", name: "Lavado" })
+      .send({ code: "LAVADO", name: "Lavado", warehouseIds: [] })
       .expect(201);
 
     const res = await request(app.getHttpServer())
       .post("/services")
       .set("Authorization", bearer(token))
-      .send({ code: "LAVADO", name: "Otro lavado" })
+      .send({ code: "LAVADO", name: "Otro lavado", warehouseIds: [] })
       .expect(409);
     expect((res.body as { code: string }).code).toBe("services.code_taken");
   });
@@ -124,7 +124,7 @@ describe("Servicios (F3-SVC)", () => {
     // servidor de pruebas no aportan nada al caso y sí ruido al diagnóstico.
     const a = await registerAndLogin();
     const b = await registerAndLogin();
-    const body = { code: "MISMO", name: "Servicio" };
+    const body = { code: "MISMO", name: "Servicio", warehouseIds: [] };
 
     await request(app.getHttpServer())
       .post("/services")
@@ -146,7 +146,7 @@ describe("Servicios (F3-SVC)", () => {
     const created = await request(app.getHttpServer())
       .post("/services")
       .set("Authorization", bearer(a))
-      .send({ code: "PRIVADO", name: "Solo de A" })
+      .send({ code: "PRIVADO", name: "Solo de A", warehouseIds: [] })
       .expect(201);
     const id = (created.body as { id: string }).id;
 
@@ -170,8 +170,8 @@ describe("Servicios (F3-SVC)", () => {
   it("busca por código y por nombre, sin distinguir mayúsculas", async () => {
     const token = await registerAndLogin();
     for (const s of [
-      { code: "TINTE", name: "Tinte completo" },
-      { code: "MANI", name: "Manicura" },
+      { code: "TINTE", name: "Tinte completo", warehouseIds: [] },
+      { code: "MANI", name: "Manicura", warehouseIds: [] },
     ]) {
       await request(app.getHttpServer())
         .post("/services")
@@ -193,18 +193,173 @@ describe("Servicios (F3-SVC)", () => {
     expect((porCodigo.body as { code: string }[]).map((s) => s.code)).toEqual(["TINTE"]);
   });
 
+  async function crearAlmacen(token: string, name: string): Promise<string> {
+    const res = await request(app.getHttpServer())
+      .post("/warehouses")
+      .set("Authorization", bearer(token))
+      .send({ name })
+      .expect(201);
+    return (res.body as { id: string }).id;
+  }
+
+  /** El almacén con el que nace el tenant (F3-HOME-03). */
+  async function almacenInicial(token: string): Promise<string> {
+    const res = await request(app.getHttpServer())
+      .get("/warehouses")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    return (res.body as { id: string }[])[0]?.id ?? "";
+  }
+
+  /**
+   * F3-SVC-07 — en qué almacenes se ofrece cada servicio.
+   *
+   * Semántica EXPLÍCITA: sin almacenes marcados el servicio NO se vende. Es al
+   * revés que el alcance de usuarios (vacío = todos) — decisión de Carlos: el
+   * checklist ES la disponibilidad.
+   */
+  describe("los almacenes donde se ofrece (F3-SVC-07)", () => {
+    it("crear con un subset guarda solo esos, en la misma transacción", async () => {
+      const token = await registerAndLogin();
+      const central = await almacenInicial(token);
+      await crearAlmacen(token, `Norte ${randomUUID()}`);
+
+      const creado = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "CORTE", name: "Corte", warehouseIds: [central] })
+        .expect(201);
+
+      expect((creado.body as { warehouseIds: string[] }).warehouseIds).toEqual([central]);
+    });
+
+    it("el listado devuelve los ids de cada servicio", async () => {
+      const token = await registerAndLogin();
+      const central = await almacenInicial(token);
+      await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "TINTE", name: "Tinte", warehouseIds: [central] })
+        .expect(201);
+
+      const lista = await request(app.getHttpServer())
+        .get("/services")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((lista.body as { warehouseIds: string[] }[])[0]?.warehouseIds).toEqual([central]);
+    });
+
+    /** Sin almacenes es un estado VÁLIDO: un servicio en preparación. */
+    it("crear sin almacenes es válido y el servicio queda sin venderse", async () => {
+      const token = await registerAndLogin();
+
+      const creado = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "BORRADOR", name: "En preparación", warehouseIds: [] })
+        .expect(201);
+
+      expect((creado.body as { warehouseIds: string[] }).warehouseIds).toEqual([]);
+    });
+
+    /** El PATCH REEMPLAZA el set completo, no hace delta (doctrina del repo). */
+    it("editar reemplaza el set completo", async () => {
+      const token = await registerAndLogin();
+      const central = await almacenInicial(token);
+      const norte = await crearAlmacen(token, `Norte ${randomUUID()}`);
+
+      const creado = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "MANI", name: "Manicura", warehouseIds: [central, norte] })
+        .expect(201);
+
+      const editado = await request(app.getHttpServer())
+        .patch(`/services/${(creado.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ warehouseIds: [norte] })
+        .expect(200);
+
+      expect((editado.body as { warehouseIds: string[] }).warehouseIds).toEqual([norte]);
+    });
+
+    /** Ausente ≠ vacío: un PATCH que no lo menciona no toca las asociaciones. */
+    it("un PATCH sin warehouseIds no toca las asociaciones", async () => {
+      const token = await registerAndLogin();
+      const central = await almacenInicial(token);
+      const creado = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "LAVADO", name: "Lavado", warehouseIds: [central] })
+        .expect(201);
+
+      const editado = await request(app.getHttpServer())
+        .patch(`/services/${(creado.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ name: "Lavado premium" })
+        .expect(200);
+
+      expect((editado.body as { warehouseIds: string[] }).warehouseIds).toEqual([central]);
+    });
+
+    it("un almacén de otro tenant da 409", async () => {
+      const a = await registerAndLogin();
+      const b = await registerAndLogin();
+      const ajeno = await crearAlmacen(b, `Ajeno ${randomUUID()}`);
+
+      const res = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(a))
+        .send({ code: "X", name: "X", warehouseIds: [ajeno] })
+        .expect(409);
+      expect((res.body as { code: string }).code).toBe("services.warehouses_invalid");
+    });
+
+    it("un almacén desactivado da 409", async () => {
+      const token = await registerAndLogin();
+      const cerrado = await crearAlmacen(token, `Cerrado ${randomUUID()}`);
+      await request(app.getHttpServer())
+        .patch(`/warehouses/${cerrado}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "Y", name: "Y", warehouseIds: [cerrado] })
+        .expect(409);
+    });
+
+    /** Borrar el servicio se lleva sus asociaciones: la FK es CASCADE. */
+    it("borrar el servicio limpia sus asociaciones", async () => {
+      const token = await registerAndLogin();
+      const central = await almacenInicial(token);
+      const creado = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "TEMP", name: "Temporal", warehouseIds: [central] })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .delete(`/services/${(creado.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .expect(204);
+    });
+  });
+
   it("un precio negativo o con demasiados decimales se rechaza", async () => {
     const token = await registerAndLogin();
 
     await request(app.getHttpServer())
       .post("/services")
       .set("Authorization", bearer(token))
-      .send({ code: "NEG", name: "Negativo", price: -1 })
+      .send({ code: "NEG", name: "Negativo", price: -1, warehouseIds: [] })
       .expect(400);
     await request(app.getHttpServer())
       .post("/services")
       .set("Authorization", bearer(token))
-      .send({ code: "DEC", name: "Decimales", price: 10.123 })
+      .send({ code: "DEC", name: "Decimales", price: 10.123, warehouseIds: [] })
       .expect(400);
   });
 });

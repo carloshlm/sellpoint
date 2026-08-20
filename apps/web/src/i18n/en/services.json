@@ -1,6 +1,10 @@
 {
-  "nav": { "item": "Services" },
-  "page": { "title": "Services" },
+  "nav": {
+    "item": "Services"
+  },
+  "page": {
+    "title": "Services"
+  },
   "add": "New service",
   "empty": "You haven't registered any services yet.",
   "search": "Search service",
@@ -25,5 +29,14 @@
     "title": "Delete \"{{name}}\"",
     "body": "The service is deleted permanently. If you just want to stop offering it, deactivate it instead.",
     "confirm": "Delete service"
+  },
+  "warehouses": {
+    "legend": "Warehouses where it's offered",
+    "column": "Warehouses",
+    "hint": "Check where this service can be sold.",
+    "emptyHint": "With no warehouses checked, this service CAN'T be sold anywhere.",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "count": "{{count}} of {{total}}"
   }
 }

@@ -3,5 +3,6 @@
   "code_taken": "You already have a service with that code.",
   "empty_update": "There are no changes to save.",
   "invalid_body": "The submitted data isn't valid.",
-  "invalid_query": "The search filters aren't valid."
+  "invalid_query": "The search filters aren't valid.",
+  "warehouses_invalid": "One of the warehouses doesn't exist, isn't yours, or is deactivated."
 }
