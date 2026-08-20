@@ -30,6 +30,7 @@ const ME: MeProfile = {
   email: "owner@example.com",
   firstName: "Ana",
   locale: "es",
+  defaultWarehouseId: null,
   permissions: [],
   tenant: {
     id: "tenant-1",

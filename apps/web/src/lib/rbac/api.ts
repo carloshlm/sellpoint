@@ -18,6 +18,8 @@ export interface UserDetail {
   lastNameMaternal: string | null;
   status: "invited" | "active" | "suspended";
   locale: string;
+  /** F3-HOME-01. El almacén desde el que opera por defecto (uno solo). */
+  defaultWarehouseId: string | null;
   roles: UserRoleRef[];
 }
 
@@ -28,6 +30,7 @@ export interface CreateUserInput {
   lastNameMaternal?: string;
   locale?: "es" | "en";
   roleIds: string[];
+  defaultWarehouseId?: string | null;
 }
 
 /**
@@ -39,6 +42,8 @@ export type UpdateUserInput = Partial<Pick<UserDetail, "firstName" | "lastNamePa
   lastNameMaternal?: string;
   locale?: "es" | "en";
   roleIds?: string[];
+  /** `null` explícito lo quita. */
+  defaultWarehouseId?: string | null;
 };
 
 export interface RoleSummary {

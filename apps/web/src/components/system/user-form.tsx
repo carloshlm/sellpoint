@@ -79,6 +79,7 @@ function UserForm({
         (user?.locale as "es" | "en" | undefined) ?? (i18n.language.startsWith("en") ? "en" : "es"),
       roleIds: user?.roles.map((role) => role.id) ?? [],
       warehouseIds: warehouseScope ?? [],
+      defaultWarehouseId: user?.defaultWarehouseId ?? "",
     }),
     [user, i18n.language, warehouseScope],
   );
@@ -193,6 +194,39 @@ function UserForm({
             ]}
             {...register("locale")}
           />
+
+          {/*
+            F3-HOME-02. El almacén ASIGNADO: uno solo, desde el que opera por
+            defecto. Distinto del ALCANCE de abajo (una lista de dónde PUEDE
+            operar). A diferencia del alcance, esto SÍ está en el alta: es una
+            columna del usuario, no otro recurso, así que viaja en el mismo POST
+            y no puede quedar a medio aplicar.
+
+            Las opciones fuera del alcance MARCADO se deshabilitan: el API las
+            rechaza con 409 y hacer chocar al usuario contra eso sería ofrecerle
+            algo que no va a funcionar.
+          */}
+          {warehouses && (
+            <div className="flex flex-col gap-1">
+              <SelectField
+                label={t("users.form.defaultWarehouse")}
+                options={[
+                  { value: "", label: t("users.form.defaultWarehouseNone") },
+                  ...warehouses.map((warehouse) => ({
+                    value: warehouse.id,
+                    label: warehouse.name,
+                    disabled:
+                      selectedWarehouseIds.length > 0 &&
+                      !selectedWarehouseIds.includes(warehouse.id),
+                  })),
+                ]}
+                {...register("defaultWarehouseId")}
+              />
+              <p className="text-muted-foreground text-xs" data-testid="default-warehouse-hint">
+                {t("users.form.defaultWarehouseHint")}
+              </p>
+            </div>
+          )}
 
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-medium">{t("users.form.roles")}</legend>

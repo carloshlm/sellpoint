@@ -164,6 +164,7 @@ beforeEach(() => {
       lastNameMaternal: null,
       status: "active",
       locale: "es",
+      defaultWarehouseId: null,
       roles: [],
     },
   ]);

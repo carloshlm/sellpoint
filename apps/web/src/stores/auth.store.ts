@@ -15,6 +15,12 @@ export interface AuthUser {
   email: string;
   firstName: string;
   locale: "es" | "en";
+  /**
+   * F3-HOME-01. El almacén ASIGNADO del usuario: desde dónde opera por
+   * defecto. Lo consumen los selectores de movimientos (F3-HOME-04) y, en F4,
+   * la apertura del turno de caja.
+   */
+  defaultWarehouseId?: string | null;
   permissions: string[];
   tenant: TenantBlock;
 }

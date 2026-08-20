@@ -26,6 +26,8 @@ export interface MeProfile {
   email: string;
   firstName: string;
   locale: string;
+  /** F3-HOME-01. El almacén desde el que opera por defecto. */
+  defaultWarehouseId: string | null;
   permissions: string[];
   /**
    * A1 del design de f1-web-onboard: MISMO shape que `LoginResult.user.tenant`
@@ -59,7 +61,15 @@ export class UsersService {
     const { row, tenantRow } = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const row = await tx.user.findUniqueOrThrow({
         where: { id: user.userId },
-        select: { id: true, email: true, firstName: true, locale: true },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          locale: true,
+          // F3-HOME-01: el front lo necesita para preseleccionar el almacén en
+          // los movimientos, y el POS de F4 para abrir el turno.
+          defaultWarehouseId: true,
+        },
       });
       const tenantRow = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
@@ -73,6 +83,7 @@ export class UsersService {
       email: row.email,
       firstName: row.firstName,
       locale: row.locale,
+      defaultWarehouseId: row.defaultWarehouseId,
       permissions: user.permissions,
       tenant: toTenantBlock(tenantRow),
     };

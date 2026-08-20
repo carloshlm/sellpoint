@@ -47,6 +47,10 @@ export function DocumentList({ type }: DocumentListProps) {
   const [folioInput, setFolioInput] = useState("");
   const [folio, setFolio] = useState("");
   const [status, setStatus] = useState<DocumentStatus | undefined>(undefined);
+  // F3-HOME-04: arranca en null y es `WarehouseSelect` quien avisa cuál elegir
+  // —el asignado del usuario, o el único si hay uno solo—. La decisión vive
+  // ahí porque ahí está la lista de opciones: preseleccionar acá, sin saber si
+  // el asignado está disponible, ofrecería un almacén que el API rechaza.
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
   // Debounce: buscar en cada tecla haría seis requests por un folio de seis

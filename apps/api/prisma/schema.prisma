@@ -102,6 +102,11 @@ model User {
   // CHAR(2) con CHECK (locale IN ('es','en')) — CHECK en el SQL de la migración
   locale           String     @default("es") @db.Char(2)
   emailVerifiedAt  DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  // F3-HOME-01. El almacén ASIGNADO: desde dónde opera por defecto. Distinto
+  // del ALCANCE (`warehouseScopes`, la lista de dónde PUEDE operar): el POS de
+  // F4 no puede vender desde "una lista", necesita un almacén concreto.
+  // Nullable a propósito — un Viewer contable no opera stock.
+  defaultWarehouseId String?  @map("default_warehouse_id") @db.Uuid
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -111,6 +116,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   warehouseScopes         UserWarehouseScope[]
+  defaultWarehouse        Warehouse?               @relation("UserDefaultWarehouse", fields: [defaultWarehouseId], references: [id])
   // Dos relaciones al mismo modelo: quién REGISTRÓ el movimiento (siempre) y
   // quién lo AUTORIZÓ (opcional, para mermas y ajustes que piden visto bueno).
   movementsCreated        StockMovement[]          @relation("MovementCreatedBy")
@@ -494,6 +500,7 @@ model Warehouse {
 
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   scopes          UserWarehouseScope[]
+  defaultOfUsers  User[]               @relation("UserDefaultWarehouse")
   stock           StockByWarehouse[]
   movements       StockMovement[]      @relation("MovementWarehouse")
   // La contraparte de un traspaso: el almacén del OTRO lado del movimiento.

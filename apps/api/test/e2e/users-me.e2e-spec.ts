@@ -94,6 +94,10 @@ describe("/me (e2e)", () => {
       email: user.email,
       firstName: "Ana",
       locale: "es",
+      // F3-HOME-01: el almacén ASIGNADO viaja en el bootstrap porque el front
+      // lo usa para preseleccionar en movimientos, y F4 para abrir el turno.
+      // Acá es el inicial del tenant, que `provision()` le asigna al owner.
+      defaultWarehouseId: expect.any(String),
       permissions: ["products:read"],
       // F1-WEB-ONBOARD-01 (A1 del design): mismo shape que
       // `LoginResult.user.tenant` — ver tenants-me.e2e-spec.ts "Contrato".

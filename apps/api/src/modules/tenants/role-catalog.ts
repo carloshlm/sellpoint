@@ -40,6 +40,18 @@ export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
 export const PRODUCTS_CATALOG_KEY = "products";
 export const PRODUCTS_CATALOG_NAME = "Catálogo de Productos";
 
+/**
+ * F3-HOME-03. El nombre del almacén con el que nace un tenant, por idioma del
+ * owner. NEUTRO por LEY: sirve igual a una estética, un taller o un
+ * consultorio, y un distribuidor lo renombra a "CEDIS" en un clic. A
+ * diferencia del catálogo de productos, este nombre NO es de sistema — es una
+ * sugerencia editable, no una referencia estable.
+ */
+export const INITIAL_WAREHOUSE_NAME: Record<"es" | "en", string> = {
+  es: "Almacén Central",
+  en: "Main Warehouse",
+};
+
 // F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio (razón social,
 // dirección, moneda, onboarding) tampoco es tarea de Manager — mismo criterio
 // que users:manage/roles:manage.

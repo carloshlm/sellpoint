@@ -8,7 +8,11 @@ function buildTx() {
   let roleCounter = 0;
 
   const tenant = { create: jest.fn().mockResolvedValue({ id: "tenant-1" }) };
-  const user = { create: jest.fn().mockResolvedValue({ id: "user-1" }) };
+  const user = {
+    create: jest.fn().mockResolvedValue({ id: "user-1" }),
+    // F3-HOME-03: provision asigna el almacén inicial al owner.
+    update: jest.fn().mockResolvedValue({ id: "user-1" }),
+  };
   const permission = {
     findMany: jest.fn().mockResolvedValue([
       { id: "perm-users-read", code: "users:read" },
@@ -27,8 +31,19 @@ function buildTx() {
   const rolePermission = { createMany: jest.fn().mockResolvedValue({ count: 0 }) };
   const userRole = { create: jest.fn().mockResolvedValue(undefined) };
   const catalog = { create: jest.fn().mockResolvedValue({ id: "catalog-1" }) };
+  const warehouse = { create: jest.fn().mockResolvedValue({ id: "warehouse-1" }) };
 
-  return { tenant, user, permission, role, rolePermission, userRole, catalog, roleIdByName };
+  return {
+    tenant,
+    user,
+    permission,
+    role,
+    rolePermission,
+    userRole,
+    catalog,
+    warehouse,
+    roleIdByName,
+  };
 }
 
 describe("TenantsService.provision (f1-auth design §4)", () => {
@@ -122,6 +137,36 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
         systemKey: "products",
         isSystem: true,
       }),
+    });
+  });
+
+  /**
+   * F3-HOME-03: el tenant nace CON su almacén, en la misma tx. Antes existía el
+   * estado "tenant sin almacén" hasta que alguien completaba el paso 3 del
+   * onboarding — y el POS de F4 no puede vender desde la nada.
+   */
+  it("crea el almacén inicial y se lo asigna al owner, en la misma tx", async () => {
+    const { service, tx } = buildService();
+
+    await service.provision(baseInput);
+
+    expect(tx.warehouse.create).toHaveBeenCalledWith({
+      data: { tenantId: "tenant-1", name: "Almacén Central" },
+    });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { defaultWarehouseId: "warehouse-1" },
+    });
+  });
+
+  /** El nombre sale del idioma del owner. Neutro por LEY en los dos. */
+  it("en inglés el almacén inicial se llama «Main Warehouse»", async () => {
+    const { service, tx } = buildService();
+
+    await service.provision({ ...baseInput, locale: "en" });
+
+    expect(tx.warehouse.create).toHaveBeenCalledWith({
+      data: { tenantId: "tenant-1", name: "Main Warehouse" },
     });
   });
 

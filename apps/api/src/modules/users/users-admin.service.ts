@@ -35,6 +35,8 @@ export interface UserDetail {
   lastNameMaternal: string | null;
   status: string;
   locale: string;
+  /** F3-HOME-01. El almacén desde el que opera por defecto. */
+  defaultWarehouseId: string | null;
   roles: UserRoleRef[];
 }
 
@@ -84,6 +86,12 @@ export class UsersAdminService {
         locale: string;
       };
 
+      // El usuario nace sin alcance (lista vacía = todos), así que acá no hay
+      // pertenencia que verificar: solo que el almacén exista y esté activo.
+      if (input.defaultWarehouseId) {
+        await this.assertAssignableWarehouse(tx, actor.tenantId, input.defaultWarehouseId, []);
+      }
+
       try {
         user = await tx.user.create({
           data: {
@@ -93,6 +101,7 @@ export class UsersAdminService {
             lastNamePaternal: input.lastNamePaternal,
             lastNameMaternal: input.lastNameMaternal,
             locale: input.locale ?? "es",
+            defaultWarehouseId: input.defaultWarehouseId ?? null,
             status: "invited",
           },
         });
@@ -249,11 +258,31 @@ export class UsersAdminService {
           lastNamePaternal?: string;
           lastNameMaternal?: string;
           locale?: "es" | "en";
+          defaultWarehouseId?: string | null;
         } = {};
         if (input.firstName !== undefined) data.firstName = input.firstName;
         if (input.lastNamePaternal !== undefined) data.lastNamePaternal = input.lastNamePaternal;
         if (input.lastNameMaternal !== undefined) data.lastNameMaternal = input.lastNameMaternal;
         if (input.locale !== undefined) data.locale = input.locale;
+
+        // F3-HOME-01: acá SÍ hay alcance que consultar — el usuario ya existe.
+        if (input.defaultWarehouseId !== undefined) {
+          if (input.defaultWarehouseId === null) {
+            data.defaultWarehouseId = null;
+          } else {
+            const scopes = await tx.userWarehouseScope.findMany({
+              where: { userId },
+              select: { warehouseId: true },
+            });
+            await this.assertAssignableWarehouse(
+              tx,
+              actor.tenantId,
+              input.defaultWarehouseId,
+              scopes.map((scope) => scope.warehouseId),
+            );
+            data.defaultWarehouseId = input.defaultWarehouseId;
+          }
+        }
 
         let rolesChanged = false;
 
@@ -442,6 +471,34 @@ export class UsersAdminService {
     }));
   }
 
+  /**
+   * F3-HOME-01. Un almacén asignable tiene que existir, ser del tenant, estar
+   * ACTIVO y —si el usuario tiene alcance— estar DENTRO de ese alcance: si no,
+   * tendría por defecto un almacén que no puede operar.
+   *
+   * `scopeIds` se pasa explícito porque los dos llamadores lo conocen distinto:
+   * al crear no hay alcance todavía, al editar hay que leerlo.
+   */
+  private async assertAssignableWarehouse(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    warehouseId: string,
+    scopeIds: readonly string[],
+  ): Promise<void> {
+    const warehouse = await tx.warehouse.findFirst({
+      where: { id: warehouseId, tenantId, isActive: true },
+      select: { id: true },
+    });
+    if (!warehouse) {
+      throw new ConflictException({ message: "users.default_warehouse_invalid" });
+    }
+    // Alcance VACÍO es "sin restricción" (default permisivo), así que nunca
+    // choca: solo se valida la pertenencia cuando hay una lista de verdad.
+    if (scopeIds.length > 0 && !scopeIds.includes(warehouseId)) {
+      throw new ConflictException({ message: "users.default_warehouse_out_of_scope" });
+    }
+  }
+
   private toDetail(
     user: {
       id: string;
@@ -451,6 +508,7 @@ export class UsersAdminService {
       lastNameMaternal: string | null;
       status: string;
       locale: string;
+      defaultWarehouseId?: string | null;
     },
     roles: UserRoleRef[],
   ): UserDetail {
@@ -460,6 +518,7 @@ export class UsersAdminService {
       firstName: user.firstName,
       lastNamePaternal: user.lastNamePaternal,
       lastNameMaternal: user.lastNameMaternal,
+      defaultWarehouseId: user.defaultWarehouseId ?? null,
       status: user.status,
       locale: user.locale,
       // Reconstruido explícito: `roles` puede venir de `resolveRoles()`

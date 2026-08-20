@@ -65,7 +65,10 @@
     "warehouseScope": "Alcance por almacén",
     "warehouseScopeHint": "Marca los almacenes que este usuario puede operar.",
     "warehouseScopeEmptyHint": "Sin almacenes marcados este usuario ve TODOS. Marca al menos uno para limitarlo.",
-    "warehouseScopeAdminHint": "Sus roles administran el negocio, así que ve todos los almacenes. Esta lista no se le aplica."
+    "warehouseScopeAdminHint": "Sus roles administran el negocio, así que ve todos los almacenes. Esta lista no se le aplica.",
+    "defaultWarehouse": "Almacén asignado",
+    "defaultWarehouseNone": "Sin asignar",
+    "defaultWarehouseHint": "Desde dónde opera por defecto. Sin asignar, tendrá que elegir almacén en cada movimiento."
   },
   "roles": {
     "page": {

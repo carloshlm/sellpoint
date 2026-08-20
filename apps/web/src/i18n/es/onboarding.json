@@ -84,12 +84,12 @@
     "laterHint": "Puedes agregar o cambiar campos cuando quieras desde Catálogo → Campos."
   },
   "step3": {
-    "title": "Tu primer almacén",
-    "subtitle": "Es donde vas a guardar el inventario. Puedes agregar más después.",
+    "title": "Tu almacén",
+    "subtitle": "Ya te creamos uno. Si tu negocio lo llama distinto, cámbiale el nombre.",
     "continue": "Continuar",
     "error": "No pudimos avanzar. Intenta de nuevo.",
     "name": "Nombre del almacén",
-    "nameHint": "Por ejemplo: Central, Sucursal Norte.",
+    "nameHint": "Por ejemplo: Central, Sucursal Norte, CEDIS.",
     "existing": "Ya tienes el almacén «{{name}}»."
   },
   "step4": {

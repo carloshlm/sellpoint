@@ -7,5 +7,7 @@
   "not_suspended": "El usuario no está suspendido",
   "not_invited": "Solo se puede reenviar la invitación a un usuario que todavía no la aceptó",
   "cannot_assign_unheld_role_permission": "No puedes asignar un rol que otorga permisos que tú mismo no tienes",
-  "warehouse_scope_invalid": "Uno o más almacenes elegidos no existen en este comercio"
+  "warehouse_scope_invalid": "Uno o más almacenes elegidos no existen en este comercio",
+  "default_warehouse_invalid": "Ese almacén no existe, no es tuyo o está desactivado.",
+  "default_warehouse_out_of_scope": "El almacén asignado tiene que estar dentro del alcance del usuario. Cambia primero su almacén asignado."
 }

@@ -65,7 +65,10 @@
     "warehouseScope": "Warehouse scope",
     "warehouseScopeHint": "Check the warehouses this user can work in.",
     "warehouseScopeEmptyHint": "With no warehouses checked, this user sees ALL of them. Check at least one to limit them.",
-    "warehouseScopeAdminHint": "Their roles administer the business, so they see every warehouse. This list does not apply to them."
+    "warehouseScopeAdminHint": "Their roles administer the business, so they see every warehouse. This list does not apply to them.",
+    "defaultWarehouse": "Assigned warehouse",
+    "defaultWarehouseNone": "Unassigned",
+    "defaultWarehouseHint": "Where they work from by default. Unassigned, they'll pick a warehouse on every movement."
   },
   "roles": {
     "page": {

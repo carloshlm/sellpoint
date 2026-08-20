@@ -103,20 +103,34 @@ async function main() {
 
   // 4. Admin demo (active, password conocido, es)
   const passwordHash = await argon2.hash(DEMO_ADMIN_PASSWORD, { type: argon2.argon2id });
-  const admin = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId: tenant.id, email: DEMO_ADMIN_EMAIL } },
-    update: { passwordHash, status: "active" },
-    create: {
-      tenantId: tenant.id,
-      email: DEMO_ADMIN_EMAIL,
-      passwordHash,
-      firstName: "Admin",
-      lastNamePaternal: "Demo",
-      status: "active",
-      locale: "es",
-      emailVerifiedAt: new Date(),
-    },
+  // `upsert` con `tenantId_email` NO compila contra este schema: ese unique
+  // compuesto no existe. El unique real de email es un índice FUNCIONAL sobre
+  // `lower(email)` que vive a mano en la migración `_auth_login_gateway`
+  // (Prisma no soporta índices funcionales), así que no hay `where` único que
+  // Prisma acepte — hay que buscar y ramificar. El seed llevaba roto desde que
+  // ese índice se volvió funcional; nadie lo notó porque `db seed` solo corre
+  // a mano en dev.
+  const existente = await prisma.user.findFirst({
+    where: { tenantId: tenant.id, email: DEMO_ADMIN_EMAIL },
+    select: { id: true },
   });
+  const admin = existente
+    ? await prisma.user.update({
+        where: { id: existente.id },
+        data: { passwordHash, status: "active" },
+      })
+    : await prisma.user.create({
+        data: {
+          tenantId: tenant.id,
+          email: DEMO_ADMIN_EMAIL,
+          passwordHash,
+          firstName: "Admin",
+          lastNamePaternal: "Demo",
+          status: "active",
+          locale: "es",
+          emailVerifiedAt: new Date(),
+        },
+      });
 
   const adminRole = await prisma.role.findUniqueOrThrow({
     where: { tenantId_name: { tenantId: tenant.id, name: "TenantAdmin" } },
@@ -127,6 +141,20 @@ async function main() {
     create: { userId: admin.id, roleId: adminRole.id },
   });
   console.log(`✓ admin ${admin.email} con rol TenantAdmin`);
+
+  // F3-HOME-03: el tenant demo estaba `onboarded: true` SIN un solo almacén —
+  // un estado que ningún tenant real puede alcanzar desde que `provision()`
+  // crea el suyo. Un seed que produce estados imposibles es un seed que miente.
+  const warehouse = await prisma.warehouse.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: "Almacén Central" } },
+    update: {},
+    create: { tenantId: tenant.id, name: "Almacén Central" },
+  });
+  await prisma.user.update({
+    where: { id: admin.id },
+    data: { defaultWarehouseId: warehouse.id },
+  });
+  console.log(`✓ almacén ${warehouse.name} asignado a ${admin.email}`);
 }
 
 main()

@@ -74,7 +74,11 @@ describe("Almacenes (F2-WH)", () => {
       .get("/warehouses")
       .set("Authorization", bearer(token))
       .expect(200);
-    expect(list.body).toMatchObject([{ id, isActive: false }]);
+    // F3-HOME-03: el tenant NACE con «Almacén Central», así que la lista trae
+    // dos — el inicial y este. Se busca el creado en vez de comparar la lista
+    // entera: afirmar el largo ataría este test al onboarding.
+    const creado = (list.body as { id: string; isActive: boolean }[]).find((w) => w.id === id);
+    expect(creado).toMatchObject({ id, isActive: false });
   });
 
   it("la dirección es OPCIONAL: un almacén sin dirección es válido", async () => {
@@ -120,7 +124,10 @@ describe("Almacenes (F2-WH)", () => {
       .get("/warehouses")
       .set("Authorization", bearer(second))
       .expect(200);
-    expect(listB.body).toEqual([]);
+    // Ve el SUYO (el inicial de F3-HOME-03) y ninguno del otro tenant: eso es
+    // justo lo que este test protege.
+    const nombresB = (listB.body as { name: string }[]).map((w) => w.name);
+    expect(nombresB).not.toContain("Privado");
 
     await request(app.getHttpServer())
       .patch(`/warehouses/${(created.body as { id: string }).id}`)

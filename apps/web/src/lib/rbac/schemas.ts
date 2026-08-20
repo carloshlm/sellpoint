@@ -40,6 +40,12 @@ export const userFormSchema = z.object({
    * tipos de entrada y salida que react-hook-form exige iguales.
    */
   warehouseIds: z.array(z.string()).optional(),
+  /**
+   * F3-HOME-02. `""` en el `<select>` es "sin asignar" — el container lo
+   * traduce a `null` antes de mandarlo. A diferencia de `warehouseIds`, este
+   * SÍ viaja en el alta: es una columna, no otro recurso.
+   */
+  defaultWarehouseId: z.string().optional(),
 });
 
 export const roleFormSchema = z.object({

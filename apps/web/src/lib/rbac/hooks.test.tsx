@@ -62,6 +62,7 @@ const USER: UserDetail = {
   lastNameMaternal: null,
   status: "invited",
   locale: "es",
+  defaultWarehouseId: null,
   roles: [],
 };
 

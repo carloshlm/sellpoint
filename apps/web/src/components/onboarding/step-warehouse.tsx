@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
-import { useCreateWarehouse, useWarehouses } from "@/lib/warehouses/hooks";
+import { useCreateWarehouse, useUpdateWarehouse, useWarehouses } from "@/lib/warehouses/hooks";
 
 interface StepWarehouseProps {
   isSubmitting: boolean;
@@ -26,24 +26,49 @@ function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps
   const { t } = useTranslation();
   const { data: warehouses } = useWarehouses();
   const createWarehouse = useCreateWarehouse();
-  const [name, setName] = useState("");
+  const updateWarehouse = useUpdateWarehouse();
   const [error, setError] = useState<string | null>(null);
 
   const existing = warehouses ?? [];
+  const actual = existing[0];
+
+  // F3-HOME-03: el tenant NACE con su almacén (`provision()` lo crea), así que
+  // este paso pasó de CREAR a RENOMBRAR. El input arranca con el nombre actual
+  // y solo se manda un PATCH si cambió — un negocio de distribución escribe
+  // "CEDIS" acá y sigue. El caso "no hay ninguno" queda como red por si un
+  // tenant viejo llega sin él.
+  const [name, setName] = useState(actual?.name ?? "");
+  const nameRef = useRef(false);
+  useEffect(() => {
+    if (nameRef.current || actual === undefined) {
+      return;
+    }
+    nameRef.current = true;
+    setName(actual.name);
+  }, [actual]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    const nuevo = name.trim();
 
-    // Si ya hay uno (por ejemplo al volver atrás en el wizard), no se crea
-    // otro: se avanza.
-    if (existing.length > 0 && !name.trim()) {
-      onSubmit();
+    if (actual !== undefined) {
+      if (nuevo === "" || nuevo === actual.name) {
+        onSubmit();
+        return;
+      }
+      updateWarehouse.mutate(
+        { id: actual.id, input: { name: nuevo } },
+        {
+          onSuccess: () => onSubmit(),
+          onError: (apiError: ApiError) => setError(apiError.message),
+        },
+      );
       return;
     }
 
     createWarehouse.mutate(
-      { name },
+      { name: nuevo },
       {
         onSuccess: () => onSubmit(),
         onError: (apiError: ApiError) => setError(apiError.message),
@@ -68,27 +93,22 @@ function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps
         </p>
       )}
 
-      {existing.length > 0 ? (
-        <p className="text-sm text-muted-foreground" data-testid="step-warehouse-existing">
-          {t("onboarding.step3.existing", { name: existing[0]?.name })}
-        </p>
-      ) : (
-        <TextField
-          label={t("onboarding.step3.name")}
-          hint={t("onboarding.step3.nameHint")}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-      )}
+      <TextField
+        label={t("onboarding.step3.name")}
+        hint={t("onboarding.step3.nameHint")}
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        data-testid="step-warehouse-name"
+      />
 
       <div>
         <Button
           type="submit"
           disabled={
-            isSubmitting || createWarehouse.isPending || (existing.length === 0 && !name.trim())
+            isSubmitting || createWarehouse.isPending || updateWarehouse.isPending || !name.trim()
           }
         >
-          {isSubmitting || createWarehouse.isPending
+          {isSubmitting || createWarehouse.isPending || updateWarehouse.isPending
             ? t("common.form.submitting")
             : t("onboarding.step3.continue")}
         </Button>

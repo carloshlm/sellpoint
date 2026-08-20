@@ -57,6 +57,20 @@ export class WarehouseScopeService {
         }
       }
 
+      // F3-HOME-01: encoger el alcance por debajo del almacén ASIGNADO da 409
+      // EXPLÍCITO y no lo limpia solo. En F4 el turno de caja depende del
+      // asignado: limpiarlo por atrás dejaría al vendedor varado a mitad de
+      // turno sin ninguna explicación. Que el TenantAdmin decida primero.
+      if (warehouseIds.length > 0) {
+        const usuario = await tx.user.findFirst({
+          where: { id: userId, tenantId: actor.tenantId },
+          select: { defaultWarehouseId: true },
+        });
+        if (usuario?.defaultWarehouseId && !warehouseIds.includes(usuario.defaultWarehouseId)) {
+          throw new ConflictException({ message: "users.default_warehouse_out_of_scope" });
+        }
+      }
+
       await tx.userWarehouseScope.deleteMany({ where: { userId } });
       if (warehouseIds.length > 0) {
         await tx.userWarehouseScope.createMany({

@@ -84,12 +84,12 @@
     "laterHint": "You can add or change fields anytime from Catalog and Fields."
   },
   "step3": {
-    "title": "Your first warehouse",
-    "subtitle": "This is where your inventory lives. You can add more later.",
+    "title": "Your warehouse",
+    "subtitle": "We already created one. If your business calls it something else, rename it.",
     "continue": "Continue",
     "error": "We couldn't move forward. Please try again.",
     "name": "Warehouse name",
-    "nameHint": "For example: Main, North Branch.",
+    "nameHint": "For example: Main, North Branch, Distribution Center.",
     "existing": "You already have the warehouse {{name}}."
   },
   "step4": {

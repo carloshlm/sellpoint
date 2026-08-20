@@ -7,5 +7,7 @@
   "not_suspended": "The user is not suspended",
   "not_invited": "The invitation can only be resent to a user who hasn't accepted it yet",
   "cannot_assign_unheld_role_permission": "You cannot assign a role that grants permissions you do not have yourself",
-  "warehouse_scope_invalid": "One or more selected warehouses do not exist in this business"
+  "warehouse_scope_invalid": "One or more selected warehouses do not exist in this business",
+  "default_warehouse_invalid": "That warehouse doesn't exist, isn't yours, or is deactivated.",
+  "default_warehouse_out_of_scope": "The assigned warehouse must be within the user's scope. Change their assigned warehouse first."
 }

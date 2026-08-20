@@ -13,6 +13,12 @@ export const createUserSchema = z.object({
   lastNameMaternal: z.string().trim().min(1).optional(),
   locale: z.enum(["es", "en"]).optional(),
   roleIds: z.array(z.uuid()).min(1),
+  /**
+   * F3-HOME-01. A diferencia del ALCANCE (otro recurso, otro `PUT`), el
+   * asignado es una COLUMNA: viaja en el mismo `tx.user.create` y no hay
+   * escritura parcial posible si algo falla.
+   */
+  defaultWarehouseId: z.uuid().nullish(),
 });
 
 export type CreateUserDto = z.infer<typeof createUserSchema>;

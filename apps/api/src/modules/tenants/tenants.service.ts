@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import {
+  INITIAL_WAREHOUSE_NAME,
   PRODUCTS_CATALOG_KEY,
   PRODUCTS_CATALOG_NAME,
   resolveRolePermissionCodes,
@@ -117,6 +118,25 @@ export class TenantsService {
           systemKey: PRODUCTS_CATALOG_KEY,
           isSystem: true,
         },
+      });
+
+      // F3-HOME-03: el tenant nace CON su almacén, en esta misma transacción.
+      // Antes existía el estado "tenant sin almacén" hasta que alguien
+      // completaba el paso 3 del onboarding — y el POS de F4 no puede vender
+      // desde la nada. El nombre es una sugerencia editable por idioma, no una
+      // referencia de sistema como el catálogo de productos.
+      const warehouse = await tx.warehouse.create({
+        data: {
+          tenantId: tenant.id,
+          name: INITIAL_WAREHOUSE_NAME[input.locale ?? "es"],
+        },
+      });
+
+      // Y queda ASIGNADO al owner: con un solo almacén no hay ambigüedad, y
+      // así el primer usuario del sistema ya opera desde algún lado.
+      await tx.user.update({
+        where: { id: owner.id },
+        data: { defaultWarehouseId: warehouse.id },
       });
 
       await this.auditService.record(tx, {

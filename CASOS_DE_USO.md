@@ -70,6 +70,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | Definir composición (producto compuesto / BOM) | ❌ | ✅ | ✅ | ❌ | ❌ |
 | Importar productos desde Excel | ❌ | ✅ | ✅ | ❌ | ❌ |
 | CRUD de servicios | ❌ | ✅ | ✅ | 👁 | 👁 |
+| Asignar el almacén de un usuario | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Almacenes** |  |  |  |  |  |
 | CRUD de almacenes | ❌ | ✅ | ✅ | 👁 | 👁 |
 | **Movimientos** |  |  |  |  |  |
@@ -200,6 +201,26 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   - 4a. Email ya existe en el tenant → error en formulario
   - 5a. Email rebota → admin puede reenviar invitación
 - **Postcondición:** Usuario creado, pendiente de activar password. Si tiene scope, queda limitado a esos almacenes.
+
+---
+
+#### **CU-SYS-07 — Asignar el almacén desde el que opera un usuario**
+
+> **Nuevo en F3-HOME (2026-08-19):** distinto del alcance (CU-SYS-04). El **alcance** dice dónde PUEDE operar (una lista, vacía = todos); la **asignación** dice desde dónde opera POR DEFECTO (uno solo). El POS de F4 no puede vender desde una lista. — `topic_key: sellpoint/almacen-asignado`
+
+- **Actor:** TenantAdmin / Manager (`users:manage`)
+- **Precondición:** Existe el usuario. El tenant siempre tiene al menos un almacén (nace con él).
+- **Flujo principal:**
+  1. Sistema → Usuarios → Nuevo usuario o Editar
+  2. Elige un almacén en «Almacén asignado» (o deja «Sin asignar»)
+  3. Guarda
+  4. El usuario ve ese almacén **preseleccionado** en entradas, salidas y conteos; en F4, su turno de caja abre ahí
+- **Flujos alternativos:**
+  - 2a. Con alcance marcado, los almacenes fuera de él aparecen **deshabilitados** en el selector; el API los rechaza con 409 `users.default_warehouse_out_of_scope`.
+  - 2b. Un almacén desactivado o de otro tenant → 409.
+  - 3a. **Encoger el alcance** por debajo del asignado → 409 explícito; el asignado NO se limpia solo. Hay que reasignar primero.
+  - 4a. Si el asignado deja de estar disponible (fuera de alcance o desactivado), la preselección simplemente no aplica y el usuario elige como antes.
+- **Postcondición:** El usuario opera por defecto desde ese almacén.
 
 ---
 

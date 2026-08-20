@@ -18,6 +18,7 @@ const DETAIL: UserDetail = {
   lastNameMaternal: null,
   status: "invited",
   locale: "es",
+  defaultWarehouseId: null,
   roles: [],
 };
 

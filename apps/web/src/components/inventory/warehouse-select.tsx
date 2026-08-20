@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useScopedWarehouses, useWarehouses } from "@/lib/warehouses/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 
 interface WarehouseSelectProps {
   value: string | null;
@@ -57,15 +58,25 @@ export function WarehouseSelect({
   onChangeRef.current = onChange;
   const yaAviso = useRef(false);
 
+  // F3-HOME-04: el almacén ASIGNADO del usuario manda sobre el auto-select de
+  // "hay uno solo" — pero SOLO si está entre sus opciones. Un asignado fuera de
+  // alcance o desactivado no se fuerza: mandarlo sería ofrecerle al usuario un
+  // almacén que el API va a rechazar. En ese caso se degrada al comportamiento
+  // de siempre, que es lo que este componente hacía antes de existir la
+  // asignación.
+  const asignado = useAuthStore((state) => state.user?.defaultWarehouseId ?? null);
+  const asignadoDisponible =
+    asignado !== null && opciones.some((w) => w.id === asignado) ? asignado : undefined;
+
   const unico = opciones.length === 1 ? opciones[0] : undefined;
-  const unicoId = unico?.id;
+  const inicial = asignadoDisponible ?? unico?.id;
   useEffect(() => {
-    if (unicoId === undefined || value !== null || yaAviso.current) {
+    if (inicial === undefined || value !== null || yaAviso.current) {
       return;
     }
     yaAviso.current = true;
-    onChangeRef.current(unicoId);
-  }, [unicoId, value]);
+    onChangeRef.current(inicial);
+  }, [inicial, value]);
 
   if (query.isPending) {
     return <p className="text-muted-foreground text-sm">{t("inventory.warehouse.loading")}</p>;

@@ -89,6 +89,7 @@ const USERS: rbacApi.UserDetail[] = [
     lastNameMaternal: null,
     status: "active",
     locale: "es",
+    defaultWarehouseId: null,
     roles: [{ id: "r1", name: "Cajero" }],
   },
   {
@@ -99,6 +100,7 @@ const USERS: rbacApi.UserDetail[] = [
     lastNameMaternal: null,
     status: "invited",
     locale: "es",
+    defaultWarehouseId: null,
     roles: [{ id: "r2", name: "Admin" }],
   },
   {
@@ -109,6 +111,7 @@ const USERS: rbacApi.UserDetail[] = [
     lastNameMaternal: null,
     status: "active",
     locale: "es",
+    defaultWarehouseId: null,
     roles: [{ id: "r1", name: "Cajero" }],
   },
   {
@@ -119,6 +122,7 @@ const USERS: rbacApi.UserDetail[] = [
     lastNameMaternal: null,
     status: "suspended",
     locale: "es",
+    defaultWarehouseId: null,
     roles: [{ id: "r1", name: "Cajero" }],
   },
 ];
@@ -278,6 +282,7 @@ describe("/system/users", () => {
         lastNameMaternal: null,
         status: "invited",
         locale: "es",
+        defaultWarehouseId: null,
         roles: [{ id: "r1", name: "Cajero" }],
       };
       mockedApi.listUsers.mockResolvedValueOnce(USERS).mockResolvedValueOnce([...USERS, newUser]);
@@ -726,21 +731,107 @@ describe("/system/users", () => {
    * Los estados salen de DATOS (permisos de los roles marcados, filas del
    * scope), nunca del nombre del rol ni de una cadena de copy.
    */
-  describe("Alcance por almacén en el form de usuario (F3-NAV-03)", () => {
-    /** Abre "Editar" en la fila que contiene ese nombre. */
-    async function abrirEdicionDe(user: ReturnType<typeof userEvent.setup>, nombre: string) {
-      if (!useAuthStore.getState().user) {
-        useAuthStore
-          .getState()
-          .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read"]));
-      }
-      await renderRoute("/system/users");
-      await screen.findByText(nombre);
-      const fila = screen.getByText(nombre).closest("tr") as HTMLElement;
-      await user.click(within(fila).getByRole("button", { name: "Acciones" }));
-      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+  /** Abre "Editar" en la fila que contiene ese nombre. Compartido por los dos
+   * bloques que editan un usuario (F3-HOME-02 y F3-NAV-03). */
+  async function abrirEdicionDe(user: ReturnType<typeof userEvent.setup>, nombre: string) {
+    if (!useAuthStore.getState().user) {
+      useAuthStore
+        .getState()
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read"]));
     }
+    await renderRoute("/system/users");
+    await screen.findByText(nombre);
+    const fila = screen.getByText(nombre).closest("tr") as HTMLElement;
+    await user.click(within(fila).getByRole("button", { name: "Acciones" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+  }
 
+  /**
+   * F3-HOME-02 — el almacén ASIGNADO, distinto del alcance.
+   *
+   * Alcance = dónde PUEDE operar (una lista, vacío = todos).
+   * Asignado = desde dónde opera POR DEFECTO (uno solo). El POS de F4 no puede
+   * vender desde una lista: necesita un almacén concreto.
+   */
+  describe("Almacén asignado en el form de usuario (F3-HOME-02)", () => {
+    it("viaja en el ALTA, a diferencia del alcance", async () => {
+      const user = userEvent.setup();
+      useAuthStore
+        .getState()
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
+      mockedApi.createUser.mockResolvedValue(USERS[0] as rbacApi.UserDetail);
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+
+      await user.click(screen.getByRole("button", { name: "Nuevo usuario" }));
+      await user.type(screen.getByLabelText("Email"), "nuevo@acme.mx");
+      await user.type(screen.getByLabelText("Nombre"), "Nuevo");
+      await user.type(screen.getByLabelText("Apellido paterno"), "Usuario");
+      await user.click(screen.getByRole("checkbox", { name: "Cajero" }));
+      await user.selectOptions(screen.getByLabelText("Almacén asignado"), "w2");
+      await user.click(screen.getByRole("button", { name: "Crear usuario" }));
+
+      // Es una COLUMNA, no otro recurso: entra en el mismo POST y no hay
+      // escritura parcial posible.
+      await waitFor(() =>
+        expect(mockedApi.createUser).toHaveBeenCalledWith(
+          expect.objectContaining({ defaultWarehouseId: "w2" }),
+          // React Query pasa su contexto como 2º argumento cuando el
+          // `mutationFn` es la función del api directamente.
+          expect.anything(),
+        ),
+      );
+    });
+
+    it("«Sin asignar» es una opción válida y explica qué implica", async () => {
+      const user = userEvent.setup();
+      await abrirEdicionDe(user, "Ana García");
+
+      const select = await screen.findByLabelText("Almacén asignado");
+      expect(
+        within(select as HTMLElement).getByRole("option", { name: "Sin asignar" }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("default-warehouse-hint")).toBeInTheDocument();
+    });
+
+    it("editar manda el asignado en el PATCH", async () => {
+      const user = userEvent.setup();
+      mockedApi.updateUser.mockResolvedValue(USERS[0] as rbacApi.UserDetail);
+      await abrirEdicionDe(user, "Ana García");
+
+      await user.selectOptions(await screen.findByLabelText("Almacén asignado"), "w1");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() =>
+        expect(mockedApi.updateUser).toHaveBeenCalledWith(
+          "u1",
+          expect.objectContaining({ defaultWarehouseId: "w1" }),
+        ),
+      );
+    });
+
+    /**
+     * La regla que cose las dos cosas: con alcance marcado, un almacén fuera de
+     * él no se puede asignar — el API lo rechaza con 409 y la UI no debería
+     * dejar llegar hasta ahí.
+     */
+    it("con alcance marcado, los almacenes fuera de él no se pueden asignar", async () => {
+      const user = userEvent.setup();
+      mockedApi.getWarehouseScope.mockResolvedValue(["w1"]);
+      await abrirEdicionDe(user, "Ana García");
+
+      const select = (await screen.findByLabelText("Almacén asignado")) as HTMLSelectElement;
+      const fuera = within(select).getByRole("option", {
+        name: "Bodega Norte",
+      }) as HTMLOptionElement;
+      expect(fuera.disabled).toBe(true);
+      expect(
+        (within(select).getByRole("option", { name: "Central" }) as HTMLOptionElement).disabled,
+      ).toBe(false);
+    });
+  });
+
+  describe("Alcance por almacén en el form de usuario (F3-NAV-03)", () => {
     it("lista un checkbox por almacén, marcando los que el usuario ya tiene", async () => {
       const user = userEvent.setup();
       mockedApi.getWarehouseScope.mockResolvedValue(["w2"]);

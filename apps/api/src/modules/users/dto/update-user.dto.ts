@@ -10,6 +10,8 @@ export const updateUserSchema = z
     lastNameMaternal: z.string().trim().min(1).optional(),
     locale: z.enum(["es", "en"]).optional(),
     roleIds: z.array(z.uuid()).min(1).optional(),
+    /** F3-HOME-01. `null` explícito lo quita. */
+    defaultWarehouseId: z.uuid().nullish(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "users.invalid_body",

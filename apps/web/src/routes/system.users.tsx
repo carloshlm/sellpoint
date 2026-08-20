@@ -138,7 +138,14 @@ function SystemUsersContent() {
     if (formState.mode === "create") {
       // `warehouseIds` no viaja en el alta: el endpoint de alcance necesita un
       // `:id` que nace recién ahora, y `createUserSchema` no lo acepta.
-      const { warehouseIds: _scope, ...alta } = values;
+      // `warehouseIds` NO viaja (es otro recurso y el usuario aún no tiene id),
+      // pero `defaultWarehouseId` SÍ: es una columna del usuario. `""` es
+      // "sin asignar" y se traduce a `null` para el API.
+      const { warehouseIds: _scope, defaultWarehouseId, ...resto } = values;
+      const alta = {
+        ...resto,
+        ...(defaultWarehouseId ? { defaultWarehouseId } : {}),
+      };
       createUserMutation.mutate(alta, {
         onSuccess: () => {
           setFormState(null);
@@ -149,8 +156,17 @@ function SystemUsersContent() {
       return;
     }
 
-    const { email: _email, warehouseIds: scopeSeleccionado, ...input } = values;
+    const { email: _email, warehouseIds: scopeSeleccionado, defaultWarehouseId, ...resto } = values;
     const warehouseIds = scopeSeleccionado ?? [];
+    // Solo si CAMBIÓ. El API distingue "no lo toques" (ausente) de "quítalo"
+    // (`null`), y mandarlo siempre haría que cada PATCH reescribiera un campo
+    // que nadie tocó — ruido en la auditoría y una reescritura de más.
+    const asignadoAnterior = formState.user.defaultWarehouseId ?? "";
+    const asignadoNuevo = defaultWarehouseId ?? "";
+    const input = {
+      ...resto,
+      ...(asignadoNuevo !== asignadoAnterior ? { defaultWarehouseId: asignadoNuevo || null } : {}),
+    };
     const userId = formState.user.id;
     updateUserMutation.mutate(
       { id: userId, input },

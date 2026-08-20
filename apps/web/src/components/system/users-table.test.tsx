@@ -21,6 +21,7 @@ function makeUser(overrides: Partial<UserDetail>): UserDetail {
     lastNameMaternal: overrides.lastNameMaternal ?? null,
     status: overrides.status ?? "active",
     locale: overrides.locale ?? "es",
+    defaultWarehouseId: null,
     roles: overrides.roles ?? [{ id: "r1", name: "Cajero" }],
   };
 }

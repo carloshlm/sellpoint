@@ -263,6 +263,18 @@ del editor de schema.
 
 ### 3.4 Alcance de usuarios por almacén (multi-sucursal)
 
+> **Asignación vs. alcance (F3-HOME, 2026-08-19).** Son dos cosas distintas y conviene no confundirlas:
+>
+> | | Qué responde | Forma | Dónde vive |
+> |---|---|---|---|
+> | **Alcance** | ¿Dónde **puede** operar? | Una lista (vacía = todos) | `user_warehouse_scopes` |
+> | **Asignación** | ¿Desde dónde opera **por defecto**? | Uno solo (nullable) | `users.default_warehouse_id` |
+>
+> La asignación nació porque el POS de F4 **no puede vender desde una lista**: necesita un almacén concreto para descontar stock. La cadena queda `usuario.asignado → turno de caja → venta → ledger`. Reglas: el asignado tiene que estar **dentro** del alcance cuando el alcance no está vacío (409 si no), y encoger el alcance por debajo del asignado da 409 **explícito** en vez de limpiarlo solo — en F4 el turno depende de él y limpiarlo en silencio dejaría a un vendedor varado a mitad de turno.
+>
+> **No se creó una entidad «Sucursal»**: el modelo sigue plano `tenant → almacén`. Una Branch no habría respondido la pregunta del POS, la habría delegado (necesitaría su propio almacén por defecto), y el nombre lo pone cada negocio en cada almacén — «Sucursal Centro», «Bodega», «CEDIS».
+
+
 Para soportar **cadenas con múltiples sucursales** sin sacrificar la simplicidad del caso single-store, el sistema agrega una capa de **scoping** sobre el RBAC. Esto separa dos preguntas:
 
 - **Roles + permisos** → ¿QUÉ puede hacer el usuario?

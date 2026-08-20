@@ -476,6 +476,7 @@ describe("/onboarding", () => {
       lastNameMaternal: null,
       status: "invited",
       locale: "es",
+      defaultWarehouseId: null,
       roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
     }));
     const onboardedTenant = tenantReadyForInvites({ onboarded: true });
@@ -541,6 +542,7 @@ describe("/onboarding", () => {
         lastNameMaternal: null,
         status: "invited",
         locale: "es",
+        defaultWarehouseId: null,
         roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
       };
     });
@@ -598,6 +600,7 @@ describe("/onboarding", () => {
         lastNameMaternal: null,
         status: "invited",
         locale: "es",
+        defaultWarehouseId: null,
         roles: [{ id: input.roleIds[0] ?? "", name: "Cajero" }],
       };
     });
@@ -712,7 +715,7 @@ describe("/onboarding", () => {
 
     await renderRoute("/onboarding?step=3", "en");
 
-    expect(await screen.findByText("Your first warehouse")).toBeInTheDocument();
+    expect(await screen.findByText("Your warehouse")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
   });
 });

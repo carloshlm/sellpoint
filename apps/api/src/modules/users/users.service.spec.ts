@@ -71,7 +71,13 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
     expect(prisma.withTenantContext).toHaveBeenCalledWith("tenant-1", expect.any(Function));
     expect(tx.user.findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: "user-1" },
-      select: { id: true, email: true, firstName: true, locale: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        locale: true,
+        defaultWarehouseId: true,
+      },
     });
     expect(result).toEqual({
       id: "user-1",

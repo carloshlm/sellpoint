@@ -86,20 +86,63 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("si el tenant YA tiene un almacén, avanza sin crear otro", async () => {
-    // Caso de volver atrás en el wizard: crear un segundo almacén sería un
-    // efecto colateral que el usuario no pidió.
+  /**
+   * F3-HOME-03: el tenant NACE con su almacén (`provision()` lo crea), así que
+   * este paso pasó de CREAR a RENOMBRAR. El input llega precargado.
+   */
+  it("con el almacén ya creado, el input trae su nombre y continuar no crea otro", async () => {
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([
-      { id: "w-1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+      {
+        id: "w-1",
+        name: "Almacén Central",
+        address: null,
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
     ]);
     const onSubmit = renderStep();
 
-    expect(await screen.findByTestId("step-warehouse-existing")).toHaveTextContent("Central");
+    const input = await screen.findByTestId("step-warehouse-name");
+    await waitFor(() => expect(input).toHaveValue("Almacén Central"));
 
     await user.click(screen.getByRole("button", { name: /continuar/i }));
 
+    // Ni crea otro ni manda un PATCH que no cambia nada.
     expect(mockedApi.createWarehouse).not.toHaveBeenCalled();
+    expect(mockedApi.updateWarehouse).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalled();
+  });
+
+  it("cambiar el nombre manda el PATCH y recién entonces avanza", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([
+      {
+        id: "w-1",
+        name: "Almacén Central",
+        address: null,
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
+    ]);
+    mockedApi.updateWarehouse.mockResolvedValue({
+      id: "w-1",
+      name: "CEDIS",
+      address: null,
+      isActive: true,
+      deactivationBlockedBy: null,
+    });
+    const onSubmit = renderStep();
+
+    const input = await screen.findByTestId("step-warehouse-name");
+    await waitFor(() => expect(input).toHaveValue("Almacén Central"));
+    await user.clear(input);
+    await user.type(input, "CEDIS");
+    await user.click(screen.getByRole("button", { name: /continuar/i }));
+
+    await waitFor(() =>
+      expect(mockedApi.updateWarehouse).toHaveBeenCalledWith("w-1", { name: "CEDIS" }),
+    );
     expect(onSubmit).toHaveBeenCalled();
   });
 });

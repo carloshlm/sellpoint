@@ -64,6 +64,29 @@ const documento = (folio: string, status: "draft" | "confirmed" | "canceled" = "
   confirmedAt: "2026-08-18T19:45:00.000Z",
 });
 
+/**
+ * F3-HOME-04. Un usuario con almacén ASIGNADO: el store lo lleva y el selector
+ * del listado tiene que arrancar ahí.
+ */
+async function renderConAsignado(defaultWarehouseId: string | null) {
+  useAuthStore.getState().setAuth("jwt-demo", {
+    ...demoUser(["inventory:read", "inventory:movement"]),
+    defaultWarehouseId,
+  });
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: ["/movements/entries"] }),
+  });
+  await router.load();
+  render(
+    <I18nextProvider i18n={createI18n()}>
+      <QueryClientProvider client={createQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </I18nextProvider>,
+  );
+}
+
 async function renderRuta(
   path: string,
   permissions: string[] = ["inventory:read", "inventory:movement"],
@@ -165,6 +188,60 @@ describe("Listado de documentos (F3-DOC-08)", () => {
 
     await waitFor(() => {
       expect(mockedList).toHaveBeenCalledWith(expect.objectContaining({ status: "canceled" }));
+    });
+  });
+
+  /**
+   * F3-HOME-04. Con DOS almacenes el auto-select de `WarehouseSelect` (que
+   * solo dispara con uno) no aplica: sin asignado había que elegir en cada
+   * movimiento, que es la fricción que esto quita.
+   */
+  describe("el almacén asignado preselecciona (F3-HOME-04)", () => {
+    const DOS = [
+      { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+      {
+        id: "w2",
+        name: "Bodega Norte",
+        address: null,
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
+    ];
+
+    it("con asignado, el documento nuevo sale de ESE almacén", async () => {
+      const user = userEvent.setup();
+      mockedWarehouses.mockResolvedValue(DOS);
+      mockedCreate.mockResolvedValue({ ...documento("ENT-000043", "draft"), id: "nuevo-id" });
+      await renderConAsignado("w2");
+      await screen.findByText("ENT-000042");
+
+      await user.click(screen.getByRole("button", { name: /crear/i }));
+
+      await waitFor(() => {
+        expect(mockedCreate.mock.calls[0]?.[0]).toEqual({ type: "entry", warehouseId: "w2" });
+      });
+    });
+
+    /** Sin asignado y con dos opciones, sigue habiendo que elegir: nada cambia. */
+    it("sin asignado el botón queda inhabilitado hasta que se elija", async () => {
+      mockedWarehouses.mockResolvedValue(DOS);
+      await renderConAsignado(null);
+      await screen.findByText("ENT-000042");
+
+      expect(screen.getByRole("button", { name: /crear/i })).toBeDisabled();
+    });
+
+    /**
+     * Un asignado que NO está entre sus opciones (fuera de alcance o
+     * desactivado) no se fuerza: se degrada al comportamiento de siempre en vez
+     * de mandar un almacén que el API va a rechazar.
+     */
+    it("un asignado fuera de las opciones no se fuerza", async () => {
+      mockedWarehouses.mockResolvedValue(DOS);
+      await renderConAsignado("w-borrado");
+      await screen.findByText("ENT-000042");
+
+      expect(screen.getByRole("button", { name: /crear/i })).toBeDisabled();
     });
   });
 

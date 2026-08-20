@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
 interface SelectOption {
   value: string;
   label: string;
+  /**
+   * F3-HOME-02: una opción que existe pero no se puede elegir en ESTE
+   * contexto. Se muestra en vez de esconderse para que el usuario entienda
+   * que la lista está acotada, no incompleta.
+   */
+  disabled?: boolean;
 }
 
 interface SelectFieldProps extends Omit<React.ComponentProps<"select">, "children"> {
@@ -42,7 +48,7 @@ function SelectField({ label, options, error, hint, className, ...selectProps }:
         {...selectProps}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}

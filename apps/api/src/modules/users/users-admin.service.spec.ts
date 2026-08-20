@@ -136,6 +136,7 @@ describe("UsersAdminService.create (F1-RBAC-03)", () => {
       lastNameMaternal: null,
       status: "invited",
       locale: "es",
+      defaultWarehouseId: null,
       roles: [{ id: "role-1", name: "Manager" }],
     });
   });
