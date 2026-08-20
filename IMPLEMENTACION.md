@@ -49,8 +49,8 @@
 **Mapeo concreto por categoría:**
 
 - **SIN SDD**: F0-MONO-*, F0-DB-*, F0-SHARED-*, F0-I18N-01, F0-API-01, F0-WEB-01, F0-CI, F0-DOC. Bug fixes triviales.
-- **SDD LIGERO**: F0-DEPLOY, F0-I18N-02/03/04, F2-DB, F2-UOM, F2-SUBCAT, F2-WH, F2-ONBOARD, F3-DB, F3-GUARDS, F3-NAV, F5-EXPORT.
-- **SDD COMPLETO**: F1-AUTH, F1-RBAC, F1-LOCALE, F1-TENANT, F1-SCOPE, F2-CAT, F2-SCHEMA, F2-PRESENT, F2-BOM, F2-PROD, F2-IMPORT, F2-SCOPE, F3-CORE, F3-ENTRY, F3-EXIT, F3-TRANSFER, F3-COUNT, F3-KARDEX, F3-LOTS, F3-DOC, F4-CART, F4-COMPOSITE, F4-CHECKOUT, F4-NUMPAD, F4-PRINT-BT, F4-PWA, F5-API, F6-*, F7-*, F9-*.
+- **SDD LIGERO**: F0-DEPLOY, F0-I18N-02/03/04, F2-DB, F2-UOM, F2-SUBCAT, F2-WH, F2-ONBOARD, F3-DB, F3-GUARDS, F3-NAV, F4-UI, F4-TICKET, F4-PWA, F4-DOCS, F5-EXPORT.
+- **SDD COMPLETO**: F1-AUTH, F1-RBAC, F1-LOCALE, F1-TENANT, F1-SCOPE, F2-CAT, F2-SCHEMA, F2-PRESENT, F2-BOM, F2-PROD, F2-IMPORT, F2-SCOPE, F3-CORE, F3-ENTRY, F3-EXIT, F3-TRANSFER, F3-COUNT, F3-KARDEX, F3-LOTS, F3-DOC, F4-DB, F4-CASHBOX, F4-SALE, F4-QUOTE, F4-CART, F5-API, F6-*, F7-*, F9-*.
 
 **Cómo Claude lo comunica:**
 
@@ -146,8 +146,8 @@ Ejemplos:
 | **F0** | Setup + Walking Skeleton | ✅ Completada | 1.5-2 semanas | ✅ Sí |
 | **F1** | Multi-Tenant + Auth | ✅ Completada | 2-3 semanas | ✅ Sí |
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
-| **F3** | Movimientos de Inventario | 🔄 En curso | 5-6 semanas | ✅ Sí |
-| **F4** | POS PWA | ⬜ Pendiente | 3 semanas | ⬜ Outline |
+| **F3** | Movimientos de Inventario | ✅ Completada | 5-6 semanas | ✅ Sí |
+| **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas | ✅ Sí (2026-08-20) |
 | **F5** | Reportes | ⬜ Pendiente | 1-2 semanas | ⬜ Outline |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
@@ -2326,29 +2326,205 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ---
 
-## Fase 4 — POS PWA (outline)
+## Fase 4 — POS PWA + Cotización
 
-> **Hereda de F3 (atomización del 2026-08-17):** el enum `reason_code` ya trae `sale` y `sale_return` reservados; la venta **NO escribe `stock_movements` propios** — llama a `StockLedgerService.apply(tx, …)` con `reason='sale'` (y `sale_return` para la anulación), que es quien bloquea, valida y proyecta a `stock_by_warehouse`. La anulación de un compuesto vendido revierte por `sale_return` (no `customer_return`, que queda para la devolución manual sin venta). El folio de venta sale de `nextFolio(tx, tenantId, 'sale', 'VTA')` sobre `tenant_sequences`. **FEFO viene gratis**: al vender un producto con `tracks_lots`, `apply` elige el lote que vence antes (F3-CORE-08) — el POS no diseña nada de lotes; solo muestra el lote descontado en el ticket si quiere. **Una línea de SERVICIO no toca el ledger** (F3-SVC): no hay stock que descontar, así que no llama a `apply`, no exige presentación y no interviene en FEFO — una venta de puros servicios no escribe un solo `stock_movement`. **`Idempotency-Key`** en el checkout es deuda anotada en F3 para acá (doble tap). Alcance por almacén: `assertWarehouseInScope` + `warehouseScopeWhere` de F3-CORE-03. `TenantTransactionsGate.hasTransactions()` debe sumar `sales` (`TODO(F4)` dejado en F3-GUARDS-04).
+> **Atomizada el 2026-08-20** (era outline). **Hereda de F3:** el enum `reason_code` ya trae `sale` y `sale_return` en el CHECK y en `REASONS_BY_DIRECTION` — **F4 no toca el schema para vender**; la venta **NO escribe `stock_movements` propios**, llama a `StockLedgerService.apply(tx, …)` con `reason='sale'` (`sale_return` para la anulación; `customer_return` queda para la devolución manual sin venta); **FEFO viene gratis** (F3-CORE-08) y la expansión de compuestos también (`composition-expander`); una línea de **SERVICIO no toca el ledger**; el folio sale de `nextFolio` sobre `tenant_sequences` con el gotcha del lock ya medido (`folio.ts`); la cadena del almacén es `usuario.asignado → turno → venta → ledger` (F3-HOME); los lookups filtran por el **almacén del turno** (productos con stock > 0, servicios asociados en `service_warehouses` — F3-SVC).
+>
+> **La COTIZACIÓN se adelanta desde Fase 9** (era F9-QUOTE-*; `Sale.quote_id` y `QuoteLookup` ya estaban reservados — la previsión se cobra ahora). Decisiones de Carlos (2026-08-20): **(1)** permiso propio **`pos:quote`** — la recepción cotiza sin poder cobrar, y el médico de F9 tendrá `pos:quote` sin caja; **(2)** la cotización **NO exige turno de caja** — no toca dinero ni stock, filtra por el almacén ASIGNADO del cotizador; **(3)** **NO congela precios ni maneja vigencia** — los precios impresos son de referencia y **al cargarla en el POS se recalculan con el catálogo vigente**, así que no hay estados `expired` ni promesas de precio que administrar.
+>
+> Clasificación: **F4-DB, F4-CASHBOX, F4-SALE, F4-QUOTE, F4-CART = SDD COMPLETO** (dinero, stock y concurrencia); **F4-UI, F4-TICKET, F4-PWA, F4-DOCS = SDD LIGERO** (caras sobre maquinaria ya probada).
 
-- **F4-DB** — Modelos `Sale`, `SaleItem`, `CashboxSession`. **De qué almacén sale la venta (F3-HOME):** `CashboxSession` gana `warehouse_id` NOT NULL + `opened_by`; abrir turno **prefiere el almacén asignado** del usuario (`users.default_warehouse_id`) y solo deja cambiarlo dentro de su alcance; `Sale.warehouse_id` lo hereda del turno y es lo que recibe `StockLedgerService.apply`. La cadena completa: `usuario.asignado → turno → venta → ledger`. **`SaleItem` vende productos O servicios** (F3-SVC): `product_id` **nullable** + `service_id` nullable + CHECK «exactamente uno de los dos» (patrón de los índices parciales de F3); `presentation_id` es nullable y solo aplica al producto; `quantity` DECIMAL, `unit_price`, `discount`. **Reservar columnas nullable `Sale.clinical_document_id` y `Sale.quote_id`** para vincular ventas a documentos clínicos o cotizaciones cuando llegue Fase 9 (NO crear las tablas ahora, solo las FK nullable).
-- **F4-API** — Endpoints venta, anulación, cierre. La anulación de una venta de producto compuesto **revierte el descuento de componentes** (entradas de reverso con `reason_code='sale_return'` vía el ledger de F3).
-- **F4-UI** — Pantalla principal de venta optimizada para tablet.
-- **F4-SCAN** — Integración escáner cámara (@zxing/browser). El barcode escaneado busca primero en `product_presentations.barcode` (si matchea, agrega esa presentación) y solo si no, en `products.barcode` (legacy).
-- **F4-CART** — Carrito con búsqueda predictiva. **Diseñar el "input principal" del POS como extensible** con strategy pattern: `SkuLookup`, `BarcodeLookup`, `TextSearchLookup` y **`ServiceLookup`** (F3-SVC: busca por `code` o nombre; el vendedor tiene `services:read` desde F3-SVC-02). **Los dos lookups filtran por el ALMACÉN DEL TURNO** (F3-SVC-06): un servicio aparece solo si está `is_active` **y** asociado a ese almacén en `service_warehouses` —sin asociación no existe para ese POS—, y un producto solo si tiene **stock > 0** ahí. El ledger revalida al cobrar: esto es defensa en profundidad, como el numpad de `allow_fractional_input`, no la única red — para que agregar `PrescriptionLookup` y `QuoteLookup` en Fase 9 sea trivial. **Selector de presentación al agregar producto:** si tiene N presentaciones vendibles, mostrar selector inline; la marcada `is_default_sale` viene pre-seleccionada.
-- **F4-NUMPAD** — Numpad inteligente: oculta el botón `.` cuando la presentación elegida tiene `allow_fractional_input = false`. Maneja paste/keyboard: si recibe input con punto en presentación entera, trunca y muestra hint inline ("Solo enteros"). El backend revalida igualmente (defense in depth).
-- **F4-COMPOSITE** — Lógica de venta de productos compuestos:
-  - El compuesto se ve y suma al carrito como cualquier producto. Su stock visible es el calculado en vivo: `min(stock_componente_i / qty_i)`.
-  - Al COBRAR, el sistema expande la composición de cada línea compuesta y genera N `stock_movements` de salida por componente en **transacción atómica**.
-  - Si CUALQUIER componente no tiene stock suficiente → falla la venta entera con mensaje claro (qué componente falta, cuántas unidades son posibles).
-  - El recibo muestra el producto compuesto, no sus componentes (el cliente compra el producto armado, no su despiece).
-- **F4-CHECKOUT** — Modal de cobro (efectivo, tarjeta, transferencia).
-- **F4-PRINT-DESKTOP** — Impresión via `window.print` + CSS @page.
-- **F4-PRINT-BT** — Impresión Web Bluetooth (ESC/POS).
-- **F4-CASHBOX** — Cierre de caja.
-- **F4-PWA** — Service worker, offline básico, manifest completo.
+### Módulo F4-DB — Modelos de venta, caja y cotización
 
-**Estimación:** 3 semanas.
+- [ ] **F4-DB-01** — Modelos `Sale`, `SaleItem`, `CashboxSession` + RLS de nacimiento
+  - **Salida:** `CashboxSession` (`warehouse_id` NOT NULL, `opened_by`, `opened_at`, `closed_at?`, totales declarados al cierre); `Sale` (`folio`, `warehouse_id` heredado del turno, `cashbox_session_id`, `quote_id` **nullable FK activa**, `clinical_document_id` nullable SIN tabla — reservada F9, solo la columna, `status` completed|canceled, `payment_method`, totales, `created_by`, `canceled_by/at`); `SaleItem` (`product_id` nullable + `service_id` nullable + **CHECK «exactamente uno»**, `presentation_id` nullable solo-producto, `quantity` DECIMAL(14,4), `unit_price`/`discount`/`line_total` DECIMAL(14,2)); **FK `sale_items.service_id` → RESTRICT** (cierra el `TODO(F4)` de `services.remove`: la guarda 409 `services.has_sales` llega en F4-SALE-01); UNA migración con ENABLE/FORCE/policy; canarios + `ARRAY[...]` del estructural
+  - **Verificar:** canarios en verde; el CHECK rechaza 0 y 2 referencias; FORCE en `pg_class`
+  - **Depende de:** —
+  - **Estimación:** 2.5 h
 
+- [ ] **F4-DB-02** — Modelos `Quote`, `QuoteLine` + RLS de nacimiento
+  - **Salida:** `Quote` (`folio` COT, `warehouse_id` NOT NULL — el almacén del COTIZADOR, para filtrar sus lookups y para reporte, `status` open|loaded|canceled, `created_by`, totales de referencia); `QuoteLine` (mismo shape que `SaleItem`: producto O servicio con CHECK, `quantity`, `unit_price` **de referencia** — el precio real se recalcula al cargar); sin FK al ledger ni a `inventory_documents`: una cotización NO mueve stock por diseño; RLS de nacimiento + canarios
+  - **Verificar:** canarios; el CHECK; una cotización no puede referenciar movimientos
+  - **Depende de:** —
+  - **Estimación:** 2 h
+
+- [ ] **F4-DB-03** — Series `VTA`/`COT` + permisos `pos:quote` y `pos:view`
+  - **Salida:** `FOLIO_PREFIXES` de shared gana las series de venta y cotización (los dos tests de contrato que afirman «son exactamente tres» y «`VTA` no la usa nadie» se actualizan — son guardarraíles haciendo su trabajo, no estorbos); migración de permisos molde `f2_permissions`: **`pos:quote`** (cotizar sin cobrar — recepción hoy, médico en F9) y **`pos:view`** (historial de ventas — VISTAS §9.3 lo exigía y NO existía en el catálogo: el permiso fantasma se resuelve acá, no se hereda); `POS_SELLER_CODES` gana los dos; `role-catalog.spec.ts` con el bloque nuevo; gotcha del perm-epoch anotado
+  - **Verificar:** spec del catálogo de roles; e2e 403 sin permiso; los tests de shared en verde con las series nuevas
+  - **Depende de:** —
+  - **Estimación:** 1.5 h
+
+### Módulo F4-CASHBOX — El turno de caja
+
+- [ ] **F4-CASHBOX-01** — Abrir turno y consultar el actual
+  - **Salida:** `POST /pos/session` (permiso `pos:sell`): `warehouseId` opcional — default el **asignado** del usuario (F3-HOME), validado existe/tenant/activo/dentro-del-alcance; guarda de **UN turno abierto por usuario** → 409 `pos.session_already_open`; `GET /pos/session` devuelve el turno actual (`sessionId`, `warehouseId`, `openedAt`) o 404; sin turno abierto, vender da 409 `pos.no_session`
+  - **Verificar:** e2e: abre con el asignado por default; almacén fuera de alcance → 409; segundo turno → 409; vender sin turno → 409
+  - **Depende de:** F4-DB-01
+  - **Estimación:** 2 h
+
+- [ ] **F4-CASHBOX-02** — Cierre de caja con arqueo
+  - **Salida:** `POST /pos/session/close`: totales POR MÉTODO calculados de las ventas del turno (las anuladas no suman), el cajero declara lo contado y el sistema guarda **declarado, calculado y diferencia** — la diferencia se registra, no se bloquea (cuadrar caja es tarea humana, esconder el descuadre sería peor); un turno cerrado no acepta ventas
+  - **Verificar:** e2e: totales correctos por método; venta anulada no suma; vender sobre turno cerrado → 409; la diferencia queda guardada
+  - **Depende de:** F4-CASHBOX-01, F4-SALE-01
+  - **Estimación:** 2 h
+
+- [ ] **F4-CASHBOX-03** — UI del turno
+  - **Salida:** pantalla de apertura (selector de almacén precargado con el asignado, molde `WarehouseSelect`); la barra del POS muestra **el almacén del turno** (deuda de F3-HOME-05 sobre VISTAS §9.1); pantalla de cierre con los totales por método y el campo de arqueo; sin turno abierto, `/pos` ofrece abrirlo
+  - **Verificar:** tests de ruta: apertura preselecciona el asignado; la barra muestra el almacén; cierre pinta calculado vs declarado
+  - **Depende de:** F4-CASHBOX-01, F4-CASHBOX-02
+  - **Estimación:** 2.5 h
+
+### Módulo F4-SALE — La venta como llamador del ledger
+
+- [ ] **F4-SALE-01** — `SalesService.create`: la transacción del cobro
+  - **Salida:** `POST /pos/sales` (`pos:sell`, turno abierto): UNA transacción — folio `VTA` (dentro de la misma tx: el posteo de una venta es corto y el lock de milisegundos, medido en el e2e de concurrencia), `Sale`+`SaleItem`s, líneas de producto → `StockLedgerService.apply(reason='sale')` con compuestos expandidos por el expander de F3 (falla entera si un componente no alcanza, con qué falta), líneas de servicio sin ledger; **los precios se toman del catálogo server-side** — el front manda ids y cantidades, nunca precios; la guarda 409 `services.has_sales` entra a `services.remove` (la FK RESTRICT ya la puso F4-DB-01); `TenantTransactionsGate` suma `tx.sale.count()` (cierra su `TODO(F4)`)
+  - **Verificar:** e2e: venta mixta producto+servicio+compuesto descuenta lo correcto y solo eso; sin stock → 409 con el detalle; dos ventas concurrentes del último ítem: una pasa, la otra 409; borrar un servicio vendido → 409; el gate congela la moneda con una venta y cero movimientos
+  - **Depende de:** F4-DB-01, F4-DB-03, F4-CASHBOX-01
+  - **Estimación:** 3 h
+
+- [ ] **F4-SALE-02** — `Idempotency-Key` en el checkout
+  - **Salida:** header `Idempotency-Key` en `POST /pos/sales`: la clave se guarda con la venta (unique por tenant); repetirla devuelve **la misma venta** (200, no 409) sin tocar stock — el doble tap del cajero sobre un botón lento no duplica nada; sin header, comportamiento actual (la clave es opcional: la manda el front del POS); cierra la deuda anotada en F3
+  - **Verificar:** e2e: dos POST con la misma clave → una sola venta y el stock descontado UNA vez; claves distintas → dos ventas
+  - **Depende de:** F4-SALE-01
+  - **Estimación:** 2 h
+
+- [ ] **F4-SALE-03** — Anulación por `sale_return`
+  - **Salida:** `POST /pos/sales/:id/cancel` (TenantAdmin/Manager — el cajero NO anula): reverso vía `apply(reason='sale_return')` que re-ingresa componentes de compuestos y productos simples (los servicios no tienen qué devolver), `status` canceled, justificación obligatoria, auditado; una venta anulada no se anula dos veces (409) y no se edita
+  - **Verificar:** e2e: anular restaura el stock exacto (compuesto incluido); doble anulación → 409; POS_Seller → 403
+  - **Depende de:** F4-SALE-01
+  - **Estimación:** 2.5 h
+
+- [ ] **F4-SALE-04** — Historial de ventas
+  - **Salida:** `GET /pos/sales` (permiso `pos:view`): filtros por fecha/vendedor/turno, paginación server-side, detalle con líneas; las anuladas se ven marcadas, no desaparecen
+  - **Verificar:** e2e: filtros; una venta de otro tenant no existe; sin `pos:view` → 403
+  - **Depende de:** F4-SALE-01
+  - **Estimación:** 1.5 h
+
+### Módulo F4-QUOTE — Cotización (adelantado de F9)
+
+- [ ] **F4-QUOTE-01** — API de cotización: crear, listar, cancelar
+  - **Salida:** `POST /pos/quotes` (**`pos:quote`**, SIN turno): almacén = el asignado del cotizador (o elegido dentro de su alcance), folio `COT` en la tx de creación, líneas producto/servicio con **precio de referencia** tomado del catálogo server-side; `GET /pos/quotes` (lista con búsqueda por folio) y `GET /pos/quotes/:id`; `POST /pos/quotes/:id/cancel`; una cotización NO escribe un solo `stock_movement` ni exige caja — es una lista con folio, no una operación
+  - **Verificar:** e2e: cotizar sin turno abierto funciona; folio `COT-000001` y la serie avanza; el stock NO cambió; sin `pos:quote` → 403; aislamiento entre tenants
+  - **Depende de:** F4-DB-02, F4-DB-03
+  - **Estimación:** 2.5 h
+
+- [ ] **F4-QUOTE-02** — Cargar la cotización en la venta: el recálculo
+  - **Salida:** `GET /pos/quotes/folio/:folio/for-sale` (**`pos:sell`**, turno abierto): devuelve las líneas con **precios RECALCULADOS del catálogo vigente** (decisión de Carlos: la cotización no congela precios) y la **disponibilidad contra el almacén del TURNO** — faltantes y servicios no ofrecidos ahí vienen marcados, no escondidos; al cobrar, `Sale.quote_id` se vincula y la quote pasa a `loaded`; una `loaded` o `canceled` no se carga de nuevo (409)
+  - **Verificar:** e2e: precio cambiado entre cotizar y cargar → la venta usa el nuevo; producto sin stock en el almacén del turno viene marcado; doble carga → 409; el vínculo `quote_id` queda en la venta
+  - **Depende de:** F4-QUOTE-01, F4-SALE-01
+  - **Estimación:** 2 h
+
+- [ ] **F4-QUOTE-03** — UI de cotización + menú
+  - **Salida:** item **«Cotización»** en el grupo POS del nav (gateado por `pos:quote`); pantalla `/pos/quotes/new` con **la misma maquinaria del carrito** (búsqueda, cantidades, presentaciones) pero sin cobro — el botón es «Generar cotización» y emite el ticket COT; listado `/pos/quotes` con búsqueda por folio y estado; namespace i18n
+  - **Verificar:** tests de ruta: generar manda las líneas y pinta el folio; sin `pos:quote` el menú no aparece; el listado filtra por folio
+  - **Depende de:** F4-QUOTE-01, F4-CART-02
+  - **Estimación:** 2.5 h
+
+- [ ] **F4-QUOTE-04** — `QuoteLookup`: el folio COT en el input del POS
+  - **Salida:** el input principal del carrito acepta un folio `COT-…` (la strategy `QuoteLookup` de F4-CART-01): modal de confirmación con las líneas, los **precios nuevos** y los faltantes marcados; confirmar vuelca al carrito y recuerda el `quoteId` para el vínculo al cobrar — el flujo completo de la recepción: cotizan adelante, el cliente pasa a caja con su folio y nadie recaptura
+  - **Verificar:** tests de ruta: folio válido abre el modal; faltante marcado; confirmar carga el carrito; folio `loaded` → error visible
+  - **Depende de:** F4-QUOTE-02, F4-CART-01
+  - **Estimación:** 2 h
+
+### Módulo F4-CART — El carrito y sus lookups
+
+- [ ] **F4-CART-01** — El strategy de lookups, filtrado por el almacén del turno
+  - **Salida:** `GET /pos/lookup?q=` (server-side): `SkuLookup`, `BarcodeLookup` (primero `product_presentations.barcode` — matchea presentación—, después `products.barcode` legacy), `TextSearchLookup`, `ServiceLookup` y `QuoteLookup` (detecta el patrón `COT-`); **todo filtrado por el almacén del turno**: productos con stock > 0 ahí, servicios `is_active` ∩ asociados en `service_warehouses` (el índice por `warehouse_id` de F3-SVC-06 es para esta query); extensible: `PrescriptionLookup` de F9 es una strategy más
+  - **Verificar:** e2e: barcode de presentación gana al legacy; servicio no asociado al almacén del turno NO aparece; producto sin stock ahí NO aparece; `COT-000001` resuelve a la cotización
+  - **Depende de:** F4-CASHBOX-01
+  - **Estimación:** 3 h
+
+- [ ] **F4-CART-02** — El carrito (Zustand)
+  - **Salida:** store del carrito: agregar/quitar/cantidades, línea de producto con **selector de presentación inline** (`is_default_sale` preseleccionada, molde del selector de F3), línea de servicio sin presentación, compuesto con stock visible `min(stock_componente/qty)`, totales derivados; el store es la única fuente del carrito — la venta manda ids y cantidades, nunca precios
+  - **Verificar:** tests: totales; presentación default; compuesto muestra lo armable; quitar línea
+  - **Depende de:** F4-CART-01
+  - **Estimación:** 2.5 h
+
+- [ ] **F4-CART-03** — Numpad inteligente
+  - **Salida:** numpad que oculta el `.` cuando la presentación tiene `allow_fractional_input = false`; paste/teclado con decimales en presentación entera → trunca y muestra hint («Solo enteros»); el backend revalida igual (defensa en profundidad, no la única red)
+  - **Verificar:** tests: el punto desaparece con presentación entera; paste truncado con hint
+  - **Depende de:** F4-CART-02
+  - **Estimación:** 1.5 h
+
+- [ ] **F4-CART-04** — Escáner de cámara
+  - **Salida:** `@zxing/browser` sobre el input principal: el barcode escaneado entra por el mismo `BarcodeLookup` que el teclado — el escáner es un teclado rápido, no otro camino; degrada con gracia sin cámara/permiso
+  - **Verificar:** tests: el resultado del scan dispara el lookup; sin permiso de cámara, la búsqueda manual sigue viva
+  - **Depende de:** F4-CART-01
+  - **Estimación:** 2 h
+
+### Módulo F4-UI — Las pantallas del POS
+
+- [ ] **F4-UI-01** — Pantalla principal de venta (`/pos`)
+  - **Salida:** layout para tablet: carrito + input principal + numpad, targets táctiles grandes; estados vacío/sin-turno/cargando; los errores del server caen sobre su línea (molde F3-DOC-09)
+  - **Verificar:** tests de ruta: flujo agregar → ajustar → listo para cobrar; sin turno ofrece abrirlo
+  - **Depende de:** F4-CART-02, F4-CASHBOX-03
+  - **Estimación:** 3 h
+
+- [ ] **F4-UI-02** — Modal de cobro
+  - **Salida:** métodos efectivo/tarjeta/transferencia; con efectivo, monto recibido y **vuelto calculado**; manda `Idempotency-Key` generada al abrir el modal (el doble tap ya no duplica); el 409 de stock concurrente cae sobre el modal con la línea culpable — nunca se traga (lección del confirm mudo de F3)
+  - **Verificar:** tests: vuelto; doble click en Cobrar → un solo POST; el 409 se pinta
+  - **Depende de:** F4-UI-01, F4-SALE-02
+  - **Estimación:** 2 h
+
+- [ ] **F4-UI-03** — Grupo POS en el nav + historial
+  - **Salida:** grupo «Punto de venta» en el nav: `/pos` (`pos:sell`), `/pos/quotes` (`pos:quote`), `/pos/sales` historial (`pos:view`) con reimprimir y anular (gateado por rol); rutas + i18n namespace `pos` es/en; cada item gateado por SU permiso (regla del nav de F2)
+  - **Verificar:** tests: el nav muestra solo lo permitido; historial lista y reimprime
+  - **Depende de:** F4-SALE-04
+  - **Estimación:** 1.5 h
+
+### Módulo F4-TICKET — El papel
+
+- [ ] **F4-TICKET-01** — Plantilla de ticket 58/80 mm (venta y cotización)
+  - **Salida:** `buildTicketDefinition(input, t)` — plantilla NUEVA con el mismo pdfmake (el renderer de documentos NO se reusa: es carta, con firmas y sin precios; lo que se comparte es el patrón función-pura-testeable, el `DocumentPdfService`/printer y el transporte binario); ancho 58/80 mm configurable, alto dinámico; **venta**: negocio, folio `VTA`, líneas con precio, totales, método, vuelto, lote FEFO si aplica; **cotización**: marca **COTIZACIÓN**, folio `COT`, precios **de referencia** y leyenda de que el precio final se calcula en caja (decisión de Carlos); claves i18n `ticket.*`
+  - **Verificar:** unit del builder (molde `document-pdf.renderer.spec.ts`): totales, la marca de cotización, la leyenda; e2e: `GET /pos/sales/:id/ticket` y `/pos/quotes/:id/ticket` bajan `application/pdf`
+  - **Depende de:** F4-SALE-01, F4-QUOTE-01
+  - **Estimación:** 2.5 h
+
+- [ ] **F4-TICKET-02** — Impresión desktop
+  - **Salida:** `window.print` + CSS `@page` 58/80 mm desde la venta cerrada, la cotización generada y el historial (reimprimir); fallar la impresión no pierde nada — el ticket se rebaja del historial
+  - **Verificar:** tests: el botón dispara la descarga/print; reimprimir desde el historial
+  - **Depende de:** F4-TICKET-01, F4-UI-03
+  - **Estimación:** 1.5 h
+
+- ⏸ **F4-PRINT-BT** — Impresión Web Bluetooth (ESC/POS) — **DIFERIDA** (Carlos, 2026-08-20): sin una impresora térmica real contra la que probar, implementarla sería código de fe. Se retoma cuando haya hardware; `window.print` cubre el mostrador con impresora de sistema. El número queda reservado (§2.1: no se reutiliza).
+
+### Módulo F4-PWA — La app instalable
+
+- [ ] **F4-PWA-01** — Manifest + service worker + offline básico
+  - **Salida:** manifest completo (iconos, `display: standalone`, orientación), service worker con app-shell cacheado; **la venta NO funciona offline en F4** — vender sin poder validar stock es regalar inventario; offline muestra estado claro y no un error críptico
+  - **Verificar:** Lighthouse installable; sin red, la app abre y dice qué no puede hacer
+  - **Depende de:** F4-UI-01
+  - **Estimación:** 2 h
+
+### Módulo F4-DOCS — Sincronía de las fuentes de verdad
+
+- [ ] **F4-DOCS-01** — VISTAS, CASOS_DE_USO, FLUJOS y F9 coherentes
+  - **Salida:** VISTAS §9.1 (barra con el almacén del turno — deuda de F3-HOME-05), **§9.5 Cotización** (molde §6.5), permisos reales en §9.3 (`pos:view` ya existe desde F4-DB-03); CU-POS-01..03 revisados contra lo construido + **CU-POS-04 (cotizar)** y **CU-POS-05 (cargar cotización en la venta)**; matriz de permisos (+cotizar, +historial); FLUJOS §6 actualizado (folio, almacén del turno, `Idempotency-Key`, servicios) + el flujo de cotización; TOCs; **Fase 9 §9.1 marcada como ADELANTADA a F4** (queda solo la vista pública compartible como F9-QUOTE-SHARE) y el contrato de previsiones actualizado; **«Definición de Fase 4 completa»** escrita ANTES de empezar la fase — el checklist es el contrato, no la ceremonia del final
+  - **Verificar:** los cuatro docs cuentan el mismo diseño; el grep de genericidad sigue limpio
+  - **Depende de:** F4-DB-01..F4-PWA-01
+  - **Estimación:** 2.5 h
+
+### ✅ Definición de "Fase 4 completa"
+
+- [ ] Un POS_Seller **abre turno** (nace en su almacén asignado), vende un carrito mixto —producto simple, compuesto, servicio— y el ledger descuenta exactamente lo vendido: componentes del compuesto incluidos, servicio sin un solo `stock_movement`
+- [ ] La venta toma folio `VTA-000001`; dos tenants arrancan su serie en 1; el folio de cotización es una serie `COT` independiente
+- [ ] **Los precios los pone el server**: el front manda ids y cantidades; alterar el POST no altera un precio
+- [ ] Dos ventas concurrentes del último ítem: una pasa, la otra recibe 409 con el detalle — y el **doble tap** con `Idempotency-Key` devuelve la misma venta sin duplicar stock
+- [ ] Vender un producto con `tracks_lots` descuenta el lote FEFO y el ticket lo muestra
+- [ ] La **anulación** (solo TenantAdmin/Manager, con justificación) restaura el stock exacto vía `sale_return`, compuestos incluidos; doble anulación → 409
+- [ ] El **cierre de caja** cuadra por método contra lo vendido del turno, registra declarado/calculado/diferencia, y un turno cerrado no vende
+- [ ] Una **cotización** se crea SIN turno con `pos:quote`, no mueve stock, imprime su ticket marcado COTIZACIÓN con precios de referencia y la leyenda del precio final en caja
+- [ ] Cargar `COT-…` en el POS **recalcula precios al catálogo vigente**, marca faltantes del almacén del turno, vincula `Sale.quote_id` al cobrar y la quote pasa a `loaded`; recargarla → 409
+- [ ] Los lookups del carrito **respetan el almacén del turno**: un servicio no asociado y un producto sin stock ahí NO aparecen; el barcode de presentación gana al legacy
+- [ ] El numpad esconde el `.` en presentaciones enteras y el backend revalida; el modal de cobro nunca se traga un error del server
+- [ ] Borrar un servicio ya vendido → 409 `services.has_sales`; la moneda del tenant se congela con **una venta** aunque no haya movimientos de almacén
+- [ ] El historial (`pos:view`) lista, filtra, reimprime; las anuladas se ven marcadas
+- [ ] Las tablas nuevas (`sales`, `sale_items`, `cashbox_sessions`, `quotes`, `quote_lines`) pasan los 4 canarios RLS **de comportamiento** + el estructural (lección del checklist de F3: una policy que existe no es una policy que filtra)
+- [ ] La PWA instala, y sin red dice qué no puede hacer en vez de fallar críptico
+- [ ] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
+- [ ] Tag `v0.5.0-fase4` creado sobre un commit con Deploy verde
+
+**Estimación: ~3.5 semanas** (~54 h en 25 tareas + F4-PRINT-BT diferida).
 ---
 
 ## Fase 5 — Reportes (outline)
@@ -2829,6 +3005,8 @@ Aunque Fase 7 va al final, estas piezas **deben estar preparadas** para que la i
 
 ### 9.1 Add-on genérico — Cotizador / Pedidos
 
+> **⚡ ADELANTADO A F4 (2026-08-20):** el núcleo de la cotización —tabla con folio `COT`, API, pantalla tipo venta, ticket y `QuoteLookup` en el POS— vive ahora en **F4-DB-02, F4-QUOTE-01..04 y F4-TICKET-01**, por el caso de recepción-antes-de-caja de Carlos. Con dos simplificaciones sobre lo planeado acá: **sin vigencia ni estados `sent/approved/rejected/expired`** (la cotización no congela precios — al cargarla en el POS se recalculan del catálogo vigente) y **sin `customer_id`** (los clientes llegan en su fase). Lo que QUEDA para F9 de esta sección: la **vista pública compartible** (link por email/WhatsApp para que el cliente apruebe) como `F9-QUOTE-SHARE`, y reconsiderar estados de aprobación si un vertical los pide.
+
 - **F9-QUOTE-DB** — Tabla `quotes` (`id`, `tenant_id`, `folio`, `customer_id` nullable, `valid_until`, `status` enum [draft|sent|approved|rejected|expired|converted], `lines[]` con productos del catálogo, `total`, `discount`).
 - **F9-QUOTE-API** — CRUD de cotizaciones + endpoint `POST /quotes/:id/convert` (genera venta vinculada).
 - **F9-QUOTE-UI** — Vistas: lista de cotizaciones, form de creación/edición, vista pública (link compartible por email/WhatsApp para que el cliente apruebe).
@@ -2860,11 +3038,11 @@ Aunque Fase 7 va al final, estas piezas **deben estar preparadas** para que la i
 - **F9-BILLING-ADDONS** — Extensión de F7-STRIPE para manejar `subscription_items` (1 base + N add-ons). Webhooks de Stripe actualizan estado de cada add-on individual.
 
 **No requiere refactor del core** si:
-1. **F4-DB** reserva FK nullables `Sale.clinical_document_id` y `Sale.quote_id`
-2. **F4-CART** diseña input con strategy pattern (preparado para futuros lookups)
+1. **F4-DB** reserva la FK nullable `Sale.clinical_document_id` (la de `quote_id` ya quedó ACTIVA: la cotización se adelantó a F4)
+2. **F4-CART** diseña el input con strategy pattern — hecho: `QuoteLookup` ya es una strategy real, `PrescriptionLookup` de F9 es una más
 3. **F7-STRIPE** maneja `subscription_items` en lugar de un solo `subscription_price`
 
-Las 3 previsiones son baratas si se anticipan; caras si se omiten.
+Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya se cobró: adelantar la cotización a F4 costó cuatro tareas, no un refactor.
 
 ---
 
@@ -2982,6 +3160,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten.
 - **2026-08-19 (SERVICIOS POR ALMACÉN — el catálogo maestro y la disponibilidad explícita)** — Tercera iteración de diseño del día sobre servicios: Carlos definió que el menú Servicios es el **catálogo MAESTRO** y que cada servicio se asocia a **almacenes concretos** — en F4 el POS solo ofrecerá los servicios asociados al almacén del turno, y para productos solo lo que tenga stock ahí. **La decisión de fondo fue suya y va contra el precedente**: se le presentó el default permisivo del alcance de usuarios (vacío = todos) y eligió la semántica **EXPLÍCITA** — sin almacenes marcados, el servicio NO se vende. Su modelo mental: el checklist ES la disponibilidad. Se aceptó con **dos mitigaciones** que absorben lo que el default permisivo evitaba: el backfill de la migración asocia todo lo existente a todos los almacenes activos (nada deja de venderse en silencio al llegar F4), y el alta nace con todos marcados (desmarcar es restringir; el negocio chico no gestiona nada). **La consecuencia que queda viva y documentada**: un almacén nuevo nace sin servicios hasta que alguien los asocie. **Diseño**: tabla puente `service_warehouses` (molde `user_warehouse_scopes` MÁS el índice por `warehouse_id` que aquella omitió — la query estrella del POS es «servicios de ESTE almacén»); sin endpoints nuevos: `warehouseIds` viaja en el create/update existentes en la MISMA tx, porque todo vive en el form (Carlos eliminó la acción «Asignar almacenes» del listado que él mismo había propuesto — mejor una sola puerta). Módulo F3-SVC crece a 9 tareas; la fase pasa de 67 a 71. **Al implementarlo (mismo día) salieron tres cosas:** (a) `warehouseIds` quedó **requerido** en el alta y no opcional-con-default — con la semántica explícita, olvidarlo crearía un servicio invendible **en silencio**, así que el contrato obliga a decirlo aunque sea `[]`; eso rompió los siete e2e de F3-SVC-03 que no lo mandaban, y actualizarlos fue lo correcto porque el contrato cambió. (b) El canario nuevo que verifica **el índice por `warehouse_id`** no es ceremonia: `user_warehouse_scopes` omitió ese índice y acá la query estrella es la inversa. (c) El gotcha de React Query apareció en su forma **INVERSA** — `updateService` va por un wrapper y NO recibe el contexto, mientras `createService` sí lo recibe: la misma suite necesita `expect.anything()` en un caso y no en el otro. — `topic_key: sellpoint/servicios-por-almacen`
 - **2026-08-20 (LAS TABLAS QUE SE DESBORDAN — arreglar la instancia dejó viva la clase)** — Carlos reportó que en celular los listados de Entradas, Salidas y Traspasos **se siguen desbordando**. El «se siguen» es la parte importante: el 2026-08-19 ya se había arreglado exactamente este defecto en la tabla del DETALLE del documento, y nadie miró si había más. **Había cuatro**, y la barrera las encontró — además de los dos listados que Carlos vio, **«Stock por almacén» y «Próximos a vencer»** tenían el mismo problema sin que él llegara a esa pantalla. **El hallazgo de fondo:** el `<Table>` compartido de `components/ui/table.tsx` **YA resuelve esto** — envuelve en `overflow-x-auto` y da `px-3` a las celdas. Seis archivos de inventario escribieron su propia `<table className="w-full">` a mano y se saltaron las dos cosas sin enterarse. Una `w-full` con más columnas de las que caben NO se encoge: desborda la página entera, y en un celular el usuario arrastra el menú y el encabezado de lado. **La clase la protege ahora `tablas-responsivas.test.ts`**, que escanea todo `.tsx` y exige que cada `<table>` cruda tenga un `overflow-x-auto` en las tres líneas de arriba (más lejos que eso ya no es envolver, es esperanza). **Dos errores propios en el camino, los dos repetidos del día anterior:** el comentario JSX como primer hijo de un ternario es inválido (mismo tropiezo que en `document-detail`), y como hijo directo de un elemento SÍ necesita llaves — el linter cazó el segundo. **Lección, que ya es un patrón:** cuando un bug de presentación aparece en un lugar, la pregunta no es «¿lo arreglé?» sino «¿dónde más vive el mismo código?». Acá la respuesta eran cinco archivos más. — `topic_key: sellpoint/tablas-responsivas`
 - **2026-08-20 (EL CHECKLIST DE CIERRE DE F3 — ejecutado, no leído: tres criterios no se sostenían)** — Se corrieron los 23 criterios uno por uno, con el precedente de F1/F2 encima («declarar una fase completa no la cierra; el checklist es el contrato»). **Tres no se sostenían, y ninguno se habría notado leyéndolos:** **(1)** el criterio de RLS decía «las tablas nuevas pasan **los 4 canarios**» y `product_lots`/`stock_lots` solo tenían el test **estructural** de `pg_class` — la policy existía, pero nadie probaba que filtrara. Una policy que existe no es una policy que filtra: la contraprueba (borrarla) tiró los 10 tests, y antes no habría tirado ninguno. **(2)** El PDF de 300 líneas: `headerRows: 1` estaba escrito en el renderer desde F3-DOC y **ningún test lo tocaba** — de la hoja 2 en adelante habría columnas de números sin encabezado, y el criterio afirmaba que eso ya funcionaba. **(3)** `sinRecetaId`/`sinReceta` seguían vivos en `composition-expander.integration.spec.ts`: el vocabulario exacto que F3-GUARDS-02 limpió del service, sobreviviendo en un test que nadie volvió a leer. **Un cuarto hit se dejó explícitamente SIN resolver y documentado**: el placeholder «Limpieza, producción, mantenimiento…» matchea `production` en el grep de genericidad, pero ese término está en el patrón para cazar un **campo** `production` en compuestos, no una palabra de ejemplo. Pasa el espíritu y falla la letra — y **no se tocó el criterio para que pasara**, que habría sido mover la portería. **Lección, la misma de los tags de F1/F2 pero ahora con evidencia propia:** los criterios que se leen se creen; los que se ejecutan se caen. Tres de 23 — un 13% de un checklist que cualquiera habría jurado verde. — `topic_key: sellpoint/checklist-cierre-f3`
+- **2026-08-20 (F4 ATOMIZADA + LA COTIZACIÓN SE ADELANTA DE F9)** — La fase pasa de un outline de 12 bullets a **25 tareas en 9 módulos (~54 h)**, y absorbe el **módulo de Cotización** que Fase 9 tenía como `F9-QUOTE-*`: Carlos lo necesita YA para un mostrador de recepción antes de la caja (y mañana para clínicas donde el médico arma la receta que el POS cobra). **El adelanto costó cuatro tareas y cero refactor** — la previsión de F4-DB (`Sale.quote_id` reservado) y del strategy de lookups (`QuoteLookup` nombrado) estaba pagada desde la atomización de F3. **Tres decisiones de Carlos fijaron el diseño:** permiso propio **`pos:quote`** (la recepción cotiza sin poder cobrar — y el médico de F9 heredará ese permiso sin caja); la cotización **no exige turno** (no toca dinero ni stock; filtra por el almacén ASIGNADO del cotizador); y —la que más simplifica— **la cotización no congela precios**: los impresos son referencia y al cargarla en el POS se recalculan del catálogo vigente, lo que elimina vigencias, estados `expired` y promesas de precio de un plumazo. **Dos hallazgos de la exploración quedaron resueltos en el plan:** `pos:view` era un **permiso fantasma** (VISTAS §9.3 lo exigía y no existía en el catálogo — nace en F4-DB-03 en vez de heredarse el hueco), y el renderer del PDF **no se reusa** para el ticket (es carta, con firmas y sin precios): el ticket es plantilla nueva con el mismo pdfmake, compartiendo patrón, service y transporte. **`F4-PRINT-BT` quedó DIFERIDA** (decisión de Carlos): sin impresora térmica real contra la que probar, implementarla sería código de fe. **Y la lección del cierre de F3 se aplicó al abrir F4:** la «Definición de Fase 4 completa» se escribió AHORA, antes de la primera tarea — con el criterio de los canarios de COMPORTAMIENTO explícito, porque una policy que existe no es una policy que filtra. — `topic_key: sellpoint/f4-atomizacion`
 
 ---
 
