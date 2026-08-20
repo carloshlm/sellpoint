@@ -180,9 +180,18 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
             width: "*",
             stack: [
               ...dato(t("pdf.warehouse"), document.warehouseName),
-              ...dato(t("pdf.destination"), document.linkedWarehouseName),
+              // El OTRO almacén cambia de nombre según el lado del traspaso:
+              // en una SALIDA es a dónde va la mercancía; en una ENTRADA es de
+              // dónde vino. Llamarlo "destino" en los dos casos —como se
+              // hacía— le decía a quien recibe en Almacén Sur que su destino
+              // era Almacén Central. Mismo criterio que la pantalla del
+              // documento, que se corrigió antes que esto.
               ...dato(
-                t("pdf.reason"),
+                t(document.type === "entry" ? "pdf.origin" : "pdf.destination"),
+                document.linkedWarehouseName,
+              ),
+              ...dato(
+                t("pdf.reasonLabel"),
                 document.reasonCode === null ? null : t(`pdf.reason.${document.reasonCode}`),
               ),
             ],

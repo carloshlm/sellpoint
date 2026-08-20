@@ -79,6 +79,50 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
     });
   });
 
+  /**
+   * El OTRO almacén de un traspaso no se llama igual de los dos lados: en la
+   * SALIDA es a dónde va la mercancía, en la ENTRADA es de dónde vino.
+   * Imprimir "Almacén destino" en la recepción le decía a quien recibe en
+   * Almacén Sur que su destino era Almacén Central.
+   */
+  describe("el otro almacén del traspaso", () => {
+    it("en una SALIDA se llama destino", () => {
+      const def = buildDocumentDefinition(
+        {
+          ...base,
+          document: {
+            ...base.document,
+            type: "exit",
+            reasonCode: "transfer",
+            linkedWarehouseName: "Almacén Sur",
+          },
+        },
+        t,
+      );
+
+      expect(textos(def)).toContain("pdf.destination");
+      expect(textos(def)).not.toContain("pdf.origin");
+    });
+
+    it("en una ENTRADA se llama ORIGEN", () => {
+      const def = buildDocumentDefinition(
+        {
+          ...base,
+          document: {
+            ...base.document,
+            type: "entry",
+            reasonCode: "transfer",
+            linkedWarehouseName: "Almacén Central",
+          },
+        },
+        t,
+      );
+
+      expect(textos(def)).toContain("pdf.origin");
+      expect(textos(def)).not.toContain("pdf.destination");
+    });
+  });
+
   describe("la marca de agua", () => {
     /**
      * Un papel sin marca es un papel que alguien va a firmar. Un borrador

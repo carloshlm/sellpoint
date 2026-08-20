@@ -31,6 +31,13 @@ const I18N = __dirname;
 const KEY_PATTERNS = [
   /message:\s*"([a-z_]+\.[a-z_.]+)"/g,
   /ZodValidationPipe\([^)]*?"([a-z_]+\.[a-z_.]+)"/g,
+  // 3. `t("ns.clave")` — las ETIQUETAS, no solo los errores. Este canal
+  //    faltaba, y el agujero no fue teórico: el namespace `pdf` entero NUNCA
+  //    existió, así que todos los PDFs de inventario salieron impresos con
+  //    `pdf.warehouse`, `pdf.type.exit` y `pdf.reason.transfer` en crudo desde
+  //    F3-DOC-07 hasta que Carlos abrió uno y lo vio. Los tests del PDF miran
+  //    la ESTRUCTURA del documento, así que pasaban en verde.
+  /\bt\(\s*"([a-z_]+\.[a-z_.]+)"/g,
 ];
 
 /**

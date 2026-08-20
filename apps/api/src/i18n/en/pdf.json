@@ -1,0 +1,42 @@
+{
+  "type": {
+    "entry": "Entry",
+    "exit": "Exit",
+    "physical_count": "Physical count"
+  },
+  "reason": {
+    "invoice": "Purchase invoice",
+    "adjustment": "Adjustment",
+    "transfer": "Transfer",
+    "customer_return": "Customer return",
+    "sale": "Sale",
+    "sale_return": "Sale return",
+    "loss": "Loss",
+    "consumption": "Consumption",
+    "expired": "Expired",
+    "physical_count": "Physical count"
+  },
+  "warehouse": "Warehouse",
+  "origin": "Origin warehouse",
+  "destination": "Destination warehouse",
+  "reasonLabel": "Reason",
+  "date": "Date",
+  "registeredBy": "Registered by",
+  "reference": "Reference",
+  "authorizedBy": "Authorized by",
+  "taxId": "Tax ID",
+  "sku": "Code",
+  "product": "Product",
+  "presentation": "Presentation",
+  "quantity": "Quantity",
+  "lot": "Lot",
+  "unitCost": "Unit cost",
+  "theoretical": "Expected",
+  "counted": "Counted",
+  "difference": "Difference",
+  "totalLines": "Total lines",
+  "deliveredBy": "Delivered by",
+  "receivedBy": "Received by",
+  "watermarkDraft": "DRAFT",
+  "watermarkCanceled": "VOID"
+}

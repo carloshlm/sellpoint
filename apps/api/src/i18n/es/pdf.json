@@ -1,0 +1,42 @@
+{
+  "type": {
+    "entry": "Entrada",
+    "exit": "Salida",
+    "physical_count": "Inventario físico"
+  },
+  "reason": {
+    "invoice": "Factura de compra",
+    "adjustment": "Ajuste",
+    "transfer": "Traspaso",
+    "customer_return": "Devolución de cliente",
+    "sale": "Venta",
+    "sale_return": "Devolución de venta",
+    "loss": "Merma",
+    "consumption": "Consumo",
+    "expired": "Caducado",
+    "physical_count": "Inventario físico"
+  },
+  "warehouse": "Almacén",
+  "origin": "Almacén origen",
+  "destination": "Almacén destino",
+  "reasonLabel": "Motivo",
+  "date": "Fecha",
+  "registeredBy": "Registró",
+  "reference": "Referencia",
+  "authorizedBy": "Autorizó",
+  "taxId": "RFC",
+  "sku": "Código",
+  "product": "Producto",
+  "presentation": "Presentación",
+  "quantity": "Cantidad",
+  "lot": "Lote",
+  "unitCost": "Costo unitario",
+  "theoretical": "Teórico",
+  "counted": "Contado",
+  "difference": "Diferencia",
+  "totalLines": "Total de líneas",
+  "deliveredBy": "Entregó",
+  "receivedBy": "Recibió",
+  "watermarkDraft": "BORRADOR",
+  "watermarkCanceled": "ANULADO"
+}
