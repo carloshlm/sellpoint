@@ -91,5 +91,8 @@
         "description": "Azul y verde combinados, moderno"
       }
     }
+  },
+  "table": {
+    "scrollHint": "Desliza la tabla para ver más columnas."
   }
 }

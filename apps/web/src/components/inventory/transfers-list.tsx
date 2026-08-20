@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { TransferRow } from "@/lib/inventory/transfers-api";
 import {
@@ -84,8 +85,7 @@ export function TransfersList() {
       ) : filas.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.transfers.empty")}</p>
       ) : (
-        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
-        <div className="overflow-x-auto">
+        <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -158,7 +158,7 @@ export function TransfersList() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
       )}
 
       {recibiendo !== null && (

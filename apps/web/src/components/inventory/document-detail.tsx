@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -211,8 +212,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
       {sinLineas ? (
         <p className="text-muted-foreground text-sm">{t("inventory.document.emptyLines")}</p>
       ) : (
-        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
-        <div className="overflow-x-auto">
+        <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -260,7 +260,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                 ))}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
       )}
 
       {dialog === "confirm" && (

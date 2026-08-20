@@ -91,5 +91,8 @@
         "description": "Blue and green combined, modern"
       }
     }
+  },
+  "table": {
+    "scrollHint": "Swipe the table to see more columns."
   }
 }

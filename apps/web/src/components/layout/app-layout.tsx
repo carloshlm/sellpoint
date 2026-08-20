@@ -261,7 +261,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
           <UserMenu />
         </header>
-        <main className="flex-1 p-4">{children}</main>
+        {/*
+          `min-w-0` NO es decorativo: un hijo de flexbox nace con
+          `min-width: auto` y se niega a ser más angosto que su contenido. Sin
+          esto, una tabla ancha estira el `<main>` en vez de scrollear dentro de
+          su `overflow-x-auto`, y la PÁGINA entera se desborda — el encabezado
+          queda cortado a mitad de pantalla y el celular arrastra el menú.
+
+          El padding es menor en celular: 16px de cada lado sobre 390px de
+          ancho se come el 8% de la pantalla.
+        */}
+        <main className="min-w-0 flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
       </div>
     </div>
   );

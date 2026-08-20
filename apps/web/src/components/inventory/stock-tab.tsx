@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
@@ -59,8 +60,7 @@ export function StockTab({ productId }: { productId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí. */}
-      <div className="overflow-x-auto">
+      <ScrollableTable>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
@@ -169,7 +169,7 @@ export function StockTab({ productId }: { productId: string }) {
             )}
           </tfoot>
         </table>
-      </div>
+      </ScrollableTable>
       {has("inventory:movement") && (
         <div className="flex gap-2">
           <Link

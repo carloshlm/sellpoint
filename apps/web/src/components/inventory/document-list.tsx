@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useCreateDocument, useDocuments } from "@/lib/inventory/hooks";
 import type { DocumentStatus, InventoryDocumentType } from "@/lib/inventory/types";
@@ -149,8 +150,7 @@ export function DocumentList({ type }: DocumentListProps) {
           {filtrando ? t("inventory.list.noResults") : t("inventory.list.empty")}
         </p>
       ) : (
-        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
-        <div className="overflow-x-auto">
+        <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -197,7 +197,7 @@ export function DocumentList({ type }: DocumentListProps) {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
       )}
     </section>
   );

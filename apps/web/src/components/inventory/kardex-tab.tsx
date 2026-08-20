@@ -2,6 +2,7 @@ import { MOVEMENT_REASONS } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { useKardex } from "@/lib/inventory/kardex-hooks";
 import { WarehouseSelect } from "./warehouse-select";
@@ -103,7 +104,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
       ) : (data?.rows.length ?? 0) === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.kardex.empty")}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -177,7 +178,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
       )}
     </div>
   );

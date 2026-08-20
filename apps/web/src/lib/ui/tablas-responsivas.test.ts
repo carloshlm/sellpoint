@@ -50,7 +50,11 @@ describe("tablas responsivas (LEY de layout)", () => {
         // El contenedor tiene que estar en las 3 líneas de arriba: más lejos
         // que eso ya no es "envolver", es esperanza.
         const contexto = lineas.slice(Math.max(0, indice - 3), indice + 1).join("\n");
-        if (!contexto.includes("overflow-x-auto")) {
+        // Dos formas válidas: el contenedor a mano, o `<ScrollableTable>` —
+        // que además avisa cuando hay más columnas de las que caben.
+        const envuelta =
+          contexto.includes("overflow-x-auto") || contexto.includes("<ScrollableTable>");
+        if (!envuelta) {
           infractoras.push(`  · ${archivo.replace(RAIZ, "src")}:${indice + 1}`);
         }
       });
@@ -59,8 +63,8 @@ describe("tablas responsivas (LEY de layout)", () => {
     expect(
       infractoras,
       `Estas <table> desbordan la página en pantallas chicas:\n${infractoras.join("\n")}\n\n` +
-        `Envuélvelas en <div className="overflow-x-auto"> o usa el <Table> de ` +
-        `@/components/ui/table, que ya lo hace.`,
+        `Envuélvelas en <ScrollableTable> (que además avisa cuando sobran ` +
+        `columnas) o usa el <Table> de @/components/ui/table.`,
     ).toEqual([]);
   });
 });
