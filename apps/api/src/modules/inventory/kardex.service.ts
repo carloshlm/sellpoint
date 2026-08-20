@@ -259,8 +259,14 @@ export class KardexService {
       ]);
 
       const saldoPorAlmacen = new Map(saldos.map((s) => [s.warehouseId, s]));
-      const enTreintaDias = new Date();
-      enTreintaDias.setUTCHours(0, 0, 0, 0);
+      // Dos fechas de corte, no una. `expiringSoon` se calculaba solo con
+      // `expiresAt <= hoy+30`, y una fecha del PASADO también cumple eso: un
+      // lote vencido hace un año salía marcado «vence pronto». No es cosmético
+      // — FEFO lo despacha PRIMERO, así que es justo el que alguien va a dejar
+      // salir creyendo que todavía sirve.
+      const hoy = new Date();
+      hoy.setUTCHours(0, 0, 0, 0);
+      const enTreintaDias = new Date(hoy);
       enTreintaDias.setUTCDate(enTreintaDias.getUTCDate() + 30);
 
       const rows = almacenes.map((warehouse) => {
@@ -281,7 +287,13 @@ export class KardexService {
                   expiresAt: l.lot.expiresAt,
                   location: l.location,
                   quantity: l.quantity.toString(),
-                  expiringSoon: l.lot.expiresAt !== null && l.lot.expiresAt <= enTreintaDias,
+                  // El día que vence todavía sirve: vencido es ESTRICTAMENTE
+                  // anterior a hoy. Los dos estados son excluyentes.
+                  expired: l.lot.expiresAt !== null && l.lot.expiresAt < hoy,
+                  expiringSoon:
+                    l.lot.expiresAt !== null &&
+                    l.lot.expiresAt >= hoy &&
+                    l.lot.expiresAt <= enTreintaDias,
                 })),
               }
             : {}),

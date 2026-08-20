@@ -262,6 +262,7 @@
     "expiryWarningTitle": "Cambiar la caducidad de {{lotCode}}",
     "expiryWarning": "La caducidad decide qué lote se vende primero. Al cambiarla, la próxima salida puede tomar otra partida distinta de la que se tomaría hoy.",
     "expiryConfirm": "Cambiar la caducidad",
-    "saveFailed": "No se pudo guardar el lote."
+    "saveFailed": "No se pudo guardar el lote.",
+    "expired": "Vencido"
   }
 }

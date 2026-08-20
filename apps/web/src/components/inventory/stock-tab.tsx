@@ -99,6 +99,18 @@ export function StockTab({ productId }: { productId: string }) {
                           {t("inventory.kardex.fefoFirst")}
                         </Badge>
                       )}
+                      {/*
+                        Vencido y por-vencer son estados EXCLUYENTES y con
+                        colores distintos: el amarillo dice «apúrate», el rojo
+                        dice «no lo vendas». Pintar de amarillo algo que ya
+                        venció invita a dejarlo salir — y FEFO lo despacha
+                        primero, así que es justo el que más urge distinguir.
+                      */}
+                      {lot.expired && (
+                        <Badge data-testid="expired" variant="destructive" className="ml-2">
+                          {t("inventory.kardex.expired")}
+                        </Badge>
+                      )}
                       {lot.expiringSoon && (
                         <Badge data-testid="expiring-soon" variant="warning" className="ml-2">
                           {t("inventory.kardex.expiringSoon")}

@@ -41,6 +41,11 @@ export interface StockLotRow {
   expiresAt: string | null;
   location: string;
   quantity: string;
+  /**
+   * YA venció (estrictamente antes de hoy). Distinto de `expiringSoon`: son
+   * excluyentes, y el vencido es el que FEFO despacha PRIMERO.
+   */
+  expired: boolean;
   expiringSoon: boolean;
 }
 

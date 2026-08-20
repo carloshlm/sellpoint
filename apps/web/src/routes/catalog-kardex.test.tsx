@@ -259,6 +259,7 @@ describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
                 expiresAt: "2026-07-01",
                 location: "A-1",
                 quantity: "3",
+                expired: false,
                 expiringSoon: true,
               },
               {
@@ -267,6 +268,7 @@ describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
                 expiresAt: "2027-01-01",
                 location: "B-2",
                 quantity: "5",
+                expired: false,
                 expiringSoon: false,
               },
             ],
@@ -282,6 +284,61 @@ describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
     expect(within(primero).getByTestId("fefo-first")).toBeInTheDocument();
     expect(within(primero).getByTestId("expiring-soon")).toBeInTheDocument();
     expect(within(segundo).queryByTestId("fefo-first")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Hallazgo de Carlos (2026-08-20): un lote YA VENCIDO se pintaba «Vence
+   * pronto» en amarillo. Son dos cosas distintas y el color tiene que
+   * distinguirlas — el vencido va en ROJO, porque FEFO lo despacha PRIMERO y
+   * es justo el que alguien va a dejar salir creyendo que sirve.
+   */
+  it("un lote YA VENCIDO se marca distinto —y en rojo— que uno por vencer", async () => {
+    mocked.getStock.mockResolvedValue(
+      resumen({
+        rows: [
+          {
+            warehouseId: "w1",
+            name: "Central",
+            quantity: "62",
+            updatedAt: "2026-08-20T10:00:00.000Z",
+            lots: [
+              {
+                lotId: "l1",
+                lotCode: "cad12",
+                expiresAt: "2026-08-01",
+                location: "",
+                quantity: "12",
+                expired: true,
+                expiringSoon: false,
+              },
+              {
+                lotId: "l2",
+                lotCode: "st1",
+                expiresAt: "2026-08-23",
+                location: "",
+                quantity: "50",
+                expired: false,
+                expiringSoon: true,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderTab(<StockTab productId="p1" />);
+
+    const vencido = (await screen.findByText("cad12")).closest("tr") as HTMLElement;
+    const porVencer = screen.getByText("st1").closest("tr") as HTMLElement;
+
+    // El vencido dice VENCIDO, no "vence pronto".
+    const marca = within(vencido).getByTestId("expired");
+    expect(within(vencido).queryByTestId("expiring-soon")).not.toBeInTheDocument();
+    // Y en rojo, no en amarillo: el color es la mitad del mensaje.
+    expect(marca.className).toContain("destructive");
+
+    // El que de verdad está por vencer conserva su aviso amarillo.
+    expect(within(porVencer).getByTestId("expiring-soon")).toBeInTheDocument();
+    expect(within(porVencer).queryByTestId("expired")).not.toBeInTheDocument();
   });
 
   it("muestra lo que está en tránsito", async () => {
@@ -360,6 +417,7 @@ describe("Editar un lote (F3-LOTS-04)", () => {
               expiresAt: "2027-01-01",
               location: "A-1",
               quantity: "5",
+              expired: false,
               expiringSoon: false,
             },
           ],

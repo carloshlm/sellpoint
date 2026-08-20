@@ -398,6 +398,57 @@ describe("Kardex (F3-KARDEX-01)", () => {
       expect(fila?.lots.map((l) => l.lotCode)).toEqual(["zzz-pronto", "aaa-tarde"]);
     });
 
+    /**
+     * Hallazgo de Carlos (2026-08-20): un lote **YA VENCIDO** salía marcado
+     * «Vence pronto». La condición era `expiresAt <= hoy+30`, y una fecha del
+     * pasado también es menor que hoy+30 — así que un lote vencido hace un año
+     * caía en la misma canasta que uno que vence mañana.
+     *
+     * No es cosmético: FEFO lo va a despachar PRIMERO, y quien lea «vence
+     * pronto» lo va a dejar salir creyendo que todavía sirve.
+     */
+    it("distingue lo YA VENCIDO de lo que está por vencer", async () => {
+      const { token, tenantId, warehouseA, mover } = await escenario();
+      const conLotes = await prisma.withTenantContext(tenantId, async (tx) => {
+        const p = await tx.product.create({
+          data: {
+            tenantId,
+            sku: `VEN-${randomUUID().slice(0, 6)}`,
+            name: "Con caducidad",
+            tracksLots: true,
+          },
+        });
+        return p.id;
+      });
+
+      const dias = (n: number) => {
+        const d = new Date();
+        d.setUTCHours(0, 0, 0, 0);
+        d.setUTCDate(d.getUTCDate() + n);
+        return d.toISOString().slice(0, 10);
+      };
+
+      await mover("entry", warehouseA, [
+        { productId: conLotes, quantity: 12, lotCode: "vencido", expiresAt: dias(-19) },
+        { productId: conLotes, quantity: 50, lotCode: "pronto", expiresAt: dias(3) },
+        { productId: conLotes, quantity: 200, lotCode: "lejano", expiresAt: dias(400) },
+      ]);
+
+      const res = await stock(token, conLotes).expect(200);
+      const lotes = (
+        res.body.rows as {
+          warehouseId: string;
+          lots: { lotCode: string; expired: boolean; expiringSoon: boolean }[];
+        }[]
+      ).find((r) => r.warehouseId === warehouseA)?.lots;
+      const porCodigo = new Map(lotes?.map((l) => [l.lotCode, l]));
+
+      // El vencido es vencido, y NO "por vencer": son dos estados distintos.
+      expect(porCodigo.get("vencido")).toMatchObject({ expired: true, expiringSoon: false });
+      expect(porCodigo.get("pronto")).toMatchObject({ expired: false, expiringSoon: true });
+      expect(porCodigo.get("lejano")).toMatchObject({ expired: false, expiringSoon: false });
+    });
+
     /** La invariante del ledger, verificada desde afuera. */
     it("la suma de los lotes es igual al saldo del almacén", async () => {
       const { token, tenantId, warehouseA, mover } = await escenario();

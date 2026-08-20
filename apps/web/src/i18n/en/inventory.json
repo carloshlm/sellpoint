@@ -262,6 +262,7 @@
     "expiryWarningTitle": "Change the expiry date of {{lotCode}}",
     "expiryWarning": "The expiry date decides which lot is sold first. Changing it means the next exit may take a different batch than it would today.",
     "expiryConfirm": "Change the expiry date",
-    "saveFailed": "The lot could not be saved."
+    "saveFailed": "The lot could not be saved.",
+    "expired": "Expired"
   }
 }
