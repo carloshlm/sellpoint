@@ -108,6 +108,28 @@ export function createI18n(options: CreateI18nOptions = {}): I18nInstance {
     load: "languageOnly",
     keySeparator: ".",
     interpolation: { escapeValue: false },
+
+    /**
+     * BARRERA: un `{{marcador}}` sin su argumento se pinta CRUDO en pantalla
+     * — le pasó a Carlos con «No hay suficiente existencia de «{{sku}}»»,
+     * donde los números interpolaban y el SKU no porque el API no lo
+     * mandaba. En tests revienta para que el fallo salga en CI y no en el
+     * celular de alguien; en producción se degrada a cadena vacía, que es
+     * feo pero no rompe la pantalla.
+     *
+     * Sin heurísticas: no adivina qué argumentos "deberían" llegar, se entera
+     * en el momento exacto en que i18next no encuentra uno.
+     */
+    missingInterpolationHandler: (texto: string, valor: unknown) => {
+      if (import.meta.env.MODE === "test") {
+        throw new Error(
+          `Falta el argumento de interpolación ${String(valor)} en: "${texto}". ` +
+            `Quien emite este mensaje tiene que mandarlo en \`args\`.`,
+        );
+      }
+      return "";
+    },
+
     react: { useSuspense: false },
     detection: withDetector
       ? {

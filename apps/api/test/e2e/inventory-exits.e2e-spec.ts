@@ -173,6 +173,35 @@ describe("Confirmar una salida (F3-EXIT-01)", () => {
         .expect(200);
       expect((detalle.body as { status: string }).status).toBe("draft");
     });
+
+    /**
+     * Hallazgo de Carlos (2026-08-20): el aviso de la PREVIA salía con
+     * «{{sku}}» crudo en pantalla. Los números interpolaban y el SKU no,
+     * porque `args` mandaba `available` y `requested` pero nunca `sku` — y el
+     * mensaje del front lo pide. Un error que no dice DE QUÉ producto habla
+     * es inútil justo cuando más se necesita: en un documento de 40 líneas.
+     */
+    it("la previa nombra el SKU del producto que falta, no solo los números", async () => {
+      await cargarStock(productId, 5);
+      const id = await documento("exit", { reasonCode: "loss", reasonNote: "Faltante" });
+      await agregar(id, { productId, quantity: 999 }).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+
+      const fila = (
+        detalle.body as {
+          rows: { sku: string; errors: { code: string; args?: Record<string, string> }[] }[];
+        }
+      ).rows[0];
+      const error = fila?.errors.find((e) => e.code === "inventory.insufficient_stock");
+
+      expect(error?.args).toMatchObject({ sku: fila?.sku });
+      // Y los tres argumentos que el mensaje necesita, completos.
+      expect(Object.keys(error?.args ?? {}).sort()).toEqual(["available", "requested", "sku"]);
+    });
   });
 
   describe("productos compuestos", () => {

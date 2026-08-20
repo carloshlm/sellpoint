@@ -480,7 +480,15 @@ export class DocumentsService {
           errors.push({
             field: "quantity",
             code: "inventory.insufficient_stock",
-            args: { available: antes.toString(), requested: delta.abs().toString() },
+            // El SKU va SIEMPRE: el mensaje lo pide («no hay suficiente de
+            // «{sku}»») y sin él la pantalla mostraba el marcador crudo. Un
+            // error que no dice de QUÉ producto habla es inútil justo cuando
+            // más se necesita: en un documento de cuarenta líneas.
+            args: {
+              sku: res?.sku ?? "",
+              available: antes.toString(),
+              requested: delta.abs().toString(),
+            },
           });
         }
 
