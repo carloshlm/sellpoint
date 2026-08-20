@@ -107,21 +107,23 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 font-medium">{t("inventory.kardex.date")}</th>
-                <th className="py-2 font-medium">{t("inventory.kardex.movement")}</th>
-                <th className="py-2 font-medium">{t("inventory.kardex.quantity")}</th>
-                {tracksLots && <th className="py-2 font-medium">{t("inventory.kardex.lot")}</th>}
-                <th className="py-2 font-medium">{t("inventory.kardex.warehouse")}</th>
-                <th className="py-2 font-medium">{t("inventory.kardex.reference")}</th>
-                <th className="py-2 font-medium">{t("inventory.kardex.who")}</th>
-                <th className="py-2 font-medium">{t("inventory.kardex.balance")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.date")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.movement")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.quantity")}</th>
+                {tracksLots && (
+                  <th className="px-2 py-2 font-medium">{t("inventory.kardex.lot")}</th>
+                )}
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.warehouse")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.reference")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.who")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.kardex.balance")}</th>
               </tr>
             </thead>
             <tbody>
               {(data?.rows ?? []).map((row) => (
                 <tr key={row.id} className="border-b last:border-0">
-                  <td className="py-2 whitespace-nowrap">{fecha(row.createdAt)}</td>
-                  <td className="py-2">
+                  <td className="px-2 py-2 whitespace-nowrap">{fecha(row.createdAt)}</td>
+                  <td className="px-2 py-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         row.direction === "entry"
@@ -135,7 +137,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
                       {t(`inventory.reason.${row.reasonCode}`)}
                     </span>
                   </td>
-                  <td className="py-2">
+                  <td className="px-2 py-2">
                     {/* El signo lo da la dirección: un kardex sin signo obliga
                         a leer dos columnas para saber si sumó o restó. */}
                     {row.direction === "entry" ? "+" : "−"}
@@ -147,15 +149,15 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
                     )}
                   </td>
                   {tracksLots && (
-                    <td className="py-2">
+                    <td className="px-2 py-2">
                       {row.lot?.lotCode ?? "—"}
                       {row.location !== null && row.location !== "" && (
                         <span className="ml-2 text-muted-foreground text-xs">{row.location}</span>
                       )}
                     </td>
                   )}
-                  <td className="py-2">{row.warehouse.name}</td>
-                  <td className="py-2">
+                  <td className="px-2 py-2">{row.warehouse.name}</td>
+                  <td className="px-2 py-2">
                     <Link
                       to="/movements/documents/$documentId"
                       params={{ documentId: row.document.id }}
@@ -167,7 +169,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
                       <span className="ml-2 text-muted-foreground text-xs">{row.reference}</span>
                     )}
                   </td>
-                  <td className="py-2">{row.createdBy.name}</td>
+                  <td className="px-2 py-2">{row.createdBy.name}</td>
                   <td data-testid="balance-after" className="py-2 font-medium">
                     {row.balanceAfter}
                   </td>

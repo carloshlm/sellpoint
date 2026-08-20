@@ -84,78 +84,81 @@ export function TransfersList() {
       ) : filas.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.transfers.empty")}</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="py-2 font-medium">{t("inventory.list.folio")}</th>
-              <th className="py-2 font-medium">{t("inventory.transfers.origin")}</th>
-              <th className="py-2 font-medium">{t("inventory.transfers.destination")}</th>
-              <th className="py-2 font-medium">{t("inventory.transfers.sentBy")}</th>
-              <th className="py-2 font-medium">{t("inventory.transfers.lines")}</th>
-              <th className="py-2 font-medium">{t("inventory.transfers.days")}</th>
-              <th className="py-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map((row) => (
-              <tr key={row.id} className="border-b last:border-0">
-                <td className="py-2 font-mono">
-                  {row.documentId !== null && row.folio !== null ? (
-                    <Link
-                      to="/movements/documents/$documentId"
-                      params={{ documentId: row.documentId }}
-                      className="underline"
-                    >
-                      {row.folio}
-                    </Link>
-                  ) : (
-                    row.folio
-                  )}
-                </td>
-                <td className="py-2">{row.origin.name}</td>
-                <td className="py-2">{row.destination.name}</td>
-                <td className="py-2">{row.createdBy.name}</td>
-                <td className="py-2">{row.lineCount}</td>
-                <td className="py-2">
-                  {row.daysInTransit}
-                  {/* El badge sale del DATO `isStale`, no de comparar días acá:
+        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="px-2 py-2 font-medium">{t("inventory.list.folio")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.transfers.origin")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.transfers.destination")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.transfers.sentBy")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.transfers.lines")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.transfers.days")}</th>
+                <th className="px-2 py-2 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="px-2 py-2 font-mono">
+                    {row.documentId !== null && row.folio !== null ? (
+                      <Link
+                        to="/movements/documents/$documentId"
+                        params={{ documentId: row.documentId }}
+                        className="underline"
+                      >
+                        {row.folio}
+                      </Link>
+                    ) : (
+                      row.folio
+                    )}
+                  </td>
+                  <td className="px-2 py-2">{row.origin.name}</td>
+                  <td className="px-2 py-2">{row.destination.name}</td>
+                  <td className="px-2 py-2">{row.createdBy.name}</td>
+                  <td className="px-2 py-2">{row.lineCount}</td>
+                  <td className="px-2 py-2">
+                    {row.daysInTransit}
+                    {/* El badge sale del DATO `isStale`, no de comparar días acá:
                       el umbral vive en el servidor y una segunda copia se
                       desincronizaría. */}
-                  {row.isStale && (
-                    <Badge
-                      variant="warning"
-                      data-testid="stale-badge"
-                      title={t("inventory.transfers.staleTitle")}
-                      className="ml-2"
-                    >
-                      !
-                    </Badge>
-                  )}
-                </td>
-                <td className="flex justify-end gap-2 py-2">
-                  {tab === "incoming" && has("inventory:movement") && (
-                    <button
-                      type="button"
-                      onClick={() => setRecibiendo(row)}
-                      className="rounded-md border border-input px-3 py-1.5 text-sm"
-                    >
-                      {t("inventory.transfers.receive")}
-                    </button>
-                  )}
-                  {has("inventory:manage") && (
-                    <button
-                      type="button"
-                      onClick={() => setCancelando(row)}
-                      className="rounded-md border border-input px-3 py-1.5 text-sm"
-                    >
-                      {t("inventory.transfers.cancel")}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    {row.isStale && (
+                      <Badge
+                        variant="warning"
+                        data-testid="stale-badge"
+                        title={t("inventory.transfers.staleTitle")}
+                        className="ml-2"
+                      >
+                        !
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="flex justify-end gap-2 py-2">
+                    {tab === "incoming" && has("inventory:movement") && (
+                      <button
+                        type="button"
+                        onClick={() => setRecibiendo(row)}
+                        className="rounded-md border border-input px-3 py-1.5 text-sm"
+                      >
+                        {t("inventory.transfers.receive")}
+                      </button>
+                    )}
+                    {has("inventory:manage") && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelando(row)}
+                        className="rounded-md border border-input px-3 py-1.5 text-sm"
+                      >
+                        {t("inventory.transfers.cancel")}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {recibiendo !== null && (

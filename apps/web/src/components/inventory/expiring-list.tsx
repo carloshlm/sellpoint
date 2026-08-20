@@ -55,23 +55,26 @@ export function ExpiringList() {
       ) : (data?.length ?? 0) === 0 ? (
         <p className="text-muted-foreground text-sm">{t("inventory.expiring.empty")}</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="py-2 font-medium">{t("inventory.expiring.product")}</th>
-              <th className="py-2 font-medium">{t("inventory.expiring.lot")}</th>
-              <th className="py-2 font-medium">{t("inventory.expiring.expiresAt")}</th>
-              <th className="py-2 font-medium">{t("inventory.expiring.warehouse")}</th>
-              <th className="py-2 font-medium">{t("inventory.expiring.quantity")}</th>
-              <th className="py-2 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {(data ?? []).map((row) => (
-              <Fila key={`${row.lot.id}-${row.warehouse.id}-${row.location}`} row={row} />
-            ))}
-          </tbody>
-        </table>
+        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="px-2 py-2 font-medium">{t("inventory.expiring.product")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.expiring.lot")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.expiring.expiresAt")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.expiring.warehouse")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.expiring.quantity")}</th>
+                <th className="px-2 py-2 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {(data ?? []).map((row) => (
+                <Fila key={`${row.lot.id}-${row.warehouse.id}-${row.location}`} row={row} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
@@ -111,17 +114,17 @@ function Fila({ row }: { row: ExpiringRow }) {
 
   return (
     <tr className={`border-b last:border-0 ${row.expired ? "bg-destructive/5" : ""}`}>
-      <td className="py-2">
+      <td className="px-2 py-2">
         <span className="font-mono">{row.sku}</span>
         <span className="ml-2 text-muted-foreground">{row.name}</span>
       </td>
-      <td className="py-2">
+      <td className="px-2 py-2">
         {row.lot.lotCode}
         {row.location !== "" && (
           <span className="ml-2 text-muted-foreground text-xs">{row.location}</span>
         )}
       </td>
-      <td className="py-2">
+      <td className="px-2 py-2">
         {formatCalendarDate(row.lot.expiresAt, resolveUiLocale(i18n))}
         <span
           className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
@@ -133,9 +136,9 @@ function Fila({ row }: { row: ExpiringRow }) {
             : t("inventory.expiring.daysLeft", { count: row.daysLeft })}
         </span>
       </td>
-      <td className="py-2">{row.warehouse.name}</td>
-      <td className="py-2">{row.quantity}</td>
-      <td className="py-2 text-right">
+      <td className="px-2 py-2">{row.warehouse.name}</td>
+      <td className="px-2 py-2">{row.quantity}</td>
+      <td className="px-2 py-2 text-right">
         {has("inventory:movement") && (
           <button
             type="button"

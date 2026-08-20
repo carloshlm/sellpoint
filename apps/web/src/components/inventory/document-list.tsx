@@ -149,52 +149,55 @@ export function DocumentList({ type }: DocumentListProps) {
           {filtrando ? t("inventory.list.noResults") : t("inventory.list.empty")}
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="py-2 font-medium">{t("inventory.list.folio")}</th>
-              <th className="py-2 font-medium">{t("inventory.list.status")}</th>
-              <th className="py-2 font-medium">{t("inventory.warehouse.label")}</th>
-              <th className="py-2 font-medium">{t("inventory.list.reason")}</th>
-              <th className="py-2 font-medium">{t("inventory.list.date")}</th>
-              <th className="py-2 font-medium">{t("inventory.list.lines")}</th>
-              <th className="py-2 font-medium">{t("inventory.list.who")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b last:border-0">
-                <td className="py-2 font-mono">
-                  <a
-                    href={`/movements/documents/${row.id}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      void navigate({
-                        to: "/movements/documents/$documentId",
-                        params: { documentId: row.id },
-                      });
-                    }}
-                    className="underline underline-offset-2"
-                  >
-                    {row.folio}
-                  </a>
-                </td>
-                <td className="py-2">{t(`inventory.status.${row.status}`)}</td>
-                <td className="py-2">{row.warehouse.name}</td>
-                <td className="py-2">
-                  {row.reasonCode === null ? "—" : t(`inventory.reason.${row.reasonCode}`)}
-                </td>
-                <td className="py-2">{new Date(row.createdAt).toLocaleDateString()}</td>
-                <td className="py-2">{row.lineCount}</td>
-                <td className="py-2">
-                  {row.createdBy === null
-                    ? "—"
-                    : `${row.createdBy.firstName} ${row.createdBy.lastNamePaternal}`}
-                </td>
+        // El scroll vive acá: la PÁGINA nunca se desborda, la tabla sí.
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="px-2 py-2 font-medium">{t("inventory.list.folio")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.list.status")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.warehouse.label")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.list.reason")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.list.date")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.list.lines")}</th>
+                <th className="px-2 py-2 font-medium">{t("inventory.list.who")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="px-2 py-2 font-mono">
+                    <a
+                      href={`/movements/documents/${row.id}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        void navigate({
+                          to: "/movements/documents/$documentId",
+                          params: { documentId: row.id },
+                        });
+                      }}
+                      className="underline underline-offset-2"
+                    >
+                      {row.folio}
+                    </a>
+                  </td>
+                  <td className="px-2 py-2">{t(`inventory.status.${row.status}`)}</td>
+                  <td className="px-2 py-2">{row.warehouse.name}</td>
+                  <td className="px-2 py-2">
+                    {row.reasonCode === null ? "—" : t(`inventory.reason.${row.reasonCode}`)}
+                  </td>
+                  <td className="px-2 py-2">{new Date(row.createdAt).toLocaleDateString()}</td>
+                  <td className="px-2 py-2">{row.lineCount}</td>
+                  <td className="px-2 py-2">
+                    {row.createdBy === null
+                      ? "—"
+                      : `${row.createdBy.firstName} ${row.createdBy.lastNamePaternal}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
