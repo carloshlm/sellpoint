@@ -103,7 +103,7 @@ export class TransfersService {
               // debe sumar en el destino—, pero un botón que sigue diciendo
               // "Recibir" hace parecer que el clic anterior no hizo nada.
               documents: {
-                select: { id: true, folio: true, type: true },
+                select: { id: true, folio: true, type: true, status: true },
                 orderBy: { createdAt: "asc" },
               },
             },
@@ -132,7 +132,10 @@ export class TransfersService {
           Math.floor((ahora - row.createdAt.getTime()) / MS_POR_DIA),
         );
         const despacho = row.documents.find((d) => d.type === "exit");
-        const recepcion = row.documents.find((d) => d.type === "entry");
+        // Una recepción ANULADA no cuenta: el botón tiene que volver a decir
+        // "Recibir" para que se abra una nueva. Mandar a "Continuar" hacia un
+        // documento muerto es peor que no decir nada.
+        const recepcion = row.documents.find((d) => d.type === "entry" && d.status !== "canceled");
 
         return {
           id: row.id,
@@ -431,8 +434,19 @@ export class TransfersService {
         throw new NotFoundException({ message: "inventory.transfer_not_found" });
       }
 
+      // `status: not canceled` no es un detalle: una recepción ANULADA es
+      // historia, no el documento con el que se recibió. Sin este filtro,
+      // anular el borrador dejaba el traspaso apuntando para siempre a un
+      // documento muerto —y el índice único impedía abrir otro—, así que la
+      // mercancía quedaba en tránsito sin forma de entrar. Carlos lo pisó con
+      // SAL-000002.
       const existente = await tx.inventoryDocument.findFirst({
-        where: { transferId, type: "entry", tenantId: user.tenantId },
+        where: {
+          transferId,
+          type: "entry",
+          tenantId: user.tenantId,
+          status: { not: "canceled" },
+        },
         include: { warehouse: { select: { id: true, name: true } } },
       });
       if (existente !== null) {

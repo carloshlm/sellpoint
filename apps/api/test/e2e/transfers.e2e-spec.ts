@@ -998,6 +998,52 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       expect(String(fila?.expiresAt)).toContain("2027-01-31");
     });
 
+    /**
+     * El callejón sin salida que Carlos pisó con SAL-000002: anuló la
+     * recepción esperando poder recibir de nuevo, y el índice único parcial
+     * —que no excluía los anulados— había gastado la única recepción posible
+     * de ese traspaso en un documento muerto.
+     */
+    it("anulada la recepción, se puede abrir OTRA: el traspaso no queda encerrado", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 5);
+      const auth = () => ({ Authorization: bearer(token) });
+
+      const primero = await request(app.getHttpServer())
+        .post(`/transfers/${transfer.id}/receipt-draft`)
+        .set(auth())
+        .send({})
+        .expect(201);
+      const primeroId = (primero.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${primeroId}/cancel`)
+        .set(auth())
+        .send({ reason: "me equivoqué de camión" })
+        .expect(200);
+
+      const segundo = await request(app.getHttpServer())
+        .post(`/transfers/${transfer.id}/receipt-draft`)
+        .set(auth())
+        .send({})
+        .expect(201);
+      const segundoBody = segundo.body as { id: string; folio: string };
+
+      // Un folio NUEVO: el anulado se queda con el suyo, la serie no reusa
+      // números y quien audita puede explicar los dos.
+      expect(segundoBody.id).not.toBe(primeroId);
+
+      // Y la lista deja de mandar a la muerta.
+      const lista = await request(app.getHttpServer())
+        .get("/transfers?direction=incoming")
+        .set(auth())
+        .expect(200);
+      const fila = (
+        lista.body as { rows: { id: string; receipt: { id: string } | null }[] }
+      ).rows.find((r) => r.id === transfer.id);
+      expect(fila?.receipt?.id).toBe(segundoBody.id);
+    });
+
     it("cambiarle el motivo a una recepción se rechaza: rompería el vínculo con el traspaso", async () => {
       const { token, central, norte, despachar } = await escenario();
       const { transfer } = await despachar(central, norte, 5);
