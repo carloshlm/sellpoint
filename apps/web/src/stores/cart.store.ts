@@ -76,11 +76,20 @@ interface CartState {
    * para que la venta quede vinculada y la cotización pase a `loaded`.
    */
   quoteId: string | null;
+  /**
+   * El SKU del renglón que el servidor rechazó (F4-UI-02).
+   *
+   * Vive en el STORE y no en el panel de cobro porque quien lo pinta es la
+   * línea, que está en otro árbol de componentes. Pasarlo por props obligaría
+   * a atravesar toda la pantalla con un dato que solo dos puntas usan.
+   */
+  errorSku: string | null;
   add: (item: LookupItem, options?: { presentationId?: string; quantity?: string }) => void;
   remove: (key: string) => void;
   setQuantity: (key: string, quantity: string) => void;
   setPresentation: (key: string, presentationId: string) => void;
   setQuoteId: (quoteId: string | null) => void;
+  setErrorSku: (sku: string | null) => void;
   clear: () => void;
 }
 
@@ -117,6 +126,7 @@ function presentacionInicial(
 export const useCartStore = create<CartState>((set) => ({
   lines: [],
   quoteId: null,
+  errorSku: null,
 
   add: (item, options) =>
     set((state) => {
@@ -191,11 +201,16 @@ export const useCartStore = create<CartState>((set) => ({
       return { lines: [...state.lines, nueva] };
     }),
 
-  remove: (key) => set((state) => ({ lines: state.lines.filter((l) => l.key !== key) })),
+  remove: (key) =>
+    set((state) => ({ lines: state.lines.filter((l) => l.key !== key), errorSku: null })),
 
   setQuantity: (key, quantity) =>
     set((state) => ({
       lines: state.lines.map((l) => (l.key === key ? { ...l, quantity } : l)),
+      // Corregir la cantidad borra la marca del rechazo: el mensaje hablaba del
+      // estado anterior y dejarlo puesto haría creer que la corrección tampoco
+      // sirvió.
+      errorSku: null,
     })),
 
   /**
@@ -241,7 +256,9 @@ export const useCartStore = create<CartState>((set) => ({
 
   setQuoteId: (quoteId) => set({ quoteId }),
 
-  clear: () => set({ lines: [], quoteId: null }),
+  setErrorSku: (errorSku) => set({ errorSku }),
+
+  clear: () => set({ lines: [], quoteId: null, errorSku: null }),
 }));
 
 // ─────────────────────────────────────────────────────────────────────────

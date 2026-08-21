@@ -182,6 +182,17 @@ export class StockLedgerService {
               available: disponible.toString(),
               requested: grupo.delta.toString(),
             },
+            // ── Fuera de `args` A PROPÓSITO (F4-UI-02) ───────────────────
+            //
+            // El filtro CONSUME `args` para traducir y después lo descarta: es
+            // insumo del texto, no dato para el cliente. Pero el carrito del
+            // POS necesita saber de QUÉ renglón habla el rechazo para pintarlo
+            // encima — y eso no es texto, es RUTEO.
+            //
+            // La alternativa era que el front sacara el SKU parseando el
+            // mensaje ya traducido. Eso se rompe al cambiar de idioma y al
+            // retocar una coma del copy: un dato tiene que viajar como dato.
+            sku: grupo.sku,
           });
         }
       }
@@ -196,6 +207,10 @@ export class StockLedgerService {
               available: disponible.toString(),
               requested: grupo.delta.toString(),
             },
+            // Mismo criterio que arriba. Lo que ubica el renglón del carrito es
+            // el SKU y no el lote: el reparto FEFO lo eligió el servidor, así
+            // que el cajero nunca vio ese código.
+            sku: grupo.sku,
           });
         }
       }

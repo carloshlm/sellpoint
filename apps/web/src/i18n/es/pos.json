@@ -40,6 +40,7 @@
     "outOfStock": "Más de lo que hay en este almacén",
     "presentation": "Presentación",
     "quantity": "Cantidad",
+    "rejectedLine": "El servidor rechazó esta línea",
     "remove": "Quitar",
     "scan": "Escanear con la cámara",
     "search": "Buscar",
@@ -53,5 +54,16 @@
       "loaded": "Ya cargada en una venta",
       "open": "Vigente"
     }
+  },
+  "checkout": {
+    "change": "Cambio",
+    "charge": "Cobrar",
+    "done": "Venta {{folio}} cobrada.",
+    "failed": "No pudimos cobrar la venta.",
+    "method": "Cómo paga",
+    "missing": "Faltan {{amount}}",
+    "received": "Con cuánto paga",
+    "title": "Cobrar",
+    "total": "Total"
   }
 }

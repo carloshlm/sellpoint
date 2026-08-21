@@ -40,6 +40,7 @@
     "outOfStock": "More than what's in this warehouse",
     "presentation": "Presentation",
     "quantity": "Quantity",
+    "rejectedLine": "The server rejected this line",
     "remove": "Remove",
     "scan": "Scan with the camera",
     "search": "Search",
@@ -53,5 +54,16 @@
       "loaded": "Already loaded into a sale",
       "open": "Open"
     }
+  },
+  "checkout": {
+    "change": "Change",
+    "charge": "Charge",
+    "done": "Sale {{folio}} charged.",
+    "failed": "We couldn't complete the sale.",
+    "method": "Payment method",
+    "missing": "{{amount}} short",
+    "received": "Amount received",
+    "title": "Charge",
+    "total": "Total"
   }
 }

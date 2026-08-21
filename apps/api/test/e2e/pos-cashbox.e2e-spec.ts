@@ -244,24 +244,27 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
   describe("Vender (F4-SALE-01)", () => {
     /** Carga stock por el camino real: entrada confirmada, no INSERT a mano. */
     async function conStock(token: string, tenantId: string, cantidad = 100) {
-      const { productoId, almacenId } = await prisma.withTenantContext(tenantId, async (tx) => {
-        const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
-        const producto = await tx.product.create({
-          data: { tenantId, sku: `V-${randomUUID().slice(0, 8)}`, name: "Paracetamol" },
-        });
-        await tx.productPresentation.create({
-          data: {
-            tenantId,
-            productId: producto.id,
-            name: "Pieza",
-            factor: "1",
-            price: "15.00",
-            isDefaultSale: true,
-            allowFractionalInput: false,
-          },
-        });
-        return { productoId: producto.id, almacenId: almacen.id };
-      });
+      const { productoId, almacenId, sku } = await prisma.withTenantContext(
+        tenantId,
+        async (tx) => {
+          const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
+          const producto = await tx.product.create({
+            data: { tenantId, sku: `V-${randomUUID().slice(0, 8)}`, name: "Paracetamol" },
+          });
+          await tx.productPresentation.create({
+            data: {
+              tenantId,
+              productId: producto.id,
+              name: "Pieza",
+              factor: "1",
+              price: "15.00",
+              isDefaultSale: true,
+              allowFractionalInput: false,
+            },
+          });
+          return { productoId: producto.id, almacenId: almacen.id, sku: producto.sku };
+        },
+      );
 
       const doc = await request(app.getHttpServer())
         .post("/inventory/documents")
@@ -285,7 +288,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         .send({})
         .expect(201);
 
-      return { productoId, almacenId };
+      return { productoId, almacenId, sku };
     }
 
     const vender = (token: string, body: Record<string, unknown>) =>
@@ -421,6 +424,34 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
       const ventas = await prisma.withTenantContext(tenantId, (tx) => tx.sale.count());
       expect(ventas).toBe(0);
+    });
+
+    /**
+     * F4-UI-02 — el rechazo tiene que decir DE QUÉ línea habla.
+     *
+     * El carrito del POS tiene varios renglones y el cajero está de pie con el
+     * cliente enfrente: un «no hay suficiente existencia» que no señala cuál
+     * obliga a revisarlos uno por uno. El `sku` viaja en el CUERPO, aparte del
+     * mensaje traducido, porque la alternativa —que el front parsee el texto
+     * para sacarlo— se rompe al cambiar de idioma o al retocar una coma.
+     */
+    it("el rechazo por stock nombra el SKU culpable en el cuerpo, no solo en el texto", async () => {
+      const { token, tenantId } = await escenario();
+      const { productoId, sku } = await conStock(token, tenantId, 2);
+      await abrir(token).expect(201);
+
+      const res = await vender(token, {
+        paymentMethod: "cash",
+        lines: [{ productId: productoId, quantity: 50 }],
+      }).expect(422);
+
+      const body = res.body as { code: string; message: string; sku?: string };
+      expect(body.code).toBe("inventory.insufficient_stock");
+      // El dato, no el texto: `sku` es lo que deja al carrito pintar el error
+      // SOBRE el renglón en vez de arriba de todo.
+      expect(body.sku).toBe(sku);
+      // Y el mensaje sigue siendo legible por su cuenta.
+      expect(body.message).toContain(sku);
     });
 
     /**

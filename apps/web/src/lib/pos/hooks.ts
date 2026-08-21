@@ -2,12 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
 import {
   type CashboxSession,
+  type CreateSaleInput,
   closeSession,
+  createSale,
   getSession,
   getSessionTotals,
   type LookupResult,
   lookup,
   openSession,
+  type Sale,
   type SessionTotal,
 } from "./api";
 
@@ -75,5 +78,23 @@ export function useLookup(q: string, enabled: boolean) {
     queryFn: () => lookup(termino),
     enabled: enabled && termino.length > 0,
     staleTime: 10_000,
+  });
+}
+
+/**
+ * F4-UI-02 — cobrar.
+ *
+ * La clave de idempotencia la manda QUIEN LLAMA, no este hook: tiene que nacer
+ * cuando se abre el modal y sobrevivir a los reintentos. Si el hook la generara,
+ * cada intento traería una distinta y la protección contra el doble tap se
+ * evaporaría sin que nadie lo notara hasta ver dos folios por una sola venta.
+ *
+ * Al terminar se invalida el turno: los totales del arqueo cambiaron.
+ */
+export function useCreateSale() {
+  const queryClient = useQueryClient();
+  return useMutation<Sale, ApiError, { input: CreateSaleInput; idempotencyKey: string }>({
+    mutationFn: ({ input, idempotencyKey }) => createSale(input, idempotencyKey),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY }),
   });
 }

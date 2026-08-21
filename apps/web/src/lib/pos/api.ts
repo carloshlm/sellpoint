@@ -121,3 +121,53 @@ export async function lookup(q: string): Promise<LookupResult> {
   const { data } = await api.get<LookupResult>("/pos/lookup", { params: { q } });
   return data;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// F4-UI-02 — el cobro
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface SaleItem {
+  id: string;
+  lineNo: number;
+  productId: string | null;
+  serviceId: string | null;
+  presentationId: string | null;
+  quantity: string;
+  unitPrice: string;
+  discount: string;
+  lineTotal: string;
+}
+
+export interface Sale {
+  id: string;
+  folio: string;
+  warehouseId: string;
+  status: "completed" | "canceled";
+  paymentMethod: PaymentMethod;
+  subtotal: string;
+  discount: string;
+  total: string;
+  createdAt: string;
+  items: SaleItem[];
+}
+
+export interface CreateSaleInput {
+  paymentMethod: PaymentMethod;
+  lines: { productId?: string; serviceId?: string; presentationId?: string; quantity: number }[];
+  quoteId?: string;
+}
+
+/**
+ * El cobro.
+ *
+ * `idempotencyKey` se genera al ABRIR el modal, no al hacer clic: es lo que
+ * convierte dos toques del mismo botón en la MISMA venta. Si se generara en el
+ * clic, cada toque traería una clave distinta y el servidor cobraría dos veces
+ * — que es exactamente el problema que la cabecera vino a resolver.
+ */
+export async function createSale(input: CreateSaleInput, idempotencyKey: string): Promise<Sale> {
+  const { data } = await api.post<Sale>("/pos/sales", input, {
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+  return data;
+}

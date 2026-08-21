@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 import type { I18nService } from "nestjs-i18n";
 import { AllExceptionsFilter } from "./all-exceptions.filter";
@@ -182,5 +183,37 @@ describe("AllExceptionsFilter", () => {
       message: "products.import_has_errors",
       errors: "no soy un array",
     });
+  });
+
+  /**
+   * F4-UI-02 — el CONTRATO del que depende el carrito del POS.
+   *
+   * El filtro descarta `args` porque es insumo de la traducción, no dato para
+   * el cliente. Pero todo lo DEMÁS que traiga la excepción viaja intacto, y eso
+   * es lo que deja al ledger mandar el `sku` del renglón culpable para que el
+   * carrito lo pinte encima.
+   *
+   * Este test existe porque hasta ahora ese pasaje era un ACCIDENTE del
+   * `{ args, ...rest }`, sin nada que lo fijara: el día que alguien cambie el
+   * filtro por una lista blanca de claves, el POS dejaría de señalar la línea
+   * y nadie se enteraría hasta verlo en un mostrador.
+   */
+  it("descarta `args` pero deja pasar los demás datos de la excepción", () => {
+    translateMock.mockImplementation((key: string) => key);
+
+    filter.catch(
+      new UnprocessableEntityException({
+        message: "inventory.insufficient_stock",
+        args: { sku: "AGUA", available: "1", requested: "2" },
+        sku: "AGUA",
+      }),
+      buildHost({ method: "POST", url: "/pos/sales", locale: "es" }),
+    );
+
+    const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    // El dato sobrevive…
+    expect(body.sku).toBe("AGUA");
+    // …y `args` no, que es lo que lo distingue de él.
+    expect(body).not.toHaveProperty("args");
   });
 });

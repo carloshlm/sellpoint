@@ -24,6 +24,7 @@ vi.mock("../lib/pos/api", () => ({
   getSessionTotals: vi.fn(),
   closeSession: vi.fn(),
   lookup: vi.fn(),
+  createSale: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({
   listWarehouses: vi.fn(),
@@ -321,6 +322,267 @@ describe("El carrito del POS (F4-CART)", () => {
 
       await userEvent.type(screen.getByLabelText("Buscar"), "agua");
       expect(await screen.findByRole("button", { name: /Agua mineral/ })).toBeInTheDocument();
+    });
+  });
+});
+
+/**
+ * F4-UI-01 y F4-UI-02 — la pantalla de venta y el cobro.
+ *
+ * Lo que se protege son las dos garantías que hacen que un mostrador funcione:
+ * que un doble tap **no cobre dos veces**, y que un rechazo del servidor caiga
+ * SOBRE el renglón culpable en vez de arriba de todo.
+ */
+describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCartStore.getState().clear();
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+  });
+
+  const venta = (): posApi.Sale => ({
+    id: "sale-1",
+    folio: "VTA-000007",
+    warehouseId: "w1",
+    status: "completed",
+    paymentMethod: "cash",
+    subtotal: "25.00",
+    discount: "0.00",
+    total: "25.00",
+    createdAt: "2026-08-21T16:00:00.000Z",
+    items: [],
+  });
+
+  async function conCarrito() {
+    await renderPos();
+    useCartStore.getState().add(AGUA, { quantity: "2" }); // 2 × 12.50 = 25.00
+    await userEvent.click(await screen.findByRole("button", { name: "Cobrar" }));
+    return screen.findByTestId("checkout-panel");
+  }
+
+  describe("la pantalla", () => {
+    it("sin líneas no deja abrir el cobro: no hay nada que cobrar", async () => {
+      await renderPos();
+
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    /**
+     * El carrito queda a la VISTA mientras se cobra. Un modal encima taparía
+     * justamente lo que hay que verificar antes de cobrar — y, si el servidor
+     * rechaza una línea, el renglón culpable ya está en pantalla.
+     */
+    it("al cobrar, el carrito sigue visible", async () => {
+      await conCarrito();
+
+      expect(screen.getByTestId("cart-panel")).toBeInTheDocument();
+    });
+  });
+
+  describe("el vuelto", () => {
+    it("se calcula al escribir cuánto se recibe", async () => {
+      await conCarrito();
+
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      expect(screen.getByTestId("checkout-change")).toHaveTextContent("25.00");
+    });
+
+    /**
+     * Mientras no alcance, lo que hay que ver es cuánto FALTA — no un vuelto
+     * negativo, que en un mostrador nadie sabe leer.
+     */
+    it("con efectivo insuficiente dice cuánto falta y no deja cobrar", async () => {
+      await conCarrito();
+
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "10");
+
+      expect(screen.getByTestId("checkout-missing")).toHaveTextContent("15.00");
+      expect(screen.getByTestId("checkout-change")).toHaveTextContent("0.00");
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    /**
+     * Tarjeta y transferencia se autorizan por su monto exacto fuera del
+     * sistema: pedir "con cuánto paga" ahí sería una pregunta sin respuesta.
+     */
+    it("con tarjeta no se pregunta cuánto se recibe", async () => {
+      await conCarrito();
+
+      await userEvent.click(screen.getByRole("button", { name: "Tarjeta" }));
+
+      expect(screen.queryByLabelText("Con cuánto paga")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
+    });
+  });
+
+  describe("el cobro", () => {
+    it("manda ids y cantidades con el método elegido, y avisa el folio", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      await conCarrito();
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalledTimes(1));
+      expect(mocked.createSale.mock.calls[0]?.[0]).toEqual({
+        paymentMethod: "transfer",
+        lines: [{ productId: "prod-agua", presentationId: PIEZA.id, quantity: 2 }],
+      });
+      expect(await screen.findByTestId("sale-done")).toHaveTextContent("VTA-000007");
+    });
+
+    it("cobrada la venta, el carrito queda vacío para el siguiente cliente", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(0));
+    });
+
+    it("el botón deshabilitado frena el segundo clic mientras el primero está en vuelo", async () => {
+      // Una promesa que no resuelve deja el primer intento colgado.
+      mocked.createSale.mockImplementation(() => new Promise(() => {}));
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      const boton = screen.getByRole("button", { name: "Cobrar" });
+      await userEvent.click(boton);
+      await userEvent.click(boton);
+
+      expect(mocked.createSale).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * ⚠ LA INVARIANTE DE LA TAREA, y el test que de verdad la prueba.
+     *
+     * El botón deshabilitado NO alcanza: solo cubre la ventana en que el primer
+     * intento sigue en vuelo. El caso que rompe una caja es el otro — el cobro
+     * falla o la red se corta, el cajero vuelve a tocar, y **el servidor ya
+     * había asentado la venta**. Ahí lo único que impide cobrar dos veces es que
+     * el segundo intento traiga la MISMA clave.
+     *
+     * Por eso nace al ABRIR el panel y no en el clic. Un primer test que solo
+     * hacía dos clics seguidos pasaba con la clave generada en el clic — probaba
+     * el botón, no la clave.
+     */
+    it("tras un fallo, el reintento manda la MISMA clave: es lo que impide el doble cobro", async () => {
+      mocked.createSale
+        .mockRejectedValueOnce({
+          statusCode: 0,
+          message: "Network Error",
+          error: "Network Error",
+        })
+        .mockResolvedValueOnce(venta());
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+      await screen.findByRole("alert");
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalledTimes(2));
+      const [primera, segunda] = mocked.createSale.mock.calls.map((c) => c[1]);
+      expect(primera).toBe(segunda);
+    });
+
+    it("la clave es un UUID, no un contador ni la hora", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalled());
+      expect(mocked.createSale.mock.calls[0]?.[1]).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      );
+    });
+  });
+
+  describe("el rechazo del servidor", () => {
+    /**
+     * ⚠ Lección del confirm mudo de F3: el error NUNCA se traga.
+     */
+    it("un rechazo se pinta, no deja el botón muerto", async () => {
+      mocked.createSale.mockRejectedValue({
+        statusCode: 422,
+        message: "No hay suficiente existencia de «AGUA»: hay 1 y se piden 2.",
+        error: "Unprocessable Entity",
+        code: "inventory.insufficient_stock",
+        sku: "AGUA",
+      });
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      expect(await screen.findByText(/No hay suficiente existencia/)).toBeInTheDocument();
+    });
+
+    /**
+     * ⚠ LA OTRA INVARIANTE. En un carrito de ocho renglones, un mensaje que no
+     * señala CUÁL obliga a revisarlos uno por uno con el cliente enfrente. El
+     * `sku` viaja como dato en el cuerpo, no dentro del texto traducido.
+     */
+    it("el renglón culpable queda marcado, no solo el mensaje de arriba", async () => {
+      mocked.createSale.mockRejectedValue({
+        statusCode: 422,
+        message: "No hay suficiente existencia de «AGUA».",
+        error: "Unprocessable Entity",
+        code: "inventory.insufficient_stock",
+        sku: "AGUA",
+      });
+      await renderPos();
+      useCartStore.getState().add(AGUA, { quantity: "2" });
+      useCartStore.getState().add(HARINA, { quantity: "1" });
+      await userEvent.click(await screen.findByRole("button", { name: "Cobrar" }));
+      await userEvent.type(await screen.findByLabelText("Con cuánto paga"), "500");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(useCartStore.getState().errorSku).toBe("AGUA"));
+      const marcados = document.querySelectorAll("[data-rejected='true']");
+      // UNO marcado, no los dos: señalar todos es no señalar ninguno.
+      expect(marcados).toHaveLength(1);
+    });
+
+    it("corregir la cantidad borra la marca: el rechazo hablaba del estado viejo", async () => {
+      mocked.createSale.mockRejectedValue({
+        statusCode: 422,
+        message: "No hay suficiente existencia.",
+        error: "Unprocessable Entity",
+        code: "inventory.insufficient_stock",
+        sku: "AGUA",
+      });
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+      await waitFor(() => expect(useCartStore.getState().errorSku).toBe("AGUA"));
+
+      const key = useCartStore.getState().lines[0]?.key as string;
+      useCartStore.getState().setQuantity(key, "1");
+
+      expect(useCartStore.getState().errorSku).toBeNull();
+    });
+
+    it("un rechazo NO vacía el carrito: lo que se corrige es la línea", async () => {
+      mocked.createSale.mockRejectedValue({
+        statusCode: 422,
+        message: "No hay suficiente existencia.",
+        error: "Unprocessable Entity",
+        code: "inventory.insufficient_stock",
+      });
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+      expect(useCartStore.getState().lines).toHaveLength(1);
     });
   });
 });

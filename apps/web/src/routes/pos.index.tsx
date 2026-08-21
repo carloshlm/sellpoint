@@ -4,10 +4,8 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
-import { CartPanel } from "@/components/pos/cart-panel";
-import { CartSearch } from "@/components/pos/cart-search";
 import { OpenSession } from "@/components/pos/open-session";
-import { SessionBar } from "@/components/pos/session-bar";
+import { SaleScreen } from "@/components/pos/sale-screen";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/pos/hooks";
 
@@ -33,9 +31,7 @@ function PosContent() {
 
   return (
     <div className="flex flex-col gap-4">
-      <SessionBar session={session} />
-      <CartSearch />
-      <CartPanel />
+      <SaleScreen session={session} />
       <div>
         <Button variant="outline" asChild>
           <Link to="/pos/close">{t("pos.session.close")}</Link>

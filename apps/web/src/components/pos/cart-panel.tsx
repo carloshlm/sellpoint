@@ -103,13 +103,22 @@ function CartLineRow({
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const setPresentation = useCartStore((s) => s.setPresentation);
   const remove = useCartStore((s) => s.remove);
+  const errorSku = useCartStore((s) => s.errorSku);
 
   const falta = excedeElStock(line);
+  // El rechazo del servidor cae SOBRE su renglón (F4-UI-02). En un carrito de
+  // ocho líneas, un «no hay suficiente existencia» que no señala cuál obliga a
+  // revisarlas una por una con el cliente enfrente.
+  const rechazada =
+    errorSku !== null && errorSku === (line.type === "product" ? line.sku : line.code);
 
   return (
     <li
-      className={`flex flex-col gap-1 rounded-md border p-2 ${selected ? "border-primary" : ""}`}
+      className={`flex flex-col gap-1 rounded-md border p-2 ${
+        rechazada ? "border-destructive bg-destructive/5" : selected ? "border-primary" : ""
+      }`}
       data-testid={`cart-line-${line.key}`}
+      {...(rechazada && { "data-rejected": "true" })}
     >
       <div className="flex items-center justify-between gap-2">
         <button type="button" className="flex-1 text-left" onClick={onSelect}>
@@ -155,9 +164,17 @@ function CartLineRow({
         </select>
       )}
 
-      {falta && (
+      {rechazada && (
+        <p role="alert" className="font-medium text-destructive text-xs">
+          {t("pos.cart.rejectedLine")}
+        </p>
+      )}
+
+      {falta && !rechazada && (
         // Se MARCA, no se bloquea: quien decide es el API al cobrar, que tiene
-        // el saldo del instante y no el de cuando se armó el carrito.
+        // el saldo del instante y no el de cuando se armó el carrito. Cuando el
+        // servidor YA rechazó, ese aviso preventivo sobra: el hecho consumado
+        // manda sobre la advertencia.
         <p role="alert" className="text-destructive text-xs">
           {t("pos.cart.outOfStock")}
         </p>
