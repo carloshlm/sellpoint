@@ -1,0 +1,7 @@
+{
+  "invalid_body": "Revisa los datos del punto de venta.",
+  "no_default_warehouse": "No tienes un almacén asignado. Elige uno para abrir el turno.",
+  "no_session": "Abre un turno de caja antes de vender.",
+  "session_already_open": "Ya tienes un turno de caja abierto. Ciérralo antes de abrir otro.",
+  "warehouse_invalid": "El almacén no es válido."
+}

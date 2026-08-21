@@ -2357,7 +2357,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F4-CASHBOX — El turno de caja
 
-- [ ] **F4-CASHBOX-01** — Abrir turno y consultar el actual
+- [x] **F4-CASHBOX-01** — Abrir turno y consultar el actual
   - **Salida:** `POST /pos/session` (permiso `pos:sell`): `warehouseId` opcional — default el **asignado** del usuario (F3-HOME), validado existe/tenant/activo/dentro-del-alcance; guarda de **UN turno abierto por usuario** → 409 `pos.session_already_open`; `GET /pos/session` devuelve el turno actual (`sessionId`, `warehouseId`, `openedAt`) o 404; sin turno abierto, vender da 409 `pos.no_session`
   - **Verificar:** e2e: abre con el asignado por default; almacén fuera de alcance → 409; segundo turno → 409; vender sin turno → 409
   - **Depende de:** F4-DB-01
