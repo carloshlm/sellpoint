@@ -4,7 +4,15 @@ import { Prisma } from "../../generated/prisma/client";
 import type { ExpandedLine } from "./composition-expander";
 
 export interface LedgerHeader {
-  documentId: string;
+  /**
+   * De qué operación cuelgan los movimientos. **Exactamente una** de las dos:
+   * un documento de inventario (`ENT`/`SAL`/`INV`) o una VENTA — la base lo
+   * garantiza con un CHECK, así que mandar las dos o ninguna revienta ahí y no
+   * en un `if` que alguien pueda olvidar.
+   */
+  documentId?: string | null;
+  /** La venta que originó estos movimientos (F4-SALE-01). */
+  saleId?: string | null;
   reasonNote?: string | null;
   reference?: string | null;
   authorizedBy?: string | null;
@@ -22,7 +30,8 @@ export interface LedgerInput {
 }
 
 export interface LedgerResult {
-  documentId: string;
+  documentId: string | null;
+  saleId?: string | null;
   /**
    * `direction` viaja en cada movimiento porque un CONTEO devuelve las dos en
    * la misma respuesta (salida del teórico + entrada de lo contado): sin ella,
@@ -196,7 +205,8 @@ export class StockLedgerService {
     await tx.stockMovement.createMany({
       data: lines.map((line) => ({
         tenantId,
-        documentId: input.header.documentId,
+        documentId: input.header.documentId ?? null,
+        saleId: input.header.saleId ?? null,
         productId: line.productId,
         warehouseId,
         presentationId: line.presentationId,
@@ -254,7 +264,8 @@ export class StockLedgerService {
     }
 
     return {
-      documentId: input.header.documentId,
+      documentId: input.header.documentId ?? null,
+      saleId: input.header.saleId ?? null,
       movements: lines.map((l) => ({
         productId: l.productId,
         direction,

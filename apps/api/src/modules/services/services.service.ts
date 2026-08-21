@@ -182,18 +182,28 @@ export class ServicesService {
   }
 
   /**
-   * Borra de verdad. Hoy nadie referencia un servicio, así que no hay historia
-   * que proteger — desactivar existe para esconderlo del POS sin perderlo.
+   * Borra de verdad — salvo que el servicio tenga HISTORIA.
    *
-   * TODO(F4): cuando `sale_items` referencie servicios, esto necesita la guarda
-   * 409 `services.has_sales` (contar ventas antes de borrar) y la FK debe ser
-   * RESTRICT — mismo patrón que `products.remove` cerró en F3-GUARDS-02.
+   * Desde F4, `sale_items` y `quote_lines` lo referencian con FK **RESTRICT**:
+   * la base ya lo hace imposible. Esta guarda existe igual, y no es
+   * redundante — sin ella el usuario recibiría un 500 de violación de FK en
+   * vez de un mensaje que nombra la alternativa. La base impide el destrozo;
+   * el service explica por qué. Mismo patrón que `products.remove` en
+   * F3-GUARDS-02.
    */
   async remove(user: AuthUser, id: string, meta: RequestMeta): Promise<void> {
     await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const current = await tx.service.findFirst({ where: { id, tenantId: user.tenantId } });
       if (!current) {
         throw new NotFoundException({ message: "services.not_found" });
+      }
+
+      const [vendido, cotizado] = await Promise.all([
+        tx.saleItem.count({ where: { serviceId: id } }),
+        tx.quoteLine.count({ where: { serviceId: id } }),
+      ]);
+      if (vendido > 0 || cotizado > 0) {
+        throw new ConflictException({ message: "services.has_sales" });
       }
 
       await tx.service.delete({ where: { id } });

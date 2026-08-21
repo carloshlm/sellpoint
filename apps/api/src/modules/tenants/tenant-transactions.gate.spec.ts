@@ -12,10 +12,13 @@ import { TenantTransactionsGate } from "./tenant-transactions.gate";
  */
 describe("TenantTransactionsGate (F3-GUARDS-04)", () => {
   /** Un doble que corre el callback con un `tx` falso, como hace el real. */
-  function prismaCon(movimientos: number): PrismaService {
+  function prismaCon(movimientos: number, ventas = 0): PrismaService {
     return {
       withTenantContext: (_tenantId: string, fn: (tx: unknown) => Promise<boolean>) =>
-        fn({ stockMovement: { count: async () => movimientos } }),
+        fn({
+          stockMovement: { count: async () => movimientos },
+          sale: { count: async () => ventas },
+        }),
     } as unknown as PrismaService;
   }
 
@@ -32,12 +35,27 @@ describe("TenantTransactionsGate (F3-GUARDS-04)", () => {
     await expect(gate.hasTransactions("tenant-1")).resolves.toBe(true);
   });
 
+  /**
+   * F4-SALE-01. **Una venta de servicio puro no escribe un solo
+   * `stock_movement`** —un servicio no tiene existencias—, así que contar solo
+   * el ledger habría dejado a un negocio de puros servicios cambiando su
+   * moneda con el cajón lleno de tickets ya cobrados en la moneda vieja.
+   */
+  it("una VENTA cuenta aunque no haya movido stock (servicios)", async () => {
+    const gate = new TenantTransactionsGate(prismaCon(0, 1));
+
+    await expect(gate.hasTransactions("tenant-1")).resolves.toBe(true);
+  });
+
   it("la cuenta va DENTRO del contexto del tenant", async () => {
     const vistos: string[] = [];
     const prisma = {
       withTenantContext: (tenantId: string, fn: (tx: unknown) => Promise<boolean>) => {
         vistos.push(tenantId);
-        return fn({ stockMovement: { count: async () => 0 } });
+        return fn({
+          stockMovement: { count: async () => 0 },
+          sale: { count: async () => 0 },
+        });
       },
     } as unknown as PrismaService;
 

@@ -228,3 +228,19 @@ export function hasValidQuantityScale(quantity: number): boolean {
   }
   return Number(quantity.toFixed(QUANTITY_DECIMALS)) === quantity;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Punto de venta (Fase 4)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Cómo se paga. Coincide con el enum `PaymentMethod` de Prisma — mismo molde
+ * de contrato que `MOVEMENT_REASONS` contra su enum.
+ *
+ * Tres y nada más por ahora: el cierre de caja cuadra el EFECTIVO contra lo
+ * contado, y los otros dos son referencia. Cuando entre un medio nuevo
+ * (vales, monedero, crédito) va a exigir decidir si se arquea o no — por eso
+ * no se agregan "por si acaso".
+ */
+export const PAYMENT_METHODS = ["cash", "card", "transfer"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];

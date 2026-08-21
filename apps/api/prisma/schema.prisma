@@ -674,7 +674,14 @@ model StockMovement {
   /// La línea cuelga de su encabezado. Antes era un `batch_id` implícito —un
   /// UUID sin fila propia donde colgar folio, tipo o motivo—; F3-DOC-01 lo
   /// reemplazó por el documento, que además es lo que se busca y se imprime.
-  documentId        String            @map("document_id") @db.Uuid
+  ///
+  /// **Nullable desde F4-SALE-01**: un movimiento pertenece a UNA operación, y
+  /// ahora hay dos clases — un documento de inventario **o** una venta.
+  /// Exactamente uno, garantizado por CHECK en la base (`num_nonnulls = 1`),
+  /// el mismo patrón de `sale_items` y `quote_lines`.
+  documentId        String?           @map("document_id") @db.Uuid
+  /// La venta que originó este movimiento (F4). Excluyente con `documentId`.
+  saleId            String?           @map("sale_id") @db.Uuid
   productId         String            @map("product_id") @db.Uuid
   warehouseId       String            @map("warehouse_id") @db.Uuid
   presentationId    String?           @map("presentation_id") @db.Uuid
@@ -725,7 +732,8 @@ model StockMovement {
   // presentación se capturó. Si algo tiene historia, no se borra.
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   lot             ProductLot?          @relation(fields: [lotId], references: [id], onDelete: Restrict)
-  document        InventoryDocument    @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  document        InventoryDocument?   @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  sale            Sale?                @relation(fields: [saleId], references: [id])
   product         Product              @relation("MovementProduct", fields: [productId], references: [id])
   parentProduct   Product?             @relation("MovementParentProduct", fields: [parentProductId], references: [id], onDelete: Restrict)
   warehouse       Warehouse            @relation("MovementWarehouse", fields: [warehouseId], references: [id])
@@ -1297,6 +1305,7 @@ model Sale {
   seller    User           @relation("SaleCreatedBy", fields: [createdBy], references: [id])
   canceler  User?          @relation("SaleCanceledBy", fields: [canceledBy], references: [id])
   items     SaleItem[]
+  movements StockMovement[]
   quote     Quote?         @relation(fields: [quoteId], references: [id])
 
   @@unique([tenantId, folio])

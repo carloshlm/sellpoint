@@ -10,7 +10,10 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
  * congela la moneda, y la razón es que **los importes ya escritos no tienen
  * unidad propia**: la heredan del tenant. Cambiarla reinterpretaría toda la
  * historia sin tocar un número.
- * TODO(F4): sumar `tx.sale.count(...)` cuando aterricen las ventas del POS.
+ * F4-SALE-01 suma las VENTAS. Una venta de servicio puro no escribe un solo
+ * `stock_movement` —un servicio no tiene existencias—, así que contar solo el
+ * ledger habría dejado a un negocio de puros servicios cambiando su moneda con
+ * el cajón lleno de tickets ya cobrados en la moneda vieja.
  *
  * Extender ACÁ, nunca en `TenantCurrencyChangeableGuard` — el guard no debe
  * conocer el detalle de qué cuenta como "transacción".
@@ -21,8 +24,9 @@ export class TenantTransactionsGate {
 
   async hasTransactions(tenantId: string): Promise<boolean> {
     return this.prisma.withTenantContext(tenantId, async (tx) => {
-      const movimientos = await tx.stockMovement.count();
-      return movimientos > 0;
+      // Dos cuentas y no una: hay ventas que no dejan rastro en el ledger.
+      const [movimientos, ventas] = await Promise.all([tx.stockMovement.count(), tx.sale.count()]);
+      return movimientos > 0 || ventas > 0;
     });
   }
 }

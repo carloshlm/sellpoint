@@ -1,8 +1,9 @@
 {
-  "not_found": "This service doesn't exist.",
   "code_taken": "You already have a service with that code.",
   "empty_update": "There are no changes to save.",
+  "has_sales": "You cannot delete a service that has already been sold or quoted. Deactivate it to hide it from the point of sale.",
   "invalid_body": "The submitted data isn't valid.",
   "invalid_query": "The search filters aren't valid.",
+  "not_found": "This service doesn't exist.",
   "warehouses_invalid": "One of the warehouses doesn't exist, isn't yours, or is deactivated."
 }

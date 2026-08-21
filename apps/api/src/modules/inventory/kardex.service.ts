@@ -133,10 +133,10 @@ export class KardexService {
           f.unit_cost::text AS unit_cost,
           f.location,
           f.balance_after::text AS balance_after,
-          f.document_id,
-          d.folio,
-          d.type::text AS document_type,
-          d.status::text AS document_status,
+          COALESCE(f.document_id, f.sale_id) AS document_id,
+          COALESCE(d.folio, s.folio) AS folio,
+          COALESCE(d.type::text, 'sale') AS document_type,
+          COALESCE(d.status::text, s.status::text) AS document_status,
           f.warehouse_id,
           w.name AS warehouse_name,
           f.linked_warehouse_id,
@@ -154,7 +154,13 @@ export class KardexService {
           TRIM(u.first_name || ' ' || u.last_name_paternal) AS created_by_name,
           COUNT(*) OVER () AS total
         FROM filtrado f
-        JOIN inventory_documents d ON d.id = f.document_id
+        -- LEFT y no INNER: desde F4-SALE-01 un movimiento cuelga de un
+        -- documento **o** de una venta. Con el INNER de antes, cada línea de
+        -- venta habría DESAPARECIDO del kardex sin un solo error — el peor
+        -- fallo posible en un libro de inventario: no uno que grita, uno que
+        -- calla. El CHECK de la base garantiza que siempre hay exactamente uno.
+        LEFT JOIN inventory_documents d ON d.id = f.document_id
+        LEFT JOIN sales s ON s.id = f.sale_id
         JOIN warehouses w ON w.id = f.warehouse_id
         JOIN users u ON u.id = f.created_by
         LEFT JOIN warehouses lw ON lw.id = f.linked_warehouse_id

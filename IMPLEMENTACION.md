@@ -2377,7 +2377,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F4-SALE — La venta como llamador del ledger
 
-- [ ] **F4-SALE-01** — `SalesService.create`: la transacción del cobro
+- [x] **F4-SALE-01** — `SalesService.create`: la transacción del cobro
   - **Salida:** `POST /pos/sales` (`pos:sell`, turno abierto): UNA transacción — folio `VTA` (dentro de la misma tx: el posteo de una venta es corto y el lock de milisegundos, medido en el e2e de concurrencia), `Sale`+`SaleItem`s, líneas de producto → `StockLedgerService.apply(reason='sale')` con compuestos expandidos por el expander de F3 (falla entera si un componente no alcanza, con qué falta), líneas de servicio sin ledger; **los precios se toman del catálogo server-side** — el front manda ids y cantidades, nunca precios; la guarda 409 `services.has_sales` entra a `services.remove` (la FK RESTRICT ya la puso F4-DB-01); `TenantTransactionsGate` suma `tx.sale.count()` (cierra su `TODO(F4)`)
   - **Verificar:** e2e: venta mixta producto+servicio+compuesto descuenta lo correcto y solo eso; sin stock → 409 con el detalle; dos ventas concurrentes del último ítem: una pasa, la otra 409; borrar un servicio vendido → 409; el gate congela la moneda con una venta y cero movimientos
   - **Depende de:** F4-DB-01, F4-DB-03, F4-CASHBOX-01

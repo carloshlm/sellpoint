@@ -7,7 +7,9 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CashboxService } from "./cashbox.service";
+import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
 import { type OpenSessionDto, openSessionSchema } from "./dto/open-session.dto";
+import { SalesService } from "./sales.service";
 
 /**
  * F4-CASHBOX-01 — el turno de caja.
@@ -19,7 +21,10 @@ import { type OpenSessionDto, openSessionSchema } from "./dto/open-session.dto";
 @ApiTags("pos")
 @Controller("pos")
 export class PosController {
-  constructor(private readonly cashbox: CashboxService) {}
+  constructor(
+    private readonly cashbox: CashboxService,
+    private readonly sales: SalesService,
+  ) {}
 
   /**
    * Devuelve `{ session: null }` y NO un 404 cuando no hay turno: "todavía no
@@ -41,5 +46,19 @@ export class PosController {
     @CurrentUserScope() scope: UserScope,
   ) {
     return this.cashbox.open(user, scope, dto);
+  }
+
+  /**
+   * El cobro. Exige turno abierto — sin él no hay almacén del que descontar, y
+   * una venta suelta sería dinero que nadie cuadra al cerrar el día.
+   */
+  @Post("sales")
+  @RequirePermissions("pos:sell")
+  createSale(
+    @Body(new ZodValidationPipe(createSaleSchema, "pos.invalid_body"))
+    dto: CreateSaleDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.sales.create(user, dto);
   }
 }
