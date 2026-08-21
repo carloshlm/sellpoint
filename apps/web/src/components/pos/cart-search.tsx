@@ -95,7 +95,10 @@ export function CartSearch() {
                       {item.sku} ·{" "}
                       {t("pos.cart.available", {
                         quantity: formatQuantity(item.available, item.baseUnit),
-                        unit: unitName(item.baseUnit, locale),
+                        // `{ plural: true }` + minúscula es la convención del resto de la
+                        // app (stock-tab, presentations-tab, document-detail): la
+                        // unidad acompaña a un número, no titula nada.
+                        unit: unitName(item.baseUnit, locale, { plural: true }).toLowerCase(),
                       })}
                       {Number(item.expired) > 0 && (
                         // El dato de vencido evita que "no hay" mienta frente a

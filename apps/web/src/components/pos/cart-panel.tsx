@@ -127,7 +127,7 @@ function CartLineRow({
           {line.type === "product"
             ? `${formatQuantity(line.quantity, line.baseUnit)} ${unitName(line.baseUnit, locale, {
                 plural: true,
-              })}`
+              }).toLowerCase()}`
             : line.quantity}
         </span>
 
