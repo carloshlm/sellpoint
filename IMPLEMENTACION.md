@@ -2481,6 +2481,11 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F4-TICKET — El papel
 
+> **La verificación de punta a punta se hace ACÁ** (decisión de Carlos, 2026-08-21). Al 21/08 el POS está completo y desplegado, pero **nunca se completó una venta real**: cada pieza se verificó por separado —el buscador descontando lotes vencidos contra datos reales, el turno, el carrito, el nav— y la cadena entera (buscar → agregar → cobrar → verla en el historial → anularla → ver el stock volver) sigue sin correr contra la base de producción.
+>
+> No se hizo antes por un motivo concreto: **esa venta se lleva el folio `VTA-000001`**, el primer número de venta del negocio, y los folios no tienen huecos por diseño — todo número emitido se puede explicar, así que no hay forma de devolverlo. Se decidió gastarlo UNA sola vez y que sirva para todo: cuando exista el ticket, la misma prueba verifica también el papel.
+
+
 - [ ] **F4-TICKET-01** — Plantilla de ticket 58/80 mm (venta y cotización)
   - **Salida:** `buildTicketDefinition(input, t)` — plantilla NUEVA con el mismo pdfmake **0.2.x** (0.3 rompe: `pdfmake_1.default is not a constructor` — bitácora 2026-08-19, excluida en Dependabot a propósito; el renderer de documentos NO se reusa: es carta, con firmas y sin precios; lo que se comparte es el patrón función-pura-testeable, el `DocumentPdfService`/printer y el transporte binario); ancho 58/80 mm configurable, alto dinámico; **venta**: negocio, folio `VTA`, líneas con precio, totales, método, vuelto, lote FEFO si aplica; **cotización**: marca **COTIZACIÓN**, folio `COT`, precios **de referencia** y leyenda de que el precio final se calcula en caja (decisión de Carlos); claves i18n `ticket.*` — **la unidad se nombra con `unitName()` y las cantidades se formatean con `formatQuantity()`** (nunca el código crudo `unit` ni un `.0000` en piezas — lecciones del 2026-08-20); ojo con el display de dinero: ICU de Node 22 renderiza USD como `USD 1,234.56` (bitácora 2026-07-16)
   - **Verificar:** unit del builder (molde `document-pdf.renderer.spec.ts`): totales, la marca de cotización, la leyenda; e2e: `GET /pos/sales/:id/ticket` y `/pos/quotes/:id/ticket` bajan `application/pdf`
