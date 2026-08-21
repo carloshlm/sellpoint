@@ -1289,6 +1289,12 @@ model Sale {
   /// una tabla con millones de ventas.
   clinicalDocumentId String?     @map("clinical_document_id") @db.Uuid
   status           SaleStatus    @default(completed)
+  /**
+   * La clave que el CLIENTE genera al abrir el modal de cobro (F4-SALE-02).
+   * Repetir el POST con la misma devuelve ESTA venta, sin tocar stock.
+   * Opcional: un cliente que no la mande se comporta como antes.
+   */
+  idempotencyKey   String?       @map("idempotency_key") @db.VarChar(120)
   paymentMethod    PaymentMethod @map("payment_method")
   subtotal         Decimal       @db.Decimal(14, 2)
   discount         Decimal       @default(0) @db.Decimal(14, 2)

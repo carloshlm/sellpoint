@@ -1,6 +1,8 @@
 {
+  "cancel_reason_required": "Explain why the sale is being canceled.",
   "discount_exceeds_subtotal": "The discount cannot exceed the subtotal.",
   "invalid_body": "Check the point of sale details.",
+  "invalid_query": "Check the search filters.",
   "line_product_xor_service": "A line is either a product or a service, not both.",
   "no_default_warehouse": "You have no assigned warehouse. Pick one to open the shift.",
   "no_session": "Open a cashbox shift before selling.",
@@ -9,7 +11,9 @@
   "presentation_only_for_products": "Presentations belong to products, not services.",
   "product_not_sellable": "That product is not available for sale.",
   "quantity_positive": "Quantity must be greater than zero.",
+  "sale_already_canceled": "That sale is already canceled.",
   "sale_needs_lines": "The sale needs at least one line.",
+  "sale_not_found": "We couldn't find that sale.",
   "service_not_sellable": "That service is not available for sale.",
   "session_already_open": "You already have an open cashbox shift. Close it before opening another.",
   "warehouse_invalid": "The warehouse is not valid."

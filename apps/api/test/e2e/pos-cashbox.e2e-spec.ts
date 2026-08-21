@@ -497,5 +497,291 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
       expect((res.body as { message: string }).message).toContain("moneda");
     });
+
+    /**
+     * F4-SALE-02 — el doble tap del cajero sobre un botón lento.
+     *
+     * El COBRAR tarda: bloquea saldos, reparte FEFO y asienta movimientos. En
+     * una tablet lenta, medio segundo sin respuesta invita a volver a tocar.
+     */
+    describe("Idempotencia (F4-SALE-02)", () => {
+      const venderCon = (token: string, clave: string, body: Record<string, unknown>) =>
+        request(app.getHttpServer())
+          .post("/pos/sales")
+          .set("Authorization", bearer(token))
+          .set("Idempotency-Key", clave)
+          .send(body);
+
+      it("dos POST con la MISMA clave dan una sola venta y descuentan una vez", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId, almacenId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const clave = randomUUID();
+        const cuerpo = { paymentMethod: "cash", lines: [{ productId: productoId, quantity: 2 }] };
+
+        const primera = await venderCon(token, clave, cuerpo).expect(201);
+        const segunda = await venderCon(token, clave, cuerpo);
+
+        // La MISMA venta, no un 409: el cajero no hizo nada malo.
+        expect(segunda.status).toBe(201);
+        expect((segunda.body as { id: string }).id).toBe((primera.body as { id: string }).id);
+
+        const ventas = await prisma.withTenantContext(tenantId, (tx) => tx.sale.count());
+        expect(ventas).toBe(1);
+
+        const saldo = await prisma.withTenantContext(tenantId, (tx) =>
+          tx.stockByWarehouse.findFirstOrThrow({
+            where: { productId: productoId, warehouseId: almacenId },
+          }),
+        );
+        expect(saldo.quantity.toString()).toBe("8");
+      });
+
+      it("claves DISTINTAS son dos ventas: vender dos veces lo mismo es legítimo", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const cuerpo = { paymentMethod: "cash", lines: [{ productId: productoId, quantity: 1 }] };
+
+        await venderCon(token, randomUUID(), cuerpo).expect(201);
+        await venderCon(token, randomUUID(), cuerpo).expect(201);
+
+        const ventas = await prisma.withTenantContext(tenantId, (tx) => tx.sale.count());
+        expect(ventas).toBe(2);
+      });
+
+      it("sin la cabecera, el comportamiento es el de siempre", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const cuerpo = { paymentMethod: "cash", lines: [{ productId: productoId, quantity: 1 }] };
+
+        await vender(token, cuerpo).expect(201);
+        await vender(token, cuerpo).expect(201);
+
+        const ventas = await prisma.withTenantContext(tenantId, (tx) => tx.sale.count());
+        expect(ventas).toBe(2);
+      });
+    });
+
+    /**
+     * F4-SALE-03 — anular NO borra: revierte. El sistema es append-only, así
+     * que deshacer una venta es asentar su contrario con motivo `sale_return`.
+     */
+    describe("Anular (F4-SALE-03)", () => {
+      const anular = (token: string, id: string, reason: string) =>
+        request(app.getHttpServer())
+          .post(`/pos/sales/${id}/cancel`)
+          .set("Authorization", bearer(token))
+          .send({ reason });
+
+      it("restaura el stock exacto y deja el reverso en el kardex", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId, almacenId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 4 }],
+        }).expect(201);
+        const ventaId = (venta.body as { id: string }).id;
+
+        await anular(token, ventaId, "el cliente se arrepintió").expect(200);
+
+        const saldo = await prisma.withTenantContext(tenantId, (tx) =>
+          tx.stockByWarehouse.findFirstOrThrow({
+            where: { productId: productoId, warehouseId: almacenId },
+          }),
+        );
+        expect(saldo.quantity.toString()).toBe("10");
+
+        // El reverso EXISTE como movimiento: el saldo correcto con la historia
+        // muda sería exactamente lo que no queremos.
+        const reversos = await prisma.withTenantContext(tenantId, (tx) =>
+          tx.stockMovement.count({ where: { saleId: ventaId, reasonCode: "sale_return" } }),
+        );
+        expect(reversos).toBe(1);
+      });
+
+      it("la venta queda marcada, con quién la anuló y por qué", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+        const ventaId = (venta.body as { id: string }).id;
+
+        await anular(token, ventaId, "cobro duplicado").expect(200);
+
+        const fila = await prisma.withTenantContext(tenantId, (tx) =>
+          tx.sale.findUniqueOrThrow({ where: { id: ventaId } }),
+        );
+        expect(fila.status).toBe("canceled");
+        expect(fila.cancelReason).toBe("cobro duplicado");
+        expect(fila.canceledBy).not.toBeNull();
+        expect(fila.canceledAt).not.toBeNull();
+      });
+
+      it("anular dos veces da 409: el stock no vuelve dos veces", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId, almacenId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 3 }],
+        }).expect(201);
+        const ventaId = (venta.body as { id: string }).id;
+
+        await anular(token, ventaId, "primera").expect(200);
+        await anular(token, ventaId, "segunda").expect(409);
+
+        const saldo = await prisma.withTenantContext(tenantId, (tx) =>
+          tx.stockByWarehouse.findFirstOrThrow({
+            where: { productId: productoId, warehouseId: almacenId },
+          }),
+        );
+        expect(saldo.quantity.toString()).toBe("10");
+      });
+
+      it("sin justificación no se anula", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        await anular(token, (venta.body as { id: string }).id, "").expect(400);
+      });
+
+      it("el CAJERO no anula: es decisión de gestión", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const tokenService = app.get(TokenService);
+        const userId = await prisma.withTenantContext(tenantId, async (tx) => {
+          const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+          return owner.id;
+        });
+        const tokenCajero = await tokenService.signAccessToken({
+          sub: userId,
+          tenantId,
+          permissions: ["pos:sell", "pos:view"],
+          locale: "es",
+        });
+
+        await anular(tokenCajero, (venta.body as { id: string }).id, "quiero").expect(403);
+      });
+    });
+
+    /**
+     * F4-SALE-04 — el historial. Las anuladas se ven MARCADAS, no desaparecen.
+     */
+    describe("Historial (F4-SALE-04)", () => {
+      const historial = (token: string, query = "") =>
+        request(app.getHttpServer()).get(`/pos/sales${query}`).set("Authorization", bearer(token));
+
+      it("lista las ventas del turno, con sus líneas y su vendedor", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const res = await historial(token).expect(200);
+        const body = res.body as {
+          rows: { folio: string; seller: { name: string }; items: unknown[] }[];
+          total: number;
+        };
+
+        expect(body.total).toBe(1);
+        expect(body.rows[0]?.folio).toMatch(/^VTA-/);
+        expect(body.rows[0]?.seller.name).toContain("Ana");
+        expect(body.rows[0]?.items).toHaveLength(1);
+      });
+
+      /**
+       * Esconderlas por defecto sería tentador —"ruido"— y es justo lo
+       * contrario de lo que necesita quien busca una venta que no cuadra.
+       */
+      it("una venta ANULADA sigue en el listado, marcada", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+        await request(app.getHttpServer())
+          .post(`/pos/sales/${(venta.body as { id: string }).id}/cancel`)
+          .set("Authorization", bearer(token))
+          .send({ reason: "prueba" })
+          .expect(200);
+
+        const res = await historial(token).expect(200);
+        const body = res.body as { rows: { status: string }[]; total: number };
+
+        expect(body.total).toBe(1);
+        expect(body.rows[0]?.status).toBe("canceled");
+      });
+
+      it("filtra por estado", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const canceladas = await historial(token, "?status=canceled").expect(200);
+        expect((canceladas.body as { total: number }).total).toBe(0);
+
+        const completas = await historial(token, "?status=completed").expect(200);
+        expect((completas.body as { total: number }).total).toBe(1);
+      });
+
+      it("una venta de otro tenant NO existe: 404, no 403", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const ajeno = await escenario();
+        await request(app.getHttpServer())
+          .get(`/pos/sales/${(venta.body as { id: string }).id}`)
+          .set("Authorization", bearer(ajeno.token))
+          .expect(404);
+      });
+
+      it("sin `pos:view` no se ve el historial", async () => {
+        const { tenantId } = await escenario();
+        const tokenService = app.get(TokenService);
+        const userId = await prisma.withTenantContext(tenantId, async (tx) => {
+          const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+          return owner.id;
+        });
+        const sinPermiso = await tokenService.signAccessToken({
+          sub: userId,
+          tenantId,
+          permissions: ["pos:sell"],
+          locale: "es",
+        });
+
+        await historial(sinPermiso).expect(403);
+      });
+    });
   });
 });

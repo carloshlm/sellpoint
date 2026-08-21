@@ -2383,19 +2383,19 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F4-DB-01, F4-DB-03, F4-CASHBOX-01
   - **Estimación:** 3 h
 
-- [ ] **F4-SALE-02** — `Idempotency-Key` en el checkout
+- [x] **F4-SALE-02** — `Idempotency-Key` en el checkout
   - **Salida:** header `Idempotency-Key` en `POST /pos/sales`: la clave se guarda con la venta (unique por tenant); repetirla devuelve **la misma venta** (200, no 409) sin tocar stock — el doble tap del cajero sobre un botón lento no duplica nada; sin header, comportamiento actual (la clave es opcional: la manda el front del POS); cierra la deuda anotada en F3
   - **Verificar:** e2e: dos POST con la misma clave → una sola venta y el stock descontado UNA vez; claves distintas → dos ventas
   - **Depende de:** F4-SALE-01
   - **Estimación:** 2 h
 
-- [ ] **F4-SALE-03** — Anulación por `sale_return`
+- [x] **F4-SALE-03** — Anulación por `sale_return`
   - **Salida:** `POST /pos/sales/:id/cancel` (TenantAdmin/Manager — el cajero NO anula): reverso vía `apply(reason='sale_return')` que re-ingresa componentes de compuestos y productos simples (los servicios no tienen qué devolver), `status` canceled, justificación obligatoria, auditado; una venta anulada no se anula dos veces (409) y no se edita
   - **Verificar:** e2e: anular restaura el stock exacto (compuesto incluido); doble anulación → 409; POS_Seller → 403
   - **Depende de:** F4-SALE-01
   - **Estimación:** 2.5 h
 
-- [ ] **F4-SALE-04** — Historial de ventas
+- [x] **F4-SALE-04** — Historial de ventas
   - **Salida:** `GET /pos/sales` (permiso `pos:view`): filtros por fecha/vendedor/turno, paginación server-side, detalle con líneas; las anuladas se ven marcadas, no desaparecen
   - **Verificar:** e2e: filtros; una venta de otro tenant no existe; sin `pos:view` → 403
   - **Depende de:** F4-SALE-01

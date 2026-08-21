@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -8,6 +8,12 @@ import { RequirePermissions } from "../auth/decorators/require-permissions.decor
 import type { AuthUser } from "../auth/types/auth-user";
 import { CashboxService } from "./cashbox.service";
 import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
+import {
+  type CancelSaleDto,
+  cancelSaleSchema,
+  type ListSalesQuery,
+  listSalesQuerySchema,
+} from "./dto/list-sales.dto";
 import { type OpenSessionDto, openSessionSchema } from "./dto/open-session.dto";
 import { SalesService } from "./sales.service";
 
@@ -58,7 +64,47 @@ export class PosController {
     @Body(new ZodValidationPipe(createSaleSchema, "pos.invalid_body"))
     dto: CreateSaleDto,
     @CurrentUser() user: AuthUser,
+    // La genera el CLIENTE al abrir el modal de cobro. Es OPCIONAL: sin ella
+    // el comportamiento es el de siempre, y con ella un doble tap devuelve la
+    // MISMA venta (200) en vez de cobrar dos veces.
+    @Headers("idempotency-key") idempotencyKey?: string,
   ) {
-    return this.sales.create(user, dto);
+    return this.sales.create(user, dto, idempotencyKey?.trim() || undefined);
+  }
+
+  /**
+   * El historial. `pos:view` y no `pos:sell`: un auditor lee las ventas sin
+   * poder hacer ninguna.
+   */
+  @Get("sales")
+  @RequirePermissions("pos:view")
+  listSales(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(listSalesQuerySchema, "pos.invalid_query"))
+    query: ListSalesQuery,
+  ) {
+    return this.sales.list(user, query);
+  }
+
+  @Get("sales/:id")
+  @RequirePermissions("pos:view")
+  saleDetail(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.sales.detail(user, id);
+  }
+
+  /**
+   * Anular. `pos:cancel` — que NO está en `POS_SELLER_CODES`: deshacer una
+   * operación asentada es decisión de gestión, no de mostrador.
+   */
+  @Post("sales/:id/cancel")
+  @HttpCode(200)
+  @RequirePermissions("pos:cancel")
+  cancelSale(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(cancelSaleSchema, "pos.invalid_body"))
+    dto: CancelSaleDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.sales.cancel(user, id, dto);
   }
 }

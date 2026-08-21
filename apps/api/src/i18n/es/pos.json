@@ -1,6 +1,8 @@
 {
+  "cancel_reason_required": "Explica por qué se anula la venta.",
   "discount_exceeds_subtotal": "El descuento no puede superar el subtotal.",
   "invalid_body": "Revisa los datos del punto de venta.",
+  "invalid_query": "Revisa los filtros de la búsqueda.",
   "line_product_xor_service": "Una línea es un producto o un servicio, no las dos cosas.",
   "no_default_warehouse": "No tienes un almacén asignado. Elige uno para abrir el turno.",
   "no_session": "Abre un turno de caja antes de vender.",
@@ -9,7 +11,9 @@
   "presentation_only_for_products": "La presentación es de productos, no de servicios.",
   "product_not_sellable": "Ese producto no está disponible para vender.",
   "quantity_positive": "La cantidad tiene que ser mayor que cero.",
+  "sale_already_canceled": "Esa venta ya está anulada.",
   "sale_needs_lines": "La venta necesita al menos una línea.",
+  "sale_not_found": "No encontramos esa venta.",
   "service_not_sellable": "Ese servicio no está disponible para vender.",
   "session_already_open": "Ya tienes un turno de caja abierto. Ciérralo antes de abrir otro.",
   "warehouse_invalid": "El almacén no es válido."
