@@ -72,7 +72,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
   }
 
   describe("F2-PROD — alta y precio", () => {
-    it("el alta crea la presentación base «Unidad ×1» con el precio del formulario", async () => {
+    it("el alta crea la presentación base «Pieza ×1» con el precio del formulario", async () => {
       const { token } = await registerAndLogin();
 
       const created = await createProduct(token, {
@@ -92,7 +92,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .presentations;
       expect(presentations).toHaveLength(1);
       expect(presentations[0]).toMatchObject({
-        name: "Unidad",
+        name: "Pieza",
         factor: "1",
         isDefaultSale: true,
         price: "15.5",
@@ -102,7 +102,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       });
     });
 
-    it("la presentación base se llama como su UNIDAD, no «Unidad» a secas", async () => {
+    it("la presentación base se llama como su UNIDAD, no «Pieza» a secas", async () => {
       // Carlos vio una presentación llamada "Unidad" en un producto medido en
       // gramos: valía 1 gramo y el nombre no lo decía.
       const { token } = await registerAndLogin();
@@ -469,7 +469,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       };
 
       const before = await names();
-      expect(before).toEqual(["Unidad", "Bolsa 1 kg", "Bolsa 2 kg"]);
+      expect(before).toEqual(["Pieza", "Bolsa 1 kg", "Bolsa 2 kg"]);
 
       const detail = await request(app.getHttpServer())
         .get(`/products/${id}`)
