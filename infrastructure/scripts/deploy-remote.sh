@@ -15,9 +15,24 @@ set -euo pipefail
 NEW_TAG="$1"
 cd /opt/sellpoint
 
-# Una semana de imágenes. Es lo que necesita el rollback: `rollback_and_exit`
-# hace `up -d` SIN pull, o sea que cuenta con que la imagen previa siga local.
-IMAGE_RETENTION="168h"
+# Un día de imágenes. Es lo que necesita el rollback: `rollback_and_exit` hace
+# `up -d` SIN pull, o sea que cuenta con que la imagen previa siga local.
+#
+# ── Por qué 24h y no la semana que decía antes (2026-08-21) ──────────────
+#
+# Empezó en `168h` pensando "una semana de rollback disponible". El disco de
+# 47 GB llegó al 74% con **176 imágenes de solo 3 días**: al ritmo real de
+# deploys, siete días no son un colchón, son un acumulador.
+#
+# Pero el motivo de fondo no es el disco: **a una imagen de hace una semana no
+# se puede volver.** La base tiene siete días de migraciones aplicadas que ese
+# código no conoce, y bajar la imagen no las deshace. Esa retención estaba
+# protegiendo un rollback que sería peligroso ejecutar.
+#
+# El rollback REAL es el de los primeros minutos —el deploy salió mal, se
+# vuelve al anterior— y para eso 24h sobran: conserva todos los deploys del
+# día, que son los únicos a los que volver es seguro.
+IMAGE_RETENTION="24h"
 # Lo que ocupan las 3 imágenes de un deploy, con holgura.
 MIN_FREE_MB=3000
 
