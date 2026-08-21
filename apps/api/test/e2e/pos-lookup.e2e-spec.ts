@@ -187,6 +187,59 @@ describe("Buscador del POS (F4-CART-01)", () => {
 
       expect((res.body as { message: string }).message).toContain("turno de caja");
     });
+
+    /**
+     * F4-QUOTE-03. **Cotizar no exige caja**, así que la pantalla de cotización
+     * necesita otra forma de decir "desde acá". El `warehouseId` explícito es
+     * esa forma — el mismo almacén que resuelve `POST /pos/quotes`.
+     *
+     * No debilita la regla de la venta: el turno sigue mandando cuando existe,
+     * y sin turno NI almacén el 409 sigue saliendo (test de arriba).
+     */
+    it("sin turno pero con `warehouseId` explícito, busca igual", async () => {
+      const e = await escenario();
+
+      const res = await request(app.getHttpServer())
+        .get("/pos/lookup")
+        .query({ q: "Agua", warehouseId: e.central })
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+
+      expect((res.body as { warehouseId: string }).warehouseId).toBe(e.central);
+      expect(items(res).length).toBeGreaterThan(0);
+    });
+
+    /**
+     * ⚠ Poder NOMBRAR un almacén no es poder consultarlo. Sin esta guarda, el
+     * `warehouseId` explícito sería un agujero para mirar el stock de una
+     * sucursal que el usuario no administra.
+     */
+    it("un `warehouseId` de otro tenant no existe para este", async () => {
+      const e = await escenario();
+      const ajeno = await escenario();
+
+      await request(app.getHttpServer())
+        .get("/pos/lookup")
+        .query({ q: "Agua", warehouseId: ajeno.central })
+        .set("Authorization", bearer(e.token))
+        .expect(404);
+    });
+
+    it("el TURNO manda sobre el `warehouseId` explícito", async () => {
+      const e = await escenario();
+      await abrirTurno(e.token, e.central).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get("/pos/lookup")
+        // Se pide Sucursal y se está vendiendo desde Central: gana el turno.
+        // Dejar que un query param mueva el almacén de una venta en curso sería
+        // cobrar de una bodega y descontar de otra.
+        .query({ q: "Agua", warehouseId: e.sucursal })
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+
+      expect((res.body as { warehouseId: string }).warehouseId).toBe(e.central);
+    });
   });
 
   describe("el almacén del turno ACOTA", () => {

@@ -6,6 +6,7 @@ import {
   Calculator,
   CalendarClock,
   ClipboardList,
+  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -56,8 +57,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // sin poder cobrar nada. Cada item se gatea con SU permiso (regla del nav
   // de F2). La cotización llega con F4-QUOTE-03.
   const canSeeSellNav = has("pos:sell");
+  const canSeeQuoteNav = has("pos:quote");
   const canSeeSalesNav = has("pos:view");
-  const canSeePosNav = canSeeSellNav || canSeeSalesNav;
+  const canSeePosNav = canSeeSellNav || canSeeQuoteNav || canSeeSalesNav;
   const canSeeProductsNav = has("products:read");
   const canSeeListsNav = has("catalogs:read");
   const canSeeSchemaNav = has("catalogs:manage");
@@ -234,6 +236,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 >
                   <ShoppingCart className="size-4 shrink-0" aria-hidden="true" />
                   {expanded && <span className="truncate">{t("pos.nav.sell")}</span>}
+                </Link>
+              )}
+              {canSeeQuoteNav && (
+                <Link
+                  to="/pos/quotes"
+                  aria-label={t("pos.nav.quote")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <FileText className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.quote")}</span>}
                 </Link>
               )}
               {canSeeSalesNav && (

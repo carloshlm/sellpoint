@@ -1,6 +1,11 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import {
+  assertActiveWarehouse,
+  assertWarehouseInScope,
+} from "../inventory/warehouse-scope.helpers";
 import { CashboxService } from "./cashbox.service";
 import type { LookupQuery } from "./dto/lookup.dto";
 import { LOOKUP_STRATEGIES, type LookupItem } from "./lookup.strategies";
@@ -33,21 +38,40 @@ export class LookupService {
     private readonly cashbox: CashboxService,
   ) {}
 
-  async search(user: AuthUser, query: LookupQuery): Promise<LookupResult> {
+  async search(user: AuthUser, scope: UserScope, query: LookupQuery): Promise<LookupResult> {
+    // ── De qué almacén se pregunta ─────────────────────────────────────────
+    //
+    // El turno manda cuando existe: es el caso de la venta, y su almacén no se
+    // discute. `warehouseId` explícito es para COTIZAR (F4-QUOTE-03), que no
+    // exige caja y necesita otra forma de decir "desde acá".
+    //
+    // Sin ninguno de los dos, el 409: no es que no haya nada, es que no se
+    // preguntó desde ningún lado, y devolver una lista vacía sería mentir.
     const sesion = await this.cashbox.current(user);
-    if (sesion === null) {
-      // El mismo 409 que el cobro, y por el mismo motivo: sin turno no hay
-      // almacén contra el cual resolver disponibilidad. Devolver una lista
-      // vacía sería mentir — no es que no haya nada, es que no se preguntó
-      // desde ningún lado.
+    const warehouseId = sesion?.warehouseId ?? query.warehouseId;
+    if (warehouseId === undefined) {
       throw new ConflictException({ message: "pos.no_session" });
+    }
+    // Poder NOMBRAR un almacén no es poder consultarlo. El turno ya validó el
+    // suyo al abrirse; el explícito se valida acá.
+    // Las DOS guardas, no una: el alcance solo dice "de estos puedo", y para
+    // un dueño es `all` — un uuid de otro tenant pasaría ese filtro y
+    // devolvería un 200 con lista vacía, confirmando de paso que el
+    // identificador tiene forma válida. `assertActiveWarehouse` es la que
+    // contesta 404. Lo cazó el e2e "un `warehouseId` de otro tenant no existe
+    // para este".
+    if (sesion === null) {
+      assertWarehouseInScope(scope, warehouseId);
+      await this.prisma.withTenantContext(user.tenantId, (tx) =>
+        assertActiveWarehouse(tx, user.tenantId, warehouseId),
+      );
     }
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const ctx = {
         tx,
         tenantId: user.tenantId,
-        warehouseId: sesion.warehouseId,
+        warehouseId,
         q: query.q,
         limit: query.limit,
       };
@@ -67,11 +91,11 @@ export class LookupService {
 
         items.push(...encontrados);
         if (strategy.exclusive) {
-          return { warehouseId: sesion.warehouseId, exact: true, items };
+          return { warehouseId, exact: true, items };
         }
       }
 
-      return { warehouseId: sesion.warehouseId, exact: false, items: items.slice(0, ctx.limit) };
+      return { warehouseId, exact: false, items: items.slice(0, ctx.limit) };
     });
   }
 }

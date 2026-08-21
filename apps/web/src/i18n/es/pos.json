@@ -26,6 +26,7 @@
   "nav": {
     "close": "Cierre de caja",
     "history": "Historial",
+    "quote": "Cotización",
     "sell": "Venta"
   },
   "cart": {
@@ -50,11 +51,32 @@
     "subtotal": "Subtotal"
   },
   "quote": {
+    "author": "Cotizó",
+    "cancel": "Cancelar",
+    "cancelFailed": "No pudimos cancelar la cotización.",
+    "done": "Cotización {{folio}} generada.",
+    "empty": "Todavía no hay cotizaciones.",
+    "failed": "No pudimos generar la cotización.",
+    "folio": "Folio",
+    "generate": "Generar cotización",
+    "listTitle": "Cotizaciones",
+    "load": "Cargar al carrito",
+    "loadTitle": "Cargar la cotización {{folio}}",
+    "new": "Nueva cotización",
+    "newTitle": "Nueva cotización",
+    "note": "Nota (opcional)",
+    "notePlaceholder": "Por ejemplo: pasa el jueves",
+    "priceChanged": "precio actualizado",
+    "reference": "Referencia",
+    "shortfall": "Faltan {{quantity}}",
     "status": {
       "canceled": "Cancelada",
       "loaded": "Ya cargada en una venta",
       "open": "Vigente"
-    }
+    },
+    "unavailable": "Ya no se vende desde este almacén",
+    "warehouse": "Almacén",
+    "warehouseHint": "Los precios y la disponibilidad se calculan desde este almacén. Cotizar no necesita turno de caja."
   },
   "checkout": {
     "change": "Cambio",

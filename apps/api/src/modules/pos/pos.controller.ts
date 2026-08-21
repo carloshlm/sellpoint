@@ -106,10 +106,11 @@ export class PosController {
   @RequirePermissions("pos:sell")
   search(
     @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
     @Query(new ZodValidationPipe(lookupQuerySchema, "pos.invalid_query"))
     query: LookupQuery,
   ) {
-    return this.lookup.search(user, query);
+    return this.lookup.search(user, scope, query);
   }
 
   /**

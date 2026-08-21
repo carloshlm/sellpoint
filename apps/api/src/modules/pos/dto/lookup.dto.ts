@@ -17,6 +17,18 @@ export const lookupQuerySchema = z.object({
    * doscientos sería trabajo de base que nadie mira.
    */
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  /**
+   * Contra qué almacén resolver, cuando NO hay turno (F4-QUOTE-03).
+   *
+   * La venta no lo manda nunca: hereda el del turno, y sin turno no vende. Pero
+   * **cotizar no exige caja**, así que la pantalla de cotización necesita otra
+   * forma de decir "desde acá" — la misma que usa `POST /pos/quotes`: el
+   * almacén asignado del cotizador, o uno elegido dentro de su alcance.
+   *
+   * Se valida contra el ALCANCE del usuario igual que en cualquier otro lado:
+   * poder nombrar un almacén no es poder consultarlo.
+   */
+  warehouseId: z.string().uuid().optional(),
 });
 
 export type LookupQuery = z.infer<typeof lookupQuerySchema>;

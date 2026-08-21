@@ -26,6 +26,7 @@
   "nav": {
     "close": "Cashbox closing",
     "history": "History",
+    "quote": "Quote",
     "sell": "Sell"
   },
   "cart": {
@@ -50,11 +51,32 @@
     "subtotal": "Subtotal"
   },
   "quote": {
+    "author": "Quoted by",
+    "cancel": "Cancel",
+    "cancelFailed": "We couldn't cancel the quote.",
+    "done": "Quote {{folio}} generated.",
+    "empty": "There are no quotes yet.",
+    "failed": "We couldn't generate the quote.",
+    "folio": "Number",
+    "generate": "Generate quote",
+    "listTitle": "Quotes",
+    "load": "Add to cart",
+    "loadTitle": "Load quote {{folio}}",
+    "new": "New quote",
+    "newTitle": "New quote",
+    "note": "Note (optional)",
+    "notePlaceholder": "For example: coming back Thursday",
+    "priceChanged": "price updated",
+    "reference": "Reference",
+    "shortfall": "{{quantity}} short",
     "status": {
       "canceled": "Canceled",
       "loaded": "Already loaded into a sale",
       "open": "Open"
-    }
+    },
+    "unavailable": "No longer sold from this warehouse",
+    "warehouse": "Warehouse",
+    "warehouseHint": "Prices and availability are calculated from this warehouse. Quoting needs no open shift."
   },
   "checkout": {
     "change": "Change",

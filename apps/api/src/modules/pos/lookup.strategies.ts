@@ -159,7 +159,14 @@ export function pareceSku(q: string): boolean {
 // Las consultas
 // ─────────────────────────────────────────────────────────────────────────
 
-/** Lo que se pide de una presentación vendible, siempre igual. */
+/**
+ * El SELECT de un producto vendible.
+ *
+ * Exportado porque la cotización arma los MISMOS items para volcarlos al
+ * carrito (F4-QUOTE-04): si cada uno pidiera sus propios campos, un día el
+ * carrito recibiría de la cotización un objeto al que le falta algo y nadie
+ * sabría por qué solo falla por ese camino.
+ */
 const SELECT_PRESENTACION = {
   id: true,
   name: true,
@@ -170,7 +177,7 @@ const SELECT_PRESENTACION = {
   allowFractionalInput: true,
 } as const;
 
-const SELECT_PRODUCTO = {
+export const SELECT_PRODUCTO = {
   id: true,
   sku: true,
   name: true,
@@ -212,8 +219,8 @@ type ProductoCrudo = {
  * Un producto SIN presentación vendible tampoco sale: no habría con qué
  * cobrarlo, y el 422 `pos.presentation_not_sellable` llegaría recién en la caja.
  */
-async function conDisponibilidad(
-  ctx: LookupContext,
+export async function conDisponibilidad(
+  ctx: Pick<LookupContext, "tx" | "tenantId" | "warehouseId">,
   productos: ProductoCrudo[],
   matchedBy: LookupKind,
   presentacionPorProducto: Map<string, string> = new Map(),

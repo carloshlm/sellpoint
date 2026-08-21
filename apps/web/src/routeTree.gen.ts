@@ -36,6 +36,8 @@ import { Route as PosSalesRouteImport } from './routes/pos.sales'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
+import { Route as PosQuotesIndexRouteImport } from './routes/pos.quotes.index'
+import { Route as PosQuotesNewRouteImport } from './routes/pos.quotes.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -173,6 +175,16 @@ const MovementsDocumentsDocumentIdRoute =
     path: '/movements/documents/$documentId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PosQuotesIndexRoute = PosQuotesIndexRouteImport.update({
+  id: '/pos/quotes/',
+  path: '/pos/quotes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosQuotesNewRoute = PosQuotesNewRouteImport.update({
+  id: '/pos/quotes/new',
+  path: '/pos/quotes/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -202,6 +214,8 @@ export interface FileRoutesByFullPath {
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
+  '/pos/quotes/new': typeof PosQuotesNewRoute
+  '/pos/quotes/': typeof PosQuotesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -231,6 +245,8 @@ export interface FileRoutesByTo {
   '/system/users': typeof SystemUsersRoute
   '/pos': typeof PosIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
+  '/pos/quotes/new': typeof PosQuotesNewRoute
+  '/pos/quotes': typeof PosQuotesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -261,6 +277,8 @@ export interface FileRoutesById {
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
+  '/pos/quotes/new': typeof PosQuotesNewRoute
+  '/pos/quotes/': typeof PosQuotesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -292,6 +310,8 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/pos/'
     | '/movements/documents/$documentId'
+    | '/pos/quotes/new'
+    | '/pos/quotes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -321,6 +341,8 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/pos'
     | '/movements/documents/$documentId'
+    | '/pos/quotes/new'
+    | '/pos/quotes'
   id:
     | '__root__'
     | '/'
@@ -350,6 +372,8 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/pos/'
     | '/movements/documents/$documentId'
+    | '/pos/quotes/new'
+    | '/pos/quotes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -380,6 +404,8 @@ export interface RootRouteChildren {
   SystemUsersRoute: typeof SystemUsersRoute
   PosIndexRoute: typeof PosIndexRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
+  PosQuotesNewRoute: typeof PosQuotesNewRoute
+  PosQuotesIndexRoute: typeof PosQuotesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -573,6 +599,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MovementsDocumentsDocumentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pos/quotes/': {
+      id: '/pos/quotes/'
+      path: '/pos/quotes'
+      fullPath: '/pos/quotes/'
+      preLoaderRoute: typeof PosQuotesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pos/quotes/new': {
+      id: '/pos/quotes/new'
+      path: '/pos/quotes/new'
+      fullPath: '/pos/quotes/new'
+      preLoaderRoute: typeof PosQuotesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -604,6 +644,8 @@ const rootRouteChildren: RootRouteChildren = {
   SystemUsersRoute: SystemUsersRoute,
   PosIndexRoute: PosIndexRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
+  PosQuotesNewRoute: PosQuotesNewRoute,
+  PosQuotesIndexRoute: PosQuotesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

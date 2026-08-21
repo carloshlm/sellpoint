@@ -2,6 +2,7 @@ import { type Currency, formatMoney, formatQuantity, unitName } from "@sellpoint
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BarcodeScanner } from "@/components/pos/barcode-scanner";
+import { QuoteLoadPanel } from "@/components/pos/quote-load-panel";
 import { Button } from "@/components/ui/button";
 import type { LookupItem } from "@/lib/pos/api";
 import { useLookup } from "@/lib/pos/hooks";
@@ -20,14 +21,31 @@ import { useCartStore } from "@/stores/cart.store";
  * renglón: es lo que hace que escanear se sienta instantáneo. Lo difuso se
  * muestra para que una persona elija.
  */
-export function CartSearch() {
+interface CartSearchProps {
+  /**
+   * Contra qué almacén buscar cuando NO hay turno (F4-QUOTE-03). La venta no
+   * lo manda nunca: hereda el del turno. Si viene y hay turno, gana el turno —
+   * dejar que una prop mueva el almacén de una venta en curso sería cobrar de
+   * una bodega y descontar de otra. Esa precedencia la decide el SERVIDOR.
+   */
+  warehouseId?: string | null;
+}
+
+export function CartSearch({ warehouseId }: CartSearchProps = {}) {
   const { t } = useTranslation();
   const [texto, setTexto] = useState("");
+  /**
+   * El folio que se está cargando (F4-QUOTE-04). Mientras hay uno, la búsqueda
+   * cede su lugar al panel de confirmación: son dos cosas que compiten por la
+   * misma decisión del cajero, y mostrarlas juntas invitaría a seguir agregando
+   * artículos sobre una cotización a medio revisar.
+   */
+  const [folioCargando, setFolioCargando] = useState<string | null>(null);
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const agregar = useCartStore((s) => s.add);
 
-  const { data, isFetching } = useLookup(texto, true);
+  const { data, isFetching } = useLookup(texto, true, warehouseId ?? undefined);
 
   const agregarYLimpiar = (item: LookupItem) => {
     agregar(item);
@@ -48,6 +66,19 @@ export function CartSearch() {
       ? (data.items[0] ?? null)
       : null;
 
+  // Un folio COT tecleado o escaneado abre la confirmación sin que nadie tenga
+  // que hacer clic en un renglón de uno solo (F4-QUOTE-04).
+  const folioExacto =
+    data?.exact === true && data.items.length === 1 && data.items[0]?.type === "quote"
+      ? data.items[0].folio
+      : null;
+
+  useEffect(() => {
+    if (folioExacto !== null) {
+      setFolioCargando(folioExacto);
+    }
+  }, [folioExacto]);
+
   useEffect(() => {
     if (aciertoExacto === null) {
       return;
@@ -57,6 +88,18 @@ export function CartSearch() {
     // a mano entre uno y otro.
     setTexto("");
   }, [aciertoExacto, agregar]);
+
+  if (folioCargando !== null) {
+    return (
+      <QuoteLoadPanel
+        folio={folioCargando}
+        onClose={() => {
+          setFolioCargando(null);
+          setTexto("");
+        }}
+      />
+    );
+  }
 
   return (
     <section className="flex flex-col gap-3" data-testid="cart-search">
@@ -83,7 +126,14 @@ export function CartSearch() {
             <Button
               variant="outline"
               className="h-auto w-full justify-between py-2 text-left"
-              onClick={() => agregarYLimpiar(item)}
+              onClick={() => {
+                // Una cotización no es una línea: abre su confirmación.
+                if (item.type === "quote") {
+                  setFolioCargando(item.folio);
+                  return;
+                }
+                agregarYLimpiar(item);
+              }}
             >
               <span className="flex flex-col">
                 <span className="font-medium">

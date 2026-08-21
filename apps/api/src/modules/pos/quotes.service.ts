@@ -21,6 +21,7 @@ import type {
   ListQuotesQuery,
   QuoteLineDto,
 } from "./dto/quote.dto";
+import { conDisponibilidad, type LookupItem, SELECT_PRODUCTO } from "./lookup.strategies";
 import { sellableStock } from "./warehouse-availability";
 
 /** Lo que el catálogo dice de una línea. NUNCA lo que mandó el POST. */
@@ -270,6 +271,46 @@ export class QuotesService {
         .filter((id): id is string => id !== null);
       const stock = await sellableStock(tx, user.tenantId, sesion.warehouseId, productIds);
 
+      // ── Los items, en el MISMO contrato que el buscador ───────────────
+      //
+      // El carrito ya sabe consumir un `LookupItem` (F4-CART-02). Devolver eso
+      // en vez de una forma propia hace que volcar la cotización sea un
+      // `add()` por línea, sin traducción — y sin una segunda estructura que
+      // un día diverja de la que el carrito espera.
+      const productos =
+        productIds.length === 0
+          ? []
+          : await tx.product.findMany({
+              where: { id: { in: productIds }, tenantId: user.tenantId, isActive: true },
+              select: SELECT_PRODUCTO,
+            });
+      const items = await conDisponibilidad(
+        { tx, tenantId: user.tenantId, warehouseId: sesion.warehouseId },
+        productos,
+        "quote",
+      );
+      const itemPorProducto = new Map(items.map((i) => [i.id, i]));
+
+      const servicios =
+        cotizacion.lines.filter((l) => l.serviceId !== null).length === 0
+          ? []
+          : await tx.service.findMany({
+              where: {
+                id: {
+                  in: cotizacion.lines
+                    .map((l) => l.serviceId)
+                    .filter((id): id is string => id !== null),
+                },
+                tenantId: user.tenantId,
+                isActive: true,
+                // El servicio tiene que ofrecerse en el almacén del TURNO: uno
+                // cotizado en la sucursal puede no existir en la central.
+                warehouses: { some: { warehouseId: sesion.warehouseId } },
+              },
+              select: { id: true, code: true, name: true, price: true },
+            });
+      const servicioPorId = new Map(servicios.map((s) => [s.id, s]));
+
       const lineas = await Promise.all(
         cotizacion.lines.map(async (linea) => {
           const vigente = await this.precioVigente(tx, user, linea);
@@ -287,6 +328,21 @@ export class QuotesService {
                 )?.factor ?? new Prisma.Decimal(1));
           const pedidoBase = linea.quantity.times(factor);
 
+          const servicio = linea.serviceId === null ? null : servicioPorId.get(linea.serviceId);
+          const item: LookupItem | null =
+            linea.productId !== null
+              ? (itemPorProducto.get(linea.productId) ?? null)
+              : servicio === undefined || servicio === null
+                ? null
+                : {
+                    type: "service" as const,
+                    matchedBy: "quote" as const,
+                    id: servicio.id,
+                    code: servicio.code,
+                    name: servicio.name,
+                    price: servicio.price?.toString() ?? null,
+                  };
+
           return {
             lineNo: linea.lineNo,
             productId: linea.productId,
@@ -303,7 +359,13 @@ export class QuotesService {
              * el ítem salió del catálogo, el servicio no se ofrece acá, o no
              * alcanza el stock. Se marca, no se esconde.
              */
-            unavailable: vigente === null,
+            unavailable: vigente === null || item === null,
+            /**
+             * Lo que el carrito necesita para armar la línea, en su propio
+             * contrato. `null` cuando el ítem ya no se puede vender desde este
+             * almacén — se marca, no se esconde.
+             */
+            item,
             shortfall:
               disponible === undefined || disponible === null
                 ? null

@@ -2,17 +2,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
 import {
   type CashboxSession,
+  type CreateQuoteInput,
   type CreateSaleInput,
+  cancelQuote,
   cancelSale,
   closeSession,
+  createQuote,
   createSale,
+  getQuoteForSale,
   getSession,
   getSessionTotals,
+  type ListQuotesQuery,
   type ListSalesQuery,
   type LookupResult,
+  listQuotes,
   listSales,
   lookup,
   openSession,
+  type Quote,
+  type QuoteForSale,
+  type QuotesPage,
   type Sale,
   type SalesPage,
   type SessionTotal,
@@ -75,11 +84,14 @@ export function useCloseSession() {
  * stock se mueve — una respuesta de hace un minuto ya puede estar ofreciendo lo
  * último que se vendió.
  */
-export function useLookup(q: string, enabled: boolean) {
+export function useLookup(q: string, enabled: boolean, warehouseId?: string) {
   const termino = q.trim();
   return useQuery<LookupResult, ApiError>({
-    queryKey: [...POS_SESSION_KEY, "lookup", termino],
-    queryFn: () => lookup(termino),
+    // El almacén entra en la CLAVE: la misma búsqueda contra dos bodegas son
+    // dos respuestas distintas, y compartir caché entre ellas ofrecería stock
+    // de una sucursal en la otra.
+    queryKey: [...POS_SESSION_KEY, "lookup", termino, warehouseId ?? null],
+    queryFn: () => lookup(termino, warehouseId),
     enabled: enabled && termino.length > 0,
     staleTime: 10_000,
   });
@@ -128,5 +140,51 @@ export function useCancelSale() {
       void queryClient.invalidateQueries({ queryKey: POS_SALES_KEY });
       void queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY });
     },
+  });
+}
+
+export const POS_QUOTES_KEY = ["pos", "quotes"] as const;
+
+export function useQuotes(query: ListQuotesQuery) {
+  return useQuery<QuotesPage, ApiError>({
+    queryKey: [...POS_QUOTES_KEY, query],
+    queryFn: () => listQuotes(query),
+  });
+}
+
+export function useCreateQuote() {
+  const queryClient = useQueryClient();
+  return useMutation<Quote, ApiError, CreateQuoteInput>({
+    mutationFn: (input) => createQuote(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_QUOTES_KEY }),
+  });
+}
+
+export function useCancelQuote() {
+  const queryClient = useQueryClient();
+  return useMutation<Quote, ApiError, { id: string; reason?: string }>({
+    mutationFn: ({ id, reason }) => cancelQuote(id, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_QUOTES_KEY }),
+  });
+}
+
+/**
+ * F4-QUOTE-04 — la cotización lista para cobrar.
+ *
+ * `retry: false` a propósito: los errores que devuelve son de NEGOCIO —el folio
+ * no existe, ya se cargó, ya se canceló— y reintentarlos no cambia la
+ * respuesta, solo retrasa el momento en que el cajero lee qué pasó.
+ *
+ * `staleTime: 0`: los precios y la disponibilidad se recalculan en cada
+ * consulta. Servir una respuesta cacheada acá mostraría un stock de hace un
+ * minuto justo en la pantalla que existe para decir la verdad de HOY.
+ */
+export function useQuoteForSale(folio: string) {
+  return useQuery<QuoteForSale, ApiError>({
+    queryKey: [...POS_QUOTES_KEY, "for-sale", folio],
+    queryFn: () => getQuoteForSale(folio),
+    enabled: folio.trim() !== "",
+    retry: false,
+    staleTime: 0,
   });
 }

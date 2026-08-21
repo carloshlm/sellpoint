@@ -117,8 +117,10 @@ export interface LookupResult {
   items: LookupItem[];
 }
 
-export async function lookup(q: string): Promise<LookupResult> {
-  const { data } = await api.get<LookupResult>("/pos/lookup", { params: { q } });
+export async function lookup(q: string, warehouseId?: string): Promise<LookupResult> {
+  const { data } = await api.get<LookupResult>("/pos/lookup", {
+    params: { q, ...(warehouseId !== undefined && { warehouseId }) },
+  });
   return data;
 }
 
@@ -213,5 +215,125 @@ export async function listSales(query: ListSalesQuery = {}): Promise<SalesPage> 
  */
 export async function cancelSale(id: string, reason: string): Promise<Sale> {
   const { data } = await api.post<Sale>(`/pos/sales/${id}/cancel`, { reason });
+  return data;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// F4-QUOTE — la cotización
+// ─────────────────────────────────────────────────────────────────────────
+
+export type QuoteStatus = "open" | "loaded" | "canceled";
+
+export interface QuoteLine {
+  id: string;
+  lineNo: number;
+  productId: string | null;
+  serviceId: string | null;
+  presentationId: string | null;
+  /** Lo que se cotizó, en texto: sobrevive a que el producto cambie de nombre. */
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  lineTotal: string;
+}
+
+export interface Quote {
+  id: string;
+  folio: string;
+  warehouseId: string;
+  status: QuoteStatus;
+  total: string;
+  note: string | null;
+  createdAt: string;
+  lines: QuoteLine[];
+}
+
+export interface QuoteRow extends Quote {
+  warehouse: { id: string; name: string };
+  author: { id: string; name: string };
+}
+
+export interface CreateQuoteInput {
+  warehouseId?: string;
+  lines: { productId?: string; serviceId?: string; presentationId?: string; quantity: number }[];
+  note?: string;
+}
+
+export interface ListQuotesQuery {
+  folio?: string;
+  status?: QuoteStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface QuotesPage {
+  rows: QuoteRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Una línea de la cotización, ya resuelta contra el almacén del TURNO. */
+export interface QuoteForSaleLine {
+  lineNo: number;
+  productId: string | null;
+  serviceId: string | null;
+  presentationId: string | null;
+  description: string;
+  quantity: string;
+  /** Lo que decía el PAPEL. Se muestra para poder explicar la diferencia. */
+  quotedUnitPrice: string;
+  /** Lo que cuesta HOY. Es lo que se va a cobrar. `null` si ya no se vende. */
+  unitPrice: string | null;
+  unavailable: boolean;
+  /** Cuánto falta, en unidad base. `null` si alcanza. */
+  shortfall: string | null;
+  /**
+   * Lo que el carrito necesita para armar la línea, en SU propio contrato — el
+   * mismo `LookupItem` que devuelve el buscador. `null` cuando el ítem ya no se
+   * puede vender desde este almacén.
+   */
+  item: LookupItem | null;
+}
+
+export interface QuoteForSale {
+  id: string;
+  folio: string;
+  status: QuoteStatus;
+  warehouseId: string;
+  note: string | null;
+  quotedTotal: string;
+  lines: QuoteForSaleLine[];
+}
+
+export async function createQuote(input: CreateQuoteInput): Promise<Quote> {
+  const { data } = await api.post<Quote>("/pos/quotes", input);
+  return data;
+}
+
+export async function listQuotes(query: ListQuotesQuery = {}): Promise<QuotesPage> {
+  const { data } = await api.get<QuotesPage>("/pos/quotes", { params: query });
+  return data;
+}
+
+export async function cancelQuote(id: string, reason?: string): Promise<Quote> {
+  const { data } = await api.post<Quote>(
+    `/pos/quotes/${id}/cancel`,
+    reason === undefined ? {} : { reason },
+  );
+  return data;
+}
+
+/**
+ * F4-QUOTE-02 — la cotización lista para cobrar.
+ *
+ * Exige turno abierto: la disponibilidad se resuelve contra el almacén de ESE
+ * turno, que puede no ser el de la cotización — se cotiza en la sucursal y se
+ * cobra en la central.
+ */
+export async function getQuoteForSale(folio: string): Promise<QuoteForSale> {
+  const { data } = await api.get<QuoteForSale>(
+    `/pos/quotes/folio/${encodeURIComponent(folio)}/for-sale`,
+  );
   return data;
 }
