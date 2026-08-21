@@ -62,10 +62,13 @@ MIN_FREE_MB=3000
 # eligió. Y ninguna imagen ajena que el deploy no creó tiene por qué estar en
 # el radar de la limpieza del deploy.
 #
-# Las nuestras no traen labels, así que el filtro es por REPOSITORIO. Ojo con
-# lo que NO alcanza: `sellpoint-php-fpm` empieza igual pero es una imagen local
-# de otro proyecto en este mismo server — por eso se compara contra el nombre
-# completo del registro, no contra un prefijo suelto.
+# Las nuestras no traen labels, así que el filtro es por REPOSITORIO — y se
+# compara contra el NOMBRE COMPLETO del registro, no contra un prefijo suelto.
+# Ojo con lo que un prefijo `sellpoint-*` se llevaría de más:
+# `sellpoint-php-fpm:local` es un servicio de ESTE mismo compose, pero se
+# construye local y **no lleva SHA**: hay UNA sola copia, no se acumula, y
+# borrarla obligaría a reconstruirla. Lo que se limpia acá es lo versionado por
+# deploy, que es lo único que crece.
 #
 # Sin `|| true` un fallo de la limpieza abortaría un deploy que probablemente
 # habría funcionado igual: es higiene, no un requisito.
