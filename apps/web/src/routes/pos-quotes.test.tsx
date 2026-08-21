@@ -35,9 +35,12 @@ vi.mock("../lib/pos/api", () => ({
   cancelQuote: vi.fn(),
   getQuoteForSale: vi.fn(),
 }));
+// `listScopedWarehouses` NO existe: el alcance se pide con
+// `listWarehouses({ scoped: true })`. El mock la declaraba y nadie lo notaba
+// porque ningún test la USABA — un mock de una función inexistente es una
+// mentira que solo se descubre cuando alguien intenta apoyarse en ella.
 vi.mock("../lib/warehouses/api", () => ({
   listWarehouses: vi.fn(),
-  listScopedWarehouses: vi.fn(),
 }));
 
 const mocked = vi.mocked(posApi);
@@ -149,7 +152,7 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
     mocked.getSession.mockResolvedValue({ session: null });
     mocked.getSessionTotals.mockResolvedValue({ totals: [] });
     mocked.listQuotes.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
-    mockedWarehouses.listScopedWarehouses.mockResolvedValue([
+    mockedWarehouses.listWarehouses.mockResolvedValue([
       { id: "w1", name: "Almacén Centro", isActive: true },
     ] as never);
   });
