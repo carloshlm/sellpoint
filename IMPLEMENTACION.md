@@ -2337,7 +2337,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F4-DB — Modelos de venta, caja y cotización
 
-- [ ] **F4-DB-01** — Modelos `Sale`, `SaleItem`, `CashboxSession` + RLS de nacimiento
+- [x] **F4-DB-01** — Modelos `Sale`, `SaleItem`, `CashboxSession` + RLS de nacimiento
   - **Salida:** `CashboxSession` (`warehouse_id` NOT NULL, `opened_by`, `opened_at`, `closed_at?`, totales declarados al cierre); `Sale` (`folio`, `warehouse_id` heredado del turno, `cashbox_session_id`, `quote_id` **nullable FK activa**, `clinical_document_id` nullable SIN tabla — reservada F9, solo la columna, `status` completed|canceled, `payment_method`, totales, `created_by`, `canceled_by/at`); `SaleItem` (`product_id` nullable + `service_id` nullable + **CHECK «exactamente uno»**, `presentation_id` nullable solo-producto, `quantity` DECIMAL(14,4), `unit_price`/`discount`/`line_total` DECIMAL(14,2)); **FK `sale_items.service_id` → RESTRICT** (cierra el `TODO(F4)` de `services.remove`: la guarda 409 `services.has_sales` llega en F4-SALE-01); UNA migración con ENABLE/FORCE/policy; canarios + `ARRAY[...]` del estructural
   - **Verificar:** canarios en verde; el CHECK rechaza 0 y 2 referencias; FORCE en `pg_class`
   - **Depende de:** —

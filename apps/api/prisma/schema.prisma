@@ -60,6 +60,9 @@ model Tenant {
   warehouses     Warehouse[]
   stock          StockByWarehouse[]
   services       Service[]
+  cashboxSessions CashboxSession[]
+  sales          Sale[]
+  saleItems      SaleItem[]
   serviceWarehouses ServiceWarehouse[]
 
   // Movimientos de inventario (Fase 3)
@@ -129,6 +132,10 @@ model User {
   documentsAuthorized     InventoryDocument[]      @relation("DocumentAuthorizedBy")
   documentsConfirmed      InventoryDocument[]      @relation("DocumentConfirmedBy")
   documentsCanceled       InventoryDocument[]      @relation("DocumentCanceledBy")
+  cashboxOpened           CashboxSession[]         @relation("CashboxOpenedBy")
+  cashboxClosed           CashboxSession[]         @relation("CashboxClosedBy")
+  salesCreated            Sale[]                   @relation("SaleCreatedBy")
+  salesCanceled           Sale[]                   @relation("SaleCanceledBy")
 
   @@index([tenantId])
   @@map("users")
@@ -392,6 +399,7 @@ model Product {
   lots              ProductLot[]
   transferLines     TransferLine[]
   documentLines     InventoryDocumentLine[]
+  saleItems         SaleItem[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -438,6 +446,7 @@ model ProductPresentation {
   product       Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
   movements     StockMovement[]
   documentLines InventoryDocumentLine[]
+  saleItems     SaleItem[]
 
   // El CHECK de `factor > 0` y el índice único PARCIAL de (tenant_id, barcode)
   // WHERE barcode IS NOT NULL viven en la migración. El índice tiene que ser
@@ -510,6 +519,8 @@ model Warehouse {
   transfersOut    Transfer[]           @relation("TransferOrigin")
   transfersIn     Transfer[]           @relation("TransferDestination")
   documents       InventoryDocument[]  @relation("DocumentWarehouse")
+  cashboxSessions CashboxSession[]
+  sales           Sale[]
   documentsLinked InventoryDocument[]  @relation("DocumentLinkedWarehouse")
   stockLots       StockLot[]
 
@@ -541,6 +552,7 @@ model Service {
 
   tenant     Tenant             @relation(fields: [tenantId], references: [id])
   warehouses ServiceWarehouse[]
+  saleItems  SaleItem[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1170,4 +1182,160 @@ model UserWarehouseScope {
   @@id([userId, warehouseId])
   @@index([tenantId])
   @@map("user_warehouse_scopes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PUNTO DE VENTA (Fase 4) — F4-DB-01
+// ─────────────────────────────────────────────────────────────────────────
+
+enum CashboxSessionStatus {
+  open
+  closed
+}
+
+enum SaleStatus {
+  completed
+  canceled
+}
+
+enum PaymentMethod {
+  cash
+  card
+  transfer
+}
+
+/// El TURNO de caja: desde dónde y desde cuándo está vendiendo alguien.
+///
+/// `warehouse_id` es NOT NULL y ahí está la razón de existir de esta tabla: el
+/// POS **no puede vender desde una lista**. El alcance de un usuario dice
+/// dónde PUEDE operar (una lista, vacía = todos) y su almacén asignado dice
+/// desde dónde opera por defecto — pero descontar stock exige UN almacén
+/// concreto. El turno es quien lo fija, y la venta lo hereda de él: la cadena
+/// es `usuario.asignado → turno → venta → ledger` (ARQUITECTURA § 3.4).
+///
+/// El arqueo guarda las TRES cifras y no solo la diferencia: lo declarado por
+/// quien cuenta, lo calculado por el sistema y su resta. Guardar solo la resta
+/// perdería quién dijo qué, que es justo lo que se audita cuando no cuadra.
+/// **La diferencia se registra, no bloquea** — un turno con faltante se cierra
+/// igual; esconderlo sería peor que verlo.
+model CashboxSession {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String               @map("tenant_id") @db.Uuid
+  warehouseId    String               @map("warehouse_id") @db.Uuid
+  status         CashboxSessionStatus @default(open)
+  openedBy       String               @map("opened_by") @db.Uuid
+  openedAt       DateTime             @default(now()) @map("opened_at") @db.Timestamptz(6)
+  closedBy       String?              @map("closed_by") @db.Uuid
+  closedAt       DateTime?            @map("closed_at") @db.Timestamptz(6)
+  /// Lo que la persona contó en la caja al cerrar.
+  declaredCash   Decimal?             @map("declared_cash") @db.Decimal(14, 2)
+  /// Lo que el sistema sumó de las ventas en efectivo del turno.
+  calculatedCash Decimal?             @map("calculated_cash") @db.Decimal(14, 2)
+  /// `declared − calculated`. Derivable, pero se persiste: el cálculo de hoy
+  /// no debe poder cambiar lo que se auditó ayer.
+  cashDifference Decimal?             @map("cash_difference") @db.Decimal(14, 2)
+  closingNote    String?              @map("closing_note")
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  opener    User      @relation("CashboxOpenedBy", fields: [openedBy], references: [id])
+  closer    User?     @relation("CashboxClosedBy", fields: [closedBy], references: [id])
+  sales     Sale[]
+
+  @@index([tenantId])
+  @@index([tenantId, warehouseId, openedAt(sort: Desc)])
+  @@map("cashbox_sessions")
+}
+
+/// La VENTA. Su folio sale de la serie `VTA` del tenant, igual que `ENT`/`SAL`
+/// /`INV` — pero se toma **dentro de la transacción del cobro** y no antes: el
+/// carrito vive en el cliente y no hay borrador que retomar, así que un
+/// carrito abandonado no debe gastar un número de la serie.
+///
+/// **No escribe stock.** La venta es LLAMADORA del ledger: `StockLedgerService`
+/// .apply(reason='sale')` sigue siendo el único escritor de `stock_movements`,
+/// con su FEFO, su expansión de compuestos y su bloqueo de lotes vencidos
+/// heredados de F3 sin una línea nueva.
+model Sale {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String        @map("tenant_id") @db.Uuid
+  folio            String        @db.VarChar(32)
+  /// Heredado del turno, no elegido por el cliente: es de donde salió el stock.
+  warehouseId      String        @map("warehouse_id") @db.Uuid
+  cashboxSessionId String        @map("cashbox_session_id") @db.Uuid
+  /// La cotización que originó esta venta, si la hubo (F4-QUOTE-02).
+  quoteId          String?       @unique @map("quote_id") @db.Uuid
+  /// Reservada para F9 (receta / documento clínico). **La columna existe, la
+  /// tabla no**: sin FK todavía, igual que `warehouse_id` esperó a F2 en
+  /// `user_warehouse_scopes`. Tenerla desde ahora evita una migración sobre
+  /// una tabla con millones de ventas.
+  clinicalDocumentId String?     @map("clinical_document_id") @db.Uuid
+  status           SaleStatus    @default(completed)
+  paymentMethod    PaymentMethod @map("payment_method")
+  subtotal         Decimal       @db.Decimal(14, 2)
+  discount         Decimal       @default(0) @db.Decimal(14, 2)
+  total            Decimal       @db.Decimal(14, 2)
+  createdBy        String        @map("created_by") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  canceledBy       String?       @map("canceled_by") @db.Uuid
+  canceledAt       DateTime?     @map("canceled_at") @db.Timestamptz(6)
+  cancelReason     String?       @map("cancel_reason")
+
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
+  session   CashboxSession @relation(fields: [cashboxSessionId], references: [id])
+  seller    User           @relation("SaleCreatedBy", fields: [createdBy], references: [id])
+  canceler  User?          @relation("SaleCanceledBy", fields: [canceledBy], references: [id])
+  items     SaleItem[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, cashboxSessionId])
+  @@map("sales")
+}
+
+/// La línea de venta: **un producto o un servicio, nunca los dos ni ninguno.**
+///
+/// Ese "exactamente uno" es un CHECK en la base y no una validación del
+/// service, porque es una regla sobre la FORMA del dato: una línea que no sea
+/// ni producto ni servicio no es una línea incompleta, es una imposible. Con
+/// dos columnas nullable y sin CHECK, el primer bug de un mapper la escribe.
+///
+/// `service_id` va con **FK RESTRICT** — es lo que finalmente impide borrar un
+/// servicio ya vendido, la deuda que `services.remove` arrastraba con un
+/// `TODO(F4)` desde F3. La base lo hace imposible; el 409 con mensaje amable
+/// (`services.has_sales`) llega en F4-SALE-01.
+///
+/// Los precios se copian acá al cobrar y **no se leen del catálogo después**:
+/// un ticket de hace tres meses tiene que seguir diciendo lo que cobró, aunque
+/// el producto haya cambiado de precio diez veces.
+model SaleItem {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  saleId         String   @map("sale_id") @db.Uuid
+  lineNo         Int      @map("line_no")
+  productId      String?  @map("product_id") @db.Uuid
+  serviceId      String?  @map("service_id") @db.Uuid
+  /// Solo para producto: en qué presentación se vendió (Caja ×12, Pieza…).
+  presentationId String?  @map("presentation_id") @db.Uuid
+  /// Lo que el cajero tecleó, en la presentación elegida.
+  quantity       Decimal  @db.Decimal(14, 4)
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(14, 2)
+  discount       Decimal  @default(0) @db.Decimal(14, 2)
+  lineTotal      Decimal  @map("line_total") @db.Decimal(14, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  sale         Sale                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product      Product?             @relation(fields: [productId], references: [id])
+  service      Service?             @relation(fields: [serviceId], references: [id])
+  presentation ProductPresentation? @relation(fields: [presentationId], references: [id])
+
+  @@unique([saleId, lineNo])
+  @@index([tenantId])
+  @@index([productId])
+  @@index([serviceId])
+  @@map("sale_items")
 }
