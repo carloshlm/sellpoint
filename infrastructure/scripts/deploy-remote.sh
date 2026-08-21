@@ -43,15 +43,61 @@ MIN_FREE_MB=3000
 # limpieza, que vivía al final del script. Un cleanup que necesita disco sano
 # para correr no sirve justo cuando hace falta. Por eso ahora va acá arriba.
 #
-# `-a` y no `prune` pelado: TODAS las imágenes de este server están
-# etiquetadas con su SHA, así que NINGUNA es "dangling" y el prune sin `-a`
-# borraba 0 bytes. Corrió en cada deploy exitoso durante meses sin liberar
-# nada — el log del run 32183405990 lo dice literal: "Total reclaimed space: 0B".
+# `-a` y no `prune` pelado: TODAS nuestras imágenes están etiquetadas con su
+# SHA, así que NINGUNA es "dangling" y el prune sin `-a` borraba 0 bytes.
+# Corrió en cada deploy exitoso durante meses sin liberar nada — el log del run
+# 32183405990 lo dice literal: "Total reclaimed space: 0B".
+#
+# ── Pero SOLO lo nuestro (2026-08-21) ────────────────────────────────────
+#
+# `docker image prune -af` borra CUALQUIER imagen sin contenedor vivo, y eso es
+# invadir: se llevó `certbot/certbot`, que es un one-shot (`compose run --rm`)
+# y por definición nunca tiene un contenedor corriendo. Se detectó al bajar la
+# retención a 24h, pero el defecto estaba desde siempre — la semana anterior
+# solo lo tapaba.
+#
+# No hubo caída porque `compose run` vuelve a bajar la imagen sola. El problema
+# es el que queda: **la renovación de los certificados pasó a depender de que
+# Docker Hub responda a las 4:30 de la mañana**, una dependencia que nadie
+# eligió. Y ninguna imagen ajena que el deploy no creó tiene por qué estar en
+# el radar de la limpieza del deploy.
+#
+# Las nuestras no traen labels, así que el filtro es por REPOSITORIO. Ojo con
+# lo que NO alcanza: `sellpoint-php-fpm` empieza igual pero es una imagen local
+# de otro proyecto en este mismo server — por eso se compara contra el nombre
+# completo del registro, no contra un prefijo suelto.
 #
 # Sin `|| true` un fallo de la limpieza abortaría un deploy que probablemente
 # habría funcionado igual: es higiene, no un requisito.
-echo "Limpiando imágenes de más de ${IMAGE_RETENTION} (las en uso se conservan solas)..."
-docker image prune -af --filter "until=${IMAGE_RETENTION}" || true
+echo "Limpiando NUESTRAS imágenes de más de ${IMAGE_RETENTION}..."
+limpiar_imagenes_viejas() {
+  # `date -d "-24h"` (GNU) — el server es Debian; en un macOS de dev fallaría,
+  # y por eso el `|| return 0`: sin corte no se borra nada, que es lo seguro.
+  local corte
+  corte="$(date -u -d "-${IMAGE_RETENTION%h} hours" +%s 2>/dev/null)" || return 0
+
+  local repo id creado ts
+  for repo in sellpoint-api sellpoint-web sellpoint-migrate; do
+    while IFS='|' read -r id creado; do
+      [ -n "${id}" ] || continue
+      # `{{.CreatedAt}}` sale como "2026-08-21 20:55:21 +0000 UTC"; el sufijo
+      # "UTC" al final es lo único que `date -d` no sabe leer.
+      ts="$(date -u -d "${creado% UTC}" +%s 2>/dev/null)" || continue
+      if [ "${ts}" -lt "${corte}" ]; then
+        # Una imagen en uso hace fallar el rmi. Es la red que reemplaza al
+        # "las en uso se conservan solas" que daba `prune`.
+        docker rmi "${id}" >/dev/null 2>&1 || true
+      fi
+    done <<EOF
+$(docker images "ghcr.io/carloshlm/${repo}" --format '{{.ID}}|{{.CreatedAt}}')
+EOF
+  done
+}
+limpiar_imagenes_viejas || true
+
+# Las "dangling" (`<none>`) son capas huérfanas de builds, no imágenes de nadie:
+# esas sí se barren sin filtro. SIN `-a`, que es lo que lo mantiene inofensivo.
+docker image prune -f >/dev/null 2>&1 || true
 
 # Guarda de disco. Si aun así queda poco, es mejor abortar acá —con un mensaje
 # que dice qué pasa y dónde mirar— que a mitad del deploy con un críptico
