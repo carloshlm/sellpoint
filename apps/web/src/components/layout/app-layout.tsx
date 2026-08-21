@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   Package,
+  Receipt,
   Settings,
   Shield,
   ShoppingCart,
@@ -50,9 +51,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // F2: mismo criterio que "Sistema" — el grupo se ve con cualquier `:read`
   // del dominio, y cada link se gatea por SU permiso.
-  // F4-CASHBOX-03: el grupo del POS aparece con `pos:sell`. La cotización
-  // y el historial son de F4-QUOTE-03 y F4-UI-03; cada item con SU permiso.
-  const canSeePosNav = has("pos:sell");
+  // F4-CASHBOX-03 / F4-UI-03: el grupo del POS aparece si se puede vender O
+  // consultar — un auditor con solo `pos:view` tiene que llegar al historial
+  // sin poder cobrar nada. Cada item se gatea con SU permiso (regla del nav
+  // de F2). La cotización llega con F4-QUOTE-03.
+  const canSeeSellNav = has("pos:sell");
+  const canSeeSalesNav = has("pos:view");
+  const canSeePosNav = canSeeSellNav || canSeeSalesNav;
   const canSeeProductsNav = has("products:read");
   const canSeeListsNav = has("catalogs:read");
   const canSeeSchemaNav = has("catalogs:manage");
@@ -221,22 +226,36 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {t("pos.title")}
                 </span>
               )}
-              <Link
-                to="/pos"
-                aria-label={t("pos.nav.sell")}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-              >
-                <ShoppingCart className="size-4 shrink-0" aria-hidden="true" />
-                {expanded && <span className="truncate">{t("pos.nav.sell")}</span>}
-              </Link>
-              <Link
-                to="/pos/close"
-                aria-label={t("pos.nav.close")}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-              >
-                <Calculator className="size-4 shrink-0" aria-hidden="true" />
-                {expanded && <span className="truncate">{t("pos.nav.close")}</span>}
-              </Link>
+              {canSeeSellNav && (
+                <Link
+                  to="/pos"
+                  aria-label={t("pos.nav.sell")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <ShoppingCart className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.sell")}</span>}
+                </Link>
+              )}
+              {canSeeSalesNav && (
+                <Link
+                  to="/pos/sales"
+                  aria-label={t("pos.nav.history")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Receipt className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.history")}</span>}
+                </Link>
+              )}
+              {canSeeSellNav && (
+                <Link
+                  to="/pos/close"
+                  aria-label={t("pos.nav.close")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Calculator className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.close")}</span>}
+                </Link>
+              )}
             </fieldset>
           )}
 

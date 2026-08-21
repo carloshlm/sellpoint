@@ -24,8 +24,9 @@
     "saleCount_one": "{{count}} venta"
   },
   "nav": {
-    "sell": "Venta",
-    "close": "Cierre de caja"
+    "close": "Cierre de caja",
+    "history": "Historial",
+    "sell": "Venta"
   },
   "cart": {
     "available": "{{quantity}} {{unit}} disponibles",
@@ -64,6 +65,29 @@
     "missing": "Faltan {{amount}}",
     "received": "Con cuánto paga",
     "title": "Cobrar",
+    "total": "Total"
+  },
+  "history": {
+    "all": "Todas",
+    "cancel": "Anular",
+    "cancelBody": "La venta {{folio}} se revierte: el stock vuelve al almacén y el movimiento contrario queda en el kardex. No se borra — se puede auditar después.",
+    "cancelFailed": "No pudimos anular la venta.",
+    "cancelTitle": "Anular la venta {{folio}}",
+    "canceled": "Anulada",
+    "completed": "Cobrada",
+    "date": "Fecha",
+    "empty": "Todavía no hay ventas que mostrar.",
+    "folio": "Folio",
+    "method": "Pago",
+    "next": "Siguiente",
+    "page": "Página {{page}} de {{pages}}",
+    "previous": "Anterior",
+    "reason": "Por qué se anula",
+    "reasonPlaceholder": "Por ejemplo: el cliente devolvió todo",
+    "seller": "Vendió",
+    "state": "Estado",
+    "status": "Estado",
+    "title": "Historial de ventas",
     "total": "Total"
   }
 }

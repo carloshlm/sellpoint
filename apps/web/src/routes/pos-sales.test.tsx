@@ -1,0 +1,271 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { I18nextProvider } from "react-i18next";
+import type { AuthUser } from "@/stores/auth.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { createI18n } from "../i18n";
+import * as posApi from "../lib/pos/api";
+import { createQueryClient } from "../lib/query-client";
+import { routeTree } from "../routeTree.gen";
+
+/**
+ * F4-UI-03 — el historial de ventas.
+ *
+ * Las dos reglas que se protegen: **las anuladas se ven marcadas, no se
+ * esconden** —quien busca una venta que no cuadra necesita encontrarla justo
+ * cuando está anulada— y **cada acción se gatea con SU permiso**: leer el
+ * historial es `pos:view`, anular es `pos:cancel`, y no son lo mismo.
+ */
+vi.mock("../lib/pos/api", () => ({
+  getSession: vi.fn(),
+  openSession: vi.fn(),
+  getSessionTotals: vi.fn(),
+  closeSession: vi.fn(),
+  lookup: vi.fn(),
+  createSale: vi.fn(),
+  listSales: vi.fn(),
+  cancelSale: vi.fn(),
+}));
+
+const mocked = vi.mocked(posApi);
+
+const demoUser = (permissions: string[]): AuthUser => ({
+  id: "u1",
+  email: "cajero@demo.test",
+  firstName: "Ana",
+  locale: "es",
+  permissions,
+  tenant: {
+    id: "t1",
+    name: "Demo",
+    legalName: null,
+    taxId: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    country: "MX",
+    onboarded: true,
+  },
+});
+
+const venta = (overrides: Partial<posApi.SaleRow> = {}): posApi.SaleRow => ({
+  id: "sale-1",
+  folio: "VTA-000001",
+  warehouseId: "w1",
+  status: "completed",
+  paymentMethod: "cash",
+  subtotal: "100.00",
+  discount: "0.00",
+  total: "100.00",
+  createdAt: "2026-08-21T16:00:00.000Z",
+  items: [],
+  warehouse: { id: "w1", name: "Almacén Centro" },
+  seller: { id: "u1", name: "Ana Pérez" },
+  canceledAt: null,
+  cancelReason: null,
+  ...overrides,
+});
+
+const pagina = (rows: posApi.SaleRow[], total = rows.length): posApi.SalesPage => ({
+  rows,
+  total,
+  page: 1,
+  pageSize: 20,
+});
+
+async function renderRuta(path: string, permissions: string[]) {
+  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: [path] }),
+  });
+  await router.load();
+  render(
+    <I18nextProvider i18n={createI18n()}>
+      <QueryClientProvider client={createQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </I18nextProvider>,
+  );
+}
+
+describe("Historial de ventas (F4-UI-03)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocked.getSession.mockResolvedValue({ session: null });
+    mocked.listSales.mockResolvedValue(pagina([venta()]));
+  });
+
+  describe("el nav", () => {
+    /**
+     * ⚠ La regla del nav de F2: el grupo se ve con cualquier permiso del
+     * dominio y cada item se gatea con el SUYO. Un auditor con solo `pos:view`
+     * tiene que llegar al historial sin ver un botón de vender que no puede
+     * usar.
+     */
+    it("con solo `pos:view` muestra el historial y NO la venta", async () => {
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      const nav = await screen.findByRole("group", { name: "Punto de venta" });
+      expect(within(nav).getByLabelText("Historial")).toBeInTheDocument();
+      expect(within(nav).queryByLabelText("Venta")).not.toBeInTheDocument();
+      expect(within(nav).queryByLabelText("Cierre de caja")).not.toBeInTheDocument();
+    });
+
+    it("con solo `pos:sell` muestra vender y cerrar, NO el historial", async () => {
+      await renderRuta("/pos", ["pos:sell"]);
+
+      const nav = await screen.findByRole("group", { name: "Punto de venta" });
+      expect(within(nav).getByLabelText("Venta")).toBeInTheDocument();
+      expect(within(nav).getByLabelText("Cierre de caja")).toBeInTheDocument();
+      expect(within(nav).queryByLabelText("Historial")).not.toBeInTheDocument();
+    });
+
+    it("sin ningún permiso del POS, el grupo entero desaparece", async () => {
+      await renderRuta("/dashboard", ["products:read"]);
+
+      await screen.findByRole("navigation");
+      expect(screen.queryByRole("group", { name: "Punto de venta" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("la pantalla", () => {
+    it("sin `pos:view` no se entra, aunque se escriba la URL", async () => {
+      await renderRuta("/pos/sales", ["pos:sell"]);
+
+      await waitFor(() => expect(screen.queryByTestId("sales-history")).not.toBeInTheDocument());
+      expect(mocked.listSales).not.toHaveBeenCalled();
+    });
+
+    it("lista las ventas con su folio, quién vendió y el total", async () => {
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      expect(await screen.findByText("VTA-000001")).toBeInTheDocument();
+      expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
+      expect(screen.getByText("$100.00")).toBeInTheDocument();
+    });
+
+    it("sin ventas lo dice, en vez de dejar una tabla vacía", async () => {
+      mocked.listSales.mockResolvedValue(pagina([]));
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      expect(await screen.findByText(/Todavía no hay ventas/)).toBeInTheDocument();
+    });
+
+    /**
+     * ⚠ Esconder las anuladas por defecto sería tentador —«ruido»— y sería
+     * exactamente lo contrario de lo que necesita quien audita.
+     */
+    it("una venta anulada se VE, marcada", async () => {
+      mocked.listSales.mockResolvedValue(
+        pagina([venta({ status: "canceled", canceledAt: "2026-08-21T17:00:00.000Z" })]),
+      );
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      const fila = (await screen.findByText("VTA-000001")).closest("tr") as HTMLElement;
+      // Acotado a la FILA: "Anulada" también es una opción del filtro de
+      // estado, y buscarlo en toda la pantalla encontraría las dos.
+      expect(within(fila).getByText("Anulada")).toBeInTheDocument();
+    });
+
+    it("el filtro por estado consulta al servidor, no filtra en el cliente", async () => {
+      await renderRuta("/pos/sales", ["pos:view"]);
+      await screen.findByText("VTA-000001");
+
+      await userEvent.selectOptions(screen.getByLabelText("Estado"), "canceled");
+
+      // Server-side: el historial son miles de filas y filtrar en el cliente
+      // solo acotaría la página que ya llegó.
+      await waitFor(() =>
+        expect(mocked.listSales).toHaveBeenCalledWith(
+          expect.objectContaining({ status: "canceled" }),
+        ),
+      );
+    });
+  });
+
+  describe("anular", () => {
+    /**
+     * ⚠ `pos:cancel` NO está en el rol de mostrador: deshacer una operación
+     * asentada es decisión de gestión. Pintar el botón para quien no puede
+     * usarlo sería prometer algo que el API rechaza con 403.
+     */
+    it("sin `pos:cancel` el botón no se pinta", async () => {
+      await renderRuta("/pos/sales", ["pos:view"]);
+      await screen.findByText("VTA-000001");
+
+      expect(screen.queryByRole("button", { name: "Anular" })).not.toBeInTheDocument();
+    });
+
+    it("con `pos:cancel` el botón está", async () => {
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+
+      expect(screen.getByRole("button", { name: "Anular" })).toBeInTheDocument();
+    });
+
+    it("una venta YA anulada no ofrece anular de nuevo", async () => {
+      mocked.listSales.mockResolvedValue(pagina([venta({ status: "canceled" })]));
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+
+      // El API contestaría 409 y el botón habría mentido.
+      expect(screen.queryByRole("button", { name: "Anular" })).not.toBeInTheDocument();
+    });
+
+    /**
+     * El motivo es obligatorio en el API (mínimo 3 caracteres). Decirlo ANTES
+     * del clic es mejor que dejar chocar con el 422.
+     */
+    it("sin motivo el confirmar está bloqueado", async () => {
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+
+      const dialogo = await screen.findByTestId("cancel-VTA-000001");
+      expect(within(dialogo).getByRole("button", { name: "Anular" })).toBeDisabled();
+    });
+
+    it("con motivo, anula y manda la razón", async () => {
+      mocked.cancelSale.mockResolvedValue({ ...venta(), status: "canceled" });
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+
+      await userEvent.type(
+        await screen.findByLabelText(/Por qué se anula/),
+        "el cliente devolvió todo",
+      );
+      const dialogo = screen.getByTestId("cancel-VTA-000001");
+      await userEvent.click(within(dialogo).getByRole("button", { name: "Anular" }));
+
+      await waitFor(() =>
+        expect(mocked.cancelSale).toHaveBeenCalledWith("sale-1", "el cliente devolvió todo"),
+      );
+    });
+
+    /**
+     * Lección del confirm mudo de F3: el error del server NUNCA se traga.
+     */
+    it("un rechazo del servidor se pinta DENTRO del diálogo", async () => {
+      mocked.cancelSale.mockRejectedValue({
+        statusCode: 409,
+        message: "Esa venta ya está anulada.",
+        error: "Conflict",
+        code: "pos.sale_already_canceled",
+      });
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+      await userEvent.type(await screen.findByLabelText(/Por qué se anula/), "me equivoqué");
+
+      const dialogo = screen.getByTestId("cancel-VTA-000001");
+      await userEvent.click(within(dialogo).getByRole("button", { name: "Anular" }));
+
+      expect(await within(dialogo).findByText(/ya está anulada/)).toBeInTheDocument();
+    });
+  });
+});

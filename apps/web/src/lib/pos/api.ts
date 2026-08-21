@@ -171,3 +171,47 @@ export async function createSale(input: CreateSaleInput, idempotencyKey: string)
   });
   return data;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// F4-UI-03 — el historial
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Una venta del listado: trae su almacén y quién la hizo, ya resuelto. */
+export interface SaleRow extends Sale {
+  warehouse: { id: string; name: string };
+  seller: { id: string; name: string };
+  canceledAt: string | null;
+  cancelReason: string | null;
+}
+
+export interface ListSalesQuery {
+  status?: "completed" | "canceled";
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SalesPage {
+  rows: SaleRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function listSales(query: ListSalesQuery = {}): Promise<SalesPage> {
+  const { data } = await api.get<SalesPage>("/pos/sales", { params: query });
+  return data;
+}
+
+/**
+ * Anular. **No borra: revierte** — el API asienta el movimiento contrario con
+ * motivo `sale_return`, así que el kardex muestra la salida y su reverso.
+ *
+ * El motivo es obligatorio (mínimo 3 caracteres) y no es burocracia: una venta
+ * deshecha sin explicación es un descuadre que nadie puede auditar después.
+ */
+export async function cancelSale(id: string, reason: string): Promise<Sale> {
+  const { data } = await api.post<Sale>(`/pos/sales/${id}/cancel`, { reason });
+  return data;
+}

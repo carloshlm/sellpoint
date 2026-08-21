@@ -24,8 +24,9 @@
     "saleCount_one": "{{count}} sale"
   },
   "nav": {
-    "sell": "Sell",
-    "close": "Cashbox closing"
+    "close": "Cashbox closing",
+    "history": "History",
+    "sell": "Sell"
   },
   "cart": {
     "available": "{{quantity}} {{unit}} available",
@@ -64,6 +65,29 @@
     "missing": "{{amount}} short",
     "received": "Amount received",
     "title": "Charge",
+    "total": "Total"
+  },
+  "history": {
+    "all": "All",
+    "cancel": "Cancel",
+    "cancelBody": "Sale {{folio}} gets reversed: the stock returns to the warehouse and the opposite movement stays in the ledger. Nothing is deleted — it can be audited later.",
+    "cancelFailed": "We couldn't cancel the sale.",
+    "cancelTitle": "Cancel sale {{folio}}",
+    "canceled": "Canceled",
+    "completed": "Charged",
+    "date": "Date",
+    "empty": "There are no sales to show yet.",
+    "folio": "Number",
+    "method": "Payment",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}}",
+    "previous": "Previous",
+    "reason": "Why it's being canceled",
+    "reasonPlaceholder": "For example: the customer returned everything",
+    "seller": "Sold by",
+    "state": "Status",
+    "status": "Status",
+    "title": "Sales history",
     "total": "Total"
   }
 }

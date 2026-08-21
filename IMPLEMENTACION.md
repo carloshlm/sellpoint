@@ -2472,9 +2472,10 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F4-UI-01, F4-SALE-02
   - **Estimación:** 2 h
 
-- [ ] **F4-UI-03** — Grupo POS en el nav + historial
+- [x] **F4-UI-03** — Grupo POS en el nav + historial
   - **Salida:** grupo «Punto de venta» en el nav: `/pos` (`pos:sell`), `/pos/quotes` (`pos:quote`), `/pos/sales` historial (`pos:view`) con reimprimir y anular (gateado por rol); rutas + i18n namespace `pos` es/en; cada item gateado por SU permiso (regla del nav de F2)
   - **Verificar:** tests: el nav muestra solo lo permitido; historial lista y reimprime
+  - **Ajustado al construir (2026-08-21):** el item **«Cotización» NO entra acá** — apuntaría a una ruta que todavía no existe y sería un link muerto; llega con su pantalla en F4-QUOTE-03, que ya lo tiene en su Salida. La **reimpresión** también queda para F4-TICKET-02: no hay ticket que reimprimir hasta que exista la plantilla. Lo que sí cerró es el agujero real: `pos:cancel` existía en el API desde F4-SALE-03 y **ninguna persona podía llegar a él** — una venta cobrada mal solo se arreglaba con `curl`
   - **Depende de:** F4-SALE-04
   - **Estimación:** 1.5 h
 

@@ -3,14 +3,18 @@ import type { ApiError } from "@/lib/api";
 import {
   type CashboxSession,
   type CreateSaleInput,
+  cancelSale,
   closeSession,
   createSale,
   getSession,
   getSessionTotals,
+  type ListSalesQuery,
   type LookupResult,
+  listSales,
   lookup,
   openSession,
   type Sale,
+  type SalesPage,
   type SessionTotal,
 } from "./api";
 
@@ -96,5 +100,33 @@ export function useCreateSale() {
   return useMutation<Sale, ApiError, { input: CreateSaleInput; idempotencyKey: string }>({
     mutationFn: ({ input, idempotencyKey }) => createSale(input, idempotencyKey),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY }),
+  });
+}
+
+export const POS_SALES_KEY = ["pos", "sales"] as const;
+
+/** F4-UI-03 — el historial. Las anuladas vienen marcadas, no escondidas. */
+export function useSales(query: ListSalesQuery) {
+  return useQuery<SalesPage, ApiError>({
+    queryKey: [...POS_SALES_KEY, query],
+    queryFn: () => listSales(query),
+  });
+}
+
+/**
+ * Anular.
+ *
+ * Invalida el historial Y el turno: el arqueo cambia, porque una venta anulada
+ * deja de sumar al total del cajón. Olvidar lo segundo dejaría la pantalla de
+ * cierre contando dinero que ya no está.
+ */
+export function useCancelSale() {
+  const queryClient = useQueryClient();
+  return useMutation<Sale, ApiError, { id: string; reason: string }>({
+    mutationFn: ({ id, reason }) => cancelSale(id, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: POS_SALES_KEY });
+      void queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY });
+    },
   });
 }
