@@ -80,7 +80,34 @@ const MANAGER_EXCLUDED_CODES = new Set([
 // F3-SVC-02: `services:read` entra acá porque el POS de F4 vende servicios
 // además de mercancía, y sin leer el catálogo no habría qué vender. NO se le da
 // `services:manage`: cambiar un precio no es tarea de mostrador.
-const POS_SELLER_CODES = new Set(["pos:sell", "products:read", "services:read"]);
+//
+// F4-DB-03 suma `pos:quote` y `pos:view`: el mostrador cotiza (una recepción
+// puede tener SOLO `pos:quote` y cotizar sin poder cobrar — y el médico de F9
+// hereda ese permiso sin caja) y ve su propio historial para reimprimir.
+const POS_SELLER_CODES = new Set([
+  "pos:sell",
+  "pos:quote",
+  "pos:view",
+  "products:read",
+  "services:read",
+]);
+
+/**
+ * Codes de LECTURA que la regla del `:read` no alcanza.
+ *
+ * `pos:view` es un permiso de lectura pura —el historial de ventas— pero se
+ * llama `:view` y no `:read`, así que `readCodes` lo dejaría fuera y un Viewer
+ * (el auditor) no podría ver las ventas que vino a auditar. El nombre viene
+ * documentado desde el diseño de VISTAS §9.3 y se respeta.
+ *
+ * **La deuda que esto deja anotada:** la convención del proyecto es
+ * `recurso:read` para leer, y la regla automática se apoya en ella. Cada
+ * permiso de lectura que se llame distinto necesita una línea acá — y el que
+ * se olvide de agregarla no rompe nada visible, solo deja a un rol sin ver algo.
+ * Si algún día se renombra a `pos:read`, esta lista queda vacía y la regla
+ * vuelve a bastarse sola.
+ */
+const VIEWER_EXTRA_CODES = new Set(["pos:view"]);
 
 /**
  * Dado el set de codes que EXISTE hoy en el catálogo global de permisos,
@@ -90,7 +117,9 @@ const POS_SELLER_CODES = new Set(["pos:sell", "products:read", "services:read"])
 export function resolveRolePermissionCodes(
   allCodes: readonly string[],
 ): Record<TenantRoleName, string[]> {
-  const readCodes = allCodes.filter((code) => code.endsWith(":read"));
+  const readCodes = allCodes.filter(
+    (code) => code.endsWith(":read") || VIEWER_EXTRA_CODES.has(code),
+  );
 
   return {
     TenantAdmin: [...allCodes],

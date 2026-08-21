@@ -63,6 +63,8 @@ model Tenant {
   cashboxSessions CashboxSession[]
   sales          Sale[]
   saleItems      SaleItem[]
+  quotes         Quote[]
+  quoteLines     QuoteLine[]
   serviceWarehouses ServiceWarehouse[]
 
   // Movimientos de inventario (Fase 3)
@@ -136,6 +138,8 @@ model User {
   cashboxClosed           CashboxSession[]         @relation("CashboxClosedBy")
   salesCreated            Sale[]                   @relation("SaleCreatedBy")
   salesCanceled           Sale[]                   @relation("SaleCanceledBy")
+  quotesCreated           Quote[]                  @relation("QuoteCreatedBy")
+  quotesCanceled          Quote[]                  @relation("QuoteCanceledBy")
 
   @@index([tenantId])
   @@map("users")
@@ -400,6 +404,7 @@ model Product {
   transferLines     TransferLine[]
   documentLines     InventoryDocumentLine[]
   saleItems         SaleItem[]
+  quoteLines        QuoteLine[]
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -447,6 +452,7 @@ model ProductPresentation {
   movements     StockMovement[]
   documentLines InventoryDocumentLine[]
   saleItems     SaleItem[]
+  quoteLines    QuoteLine[]
 
   // El CHECK de `factor > 0` y el índice único PARCIAL de (tenant_id, barcode)
   // WHERE barcode IS NOT NULL viven en la migración. El índice tiene que ser
@@ -521,6 +527,7 @@ model Warehouse {
   documents       InventoryDocument[]  @relation("DocumentWarehouse")
   cashboxSessions CashboxSession[]
   sales           Sale[]
+  quotes          Quote[]
   documentsLinked InventoryDocument[]  @relation("DocumentLinkedWarehouse")
   stockLots       StockLot[]
 
@@ -553,6 +560,7 @@ model Service {
   tenant     Tenant             @relation(fields: [tenantId], references: [id])
   warehouses ServiceWarehouse[]
   saleItems  SaleItem[]
+  quoteLines QuoteLine[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1289,6 +1297,7 @@ model Sale {
   seller    User           @relation("SaleCreatedBy", fields: [createdBy], references: [id])
   canceler  User?          @relation("SaleCanceledBy", fields: [canceledBy], references: [id])
   items     SaleItem[]
+  quote     Quote?         @relation(fields: [quoteId], references: [id])
 
   @@unique([tenantId, folio])
   @@index([tenantId, createdAt(sort: Desc)])
@@ -1338,4 +1347,100 @@ model SaleItem {
   @@index([productId])
   @@index([serviceId])
   @@map("sale_items")
+}
+
+enum QuoteStatus {
+  open
+  loaded
+  canceled
+}
+
+/// La COTIZACIÓN: una lista con folio, no una operación.
+///
+/// Adelantada de F9 a F4 (Carlos, 2026-08-20) por el caso de un mostrador de
+/// recepción antes de la caja. Tres decisiones la definen, y las tres se ven
+/// en lo que esta tabla NO tiene:
+///
+///  · **sin `valid_until` ni estado `expired`** — no maneja vigencia. Los
+///    precios impresos son de REFERENCIA y al cargarla en el POS se recalculan
+///    con el catálogo vigente, así que no hay promesa que pueda vencer;
+///  · **sin `customer_id`** — los clientes llegan en su fase;
+///  · **sin una sola FK al ledger ni a `inventory_documents`** — cotizar no
+///    mueve stock, y que sea imposible referenciar un movimiento desde acá es
+///    la forma estructural de decirlo.
+///
+/// `warehouse_id` es el almacén del COTIZADOR (no exige turno: cotizar no toca
+/// dinero). Sirve para filtrar sus lookups y para el reporte; el almacén que
+/// manda al cobrar es el del TURNO, que puede ser otro.
+model Quote {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  folio       String      @db.VarChar(32)
+  warehouseId String      @map("warehouse_id") @db.Uuid
+  status      QuoteStatus @default(open)
+  /// Suma de las líneas a precio de REFERENCIA. No es lo que se va a cobrar.
+  total       Decimal     @db.Decimal(14, 2)
+  note        String?
+  createdBy   String      @map("created_by") @db.Uuid
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Cuándo se volcó al carrito de una venta (F4-QUOTE-02).
+  loadedAt    DateTime?   @map("loaded_at") @db.Timestamptz(6)
+  canceledBy  String?     @map("canceled_by") @db.Uuid
+  canceledAt  DateTime?   @map("canceled_at") @db.Timestamptz(6)
+
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  warehouse Warehouse   @relation(fields: [warehouseId], references: [id])
+  author    User        @relation("QuoteCreatedBy", fields: [createdBy], references: [id])
+  canceler  User?       @relation("QuoteCanceledBy", fields: [canceledBy], references: [id])
+  lines     QuoteLine[]
+  /// La venta que la cargó, si llegó a cobrarse. Uno a uno: una cotización se
+  /// carga UNA vez (`sales.quote_id` es UNIQUE).
+  sale      Sale?
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@map("quotes")
+}
+
+/// La línea de cotización: **el mismo shape que `SaleItem`, a propósito.**
+///
+/// Que se parezcan tanto no es duplicación por descuido: es lo que hace que
+/// volcar una cotización al carrito sea un mapeo directo y no una traducción.
+/// La diferencia está en el significado de `unit_price` — acá es de
+/// REFERENCIA, y `for-sale` lo descarta y relee el catálogo.
+///
+/// Las FKs de catálogo van con **RESTRICT**, igual que en `sale_items`. El
+/// primer intento fue SET NULL —borrar un servicio cotizado debería poder
+/// hacerse, razoné— y un test lo tumbó: SET NULL deja la línea con CERO
+/// referencias y viola su propio CHECK de «exactamente uno». Se conservó el
+/// CHECK fuerte; el costo es que un ítem cotizado ya no se BORRA, se DESACTIVA
+/// (el camino que el catálogo ya ofrece). `description` sigue guardando lo que
+/// decía el papel: sobrevive a que el producto cambie de nombre.
+model QuoteLine {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  quoteId        String   @map("quote_id") @db.Uuid
+  lineNo         Int      @map("line_no")
+  productId      String?  @map("product_id") @db.Uuid
+  serviceId      String?  @map("service_id") @db.Uuid
+  presentationId String?  @map("presentation_id") @db.Uuid
+  /// Lo que se cotizó, en texto. Sobrevive a que el producto se borre o cambie
+  /// de nombre: el papel que el cliente se llevó decía ESTO.
+  description    String
+  quantity       Decimal  @db.Decimal(14, 4)
+  /// De REFERENCIA. Al cargarla en el POS se recalcula del catálogo vigente.
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(14, 2)
+  lineTotal      Decimal  @map("line_total") @db.Decimal(14, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  quote        Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product      Product?             @relation(fields: [productId], references: [id])
+  service      Service?             @relation(fields: [serviceId], references: [id])
+  presentation ProductPresentation? @relation(fields: [presentationId], references: [id])
+
+  @@unique([quoteId, lineNo])
+  @@index([tenantId])
+  @@map("quote_lines")
 }

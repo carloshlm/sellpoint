@@ -26,11 +26,44 @@ export const FOLIO_PREFIXES: Record<InventoryDocumentType, string> = {
 };
 
 /**
- * Prefijos apartados para fases futuras. `VTA` es el de las ventas del POS
- * (F4): se reserva ahora para que nadie lo tome y para dejar dicho que el
- * ticket también será un documento con folio.
+ * Las series del PUNTO DE VENTA (F4).
+ *
+ * Van aparte de `FOLIO_PREFIXES` y no dentro, porque aquella está tipada por
+ * `InventoryDocumentType` y **una venta no es un documento de inventario**:
+ * vive en `sales`, no en `inventory_documents`. Meterlas ahí obligaría a
+ * ensanchar ese tipo con dos miembros que ninguna de sus funciones sabe
+ * manejar.
+ *
+ * Lo que SÍ comparten es el mecanismo: `nextFolio(tx, tenantId, key, prefix)`
+ * toma cualquier clave sobre `tenant_sequences`, así que una serie es un par
+ * (clave, prefijo) y nada más.
+ *
+ * `COT` es la cotización, que **sí** tiene documento propio y toma su folio al
+ * crearse. `VTA` es la venta, que lo toma dentro de la transacción del cobro:
+ * el carrito vive en el cliente y un carrito abandonado no debe gastar un
+ * número de la serie.
  */
-export const RESERVED_FOLIO_PREFIXES = ["VTA"] as const;
+export const POS_FOLIO_PREFIXES = {
+  sale: "VTA",
+  quote: "COT",
+} as const satisfies Record<string, string>;
+
+/** Todas las series del sistema. Ninguna puede repetir prefijo con otra. */
+export const ALL_FOLIO_PREFIXES = [
+  ...Object.values(FOLIO_PREFIXES),
+  ...Object.values(POS_FOLIO_PREFIXES),
+] as const;
+
+/**
+ * Prefijos apartados para fases futuras.
+ *
+ * Quedó **vacío** el 2026-08-21: `VTA` era su único habitante y F4-DB-03 lo
+ * puso en uso. La constante se conserva —con su test— porque la próxima fase
+ * que necesite apartar una serie ya tiene dónde, y porque el test de
+ * no-colisión la incluye: una serie reservada tampoco puede chocar con una
+ * viva.
+ */
+export const RESERVED_FOLIO_PREFIXES = [] as const;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Motivos de movimiento — la fuente ÚNICA

@@ -140,4 +140,67 @@ describe("resolveRolePermissionCodes", () => {
       expect(result.POS_Seller).not.toContain("services:manage");
     });
   });
+
+  /**
+   * F4-DB-03. `pos:view` no es un permiso nuevo inventado acá: VISTAS §9.3 lo
+   * exigía desde el diseño original y NO existía en el catálogo — un permiso
+   * fantasma que la atomización de F4 detectó y que nace aquí en vez de
+   * heredarse el hueco.
+   */
+  describe("permisos del punto de venta (F4-DB-03)", () => {
+    const CODES = ["pos:sell", "pos:quote", "pos:view"];
+
+    it("TenantAdmin recibe los tres", () => {
+      expect(resolveRolePermissionCodes(CODES).TenantAdmin.sort()).toEqual([
+        "pos:quote",
+        "pos:sell",
+        "pos:view",
+      ]);
+    });
+
+    it("Manager también: cotizar y consultar el historial son tarea diaria", () => {
+      expect(resolveRolePermissionCodes(CODES).Manager.sort()).toEqual([
+        "pos:quote",
+        "pos:sell",
+        "pos:view",
+      ]);
+    });
+
+    it("POS_Seller recibe los tres: vende, cotiza y reimprime", () => {
+      expect(resolveRolePermissionCodes(CODES).POS_Seller.sort()).toEqual([
+        "pos:quote",
+        "pos:sell",
+        "pos:view",
+      ]);
+    });
+
+    /**
+     * **El caso que la regla del `:read` no alcanzaba.** `pos:view` es lectura
+     * pura pero se llama `:view`, así que `readCodes` lo dejaba fuera y el
+     * auditor no podía ver las ventas que vino a auditar. Va explícito en
+     * `VIEWER_EXTRA_CODES`; este test es lo que impide que alguien lo saque
+     * "porque no termina en :read".
+     */
+    it("Viewer VE el historial aunque el code no termine en `:read`", () => {
+      const result = resolveRolePermissionCodes(CODES);
+
+      expect(result.Viewer).toEqual(["pos:view"]);
+      // Pero no cotiza: emitir un documento no es leer.
+      expect(result.Viewer).not.toContain("pos:quote");
+      expect(result.Viewer).not.toContain("pos:sell");
+    });
+
+    /**
+     * El caso de Carlos: una recepción que cotiza sin poder cobrar. No lo
+     * resuelve un rol base sino un rol CUSTOM con un solo permiso — y el
+     * catálogo tiene que permitirlo sin trucos.
+     */
+    it("`pos:quote` es independiente de `pos:sell`: se puede cotizar sin cobrar", () => {
+      const soloCotizar = resolveRolePermissionCodes(["pos:quote"]);
+
+      expect(soloCotizar.TenantAdmin).toEqual(["pos:quote"]);
+      expect(soloCotizar.POS_Seller).toEqual(["pos:quote"]);
+      expect(soloCotizar.POS_Seller).not.toContain("pos:sell");
+    });
+  });
 });

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_FOLIO_PREFIXES,
   FOLIO_PREFIXES,
   hasValidQuantityScale,
   INVENTORY_DOCUMENT_TYPES,
   MOVEMENT_REASONS,
+  POS_FOLIO_PREFIXES,
   REASON_RULES,
   REASONS_BY_DIRECTION,
   RESERVED_FOLIO_PREFIXES,
@@ -26,8 +28,19 @@ describe("FOLIO_PREFIXES", () => {
     }
   });
 
-  it("son exactamente tres, las que decidió Carlos el 2026-08-18", () => {
+  it("las de INVENTARIO son exactamente tres, las que decidió Carlos el 2026-08-18", () => {
     expect(FOLIO_PREFIXES).toEqual({ entry: "ENT", exit: "SAL", physical_count: "INV" });
+  });
+
+  /**
+   * `VTA` y `COT` van APARTE y no dentro de `FOLIO_PREFIXES`: aquella está
+   * tipada por `InventoryDocumentType`, y una venta no es un documento de
+   * inventario — vive en `sales`, no en `inventory_documents`.
+   */
+  it("las del POS son dos, y viven aparte de las de inventario (F4-DB-03)", () => {
+    expect(POS_FOLIO_PREFIXES).toEqual({ sale: "VTA", quote: "COT" });
+    expect(Object.values(FOLIO_PREFIXES)).not.toContain("VTA");
+    expect(Object.values(FOLIO_PREFIXES)).not.toContain("COT");
   });
 
   /**
@@ -35,18 +48,31 @@ describe("FOLIO_PREFIXES", () => {
    * la serie es por `key`, así que dos keys distintas llegarían al mismo
    * número con el mismo prefijo.
    */
-  it("ningún prefijo se repite entre tipos", () => {
-    const prefijos = Object.values(FOLIO_PREFIXES);
-    expect(new Set(prefijos).size).toBe(prefijos.length);
+  it("ningún prefijo se repite entre series, ni con las reservadas", () => {
+    const todos = [...ALL_FOLIO_PREFIXES, ...RESERVED_FOLIO_PREFIXES];
+    expect(new Set(todos).size).toBe(todos.length);
   });
 
-  it("`VTA` queda reservada para el POS de F4 y nadie la usa todavía", () => {
-    expect(RESERVED_FOLIO_PREFIXES).toContain("VTA");
-    expect(Object.values(FOLIO_PREFIXES)).not.toContain("VTA");
+  it("todas las series son de tres letras mayúsculas", () => {
+    for (const prefijo of ALL_FOLIO_PREFIXES) {
+      expect(prefijo).toMatch(/^[A-Z]{3}$/);
+    }
+  });
+
+  /**
+   * `VTA` estuvo reservada desde F3 y F4-DB-03 la puso en uso, así que la
+   * lista quedó vacía. El test sobrevive porque la invariante no era «VTA está
+   * reservada» sino **«lo reservado no se usa»** — la próxima fase que aparte
+   * una serie la hereda sin escribir nada.
+   */
+  it("lo RESERVADO no está en uso (hoy la lista está vacía)", () => {
+    for (const reservado of RESERVED_FOLIO_PREFIXES) {
+      expect(ALL_FOLIO_PREFIXES).not.toContain(reservado);
+    }
   });
 
   it("un traspaso NO tiene serie propia: es una salida con motivo", () => {
-    const todos = [...Object.values(FOLIO_PREFIXES), ...RESERVED_FOLIO_PREFIXES];
+    const todos = [...ALL_FOLIO_PREFIXES, ...RESERVED_FOLIO_PREFIXES];
     expect(todos).not.toContain("TRA");
     expect(todos).not.toContain("REC");
   });

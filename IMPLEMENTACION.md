@@ -2343,13 +2343,13 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** —
   - **Estimación:** 2.5 h
 
-- [ ] **F4-DB-02** — Modelos `Quote`, `QuoteLine` + RLS de nacimiento
+- [x] **F4-DB-02** — Modelos `Quote`, `QuoteLine` + RLS de nacimiento
   - **Salida:** `Quote` (`folio` COT, `warehouse_id` NOT NULL — el almacén del COTIZADOR, para filtrar sus lookups y para reporte, `status` open|loaded|canceled, `created_by`, totales de referencia); `QuoteLine` (mismo shape que `SaleItem`: producto O servicio con CHECK, `quantity`, `unit_price` **de referencia** — el precio real se recalcula al cargar); sin FK al ledger ni a `inventory_documents`: una cotización NO mueve stock por diseño; RLS de nacimiento + canarios
   - **Verificar:** canarios; el CHECK; una cotización no puede referenciar movimientos
   - **Depende de:** —
   - **Estimación:** 2 h
 
-- [ ] **F4-DB-03** — Series `VTA`/`COT` + permisos `pos:quote` y `pos:view`
+- [x] **F4-DB-03** — Series `VTA`/`COT` + permisos `pos:quote` y `pos:view`
   - **Salida:** `FOLIO_PREFIXES` de shared gana las series de venta y cotización (los dos tests de contrato que afirman «son exactamente tres» y «`VTA` no la usa nadie» se actualizan — son guardarraíles haciendo su trabajo, no estorbos); migración de permisos molde `f2_permissions`: **`pos:quote`** (cotizar sin cobrar — recepción hoy, médico en F9) y **`pos:view`** (historial de ventas — VISTAS §9.3 lo exigía y NO existía en el catálogo: el permiso fantasma se resuelve acá, no se hereda); `POS_SELLER_CODES` gana los dos; `role-catalog.spec.ts` con el bloque nuevo; gotcha del perm-epoch anotado
   - **Verificar:** spec del catálogo de roles; e2e 403 sin permiso; los tests de shared en verde con las series nuevas
   - **Depende de:** —
