@@ -268,7 +268,7 @@ async function conDisponibilidad(
  * que preseleccionar la caja.
  *
  * El tablero hablaba de un `products.barcode` "legacy" como segundo intento.
- * **Esa columna nunca existió** en el esquema (verificado 2026-08-22): el
+ * **Esa columna nunca existió** en el esquema (verificado 2026-08-21): el
  * código de barras nació en la presentación con F2-PRESENT y ahí se quedó. No
  * se implementa un respaldo contra una columna fantasma.
  */
