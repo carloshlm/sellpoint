@@ -1,0 +1,31 @@
+{
+  "title": "Punto de venta",
+  "cartComingSoon": "La pantalla de venta llega en la próxima tarea. Tu turno ya está abierto.",
+  "payment": {
+    "cash": "Efectivo",
+    "card": "Tarjeta",
+    "transfer": "Transferencia"
+  },
+  "session": {
+    "openTitle": "Abrir turno de caja",
+    "openHint": "Elige desde qué almacén vas a vender. Si tienes uno asignado, ya viene puesto.",
+    "warehouse": "Almacén",
+    "open": "Abrir turno",
+    "openSince": "Turno abierto desde {{time}}",
+    "openFailed": "No pudimos abrir el turno.",
+    "closeTitle": "Cierre de caja",
+    "close": "Cerrar turno",
+    "closeFailed": "No pudimos cerrar el turno.",
+    "closeHint": "Si la caja no cuadra, se cierra igual y la diferencia queda registrada.",
+    "declaredCash": "Efectivo contado en caja",
+    "difference": "Diferencia",
+    "note": "Nota (opcional)",
+    "notePlaceholder": "Por ejemplo: faltó un billete de 20",
+    "saleCount": "{{count}} ventas",
+    "saleCount_one": "{{count}} venta"
+  },
+  "nav": {
+    "sell": "Venta",
+    "close": "Cierre de caja"
+  }
+}

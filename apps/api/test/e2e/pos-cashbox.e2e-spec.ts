@@ -783,5 +783,158 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         await historial(sinPermiso).expect(403);
       });
     });
+
+    /**
+     * F4-CASHBOX-02 — el arqueo.
+     *
+     * Cuadrar la caja es tarea humana. El sistema calcula, la persona cuenta, y
+     * la diferencia se REGISTRA — no se bloquea.
+     */
+    describe("Cerrar el turno (F4-CASHBOX-02)", () => {
+      const cerrar = (token: string, body: Record<string, unknown>) =>
+        request(app.getHttpServer())
+          .post("/pos/session/close")
+          .set("Authorization", bearer(token))
+          .send(body);
+
+      it("suma POR MÉTODO: efectivo, tarjeta y transferencia por separado", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 2 }],
+        }).expect(201);
+        await vender(token, {
+          paymentMethod: "card",
+          lines: [{ productId: productoId, quantity: 4 }],
+        }).expect(201);
+
+        const res = await cerrar(token, { declaredCash: 30 }).expect(200);
+        const { totals } = res.body as {
+          totals: { method: string; total: string; count: number }[];
+        };
+
+        expect(totals.find((t) => t.method === "cash")).toMatchObject({ total: "30", count: 1 });
+        expect(totals.find((t) => t.method === "card")).toMatchObject({ total: "60", count: 1 });
+        expect(totals.find((t) => t.method === "transfer")).toMatchObject({ total: "0", count: 0 });
+      });
+
+      /** Su dinero no está en el cajón: no puede sumar al arqueo. */
+      it("una venta ANULADA no suma al arqueo", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 2 }],
+        }).expect(201);
+        await request(app.getHttpServer())
+          .post(`/pos/sales/${(venta.body as { id: string }).id}/cancel`)
+          .set("Authorization", bearer(token))
+          .send({ reason: "error de cobro" })
+          .expect(200);
+
+        const res = await cerrar(token, { declaredCash: 0 }).expect(200);
+        const { totals } = res.body as { totals: { method: string; total: string }[] };
+
+        expect(totals.find((t) => t.method === "cash")?.total).toBe("0");
+      });
+
+      /**
+       * ⚠ LO QUE MÁS IMPORTA. Bloquear un turno descuadrado obligaría al
+       * cajero a "encontrar" el número que el sistema quiere — y lo
+       * encontraría, escribiendo el calculado en vez de lo que contó. El
+       * descuadre escondido se repite; el visible se investiga.
+       */
+      it("con FALTANTE cierra igual y guarda las TRES cifras", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 10 }],
+        }).expect(201);
+
+        // Vendió 150 en efectivo pero en el cajón hay 130: faltan 20.
+        const res = await cerrar(token, { declaredCash: 130, note: "faltó un billete" }).expect(
+          200,
+        );
+        const { session } = res.body as {
+          session: { declaredCash: string; calculatedCash: string; cashDifference: string };
+        };
+
+        expect(session.calculatedCash).toBe("150");
+        expect(session.declaredCash).toBe("130");
+        expect(session.cashDifference).toBe("-20");
+      });
+
+      it("con SOBRANTE también, y la diferencia sale positiva", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 2 }],
+        }).expect(201);
+
+        const res = await cerrar(token, { declaredCash: 35 }).expect(200);
+
+        expect((res.body as { session: { cashDifference: string } }).session.cashDifference).toBe(
+          "5",
+        );
+      });
+
+      it("un turno CERRADO no vende: 409", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        await cerrar(token, { declaredCash: 0 }).expect(200);
+
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(409);
+      });
+
+      it("cerrar dos veces da 409: dos arqueos no se escriben sobre el mismo turno", async () => {
+        const { token } = await escenario();
+        await abrir(token).expect(201);
+        await cerrar(token, { declaredCash: 0 }).expect(200);
+
+        await cerrar(token, { declaredCash: 999 }).expect(409);
+      });
+
+      it("cerrado el turno, se puede abrir otro y vender de nuevo", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        await cerrar(token, { declaredCash: 0 }).expect(200);
+
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+      });
+
+      it("los totales se pueden consultar ANTES de cerrar", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 50);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 3 }],
+        }).expect(201);
+
+        const res = await request(app.getHttpServer())
+          .get("/pos/session/totals")
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const { totals } = res.body as { totals: { method: string; total: string }[] };
+
+        expect(totals.find((t) => t.method === "cash")?.total).toBe("45");
+      });
+    });
   });
 });

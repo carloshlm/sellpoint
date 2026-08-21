@@ -1,5 +1,6 @@
 {
   "cancel_reason_required": "Explica por qué se anula la venta.",
+  "declared_cash_invalid": "El efectivo contado no puede ser negativo.",
   "discount_exceeds_subtotal": "El descuento no puede superar el subtotal.",
   "invalid_body": "Revisa los datos del punto de venta.",
   "invalid_query": "Revisa los filtros de la búsqueda.",
@@ -15,6 +16,7 @@
   "sale_needs_lines": "La venta necesita al menos una línea.",
   "sale_not_found": "No encontramos esa venta.",
   "service_not_sellable": "Ese servicio no está disponible para vender.",
+  "session_already_closed": "Ese turno ya está cerrado.",
   "session_already_open": "Ya tienes un turno de caja abierto. Ciérralo antes de abrir otro.",
   "warehouse_invalid": "El almacén no es válido."
 }

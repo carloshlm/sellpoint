@@ -14,7 +14,12 @@ import {
   type ListSalesQuery,
   listSalesQuerySchema,
 } from "./dto/list-sales.dto";
-import { type OpenSessionDto, openSessionSchema } from "./dto/open-session.dto";
+import {
+  type CloseSessionDto,
+  closeSessionSchema,
+  type OpenSessionDto,
+  openSessionSchema,
+} from "./dto/open-session.dto";
 import { SalesService } from "./sales.service";
 
 /**
@@ -52,6 +57,29 @@ export class PosController {
     @CurrentUserScope() scope: UserScope,
   ) {
     return this.cashbox.open(user, scope, dto);
+  }
+
+  /**
+   * Los totales del turno abierto, para que la pantalla de cierre muestre
+   * contra qué se está contando ANTES de escribir el arqueo.
+   */
+  @Get("session/totals")
+  @RequirePermissions("pos:sell")
+  async totals(@CurrentUser() user: AuthUser) {
+    const sesion = await this.cashbox.current(user);
+    return { totals: sesion === null ? [] : await this.cashbox.totals(user, sesion.id) };
+  }
+
+  /** Cierra el turno con su arqueo. La diferencia se registra, no bloquea. */
+  @Post("session/close")
+  @HttpCode(200)
+  @RequirePermissions("pos:sell")
+  closeSession(
+    @Body(new ZodValidationPipe(closeSessionSchema, "pos.invalid_body"))
+    dto: CloseSessionDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.cashbox.close(user, dto);
   }
 
   /**

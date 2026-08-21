@@ -2363,13 +2363,13 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F4-DB-01
   - **Estimación:** 2 h
 
-- [ ] **F4-CASHBOX-02** — Cierre de caja con arqueo
+- [x] **F4-CASHBOX-02** — Cierre de caja con arqueo
   - **Salida:** `POST /pos/session/close`: totales POR MÉTODO calculados de las ventas del turno (las anuladas no suman), el cajero declara lo contado y el sistema guarda **declarado, calculado y diferencia** — la diferencia se registra, no se bloquea (cuadrar caja es tarea humana, esconder el descuadre sería peor); un turno cerrado no acepta ventas
   - **Verificar:** e2e: totales correctos por método; venta anulada no suma; vender sobre turno cerrado → 409; la diferencia queda guardada
   - **Depende de:** F4-CASHBOX-01, F4-SALE-01
   - **Estimación:** 2 h
 
-- [ ] **F4-CASHBOX-03** — UI del turno
+- [x] **F4-CASHBOX-03** — UI del turno
   - **Salida:** pantalla de apertura (selector de almacén precargado con el asignado, molde `WarehouseSelect`); la barra del POS muestra **el almacén del turno** (deuda de F3-HOME-05 sobre VISTAS §9.1); pantalla de cierre con los totales por método y el campo de arqueo; sin turno abierto, `/pos` ofrece abrirlo
   - **Verificar:** tests de ruta: apertura preselecciona el asignado; la barra muestra el almacén; cierre pinta calculado vs declarado
   - **Depende de:** F4-CASHBOX-01, F4-CASHBOX-02

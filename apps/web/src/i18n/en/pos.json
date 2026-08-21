@@ -1,0 +1,31 @@
+{
+  "title": "Point of sale",
+  "cartComingSoon": "The sales screen lands in the next task. Your shift is already open.",
+  "payment": {
+    "cash": "Cash",
+    "card": "Card",
+    "transfer": "Transfer"
+  },
+  "session": {
+    "openTitle": "Open cashbox shift",
+    "openHint": "Pick the warehouse you'll sell from. If you have one assigned, it's already set.",
+    "warehouse": "Warehouse",
+    "open": "Open shift",
+    "openSince": "Shift open since {{time}}",
+    "openFailed": "We couldn't open the shift.",
+    "closeTitle": "Cashbox closing",
+    "close": "Close shift",
+    "closeFailed": "We couldn't close the shift.",
+    "closeHint": "If the drawer doesn't balance, it closes anyway and the difference is recorded.",
+    "declaredCash": "Cash counted in the drawer",
+    "difference": "Difference",
+    "note": "Note (optional)",
+    "notePlaceholder": "For example: a 20 bill was missing",
+    "saleCount": "{{count}} sales",
+    "saleCount_one": "{{count}} sale"
+  },
+  "nav": {
+    "sell": "Sell",
+    "close": "Cashbox closing"
+  }
+}

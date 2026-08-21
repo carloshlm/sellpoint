@@ -18,6 +18,20 @@ export const openSessionSchema = z
 export type OpenSessionDto = z.infer<typeof openSessionSchema>;
 
 /**
- * Cerrar turno llega en F4-CASHBOX-02. El DTO NO se adelanta acá: escribirlo
- * ahora sería fijar la forma del arqueo sin haber escrito su transacción.
+ * El arqueo: lo que la persona CONTÓ en el cajón.
+ *
+ * Solo el efectivo. Tarjeta y transferencia no se cuentan a mano — los concilia
+ * la terminal o el banco, y pedirle al cajero que "declare" lo que no puede
+ * tocar sería teatro. Si algún día se concilian acá, van con su propio nombre
+ * y su propia fuente, no como un número escrito a mano.
+ *
+ * La nota es opcional: quien cuadra al centavo no tiene nada que explicar.
  */
+export const closeSessionSchema = z
+  .object({
+    declaredCash: z.coerce.number().min(0, { message: "pos.declared_cash_invalid" }),
+    note: z.string().trim().max(500).optional(),
+  })
+  .strict();
+
+export type CloseSessionDto = z.infer<typeof closeSessionSchema>;

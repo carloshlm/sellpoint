@@ -7,6 +7,7 @@ import enCatalogs from "./en/catalogs.json";
 import enCommon from "./en/common.json";
 import enInventory from "./en/inventory.json";
 import enOnboarding from "./en/onboarding.json";
+import enPos from "./en/pos.json";
 import enProducts from "./en/products.json";
 import enServices from "./en/services.json";
 import enUsers from "./en/users.json";
@@ -17,6 +18,7 @@ import esCatalogs from "./es/catalogs.json";
 import esCommon from "./es/common.json";
 import esInventory from "./es/inventory.json";
 import esOnboarding from "./es/onboarding.json";
+import esPos from "./es/pos.json";
 import esProducts from "./es/products.json";
 import esServices from "./es/services.json";
 import esUsers from "./es/users.json";
@@ -53,6 +55,7 @@ const resources = {
       catalogs: esCatalogs,
       warehouses: esWarehouses,
       inventory: esInventory,
+      pos: esPos,
       products: esProducts,
       services: esServices,
     },
@@ -67,6 +70,7 @@ const resources = {
       catalogs: enCatalogs,
       warehouses: enWarehouses,
       inventory: enInventory,
+      pos: enPos,
       products: enProducts,
       services: enServices,
     },

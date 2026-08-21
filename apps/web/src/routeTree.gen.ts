@@ -30,6 +30,8 @@ import { Route as MovementsEntriesRouteImport } from './routes/movements.entries
 import { Route as MovementsExitsRouteImport } from './routes/movements.exits'
 import { Route as MovementsExpiringRouteImport } from './routes/movements.expiring'
 import { Route as MovementsTransfersRouteImport } from './routes/movements.transfers'
+import { Route as PosIndexRouteImport } from './routes/pos.index'
+import { Route as PosCloseRouteImport } from './routes/pos.close'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
@@ -139,6 +141,16 @@ const MovementsTransfersRoute = MovementsTransfersRouteImport.update({
   path: '/movements/transfers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PosIndexRoute = PosIndexRouteImport.update({
+  id: '/pos/',
+  path: '/pos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosCloseRoute = PosCloseRouteImport.update({
+  id: '/pos/close',
+  path: '/pos/close',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -178,8 +190,10 @@ export interface FileRoutesByFullPath {
   '/movements/exits': typeof MovementsExitsRoute
   '/movements/expiring': typeof MovementsExpiringRoute
   '/movements/transfers': typeof MovementsTransfersRoute
+  '/pos/close': typeof PosCloseRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/pos/': typeof PosIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
 }
 export interface FileRoutesByTo {
@@ -204,8 +218,10 @@ export interface FileRoutesByTo {
   '/movements/exits': typeof MovementsExitsRoute
   '/movements/expiring': typeof MovementsExpiringRoute
   '/movements/transfers': typeof MovementsTransfersRoute
+  '/pos/close': typeof PosCloseRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/pos': typeof PosIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
 }
 export interface FileRoutesById {
@@ -231,8 +247,10 @@ export interface FileRoutesById {
   '/movements/exits': typeof MovementsExitsRoute
   '/movements/expiring': typeof MovementsExpiringRoute
   '/movements/transfers': typeof MovementsTransfersRoute
+  '/pos/close': typeof PosCloseRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/pos/': typeof PosIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
 }
 export interface FileRouteTypes {
@@ -259,8 +277,10 @@ export interface FileRouteTypes {
     | '/movements/exits'
     | '/movements/expiring'
     | '/movements/transfers'
+    | '/pos/close'
     | '/system/roles'
     | '/system/users'
+    | '/pos/'
     | '/movements/documents/$documentId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -285,8 +305,10 @@ export interface FileRouteTypes {
     | '/movements/exits'
     | '/movements/expiring'
     | '/movements/transfers'
+    | '/pos/close'
     | '/system/roles'
     | '/system/users'
+    | '/pos'
     | '/movements/documents/$documentId'
   id:
     | '__root__'
@@ -311,8 +333,10 @@ export interface FileRouteTypes {
     | '/movements/exits'
     | '/movements/expiring'
     | '/movements/transfers'
+    | '/pos/close'
     | '/system/roles'
     | '/system/users'
+    | '/pos/'
     | '/movements/documents/$documentId'
   fileRoutesById: FileRoutesById
 }
@@ -338,8 +362,10 @@ export interface RootRouteChildren {
   MovementsExitsRoute: typeof MovementsExitsRoute
   MovementsExpiringRoute: typeof MovementsExpiringRoute
   MovementsTransfersRoute: typeof MovementsTransfersRoute
+  PosCloseRoute: typeof PosCloseRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
+  PosIndexRoute: typeof PosIndexRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
 }
 
@@ -492,6 +518,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MovementsTransfersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pos/': {
+      id: '/pos/'
+      path: '/pos'
+      fullPath: '/pos/'
+      preLoaderRoute: typeof PosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pos/close': {
+      id: '/pos/close'
+      path: '/pos/close'
+      fullPath: '/pos/close'
+      preLoaderRoute: typeof PosCloseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -538,8 +578,10 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsExitsRoute: MovementsExitsRoute,
   MovementsExpiringRoute: MovementsExpiringRoute,
   MovementsTransfersRoute: MovementsTransfersRoute,
+  PosCloseRoute: PosCloseRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
+  PosIndexRoute: PosIndexRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
 }
 export const routeTree = rootRouteImport
