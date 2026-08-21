@@ -14,8 +14,19 @@ interface CurrencySelectorProps {
  * hace `PATCH /tenants/me` desde el form contenedor (`step-business.tsx`).
  * La regla de inmutabilidad post-transacciones vive ÚNICAMENTE en
  * `TenantCurrencyChangeableGuard` (backend) — este componente no la
- * reimplementa ni la valida. Su copy de advertencia se retiró el 2026-08-16
- * (decisión de Carlos): la regla sigue en pie, solo dejó de anunciarse acá.
+ * reimplementa ni la valida, solo la ANUNCIA.
+ *
+ * ── Por qué el aviso se fue y volvió ────────────────────────────────────
+ *
+ * Se retiró el 2026-08-16 (decisión de Carlos) y estuvo bien: por entonces
+ * `TenantTransactionsGate.hasTransactions()` devolvía `false` SIEMPRE desde
+ * F1, así que el aviso prometía un bloqueo que no ocurría. Un aviso que no se
+ * cumple es peor que no tenerlo — enseña a ignorar los avisos.
+ *
+ * **F3-GUARDS-01 arregló ese gate**: hoy cuenta `stock_movements` de verdad y
+ * la moneda SÍ se congela con el primer movimiento. El texto que era mentira
+ * pasó a ser cierto, y nadie lo notó durante días porque arreglar un guard no
+ * avisa que revive una advertencia jubilada. Volvió el 2026-08-21.
  */
 function CurrencySelector({ value, onChange, error }: CurrencySelectorProps) {
   const { t } = useTranslation();
@@ -32,6 +43,7 @@ function CurrencySelector({ value, onChange, error }: CurrencySelectorProps) {
           label: t(`onboarding.step1.currencyOptions.${currency}`),
         }))}
       />
+      <p className="text-muted-foreground text-xs">{t("onboarding.step1.currencyWarning")}</p>
       {/* Decisión 5 (2026-08-16): la moneda SIEMPRE es visible y editable —
           esta línea aclara que la lista de 5 no es un techo, solo lo
           habilitado hoy. */}

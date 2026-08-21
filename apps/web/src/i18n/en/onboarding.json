@@ -69,6 +69,7 @@
       "EUR": "Euro (EUR)",
       "GBP": "Pound sterling (GBP)"
     },
+    "currencyWarning": "You won't be able to change the currency once you record your first inventory movement.",
     "currencyRequestHint": "Need another currency? Let us know and we'll enable it.",
     "continue": "Continue",
     "error": "We couldn't save your business details."
