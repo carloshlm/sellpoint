@@ -1,0 +1,19 @@
+-- ─────────────────────────────────────────────────────────────────────────
+-- La unidad `unit` pasa a llamarse "Pieza" / "Piece" (Carlos, 2026-08-20).
+-- ─────────────────────────────────────────────────────────────────────────
+--
+-- **Solo cambia el NOMBRE.** El código sigue siendo `unit`, así que ningún
+-- producto se toca: `products.base_unit` apunta al mismo `units.code` de
+-- siempre y la FK ni se entera. Es un cambio de copy, no de datos.
+--
+-- El motivo no es de gusto: el campo del formulario se llama "Unidad base", y
+-- ofrecer "Unidad" entre sus opciones usaba la MISMA palabra para el envase y
+-- para uno de sus contenidos — la pantalla decía "Unidad base: Unidad". Además
+-- "pieza" es el término que el comercio mexicano usa en el mostrador y en la
+-- factura.
+--
+-- Va acá y no solo en `packages/shared` porque la tabla `units` es maestra y la
+-- app tiene REVOKE de escritura sobre ella: los catálogos llegan a todos los
+-- entornos por el pipeline, nunca por la app. `units-master.integration.spec.ts`
+-- compara los dos lados y se pone rojo si divergen.
+UPDATE "units" SET "name_es" = 'Pieza', "name_en" = 'Piece' WHERE "code" = 'unit';

@@ -42,11 +42,24 @@ describe("unitName", () => {
     expect(unitName("cm", "es", { plural: true })).toBe("Centímetros");
   });
 
-  it("el plural es un DATO y no una regla: «Unidad» no pluraliza con una `s`", () => {
-    // Este es el caso que hace imposible derivarlo con `+ "s"`. Si alguien
-    // "simplifica" el catálogo a una regla, este test lo frena.
-    expect(unitName("unit", "es", { plural: true })).toBe("Unidades");
-    expect(unitName("unit", "en", { plural: true })).toBe("Units");
+  /**
+   * **Este test perdió sus dientes el 2026-08-20 y lo digo acá para que nadie
+   * se confíe.**
+   *
+   * Existía porque «Unidad» → «Unidades» NO se deriva con `+ "s"`: era el
+   * contraejemplo que hacía imposible "simplificar" el catálogo a una regla.
+   * Al renombrar esa unidad a «Pieza» —cuyo plural sí es regular— el catálogo
+   * quedó con las nueve unidades pluralizando con una `s` en los dos idiomas.
+   *
+   * O sea: hoy una implementación que derivara el plural con `+ "s"` pasaría
+   * este archivo entero en verde. Lo que sigue protegiendo la decisión es que
+   * el plural viva como CAMPO —lo verifica el test de abajo, que exige uno
+   * explícito por unidad— y el día que entre una irregular (un "Pie" → "Pies",
+   * un "Inch" → "Inches") este test vuelve a discriminar solo.
+   */
+  it("el plural sale del catálogo, no de pegarle una `s` al singular", () => {
+    expect(unitName("unit", "es", { plural: true })).toBe("Piezas");
+    expect(unitName("unit", "en", { plural: true })).toBe("Pieces");
   });
 
   it("todas las unidades tienen plural en los dos idiomas", () => {

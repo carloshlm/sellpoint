@@ -71,10 +71,12 @@ describe("PresentationsTab — la unidad base se nombra, no se codifica", () => 
     ).toBeInTheDocument();
   });
 
-  it("«Unidad» pluraliza como «unidades»: por eso el plural es un dato y no una `s`", () => {
+  it("la unidad `unit` se nombra «piezas», no con su código", () => {
+    // Se llamaba «Unidad» hasta el 2026-08-20. El cambio es de COPY: el código
+    // sigue siendo `unit` y ningún producto guardado se movió.
     renderTab("unit");
 
-    expect(screen.getByText("Equivale en unidades")).toBeInTheDocument();
+    expect(screen.getByText("Equivale en piezas")).toBeInTheDocument();
   });
 
   it("una unidad desconocida cae al código en vez de dejar la frase coja", () => {

@@ -273,7 +273,7 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       );
       await renderDoc();
 
-      expect(await screen.findByText(/3\s*Caja\s*=\s*36\s*unidades/i)).toBeInTheDocument();
+      expect(await screen.findByText(/3\s*Caja\s*=\s*36\s*piezas/i)).toBeInTheDocument();
     });
 
     it("cambiar la presentación manda el PATCH de esa línea", async () => {

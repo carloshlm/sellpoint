@@ -52,13 +52,21 @@ export interface UnitDefinition {
 export const UNITS = {
   // count — cosas que se cuentan de a una. No admite fracciones (de acá sale
   // el default de `allow_fractional_input` de las presentaciones).
+  // "Pieza" y no "Unidad" (Carlos, 2026-08-20). No es cuestión de gusto: el
+  // campo del formulario se llama "Unidad base", así que ofrecer "Unidad"
+  // entre sus opciones usaba la MISMA palabra para el envase y para uno de sus
+  // contenidos — se leía "Unidad base: Unidad". Además "pieza" es el término
+  // que el comercio mexicano usa de verdad, en el mostrador y en la factura.
+  //
+  // El CÓDIGO sigue siendo `unit`: lo que lee una máquina va en inglés y no se
+  // toca por un cambio de copy. Ningún producto guardado cambia.
   unit: {
     category: "count",
     factor: 1,
-    nameEs: "Unidad",
-    nameEn: "Unit",
-    namePluralEs: "Unidades",
-    namePluralEn: "Units",
+    nameEs: "Pieza",
+    nameEn: "Piece",
+    namePluralEs: "Piezas",
+    namePluralEn: "Pieces",
   },
 
   // volume — base: mililitro
