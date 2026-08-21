@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 const PASSWORD = "twelve-characters";
 
@@ -28,7 +29,7 @@ describe("GET /permissions (e2e, F1-RBAC-05)", () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
   });
 

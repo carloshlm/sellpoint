@@ -9,6 +9,7 @@ import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import type { LookupItem } from "../../src/modules/pos/lookup.strategies";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F4-CART-01 — el buscador del mostrador.
@@ -29,7 +30,7 @@ describe("Buscador del POS (F4-CART-01)", () => {
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

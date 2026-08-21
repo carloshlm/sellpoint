@@ -9,6 +9,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * e2e de F1-RBAC-01/02 + gate W3 del verify de f1-auth.
@@ -47,7 +48,7 @@ describe("RBAC: PermissionsGuard (e2e)", () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     tokenService = app.get(TokenService);
   });
 

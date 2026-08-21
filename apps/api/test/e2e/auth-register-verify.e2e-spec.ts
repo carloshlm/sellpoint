@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * e2e de U2 (f1-auth): register-tenant → verify-email, con Postgres/Redis
@@ -29,7 +30,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     mailer = app.get(MAILER);
   });
 

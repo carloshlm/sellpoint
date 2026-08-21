@@ -10,6 +10,7 @@ import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import type { ImportRowError } from "../../src/modules/products/import.service";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F2-IMPORT. El flujo obligatorio es dos pasos: dry-run que reporta fila por
@@ -31,7 +32,7 @@ describe("Importación de productos (F2-IMPORT)", () => {
     // `cookieParser`. Sin esto el límite es el default de 100 kB y el test del
     // archivo grande mediría al parser, no a la regla de negocio.
     (app as NestExpressApplication).useBodyParser("json", { limit: "6mb" });
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

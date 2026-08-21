@@ -9,6 +9,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 const REFRESH_COOKIE_NAME = "sp_refresh";
 const PASSWORD = "twelve-characters";
@@ -33,7 +34,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
 
     app = moduleFixture.createNestApplication();
     app.use(cookieParser());
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

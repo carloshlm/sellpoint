@@ -8,6 +8,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 const PASSWORD = "twelve-characters";
 
@@ -51,7 +52,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
     tokenService = app.get(TokenService);
   });

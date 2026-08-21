@@ -13,6 +13,7 @@ import {
   type TenantRoleName,
 } from "../../src/modules/tenants/role-catalog";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 const PASSWORD = "twelve-characters";
 
@@ -53,7 +54,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
     tokenService = app.get(TokenService);
 

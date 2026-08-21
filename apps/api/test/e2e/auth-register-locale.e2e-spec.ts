@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * e2e de F1-LOCALE-09: si `POST /auth/register-tenant` no recibe `locale`
@@ -26,7 +27,7 @@ describe("POST /auth/register-tenant — fallback de Accept-Language (F1-LOCALE-
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

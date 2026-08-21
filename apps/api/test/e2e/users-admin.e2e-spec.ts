@@ -10,6 +10,7 @@ import { REDIS_CLIENT } from "../../src/infrastructure/redis/redis.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 const PASSWORD = "twelve-characters";
 
@@ -34,7 +35,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
 
     app = moduleFixture.createNestApplication();
     app.use(cookieParser());
-    await app.init();
+    await startTestApp(app);
     redis = app.get<Redis>(REDIS_CLIENT);
     mailer = app.get<NoopMailer>(MAILER);
   });

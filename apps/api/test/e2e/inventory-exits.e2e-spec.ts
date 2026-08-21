@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F3-EXIT-01 — el CONFIRM de una salida.
@@ -35,7 +36,7 @@ describe("Confirmar una salida (F3-EXIT-01)", () => {
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
 
     const email = `owner-${randomUUID()}@example.com`;
     await request(app.getHttpServer())

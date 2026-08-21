@@ -9,6 +9,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F3-GUARDS — las cinco puertas que F2 dejó documentadas como "F3 lo completa".
@@ -30,7 +31,7 @@ describe("Guardas de integridad (F3-GUARDS)", () => {
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /** F2-WH-01 — CRUD de almacenes con tenants reales. */
 describe("Almacenes (F2-WH)", () => {
@@ -19,7 +20,7 @@ describe("Almacenes (F2-WH)", () => {
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
   });
 
   afterAll(async () => {

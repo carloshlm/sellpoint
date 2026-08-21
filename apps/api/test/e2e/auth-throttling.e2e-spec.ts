@@ -6,6 +6,7 @@ import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
+import { startTestApp } from "./support/start-test-app";
 
 const PASSWORD = "twelve-characters";
 
@@ -49,7 +50,7 @@ describe("Throttling de /auth/* (e2e)", () => {
     // request.ip siempre resuelve al socket local — todas las IPs
     // "distintas" de este archivo colapsarían en una sola.
     app.set("trust proxy", 1);
-    await app.init();
+    await startTestApp(app);
 
     app.get(ConfigService).set("THROTTLE_ENABLED", true);
   });

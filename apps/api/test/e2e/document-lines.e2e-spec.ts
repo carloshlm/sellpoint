@@ -7,6 +7,7 @@ import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F3-DOC-04 — las líneas del borrador.
@@ -31,7 +32,7 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
 
     const email = `owner-${randomUUID()}@example.com`;
     await request(app.getHttpServer())

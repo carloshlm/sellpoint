@@ -3,6 +3,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * Smoke e2e (f1-auth U1-13): la app real bootea con Postgres (sellpoint_app,
@@ -21,7 +22,7 @@ describe("AppModule (e2e smoke)", () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
   });
 
   afterAll(async () => {

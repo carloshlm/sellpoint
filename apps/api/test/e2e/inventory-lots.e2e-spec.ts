@@ -9,6 +9,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F3-LOTS-02 — consultar los lotes de un producto y las ubicaciones de un
@@ -31,7 +32,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

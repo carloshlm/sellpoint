@@ -10,6 +10,7 @@ import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { INVITATION_TTL_MS } from "../../src/modules/users/user-invitation.service";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 const PASSWORD = "twelve-characters";
 const INVITEE_PASSWORD = "mi-primera-password-larga";
@@ -42,7 +43,7 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
 
     app = moduleFixture.createNestApplication();
     app.use(cookieParser());
-    await app.init();
+    await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
     prisma = app.get(PrismaService);
   });

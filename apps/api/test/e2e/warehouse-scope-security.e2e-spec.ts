@@ -12,6 +12,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * e2e de remediación de los 2 CRITICAL del verify-report `sdd/f1-scope`
@@ -48,7 +49,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
 
     tenantA = await registerActiveTenant();

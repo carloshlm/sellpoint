@@ -8,6 +8,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F2-PROD / F2-PRESENT / F2-BOM. Cubre el camino completo del catálogo de
@@ -25,7 +26,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       .useClass(NoopMailer)
       .compile();
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     prisma = app.get(PrismaService);
   });
 

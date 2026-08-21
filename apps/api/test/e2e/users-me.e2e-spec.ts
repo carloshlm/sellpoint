@@ -8,6 +8,7 @@ import { TokenService } from "../../src/modules/auth/services/token.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * e2e de F1-LOCALE-05 (PATCH /me). Login (U3 de f1-auth) todavía no existe
@@ -30,7 +31,7 @@ describe("/me (e2e)", () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
     tokenService = app.get(TokenService);
   });
 

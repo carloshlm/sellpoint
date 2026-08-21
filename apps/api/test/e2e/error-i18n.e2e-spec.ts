@@ -3,6 +3,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * verify #271 C2 + decisión de Carlos (`sdd/f1-auth/decisions-carlos`): el
@@ -27,7 +28,7 @@ describe("i18n de errores en AllExceptionsFilter (e2e) — verify #271 C2", () =
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
   });
 
   afterAll(async () => {

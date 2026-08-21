@@ -3,6 +3,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * e2e de F1-LOCALE-02/03: valida la INTEGRACIÓN real (LocaleResolverMiddleware
@@ -23,7 +24,7 @@ describe("Resolución de locale end-to-end (F1-LOCALE-02/03, e2e)", () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await startTestApp(app);
   });
 
   afterAll(async () => {

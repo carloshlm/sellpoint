@@ -8,6 +8,7 @@ import { AppModule } from "../../src/app.module";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { startTestApp } from "./support/start-test-app";
 
 /**
  * F3-HOME-01 — el almacén ASIGNADO de un usuario.
@@ -28,7 +29,7 @@ describe("Almacén asignado del usuario (F3-HOME-01)", () => {
       .compile();
     app = moduleFixture.createNestApplication();
     app.use(cookieParser());
-    await app.init();
+    await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
   });
 
@@ -279,7 +280,7 @@ describe("El tenant nace con su almacén (F3-HOME-03)", () => {
       .compile();
     app = moduleFixture.createNestApplication();
     app.use(cookieParser());
-    await app.init();
+    await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
   });
 
