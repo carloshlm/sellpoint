@@ -1,3 +1,4 @@
+import { scaledInteger } from "./decimal-text";
 import {
   type Currency,
   DEFAULT_CURRENCY,
@@ -5,6 +6,7 @@ import {
   type Locale,
   localeToBcp47,
 } from "./i18n";
+import { QUANTITY_SCALE } from "./quantity";
 
 /**
  * Decimales que admite un importe en todo el sistema.
@@ -79,4 +81,47 @@ export function formatMoney(
     style: "currency",
     currency,
   }).format(amount);
+}
+
+/**
+ * F4-CART-02 — el total de una línea: precio × cantidad, al centavo.
+ *
+ * ── Por qué no `Number(price) * Number(quantity)` ───────────────────────
+ *
+ * Porque en IEEE-754 `0.1 * 3` da `0.30000000000000004`, y un punto de venta
+ * que muestra eso perdió la discusión con el cliente antes de empezarla. No
+ * todos los productos se desvían —`12.35 * 3` da exacto— y eso es justamente lo
+ * peor: el error aparece en algunos renglones y no en otros, así que nadie lo
+ * reproduce.
+ *
+ * La cuenta se hace en ENTEROS: el precio se escala a centavos y la cantidad a
+ * diezmilésimas, se multiplican como enteros y se vuelve a bajar a centavos.
+ * Es el mismo criterio que `Prisma.Decimal` del lado del servidor, con las
+ * herramientas que hay en el navegador.
+ *
+ * ── Esto es para MOSTRAR ────────────────────────────────────────────────
+ *
+ * El total que se cobra lo calcula el API leyendo el catálogo (`sales.service`).
+ * Este número es el que el carrito pinta mientras alguien arma la venta, y por
+ * eso tolera lo que una pantalla tiene: precios ausentes y cantidades a medio
+ * teclear. Ninguno de esos casos puede volver el total un `NaN` — un total
+ * ilegible es peor que uno incompleto.
+ *
+ * @param price Importe unitario, con hasta 2 decimales. `null` cuenta como 0.
+ * @param quantity Cantidad, con hasta 4 decimales. Texto vacío cuenta como 0.
+ */
+export function multiplyMoney(
+  price: string | number | null | undefined,
+  quantity: string | number | null | undefined,
+): number {
+  const centavos = scaledInteger(price, MONEY_DECIMALS);
+  const diezmilesimas = scaledInteger(quantity, QUANTITY_SCALE);
+  if (centavos === 0 || diezmilesimas === 0) {
+    return 0;
+  }
+
+  // Escala combinada: 2 + 4. Se baja a 2 redondeando medio para arriba, que es
+  // lo que hace una caja registradora — no existe medio centavo.
+  const producto = centavos * diezmilesimas;
+  return Math.round(producto / 10 ** QUANTITY_SCALE) / 10 ** MONEY_DECIMALS;
 }

@@ -25,6 +25,7 @@ updates:
         # La lista la fija apps/web/src/lib/repo/dependabot-groups.test.ts.
         exclude-patterns:
           - "@types/pdfmake"
+          - "@zxing/browser"
           - "argon2"
           - "class-variance-authority"
           - "pdfmake"

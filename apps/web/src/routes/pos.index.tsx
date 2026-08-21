@@ -4,6 +4,8 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
+import { CartPanel } from "@/components/pos/cart-panel";
+import { CartSearch } from "@/components/pos/cart-search";
 import { OpenSession } from "@/components/pos/open-session";
 import { SessionBar } from "@/components/pos/session-bar";
 import { Button } from "@/components/ui/button";
@@ -32,7 +34,8 @@ function PosContent() {
   return (
     <div className="flex flex-col gap-4">
       <SessionBar session={session} />
-      <p className="text-muted-foreground text-sm">{t("pos.cartComingSoon")}</p>
+      <CartSearch />
+      <CartPanel />
       <div>
         <Button variant="outline" asChild>
           <Link to="/pos/close">{t("pos.session.close")}</Link>

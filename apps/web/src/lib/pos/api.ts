@@ -49,3 +49,75 @@ export async function closeSession(input: {
   );
   return data;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// F4-CART-01 — el buscador
+// ─────────────────────────────────────────────────────────────────────────
+
+export type LookupKind = "barcode" | "sku" | "text" | "service" | "quote";
+
+/** Una presentación vendible. `factor` y `price` son strings decimales. */
+export interface LookupPresentation {
+  id: string;
+  name: string;
+  factor: string;
+  price: string | null;
+  barcode: string | null;
+  isDefaultSale: boolean;
+  /** Del server, derivado de la categoría de la unidad. El numpad lo obedece. */
+  allowFractionalInput: boolean;
+}
+
+export interface LookupProductItem {
+  type: "product";
+  matchedBy: LookupKind;
+  id: string;
+  sku: string;
+  name: string;
+  baseUnit: string;
+  isComposite: boolean;
+  /** Vendible en el almacén del turno, en unidad BASE. */
+  available: string;
+  /** Lo que hay pero está vencido: sin este dato, "no hay" mentiría. */
+  expired: string;
+  presentations: LookupPresentation[];
+  /** Cuál presentación llevaba el código escaneado. El carrito la preselecciona. */
+  matchedPresentationId: string | null;
+}
+
+export interface LookupServiceItem {
+  type: "service";
+  matchedBy: LookupKind;
+  id: string;
+  code: string;
+  name: string;
+  price: string | null;
+}
+
+export interface LookupQuoteItem {
+  type: "quote";
+  matchedBy: LookupKind;
+  id: string;
+  folio: string;
+  status: "open" | "loaded" | "canceled";
+  total: string;
+  lineCount: number;
+}
+
+export type LookupItem = LookupProductItem | LookupServiceItem | LookupQuoteItem;
+
+export interface LookupResult {
+  warehouseId: string;
+  /**
+   * `true` cuando respondió una strategy exacta (código, SKU o folio). La
+   * pantalla lo usa para mandar el acierto derecho al carrito en vez de abrir
+   * una lista de un solo renglón.
+   */
+  exact: boolean;
+  items: LookupItem[];
+}
+
+export async function lookup(q: string): Promise<LookupResult> {
+  const { data } = await api.get<LookupResult>("/pos/lookup", { params: { q } });
+  return data;
+}

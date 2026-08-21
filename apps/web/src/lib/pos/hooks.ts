@@ -5,6 +5,8 @@ import {
   closeSession,
   getSession,
   getSessionTotals,
+  type LookupResult,
+  lookup,
   openSession,
   type SessionTotal,
 } from "./api";
@@ -51,5 +53,27 @@ export function useCloseSession() {
   >({
     mutationFn: (input) => closeSession(input),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: POS_SESSION_KEY }),
+  });
+}
+
+/**
+ * F4-CART-01 — la búsqueda del mostrador.
+ *
+ * `enabled` con dos condiciones: hay texto y hay turno. Sin turno el API
+ * responde 409, así que consultarlo sería pedirle a React Query que reintente
+ * un error que ya sabemos que va a llegar.
+ *
+ * `staleTime` corto y no cero: el cajero teclea y borra sobre el mismo input, y
+ * volver a la consulta anterior tiene que ser instantáneo. Corto, porque el
+ * stock se mueve — una respuesta de hace un minuto ya puede estar ofreciendo lo
+ * último que se vendió.
+ */
+export function useLookup(q: string, enabled: boolean) {
+  const termino = q.trim();
+  return useQuery<LookupResult, ApiError>({
+    queryKey: [...POS_SESSION_KEY, "lookup", termino],
+    queryFn: () => lookup(termino),
+    enabled: enabled && termino.length > 0,
+    staleTime: 10_000,
   });
 }

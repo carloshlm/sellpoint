@@ -1,3 +1,4 @@
+import { scaledInteger } from "./decimal-text";
 import { getUnit } from "./units";
 
 /**
@@ -71,4 +72,42 @@ export function formatQuantity(value: string | number, baseUnit: string): string
         : `${entero}.${significativa.padEnd(decimales, "0")}`;
 
   return negativo ? `-${cuerpo}` : cuerpo;
+}
+
+/** Los decimales que admite una cantidad en la base: `DECIMAL(14,4)`. */
+export const QUANTITY_SCALE = 4;
+
+/**
+ * F4-CART-02 — suma dos cantidades escritas como texto.
+ *
+ * Escanear dos veces el mismo código suma sobre el renglón que ya está, y esa
+ * suma no puede pasar por `Number`: `0.1 + 0.2` da `0.30000000000000004`, que
+ * en un producto que se pesa es una cantidad imposible impresa en el ticket.
+ * Se suma en enteros y se vuelve a texto.
+ */
+export function addQuantities(a: string | number, b: string | number): string {
+  const total = scaledInteger(a, QUANTITY_SCALE) + scaledInteger(b, QUANTITY_SCALE);
+  const negativo = total < 0;
+  const absoluto = String(Math.abs(total)).padStart(QUANTITY_SCALE + 1, "0");
+
+  const entero = absoluto.slice(0, -QUANTITY_SCALE);
+  // Los ceros de la derecha no son información: `2.5000` y `2.5` son la misma
+  // cantidad. Los significativos, sí.
+  const fraccion = absoluto.slice(-QUANTITY_SCALE).replace(/0+$/, "");
+  const cuerpo = fraccion === "" ? entero : `${entero}.${fraccion}`;
+
+  return negativo ? `-${cuerpo}` : cuerpo;
+}
+
+/**
+ * El texto del numpad → el número que viaja en el POST.
+ *
+ * **Un solo lugar donde ocurre la conversión.** Devuelve `0` en vez de `NaN`
+ * ante un estado intermedio, y eso importa por lo que pasa después: un `NaN`
+ * en el cuerpo del cobro se serializa a `null` en JSON, y el API contesta un
+ * 422 sobre un campo faltante que nadie va a poder explicar mirando la
+ * pantalla.
+ */
+export function parseQuantity(value: string | number): number {
+  return scaledInteger(value, QUANTITY_SCALE) / 10 ** QUANTITY_SCALE;
 }

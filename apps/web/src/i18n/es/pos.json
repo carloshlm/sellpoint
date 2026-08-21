@@ -1,6 +1,5 @@
 {
   "title": "Punto de venta",
-  "cartComingSoon": "La pantalla de venta llega en la próxima tarea. Tu turno ya está abierto.",
   "payment": {
     "cash": "Efectivo",
     "card": "Tarjeta",
@@ -27,5 +26,32 @@
   "nav": {
     "sell": "Venta",
     "close": "Cierre de caja"
+  },
+  "cart": {
+    "available": "{{quantity}} {{unit}} disponibles",
+    "backspace": "Borrar el último dígito",
+    "cameraUnavailable": "No pudimos usar la cámara. Puedes buscar tecleando.",
+    "clearQuantity": "Limpiar la cantidad",
+    "empty": "El carrito está vacío. Escanea o busca para empezar.",
+    "expiredAside": "{{quantity}} vencidas",
+    "integersOnly": "Esta presentación solo admite enteros.",
+    "maxDecimals": "Hasta cuatro decimales.",
+    "noResults": "No encontramos nada que se pueda vender desde este almacén.",
+    "outOfStock": "Más de lo que hay en este almacén",
+    "presentation": "Presentación",
+    "quantity": "Cantidad",
+    "remove": "Quitar",
+    "scan": "Escanear con la cámara",
+    "search": "Buscar",
+    "searchPlaceholder": "Escanea, teclea el código, el nombre o un folio COT-…",
+    "stopScan": "Dejar de escanear",
+    "subtotal": "Subtotal"
+  },
+  "quote": {
+    "status": {
+      "canceled": "Cancelada",
+      "loaded": "Ya cargada en una venta",
+      "open": "Vigente"
+    }
   }
 }

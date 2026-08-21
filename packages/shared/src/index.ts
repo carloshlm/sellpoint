@@ -1,4 +1,5 @@
 export * from "./countries";
+export * from "./decimal-text";
 export * from "./i18n";
 export * from "./inventory";
 export * from "./money";

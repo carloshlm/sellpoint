@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, hasValidMoneyScale, MONEY_DECIMALS, MONEY_MAX } from "./money";
+import { formatMoney, hasValidMoneyScale, MONEY_DECIMALS, MONEY_MAX, multiplyMoney } from "./money";
 
 /**
  * La columna es `DECIMAL(14,2)`: Postgres REDONDEA en silencio lo que no entra.
@@ -131,5 +131,59 @@ describe("formatMoney", () => {
 
   it("throws RangeError for -Infinity", () => {
     expect(() => formatMoney(Number.NEGATIVE_INFINITY, "MXN", "es")).toThrow(RangeError);
+  });
+});
+
+/**
+ * F4-CART-02 — el total de una línea del carrito.
+ *
+ * Se prueba lo que la coma flotante ROMPE, porque ese es el motivo entero por
+ * el que la función existe. Un POS que muestra `37.049999999999997` a un
+ * cliente perdió la discusión antes de empezarla.
+ */
+describe("multiplyMoney", () => {
+  it("multiplica precio por cantidad", () => {
+    expect(multiplyMoney("12.35", "3")).toBe(37.05);
+    expect(multiplyMoney("10", "2")).toBe(20);
+    expect(multiplyMoney("130.00", "1")).toBe(130);
+  });
+
+  it("no arrastra el error de la coma flotante", () => {
+    // No todo producto se desvía —`12.35 * 3` da exacto— así que los casos
+    // son los que SÍ: tres unidades de siete centavos y de diez.
+    expect(0.07 * 3).not.toBe(0.21);
+    expect(multiplyMoney("0.07", "3")).toBe(0.21);
+
+    expect(0.1 * 3).not.toBe(0.3);
+    expect(multiplyMoney("0.10", "3")).toBe(0.3);
+  });
+
+  it("acepta cantidades fraccionarias de hasta cuatro decimales", () => {
+    // Medio kilo a $80.50 el kilo.
+    expect(multiplyMoney("80.50", "0.5")).toBe(40.25);
+    expect(multiplyMoney("100.00", "0.2500")).toBe(25);
+  });
+
+  it("redondea al centavo, porque no existe medio centavo", () => {
+    // 0.333 kg a $10.00 → 3.33
+    expect(multiplyMoney("10.00", "0.333")).toBe(3.33);
+    // 1.5 × 3.33 → 4.995, que al centavo es 5.00: medio para ARRIBA, como
+    // cualquier caja registradora.
+    expect(multiplyMoney("3.33", "1.5")).toBe(5);
+  });
+
+  it("un precio ausente vale cero, no NaN", () => {
+    // Una presentación sin precio es un dato incompleto del catálogo, no un
+    // motivo para que el total del carrito entero se vuelva ilegible.
+    expect(multiplyMoney(null, "3")).toBe(0);
+    expect(multiplyMoney("", "3")).toBe(0);
+  });
+
+  it("una cantidad a medio teclear vale cero, no NaN", () => {
+    // El numpad produce estados intermedios: "12." y "." son texto válido
+    // mientras alguien escribe. El total no puede parpadear en NaN.
+    expect(multiplyMoney("10.00", "")).toBe(0);
+    expect(multiplyMoney("10.00", ".")).toBe(0);
+    expect(multiplyMoney("10.00", "12.")).toBe(120);
   });
 });

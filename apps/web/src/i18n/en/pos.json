@@ -1,6 +1,5 @@
 {
   "title": "Point of sale",
-  "cartComingSoon": "The sales screen lands in the next task. Your shift is already open.",
   "payment": {
     "cash": "Cash",
     "card": "Card",
@@ -27,5 +26,32 @@
   "nav": {
     "sell": "Sell",
     "close": "Cashbox closing"
+  },
+  "cart": {
+    "available": "{{quantity}} {{unit}} available",
+    "backspace": "Delete the last digit",
+    "cameraUnavailable": "We couldn't use the camera. You can still search by typing.",
+    "clearQuantity": "Clear the quantity",
+    "empty": "The cart is empty. Scan or search to start.",
+    "expiredAside": "{{quantity}} expired",
+    "integersOnly": "This presentation only takes whole numbers.",
+    "maxDecimals": "Up to four decimals.",
+    "noResults": "We found nothing sellable from this warehouse.",
+    "outOfStock": "More than what's in this warehouse",
+    "presentation": "Presentation",
+    "quantity": "Quantity",
+    "remove": "Remove",
+    "scan": "Scan with the camera",
+    "search": "Search",
+    "searchPlaceholder": "Scan, type the code, the name, or a COT- number…",
+    "stopScan": "Stop scanning",
+    "subtotal": "Subtotal"
+  },
+  "quote": {
+    "status": {
+      "canceled": "Canceled",
+      "loaded": "Already loaded into a sale",
+      "open": "Open"
+    }
   }
 }

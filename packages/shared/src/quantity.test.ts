@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatQuantity, quantityDecimals } from "./quantity";
+import { addQuantities, formatQuantity, parseQuantity, quantityDecimals } from "./quantity";
 
 /**
  * Reportado por Carlos mirando el kardex: `+12.0000` y saldo `262.0000` para
@@ -83,5 +83,57 @@ describe("formatQuantity", () => {
       expect(formatQuantity("0.0000", "unit")).toBe("0");
       expect(formatQuantity("0.0000", "kg")).toBe("0.000");
     });
+  });
+});
+
+/**
+ * F4-CART-02 — sumar cantidades en el carrito.
+ *
+ * Escanear el mismo código dos veces suma sobre el renglón que ya está. Si esa
+ * suma se hiciera con `Number`, `0.1 + 0.2` daría `0.30000000000000004` y el
+ * carrito mostraría una cantidad imposible en un producto que se pesa.
+ */
+describe("addQuantities", () => {
+  it("suma enteros y decimales", () => {
+    expect(addQuantities("1", "1")).toBe("2");
+    expect(addQuantities("2.5", "0.5")).toBe("3");
+    expect(addQuantities("0.250", "0.125")).toBe("0.375");
+  });
+
+  it("no arrastra el error de la coma flotante", () => {
+    expect(0.1 + 0.2).not.toBe(0.3);
+    expect(addQuantities("0.1", "0.2")).toBe("0.3");
+  });
+
+  it("conserva los cuatro decimales de la columna", () => {
+    expect(addQuantities("0.0001", "0.0002")).toBe("0.0003");
+  });
+
+  it("un sumando a medio teclear vale cero, no NaN", () => {
+    // El numpad produce "12." y "." mientras alguien escribe.
+    expect(addQuantities("2", "")).toBe("2");
+    expect(addQuantities("2", ".")).toBe("2");
+    expect(addQuantities("2", "3.")).toBe("5");
+  });
+});
+
+/**
+ * El texto del numpad → el número que viaja en el POST. Un solo lugar donde
+ * ocurre la conversión, y devuelve 0 en vez de NaN ante un estado intermedio:
+ * un `NaN` en el cuerpo del cobro se vuelve `null` al serializar a JSON y el
+ * API contesta un 422 que nadie sabe explicar.
+ */
+describe("parseQuantity", () => {
+  it("convierte texto decimal a número", () => {
+    expect(parseQuantity("2.5")).toBe(2.5);
+    expect(parseQuantity("0.0001")).toBe(0.0001);
+  });
+
+  it("un valor a medio teclear vale cero, nunca NaN", () => {
+    for (const texto of ["", ".", "12.", "abc", "-"]) {
+      expect(Number.isNaN(parseQuantity(texto))).toBe(false);
+    }
+    expect(parseQuantity("12.")).toBe(12);
+    expect(parseQuantity("abc")).toBe(0);
   });
 });
