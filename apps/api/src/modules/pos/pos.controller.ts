@@ -21,7 +21,16 @@ import {
   type OpenSessionDto,
   openSessionSchema,
 } from "./dto/open-session.dto";
+import {
+  type CancelQuoteDto,
+  type CreateQuoteDto,
+  cancelQuoteSchema,
+  createQuoteSchema,
+  type ListQuotesQuery,
+  listQuotesQuerySchema,
+} from "./dto/quote.dto";
 import { LookupService } from "./lookup.service";
+import { QuotesService } from "./quotes.service";
 import { SalesService } from "./sales.service";
 
 /**
@@ -38,6 +47,7 @@ export class PosController {
     private readonly cashbox: CashboxService,
     private readonly sales: SalesService,
     private readonly lookup: LookupService,
+    private readonly quotes: QuotesService,
   ) {}
 
   /**
@@ -138,6 +148,67 @@ export class PosController {
   @RequirePermissions("pos:view")
   saleDetail(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.sales.detail(user, id);
+  }
+
+  // ── Cotización (F4-QUOTE) ────────────────────────────────────────────
+  //
+  // `pos:quote` y SIN turno: cotizar es responder "¿cuánto me sale?", y eso
+  // pasa en el mostrador, por teléfono o caminando por el pasillo. Exigir caja
+  // abierta para contestar una pregunta sería burocracia pura.
+
+  @Post("quotes")
+  @RequirePermissions("pos:quote")
+  createQuote(
+    @Body(new ZodValidationPipe(createQuoteSchema, "pos.invalid_body"))
+    dto: CreateQuoteDto,
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+  ) {
+    return this.quotes.create(user, scope, dto);
+  }
+
+  @Get("quotes")
+  @RequirePermissions("pos:quote")
+  listQuotes(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(listQuotesQuerySchema, "pos.invalid_query"))
+    query: ListQuotesQuery,
+  ) {
+    return this.quotes.list(user, query);
+  }
+
+  /**
+   * F4-QUOTE-02 — la cotización lista para cobrar.
+   *
+   * `pos:sell` y no `pos:quote`: acá ya no se cotiza, se prepara un cobro. Y
+   * exige turno, porque la disponibilidad se resuelve contra el almacén de
+   * ESE turno — que puede no ser el de la cotización.
+   *
+   * Va ANTES de `quotes/:id` a propósito: Nest resuelve por orden de
+   * declaración, y `:id` capturaría el literal `folio` como si fuera un uuid.
+   */
+  @Get("quotes/folio/:folio/for-sale")
+  @RequirePermissions("pos:sell")
+  quoteForSale(@Param("folio") folio: string, @CurrentUser() user: AuthUser) {
+    return this.quotes.forSale(user, folio);
+  }
+
+  @Get("quotes/:id")
+  @RequirePermissions("pos:quote")
+  quoteDetail(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.quotes.detail(user, id);
+  }
+
+  @Post("quotes/:id/cancel")
+  @HttpCode(200)
+  @RequirePermissions("pos:quote")
+  cancelQuote(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(cancelQuoteSchema, "pos.invalid_body"))
+    dto: CancelQuoteDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.quotes.cancel(user, id, dto);
   }
 
   /**

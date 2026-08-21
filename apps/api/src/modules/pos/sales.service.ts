@@ -115,6 +115,32 @@ export class SalesService {
           throw new UnprocessableEntityException({ message: "pos.discount_exceeds_subtotal" });
         }
 
+        // ── F4-QUOTE-02: la cotización se marca CARGADA ────────────────────
+        //
+        // **Va ANTES del `create`, y eso importa.** `sales.quote_id` es UNIQUE,
+        // así que un segundo cobro del mismo folio también rebotaría — pero con
+        // un P2002 crudo que sale como 500 y no dice nada. Chequear primero
+        // convierte esa colisión en un 409 con mensaje. (Lo cazó el e2e "una
+        // cotización ya cargada no se cobra de nuevo".)
+        //
+        // `updateMany … WHERE status='open'` con `count = 1` y no un `update` a
+        // secas: dos cajeros con el mismo papel en la mano llegan los dos hasta
+        // acá, y el lock de fila los ordena — el segundo encuentra `loaded` y
+        // no toma nada.
+        //
+        // `loadedAt` no es decorado: el CHECK `quotes_status_coherent` exige
+        // que cada estado traiga SU marca de tiempo. Un `loaded` sin cuándo es
+        // una cotización usada que nadie puede rastrear.
+        if (dto.quoteId !== undefined) {
+          const cargadas = await tx.quote.updateMany({
+            where: { id: dto.quoteId, tenantId: user.tenantId, status: "open" },
+            data: { status: "loaded", loadedAt: new Date() },
+          });
+          if (cargadas.count !== 1) {
+            throw new ConflictException({ message: "pos.quote_not_open" });
+          }
+        }
+
         const folio = await nextFolio(tx, user.tenantId, "sale", POS_FOLIO_PREFIXES.sale);
 
         const venta = await tx.sale.create({

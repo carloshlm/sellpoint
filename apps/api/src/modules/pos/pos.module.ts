@@ -3,6 +3,7 @@ import { InventoryModule } from "../inventory/inventory.module";
 import { CashboxService } from "./cashbox.service";
 import { LookupService } from "./lookup.service";
 import { PosController } from "./pos.controller";
+import { QuotesService } from "./quotes.service";
 import { SalesService } from "./sales.service";
 
 /**
@@ -12,7 +13,7 @@ import { SalesService } from "./sales.service";
 @Module({
   imports: [InventoryModule],
   controllers: [PosController],
-  providers: [CashboxService, SalesService, LookupService],
-  exports: [CashboxService, SalesService, LookupService],
+  providers: [CashboxService, SalesService, LookupService, QuotesService],
+  exports: [CashboxService, SalesService, LookupService, QuotesService],
 })
 export class PosModule {}
