@@ -381,7 +381,7 @@ describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
 
   it("con token en la URL lo canjea contra el API una sola vez y muestra el éxito", async () => {
     verifyEmailMock.mockResolvedValue(undefined);
-    await renderRoute("/verify-email?token=tok-verificacion");
+    await renderRoute("/verify-email#token=tok-verificacion");
 
     expect(await screen.findByTestId("verify-success")).toBeInTheDocument();
     // El token es de UN solo uso: un doble disparo lo quemaría en vano.
@@ -396,7 +396,7 @@ describe("F1-WEB-AUTH-05 — /verify-email consume el token de la URL", () => {
       error: "Bad Request",
       code: "auth.token_invalid",
     });
-    await renderRoute("/verify-email?token=tok-vencido");
+    await renderRoute("/verify-email#token=tok-vencido");
 
     expect(await screen.findByTestId("verify-error")).toHaveTextContent(
       "El enlace no es válido o ya venció",
@@ -456,7 +456,7 @@ describe("F1-WEB-AUTH-07 — /reset-password", () => {
 
   it("con token y password nueva válida llama al API y navega a /login", async () => {
     resetPasswordMock.mockResolvedValue(undefined);
-    const router = await renderRoute("/reset-password?token=tok-reset");
+    const router = await renderRoute("/reset-password#token=tok-reset");
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("Nueva contraseña"), "password-nueva-larga");
@@ -470,7 +470,7 @@ describe("F1-WEB-AUTH-07 — /reset-password", () => {
   });
 
   it("una password de menos de 12 caracteres se corta en el cliente: nunca llega al API", async () => {
-    await renderRoute("/reset-password?token=tok-reset");
+    await renderRoute("/reset-password#token=tok-reset");
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("Nueva contraseña"), "corta");
@@ -516,7 +516,7 @@ describe("Gap S1 — /accept-invitation", () => {
 
   it("con token válido define la primera password y navega a /login", async () => {
     resetPasswordMock.mockResolvedValue(undefined);
-    const router = await renderRoute("/accept-invitation?token=tok-invitacion");
+    const router = await renderRoute("/accept-invitation#token=tok-invitacion");
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("Define tu contraseña"), "mi-primera-password");
@@ -545,7 +545,7 @@ describe("Gap S1 — /accept-invitation", () => {
       error: "Bad Request",
       code: "auth.token_invalid",
     });
-    await renderRoute("/accept-invitation?token=tok-vencido");
+    await renderRoute("/accept-invitation#token=tok-vencido");
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("Define tu contraseña"), "mi-primera-password");
@@ -557,7 +557,7 @@ describe("Gap S1 — /accept-invitation", () => {
   });
 
   it("una password corta se corta en el cliente: nunca llega al API", async () => {
-    await renderRoute("/accept-invitation?token=tok-invitacion");
+    await renderRoute("/accept-invitation#token=tok-invitacion");
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("Define tu contraseña"), "corta");

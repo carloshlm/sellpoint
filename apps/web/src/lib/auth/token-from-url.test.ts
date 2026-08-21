@@ -3,10 +3,18 @@ import { readTokenFromUrl } from "./token-from-url";
 
 /**
  * D3 (#347, cierre de f1-web-onboard): el token de un link de mail viaja por
- * `location.hash`, no por query string — así nunca aparece en un access log
- * de servidor (el fragmento no viaja al servidor, la query sí). El fallback
- * a `?token=` es OBLIGATORIO (A5 del design): hay mails ya enviados con links
- * viejos y la invitación vive 7 días — no se puede romper esos links.
+ * `location.hash`, no por query string — así nunca aparece en un access log de
+ * servidor (el fragmento no viaja al servidor, la query sí).
+ *
+ * ── DEFER.1, retirada del fallback (2026-08-22) ─────────────────────────
+ * El fallback a `?token=` existió para no romper los mails ya enviados con el
+ * formato viejo. Se retiró cuando venció el último: el deploy de D3 fue el
+ * 2026-08-15 y la invitación —el TTL más largo, 7 días— expiraba el 22. La
+ * verificación (24 h) y el reset (30 min) habían vencido mucho antes.
+ *
+ * A partir de acá, un `?token=` en la URL es un token que viajó por un canal
+ * que se descartó a propósito: se IGNORA. Aceptarlo "por las dudas" mantendría
+ * viva justo la vía que este cambio vino a cerrar.
  */
 describe("readTokenFromUrl", () => {
   afterEach(() => {
@@ -28,25 +36,27 @@ describe("readTokenFromUrl", () => {
     expect(window.location.pathname).toBe("/verify-email");
   });
 
-  it("sin hash, cae a location.search (?token=) — retrocompat de mails ya enviados", () => {
+  it("un `?token=` en la query se IGNORA: ese canal quedó retirado", () => {
     window.history.pushState(null, "", "/reset-password?token=tok-legacy");
 
-    expect(readTokenFromUrl()).toBe("tok-legacy");
+    expect(readTokenFromUrl()).toBeUndefined();
   });
 
-  it("también limpia la query string legacy después de leerla", () => {
+  it("el hash sigue leyéndose aunque la query traiga otro token", () => {
+    // Un link raro o manipulado no debe poder colar el token por la query.
+    window.history.pushState(null, "", "/accept-invitation?token=tok-viejo#token=tok-nuevo");
+
+    expect(readTokenFromUrl()).toBe("tok-nuevo");
+  });
+
+  it("sin hash no toca el historial ni la query", () => {
     window.history.pushState(null, "", "/reset-password?token=tok-legacy");
 
     readTokenFromUrl();
 
-    expect(window.location.search).toBe("");
-    expect(window.location.pathname).toBe("/reset-password");
-  });
-
-  it("el hash tiene prioridad sobre la query si ambos están presentes", () => {
-    window.history.pushState(null, "", "/accept-invitation?token=tok-viejo#token=tok-nuevo");
-
-    expect(readTokenFromUrl()).toBe("tok-nuevo");
+    // La URL se deja como está: ya no hay nada que leer ahí, y reescribirla
+    // sugeriría que el token se usó.
+    expect(window.location.search).toBe("?token=tok-legacy");
   });
 
   it("sin hash ni query devuelve undefined y no toca el historial", () => {
@@ -56,8 +66,8 @@ describe("readTokenFromUrl", () => {
     expect(window.location.pathname).toBe("/verify-email");
   });
 
-  it("un token vacío en query (?token=) se trata como ausente", () => {
-    window.history.pushState(null, "", "/verify-email?token=");
+  it("un hash vacío (#token=) se trata como ausente", () => {
+    window.history.pushState(null, "", "/verify-email#token=");
 
     expect(readTokenFromUrl()).toBeUndefined();
   });
