@@ -5,6 +5,7 @@
   "invalid_body": "Revisa los datos del punto de venta.",
   "invalid_query": "Revisa los filtros de la búsqueda.",
   "line_product_xor_service": "Una línea es un producto o un servicio, no las dos cosas.",
+  "lookup_query_required": "La búsqueda no puede ir vacía.",
   "no_default_warehouse": "No tienes un almacén asignado. Elige uno para abrir el turno.",
   "no_session": "Abre un turno de caja antes de vender.",
   "payment_method_invalid": "El método de pago no es válido.",

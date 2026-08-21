@@ -14,12 +14,14 @@ import {
   type ListSalesQuery,
   listSalesQuerySchema,
 } from "./dto/list-sales.dto";
+import { type LookupQuery, lookupQuerySchema } from "./dto/lookup.dto";
 import {
   type CloseSessionDto,
   closeSessionSchema,
   type OpenSessionDto,
   openSessionSchema,
 } from "./dto/open-session.dto";
+import { LookupService } from "./lookup.service";
 import { SalesService } from "./sales.service";
 
 /**
@@ -35,6 +37,7 @@ export class PosController {
   constructor(
     private readonly cashbox: CashboxService,
     private readonly sales: SalesService,
+    private readonly lookup: LookupService,
   ) {}
 
   /**
@@ -80,6 +83,23 @@ export class PosController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.cashbox.close(user, dto);
+  }
+
+  /**
+   * F4-CART-01 — el buscador del carrito.
+   *
+   * `pos:sell` y turno abierto: lo que devuelve es "qué puedo vender AHORA
+   * desde acá", una pregunta que sin turno no tiene sujeto. El 409 es el mismo
+   * que el del cobro a propósito — la pantalla ya sabe qué hacer con él.
+   */
+  @Get("lookup")
+  @RequirePermissions("pos:sell")
+  search(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(lookupQuerySchema, "pos.invalid_query"))
+    query: LookupQuery,
+  ) {
+    return this.lookup.search(user, query);
   }
 
   /**

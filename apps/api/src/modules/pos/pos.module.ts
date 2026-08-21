@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { InventoryModule } from "../inventory/inventory.module";
 import { CashboxService } from "./cashbox.service";
+import { LookupService } from "./lookup.service";
 import { PosController } from "./pos.controller";
 import { SalesService } from "./sales.service";
 
@@ -11,7 +12,7 @@ import { SalesService } from "./sales.service";
 @Module({
   imports: [InventoryModule],
   controllers: [PosController],
-  providers: [CashboxService, SalesService],
-  exports: [CashboxService, SalesService],
+  providers: [CashboxService, SalesService, LookupService],
+  exports: [CashboxService, SalesService, LookupService],
 })
 export class PosModule {}

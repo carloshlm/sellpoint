@@ -5,6 +5,7 @@
   "invalid_body": "Check the point of sale details.",
   "invalid_query": "Check the search filters.",
   "line_product_xor_service": "A line is either a product or a service, not both.",
+  "lookup_query_required": "The search cannot be empty.",
   "no_default_warehouse": "You have no assigned warehouse. Pick one to open the shift.",
   "no_session": "Open a cashbox shift before selling.",
   "payment_method_invalid": "The payment method is not valid.",
