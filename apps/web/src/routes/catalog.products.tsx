@@ -45,7 +45,41 @@ import {
 } from "@/lib/products/hooks";
 import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 
+/** Las pestañas del detalle, como valores: la URL las tiene que validar. */
+const PRODUCT_TABS = ["info", "presentations", "composition", "stock", "kardex"] as const;
+type ProductTab = (typeof PRODUCT_TABS)[number];
+
+export interface ProductsSearch {
+  /** El producto abierto. Sin esto, el listado. */
+  open?: string;
+  /** La pestaña dentro del detalle. */
+  tab?: ProductTab;
+}
+
+/**
+ * **Qué producto estás mirando es parte de DÓNDE estás, no de cómo se ve la
+ * pantalla.** Antes vivía en un `useState`, y por eso el detalle abierto y el
+ * listado compartían la misma URL — `/catalog/products` en los dos casos.
+ *
+ * Eso rompía el menú de una forma que parecía un capricho del navegador:
+ * estando en el Kardex de un producto, hacer clic en "Productos" navegaba a la
+ * URL en la que YA estabas, así que el router no tenía nada que hacer y la
+ * pantalla no se movía. No era que el clic se perdiera: era que no había a
+ * dónde ir.
+ *
+ * Con el producto en la URL, el arreglo no es un parche sino una consecuencia,
+ * y vienen tres cosas más de regalo: la flecha ATRÁS del navegador funciona,
+ * F5 te deja donde estabas, y se puede pasar un enlace al kardex de un
+ * producto concreto.
+ *
+ * `validateSearch` es la aduana: lo que venga en la URL es texto que escribió
+ * cualquiera. Una pestaña inventada se descarta en vez de romper el render.
+ */
 export const Route = createFileRoute("/catalog/products")({
+  validateSearch: (search: Record<string, unknown>): ProductsSearch => ({
+    ...(typeof search.open === "string" && search.open !== "" ? { open: search.open } : {}),
+    ...(PRODUCT_TABS.includes(search.tab as ProductTab) ? { tab: search.tab as ProductTab } : {}),
+  }),
   component: ProductsPage,
 });
 
@@ -74,7 +108,11 @@ function ProductsContent() {
   const [query, setQuery] = useState("");
   const [onlyComposite, setOnlyComposite] = useState(false);
   const [page, setPage] = useState(1);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // El producto abierto sale de la URL, no del estado: ver el docblock de
+  // `Route`. `creating` sí es estado — un formulario a medio llenar no es un
+  // lugar al que se pueda volver con un enlace.
+  const { open: openId, tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -89,7 +127,13 @@ function ProductsContent() {
 
   if (openId) {
     return (
-      <ProductDetailPanel productId={openId} canManage={canManage} onBack={() => setOpenId(null)} />
+      <ProductDetailPanel
+        productId={openId}
+        canManage={canManage}
+        tab={tab ?? "info"}
+        onTab={(next) => navigate({ search: { open: openId, tab: next } })}
+        onBack={() => navigate({ search: {} })}
+      />
     );
   }
 
@@ -181,7 +225,11 @@ function ProductsContent() {
                   <TableCell>{product.price ?? "—"}</TableCell>
                   {onlyComposite && <AvailabilityCell productId={product.id} />}
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => setOpenId(product.id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate({ search: { open: product.id } })}
+                    >
                       {t("products.open")}
                     </Button>
                   </TableCell>
@@ -229,18 +277,19 @@ function AvailabilityCell({ productId }: { productId: string }) {
 function ProductDetailPanel({
   productId,
   canManage,
+  tab,
+  onTab,
   onBack,
 }: {
   productId: string;
   canManage: boolean;
+  tab: ProductTab;
+  onTab: (tab: ProductTab) => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
   const { has } = usePermissions();
   const { data: product, isPending } = useProduct(productId);
-  const [tab, setTab] = useState<"info" | "presentations" | "composition" | "stock" | "kardex">(
-    "info",
-  );
   // `inventory:read` y no `products:read`: ver el catálogo no implica ver
   // cuánto hay ni cómo se movió.
   const canReadInventory = has("inventory:read");
@@ -290,7 +339,7 @@ function ProductDetailPanel({
                 ? "border-b-2 border-primary px-3 py-2 text-sm font-medium"
                 : "px-3 py-2 text-sm text-muted-foreground"
             }
-            onClick={() => setTab(item.id)}
+            onClick={() => onTab(item.id)}
           >
             {item.label}
           </button>

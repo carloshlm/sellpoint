@@ -238,3 +238,89 @@ describe("Control por lote de un producto (F3-LOTS-01)", () => {
     expect(await screen.findByLabelText(/controla por lote/i)).toBeEnabled();
   });
 });
+
+/**
+ * Reportado por Carlos: estando en el Kardex de un producto, hacer clic en
+ * "Productos" en el menú no lo devolvía al listado.
+ *
+ * No era un clic perdido. El producto abierto vivía en un `useState`, así que
+ * el listado y el detalle compartían la URL `/catalog/products` — y el menú
+ * apuntaba a la URL en la que ya estabas. El router no tenía a dónde ir.
+ *
+ * Por eso el test navega de VERDAD, con el enlace del menú, en vez de llamar a
+ * un `onBack`: lo que estaba roto era la navegación, no el botón de volver.
+ */
+describe("El menú devuelve al listado (bug de navegación)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      items: [{ ...PRODUCT, price: "0.02" }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    mockedProducts.listPresentations.mockResolvedValue([]);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("abrir un producto lo deja en la URL, no escondido en el estado", async () => {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Abrir" }));
+
+    // Se lee del ROUTER y no de `window.location`: con `createMemoryHistory`
+    // la barra del navegador no se toca, así que mirar ahí daría un falso rojo.
+    await waitFor(() => {
+      expect(router.state.location.search).toMatchObject({ open: "prod-1" });
+    });
+  });
+
+  it("desde el detalle, el enlace del menú vuelve al listado", async () => {
+    const user = await openProduct();
+    await screen.findByRole("button", { name: "Presentaciones" });
+
+    await user.click(screen.getByRole("link", { name: "Productos" }));
+
+    // El listado de vuelta: la fila con su botón "Abrir", y sin las pestañas
+    // del detalle.
+    expect(await screen.findByRole("button", { name: "Abrir" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Presentaciones" })).not.toBeInTheDocument();
+  });
+
+  it("una pestaña inventada en la URL no rompe la pantalla", async () => {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({
+        initialEntries: ["/catalog/products?open=prod-1&tab=inventada"],
+      }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    // Cae en "info", que es la pestaña por defecto, en vez de reventar.
+    expect(await screen.findByRole("button", { name: "Presentaciones" })).toBeInTheDocument();
+  });
+});
