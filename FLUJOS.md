@@ -14,6 +14,8 @@
 4. [Creación de Producto](#4-creación-de-producto)
 5. [Movimientos de Inventario](#5-movimientos-de-inventario)
 6. [Venta en POS](#6-venta-en-pos)
+   - 6.1 Venta
+   - 6.2 Cotización → carga en venta
 7. [Inventario Físico](#7-inventario-físico)
 8. [Generación de Reporte](#8-generación-de-reporte)
 9. [Multi-Tenancy en Cada Request](#9-multi-tenancy-en-cada-request)
@@ -287,7 +289,10 @@ sequenceDiagram
     end
 ```
 
-> **Por qué el folio se toma al crear el borrador y no al confirmar:** es lo que permite retomar un movimiento a medio cargar buscándolo por su número. Y sale más barato: el lock de `tenant_sequences` se toma en una transacción corta propia y se suelta enseguida, en vez de sostenerse durante todo el posteo. La serie igual no pierde números — un borrador abandonado queda `canceled` con su folio. **F4 hereda el patrón**: el POS puede tomar folio al abrir el carrito.
+> **Por qué el folio se toma al crear el borrador y no al confirmar:** es lo que permite retomar un movimiento a medio cargar buscándolo por su número. Y sale más barato: el lock de `tenant_sequences` se toma en una transacción corta propia y se suelta enseguida, en vez de sostenerse durante todo el posteo. La serie igual no pierde números — un borrador abandonado queda `canceled` con su folio. **F4 lo hereda con un matiz** (corregido en la sincronía pre-F4, 2026-08-21): el POS
+> toma el folio `VTA` **dentro de la transacción del cobro**, no al abrir el carrito — el
+> carrito vive en el cliente (Zustand) y no hay borrador de venta en el servidor que
+> retomar; un carrito abandonado no debe gastar folios.
 
 ### 5.2 Salidas (transacción atómica, cualquier motivo)
 
@@ -388,6 +393,8 @@ flowchart TD
 
 ## 6. Venta en POS
 
+### 6.1 Venta
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -396,11 +403,16 @@ sequenceDiagram
     participant C as Cámara/Escáner
     participant API as API
     participant DB as PostgreSQL
-    participant P as Impresora ESC/POS
+    participant P as Impresora
 
     S->>F: Abre POS
     F->>API: GET /pos/session (turno actual)
-    API-->>F: { sessionId, openedAt }
+    alt Sin turno abierto
+        API-->>F: 409 pos.no_session
+        F-->>S: Pantalla de apertura de turno<br/>(almacén asignado preseleccionado)
+    else Turno abierto
+        API-->>F: { sessionId, warehouseId, openedAt }
+    end
 
     S->>C: Escanea código de barras
     C-->>F: barcode = "7501..."
@@ -423,8 +435,10 @@ sequenceDiagram
     F-->>S: Calcula vuelto
     S->>F: Confirma
 
-    F->>API: POST /pos/sales { items, payment, sessionId }
+    F->>API: POST /pos/sales { items, payment, sessionId }<br/>header Idempotency-Key (generada al abrir el modal)
+    Note over F,API: El POST manda ids y cantidades,<br/>NUNCA precios: los pone el server<br/>desde el catálogo
     API->>DB: BEGIN TRANSACTION
+    API->>DB: nextFolio('sale') → VTA-000001<br/>(la serie del tenant, en la MISMA tx)
 
     loop por cada item
         API->>DB: SELECT product FOR UPDATE
@@ -441,16 +455,52 @@ sequenceDiagram
     API->>DB: COMMIT
     API-->>F: 201 { saleId, ticket }
 
-    alt Impresora USB/Red (desktop)
-        F->>F: window.print() con CSS @page 58/80mm
-        F-->>P: ESC/POS via diálogo nativo
-    else Impresora Bluetooth (mobile/tablet)
-        F->>F: Genera buffer ESC/POS<br/>(escpos-buffer)
-        F->>P: Web Bluetooth API → write characteristic
-    end
+    F->>F: window.print() con CSS @page 58/80mm
+    F-->>P: Impresión vía diálogo del navegador (USB/Red)
+    Note over F,P: Web Bluetooth (ESC/POS) DIFERIDA — F4-PRINT-BT:<br/>sin impresora térmica real contra la que probar,<br/>implementarla sería código de fe (Carlos, 2026-08-20)
 
     P-->>S: Ticket impreso
     F->>F: Limpia carrito, listo para siguiente venta
+```
+
+### 6.2 Cotización → carga en venta (adelantada de F9, decisiones de Carlos 2026-08-20)
+
+> La cotización **no exige turno ni toca stock o dinero** — es una lista con folio. Y
+> **no congela precios**: los impresos son de referencia y el POS los recalcula al
+> cargarla. El caso: un mostrador de recepción arma la lista; el cliente pasa a caja
+> con su folio y nadie recaptura. En F9, el módulo de médicos genera el mismo folio
+> desde una receta.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor R as Recepción (pos:quote)
+    actor S as Cajero (pos:sell)
+    participant F as Frontend
+    participant API as API
+    participant DB as PostgreSQL
+
+    R->>F: Menú → Punto de venta → Cotización
+    Note over R,F: SIN turno de caja: opera contra el<br/>almacén asignado del cotizador
+    R->>F: Arma la lista (productos, servicios,<br/>presentaciones — la misma maquinaria del carrito)
+    R->>F: Click "Generar cotización"
+    F->>API: POST /pos/quotes { lines }
+    API->>DB: nextFolio('quote') → COT-000001<br/>INSERT quote (status='open') + quote_lines<br/>precios de REFERENCIA del catálogo server-side
+    Note over API,DB: NI UN stock_movement. Un producto con<br/>todo su stock VENCIDO no se cotiza<br/>(la misma regla que la venta)
+    API-->>F: 201 { folio: 'COT-000001' }
+    F-->>R: Ticket marcado COTIZACIÓN<br/>"el precio final se calcula en caja"
+
+    Note over R,S: El cliente pasa a caja con su folio
+
+    S->>F: Teclea COT-000001 en el input del POS
+    F->>API: GET /pos/quotes/folio/COT-000001/for-sale
+    API->>DB: Relee precios del catálogo VIGENTE<br/>+ disponibilidad contra el almacén del TURNO
+    API-->>F: { lines con precios RECALCULADOS,<br/>faltantes MARCADOS (no escondidos) }
+    F-->>S: Modal de confirmación
+    S->>F: Confirma → líneas al carrito (recuerda quoteId)
+    S->>F: Cobra (flujo 6.1)
+    API->>DB: Sale.quote_id = quote.id<br/>UPDATE quote SET status='loaded'
+    Note over API,DB: Una quote loaded o canceled<br/>no se carga de nuevo → 409
 ```
 
 ---

@@ -22,6 +22,7 @@
    - 6.2 Producto — Detalle / Form
    - 6.3 Editor de Schema
    - 6.4 Importar desde Excel
+   - 6.5 Servicios — Lista y alta
 7. [Almacenes](#7-almacenes)
 8. [Movimientos](#8-movimientos)
    - 8.1 Entrada
@@ -29,11 +30,14 @@
    - 8.3 Traspasos en Tránsito
    - 8.4 Inventario Físico
    - 8.5 Histórico de Movimientos / Kardex
+   - 8.6 Listados por serie
+   - 8.7 Documento
 9. [Punto de Venta (POS)](#9-punto-de-venta-pos)
    - 9.1 Pantalla principal de venta
    - 9.2 Modal de cobro
    - 9.3 Historial de ventas
    - 9.4 Cierre de caja
+   - 9.5 Cotización
 10. [Reportes](#10-reportes)
 11. [Sistema](#11-sistema)
     - 11.1 Usuarios
@@ -71,6 +75,7 @@
 │              │                                                         │
 │  📦 Catálogo │              CONTENIDO DE LA VISTA                      │
 │   └ Productos│                                                         │
+│   └ Servicios│                                                         │
 │   └ Schema   │                                                         │
 │              │                                                         │
 │  🏬 Almacenes│                                                         │
@@ -78,9 +83,14 @@
 │  🔄 Movimientos                                                        │
 │   └ Entradas │                                                         │
 │   └ Salidas  │                                                         │
+│   └ Traspasos│                                                         │
 │   └ Inv.Físico                                                         │
+│   └ Próx. a vencer                                                     │
 │              │                                                         │
-│  🛒 POS      │                                                         │
+│  🛒 Punto de venta                                                     │
+│   └ Venta    │  ← pos:sell                                             │
+│   └ Cotización  ← pos:quote (F4)                                       │
+│   └ Historial│  ← pos:view (F4)                                        │
 │              │                                                         │
 │  📈 Reportes │                                                         │
 │              │                                                         │
@@ -1163,7 +1173,7 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  🛒 POS — Turno abierto desde 09:00          {María L. ▼}      │
+│  🛒 POS — {Almacén Centro} · Turno abierto desde 09:00  {María L. ▼} │
 ├──────────────────────────────────────────┬──────────────────────┤
 │                                          │                      │
 │  📷 [   Escanear con cámara    ]         │      CARRITO         │
@@ -1190,9 +1200,15 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 └──────────────────────────────────────────┴──────────────────────┘
 ```
 
+> **Actualizado pre-F4 (2026-08-21):** la barra muestra el **almacén del turno** (deuda
+> de F3-HOME-05: el vendedor tiene que saber desde dónde está descontando), y el input
+> principal es **extensible** (strategy de lookups, ARQUITECTURA § 9.4): acepta SKU,
+> código de barras, texto, **servicios** ofrecidos en ese almacén y **folio `COT-…`**
+> (carga una cotización — ver § 9.5 y CU-POS-05).
+
 **Acciones:**
 - Escanear código de barras con cámara (`@zxing/browser`)
-- Búsqueda predictiva por SKU/nombre
+- Búsqueda predictiva por SKU/nombre/servicio, o folio `COT-…` para cargar una cotización
 - Acceso rápido a productos favoritos (configurables)
 - Ajustar cantidad por línea (+/−)
 - Eliminar línea
@@ -1215,6 +1231,8 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 - Internamente, al COBRAR, el sistema **expande la composición** y descuenta los componentes en transacción atómica (ver [CU-MOV-01](CASOS_DE_USO.md#cu-mov-01--registrar-una-entrada)).
 - Si algún componente no tiene stock suficiente en el almacén del POS → la venta falla con mensaje claro indicando qué componente falta y cuántas unidades son posibles con el stock actual.
 - El stock visible del compuesto en el POS es el **calculado en vivo**: `min(stock_componente_i / qty_i)`.
+
+**Casos de uso relacionados:** [CU-POS-01](CASOS_DE_USO.md#cu-pos-01--realizar-una-venta) · [CU-POS-05](CASOS_DE_USO.md#cu-pos-05--cargar-una-cotización-en-la-venta)
 
 ---
 
@@ -1248,15 +1266,26 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 ```
 
 Después de confirmar:
-- Toast "Venta #4523 registrada"
+- Toast "Venta VTA-004523 registrada" — el folio sale de la serie `VTA` del tenant
+  (`tenant_sequences`, el mismo mecanismo que `ENT`/`SAL`/`INV`), nunca un contador suelto
 - Auto-imprime ticket
 - Limpia carrito y vuelve a la pantalla principal lista para la siguiente venta
+
+> **Idempotencia (F4-SALE-02):** al abrirse el modal se genera una `Idempotency-Key`;
+> un doble tap en «Confirmar venta» devuelve **la misma venta** (200), no una duplicada.
+> Un 409 de stock concurrente cae SOBRE el modal, nunca se traga (lección del confirm
+> mudo de F3).
 
 ---
 
 ### 9.3 Historial de ventas
 
 **Ruta:** `/pos/sales` · **Permiso:** `pos:view`
+
+> **`pos:view` nace en F4-DB-03.** Esta vista lo exigía desde el diseño original y el
+> permiso **no existía** en el catálogo (fantasma detectado en la atomización de F4,
+> 2026-08-20): se crea ahí, no se hereda el hueco. Filtros: fecha, vendedor y **turno**.
+> La columna es el **folio `VTA-…`**, no un número suelto.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -1317,6 +1346,65 @@ Después de confirmar:
 │                  [Cancelar]  [Cerrar turno e imprimir]         │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+> El cierre guarda **declarado, calculado y diferencia** — la diferencia se registra,
+> no se bloquea (F4-CASHBOX-02). Un turno cerrado no vende.
+
+**Casos de uso relacionados:** [CU-POS-01](CASOS_DE_USO.md#cu-pos-01--realizar-una-venta) · [CU-POS-02](CASOS_DE_USO.md#cu-pos-02--anular-venta) · [CU-POS-03](CASOS_DE_USO.md#cu-pos-03--cierre-de-caja)
+
+---
+
+### 9.5 Cotización
+
+**Ruta:** `/pos/quotes` (listado) · `/pos/quotes/new` (nueva) · **Permiso:** `pos:quote`
+
+> **Adelantada de F9 a F4 (decisión de Carlos, 2026-08-20):** el caso que la trae es un
+> **mostrador de recepción antes de la caja** — alguien arma la lista, imprime un ticket
+> con folio `COT-…`, y el cliente pasa a caja donde el folio carga todo sin recapturar.
+> En el futuro, el módulo de médicos de F9 genera el mismo folio desde una receta.
+> Tres decisiones la definen: **(1)** permiso propio `pos:quote`, distinto de `pos:sell`
+> — la recepción cotiza sin poder cobrar; **(2)** **no exige turno de caja** — no toca
+> dinero ni stock, opera contra el almacén asignado del cotizador; **(3)** **no congela
+> precios ni maneja vigencia** — los precios impresos son de referencia y al cargarla en
+> el POS se **recalculan con el catálogo vigente**. — `topic_key: sellpoint/f4-atomizacion`
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  📋 Cotización — {Almacén Centro}              {Recepción R. ▼} │
+├──────────────────────────────────────────┬──────────────────────┤
+│                                          │                      │
+│  📷 [   Escanear con cámara    ]         │      COTIZACIÓN      │
+│                                          │                      │
+│  🔍 (Buscar producto o servicio...)      │  ┌────────────────┐  │
+│                                          │  │ Paracetamol    │  │
+│  ─── Acceso rápido ───                   │  │ 1 × $15.00     │  │
+│  (la misma maquinaria del carrito        │  │ [- 1 +]    🗑  │  │
+│   de venta: presentaciones, numpad,      │  ├────────────────┤  │
+│   compuestos — sin cobro)                │  │ Consulta gral. │  │
+│                                          │  │ 1 × $250.00    │  │
+│                                          │  └────────────────┘  │
+│                                          │                      │
+│                                          │  Total ref.: $265.00 │
+│                                          │                      │
+│                                          │  [🗑 Vaciar]         │
+│                                          │  [📋 GENERAR COTIZACIÓN] │
+└──────────────────────────────────────────┴──────────────────────┘
+```
+
+**Acciones:**
+- «Generar cotización» → folio `COT-000001` (serie propia por tenant) + ticket 58/80 mm
+  con la marca **COTIZACIÓN**, precios de referencia y la leyenda *«el precio final se
+  calcula en caja»* — nunca parece un comprobante de venta
+- Listado en `/pos/quotes` con búsqueda por folio y estado (`open` / `loaded` / `canceled`)
+- Cancelar una cotización abierta
+- **No hay botón de cobro**: cobrar es del POS. La cotización se carga allá tecleando su
+  folio (§ 9.1); al cobrarse queda `loaded`, vinculada a la venta por `Sale.quote_id`, y
+  no puede volver a cargarse (409)
+- Una cotización **no escribe un solo `stock_movement`**: es una lista con folio, no una
+  operación. Un producto cuyo único stock está **vencido** no se puede cotizar (la misma
+  regla que la venta, aplicada en su consulta de disponibilidad — F4-QUOTE-01)
+
+**Casos de uso relacionados:** [CU-POS-04](CASOS_DE_USO.md#cu-pos-04--generar-una-cotización) · [CU-POS-05](CASOS_DE_USO.md#cu-pos-05--cargar-una-cotización-en-la-venta)
 
 ---
 
@@ -1505,8 +1593,8 @@ Después de confirmar:
 │  │              │                                           │ │
 │  │              │  ─── POS ───                              │ │
 │  │              │   ☑ pos:sell                              │ │
-│  │              │   ☑ pos:close_cashbox                     │ │
-│  │              │   ☐ pos:annul                             │ │
+│  │              │   ☑ pos:quote                             │ │
+│  │              │   ☑ pos:view                              │ │
 │  │              │                                           │ │
 │  │              │  ─── Reportes ───                         │ │
 │  │              │   ☑ reports:view                          │ │

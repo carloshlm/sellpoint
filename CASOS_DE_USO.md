@@ -82,7 +82,9 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | Inventario físico (**aprobar**) · Cancelar traspaso | ❌ | ✅ | ❌ | ❌ | ❌ |
 | Ver kardex | ❌ | ✅ | ✅ | 👁 | 👁 |
 | **POS** |  |  |  |  |  |
-| Operar POS (vender) | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Operar POS (vender) — `pos:sell` | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Generar cotización — `pos:quote` (F4) | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Ver historial de ventas — `pos:view` (F4) | ❌ | ✅ | ✅ | ✅ | 👁 |
 | Cierre de caja | ❌ | ✅ | ✅ | ✅ | ❌ |
 | Anular venta | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Reportes** |  |  |  |  |  |
@@ -518,7 +520,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | `adjustment` — Ajuste por sobrante | `transfer` — Traspaso a otro almacén (pide destino) |
 | `transfer` — Traspaso desde otro almacén (pide origen) | `loss` — Pérdida/Robo |
 | `customer_return` — Devolución de cliente (manual, sin venta) | `expired` — Caducado |
-| `sale_return` — **reservado F4**: anulación / devolución ligada a una venta | `sale` — **reservado F4**: venta desde el POS |
+| `sale_return` — **solo lo emite el POS (F4)**: anulación / devolución ligada a una venta | `sale` — **solo lo emite el POS (F4)**: venta; los endpoints directos lo rechazan |
 | `physical_count` — solo lo emite la aprobación del inventario físico (CU-MOV-05) | `physical_count` — ídem |
 
 > Cuando el motivo es `transfer`, el sistema vincula el movimiento al `Transfer` correspondiente. Para todos los demás motivos, el movimiento es independiente.
@@ -692,38 +694,55 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 #### **CU-POS-01 — Realizar una venta**
 
+> **Revisado en la sincronía pre-F4 (2026-08-21):** turno de caja obligatorio, folio
+> `VTA`, precios server-side, servicios en el carrito e `Idempotency-Key`.
+
 - **Actor:** TenantAdmin / Manager / POS_Seller
-- **Precondición:** Sesión activa con permiso `pos:sell`. Existe stock.
+- **Precondición:** Sesión activa con permiso `pos:sell` y **turno de caja abierto**
+  (sin turno → 409 `pos.no_session`). El turno fija el ALMACÉN del que sale todo.
 - **Flujo principal:**
-  1. POS → pantalla de venta
-  2. Escanea código de barras o busca por nombre/SKU (búsqueda predictiva)
-  3. Sistema agrega al carrito; valida que haya stock
+  1. POS → pantalla de venta (la barra muestra el almacén del turno)
+  2. Escanea código de barras o busca por nombre/SKU/servicio — o teclea un folio
+     `COT-…` para cargar una cotización (CU-POS-05)
+  3. Sistema agrega al carrito; valida stock contra el almacén del turno
   4. Ajusta cantidades / aplica descuento por línea o global (si tiene permiso)
-  5. Click "Cobrar" → selecciona método de pago (efectivo, tarjeta, transferencia)
+  5. Click "Cobrar" → selecciona método de pago (efectivo, tarjeta, transferencia);
+     al abrirse el modal se genera una `Idempotency-Key`
   6. Sistema ejecuta **transacción atómica**:
-     - Crea `sale` y sus `sale_items`
-     - Descuenta stock de cada producto
-     - Registra movimientos de salida
+     - Toma el folio `VTA-000001` de la serie del tenant y crea `sale` + `sale_items`
+     - **Los precios los pone el servidor** desde el catálogo — el POST manda ids y
+       cantidades, nunca precios
+     - Las líneas de PRODUCTO descuentan stock vía `StockLedgerService.apply`
+       (`reason='sale'`, FEFO y compuestos expandidos heredados de F3); las líneas de
+       SERVICIO no tocan el ledger
      - Genera ticket
-  7. Imprime ticket (USB/Red o Bluetooth) y/o lo envía por email
+  7. Imprime ticket (`window.print`, USB/navegador — Bluetooth diferido, F4-PRINT-BT)
+     y/o lo envía por email
 - **Flujos alternativos:**
-  - 3a. Producto sin stock → bloquea o pide confirmación según política del tenant
+  - 3a. Producto sin stock (o con todo su stock **vencido**: un lote caducado no se
+    vende) → bloqueado con detalle de cuánto hay
   - 4a. Descuento sobre el permitido → requiere autorización (login secundario de manager)
-  - 6a. Falla la impresión → opción de reimprimir desde el historial
-- **Postcondición:** Venta registrada. Stock descontado. Ticket emitido.
+  - 5a. Doble tap en "Confirmar" → la `Idempotency-Key` devuelve **la misma venta** (200)
+  - 6a. Dos ventas concurrentes del último ítem → una pasa, la otra 409 con detalle
+  - 7a. Falla la impresión → opción de reimprimir desde el historial
+- **Postcondición:** Venta registrada con folio `VTA-…` vinculada al turno. Stock
+  descontado por el ledger. Ticket emitido.
 
 ---
 
 #### **CU-POS-02 — Anular venta**
 
-- **Actor:** TenantAdmin / Manager
+- **Actor:** TenantAdmin / Manager — **el cajero NO anula**
 - **Precondición:** Venta del mismo día (configurable).
 - **Flujo principal:**
   1. POS → Historial de ventas → selecciona venta → "Anular"
-  2. Ingresa motivo
-  3. Sistema crea movimientos de **devolución a stock** (entradas por ajuste con motivo "anulación de venta")
-  4. Venta queda marcada como `anulada`
-- **Postcondición:** Stock restituido. Venta no contabiliza.
+  2. Ingresa la **justificación (obligatoria)**
+  3. Sistema restaura el stock vía `StockLedgerService.apply` con motivo **`sale_return`**
+     — no un "ajuste": el reverso queda ligado a SU venta y el kardex lo dice
+  4. Venta queda marcada como `canceled`; en el cierre de caja no suma
+- **Flujos alternativos:**
+  - 3a. Doble anulación → 409 (ya estaba anulada)
+- **Postcondición:** Stock restituido exacto. Venta no contabiliza, vínculo auditado.
 
 ---
 
@@ -734,9 +753,64 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   1. POS → "Cierre de caja"
   2. Sistema muestra totales del turno por método de pago + cantidad de ventas
   3. Usuario ingresa el efectivo contado en caja
-  4. Sistema calcula diferencia (sobrante/faltante)
-  5. Confirma cierre → genera reporte de cierre imprimible
-- **Postcondición:** Turno cerrado. No se pueden hacer más ventas hasta abrir otro turno.
+  4. Sistema calcula diferencia (sobrante/faltante) y guarda **declarado, calculado y
+     diferencia** — la diferencia se registra, no se bloquea (F4-CASHBOX-02)
+  5. Confirma cierre → genera reporte de cierre imprimible; las ventas anuladas no suman
+- **Postcondición:** Turno cerrado. No se pueden hacer más ventas hasta abrir otro turno
+  (cada usuario tiene a lo sumo UN turno abierto; abrirlo de nuevo con uno vivo → 409).
+
+---
+
+#### **CU-POS-04 — Generar una cotización**
+
+> **Adelantado de F9 a F4 (Carlos, 2026-08-20):** el caso es un mostrador de recepción
+> antes de la caja; en el futuro, el módulo de médicos de F9 genera el mismo folio desde
+> una receta. — `topic_key: sellpoint/f4-atomizacion`
+
+- **Actor:** Cualquiera con `pos:quote` (POS_Seller nace con él; una recepcionista puede
+  tener `pos:quote` SIN `pos:sell` — cotiza sin poder cobrar)
+- **Precondición:** Sesión activa. **NO exige turno de caja** — la cotización no toca
+  dinero ni stock. Opera contra el almacén asignado del cotizador (o uno de su alcance).
+- **Flujo principal:**
+  1. Menú → Punto de venta → Cotización (`/pos/quotes/new`)
+  2. Arma la lista con la misma maquinaria del carrito de venta: productos (con
+     presentación), servicios ofrecidos en ese almacén, numpad, compuestos — sin cobro
+  3. Click "Generar cotización" → folio `COT-000001` de la serie propia del tenant
+  4. Sistema guarda la cotización con **precios de referencia tomados del catálogo
+     server-side** y estado `open`
+  5. Imprime ticket 58/80 mm con la marca **COTIZACIÓN**, los precios de referencia y la
+     leyenda *"el precio final se calcula en caja"*
+- **Flujos alternativos:**
+  - 2a. Un producto cuyo único stock está **vencido** no se puede cotizar (la misma regla
+    que la venta, aplicada en la consulta de disponibilidad — F4-QUOTE-01)
+  - 2b. Un servicio no ofrecido en ese almacén no aparece en la búsqueda
+  - 3a. Sin `pos:quote` → 403
+  - 5a. Puede cancelarla después (`canceled`); una cancelada no se carga en el POS
+- **Postcondición:** Cotización `COT-…` en estado `open`. **Ni un solo `stock_movement`**:
+  es una lista con folio, no una operación. Sin vigencia ni precios congelados.
+
+---
+
+#### **CU-POS-05 — Cargar una cotización en la venta**
+
+- **Actor:** TenantAdmin / Manager / POS_Seller (`pos:sell`)
+- **Precondición:** Turno de caja abierto. Existe una cotización en estado `open`.
+- **Flujo principal:**
+  1. En el POS, teclea o escanea el folio `COT-…` en el input principal (`QuoteLookup`)
+  2. Sistema muestra un modal con las líneas, los **precios RECALCULADOS del catálogo
+     vigente** (decisión de Carlos: la cotización no congela precios) y la
+     **disponibilidad contra el almacén del TURNO** — faltantes y servicios no ofrecidos
+     ahí vienen marcados, no escondidos
+  3. Confirma → las líneas se vuelcan al carrito; el `quoteId` queda recordado
+  4. Cobra como cualquier venta (CU-POS-01)
+  5. Al cobrarse: `Sale.quote_id` se vincula y la cotización pasa a `loaded`
+- **Flujos alternativos:**
+  - 1a. Folio inexistente → mensaje claro, el input queda listo para otro intento
+  - 1b. Cotización `loaded` o `canceled` → 409, no se carga dos veces
+  - 2a. El cajero puede quitar líneas sin stock antes de cobrar; la venta parcial
+    igualmente vincula la cotización
+- **Postcondición:** Venta con `quote_id` — nadie recapturó nada. La cotización `loaded`
+  no vuelve a cargarse.
 
 ---
 
