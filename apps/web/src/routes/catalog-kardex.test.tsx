@@ -139,7 +139,7 @@ afterEach(() => {
 
 describe("Tab Kardex (F3-KARDEX-02)", () => {
   it("muestra el movimiento con su folio y el saldo que quedó", async () => {
-    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} />);
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
     const fila = (await screen.findByText("ENT-000042")).closest("tr") as HTMLElement;
 
@@ -149,7 +149,7 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
   });
 
   it("el folio enlaza al documento", async () => {
-    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} />);
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
     const enlace = await screen.findByRole("link", { name: "ENT-000042" });
 
@@ -157,7 +157,9 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
   });
 
   it("cambiar el motivo dispara el request con ese filtro", async () => {
-    const user = renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} />);
+    const user = renderTab(
+      <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,
+    );
     await screen.findByText("ENT-000042");
 
     await user.selectOptions(screen.getByLabelText(/motivo/i), "loss");
@@ -172,7 +174,7 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
 
   /** Las columnas de lote solo estorban en un producto que no los maneja. */
   it("sin lotes no muestra la columna de lote", async () => {
-    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} />);
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
     await screen.findByText("ENT-000042");
     expect(screen.queryByRole("columnheader", { name: /lote/i })).not.toBeInTheDocument();
@@ -186,7 +188,7 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
       pageSize: 50,
       isComposite: false,
     });
-    renderTab(<KardexTab productId="p1" tracksLots={true} isComposite={false} />);
+    renderTab(<KardexTab productId="p1" tracksLots={true} isComposite={false} baseUnit="unit" />);
 
     await screen.findByText("ENT-000042");
     expect(screen.getByRole("columnheader", { name: /lote/i })).toBeInTheDocument();
@@ -198,7 +200,7 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
    * una tabla vacía haría pensar que nunca se movió.
    */
   it("un compuesto explica que no tiene kardex propio", async () => {
-    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={true} />);
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={true} baseUnit="unit" />);
 
     expect(await screen.findByText(/no tienen kardex propio/i)).toBeInTheDocument();
     expect(mocked.getKardex).not.toHaveBeenCalled();
@@ -212,7 +214,7 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
       pageSize: 50,
       isComposite: false,
     });
-    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} />);
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
     expect(await screen.findByText(/sin movimientos/i)).toBeInTheDocument();
   });
@@ -497,5 +499,64 @@ describe("Editar un lote (F3-LOTS-04)", () => {
     await user.click(screen.getByRole("button", { name: /^guardar$/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/ya lo usa otro lote/i);
+  });
+});
+
+/**
+ * Reportado por Carlos mirando el kardex de ADVIL: `+12.0000` y saldo
+ * `262.0000` para un producto que se cuenta en piezas. El `.0000` no lo
+ * decidía nadie — la columna de la base es `numeric(_,4)` y la pantalla
+ * pintaba el string tal cual.
+ *
+ * La precisión es una propiedad de lo que se MIDE, no del número que salió
+ * hoy: piezas no tienen mitades, kilos sí.
+ */
+describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
+  const conMovimiento = () => {
+    mocked.getKardex.mockResolvedValue({
+      rows: [movimiento({ quantity: "12.0000", balanceAfter: "262.0000" })],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+      isComposite: false,
+    });
+    mocked.getStock.mockResolvedValue(resumen());
+    mocked.getInTransit.mockResolvedValue({ rows: [] });
+  };
+
+  it("un producto en piezas no muestra decimales", async () => {
+    conMovimiento();
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    expect(await screen.findByText(/\+12$/)).toBeInTheDocument();
+    expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262$/);
+  });
+
+  it("el MISMO valor en kilos conserva la precisión de su unidad", async () => {
+    conMovimiento();
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="kg" />);
+
+    expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262\.000$/);
+  });
+
+  /**
+   * La válvula de seguridad. Media pieza es un dato imposible —una importación
+   * torcida, una migración a medias— y redondearlo a 263 lo ESCONDERÍA. En un
+   * libro de inventario, un formato que tapa una inconsistencia es peor que
+   * uno feo: el número raro tiene que verse raro.
+   */
+  it("media pieza se MUESTRA en vez de redondearse", async () => {
+    mocked.getKardex.mockResolvedValue({
+      rows: [movimiento({ quantity: "12.0000", balanceAfter: "262.5000" })],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+      isComposite: false,
+    });
+    mocked.getStock.mockResolvedValue(resumen());
+    mocked.getInTransit.mockResolvedValue({ rows: [] });
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262\.5$/);
   });
 });

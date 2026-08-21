@@ -1,4 +1,4 @@
-import { REASON_RULES, unitName } from "@sellpoint/shared";
+import { formatQuantity, REASON_RULES, unitName } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -619,7 +619,8 @@ function LineRow({
         </>
       )}
       <td className="px-2 py-2">
-        {row.stockBefore} → {row.stockAfter}
+        {formatQuantity(row.stockBefore, product?.baseUnit ?? "")} →{" "}
+        {formatQuantity(row.stockAfter, product?.baseUnit ?? "")}
         {!esConteo && row.newLot && (
           <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
             {t("inventory.document.newLot")}
@@ -686,7 +687,10 @@ function Disponible({
   if (presentacion === undefined) {
     return (
       <span className="block text-muted-foreground text-xs">
-        {t("inventory.document.availableBase", { quantity: row.available, unit: unidad })}
+        {t("inventory.document.availableBase", {
+          quantity: formatQuantity(row.available, product.baseUnit),
+          unit: unidad,
+        })}
       </span>
     );
   }
@@ -700,7 +704,7 @@ function Disponible({
   return (
     <span className="block text-muted-foreground text-xs">
       {t("inventory.document.availableWithPresentation", {
-        base: row.available,
+        base: formatQuantity(row.available, product.baseUnit),
         unit: unidad,
         quantity: mostrado,
         presentation: presentacion.name,

@@ -1,4 +1,4 @@
-import { MOVEMENT_REASONS } from "@sellpoint/shared";
+import { formatQuantity, MOVEMENT_REASONS } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,12 @@ interface KardexTabProps {
   productId: string;
   tracksLots: boolean;
   isComposite: boolean;
+  /**
+   * La unidad en la que se mide el producto. Decide cuántos decimales tienen
+   * sentido: lo que se cuenta en piezas no puede tener medias piezas, así que
+   * `262.0000` son cuatro dígitos que nunca van a significar nada.
+   */
+  baseUnit: string;
 }
 
 /**
@@ -24,7 +30,7 @@ interface KardexTabProps {
  * Las columnas de lote solo aparecen si el producto los maneja: en uno que no,
  * son tres columnas vacías que solo hacen scroll.
  */
-export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps) {
+export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: KardexTabProps) {
   const { t, i18n } = useTranslation();
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [reasonCode, setReasonCode] = useState("");
@@ -142,7 +148,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
                     {/* El signo lo da la dirección: un kardex sin signo obliga
                         a leer dos columnas para saber si sumó o restó. */}
                     {row.direction === "entry" ? "+" : "−"}
-                    {row.quantity}
+                    {formatQuantity(row.quantity, baseUnit)}
                     {row.presentation !== null && (
                       <span className="ml-2 text-muted-foreground text-xs">
                         {row.presentation.quantityInPresentation} {row.presentation.name}
@@ -172,7 +178,7 @@ export function KardexTab({ productId, tracksLots, isComposite }: KardexTabProps
                   </td>
                   <td className="px-2 py-2">{row.createdBy.name}</td>
                   <td data-testid="balance-after" className="py-2 font-medium">
-                    {row.balanceAfter}
+                    {formatQuantity(row.balanceAfter, baseUnit)}
                   </td>
                 </tr>
               ))}

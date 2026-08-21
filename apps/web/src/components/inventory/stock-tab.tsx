@@ -1,4 +1,4 @@
-import { unitName } from "@sellpoint/shared";
+import { formatQuantity, unitName } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -75,7 +75,7 @@ export function StockTab({ productId }: { productId: string }) {
                 <tr key={row.warehouseId} className="border-b last:border-0">
                   <td className="px-2 py-2">{row.name}</td>
                   <td className="px-2 py-2">
-                    {row.quantity} {unidad}
+                    {formatQuantity(row.quantity, data.baseUnit)} {unidad}
                   </td>
                   <td className="px-2 py-2 text-muted-foreground">
                     {/* `null` no es una fecha vieja: nunca se movió nada acá. */}
@@ -117,7 +117,7 @@ export function StockTab({ productId }: { productId: string }) {
                         </Badge>
                       )}
                     </td>
-                    <td className="py-1">{lot.quantity}</td>
+                    <td className="py-1">{formatQuantity(lot.quantity, data.baseUnit)}</td>
                     <td className="py-1 text-muted-foreground">
                       {lot.expiresAt === null
                         ? "—"
@@ -174,7 +174,7 @@ export function StockTab({ productId }: { productId: string }) {
                   {t("inventory.kardex.inTransit")}
                 </td>
                 <td className="px-2 py-2">
-                  {enTransito.quantity} {unidad}
+                  {formatQuantity(enTransito.quantity, data.baseUnit)} {unidad}
                 </td>
                 <td />
               </tr>

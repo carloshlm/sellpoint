@@ -362,6 +362,7 @@ function ProductDetailPanel({
           productId={product.id}
           tracksLots={product.tracksLots ?? false}
           isComposite={product.isComposite}
+          baseUnit={product.baseUnit}
         />
       )}
     </div>
