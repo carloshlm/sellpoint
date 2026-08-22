@@ -1,9 +1,4 @@
-import {
-  formatQuantity,
-  type InventoryDocumentType,
-  type Locale,
-  unitName,
-} from "@sellpoint/shared";
+import { formatQuantityWithUnit, type InventoryDocumentType, type Locale } from "@sellpoint/shared";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -131,8 +126,7 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
     // Y la cantidad pasa por `formatQuantity`: los decimales los decide la
     // CATEGORÍA de la unidad. Sin eso, un producto que se cuenta de a uno salía
     // impreso como `36.0000`.
-    const unidad = unitName(row.baseUnit, input.locale, { plural: true }).toLowerCase();
-    const base = `${formatQuantity(row.quantityBase ?? "", row.baseUnit)} ${unidad}`;
+    const base = formatQuantityWithUnit(row.quantityBase ?? "", row.baseUnit, input.locale);
     const cantidad = row.presentationName === null ? base : `${row.quantityInput ?? ""} = ${base}`;
 
     return [

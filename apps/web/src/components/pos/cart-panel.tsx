@@ -1,4 +1,4 @@
-import { type Currency, formatMoney, formatQuantity, unitName } from "@sellpoint/shared";
+import { type Currency, formatMoney, formatQuantityWithUnit } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Numpad } from "@/components/pos/numpad";
@@ -134,9 +134,7 @@ function CartLineRow({
           {/* La cantidad se pinta según la unidad: piezas sin decimales, kilos
               con tres. La regla vive en la unidad, no en esta pantalla. */}
           {line.type === "product"
-            ? `${formatQuantity(line.quantity, line.baseUnit)} ${unitName(line.baseUnit, locale, {
-                plural: true,
-              }).toLowerCase()}`
+            ? formatQuantityWithUnit(line.quantity, line.baseUnit, locale)
             : line.quantity}
         </span>
 

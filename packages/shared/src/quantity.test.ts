@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { addQuantities, formatQuantity, parseQuantity, quantityDecimals } from "./quantity";
+import {
+  addQuantities,
+  formatQuantity,
+  formatQuantityWithUnit,
+  parseQuantity,
+  quantityDecimals,
+} from "./quantity";
 
 /**
  * Reportado por Carlos mirando el kardex: `+12.0000` y saldo `262.0000` para
@@ -135,5 +141,50 @@ describe("parseQuantity", () => {
     }
     expect(parseQuantity("12.")).toBe(12);
     expect(parseQuantity("abc")).toBe(0);
+  });
+});
+
+/**
+ * F4-TICKET — la cantidad con su unidad, en UNA sola función.
+ *
+ * Nació de un defecto que la prueba de punta a punta destapó en producción: el
+ * carrito decía «1 piezas». Tres lugares distintos pluralizaban sin mirar la
+ * cantidad —el carrito, el PDF de documentos y el ticket— porque cada uno
+ * llamaba a `unitName(..., { plural: true })` por su cuenta.
+ *
+ * El arreglo vive acá y no en cada pantalla: mientras la decisión esté repetida,
+ * el próximo lugar que imprima una cantidad va a repetir el error.
+ */
+describe("formatQuantityWithUnit", () => {
+  it("usa el SINGULAR cuando hay exactamente uno", () => {
+    expect(formatQuantityWithUnit("1", "unit", "es")).toBe("1 pieza");
+    expect(formatQuantityWithUnit("1", "unit", "en")).toBe("1 piece");
+  });
+
+  it("usa el plural para todo lo demás, incluido el cero", () => {
+    expect(formatQuantityWithUnit("2", "unit", "es")).toBe("2 piezas");
+    // «0 pieza» no lo dice nadie.
+    expect(formatQuantityWithUnit("0", "unit", "es")).toBe("0 piezas");
+  });
+
+  /**
+   * Media pieza no existe, pero medio kilo sí — y en español un decimal va en
+   * plural: «0.500 kilogramos», nunca «0.500 kilogramo».
+   */
+  it("un decimal va en plural y conserva la precisión de su unidad", () => {
+    expect(formatQuantityWithUnit("0.5", "kg", "es")).toBe("0.500 kilogramos");
+    expect(formatQuantityWithUnit("2.5", "kg", "en")).toBe("2.500 kilograms");
+  });
+
+  /**
+   * `1.0000` ES uno: el singular lo decide el VALOR, no cuántos ceros trae el
+   * texto que llegó de la base.
+   */
+  it("un uno con ceros de más sigue siendo singular", () => {
+    expect(formatQuantityWithUnit("1.0000", "unit", "es")).toBe("1 pieza");
+  });
+
+  it("un kilo exacto también es singular", () => {
+    expect(formatQuantityWithUnit("1", "kg", "es")).toBe("1.000 kilogramo");
   });
 });

@@ -1,4 +1,4 @@
-import { formatQuantity, unitName } from "@sellpoint/shared";
+import { formatQuantity, formatQuantityWithUnit } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +34,10 @@ export function StockTab({ productId }: { productId: string }) {
     return <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>;
   }
 
-  const unidad = unitName(data.baseUnit, resolveUiLocale(i18n), { plural: true }).toLowerCase();
+  // La unidad va SIEMPRE con su cantidad (`formatQuantityWithUnit`): el plural
+  // lo decide el número, no la unidad. «1 pieza», «2 piezas». Defecto que la
+  // prueba de punta a punta destapó el 2026-08-21 en el carrito y que estaba
+  // repetido en cada pantalla que imprime un saldo.
 
   // Un compuesto no tiene saldo propio: se arma al consumirlo. Lo que importa
   // es cuántas unidades salen con lo que hay, y qué componente lo limita.
@@ -75,7 +78,7 @@ export function StockTab({ productId }: { productId: string }) {
                 <tr key={row.warehouseId} className="border-b last:border-0">
                   <td className="px-2 py-2">{row.name}</td>
                   <td className="px-2 py-2">
-                    {formatQuantity(row.quantity, data.baseUnit)} {unidad}
+                    {formatQuantityWithUnit(row.quantity, data.baseUnit, resolveUiLocale(i18n))}
                   </td>
                   <td className="px-2 py-2 text-muted-foreground">
                     {/* `null` no es una fecha vieja: nunca se movió nada acá. */}
@@ -154,7 +157,7 @@ export function StockTab({ productId }: { productId: string }) {
             <tr className="border-t font-medium">
               <td className="px-2 py-2">{t("inventory.kardex.stockTotal")}</td>
               <td className="px-2 py-2">
-                {data.total} {unidad}
+                {formatQuantityWithUnit(data.total, data.baseUnit, resolveUiLocale(i18n))}
                 {data.belowMin && (
                   <Badge
                     data-testid="below-min"
@@ -174,7 +177,11 @@ export function StockTab({ productId }: { productId: string }) {
                   {t("inventory.kardex.inTransit")}
                 </td>
                 <td className="px-2 py-2">
-                  {formatQuantity(enTransito.quantity, data.baseUnit)} {unidad}
+                  {formatQuantityWithUnit(
+                    enTransito.quantity,
+                    data.baseUnit,
+                    resolveUiLocale(i18n),
+                  )}
                 </td>
                 <td />
               </tr>

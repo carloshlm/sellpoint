@@ -1,5 +1,6 @@
 import { scaledInteger } from "./decimal-text";
-import { getUnit } from "./units";
+import type { Locale } from "./i18n";
+import { getUnit, unitName } from "./units";
 
 /**
  * Cuántos decimales corresponden a cada categoría de unidad.
@@ -110,4 +111,50 @@ export function addQuantities(a: string | number, b: string | number): string {
  */
 export function parseQuantity(value: string | number): number {
   return scaledInteger(value, QUANTITY_SCALE) / 10 ** QUANTITY_SCALE;
+}
+
+/**
+ * La cantidad CON su unidad, ya pluralizada según el número.
+ *
+ * ── Por qué existe, y por qué es una sola función ───────────────────────
+ *
+ * Nació de un defecto que la prueba de punta a punta destapó en producción: el
+ * carrito decía **«1 piezas»**. Tres lugares —el carrito, el PDF de documentos
+ * y el ticket— llamaban a `unitName(..., { plural: true })` por su cuenta, y
+ * los tres pluralizaban sin mirar la cantidad.
+ *
+ * Mientras la decisión esté repetida, el próximo lugar que imprima una cantidad
+ * va a repetir el error. Acá está una vez.
+ *
+ * ── El singular lo decide el VALOR, no el texto ─────────────────────────
+ *
+ * `"1.0000"` que viene de un `numeric(14,4)` ES uno. Comparar la cadena contra
+ * `"1"` diría que no, y el ticket saldría con «1.0000 piezas».
+ *
+ * Un decimal va en plural incluso siendo menos que uno: «0.500 kilogramos», no
+ * «0.500 kilogramo». Solo el uno exacto es singular.
+ */
+export function formatQuantityWithUnit(
+  quantity: string | number,
+  baseUnit: string,
+  locale: Locale,
+): string {
+  return `${formatQuantity(quantity, baseUnit)} ${unitLabelFor(quantity, baseUnit, locale)}`;
+}
+
+/**
+ * Solo el NOMBRE de la unidad, pluralizado según la cantidad.
+ *
+ * La misma decisión que `formatQuantityWithUnit`, en la otra forma que hace
+ * falta: hay mensajes de i18n que interpolan la cantidad y la unidad por
+ * separado (`"Disponible: {{quantity}} {{unit}}"`) y no pueden recibir el
+ * texto ya armado sin reescribir la clave.
+ *
+ * Para una etiqueta SUELTA —«las equivalencias se expresan en piezas»— esto no
+ * aplica: ahí el plural es correcto siempre porque no acompaña a ningún
+ * número. Usar `unitName(..., { plural: true })` sigue siendo lo correcto en
+ * ese caso.
+ */
+export function unitLabelFor(quantity: string | number, baseUnit: string, locale: Locale): string {
+  return unitName(baseUnit, locale, { plural: parseQuantity(quantity) !== 1 }).toLowerCase();
 }

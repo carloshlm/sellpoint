@@ -241,6 +241,29 @@ describe("El carrito del POS (F4-CART)", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(/Más de lo que hay/);
     });
 
+    /**
+     * ⚠ Lo destapó la prueba de punta a punta en PRODUCCIÓN (2026-08-21): el
+     * carrito decía «1 piezas». Cuatro pantallas pluralizaban sin mirar la
+     * cantidad porque cada una llamaba a `unitName(..., { plural: true })` por
+     * su cuenta. La decisión vive ahora en `formatQuantityWithUnit`.
+     */
+    it("una sola unidad va en SINGULAR: «1 pieza», no «1 piezas»", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA, { quantity: "1" });
+
+      const linea = await screen.findByTestId(`cart-qty-${useCartStore.getState().lines[0]?.key}`);
+      expect(linea).toHaveTextContent("1 pieza");
+      expect(linea).not.toHaveTextContent("1 piezas");
+    });
+
+    it("dos o más van en plural", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA, { quantity: "2" });
+
+      const linea = await screen.findByTestId(`cart-qty-${useCartStore.getState().lines[0]?.key}`);
+      expect(linea).toHaveTextContent("2 piezas");
+    });
+
     it("quitar borra solo ese renglón", async () => {
       await renderPos();
       useCartStore.getState().add(AGUA);

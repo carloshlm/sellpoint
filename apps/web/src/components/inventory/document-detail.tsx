@@ -1,4 +1,4 @@
-import { formatQuantity, REASON_RULES, unitName } from "@sellpoint/shared";
+import { formatQuantity, REASON_RULES, unitLabelFor, unitName } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -681,7 +681,8 @@ function Disponible({
   if (product === undefined) {
     return null;
   }
-  const unidad = unitName(product.baseUnit, locale, { plural: true }).toLowerCase();
+  // El plural lo decide la CANTIDAD: «1 pieza», «2 piezas».
+  const unidadDe = (cantidad: string | number) => unitLabelFor(cantidad, product.baseUnit, locale);
   const presentacion = product.presentations.find((p) => p.id === row.presentationId);
 
   if (presentacion === undefined) {
@@ -689,7 +690,7 @@ function Disponible({
       <span className="block text-muted-foreground text-xs">
         {t("inventory.document.availableBase", {
           quantity: formatQuantity(row.available, product.baseUnit),
-          unit: unidad,
+          unit: unidadDe(row.available),
         })}
       </span>
     );
@@ -705,7 +706,7 @@ function Disponible({
     <span className="block text-muted-foreground text-xs">
       {t("inventory.document.availableWithPresentation", {
         base: formatQuantity(row.available, product.baseUnit),
-        unit: unidad,
+        unit: unidadDe(row.available),
         quantity: mostrado,
         presentation: presentacion.name,
       })}

@@ -1,10 +1,4 @@
-import {
-  type Currency,
-  formatMoney,
-  formatQuantity,
-  type Locale,
-  unitName,
-} from "@sellpoint/shared";
+import { type Currency, formatMoney, formatQuantityWithUnit, type Locale } from "@sellpoint/shared";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -225,8 +219,7 @@ function cantidadLegible(row: TicketRow, locale: Locale): string {
   if (row.baseUnit === null) {
     return row.quantity;
   }
-  const nombre = unitName(row.baseUnit, locale, { plural: true }).toLowerCase();
-  return `${formatQuantity(row.quantity, row.baseUnit)} ${nombre}`;
+  return formatQuantityWithUnit(row.quantity, row.baseUnit, locale);
 }
 
 /** Fecha corta en la zona del usuario: un ticket se lee el mismo día. */

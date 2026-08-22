@@ -1,4 +1,4 @@
-import { type Currency, formatMoney, formatQuantity, unitName } from "@sellpoint/shared";
+import { type Currency, formatMoney, formatQuantity, unitLabelFor } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BarcodeScanner } from "@/components/pos/barcode-scanner";
@@ -145,10 +145,10 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
                       {item.sku} ·{" "}
                       {t("pos.cart.available", {
                         quantity: formatQuantity(item.available, item.baseUnit),
-                        // `{ plural: true }` + minúscula es la convención del resto de la
-                        // app (stock-tab, presentations-tab, document-detail): la
-                        // unidad acompaña a un número, no titula nada.
-                        unit: unitName(item.baseUnit, locale, { plural: true }).toLowerCase(),
+                        // El plural lo decide la CANTIDAD: «1 pieza disponible»,
+                        // no «1 piezas». Con `{ plural: true }` fijo decía lo
+                        // segundo — lo destapó la prueba de punta a punta.
+                        unit: unitLabelFor(item.available, item.baseUnit, locale),
                       })}
                       {Number(item.expired) > 0 && (
                         // El dato de vencido evita que "no hay" mienta frente a
