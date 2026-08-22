@@ -88,8 +88,7 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 | Cierre de caja | ❌ | ✅ | ✅ | ✅ | ❌ |
 | Anular venta | ❌ | ✅ | ✅ | ❌ | ❌ |
 | **Reportes** |  |  |  |  |  |
-| Ver todos los reportes | ❌ | ✅ | ✅ | ❌ | ✅ |
-| Exportar a Excel | ❌ | ✅ | ✅ | ❌ | ✅ |
+| Ver y exportar reportes — `reports:read` (F5) | ❌ | ✅ | ✅ | ❌ | ✅ |
 
 > **Nota sobre alcance:** los permisos definen QUÉ acciones puede ejecutar el usuario. El **alcance por almacén** (ver § 1.1) determina DÓNDE puede ejecutarlas. Un `Manager` con permiso `inventory:movement` y scope `[Sucursal Centro]` solo puede mover inventario **en Sucursal Centro**, no en otras. El `TenantAdmin` bypasea siempre el scoping.
 
@@ -819,52 +818,108 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 ### 3.7 Reportes
 
+> **Sincronía pre-F5 (2026-08-21):** el permiso de TODOS los casos de esta sección es
+> **`reports:read`** (ya en producción; POS_Seller no lo tiene). **Exportar no es un
+> permiso aparte** — exportar es leer, el mismo criterio que «reimprimir es leer» del
+> historial de F4: la matriz daba asignación idéntica a ver y exportar, y dos permisos
+> con la misma asignación es un permiso de más. Toda exportación es **síncrona con tope
+> de filas**: superarlo devuelve 400 pidiendo acotar filtros, nunca un Excel truncado
+> en silencio. El alcance por almacén (§1.1) aplica a todos.
+> — `topic_key: sellpoint/f5-atomizacion`
+
 ---
 
-#### **CU-REP-01 — Reporte de Stock por Almacén**
+#### **CU-REP-01 — Reporte de Stock por Almacén (valorizado)**
 
-- **Actor:** TenantAdmin / Manager / Viewer
+- **Actor:** TenantAdmin / Manager / Viewer (`reports:read`)
 - **Flujo principal:**
   1. Reportes → Stock por almacén
-  2. Filtros: almacén(es), producto, mostrar solo bajo stock mínimo
-  3. Tabla paginada server-side
-  4. Click "Exportar Excel" → descarga `.xlsx`
+  2. Filtros: almacén (dentro del alcance), producto, mostrar solo bajo stock mínimo
+  3. Tabla paginada server-side: producto × almacén, stock, mínimo, **costo promedio
+     ponderado y valor del inventario** (stock × promedio)
+  4. Click "Exportar Excel" → descarga `.xlsx` con los MISMOS filtros aplicados
+- **Flujos alternativos:**
+  - 3a. Producto sin historial de entradas `invoice` → costo y valor en blanco, **no un
+    cero fingido** (un 0 se sumaría al total y mentiría).
+  - 4a. El dataset filtrado excede el tope → 400 «acota los filtros».
 - **Postcondición:** Datos visualizados o descargados.
+- **Nota (herencia F3, decisión de Carlos 2026-08-21):** el costo promedio es **GLOBAL
+  por producto** — un traspaso no cambia lo que costó la mercancía. Las entradas
+  `invoice` guardan `unit_cost` a nivel presentación; se lleva a `base_unit` con el
+  `factor` y se pondera por cantidad. Si un día cada sucursal compra a precios muy
+  distintos, se migra a por-almacén.
 
 ---
 
 #### **CU-REP-02 — Reporte de Catálogo de Productos**
 
-- **Actor:** TenantAdmin / Manager / Viewer
+- **Actor:** TenantAdmin / Manager / Viewer (`reports:read`)
 - **Flujo principal:**
-  1. Reportes → Catálogo
-  2. Filtros por cualquier campo del schema activo
-  3. Visualiza o exporta a Excel (incluye campos custom)
+  1. Reportes → tarjeta Catálogo → **abre el listado existente** (`/catalog/products`):
+     no hay pantalla duplicada
+  2. El export (`GET /reports/products/export`) baja el catálogo completo con todos los
+     campos, **dinámicos incluidos**, reusando la maquinaria de la plantilla de
+     importación de F2
+- **Flujos alternativos:**
+  - 2a. El export de importación existente exige `products:manage` — por eso el reporte
+    tiene SU endpoint con `reports:read`: un Viewer exporta el catálogo sin poder
+    tocarlo.
 - **Postcondición:** Reporte generado.
 
 ---
 
 #### **CU-REP-03 — Reporte de Ventas**
 
-- **Actor:** TenantAdmin / Manager / Viewer
+- **Actor:** TenantAdmin / Manager / Viewer (`reports:read`)
 - **Flujo principal:**
   1. Reportes → Ventas
-  2. Filtros: rango de fechas, vendedor, método de pago, almacén
-  3. Visualiza totales agrupados + listado detallado
-  4. Exporta
+  2. Filtros: rango de fechas, vendedor, estado, **almacén**
+  3. Visualiza totales del período por método de pago + listado detallado; las ventas
+     ANULADAS se ven marcadas, no se esconden (criterio F4)
+  4. Exporta con los mismos filtros
+- **Flujos alternativos:**
+  - 2a. **El alcance aplica**: un usuario acotado a un almacén no ve ventas de otros.
+    (El historial del POS de F4 —`pos:view`— no aplica alcance; este reporte SÍ, y esa
+    diferencia queda documentada en el endpoint.)
 - **Postcondición:** Reporte generado.
 
 ---
 
 #### **CU-REP-04 — Reporte de Kardex Detallado**
 
-- **Actor:** TenantAdmin / Manager / Viewer
+- **Actor:** TenantAdmin / Manager / Viewer (`reports:read`)
 - **Flujo principal:**
-  1. Reportes → Kardex
+  1. Reportes → Kardex (enlaza a la pantalla de kardex existente del producto)
   2. Selecciona producto + rango de fechas + almacén(es)
-  3. Muestra todos los movimientos cronológicos con stock acumulado
-  4. Exporta
-- **Postcondición:** Trazabilidad completa visible.
+  3. Muestra todos los movimientos cronológicos con stock acumulado (`balanceAfter`) y
+     el folio del documento origen
+  4. Exporta — **el export reusa el mismo servicio que la pantalla**: no existe una
+     segunda implementación del saldo acumulado que un día diga otra cosa
+- **Postcondición:** Trazabilidad completa visible y descargable.
+
+---
+
+#### **CU-REP-05 — Exports directos (usuarios, almacenes, vencimientos, tránsito)**
+
+> Cuatro reportes que **no ameritan pantalla propia**: una tabla acá duplicaría los
+> listados que ya existen en Sistema, Almacenes y Movimientos. La tarjeta del hub
+> descarga el Excel directo (usuarios, almacenes) o enlaza a la pantalla existente con
+> su botón de export nuevo (vencimientos, tránsito — herencias de F3).
+
+- **Actor:** TenantAdmin / Manager / Viewer (`reports:read`; vencimientos y tránsito
+  usan el permiso de su pantalla origen, `inventory:read` — es la misma lectura en otro
+  formato)
+- **Flujo principal:**
+  1. Reportes → tarjeta Usuarios o Almacenes → descarga directa del `.xlsx`
+  2. Usuarios: nombre, email, roles, almacenes asignados, estado — **sin campos
+     sensibles** (ni hashes, ni tokens, ni invitaciones pendientes)
+  3. Almacenes: nombre, dirección, estado, productos con stock — acotado al alcance
+  4. Vencimientos y En tránsito: sus pantallas (`/movements/expiring`, traspasos) ganan
+     «Exportar Excel» con los filtros activos
+- **Flujos alternativos:**
+  - 1a. Un Viewer SIN `users:manage` descarga el reporte de usuarios igual: ese es el
+    punto de que viva bajo `reports:read`.
+- **Postcondición:** Listados descargados.
 
 ---
 

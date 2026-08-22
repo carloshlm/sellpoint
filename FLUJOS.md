@@ -540,42 +540,43 @@ flowchart TD
 
 ## 8. Generación de Reporte
 
+> **Reescrito en la sincronía pre-F5 (2026-08-21):** el diagrama anterior prometía cola
+> Redis + worker + S3 + URL firmada — infraestructura que **nunca se construyó**. La
+> exportación es **síncrona con tope de filas**, y el asíncrono queda DIFERIDO con el
+> criterio de F4-PRINT-BT: sin un caso real que lo exija (un tenant cuyos reportes
+> excedan el tope con filtros razonables), montarlo sería código de fe. Redis existe,
+> pero hoy solo hace rate-limiting y revocación de tokens.
+
 ```mermaid
 sequenceDiagram
     autonumber
-    actor V as Viewer
+    actor V as Viewer (reports:read)
     participant F as Frontend
     participant API as API
-    participant Q as Cola (Redis)
-    participant W as Worker
     participant DB as PostgreSQL
-    participant S3 as S3
 
     V->>F: Reportes → Stock por almacén
     V->>F: Aplica filtros
-    F->>API: GET /reports/stock?warehouse=X&page=1
+    F->>API: GET /reports/stock?warehouseId=X&belowMin=true&page=1
+    Note over API: @RequirePermissions('reports:read') + UserScope:<br/>solo almacenes del alcance del usuario
+    API->>DB: SELECT con paginación y orden server-side<br/>(desempate por id — criterio de la casa)
+    DB-->>API: rows + total
+    API-->>F: { rows, total, page, pageSize }
+    F-->>V: Tabla server-side (TanStack Table en modo manual)
 
-    alt Reporte ligero (<10k rows)
-        API->>DB: SELECT con paginación
-        DB-->>API: rows
-        API-->>F: { data, total, page }
-        F-->>V: Tabla server-side paginada
-    else Reporte pesado (>10k rows o export)
-        V->>F: Click "Exportar Excel"
-        F->>API: POST /reports/stock/export
-        API->>Q: Encola job { tenantId, userId, filters }
-        API-->>F: 202 { jobId }
-        F-->>V: "Generando, te avisamos"
+    V->>F: Click "Exportar Excel"
+    F->>API: GET /reports/stock/export?…mismos filtros…&format=xlsx
+    API->>DB: COUNT con los filtros aplicados
 
-        Q->>W: Procesa job
-        W->>DB: SELECT (sin paginación)
-        DB-->>W: full dataset
-        W->>W: Genera .xlsx (exceljs)
-        W->>S3: PUT report-{jobId}.xlsx<br/>(URL firmada, expira 1h)
-        W->>API: Notifica completado (WebSocket o polling)
-        API-->>F: Push notification + signed URL
-        F-->>V: "Listo, descargar"
-        V->>S3: Descarga vía URL firmada
+    alt Excede el tope (~10k filas)
+        API-->>F: 400 reports.export_too_large
+        F-->>V: "Acota los filtros" — NUNCA un truncado silencioso:<br/>un Excel cortado se lee como completo
+    else Dentro del tope
+        API->>DB: SELECT sin paginar (mismos filtros)
+        API->>API: serializeSpreadsheet(rows, 'xlsx')<br/>(el generador de F2, hoja y filename por reporte)
+        API-->>F: application/xlsx + Content-Disposition
+        F->>F: Descarga vía helper de blob compartido
+        F-->>V: Archivo descargado
     end
 ```
 

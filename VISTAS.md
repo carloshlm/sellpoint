@@ -1423,7 +1423,18 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 
 ## 10. Reportes
 
-**Ruta:** `/reports` · **Permiso:** `reports:view`
+**Ruta:** `/reports` · **Permiso:** `reports:read`
+
+> **Sincronía pre-F5 (2026-08-21):** el permiso decía `reports:view`, que **nunca
+> existió** — el catálogo real tiene `reports:read` (en producción desde la migración
+> `20260821180000`, asignado a TenantAdmin/Manager/Viewer; POS_Seller no). Manda el
+> código. Y **no hay `reports:export`**: exportar es leer, el mismo criterio que
+> «reimprimir es leer» del historial de F4.
+>
+> El hub pasa de 6 a **8 tarjetas** (entran Vencimientos y En tránsito, herencias de
+> F3). Tres tarjetas NO abren pantalla propia: **Catálogo** enlaza al listado existente
+> (`/catalog/products`), y **Almacenes** y **Usuarios** descargan el Excel directo —
+> una tabla acá duplicaría los listados que ya existen en Catálogo y Sistema.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -1431,26 +1442,31 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
 │  ┌─────────────────────┐  ┌─────────────────────┐             │
-│  │ 📦 Stock por almacén│  │ 📋 Catálogo         │             │
-│  │ Stock actual con    │  │ Listado completo de │             │
-│  │ alertas             │  │ productos           │             │
+│  │ 📦 Stock por almacén│  │ 💰 Ventas           │             │
+│  │ Valorizado (costo   │  │ Por período /       │             │
+│  │ promedio) + alertas │  │ vendedor / método   │             │
 │  └─────────────────────┘  └─────────────────────┘             │
 │                                                                │
 │  ┌─────────────────────┐  ┌─────────────────────┐             │
-│  │ 💰 Ventas           │  │ 📜 Kardex           │             │
-│  │ Por período /       │  │ Trazabilidad por    │             │
-│  │ vendedor / método   │  │ producto            │             │
+│  │ 📜 Kardex           │  │ ⏰ Vencimientos     │             │
+│  │ Trazabilidad por    │  │ Lotes por caducar,  │             │
+│  │ producto            │  │ exportable          │             │
+│  └─────────────────────┘  └─────────────────────┘             │
+│                                                                │
+│  ┌─────────────────────┐  ┌─────────────────────┐             │
+│  │ 🚚 En tránsito      │  │ 📋 Catálogo         │             │
+│  │ Traspasos sin       │  │ → abre el listado   │             │
+│  │ recibir, exportable │  │   de productos      │             │
 │  └─────────────────────┘  └─────────────────────┘             │
 │                                                                │
 │  ┌─────────────────────┐  ┌─────────────────────┐             │
 │  │ 🏬 Almacenes        │  │ 👥 Usuarios         │             │
-│  │ Listado de          │  │ Listado de usuarios │             │
-│  │ almacenes           │  │ y roles             │             │
+│  │ 📤 descarga directa │  │ 📤 descarga directa │             │
 │  └─────────────────────┘  └─────────────────────┘             │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Patrón común de cada reporte:**
+**Patrón común de cada reporte con pantalla (stock, ventas):**
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -1470,6 +1486,15 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 │  ◄ 1 2 3 ►            Mostrando 1-50 de 1,250                 │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+> **Exportar Excel es SÍNCRONO con tope de filas** (~10.000): superarlo devuelve un
+> mensaje que pide acotar filtros — nunca un truncado silencioso, porque un Excel
+> cortado se lee como completo. El export baja con los MISMOS filtros que la tabla
+> muestra. El asíncrono con cola quedó diferido (FLUJOS §8).
+
+**Casos de uso relacionados:** [CU-REP-01](CASOS_DE_USO.md) (stock valorizado),
+CU-REP-02 (catálogo), CU-REP-03 (ventas), CU-REP-04 (kardex), CU-REP-05 (exports
+directos: usuarios, almacenes, vencimientos, tránsito).
 
 ---
 
@@ -1610,8 +1635,7 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 │  │              │   ☑ pos:view                              │ │
 │  │              │                                           │ │
 │  │              │  ─── Reportes ───                         │ │
-│  │              │   ☑ reports:view                          │ │
-│  │              │   ☑ reports:export                        │ │
+│  │              │   ☑ reports:read                          │ │
 │  │              │                                           │ │
 │  │              │  ─── Sistema ───                          │ │
 │  │              │   ☐ users:manage                          │ │

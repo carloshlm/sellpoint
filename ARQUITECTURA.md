@@ -67,7 +67,7 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 | Auth | **JWT (access) + Refresh rotativo** | Access en memoria, refresh en cookie `httpOnly + Secure + SameSite=Strict`. RS256 (par de claves). |
 | Hash | **Argon2id** | Más resistente que bcrypt a ataques GPU/ASIC. Recomendación OWASP 2024. |
 | Rate limit | **@nestjs/throttler + Redis** | Por IP y por user. Agresivo en `/auth/*`. |
-| Cache / Cola | **Redis 7** | Cache de queries pesadas + cola para jobs (importación Excel, reportes). |
+| Cache / Cola | **Redis 7** | Hoy: rate-limiting y revocación de tokens. La cola de jobs (importación, reportes pesados) quedó **diferida** al construir F5: la importación es síncrona fila-por-fila y la exportación es síncrona con tope — sin un caso real que la exija, montar workers sería código de fe (mismo criterio que F4-PRINT-BT). |
 | Docs | **Swagger (OpenAPI 3.1)** | Auto-generada desde decoradores. Fuente de verdad para `packages/api-client`. |
 | Logs | **Pino** | JSON estructurado, alto throughput. Redacción de campos sensibles (passwords, tokens). |
 
@@ -564,7 +564,7 @@ sellpoint/
 
 - **RBAC con scoping de dos capas**: roles + permisos definen QUÉ; `user_warehouse_scopes` define DÓNDE (ver § 3.4).
 - Roles por tenant: `admin`, `manager`, `pos_seller`, `viewer` (extensibles).
-- Permisos granulares (formato `recurso:accion`): `catalogs:read/write/manage`, `products:read/manage`, `warehouses:read/manage`, `inventory:read/movement/manage` (F3: `manage` = cancelar traspaso y aprobar conteo, solo TenantAdmin), `pos:sell`, `pos:quote` y `pos:view` (F4), `reports:view`, `users:manage`, etc.
+- Permisos granulares (formato `recurso:accion`): `catalogs:read/write/manage`, `products:read/manage`, `warehouses:read/manage`, `inventory:read/movement/manage` (F3: `manage` = cancelar traspaso y aprobar conteo, solo TenantAdmin), `pos:sell`, `pos:quote` y `pos:view` (F4), `reports:read` (F5 — **no existe `reports:export`**: exportar es leer, mismo criterio que «reimprimir es leer» de F4), `users:manage`, etc.
 - Decorator: `@RequirePermissions('inventory:movement')`.
 - `TenantAdmin` bypasea el scoping de almacenes; el resto de roles, si tiene scope asignado, queda filtrado automáticamente en repos.
 
@@ -702,20 +702,37 @@ sellpoint/
 
 **Entregable:** vendedor opera el POS desde tablet con escáner e impresión por navegador; recepción genera cotizaciones `COT-…` que la caja carga sin recapturar.
 
-### Fase 5 — Reportes (1-2 semanas)
+### Fase 5 — Reportes (1-2 semanas) — ATOMIZADA 2026-08-21
 
-1. Reportes mínimos:
-   - Stock por almacén
-   - Catálogo de productos
-   - Catálogo de almacenes
-   - Usuarios del sistema
-   - Ventas por período
-   - Kardex por producto
-2. Frontend: TanStack Table con paginación, filtros, ordenamiento server-side
-3. Exportación a Excel (`exceljs`)
-4. (Opcional) Generación asíncrona en background con cola Redis para reportes pesados
+> Sincronía pre-F5 (2026-08-21): esta sección se reescribió con las decisiones tomadas
+> ANTES de la primera tarea — `topic_key: sellpoint/f5-atomizacion`.
 
-**Entregable:** todos los reportes solicitados en los requerimientos originales, visibles en sistema y descargables.
+1. **Permiso `reports:read`** — ya vive en producción (migración `20260821180000`,
+   asignado a TenantAdmin/Manager/Viewer; POS_Seller no) y F5 lo **estrena**: hoy ningún
+   endpoint lo exige, la barrera `permissions-catalog.spec.ts` lo detectó huérfano.
+   **No existe `reports:export`**: exportar es leer.
+2. **Hub `/reports` con 8 tarjetas** (VISTAS §10): stock por almacén (valorizado),
+   ventas por período, kardex por producto, catálogo, almacenes, usuarios, **vencimientos**
+   y **stock en tránsito** (las dos últimas, herencias de F3). Catálogo/usuarios/almacenes
+   son **export directo** sin pantalla propia — una tabla duplicaría los listados que ya
+   existen en Catálogo y Sistema.
+3. **Costo promedio ponderado GLOBAL por producto** (decisión de Carlos, 2026-08-21 —
+   la Bitácora de F3 lo dejaba «a decidir»): las entradas `invoice` guardan `unit_cost` a
+   nivel presentación; F5 lo lleva a `base_unit` con `presentation.factor` y pondera por
+   cantidad. Alimenta la **valorización** del reporte de stock y el `cost-estimate` de BOM
+   (con fallback a `cost/factor` cuando no hay historial). Un traspaso no cambia lo que
+   costó la mercancía; si un día cada sucursal compra a precios muy distintos, se migra a
+   por-almacén.
+4. Frontend: TanStack Table en **modo manual** (paginación, filtros y orden server-side)
+   sobre un componente común de reporte; molde de gates y listados heredado del POS.
+5. **Exportación a Excel SÍNCRONA con tope de filas** (`exceljs` vía el
+   `serializeSpreadsheet` de F2, parametrizado): superar el tope devuelve 400 con mensaje
+   que pide acotar filtros — nunca un truncado silencioso. La generación asíncrona
+   (cola Redis + worker) quedó **DIFERIDA**: sin un caso real que la exija sería código
+   de fe (mismo criterio que F4-PRINT-BT). El kardex exportable REUSA
+   `kardex.service.list` — no hay segunda implementación del saldo acumulado.
+
+**Entregable:** todos los reportes solicitados en los requerimientos originales, visibles en sistema y descargables — más las herencias de F3: valorización con promedio ponderado, vencimientos y tránsito exportables.
 
 ### Fase 6 — Hardening de Producción (1 semana)
 

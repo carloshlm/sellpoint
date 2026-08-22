@@ -14,7 +14,7 @@
 6. [Fase 2 — Catálogos Dinámicos](#fase-2--catálogos-dinámicos--uom--bom)
 7. [Fase 3 — Movimientos de Inventario](#fase-3--movimientos-de-inventario)
 8. [Fase 4 — POS PWA](#fase-4--pos-pwa-outline)
-9. [Fase 5 — Reportes](#fase-5--reportes-outline)
+9. [Fase 5 — Reportes](#fase-5--reportes-atomizada-2026-08-21)
 10. [Fase 6 — Hardening de Producción](#fase-6--hardening-de-producción-outline)
 11. [Fase 7 — Planes + Billing + Suscripciones](#fase-7--planes--billing--suscripciones)
 12. [Fase 8 — Mobile (futuro)](#fase-8--mobile-futuro)
@@ -49,8 +49,8 @@
 **Mapeo concreto por categoría:**
 
 - **SIN SDD**: F0-MONO-*, F0-DB-*, F0-SHARED-*, F0-I18N-01, F0-API-01, F0-WEB-01, F0-CI, F0-DOC. Bug fixes triviales.
-- **SDD LIGERO**: F0-DEPLOY, F0-I18N-02/03/04, F2-DB, F2-UOM, F2-SUBCAT, F2-WH, F2-ONBOARD, F3-DB, F3-GUARDS, F3-NAV, F4-UI, F4-TICKET, F4-PWA, F4-DOCS, F5-EXPORT.
-- **SDD COMPLETO**: F1-AUTH, F1-RBAC, F1-LOCALE, F1-TENANT, F1-SCOPE, F2-CAT, F2-SCHEMA, F2-PRESENT, F2-BOM, F2-PROD, F2-IMPORT, F2-SCOPE, F3-CORE, F3-ENTRY, F3-EXIT, F3-TRANSFER, F3-COUNT, F3-KARDEX, F3-LOTS, F3-DOC, F4-DB, F4-CASHBOX, F4-SALE, F4-QUOTE, F4-CART, F5-API, F6-*, F7-*, F9-*.
+- **SDD LIGERO**: F0-DEPLOY, F0-I18N-02/03/04, F2-DB, F2-UOM, F2-SUBCAT, F2-WH, F2-ONBOARD, F3-DB, F3-GUARDS, F3-NAV, F4-UI, F4-TICKET, F4-PWA, F4-DOCS, F5-CORE, F5-KDX, F5-CAT, F5-EXP, F5-HUB, F5-DOCS.
+- **SDD COMPLETO**: F1-AUTH, F1-RBAC, F1-LOCALE, F1-TENANT, F1-SCOPE, F2-CAT, F2-SCHEMA, F2-PRESENT, F2-BOM, F2-PROD, F2-IMPORT, F2-SCOPE, F3-CORE, F3-ENTRY, F3-EXIT, F3-TRANSFER, F3-COUNT, F3-KARDEX, F3-LOTS, F3-DOC, F4-DB, F4-CASHBOX, F4-SALE, F4-QUOTE, F4-CART, F5-COST, F5-STK, F5-SALES, F6-*, F7-*, F9-*.
 
 **Cómo Claude lo comunica:**
 
@@ -148,7 +148,7 @@ Ejemplos:
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
 | **F3** | Movimientos de Inventario | ✅ Completada | 5-6 semanas | ✅ Sí |
 | **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas | ✅ Sí (2026-08-20) |
-| **F5** | Reportes | ⬜ Pendiente | 1-2 semanas | ⬜ Outline |
+| **F5** | Reportes | ⬜ Pendiente | ~2 semanas | ✅ Atomizada (2026-08-21, 24 tareas) |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
 | **F8** | Mobile | 🔮 Futuro | — | ⬜ Solo concepto |
@@ -2547,20 +2547,193 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 **Estimación: ~3.5 semanas** (~55 h en 26 tareas + F4-PRINT-BT diferida — F4-TICKET-03 entró en la sincronía pre-F4, 2026-08-21).
 ---
 
-## Fase 5 — Reportes (outline)
+## Fase 5 — Reportes (ATOMIZADA 2026-08-21)
 
-> **Hereda de F3 (2026-08-17):** el **costo promedio ponderado** se difirió a esta fase (decisión de Carlos): F3 registra `unit_cost` en cada entrada `invoice` (costo por unidad de la presentación capturada); F5 lo lleva a base_unit con el `factor` de la presentación referenciada, calcula el promedio ponderado por producto (decidir si global o por almacén) y lo expone en el reporte de valorización y en `cost-estimate` de BOM (hoy `cost/factor`). También heredan de F3 el **reporte de stock en tránsito** completo con export (F3 dejó el endpoint chico `GET /inventory/in-transit`) y el **kardex detallado exportable** (F3 dejó `GET /products/:id/kardex` con `balanceAfter`). Si algún caso pide **backdating** de movimientos, se evalúa acá con `effective_at` separado de `created_at`.
+> **Hereda de F3 (2026-08-17):** el **costo promedio ponderado** se difirió a esta fase (decisión de Carlos): F3 registra `unit_cost` en cada entrada `invoice` (costo por unidad de la presentación capturada); F5 lo lleva a base_unit con el `factor` de la presentación referenciada, calcula el promedio ponderado por producto —**GLOBAL, decidido por Carlos el 2026-08-21**: un traspaso no cambia lo que costó la mercancía; si un día cada sucursal compra a precios muy distintos, se migra a por-almacén— y lo expone en la valorización del reporte de stock y en `cost-estimate` de BOM (hoy `cost/factor`). También heredan de F3 el **reporte de stock en tránsito** con export (F3 dejó `GET /inventory/in-transit`), el **kardex detallado exportable** (F3 dejó `GET /products/:id/kardex` con `balanceAfter`) y el **reporte de vencimientos con export** (la pantalla `/movements/expiring` ya existe). Si algún caso pide **backdating** de movimientos, se evalúa acá con `effective_at` separado de `created_at`.
+>
+> **Decisiones de la atomización (2026-08-21, `topic_key: sellpoint/f5-atomizacion`):**
+> **(1)** El permiso es **`reports:read`** — ya en producción (migración `20260821180000`), asignado a TenantAdmin/Manager/Viewer, POS_Seller no; hoy CERO endpoints lo exigen (la barrera `permissions-catalog.spec.ts` lo detectó huérfano) y F5 lo estrena. Los docs decían `reports:view`: mandó el código.
+> **(2)** **No existe `reports:export`** (fantasma de VISTAS §11.2, retirado): exportar es leer —criterio «reimprimir es leer» de F4-UI-03— y la matriz daba asignación idéntica a ver y exportar.
+> **(3)** **Exportación SÍNCRONA con tope de filas** (~10.000): superarlo → 400 `reports.export_too_large` que pide acotar filtros, nunca un Excel truncado en silencio (se lee como completo). La cola Redis + worker + S3 del viejo FLUJOS §8 queda **DIFERIDA** — criterio F4-PRINT-BT: sin un caso real, código de fe.
+> **(4)** Catálogo/usuarios/almacenes son **export directo sin pantalla propia**: una tabla duplicaría los listados existentes. El export de catálogo necesita SU endpoint (`reports:read`) porque el de la plantilla de importación exige `products:manage` y un Viewer no podría usarlo.
 
-- **F5-API** — Endpoints de reportes con paginación server-side y filtros
-- **F5-EXPORT** — Generación Excel (síncrono y asíncrono con cola Redis)
-- **F5-UI-HUB** — Pantalla hub de reportes
-- **F5-UI-STOCK** — Reporte de stock por almacén
-- **F5-UI-CATALOG** — Reporte de catálogo
-- **F5-UI-SALES** — Reporte de ventas
-- **F5-UI-KARDEX** — Reporte de kardex detallado
-- **F5-UI-USERS** — Reporte de usuarios
+### ✅ Definición de "Fase 5 completa"
 
-**Estimación:** 1-2 semanas.
+- [ ] El nav muestra «Reportes» solo con `reports:read`; el hub `/reports` carga sus 8 tarjetas; un POS_Seller recibe 403 en el API y no ve la entrada (contraprueba obligatoria)
+- [ ] **Stock por almacén**: endpoint transversal NUEVO (producto × almacén, no existe hoy) con filtros server-side (almacén-dentro-del-alcance, bajo mínimo), orden estable con desempate por `id`, **valorizado** (costo promedio ponderado GLOBAL × stock; sin historial la celda va VACÍA, no un 0 fingido que se sumaría al total), y export con los mismos filtros
+- [ ] **Ventas por período**: filtros fecha/vendedor/estado/almacén y **`UserScope` aplicado** — un usuario acotado a un almacén no ve ventas de otros (contraprueba); el `GET /pos/sales` de F4 conserva su semántica sin scope y la diferencia queda documentada
+- [ ] **Kardex**: exportable reusando `kardex.service.list` — el `balanceAfter` del Excel es idéntico al de la API paginada porque NO hay segunda implementación del saldo
+- [ ] **Vencimientos** y **En tránsito** exportables desde sus pantallas (herencias F3)
+- [ ] **Catálogo, usuarios y almacenes** descargables con `reports:read`: un Viewer sin `users:manage` ni `products:manage` baja los tres (esa es la prueba); usuarios SIN campos sensibles
+- [ ] El `cost-estimate` de BOM usa el promedio ponderado con fallback a `cost/factor`, probado en AMBOS caminos (con y sin historial)
+- [ ] Todo export es síncrono con tope: sobre el tope → 400 con clave i18n, y las filas NO se materializan
+- [ ] El front tiene UN solo helper de descarga de blob (las 4 copias actuales, migradas con sus tests intactos)
+- [ ] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
+- [ ] Tag `v0.6.0-fase5` creado sobre un commit con Deploy verde
+
+### Módulo F5-CORE — Infraestructura de exportación
+
+- [ ] **F5-CORE-01** — Parametrizar `serializeSpreadsheet` (hoja y filename)
+  - **Salida:** `serializeSpreadsheet(rows, format, options?)` acepta `sheetName` y `filenameBase` opcionales con default actual («Productos»/«productos») — los llamadores de F2-IMPORT no cambian ni una línea
+  - **Verificar:** unit: xlsx con hoja «Ventas» y filename `ventas.xlsx`; contraprueba: sin options se comporta idéntico a hoy (tests existentes verdes sin tocar)
+  - **Depende de:** —
+  - **Estimación:** 1 h
+
+- [ ] **F5-CORE-02** — Helper de export síncrono con tope de filas
+  - **Salida:** función común (en `common/spreadsheet/`): recibe un contador y un fetcher de filas; si `count > MAX_EXPORT_ROWS` (~10 000) lanza 400 con clave i18n `reports.export_too_large`; si no, arma filas y delega en `serializeSpreadsheet`. Es LA implementación del criterio «síncrono con tope» — la cola queda diferida
+  - **Verificar:** unit: bajo el tope exporta; contraprueba: sobre el tope → 400 con la clave y el fetcher NO se invoca (las filas no se materializan)
+  - **Depende de:** F5-CORE-01
+  - **Estimación:** 1.5 h
+
+- [ ] **F5-CORE-03** — `ReportsModule` + primer endpoint con `reports:read`
+  - **Salida:** `modules/reports/` (module, controller, service) registrado en `AppModule`; todos sus endpoints llevan `@RequirePermissions("reports:read")` + `UserScope`. Con esto `reports:read` deja de ser un permiso sin puerta
+  - **Verificar:** e2e: TenantAdmin/Manager/Viewer → 200; contraprueba: POS_Seller → 403; `permissions-catalog.spec.ts` sigue verde
+  - **Depende de:** —
+  - **Estimación:** 1 h
+
+### Módulo F5-COST — Costo promedio ponderado (herencia F3)
+
+- [ ] **F5-COST-01** — `WeightedCostService`: el promedio GLOBAL por producto
+  - **Salida:** servicio que toma las entradas `invoice` del ledger, lleva `unit_cost` (nivel presentación) a base_unit con `presentation.factor` y calcula el promedio ponderado por cantidad, GLOBAL por producto (decisión de Carlos 2026-08-21). Devuelve `null` sin historial — el consumidor decide el fallback, no se inventa un cero
+  - **Verificar:** unit con fixture: dos entradas a costos distintos → promedio exacto; presentaciones con factor distinto normalizan a base_unit; contraprueba: ventas/ajustes/traspasos NO alteran el promedio; producto sin entradas → `null`
+  - **Depende de:** —
+  - **Estimación:** 3.5 h
+
+- [ ] **F5-COST-02** — `cost-estimate` de BOM usa el ponderado
+  - **Salida:** `composition.service.costEstimate` consulta `WeightedCostService` por componente, con fallback al actual `cost/factor` cuando no hay historial; la respuesta indica el origen por componente (`source: "weighted" | "presentation"`)
+  - **Verificar:** unit: componente con historial usa el ponderado; contraprueba: componente sin entradas conserva el número de hoy (tests existentes de cost-estimate verdes con el fallback)
+  - **Depende de:** F5-COST-01
+  - **Estimación:** 1.5 h
+
+### Módulo F5-STK — Stock por almacén
+
+- [ ] **F5-STK-01** — `GET /reports/stock`: el endpoint transversal
+  - **Salida:** consulta NUEVA (no existe hoy): producto × almacén con stock, mínimo y flag bajo-mínimo; filtros `warehouseId` (validado con `assertWarehouseInScope`), `belowMin`, búsqueda; solo almacenes del alcance; orden server-side con desempate por `id` (criterio de la casa: sin él una fila puede salir en dos páginas o en ninguna)
+  - **Verificar:** e2e: usuario acotado al almacén A no ve filas de B (contraprueba); `belowMin` solo devuelve déficit; orden estable entre páginas
+  - **Depende de:** F5-CORE-03
+  - **Estimación:** 3 h
+
+- [ ] **F5-STK-02** — Export del stock
+  - **Salida:** `GET /reports/stock/export` con los mismos filtros, sin paginar, vía el helper de tope; descarga con `@Res()` + `Content-Disposition` (patrón de F3); hoja «Stock»
+  - **Verificar:** e2e: xlsx descargable con filas = consulta filtrada; contraprueba: dataset sobre el tope → 400
+  - **Depende de:** F5-STK-01, F5-CORE-02
+  - **Estimación:** 1 h
+
+- [ ] **F5-STK-03** — Valorización en el reporte
+  - **Salida:** columnas `avgCost` y `totalValue` (stock × promedio) en `/reports/stock` y su export, vía `WeightedCostService`; productos sin historial muestran la celda vacía
+  - **Verificar:** e2e: los valores coinciden con el unit de F5-COST-01; contraprueba: producto sin entradas exporta celda vacía, no 0
+  - **Depende de:** F5-STK-01, F5-COST-01
+  - **Estimación:** 1.5 h
+
+- [ ] **F5-STK-04** — Pantalla `/reports/stock`
+  - **Salida:** ruta con el molde de gates del POS (`ProtectedRoute>OnboardingGate>AppLayout>PermissionGate reports:read`) sobre el componente común de reporte (F5-HUB-03): filtros, tabla server-side, paginador y «Exportar Excel»
+  - **Verificar:** test de ruta (molde `pos-sales.test.tsx`): filtros disparan la query con los params correctos; Exportar llama al helper de blob; contraprueba: sin `reports:read` no renderiza
+  - **Depende de:** F5-STK-02, F5-HUB-03
+  - **Estimación:** 2.5 h
+
+### Módulo F5-SALES — Ventas por período
+
+- [ ] **F5-SALES-01** — `GET /reports/sales` con `UserScope` y filtro por almacén
+  - **Salida:** endpoint PROPIO del módulo reports — NO se toca la semántica de `GET /pos/sales` (F4, `pos:view`, sin scope): se extrae el armado del `where` de `sales.service.list` a un builder compartido y se le suma `warehouseId` + intersección con el alcance. Totales del período por método en la respuesta, para el pie de la tabla
+  - **Verificar:** e2e: usuario acotado no ve ventas de otro almacén (contraprueba); los tests de F4-SALE-04 intactos (contraprueba de no-regresión del builder)
+  - **Depende de:** F5-CORE-03
+  - **Estimación:** 2.5 h
+
+- [ ] **F5-SALES-02** — Export de ventas
+  - **Salida:** `GET /reports/sales/export`, mismos filtros, hoja «Ventas», vía helper de tope; columnas: folio, fecha, vendedor, almacén, estado, método, total
+  - **Verificar:** e2e: filas del xlsx = consulta filtrada; las ANULADAS van marcadas, no omitidas (criterio F4); sobre el tope → 400
+  - **Depende de:** F5-SALES-01, F5-CORE-02
+  - **Estimación:** 1 h
+
+- [ ] **F5-SALES-03** — Pantalla `/reports/sales`
+  - **Salida:** ruta con filtros fecha/vendedor/estado/almacén sobre el componente común; reusa los patrones de `sales-history.tsx` SIN duplicar la pantalla del POS (audiencias distintas: `pos:view` es el mostrador, `reports:read` es el análisis)
+  - **Verificar:** test de ruta: filtros → params; export → helper de blob; contraprueba de permiso
+  - **Depende de:** F5-SALES-02, F5-HUB-03
+  - **Estimación:** 2 h
+
+### Módulo F5-KDX — Kardex exportable (herencia F3)
+
+- [ ] **F5-KDX-01** — Export del kardex
+  - **Salida:** `GET /reports/kardex/:productId/export` REUSANDO `kardex.service.list` — mismos filtros (almacén/fechas/dirección/motivo/lote), sin paginar hasta el tope; columnas con `balanceAfter`, folio y tipo de documento. Cero segunda implementación de la window function
+  - **Verificar:** e2e: el `balanceAfter` del xlsx es idéntico al de la API paginada para el mismo filtro (misma fuente); contraprueba: producto de otro tenant → 404; respeta el alcance
+  - **Depende de:** F5-CORE-02, F5-CORE-03
+  - **Estimación:** 1.5 h
+
+- [ ] **F5-KDX-02** — Botón de export en la pantalla de kardex + tarjeta del hub
+  - **Salida:** la tab de kardex existente gana «Exportar Excel» con los filtros activos; la tarjeta «Kardex» del hub enlaza ahí (no se construye pantalla nueva)
+  - **Verificar:** test: el botón dispara la descarga con los filtros vigentes; contraprueba: sin producto seleccionado el botón queda deshabilitado
+  - **Depende de:** F5-KDX-01, F5-HUB-02
+  - **Estimación:** 1.5 h
+
+### Módulo F5-CAT — Catálogo, usuarios y almacenes (exports directos)
+
+- [ ] **F5-CAT-01** — Export de usuarios con `reports:read`
+  - **Salida:** `GET /reports/users/export`: nombre, email, roles, almacenes asignados, estado. Con `reports:read` y NO `users:manage`: un Viewer debe poder bajarlo sin acceso a `/system/users`. SIN campos sensibles (hashes, tokens, invitaciones pendientes fuera)
+  - **Verificar:** e2e: Viewer sin `users:manage` descarga el xlsx (esa es la prueba); contraprueba: POS_Seller → 403; el xlsx no contiene columnas sensibles
+  - **Depende de:** F5-CORE-02, F5-CORE-03
+  - **Estimación:** 1.5 h
+
+- [ ] **F5-CAT-02** — Export de almacenes
+  - **Salida:** `GET /reports/warehouses/export`: nombre, dirección, estado, productos con stock; limitado al alcance del usuario
+  - **Verificar:** e2e: usuario acotado solo exporta sus almacenes (contraprueba); formato y descarga correctos
+  - **Depende de:** F5-CORE-02, F5-CORE-03
+  - **Estimación:** 1 h
+
+- [ ] **F5-CAT-03** — Export de catálogo con `reports:read`
+  - **Salida:** `GET /reports/products/export` REUSANDO la maquinaria de la plantilla de importación de F2 (`import.service.template` ya arma el archivo poblado con los campos dinámicos) — el endpoint existente exige `products:manage` y un Viewer no puede usarlo; este existe justamente para que exportar el catálogo sea LEER
+  - **Verificar:** e2e: Viewer (sin `products:manage`) descarga el catálogo completo con campos dinámicos; contraprueba: las columnas son las mismas que las del template (misma fuente, no una segunda lista)
+  - **Depende de:** F5-CORE-02, F5-CORE-03
+  - **Estimación:** 1.5 h
+
+### Módulo F5-EXP — Vencimientos y tránsito (herencias F3)
+
+- [ ] **F5-EXP-01** — Export de vencimientos
+  - **Salida:** export sobre la consulta que alimenta `/movements/expiring` (producto, lote, vencimiento, días restantes, almacén, cantidad), mismos filtros de la pantalla, vía helper de tope. Permiso: `inventory:read` — es la misma lectura de su pantalla en otro formato
+  - **Verificar:** e2e: filas = consulta de expiring con filtros; contraprueba de alcance por almacén
+  - **Depende de:** F5-CORE-02
+  - **Estimación:** 1.5 h
+
+- [ ] **F5-EXP-02** — Export de stock en tránsito
+  - **Salida:** export sobre el `inTransit()` existente (producto, origen, destino, cantidad, folio del traspaso, fecha de salida), mismos filtros
+  - **Verificar:** e2e: traspaso enviado-no-confirmado aparece; contraprueba: uno confirmado ya no; el alcance mira el ORIGEN (criterio existente de F3-KARDEX-04)
+  - **Depende de:** F5-CORE-02
+  - **Estimación:** 1 h
+
+- [ ] **F5-EXP-03** — Botones de export + tarjetas del hub
+  - **Salida:** «Exportar Excel» en `/movements/expiring` y en la vista de tránsito; tarjetas «Vencimientos» y «En tránsito» en el hub enlazando a esas pantallas
+  - **Verificar:** tests de ruta: los botones disparan el helper de blob con los filtros activos; las tarjetas visibles según permiso
+  - **Depende de:** F5-EXP-01, F5-EXP-02, F5-HUB-02
+  - **Estimación:** 1.5 h
+
+### Módulo F5-HUB — El hub y la plomería del front
+
+- [ ] **F5-HUB-01** — Helper compartido de descarga de blob
+  - **Salida:** un solo helper (`lib/download.ts`) con la secuencia blob → objectURL → click → revoke; migradas las CUATRO copias actuales (`products/import-api.ts`, `inventory/api.ts` ×2, `pos/api.ts`)
+  - **Verificar:** los tests existentes de esas cuatro features verdes tras la migración (contraprueba de no-regresión); unit del helper
+  - **Depende de:** —
+  - **Estimación:** 1.5 h
+
+- [ ] **F5-HUB-02** — Hub `/reports` + entrada en el nav
+  - **Salida:** ruta `/reports` con las 8 tarjetas de VISTAS §10; `canSeeReportsNav = has("reports:read")` en el nav; las tarjetas de export directo (usuarios, almacenes, catálogo) descargan sin navegar; Catálogo enlaza a `/catalog/products`
+  - **Verificar:** test de nav: con `reports:read` se ve; contraprueba: POS_Seller no lo ve y `/reports` lo rebota; las tarjetas de export llaman al helper
+  - **Depende de:** F5-HUB-01, F5-CAT-01, F5-CAT-02, F5-CAT-03
+  - **Estimación:** 2 h
+
+- [ ] **F5-HUB-03** — Componente común de reporte (TanStack Table server-side)
+  - **Salida:** el «patrón común» de VISTAS §10 como componente/hook compartido: zona de filtros + `@tanstack/react-table` en modo manual (`manualPagination`/`manualSorting` contra la API) + paginador + botón Exportar; integra `ScrollableTable`. Lo consumen F5-STK-04 y F5-SALES-03
+  - **Verificar:** test con API mockeada: cambiar orden/página dispara la query con params server-side; contraprueba: el orden NO se aplica en cliente (un dataset mock desordenado lo delata)
+  - **Depende de:** F5-HUB-01
+  - **Estimación:** 2 h
+
+### Módulo F5-DOCS — Sincronía de las fuentes de verdad
+
+- [ ] **F5-DOCS-01** — Sincronía FINAL contra lo construido
+  - **Salida:** la sincronía INICIAL ya se hizo **pre-F5 (2026-08-21**, `topic_key: sellpoint/f5-atomizacion`): permisos fantasma retirados de los cuatro docs, FLUJOS §8 reescrito al flujo síncrono, VISTAS §10 con 8 tarjetas y CU-REP-01..05. Esta tarea es el contraste final: cada divergencia entre lo documentado y lo que la implementación reveló se corrige del lado que estaba mal
+  - **Verificar:** los cuatro docs cuentan el mismo diseño QUE EL CÓDIGO; el grep de genericidad sigue limpio
+  - **Depende de:** F5-CORE-01..F5-HUB-03
+  - **Estimación:** 2 h
+
+**Estimación: ~2 semanas** (~40 h en 24 tareas).
 
 ---
 
@@ -3200,6 +3373,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 - **2026-08-21 (F4-TICKET — el papel, y una barrera que ya existía para este error)** — Las tres tareas. **F4-TICKET-03** saldó la deuda de F3: el PDF firmable decía `36 unit` —el CÓDIGO de la unidad— y ahora dice `36 piezas`, con la cantidad por `formatQuantity()`. El tablero suponía que el renderer recibía el locale y **no lo recibía**: solo una `t(key)`, que traduce claves y no sabe de idiomas. Se agregó `locale` al input, y va aparte de `t` a propósito — el nombre de un kilo vive en `UNITS` de shared, no en el namespace `pdf`, y duplicarlo como `pdf.unit.kg` sería tenerlo en dos lugares. **F4-TICKET-01**: plantilla nueva, no reuso del renderer de F3 — aquel es carta con firmas y costos de compra, este una tira de 58/80 mm con precios de venta y sin dónde firmar; compartirlos habría dado un archivo lleno de `if (esTicket)`. Lo que SÍ se comparte es el patrón: función pura que devuelve el `docDefinition` para poder testear **qué dice el papel** en vez de comparar bytes. **La cotización se ve distinta de un ticket** —marca COTIZACIÓN y la leyenda de que el precio final se calcula en caja— y eso no es cortesía: los precios no se congelan, así que sin la leyenda el cliente vuelve en un mes reclamando un número que el sistema ya no reconoce. **Lo que vale la pena recordar:** el ticket arma `t(\`ticket.method.${paymentMethod}\`)`, una clave DINÁMICA que ningún escáner de literales ve — exactamente la trampa para la que se construyó `pdf-keys.spec.ts` en F3. Se extendió esa barrera en vez de escribir una nueva: el día que entre un método de pago (vales, monedero, crédito) el test se pone rojo antes de que un cliente reciba un ticket que diga `ticket.method.voucher`. **F4-TICKET-02 con desvío deliberado**: el tablero pedía `window.print` + CSS `@page`; se abre el PDF del servidor porque hacerlo con CSS obligaba a mantener dos plantillas del mismo papel. — `topic_key: sellpoint/f4-ticket-el-papel`
 - **2026-08-21 (LA PRUEBA DE PUNTA A PUNTA — `VTA-000001` gastada, y un defecto que solo se veía en producción)** — Con el ticket desplegado se hizo la prueba completa contra la base real, la que se había pospuesto a propósito para gastar el primer folio una sola vez. **La cadena entera verificada:** turno abierto → buscar «advil» (dijo «250 piezas disponibles · 15 vencidas», el descuento de lo caducado funcionando sobre datos reales) → carrito → cobro con vuelto ($100 → $50.00) → `VTA-000001` cobrada → ticket `200 application/pdf VTA-000001.pdf` de 2.296 bytes → historial → anulación con motivo → cierre de caja. **Los dos números que importan:** el stock hizo 265 → 264 → **265**, exactamente donde empezó; y los movimientos fueron `exit sale` del lote **`st1`** y `entry sale_return` **al MISMO `st1`**. FEFO eligió el lote que vence primero ENTRE LOS VIVOS —`st1` vence el 23/08, saltó el `cad12` vencido el 01/08 y no tocó el `st2` de 2030— y el reverso volvió al lote del que salió, no a un montón genérico: si hubiera vuelto a `st2`, el saldo cuadraría y la caducidad estaría mintiendo. El arqueo cerró en $0.00 con «0 ventas», porque una anulada deja de sumar. **El defecto que destapó:** el carrito decía **«1 piezas»**. Cuatro pantallas —carrito, buscador, saldo por almacén, detalle de documento— llamaban a `unitName(..., { plural: true })` por su cuenta, así que el plural no miraba la cantidad. Se centralizó en `formatQuantityWithUnit` y `unitLabelFor` (dos formas de la MISMA decisión: una arma el texto completo, la otra sirve a los mensajes de i18n que interpolan cantidad y unidad por separado). **Lo que NO se tocó:** `presentations-tab` pluraliza siempre y está BIEN — «las equivalencias se expresan en piezas» es una etiqueta suelta, no acompaña a ningún número. **Lección: un defecto de una sola letra que ningún test unitario iba a encontrar, porque todos los fixtures usaban cantidad 2.** — `topic_key: sellpoint/prueba-punta-a-punta-pos`
 - **2026-08-21 (F4-PWA-01 y F4-DOCS-01 — CIERRE DE LA FASE 4)** — **PWA:** manifest instalable (`standalone`, `scope`, icono `maskable` con zona segura — Android RECORTA el icono con la forma que el fabricante elija, y el favicon llena su lienzo de borde a borde) + service worker propio. Se descartó `vite-plugin-pwa`: precachear la lista del build hace falta para servir TODO offline, y acá solo importa que la app ABRA. **La regla del worker: el API NUNCA se cachea**, ni por origen ni por ruta — servir un `/pos/lookup` guardado mostraría el stock de hace una hora y el cajero vendería lo que ya no está. El aviso de sin conexión dice **qué no se puede hacer**, no solo que no hay red: la app abre y muestra la pantalla de venta completa, así que un «sin conexión» a secas dejaría al cajero deduciendo por qué no pasa nada. Barrera propia (`pwa-contract.test.ts`) porque un manifest y un `sw.js` son archivos estáticos que ningún `render()` toca. **DOCS — las divergencias que la implementación reveló, corregidas del lado que estaba mal:** (a) FLUJOS §6.1 prometía `GET /products?barcode=` y el buscador es `GET /pos/lookup?q=` con cinco strategies; (b) el rechazo por concurrencia decía 409 y son **422** con el `sku` culpable fuera de `args`; (c) los tres docs prometían `window.print()` + CSS `@page` y se abre el **PDF del servidor** —hacerlo con CSS obligaba a mantener dos plantillas del mismo ticket—; (d) ARQUITECTURA §4 listaba `escpos-buffer` + Web Bluetooth y `vite-plugin-pwa` como tecnologías: **ninguna de las tres se usó**, y ahora la tabla dice qué se usó Y por qué se descartaron; (e) el wireframe del historial mostraba «# Venta 4523» y filtros de fecha/vendedor/turno que existen en el API y no en la pantalla — se documentó la diferencia en vez de fingir que no está. **El grep de genericidad sigue con sus hits conocidos**, todos ejemplos de wireframe (un tenant de muestra, un email), no supuestos de rubro en el código. — `topic_key: sellpoint/f4-cierre-pwa-y-docs`
+- **2026-08-21 (ATOMIZACIÓN DE F5 — 24 tareas en 9 módulos, y cuatro fantasmas menos en los docs)** — La Fase 5 pasó de un outline de 8 líneas a 24 tareas (~40 h) con su «Definición de Fase 5 completa» escrita ANTES de la primera tarea (regla de F4-DOCS-01: el checklist es el contrato). **Las decisiones:** (1) el permiso es **`reports:read`** — ya vivía en producción asignado a 4 roles y con CERO endpoints que lo exigieran (la barrera `permissions-catalog.spec.ts` lo había detectado huérfano); los docs decían `reports:view`, mandó el código. (2) **`reports:export` NO se crea**: era un fantasma de VISTAS §11.2 que nunca existió en ningún catálogo — exportar es leer (criterio «reimprimir es leer» de F4-UI-03), y la matriz daba asignación idéntica a ver y exportar: dos permisos con la misma asignación es un permiso de más. (3) **Exportación SÍNCRONA con tope de filas** (~10 000; superarlo → 400 que pide acotar filtros, nunca un Excel truncado en silencio — se lee como completo); la cola Redis + worker + S3 + URL firmada que FLUJOS §8 prometía **nunca se construyó** y queda DIFERIDA con el criterio F4-PRINT-BT: sin caso real, código de fe. El diagrama se reescribió al flujo real. (4) **Costo promedio ponderado GLOBAL por producto** (decisión de Carlos, cerrando el «a decidir» que la Bitácora de F3 dejó el 2026-08-17): un traspaso no cambia lo que costó la mercancía; si un día cada sucursal compra a precios muy distintos, se migra. (5) **Catálogo/usuarios/almacenes son export directo sin pantalla** — una tabla duplicaría los listados existentes; y el export de catálogo necesita SU endpoint porque el de la plantilla de importación exige `products:manage` y un Viewer no podría usarlo (hueco que la exploración destapó). **Lo que se reusa y quedó fijado en las tareas:** `serializeSpreadsheet` de F2 (solo se parametriza hoja/filename), `kardex.service.list` para el export (cero segunda implementación del saldo), el builder de `where` de ventas compartido con el POS sin tocar la semántica de `GET /pos/sales`, y el helper de descarga de blob que hoy está copiado CUATRO veces en el front. VISTAS §10 pasó de 6 a 8 tarjetas (entran Vencimientos y Tránsito, herencias F3) y CASOS_DE_USO ganó CU-REP-05 (exports directos). — `topic_key: sellpoint/f5-atomizacion`
 - **2026-08-21 (EL DEPLOY DE F4-QUOTE FALLÓ — `typecheck` no mira los tests, `typecheck:full` sí)** — Corrí las cuatro suites en verde y pusheé; CI reventó igual. **La causa:** verifiqué tipos con `pnpm exec tsc --noEmit -p tsconfig.app.json`, que compila SOLO la app y **excluye los archivos de test**. El pipeline corre `typecheck:full` (`tsc -b`, todos los proyectos referenciados) y ahí saltó un `error TS2551` en un test nuevo. Es la MISMA clase de error que el del 2026-08-20 con `pnpm test` sin e2e: usar un comando más angosto que el del pipeline y leer su verde como si fuera el del pipeline. **Regla: para tipos, `pnpm typecheck` desde el paquete — nunca un `tsc -p` a mano contra un tsconfig elegido por mí.** **Lo que destapó:** el mock inventaba `listScopedWarehouses`, una función que NO existe (el alcance se pide con `listWarehouses({ scoped: true })`). Estaba copiada en TRES archivos de test desde `pos-session.test.tsx` y nadie la notó porque **ningún test la usaba** — un mock de una función inexistente es una mentira que solo se descubre cuando alguien intenta apoyarse en ella, que fue exactamente lo que pasó. Limpiada en los tres. — `topic_key: sellpoint/typecheck-full-vs-typecheck`
 - **2026-08-21 (DISCO DEL VPS AL 74% — la limpieza funcionaba; el problema era la ventana)** — Carlos vio 33 de 47 GB usados y preguntó si sobraban imágenes de Docker. **Sobraban 176, pero no por lo que parecía.** El `docker image prune -af --filter until=…` que se agregó tras el incidente del 2026-08-18 **corre y funciona**: ninguna imagen pasaba de 3 días y no había un solo contenedor detenido reteniendo nada. Lo que fallaba era el número: `IMAGE_RETENTION="168h"` —una semana— y en TRES días se acumularon 176 imágenes (59 api × 833 MB, 59 web, 58 migrate × 1.01 GB) = 24.94 GB, de los cuales `docker system df` daba **16.58 GB reclamables (66%)**. Al ritmo real de deploys, siete días no son un colchón: son un acumulador. **El argumento de fondo no es el disco:** aquella semana se eligió "para tener rollback disponible", y **a una imagen de hace una semana no se puede volver** — la base tiene siete días de migraciones aplicadas que ese código no conoce, y bajar la imagen no las deshace. La retención protegía un rollback que sería peligroso ejecutar. El rollback real es el de los primeros minutos, así que **24h** conserva todos los deploys del día, que son los únicos a los que volver es seguro. **Y el cambio destapó un defecto de siempre:** `docker image prune -af` borra CUALQUIER imagen sin contenedor vivo, así que se llevó `certbot/certbot` — un one-shot (`compose run --rm`) que por definición nunca tiene un contenedor corriendo. La semana de retención solo lo tapaba. No hubo caída (el `compose run` la vuelve a bajar sola, y el certificado vence el 5 de noviembre), pero quedaba algo que nadie eligió: **la renovación de los certificados pasando a depender de que Docker Hub responda a las 4:30 de la mañana**. Se cambió la limpieza para que toque SOLO los tres repositorios de `ghcr.io/carloshlm/` — comparando el nombre completo del registro y no un prefijo: `sellpoint-php-fpm:local` es un servicio del MISMO compose (lo afirmé como «de otro proyecto» sin verificarlo y era falso), pero se construye local y no lleva SHA — hay una sola copia, no se acumula, y borrarla obligaría a reconstruirla. Lo que se limpia es lo versionado por deploy, que es lo único que crece. Las dangling siguen barriéndose con `prune -f` SIN `-a`, que es lo que lo mantiene inofensivo. Probado en seco contra el servidor real antes de pushear. **Lección: la limpieza de un deploy no tiene por qué opinar sobre imágenes que el deploy no creó.** **Detalle que corrige una suposición:** el script NO tiene horario — no hay `schedule` ni cron, corre `on: push` a `main`, así que la limpieza vive DENTRO del deploy y el espacio se libera en el próximo push, no de un día para el otro. — `topic_key: sellpoint/retencion-imagenes-docker`
 
