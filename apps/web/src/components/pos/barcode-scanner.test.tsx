@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -22,9 +22,22 @@ import { BarcodeScanner } from "./barcode-scanner";
  */
 
 const stop = vi.fn();
-const decodeFromConstraints = vi.fn();
+const decodeFromStream = vi.fn();
 /** Con qué se CONSTRUYÓ el lector: hints y opciones. Ver los tests de config. */
 const construidoCon = vi.fn();
+
+/**
+ * El stream falso. El TRACK es el personaje importante: es lo que el
+ * componente configura (`applyConstraints`) y vigila (`ended`) — ver los tests
+ * de la lente Samsung, abajo.
+ */
+const track = {
+  applyConstraints: vi.fn(),
+  stop: vi.fn(),
+  addEventListener: vi.fn(),
+};
+const streamFalso = { getVideoTracks: () => [track], getTracks: () => [track] };
+const getUserMedia = vi.fn();
 
 vi.mock("@zxing/browser", () => ({
   // El lector 1D, no el multiformato: una tienda escanea EAN/UPC/Code-128, y
@@ -34,7 +47,7 @@ vi.mock("@zxing/browser", () => ({
     constructor(hints: unknown, opciones: unknown) {
       construidoCon(hints, opciones);
     }
-    decodeFromConstraints = decodeFromConstraints;
+    decodeFromStream = decodeFromStream;
   },
 }));
 
@@ -67,7 +80,14 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // La cámara arranca bien y queda leyendo: el callback no se dispara solo.
-    decodeFromConstraints.mockResolvedValue({ stop });
+    track.applyConstraints.mockResolvedValue(undefined);
+    getUserMedia.mockResolvedValue(streamFalso);
+    decodeFromStream.mockResolvedValue({ stop });
+    // jsdom no trae `mediaDevices`: se instala el nuestro.
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { getUserMedia },
+      configurable: true,
+    });
   });
 
   /**
@@ -81,7 +101,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
     await encender();
 
-    await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(decodeFromStream).toHaveBeenCalledTimes(1));
     // Se le da tiempo a cualquier re-render de hacer daño.
     await new Promise((r) => setTimeout(r, 50));
     expect(stop).not.toHaveBeenCalled();
@@ -92,11 +112,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
     await encender();
 
-    await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalled());
+    await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 50));
     // Arrancarla dos veces deja un stream huérfano con la luz de la cámara
     // encendida y sin nadie que la apague.
-    expect(decodeFromConstraints).toHaveBeenCalledTimes(1);
+    expect(decodeFromStream).toHaveBeenCalledTimes(1);
   });
 
   it("el <video> se pinta y puede reproducirse solo", async () => {
@@ -120,7 +140,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   it("al parar, sí se apaga", async () => {
     renderScanner();
     await encender();
-    await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalled());
+    await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("button", { name: /Dejar de escanear/ }));
 
@@ -133,7 +153,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    */
   it("un código leído apaga la cámara y lo entrega UNA vez", async () => {
     const onScan = vi.fn();
-    decodeFromConstraints.mockImplementation((_dispositivo, _video, callback) => {
+    decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
       return Promise.resolve({ stop });
     });
@@ -168,25 +188,63 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    * librería. Por eso se fijan acá.
    */
   describe("configuración del lector (por qué no leía nada)", () => {
-    it("pide la cámara TRASERA y en alta resolución", async () => {
+    /**
+     * ── LA LENTE EQUIVOCADA DE LOS SAMSUNG (2026-08-22, tercera del día) ──
+     *
+     * Carlos, desde su Samsung: la cámara ARRANCA (el punto verde de Android
+     * aparece) y el cuadro sigue negro. Es un problema documentado de los
+     * teléfonos con varias cámaras traseras: cuando `getUserMedia` recibe
+     * `facingMode` JUNTO con una resolución, Chrome a veces resuelve el
+     * pedido eligiendo una lente auxiliar (macro, profundidad) que entrega
+     * CUADROS NEGROS. La resolución no puede participar en la ELECCIÓN del
+     * dispositivo — por eso son dos pasos, y estos dos tests fijan cada uno.
+     */
+    it("pide la cámara trasera SIN meter la resolución en la elección", async () => {
       renderScanner();
 
       await encender();
 
-      await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalled());
-      const restricciones = primeraLlamada(decodeFromConstraints, "decodeFromConstraints")[0] as {
-        video: {
-          facingMode: string;
-          width: { ideal: number };
-          height: { ideal: number };
-        };
+      await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+      const restricciones = primeraLlamada(getUserMedia, "getUserMedia")[0] as {
+        video: { facingMode?: string; width?: unknown; height?: unknown };
       };
-      const video = restricciones.video;
-      expect(video.facingMode).toBe("environment");
-      // `ideal` y no `exact`: una webcam que no llega a 1280 tiene que seguir
-      // funcionando con lo que pueda dar. `exact` la dejaría sin cámara.
-      expect(video.width.ideal).toBeGreaterThanOrEqual(1280);
-      expect(video.height.ideal).toBeGreaterThanOrEqual(720);
+      expect(restricciones.video.facingMode).toBe("environment");
+      expect(restricciones.video.width).toBeUndefined();
+      expect(restricciones.video.height).toBeUndefined();
+    });
+
+    it("sube la resolución DESPUÉS, sobre la lente ya elegida", async () => {
+      renderScanner();
+
+      await encender();
+
+      // `applyConstraints` sobre el track NO cambia de dispositivo: sube la
+      // resolución de la lente buena en vez de arriesgar la elección.
+      await waitFor(() => expect(track.applyConstraints).toHaveBeenCalled());
+      const pedido = primeraLlamada(track.applyConstraints, "applyConstraints")[0] as {
+        width: { ideal: number };
+        height: { ideal: number };
+      };
+      // `ideal` y no `exact`: una cámara que no llega se queda en lo que da.
+      expect(pedido.width.ideal).toBeGreaterThanOrEqual(1280);
+      expect(pedido.height.ideal).toBeGreaterThanOrEqual(720);
+    });
+
+    it("si la cámara muere sola, se dice — no se deja el cuadro negro", async () => {
+      renderScanner();
+
+      await encender();
+
+      // El componente tiene que VIGILAR el track: si otra app toma la cámara
+      // o el sistema la corta, el stream muere sin excepción y sin aviso —
+      // exactamente el cuadro negro mudo que no se puede diagnosticar.
+      await waitFor(() => expect(track.addEventListener).toHaveBeenCalled());
+      const suscripcion = track.addEventListener.mock.calls.find((c) => c[0] === "ended");
+      if (suscripcion === undefined) {
+        throw new Error("nadie vigila el evento 'ended' del track");
+      }
+      act(() => (suscripcion[1] as () => void)());
+      expect(await screen.findByTestId("scanner-unavailable")).toBeInTheDocument();
     });
 
     it("intenta MUCHO más de dos veces por segundo", async () => {
@@ -259,11 +317,14 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   });
 
   it("si la cámara falla, lo dice y no deja la pantalla muda", async () => {
-    decodeFromConstraints.mockRejectedValue(new Error("NotAllowedError"));
+    decodeFromStream.mockRejectedValue(new Error("NotAllowedError"));
     renderScanner();
 
     await encender();
 
     expect(await screen.findByTestId("scanner-unavailable")).toBeInTheDocument();
+    // Y el stream que ya se había pedido se APAGA: sin esto, la luz de la
+    // cámara queda prendida sin que ninguna pantalla la muestre.
+    expect(track.stop).toHaveBeenCalled();
   });
 });

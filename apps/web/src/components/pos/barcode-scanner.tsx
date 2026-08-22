@@ -48,16 +48,24 @@ import { Button } from "@/components/ui/button";
  */
 
 /**
- * `ideal` y NUNCA `exact`: con `exact`, una webcam que no llega a 1280 devuelve
- * `OverconstrainedError` y el usuario se queda sin cámara en vez de con una
- * peor. Se pide lo bueno y se acepta lo que haya.
+ * ── DOS PASOS, y no uno (2026-08-22, la lección Samsung) ──────────────────
+ *
+ * La cámara se pide SOLO con `facingMode`, y la resolución se sube DESPUÉS con
+ * `applyConstraints` sobre el track ya elegido. No es estilo: en los teléfonos
+ * con varias cámaras traseras (Samsung, sobre todo), pedir `facingMode` JUNTO
+ * con una resolución hace que Chrome a veces elija una lente auxiliar — macro,
+ * profundidad — que entrega CUADROS NEGROS con el stream perfectamente vivo.
+ * Carlos lo vio: el punto verde de Android prendido y el recuadro negro. La
+ * resolución NO puede participar en la ELECCIÓN del dispositivo.
+ *
+ * `applyConstraints` no cambia de dispositivo: sube la resolución de la lente
+ * buena, y si no llega se queda en lo que dé. `ideal` y NUNCA `exact` por lo
+ * mismo: peor que una imagen modesta es no tener ninguna.
  */
-const RESTRICCIONES: MediaStreamConstraints = {
-  video: {
-    facingMode: "environment",
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-  },
+const CAMARA_TRASERA: MediaStreamConstraints = { video: { facingMode: "environment" } };
+const RESOLUCION_IDEAL: MediaTrackConstraints = {
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
 };
 
 /**
@@ -131,6 +139,11 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
     let cancelado = false;
     setFase("encendiendo");
 
+    // Fuera del try para poder apagarlo en el catch: si algo falla DESPUÉS de
+    // `getUserMedia`, el stream ya existe y la luz de la cámara está prendida.
+    // Un fallo que deja la luz encendida sin imagen es el peor de los mundos.
+    let stream: MediaStream | null = null;
+
     void (async () => {
       try {
         // Import diferido: ver la nota de arriba.
@@ -148,10 +161,28 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           throw new Error("el <video> no estaba montado al arrancar el lector");
         }
 
-        // `decodeFromConstraints` y no `decodeFromVideoDevice`: el segundo arma
-        // `{ video: { facingMode: "environment" } }` y nada más, y sin pedir
-        // resolución el navegador entrega su default. Ver `RESTRICCIONES`.
-        const controles = await lector.decodeFromConstraints(RESTRICCIONES, video, (resultado) => {
+        stream = await navigator.mediaDevices.getUserMedia(CAMARA_TRASERA);
+        if (cancelado) {
+          for (const t of stream.getTracks()) {
+            t.stop();
+          }
+          return;
+        }
+
+        const [pista] = stream.getVideoTracks();
+        // La resolución, sobre la lente YA elegida — ver `RESOLUCION_IDEAL`.
+        // Si el modo no existe, se queda como está: no es motivo para fallar.
+        await pista?.applyConstraints(RESOLUCION_IDEAL).catch(() => undefined);
+        // Si otra app toma la cámara o el sistema la corta, el track muere SIN
+        // excepción: sin esta vigilancia quedaría el cuadro negro mudo.
+        pista?.addEventListener("ended", () => {
+          if (!cancelado) {
+            setEncendida(false);
+            setFase("sin-camara");
+          }
+        });
+
+        const controles = await lector.decodeFromStream(stream, video, (resultado) => {
           if (resultado === undefined || cancelado) {
             return;
           }
@@ -169,9 +200,16 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         }
         controlesRef.current = controles;
         setFase("leyendo");
-      } catch {
+      } catch (error) {
         // Permiso denegado, sin cámara, o un navegador sin `mediaDevices`. Los
         // tres terminan igual: se dice qué pasó y la búsqueda manual sigue.
+        // El error va a consola porque este catch ya se tragó DOS bugs en
+        // silencio — con un teléfono conectado por USB, `chrome://inspect`
+        // muestra esta línea y ahorra una tarde de adivinar.
+        console.error("[barcode-scanner]", error);
+        for (const t of stream?.getTracks() ?? []) {
+          t.stop();
+        }
         if (!cancelado) {
           setEncendida(false);
           setFase("sin-camara");
