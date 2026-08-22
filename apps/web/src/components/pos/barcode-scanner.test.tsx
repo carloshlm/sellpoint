@@ -33,6 +33,7 @@ const construidoCon = vi.fn();
  */
 const track = {
   applyConstraints: vi.fn(),
+  getCapabilities: vi.fn(),
   stop: vi.fn(),
   addEventListener: vi.fn(),
 };
@@ -81,6 +82,8 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     vi.clearAllMocks();
     // La cámara arranca bien y queda leyendo: el callback no se dispara solo.
     track.applyConstraints.mockResolvedValue(undefined);
+    // Una lente de teléfono típica: sabe enfocar de continuo y hacer zoom.
+    track.getCapabilities.mockReturnValue({ focusMode: ["continuous"], zoom: { min: 1, max: 8 } });
     getUserMedia.mockResolvedValue(streamFalso);
     decodeFromStream.mockResolvedValue({ stop });
     // jsdom no trae `mediaDevices`: se instala el nuestro.
@@ -228,6 +231,44 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       // `ideal` y no `exact`: una cámara que no llega se queda en lo que da.
       expect(pedido.width.ideal).toBeGreaterThanOrEqual(1280);
       expect(pedido.height.ideal).toBeGreaterThanOrEqual(720);
+    });
+
+    /**
+     * ── POR QUÉ LA CÁMARA NATIVA VE MEJOR (2026-08-22, reporte de Carlos) ──
+     *
+     * Con la cámara ya viva, el código seguía sin leerse: «si acerco el código
+     * se desenfoca, y si lo alejo no lo reconoce». Exacto: `getUserMedia`
+     * entrega la lente con el enfoque que caiga — la app nativa hace autofoco
+     * CONTINUO gratis — y sin zoom, la distancia donde el enfoque trabaja
+     * deja el código en un puñado de píxeles. El remedio estándar de los
+     * escáneres: enfoque continuo + zoom 2×, pedidos SOLO si la lente declara
+     * saberlos hacer, cada uno en su propio set de `advanced` para que el
+     * navegador aplique los que pueda e ignore el resto.
+     */
+    it("pide enfoque continuo y zoom cuando la lente sabe hacerlos", async () => {
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(track.applyConstraints).toHaveBeenCalledTimes(2));
+      const avanzado = track.applyConstraints.mock.calls[1]?.[0] as {
+        advanced: Record<string, unknown>[];
+      };
+      expect(avanzado.advanced).toContainEqual({ focusMode: "continuous" });
+      expect(avanzado.advanced).toContainEqual({ zoom: 2 });
+    });
+
+    it("una cámara sin enfoque ni zoom no recibe pedidos que no entiende", async () => {
+      // Una webcam de escritorio: sin capacidades anunciadas. Pedirle zoom
+      // igual sería apostar a que ignora lo que no entiende — mejor no pedir.
+      track.getCapabilities.mockReturnValue({});
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 20));
+      expect(track.applyConstraints).toHaveBeenCalledTimes(1);
     });
 
     it("si la cámara muere sola, se dice — no se deja el cuadro negro", async () => {

@@ -69,6 +69,14 @@ const RESOLUCION_IDEAL: MediaTrackConstraints = {
 };
 
 /**
+ * El truco estándar de los escáneres, reportado por Carlos con precisión: «si
+ * acerco el código se desenfoca, y si lo alejo no lo reconoce». Con 2× la caja
+ * se sostiene a la distancia donde el enfoque SÍ trabaja y el código igual
+ * llena píxeles. Solo se pide si la lente declara llegar (capabilities).
+ */
+const ZOOM_ESCANER = 2;
+
+/**
  * 100 ms ≈ 10 intentos por segundo. No es gratis —cada intento binariza el
  * cuadro y lo recorre— pero el lector 1D es barato comparado con el
  * multiformato, y el cuello de botella real es la mano del cajero.
@@ -177,6 +185,29 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // La resolución, sobre la lente YA elegida — ver `RESOLUCION_IDEAL`.
         // Si el modo no existe, se queda como está: no es motivo para fallar.
         await pista?.applyConstraints(RESOLUCION_IDEAL).catch(() => undefined);
+
+        // ── Por qué la cámara nativa ve mejor, y cómo emparejarla ─────────
+        // `getUserMedia` entrega la lente con el enfoque que caiga; la app
+        // nativa hace autofoco CONTINUO gratis. Y sin zoom, la distancia
+        // donde el enfoque trabaja deja el código en un puñado de píxeles.
+        // Cada ajuste va en su PROPIO set de `advanced`: el navegador aplica
+        // los que puede e ignora el resto, en vez de descartar el paquete.
+        const capacidades = (pista?.getCapabilities?.() ?? {}) as {
+          focusMode?: string[];
+          zoom?: { max?: number };
+        };
+        const ajustes: Record<string, unknown>[] = [];
+        if (capacidades.focusMode?.includes("continuous") === true) {
+          ajustes.push({ focusMode: "continuous" });
+        }
+        if ((capacidades.zoom?.max ?? 0) >= ZOOM_ESCANER) {
+          ajustes.push({ zoom: ZOOM_ESCANER });
+        }
+        if (ajustes.length > 0) {
+          await pista
+            ?.applyConstraints({ advanced: ajustes } as MediaTrackConstraints)
+            .catch(() => undefined);
+        }
         // Si otra app toma la cámara o el sistema la corta, el track muere SIN
         // excepción: sin esta vigilancia quedaría el cuadro negro mudo.
         pista?.addEventListener("ended", () => {
