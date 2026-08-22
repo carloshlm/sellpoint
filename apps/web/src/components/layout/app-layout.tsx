@@ -242,6 +242,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {canSeeSellNav && (
                 <Link
                   to="/pos"
+                  // `/pos` es PREFIJO de `/pos/quotes`, `/pos/sales` y
+                  // `/pos/close`: sin `exact`, TanStack lo marca activo en las
+                  // cuatro y quedan DOS items resaltados a la vez (Carlos lo vio
+                  // el 2026-08-22). Un menú con dos items encendidos deja de
+                  // responder la única pregunta que tiene: «¿dónde estoy?».
+                  // Fijado para toda la clase por `lib/ui/menu-activo-exacto.test.ts`.
+                  activeOptions={{ exact: true }}
                   aria-label={t("pos.nav.sell")}
                   className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
                 >
