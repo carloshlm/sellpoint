@@ -481,4 +481,80 @@ describe("Cotización (F4-QUOTE)", () => {
       await paraVender(e.token, "cot-000001").expect(200);
     });
   });
+
+  /**
+   * F4-TICKET-01 — el papel.
+   *
+   * El e2e verifica el TRANSPORTE (que baje un `application/pdf` de verdad);
+   * QUÉ dice el papel lo fija `ticket.renderer.spec.ts` sobre la definición,
+   * que es donde se puede leer en vez de comparar bytes.
+   */
+  describe("el ticket (F4-TICKET-01)", () => {
+    it("la cotización baja un PDF con su folio en el nombre", async () => {
+      const e = await escenario();
+      const creada = await cotizar(e.token, {
+        lines: [{ productId: e.productoId, quantity: 2 }],
+      }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/pos/quotes/${(creada.body as { id: string }).id}/ticket`)
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+
+      expect(res.headers["content-type"]).toContain("application/pdf");
+      expect(res.headers["content-disposition"]).toContain("COT-000001.pdf");
+      // Un PDF real empieza con `%PDF`. Sin esto, un cuerpo vacío con el header
+      // correcto pasaría el test.
+      expect(res.body.subarray(0, 4).toString()).toBe("%PDF");
+    });
+
+    it("la venta también, y en el ancho pedido", async () => {
+      const e = await escenario();
+      await abrirTurno(e.token).expect(201);
+      const venta = await request(app.getHttpServer())
+        .post("/pos/sales")
+        .set("Authorization", bearer(e.token))
+        .send({ paymentMethod: "cash", lines: [{ productId: e.productoId, quantity: 1 }] })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/pos/sales/${(venta.body as { id: string }).id}/ticket`)
+        .query({ width: "80mm" })
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+
+      expect(res.headers["content-type"]).toContain("application/pdf");
+      expect(res.body.subarray(0, 4).toString()).toBe("%PDF");
+    });
+
+    /**
+     * Un ancho que no existe cae a 58 mm en vez de reventar: un ticket angosto
+     * se lee, un 500 en la caja no.
+     */
+    it("un ancho inválido no rompe la caja", async () => {
+      const e = await escenario();
+      const creada = await cotizar(e.token, {
+        lines: [{ productId: e.productoId, quantity: 1 }],
+      }).expect(201);
+
+      await request(app.getHttpServer())
+        .get(`/pos/quotes/${(creada.body as { id: string }).id}/ticket`)
+        .query({ width: "300mm" })
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+    });
+
+    it("un ticket de otro tenant no existe para este", async () => {
+      const e = await escenario();
+      const ajeno = await escenario();
+      const suya = await cotizar(ajeno.token, {
+        lines: [{ productId: ajeno.productoId, quantity: 1 }],
+      }).expect(201);
+
+      await request(app.getHttpServer())
+        .get(`/pos/quotes/${(suya.body as { id: string }).id}/ticket`)
+        .set("Authorization", bearer(e.token))
+        .expect(404);
+    });
+  });
 });

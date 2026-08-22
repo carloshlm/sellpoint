@@ -1,0 +1,18 @@
+{
+  "change": "Cambio",
+  "discount": "Descuento",
+  "lot": "Lote",
+  "method": {
+    "card": "Tarjeta",
+    "cash": "Efectivo",
+    "transfer": "Transferencia"
+  },
+  "payment": "Pago",
+  "quoteDisclaimer": "Precios de referencia. El precio final se calcula en caja al momento de la compra.",
+  "quoteMark": "*** COTIZACIÓN ***",
+  "received": "Recibido",
+  "seller": "Atendió",
+  "subtotal": "Subtotal",
+  "thanks": "¡Gracias por tu compra!",
+  "total": "Total"
+}

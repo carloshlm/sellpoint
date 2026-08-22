@@ -37,7 +37,8 @@ import { aLineasDeVenta, subtotalDelCarrito, useCartStore } from "@/stores/cart.
  */
 
 interface CheckoutPanelProps {
-  onDone: (folio: string) => void;
+  /** La venta cerrada. El `id` hace falta para imprimir su ticket. */
+  onDone: (venta: { id: string; folio: string }) => void;
   onCancel: () => void;
 }
 
@@ -89,7 +90,7 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
       {
         onSuccess: (venta) => {
           clear();
-          onDone(venta.folio);
+          onDone({ id: venta.id, folio: venta.folio });
         },
         onError: (e: ApiError) => {
           setError(e.message || t("pos.checkout.failed"));

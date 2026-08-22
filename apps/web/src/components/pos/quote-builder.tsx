@@ -27,7 +27,12 @@ import { aLineasDeVenta, useCartStore } from "@/stores/cart.store";
  * el que el buscador resuelve precios y disponibilidad — por eso se elige
  * ARRIBA, antes de buscar, y no al final junto al botón.
  */
-export function QuoteBuilder({ onDone }: { onDone: (folio: string) => void }) {
+export function QuoteBuilder({
+  onDone,
+}: {
+  /** La cotización creada. El `id` hace falta para imprimir su papel. */
+  onDone: (cotizacion: { id: string; folio: string }) => void;
+}) {
   const { t } = useTranslation();
   const asignado = useAuthStore((s) => s.user?.defaultWarehouseId ?? null);
   const [warehouseId, setWarehouseId] = useState<string | null>(asignado);
@@ -99,7 +104,7 @@ export function QuoteBuilder({ onDone }: { onDone: (folio: string) => void }) {
                     // sobrevive a la cotización terminaría cobrado por segunda
                     // vez desde la pantalla de venta, ya sin vínculo al folio.
                     clear();
-                    onDone(cotizacion.folio);
+                    onDone({ id: cotizacion.id, folio: cotizacion.folio });
                   },
                   // El error del server NUNCA se traga — lección del confirm
                   // mudo de F3.

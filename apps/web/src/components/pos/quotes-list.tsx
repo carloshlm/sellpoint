@@ -2,6 +2,7 @@ import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { QuoteRow } from "@/lib/pos/api";
@@ -141,6 +142,13 @@ function QuoteRowView({
         )}
       </td>
       <td className="p-2 text-right">
+        {/* El cliente perdió el papel: se reimprime en cualquier estado. */}
+        <PrintTicketButton
+          kind="quote"
+          id={cotizacion.id}
+          folio={cotizacion.folio}
+          label={t("pos.ticket.reprint")}
+        />
         {/* Solo una `open` se cancela. Una `loaded` ya se convirtió en venta, y
             lo que hay que deshacer es esa venta, no el papel que la originó. */}
         {cotizacion.status === "open" && (

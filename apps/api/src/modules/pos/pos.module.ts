@@ -5,6 +5,7 @@ import { LookupService } from "./lookup.service";
 import { PosController } from "./pos.controller";
 import { QuotesService } from "./quotes.service";
 import { SalesService } from "./sales.service";
+import { TicketService } from "./ticket.service";
 
 /**
  * El punto de venta (Fase 4). Arranca con el TURNO — sin él no hay venta que
@@ -13,7 +14,7 @@ import { SalesService } from "./sales.service";
 @Module({
   imports: [InventoryModule],
   controllers: [PosController],
-  providers: [CashboxService, SalesService, LookupService, QuotesService],
-  exports: [CashboxService, SalesService, LookupService, QuotesService],
+  providers: [CashboxService, SalesService, LookupService, QuotesService, TicketService],
+  exports: [CashboxService, SalesService, LookupService, QuotesService, TicketService],
 })
 export class PosModule {}

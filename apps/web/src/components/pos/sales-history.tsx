@@ -2,6 +2,7 @@ import { type Currency, formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -189,6 +190,14 @@ function SaleRowView({
           )}
         </td>
         <td className="p-2 text-right">
+          {/* Reimprimir es LEER: se ofrece aunque la venta esté anulada, porque
+              quien reclama trae en la mano el ticket de la que se anuló. */}
+          <PrintTicketButton
+            kind="sale"
+            id={venta.id}
+            folio={venta.folio}
+            label={t("pos.ticket.reprint")}
+          />
           {/* Anular una venta ya anulada no existe: el API contesta 409 y el
               botón mentiría. Y sin `pos:cancel` no se pinta — deshacer una
               operación asentada es decisión de gestión, no de mostrador. */}

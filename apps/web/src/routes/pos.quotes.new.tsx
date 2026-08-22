@@ -5,6 +5,7 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
+import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { QuoteBuilder } from "@/components/pos/quote-builder";
 
 /**
@@ -16,23 +17,27 @@ import { QuoteBuilder } from "@/components/pos/quote-builder";
  */
 function NewQuoteContent() {
   const { t } = useTranslation();
-  const [folio, setFolio] = useState<string | null>(null);
+  const [generada, setGenerada] = useState<{ id: string; folio: string } | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="font-semibold text-xl">{t("pos.quote.newTitle")}</h1>
 
-      {folio !== null && (
-        <p
-          role="status"
-          className="rounded-md bg-primary/10 px-3 py-2 font-medium text-sm"
+      {generada !== null && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-md bg-primary/10 px-3 py-2"
           data-testid="quote-done"
         >
-          {t("pos.quote.done", { folio })}
-        </p>
+          <p role="status" className="font-medium text-sm">
+            {t("pos.quote.done", { folio: generada.folio })}
+          </p>
+          {/* El papel con el que el cliente vuelve. Lleva la marca COTIZACIÓN y
+              la leyenda de que el precio final se calcula en caja. */}
+          <PrintTicketButton kind="quote" id={generada.id} folio={generada.folio} />
+        </div>
       )}
 
-      <QuoteBuilder onDone={setFolio} />
+      <QuoteBuilder onDone={setGenerada} />
     </div>
   );
 }

@@ -1,0 +1,18 @@
+{
+  "change": "Change",
+  "discount": "Discount",
+  "lot": "Lot",
+  "method": {
+    "cash": "Cash",
+    "card": "Card",
+    "transfer": "Transfer"
+  },
+  "payment": "Payment",
+  "quoteDisclaimer": "Reference prices. The final price is calculated at the register at the time of purchase.",
+  "quoteMark": "*** QUOTE ***",
+  "received": "Received",
+  "seller": "Served by",
+  "subtotal": "Subtotal",
+  "thanks": "Thank you for your purchase!",
+  "total": "Total"
+}

@@ -127,6 +127,9 @@ export class DocumentPdfService {
             authorizedByName: nombre(document.authorizer),
           },
           rows,
+          // El idioma de quien PIDIÓ el PDF, no el del tenant: dos personas del
+          // mismo negocio pueden trabajar en idiomas distintos.
+          locale: user.locale,
         },
       };
     });

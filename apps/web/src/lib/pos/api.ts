@@ -337,3 +337,61 @@ export async function getQuoteForSale(folio: string): Promise<QuoteForSale> {
   );
   return data;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// F4-TICKET-02 — el papel
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Los dos anchos de papel térmico del mercado. */
+export type TicketWidth = "58mm" | "80mm";
+
+/**
+ * Baja el ticket y lo abre para imprimir.
+ *
+ * ── Por qué no es un `<a href>` ─────────────────────────────────────────
+ *
+ * El endpoint exige el Bearer y un link plano iría sin token, devolviendo un
+ * 401 sin explicación. Va por axios con `responseType: 'blob'`, igual que el
+ * PDF de documentos de F3.
+ *
+ * ── `window.open` y no `window.print` sobre la página ───────────────────
+ *
+ * El tablero decía `window.print` + CSS `@page`, que imprime lo que está en
+ * pantalla. Pero el ticket ya viene del servidor como PDF con su tamaño de
+ * papel correcto: reimprimirlo desde el DOM significaría mantener DOS
+ * plantillas —una en pdfmake y otra en CSS— que un día dirían cosas distintas.
+ * Se abre el PDF, que es el mismo papel que se archiva.
+ *
+ * ── Fallar no pierde nada ───────────────────────────────────────────────
+ *
+ * Si el navegador bloquea la ventana o la descarga falla, la venta YA está
+ * cobrada y el ticket se puede volver a sacar del historial. Por eso esto
+ * lanza y quien llama solo avisa: no hay nada que deshacer.
+ */
+export async function printTicket(
+  kind: "sale" | "quote",
+  id: string,
+  folio: string,
+  width: TicketWidth = "58mm",
+): Promise<void> {
+  const { data } = await api.get<Blob>(
+    `/pos/${kind === "sale" ? "sales" : "quotes"}/${id}/ticket`,
+    {
+      responseType: "blob",
+      params: { width },
+    },
+  );
+
+  const url = URL.createObjectURL(data);
+  const ventana = window.open(url);
+  if (ventana === null) {
+    // Bloqueador de popups: se cae a la descarga, que ningún navegador frena.
+    // Peor imprimir en dos pasos que no poder imprimir.
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${folio}.pdf`;
+    link.click();
+  }
+  // No se revoca de inmediato: la ventana todavía está cargando el blob y
+  // revocarlo acá la deja en blanco. El navegador lo libera al cerrarla.
+}

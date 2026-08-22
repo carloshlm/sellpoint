@@ -33,6 +33,7 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       createdByName: "Ana Ruiz",
       authorizedByName: null,
     },
+    locale: "es",
     rows: [
       {
         lineNo: 1,
@@ -56,6 +57,75 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
   const fila = base.rows[0] as PdfRow;
 
   const textos = (def: unknown): string => JSON.stringify(def);
+
+  /**
+   * F4-TICKET-03 — el papel nombra la unidad, no su código.
+   *
+   * Defecto preexistente de F3, reportado el 2026-08-20 y más visible desde que
+   * `unit` se llama «Pieza»: la celda decía `36 unit`. **Es el papel que alguien
+   * firma al recibir mercancía** — quien lo lee cuenta piezas, no códigos de un
+   * catálogo interno que nunca vio.
+   */
+  describe("la unidad se NOMBRA, no se imprime su código (F4-TICKET-03)", () => {
+    it("una fila en `unit` dice «piezas», no «unit»", () => {
+      const json = textos(buildDocumentDefinition(base, t));
+
+      expect(json).toContain("36 piezas");
+      expect(json).not.toContain("36 unit");
+    });
+
+    it("en inglés dice «pieces»", () => {
+      const json = textos(buildDocumentDefinition({ ...base, locale: "en" }, t));
+
+      expect(json).toContain("36 pieces");
+    });
+
+    /**
+     * Los decimales los decide la CATEGORÍA de la unidad: un peso lleva tres,
+     * una pieza ninguna. Sin `formatQuantity`, la columna mostraba `2.5000` en
+     * un producto que se cuenta de a uno.
+     */
+    it("una fila en `kg` lleva tres decimales y su nombre", () => {
+      const json = textos(
+        buildDocumentDefinition(
+          {
+            ...base,
+            rows: [{ ...fila, baseUnit: "kg", quantityBase: "2.5", presentationName: null }],
+          },
+          t,
+        ),
+      );
+
+      expect(json).toContain("2.500 kilogramos");
+    });
+
+    it("una pieza NO lleva decimales", () => {
+      const json = textos(
+        buildDocumentDefinition(
+          { ...base, rows: [{ ...fila, quantityBase: "36.0000", presentationName: null }] },
+          t,
+        ),
+      );
+
+      expect(json).toContain("36 piezas");
+      expect(json).not.toContain("36.0000");
+    });
+
+    /**
+     * ⚠ LA BARRERA. Cualquier celda con el patrón `<número> <código>` es el
+     * defecto volviendo por otra fila — el `quantityInput` de la equivalencia,
+     * una columna nueva, un tipo de documento que nadie miró.
+     */
+    it("ninguna celda deja escapar un código de unidad crudo", () => {
+      for (const unidad of ["unit", "kg", "gr", "l", "ml", "m", "cm"]) {
+        const json = textos(
+          buildDocumentDefinition({ ...base, rows: [{ ...fila, baseUnit: unidad }] }, t),
+        );
+
+        expect(json).not.toMatch(new RegExp(`\\d\\s${unidad}\\b`));
+      }
+    });
+  });
 
   describe("el encabezado", () => {
     it("usa la razón social y el RFC del negocio", () => {

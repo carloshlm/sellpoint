@@ -1,4 +1,9 @@
-import type { InventoryDocumentType } from "@sellpoint/shared";
+import {
+  formatQuantity,
+  type InventoryDocumentType,
+  type Locale,
+  unitName,
+} from "@sellpoint/shared";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -35,6 +40,15 @@ export interface PdfDocumentInput {
     authorizedByName: string | null;
   };
   rows: PdfRow[];
+  /**
+   * El idioma del usuario que pidió el PDF (F4-TICKET-03).
+   *
+   * Va aparte de `t` porque `t` solo traduce CLAVES, y el nombre de una unidad
+   * no es una clave del namespace `pdf`: vive en `UNITS` de `@sellpoint/shared`,
+   * la misma tabla que alimenta al catálogo y a la pantalla. Duplicarlo como
+   * `pdf.unit.kg` sería tener el nombre de un kilo en dos lugares.
+   */
+  locale: Locale;
 }
 
 const GRIS = "#666666";
@@ -104,12 +118,22 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
       ];
     }
 
-    // "3 Caja ×12 = 36 unit": lo que el usuario tecleó Y su equivalencia, para
+    // "3 Caja ×12 = 36 piezas": lo que el usuario tecleó Y su equivalencia, para
     // que quien recibe pueda contar sin hacer la cuenta.
-    const cantidad =
-      row.presentationName === null
-        ? `${row.quantityBase ?? ""} ${row.baseUnit}`
-        : `${row.quantityInput ?? ""} = ${row.quantityBase ?? ""} ${row.baseUnit}`;
+    //
+    // ── El NOMBRE de la unidad, no su código (F4-TICKET-03) ─────────────
+    //
+    // Decía `36 unit`. Es el papel que alguien FIRMA al recibir mercancía: lo
+    // lee un almacenista, no un programador, y `unit` es un identificador de
+    // catálogo interno que esa persona nunca vio. En minúscula y plural porque
+    // acompaña a un número — la misma convención que el resto de la app.
+    //
+    // Y la cantidad pasa por `formatQuantity`: los decimales los decide la
+    // CATEGORÍA de la unidad. Sin eso, un producto que se cuenta de a uno salía
+    // impreso como `36.0000`.
+    const unidad = unitName(row.baseUnit, input.locale, { plural: true }).toLowerCase();
+    const base = `${formatQuantity(row.quantityBase ?? "", row.baseUnit)} ${unidad}`;
+    const cantidad = row.presentationName === null ? base : `${row.quantityInput ?? ""} = ${base}`;
 
     return [
       String(row.lineNo),

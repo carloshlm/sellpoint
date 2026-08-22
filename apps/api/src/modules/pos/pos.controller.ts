@@ -1,6 +1,20 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+} from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import type { Response } from "express";
+import { I18nService } from "nestjs-i18n";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -32,6 +46,8 @@ import {
 import { LookupService } from "./lookup.service";
 import { QuotesService } from "./quotes.service";
 import { SalesService } from "./sales.service";
+import type { TicketWidth } from "./ticket.renderer";
+import { TicketService } from "./ticket.service";
 
 /**
  * F4-CASHBOX-01 — el turno de caja.
@@ -48,7 +64,18 @@ export class PosController {
     private readonly sales: SalesService,
     private readonly lookup: LookupService,
     private readonly quotes: QuotesService,
+    private readonly tickets: TicketService,
+    private readonly i18n: I18nService,
   ) {}
+
+  /**
+   * El ancho del papel. 58 mm es la térmica de mostrador; 80 mm la de
+   * mesa. Cualquier otra cosa cae a 58 en vez de reventar: un ticket angosto
+   * se lee, un 500 en la caja no.
+   */
+  private static ancho(value: string | undefined): TicketWidth {
+    return value === "80mm" ? "80mm" : "58mm";
+  }
 
   /**
    * Devuelve `{ session: null }` y NO un 404 cuando no hay turno: "todavía no
@@ -129,6 +156,54 @@ export class PosController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ) {
     return this.sales.create(user, dto, idempotencyKey?.trim() || undefined);
+  }
+
+  /**
+   * F4-TICKET-01 — el ticket de la venta.
+   *
+   * `pos:view` y no `pos:sell`: **reimprimir es leer**. Quien audita una venta
+   * tiene que poder sacar su papel sin poder hacer una nueva.
+   *
+   * Binario y no base64 en JSON, igual que el PDF de F3: el front lo baja con
+   * axios `responseType: 'blob'` porque un `<a href>` plano iría sin el Bearer.
+   */
+  @Get("sales/:id/ticket")
+  @RequirePermissions("pos:view")
+  async saleTicket(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("width") width: string | undefined,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.tickets.saleTicket(user, id, PosController.ancho(width), (key) =>
+      this.i18n.translate(key, { lang: locale }),
+    );
+    response
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
+  /** El papel con el que el cliente vuelve. `pos:quote`. */
+  @Get("quotes/:id/ticket")
+  @RequirePermissions("pos:quote")
+  async quoteTicket(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("width") width: string | undefined,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.tickets.quoteTicket(user, id, PosController.ancho(width), (key) =>
+      this.i18n.translate(key, { lang: locale }),
+    );
+    response
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   /**

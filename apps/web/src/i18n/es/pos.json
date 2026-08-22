@@ -111,5 +111,10 @@
     "status": "Estado",
     "title": "Historial de ventas",
     "total": "Total"
+  },
+  "ticket": {
+    "failed": "No pudimos abrir el ticket. Puedes reimprimirlo desde el historial.",
+    "print": "Imprimir ticket",
+    "reprint": "Reimprimir"
   }
 }

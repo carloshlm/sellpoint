@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { INVENTORY_DOCUMENT_TYPES, MOVEMENT_REASONS } from "@sellpoint/shared";
+import { INVENTORY_DOCUMENT_TYPES, MOVEMENT_REASONS, PAYMENT_METHODS } from "@sellpoint/shared";
 
 /**
  * Las claves DINÁMICAS del PDF, que ningún escáner de texto puede ver.
@@ -17,8 +17,8 @@ import { INVENTORY_DOCUMENT_TYPES, MOVEMENT_REASONS } from "@sellpoint/shared";
  */
 const LOCALES = ["es", "en"] as const;
 
-function catalogo(locale: string): Record<string, unknown> {
-  const file = path.join(__dirname, locale, "pdf.json");
+function catalogo(locale: string, namespace = "pdf"): Record<string, unknown> {
+  const file = path.join(__dirname, locale, `${namespace}.json`);
   return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
 }
 
@@ -38,6 +38,28 @@ describe("Claves dinámicas del PDF", () => {
 
         expect({ locale, faltan }).toEqual({ locale, faltan: [] });
       });
+    });
+  }
+});
+
+/**
+ * F4-TICKET-01 — la MISMA trampa, en el otro papel.
+ *
+ * El ticket arma `t(\`ticket.method.${paymentMethod}\`)`, una clave que ningún
+ * escáner de literales puede ver. El día que entre un método de pago nuevo
+ * —vales, monedero, crédito— el ticket imprimiría `ticket.method.voucher` en
+ * crudo y nadie se enteraría hasta que un cliente lo tuviera en la mano.
+ *
+ * Vive acá y no en su propio archivo porque es la misma clase de problema que
+ * este test ya vigila: claves dinámicas de un documento impreso.
+ */
+describe("Claves dinámicas del TICKET", () => {
+  for (const locale of LOCALES) {
+    it(`${locale}: tiene un nombre para CADA método de pago`, () => {
+      const metodos = catalogo(locale, "ticket").method as Record<string, string>;
+      const faltan = PAYMENT_METHODS.filter((m) => !metodos?.[m]);
+
+      expect({ locale, faltan }).toEqual({ locale, faltan: [] });
     });
   }
 });

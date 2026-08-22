@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { CartPanel } from "@/components/pos/cart-panel";
 import { CartSearch } from "@/components/pos/cart-search";
 import { CheckoutPanel } from "@/components/pos/checkout-panel";
+import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { SessionBar } from "@/components/pos/session-bar";
 import { Button } from "@/components/ui/button";
 import type { CashboxSession } from "@/lib/pos/api";
@@ -39,28 +40,33 @@ export function SaleScreen({ session }: SaleScreenProps) {
   const { t } = useTranslation();
   const lines = useCartStore((s) => s.lines);
   const [cobrando, setCobrando] = useState(false);
-  const [ultimoFolio, setUltimoFolio] = useState<string | null>(null);
+  const [ultima, setUltima] = useState<{ id: string; folio: string } | null>(null);
 
   return (
     <div className="flex flex-col gap-4" data-testid="sale-screen">
       <SessionBar session={session} />
 
-      {ultimoFolio !== null && (
-        <p
-          role="status"
-          className="rounded-md bg-primary/10 px-3 py-2 font-medium text-sm"
+      {ultima !== null && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-md bg-primary/10 px-3 py-2"
           data-testid="sale-done"
         >
-          {t("pos.checkout.done", { folio: ultimoFolio })}
-        </p>
+          <p role="status" className="font-medium text-sm">
+            {t("pos.checkout.done", { folio: ultima.folio })}
+          </p>
+          {/* El ticket se ofrece acá, con la venta recién cerrada, porque es el
+              momento en que el cliente lo está esperando. Y si falla, no se
+              pierde nada: se reimprime del historial. */}
+          <PrintTicketButton kind="sale" id={ultima.id} folio={ultima.folio} />
+        </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
           {cobrando ? (
             <CheckoutPanel
-              onDone={(folio) => {
-                setUltimoFolio(folio);
+              onDone={(venta) => {
+                setUltima(venta);
                 setCobrando(false);
               }}
               onCancel={() => setCobrando(false)}
@@ -81,7 +87,7 @@ export function SaleScreen({ session }: SaleScreenProps) {
               // método— viven en el panel de cobro, que es donde se deciden.
               disabled={lines.length === 0}
               onClick={() => {
-                setUltimoFolio(null);
+                setUltima(null);
                 setCobrando(true);
               }}
             >

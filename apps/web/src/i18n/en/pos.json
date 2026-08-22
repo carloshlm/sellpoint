@@ -111,5 +111,10 @@
     "status": "Status",
     "title": "Sales history",
     "total": "Total"
+  },
+  "ticket": {
+    "failed": "We couldn't open the receipt. You can reprint it from the history.",
+    "print": "Print receipt",
+    "reprint": "Reprint"
   }
 }

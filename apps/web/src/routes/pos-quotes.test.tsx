@@ -30,6 +30,7 @@ vi.mock("../lib/pos/api", () => ({
   createSale: vi.fn(),
   listSales: vi.fn(),
   cancelSale: vi.fn(),
+  printTicket: vi.fn(),
   createQuote: vi.fn(),
   listQuotes: vi.fn(),
   cancelQuote: vi.fn(),

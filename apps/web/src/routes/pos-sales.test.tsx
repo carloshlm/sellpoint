@@ -27,6 +27,7 @@ vi.mock("../lib/pos/api", () => ({
   createSale: vi.fn(),
   listSales: vi.fn(),
   cancelSale: vi.fn(),
+  printTicket: vi.fn(),
 }));
 
 const mocked = vi.mocked(posApi);
@@ -267,5 +268,60 @@ describe("Historial de ventas (F4-UI-03)", () => {
 
       expect(await within(dialogo).findByText(/ya está anulada/)).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * F4-TICKET-02 — imprimir y reimprimir.
+ *
+ * Lo que se protege: **fallar no pierde nada.** La venta ya está cobrada y el
+ * papel se puede volver a sacar del historial cuando se quiera, así que el
+ * error se AVISA y no bloquea ni reintenta.
+ */
+describe("Imprimir el ticket (F4-TICKET-02)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocked.getSession.mockResolvedValue({ session: null });
+    mocked.listSales.mockResolvedValue(pagina([venta()]));
+    mocked.printTicket.mockResolvedValue(undefined);
+  });
+
+  it("desde el historial se reimprime cualquier venta", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByText("VTA-000001");
+
+    await userEvent.click(screen.getByRole("button", { name: "Reimprimir" }));
+
+    await waitFor(() =>
+      expect(mocked.printTicket).toHaveBeenCalledWith("sale", "sale-1", "VTA-000001", undefined),
+    );
+  });
+
+  /**
+   * ⚠ Reimprimir es LEER. Quien reclama trae en la mano el ticket de la venta
+   * que se anuló: esconder el botón lo dejaría sin poder comparar nada.
+   */
+  it("una venta ANULADA también se reimprime", async () => {
+    mocked.listSales.mockResolvedValue(pagina([venta({ status: "canceled" })]));
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByText("VTA-000001");
+
+    expect(screen.getByRole("button", { name: "Reimprimir" })).toBeInTheDocument();
+  });
+
+  /**
+   * El navegador no muestra NADA cuando una descarga falla: sin este aviso el
+   * usuario cree que el ticket salió y va a buscarlo a la impresora.
+   */
+  it("si falla lo dice, y no rompe nada más", async () => {
+    mocked.printTicket.mockRejectedValue(new Error("bloqueado"));
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByText("VTA-000001");
+
+    await userEvent.click(screen.getByRole("button", { name: "Reimprimir" }));
+
+    expect(await screen.findByText(/No pudimos abrir el ticket/)).toBeInTheDocument();
+    // La fila sigue ahí: imprimir no es una operación sobre la venta.
+    expect(screen.getByText("VTA-000001")).toBeInTheDocument();
   });
 });
