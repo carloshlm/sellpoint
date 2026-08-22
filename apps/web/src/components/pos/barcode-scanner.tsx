@@ -32,23 +32,49 @@ interface BarcodeScannerProps {
   onScan: (text: string) => void;
 }
 
-type Estado = "apagado" | "encendiendo" | "leyendo" | "sin-camara";
+/**
+ * Lo que se MUESTRA. Deliberadamente separado de la INTENCIÓN (`encendida`):
+ * ver la nota del efecto, abajo.
+ */
+type Fase = "apagado" | "encendiendo" | "leyendo" | "sin-camara";
 
 export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   const { t } = useTranslation();
-  const [estado, setEstado] = useState<Estado>("apagado");
+
+  /**
+   * ── La INTENCIÓN, y por qué está separada de la fase (2026-08-22) ──────
+   *
+   * `encendida` responde «¿el usuario quiere la cámara prendida?» y es la ÚNICA
+   * dependencia del efecto. `fase` es lo que se pinta y cambia libremente sin
+   * volver a disparar nada.
+   *
+   * Estaban fusionadas en un solo `estado`, y eso causaba **la pantalla negra**
+   * que Carlos reportó: el efecto dependía de `estado`, adentro llamaba a
+   * `setEstado("leyendo")`, y React ejecutaba el CLEANUP en esa transición —
+   * cleanup que hace `stop()`. La cámara encendía, pintaba un cuadro y moría.
+   *
+   * La regla que se rompía: **un efecto no puede depender de un estado que él
+   * mismo cambia**, porque cada cambio equivale a desmontarlo. Fijado por
+   * `barcode-scanner.test.tsx`, que simula zxing para poder recorrer el
+   * arranque exitoso (en jsdom no hay cámara y ese camino nunca se ejercitaba).
+   */
+  const [encendida, setEncendida] = useState(false);
+  const [fase, setFase] = useState<Fase>("apagado");
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  // El control que devuelve zxing para apagar la cámara. En un ref y no en el
-  // estado: cambiarlo no tiene que repintar nada, y sí tiene que sobrevivir al
-  // cleanup del efecto.
   const controlesRef = useRef<{ stop: () => void } | null>(null);
 
+  // `onScan` en un ref y no en las dependencias: si el padre le pasa una
+  // función nueva en cada render, incluirla reiniciaría la cámara sola.
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+
   useEffect(() => {
-    if (estado !== "encendiendo") {
+    if (!encendida) {
       return;
     }
 
     let cancelado = false;
+    setFase("encendiendo");
 
     void (async () => {
       try {
@@ -66,11 +92,10 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           }
           // Se apaga apenas hay un acierto: dejar la cámara leyendo dispararía
           // el mismo código otra vez en el siguiente cuadro y el carrito
-          // sumaría dos.
-          controlesRef.current?.stop();
-          controlesRef.current = null;
-          setEstado("apagado");
-          onScan(resultado.getText());
+          // sumaría dos. Apagar es bajar la INTENCIÓN — el cleanup del efecto
+          // hace el `stop()`, que es su trabajo.
+          setEncendida(false);
+          onScanRef.current(resultado.getText());
         });
 
         if (cancelado) {
@@ -78,12 +103,13 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           return;
         }
         controlesRef.current = controles;
-        setEstado("leyendo");
+        setFase("leyendo");
       } catch {
         // Permiso denegado, sin cámara, o un navegador sin `mediaDevices`. Los
         // tres terminan igual: se dice qué pasó y la búsqueda manual sigue.
         if (!cancelado) {
-          setEstado("sin-camara");
+          setEncendida(false);
+          setFase("sin-camara");
         }
       }
     })();
@@ -93,7 +119,16 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
       controlesRef.current?.stop();
       controlesRef.current = null;
     };
-  }, [estado, onScan]);
+  }, [encendida]);
+
+  // El apagado limpio: la fase sigue a la intención cuando no hubo error.
+  useEffect(() => {
+    if (!encendida) {
+      setFase((actual) => (actual === "sin-camara" ? actual : "apagado"));
+    }
+  }, [encendida]);
+
+  const estado = fase;
 
   if (estado === "sin-camara") {
     return (
@@ -106,23 +141,23 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   return (
     <div className="flex flex-col gap-2" data-testid="barcode-scanner">
       {estado !== "apagado" && (
-        // Es la cámara en vivo, no un video con contenido hablado: no hay
-        // pista que subtitular.
-        // biome-ignore lint/a11y/useMediaCaption: cámara en vivo, sin audio ni diálogo
-        <video ref={videoRef} className="w-full rounded-md bg-black" playsInline />
+        // `autoPlay`, `muted` y `playsInline` son los TRES necesarios: un
+        // navegador móvil que recibe el stream sin ellos lo adjunta y NO lo
+        // reproduce — la misma pantalla negra por otra causa. `muted` no es
+        // cosmético: sin él, la política de autoplay bloquea la reproducción.
+        //
+        // Bonus inesperado: acá vivía un `biome-ignore` de `useMediaCaption`, y
+        // al poner `muted` la regla dejó de dispararse sola. Tiene sentido — un
+        // video sin audio no tiene nada que subtitular. Una supresión menos.
+        <video ref={videoRef} className="w-full rounded-md bg-black" autoPlay muted playsInline />
       )}
 
       <Button
         variant="outline"
-        onClick={() => {
-          if (estado === "apagado") {
-            setEstado("encendiendo");
-            return;
-          }
-          controlesRef.current?.stop();
-          controlesRef.current = null;
-          setEstado("apagado");
-        }}
+        // Solo se toca la INTENCIÓN. El `stop()` lo hace el cleanup del
+        // efecto, que es su trabajo: apagarla acá a mano dejaría dos lugares
+        // que apagan y ninguno que sepa del otro.
+        onClick={() => setEncendida((prendida) => !prendida)}
       >
         {estado === "apagado" ? t("pos.cart.scan") : t("pos.cart.stopScan")}
       </Button>
