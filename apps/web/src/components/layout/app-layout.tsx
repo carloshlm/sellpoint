@@ -95,7 +95,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex h-14 shrink-0 items-center justify-center border-b border-sidebar-border px-4 md:justify-start">
           <span className="truncate text-lg font-semibold">{expanded ? "SellPoint" : "SP"}</span>
         </div>
-        <nav aria-label={t("common.layout.navLabel")} className="flex flex-col gap-1 p-2">
+        {/* ── El menú se DESPLAZA cuando no cabe (2026-08-22) ──────────────
+            En un celular de 700 px, este menú mide 844: «Roles» terminaba en el
+            píxel 892 y no había forma de llegar a él. Las tres clases son
+            necesarias y `min-h-0` es la que nadie recuerda — un hijo de flex
+            tiene `min-height: auto` y se NIEGA a encoger por debajo de su
+            contenido, así que sin ella `overflow-y-auto` nunca se activa.
+            Fijado por `lib/ui/menu-desplazable.test.ts`. */}
+        <nav
+          aria-label={t("common.layout.navLabel")}
+          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2"
+        >
           <Link
             to="/dashboard"
             aria-label={t("common.layout.nav.dashboard")}

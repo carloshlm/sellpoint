@@ -33,17 +33,25 @@ describe("layout que encoge (LEY de responsive)", () => {
     expect(main).toContain("min-w-0");
   });
 
-  /** El contenedor de la columna también: es hijo del flex raíz. */
+  /**
+   * El contenedor de la columna también: es hijo del flex raíz.
+   *
+   * El selector busca un `<div` con `flex-1` y `flex-col`, no CUALQUIER línea
+   * que los tenga: el 2026-08-22 el `<nav>` del menú ganó `flex-1 flex-col`
+   * (para poder desplazarse) y, por estar antes en el archivo, se convirtió en
+   * el primer match — este test se puso rojo señalando un elemento que no es
+   * el que vigila. Un selector que agarra "la primera línea que se parezca"
+   * mide lo que encuentra, no lo que le importa.
+   */
   it("la columna que contiene header y main también encoge", () => {
     const contenido = readFileSync(LAYOUT, "utf-8");
     const columna = contenido
       .split("\n")
       .find(
-        (linea) =>
-          linea.includes("flex-1 flex-col") ||
-          (linea.includes("flex-col") && linea.includes("flex-1")),
+        (linea) => /<div\s/.test(linea) && linea.includes("flex-1") && linea.includes("flex-col"),
       );
 
+    expect(columna).toBeDefined();
     expect(columna).toContain("min-w-0");
   });
 
