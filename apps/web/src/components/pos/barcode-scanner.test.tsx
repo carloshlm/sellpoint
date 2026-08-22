@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
@@ -213,6 +215,47 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       // vive en `@zxing/library` y el test simula el paquete entero.
       expect(hints.get(3)).toBe(true);
     });
+  });
+
+  /**
+   * ── LA SEGUNDA PANTALLA NEGRA (2026-08-22, mismo día) — barrera de FUENTE ──
+   *
+   * Con el lector ya bien configurado, la cámara volvió a quedar negra y esta
+   * vez SIN pedir permisos. La carrera: el `<video>` se montaba con la FASE,
+   * que se enciende dentro del efecto — pero el efecto corre tras el commit en
+   * el que la fase todavía era "apagado", así que `videoRef.current` era null
+   * cuando el `await import("@zxing/browser")` resolvía desde caché (un
+   * microtask le gana al re-render de React, que es una tarea del scheduler).
+   * El código hacía `return` MUDO: ni getUserMedia, ni permisos, ni error.
+   *
+   * Por qué funcionó en la primera prueba de Carlos y murió en la segunda: la
+   * primera vez el import descargaba el chunk POR RED y React alcanzaba a
+   * repintar; con el módulo en caché, la carrera se pierde siempre.
+   *
+   * Los tests de arriba no pueden verla: dentro de `act` los renders se
+   * aplanan antes de drenar los microtasks, así que el video siempre llega a
+   * tiempo. Lo que sí se fija es el CONTRATO que la hace imposible: el
+   * `<video>` se monta con la INTENCIÓN (`encendida`) — React asigna los refs
+   * en el commit y corre los efectos DESPUÉS, así que con ese gate el ref
+   * existe siempre que el efecto corra, gane quien gane la carrera del import.
+   * Mismo molde que `menu-desplazable.test.ts`: test de fuente para lo que el
+   * runtime del test no puede medir.
+   */
+  it("el <video> se monta con la INTENCIÓN, no con la fase (contrato de fuente)", () => {
+    const fuente = readFileSync(join(__dirname, "barcode-scanner.tsx"), "utf8");
+    // Anclado en `ref={videoRef}` y no en `<video`: los comentarios del
+    // archivo también dicen "<video" y la primera versión de esta barrera
+    // midió uno de ellos — la lección del `<nav>` del 2026-08-22, otra vez.
+    const idxVideo = fuente.indexOf("ref={videoRef}");
+    expect(idxVideo).toBeGreaterThan(-1);
+
+    // La guardia JSX más cercana que envuelve al <video>: `{… && (`.
+    const cierreGuardia = fuente.lastIndexOf("&& (", idxVideo);
+    const guardia = fuente.slice(fuente.lastIndexOf("{", cierreGuardia), cierreGuardia);
+
+    expect(guardia).toContain("encendida");
+    // Ni la fase ni su alias `estado`: cualquiera de los dos revive la carrera.
+    expect(guardia).not.toMatch(/fase|estado/);
   });
 
   it("si la cámara falla, lo dice y no deja la pantalla muda", async () => {

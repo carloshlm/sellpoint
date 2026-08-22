@@ -107,6 +107,11 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
    * mismo cambia**, porque cada cambio equivale a desmontarlo. Fijado por
    * `barcode-scanner.test.tsx`, que simula zxing para poder recorrer el
    * arranque exitoso (en jsdom no hay cámara y ese camino nunca se ejercitaba).
+   *
+   * Y la segunda lección, del mismo día: **lo que el efecto necesita en el DOM
+   * se monta con la intención, no con la fase**. El `<video>` colgaba de la
+   * fase y el efecto corría antes de que existiera — ver el comentario del
+   * JSX. La fase queda solo para lo que se PINTA alrededor.
    */
   const [encendida, setEncendida] = useState(false);
   const [fase, setFase] = useState<Fase>("apagado");
@@ -131,9 +136,16 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // Import diferido: ver la nota de arriba.
         const { BrowserMultiFormatOneDReader } = await import("@zxing/browser");
         const lector = new BrowserMultiFormatOneDReader(HINTS, OPCIONES_LECTOR);
-        const video = videoRef.current;
-        if (video === null || cancelado) {
+        if (cancelado) {
           return;
+        }
+        const video = videoRef.current;
+        if (video === null) {
+          // Con el video montado por la intención esto es imposible; si algún
+          // refactor lo vuelve posible, cae al catch y se muestra el aviso.
+          // La versión anterior hacía `return` MUDO acá, y ese silencio fue la
+          // segunda pantalla negra: ni getUserMedia, ni permisos, ni error.
+          throw new Error("el <video> no estaba montado al arrancar el lector");
         }
 
         // `decodeFromConstraints` y no `decodeFromVideoDevice`: el segundo arma
@@ -193,7 +205,14 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
 
   return (
     <div className="flex flex-col gap-2" data-testid="barcode-scanner">
-      {estado !== "apagado" && (
+      {/* Con `encendida` y NUNCA con la fase: la fase se prende dentro del
+          efecto, y el efecto corre tras un commit en el que el video aún no
+          existía — con el import de zxing en caché, su microtask le ganaba al
+          re-render y `videoRef.current` era null. Segunda pantalla negra del
+          2026-08-22, esta vez sin pedir permisos. Con la intención como gate,
+          React asigna el ref en el commit y corre el efecto DESPUÉS: el video
+          existe siempre, gane quien gane esa carrera. */}
+      {encendida && (
         // `autoPlay`, `muted` y `playsInline` son los TRES necesarios: un
         // navegador móvil que recibe el stream sin ellos lo adjunta y NO lo
         // reproduce — la misma pantalla negra por otra causa. `muted` no es
@@ -212,7 +231,7 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // que apagan y ninguno que sepa del otro.
         onClick={() => setEncendida((prendida) => !prendida)}
       >
-        {estado === "apagado" ? t("pos.cart.scan") : t("pos.cart.stopScan")}
+        {encendida ? t("pos.cart.stopScan") : t("pos.cart.scan")}
       </Button>
     </div>
   );
