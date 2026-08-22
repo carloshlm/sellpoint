@@ -20,13 +20,35 @@ import { BarcodeScanner } from "./barcode-scanner";
  */
 
 const stop = vi.fn();
-const decodeFromVideoDevice = vi.fn();
+const decodeFromConstraints = vi.fn();
+/** Con qué se CONSTRUYÓ el lector: hints y opciones. Ver los tests de config. */
+const construidoCon = vi.fn();
 
 vi.mock("@zxing/browser", () => ({
-  BrowserMultiFormatReader: class {
-    decodeFromVideoDevice = decodeFromVideoDevice;
+  // El lector 1D, no el multiformato: una tienda escanea EAN/UPC/Code-128, y
+  // probar QR, Aztec, PDF417 y DataMatrix en cada ciclo gasta el presupuesto
+  // del intento en formatos que nadie va a presentar en una caja.
+  BrowserMultiFormatOneDReader: class {
+    constructor(hints: unknown, opciones: unknown) {
+      construidoCon(hints, opciones);
+    }
+    decodeFromConstraints = decodeFromConstraints;
   },
 }));
+
+/**
+ * Los argumentos de la primera llamada a un mock, exigiendo que exista.
+ *
+ * `mock.calls[0]` es `undefined` cuando nadie llamó, y encadenar sobre eso da
+ * un TypeError que no explica nada. Acá el fallo NOMBRA el problema.
+ */
+function primeraLlamada(mock: { mock: { calls: unknown[][] } }, quien: string): unknown[] {
+  const args = mock.mock.calls[0];
+  if (args === undefined) {
+    throw new Error(`${quien} nunca se llamó`);
+  }
+  return args;
+}
 
 function renderScanner(onScan = vi.fn()) {
   render(
@@ -43,7 +65,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // La cámara arranca bien y queda leyendo: el callback no se dispara solo.
-    decodeFromVideoDevice.mockResolvedValue({ stop });
+    decodeFromConstraints.mockResolvedValue({ stop });
   });
 
   /**
@@ -57,7 +79,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
     await encender();
 
-    await waitFor(() => expect(decodeFromVideoDevice).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalledTimes(1));
     // Se le da tiempo a cualquier re-render de hacer daño.
     await new Promise((r) => setTimeout(r, 50));
     expect(stop).not.toHaveBeenCalled();
@@ -68,11 +90,11 @@ describe("BarcodeScanner (F4-CART-04)", () => {
 
     await encender();
 
-    await waitFor(() => expect(decodeFromVideoDevice).toHaveBeenCalled());
+    await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 50));
     // Arrancarla dos veces deja un stream huérfano con la luz de la cámara
     // encendida y sin nadie que la apague.
-    expect(decodeFromVideoDevice).toHaveBeenCalledTimes(1);
+    expect(decodeFromConstraints).toHaveBeenCalledTimes(1);
   });
 
   it("el <video> se pinta y puede reproducirse solo", async () => {
@@ -96,7 +118,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   it("al parar, sí se apaga", async () => {
     renderScanner();
     await encender();
-    await waitFor(() => expect(decodeFromVideoDevice).toHaveBeenCalled());
+    await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalled());
 
     await userEvent.click(screen.getByRole("button", { name: /Dejar de escanear/ }));
 
@@ -109,7 +131,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    */
   it("un código leído apaga la cámara y lo entrega UNA vez", async () => {
     const onScan = vi.fn();
-    decodeFromVideoDevice.mockImplementation((_dispositivo, _video, callback) => {
+    decodeFromConstraints.mockImplementation((_dispositivo, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
       return Promise.resolve({ stop });
     });
@@ -122,8 +144,79 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     expect(stop).toHaveBeenCalled();
   });
 
+  /**
+   * ── LO QUE HACÍA QUE NO LEYERA NADA (2026-08-22) ──────────────────────
+   *
+   * Carlos: «ya muestra la imagen pero no detecta el código de barras». La
+   * cámara estaba bien; la configuración del lector no. Medido en la fuente de
+   * `@zxing/browser@0.2.1`, tres defectos que se suman:
+   *
+   *  1. `decodeFromVideoDevice(undefined, …)` arma `{ video: { facingMode:
+   *     'environment' } }` y NADA MÁS. Sin `width`/`height` el navegador
+   *     entrega su default —típicamente 640×480—. Un UPC-A son 95 módulos: a
+   *     640 px de ancho, ocupando media pantalla, quedan ~3 px por barra. Al
+   *     filo de lo decodificable, y cualquier temblor lo tira abajo.
+   *  2. `delayBetweenScanAttempts` vale **500 ms** por defecto: DOS intentos
+   *     por segundo. Hay que aguantar el pulso como en una foto larga.
+   *  3. Sin `TRY_HARDER`, `OneDReader.doDecode` mira **25 filas** alrededor del
+   *     centro (`maxLines = 25`) y no rota la imagen. Con el hint puesto mira
+   *     el alto completo y reintenta a 90°.
+   *
+   * Ninguno de los tres se ve leyendo el componente: son defaults de la
+   * librería. Por eso se fijan acá.
+   */
+  describe("configuración del lector (por qué no leía nada)", () => {
+    it("pide la cámara TRASERA y en alta resolución", async () => {
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(decodeFromConstraints).toHaveBeenCalled());
+      const restricciones = primeraLlamada(decodeFromConstraints, "decodeFromConstraints")[0] as {
+        video: {
+          facingMode: string;
+          width: { ideal: number };
+          height: { ideal: number };
+        };
+      };
+      const video = restricciones.video;
+      expect(video.facingMode).toBe("environment");
+      // `ideal` y no `exact`: una webcam que no llega a 1280 tiene que seguir
+      // funcionando con lo que pueda dar. `exact` la dejaría sin cámara.
+      expect(video.width.ideal).toBeGreaterThanOrEqual(1280);
+      expect(video.height.ideal).toBeGreaterThanOrEqual(720);
+    });
+
+    it("intenta MUCHO más de dos veces por segundo", async () => {
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(construidoCon).toHaveBeenCalled());
+      const opciones = primeraLlamada(construidoCon, "el constructor del lector")[1] as {
+        delayBetweenScanAttempts: number;
+      };
+      expect(opciones.delayBetweenScanAttempts).toBeLessThanOrEqual(150);
+    });
+
+    it("mira la imagen ENTERA, no solo veinticinco filas del centro", async () => {
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(construidoCon).toHaveBeenCalled());
+      const hints = primeraLlamada(construidoCon, "el constructor del lector")[0] as Map<
+        number,
+        unknown
+      >;
+      // 3 === DecodeHintType.TRY_HARDER. Se escribe el número porque el enum
+      // vive en `@zxing/library` y el test simula el paquete entero.
+      expect(hints.get(3)).toBe(true);
+    });
+  });
+
   it("si la cámara falla, lo dice y no deja la pantalla muda", async () => {
-    decodeFromVideoDevice.mockRejectedValue(new Error("NotAllowedError"));
+    decodeFromConstraints.mockRejectedValue(new Error("NotAllowedError"));
     renderScanner();
 
     await encender();

@@ -27,6 +27,56 @@ import { Button } from "@/components/ui/button";
  * sería cobrarles por algo que no usan.
  */
 
+/**
+ * ── POR QUÉ ESTA CONFIGURACIÓN, Y NO LOS DEFAULTS (2026-08-22) ────────────
+ *
+ * Carlos: «ya muestra la imagen pero no detecta el código de barras». La cámara
+ * estaba bien; el lector venía con tres defaults que juntos lo volvían casi
+ * inútil para una caja. Los tres, medidos en la fuente de `@zxing/browser`:
+ *
+ *  1. Sin `width`/`height` el navegador entrega lo que quiera — típicamente
+ *     640×480. Un UPC-A son 95 módulos: a 640 px, ocupando media pantalla,
+ *     quedan ~3 px por barra. Decodificable en teoría, y cualquier temblor o
+ *     brillo lo tira abajo.
+ *  2. `delayBetweenScanAttempts` vale 500 ms: DOS intentos por segundo. El
+ *     cajero tiene que aguantar el pulso como en una foto larga.
+ *  3. Sin `TRY_HARDER`, `OneDReader` mira 25 filas alrededor del centro y no
+ *     rota la imagen. Con el hint mira el alto completo y reintenta a 90°.
+ *
+ * Nada de esto se ve leyendo el componente: son defaults de la librería. Por
+ * eso `barcode-scanner.test.tsx` los fija uno por uno.
+ */
+
+/**
+ * `ideal` y NUNCA `exact`: con `exact`, una webcam que no llega a 1280 devuelve
+ * `OverconstrainedError` y el usuario se queda sin cámara en vez de con una
+ * peor. Se pide lo bueno y se acepta lo que haya.
+ */
+const RESTRICCIONES: MediaStreamConstraints = {
+  video: {
+    facingMode: "environment",
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+  },
+};
+
+/**
+ * 100 ms ≈ 10 intentos por segundo. No es gratis —cada intento binariza el
+ * cuadro y lo recorre— pero el lector 1D es barato comparado con el
+ * multiformato, y el cuello de botella real es la mano del cajero.
+ */
+const OPCIONES_LECTOR = { delayBetweenScanAttempts: 100 };
+
+/**
+ * `TRY_HARDER` escrito como `3` a propósito: el enum `DecodeHintType` vive en
+ * `@zxing/library`, que NO es dependencia declarada de la app —solo llega como
+ * transitiva de `@zxing/browser`—, y agregarla para importar un número sería
+ * cargar un paquete entero al bundle por una constante. El valor está fijado
+ * por el test, así que si algún día cambia se pone rojo acá y no en una caja.
+ */
+const TRY_HARDER = 3;
+const HINTS = new Map<number, unknown>([[TRY_HARDER, true]]);
+
 interface BarcodeScannerProps {
   /** Recibe el texto decodificado. El mismo que produciría el teclado. */
   onScan: (text: string) => void;
@@ -79,14 +129,17 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
     void (async () => {
       try {
         // Import diferido: ver la nota de arriba.
-        const { BrowserMultiFormatReader } = await import("@zxing/browser");
-        const lector = new BrowserMultiFormatReader();
+        const { BrowserMultiFormatOneDReader } = await import("@zxing/browser");
+        const lector = new BrowserMultiFormatOneDReader(HINTS, OPCIONES_LECTOR);
         const video = videoRef.current;
         if (video === null || cancelado) {
           return;
         }
 
-        const controles = await lector.decodeFromVideoDevice(undefined, video, (resultado) => {
+        // `decodeFromConstraints` y no `decodeFromVideoDevice`: el segundo arma
+        // `{ video: { facingMode: "environment" } }` y nada más, y sin pedir
+        // resolución el navegador entrega su default. Ver `RESTRICCIONES`.
+        const controles = await lector.decodeFromConstraints(RESTRICCIONES, video, (resultado) => {
           if (resultado === undefined || cancelado) {
             return;
           }
