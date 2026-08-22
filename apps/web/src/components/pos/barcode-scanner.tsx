@@ -76,14 +76,18 @@ const RESOLUCION_IDEAL: MediaTrackConstraints = {
 const OPCIONES_LECTOR = { delayBetweenScanAttempts: 100 };
 
 /**
- * `TRY_HARDER` escrito como `3` a propósito: el enum `DecodeHintType` vive en
- * `@zxing/library`, que NO es dependencia declarada de la app —solo llega como
- * transitiva de `@zxing/browser`—, y agregarla para importar un número sería
- * cargar un paquete entero al bundle por una constante. El valor está fijado
- * por el test, así que si algún día cambia se pone rojo acá y no en una caja.
+ * SIN hints — y en particular SIN `TRY_HARDER`, aunque un arreglo anterior lo
+ * pidió a propósito. Medido el 2026-08-22 con A/B en un navegador real contra
+ * el chunk desplegado: con el hint puesto, el PRIMER cuadro sin código lanza
+ * `Error: Could not create a Canvas element.` — el camino de rotación de
+ * `@zxing/browser@0.2.1` está roto — y zxing, ante un error que no es
+ * NotFound, MATA el stream él solo, sin excepción hacia afuera: cámara
+ * encendida ~700 ms y cuadro negro mudo, en cualquier dispositivo. Sin el
+ * hint, el loop reporta NotFoundException (lo normal mientras no hay código) y
+ * el track sigue vivo. El costo real de perderlo: el lector mira ~25 filas del
+ * centro y no rota — el código se presenta horizontal, como en cualquier
+ * escáner de mostrador. `barcode-scanner.test.tsx` fija su AUSENCIA.
  */
-const TRY_HARDER = 3;
-const HINTS = new Map<number, unknown>([[TRY_HARDER, true]]);
 
 interface BarcodeScannerProps {
   /** Recibe el texto decodificado. El mismo que produciría el teclado. */
@@ -148,7 +152,7 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
       try {
         // Import diferido: ver la nota de arriba.
         const { BrowserMultiFormatOneDReader } = await import("@zxing/browser");
-        const lector = new BrowserMultiFormatOneDReader(HINTS, OPCIONES_LECTOR);
+        const lector = new BrowserMultiFormatOneDReader(undefined, OPCIONES_LECTOR);
         if (cancelado) {
           return;
         }
@@ -199,6 +203,19 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           return;
         }
         controlesRef.current = controles;
+        // La segunda vigilancia, y no es redundante con la del track: cuando
+        // zxing muere por un error interno de su loop, apaga el stream con
+        // `track.stop()`, y un stop programático NO dispara "ended" — eso lo
+        // reservan los navegadores para muertes de origen físico. Lo que sí
+        // deja huella es que al soltar el stream pone `srcObject = null`, y el
+        // <video> dispara "emptied". Sin esto, esa muerte era invisible:
+        // cuadro negro sin aviso, sin excepción y sin consola.
+        video.addEventListener("emptied", () => {
+          if (!cancelado) {
+            setEncendida(false);
+            setFase("sin-camara");
+          }
+        });
         setFase("leyendo");
       } catch (error) {
         // Permiso denegado, sin cámara, o un navegador sin `mediaDevices`. Los

@@ -259,19 +259,52 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       expect(opciones.delayBetweenScanAttempts).toBeLessThanOrEqual(150);
     });
 
-    it("mira la imagen ENTERA, no solo veinticinco filas del centro", async () => {
+    /**
+     * ── TRY_HARDER MATA EL ESCÁNER (2026-08-22, medido con A/B en navegador
+     * real contra producción) ──────────────────────────────────────────────
+     *
+     * Este test es el INVERSO del que vivía acá: el hint que un arreglo
+     * anterior pidió para «mirar la imagen entera». Medido con cámara falsa y
+     * el chunk desplegado: con TRY_HARDER, el PRIMER cuadro sin código lanza
+     * `Error: Could not create a Canvas element.` (el camino de rotación de
+     * `@zxing/browser@0.2.1` está roto) y zxing, ante un error que no es
+     * NotFound, MATA el stream él solo — track `ended` a los ~700 ms, cuadro
+     * negro, sin excepción hacia afuera. Sin el hint: NotFoundException
+     * continuo (lo normal mientras no hay código) y el track sigue `live`.
+     *
+     * 3 === DecodeHintType.TRY_HARDER de `@zxing/library`.
+     */
+    it("NO pide TRY_HARDER: su camino de rotación revienta y zxing mata el stream", async () => {
       renderScanner();
 
       await encender();
 
       await waitFor(() => expect(construidoCon).toHaveBeenCalled());
-      const hints = primeraLlamada(construidoCon, "el constructor del lector")[0] as Map<
-        number,
-        unknown
-      >;
-      // 3 === DecodeHintType.TRY_HARDER. Se escribe el número porque el enum
-      // vive en `@zxing/library` y el test simula el paquete entero.
-      expect(hints.get(3)).toBe(true);
+      const hints = primeraLlamada(construidoCon, "el constructor del lector")[0] as
+        | Map<number, unknown>
+        | undefined;
+      expect(hints?.get(3)).toBeUndefined();
+    });
+
+    it("si la librería suelta el video por un error interno, también se dice", async () => {
+      renderScanner();
+
+      await encender();
+
+      // `track.stop()` programático NO dispara "ended" (solo las muertes de
+      // origen físico lo hacen), así que la vigilancia del track no ve cuando
+      // zxing se auto-destruye. Lo que sí se ve: al soltar el stream pone
+      // `srcObject = null`, y eso dispara "emptied" en el <video>.
+      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 20));
+      const video = document.querySelector("video");
+      if (video === null) {
+        throw new Error("sin <video>");
+      }
+      act(() => {
+        video.dispatchEvent(new Event("emptied"));
+      });
+      expect(await screen.findByTestId("scanner-unavailable")).toBeInTheDocument();
     });
   });
 
