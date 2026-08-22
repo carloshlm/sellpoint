@@ -300,8 +300,11 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   }, [encendida]);
 
   const aplicarZoom = (nivel: number) => {
+    // Mismo molde que `ajustes` en el efecto: `zoom` no existe en los tipos
+    // DOM de TS, así que el objeto pasa por un tipo ancho antes del cast.
+    const ajuste: Record<string, unknown>[] = [{ zoom: nivel }];
     void pistaRef.current
-      ?.applyConstraints({ advanced: [{ zoom: nivel }] } as MediaTrackConstraints)
+      ?.applyConstraints({ advanced: ajuste } as MediaTrackConstraints)
       .then(() => setZoom(nivel))
       .catch(() => undefined);
   };
