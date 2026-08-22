@@ -77,6 +77,14 @@ const RESOLUCION_IDEAL: MediaTrackConstraints = {
 const ZOOM_ESCANER = 2;
 
 /**
+ * Los niveles que se OFRECEN al usuario, filtrados por lo que la lente declare.
+ * Carlos pidió 5× al ver que 2× no alcanzaba a su distancia de enfoque; se le
+ * da el control en vez de otra constante adivinada — y los botones diagnostican
+ * de paso: si no aparecen, la lente no expone zoom vía web.
+ */
+const NIVELES_ZOOM = [1, 2, 5];
+
+/**
  * 100 ms ≈ 10 intentos por segundo. No es gratis —cada intento binariza el
  * cuadro y lo recorre— pero el lector 1D es barato comparado con el
  * multiformato, y el cuello de botella real es la mano del cajero.
@@ -137,6 +145,11 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   const [fase, setFase] = useState<Fase>("apagado");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlesRef = useRef<{ stop: () => void } | null>(null);
+  // El track vivo, para que los botones de zoom le hablen; y lo que la lente
+  // declaró poder, para decidir qué botones existen.
+  const pistaRef = useRef<MediaStreamTrack | null>(null);
+  const [zoom, setZoom] = useState<number | null>(null);
+  const [topeZoom, setTopeZoom] = useState<number | null>(null);
 
   // `onScan` en un ref y no en las dependencias: si el padre le pasa una
   // función nueva en cada render, incluirla reiniciaría la cámara sola.
@@ -200,9 +213,13 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         if (capacidades.focusMode?.includes("continuous") === true) {
           ajustes.push({ focusMode: "continuous" });
         }
-        if ((capacidades.zoom?.max ?? 0) >= ZOOM_ESCANER) {
+        const maximoDeLaLente = capacidades.zoom?.max ?? 0;
+        if (maximoDeLaLente >= ZOOM_ESCANER) {
           ajustes.push({ zoom: ZOOM_ESCANER });
         }
+        pistaRef.current = pista ?? null;
+        setTopeZoom(maximoDeLaLente >= ZOOM_ESCANER ? maximoDeLaLente : null);
+        setZoom(maximoDeLaLente >= ZOOM_ESCANER ? ZOOM_ESCANER : null);
         if (ajustes.length > 0) {
           await pista
             ?.applyConstraints({ advanced: ajustes } as MediaTrackConstraints)
@@ -276,8 +293,18 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   useEffect(() => {
     if (!encendida) {
       setFase((actual) => (actual === "sin-camara" ? actual : "apagado"));
+      pistaRef.current = null;
+      setZoom(null);
+      setTopeZoom(null);
     }
   }, [encendida]);
+
+  const aplicarZoom = (nivel: number) => {
+    void pistaRef.current
+      ?.applyConstraints({ advanced: [{ zoom: nivel }] } as MediaTrackConstraints)
+      .then(() => setZoom(nivel))
+      .catch(() => undefined);
+  };
 
   const estado = fase;
 
@@ -307,8 +334,38 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // Bonus inesperado: acá vivía un `biome-ignore` de `useMediaCaption`, y
         // al poner `muted` la regla dejó de dispararse sola. Tiene sentido — un
         // video sin audio no tiene nada que subtitular. Una supresión menos.
-        <video ref={videoRef} className="w-full rounded-md bg-black" autoPlay muted playsInline />
+        <div className="relative">
+          <video ref={videoRef} className="w-full rounded-md bg-black" autoPlay muted playsInline />
+          {/* La guía de centrado. El lector 1D barre las filas del CENTRO de
+              la imagen (~25, sin TRY_HARDER): un código en el tercio inferior
+              — la captura de Carlos — es invisible por bien enfocado que
+              esté. La línea dice dónde mirar sin explicar nada. */}
+          <div
+            data-testid="scan-guide"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 flex items-center px-3"
+          >
+            <div className="h-0.5 w-full rounded bg-destructive/70" />
+          </div>
+          {topeZoom !== null && (
+            <div className="absolute right-2 bottom-2 flex gap-1">
+              {NIVELES_ZOOM.filter((nivel) => nivel <= topeZoom).map((nivel) => (
+                <Button
+                  key={nivel}
+                  type="button"
+                  size="sm"
+                  variant={zoom === nivel ? "default" : "secondary"}
+                  onClick={() => aplicarZoom(nivel)}
+                >
+                  {nivel}×
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
+
+      {encendida && <p className="text-muted-foreground text-xs">{t("pos.cart.scanHint")}</p>}
 
       <Button
         variant="outline"

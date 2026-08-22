@@ -45,6 +45,7 @@
     "rejectedLine": "The server rejected this line",
     "remove": "Remove",
     "scan": "Scan with the camera",
+    "scanHint": "Line the barcode up horizontally, over the line",
     "search": "Search",
     "searchPlaceholder": "Scan, type the code, the name, or a COT- number…",
     "stopScan": "Stop scanning",

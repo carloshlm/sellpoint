@@ -45,6 +45,7 @@
     "rejectedLine": "El servidor rechazó esta línea",
     "remove": "Quitar",
     "scan": "Escanear con la cámara",
+    "scanHint": "Coloca el código de barras horizontal, sobre la línea",
     "search": "Buscar",
     "searchPlaceholder": "Escanea, teclea el código, el nombre o un folio COT-…",
     "stopScan": "Dejar de escanear",

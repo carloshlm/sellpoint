@@ -271,6 +271,55 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       expect(track.applyConstraints).toHaveBeenCalledTimes(1);
     });
 
+    /**
+     * ── LA GUÍA Y EL ZOOM MANUAL (2026-08-22, sexta ronda) ────────────────
+     *
+     * Con la cámara viva, enfocando y a 2×, Carlos seguía sin poder leer — y
+     * su captura mostró el código en el TERCIO INFERIOR de la imagen: el
+     * lector 1D barre las filas del CENTRO, así que ahí no había nada que
+     * leer. La guía existe para que el código se coloque donde el lector
+     * mira. Y el zoom pasa a ser del usuario: botones hasta donde la lente
+     * declare llegar — que además diagnostican: si no aparecen, la lente no
+     * expone zoom vía web.
+     */
+    it("pinta la guía de centrado sobre el video", async () => {
+      renderScanner();
+
+      await encender();
+
+      const guia = await screen.findByTestId("scan-guide");
+      // `pointer-events-none`: la guía es un dibujo, no puede robarle los
+      // toques al video ni a los botones de zoom.
+      expect(guia.className).toContain("pointer-events-none");
+      expect(screen.getByText(/línea/i)).toBeInTheDocument();
+    });
+
+    it("ofrece los niveles de zoom que la lente declara y aplica el elegido", async () => {
+      renderScanner();
+
+      await encender();
+
+      // tope 8 → 1×, 2× y 5× disponibles.
+      const boton5 = await screen.findByRole("button", { name: "5×" });
+      await userEvent.click(boton5);
+
+      await waitFor(() => {
+        const pedidos = track.applyConstraints.mock.calls.map((c) => c[0]);
+        expect(pedidos).toContainEqual({ advanced: [{ zoom: 5 }] });
+      });
+    });
+
+    it("una lente sin zoom no muestra botones de zoom", async () => {
+      track.getCapabilities.mockReturnValue({});
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 20));
+      expect(screen.queryByRole("button", { name: "2×" })).not.toBeInTheDocument();
+    });
+
     it("si la cámara muere sola, se dice — no se deja el cuadro negro", async () => {
       renderScanner();
 
