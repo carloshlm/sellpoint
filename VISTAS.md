@@ -1284,32 +1284,45 @@ Después de confirmar:
 
 > **`pos:view` nace en F4-DB-03.** Esta vista lo exigía desde el diseño original y el
 > permiso **no existía** en el catálogo (fantasma detectado en la atomización de F4,
-> 2026-08-20): se crea ahí, no se hereda el hueco. Filtros: fecha, vendedor y **turno**.
-> La columna es el **folio `VTA-…`**, no un número suelto.
+> 2026-08-20): se crea ahí, no se hereda el hueco. La columna es el **folio `VTA-…`**,
+> no un número suelto.
+>
+> **Construido (2026-08-21):** el filtro es por **estado** y va contra el servidor —
+> el historial son miles de filas y filtrar en el cliente solo acotaría la página que
+> ya llegó. Los filtros por fecha, vendedor y turno **existen en el API**
+> (`listSalesQuerySchema`) y no en la pantalla: se agregan cuando alguien los pida,
+> no por simetría con un wireframe.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │  POS > Historial de ventas                                     │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│   📅 Hoy  ▼     Vendedor: ▼ Todos                              │
+│   Estado: ▼ Todas                                              │
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐ │
-│  │ # Venta │ Hora   │ Total   │ Método   │ Vendedor   │ ⋮  │ │
+│  │ Folio      │ Fecha       │ Vendió │ Pago     │ Total  │…│ │
 │  ├──────────────────────────────────────────────────────────┤ │
-│  │  4523   │ 14:30  │ $60.00  │Efectivo  │ María L.   │ ⋮  │ │
-│  │  4522   │ 14:15  │ $145.00 │ Tarjeta  │ María L.   │ ⋮  │ │
-│  │  4521   │ 13:50  │ $80.00  │Efectivo  │ Pedro G.   │ ⋮  │ │
+│  │ VTA-000003 │ 21/8, 14:30 │ María  │ Efectivo │ $60.00 │…│ │
+│  │ VTA-000002 │ 21/8, 14:15 │ María  │ Tarjeta  │$145.00 │…│ │
+│  │ VTA-000001 │ 21/8, 13:50 │ Pedro  │ Efectivo │ $80.00 │…│ │
+│  │            │             │        │ ANULADA  │        │…│ │
 │  └──────────────────────────────────────────────────────────┘ │
 │                                                                │
-│  Total del día: $4,520.00  ·  18 ventas                        │
+│   ← Anterior   Página 1 de 3   Siguiente →                     │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Acciones (menú ⋮):**
-- Ver detalle del ticket
-- Reimprimir
-- Anular (solo TenantAdmin/Manager, registra devolución a stock)
+**Las anuladas se VEN, marcadas.** Esconderlas por defecto sería tentador —«ruido»— y
+es lo contrario de lo que necesita quien busca una venta que no cuadra: encontrarla
+justo cuando está anulada. El filtro existe para acotar, no para tapar.
+
+**Acciones por fila:**
+- **Reimprimir** — se ofrece SIEMPRE, incluso sobre una venta anulada: reimprimir es
+  LEER, y quien reclama trae en la mano el ticket de la que se anuló
+- **Anular** — gateado por `pos:cancel`, que NO está en el rol de mostrador. Pide un
+  motivo ANTES del clic (mínimo 3 caracteres) en vez de dejar chocar con el 422, y no
+  se ofrece sobre una venta ya anulada: el API contesta 409 y el botón mentiría
 
 ---
 

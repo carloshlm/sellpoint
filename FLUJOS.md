@@ -416,14 +416,15 @@ sequenceDiagram
 
     S->>C: Escanea código de barras
     C-->>F: barcode = "7501..."
-    F->>API: GET /products?barcode=7501...
-    API-->>F: { producto, stock_disponible }
+    F->>API: GET /pos/lookup?q=7501...
+    Note over F,API: UN solo endpoint para todo lo que se teclea:<br/>código de barras, SKU, texto, servicio o folio COT-.<br/>Cinco strategies; el texto decide cuál corre
+    API-->>F: { exact, items[] } filtrado por el ALMACÉN DEL TURNO
+    Note over API,F: Solo se ofrece lo VENDIBLE ahí: `sellableStock`<br/>descuenta los lotes vencidos y deduce lo armable<br/>de un compuesto desde sus componentes
 
-    alt Sin stock
-        F-->>S: ⚠️ "Sin stock disponible"
-    else Con stock
-        F->>F: Agrega al carrito (Zustand)
-        F-->>S: Muestra producto en carrito
+    alt Acierto exacto (código, SKU o folio)
+        F->>F: Va DERECHO al carrito, sin lista de un solo renglón
+    else Búsqueda difusa
+        F-->>S: Lista de productos y servicios para elegir
     end
 
     Note over S,F: Repite escaneo para N productos
@@ -444,8 +445,9 @@ sequenceDiagram
         API->>DB: SELECT product FOR UPDATE
         alt Stock insuficiente (concurrencia)
             API->>DB: ROLLBACK
-            API-->>F: 409 stock_changed
-            F-->>S: "Otro vendedor descontó stock, revisa"
+            API-->>F: 422 inventory.insufficient_stock + `sku` culpable
+            Note over API,F: 422 y no 409: es el código que usa TODO el<br/>inventario desde F3. El `sku` viaja como DATO,<br/>fuera de `args`, para que el error caiga SOBRE<br/>su renglón sin parsear el mensaje traducido
+            F-->>S: El renglón culpable se pinta en rojo
         end
     end
 
@@ -455,7 +457,10 @@ sequenceDiagram
     API->>DB: COMMIT
     API-->>F: 201 { saleId, ticket }
 
-    F->>F: window.print() con CSS @page 58/80mm
+    F->>API: GET /pos/sales/:id/ticket?width=58mm
+    API-->>F: application/pdf (pdfmake 0.2.x, alto automático)
+    F->>F: window.open(blob) → diálogo de impresión del navegador
+    Note over F,API: NO se imprime la PANTALLA con CSS @page: el PDF<br/>ya viene del server con su tamaño de papel. Hacerlo<br/>con CSS obligaba a mantener DOS plantillas del mismo<br/>ticket, que un día dirían cosas distintas
     F-->>P: Impresión vía diálogo del navegador (USB/Red)
     Note over F,P: Web Bluetooth (ESC/POS) DIFERIDA — F4-PRINT-BT:<br/>sin impresora térmica real contra la que probar,<br/>implementarla sería código de fe (Carlos, 2026-08-20)
 

@@ -27,14 +27,15 @@
     "loading": "Loading your session…"
   },
   "layout": {
-    "navLabel": "Main navigation",
     "nav": {
       "dashboard": "Dashboard",
       "profile": "My profile",
       "system": "System"
     },
-    "sidebarToggle": "Open or close the menu",
+    "navLabel": "Main navigation",
+    "offline": "You're offline. You can review what's already loaded, but you can't charge or quote until the connection returns.",
     "sidebarClose": "Close the menu",
+    "sidebarToggle": "Open or close the menu",
     "userMenu": {
       "label": "User menu",
       "profile": "My profile",

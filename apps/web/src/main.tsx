@@ -7,6 +7,7 @@ import "./index.css";
 import { ErrorBoundary } from "./components/error-boundary";
 import { i18n } from "./i18n";
 import { installAccountLanguageSync } from "./lib/auth/ui-language";
+import { registerServiceWorker } from "./lib/pwa/register-service-worker";
 import { createQueryClient } from "./lib/query-client";
 import { applyBrand } from "./lib/theme/apply-brand";
 import { routeTree } from "./routeTree.gen";
@@ -22,6 +23,10 @@ applyBrand();
 // que ningún camino que cree sesión pueda olvidarse de aplicarlo — ver
 // `lib/auth/ui-language.ts`. Vive lo que vive la pestaña: no se desuscribe.
 installAccountLanguageSync(i18n);
+
+// F4-PWA-01: el worker que hace que la app abra sin red. Fuego y olvido — si
+// falla, la app funciona igual y solo pierde el modo instalable.
+registerServiceWorker();
 
 // UN cliente por pestaña, construido SIEMPRE con la factory: trae la política
 // de reintentos (W5) y la purga de caché atada al cambio de sesión (C1).

@@ -27,14 +27,15 @@
     "loading": "Cargando tu sesión…"
   },
   "layout": {
-    "navLabel": "Navegación principal",
     "nav": {
       "dashboard": "Panel",
       "profile": "Mi perfil",
       "system": "Sistema"
     },
-    "sidebarToggle": "Abrir o cerrar el menú",
+    "navLabel": "Navegación principal",
+    "offline": "Sin conexión. Puedes consultar lo que ya cargaste, pero no cobrar ni cotizar hasta que vuelva la red.",
     "sidebarClose": "Cerrar el menú",
+    "sidebarToggle": "Abrir o cerrar el menú",
     "userMenu": {
       "label": "Menú de usuario",
       "profile": "Mi perfil",

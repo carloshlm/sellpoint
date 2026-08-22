@@ -716,8 +716,11 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
        (`reason='sale'`, FEFO y compuestos expandidos heredados de F3); las líneas de
        SERVICIO no tocan el ledger
      - Genera ticket
-  7. Imprime ticket (`window.print`, USB/navegador — Bluetooth diferido, F4-PRINT-BT)
-     y/o lo envía por email
+  7. Imprime el ticket: `GET /pos/sales/:id/ticket?width=58mm` devuelve el PDF que
+     arma el servidor y el navegador lo abre para imprimir (USB/red — Bluetooth
+     diferido, F4-PRINT-BT). **Reimprimir es LEER** (`pos:view`): se ofrece desde
+     el historial incluso sobre una venta ANULADA, porque quien reclama trae en la
+     mano el ticket de la que se anuló
 - **Flujos alternativos:**
   - 3a. Producto sin stock (o con todo su stock **vencido**: un lote caducado no se
     vende) → bloqueado con detalle de cuánto hay

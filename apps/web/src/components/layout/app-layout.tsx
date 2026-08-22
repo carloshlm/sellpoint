@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { OfflineBanner } from "@/components/layout/offline-banner";
 import { useLogout } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useAuthStore } from "@/stores/auth.store";
@@ -313,6 +314,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Arriba de TODO y a lo ancho: sin red, lo primero que hay que saber
+            es qué no se puede hacer, antes de intentarlo. */}
+        <OfflineBanner />
+
         <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-card px-4">
           <button
             type="button"
