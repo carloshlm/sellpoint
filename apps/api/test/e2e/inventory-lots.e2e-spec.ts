@@ -569,7 +569,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
             data: {
               tenantId,
               productId: producto.id,
-              lotCode: "pronto",
+              lotCode: "PRONTO",
               expiresAt: new Date("2027-01-01"),
             },
           }),
@@ -577,7 +577,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
             data: {
               tenantId,
               productId: producto.id,
-              lotCode: "tarde",
+              lotCode: "TARDE",
               expiresAt: new Date("2027-12-01"),
             },
           }),
@@ -612,6 +612,10 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
     it("un código ya usado por otro lote del mismo producto da 409", async () => {
       const { token, productId, prontoId } = await conDosLotes();
 
+      // Se manda en MINÚSCULA contra un lote guardado en mayúscula: el 409
+      // llega porque el API normaliza antes de comparar (2026-08-23). Sin esa
+      // normalización, `tarde` y `TARDE` serían dos lotes distintos del mismo
+      // producto — existencias partidas y FEFO tratándolos por separado.
       await editar(token, productId, prontoId, { lotCode: "tarde" }).expect(409);
     });
 
@@ -633,8 +637,8 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
 
       // El orden es FEFO: ahora "tarde" va primero.
       expect((lotes.body as { lotCode: string }[]).map((l) => l.lotCode)).toEqual([
-        "tarde",
-        "pronto",
+        "TARDE",
+        "PRONTO",
       ]);
     });
 
@@ -669,8 +673,8 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
 
       // Un lote sin fecha no corre riesgo de vencerse: sale último.
       expect((lotes.body as { lotCode: string }[]).map((l) => l.lotCode)).toEqual([
-        "tarde",
-        "pronto",
+        "TARDE",
+        "PRONTO",
       ]);
     });
 

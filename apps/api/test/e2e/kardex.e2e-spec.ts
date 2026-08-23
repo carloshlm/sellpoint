@@ -396,7 +396,11 @@ describe("Kardex (F3-KARDEX-01)", () => {
         (r) => r.warehouseId === warehouseA,
       );
 
-      expect(fila?.lots.map((l) => l.lotCode)).toEqual(["zzz-pronto", "aaa-tarde"]);
+      // Se mandan en minúscula y se esperan en MAYÚSCULA a propósito: el API
+      // normaliza el código de lote (2026-08-23), y esta aserción lo prueba de
+      // punta a punta además de fijar el orden FEFO. Los nombres siguen
+      // eligiéndose para que el alfabético NO coincida con el de vencimiento.
+      expect(fila?.lots.map((l) => l.lotCode)).toEqual(["ZZZ-PRONTO", "AAA-TARDE"]);
     });
 
     /**
@@ -445,9 +449,9 @@ describe("Kardex (F3-KARDEX-01)", () => {
       const porCodigo = new Map(lotes?.map((l) => [l.lotCode, l]));
 
       // El vencido es vencido, y NO "por vencer": son dos estados distintos.
-      expect(porCodigo.get("vencido")).toMatchObject({ expired: true, expiringSoon: false });
-      expect(porCodigo.get("pronto")).toMatchObject({ expired: false, expiringSoon: true });
-      expect(porCodigo.get("lejano")).toMatchObject({ expired: false, expiringSoon: false });
+      expect(porCodigo.get("VENCIDO")).toMatchObject({ expired: true, expiringSoon: false });
+      expect(porCodigo.get("PRONTO")).toMatchObject({ expired: false, expiringSoon: true });
+      expect(porCodigo.get("LEJANO")).toMatchObject({ expired: false, expiringSoon: false });
     });
 
     /** La invariante del ledger, verificada desde afuera. */
