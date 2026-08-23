@@ -1,3 +1,4 @@
+import { Camera, CameraOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -544,15 +545,43 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
 
       {encendida && <p className="text-muted-foreground text-xs">{t("pos.cart.scanHint")}</p>}
 
-      <Button
-        variant="outline"
-        // Solo se toca la INTENCIÓN. El `stop()` lo hace el cleanup del
-        // efecto, que es su trabajo: apagarla acá a mano dejaría dos lugares
-        // que apagan y ninguno que sepa del otro.
-        onClick={() => setEncendida((prendida) => !prendida)}
-      >
-        {encendida ? t("pos.cart.stopScan") : t("pos.cart.scan")}
-      </Button>
+      {/* ── El botón de mostrador (2026-08-23) ──────────────────────────
+          Icono grande con color, leyenda al lado en gris. En una caja el
+          cajero no lee: RECONOCE. El icono carga el significado (cámara =
+          escanear, cámara tachada = parar) y el texto acompaña como
+          instrucción.
+
+          El `aria-label` NO es decorativo: sin él, el botón sería un «svg»
+          sin nombre para un lector de pantalla — y también para los tests,
+          que lo buscan por su nombre accesible.
+
+          Sobre los colores: verde sólido para arrancar (token `--success`,
+          «adelante», sin competir con el azul de Cobrar) y rojo TENUE para
+          parar. Tenue y no sólido a propósito: en esta app el rojo intenso ya
+          significa ERROR —líneas rechazadas, avisos— y un botón así
+          competiría con las alarmas de verdad. Entintado + cámara tachada se
+          lee «detener» sin gritar «problema». */}
+      <div className="flex items-center gap-3">
+        <Button
+          type="button"
+          size="icon"
+          variant={encendida ? "destructive" : "default"}
+          aria-label={encendida ? t("pos.cart.stopScan") : t("pos.cart.scan")}
+          // 48 px es el mínimo de un objetivo táctil; el `size-8` del sistema
+          // es medida de ratón, no de dedo sobre un mostrador.
+          className={`size-12 ${encendida ? "" : "bg-success text-success-foreground hover:bg-success/90"}`}
+          // Solo se toca la INTENCIÓN. El `stop()` lo hace el cleanup del
+          // efecto, que es su trabajo: apagarla acá a mano dejaría dos lugares
+          // que apagan y ninguno que sepa del otro.
+          onClick={() => setEncendida((prendida) => !prendida)}
+        >
+          {encendida ? <CameraOff className="size-6" /> : <Camera className="size-6" />}
+        </Button>
+
+        <span className="text-muted-foreground text-sm" data-testid="scan-legend">
+          {encendida ? t("pos.cart.stopScan") : t("pos.cart.scan")}
+        </span>
+      </div>
     </div>
   );
 }

@@ -602,6 +602,60 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     expect(guardia).not.toMatch(/fase|estado/);
   });
 
+  /**
+   * ── EL BOTÓN DE MOSTRADOR (2026-08-23, pedido de Carlos) ──────────────
+   *
+   * Icono grande y con color; la leyenda al lado, chica y gris, como
+   * instrucción. En una caja el cajero no lee: reconoce. El icono carga el
+   * significado (cámara = escanear, cámara tachada = parar) y el texto
+   * acompaña — pero el NOMBRE ACCESIBLE sigue siendo la leyenda, porque un
+   * botón que solo dice «svg» no existe para quien usa lector de pantalla.
+   */
+  describe("el botón de escaneo (diseño de mostrador)", () => {
+    const botonEscaneo = () => screen.getByRole("button", { name: /Escanear con la cámara/ });
+
+    it("es un icono con nombre accesible, no un botón de texto", () => {
+      renderScanner();
+
+      const boton = botonEscaneo();
+      expect(boton.querySelector("svg")).not.toBeNull();
+      // El texto NO va adentro del botón: va al lado, como leyenda.
+      expect(boton.textContent?.trim()).toBe("");
+    });
+
+    it("la leyenda vive al lado, chica y gris", () => {
+      renderScanner();
+
+      const leyenda = screen.getByTestId("scan-legend");
+      expect(leyenda).toHaveTextContent("Escanear con la cámara");
+      expect(leyenda.className).toContain("text-muted-foreground");
+      // Fuera del botón: es instrucción, no la etiqueta clickeable.
+      expect(botonEscaneo().contains(leyenda)).toBe(false);
+    });
+
+    it("apagado es VERDE; encendido es rojo tenue", async () => {
+      renderScanner();
+
+      expect(botonEscaneo().className).toContain("bg-success");
+
+      await encender();
+
+      const parar = screen.getByRole("button", { name: /Dejar de escanear/ });
+      // La variante `destructive` del sistema: rojo ENTINTADO, no sólido —
+      // el rojo sólido ya significa error en esta app y competiría con las
+      // alarmas de verdad.
+      expect(parar.dataset.variant).toBe("destructive");
+      expect(parar.className).not.toContain("bg-success");
+    });
+
+    it("el área táctil es de dedo, no de ratón", () => {
+      renderScanner();
+
+      // 48 px es el mínimo de un objetivo táctil. `size-8` (32) es de ratón.
+      expect(botonEscaneo().className).toContain("size-12");
+    });
+  });
+
   it("si la cámara falla, lo dice y no deja la pantalla muda", async () => {
     decodeFromStream.mockRejectedValue(new Error("NotAllowedError"));
     renderScanner();

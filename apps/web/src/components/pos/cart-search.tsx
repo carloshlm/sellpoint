@@ -77,6 +77,10 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
         return;
       }
       agregar(unico);
+      // El campo se limpia al acertar: si el cajero venía tecleando media
+      // palabra y decidió escanear, dejar ese resto colgando con su lista de
+      // resultados invita a agregar el artículo equivocado.
+      setTexto("");
     } catch {
       setTexto(codigo);
     }

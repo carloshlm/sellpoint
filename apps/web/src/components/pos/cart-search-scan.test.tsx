@@ -99,7 +99,9 @@ const escanear = (codigo: string) => {
 
 describe("escaneo → carrito (cola imperativa)", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // `clearAllMocks` borra las LLAMADAS, no las implementaciones: sin este
+    // reset, un `mockImplementation` se filtra al test siguiente.
+    lookupMock.mockReset();
     useCartStore.setState({ lines: [] });
   });
 
@@ -135,6 +137,28 @@ describe("escaneo → carrito (cola imperativa)", () => {
     await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(2));
     const nombres = useCartStore.getState().lines.map((l) => l.name);
     expect(nombres).toEqual(["Oatmeal Bars", "Granola"]);
+  });
+
+  it("un escaneo exitoso LIMPIA lo que hubiera tecleado en el campo", async () => {
+    // El mock responde SEGÚN la consulta: "oat" es ambiguo (lo que teclea una
+    // persona) y solo el código escaneado es exacto. Sin esta distinción el
+    // test pasaba por la razón equivocada — el texto tecleado también daba
+    // acierto exacto y se limpiaba solo.
+    lookupMock.mockImplementation(async (q: string) =>
+      q === "064042603179"
+        ? exacto(AVENA)
+        : { warehouseId: "w1", exact: false, items: [AVENA, GRANOLA] },
+    );
+    renderBuscador();
+    // El cajero tecleó media palabra y decidió escanear: el resto de la
+    // búsqueda anterior no puede quedar colgando con su lista de resultados.
+    await userEvent.type(screen.getByRole("textbox"), "oat");
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveValue("oat"));
+
+    await escanear("064042603179");
+
+    await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(1));
+    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
   it("un escaneo AMBIGUO cae al input para que una persona elija", async () => {
