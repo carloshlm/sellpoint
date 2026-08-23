@@ -85,6 +85,54 @@ const ZOOM_ESCANER = 2;
 const NIVELES_ZOOM = [1, 2, 5];
 
 /**
+ * Foco FIJO de mostrador (~15 cm), para lentes con enfoque manual. Las
+ * capturas del 2026-08-22 mostraron el autofoco continuo sin clavar nunca la
+ * caja; un escáner dedicado no enfoca: vive clavado a distancia de trabajo.
+ * Se acota al rango que la lente declare.
+ */
+const FOCO_ESCANER_M = 0.15;
+
+/**
+ * ── EL DETECTOR NATIVO PRIMERO (2026-08-23) ───────────────────────────────
+ *
+ * `BarcodeDetector` de Chrome Android es ML Kit por debajo: tolera
+ * desenfoque, rotación y poca luz muchísimo mejor que zxing — exactamente la
+ * variable que quedó viva tras las seis rondas del 22 (imagen desenfocada en
+ * los tres niveles de zoom). Cuando existe, se usa y NI SE DESCARGA zxing;
+ * zxing queda como fallback universal (Safari, Firefox, escritorio viejo).
+ * Solo formatos 1D: mismo criterio que el lector — una caja no presenta QR.
+ */
+const FORMATOS_1D = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar"];
+
+interface DetectorNativo {
+  detect: (v: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>;
+}
+
+interface ConstructorDetectorNativo {
+  new (opciones: { formats: string[] }): DetectorNativo;
+  getSupportedFormats: () => Promise<string[]>;
+}
+
+/** `null` cuando no hay detector nativo o no sabe ninguno de nuestros formatos. */
+async function crearDetectorNativo(): Promise<DetectorNativo | null> {
+  const Ctor = (window as { BarcodeDetector?: ConstructorDetectorNativo }).BarcodeDetector;
+  if (Ctor === undefined) {
+    return null;
+  }
+  try {
+    const soportados = await Ctor.getSupportedFormats();
+    const formats = FORMATOS_1D.filter((f) => soportados.includes(f));
+    if (formats.length === 0) {
+      return null;
+    }
+    return new Ctor({ formats });
+  } catch {
+    // Un detector que revienta al preguntarle qué sabe no es de fiar.
+    return null;
+  }
+}
+
+/**
  * 100 ms ≈ 10 intentos por segundo. No es gratis —cada intento binariza el
  * cuadro y lo recorre— pero el lector 1D es barato comparado con el
  * multiformato, y el cuello de botella real es la mano del cajero.
@@ -150,6 +198,8 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   const pistaRef = useRef<MediaStreamTrack | null>(null);
   const [zoom, setZoom] = useState<number | null>(null);
   const [topeZoom, setTopeZoom] = useState<number | null>(null);
+  const [conLinterna, setConLinterna] = useState(false);
+  const [torchDisponible, setTorchDisponible] = useState(false);
 
   // `onScan` en un ref y no en las dependencias: si el padre le pasa una
   // función nueva en cada render, incluirla reiniciaría la cámara sola.
@@ -171,9 +221,6 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
 
     void (async () => {
       try {
-        // Import diferido: ver la nota de arriba.
-        const { BrowserMultiFormatOneDReader } = await import("@zxing/browser");
-        const lector = new BrowserMultiFormatOneDReader(undefined, OPCIONES_LECTOR);
         if (cancelado) {
           return;
         }
@@ -207,10 +254,25 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // los que puede e ignora el resto, en vez de descartar el paquete.
         const capacidades = (pista?.getCapabilities?.() ?? {}) as {
           focusMode?: string[];
+          focusDistance?: { min?: number; max?: number };
           zoom?: { max?: number };
+          torch?: boolean;
         };
+        // El diagnóstico gratis: con el teléfono por USB, `chrome://inspect`
+        // dice exactamente qué sabe hacer ESTA lente — datos, no teorías.
+        console.info("[barcode-scanner] capabilities", capacidades);
         const ajustes: Record<string, unknown>[] = [];
-        if (capacidades.focusMode?.includes("continuous") === true) {
+        const rangoFoco = capacidades.focusDistance;
+        if (capacidades.focusMode?.includes("manual") === true && rangoFoco !== undefined) {
+          // Foco FIJO de mostrador, en el MISMO set que el modo manual: van
+          // juntos o no van — un `focusDistance` sin modo manual no hace nada.
+          // Y no se pide el continuo a la vez: dos jefes para el mismo motor.
+          const distancia = Math.min(
+            Math.max(FOCO_ESCANER_M, rangoFoco.min ?? FOCO_ESCANER_M),
+            rangoFoco.max ?? FOCO_ESCANER_M,
+          );
+          ajustes.push({ focusMode: "manual", focusDistance: distancia });
+        } else if (capacidades.focusMode?.includes("continuous") === true) {
           ajustes.push({ focusMode: "continuous" });
         }
         const maximoDeLaLente = capacidades.zoom?.max ?? 0;
@@ -220,6 +282,7 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         pistaRef.current = pista ?? null;
         setTopeZoom(maximoDeLaLente >= ZOOM_ESCANER ? maximoDeLaLente : null);
         setZoom(maximoDeLaLente >= ZOOM_ESCANER ? ZOOM_ESCANER : null);
+        setTorchDisponible(capacidades.torch === true);
         if (ajustes.length > 0) {
           await pista
             ?.applyConstraints({ advanced: ajustes } as MediaTrackConstraints)
@@ -234,17 +297,74 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           }
         });
 
-        const controles = await lector.decodeFromStream(stream, video, (resultado) => {
-          if (resultado === undefined || cancelado) {
+        // Se apaga apenas hay un acierto: dejar la cámara leyendo dispararía
+        // el mismo código otra vez en el siguiente cuadro y el carrito
+        // sumaría dos. Apagar es bajar la INTENCIÓN — el cleanup del efecto
+        // hace el `stop()`, que es su trabajo.
+        const entregar = (texto: string) => {
+          setEncendida(false);
+          onScanRef.current(texto);
+        };
+
+        const detector = await crearDetectorNativo();
+        let controles: { stop: () => void };
+
+        if (detector !== null) {
+          // ── Camino nativo: nosotros somos el loop ─────────────────────
+          const streamNativo = stream;
+          video.srcObject = streamNativo;
+          try {
+            await video.play();
+          } catch {
+            // `autoPlay` ya lo pide; un play() rechazado acá no es fatal.
+          }
+          let vivo = true;
+          const tick = async () => {
+            if (!vivo || cancelado) {
+              return;
+            }
+            try {
+              const codigos = await detector.detect(video);
+              const texto = codigos[0]?.rawValue;
+              if (texto !== undefined && texto !== "" && vivo && !cancelado) {
+                entregar(texto);
+                return;
+              }
+            } catch {
+              // Cuadro aún no listo o detector quisquilloso: se reintenta.
+            }
+            setTimeout(() => {
+              void tick();
+            }, OPCIONES_LECTOR.delayBetweenScanAttempts);
+          };
+          void tick();
+          controles = {
+            stop: () => {
+              vivo = false;
+              for (const t of streamNativo.getTracks()) {
+                t.stop();
+              }
+              video.srcObject = null;
+            },
+          };
+        } else {
+          // ── Fallback universal: zxing, con import diferido — solo quien
+          // cae acá paga la descarga del decodificador. ──────────────────
+          const { BrowserMultiFormatOneDReader } = await import("@zxing/browser");
+          const lector = new BrowserMultiFormatOneDReader(undefined, OPCIONES_LECTOR);
+          if (cancelado) {
+            for (const t of stream.getTracks()) {
+              t.stop();
+            }
             return;
           }
-          // Se apaga apenas hay un acierto: dejar la cámara leyendo dispararía
-          // el mismo código otra vez en el siguiente cuadro y el carrito
-          // sumaría dos. Apagar es bajar la INTENCIÓN — el cleanup del efecto
-          // hace el `stop()`, que es su trabajo.
-          setEncendida(false);
-          onScanRef.current(resultado.getText());
-        });
+          controles = await lector.decodeFromStream(stream, video, (resultado) => {
+            if (resultado === undefined || cancelado) {
+              return;
+            }
+            entregar(resultado.getText());
+          });
+        }
 
         if (cancelado) {
           controles.stop();
@@ -296,8 +416,19 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
       pistaRef.current = null;
       setZoom(null);
       setTopeZoom(null);
+      setConLinterna(false);
+      setTorchDisponible(false);
     }
   }, [encendida]);
+
+  const alternarLinterna = () => {
+    const objetivo = !conLinterna;
+    const ajuste: Record<string, unknown>[] = [{ torch: objetivo }];
+    void pistaRef.current
+      ?.applyConstraints({ advanced: ajuste } as MediaTrackConstraints)
+      .then(() => setConLinterna(objetivo))
+      .catch(() => undefined);
+  };
 
   const aplicarZoom = (nivel: number) => {
     // Mismo molde que `ajustes` en el efecto: `zoom` no existe en los tipos
@@ -350,19 +481,33 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           >
             <div className="h-0.5 w-full rounded bg-destructive/70" />
           </div>
-          {topeZoom !== null && (
+          {(torchDisponible || topeZoom !== null) && (
             <div className="absolute right-2 bottom-2 flex gap-1">
-              {NIVELES_ZOOM.filter((nivel) => nivel <= topeZoom).map((nivel) => (
+              {torchDisponible && (
+                // Más luz ataca el desenfoque por dos vías: profundidad de
+                // campo y obturación corta. Solo si la lente declara torch.
                 <Button
-                  key={nivel}
                   type="button"
                   size="sm"
-                  variant={zoom === nivel ? "default" : "secondary"}
-                  onClick={() => aplicarZoom(nivel)}
+                  variant={conLinterna ? "default" : "secondary"}
+                  aria-pressed={conLinterna}
+                  onClick={alternarLinterna}
                 >
-                  {nivel}×
+                  {t("pos.cart.torch")}
                 </Button>
-              ))}
+              )}
+              {topeZoom !== null &&
+                NIVELES_ZOOM.filter((nivel) => nivel <= topeZoom).map((nivel) => (
+                  <Button
+                    key={nivel}
+                    type="button"
+                    size="sm"
+                    variant={zoom === nivel ? "default" : "secondary"}
+                    onClick={() => aplicarZoom(nivel)}
+                  >
+                    {nivel}×
+                  </Button>
+                ))}
             </div>
           )}
         </div>

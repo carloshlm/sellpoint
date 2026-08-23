@@ -49,7 +49,8 @@
     "search": "Buscar",
     "searchPlaceholder": "Escanea, teclea el código, el nombre o un folio COT-…",
     "stopScan": "Dejar de escanear",
-    "subtotal": "Subtotal"
+    "subtotal": "Subtotal",
+    "torch": "Linterna"
   },
   "quote": {
     "author": "Cotizó",

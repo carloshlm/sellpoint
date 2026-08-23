@@ -66,6 +66,19 @@ function primeraLlamada(mock: { mock: { calls: unknown[][] } }, quien: string): 
   return args;
 }
 
+/**
+ * Instala un `BarcodeDetector` falso en `window`. Por defecto NO existe: la
+ * mayoría de los tests ejercitan el camino zxing, que es el fallback
+ * universal; el nativo se instala solo donde se prueba.
+ */
+function instalarDetectorNativo(detect: ReturnType<typeof vi.fn>) {
+  class DetectorFalso {
+    static getSupportedFormats = vi.fn().mockResolvedValue(["ean_13", "upc_a", "code_128"]);
+    detect = detect;
+  }
+  Object.defineProperty(window, "BarcodeDetector", { value: DetectorFalso, configurable: true });
+}
+
 function renderScanner(onScan = vi.fn()) {
   render(
     <I18nextProvider i18n={createI18n()}>
@@ -91,6 +104,7 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       value: { getUserMedia },
       configurable: true,
     });
+    Reflect.deleteProperty(window, "BarcodeDetector");
   });
 
   /**
@@ -318,6 +332,80 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
       await new Promise((r) => setTimeout(r, 20));
       expect(screen.queryByRole("button", { name: "2×" })).not.toBeInTheDocument();
+    });
+
+    /**
+     * ── EL DETECTOR NATIVO PRIMERO (2026-08-23) ───────────────────────────
+     *
+     * Las capturas de Carlos a 1×/2×/5× dejaron una sola variable viva: el
+     * ENFOQUE. zxing necesita nitidez a nivel de barra; el `BarcodeDetector`
+     * de Chrome Android es ML Kit por debajo y tolera desenfoque, rotación y
+     * poca luz muchísimo mejor. Cuando existe, se usa; zxing queda como
+     * fallback universal — y de paso el camino nativo NI DESCARGA zxing.
+     */
+    it("prefiere el detector NATIVO del navegador cuando existe", async () => {
+      const detect = vi.fn().mockResolvedValue([{ rawValue: "7501234567890" }]);
+      instalarDetectorNativo(detect);
+      const onScan = renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(onScan).toHaveBeenCalledWith("7501234567890"));
+      expect(onScan).toHaveBeenCalledTimes(1);
+      expect(decodeFromStream).not.toHaveBeenCalled();
+    });
+
+    it("ofrece linterna cuando la lente la declara, y la enciende", async () => {
+      track.getCapabilities.mockReturnValue({
+        focusMode: ["continuous"],
+        zoom: { min: 1, max: 8 },
+        torch: true,
+      });
+      renderScanner();
+
+      await encender();
+
+      // Más luz ataca el desenfoque por dos vías: profundidad de campo y
+      // obturación corta. Solo se ofrece si la lente lo declara.
+      const boton = await screen.findByRole("button", { name: /linterna|flashlight/i });
+      await userEvent.click(boton);
+
+      await waitFor(() => {
+        const pedidos = track.applyConstraints.mock.calls.map((c) => c[0]);
+        expect(pedidos).toContainEqual({ advanced: [{ torch: true }] });
+      });
+    });
+
+    it("sin torch en la lente, no hay botón de linterna", async () => {
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(decodeFromStream).toHaveBeenCalled());
+      expect(
+        screen.queryByRole("button", { name: /linterna|flashlight/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("fija el enfoque CERCA cuando la lente permite enfoque manual", async () => {
+      track.getCapabilities.mockReturnValue({
+        focusMode: ["continuous", "manual"],
+        focusDistance: { min: 0.1, max: 10 },
+        zoom: { min: 1, max: 8 },
+      });
+      renderScanner();
+
+      await encender();
+
+      await waitFor(() => expect(track.applyConstraints).toHaveBeenCalledTimes(2));
+      const avanzado = track.applyConstraints.mock.calls[1]?.[0] as {
+        advanced: Record<string, unknown>[];
+      };
+      // Lo que hace un escáner dedicado: foco FIJO a distancia de mostrador.
+      // El continuo de este teléfono nunca clavó la caja (capturas del 22).
+      expect(avanzado.advanced).toContainEqual({ focusMode: "manual", focusDistance: 0.15 });
+      // Y no se pide el continuo A LA VEZ: dos jefes para el mismo motor.
+      expect(avanzado.advanced).not.toContainEqual({ focusMode: "continuous" });
     });
 
     it("si la cámara muere sola, se dice — no se deja el cuadro negro", async () => {

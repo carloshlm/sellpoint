@@ -49,7 +49,8 @@
     "search": "Search",
     "searchPlaceholder": "Scan, type the code, the name, or a COT- number…",
     "stopScan": "Stop scanning",
-    "subtotal": "Subtotal"
+    "subtotal": "Subtotal",
+    "torch": "Flashlight"
   },
   "quote": {
     "author": "Quoted by",
