@@ -1,10 +1,10 @@
 import { type Currency, formatMoney, formatQuantity, unitLabelFor } from "@sellpoint/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BarcodeScanner } from "@/components/pos/barcode-scanner";
 import { QuoteLoadPanel } from "@/components/pos/quote-load-panel";
 import { Button } from "@/components/ui/button";
-import type { LookupItem } from "@/lib/pos/api";
+import { type LookupItem, lookup } from "@/lib/pos/api";
 import { useLookup } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import { useCartStore } from "@/stores/cart.store";
@@ -46,6 +46,45 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
   const agregar = useCartStore((s) => s.add);
 
   const { data, isFetching } = useLookup(texto, true, warehouseId ?? undefined);
+
+  /**
+   * ── Escanear es una ACCIÓN, no una búsqueda (2026-08-23) ───────────────
+   *
+   * El escáner metía el código por `setTexto`, el mismo estado del teclado, y
+   * el agregado dependía de la consulta reactiva. Si un segundo escaneo
+   * llegaba con la consulta del primero EN VUELO, la clave cambiaba y el
+   * primero se perdía sin ruido — el «a veces no agrega» que Carlos reportó,
+   * agravado por el modo continuo de la cámara.
+   *
+   * Ahora cada código entra a una COLA SECUENCIAL: consulta y agrega uno por
+   * uno, en orden, sin pasar por el input. Lo ambiguo y los errores SÍ caen
+   * al input — que una persona decida; nada se pierde en silencio. El input
+   * queda como canal del teclado.
+   */
+  const colaRef = useRef<Promise<void>>(Promise.resolve());
+
+  const procesarEscaneo = async (codigo: string) => {
+    try {
+      const resultado = await lookup(codigo, warehouseId ?? undefined);
+      const unico =
+        resultado.exact && resultado.items.length === 1 ? (resultado.items[0] ?? null) : null;
+      if (unico === null) {
+        setTexto(codigo);
+        return;
+      }
+      if (unico.type === "quote") {
+        setFolioCargando(unico.folio);
+        return;
+      }
+      agregar(unico);
+    } catch {
+      setTexto(codigo);
+    }
+  };
+
+  const escanear = (codigo: string) => {
+    colaRef.current = colaRef.current.then(() => procesarEscaneo(codigo));
+  };
 
   const agregarYLimpiar = (item: LookupItem) => {
     agregar(item);
@@ -111,8 +150,9 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
         onChange={(e) => setTexto(e.target.value)}
       />
 
-      {/* El escáner produce texto y lo mete por el MISMO input. */}
-      <BarcodeScanner onScan={setTexto} />
+      {/* El escáner NO pasa por el input: cada código entra a la cola
+          imperativa, que consulta y agrega en orden. Ver `escanear`. */}
+      <BarcodeScanner onScan={escanear} />
 
       {isFetching && <p role="status">{t("common.form.loading")}</p>}
 

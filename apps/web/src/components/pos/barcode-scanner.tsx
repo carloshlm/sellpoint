@@ -140,6 +140,15 @@ async function crearDetectorNativo(): Promise<DetectorNativo | null> {
 const OPCIONES_LECTOR = { delayBetweenScanAttempts: 100 };
 
 /**
+ * Modo CONTINUO (2026-08-23, pedido de Carlos): la cámara ya no se apaga con
+ * cada acierto — un mostrador escanea artículo tras artículo. Lo que evita el
+ * doble cobro es esta ventana: el mismo código no se entrega dos veces dentro
+ * de ella. Dos códigos DISTINTOS seguidos pasan, y el mismo código pasada la
+ * ventana también: tres unidades iguales son tres entregas legítimas.
+ */
+const ENFRIAMIENTO_MS = 1500;
+
+/**
  * SIN hints — y en particular SIN `TRY_HARDER`, aunque un arreglo anterior lo
  * pidió a propósito. Medido el 2026-08-22 con A/B en un navegador real contra
  * el chunk desplegado: con el hint puesto, el PRIMER cuadro sin código lanza
@@ -205,6 +214,9 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   // función nueva en cada render, incluirla reiniciaría la cámara sola.
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
+
+  // La última entrega, para el enfriamiento del modo continuo.
+  const ultimaLecturaRef = useRef<{ texto: string; en: number } | null>(null);
 
   useEffect(() => {
     if (!encendida) {
@@ -297,12 +309,18 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           }
         });
 
-        // Se apaga apenas hay un acierto: dejar la cámara leyendo dispararía
-        // el mismo código otra vez en el siguiente cuadro y el carrito
-        // sumaría dos. Apagar es bajar la INTENCIÓN — el cleanup del efecto
-        // hace el `stop()`, que es su trabajo.
+        // MODO CONTINUO: un acierto ya NO apaga la cámara — se sigue
+        // escaneando hasta que el usuario elija parar. El enfriamiento evita
+        // que los cuadros consecutivos del MISMO código se cobren doble; la
+        // vibración es el «bip» del escáner: sin ella no se sabe si registró.
         const entregar = (texto: string) => {
-          setEncendida(false);
+          const ahora = Date.now();
+          const previa = ultimaLecturaRef.current;
+          if (previa !== null && previa.texto === texto && ahora - previa.en < ENFRIAMIENTO_MS) {
+            return;
+          }
+          ultimaLecturaRef.current = { texto, en: ahora };
+          navigator.vibrate?.(60);
           onScanRef.current(texto);
         };
 
@@ -327,8 +345,9 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               const codigos = await detector.detect(video);
               const texto = codigos[0]?.rawValue;
               if (texto !== undefined && texto !== "" && vivo && !cancelado) {
+                // Sin `return`: el loop sigue — modo continuo. El
+                // enfriamiento de `entregar` filtra los cuadros repetidos.
                 entregar(texto);
-                return;
               }
             } catch {
               // Cuadro aún no listo o detector quisquilloso: se reintenta.

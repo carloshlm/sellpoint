@@ -185,10 +185,16 @@ describe("BarcodeScanner (F4-CART-04)", () => {
   });
 
   /**
-   * Un acierto apaga la cámara: dejarla leyendo dispararía el mismo código en
-   * el cuadro siguiente y el carrito sumaría dos.
+   * ── MODO CONTINUO (2026-08-23, pedido de Carlos) ──────────────────────
+   *
+   * «Al activar el escaneo no la quites, para poder seguir escaneando hasta
+   * elegir dejar de escanear.» La cámara ya NO se apaga con cada acierto: un
+   * mostrador escanea artículo tras artículo. Lo que evita el doble cobro es
+   * el ENFRIAMIENTO: el mismo código no se entrega dos veces dentro de la
+   * ventana — pero dos códigos DISTINTOS seguidos sí, y el mismo código tras
+   * la ventana también (tres unidades iguales son tres entregas legítimas).
    */
-  it("un código leído apaga la cámara y lo entrega UNA vez", async () => {
+  it("un código leído se entrega y la cámara SIGUE encendida", async () => {
     const onScan = vi.fn();
     decodeFromStream.mockImplementation((_stream, _video, callback) => {
       setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
@@ -199,8 +205,57 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     await encender();
 
     await waitFor(() => expect(onScan).toHaveBeenCalledWith("7501234567890"));
+    expect(stop).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Dejar de escanear/ })).toBeInTheDocument();
+    expect(document.querySelector("video")).not.toBeNull();
+  });
+
+  it("el MISMO código en cuadros seguidos se entrega UNA vez (enfriamiento)", async () => {
+    const onScan = vi.fn();
+    decodeFromStream.mockImplementation((_stream, _video, callback) => {
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 60);
+      return Promise.resolve({ stop });
+    });
+    renderScanner(onScan);
+
+    await encender();
+
+    await waitFor(() => expect(onScan).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 150));
     expect(onScan).toHaveBeenCalledTimes(1);
-    expect(stop).toHaveBeenCalled();
+  });
+
+  it("códigos DISTINTOS seguidos se entregan los dos", async () => {
+    const onScan = vi.fn();
+    decodeFromStream.mockImplementation((_stream, _video, callback) => {
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
+      setTimeout(() => callback({ getText: () => "064042603179" }), 60);
+      return Promise.resolve({ stop });
+    });
+    renderScanner(onScan);
+
+    await encender();
+
+    await waitFor(() => expect(onScan).toHaveBeenCalledTimes(2));
+    expect(onScan).toHaveBeenNthCalledWith(1, "7501234567890");
+    expect(onScan).toHaveBeenNthCalledWith(2, "064042603179");
+  });
+
+  it("el mismo código VUELVE a entregarse pasado el enfriamiento", async () => {
+    const onScan = vi.fn();
+    decodeFromStream.mockImplementation((_stream, _video, callback) => {
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 10);
+      // Tres unidades iguales son tres entregas legítimas: la ventana solo
+      // filtra los cuadros consecutivos de UNA misma pasada.
+      setTimeout(() => callback({ getText: () => "7501234567890" }), 1700);
+      return Promise.resolve({ stop });
+    });
+    renderScanner(onScan);
+
+    await encender();
+
+    await waitFor(() => expect(onScan).toHaveBeenCalledTimes(2), { timeout: 3000 });
   });
 
   /**
