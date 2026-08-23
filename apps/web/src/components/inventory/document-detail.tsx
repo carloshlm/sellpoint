@@ -1,4 +1,10 @@
-import { formatQuantity, REASON_RULES, unitLabelFor, unitName } from "@sellpoint/shared";
+import {
+  formatQuantity,
+  normalizeLotCode,
+  REASON_RULES,
+  unitLabelFor,
+  unitName,
+} from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -583,7 +589,14 @@ function LineRow({
                     id={`line-${row.lineNo}-lot`}
                     type="text"
                     value={lotCode}
-                    onChange={(event) => setLotCode(event.target.value)}
+                    onChange={(event) =>
+                      // Se normaliza AL TECLEAR y no solo al guardar: el API
+                      // también lo hace —esa es la garantía de los datos— pero
+                      // si la pantalla no, el cajero escribe `stm01`, guarda, y
+                      // al recargar ve `STM01`. Lo que se escribe tiene que ser
+                      // lo que se guarda.
+                      setLotCode(normalizeLotCode(event.target.value))
+                    }
                     className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
                   />
                 </>

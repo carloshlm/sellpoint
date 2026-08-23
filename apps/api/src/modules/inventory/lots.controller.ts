@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import { normalizeLotCode } from "@sellpoint/shared";
 import type { Request } from "express";
 import { z } from "zod";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -22,12 +23,26 @@ import { LotsService } from "./lots.service";
  * puede ver el catálogo no necesariamente puede ver cuánto hay.
  */
 /**
+ * El código de lote entra NORMALIZADO: mayúsculas y dígitos. `product_lots`
+ * tiene `@@unique([productId, lotCode])`, así que `STM01` y `stm01` serían dos
+ * lotes distintos del mismo producto — existencias partidas y FEFO tratándolos
+ * por separado. Se hace acá y no solo en la pantalla porque cualquier otro
+ * camino al API (una importación, otro cliente) se saltaría la regla.
+ *
+ * El `min(1)` va DESPUÉS del transform a propósito: `"---"` normaliza a vacío,
+ * y eso tiene que ser un 400 —«ese código no sirve»— y no un lote sin nombre.
+ */
+function lotCodeField() {
+  return z.string().trim().max(64).transform(normalizeLotCode).pipe(z.string().min(1).max(64));
+}
+
+/**
  * Los dos campos que un lote mal cargado necesita corregir. `expiresAt`
  * `nullish` a propósito: `null` es "este lote no vence", que es distinto de
  * "no lo toques" (`undefined`).
  */
 const updateLotSchema = z.object({
-  lotCode: z.string().trim().min(1).max(64).optional(),
+  lotCode: lotCodeField().optional(),
   expiresAt: z.iso.date().nullish(),
 });
 

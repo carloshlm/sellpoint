@@ -1,5 +1,6 @@
 import {
   hasValidQuantityScale,
+  normalizeLotCode,
   QUANTITY_MAX,
   REASON_RULES,
   SELECTABLE_ENTRY_REASONS,
@@ -7,6 +8,20 @@ import {
 } from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../../products/money";
+
+/**
+ * El código de lote entra NORMALIZADO: mayúsculas y dígitos. `product_lots`
+ * tiene `@@unique([productId, lotCode])`, así que `STM01` y `stm01` serían dos
+ * lotes distintos del mismo producto — existencias partidas y FEFO tratándolos
+ * por separado. Se hace acá y no solo en la pantalla porque cualquier otro
+ * camino al API (una importación, otro cliente) se saltaría la regla.
+ *
+ * El `min(1)` va DESPUÉS del transform a propósito: `"---"` normaliza a vacío,
+ * y eso tiene que ser un 400 —«ese código no sirve»— y no un lote sin nombre.
+ */
+function lotCodeField() {
+  return z.string().trim().max(64).transform(normalizeLotCode).pipe(z.string().min(1).max(64));
+}
 
 /**
  * Cantidad positiva que cabe en `DECIMAL(14,4)`.
@@ -32,7 +47,7 @@ const movementLineSchema = z.object({
   presentationId: z.uuid().optional(),
   quantity: quantityAmount(),
   unitCost: moneyAmount().optional(),
-  lotCode: z.string().trim().min(1).max(64).optional(),
+  lotCode: lotCodeField().optional(),
   expiresAt: z.iso.date().optional(),
   location: z.string().trim().max(64).optional(),
   lotId: z.uuid().optional(),

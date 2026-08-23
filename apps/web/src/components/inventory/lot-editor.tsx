@@ -1,3 +1,4 @@
+import { normalizeLotCode } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -66,7 +67,12 @@ export function LotEditor({
             id="lot-code"
             type="text"
             value={lotCode}
-            onChange={(event) => setLotCode(event.target.value)}
+            onChange={(event) =>
+              // Se normaliza AL TECLEAR y no solo al guardar: el API también lo
+              // hace —esa es la garantía de los datos— pero si la pantalla no,
+              // el cajero escribe `stm01`, guarda, y al recargar ve `STM01`.
+              setLotCode(normalizeLotCode(event.target.value))
+            }
             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>

@@ -1,5 +1,6 @@
 import {
   INVENTORY_DOCUMENT_TYPES,
+  normalizeLotCode,
   SELECTABLE_ENTRY_REASONS,
   SELECTABLE_EXIT_REASONS,
 } from "@sellpoint/shared";
@@ -29,7 +30,7 @@ export const upsertDocumentLineSchema = z.object({
   presentationId: z.uuid().nullish(),
   quantity: quantityAmount().nullish(),
   unitCost: moneyAmount().nullish(),
-  lotCode: z.string().trim().min(1).max(64).nullish(),
+  lotCode: lotCodeField().nullish(),
   expiresAt: z.iso.date().nullish(),
   location: z.string().trim().max(64).nullish(),
   counted: quantityAmount().nullish(),
@@ -87,6 +88,20 @@ export const listDocumentsQuerySchema = z.object({
 });
 
 export type ListDocumentsQueryDto = z.infer<typeof listDocumentsQuerySchema>;
+
+/**
+ * El código de lote entra NORMALIZADO: mayúsculas y dígitos. `product_lots`
+ * tiene `@@unique([productId, lotCode])`, así que `STM01` y `stm01` serían dos
+ * lotes distintos del mismo producto — existencias partidas y FEFO tratándolos
+ * por separado. Se hace acá y no solo en la pantalla porque cualquier otro
+ * camino al API (una importación, otro cliente) se saltaría la regla.
+ *
+ * El `min(1)` va DESPUÉS del transform a propósito: `"---"` normaliza a vacío,
+ * y eso tiene que ser un 400 —«ese código no sirve»— y no un lote sin nombre.
+ */
+function lotCodeField() {
+  return z.string().trim().max(64).transform(normalizeLotCode).pipe(z.string().min(1).max(64));
+}
 
 /**
  * La cabecera del borrador: lo que se edita mientras se carga (autoguardado).
