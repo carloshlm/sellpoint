@@ -27,8 +27,14 @@
  * Sube cuando cambie la estrategia. Al cambiar, el `activate` borra las
  * versiones viejas: sin eso, cada despliegue dejaría un caché huérfano
  * ocupando espacio en el dispositivo para siempre.
+ *
+ * **v2 (2026-08-23) no es cosmética: PURGA las cachés envenenadas.** La v1
+ * guardó respuestas de `/api/pos/lookup`, `/api/pos/session` y `/api/me` en
+ * los dispositivos que ya abrieron la app. Sin subir la versión, esos equipos
+ * seguirían sirviendo stock viejo aunque el código nuevo ya no cachee nada
+ * del API.
  */
-const CACHE = "sellpoint-shell-v1";
+const CACHE = "sellpoint-shell-v2";
 
 /** El cascarón mínimo: sin esto la app no arranca. */
 const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg"];
@@ -64,18 +70,32 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // ── El API queda AFUERA, siempre ──────────────────────────────────────
+  // ── Solo el CASCARÓN se cachea; lo demás va a la red ─────────────────
   //
-  // Se reconoce por origen distinto (el API vive en otro host) o por las rutas
-  // conocidas si algún día comparten dominio. Ante la duda, NO se cachea: el
-  // costo de no cachear es una llamada de red, y el de cachear de más es
-  // vender contra un inventario que no existe.
-  const esApi =
-    url.origin !== self.location.origin ||
-    /^\/(pos|inventory|products|services|warehouses|catalogs|auth|me|users|roles|tenants)\b/.test(
-      url.pathname,
-    );
-  if (esApi) {
+  // Esto era una lista NEGRA («todo se cachea salvo estas rutas») y costó
+  // caro: se escribió cuando el API vivía en otro host, y en producción el
+  // deploy lo dejó en `/api` del MISMO dominio. El patrón miraba
+  // `/^\/(pos|inventory|…)/` sobre el pathname, y `/api/pos/lookup` no
+  // empieza con `/pos` — así que el worker se puso a cachear el API entero.
+  // Medido el 2026-08-23 en producción: `/api/pos/lookup`, `/api/pos/session`
+  // y `/api/me` dentro de la caché, con el POS mostrando stock viejo hasta
+  // recargar a mano. El docblock de arriba juraba que eso no podía pasar.
+  //
+  // La lección: **una lista negra falla en silencio y hacia el lado
+  // peligroso.** Basta que nazca un módulo, cambie un prefijo o se mueva el
+  // API para que algo nuevo entre a la caché sin que nadie lo decida. La
+  // lista BLANCA falla hacia el lado seguro: lo que no está nombrado va a la
+  // red, y el costo de equivocarse es una petición de más.
+  const esDelSitio = url.origin === self.location.origin;
+  const esCascaron =
+    esDelSitio &&
+    // Los assets de Vite llevan hash: su URL cambia cuando cambia el
+    // contenido, así que cachearlos no puede servir código viejo.
+    (url.pathname.startsWith("/assets/") ||
+      SHELL.includes(url.pathname) ||
+      /\.(?:css|js|woff2?|ttf|svg|png|ico|webmanifest)$/.test(url.pathname));
+
+  if (!esCascaron) {
     return;
   }
 
@@ -90,11 +110,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ── Estáticos: caché primero, y se refresca de fondo ──────────────────
+  // ── Cascarón: caché primero, y se refresca de fondo ───────────────────
   //
-  // Los assets de Vite llevan hash en el nombre, así que un archivo cacheado
-  // NUNCA queda viejo: si el contenido cambia, cambia la URL. Por eso acá el
-  // caché sí puede ir primero sin riesgo de servir código de ayer.
+  // Acá ya solo llega lo que pasó la lista blanca de arriba: archivos con
+  // hash o del cascarón. Un archivo cacheado NUNCA queda viejo, porque si el
+  // contenido cambia, cambia la URL. Por eso el caché puede ir primero.
   event.respondWith(
     caches.match(request).then((cached) => {
       const deRed = fetch(request)

@@ -59,29 +59,115 @@ describe("El manifest hace la app INSTALABLE (F4-PWA-01)", () => {
   });
 });
 
+/**
+ * ── EJECUTAR el worker, no leerlo (2026-08-23) ────────────────────────────
+ *
+ * La versión anterior de estas pruebas buscaba el TEXTO `"esApi"` y los
+ * nombres de las rutas dentro del archivo. Pasaba en verde mientras el worker
+ * cacheaba `/api/pos/lookup` **en producción**: la guarda existía, decía
+ * `/^\/(pos|inventory|…)/` sobre el pathname… y en producción el API vive en
+ * `/api/pos/...`, que no empieza con `/pos`. Comprobar que una guarda ESTÁ
+ * escrita no comprueba que FUNCIONE.
+ *
+ * Ahora el worker se ejecuta de verdad: se le inyecta un `self` falso, se le
+ * pide el manejador de `fetch` y se le pasan peticiones reales. Lo que se
+ * afirma es la DECISIÓN — responder desde el worker o dejar pasar a la red —
+ * que es lo único que le importa a la caja.
+ */
+interface EventoFalso {
+  request: { url: string; method: string; mode: string };
+  respondWith: (r: unknown) => void;
+  waitUntil: (p: unknown) => void;
+}
+
+function manejadorFetch(): (evento: EventoFalso) => void {
+  const oyentes: Record<string, (e: EventoFalso) => void> = {};
+  const selfFalso = {
+    addEventListener: (evento: string, fn: (e: EventoFalso) => void) => {
+      oyentes[evento] = fn;
+    },
+    location: { origin: "https://system.laradoc.com" },
+    skipWaiting: () => Promise.resolve(),
+    clients: { claim: () => Promise.resolve() },
+  };
+  const cachesFalso = {
+    open: () => Promise.resolve({ addAll: () => Promise.resolve(), put: () => Promise.resolve() }),
+    match: () => Promise.resolve(undefined),
+    keys: () => Promise.resolve([]),
+    delete: () => Promise.resolve(true),
+  };
+  new Function("self", "caches", "fetch", "Response", serviceWorker())(
+    selfFalso,
+    cachesFalso,
+    () => Promise.resolve(new Response("")),
+    Response,
+  );
+  const manejador = oyentes.fetch;
+  if (manejador === undefined) {
+    throw new Error("el worker no registró un manejador de `fetch`");
+  }
+  return manejador;
+}
+
+/** `true` si el worker DECIDE responder (o sea: puede servir de su caché). */
+function elWorkerIntercepta(url: string, method = "GET", mode = "cors"): boolean {
+  let intercepto = false;
+  manejadorFetch()({
+    request: { url, method, mode },
+    respondWith: () => {
+      intercepto = true;
+    },
+    waitUntil: () => undefined,
+  });
+  return intercepto;
+}
+
+const BASE = "https://system.laradoc.com";
+
 describe("El service worker NO cachea el API (F4-PWA-01)", () => {
   /**
    * ⚠ LA INVARIANTE DEL MÓDULO, y la única que puede costar dinero.
    *
-   * Un worker que sirve una respuesta guardada de `/pos/lookup` mostraría el
-   * stock de hace una hora, y el cajero vendería mercancía que ya no está.
-   * Este test no puede ejecutar el worker —no hay `ServiceWorkerGlobalScope`
-   * en jsdom— así que verifica que la GUARDA siga escrita: el día que alguien
-   * la quite «para que ande más rápido», esto se pone rojo.
+   * Un worker que sirve una respuesta guardada de `/api/pos/lookup` muestra el
+   * stock de hace una hora, y el cajero vende mercancía que ya no está. Pasó:
+   * medido en producción el 2026-08-23, con `/api/pos/lookup`,
+   * `/api/pos/session` y `/api/me` dentro de la caché del worker.
    */
-  it("tiene la guarda que descarta las rutas del API", () => {
-    const sw = serviceWorker();
+  it.each([
+    "/api/pos/lookup?q=750",
+    "/api/pos/session",
+    "/api/pos/sales",
+    "/api/inventory/expiring",
+    "/api/products",
+    "/api/warehouses",
+    "/api/me",
+    "/api/auth/refresh",
+  ])("deja pasar %s a la red, sin tocarlo", (ruta) => {
+    expect(elWorkerIntercepta(BASE + ruta)).toBe(false);
+  });
 
-    expect(sw).toContain("esApi");
-    // Las rutas que mueven dinero o inventario, nombradas explícitamente.
-    for (const ruta of ["pos", "inventory", "products", "auth"]) {
-      expect(sw).toContain(ruta);
-    }
+  /**
+   * El complemento del anterior: una lista de rutas prohibidas se queda corta
+   * en cuanto nace un módulo nuevo. Lo que se fija es el criterio INVERSO —
+   * solo el cascarón se cachea, y lo desconocido va a la red.
+   */
+  it("una ruta de API que todavía no existe TAMPOCO se cachea", () => {
+    expect(elWorkerIntercepta(`${BASE}/api/reports/stock`)).toBe(false);
+    expect(elWorkerIntercepta(`${BASE}/lo-que-sea`)).toBe(false);
+  });
+
+  it("sí sirve el cascarón: los assets con hash y el manifest", () => {
+    expect(elWorkerIntercepta(`${BASE}/assets/index-A1b2C3.js`)).toBe(true);
+    expect(elWorkerIntercepta(`${BASE}/manifest.webmanifest`)).toBe(true);
   });
 
   it("descarta todo lo que no sea GET", () => {
     // Un POST cacheado sería una venta fantasma que se reenvía sola.
-    expect(serviceWorker()).toContain('request.method !== "GET"');
+    expect(elWorkerIntercepta(`${BASE}/assets/index-A1b2C3.js`, "POST")).toBe(false);
+  });
+
+  it("no toca otros dominios", () => {
+    expect(elWorkerIntercepta("https://fonts.googleapis.com/css2?family=Inter")).toBe(false);
   });
 
   it("la navegación va a la RED primero", () => {
@@ -95,7 +181,9 @@ describe("El service worker NO cachea el API (F4-PWA-01)", () => {
 
   it("limpia las versiones viejas del caché al activarse", () => {
     // Sin esto, cada despliegue deja un caché huérfano ocupando espacio en el
-    // dispositivo para siempre.
+    // dispositivo para siempre. Y ahora además es lo que PURGA las cachés
+    // envenenadas con respuestas del API: por eso la versión tuvo que subir.
     expect(serviceWorker()).toContain("caches.delete");
+    expect(serviceWorker()).not.toContain("sellpoint-shell-v1");
   });
 });
