@@ -1,5 +1,5 @@
 import { type Currency, formatMoney, formatQuantityWithUnit } from "@sellpoint/shared";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Numpad } from "@/components/pos/numpad";
 import { Button } from "@/components/ui/button";
@@ -105,6 +105,22 @@ function CartLineRow({
   const remove = useCartStore((s) => s.remove);
   const errorSku = useCartStore((s) => s.errorSku);
 
+  /**
+   * El DESTELLO (2026-08-23): con el escaneo continuo, pasar el mismo
+   * producto sube la cantidad «pero no es muy claro el cambio» (Carlos). La
+   * vibración dice que el escáner LEYÓ; esto dice QUÉ cambió — la línea nueva
+   * o la que incrementó. El efecto depende de la cantidad: se dispara al
+   * montar (línea nueva) y en cada incremento, y se apaga solo — un resaltado
+   * que se queda deja de señalar.
+   */
+  const [destello, setDestello] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: la cantidad es el GATILLO, no una lectura — el efecto se dispara con cada cambio de `line.quantity` aunque el cuerpo no la use
+  useEffect(() => {
+    setDestello(true);
+    const temporizador = setTimeout(() => setDestello(false), 800);
+    return () => clearTimeout(temporizador);
+  }, [line.quantity]);
+
   const falta = excedeElStock(line);
   // El rechazo del servidor cae SOBRE su renglón (F4-UI-02). En un carrito de
   // ocho líneas, un «no hay suficiente existencia» que no señala cuál obliga a
@@ -114,11 +130,15 @@ function CartLineRow({
 
   return (
     <li
-      className={`flex flex-col gap-1 rounded-md border p-2 ${
+      // `transition-colors` hace el apagado: el fondo del destello no
+      // desaparece de golpe, se desvanece. El rechazo del servidor GANA — un
+      // destello encima de un error taparía justo lo que hay que ver.
+      className={`flex flex-col gap-1 rounded-md border p-2 transition-colors duration-700 ${
         rechazada ? "border-destructive bg-destructive/5" : selected ? "border-primary" : ""
-      }`}
+      } ${destello && !rechazada ? "bg-primary/15" : ""}`}
       data-testid={`cart-line-${line.key}`}
       {...(rechazada && { "data-rejected": "true" })}
+      {...(destello && { "data-flash": "true" })}
     >
       <div className="flex items-center justify-between gap-2">
         <button type="button" className="flex-1 text-left" onClick={onSelect}>
