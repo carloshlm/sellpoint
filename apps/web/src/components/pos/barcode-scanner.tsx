@@ -469,7 +469,17 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         // al poner `muted` la regla dejó de dispararse sola. Tiene sentido — un
         // video sin audio no tiene nada que subtitular. Una supresión menos.
         <div className="relative">
-          <video ref={videoRef} className="w-full rounded-md bg-black" autoPlay muted playsInline />
+          <video
+            ref={videoRef}
+            // Franja de escáner, no pantalla completa (Carlos, 2026-08-23):
+            // `object-cover` recorta solo lo visible — el detector recibe el
+            // cuadro entero — y el recorte simétrico deja el centro real
+            // exactamente donde la guía dice que está.
+            className="h-48 w-full rounded-md bg-black object-cover"
+            autoPlay
+            muted
+            playsInline
+          />
           {/* La guía de centrado. El lector 1D barre las filas del CENTRO de
               la imagen (~25, sin TRY_HARDER): un código en el tercio inferior
               — la captura de Carlos — es invisible por bien enfocado que

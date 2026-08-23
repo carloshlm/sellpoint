@@ -154,6 +154,26 @@ describe("BarcodeScanner (F4-CART-04)", () => {
     expect(video.playsInline).toBe(true);
   });
 
+  it("el video es una FRANJA, no una pantalla completa", async () => {
+    renderScanner();
+
+    await encender();
+
+    const video = await waitFor(() => {
+      const v = document.querySelector("video");
+      if (v === null) throw new Error("sin <video>");
+      return v;
+    });
+    // Petición de Carlos (2026-08-23), con el escaneo ya funcionando: el
+    // recuadro a pantalla casi completa estorba. Una franja de ~190 px al
+    // estilo escáner de paquetería alcanza — para leer no hace falta ver la
+    // escena, hace falta ver la línea y el código sobre ella. `object-cover`
+    // recorta solo lo VISUAL (simétrico, el centro queda donde la línea): el
+    // detector sigue recibiendo el cuadro completo de la cámara.
+    expect(video.className).toContain("h-48");
+    expect(video.className).toContain("object-cover");
+  });
+
   it("al parar, sí se apaga", async () => {
     renderScanner();
     await encender();
