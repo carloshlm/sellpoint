@@ -1,13 +1,16 @@
 {
-  "hello": "Hello",
-  "welcome": "Welcome to SellPoint",
-  "languageSwitcher": {
-    "label": "Language"
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Hi, {{name}}",
+    "placeholder": "Your dashboard will live here. We're building it."
   },
-  "home": {
-    "demoTotal": "Demo total: {{amount}}",
-    "tailwindCheck": "Tailwind is live",
-    "demoAction": "Try it"
+  "dateRange": {
+    "from": "From",
+    "to": "To",
+    "clear": "Clear dates"
+  },
+  "errors": {
+    "network": "We couldn't reach the server. Check your connection and try again."
   },
   "form": {
     "submitting": "Sending…",
@@ -20,11 +23,14 @@
     "remove": "Remove",
     "search": "Search"
   },
-  "errors": {
-    "network": "We couldn't reach the server. Check your connection and try again."
+  "hello": "Hello",
+  "home": {
+    "demoTotal": "Demo total: {{amount}}",
+    "tailwindCheck": "Tailwind is live",
+    "demoAction": "Try it"
   },
-  "session": {
-    "loading": "Loading your session…"
+  "languageSwitcher": {
+    "label": "Language"
   },
   "layout": {
     "nav": {
@@ -65,10 +71,11 @@
       }
     }
   },
-  "dashboard": {
-    "title": "Dashboard",
-    "welcome": "Hi, {{name}}",
-    "placeholder": "Your dashboard will live here. We're building it."
+  "session": {
+    "loading": "Loading your session…"
+  },
+  "table": {
+    "scrollHint": "Swipe the table to see more columns."
   },
   "theme": {
     "title": "Appearance",
@@ -93,7 +100,5 @@
       }
     }
   },
-  "table": {
-    "scrollHint": "Swipe the table to see more columns."
-  }
+  "welcome": "Welcome to SellPoint"
 }

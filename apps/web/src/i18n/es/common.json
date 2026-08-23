@@ -1,13 +1,16 @@
 {
-  "hello": "Hola",
-  "welcome": "Bienvenido a SellPoint",
-  "languageSwitcher": {
-    "label": "Idioma"
+  "dashboard": {
+    "title": "Panel",
+    "welcome": "Hola, {{name}}",
+    "placeholder": "Acá va a vivir tu panel. Estamos construyéndolo."
   },
-  "home": {
-    "demoTotal": "Total demo: {{amount}}",
-    "tailwindCheck": "Tailwind activo",
-    "demoAction": "Probar"
+  "dateRange": {
+    "from": "Desde",
+    "to": "Hasta",
+    "clear": "Limpiar fechas"
+  },
+  "errors": {
+    "network": "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo."
   },
   "form": {
     "submitting": "Enviando…",
@@ -20,11 +23,14 @@
     "remove": "Quitar",
     "search": "Buscar"
   },
-  "errors": {
-    "network": "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo."
+  "hello": "Hola",
+  "home": {
+    "demoTotal": "Total demo: {{amount}}",
+    "tailwindCheck": "Tailwind activo",
+    "demoAction": "Probar"
   },
-  "session": {
-    "loading": "Cargando tu sesión…"
+  "languageSwitcher": {
+    "label": "Idioma"
   },
   "layout": {
     "nav": {
@@ -65,10 +71,11 @@
       }
     }
   },
-  "dashboard": {
-    "title": "Panel",
-    "welcome": "Hola, {{name}}",
-    "placeholder": "Acá va a vivir tu panel. Estamos construyéndolo."
+  "session": {
+    "loading": "Cargando tu sesión…"
+  },
+  "table": {
+    "scrollHint": "Desliza la tabla para ver más columnas."
   },
   "theme": {
     "title": "Apariencia",
@@ -93,7 +100,5 @@
       }
     }
   },
-  "table": {
-    "scrollHint": "Desliza la tabla para ver más columnas."
-  }
+  "welcome": "Bienvenido a SellPoint"
 }

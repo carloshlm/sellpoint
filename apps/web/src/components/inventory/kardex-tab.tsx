@@ -2,6 +2,11 @@ import { formatQuantity, MOVEMENT_REASONS } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  DateRangeFilter,
+  type RangoDeFechas,
+  rangoUltimosDias,
+} from "@/components/common/date-range-filter";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { useKardex } from "@/lib/inventory/kardex-hooks";
@@ -30,16 +35,33 @@ interface KardexTabProps {
  * Las columnas de lote solo aparecen si el producto los maneja: en uno que no,
  * son tres columnas vacías que solo hacen scroll.
  */
+/** Lo que se ve al abrir. Ver la nota del estado `rango`. */
+const DIAS_INICIALES = 30;
+
 export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: KardexTabProps) {
   const { t, i18n } = useTranslation();
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [reasonCode, setReasonCode] = useState("");
   const [direction, setDirection] = useState("");
 
+  /**
+   * Arranca acotado a los últimos 30 días (Carlos, 2026-08-23). Un kardex de
+   * un producto con dos años de historia abre con cientos de renglones y el
+   * usuario no encuentra el de ayer. El histórico completo sigue a un clic:
+   * se limpian las fechas y vuelve todo.
+   *
+   * El estado inicial se calcula UNA vez —función perezosa de `useState`— y no
+   * en cada render: si no, un turno abierto a medianoche vería el rango
+   * moverse solo bajo los pies.
+   */
+  const [rango, setRango] = useState<RangoDeFechas>(() => rangoUltimosDias(DIAS_INICIALES));
+
   const { data, isPending } = useKardex(isComposite ? undefined : productId, {
     ...(warehouseId !== null ? { warehouseId } : {}),
     ...(reasonCode !== "" ? { reasonCode } : {}),
     ...(direction !== "" ? { direction: direction as "entry" | "exit" } : {}),
+    ...(rango.from !== "" ? { from: rango.from } : {}),
+    ...(rango.to !== "" ? { to: rango.to } : {}),
   });
 
   // Un compuesto no tiene movimientos propios: se arma al consumirlo. Una
@@ -57,6 +79,7 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
+        <DateRangeFilter id="kardex" from={rango.from} to={rango.to} onChange={setRango} />
         <div className="flex min-w-48 flex-col gap-1">
           <label htmlFor="kardex-warehouse" className="font-medium text-sm">
             {t("inventory.kardex.warehouse")}

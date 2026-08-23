@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useCreateDocument, useDocuments } from "@/lib/inventory/hooks";
@@ -53,6 +54,13 @@ export function DocumentList({ type }: DocumentListProps) {
   // ahí porque ahí está la lista de opciones: preseleccionar acá, sin saber si
   // el asignado está disponible, ofrecería un almacén que el API rechaza.
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  /**
+   * Sin rango al abrir, a diferencia del Kardex y a propósito: este listado se
+   * abre para encontrar el documento que se acaba de crear, y un rango por
+   * defecto escondería los borradores viejos que alguien dejó a medias — que
+   * es justo lo que hay que ver.
+   */
+  const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
 
   // Debounce: buscar en cada tecla haría seis requests por un folio de seis
   // dígitos, y el usuario vería resultados parpadeando mientras escribe.
@@ -66,10 +74,20 @@ export function DocumentList({ type }: DocumentListProps) {
     ...(folio !== "" && { folio }),
     ...(status !== undefined && { status }),
     ...(warehouseId !== null && { warehouseId }),
+    ...(rango.from !== "" && { from: rango.from }),
+    ...(rango.to !== "" && { to: rango.to }),
   });
   const createDocument = useCreateDocument();
 
-  const filtrando = folio !== "" || status !== undefined || warehouseId !== null;
+  // El rango CUENTA como filtro: si no, una búsqueda vacía por fechas diría
+  // «todavía no hay documentos» en vez de «no hay en este rango», y el usuario
+  // creería que perdió su trabajo.
+  const filtrando =
+    folio !== "" ||
+    status !== undefined ||
+    warehouseId !== null ||
+    rango.from !== "" ||
+    rango.to !== "";
   const rows = data?.rows ?? [];
 
   async function crear() {
@@ -121,6 +139,8 @@ export function DocumentList({ type }: DocumentListProps) {
             onChange={setWarehouseId}
           />
         </div>
+
+        <DateRangeFilter id="document-list" from={rango.from} to={rango.to} onChange={setRango} />
       </div>
 
       <div className="flex flex-wrap gap-2">
