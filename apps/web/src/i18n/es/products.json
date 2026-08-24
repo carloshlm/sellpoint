@@ -24,14 +24,16 @@
     "stock": "Stock por almacén"
   },
   "form": {
-    "sku": "Código",
-    "name": "Nombre",
+    "barcode": "Código de barras",
+    "barcodeHint": "El que viene impreso en el empaque. Es lo que lee el escáner.",
     "baseUnit": "Unidad base",
-    "stockMin": "Stock mínimo",
-    "price": "Precio",
-    "priceHint": "Es el precio de venta de una unidad.",
     "cost": "Costo",
     "isComposite": "Se arma a partir de otros productos del catálogo",
+    "name": "Nombre",
+    "price": "Precio",
+    "priceHint": "Es el precio de venta de una unidad.",
+    "sku": "Código",
+    "stockMin": "Stock mínimo",
     "tracksLots": "Este producto se controla por lote y caducidad",
     "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero."
   },

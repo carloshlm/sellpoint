@@ -24,14 +24,16 @@
     "stock": "Stock by warehouse"
   },
   "form": {
-    "sku": "Code",
-    "name": "Name",
+    "barcode": "Barcode",
+    "barcodeHint": "The one printed on the package. This is what the scanner reads.",
     "baseUnit": "Base unit",
-    "stockMin": "Minimum stock",
-    "price": "Price",
-    "priceHint": "This is the selling price for one unit.",
     "cost": "Cost",
     "isComposite": "Built from other products in the catalog",
+    "name": "Name",
+    "price": "Price",
+    "priceHint": "This is the selling price for one unit.",
+    "sku": "Code",
+    "stockMin": "Minimum stock",
     "tracksLots": "This product is tracked by lot and expiry date",
     "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first."
   },

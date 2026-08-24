@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { restriccionViolada } from "../../common/prisma/unique-violation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -279,12 +280,12 @@ export class PresentationsService {
  * y el usuario necesita saber cuál de los dos le pasó.
  */
 function translateUniqueViolation(error: unknown): unknown {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-    const target = String(error.meta?.target ?? "");
-    if (target.includes("barcode")) {
-      return new ConflictException({ message: "products.barcode_taken" });
-    }
-    return new ConflictException({ message: "products.presentation_name_taken" });
+  const restriccion = restriccionViolada(error);
+  if (restriccion === null) {
+    return error;
   }
-  return error;
+  if (restriccion.includes("barcode")) {
+    return new ConflictException({ message: "products.barcode_taken" });
+  }
+  return new ConflictException({ message: "products.presentation_name_taken" });
 }

@@ -2,10 +2,17 @@ import { z } from "zod";
 import { moneyAmount } from "../money";
 
 /**
- * F2-PROD-01. `price` y `cost` viajan acá aunque NO sean columnas de
- * `products`: el service los usa para crear/actualizar la presentación base
+ * F2-PROD-01. `price`, `cost` y `barcode` viajan acá aunque NO sean columnas
+ * de `products`: el service los usa para crear/actualizar la presentación base
  * «Unidad ×1» (decisión de Carlos, 2026-08-16 — una sola fuente de verdad
  * para el precio, y se llena desde la misma interfaz del catálogo).
+ *
+ * El `barcode` se sumó el 2026-08-24 por el mismo criterio: «no me gusta que
+ * se tenga que hacer dos pasos para dar de alta un producto y asignarle un
+ * código de barras después» (Carlos). Para el usuario es «el código del
+ * producto»; para el modelo sigue siendo la fila base, y ahí tiene que estar
+ * porque la caja de 12 y la pieza suelta llevan códigos DISTINTOS — es lo que
+ * deja al POS preseleccionar la presentación correcta al escanear.
  */
 export const createProductSchema = z.object({
   sku: z.string().trim().min(1).max(64),
@@ -18,6 +25,7 @@ export const createProductSchema = z.object({
   attributes: z.record(z.string(), z.unknown()).default({}),
   price: moneyAmount().optional(),
   cost: moneyAmount().optional(),
+  barcode: z.string().trim().min(1).max(64).optional(),
 });
 
 export const updateProductSchema = z
@@ -31,6 +39,9 @@ export const updateProductSchema = z
     attributes: z.record(z.string(), z.unknown()).optional(),
     price: moneyAmount().nullable().optional(),
     cost: moneyAmount().nullable().optional(),
+    // `null` BORRA el código; `undefined` es «no lo toques». La distinción
+    // importa: un producto puede perder su código de barras a propósito.
+    barcode: z.string().trim().min(1).max(64).nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "products.empty_update" });

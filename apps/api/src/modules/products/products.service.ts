@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { getUnit, type Locale, unitName } from "@sellpoint/shared";
+import { restriccionViolada } from "../../common/prisma/unique-violation";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -192,6 +193,7 @@ export class ProductsService {
             allowFractionalInput: derivesFractionalInput(input.baseUnit),
             price: input.price ?? null,
             cost: input.cost ?? null,
+            barcode: input.barcode ?? null,
           },
         });
 
@@ -208,10 +210,7 @@ export class ProductsService {
 
         return product;
       } catch (error) {
-        if (isUniqueViolation(error)) {
-          throw new ConflictException({ message: "products.sku_taken" });
-        }
-        throw error;
+        throw traducirConflicto(error);
       }
     });
   }
@@ -256,10 +255,10 @@ export class ProductsService {
           },
         });
 
-        // Precio y costo editan la presentación PREDETERMINADA: para el
-        // usuario son "el precio del producto", para el modelo son la fila
-        // base. Un solo lugar donde vive el número.
-        if (input.price !== undefined || input.cost !== undefined) {
+        // Precio, costo y código de barras editan la presentación
+        // PREDETERMINADA: para el usuario son "del producto", para el modelo
+        // son la fila base. Un solo lugar donde vive cada dato.
+        if (input.price !== undefined || input.cost !== undefined || input.barcode !== undefined) {
           const target = await tx.productPresentation.findFirst({
             where: { productId: id, isDefaultSale: true },
             select: { id: true },
@@ -270,6 +269,7 @@ export class ProductsService {
               data: {
                 ...(input.price !== undefined ? { price: input.price } : {}),
                 ...(input.cost !== undefined ? { cost: input.cost } : {}),
+                ...(input.barcode !== undefined ? { barcode: input.barcode } : {}),
               },
             });
           }
@@ -289,10 +289,7 @@ export class ProductsService {
 
         return product;
       } catch (error) {
-        if (isUniqueViolation(error)) {
-          throw new ConflictException({ message: "products.sku_taken" });
-        }
-        throw error;
+        throw traducirConflicto(error);
       }
     });
   }
@@ -500,6 +497,22 @@ function assertKnownUnit(code: string): void {
   }
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+/**
+ * Traduce una violación de unicidad al conflicto que el usuario puede
+ * ARREGLAR. Antes todas caían en `products.sku_taken`, y desde que el alta
+ * acepta código de barras (2026-08-24) eso mandaba a buscar el problema donde
+ * no estaba: el SKU era único y el repetido era el código.
+ *
+ * Mismo criterio que `translateUniqueViolation` de `presentations.service`:
+ * dos unique distintos, dos mensajes distintos.
+ */
+function traducirConflicto(error: unknown): unknown {
+  const restriccion = restriccionViolada(error);
+  if (restriccion === null) {
+    return error;
+  }
+  if (restriccion.includes("barcode")) {
+    return new ConflictException({ message: "products.barcode_taken" });
+  }
+  return new ConflictException({ message: "products.sku_taken" });
 }

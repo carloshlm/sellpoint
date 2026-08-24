@@ -390,6 +390,11 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(basePresentation?.price ?? "");
   const [cost, setCost] = useState(basePresentation?.cost ?? "");
+  // Sale de la presentación base, igual que el precio: `barcode` no es columna
+  // de `products` —la caja de 12 y la pieza suelta llevan códigos distintos—
+  // pero el usuario lo ve como «el código del producto» y lo carga acá mismo,
+  // en UN solo paso (Carlos, 2026-08-24).
+  const [barcode, setBarcode] = useState(basePresentation?.barcode ?? "");
   const [attributes, setAttributes] = useState<Record<string, unknown>>(product?.attributes ?? {});
   const lotesBloqueados = Boolean(product?.hasLotStock) && (product?.tracksLots ?? false);
   const [error, setError] = useState<string | null>(null);
@@ -447,6 +452,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
           attributes,
           ...(price !== "" ? { price: Number(price) } : {}),
           ...(cost !== "" ? { cost: Number(cost) } : {}),
+          ...(barcode !== "" ? { barcode } : {}),
         };
 
         if (product) {
@@ -520,6 +526,16 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         value={cost}
         disabled={!canManage}
         onChange={(event) => setCost(event.target.value)}
+      />
+      {/* El código IMPRESO en el empaque, que es lo que lee el escáner. No se
+          confunde con el «Código» de arriba: ese es el SKU, el que inventa el
+          negocio. El hint lo dice, porque el nombre solo no alcanza. */}
+      <TextField
+        label={t("products.form.barcode")}
+        hint={t("products.form.barcodeHint")}
+        value={barcode}
+        disabled={!canManage}
+        onChange={(event) => setBarcode(event.target.value)}
       />
 
       <div className="flex items-center gap-2">

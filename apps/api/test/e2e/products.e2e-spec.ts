@@ -103,6 +103,118 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       });
     });
 
+    /**
+     * ── EL CÓDIGO DE BARRAS EN EL ALTA (2026-08-24, pedido de Carlos) ────
+     *
+     * «No me gusta que se tenga que hacer dos pasos para dar de alta un
+     * producto y asignarle un código de barras después.» Tiene razón, y el
+     * camino ya existía: `price` y `cost` viajan en el formulario del PRODUCTO
+     * y el service los escribe en la presentación BASE. El código de barras es
+     * el mismo caso — para el usuario es «el código del producto», para el
+     * modelo es la fila base.
+     *
+     * Sigue viviendo en la presentación y no en `products`: la caja de 12 y la
+     * pieza suelta tienen códigos DISTINTOS, y ahí es donde el POS lo busca
+     * para preseleccionar la presentación correcta al escanear.
+     */
+    it("el alta guarda el código de barras en la presentación base", async () => {
+      const { token } = await registerAndLogin();
+
+      const created = await createProduct(token, {
+        sku: `OAT-${randomUUID().slice(0, 8)}`,
+        name: "Oatmeal Bars",
+        baseUnit: "unit",
+        price: 20,
+        barcode: "064042603179",
+      }).expect(201);
+
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${(created.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const presentations = (detail.body as { presentations: Record<string, unknown>[] })
+        .presentations;
+      expect(presentations[0]).toMatchObject({ isDefaultSale: true, barcode: "064042603179" });
+    });
+
+    it("editar el producto corrige el código de barras de su presentación base", async () => {
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `OAT-${randomUUID().slice(0, 8)}`,
+        name: "Oatmeal Bars",
+        baseUnit: "unit",
+        barcode: "111111111111",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ barcode: "064042603179" })
+        .expect(200);
+
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const presentations = (detail.body as { presentations: Record<string, unknown>[] })
+        .presentations;
+      expect(presentations[0]).toMatchObject({ barcode: "064042603179" });
+    });
+
+    it("mandar `barcode: null` lo BORRA, que es distinto de no tocarlo", async () => {
+      const { token } = await registerAndLogin();
+      const created = await createProduct(token, {
+        sku: `OAT-${randomUUID().slice(0, 8)}`,
+        name: "Oatmeal Bars",
+        baseUnit: "unit",
+        barcode: "222222222222",
+      }).expect(201);
+      const id = (created.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ barcode: null })
+        .expect(200);
+
+      const detail = await request(app.getHttpServer())
+        .get(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const presentations = (detail.body as { presentations: Record<string, unknown>[] })
+        .presentations;
+      expect(presentations[0]?.barcode).toBeNull();
+    });
+
+    /**
+     * ⚠ El código repetido tiene que decir QUÉ se repitió. El `catch` del alta
+     * mapeaba TODA violación de unicidad a `products.sku_taken`, así que un
+     * código de barras duplicado acusaba al SKU — y el usuario buscaría el
+     * problema donde no está.
+     */
+    it("un código de barras ya usado da 409 nombrando el CÓDIGO, no el SKU", async () => {
+      const { token } = await registerAndLogin();
+      await createProduct(token, {
+        sku: `UNO-${randomUUID().slice(0, 8)}`,
+        name: "Primero",
+        baseUnit: "unit",
+        barcode: "333333333333",
+      }).expect(201);
+
+      const res = await createProduct(token, {
+        sku: `DOS-${randomUUID().slice(0, 8)}`,
+        name: "Segundo",
+        baseUnit: "unit",
+        barcode: "333333333333",
+      }).expect(409);
+
+      // La clave viaja en `code`; `message` trae el texto ya traducido — la
+      // convención del resto de los 409 de este archivo.
+      expect(res.body).toMatchObject({ code: "products.barcode_taken" });
+    });
+
     it("la presentación base se llama como su UNIDAD, no «Pieza» a secas", async () => {
       // Carlos vio una presentación llamada "Unidad" en un producto medido en
       // gramos: valía 1 gramo y el nombre no lo decía.
