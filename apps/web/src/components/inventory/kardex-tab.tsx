@@ -79,7 +79,10 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <DateRangeFilter id="kardex" from={rango.from} to={rango.to} onChange={setRango} />
+        {/* El orden lo pidió Carlos (2026-08-24): primero DÓNDE y QUÉ tipo de
+            movimiento —lo que acota de verdad— y las fechas cierran. Abrir
+            por el rango es empezar por el filtro más fino sobre el conjunto
+            más grande. */}
         <div className="flex min-w-48 flex-col gap-1">
           <label htmlFor="kardex-warehouse" className="font-medium text-sm">
             {t("inventory.kardex.warehouse")}
@@ -126,6 +129,8 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
             <option value="exit">{t("inventory.direction.exit")}</option>
           </select>
         </div>
+
+        <DateRangeFilter id="kardex" from={rango.from} to={rango.to} onChange={setRango} />
       </div>
 
       {isPending ? (

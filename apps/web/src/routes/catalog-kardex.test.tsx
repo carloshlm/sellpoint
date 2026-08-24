@@ -156,6 +156,21 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
     expect(enlace).toHaveAttribute("href", "/movements/documents/doc-1");
   });
 
+  /**
+   * El orden de los filtros lo pidió Carlos (2026-08-24): primero se elige
+   * DÓNDE y QUÉ tipo de movimiento —lo que acota de verdad la lista— y el
+   * rango de fechas cierra. Antes las fechas abrían la barra, que es empezar
+   * por el filtro más fino sobre el conjunto más grande.
+   */
+  it("los filtros van en orden: Almacén, Motivo, Movimiento y al final las fechas", async () => {
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    const barra = (await screen.findByLabelText(/motivo/i)).closest("div.flex-wrap") as HTMLElement;
+    const etiquetas = [...barra.querySelectorAll("label")].map((l) => l.textContent?.trim());
+
+    expect(etiquetas).toEqual(["Almacén", "Motivo", "Movimiento", "Desde", "Hasta"]);
+  });
+
   it("cambiar el motivo dispara el request con ese filtro", async () => {
     const user = renderTab(
       <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,

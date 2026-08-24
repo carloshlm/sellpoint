@@ -252,6 +252,38 @@ describe("StockLedgerService.apply (F3-CORE-05)", () => {
         apply("exit", [linea(loteadoId, 15, { lotId: a.id, location: "" })], "loss"),
       ).rejects.toThrow(UnprocessableEntityException);
     });
+
+    /**
+     * ⚠ El código LEGIBLE del lote, no su UUID (Carlos, 2026-08-24).
+     *
+     * En producción el rechazo decía «El lote «1cda72e5-f51b-4a5e-9e58-…»
+     * tiene 0 y se piden 15»: un identificador interno que nadie puede cotejar
+     * contra la etiqueta de la caja. El test de arriba solo comprobaba que
+     * RECHAZA, y el bug vivió justo en ese hueco — entre «rechaza» y «dice
+     * algo que sirva».
+     */
+    it("el rechazo nombra el lote por su CÓDIGO, no por su id interno", async () => {
+      const codigo = `legible-${Date.now()}`;
+      const lote = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.create({ data: { tenantId, productId: loteadoId, lotCode: codigo } }),
+      );
+      await apply("entry", [linea(loteadoId, 5, { lotId: lote.id, location: "" })]);
+
+      const fallo = await apply(
+        "exit",
+        [linea(loteadoId, 15, { lotId: lote.id, location: "" })],
+        "loss",
+      ).then(
+        () => null,
+        (e: unknown) => e as UnprocessableEntityException,
+      );
+
+      const cuerpo = fallo?.getResponse() as { message: string; args: Record<string, unknown> };
+      expect(cuerpo.message).toBe("inventory.insufficient_lot_stock");
+      expect(cuerpo.args.lotCode).toBe(codigo);
+      // Explícito: el UUID es exactamente lo que se estaba filtrando.
+      expect(cuerpo.args.lotCode).not.toBe(lote.id);
+    });
   });
 
   /**

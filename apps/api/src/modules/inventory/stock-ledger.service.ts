@@ -200,10 +200,28 @@ export class StockLedgerService {
       for (const [key, grupo] of porLote) {
         const disponible = saldoPorLote.get(key) ?? new Prisma.Decimal(0);
         if (disponible.lessThan(grupo.delta)) {
+          // ── El código LEGIBLE, no el UUID (Carlos, 2026-08-24) ──────────
+          //
+          // El mensaje decía «El lote «1cda72e5-f51b-4a5e-9e58-…» tiene 0 y se
+          // piden 15»: un identificador interno que nadie puede cotejar contra
+          // la etiqueta de la caja.
+          //
+          // Se consulta ACÁ y no se acarrea en la línea a propósito. Los
+          // llamadores internos —el reparto FEFO de una venta— resuelven por
+          // `lotId` y nunca vieron un código, así que un campo `lotCode` en la
+          // línea llegaría vacío justo en el caso donde más falta hace. Y esta
+          // consulta vive en el camino FRÍO: solo corre cuando la operación ya
+          // se va a rechazar, así que el camino feliz no paga nada.
+          const lote = await tx.productLot.findUnique({
+            where: { id: grupo.lotId },
+            select: { lotCode: true },
+          });
           throw new UnprocessableEntityException({
             message: "inventory.insufficient_lot_stock",
             args: {
-              lotCode: grupo.lotId,
+              // El `??` cubre un caso que la FK de `stock_lots` vuelve
+              // imposible; si alguna vez pasa, el UUID dice más que un hueco.
+              lotCode: lote?.lotCode ?? grupo.lotId,
               available: disponible.toString(),
               requested: grupo.delta.toString(),
             },
