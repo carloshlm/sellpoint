@@ -230,6 +230,51 @@ describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
     expect(screen.getByText("Norte")).toBeInTheDocument();
   });
 
+  /**
+   * ── LA FILA DEL ALMACÉN SE DISTINGUE (2026-08-24, pedido de Carlos) ────
+   *
+   * Con varios almacenes y sus lotes intercalados, la tabla era una lista
+   * plana donde «Almacén Sur» y «ST1» pesaban lo mismo. La fila del almacén
+   * es un ENCABEZADO de grupo: banda con fondo y nombre en negrita; los
+   * lotes cuelgan debajo, claros e indentados. Se fija por clases porque
+   * jsdom no calcula estilos — lo que se protege es que el contraste exista.
+   */
+  it("la fila del almacén se ve como encabezado y la del lote no", async () => {
+    mocked.getStock.mockResolvedValue(
+      resumen({
+        rows: [
+          {
+            warehouseId: "w1",
+            name: "Central",
+            quantity: "50",
+            updatedAt: "2026-08-19T10:00:00.000Z",
+            lots: [
+              {
+                lotId: "l1",
+                lotCode: "ST1",
+                quantity: "50",
+                expiresAt: "2026-09-30",
+                location: "",
+                expired: false,
+                expiringSoon: false,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    renderTab(<StockTab productId="p1" />);
+
+    const almacen = await screen.findByTestId("warehouse-row-w1");
+    expect(almacen.className).toContain("bg-muted");
+    expect(almacen.className).toContain("font-medium");
+
+    // El lote NO comparte el tratamiento: el contraste es lo que agrupa.
+    const lote = screen.getByText("ST1").closest("tr");
+    expect(lote?.className ?? "").not.toContain("bg-muted");
+    expect(lote?.className ?? "").not.toContain("font-medium");
+  });
+
   it("marca el total bajo mínimo", async () => {
     mocked.getStock.mockResolvedValue(resumen({ total: "5", stockMin: "100", belowMin: true }));
     renderTab(<StockTab productId="p1" />);

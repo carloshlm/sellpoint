@@ -75,7 +75,17 @@ export function StockTab({ productId }: { productId: string }) {
           <tbody>
             {data.rows.map((row) => (
               <>
-                <tr key={row.warehouseId} className="border-b last:border-0">
+                {/* Encabezado de GRUPO, no una fila más (Carlos, 2026-08-24):
+                    con varios almacenes y sus lotes intercalados, «Almacén
+                    Sur» y «ST1» pesaban lo mismo y la tabla era una lista
+                    plana. La banda con fondo y la negrita dicen dónde termina
+                    un almacén y empieza el siguiente; los lotes cuelgan
+                    debajo, claros e indentados. */}
+                <tr
+                  key={row.warehouseId}
+                  data-testid={`warehouse-row-${row.warehouseId}`}
+                  className="border-b bg-muted/60 font-medium last:border-0"
+                >
                   <td className="px-2 py-2">{row.name}</td>
                   <td className="px-2 py-2">
                     {formatQuantityWithUnit(row.quantity, data.baseUnit, resolveUiLocale(i18n))}
