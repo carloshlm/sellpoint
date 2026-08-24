@@ -2579,20 +2579,20 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-CORE — Infraestructura de exportación
 
-- [ ] **F5-CORE-01** — Parametrizar `serializeSpreadsheet` (hoja y filename)
+- [x] **F5-CORE-01** *(cerrada el 2026-08-24)* — Parametrizar `serializeSpreadsheet` (hoja y filename)
   - **Salida:** `serializeSpreadsheet(rows, format, options?)` acepta `sheetName` y `filenameBase` opcionales con default actual («Productos»/«productos») — los llamadores de F2-IMPORT no cambian ni una línea
   - **Verificar:** unit: xlsx con hoja «Ventas» y filename `ventas.xlsx`; contraprueba: sin options se comporta idéntico a hoy (tests existentes verdes sin tocar)
   - **Depende de:** —
   - **Estimación:** 1 h
 
-- [ ] **F5-CORE-02** — Helper de export síncrono con tope de filas
+- [x] **F5-CORE-02** *(cerrada el 2026-08-24)* — Helper de export síncrono con tope de filas
   - **Salida:** función común (en `common/spreadsheet/`): recibe un contador y un fetcher de filas; si `count > MAX_EXPORT_ROWS` (~10 000) lanza 400 con clave i18n `reports.export_too_large`; si no, arma filas y delega en `serializeSpreadsheet`. Es LA implementación del criterio «síncrono con tope» — la cola queda diferida
   - **Verificar:** unit: bajo el tope exporta; contraprueba: sobre el tope → 400 con la clave y el fetcher NO se invoca (las filas no se materializan)
   - **Depende de:** F5-CORE-01
   - **Estimación:** 1.5 h
 
-- [ ] **F5-CORE-03** — `ReportsModule` + primer endpoint con `reports:read`
-  - **Salida:** `modules/reports/` (module, controller, service) registrado en `AppModule`; todos sus endpoints llevan `@RequirePermissions("reports:read")` + `UserScope`. Con esto `reports:read` deja de ser un permiso sin puerta
+- [x] **F5-CORE-03** *(cerrada el 2026-08-24)* — `ReportsModule` + primer endpoint con `reports:read`
+  - **Salida:** `modules/reports/` (module, controller, service) registrado en `AppModule`; todos sus endpoints llevan `@RequirePermissions("reports:read")` + `UserScope`. Con esto `reports:read` deja de ser un permiso sin puerta. **El primer endpoint es `GET /reports`** (la tarea no lo fijaba): devuelve el catálogo de las 8 tarjetas con el permiso de cada una y `maxExportRows`. El permiso viaja como DATO porque no es uniforme —seis son `reports:read` y vencimientos/tránsito son `inventory:read`—: duplicar esa matriz en el front garantiza que un día diga otra cosa. El catálogo NO se filtra por quien pregunta (el guard hace cumplir el permiso; un catálogo que cambia de forma vuelve indistinguible «no existe» de «no puedes verlo») y **no recibe `UserScope`**: el alcance acota datos de almacén y acá no hay ninguno — pedirlo sería un parámetro decorativo que insinúa un filtrado inexistente
   - **Verificar:** e2e: TenantAdmin/Manager/Viewer → 200; contraprueba: POS_Seller → 403; `permissions-catalog.spec.ts` sigue verde
   - **Depende de:** —
   - **Estimación:** 1 h

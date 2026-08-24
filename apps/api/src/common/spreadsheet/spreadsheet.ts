@@ -15,8 +15,24 @@ import { parseCsv, toCsv } from "./csv";
  */
 export type SpreadsheetFormat = "csv" | "xlsx";
 
-/** Nombre de la hoja. Fijo: el parser lee la PRIMERA, no busca por nombre. */
+/**
+ * Los defaults de F2-IMPORT, que nació primero y bautizó todo «Productos».
+ * Siguen siendo el comportamiento sin opciones: los llamadores de la
+ * importación no cambian ni una línea (F5-CORE-01).
+ *
+ * El nombre de la hoja no lo lee nadie al PARSEAR —el parser toma la primera,
+ * sea cual sea su nombre—; existe para quien abre el archivo en Excel.
+ */
 const SHEET_NAME = "Productos";
+const FILENAME_BASE = "productos";
+
+/** Cómo se bautiza la planilla. Cada opción cae a SU default por separado. */
+export interface SpreadsheetOptions {
+  /** Nombre de la pestaña en el xlsx. Irrelevante en CSV, que no tiene hojas. */
+  sheetName?: string;
+  /** Nombre del archivo SIN extensión: la pone el formato. */
+  filenameBase?: string;
+}
 
 export async function parseSpreadsheet(
   content: string,
@@ -57,17 +73,20 @@ export async function parseSpreadsheet(
 export async function serializeSpreadsheet(
   rows: readonly (readonly string[])[],
   format: SpreadsheetFormat,
+  options: SpreadsheetOptions = {},
 ): Promise<{ body: Buffer; contentType: string; filename: string }> {
+  const base = options.filenameBase ?? FILENAME_BASE;
+
   if (format === "csv") {
     return {
       body: Buffer.from(toCsv(rows), "utf8"),
       contentType: "text/csv; charset=utf-8",
-      filename: "productos.csv",
+      filename: `${base}.csv`,
     };
   }
 
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(SHEET_NAME);
+  const sheet = workbook.addWorksheet(options.sheetName ?? SHEET_NAME);
 
   for (const row of rows) {
     sheet.addRow([...row]);
@@ -90,7 +109,7 @@ export async function serializeSpreadsheet(
   return {
     body: Buffer.from(buffer),
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    filename: "productos.xlsx",
+    filename: `${base}.xlsx`,
   };
 }
 

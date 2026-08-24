@@ -29,6 +29,7 @@ import { MailModule } from "./modules/mail/mail.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { PosModule } from "./modules/pos/pos.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { ServicesModule } from "./modules/services/services.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
@@ -122,6 +123,8 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     PosModule,
     ProductsModule,
     PermissionsModule,
+    // F5: los reportes. Estrena `reports:read`, que vivía sin puerta.
+    ReportsModule,
   ],
   controllers: [HealthController, I18nDemoController],
   providers: [

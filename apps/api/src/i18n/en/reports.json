@@ -1,0 +1,3 @@
+{
+  "export_too_large": "The report has {total} rows and the download limit is {max}. Narrow the filters —a shorter date range or a single warehouse, for example— and try again."
+}
