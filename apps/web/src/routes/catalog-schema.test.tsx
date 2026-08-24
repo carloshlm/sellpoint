@@ -331,3 +331,117 @@ describe("Orden de campos (F2-SCHEMA)", () => {
     expect(mockedApi.updateField).toHaveBeenCalledTimes(2);
   });
 });
+
+/**
+ * ── RENOMBRAR SUBCATÁLOGOS (2026-08-24, pedido de Carlos) ─────────────────
+ *
+ * «Quiero editar el nombre de los subcatálogos. El único que no se puede es
+ * el Catálogo de Productos.»
+ *
+ * El API ya lo permitía y ya protegía al de sistema con
+ * `catalogs.system_cannot_be_renamed`; faltaba la pantalla — y el hook
+ * `useUpdateCatalog` existía sin que nadie lo llamara.
+ *
+ * El botón NO aparece en el catálogo de sistema en vez de aparecer
+ * deshabilitado: mismo criterio que los campos estándar, que se pintan sin
+ * controles. Ofrecer algo que el servidor va a rechazar es hacer que el
+ * usuario descubra la regla a los golpes.
+ */
+describe("Renombrar el catálogo (F2-SCHEMA)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listCatalogs.mockResolvedValue([PRODUCTS_CATALOG, UNITS_CATALOG]);
+    mockedApi.listFields.mockResolvedValue([]);
+    mockedApi.listLookupOptions.mockResolvedValue([]);
+    mockedApi.updateCatalog.mockResolvedValue({ ...UNITS_CATALOG, name: "Proveedores" });
+  });
+
+  async function elegirSubcatalogo(user: ReturnType<typeof userEvent.setup>) {
+    await user.selectOptions(await screen.findByRole("combobox"), "cat-units");
+  }
+
+  it("el catálogo de SISTEMA no ofrece renombrar", async () => {
+    await renderSchema();
+
+    // Arranca en el de productos (isSystem).
+    await screen.findByRole("combobox");
+    expect(screen.queryByRole("button", { name: /renombrar/i })).not.toBeInTheDocument();
+  });
+
+  it("un subcatálogo SÍ lo ofrece, y guarda el nombre nuevo", async () => {
+    await renderSchema();
+    const user = userEvent.setup();
+    await elegirSubcatalogo(user);
+
+    await user.click(await screen.findByRole("button", { name: /renombrar/i }));
+    const campo = await screen.findByLabelText(/nombre del catálogo/i);
+    await user.clear(campo);
+    await user.type(campo, "Proveedores");
+    await user.click(screen.getByRole("button", { name: /^guardar$/i }));
+
+    await waitFor(() => {
+      expect(mockedApi.updateCatalog).toHaveBeenCalledWith("cat-units", { name: "Proveedores" });
+    });
+  });
+
+  it("si el servidor lo rechaza, el error se VE y el formulario sigue abierto", async () => {
+    mockedApi.updateCatalog.mockRejectedValue({
+      statusCode: 409,
+      message: "Ese catálogo del sistema no se puede renombrar.",
+    });
+    await renderSchema();
+    const user = userEvent.setup();
+    await elegirSubcatalogo(user);
+
+    await user.click(await screen.findByRole("button", { name: /renombrar/i }));
+    const campo = await screen.findByLabelText(/nombre del catálogo/i);
+    await user.clear(campo);
+    await user.type(campo, "Otro");
+    await user.click(screen.getByRole("button", { name: /^guardar$/i }));
+
+    // El error del servidor NUNCA se traga: lección del confirm mudo de F3.
+    expect(await screen.findByText(/no se puede renombrar/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/nombre del catálogo/i)).toBeInTheDocument();
+  });
+
+  /**
+   * ⚠ ESTADO ESPEJO. Al pasar de un subcatálogo a OTRO el componente no se
+   * remonta —sigue montado porque los dos son no-sistema—, así que un `name`
+   * inicializado solo en el `useState` arrastraría el nombre del anterior: el
+   * usuario abriría «Renombrar» de Proveedores y vería «Unidad de Medida».
+   * Es el C1 de f1-web-users con otra cara, y por eso el nombre se resiembra
+   * al ABRIR y no solo al montar.
+   */
+  it("cambiar de subcatálogo NO arrastra el nombre del anterior", async () => {
+    mockedApi.listCatalogs.mockResolvedValue([
+      PRODUCTS_CATALOG,
+      UNITS_CATALOG,
+      { id: "cat-prov", name: "Proveedores", systemKey: null, isSystem: false, isActive: true },
+    ]);
+    await renderSchema();
+    const user = userEvent.setup();
+
+    await user.selectOptions(await screen.findByRole("combobox"), "cat-units");
+    await user.click(await screen.findByRole("button", { name: /renombrar/i }));
+    expect(await screen.findByLabelText(/nombre del catálogo/i)).toHaveValue("Unidad de Medida");
+
+    // Se cierra, se cambia de catálogo y se vuelve a abrir.
+    await user.click(screen.getByRole("button", { name: /cancelar/i }));
+    await user.selectOptions(screen.getByRole("combobox"), "cat-prov");
+    await user.click(await screen.findByRole("button", { name: /renombrar/i }));
+
+    expect(await screen.findByLabelText(/nombre del catálogo/i)).toHaveValue("Proveedores");
+  });
+
+  it("un nombre vacío no se puede guardar", async () => {
+    await renderSchema();
+    const user = userEvent.setup();
+    await elegirSubcatalogo(user);
+
+    await user.click(await screen.findByRole("button", { name: /renombrar/i }));
+    await user.clear(await screen.findByLabelText(/nombre del catálogo/i));
+
+    expect(screen.getByRole("button", { name: /^guardar$/i })).toBeDisabled();
+  });
+});

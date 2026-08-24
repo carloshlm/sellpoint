@@ -6,13 +6,15 @@
     "schema": "Campos"
   },
   "schema": {
-    "title": "Campos del catálogo",
-    "subtitle": "Define qué información guardas de cada registro. Los cambios aplican al guardar.",
-    "selector": "Catálogo",
+    "catalogName": "Nombre del catálogo",
     "newCatalog": "Nuevo subcatálogo",
     "newCatalogName": "Nombre del subcatálogo",
     "preview": "Previsualización",
-    "previewHint": "Así se ve el formulario con los campos actuales."
+    "previewHint": "Así se ve el formulario con los campos actuales.",
+    "renameCatalog": "Renombrar",
+    "selector": "Catálogo",
+    "subtitle": "Define qué información guardas de cada registro. Los cambios aplican al guardar.",
+    "title": "Campos del catálogo"
   },
   "standard": {
     "code": "Código",

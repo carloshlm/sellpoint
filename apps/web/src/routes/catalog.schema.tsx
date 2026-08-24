@@ -14,13 +14,14 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
-import type { CatalogField } from "@/lib/catalogs/api";
+import type { CatalogField, CatalogSummary } from "@/lib/catalogs/api";
 import {
   useCatalogFields,
   useCatalogs,
   useCreateCatalog,
   useCreateField,
   useRemoveField,
+  useUpdateCatalog,
   useUpdateField,
 } from "@/lib/catalogs/hooks";
 
@@ -199,6 +200,11 @@ function CatalogSchemaContent() {
             closeForm();
           }}
         />
+        {/* Renombrar solo aparece en los SUBcatálogos. El de sistema no lo
+            muestra deshabilitado sino ausente — mismo criterio que los campos
+            estándar: ofrecer algo que el servidor va a rechazar hace que el
+            usuario descubra la regla a los golpes. */}
+        {catalog !== undefined && !catalog.isSystem && <RenameCatalogButton catalog={catalog} />}
         <NewCatalogButton onCreated={(id) => setSelectedId(id)} />
       </div>
 
@@ -295,6 +301,71 @@ function CatalogSchemaContent() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * Renombrar un subcatálogo (Carlos, 2026-08-24).
+ *
+ * El API ya lo permitía y ya protegía al de sistema con
+ * `catalogs.system_cannot_be_renamed`; faltaba la pantalla — y
+ * `useUpdateCatalog` existía sin que nadie lo llamara.
+ */
+function RenameCatalogButton({ catalog }: { catalog: CatalogSummary }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(catalog.name);
+  const [error, setError] = useState<string | null>(null);
+  const updateCatalog = useUpdateCatalog();
+
+  if (!open) {
+    return (
+      <Button
+        variant="outline"
+        onClick={() => {
+          // Se resiembra al ABRIR y no solo al montar: si el usuario cambia de
+          // catálogo con el form cerrado, el nombre viejo quedaría cargado.
+          // Es el patrón de estado espejo que costó el C1 de f1-web-users.
+          setName(catalog.name);
+          setError(null);
+          setOpen(true);
+        }}
+      >
+        {t("catalogs.schema.renameCatalog")}
+      </Button>
+    );
+  }
+
+  return (
+    <form
+      className="flex items-end gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setError(null);
+        updateCatalog.mutate(
+          { id: catalog.id, input: { name: name.trim() } },
+          {
+            onSuccess: () => setOpen(false),
+            // El error del servidor NUNCA se traga y el form NO se cierra:
+            // lección del confirm mudo de F3.
+            onError: (apiError: ApiError) => setError(apiError.message),
+          },
+        );
+      }}
+    >
+      <TextField
+        label={t("catalogs.schema.catalogName")}
+        value={name}
+        error={error ?? undefined}
+        onChange={(event) => setName(event.target.value)}
+      />
+      <Button type="submit" disabled={updateCatalog.isPending || !name.trim()}>
+        {t("common.form.save")}
+      </Button>
+      <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+        {t("common.form.cancel")}
+      </Button>
+    </form>
   );
 }
 

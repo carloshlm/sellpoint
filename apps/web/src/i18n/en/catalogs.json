@@ -6,13 +6,15 @@
     "schema": "Fields"
   },
   "schema": {
-    "title": "Catalog fields",
-    "subtitle": "Define what information you keep for each record. Changes apply as you save.",
-    "selector": "Catalog",
+    "catalogName": "Catalog name",
     "newCatalog": "New sub-catalog",
     "newCatalogName": "Sub-catalog name",
     "preview": "Preview",
-    "previewHint": "This is how the form looks with the current fields."
+    "previewHint": "This is how the form looks with the current fields.",
+    "renameCatalog": "Rename",
+    "selector": "Catalog",
+    "subtitle": "Define what information you keep for each record. Changes apply as you save.",
+    "title": "Catalog fields"
   },
   "standard": {
     "code": "Code",
