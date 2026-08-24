@@ -346,7 +346,17 @@ function ProductDetailPanel({
         ))}
       </nav>
 
-      {tab === "info" && <ProductForm product={product} onDone={onBack} />}
+      {/* La MISMA tarjeta que el alta (Carlos, 2026-08-24): el formulario es
+          uno solo y tiene que verse como uno solo — pelado sobre el gris de la
+          página parecía otra pantalla. Sin CardHeader: el nombre del producto
+          ya preside arriba y repetirlo sería eco. */}
+      {tab === "info" && (
+        <Card>
+          <CardContent>
+            <ProductForm product={product} onDone={onBack} />
+          </CardContent>
+        </Card>
+      )}
       {tab === "presentations" && (
         <PresentationsTab
           productId={product.id}

@@ -102,6 +102,25 @@ describe("código de barras en el formulario de producto", () => {
     }
   });
 
+  /**
+   * El MISMO formulario con dos fondos era el problema (Carlos, 2026-08-24):
+   * el alta salía en tarjeta blanca y la pestaña «Información» pelada sobre
+   * el gris de la página. Un formulario que se ve distinto según de dónde se
+   * llegue parece OTRO formulario — y el usuario duda de si hace lo mismo.
+   */
+  it("la pestaña Información envuelve el formulario en la MISMA tarjeta que el alta", () => {
+    const codigo = fuente();
+    const inicio = codigo.indexOf('tab === "info"');
+    // El fin se busca DESDE el inicio: la primera aparición de
+    // `PresentationsTab` es el import de arriba del archivo, y cortar hasta
+    // ahí devolvía un tramo VACÍO que fallaba sin decir por qué.
+    const pestania = codigo.slice(inicio, codigo.indexOf("PresentationsTab", inicio));
+
+    expect(pestania.length).toBeGreaterThan(0);
+    expect(pestania).toContain("<Card");
+    expect(pestania).toContain("<ProductForm");
+  });
+
   it("la barrera mira el archivo correcto (no un barrido vacío)", () => {
     // Sin esto, mover el formulario dejaría los tests de arriba pasando por
     // leer un archivo que ya no es el que importa.
