@@ -4,16 +4,22 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { endOfDayUtc, POS_FOLIO_PREFIXES, startOfDayUtc } from "@sellpoint/shared";
+import {
+  endOfDayUtc,
+  localCalendarDate,
+  POS_FOLIO_PREFIXES,
+  startOfDayUtc,
+} from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { expandComposition } from "../inventory/composition-expander";
-import { nextFolio } from "../inventory/folio";
+import { nextFolio, nextSequenceValue } from "../inventory/folio";
 import type { ResolvedLine } from "../inventory/line-resolver";
 import { resolveLotsFefo } from "../inventory/lot-fefo";
 import { StockLedgerService } from "../inventory/stock-ledger.service";
 import { CashboxService } from "./cashbox.service";
+import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
 
@@ -96,6 +102,13 @@ export class SalesService {
       throw new ConflictException({ message: "pos.no_session" });
     }
 
+    // La zona del negocio, ANTES de abrir la transacción: es una lectura
+    // barata y meterla adentro alargaría el lock de la serie sin motivo.
+    // El "día" del código de barras es el del NEGOCIO — cortado en UTC, el
+    // consecutivo reiniciaría a las 6 PM de CDMX (la lección del filtro de
+    // fechas, aplicada aquí de nacimiento).
+    const zona = await this.zonaDelNegocio(user.tenantId);
+
     return this.prisma
       .withTenantContext(user.tenantId, async (tx) => {
         const precios = await this.resolverPrecios(tx, user, dto.lines);
@@ -143,9 +156,29 @@ export class SalesService {
 
         const folio = await nextFolio(tx, user.tenantId, "sale", POS_FOLIO_PREFIXES.sale);
 
+        // El código de barras del ticket (Carlos, 2026-08-24): 12 dígitos,
+        // fecha del negocio + consecutivo diario. El «reinicio» de cada día
+        // no es un reset: cada fecha es una serie NUEVA de tenant_sequences,
+        // así que la unicidad es estructural y no hay carrera que perder.
+        // padStart(4) promete 9999 por día; la venta 10,000 crece a 5 dígitos
+        // en vez de romper el cobro — el mismo principio del folio.
+        // UN solo instante para la serie y el código: con dos `new Date()`,
+        // una venta a las 23:59:59.999 tomaría el consecutivo del día 24 y
+        // imprimiría la fecha del 25 — el consecutivo equivocado una vez al
+        // año, imposible de reproducir.
+        const instanteDeCobro = new Date();
+        const fechaCompacta = localCalendarDate(zona, instanteDeCobro).replaceAll("-", "");
+        const consecutivo = await nextSequenceValue(
+          tx,
+          user.tenantId,
+          `sale_barcode:${fechaCompacta}`,
+        );
+        const barcode = dailyTicketCode(zona, instanteDeCobro, consecutivo);
+
         const venta = await tx.sale.create({
           data: {
             tenantId: user.tenantId,
+            barcode,
             folio,
             warehouseId: sesion.warehouseId,
             cashboxSessionId: sesion.id,
@@ -273,8 +306,14 @@ export class SalesService {
     const zona = await this.zonaDelNegocio(user.tenantId);
     const where = {
       tenantId: user.tenantId,
+      // Un solo campo de búsqueda para las DOS identidades del papel: el
+      // folio contable (VTA-…) y el código de barras diario. Quien escanea el
+      // ticket trae el código; quien lo dicta por teléfono trae el folio.
       ...(query.folio !== undefined && {
-        folio: { contains: query.folio, mode: "insensitive" as const },
+        OR: [
+          { folio: { contains: query.folio, mode: "insensitive" as const } },
+          { barcode: { contains: query.folio } },
+        ],
       }),
       ...(query.status !== undefined && { status: query.status }),
       ...(query.sellerId !== undefined && { createdBy: query.sellerId }),

@@ -86,6 +86,7 @@ export class TicketService {
         },
         kind: "sale" as const,
         folio: venta.folio,
+        barcode: venta.barcode,
         createdAt: venta.createdAt,
         sellerName: `${venta.seller.firstName} ${venta.seller.lastNamePaternal}`.trim(),
         warehouseName: venta.warehouse.name,

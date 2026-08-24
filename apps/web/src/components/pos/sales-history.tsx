@@ -77,7 +77,7 @@ export function SalesHistory() {
             type="search"
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={folio}
-            placeholder="VTA-000001"
+            placeholder="VTA-000001 · 202608240045"
             onChange={(e) => {
               setFolio(e.target.value);
               setPagina(1);

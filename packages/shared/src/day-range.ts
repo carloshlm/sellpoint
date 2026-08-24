@@ -57,8 +57,14 @@ function desfaseEnMinutos(timeZone: string, instante: Date): number {
   return (comoSiFueraUtc - instante.getTime()) / 60_000;
 }
 
-/** La fecha del calendario (`YYYY-MM-DD`) que ese instante tiene en esa zona. */
-function fechaLocalDe(timeZone: string, instante: Date): string {
+/**
+ * La fecha del calendario (`YYYY-MM-DD`) que ese instante tiene en esa zona.
+ *
+ * Exportada el 2026-08-24 para el código de barras diario del ticket: el
+ * consecutivo reinicia con el día del NEGOCIO, y ese día es exactamente esta
+ * función — cortarlo en UTC reiniciaría el contador a las 6 PM de CDMX.
+ */
+export function localCalendarDate(timeZone: string, instante: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -97,7 +103,7 @@ export function startOfDayUtc(isoDate: string, timeZone: string): Date {
     const segundo = new Date(medianocheUtc - desfaseEnMinutos(timeZone, primero) * 60_000);
 
     const validos = [primero, segundo]
-      .filter((candidato) => fechaLocalDe(timeZone, candidato) === isoDate)
+      .filter((candidato) => localCalendarDate(timeZone, candidato) === isoDate)
       .sort((a, b) => a.getTime() - b.getTime());
 
     return validos[0] ?? primero;

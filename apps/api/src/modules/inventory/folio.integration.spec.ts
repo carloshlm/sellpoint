@@ -1,7 +1,7 @@
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
-import { nextFolio } from "./folio";
+import { nextFolio, nextSequenceValue } from "./folio";
 
 /**
  * Integration (Postgres real) — F3-DB-03: la numeración de los documentos.
@@ -105,5 +105,53 @@ describe("nextFolio — numeración por tenant y serie (F3-DB-03)", () => {
     );
 
     await expect(take(tenantId, key, "ENT")).resolves.toBe("ENT-1000000");
+  });
+
+  /**
+   * ── EL CONTADOR PELADO (2026-08-24) ───────────────────────────────────────
+   *
+   * `nextSequenceValue` es la mitad de `nextFolio` sin el formato: devuelve el
+   * BigInt crudo. Nace para el código de barras diario del ticket
+   * (`sale_barcode:YYYYMMDD` → consecutivo 0001-9999 que reinicia cada día),
+   * donde el padding es de CUATRO y no hay prefijo con guion — el formato es
+   * del llamador, la atomicidad es de acá.
+   */
+  describe("nextSequenceValue — el contador sin formato", () => {
+    it("arranca en 1 y avanza de a uno", async () => {
+      const primero = await prisma.withTenantContext(tenantId, (tx) =>
+        nextSequenceValue(tx, tenantId, "sale_barcode:20260824"),
+      );
+      const segundo = await prisma.withTenantContext(tenantId, (tx) =>
+        nextSequenceValue(tx, tenantId, "sale_barcode:20260824"),
+      );
+
+      expect(primero).toBe(1n);
+      expect(segundo).toBe(2n);
+    });
+
+    it("una key por DÍA reinicia sola: el día siguiente es otra serie", async () => {
+      // La base del reinicio diario del código del ticket: no hay «reset», hay
+      // una serie nueva por fecha. El día anterior conserva su cuenta.
+      await prisma.withTenantContext(tenantId, (tx) =>
+        nextSequenceValue(tx, tenantId, "sale_barcode:20260825"),
+      );
+      const delDiaNuevo = await prisma.withTenantContext(tenantId, (tx) =>
+        nextSequenceValue(tx, tenantId, "sale_barcode:20260826"),
+      );
+
+      expect(delDiaNuevo).toBe(1n);
+    });
+
+    it("comparte atomicidad con nextFolio: la MISMA serie no entrega repetidos", async () => {
+      const valores = await Promise.all(
+        Array.from({ length: 10 }, () =>
+          prisma.withTenantContext(tenantId, (tx) =>
+            nextSequenceValue(tx, tenantId, "sale_barcode:concurrencia"),
+          ),
+        ),
+      );
+
+      expect(new Set(valores.map(String)).size).toBe(10);
+    });
   });
 });

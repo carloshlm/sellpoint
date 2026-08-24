@@ -1,5 +1,5 @@
 import { type Currency, formatMoney, formatQuantityWithUnit, type Locale } from "@sellpoint/shared";
-import { folioBarcodeSvg } from "./barcode-svg";
+import { ticketBarcodeSvg } from "./barcode-svg";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -35,6 +35,12 @@ export interface TicketInput {
   subtotal: string;
   discount: string;
   total: string;
+  /**
+   * El código de barras diario del ticket (`202608240045`). Solo en ventas
+   * nuevas: `null` en las anteriores a la migración y en cotizaciones — esos
+   * papeles caen a las barras del folio.
+   */
+  barcode?: string | null;
   /** Solo en la venta. */
   paymentMethod?: string | null;
   received?: string | null;
@@ -193,19 +199,29 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
         margin: [0, 6, 0, 0],
       },
 
-      // ── El código de barras del folio (Carlos, 2026-08-24) ────────────
-      // Code-128 con el folio COMPLETO: alfanumérico, así que no hay tope de
-      // dígitos ni reinicio de numeración que inventar (ver barcode-svg.ts).
-      // Va en AMBOS papeles: escanear una cotización en el carrito la carga a
-      // la venta (quoteLookup ya existe), y escanear una venta la encuentra
-      // en el historial por el buscador de folio. El ancho se DERIVA del
-      // papel — regla del archivo: nada de anchos fijos en 58 mm.
+      // ── El código de barras del papel (Carlos, 2026-08-24) ────────────
+      // La venta nueva trae su código DIARIO de 12 dígitos y lo pinta con el
+      // número VISIBLE debajo (nodo de texto, no `includetext`: una sola
+      // tipografía en el papel). La venta vieja y la cotización caen a las
+      // barras del FOLIO — escanear una cotización en el carrito la carga a
+      // la venta, y un folio se resuelve en el buscador del historial. El
+      // ancho se DERIVA del papel: nada de anchos fijos en 58 mm.
       {
-        svg: folioBarcodeSvg(input.folio),
+        svg: ticketBarcodeSvg(input.barcode ?? input.folio),
         width: anchoPt - margen * 2,
         alignment: "center",
         margin: [0, 8, 0, 0],
       },
+      ...(input.barcode == null
+        ? []
+        : [
+            {
+              text: input.barcode,
+              alignment: "center",
+              fontSize: 7,
+              margin: [0, 2, 0, 0],
+            },
+          ]),
     ],
   };
 }

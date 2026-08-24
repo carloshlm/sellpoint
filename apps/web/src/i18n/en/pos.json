@@ -102,7 +102,7 @@
     "completed": "Charged",
     "date": "Date",
     "empty": "There are no sales to show yet.",
-    "folio": "Receipt number",
+    "folio": "Receipt number or code",
     "method": "Payment",
     "next": "Next",
     "page": "Page {{page}} of {{pages}}",

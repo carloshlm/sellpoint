@@ -782,6 +782,60 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
        * o anular. `contains` insensitive, el MISMO contrato que el folio de
        * cotizaciones — quien dicta dice «cero cero uno», no «VTA-000001».
        */
+      /**
+       * ── EL CÓDIGO DE BARRAS DIARIO (2026-08-24, diseño de Carlos) ────
+       *
+       * 12 dígitos: `YYYYMMDD` (día del NEGOCIO, no UTC) + consecutivo de 4
+       * que «reinicia» cada día — sin reset: cada fecha es una serie nueva
+       * de tenant_sequences. El folio VTA sigue intacto: identidad contable
+       * y etiqueta de escaneo son campos distintos.
+       */
+      it("la venta nace con su código de 12 dígitos: fecha del negocio + 0001", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        const venta = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const hoy = hoyEnCdmx().replaceAll("-", "");
+        expect((venta.body as { barcode: string }).barcode).toBe(`${hoy}0001`);
+      });
+
+      it("la segunda venta del día es la 0002 — y el folio VTA sigue su propia cuenta", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+        const segunda = await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const cuerpo = segunda.body as { barcode: string; folio: string };
+        expect(cuerpo.barcode.endsWith("0002")).toBe(true);
+        expect(cuerpo.folio).toBe("VTA-000002");
+      });
+
+      it("el buscador del historial encuentra por el CÓDIGO, no solo por folio", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        // El año del código: lo que un escaneo parcial o tecleo dictado trae.
+        const res = await historial(token, `?folio=${hoyEnCdmx().slice(0, 4)}`).expect(200);
+
+        expect((res.body as { total: number }).total).toBe(1);
+      });
+
       it("el folio PARCIAL encuentra la venta", async () => {
         const { token, tenantId } = await escenario();
         const { productoId } = await conStock(token, tenantId, 10);

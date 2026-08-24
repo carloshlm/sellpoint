@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { endOfDayUtc, startOfDayUtc } from "./day-range";
+import { endOfDayUtc, localCalendarDate, startOfDayUtc } from "./day-range";
 
 /**
  * ⚠ EL BUG QUE ESTE ARCHIVO EXISTE PARA MATAR (2026-08-24).
@@ -123,5 +123,17 @@ describe("zona desconocida", () => {
     expect(startOfDayUtc("2026-08-24", "Marte/Olympus").toISOString()).toBe(
       "2026-08-24T00:00:00.000Z",
     );
+  });
+});
+
+describe("localCalendarDate", () => {
+  it("da el día del NEGOCIO, no el de UTC", () => {
+    // Las 23:30 de CDMX son las 05:30 UTC del día siguiente: el día del
+    // negocio sigue siendo el 24. Es la base del reinicio diario del código
+    // del ticket — cortado en UTC, el contador reiniciaría a las 6 PM.
+    expect(localCalendarDate("America/Mexico_City", new Date("2026-08-25T05:30:00Z"))).toBe(
+      "2026-08-24",
+    );
+    expect(localCalendarDate("UTC", new Date("2026-08-25T05:30:00Z"))).toBe("2026-08-25");
   });
 });

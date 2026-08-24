@@ -48,6 +48,25 @@ export async function nextFolio(
   key: string,
   prefix: string,
 ): Promise<string> {
+  const value = await nextSequenceValue(tx, tenantId, key);
+
+  return `${prefix}-${String(value).padStart(FOLIO_DIGITS, "0")}`;
+}
+
+/**
+ * El contador PELADO de una serie: el BigInt crudo, sin prefijo ni padding.
+ *
+ * Es la mitad de `nextFolio` sin el formato, extraída el 2026-08-24 para el
+ * código de barras diario del ticket (`sale_barcode:YYYYMMDD` → consecutivo
+ * 0001-9999 que "reinicia" cada día porque cada fecha es una serie NUEVA, no
+ * un reset). El formato es del llamador; la atomicidad y la ausencia de
+ * huecos —todo lo del docblock de arriba— viven acá.
+ */
+export async function nextSequenceValue(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  key: string,
+): Promise<bigint> {
   const [row] = await tx.$queryRaw<{ next_value: bigint }[]>`
     INSERT INTO tenant_sequences (tenant_id, key, next_value)
     VALUES (${tenantId}::uuid, ${key}, 1)
@@ -57,9 +76,9 @@ export async function nextFolio(
 
   if (row === undefined) {
     // Inalcanzable con la sentencia de arriba (siempre inserta o actualiza),
-    // pero el tipo lo admite y un folio vacío sería peor que un error claro.
+    // pero el tipo lo admite y un contador vacío sería peor que un error claro.
     throw new Error(`No se pudo obtener el folio de la serie "${key}"`);
   }
 
-  return `${prefix}-${String(row.next_value).padStart(FOLIO_DIGITS, "0")}`;
+  return row.next_value;
 }

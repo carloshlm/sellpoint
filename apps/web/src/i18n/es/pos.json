@@ -102,7 +102,7 @@
     "completed": "Cobrada",
     "date": "Fecha",
     "empty": "Todavía no hay ventas que mostrar.",
-    "folio": "Folio",
+    "folio": "Folio o código",
     "method": "Pago",
     "next": "Siguiente",
     "page": "Página {{page}} de {{pages}}",

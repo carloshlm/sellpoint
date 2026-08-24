@@ -254,6 +254,29 @@ describe("el código de barras del folio", () => {
     width: "58mm",
   };
 
+  /**
+   * ── EL CÓDIGO DIARIO DE 12 DÍGITOS (2026-08-24, diseño de Carlos) ────
+   *
+   * La venta nueva trae `barcode` (202608240045): las barras codifican ESO y
+   * el número se pinta VISIBLE debajo — como nodo de texto de pdfmake y no
+   * `includetext` de bwip, para que el papel tenga una sola tipografía. La
+   * venta vieja (barcode null) y la cotización caen a las barras del folio.
+   */
+  it("una venta CON código diario pinta sus barras y el número visible", () => {
+    const def = JSON.stringify(buildTicketDefinition({ ...base, barcode: "202608240045" }, t));
+
+    expect(def).toContain("<svg");
+    expect(def).toContain("202608240045");
+  });
+
+  it("una venta VIEJA (sin código) cae a las barras del folio", () => {
+    const def = JSON.stringify(buildTicketDefinition({ ...base, barcode: null }, t));
+
+    expect(def).toContain("<svg");
+    // El número diario no existe: no puede aparecer ni inventarse.
+    expect(def).not.toContain("202608240045");
+  });
+
   it("la VENTA lleva el código al pie", () => {
     const def = JSON.stringify(buildTicketDefinition(base, t));
 
