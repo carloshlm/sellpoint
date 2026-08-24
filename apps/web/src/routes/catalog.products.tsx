@@ -549,15 +549,21 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         onChange={(event) => setStockMin(event.target.value)}
       />
 
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="is-composite"
-          checked={isComposite}
-          disabled={!canManage}
-          onCheckedChange={(checked) => setIsComposite(checked === true)}
-        />
-        <Label htmlFor="is-composite">{t("products.form.isComposite")}</Label>
-      </div>
+      <DynamicForm
+        fields={fields ?? []}
+        values={attributes}
+        errors={fieldErrors}
+        disabled={!canManage}
+        onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
+      />
+
+      {/* ── Los dos interruptores, al FINAL (Carlos, 2026-08-24) ─────────
+          Todo lo de arriba son DATOS del producto —lo que dice la caja, lo
+          que cobra el negocio—. Estos dos son decisiones de COMPORTAMIENTO:
+          cambian cómo se maneja el producto en TODO el sistema. Mezclados
+          entre la descripción y el proveedor eran fáciles de pasar por alto,
+          justo los dos que más consecuencias tienen. Primero el de lotes,
+          que es el que condiciona entradas, salidas y FEFO. */}
 
       <div className="flex items-center gap-2">
         <Checkbox
@@ -577,13 +583,15 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         <Label htmlFor="tracks-lots">{t("products.form.tracksLots")}</Label>
       </div>
 
-      <DynamicForm
-        fields={fields ?? []}
-        values={attributes}
-        errors={fieldErrors}
-        disabled={!canManage}
-        onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
-      />
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="is-composite"
+          checked={isComposite}
+          disabled={!canManage}
+          onCheckedChange={(checked) => setIsComposite(checked === true)}
+        />
+        <Label htmlFor="is-composite">{t("products.form.isComposite")}</Label>
+      </div>
 
       {canManage && (
         <div className="flex gap-2">

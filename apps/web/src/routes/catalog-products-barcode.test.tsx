@@ -66,6 +66,32 @@ describe("código de barras en el formulario de producto", () => {
     expect(enOrden).toEqual(esperado);
   });
 
+  /**
+   * Los dos interruptores van AL FINAL, y en este orden (Carlos, 2026-08-24):
+   * lote y caducidad primero, «se arma a partir de otros productos» después.
+   *
+   * El criterio: los campos de arriba son DATOS del producto —lo que dice la
+   * caja, lo que cobra el negocio— y estos dos son decisiones de
+   * COMPORTAMIENTO que cambian cómo se maneja el producto en todo el sistema.
+   * Mezclarlos entre la descripción y el proveedor los volvía fáciles de
+   * pasar por alto, justo los dos que más consecuencias tienen.
+   */
+  it("los dos interruptores son lo ÚLTIMO antes de Guardar", () => {
+    const codigo = fuente();
+
+    const lotes = codigo.indexOf('id="tracks-lots"');
+    const compuesto = codigo.indexOf('id="is-composite"');
+    const camposPropios = codigo.indexOf("<DynamicForm");
+    const guardar = codigo.indexOf('type="submit"');
+
+    // Primero lote y caducidad; después «se arma a partir de otros».
+    expect(lotes).toBeLessThan(compuesto);
+    // Los dos DESPUÉS de los campos personalizados del negocio…
+    expect(camposPropios).toBeLessThan(lotes);
+    // …y los dos ANTES del botón, sin nada en medio.
+    expect(compuesto).toBeLessThan(guardar);
+  });
+
   it("cada campo explica PARA QUÉ es, no solo cómo se llama", () => {
     const codigo = fuente();
 
