@@ -833,6 +833,73 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(lines.every((l) => l.source === "presentation")).toBe(true);
     });
 
+    /**
+     * ⚠ La merma en el COSTO (Carlos, 2026-08-24).
+     *
+     * `availability` y el `composition-expander` —el que descuenta stock de
+     * verdad al vender— calculan `cantidad × (1 + merma/100)`. `costEstimate`
+     * nació antes de que la merma existiera (F2-BOM-02) y se quedó fuera de
+     * esa familia.
+     *
+     * La consecuencia es concreta: un café con 20 gr de azúcar y 10% de merma
+     * SACA 22 gr del almacén, pero su costo se calculaba sobre 20. El número
+     * salía barato justo donde alguien lo usa para fijar el precio de venta.
+     *
+     * El test viejo de arriba no lo cazaba porque su fixture tiene merma 0:
+     * con la merma en cero los dos cálculos coinciden, así que hacía falta
+     * este caso para fijar el arreglo.
+     */
+    it("el costo incluye la merma: se cobra lo que SALE del almacén, no lo que entra al producto", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { cafeId, azucarId } = await setupCafe(token, tenantId);
+
+      // Los mismos 20 gr, ahora con 10% de merma → consume 22 gr.
+      await request(app.getHttpServer())
+        .post(`/products/${cafeId}/composition`)
+        .set("Authorization", bearer(token))
+        .send({ lines: [{ componentId: azucarId, quantity: 20, wastePercentage: 10 }] })
+        .expect(200);
+
+      const estimate = await request(app.getHttpServer())
+        .get(`/products/${cafeId}/cost-estimate`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      // 40/gr × 22 gr = 880. Sin merma daría 800, que es lo que devolvía.
+      expect(estimate.body).toMatchObject({ total: "880.00" });
+    });
+
+    /**
+     * La merma y el promedio ponderado son ORTOGONALES: uno dice cuánto SALE
+     * del almacén y el otro cuánto costó cada unidad. El test existe porque
+     * los dos se implementaron por separado y es fácil que uno pise al otro
+     * —quedarse con el precio de lista al aplicar la merma, o perder la merma
+     * al meter el ponderado—: acá los dos efectos tienen que verse en el mismo
+     * número.
+     */
+    it("merma y promedio ponderado se componen sin pisarse", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { cafeId, azucarId, warehouseId } = await setupCafe(token, tenantId);
+
+      await request(app.getHttpServer())
+        .post(`/products/${cafeId}/composition`)
+        .set("Authorization", bearer(token))
+        .send({ lines: [{ componentId: azucarId, quantity: 20, wastePercentage: 10 }] })
+        .expect(200);
+
+      // 100 gr a $10 y 300 a $30 → $25 el gramo.
+      await comprar(tenantId, { warehouseId, productId: azucarId, quantity: 100, unitCost: 10 });
+      await comprar(tenantId, { warehouseId, productId: azucarId, quantity: 300, unitCost: 30 });
+
+      const estimate = await request(app.getHttpServer())
+        .get(`/products/${cafeId}/cost-estimate`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      // 25/gr × 22 gr = 550.
+      expect(estimate.body).toMatchObject({ total: "550.00" });
+    });
+
     it("con compras reales, el componente usa el promedio ponderado y lo declara", async () => {
       const { token, tenantId } = await registerAndLogin();
       const { cafeId, azucarId, warehouseId } = await setupCafe(token, tenantId);

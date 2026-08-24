@@ -277,10 +277,25 @@ export class CompositionService {
   /**
    * F2-BOM-02 — costo estimado de armar una unidad.
    *
-   * El costo unitario de un componente sale de su presentación COMPRABLE
-   * predeterminada: `cost / factor` lo lleva a la unidad base. F3 lo va a
-   * reemplazar por el promedio ponderado de las compras reales — hasta
-   * entonces esto es una estimación y el nombre lo dice.
+   * ── De dónde sale el costo unitario (F5-COST-02) ────────────────────────
+   *
+   * Del **promedio ponderado de las compras reales**, con fallback al
+   * `cost / factor` de la presentación comprable cuando el componente todavía
+   * no tiene historial. Cada renglón declara cuál de los dos usó en `source`:
+   * un total sin procedencia no se puede auditar.
+   *
+   * ── Por qué la cantidad lleva la merma (Carlos, 2026-08-24) ─────────────
+   *
+   * Cuesta lo que SALE del almacén, no lo que queda dentro del producto. Un
+   * café con 20 gr de azúcar y 10 % de merma consume 22 gr: eso es lo que
+   * `composition-expander` descuenta al vender y lo que `availability` usa
+   * para decir «alcanza para N».
+   *
+   * Este método nació antes de que la merma existiera y se quedó fuera de esa
+   * familia, así que devolvía un costo barato JUSTO donde alguien lo usa para
+   * fijar el precio de venta. La fórmula es ahora la misma en los tres lados,
+   * que es la única forma de que las tres respuestas se puedan explicar
+   * juntas.
    */
   async costEstimate(user: AuthUser, productId: string): Promise<CostEstimateResult> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
@@ -328,7 +343,16 @@ export class CompositionService {
             : presentation
               ? Number(presentation.cost) / Number(presentation.factor)
               : 0;
-        const lineCost = unitCost * Number(line.quantity);
+        // La merma multiplica la CANTIDAD. Aritméticamente daría igual ponerla
+        // sobre el costo unitario —una contraprueba lo confirmó: mover el
+        // factor de lado no pone rojo ningún test, porque la multiplicación es
+        // conmutativa y la merma es por línea—, pero acá manda lo que el
+        // número SIGNIFICA: lo que sale del almacén son 22 gr, no 20 gr más
+        // caros. Escrito así, la fórmula es literalmente la misma que la de
+        // `availability` y la del `composition-expander`, y las tres se pueden
+        // leer juntas sin traducir.
+        const consumido = Number(line.quantity) * (1 + Number(line.wastePercentage) / 100);
+        const lineCost = unitCost * consumido;
         total += lineCost;
 
         return {
