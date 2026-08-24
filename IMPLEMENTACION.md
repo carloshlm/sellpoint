@@ -2556,11 +2556,17 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 > **(2)** **No existe `reports:export`** (fantasma de VISTAS §11.2, retirado): exportar es leer —criterio «reimprimir es leer» de F4-UI-03— y la matriz daba asignación idéntica a ver y exportar.
 > **(3)** **Exportación SÍNCRONA con tope de filas** (~10.000): superarlo → 400 `reports.export_too_large` que pide acotar filtros, nunca un Excel truncado en silencio (se lee como completo). La cola Redis + worker + S3 del viejo FLUJOS §8 queda **DIFERIDA** — criterio F4-PRINT-BT: sin un caso real, código de fe.
 > **(4)** Catálogo/usuarios/almacenes son **export directo sin pantalla propia**: una tabla duplicaría los listados existentes. El export de catálogo necesita SU endpoint (`reports:read`) porque el de la plantilla de importación exige `products:manage` y un Viewer no podría usarlo.
+>
+> **Revisión pre-arranque (2026-08-24, contra lo construido desde la atomización):**
+> **(5)** **La ubicación es dato de primera clase en todo reporte que baje a nivel lote** (directiva de Carlos, 2026-08-24). No es trabajo nuevo de base: `stock_movements.location`, `stock_lots.location` (parte la PK) y `ExpiringRow.location` ya existen, y las pantallas de kardex y stock ya la pintan — era el PLAN el que la omitía en las columnas de export. Vencimientos y kardex la exportan; el reporte de stock gana un detalle por lote/ubicación/caducidad (F5-STK-05, tarea nueva). El tránsito NO la lleva: `TransferLine` tiene lote pero no ubicación —la decide el destino al recibir— y exportar una columna que la base no guarda sería inventarla.
+> **(6)** **El export de ventas lleva el código de barras diario** (`sales.barcode`, campo nuevo del 2026-08-24): en la pantalla ya es la segunda columna y el Excel tiene que contar la misma historia. Ventas anteriores al campo → celda vacía, no un guion ni un 0.
+> **(7)** El builder compartido de F5-SALES-01 **hereda dos semánticas que ya viven en `sales.service.list`**: el rango de fechas en días del calendario del NEGOCIO (`startOfDayUtc`/`endOfDayUtc` con `tenant.timezone`, bug de timezone cazado el 2026-08-24) y el filtro `folio` que busca por folio O código de barras. Extraer el builder sin arrastrarlas sería una regresión silenciosa en el POS.
+> **(8)** **Cuidado con los lotes al reportar**: está pendiente la decisión sobre la normalización a mayúsculas (`lotCodeField` normaliza, los lotes pre-regla quedaron en minúsculas y teclear el código viejo crea un fantasma vacío — `topic_key: sellpoint/lotes-normalizacion-mayusculas`). Los reportes a nivel lote van a EXHIBIR esos fantasmas como filas hermanas casi idénticas; si la decisión no llegó antes de F5-STK-05, el reporte no los esconde — los muestra, porque taparlos en el reporte dejaría la base sucia y el papel mintiendo.
 
 ### ✅ Definición de "Fase 5 completa"
 
 - [ ] El nav muestra «Reportes» solo con `reports:read`; el hub `/reports` carga sus 8 tarjetas; un POS_Seller recibe 403 en el API y no ve la entrada (contraprueba obligatoria)
-- [ ] **Stock por almacén**: endpoint transversal NUEVO (producto × almacén, no existe hoy) con filtros server-side (almacén-dentro-del-alcance, bajo mínimo), orden estable con desempate por `id`, **valorizado** (costo promedio ponderado GLOBAL × stock; sin historial la celda va VACÍA, no un 0 fingido que se sumaría al total), y export con los mismos filtros
+- [ ] **Stock por almacén**: endpoint transversal NUEVO (producto × almacén, no existe hoy) con filtros server-side (almacén-dentro-del-alcance, bajo mínimo), orden estable con desempate por `id`, **valorizado** (costo promedio ponderado GLOBAL × stock; sin historial la celda va VACÍA, no un 0 fingido que se sumaría al total), y export con los mismos filtros, más un **detalle por lote/ubicación/caducidad** para los productos que manejan lotes (F5-STK-05)
 - [ ] **Ventas por período**: filtros fecha/vendedor/estado/almacén y **`UserScope` aplicado** — un usuario acotado a un almacén no ve ventas de otros (contraprueba); el `GET /pos/sales` de F4 conserva su semántica sin scope y la diferencia queda documentada
 - [ ] **Kardex**: exportable reusando `kardex.service.list` — el `balanceAfter` del Excel es idéntico al de la API paginada porque NO hay segunda implementación del saldo
 - [ ] **Vencimientos** y **En tránsito** exportables desde sus pantallas (herencias F3)
@@ -2631,17 +2637,23 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F5-STK-02, F5-HUB-03
   - **Estimación:** 2.5 h
 
+- [ ] **F5-STK-05** — Detalle por lote y ubicación en el reporte de stock
+  - **Salida:** `GET /reports/stock?detail=lots` (y su export, hoja «Stock por lote»): producto × almacén × lote × ubicación con caducidad y cantidad, solo productos con `tracksLots`. La fuente es `stock_lots` + `product_lots` — los MISMOS joins de `/products/:id/stock`, extraídos a consulta compartida, no una segunda implementación. Directiva de Carlos (2026-08-24): el almacenaje contempla la ubicación además del lote y la caducidad
+  - **Verificar:** e2e: un producto con el mismo lote en dos ubicaciones devuelve DOS filas (la ubicación parte el stock — es la semántica de la PK de `stock_lots`); caducidad nula exporta celda vacía; contraprueba: sin `detail` la respuesta es idéntica a F5-STK-01 (los tests de esa tarea verdes sin tocar); contraprueba de alcance: almacén fuera del scope no aparece
+  - **Depende de:** F5-STK-01, F5-STK-02
+  - **Estimación:** 2 h
+
 ### Módulo F5-SALES — Ventas por período
 
 - [ ] **F5-SALES-01** — `GET /reports/sales` con `UserScope` y filtro por almacén
-  - **Salida:** endpoint PROPIO del módulo reports — NO se toca la semántica de `GET /pos/sales` (F4, `pos:view`, sin scope): se extrae el armado del `where` de `sales.service.list` a un builder compartido y se le suma `warehouseId` + intersección con el alcance. Totales del período por método en la respuesta, para el pie de la tabla
-  - **Verificar:** e2e: usuario acotado no ve ventas de otro almacén (contraprueba); los tests de F4-SALE-04 intactos (contraprueba de no-regresión del builder)
+  - **Salida:** endpoint PROPIO del módulo reports — NO se toca la semántica de `GET /pos/sales` (F4, `pos:view`, sin scope): se extrae el armado del `where` de `sales.service.list` a un builder compartido y se le suma `warehouseId` + intersección con el alcance. El builder ARRASTRA las dos semánticas que ese `where` ya tiene (decisión 7): rango de fechas en días del negocio (`startOfDayUtc`/`endOfDayUtc` con la zona del tenant) y `folio` que busca por folio O código de barras. Totales del período por método en la respuesta, para el pie de la tabla
+  - **Verificar:** e2e: usuario acotado no ve ventas de otro almacén (contraprueba); los tests de F4-SALE-04 intactos (contraprueba de no-regresión del builder); el filtro por código de barras encuentra la venta también vía `/reports/sales`
   - **Depende de:** F5-CORE-03
   - **Estimación:** 2.5 h
 
 - [ ] **F5-SALES-02** — Export de ventas
-  - **Salida:** `GET /reports/sales/export`, mismos filtros, hoja «Ventas», vía helper de tope; columnas: folio, fecha, vendedor, almacén, estado, método, total
-  - **Verificar:** e2e: filas del xlsx = consulta filtrada; las ANULADAS van marcadas, no omitidas (criterio F4); sobre el tope → 400
+  - **Salida:** `GET /reports/sales/export`, mismos filtros, hoja «Ventas», vía helper de tope; columnas: folio, **código de barras** (decisión 6; ventas anteriores al campo → celda vacía), fecha, vendedor, almacén, estado, método, total
+  - **Verificar:** e2e: filas del xlsx = consulta filtrada; las ANULADAS van marcadas, no omitidas (criterio F4); una venta con `barcode` lo exporta y una anterior al campo deja la celda vacía; sobre el tope → 400
   - **Depende de:** F5-SALES-01, F5-CORE-02
   - **Estimación:** 1 h
 
@@ -2654,7 +2666,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 ### Módulo F5-KDX — Kardex exportable (herencia F3)
 
 - [ ] **F5-KDX-01** — Export del kardex
-  - **Salida:** `GET /reports/kardex/:productId/export` REUSANDO `kardex.service.list` — mismos filtros (almacén/fechas/dirección/motivo/lote), sin paginar hasta el tope; columnas con `balanceAfter`, folio y tipo de documento. Cero segunda implementación de la window function
+  - **Salida:** `GET /reports/kardex/:productId/export` REUSANDO `kardex.service.list` — mismos filtros (almacén/fechas/dirección/motivo/lote), sin paginar hasta el tope; columnas con `balanceAfter`, folio, tipo de documento, **lote y ubicación** (decisión 5: `stock_movements` ya guarda las dos y la pantalla ya las pinta — el Excel no puede contar menos que la pantalla). Cero segunda implementación de la window function
   - **Verificar:** e2e: el `balanceAfter` del xlsx es idéntico al de la API paginada para el mismo filtro (misma fuente); contraprueba: producto de otro tenant → 404; respeta el alcance
   - **Depende de:** F5-CORE-02, F5-CORE-03
   - **Estimación:** 1.5 h
@@ -2688,13 +2700,13 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 ### Módulo F5-EXP — Vencimientos y tránsito (herencias F3)
 
 - [ ] **F5-EXP-01** — Export de vencimientos
-  - **Salida:** export sobre la consulta que alimenta `/movements/expiring` (producto, lote, vencimiento, días restantes, almacén, cantidad), mismos filtros de la pantalla, vía helper de tope. Permiso: `inventory:read` — es la misma lectura de su pantalla en otro formato
+  - **Salida:** export sobre la consulta que alimenta `/movements/expiring` (producto, lote, vencimiento, días restantes, almacén, **ubicación**, cantidad — `ExpiringRow.location` ya viaja, decisión 5), mismos filtros de la pantalla, vía helper de tope. Permiso: `inventory:read` — es la misma lectura de su pantalla en otro formato
   - **Verificar:** e2e: filas = consulta de expiring con filtros; contraprueba de alcance por almacén
   - **Depende de:** F5-CORE-02
   - **Estimación:** 1.5 h
 
 - [ ] **F5-EXP-02** — Export de stock en tránsito
-  - **Salida:** export sobre el `inTransit()` existente (producto, origen, destino, cantidad, folio del traspaso, fecha de salida), mismos filtros
+  - **Salida:** export sobre el `inTransit()` existente (producto, **lote** —`TransferLine.lotId` existe; ubicación NO: el traspaso no la guarda, la decide el destino al recibir (decisión 5)—, origen, destino, cantidad, folio del traspaso, fecha de salida), mismos filtros
   - **Verificar:** e2e: traspaso enviado-no-confirmado aparece; contraprueba: uno confirmado ya no; el alcance mira el ORIGEN (criterio existente de F3-KARDEX-04)
   - **Depende de:** F5-CORE-02
   - **Estimación:** 1 h
@@ -2733,7 +2745,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F5-CORE-01..F5-HUB-03
   - **Estimación:** 2 h
 
-**Estimación: ~2 semanas** (~40 h en 24 tareas).
+**Estimación: ~2 semanas** (~42 h en 25 tareas; +F5-STK-05 en la revisión del 2026-08-24).
 
 ---
 

@@ -837,7 +837,11 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   2. Filtros: almacén (dentro del alcance), producto, mostrar solo bajo stock mínimo
   3. Tabla paginada server-side: producto × almacén, stock, mínimo, **costo promedio
      ponderado y valor del inventario** (stock × promedio)
-  4. Click "Exportar Excel" → descarga `.xlsx` con los MISMOS filtros aplicados
+  4. (Opcional) Activa el **detalle por lote**: producto × almacén × lote × ubicación
+     con caducidad, solo productos que controlan lotes — el almacenaje contempla la
+     ubicación además del lote y la caducidad (directiva de Carlos, 2026-08-24)
+  5. Click "Exportar Excel" → descarga `.xlsx` con los MISMOS filtros aplicados (el
+     detalle por lote baja en su propia hoja)
 - **Flujos alternativos:**
   - 3a. Producto sin historial de entradas `invoice` → costo y valor en blanco, **no un
     cero fingido** (un 0 se sumaría al total y mentiría).
@@ -876,7 +880,9 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
   2. Filtros: rango de fechas, vendedor, estado, **almacén**
   3. Visualiza totales del período por método de pago + listado detallado; las ventas
      ANULADAS se ven marcadas, no se esconden (criterio F4)
-  4. Exporta con los mismos filtros
+  4. Exporta con los mismos filtros; el Excel lleva el **código de barras diario** de
+     cada venta (campo del 2026-08-24 — ventas anteriores dejan la celda vacía) y el
+     filtro de folio también encuentra por ese código
 - **Flujos alternativos:**
   - 2a. **El alcance aplica**: un usuario acotado a un almacén no ve ventas de otros.
     (El historial del POS de F4 —`pos:view`— no aplica alcance; este reporte SÍ, y esa
@@ -891,8 +897,10 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Flujo principal:**
   1. Reportes → Kardex (enlaza a la pantalla de kardex existente del producto)
   2. Selecciona producto + rango de fechas + almacén(es)
-  3. Muestra todos los movimientos cronológicos con stock acumulado (`balanceAfter`) y
-     el folio del documento origen
+  3. Muestra todos los movimientos cronológicos con stock acumulado (`balanceAfter`),
+     el folio del documento origen y —cuando el producto controla lotes— el **lote y la
+     ubicación** del movimiento (el Excel no cuenta menos que la pantalla, que ya los
+     pinta)
   4. Exporta — **el export reusa el mismo servicio que la pantalla**: no existe una
      segunda implementación del saldo acumulado que un día diga otra cosa
 - **Postcondición:** Trazabilidad completa visible y descargable.
@@ -915,7 +923,9 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
      sensibles** (ni hashes, ni tokens, ni invitaciones pendientes)
   3. Almacenes: nombre, dirección, estado, productos con stock — acotado al alcance
   4. Vencimientos y En tránsito: sus pantallas (`/movements/expiring`, traspasos) ganan
-     «Exportar Excel» con los filtros activos
+     «Exportar Excel» con los filtros activos. Vencimientos incluye la **ubicación**
+     (el dato ya viaja en la consulta de la pantalla); En tránsito incluye el **lote**
+     pero NO ubicación — el traspaso no la guarda: la decide el destino al recibir
 - **Flujos alternativos:**
   - 1a. Un Viewer SIN `users:manage` descarga el reporte de usuarios igual: ese es el
     punto de que viva bajo `reports:read`.

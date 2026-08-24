@@ -1476,6 +1476,7 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 │  ─── Filtros ───                                               │
 │   Almacén: ▼ Todos          Categoría: ▼ Todas                │
 │   ☑ Solo productos bajo stock mínimo                          │
+│   ☐ Detalle por lote y ubicación (con caducidad)              │
 │                                                                │
 │   [Aplicar filtros]  [Limpiar]  [📤 Exportar Excel]           │
 │                                                                │
@@ -1491,6 +1492,11 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 > mensaje que pide acotar filtros — nunca un truncado silencioso, porque un Excel
 > cortado se lee como completo. El export baja con los MISMOS filtros que la tabla
 > muestra. El asíncrono con cola quedó diferido (FLUJOS §8).
+>
+> **El detalle por lote (2026-08-24)** baja producto × almacén × lote × ubicación con
+> caducidad, solo productos que controlan lotes: el almacenaje contempla la ubicación
+> además del lote y la caducidad (directiva de Carlos). Misma consulta que la tab
+> «Stock por almacén» del producto — no una segunda implementación.
 
 **Casos de uso relacionados:** [CU-REP-01](CASOS_DE_USO.md) (stock valorizado),
 CU-REP-02 (catálogo), CU-REP-03 (ventas), CU-REP-04 (kardex), CU-REP-05 (exports
