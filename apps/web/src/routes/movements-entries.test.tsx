@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
+import * as kardexApi from "../lib/inventory/kardex-api";
 import type { DocumentDetail, DocumentProduct, DocumentRow } from "../lib/inventory/types";
 import * as productsApi from "../lib/products/api";
 import { createQueryClient } from "../lib/query-client";
@@ -35,10 +36,17 @@ vi.mock("../lib/inventory/api", () => ({
   importDocumentLines: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
+vi.mock("../lib/inventory/kardex-api", () => ({
+  getStock: vi.fn(),
+  getKardex: vi.fn(),
+  getInTransit: vi.fn(),
+  updateLot: vi.fn(),
+}));
 vi.mock("../lib/products/api", () => ({ listProducts: vi.fn() }));
 vi.mock("../lib/rbac/api", () => ({ listUsers: vi.fn() }));
 
 const mocked = vi.mocked(inventoryApi);
+const mockedKardex = vi.mocked(kardexApi);
 const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 const mockedProducts = vi.mocked(productsApi.listProducts);
 const mockedUsers = vi.mocked(rbacApi.listUsers);
@@ -420,6 +428,145 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
 
       const encabezados = screen.getAllByRole("columnheader").map((th) => th.textContent);
       expect(encabezados).not.toContain("Lote");
+    });
+
+    /**
+     * ── AUTOCOMPLETAR LA CADUCIDAD (2026-08-24, pedido de Carlos) ────────
+     *
+     * Si el lote tecleado YA existe para ese producto, su caducidad es un
+     * dato conocido — obligar a re-teclearla invita a capturarla distinta y
+     * partir el lote en dos (el conflicto que el 409 de ayer explica). El
+     * stock del producto se consulta PEREZOSO: recién al enfocar el campo de
+     * lote, para no disparar una consulta por fila en documentos largos.
+     */
+    it("teclear un lote que ya existe autocompleta su caducidad", async () => {
+      mocked.getDocument.mockResolvedValue(detalleConLotes());
+      mockedKardex.getStock.mockResolvedValue({
+        isComposite: false,
+        rows: [
+          {
+            warehouseId: "w1",
+            name: "Central",
+            quantity: "92",
+            updatedAt: "2026-08-24T10:00:00.000Z",
+            lots: [
+              {
+                lotId: "l-st4",
+                lotCode: "ST4",
+                quantity: "92",
+                expiresAt: "2027-03-05",
+                location: "",
+                expired: false,
+                expiringSoon: false,
+              },
+            ],
+          },
+        ],
+        total: "92",
+        stockMin: "0",
+        belowMin: false,
+        baseUnit: "unit",
+      });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByLabelText(/^lote/i));
+      await user.type(screen.getByLabelText(/^lote/i), "st4");
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/caducidad/i)).toHaveValue("2027-03-05");
+      });
+    });
+
+    it("una caducidad YA tecleada no se pisa", async () => {
+      const d = detalleConLotes();
+      (d.rows[0] as DocumentRow).expiresAt = "2026-12-31";
+      mocked.getDocument.mockResolvedValue(d);
+      mockedKardex.getStock.mockResolvedValue({
+        isComposite: false,
+        rows: [
+          {
+            warehouseId: "w1",
+            name: "Central",
+            quantity: "92",
+            updatedAt: null,
+            lots: [
+              {
+                lotId: "l-st4",
+                lotCode: "ST4",
+                quantity: "92",
+                expiresAt: "2027-03-05",
+                location: "",
+                expired: false,
+                expiringSoon: false,
+              },
+            ],
+          },
+        ],
+        total: "92",
+        stockMin: "0",
+        belowMin: false,
+        baseUnit: "unit",
+      });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByLabelText(/^lote/i));
+      await user.type(screen.getByLabelText(/^lote/i), "st4");
+      // Tiempo de sobra para que un autocompletado equivocado hiciera daño.
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Lo que el usuario capturó es SUYO: el dato conocido solo llena vacíos.
+      expect(screen.getByLabelText(/caducidad/i)).toHaveValue("2026-12-31");
+    });
+
+    /**
+     * ── EL FOCO SIGUE AL ALTA (2026-08-24, pedido de Carlos) ─────────────
+     *
+     * Agregar un producto desde el buscador deja el cursor en la CANTIDAD de
+     * la línea nueva — el primer campo editable que no es un desplegable.
+     * Quien captura 80 líneas agrega y teclea, agrega y teclea: obligarlo a
+     * clickear la celda en cada vuelta es un viaje de ratón por línea.
+     */
+    it("agregar un producto desde el buscador enfoca la cantidad de la línea nueva", async () => {
+      mocked.getDocument.mockResolvedValue(detalle());
+      mockedProducts.mockResolvedValue({
+        total: 1,
+        page: 1,
+        pageSize: 10,
+        items: [
+          {
+            id: "p2",
+            sku: "IBU-400",
+            name: "Ibuprofeno 400mg",
+            baseUnit: "unit",
+            isComposite: false,
+            isActive: true,
+            attributes: {},
+            price: null,
+          },
+        ],
+      });
+      mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+      const user = userEvent.setup();
+
+      await user.type(screen.getByLabelText(/buscar producto/i), "ibu");
+      // El refetch tras agregar trae la línea nueva.
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          rows: [fila(), fila({ id: "line-2", lineNo: 2, productId: "p2", sku: "IBU-400" })],
+          lineCount: 2,
+        }),
+      );
+      await user.click(await screen.findByRole("button", { name: /IBU-400/ }));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/cantidad/i, { selector: "#line-2-quantity" })).toHaveFocus();
+      });
     });
 
     /** El margen no se revienta: la tabla scrollea dentro de su contenedor. */

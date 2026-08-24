@@ -23,6 +23,7 @@ import {
   useConfirmDocument,
   useDocument,
 } from "@/lib/inventory/hooks";
+import { useStock } from "@/lib/inventory/kardex-hooks";
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
 import { MONEY_STEP } from "@/lib/products/money";
 import { AddLineForm } from "./add-line-form";
@@ -59,6 +60,8 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const { has } = usePermissions();
   const { data: document, isPending } = useDocument(documentId);
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
+  // La línea recién agregada desde el buscador: su CANTIDAD recibe el foco.
+  const [focusLineId, setFocusLineId] = useState<string | null>(null);
   const [confirmado, setConfirmado] = useState(false);
   // El error del confirm/anular. Sin esto el fallo era SILENCIOSO: el diálogo
   // se cerraba y el usuario veía "no pasa nada" — indebuggeable hasta para
@@ -202,7 +205,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         </p>
       )}
 
-      {editable && !esConteo && <AddLineForm documentId={documentId} />}
+      {editable && !esConteo && <AddLineForm documentId={documentId} onAdded={setFocusLineId} />}
 
       {esConteo && !sinLineas && (
         <label className="flex w-fit items-center gap-2 text-sm">
@@ -256,6 +259,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     key={row.lineNo}
                     documentId={documentId}
                     row={row}
+                    autoFocusQuantity={row.id === focusLineId}
                     product={productosPorId.get(row.productId)}
                     editable={editable}
                     conCosto={conCosto}
@@ -331,6 +335,7 @@ function LineRow({
   conLote,
   esSalida,
   esConteo,
+  autoFocusQuantity,
 }: {
   documentId: string;
   row: DocumentRow;
@@ -340,6 +345,7 @@ function LineRow({
   conLote: boolean;
   esSalida: boolean;
   esConteo: boolean;
+  autoFocusQuantity: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -351,6 +357,15 @@ function LineRow({
   const primeraCargaCosto = useRef(true);
   const primeraCargaLote = useRef(true);
   const primeraCargaCaducidad = useRef(true);
+  const quantityRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * El stock del producto se consulta PEREZOSO: recién cuando el usuario
+   * enfoca el campo de lote. Un documento de 80 líneas no tiene por qué
+   * disparar 80 consultas de stock al abrirse — y quien no toca el lote no
+   * paga nada.
+   */
+  const [lotTocado, setLotTocado] = useState(false);
+  const { data: stockProducto } = useStock(conLote && lotTocado ? row.productId : undefined);
 
   const invalidar = () => {
     // Recargar el documento es lo que refresca la PREVIA: el stock resultante
@@ -452,6 +467,33 @@ function LineRow({
     return () => clearTimeout(timer);
   }, [expiresAt, row.expiresAt, guardarCaducidad.mutate]);
 
+  // El foco aterriza UNA vez, al montar la línea recién agregada.
+  useEffect(() => {
+    if (autoFocusQuantity) {
+      quantityRef.current?.focus();
+    }
+  }, [autoFocusQuantity]);
+
+  /**
+   * ── Autocompletar la caducidad (Carlos, 2026-08-24) ──────────────────
+   *
+   * Si el lote tecleado YA existe para este producto, su caducidad es un dato
+   * conocido: obligar a re-teclearla invita a capturarla distinta y partir el
+   * lote en dos. Solo llena VACÍOS — lo que el usuario capturó es suyo — y el
+   * guardado lo hace el autosave de `expiresAt`, que ya existía.
+   */
+  useEffect(() => {
+    if (expiresAt !== "" || lotCode.trim() === "" || stockProducto === undefined) {
+      return;
+    }
+    const conocido = stockProducto.rows
+      .flatMap((r) => r.lots ?? [])
+      .find((lot) => lot.lotCode === lotCode.trim());
+    if (conocido?.expiresAt != null) {
+      setExpiresAt(conocido.expiresAt.slice(0, 10));
+    }
+  }, [lotCode, expiresAt, stockProducto]);
+
   const conError = row.errors.length > 0;
   const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
 
@@ -507,6 +549,7 @@ function LineRow({
             </label>
             <input
               id={`line-${row.lineNo}-quantity`}
+              ref={quantityRef}
               type="number"
               step="0.0001"
               value={quantity}
@@ -589,6 +632,7 @@ function LineRow({
                     id={`line-${row.lineNo}-lot`}
                     type="text"
                     value={lotCode}
+                    onFocus={() => setLotTocado(true)}
                     onChange={(event) =>
                       // Se normaliza AL TECLEAR y no solo al guardar: el API
                       // también lo hace —esa es la garantía de los datos— pero

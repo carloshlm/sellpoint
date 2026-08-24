@@ -11,6 +11,8 @@ const MIN_QUERY = 2;
 
 interface AddLineFormProps {
   documentId: string;
+  /** Avisa la línea recién creada, para que el padre le mande el FOCO. */
+  onAdded?: (lineId: string | null) => void;
 }
 
 /**
@@ -22,7 +24,7 @@ interface AddLineFormProps {
  * justamente el flujo que el borrador vino a evitar (y por eso `quantity` es
  * opcional en `upsertDocumentLineSchema`).
  */
-export function AddLineForm({ documentId }: AddLineFormProps) {
+export function AddLineForm({ documentId, onAdded }: AddLineFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [term, setTerm] = useState("");
@@ -38,10 +40,14 @@ export function AddLineForm({ documentId }: AddLineFormProps) {
 
   const agregar = useMutation({
     mutationFn: (productId: string) => addDocumentLine(documentId, { productId }),
-    onSuccess: () => {
+    onSuccess: (creada) => {
       setTerm("");
       setDebounced("");
       void queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, documentId] });
+      // El id de la línea nueva viaja al padre: quien captura 80 líneas
+      // agrega y teclea — el foco tiene que aterrizar en la cantidad solo
+      // (Carlos, 2026-08-24), no tras un viaje de ratón por línea.
+      onAdded?.((creada as { id?: string } | undefined)?.id ?? null);
     },
   });
 
