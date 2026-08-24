@@ -475,8 +475,27 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         </p>
       )}
 
+      {/* ── El ORDEN sigue el flujo del alta (Carlos, 2026-08-24) ────────
+          Primero lo que viene IMPRESO en la caja que el usuario tiene en la
+          mano, después lo que decide el negocio. Y el costo antes que el
+          precio, porque el precio se decide MIRANDO el costo, no al revés.
+          Lo fija `catalog-products-barcode.test.tsx`: un reordenamiento
+          accidental no rompe nada visible, solo deja de acompañar. */}
+
+      {/* Va PRIMERO y es el campo estándar del catálogo: es lo que lee el
+          escáner. Puede coincidir con el código interno —y está bien— cuando
+          el producto trae un código mundial (EAN/UPC) que el negocio adopta
+          como propio: son campos distintos que a veces valen lo mismo. */}
+      <TextField
+        label={t("products.form.barcode")}
+        hint={t("products.form.barcodeHint")}
+        value={barcode}
+        disabled={!canManage}
+        onChange={(event) => setBarcode(event.target.value)}
+      />
       <TextField
         label={t("products.form.sku")}
+        hint={t("products.form.skuHint")}
         value={sku}
         disabled={!canManage}
         onChange={(event) => setSku(event.target.value)}
@@ -497,17 +516,19 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         options={UNIT_CODES.map((code) => ({ value: code, label: unitName(code, uiLocale) }))}
         onChange={(event) => setBaseUnit(event.target.value)}
       />
-      <TextField
-        label={t("products.form.stockMin")}
-        type="number"
-        step="any"
-        value={stockMin}
-        disabled={!canManage}
-        onChange={(event) => setStockMin(event.target.value)}
-      />
 
-      {/* Precio y costo editan la presentación base: el usuario los ve como
-          "el precio del producto" y los carga acá mismo. */}
+      {/* Costo y precio editan la presentación base: el usuario los ve como
+          "el costo y el precio del producto" y los carga acá mismo. */}
+      <TextField
+        label={t("products.form.cost")}
+        type="number"
+        step={MONEY_STEP}
+        hint={t("products.form.costHint")}
+        error={costError}
+        value={cost}
+        disabled={!canManage}
+        onChange={(event) => setCost(event.target.value)}
+      />
       <TextField
         label={t("products.form.price")}
         type="number"
@@ -519,23 +540,13 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         onChange={(event) => setPrice(event.target.value)}
       />
       <TextField
-        label={t("products.form.cost")}
+        label={t("products.form.stockMin")}
         type="number"
-        step={MONEY_STEP}
-        error={costError}
-        value={cost}
+        step="any"
+        hint={t("products.form.stockMinHint")}
+        value={stockMin}
         disabled={!canManage}
-        onChange={(event) => setCost(event.target.value)}
-      />
-      {/* El código IMPRESO en el empaque, que es lo que lee el escáner. No se
-          confunde con el «Código» de arriba: ese es el SKU, el que inventa el
-          negocio. El hint lo dice, porque el nombre solo no alcanza. */}
-      <TextField
-        label={t("products.form.barcode")}
-        hint={t("products.form.barcodeHint")}
-        value={barcode}
-        disabled={!canManage}
-        onChange={(event) => setBarcode(event.target.value)}
+        onChange={(event) => setStockMin(event.target.value)}
       />
 
       <div className="flex items-center gap-2">
