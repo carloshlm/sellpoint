@@ -711,7 +711,48 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         }),
       );
 
-      return { azucarId, cafeId };
+      return { azucarId, cafeId, warehouseId: warehouse.id };
+    }
+
+    /**
+     * Una compra REAL asentada en el libro mayor, que es de donde el promedio
+     * ponderado saca sus números. Va directo a `stock_movements` —sin pasar
+     * por el documento de F3— porque lo que se prueba acá es el COSTEO, no el
+     * flujo de captura: el `unit_cost` es el dato, el papeleo es ruido.
+     */
+    async function comprar(
+      tenantId: string,
+      input: { warehouseId: string; productId: string; quantity: number; unitCost: number },
+    ) {
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const owner = await tx.user.findFirstOrThrow({ where: { tenantId } });
+        const document = await tx.inventoryDocument.create({
+          data: {
+            tenantId,
+            folio: `ENT-${randomUUID().slice(0, 6)}`,
+            type: "entry",
+            status: "confirmed",
+            warehouseId: input.warehouseId,
+            reasonCode: "invoice",
+            createdBy: owner.id,
+            confirmedBy: owner.id,
+            confirmedAt: new Date(),
+          },
+        });
+        await tx.stockMovement.create({
+          data: {
+            tenantId,
+            documentId: document.id,
+            productId: input.productId,
+            warehouseId: input.warehouseId,
+            direction: "entry",
+            reasonCode: "invoice",
+            quantity: input.quantity.toString(),
+            unitCost: input.unitCost.toString(),
+            createdBy: owner.id,
+          },
+        });
+      });
     }
 
     it("«alcanza para N» se CALCULA contra el stock, con su componente limitante", async () => {
@@ -749,6 +790,12 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(availability.body).toMatchObject({ units: 40 });
     });
 
+    /**
+     * El fallback de F5-COST-02, y la contraprueba de no-regresión: sin
+     * historial de compras el número tiene que seguir siendo EXACTAMENTE el
+     * de F2. Un componente que nunca se compró no puede empeorar la
+     * estimación por haber sumado el promedio ponderado.
+     */
     it("el costo estimado sale del costo por unidad base del componente", async () => {
       const { token, tenantId } = await registerAndLogin();
       const { cafeId } = await setupCafe(token, tenantId);
@@ -761,6 +808,56 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       // La presentación base del azúcar cuesta 40 con factor 1 (gr) → 40/gr;
       // 20 gr por café = 800.
       expect(estimate.body).toMatchObject({ total: "800.00" });
+    });
+
+    /**
+     * F5-COST-02 — el origen del número viaja POR COMPONENTE.
+     *
+     * Sin esto, «$800» es un número sin procedencia: quien lo lee no sabe si
+     * salió de compras reales o de un precio de lista que alguien tecleó hace
+     * seis meses. Y es por componente, no por documento, porque un compuesto
+     * mezcla los dos casos: el azúcar con historial y el vaso sin comprar
+     * nunca.
+     */
+    it("sin compras, cada componente declara que el número salió de la presentación", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { cafeId } = await setupCafe(token, tenantId);
+
+      const estimate = await request(app.getHttpServer())
+        .get(`/products/${cafeId}/cost-estimate`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const lines = (estimate.body as { lines: { source: string }[] }).lines;
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.every((l) => l.source === "presentation")).toBe(true);
+    });
+
+    it("con compras reales, el componente usa el promedio ponderado y lo declara", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { cafeId, azucarId, warehouseId } = await setupCafe(token, tenantId);
+
+      // Dos compras del azúcar a precios distintos: 100 gr a $10 y 300 a $30
+      // → (1000 + 9000) / 400 = $25 por gramo. Bien distinto del 40 de lista,
+      // justamente para que el test no pueda confundir los dos caminos.
+      await comprar(tenantId, { warehouseId, productId: azucarId, quantity: 100, unitCost: 10 });
+      await comprar(tenantId, { warehouseId, productId: azucarId, quantity: 300, unitCost: 30 });
+
+      const estimate = await request(app.getHttpServer())
+        .get(`/products/${cafeId}/cost-estimate`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const body = estimate.body as {
+        total: string;
+        lines: { productId: string; cost: string; source: string }[];
+      };
+      const azucar = body.lines.find((l) => l.productId === azucarId);
+
+      // 25/gr × 20 gr = 500, contra los 800 del precio de lista.
+      expect(azucar?.source).toBe("weighted");
+      expect(azucar?.cost).toBe("500.00");
+      expect(body.total).toBe("500.00");
     });
 
     it("un ciclo INDIRECTO se rechaza nombrando el camino", async () => {

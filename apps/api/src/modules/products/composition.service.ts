@@ -5,6 +5,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { WeightedCostService } from "../cost/weighted-cost.service";
 import { findCompositionCycle } from "./composition-graph";
 import type { ReplaceCompositionDto } from "./dto/replace-composition.dto";
 
@@ -16,7 +17,23 @@ export interface AvailabilityResult {
 
 export interface CostEstimateResult {
   total: string;
-  lines: { productId: string; sku: string; name: string; quantity: string; cost: string }[];
+  lines: {
+    productId: string;
+    sku: string;
+    name: string;
+    quantity: string;
+    cost: string;
+    /**
+     * De dónde salió el número (F5-COST-02): `weighted` es el promedio de las
+     * COMPRAS reales; `presentation` es el precio de lista de la presentación
+     * de compra, el fallback para lo que nunca se compró.
+     *
+     * Va por COMPONENTE y no por documento porque un compuesto mezcla los dos
+     * casos: el azúcar con historial y el vaso que nadie compró todavía. Sin
+     * esto, el total es un número sin procedencia.
+     */
+    source: "weighted" | "presentation";
+  }[];
 }
 
 /**
@@ -33,6 +50,7 @@ export class CompositionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly weightedCost: WeightedCostService,
   ) {}
 
   async get(user: AuthUser, productId: string) {
@@ -287,10 +305,29 @@ export class CompositionService {
         },
       });
 
+      // Los promedios de TODOS los componentes en una consulta: preguntar de
+      // a uno sería un N+1 contra el libro mayor por cada renglón del BOM.
+      const promedios = await this.weightedCost.averageCosts(
+        user.tenantId,
+        lines.map((line) => line.component.id),
+      );
+
       let total = 0;
       const detail = lines.map((line) => {
+        // El promedio de las compras REALES manda sobre el precio de lista:
+        // lo segundo es lo que alguien tecleó alguna vez, lo primero es lo que
+        // de verdad se pagó. El fallback existe porque un componente recién
+        // dado de alta no tiene historial, y ahí la lista es lo único que hay
+        // — mejor una estimación declarada que ningún número.
+        const ponderado = promedios.get(line.component.id);
         const presentation = line.component.presentations[0];
-        const unitCost = presentation ? Number(presentation.cost) / Number(presentation.factor) : 0;
+        const source = ponderado !== undefined ? ("weighted" as const) : ("presentation" as const);
+        const unitCost =
+          ponderado !== undefined
+            ? Number(ponderado)
+            : presentation
+              ? Number(presentation.cost) / Number(presentation.factor)
+              : 0;
         const lineCost = unitCost * Number(line.quantity);
         total += lineCost;
 
@@ -300,6 +337,7 @@ export class CompositionService {
           name: line.component.name,
           quantity: line.quantity.toString(),
           cost: lineCost.toFixed(2),
+          source,
         };
       });
 

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { CostModule } from "../cost/cost.module";
 import { CompositionService } from "./composition.service";
 import { ImportService } from "./import.service";
 import { PresentationsService } from "./presentations.service";
@@ -9,7 +10,7 @@ import { ProductsService } from "./products.service";
 // F2-PROD / F2-PRESENT / F2-BOM viven en el MISMO módulo: presentaciones y
 // composición no existen sin un producto y sus rutas cuelgan de él.
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, CostModule],
   controllers: [ProductsController],
   providers: [ProductsService, PresentationsService, CompositionService, ImportService],
   exports: [ProductsService, CompositionService],

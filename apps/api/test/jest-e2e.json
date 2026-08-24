@@ -11,5 +11,6 @@
   },
   "setupFiles": ["<rootDir>/setup-env.js"],
   "maxWorkers": 1,
-  "testTimeout": 30000
+  "testTimeout": 30000,
+  "workerIdleMemoryLimit": "1GB"
 }

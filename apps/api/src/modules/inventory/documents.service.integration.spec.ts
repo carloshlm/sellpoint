@@ -5,6 +5,7 @@ import type { Env } from "../../config/env.schema";
 import { InventoryDocumentType } from "../../generated/prisma/enums";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { WeightedCostService } from "../cost/weighted-cost.service";
 import { CompositionService } from "../products/composition.service";
 import { DocumentsService } from "./documents.service";
 
@@ -28,8 +29,13 @@ describe("DocumentsService — ciclo de vida (F3-DOC-03)", () => {
     );
     await prisma.onModuleInit();
     // `AuditService` no se usa en el camino de `availability` (solo lee), así
-    // que no hace falta una instancia real para este spec.
-    service = new DocumentsService(prisma, new CompositionService(prisma, null as never));
+    // que no hace falta una instancia real para este spec. `WeightedCostService`
+    // (F5-COST-02) sí se construye de verdad porque es barato —solo Prisma— y
+    // un `null` ahí explotaría el día que `availability` empiece a costear.
+    service = new DocumentsService(
+      prisma,
+      new CompositionService(prisma, null as never, new WeightedCostService(prisma)),
+    );
 
     const stamp = Date.now();
     const tenant = await prisma.tenant.create({ data: { name: `Tenant docs ${stamp}` } });

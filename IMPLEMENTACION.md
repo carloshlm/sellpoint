@@ -2599,13 +2599,14 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-COST — Costo promedio ponderado (herencia F3)
 
-- [ ] **F5-COST-01** — `WeightedCostService`: el promedio GLOBAL por producto
+- [x] **F5-COST-01** *(cerrada el 2026-08-24)* — `WeightedCostService`: el promedio GLOBAL por producto
   - **Salida:** servicio que toma las entradas `invoice` del ledger, lleva `unit_cost` (nivel presentación) a base_unit con `presentation.factor` y calcula el promedio ponderado por cantidad, GLOBAL por producto (decisión de Carlos 2026-08-21). Devuelve `null` sin historial — el consumidor decide el fallback, no se inventa un cero
   - **Verificar:** unit con fixture: dos entradas a costos distintos → promedio exacto; presentaciones con factor distinto normalizan a base_unit; contraprueba: ventas/ajustes/traspasos NO alteran el promedio; producto sin entradas → `null`
+  - **Hecho como integration y no unit** (2026-08-24): lo que se prueba es una consulta sobre el libro mayor —qué movimientos cuentan, cómo cruzan el `factor` y cómo pondera Postgres los decimales—; un mock del cliente probaría que escribí lo que pensé, no que la base devuelve lo que hace falta. Vive en `modules/cost/` (módulo propio, sin dependencias): `InventoryModule` ya importa `ProductsModule`, así que colgarlo de inventario cerraría un ciclo. **Sin filtro por `direction`**: el CHECK `direction_reason_check` lista `invoice` solo en entradas, y una contraprueba demostró que el filtro era código muerto — la garantía la fija un test que se pone rojo si alguien relaja el CHECK
   - **Depende de:** —
   - **Estimación:** 3.5 h
 
-- [ ] **F5-COST-02** — `cost-estimate` de BOM usa el ponderado
+- [x] **F5-COST-02** *(cerrada el 2026-08-24)* — `cost-estimate` de BOM usa el ponderado
   - **Salida:** `composition.service.costEstimate` consulta `WeightedCostService` por componente, con fallback al actual `cost/factor` cuando no hay historial; la respuesta indica el origen por componente (`source: "weighted" | "presentation"`)
   - **Verificar:** unit: componente con historial usa el ponderado; contraprueba: componente sin entradas conserva el número de hoy (tests existentes de cost-estimate verdes con el fallback)
   - **Depende de:** F5-COST-01
