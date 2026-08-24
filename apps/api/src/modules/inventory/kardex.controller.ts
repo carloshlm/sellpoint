@@ -9,12 +9,18 @@ import { RequirePermissions } from "../auth/decorators/require-permissions.decor
 import type { AuthUser } from "../auth/types/auth-user";
 import { KardexService } from "./kardex.service";
 
-function fecha(raw?: string): Date | undefined {
-  if (!raw) {
-    return undefined;
-  }
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+/**
+ * El día del calendario tal como lo escribió el usuario (`YYYY-MM-DD`).
+ *
+ * NO se convierte a `Date` acá: traducir un día a instantes UTC depende de la
+ * zona del NEGOCIO, y el controlador no la conoce. Antes se hacía
+ * `new Date(raw)`, que lo interpretaba como medianoche UTC y dejaba fuera
+ * todo lo del día en cualquier zona al oeste de Greenwich — el bug que
+ * Carlos reportó el 2026-08-24. La conversión vive en el service, que sí
+ * tiene el tenant a mano.
+ */
+function diaDelCalendario(raw?: string): string | undefined {
+  return raw !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
 }
 
 function entero(raw?: string): number | undefined {
@@ -51,8 +57,8 @@ export class KardexController {
 
     return this.kardex.list(user, scope, id, {
       warehouseId: query.warehouseId || undefined,
-      from: fecha(query.from),
-      to: fecha(query.to),
+      from: diaDelCalendario(query.from),
+      to: diaDelCalendario(query.to),
       direction,
       reasonCode,
       lotId: query.lotId || undefined,

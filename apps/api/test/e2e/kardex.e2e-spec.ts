@@ -153,6 +153,56 @@ describe("Kardex (F3-KARDEX-01)", () => {
       .get(`/products/${productId}/kardex${query}`)
       .set("Authorization", bearer(token));
 
+  /**
+   * ── EL RANGO DE FECHAS SON DÍAS DEL NEGOCIO (2026-08-24) ──────────────
+   *
+   * Carlos: «no me salen los movimientos de hoy, pero si pongo mañana sí».
+   * El filtro mandaba `2026-08-24` crudo a Postgres, que lo lee como
+   * `00:00:00+00`: todo lo del día quedaba fuera.
+   *
+   * El movimiento se crea AHORA, así que «hoy» en la zona del negocio
+   * (`America/Mexico_City` por defecto) tiene que incluirlo — sin importar la
+   * hora a la que corra esta prueba, que es justo lo que el bug rompía a
+   * partir de las 18:00 UTC.
+   */
+  describe("rango de fechas en la zona del negocio", () => {
+    const hoyEnCdmx = () =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+
+    it("un movimiento de HOY entra en el rango que termina hoy", async () => {
+      const { token, productId, warehouseA, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 9 }]);
+
+      const hoy = hoyEnCdmx();
+      const res = await kardex(token, productId, `?from=${hoy}&to=${hoy}`).expect(200);
+
+      expect((res.body.rows as unknown[]).length).toBe(1);
+    });
+
+    it("un rango que termina AYER no lo trae", async () => {
+      const { token, productId, warehouseA, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 9 }]);
+
+      const ayer = new Date(Date.now() - 86_400_000);
+      const iso = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(ayer);
+      const res = await kardex(token, productId, `?to=${iso}`).expect(200);
+
+      // La otra mitad del contrato: si el rango se estirara «por las dudas»,
+      // el filtro dejaría de filtrar y este test lo caza.
+      expect((res.body.rows as unknown[]).length).toBe(0);
+    });
+  });
+
   describe("el saldo después de cada línea", () => {
     it("+50, −10, +5 en A da saldos 50 / 40 / 45", async () => {
       const { token, productId, warehouseA, mover } = await escenario();

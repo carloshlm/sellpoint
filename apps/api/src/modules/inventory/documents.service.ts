@@ -4,7 +4,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { FOLIO_PREFIXES, type InventoryDocumentType } from "@sellpoint/shared";
+import {
+  endOfDayUtc,
+  FOLIO_PREFIXES,
+  type InventoryDocumentType,
+  startOfDayUtc,
+} from "@sellpoint/shared";
 import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -232,7 +237,26 @@ export class DocumentsService {
    * el número que trae el papel en la mano, y quien lo dicta por teléfono dice
    * "cuarenta y dos", no "ENT-000042".
    */
+  /**
+   * La zona horaria del negocio, para traducir días del calendario a
+   * instantes. Una fila por clave primaria: lo más barato que hace Postgres.
+   * No se cachea a propósito — un valor viejo daría un rango equivocado justo
+   * cuando el tenant cambia de zona, y en silencio.
+   */
+  private async zonaDelNegocio(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+    return tenant?.timezone ?? "UTC";
+  }
+
   async list(user: AuthUser, query: ListDocumentsQueryDto, scope: UserScope) {
+    // Mismo criterio que el kardex: el rango son DÍAS del calendario del
+    // negocio. Acá el defecto estaba disfrazado —usaba `T23:59:59.999Z`, fin
+    // de día en UTC— así que en `America/Mexico_City` (UTC−6) perdía todo lo
+    // capturado después de las 18:00 locales.
+    const zona = await this.zonaDelNegocio(user.tenantId);
     const where: Prisma.InventoryDocumentWhereInput = {
       tenantId: user.tenantId,
       type: query.type,
@@ -247,8 +271,10 @@ export class DocumentsService {
       }),
       ...((query.from !== undefined || query.to !== undefined) && {
         createdAt: {
-          ...(query.from !== undefined && { gte: new Date(query.from) }),
-          ...(query.to !== undefined && { lte: new Date(`${query.to}T23:59:59.999Z`) }),
+          ...(query.from !== undefined && { gte: startOfDayUtc(query.from, zona) }),
+          // `lt` y no `lte`: el fin de día es el ARRANQUE del siguiente, así
+          // no se pierde el último milisegundo del día.
+          ...(query.to !== undefined && { lt: endOfDayUtc(query.to, zona) }),
         },
       }),
       // El alcance del usuario: un Manager no ve documentos de un almacén que

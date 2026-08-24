@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { MovementDirection, MovementReason } from "@sellpoint/shared";
+import { endOfDayUtc, startOfDayUtc } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -9,8 +10,9 @@ import { assertWarehouseInScope } from "./warehouse-scope.helpers";
 
 export interface KardexOptions {
   warehouseId?: string;
-  from?: Date;
-  to?: Date;
+  /** Día del calendario del negocio (`YYYY-MM-DD`), no un instante. */
+  from?: string;
+  to?: string;
   direction?: MovementDirection;
   reasonCode?: MovementReason;
   lotId?: string;
@@ -93,6 +95,15 @@ export class KardexService {
         where: { id: productId, tenantId: user.tenantId },
         select: { id: true, isComposite: true },
       });
+
+      // ── El rango son DÍAS del calendario del negocio ──────────────────
+      // `from`/`to` llegan como `YYYY-MM-DD`. Mandarlos crudos a Postgres los
+      // volvía `00:00:00+00` y el día en curso quedaba fuera (Carlos,
+      // 2026-08-24). `desde` es inclusivo y `hasta` ABIERTO —el arranque del
+      // día siguiente— para no perder el último milisegundo.
+      const zona = await zonaDelNegocio(tx, user.tenantId);
+      const desde = options.from !== undefined ? startOfDayUtc(options.from, zona) : null;
+      const hasta = options.to !== undefined ? endOfDayUtc(options.to, zona) : null;
       if (product === null) {
         throw new NotFoundException({ message: "products.not_found" });
       }
@@ -116,8 +127,8 @@ export class KardexService {
         filtrado AS (
           SELECT * FROM historico h
            WHERE (${soloAlmacen}::uuid IS NULL OR h.warehouse_id = ${soloAlmacen}::uuid)
-             AND (${options.from ?? null}::timestamptz IS NULL OR h.created_at >= ${options.from ?? null}::timestamptz)
-             AND (${options.to ?? null}::timestamptz IS NULL OR h.created_at <= ${options.to ?? null}::timestamptz)
+             AND (${desde}::timestamptz IS NULL OR h.created_at >= ${desde}::timestamptz)
+             AND (${hasta}::timestamptz IS NULL OR h.created_at < ${hasta}::timestamptz)
              AND (${options.direction ?? null}::text IS NULL OR h.direction::text = ${options.direction ?? null}::text)
              AND (${options.reasonCode ?? null}::text IS NULL OR h.reason_code::text = ${options.reasonCode ?? null}::text)
              AND (${options.lotId ?? null}::uuid IS NULL OR h.lot_id = ${options.lotId ?? null}::uuid)
@@ -460,4 +471,20 @@ export class KardexService {
       createdBy: { id: row.created_by, name: row.created_by_name },
     };
   }
+}
+
+/**
+ * La zona horaria del negocio, para traducir días del calendario a instantes.
+ *
+ * Se consulta por listado y no se cachea: es UNA fila por `id` con índice
+ * primario —lo más barato que hace Postgres— y cachearla obligaría a invalidar
+ * cuando el tenant cambie de zona, que es justo el momento en que un valor
+ * viejo daría un rango equivocado sin que nadie lo note.
+ */
+async function zonaDelNegocio(tx: Prisma.TransactionClient, tenantId: string): Promise<string> {
+  const tenant = await tx.tenant.findUnique({
+    where: { id: tenantId },
+    select: { timezone: true },
+  });
+  return tenant?.timezone ?? "UTC";
 }
