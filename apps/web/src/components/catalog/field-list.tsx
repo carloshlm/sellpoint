@@ -1,7 +1,17 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CatalogField, CatalogSummary } from "@/lib/catalogs/api";
+
+/**
+ * El MISMO orden que aplica el API (`position` y desempate por etiqueta):
+ * exportado para que quien calcule un reordenamiento parta de lo que el
+ * usuario está VIENDO, no de otra copia del criterio que un día diverge.
+ */
+export function ordenarCampos(fields: readonly CatalogField[]): CatalogField[] {
+  return [...fields].sort((a, b) => a.position - b.position || a.label.localeCompare(b.label));
+}
 
 interface FieldListProps {
   fields: readonly CatalogField[];
@@ -10,6 +20,10 @@ interface FieldListProps {
   /** Campos estándar del catálogo elegido: se muestran fijos, sin controles. */
   standardLabels: readonly string[];
   onEdit: (field: CatalogField) => void;
+  /** Subir (-1) o bajar (+1) el campo un lugar. Ver `moverCampo` en la ruta. */
+  onMove: (field: CatalogField, direction: -1 | 1) => void;
+  /** Mientras un movimiento persiste, TODOS los botones de orden se apagan. */
+  moving: boolean;
   onRemove: (field: CatalogField) => void;
   onRestore: (field: CatalogField) => void;
 }
@@ -25,6 +39,8 @@ function FieldList({
   canManage,
   standardLabels,
   onEdit,
+  onMove,
+  moving,
   onRemove,
   onRestore,
 }: FieldListProps) {
@@ -32,7 +48,7 @@ function FieldList({
   const catalogName = (id: string | null) =>
     catalogs.find((catalog) => catalog.id === id)?.name ?? t("catalogs.fields.unknownCatalog");
 
-  const sorted = [...fields].sort((a, b) => a.position - b.position);
+  const sorted = ordenarCampos(fields);
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,7 +77,7 @@ function FieldList({
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {sorted.map((field) => (
+            {sorted.map((field, index) => (
               <li
                 key={field.id}
                 data-testid={`field-${field.key}`}
@@ -88,6 +104,29 @@ function FieldList({
 
                 {canManage && (
                   <div className="flex shrink-0 gap-1">
+                    {/* Botones y no arrastre: en un teléfono el drag pelea con
+                        el scroll de la lista, y esto funciona igual con dedo,
+                        ratón y teclado. El aria-label lleva el NOMBRE del
+                        campo: cinco botones que digan solo «Subir» son
+                        indistinguibles para un lector de pantalla. */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t("catalogs.fields.moveUp", { label: field.label })}
+                      disabled={moving || index === 0}
+                      onClick={() => onMove(field, -1)}
+                    >
+                      <ChevronUp />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t("catalogs.fields.moveDown", { label: field.label })}
+                      disabled={moving || index === sorted.length - 1}
+                      onClick={() => onMove(field, 1)}
+                    >
+                      <ChevronDown />
+                    </Button>
                     {field.isArchived ? (
                       <Button variant="ghost" size="sm" onClick={() => onRestore(field)}>
                         {t("catalogs.fields.restore")}

@@ -22,22 +22,10 @@
     "baseUnit": "Unidad base"
   },
   "fields": {
-    "title": "Campos",
     "add": "Agregar campo",
-    "empty": "Todavía no agregaste campos personalizados.",
-    "standardTitle": "Campos estándar",
-    "standardHint": "Vienen con el catálogo y no se pueden quitar.",
-    "customTitle": "Campos personalizados",
-    "requiredBadge": "requerido",
     "archivedBadge": "oculto",
-    "restore": "Restaurar",
-    "remove": "Quitar",
-    "unknownCatalog": "catálogo desconocido",
-    "types": {
-      "text": "Texto",
-      "number": "Numérico",
-      "lookup": "Lista de otro catálogo"
-    },
+    "customTitle": "Campos personalizados",
+    "empty": "Todavía no agregaste campos personalizados.",
     "form": {
       "label": "Nombre del campo",
       "labelHint": "Es lo que verás en los formularios. Puedes cambiarlo cuando quieras.",
@@ -48,13 +36,27 @@
       "lookupTargetEmpty": "Necesitas crear otro subcatálogo antes de usar este tipo.",
       "required": "Es obligatorio"
     },
+    "moveDown": "Bajar {{label}}",
+    "moveUp": "Subir {{label}}",
+    "remove": "Quitar",
     "removeDialog": {
       "title": "Quitar campo",
       "body": "{{count}} registros tienen datos en «{{label}}». El campo se ocultará, pero sus valores no se borran y puedes restaurarlo.",
       "confirm": "Ocultar campo",
       "bodyEmpty": "Vas a eliminar el campo «{{label}}». Todavía no tiene datos cargados, así que se borra por completo. Esta acción no se puede deshacer.",
       "confirmEmpty": "Eliminar campo"
-    }
+    },
+    "requiredBadge": "requerido",
+    "restore": "Restaurar",
+    "standardHint": "Vienen con el catálogo y no se pueden quitar.",
+    "standardTitle": "Campos estándar",
+    "title": "Campos",
+    "types": {
+      "text": "Texto",
+      "number": "Numérico",
+      "lookup": "Lista de otro catálogo"
+    },
+    "unknownCatalog": "catálogo desconocido"
   },
   "form": {
     "textPlaceholder": "",

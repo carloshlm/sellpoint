@@ -6,7 +6,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { FieldForm, type FieldFormValues } from "@/components/catalog/field-form";
-import { FieldList } from "@/components/catalog/field-list";
+import { FieldList, ordenarCampos } from "@/components/catalog/field-list";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
@@ -73,15 +73,45 @@ function CatalogSchemaContent() {
   const updateField = useUpdateField(catalogId);
   const removeField = useRemoveField(catalogId);
 
+  // El mismo orden que el formulario de alta (Carlos, 2026-08-24): primero la
+  // identidad, después la unidad, y el costo ANTES que el precio.
   const standardLabels = catalog?.isSystem
     ? [
         t("catalogs.standard.code"),
         t("catalogs.standard.name"),
-        t("catalogs.standard.price"),
-        t("catalogs.standard.cost"),
         t("catalogs.standard.baseUnit"),
+        t("catalogs.standard.cost"),
+        t("catalogs.standard.price"),
       ]
     : [t("catalogs.standard.code")];
+
+  /**
+   * Subir o bajar un campo (Carlos, 2026-08-24). Se calcula el orden DESEADO
+   * y se persiste `position = índice` solo en las filas donde difiera — que
+   * de paso SANEA los campos heredados que nacieron todos con `position: 0` y
+   * hasta hoy se ordenaban por etiqueta. Secuencial a propósito: dos PATCH en
+   * paralelo podrían aterrizar cruzados y dejar un empate nuevo.
+   */
+  async function moverCampo(field: CatalogField, direccion: -1 | 1) {
+    const orden = ordenarCampos(fields ?? []);
+    const desde = orden.findIndex((candidato) => candidato.id === field.id);
+    const hasta = desde + direccion;
+    if (desde === -1 || hasta < 0 || hasta >= orden.length) {
+      return;
+    }
+    const deseado = [...orden];
+    const [movido] = deseado.splice(desde, 1);
+    if (movido === undefined) {
+      return;
+    }
+    deseado.splice(hasta, 0, movido);
+
+    for (const [indice, candidato] of deseado.entries()) {
+      if (candidato.position !== indice) {
+        await updateField.mutateAsync({ fieldId: candidato.id, input: { position: indice } });
+      }
+    }
+  }
 
   function closeForm() {
     setEditing(null);
@@ -238,6 +268,8 @@ function CatalogSchemaContent() {
               catalogs={catalogs ?? []}
               canManage
               standardLabels={standardLabels}
+              onMove={(field, direction) => void moverCampo(field, direction)}
+              moving={updateField.isPending}
               onEdit={(field) => {
                 setCreating(false);
                 setFormError(null);

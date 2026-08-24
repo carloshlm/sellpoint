@@ -246,3 +246,88 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     await waitFor(() => expect(screen.getAllByText(/Origen del Grano/).length).toBeGreaterThan(1));
   });
 });
+
+/**
+ * ── ORDEN DE CAMPOS (2026-08-24, pedido de Carlos) ─────────────────────────
+ *
+ * Dos contratos: los chips estándar van en el orden del formulario de alta
+ * (código, nombre, unidad base, costo, precio), y los campos personalizados
+ * se reordenan con botones Subir/Bajar — botones y no arrastre, porque en un
+ * teléfono el drag pelea con el scroll de la lista y acá tiene que funcionar
+ * igual con dedo, ratón y teclado.
+ */
+describe("Orden de campos (F2-SCHEMA)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listCatalogs.mockResolvedValue([PRODUCTS_CATALOG, UNITS_CATALOG]);
+    mockedApi.listFields.mockResolvedValue([]);
+    mockedApi.listLookupOptions.mockResolvedValue([]);
+    mockedApi.updateField.mockImplementation(async (_c, _f, input) => textField(input));
+  });
+
+  it("los chips estándar siguen el orden del formulario de alta", async () => {
+    await renderSchema();
+
+    const titulo = await screen.findByText("Campos estándar");
+    const chips = [...(titulo.closest("section")?.querySelectorAll("li") ?? [])].map(
+      (li) => li.textContent,
+    );
+
+    expect(chips).toEqual(["Código", "Nombre", "Unidad base", "Costo", "Precio"]);
+  });
+
+  const tresCampos = () => [
+    textField({ id: "fa", key: "descripcion", label: "Descripción", position: 0 }),
+    textField({ id: "fb", key: "proveedor", label: "Proveedor", position: 1 }),
+    textField({ id: "fc", key: "laboratorio", label: "Laboratorio", position: 2 }),
+  ];
+
+  it("bajar un campo intercambia su posición con el siguiente", async () => {
+    mockedApi.listFields.mockResolvedValue(tresCampos());
+    await renderSchema();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Bajar Descripción" }));
+
+    // Solo se tocan las filas cuya posición CAMBIA: Laboratorio queda igual.
+    await waitFor(() => {
+      expect(mockedApi.updateField).toHaveBeenCalledWith("cat-products", "fb", { position: 0 });
+      expect(mockedApi.updateField).toHaveBeenCalledWith("cat-products", "fa", { position: 1 });
+    });
+    expect(mockedApi.updateField).toHaveBeenCalledTimes(2);
+  });
+
+  it("el primero no puede subir y el último no puede bajar", async () => {
+    mockedApi.listFields.mockResolvedValue(tresCampos());
+    await renderSchema();
+
+    expect(await screen.findByRole("button", { name: "Subir Descripción" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Bajar Laboratorio" })).toBeDisabled();
+    // Y los del medio pueden ambas cosas.
+    expect(screen.getByRole("button", { name: "Subir Proveedor" })).toBeEnabled();
+  });
+
+  /**
+   * Los campos creados antes de que la posición fuera del usuario nacieron
+   * todos con `position: 0` y se ordenan por etiqueta. El primer movimiento
+   * SANEA: persiste posición = índice en cada fila donde difieran, y de ahí
+   * en adelante el orden es del usuario.
+   */
+  it("posiciones duplicadas heredadas se sanean al primer movimiento", async () => {
+    mockedApi.listFields.mockResolvedValue([
+      textField({ id: "fx", key: "aaa", label: "Aaa", position: 0 }),
+      textField({ id: "fy", key: "bbb", label: "Bbb", position: 0 }),
+      textField({ id: "fz", key: "ccc", label: "Ccc", position: 0 }),
+    ]);
+    await renderSchema();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Bajar Bbb" }));
+
+    // Orden deseado: Aaa, Ccc, Bbb. Aaa ya está en 0: no se toca.
+    await waitFor(() => {
+      expect(mockedApi.updateField).toHaveBeenCalledWith("cat-products", "fz", { position: 1 });
+      expect(mockedApi.updateField).toHaveBeenCalledWith("cat-products", "fy", { position: 2 });
+    });
+    expect(mockedApi.updateField).toHaveBeenCalledTimes(2);
+  });
+});

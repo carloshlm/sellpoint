@@ -22,22 +22,10 @@
     "baseUnit": "Base unit"
   },
   "fields": {
-    "title": "Fields",
     "add": "Add field",
-    "empty": "You haven't added any custom fields yet.",
-    "standardTitle": "Standard fields",
-    "standardHint": "They come with the catalog and can't be removed.",
-    "customTitle": "Custom fields",
-    "requiredBadge": "required",
     "archivedBadge": "hidden",
-    "restore": "Restore",
-    "remove": "Remove",
-    "unknownCatalog": "unknown catalog",
-    "types": {
-      "text": "Text",
-      "number": "Number",
-      "lookup": "List from another catalog"
-    },
+    "customTitle": "Custom fields",
+    "empty": "You haven't added any custom fields yet.",
     "form": {
       "label": "Field name",
       "labelHint": "This is what you'll see on forms. You can change it anytime.",
@@ -48,13 +36,27 @@
       "lookupTargetEmpty": "You need another sub-catalog before you can use this type.",
       "required": "Required"
     },
+    "moveDown": "Move {{label}} down",
+    "moveUp": "Move {{label}} up",
+    "remove": "Remove",
     "removeDialog": {
       "title": "Remove field",
       "body": "{{count}} records have data in \"{{label}}\". The field will be hidden, but its values aren't deleted and you can restore it.",
       "confirm": "Hide field",
       "bodyEmpty": "You are about to delete the \"{{label}}\" field. It has no data yet, so it will be removed entirely. This can not be undone.",
       "confirmEmpty": "Delete field"
-    }
+    },
+    "requiredBadge": "required",
+    "restore": "Restore",
+    "standardHint": "They come with the catalog and can't be removed.",
+    "standardTitle": "Standard fields",
+    "title": "Fields",
+    "types": {
+      "text": "Text",
+      "number": "Number",
+      "lookup": "List from another catalog"
+    },
+    "unknownCatalog": "unknown catalog"
   },
   "form": {
     "textPlaceholder": "",
