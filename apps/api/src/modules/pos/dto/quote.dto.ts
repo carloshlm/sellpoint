@@ -52,6 +52,16 @@ export const listQuotesQuerySchema = z
     /** Búsqueda por folio, parcial: el cliente dicta "cero cero uno" por teléfono. */
     folio: z.string().trim().max(32).optional(),
     status: z.enum(["open", "loaded", "canceled"]).optional(),
+    /**
+     * Días del calendario del NEGOCIO (`YYYY-MM-DD`), no instantes.
+     *
+     * Antes esto exigía fecha-hora ISO con offset, así que armar el instante
+     * quedaba del lado del front — y ahí nace el bug de «los de hoy no
+     * salen», que Carlos reportó el 2026-08-24 en el kardex. La traducción a
+     * UTC es del servidor, que es quien conoce la zona del tenant.
+     */
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
     page: z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().positive().max(100).default(20),
   })

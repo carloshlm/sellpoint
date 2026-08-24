@@ -2,6 +2,7 @@ import { type Currency, formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
@@ -34,25 +35,24 @@ export function SalesHistory() {
 
   const [estado, setEstado] = useState<"todas" | "completed" | "canceled">("todas");
   const [pagina, setPagina] = useState(1);
+  /**
+   * Sin rango al abrir, a diferencia del Kardex: acá se entra a buscar «la
+   * venta que no cuadra» o «la cotización de la semana pasada», y un rango
+   * por defecto escondería justo lo que se busca.
+   */
+  const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
 
   const { data, isPending, error } = useSales({
     ...(estado !== "todas" && { status: estado }),
+    // Solo viajan si tienen valor: mandar `from: ""` haría que el API
+    // rechace la consulta por formato.
+    ...(rango.from !== "" && { from: rango.from }),
+    ...(rango.to !== "" && { to: rango.to }),
     page: pagina,
     pageSize: 20,
   });
 
   const puedeAnular = has("pos:cancel");
-
-  if (isPending) {
-    return <p role="status">{t("common.form.loading")}</p>;
-  }
-  if (error !== null) {
-    return (
-      <p role="alert" className="text-destructive text-sm">
-        {error.message}
-      </p>
-    );
-  }
 
   const total = data?.total ?? 0;
   const paginas = Math.max(1, Math.ceil(total / (data?.pageSize ?? 20)));
@@ -80,9 +80,33 @@ export function SalesHistory() {
           <option value="completed">{t("pos.history.completed")}</option>
           <option value="canceled">{t("pos.history.canceled")}</option>
         </select>
+
+        <DateRangeFilter
+          id="sales"
+          from={rango.from}
+          to={rango.to}
+          onChange={(nuevo) => {
+            setRango(nuevo);
+            // Volver a la página 1: quedarse en la 3 de un filtro que ahora
+            // tiene una sola página muestra una tabla vacía que parece un bug.
+            setPagina(1);
+          }}
+        />
       </div>
 
-      {data?.rows.length === 0 ? (
+      {/* El cargando y el error van ACÁ y no en un `return` temprano: cambiar
+          un filtro estrena una consulta sin caché, así que el early return
+          reemplazaba la pantalla ENTERA —incluida la barra de filtros que el
+          usuario estaba tocando— por «Cargando…». Lo destapó el test del
+          rango de fechas, que no encontraba el campo «Hasta» tras cambiar el
+          «Desde». */}
+      {isPending ? (
+        <p role="status">{t("common.form.loading")}</p>
+      ) : error !== null ? (
+        <p role="alert" className="text-destructive text-sm">
+          {error.message}
+        </p>
+      ) : data?.rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("pos.history.empty")}</p>
       ) : (
         <ScrollableTable>

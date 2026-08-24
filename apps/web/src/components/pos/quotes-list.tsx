@@ -2,6 +2,7 @@ import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
@@ -23,10 +24,20 @@ export function QuotesList() {
 
   const [folio, setFolio] = useState("");
   const [estado, setEstado] = useState<"todas" | "open" | "loaded" | "canceled">("todas");
+  /**
+   * Sin rango al abrir, a diferencia del Kardex: acá se entra a buscar «la
+   * cotización de la semana pasada», y un rango
+   * por defecto escondería justo lo que se busca.
+   */
+  const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
 
   const { data, isPending, error } = useQuotes({
     ...(folio.trim() !== "" && { folio: folio.trim() }),
     ...(estado !== "todas" && { status: estado }),
+    // Solo viajan si tienen valor: mandar `from: ""` haría que el API
+    // rechace la consulta por formato.
+    ...(rango.from !== "" && { from: rango.from }),
+    ...(rango.to !== "" && { to: rango.to }),
   });
 
   return (
@@ -61,6 +72,8 @@ export function QuotesList() {
             <option value="canceled">{t("pos.quote.status.canceled")}</option>
           </select>
         </label>
+
+        <DateRangeFilter id="quotes" from={rango.from} to={rango.to} onChange={setRango} />
       </div>
 
       {isPending && <p role="status">{t("common.form.loading")}</p>}

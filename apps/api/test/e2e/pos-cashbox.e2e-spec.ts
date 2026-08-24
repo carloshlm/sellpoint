@@ -720,6 +720,60 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
       const historial = (token: string, query = "") =>
         request(app.getHttpServer()).get(`/pos/sales${query}`).set("Authorization", bearer(token));
 
+      /**
+       * ── EL RANGO SON DÍAS DEL NEGOCIO (2026-08-24) ──────────────────
+       *
+       * Mismo contrato que el kardex y los documentos: `from`/`to` llegan
+       * como `YYYY-MM-DD` y el servidor los traduce con la zona del tenant.
+       * Antes el DTO exigía fecha-hora ISO con offset, así que el front
+       * tenía que armar el instante — y ahí es donde nace el bug de
+       * «los de hoy no salen».
+       */
+      const hoyEnCdmx = () =>
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Mexico_City",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+
+      it("una venta de HOY entra en el rango que termina hoy", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const hoy = hoyEnCdmx();
+        const res = await historial(token, `?from=${hoy}&to=${hoy}`).expect(200);
+
+        expect((res.body as { total: number }).total).toBe(1);
+      });
+
+      it("un rango que termina AYER no la trae", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const ayer = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Mexico_City",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(Date.now() - 86_400_000));
+        const res = await historial(token, `?to=${ayer}`).expect(200);
+
+        // La otra mitad: si el rango se estirara «por las dudas», el filtro
+        // dejaría de filtrar y este test lo caza.
+        expect((res.body as { total: number }).total).toBe(0);
+      });
+
       it("lista las ventas del turno, con sus líneas y su vendedor", async () => {
         const { token, tenantId } = await escenario();
         const { productoId } = await conStock(token, tenantId, 10);

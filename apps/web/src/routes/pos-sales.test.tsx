@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
@@ -323,5 +323,49 @@ describe("Imprimir el ticket (F4-TICKET-02)", () => {
     expect(await screen.findByText(/No pudimos abrir el ticket/)).toBeInTheDocument();
     // La fila sigue ahí: imprimir no es una operación sobre la venta.
     expect(screen.getByText("VTA-000001")).toBeInTheDocument();
+  });
+});
+
+/**
+ * ── FILTRO POR RANGO DE FECHAS (2026-08-24, pedido de Carlos) ─────────────
+ *
+ * El mismo `DateRangeFilter` que ya usan Entradas, Salidas e Inventario: son
+ * cuatro pantallas hoy y los reportes de F5 pedirán la quinta. Copiarlo sería
+ * garantizar que una se quede atrás y mienta sin ponerse roja.
+ *
+ * Ninguna de las dos arranca acotada, a diferencia del Kardex: acá se entra a
+ * buscar «la venta que no cuadra» o «la cotización de la semana pasada», y un
+ * rango por defecto escondería justo lo que se busca.
+ */
+describe("Historial de ventas: rango de fechas (F4-SALE-04)", () => {
+  it("pinta el filtro de rango de fechas", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+
+    expect(await screen.findByLabelText(/desde/i)).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText(/hasta/i)).toHaveAttribute("type", "date");
+  });
+
+  it("elegir un rango lo manda al API", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByLabelText(/desde/i);
+
+    fireEvent.change(screen.getByLabelText(/desde/i), { target: { value: "2026-08-01" } });
+    fireEvent.change(screen.getByLabelText(/hasta/i), { target: { value: "2026-08-24" } });
+
+    await waitFor(() => {
+      expect(mocked.listSales).toHaveBeenCalledWith(
+        expect.objectContaining({ from: "2026-08-01", to: "2026-08-24" }),
+      );
+    });
+  });
+
+  it("sin rango puesto, no viajan fechas vacías", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByLabelText(/desde/i);
+
+    // Mandar `from: ""` haría que el API rechace la consulta por formato.
+    const enviado = mocked.listSales.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(enviado.from).toBeUndefined();
+    expect(enviado.to).toBeUndefined();
   });
 });

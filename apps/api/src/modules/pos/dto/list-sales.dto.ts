@@ -18,8 +18,16 @@ export type CancelSaleDto = z.infer<typeof cancelSaleSchema>;
  */
 export const listSalesQuerySchema = z
   .object({
-    from: z.string().datetime({ offset: true }).optional(),
-    to: z.string().datetime({ offset: true }).optional(),
+    /**
+     * Días del calendario del NEGOCIO (`YYYY-MM-DD`), no instantes.
+     *
+     * Antes esto exigía fecha-hora ISO con offset, así que armar el instante
+     * quedaba del lado del front — y ahí nace el bug de «los de hoy no
+     * salen», que Carlos reportó el 2026-08-24 en el kardex. La traducción a
+     * UTC es del servidor, que es quien conoce la zona del tenant.
+     */
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
     sellerId: z.string().uuid().optional(),
     sessionId: z.string().uuid().optional(),
     status: z.enum(["completed", "canceled"]).optional(),

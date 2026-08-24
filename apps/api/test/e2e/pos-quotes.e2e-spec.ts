@@ -275,6 +275,52 @@ describe("Cotización (F4-QUOTE)", () => {
   });
 
   describe("listar, ver y cancelar (F4-QUOTE-01)", () => {
+    /**
+     * El rango de fechas, con el mismo contrato que ventas, kardex y
+     * documentos: días del calendario del NEGOCIO (`YYYY-MM-DD`), traducidos
+     * a instantes por el servidor con la zona del tenant.
+     */
+    const hoyEnCdmx = () =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+
+    it("una cotización de HOY entra en el rango que termina hoy", async () => {
+      const e = await escenario();
+      await cotizar(e.token, { lines: [{ productId: e.productoId, quantity: 1 }] }).expect(201);
+
+      const hoy = hoyEnCdmx();
+      const res = await request(app.getHttpServer())
+        .get("/pos/quotes")
+        .query({ from: hoy, to: hoy })
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+
+      expect((res.body as { total: number }).total).toBe(1);
+    });
+
+    it("un rango que termina AYER no la trae", async () => {
+      const e = await escenario();
+      await cotizar(e.token, { lines: [{ productId: e.productoId, quantity: 1 }] }).expect(201);
+
+      const ayer = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(Date.now() - 86_400_000));
+      const res = await request(app.getHttpServer())
+        .get("/pos/quotes")
+        .query({ to: ayer })
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+
+      expect((res.body as { total: number }).total).toBe(0);
+    });
+
     it("busca por folio PARCIAL: el cliente dicta el número por teléfono", async () => {
       const e = await escenario();
       await cotizar(e.token, { lines: [{ productId: e.productoId, quantity: 1 }] }).expect(201);

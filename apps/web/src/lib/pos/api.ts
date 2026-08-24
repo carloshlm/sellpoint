@@ -262,6 +262,9 @@ export interface CreateQuoteInput {
 export interface ListQuotesQuery {
   folio?: string;
   status?: QuoteStatus;
+  /** Días del calendario del negocio (`YYYY-MM-DD`), no instantes. */
+  from?: string;
+  to?: string;
   page?: number;
   pageSize?: number;
 }

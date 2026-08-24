@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { POS_FOLIO_PREFIXES } from "@sellpoint/shared";
+import { endOfDayUtc, POS_FOLIO_PREFIXES, startOfDayUtc } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -255,7 +255,22 @@ export class SalesService {
    * quien busca una venta que no cuadra: encontrarla precisamente cuando está
    * anulada.
    */
+  /**
+   * La zona horaria del negocio, para traducir días del calendario a
+   * instantes. Una fila por clave primaria: lo más barato que hace Postgres.
+   * No se cachea a propósito — un valor viejo daría un rango equivocado justo
+   * cuando el tenant cambia de zona, y en silencio.
+   */
+  private async zonaDelNegocio(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+    return tenant?.timezone ?? "UTC";
+  }
+
   async list(user: AuthUser, query: ListSalesQuery) {
+    const zona = await this.zonaDelNegocio(user.tenantId);
     const where = {
       tenantId: user.tenantId,
       ...(query.status !== undefined && { status: query.status }),
@@ -264,8 +279,10 @@ export class SalesService {
       ...(query.from !== undefined || query.to !== undefined
         ? {
             createdAt: {
-              ...(query.from !== undefined && { gte: new Date(query.from) }),
-              ...(query.to !== undefined && { lte: new Date(query.to) }),
+              ...(query.from !== undefined && { gte: startOfDayUtc(query.from, zona) }),
+              // `lt` y no `lte`: el fin de día es el ARRANQUE del siguiente,
+              // así no se pierde el último milisegundo.
+              ...(query.to !== undefined && { lt: endOfDayUtc(query.to, zona) }),
             },
           }
         : {}),
