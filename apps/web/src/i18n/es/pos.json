@@ -36,6 +36,7 @@
     "clearQuantity": "Limpiar la cantidad",
     "empty": "El carrito está vacío. Escanea o busca para empezar.",
     "expiredAside": "{{quantity}} vencidas",
+    "hideNumpad": "Ocultar teclado",
     "integersOnly": "Esta presentación solo admite enteros.",
     "maxDecimals": "Hasta cuatro decimales.",
     "noResults": "No encontramos nada que se pueda vender desde este almacén.",

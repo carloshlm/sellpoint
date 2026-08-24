@@ -220,6 +220,48 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
   });
 });
 
+/**
+ * (3) Carlos: «cuando el movimiento de salida es por venta me aparece dos
+ * veces el folio».
+ *
+ * El API pone `reference: folio` al crear los movimientos de una venta, y la
+ * celda pinta el folio como ENLACE y la referencia como texto gris al lado —
+ * así que el mismo `VTA-000003` salía duplicado. La referencia sigue siendo
+ * útil cuando dice algo distinto (número de factura, remisión); lo que sobra
+ * es repetir lo que el enlace ya dice.
+ *
+ * Se arregla en la VISTA y no en el API a propósito: así también quedan
+ * limpios los movimientos YA guardados, que son los que Carlos está viendo.
+ */
+describe("Tab Kardex: la referencia (F3-KARDEX-02)", () => {
+  it("no repite el folio cuando la referencia dice lo mismo", async () => {
+    mocked.getKardex.mockResolvedValue({
+      rows: [
+        movimiento({
+          reference: "VTA-000003",
+          document: { id: "s1", folio: "VTA-000003", type: "exit", status: "confirmed" },
+        }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+      isComposite: false,
+    });
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    const celda = (await screen.findByRole("link", { name: "VTA-000003" })).closest("td");
+
+    expect(celda?.textContent?.match(/VTA-000003/g)).toHaveLength(1);
+  });
+
+  it("una referencia DISTINTA sí se muestra: es dato, no ruido", async () => {
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    // El fixture trae folio ENT-000042 y referencia F-8891 (una factura).
+    expect(await screen.findByText("F-8891")).toBeInTheDocument();
+  });
+});
+
 describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
   it("lista los almacenes, incluidos los que están en cero", async () => {
     renderTab(<StockTab productId="p1" />);

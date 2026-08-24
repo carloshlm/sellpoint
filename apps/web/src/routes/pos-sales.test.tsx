@@ -369,3 +369,32 @@ describe("Historial de ventas: rango de fechas (F4-SALE-04)", () => {
     expect(enviado.to).toBeUndefined();
   });
 });
+
+/**
+ * (1) Carlos: «no se ve alineado el estado con los rangos de fechas».
+ *
+ * La barra mezclaba dos criterios: el «Estado» era etiqueta al LADO del
+ * control (`items-center`) y el filtro de fechas trae la etiqueta ENCIMA. Con
+ * alturas distintas, los controles quedaban a distinto nivel. Se unifica al
+ * molde del filtro compartido: etiqueta arriba y todo alineado por la BASE.
+ */
+describe("Historial de ventas: la barra de filtros (F4-SALE-04)", () => {
+  it("todos los filtros se alinean por la base, con su etiqueta encima", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+
+    const desde = await screen.findByLabelText(/desde/i);
+    const barra = desde.closest("div")?.parentElement;
+
+    expect(barra?.className).toContain("items-end");
+    expect(barra?.className).not.toContain("items-center");
+  });
+
+  it("el Estado tiene su etiqueta ENCIMA, como los demás", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+
+    const select = await screen.findByLabelText(/estado/i);
+    // La etiqueta y el control comparten un contenedor en COLUMNA: si fueran
+    // hermanos en fila, la etiqueta volvería al costado.
+    expect(select.closest("label,div")?.className).toContain("flex-col");
+  });
+});

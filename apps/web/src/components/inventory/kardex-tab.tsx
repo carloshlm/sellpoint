@@ -195,7 +195,11 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
                     >
                       {row.document.folio}
                     </Link>
-                    {row.reference !== null && (
+                    {/* La referencia solo si DICE algo distinto: en una venta
+                        el API la llena con el folio mismo, y repetir lo que el
+                        enlace ya dice es ruido (Carlos, 2026-08-24). Cuando
+                        trae una factura o una remisión, sí aporta. */}
+                    {row.reference !== null && row.reference !== row.document.folio && (
                       <span className="ml-2 text-muted-foreground text-xs">{row.reference}</span>
                     )}
                   </td>

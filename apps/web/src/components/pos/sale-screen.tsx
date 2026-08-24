@@ -48,7 +48,11 @@ export function SaleScreen({ session }: SaleScreenProps) {
 
       {ultima !== null && (
         <div
-          className="flex flex-wrap items-center gap-3 rounded-md bg-primary/10 px-3 py-2"
+          // VERDE y no el azul de información (Carlos, 2026-08-24): un cobro
+          // exitoso es la confirmación que el cajero busca de reojo con el
+          // cliente enfrente, y el verde se reconoce sin leer. Token
+          // `--success`, no un color crudo: la barrera de theming lo exige.
+          className="flex flex-wrap items-center gap-3 rounded-md bg-success-soft px-3 py-2 text-success"
           data-testid="sale-done"
         >
           <p role="status" className="font-medium text-sm">

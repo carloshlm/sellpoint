@@ -49,7 +49,11 @@ export function CartPanel() {
             selected={line.key === seleccionada}
             onSelect={() => {
               setAviso(null);
-              setSeleccionada(line.key);
+              // Tocar la línea YA seleccionada cierra el teclado: es el gesto
+              // que uno intenta primero, y sin esto la pantalla parece
+              // trabada (Carlos, 2026-08-24). Tocar OTRA línea cambia de
+              // línea sin cerrar — se sigue capturando.
+              setSeleccionada((actual) => (actual === line.key ? null : line.key));
             }}
           />
         ))}
@@ -58,13 +62,26 @@ export function CartPanel() {
       <Totals lines={lines} />
 
       {activa !== null && (
-        <Numpad
-          value={activa.quantity}
-          allowFractional={admiteDecimales(activa)}
-          hint={aviso}
-          onHint={setAviso}
-          onChange={(v) => useCartStore.getState().setQuantity(activa.key, v)}
-        />
+        <>
+          {/* El teclado ocupa media pantalla y tapa el carrito: hace falta una
+              salida EXPLÍCITA además del gesto de tocar la línea otra vez —
+              un gesto que nadie descubre si no se lo cuentan. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="self-end"
+            onClick={() => setSeleccionada(null)}
+          >
+            {t("pos.cart.hideNumpad")}
+          </Button>
+          <Numpad
+            value={activa.quantity}
+            allowFractional={admiteDecimales(activa)}
+            hint={aviso}
+            onHint={setAviso}
+            onChange={(v) => useCartStore.getState().setQuantity(activa.key, v)}
+          />
+        </>
       )}
     </section>
   );
@@ -78,11 +95,19 @@ export function CartPanel() {
  * server ya derivó `allowFractionalInput` de la categoría de la unidad; acá
  * solo se lee.
  *
- * Un servicio admite decimales: media hora de consulta es media hora.
+ * ── Un servicio va en ENTEROS (Carlos, 2026-08-24) ──────────────────────
+ *
+ * Acá decía «un servicio admite decimales: media hora de consulta es media
+ * hora», y suena razonable — pero un servicio en este modelo NO tiene unidad:
+ * solo código, nombre y precio. Sin unidad no hay forma de distinguir «hora
+ * de consulta» de «impresión», y Carlos vio 1.7 impresiones en el carrito.
+ * Enteros es lo coherente con el modelo que existe; el día que un servicio se
+ * cobre por fracción, la respuesta es un campo SUYO —como
+ * `allowFractionalInput` en las presentaciones— y no un permiso general.
  */
 function admiteDecimales(line: CartLine): boolean {
   if (line.type === "service") {
-    return true;
+    return false;
   }
   return (
     line.presentations.find((p) => p.id === line.presentationId)?.allowFractionalInput ?? false
@@ -150,17 +175,32 @@ function CartLineRow({
           </span>
         </button>
 
-        <span className="tabular-nums" data-testid={`cart-qty-${line.key}`}>
+        {/* Cantidad e importe también ABREN el teclado: la cantidad es
+            justamente lo que se va a cambiar, así que es el lugar más natural
+            para tocar, y el importe está pegado a ella (Carlos, 2026-08-24).
+            Son `button` y no `span` con onClick: así llegan por teclado y un
+            lector de pantalla los anuncia como lo que son. */}
+        <button
+          type="button"
+          className="tabular-nums"
+          data-testid={`cart-qty-${line.key}`}
+          onClick={onSelect}
+        >
           {/* La cantidad se pinta según la unidad: piezas sin decimales, kilos
               con tres. La regla vive en la unidad, no en esta pantalla. */}
           {line.type === "product"
             ? formatQuantityWithUnit(line.quantity, line.baseUnit, locale)
             : line.quantity}
-        </span>
+        </button>
 
-        <span className="w-24 text-right tabular-nums">
+        <button
+          type="button"
+          className="w-24 text-right tabular-nums"
+          data-testid={`cart-total-${line.key}`}
+          onClick={onSelect}
+        >
           {formatMoney(totalDeLinea(line), currency, locale)}
-        </span>
+        </button>
 
         <Button variant="ghost" aria-label={t("pos.cart.remove")} onClick={() => remove(line.key)}>
           ×

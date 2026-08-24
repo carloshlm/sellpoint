@@ -36,6 +36,7 @@
     "clearQuantity": "Clear the quantity",
     "empty": "The cart is empty. Scan or search to start.",
     "expiredAside": "{{quantity}} expired",
+    "hideNumpad": "Hide keypad",
     "integersOnly": "This presentation only takes whole numbers.",
     "maxDecimals": "Up to four decimals.",
     "noResults": "We found nothing sellable from this warehouse.",

@@ -61,25 +61,28 @@ export function SalesHistory() {
     <section className="flex flex-col gap-4" data-testid="sales-history">
       <h1 className="font-semibold text-xl">{t("pos.history.title")}</h1>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="sales-status" className="font-medium text-sm">
-          {t("pos.history.status")}
+      {/* `items-end` y etiqueta ENCIMA: el filtro de fechas trae su etiqueta
+          arriba, así que un «Estado» con la etiqueta al costado dejaba los
+          controles a distinto nivel (Carlos, 2026-08-24). Un solo molde. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <label htmlFor="sales-status" className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{t("pos.history.status")}</span>
+          <select
+            id="sales-status"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={estado}
+            onChange={(e) => {
+              setEstado(e.target.value as typeof estado);
+              // Volver a la página 1: quedarse en la 3 de un filtro que ahora
+              // tiene una sola página muestra una tabla vacía que parece un bug.
+              setPagina(1);
+            }}
+          >
+            <option value="todas">{t("pos.history.all")}</option>
+            <option value="completed">{t("pos.history.completed")}</option>
+            <option value="canceled">{t("pos.history.canceled")}</option>
+          </select>
         </label>
-        <select
-          id="sales-status"
-          className="h-9 rounded-md border bg-background px-2 text-sm"
-          value={estado}
-          onChange={(e) => {
-            setEstado(e.target.value as typeof estado);
-            // Volver a la página 1: quedarse en la 3 de un filtro que ahora
-            // tiene una sola página muestra una tabla vacía que parece un bug.
-            setPagina(1);
-          }}
-        >
-          <option value="todas">{t("pos.history.all")}</option>
-          <option value="completed">{t("pos.history.completed")}</option>
-          <option value="canceled">{t("pos.history.canceled")}</option>
-        </select>
 
         <DateRangeFilter
           id="sales"

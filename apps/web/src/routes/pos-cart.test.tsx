@@ -70,6 +70,15 @@ const AGUA: posApi.LookupProductItem = {
   matchedPresentationId: null,
 };
 
+const IMPRESION: posApi.LookupServiceItem = {
+  type: "service",
+  matchedBy: "text",
+  id: "srv-impresion",
+  code: "IMPRESION001",
+  name: "Impresión",
+  price: "1.00",
+};
+
 const HARINA: posApi.LookupProductItem = {
   ...AGUA,
   id: "prod-harina",
@@ -301,6 +310,90 @@ describe("El carrito del POS (F4-CART)", () => {
       expect(within(numpad).getByRole("button", { name: "." })).toBeInTheDocument();
     });
 
+    /**
+     * ── SERVICIOS: ENTEROS (2026-08-24, corrección de Carlos) ───────────
+     *
+     * El código decía «un servicio admite decimales: media hora de consulta
+     * es media hora» y suena razonable — pero un servicio en este modelo no
+     * tiene UNIDAD: solo código, nombre y precio. Sin unidad no hay forma de
+     * distinguir «hora de consulta» de «impresión», y Carlos vio 1.7
+     * impresiones en el carrito. Enteros es lo coherente con el modelo que
+     * hay; el día que un servicio se cobre por fracción, la respuesta es un
+     * campo suyo, no un permiso general.
+     */
+    it("un SERVICIO no ofrece el punto: no se venden 1.7 impresiones", async () => {
+      await renderPos();
+      useCartStore.getState().add(IMPRESION);
+
+      await userEvent.click(await screen.findByText("Impresión"));
+
+      const numpad = await screen.findByTestId("numpad");
+      expect(within(numpad).queryByRole("button", { name: "." })).not.toBeInTheDocument();
+    });
+
+    /**
+     * ── ABRIR EL TECLADO DESDE CANTIDAD Y PRECIO (2026-08-24) ───────────
+     *
+     * Carlos: el teclado solo salía tocando el NOMBRE. La cantidad es
+     * justamente lo que se va a cambiar, así que es el lugar más natural para
+     * tocar — y el importe está pegado a ella.
+     */
+    it.each(["cantidad", "importe"])("tocar el %s abre el teclado", async (zona) => {
+      await renderPos();
+      useCartStore.getState().add(AGUA);
+      await screen.findByText("Agua mineral");
+      const key = useCartStore.getState().lines[0]?.key ?? "";
+
+      await userEvent.click(
+        screen.getByTestId(zona === "cantidad" ? `cart-qty-${key}` : `cart-total-${key}`),
+      );
+
+      expect(await screen.findByTestId("numpad")).toBeInTheDocument();
+    });
+
+    /**
+     * ── CERRAR EL TECLADO (2026-08-24) ──────────────────────────────────
+     *
+     * Ocupa media pantalla y tapa el carrito. Dos salidas, y las dos importan:
+     * un botón explícito —descubrible— y volver a tocar la MISMA línea, que
+     * es el gesto que uno intenta primero. Sin la segunda, tocar la línea ya
+     * seleccionada no hace nada y la pantalla parece trabada.
+     */
+    it("un botón cierra el teclado", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA);
+      await userEvent.click(await screen.findByText("Agua mineral"));
+      await screen.findByTestId("numpad");
+
+      await userEvent.click(screen.getByRole("button", { name: /ocultar teclado/i }));
+
+      expect(screen.queryByTestId("numpad")).not.toBeInTheDocument();
+    });
+
+    it("volver a tocar la MISMA línea también lo cierra", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA);
+
+      await userEvent.click(await screen.findByText("Agua mineral"));
+      await screen.findByTestId("numpad");
+      await userEvent.click(screen.getByText("Agua mineral"));
+
+      expect(screen.queryByTestId("numpad")).not.toBeInTheDocument();
+    });
+
+    it("tocar OTRA línea NO lo cierra: cambia de línea", async () => {
+      await renderPos();
+      useCartStore.getState().add(AGUA);
+      useCartStore.getState().add(HARINA);
+
+      await userEvent.click(await screen.findByText("Agua mineral"));
+      await userEvent.click(screen.getByText("Harina a granel"));
+
+      // Sigue abierto y ahora edita la harina — que sí admite decimales.
+      const numpad = await screen.findByTestId("numpad");
+      expect(within(numpad).getByRole("button", { name: "." })).toBeInTheDocument();
+    });
+
     it("los dígitos escriben la cantidad de la línea seleccionada", async () => {
       await renderPos();
       useCartStore.getState().add(AGUA);
@@ -457,6 +550,27 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
         lines: [{ productId: "prod-agua", presentationId: PIEZA.id, quantity: 2 }],
       });
       expect(await screen.findByTestId("sale-done")).toHaveTextContent("VTA-000007");
+    });
+
+    /**
+     * (2) Carlos: que el aviso de venta cobrada sea VERDE.
+     *
+     * Estaba en `bg-primary/10`, el mismo azul que usa la app para cualquier
+     * información. Un cobro exitoso es la confirmación que el cajero busca de
+     * reojo con el cliente enfrente: el verde se reconoce sin leer. Se usa el
+     * token `--success` que ya existe, no un color crudo — la barrera de
+     * theming lo exige y ya me cobró una vez.
+     */
+    it("el aviso de venta cobrada se ve como ÉXITO, no como información", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      await conCarrito();
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalled());
+
+      const aviso = await screen.findByTestId("sale-done");
+      expect(aviso.className).toContain("success");
+      expect(aviso.className).not.toContain("bg-primary");
     });
 
     it("cobrada la venta, el carrito queda vacío para el siguiente cliente", async () => {
