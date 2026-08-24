@@ -200,10 +200,26 @@ export class LotsService {
       if (input.lotCode !== undefined && input.lotCode !== lote.lotCode) {
         const tomado = await tx.productLot.findFirst({
           where: { productId, tenantId: user.tenantId, lotCode: input.lotCode },
-          select: { id: true },
+          // La CADUCIDAD es lo que distingue a un lote de otro en la pantalla:
+          // sin ella el mensaje dice «ya lo usa otro lote» y el usuario, que
+          // está viendo dos renglones, no sabe cuál de los dos choca
+          // (Carlos, 2026-08-24: «el mensaje es confuso»).
+          select: { id: true, lotCode: true, expiresAt: true },
         });
         if (tomado !== null) {
-          throw new ConflictException({ message: "inventory.lot_code_taken" });
+          throw new ConflictException({
+            // Dos mensajes y no uno con «(sin caducidad)» pegado: una frase
+            // que cambia de forma según los datos se lee peor que dos frases
+            // escritas para su caso.
+            message:
+              tomado.expiresAt === null
+                ? "inventory.lot_code_taken_no_expiry"
+                : "inventory.lot_code_taken",
+            args: {
+              lotCode: tomado.lotCode,
+              expiresAt: tomado.expiresAt?.toISOString().slice(0, 10) ?? "",
+            },
+          });
         }
       }
 

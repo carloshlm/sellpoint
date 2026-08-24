@@ -91,7 +91,11 @@ export function LotEditor({
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-destructive text-sm">
+        // En caja suave y no como línea de texto pelada: el mensaje del
+        // conflicto de lote ahora EXPLICA (qué lote choca, cuándo caduca, por
+        // qué la regla existe) y tres renglones en rojo corrido alarman más de
+        // lo que informan. Mismo molde que el resto de los errores de la app.
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
         </p>
       )}

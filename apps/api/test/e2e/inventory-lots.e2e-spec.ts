@@ -616,7 +616,23 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       // llega porque el API normaliza antes de comparar (2026-08-23). Sin esa
       // normalización, `tarde` y `TARDE` serían dos lotes distintos del mismo
       // producto — existencias partidas y FEFO tratándolos por separado.
-      await editar(token, productId, prontoId, { lotCode: "tarde" }).expect(409);
+      const res = await editar(token, productId, prontoId, { lotCode: "tarde" }).expect(409);
+
+      /**
+       * El mensaje NOMBRA al lote que estorba y su caducidad (Carlos,
+       * 2026-08-24: «el mensaje es confuso»). Decir «ese código ya lo usa
+       * otro lote» es cierto y no sirve: el usuario ve dos renglones y no
+       * sabe cuál de los dos es el que choca ni por qué la regla existe.
+       * Con la fecha puede reconocerlo en la lista de un vistazo.
+       */
+      expect(res.body).toMatchObject({
+        code: "inventory.lot_code_taken",
+        message: expect.stringContaining("TARDE"),
+      });
+      // La caducidad del lote en conflicto es lo que lo distingue en pantalla.
+      expect((res.body as { message: string }).message).toMatch(
+        /\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4}/,
+      );
     });
 
     /**
