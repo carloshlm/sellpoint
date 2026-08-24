@@ -143,6 +143,12 @@ export interface SaleItem {
 export interface Sale {
   id: string;
   folio: string;
+  /**
+   * El código del ticket: `YYYYMMDD` + consecutivo diario de 4 dígitos.
+   * Nulo en las ventas anteriores al cambio (2026-08-24) — no se
+   * backfillearon a propósito, así que la UI tiene que tolerar el hueco.
+   */
+  barcode: string | null;
   warehouseId: string;
   status: "completed" | "canceled";
   paymentMethod: PaymentMethod;

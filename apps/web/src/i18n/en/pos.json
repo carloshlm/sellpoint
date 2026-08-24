@@ -94,6 +94,7 @@
   },
   "history": {
     "all": "All",
+    "barcode": "Barcode",
     "cancel": "Cancel",
     "cancelBody": "Sale {{folio}} gets reversed: the stock returns to the warehouse and the opposite movement stays in the ledger. Nothing is deleted — it can be audited later.",
     "cancelFailed": "We couldn't cancel the sale.",
@@ -103,6 +104,7 @@
     "date": "Date",
     "empty": "There are no sales to show yet.",
     "folio": "Receipt number or code",
+    "folioColumn": "Receipt number",
     "method": "Payment",
     "next": "Next",
     "page": "Page {{page}} of {{pages}}",

@@ -62,6 +62,7 @@ const venta = (overrides: Partial<posApi.SaleRow> = {}): posApi.SaleRow => ({
   discount: "0.00",
   total: "100.00",
   createdAt: "2026-08-21T16:00:00.000Z",
+  barcode: "202608210001",
   items: [],
   warehouse: { id: "w1", name: "Almacén Centro" },
   seller: { id: "u1", name: "Ana Pérez" },
@@ -149,6 +150,53 @@ describe("Historial de ventas (F4-UI-03)", () => {
       expect(screen.getByText("$100.00")).toBeInTheDocument();
     });
 
+    /**
+     * El código del ticket como COLUMNA (Carlos, 2026-08-24).
+     *
+     * Ya se podía buscar por él, pero no se veía: quien tiene el papel en la
+     * mano y quiere confirmar que la fila es la suya comparaba contra un dato
+     * invisible. Va segunda —pegada al folio— porque las dos son la misma
+     * pregunta: «¿cuál venta es ésta?».
+     */
+    it("el código de barras es la SEGUNDA columna, al lado del folio", async () => {
+      mocked.listSales.mockResolvedValue(pagina([venta({ barcode: "202608240045" })]));
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      const fila = (await screen.findByText("VTA-000001")).closest("tr") as HTMLElement;
+      const tabla = fila.closest("table") as HTMLElement;
+
+      expect(within(tabla).getAllByRole("columnheader")[1]).toHaveTextContent("Código de barras");
+      expect(within(fila).getAllByRole("cell")[1]).toHaveTextContent("202608240045");
+    });
+
+    /**
+     * Las ventas anteriores al cambio tienen `barcode` nulo y NO se
+     * backfillearon (decisión del plan): la columna tiene que decir «no hay»
+     * en vez de dejar un hueco que parece un dato perdido.
+     */
+    it("una venta sin código pinta un guion, no un vacío", async () => {
+      mocked.listSales.mockResolvedValue(pagina([venta({ barcode: null })]));
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      const fila = (await screen.findByText("VTA-000001")).closest("tr") as HTMLElement;
+      expect(within(fila).getAllByRole("cell")[1]).toHaveTextContent("—");
+    });
+
+    /**
+     * El buscador sigue diciendo «Folio o código» —busca por los dos— pero la
+     * COLUMNA del folio ya no puede llamarse igual: al lado de la columna del
+     * código, «Folio o código» sería mentira.
+     */
+    it("la columna del folio se llama Folio, aunque el buscador diga Folio o código", async () => {
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      const fila = (await screen.findByText("VTA-000001")).closest("tr") as HTMLElement;
+      const tabla = fila.closest("table") as HTMLElement;
+
+      expect(within(tabla).getAllByRole("columnheader")[0]).toHaveTextContent("Folio");
+      expect(within(tabla).getAllByRole("columnheader")[0]).not.toHaveTextContent("código");
+    });
+
     it("sin ventas lo dice, en vez de dejar una tabla vacía", async () => {
       mocked.listSales.mockResolvedValue(pagina([]));
       await renderRuta("/pos/sales", ["pos:view"]);
@@ -215,6 +263,26 @@ describe("Historial de ventas (F4-UI-03)", () => {
 
       // El API contestaría 409 y el botón habría mentido.
       expect(screen.queryByRole("button", { name: "Anular" })).not.toBeInTheDocument();
+    });
+
+    /**
+     * El `colSpan` del diálogo tiene que seguir a la tabla: cada columna nueva
+     * lo deja corto y el formulario de anular se encoge contra el borde. Este
+     * test es la alarma que avisa cuando alguien agrega una columna y olvida
+     * el número.
+     */
+    it("el diálogo de anular abarca la tabla entera", async () => {
+      await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
+      await screen.findByText("VTA-000001");
+      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+
+      const celda = (await screen.findByTestId("cancel-VTA-000001")).closest(
+        "td",
+      ) as HTMLTableCellElement;
+      const tabla = celda.closest("table") as HTMLElement;
+      const columnas = within(tabla).getAllByRole("columnheader").length;
+
+      expect(celda.colSpan).toBe(columnas);
     });
 
     /**

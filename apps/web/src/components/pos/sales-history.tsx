@@ -136,7 +136,8 @@ export function SalesHistory() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left">
-                <th className="p-2">{t("pos.history.folio")}</th>
+                <th className="p-2">{t("pos.history.folioColumn")}</th>
+                <th className="p-2">{t("pos.history.barcode")}</th>
                 <th className="p-2">{t("pos.history.date")}</th>
                 <th className="p-2">{t("pos.history.seller")}</th>
                 <th className="p-2">{t("pos.history.method")}</th>
@@ -213,6 +214,12 @@ function SaleRowView({
     <>
       <tr className={`border-b ${anulada ? "text-muted-foreground" : ""}`}>
         <td className="p-2 font-medium tabular-nums">{venta.folio}</td>
+        {/* Las ventas anteriores al cambio (2026-08-24) no se backfillearon:
+            el guion dice «esta venta no tiene código» en vez de dejar un hueco
+            que se lee como dato perdido. */}
+        <td className="p-2 tabular-nums">
+          {venta.barcode ?? <span className="text-muted-foreground">—</span>}
+        </td>
         <td className="p-2 tabular-nums">
           {/* `createdAt` es un INSTANTE, no una fecha de calendario: se muestra
               en la hora local de quien mira. La distinción está documentada en
@@ -266,7 +273,7 @@ function SaleRowView({
 
       {anulando && (
         <tr>
-          <td colSpan={7} className="p-2">
+          <td colSpan={8} className="p-2">
             <ConfirmDialog
               data-testid={`cancel-${venta.folio}`}
               title={t("pos.history.cancelTitle", { folio: venta.folio })}

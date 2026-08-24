@@ -463,6 +463,7 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
   const venta = (): posApi.Sale => ({
     id: "sale-1",
     folio: "VTA-000007",
+    barcode: "202608210007",
     warehouseId: "w1",
     status: "completed",
     paymentMethod: "cash",
