@@ -324,3 +324,105 @@ describe("El menú devuelve al listado (bug de navegación)", () => {
     expect(await screen.findByRole("button", { name: "Presentaciones" })).toBeInTheDocument();
   });
 });
+
+/**
+ * ── LOS DOS CÓDIGOS EN EL ALTA (2026-08-24, decisión de Carlos) ────────────
+ *
+ * Regla: se exige AL MENOS UNO de los dos códigos.
+ *
+ * · Producto CON código de barras y sin interno → el interno se completa solo
+ *   con el de barras. Adoptar el código mundial como interno es lo que hace
+ *   medio comercio, y el interno es obligatorio (identifica en el catálogo).
+ * · Producto SIN código de barras → el de barras queda VACÍO, nunca se copia
+ *   el interno hacia allá: el código de barras describe una realidad FÍSICA
+ *   (lo impreso en el empaque) y rellenarlo inventaría códigos que ningún
+ *   escáner va a leer, ensuciando reportes y el índice único del negocio.
+ * · El costo vacío viaja como AUSENTE, no como cero: vacío es «sin capturar»
+ *   (NULL) y cero es «me cuesta $0» — el promedio ponderado de F5 trataría
+ *   ese cero como costo real y envenenaría los márgenes.
+ */
+describe("Los dos códigos del alta (F2-PROD)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });
+    mockedProducts.createProduct.mockResolvedValue(PRODUCT);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  async function abrirAlta() {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+    return user;
+  }
+
+  it("con solo código de barras, el interno se completa solo", async () => {
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/Código de barras/), "064042603179");
+    await user.type(screen.getByLabelText(/Nombre/), "Oatmeal Bars");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      // El segundo argumento es el CONTEXTO que React Query le pasa a la
+      // mutación — el gotcha documentado en movements-documents.test.tsx.
+      expect(mockedProducts.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ sku: "064042603179", barcode: "064042603179" }),
+        expect.anything(),
+      );
+    });
+  });
+
+  it("con solo código interno, el de barras NO se inventa", async () => {
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/Código interno/), "GRANEL-01");
+    await user.type(screen.getByLabelText(/Nombre/), "Arroz a granel");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockedProducts.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ sku: "GRANEL-01" }),
+        expect.anything(),
+      );
+    });
+    const payload = mockedProducts.createProduct.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.barcode).toBeUndefined();
+  });
+
+  it("sin NINGÚN código, Guardar está deshabilitado y la pantalla dice por qué", async () => {
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/Nombre/), "Sin códigos");
+
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+    // Un botón muerto sin explicación se lee como pantalla rota.
+    expect(screen.getByText(/al menos uno de los dos códigos/i)).toBeInTheDocument();
+  });
+
+  it("el costo vacío viaja AUSENTE, no como cero", async () => {
+    const user = await abrirAlta();
+
+    await user.type(screen.getByLabelText(/Código interno/), "SIN-COSTO");
+    await user.type(screen.getByLabelText(/Nombre/), "Sin costo");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(mockedProducts.createProduct).toHaveBeenCalled());
+    const payload = mockedProducts.createProduct.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload.cost).toBeUndefined();
+  });
+});

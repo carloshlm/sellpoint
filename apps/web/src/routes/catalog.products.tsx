@@ -452,8 +452,15 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         event.preventDefault();
         setError(null);
         setFieldErrors({});
+        // La regla de los DOS códigos (Carlos, 2026-08-24): se exige al menos
+        // uno. Sin interno, se adopta el de barras — es lo que hace medio
+        // comercio con los códigos mundiales, y el interno es obligatorio.
+        // La copia INVERSA no existe a propósito: el código de barras
+        // describe lo IMPRESO en el empaque, y rellenarlo con el interno
+        // inventaría códigos que ningún escáner va a leer.
+        const codigoInterno = sku.trim() !== "" ? sku : barcode.trim();
         const payload = {
-          sku,
+          sku: codigoInterno,
           name,
           baseUnit,
           stockMin: Number(stockMin) || 0,
@@ -507,9 +514,20 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         label={t("products.form.sku")}
         hint={t("products.form.skuHint")}
         value={sku}
+        // El placeholder MUESTRA lo que se va a usar: con el interno vacío y
+        // un código de barras puesto, el interno adopta ese valor al guardar.
+        // Decirlo con el valor real vale más que explicarlo en abstracto.
+        placeholder={barcode.trim() !== "" && sku.trim() === "" ? barcode : undefined}
         disabled={!canManage}
         onChange={(event) => setSku(event.target.value)}
       />
+      {/* El porqué del botón muerto. Un Guardar deshabilitado sin explicación
+          se lee como pantalla rota — lección repetida de este proyecto. */}
+      {sku.trim() === "" && barcode.trim() === "" && (
+        <p className="text-muted-foreground text-sm" role="status">
+          {t("products.form.codesRequired")}
+        </p>
+      )}
       <TextField
         label={t("products.form.name")}
         value={name}
@@ -609,7 +627,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
             type="submit"
             disabled={
               isSubmitting ||
-              !sku.trim() ||
+              (!sku.trim() && !barcode.trim()) ||
               !name.trim() ||
               Boolean(priceError) ||
               Boolean(costError)
