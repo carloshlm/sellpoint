@@ -1,3 +1,4 @@
 {
-  "export_too_large": "The report has {total} rows and the download limit is {max}. Narrow the filters —a shorter date range or a single warehouse, for example— and try again."
+  "export_too_large": "The report has {total} rows and the download limit is {max}. Narrow the filters —a shorter date range or a single warehouse, for example— and try again.",
+  "invalid_query": "The report filters are not valid."
 }

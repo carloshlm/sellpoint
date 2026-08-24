@@ -2614,19 +2614,20 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-STK — Stock por almacén
 
-- [ ] **F5-STK-01** — `GET /reports/stock`: el endpoint transversal
+- [x] **F5-STK-01** *(cerrada el 2026-08-24)* — `GET /reports/stock`: el endpoint transversal
   - **Salida:** consulta NUEVA (no existe hoy): producto × almacén con stock, mínimo y flag bajo-mínimo; filtros `warehouseId` (validado con `assertWarehouseInScope`), `belowMin`, búsqueda; solo almacenes del alcance; orden server-side con desempate por `id` (criterio de la casa: sin él una fila puede salir en dos páginas o en ninguna)
   - **Verificar:** e2e: usuario acotado al almacén A no ve filas de B (contraprueba); `belowMin` solo devuelve déficit; orden estable entre páginas
+  - **`belowMin` compara contra el TOTAL, no contra el saldo de cada fila** (2026-08-24): `stock_min` es un umbral GLOBAL del producto —«no quiero tener menos de 100 en total»—, no por bodega; es el mismo criterio del kardex y el que responde la pregunta de reposición. Aplicarlo por fila marcaría en rojo tres bodegas con 40 cada una contra un mínimo de 100, habiendo 120. El total se suma SOLO sobre los almacenes del alcance: sumar los de afuera filtraría por esa ventana stock que la persona no puede ver
   - **Depende de:** F5-CORE-03
   - **Estimación:** 3 h
 
-- [ ] **F5-STK-02** — Export del stock
+- [x] **F5-STK-02** *(cerrada el 2026-08-24)* — Export del stock
   - **Salida:** `GET /reports/stock/export` con los mismos filtros, sin paginar, vía el helper de tope; descarga con `@Res()` + `Content-Disposition` (patrón de F3); hoja «Stock»
   - **Verificar:** e2e: xlsx descargable con filas = consulta filtrada; contraprueba: dataset sobre el tope → 400
   - **Depende de:** F5-STK-01, F5-CORE-02
   - **Estimación:** 1 h
 
-- [ ] **F5-STK-03** — Valorización en el reporte
+- [x] **F5-STK-03** *(cerrada el 2026-08-24)* — Valorización en el reporte
   - **Salida:** columnas `avgCost` y `totalValue` (stock × promedio) en `/reports/stock` y su export, vía `WeightedCostService`; productos sin historial muestran la celda vacía
   - **Verificar:** e2e: los valores coinciden con el unit de F5-COST-01; contraprueba: producto sin entradas exporta celda vacía, no 0
   - **Depende de:** F5-STK-01, F5-COST-01
@@ -2638,7 +2639,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F5-STK-02, F5-HUB-03
   - **Estimación:** 2.5 h
 
-- [ ] **F5-STK-05** — Detalle por lote y ubicación en el reporte de stock
+- [x] **F5-STK-05** *(cerrada el 2026-08-24)* — Detalle por lote y ubicación en el reporte de stock
   - **Salida:** `GET /reports/stock?detail=lots` (y su export, hoja «Stock por lote»): producto × almacén × lote × ubicación con caducidad y cantidad, solo productos con `tracksLots`. La fuente es `stock_lots` + `product_lots` — los MISMOS joins de `/products/:id/stock`, extraídos a consulta compartida, no una segunda implementación. Directiva de Carlos (2026-08-24): el almacenaje contempla la ubicación además del lote y la caducidad
   - **Verificar:** e2e: un producto con el mismo lote en dos ubicaciones devuelve DOS filas (la ubicación parte el stock — es la semántica de la PK de `stock_lots`); caducidad nula exporta celda vacía; contraprueba: sin `detail` la respuesta es idéntica a F5-STK-01 (los tests de esa tarea verdes sin tocar); contraprueba de alcance: almacén fuera del scope no aparece
   - **Depende de:** F5-STK-01, F5-STK-02

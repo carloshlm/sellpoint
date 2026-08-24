@@ -1,3 +1,4 @@
 {
-  "export_too_large": "El reporte tiene {total} filas y el máximo para descargar es {max}. Acota los filtros —por ejemplo, un rango de fechas más corto o un solo almacén— y vuelve a intentar."
+  "export_too_large": "El reporte tiene {total} filas y el máximo para descargar es {max}. Acota los filtros —por ejemplo, un rango de fechas más corto o un solo almacén— y vuelve a intentar.",
+  "invalid_query": "Los filtros del reporte no son válidos."
 }
