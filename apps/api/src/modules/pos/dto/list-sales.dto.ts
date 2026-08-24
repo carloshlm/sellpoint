@@ -28,6 +28,10 @@ export const listSalesQuerySchema = z
      */
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
+    /** Parcial e insensible, como el de cotizaciones: quien dicta el folio
+     *  por teléfono dice «cero cero uno», no «VTA-000001». Nace junto al
+     *  código de barras del ticket (2026-08-24): escanearlo busca por acá. */
+    folio: z.string().trim().max(32).optional(),
     sellerId: z.string().uuid().optional(),
     sessionId: z.string().uuid().optional(),
     status: z.enum(["completed", "canceled"]).optional(),

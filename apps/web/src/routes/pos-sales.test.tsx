@@ -389,6 +389,32 @@ describe("Historial de ventas: la barra de filtros (F4-SALE-04)", () => {
     expect(barra?.className).not.toContain("items-center");
   });
 
+  /**
+   * ── BUSCAR POR FOLIO (2026-08-24) ─────────────────────────────────────
+   *
+   * Nace junto al código de barras del ticket: se escanea el papel (cámara o
+   * pistola USB sobre el campo) y aparece la venta para reimprimir o anular.
+   * También sirve dictado por teléfono — el filtro es parcial.
+   */
+  it("teclear un folio lo manda al API", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/folio/i), "000009");
+
+    await waitFor(() => {
+      expect(mocked.listSales).toHaveBeenCalledWith(expect.objectContaining({ folio: "000009" }));
+    });
+  });
+
+  it("un folio vacío NO viaja", async () => {
+    await renderRuta("/pos/sales", ["pos:view"]);
+    await screen.findByLabelText(/folio/i);
+
+    const enviado = mocked.listSales.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(enviado.folio).toBeUndefined();
+  });
+
   it("el Estado tiene su etiqueta ENCIMA, como los demás", async () => {
     await renderRuta("/pos/sales", ["pos:view"]);
 

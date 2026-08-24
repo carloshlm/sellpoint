@@ -188,6 +188,8 @@ export interface SaleRow extends Sale {
 
 export interface ListSalesQuery {
   status?: "completed" | "canceled";
+  /** Parcial e insensible: nace con el código de barras del ticket. */
+  folio?: string;
   from?: string;
   to?: string;
   page?: number;

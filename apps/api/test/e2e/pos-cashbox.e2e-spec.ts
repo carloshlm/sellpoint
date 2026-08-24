@@ -774,6 +774,43 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         expect((res.body as { total: number }).total).toBe(0);
       });
 
+      /**
+       * ── BUSCAR POR FOLIO (2026-08-24) ───────────────────────────────
+       *
+       * Nace junto al código de barras del ticket: escanear el papel (o
+       * dictarlo por teléfono) tiene que encontrar la venta para reimprimir
+       * o anular. `contains` insensitive, el MISMO contrato que el folio de
+       * cotizaciones — quien dicta dice «cero cero uno», no «VTA-000001».
+       */
+      it("el folio PARCIAL encuentra la venta", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const res = await historial(token, "?folio=000001").expect(200);
+
+        expect((res.body as { total: number }).total).toBe(1);
+        expect((res.body as { rows: { folio: string }[] }).rows[0]?.folio).toBe("VTA-000001");
+      });
+
+      it("un folio ajeno no trae nada", async () => {
+        const { token, tenantId } = await escenario();
+        const { productoId } = await conStock(token, tenantId, 10);
+        await abrir(token).expect(201);
+        await vender(token, {
+          paymentMethod: "cash",
+          lines: [{ productId: productoId, quantity: 1 }],
+        }).expect(201);
+
+        const res = await historial(token, "?folio=999999").expect(200);
+
+        expect((res.body as { total: number }).total).toBe(0);
+      });
+
       it("lista las ventas del turno, con sus líneas y su vendedor", async () => {
         const { token, tenantId } = await escenario();
         const { productoId } = await conStock(token, tenantId, 10);

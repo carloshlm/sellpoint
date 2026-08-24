@@ -214,3 +214,75 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
     });
   });
 });
+
+/**
+ * ── EL CÓDIGO DE BARRAS DEL FOLIO (2026-08-24, pedido de Carlos) ──────────
+ *
+ * Al pie del ticket, en Code-128 con el folio COMPLETO — alfanumérico, así
+ * que no hay tope de dígitos ni reinicio de numeración que inventar. Va en
+ * AMBOS papeles a propósito: escanear una cotización en el carrito ya carga
+ * la cotización a la venta (quoteLookup), y escanear una venta la encuentra
+ * en el historial por el buscador de folio.
+ */
+describe("el código de barras del folio", () => {
+  const t = (key: string) => key;
+  const fila: TicketRow = {
+    description: "Paracetamol 500mg",
+    quantity: "1",
+    baseUnit: "unit",
+    unitPrice: "15.00",
+    lineTotal: "15.00",
+    lotCode: null,
+  };
+  const base: TicketInput = {
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, address: null },
+    kind: "sale",
+    folio: "VTA-000042",
+    createdAt: new Date("2026-08-21T19:42:00Z"),
+    sellerName: "Ana",
+    warehouseName: "Central",
+    rows: [fila],
+    subtotal: "15.00",
+    discount: "0.00",
+    total: "15.00",
+    paymentMethod: "cash",
+    received: null,
+    change: null,
+    note: null,
+    currency: "MXN",
+    locale: "es",
+    width: "58mm",
+  };
+
+  it("la VENTA lleva el código al pie", () => {
+    const def = JSON.stringify(buildTicketDefinition(base, t));
+
+    expect(def).toContain('"svg"');
+    expect(def).toContain("<svg");
+  });
+
+  it("la COTIZACIÓN también: escanearla carga la cotización a la venta", () => {
+    const def = JSON.stringify(
+      buildTicketDefinition({ ...base, kind: "quote", folio: "COT-000003" }, t),
+    );
+
+    expect(def).toContain("<svg");
+  });
+
+  it("el ancho se deriva del papel, nunca es fijo", () => {
+    // Regla del archivo: todo elemento de ancho fijo revienta el margen de
+    // 58 mm. El nodo svg declara su width calculado desde el ancho útil.
+    const def = buildTicketDefinition(base, t) as {
+      content: ({ svg?: string; width?: number } | unknown)[];
+    };
+    const nodo = def.content.find(
+      (item): item is { svg: string; width: number } =>
+        typeof item === "object" && item !== null && "svg" in item,
+    );
+
+    expect(nodo).toBeDefined();
+    expect(nodo?.width).toBeGreaterThan(0);
+    // 58mm ≈ 164pt de página menos márgenes: el código no puede excederlo.
+    expect(nodo?.width).toBeLessThanOrEqual(58 * 2.83 - 2 * 5 * 2.83);
+  });
+});

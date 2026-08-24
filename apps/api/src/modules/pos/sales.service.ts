@@ -273,6 +273,9 @@ export class SalesService {
     const zona = await this.zonaDelNegocio(user.tenantId);
     const where = {
       tenantId: user.tenantId,
+      ...(query.folio !== undefined && {
+        folio: { contains: query.folio, mode: "insensitive" as const },
+      }),
       ...(query.status !== undefined && { status: query.status }),
       ...(query.sellerId !== undefined && { createdBy: query.sellerId }),
       ...(query.sessionId !== undefined && { cashboxSessionId: query.sessionId }),

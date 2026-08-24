@@ -34,6 +34,10 @@ export function SalesHistory() {
   const { has } = usePermissions();
 
   const [estado, setEstado] = useState<"todas" | "completed" | "canceled">("todas");
+  // El buscador del código de barras del ticket (2026-08-24): se escanea el
+  // papel con la cámara o una pistola USB sobre este campo y aparece la venta
+  // para reimprimir o anular. Parcial: también sirve dictado por teléfono.
+  const [folio, setFolio] = useState("");
   const [pagina, setPagina] = useState(1);
   /**
    * Sin rango al abrir, a diferencia del Kardex: acá se entra a buscar «la
@@ -44,6 +48,7 @@ export function SalesHistory() {
 
   const { data, isPending, error } = useSales({
     ...(estado !== "todas" && { status: estado }),
+    ...(folio.trim() !== "" && { folio: folio.trim() }),
     // Solo viajan si tienen valor: mandar `from: ""` haría que el API
     // rechace la consulta por formato.
     ...(rango.from !== "" && { from: rango.from }),
@@ -65,6 +70,21 @@ export function SalesHistory() {
           arriba, así que un «Estado» con la etiqueta al costado dejaba los
           controles a distinto nivel (Carlos, 2026-08-24). Un solo molde. */}
       <div className="flex flex-wrap items-end gap-3">
+        <label htmlFor="sales-folio" className="flex flex-col gap-1 text-sm">
+          <span className="text-muted-foreground">{t("pos.history.folio")}</span>
+          <input
+            id="sales-folio"
+            type="search"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={folio}
+            placeholder="VTA-000001"
+            onChange={(e) => {
+              setFolio(e.target.value);
+              setPagina(1);
+            }}
+          />
+        </label>
+
         <label htmlFor="sales-status" className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">{t("pos.history.status")}</span>
           <select

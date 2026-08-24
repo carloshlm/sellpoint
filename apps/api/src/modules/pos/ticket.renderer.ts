@@ -1,4 +1,5 @@
 import { type Currency, formatMoney, formatQuantityWithUnit, type Locale } from "@sellpoint/shared";
+import { folioBarcodeSvg } from "./barcode-svg";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -190,6 +191,20 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
         alignment: "center",
         fontSize: 7,
         margin: [0, 6, 0, 0],
+      },
+
+      // ── El código de barras del folio (Carlos, 2026-08-24) ────────────
+      // Code-128 con el folio COMPLETO: alfanumérico, así que no hay tope de
+      // dígitos ni reinicio de numeración que inventar (ver barcode-svg.ts).
+      // Va en AMBOS papeles: escanear una cotización en el carrito la carga a
+      // la venta (quoteLookup ya existe), y escanear una venta la encuentra
+      // en el historial por el buscador de folio. El ancho se DERIVA del
+      // papel — regla del archivo: nada de anchos fijos en 58 mm.
+      {
+        svg: folioBarcodeSvg(input.folio),
+        width: anchoPt - margen * 2,
+        alignment: "center",
+        margin: [0, 8, 0, 0],
       },
     ],
   };
