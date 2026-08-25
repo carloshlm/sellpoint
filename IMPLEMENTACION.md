@@ -2546,7 +2546,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 - [x] Las tablas nuevas (`sales`, `sale_items`, `cashbox_sessions`, `quotes`, `quote_lines`) pasan los 4 canarios RLS **de comportamiento** + el estructural (lección del checklist de F3: una policy que existe no es una policy que filtra)
 - [x] La PWA instala, y sin red dice qué no puede hacer en vez de fallar críptico
 - [x] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
-- [ ] Tag `v0.5.0-fase4` creado sobre un commit con Deploy verde
+- [x] Tag `v0.5.0-fase4` creado sobre un commit con Deploy verde — `7611e28`, deploy verde verificado en el log
 
 **Estimación: ~3.5 semanas** (~55 h en 26 tareas + F4-PRINT-BT diferida — F4-TICKET-03 entró en la sincronía pre-F4, 2026-08-21).
 ---
