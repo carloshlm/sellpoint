@@ -2,6 +2,7 @@
   "cancel_reason_required": "Explica por qué se anula la venta.",
   "declared_cash_invalid": "El efectivo contado no puede ser negativo.",
   "discount_exceeds_subtotal": "El descuento no puede superar el subtotal.",
+  "integer_only_presentation": "La presentación «{presentationName}» se vende en piezas enteras.",
   "invalid_body": "Revisa los datos del punto de venta.",
   "invalid_query": "Revisa los filtros de la búsqueda.",
   "line_product_xor_service": "Una línea es un producto o un servicio, no las dos cosas.",

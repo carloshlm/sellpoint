@@ -2,6 +2,7 @@
   "cancel_reason_required": "Explain why the sale is being canceled.",
   "declared_cash_invalid": "Counted cash cannot be negative.",
   "discount_exceeds_subtotal": "The discount cannot exceed the subtotal.",
+  "integer_only_presentation": "«{presentationName}» is sold in whole units only.",
   "invalid_body": "Check the point of sale details.",
   "invalid_query": "Check the search filters.",
   "line_product_xor_service": "A line is either a product or a service, not both.",

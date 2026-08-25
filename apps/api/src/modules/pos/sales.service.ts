@@ -507,7 +507,14 @@ export class SalesService {
           isComposite: true,
           presentations: {
             where: { isActive: true, isSellable: true },
-            select: { id: true, factor: true, price: true, isDefaultSale: true },
+            select: {
+              id: true,
+              factor: true,
+              price: true,
+              isDefaultSale: true,
+              name: true,
+              allowFractionalInput: true,
+            },
             orderBy: { factor: "asc" },
           },
         },
@@ -528,6 +535,21 @@ export class SalesService {
         throw new UnprocessableEntityException({
           message: "pos.presentation_not_sellable",
           args: { sku: producto.sku, lineIndex: i },
+        });
+      }
+
+      // ── Media pieza no existe (criterio 11 de F4) ────────────────────
+      //
+      // El numpad ya esconde el punto en las presentaciones enteras, pero
+      // esconder un botón NO es validar: un `curl` o un bug del cliente
+      // mandan 1.5 igual, y el saldo queda en decimales que ningún conteo
+      // físico puede cuadrar. F3 revalida esto en su `line-resolver`; el POS
+      // no lo hacía, y lo encontró la verificación de cierre de la fase
+      // (2026-08-25).
+      if (!presentacion.allowFractionalInput && !Number.isInteger(line.quantity)) {
+        throw new UnprocessableEntityException({
+          message: "pos.integer_only_presentation",
+          args: { presentationName: presentacion.name, lineIndex: i },
         });
       }
 

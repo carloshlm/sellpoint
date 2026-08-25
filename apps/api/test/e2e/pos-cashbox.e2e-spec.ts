@@ -375,6 +375,41 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
      * este describe decía que la venta hereda «la expansión de compuestos» y
      * ningún test lo probaba: ahí se coló.
      */
+    /**
+     * ⚠ EL CRITERIO 2 DE LA FASE 4: «dos tenants arrancan su serie en 1».
+     *
+     * Que un tenant nuevo empiece en `VTA-000001` ya lo cubren otros tests
+     * —cada uno crea el suyo—, pero eso NO demuestra lo que este criterio
+     * pide: que la serie sea POR TENANT. Con un contador global, el segundo
+     * negocio en dar de alta el sistema vería su primera venta numerada
+     * `VTA-000002` y no tendría forma de explicar el hueco.
+     *
+     * Verificado acá y no contra producción porque ese folio ya se gastó: los
+     * folios no tienen huecos por diseño, así que el primer número de un
+     * negocio se emite UNA vez y no vuelve.
+     */
+    it("dos tenants arrancan su serie en VTA-000001, cada uno la suya", async () => {
+      const primero = await escenario();
+      const segundo = await escenario();
+
+      const stockA = await conStock(primero.token, primero.tenantId, 10);
+      const stockB = await conStock(segundo.token, segundo.tenantId, 10);
+      await abrir(primero.token).expect(201);
+      await abrir(segundo.token).expect(201);
+
+      const ventaA = await vender(primero.token, {
+        paymentMethod: "cash",
+        lines: [{ productId: stockA.productoId, quantity: 1 }],
+      }).expect(201);
+      const ventaB = await vender(segundo.token, {
+        paymentMethod: "cash",
+        lines: [{ productId: stockB.productoId, quantity: 1 }],
+      }).expect(201);
+
+      expect((ventaA.body as { folio: string }).folio).toBe("VTA-000001");
+      expect((ventaB.body as { folio: string }).folio).toBe("VTA-000001");
+    });
+
     it("vender un COMPUESTO descuenta sus componentes, no el compuesto", async () => {
       const { token, tenantId } = await escenario();
       const { productoId: componenteId, almacenId } = await conStock(token, tenantId, 500);
@@ -458,6 +493,44 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         tx.stockMovement.count({ where: { tenantId, reasonCode: "sale" } }),
       );
       expect(movimientos).toBe(2);
+    });
+
+    /**
+     * ⚠ EL CRITERIO 11 DE LA FASE 4: «el numpad esconde el `.` en
+     * presentaciones enteras Y EL BACKEND REVALIDA».
+     *
+     * El numpad ya no pinta el punto —eso tiene sus tests en el front—, pero
+     * esconder un botón no es validar: un `curl`, un script de importación o
+     * un bug del cliente pueden mandar 1.5 igual. F3 lo revalida en su
+     * `line-resolver` (`inventory.integer_only_presentation`) y el POS no lo
+     * hacía: aceptaba vender media pieza y dejaba el saldo en decimales que
+     * ningún conteo físico puede cuadrar.
+     *
+     * Descubierto ejecutando el criterio contra producción (2026-08-25).
+     */
+    it("una cantidad DECIMAL en presentación entera se rechaza, aunque el numpad ya la esconda", async () => {
+      const { token, tenantId } = await escenario();
+      const { productoId } = await conStock(token, tenantId, 10);
+      await abrir(token).expect(201);
+
+      const res = await vender(token, {
+        paymentMethod: "cash",
+        lines: [{ productId: productoId, quantity: 1.5 }],
+      }).expect(422);
+
+      expect((res.body as { code: string }).code).toBe("pos.integer_only_presentation");
+    });
+
+    /** Y una cantidad entera sigue pasando: la guarda no puede estorbar. */
+    it("la misma presentación acepta cantidades enteras", async () => {
+      const { token, tenantId } = await escenario();
+      const { productoId } = await conStock(token, tenantId, 10);
+      await abrir(token).expect(201);
+
+      await vender(token, {
+        paymentMethod: "cash",
+        lines: [{ productId: productoId, quantity: 2 }],
+      }).expect(201);
     });
 
     it("sin turno abierto no se vende", async () => {
