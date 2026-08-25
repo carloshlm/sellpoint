@@ -33,6 +33,7 @@ import { Route as MovementsTransfersRouteImport } from './routes/movements.trans
 import { Route as PosIndexRouteImport } from './routes/pos.index'
 import { Route as PosCloseRouteImport } from './routes/pos.close'
 import { Route as PosSalesRouteImport } from './routes/pos.sales'
+import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
@@ -159,6 +160,11 @@ const PosSalesRoute = PosSalesRouteImport.update({
   path: '/pos/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/reports/',
+  path: '/reports/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
+  '/reports/': typeof ReportsIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos': typeof PosIndexRoute
+  '/reports': typeof ReportsIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
   '/pos/quotes': typeof PosQuotesIndexRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
+  '/reports/': typeof ReportsIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/system/roles'
     | '/system/users'
     | '/pos/'
+    | '/reports/'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
     | '/pos/quotes/'
@@ -340,6 +350,7 @@ export interface FileRouteTypes {
     | '/system/roles'
     | '/system/users'
     | '/pos'
+    | '/reports'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
     | '/pos/quotes'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/system/roles'
     | '/system/users'
     | '/pos/'
+    | '/reports/'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
     | '/pos/quotes/'
@@ -403,6 +415,7 @@ export interface RootRouteChildren {
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
   PosIndexRoute: typeof PosIndexRoute
+  ReportsIndexRoute: typeof ReportsIndexRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
   PosQuotesNewRoute: typeof PosQuotesNewRoute
   PosQuotesIndexRoute: typeof PosQuotesIndexRoute
@@ -578,6 +591,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosSalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/': {
+      id: '/reports/'
+      path: '/reports'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -643,6 +663,7 @@ const rootRouteChildren: RootRouteChildren = {
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
   PosIndexRoute: PosIndexRoute,
+  ReportsIndexRoute: ReportsIndexRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
   PosQuotesNewRoute: PosQuotesNewRoute,
   PosQuotesIndexRoute: PosQuotesIndexRoute,

@@ -1,0 +1,45 @@
+{
+  "hub": {
+    "title": "Reportes",
+    "downloadFailed": "No pudimos generar el archivo. Vuelve a intentarlo.",
+    "stock": {
+      "title": "Stock por almacén",
+      "detail": "Existencias valorizadas, con detalle por lote y ubicación."
+    },
+    "sales": {
+      "title": "Ventas",
+      "detail": "Ventas del período por vendedor, almacén y forma de pago."
+    },
+    "kardex": {
+      "title": "Kardex",
+      "detail": "Movimientos de un producto, con su saldo después de cada uno."
+    },
+    "products": {
+      "title": "Catálogo",
+      "detail": "Todos los productos con sus campos personalizados."
+    },
+    "users": {
+      "title": "Usuarios",
+      "detail": "Quién tiene acceso, con qué rol y a qué almacenes."
+    },
+    "warehouses": {
+      "title": "Almacenes",
+      "detail": "Tus almacenes y cuántos productos guarda cada uno."
+    },
+    "expiring": {
+      "title": "Vencimientos",
+      "detail": "Lotes que ya vencieron o están por vencer."
+    },
+    "inTransit": {
+      "title": "En tránsito",
+      "detail": "Mercancía que salió de un almacén y todavía no llega."
+    }
+  },
+  "table": {
+    "empty": "No hay datos que mostrar con estos filtros.",
+    "export": "Exportar Excel",
+    "next": "Siguiente",
+    "page": "Página {{page}} de {{pages}}",
+    "previous": "Anterior"
+  }
+}

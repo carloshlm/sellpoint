@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { descargarBlob } from "@/lib/download";
 
 export type ImportFormat = "csv" | "xlsx";
 
@@ -76,10 +77,5 @@ export async function downloadImportTemplate(format: ImportFormat = "csv"): Prom
     responseType: "blob",
   });
 
-  const url = URL.createObjectURL(data);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `productos.${format}`;
-  link.click();
-  URL.revokeObjectURL(url);
+  await descargarBlob(data, `productos.${format}`);
 }

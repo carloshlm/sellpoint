@@ -1,5 +1,6 @@
 import type { PaymentMethod } from "@sellpoint/shared";
 import { api } from "@/lib/api";
+import { dispararDescarga } from "@/lib/download";
 
 export interface CashboxSession {
   id: string;
@@ -398,10 +399,10 @@ export async function printTicket(
   if (ventana === null) {
     // Bloqueador de popups: se cae a la descarga, que ningún navegador frena.
     // Peor imprimir en dos pasos que no poder imprimir.
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${folio}.pdf`;
-    link.click();
+    //
+    // Usa `dispararDescarga` y NO `descargarBlob` porque esa revocaría la URL,
+    // y acá la ventana —cuando sí abre— todavía la está cargando.
+    dispararDescarga(url, `${folio}.pdf`);
   }
   // No se revoca de inmediato: la ventana todavía está cargando el blob y
   // revocarlo acá la deja en blanco. El navegador lo libera al cerrarla.

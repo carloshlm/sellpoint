@@ -3,6 +3,7 @@ import {
   ArrowDownToLine,
   ArrowLeftRight,
   ArrowUpFromLine,
+  BarChart3,
   Calculator,
   CalendarClock,
   ClipboardList,
@@ -61,6 +62,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const canSeeQuoteNav = has("pos:quote");
   const canSeeSalesNav = has("pos:view");
   const canSeePosNav = canSeeSellNav || canSeeQuoteNav || canSeeSalesNav;
+  // F5-HUB-02: Reportes es un grupo de UNA entrada y no un ítem suelto, para
+  // que el día que sume «Reportes programados» no haya que reacomodar el nav.
+  const canSeeReportsNav = has("reports:read");
   const canSeeProductsNav = has("products:read");
   const canSeeListsNav = has("catalogs:read");
   const canSeeSchemaNav = has("catalogs:manage");
@@ -286,6 +290,22 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {expanded && <span className="truncate">{t("pos.nav.close")}</span>}
                 </Link>
               )}
+            </fieldset>
+          )}
+
+          {canSeeReportsNav && (
+            <fieldset
+              aria-label={t("reports.hub.title")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
+            >
+              <Link
+                to="/reports"
+                aria-label={t("reports.hub.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <BarChart3 className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && <span className="truncate">{t("reports.hub.title")}</span>}
+              </Link>
             </fieldset>
           )}
 

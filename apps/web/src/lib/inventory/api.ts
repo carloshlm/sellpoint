@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { descargarBlob } from "@/lib/download";
 import type {
   DocumentDetail,
   DocumentPage,
@@ -97,12 +98,7 @@ export async function downloadCountTemplate(
     responseType: "blob",
   });
 
-  const url = URL.createObjectURL(data);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `conteo-fisico.${format}`;
-  link.click();
-  URL.revokeObjectURL(url);
+  await descargarBlob(data, `conteo-fisico.${format}`);
 }
 
 export async function importDocumentLines(
@@ -123,10 +119,5 @@ export async function downloadDocumentPdf(id: string, folio: string): Promise<vo
     responseType: "blob",
   });
 
-  const url = URL.createObjectURL(data);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${folio}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  await descargarBlob(data, `${folio}.pdf`);
 }

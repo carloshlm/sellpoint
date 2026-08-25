@@ -2723,21 +2723,23 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-HUB — El hub y la plomería del front
 
-- [ ] **F5-HUB-01** — Helper compartido de descarga de blob
+- [x] **F5-HUB-01** *(cerrada el 2026-08-24)* — Helper compartido de descarga de blob
   - **Salida:** un solo helper (`lib/download.ts`) con la secuencia blob → objectURL → click → revoke; migradas las CUATRO copias actuales (`products/import-api.ts`, `inventory/api.ts` ×2, `pos/api.ts`)
   - **Verificar:** los tests existentes de esas cuatro features verdes tras la migración (contraprueba de no-regresión); unit del helper
   - **Depende de:** —
   - **Estimación:** 1.5 h
 
-- [ ] **F5-HUB-02** — Hub `/reports` + entrada en el nav
+- [x] **F5-HUB-02** *(cerrada el 2026-08-24)* — Hub `/reports` + entrada en el nav
   - **Salida:** ruta `/reports` con las 8 tarjetas de VISTAS §10; `canSeeReportsNav = has("reports:read")` en el nav; las tarjetas de export directo (usuarios, almacenes, catálogo) descargan sin navegar; Catálogo enlaza a `/catalog/products`
   - **Verificar:** test de nav: con `reports:read` se ve; contraprueba: POS_Seller no lo ve y `/reports` lo rebota; las tarjetas de export llaman al helper
+  - **Stock y ventas DESCARGAN, no enlazan** (2026-08-24, transitorio): sus endpoints ya existen pero sus pantallas llegan en F5-STK-04 y F5-SALES-03, y no hay `notFoundComponent` en el router — enlazar a una ruta inexistente daría un «Not Found» al primer clic. Hay una barrera que recorre TODOS los enlaces del hub y falla si alguno apunta fuera de la lista de rutas reales. Cuando existan las pantallas, esas dos tarjetas cambian `descargar` por `to`
   - **Depende de:** F5-HUB-01, F5-CAT-01, F5-CAT-02, F5-CAT-03
   - **Estimación:** 2 h
 
-- [ ] **F5-HUB-03** — Componente común de reporte (TanStack Table server-side)
+- [x] **F5-HUB-03** *(cerrada el 2026-08-24)* — Componente común de reporte (TanStack Table server-side)
   - **Salida:** el «patrón común» de VISTAS §10 como componente/hook compartido: zona de filtros + `@tanstack/react-table` en modo manual (`manualPagination`/`manualSorting` contra la API) + paginador + botón Exportar; integra `ScrollableTable`. Lo consumen F5-STK-04 y F5-SALES-03
   - **Verificar:** test con API mockeada: cambiar orden/página dispara la query con params server-side; contraprueba: el orden NO se aplica en cliente (un dataset mock desordenado lo delata)
+  - **TanStack Table v9 cambió de API** (2026-08-24): no hay `useReactTable` ni `getCoreRowModel` — es `useTable({ features: coreFeatures })`, y sin `columnVisibilityFeature` la fila expone `getAllCells()` en lugar de `getVisibleCells()`. Se monta con SOLO `coreFeatures`: agregar `rowSortingFeature` o `rowPaginationFeature` ordenaría y paginaría la página recibida, que es exactamente el bug que el modo server-side viene a evitar
   - **Depende de:** F5-HUB-01
   - **Estimación:** 2 h
 

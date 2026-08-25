@@ -1,0 +1,45 @@
+{
+  "hub": {
+    "title": "Reports",
+    "downloadFailed": "We couldn't generate the file. Please try again.",
+    "stock": {
+      "title": "Stock by warehouse",
+      "detail": "Valued inventory, with detail by lot and location."
+    },
+    "sales": {
+      "title": "Sales",
+      "detail": "Sales for the period by seller, warehouse and payment method."
+    },
+    "kardex": {
+      "title": "Ledger",
+      "detail": "A product's movements, with its balance after each one."
+    },
+    "products": {
+      "title": "Catalog",
+      "detail": "Every product with its custom fields."
+    },
+    "users": {
+      "title": "Users",
+      "detail": "Who has access, with which role and to which warehouses."
+    },
+    "warehouses": {
+      "title": "Warehouses",
+      "detail": "Your warehouses and how many products each one holds."
+    },
+    "expiring": {
+      "title": "Expiring",
+      "detail": "Lots that already expired or are about to."
+    },
+    "inTransit": {
+      "title": "In transit",
+      "detail": "Goods that left a warehouse and haven't arrived yet."
+    }
+  },
+  "table": {
+    "empty": "There is no data to show with these filters.",
+    "export": "Export to Excel",
+    "next": "Next",
+    "page": "Page {{page}} of {{pages}}",
+    "previous": "Previous"
+  }
+}

@@ -9,6 +9,7 @@ import enInventory from "./en/inventory.json";
 import enOnboarding from "./en/onboarding.json";
 import enPos from "./en/pos.json";
 import enProducts from "./en/products.json";
+import enReports from "./en/reports.json";
 import enServices from "./en/services.json";
 import enUsers from "./en/users.json";
 import enValidation from "./en/validation.json";
@@ -20,6 +21,7 @@ import esInventory from "./es/inventory.json";
 import esOnboarding from "./es/onboarding.json";
 import esPos from "./es/pos.json";
 import esProducts from "./es/products.json";
+import esReports from "./es/reports.json";
 import esServices from "./es/services.json";
 import esUsers from "./es/users.json";
 import esValidation from "./es/validation.json";
@@ -58,6 +60,7 @@ const resources = {
       pos: esPos,
       products: esProducts,
       services: esServices,
+      reports: esReports,
     },
   },
   en: {
@@ -73,6 +76,7 @@ const resources = {
       pos: enPos,
       products: enProducts,
       services: enServices,
+      reports: enReports,
     },
   },
 };
