@@ -125,6 +125,22 @@ describe("Próximos a vencer (F3-LOTS-03)", () => {
     });
 
     /**
+     * ⚠ Si la descarga falla, SE DICE. Una promesa rechazada que nadie atrapa
+     * deja a la persona esperando un archivo que no va a llegar —y en CI
+     * aparece como «unhandled error», que fue justo como se descubrió
+     * (2026-08-24)—.
+     */
+    it("si la descarga falla, lo dice en vez de quedarse callada", async () => {
+      mocked.downloadExpiring.mockRejectedValue(new Error("500"));
+      const { user } = await renderExpiring();
+      await screen.findByText("YOG-1");
+
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+    });
+
+    /**
      * El archivo baja lo MISMO que la pantalla muestra. Si exportara siempre
      * los 30 días por defecto, quien filtró a 7 abriría un Excel con cosas
      * que no había pedido y no tendría cómo saber por qué.

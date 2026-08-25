@@ -36,6 +36,7 @@ export function ExpiringList() {
   const { t } = useTranslation();
   const [days, setDays] = useState<number>(30);
   const [exportando, setExportando] = useState(false);
+  const [errorExport, setErrorExport] = useState<string | null>(null);
   const { data, isPending } = useExpiring({ days });
 
   return (
@@ -65,9 +66,20 @@ export function ExpiringList() {
             variant="outline"
             size="sm"
             disabled={exportando}
-            onClick={() => {
+            onClick={async () => {
+              // `try/finally` y no `.finally()` encadenado: si la promesa
+              // rechaza, un `void promesa.finally()` deja un rechazo SIN
+              // MANEJAR —CI lo cazó como «unhandled error»— y, peor, la
+              // persona se queda esperando un archivo que nunca va a llegar.
+              setErrorExport(null);
               setExportando(true);
-              void downloadExpiring({ days }).finally(() => setExportando(false));
+              try {
+                await downloadExpiring({ days });
+              } catch {
+                setErrorExport(t("reports.hub.downloadFailed"));
+              } finally {
+                setExportando(false);
+              }
             }}
           >
             <Download className="size-4" aria-hidden="true" />
@@ -75,6 +87,12 @@ export function ExpiringList() {
           </Button>
         </div>
       </header>
+
+      {errorExport !== null && (
+        <p role="alert" className="text-destructive text-sm">
+          {errorExport}
+        </p>
+      )}
 
       {isPending ? (
         <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>

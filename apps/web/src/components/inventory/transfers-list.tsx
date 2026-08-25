@@ -35,6 +35,7 @@ export function TransfersList() {
   const { has } = usePermissions();
   const [tab, setTab] = useState<Tab>("incoming");
   const [exportando, setExportando] = useState(false);
+  const [errorExport, setErrorExport] = useState<string | null>(null);
   const [destinationWarehouseId, setDestination] = useState<string | null>(null);
   const [soloDemorados, setSoloDemorados] = useState(false);
   const [recibiendo, setRecibiendo] = useState<TransferRow | null>(null);
@@ -62,15 +63,30 @@ export function TransfersList() {
           variant="outline"
           size="sm"
           disabled={exportando}
-          onClick={() => {
+          onClick={async () => {
+            // Ver la nota de `expiring-list`: `try/finally` y no
+            // `.finally()` encadenado, y el fallo SE DICE.
+            setErrorExport(null);
             setExportando(true);
-            void downloadInTransit().finally(() => setExportando(false));
+            try {
+              await downloadInTransit();
+            } catch {
+              setErrorExport(t("reports.hub.downloadFailed"));
+            } finally {
+              setExportando(false);
+            }
           }}
         >
           <Download className="size-4" aria-hidden="true" />
           {t("reports.table.export")}
         </Button>
       </header>
+
+      {errorExport !== null && (
+        <p role="alert" className="text-destructive text-sm">
+          {errorExport}
+        </p>
+      )}
 
       <div role="tablist" className="flex gap-2">
         <TabBoton activo={tab === "incoming"} onClick={() => setTab("incoming")}>
