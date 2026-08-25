@@ -4,12 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import {
-  endOfDayUtc,
-  localCalendarDate,
-  POS_FOLIO_PREFIXES,
-  startOfDayUtc,
-} from "@sellpoint/shared";
+import { localCalendarDate, POS_FOLIO_PREFIXES } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -22,6 +17,7 @@ import { CashboxService } from "./cashbox.service";
 import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
+import { buildSalesWhere } from "./sales-where";
 
 /** Lo que el catálogo dice que cuesta una línea. NUNCA lo que mandó el POST. */
 interface PrecioResuelto {
@@ -304,31 +300,12 @@ export class SalesService {
 
   async list(user: AuthUser, query: ListSalesQuery) {
     const zona = await this.zonaDelNegocio(user.tenantId);
-    const where = {
-      tenantId: user.tenantId,
-      // Un solo campo de búsqueda para las DOS identidades del papel: el
-      // folio contable (VTA-…) y el código de barras diario. Quien escanea el
-      // ticket trae el código; quien lo dicta por teléfono trae el folio.
-      ...(query.folio !== undefined && {
-        OR: [
-          { folio: { contains: query.folio, mode: "insensitive" as const } },
-          { barcode: { contains: query.folio } },
-        ],
-      }),
-      ...(query.status !== undefined && { status: query.status }),
-      ...(query.sellerId !== undefined && { createdBy: query.sellerId }),
-      ...(query.sessionId !== undefined && { cashboxSessionId: query.sessionId }),
-      ...(query.from !== undefined || query.to !== undefined
-        ? {
-            createdAt: {
-              ...(query.from !== undefined && { gte: startOfDayUtc(query.from, zona) }),
-              // `lt` y no `lte`: el fin de día es el ARRANQUE del siguiente,
-              // así no se pierde el último milisegundo.
-              ...(query.to !== undefined && { lt: endOfDayUtc(query.to, zona) }),
-            },
-          }
-        : {}),
-    };
+    // SIN `warehouseIds`: el historial del mostrador no aplica alcance A
+    // PROPÓSITO — la cajera tiene que encontrar el ticket que el cliente trae
+    // en la mano, sin importar de qué caja salió. El reporte de F5 sí lo
+    // aplica, y esa diferencia de contrato es el motivo de que sean dos
+    // endpoints sobre los mismos datos.
+    const where = buildSalesWhere({ ...query, tenantId: user.tenantId, timeZone: zona });
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const [total, rows] = await Promise.all([

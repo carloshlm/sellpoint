@@ -2647,13 +2647,14 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-SALES — Ventas por período
 
-- [ ] **F5-SALES-01** — `GET /reports/sales` con `UserScope` y filtro por almacén
+- [x] **F5-SALES-01** *(cerrada el 2026-08-24)* — `GET /reports/sales` con `UserScope` y filtro por almacén
   - **Salida:** endpoint PROPIO del módulo reports — NO se toca la semántica de `GET /pos/sales` (F4, `pos:view`, sin scope): se extrae el armado del `where` de `sales.service.list` a un builder compartido y se le suma `warehouseId` + intersección con el alcance. El builder ARRASTRA las dos semánticas que ese `where` ya tiene (decisión 7): rango de fechas en días del negocio (`startOfDayUtc`/`endOfDayUtc` con la zona del tenant) y `folio` que busca por folio O código de barras. Totales del período por método en la respuesta, para el pie de la tabla
   - **Verificar:** e2e: usuario acotado no ve ventas de otro almacén (contraprueba); los tests de F4-SALE-04 intactos (contraprueba de no-regresión del builder); el filtro por código de barras encuentra la venta también vía `/reports/sales`
   - **Depende de:** F5-CORE-03
+  - **El builder vive en `pos/sales-where.ts` con su propio unit** (2026-08-24): el e2e del rango de fechas solo distingue UTC de CDMX durante 6 h al día —una contraprueba lo demostró: reemplazar `startOfDayUtc` por `new Date(from)` no ponía rojo el e2e a las 5 de la tarde—, así que la semántica de días del negocio la fija un test unitario con la zona a mano. Tipo de retorno `Prisma.SaleWhereInput` EXPLÍCITO: sin él los spreads condicionales infieren un union ilegible que `typecheck:full` rechaza
   - **Estimación:** 2.5 h
 
-- [ ] **F5-SALES-02** — Export de ventas
+- [x] **F5-SALES-02** *(cerrada el 2026-08-24)* — Export de ventas
   - **Salida:** `GET /reports/sales/export`, mismos filtros, hoja «Ventas», vía helper de tope; columnas: folio, **código de barras** (decisión 6; ventas anteriores al campo → celda vacía), fecha, vendedor, almacén, estado, método, total
   - **Verificar:** e2e: filas del xlsx = consulta filtrada; las ANULADAS van marcadas, no omitidas (criterio F4); una venta con `barcode` lo exporta y una anterior al campo deja la celda vacía; sobre el tope → 400
   - **Depende de:** F5-SALES-01, F5-CORE-02

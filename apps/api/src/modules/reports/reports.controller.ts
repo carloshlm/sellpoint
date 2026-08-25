@@ -8,12 +8,20 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import {
+  type SalesExportQueryDto,
+  type SalesReportQueryDto,
+  salesExportQuerySchema,
+  salesReportQuerySchema,
+} from "./dto/sales-report.dto";
+import {
   type StockExportQueryDto,
   type StockReportQueryDto,
   stockExportQuerySchema,
   stockReportQuerySchema,
 } from "./dto/stock-report.dto";
 import { ReportsService } from "./reports.service";
+import { SalesExportService } from "./sales-export.service";
+import { SalesReportService } from "./sales-report.service";
 import { StockExportService } from "./stock-export.service";
 import { StockReportService } from "./stock-report.service";
 
@@ -38,6 +46,8 @@ export class ReportsController {
     private readonly reportsService: ReportsService,
     private readonly stockReport: StockReportService,
     private readonly stockExport: StockExportService,
+    private readonly salesReport: SalesReportService,
+    private readonly salesExport: SalesExportService,
   ) {}
 
   @Get()
@@ -63,6 +73,41 @@ export class ReportsController {
     return query.detail === "lots"
       ? this.stockReport.listLots(user, scope, query)
       : this.stockReport.list(user, scope, query);
+  }
+
+  /**
+   * F5-SALES-01: las ventas para ANALIZAR.
+   *
+   * No reemplaza a `GET /pos/sales`, que es el mostrador: aquel pide
+   * `pos:view` y NO aplica alcance —la cajera busca el ticket que el cliente
+   * trae en la mano—; éste pide `reports:read` y sí lo aplica.
+   */
+  @Get("sales")
+  @RequirePermissions("reports:read")
+  sales(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(salesReportQuerySchema, "reports.invalid_query"))
+    query: SalesReportQueryDto,
+  ) {
+    return this.salesReport.list(user, scope, query);
+  }
+
+  /** F5-SALES-02: las mismas ventas en Excel. */
+  @Get("sales/export")
+  @RequirePermissions("reports:read")
+  async salesExportFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(salesExportQuerySchema, "reports.invalid_query"))
+    query: SalesExportQueryDto,
+    @Res() response: Response,
+  ) {
+    const file = await this.salesExport.build(user, scope, query);
+    response
+      .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   /** F5-STK-02: lo mismo en Excel, con los MISMOS filtros. */
