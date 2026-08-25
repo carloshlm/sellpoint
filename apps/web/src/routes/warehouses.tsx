@@ -9,6 +9,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RowAction } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -130,19 +131,15 @@ function WarehousesContent() {
                   </TableCell>
                   {canManage && (
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <RowAction
+                        intent="edit"
                         onClick={() => {
                           setCreating(false);
                           setEditing(warehouse);
                         }}
-                      >
-                        {t("common.form.edit")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      />
+                      <RowAction
+                        intent={warehouse.isActive ? "deactivate" : "reactivate"}
                         disabled={bloqueo !== null}
                         title={bloqueo ?? undefined}
                         onClick={() => {
@@ -152,11 +149,7 @@ function WarehousesContent() {
                             { onError: (apiError: ApiError) => setError(apiError.message) },
                           );
                         }}
-                      >
-                        {warehouse.isActive
-                          ? t("warehouses.deactivate")
-                          : t("warehouses.reactivate")}
-                      </Button>
+                      />
                     </TableCell>
                   )}
                 </TableRow>

@@ -52,6 +52,12 @@
     "title": "No permission",
     "description": "You don't have permission to view this section."
   },
+  "actions": {
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "reactivate": "Reactivate",
+    "delete": "Delete"
+  },
   "profile": {
     "title": "My profile",
     "details": {

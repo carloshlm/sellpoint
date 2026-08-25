@@ -235,7 +235,7 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
     });
     await renderLists();
 
-    await user.click(await screen.findByRole("button", { name: "Archivar" }));
+    await user.click(await screen.findByRole("button", { name: "Desactivar" }));
 
     expect(await screen.findByTestId("records-error")).toHaveTextContent("Lo usa el campo Unidad");
     expect(screen.getByTestId("record-kg")).toBeInTheDocument();
@@ -260,6 +260,6 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
 
     expect(await screen.findByTestId("record-kg")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nuevo registro" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Archivar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Desactivar" })).not.toBeInTheDocument();
   });
 });

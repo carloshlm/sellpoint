@@ -221,6 +221,12 @@ function ProductsContent() {
                         {t("products.compositeBadge")}
                       </Badge>
                     )}
+                    {/* Un producto apagado sin señal parece un bug de stock. */}
+                    {!product.isActive && (
+                      <Badge variant="default" className="ml-2">
+                        {t("products.inactiveBadge")}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>{product.price ?? "—"}</TableCell>
                   {onlyComposite && <AvailabilityCell productId={product.id} />}
@@ -638,9 +644,34 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
           <Button type="button" variant="outline" onClick={onDone}>
             {t("common.form.cancel")}
           </Button>
+          {/* Desactivar SIEMPRE existió en el contrato (isActive del PATCH)
+              pero ninguna pantalla lo ofrecía — y el aviso de «tiene
+              movimientos, desactívalo» mandaba a un botón que no estaba
+              (Carlos, 2026-08-25). Colores por token, como RowAction. */}
+          {product && (
+            <Button
+              type="button"
+              variant="outline"
+              className={
+                product.isActive
+                  ? "text-warning hover:text-warning"
+                  : "text-success hover:text-success"
+              }
+              disabled={updateProduct.isPending}
+              onClick={() => {
+                setError(null);
+                updateProduct.mutate(
+                  { id: product.id, input: { isActive: !product.isActive } },
+                  { onError: handleError },
+                );
+              }}
+            >
+              {t(product.isActive ? "common.actions.deactivate" : "common.actions.reactivate")}
+            </Button>
+          )}
           {product && (
             <Button type="button" variant="destructive" onClick={() => setConfirmingDelete(true)}>
-              {t("common.form.remove")}
+              {t("common.actions.delete")}
             </Button>
           )}
         </div>

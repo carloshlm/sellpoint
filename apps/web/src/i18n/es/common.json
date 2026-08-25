@@ -52,6 +52,12 @@
     "title": "Sin permiso",
     "description": "No tienes permiso para ver esta sección."
   },
+  "actions": {
+    "edit": "Editar",
+    "deactivate": "Desactivar",
+    "reactivate": "Reactivar",
+    "delete": "Eliminar"
+  },
   "profile": {
     "title": "Mi perfil",
     "details": {

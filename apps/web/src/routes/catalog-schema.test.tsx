@@ -180,7 +180,7 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     mockedApi.removeField.mockResolvedValue({ archived: false });
     await renderSchema();
 
-    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar" }));
 
     expect(await screen.findByTestId("remove-field-dialog")).toHaveTextContent("Sustancia Activa");
     expect(mockedApi.removeField).not.toHaveBeenCalled();
@@ -205,7 +205,7 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     mockedApi.removeField.mockResolvedValueOnce({ archived: true });
     await renderSchema();
 
-    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar" }));
     await user.click(await screen.findByRole("button", { name: "Eliminar campo" }));
 
     // Segunda pregunta, y NO es la misma: cambió lo que va a pasar (se oculta,
@@ -214,7 +214,7 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     expect(dialog).toHaveTextContent("847");
     expect(mockedApi.removeField).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole("button", { name: "Ocultar campo" }));
+    await user.click(screen.getByRole("button", { name: "Desactivar campo" }));
 
     await waitFor(() =>
       expect(mockedApi.removeField).toHaveBeenLastCalledWith("cat-products", "f1", true),
@@ -228,9 +228,9 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     await renderSchema();
 
     expect(await screen.findByTestId("field-sustancia_activa-archived")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Quitar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Restaurar" }));
+    await user.click(screen.getByRole("button", { name: "Reactivar" }));
 
     await waitFor(() =>
       expect(mockedApi.updateField).toHaveBeenCalledWith("cat-products", "f1", {

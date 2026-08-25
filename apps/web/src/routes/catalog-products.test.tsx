@@ -112,7 +112,7 @@ describe("Borrar un producto (F2-PROD)", () => {
   it("el primer clic en «Quitar» PREGUNTA y nombra el producto", async () => {
     const user = await openProduct();
 
-    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar" }));
 
     expect(await screen.findByTestId("remove-product-dialog")).toHaveTextContent("Azucar");
     expect(mockedProducts.deleteProduct).not.toHaveBeenCalled();
@@ -122,7 +122,7 @@ describe("Borrar un producto (F2-PROD)", () => {
     mockedProducts.deleteProduct.mockResolvedValue(undefined);
     const user = await openProduct();
 
-    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar" }));
     await user.click(await screen.findByRole("button", { name: "Eliminar producto" }));
 
     await waitFor(() => expect(mockedProducts.deleteProduct).toHaveBeenCalled());
@@ -132,7 +132,7 @@ describe("Borrar un producto (F2-PROD)", () => {
   it("cancelar cierra el diálogo y no borra nada", async () => {
     const user = await openProduct();
 
-    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar" }));
     // El "Cancelar" DEL DIÁLOGO: el formulario tiene el suyo, y buscar por
     // texto suelto agarraría cualquiera de los dos.
     const dialog = await screen.findByTestId("remove-product-dialog");
@@ -152,7 +152,7 @@ describe("Borrar un producto (F2-PROD)", () => {
     });
     const user = await openProduct();
 
-    await user.click(await screen.findByRole("button", { name: "Quitar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar" }));
     await user.click(await screen.findByRole("button", { name: "Eliminar producto" }));
 
     await waitFor(() =>
@@ -169,6 +169,75 @@ describe("Borrar un producto (F2-PROD)", () => {
  * las filas de `stock_lots` huérfanas. La pantalla lo dice ANTES: un checkbox
  * deshabilitado con su explicación es mejor que un 409 después de intentarlo.
  */
+/**
+ * Desactivar un producto (Carlos, 2026-08-25): el aviso de "no se puede
+ * borrar porque tiene movimientos" recomendaba desactivarlo… y la acción no
+ * existía en ninguna pantalla. El API siempre la aceptó (isActive en el
+ * PATCH); faltaba la puerta.
+ */
+describe("Desactivar y reactivar un producto", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "0.02" }],
+    });
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("un producto activo ofrece «Desactivar» y el PATCH apaga isActive", async () => {
+    mockedProducts.updateProduct.mockResolvedValue({ ...PRODUCT, isActive: false });
+    const user = await openProduct();
+
+    await user.click(await screen.findByRole("button", { name: "Desactivar" }));
+
+    await waitFor(() => {
+      expect(mockedProducts.updateProduct).toHaveBeenCalledWith("prod-1", { isActive: false });
+    });
+  });
+
+  it("un producto inactivo ofrece «Reactivar» y el PATCH lo enciende", async () => {
+    mockedProducts.getProduct.mockResolvedValue({ ...PRODUCT, isActive: false });
+    mockedProducts.updateProduct.mockResolvedValue(PRODUCT);
+    const user = await openProduct();
+
+    await user.click(await screen.findByRole("button", { name: "Reactivar" }));
+
+    await waitFor(() => {
+      expect(mockedProducts.updateProduct).toHaveBeenCalledWith("prod-1", { isActive: true });
+    });
+  });
+
+  it("el listado marca los inactivos: un producto apagado sin señal parece un bug de stock", async () => {
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "0.02", isActive: false }],
+    });
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    expect(await screen.findByText("Inactivo")).toBeInTheDocument();
+  });
+});
+
 describe("Control por lote de un producto (F3-LOTS-01)", () => {
   beforeEach(() => {
     vi.clearAllMocks();

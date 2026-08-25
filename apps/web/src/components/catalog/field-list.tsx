@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RowAction } from "@/components/ui/row-action";
 import type { CatalogField, CatalogSummary } from "@/lib/catalogs/api";
 
 /**
@@ -128,17 +129,11 @@ function FieldList({
                       <ChevronDown />
                     </Button>
                     {field.isArchived ? (
-                      <Button variant="ghost" size="sm" onClick={() => onRestore(field)}>
-                        {t("catalogs.fields.restore")}
-                      </Button>
+                      <RowAction intent="reactivate" onClick={() => onRestore(field)} />
                     ) : (
                       <>
-                        <Button variant="ghost" size="sm" onClick={() => onEdit(field)}>
-                          {t("common.form.edit")}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => onRemove(field)}>
-                          {t("catalogs.fields.remove")}
-                        </Button>
+                        <RowAction intent="edit" onClick={() => onEdit(field)} />
+                        <RowAction intent="delete" onClick={() => onRemove(field)} />
                       </>
                     )}
                   </div>

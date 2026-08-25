@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Paginator } from "@/components/ui/paginator";
+import { RowAction } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -224,17 +225,14 @@ function RecordsTable({
               ))}
               <TableCell>
                 <Badge variant={record.isActive ? "success" : "default"}>
-                  {record.isActive ? t("catalogs.records.active") : t("catalogs.records.archived")}
+                  {record.isActive ? t("catalogs.records.active") : t("catalogs.records.inactive")}
                 </Badge>
               </TableCell>
               {canWrite && (
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => onEdit(record)}>
-                    {t("common.form.edit")}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <RowAction intent="edit" onClick={() => onEdit(record)} />
+                  <RowAction
+                    intent={record.isActive ? "deactivate" : "reactivate"}
                     onClick={() => {
                       setError(null);
                       updateRecord.mutate(
@@ -246,11 +244,7 @@ function RecordsTable({
                         },
                       );
                     }}
-                  >
-                    {record.isActive
-                      ? t("catalogs.records.archive")
-                      : t("catalogs.records.restore")}
-                  </Button>
+                  />
                 </TableCell>
               )}
             </TableRow>

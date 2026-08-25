@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
+import { RowAction } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -180,20 +181,16 @@ function ServicesContent() {
                   </TableCell>
                   {canManage && (
                     <TableCell className="px-2 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <RowAction
+                        intent="edit"
                         onClick={() => {
                           setError(null);
                           setCreating(false);
                           setEditing(service);
                         }}
-                      >
-                        {t("common.form.edit")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      />
+                      <RowAction
+                        intent={service.isActive ? "deactivate" : "reactivate"}
                         onClick={() => {
                           setError(null);
                           updateService.mutate(
@@ -201,19 +198,14 @@ function ServicesContent() {
                             { onError: (apiError: ApiError) => setError(apiError.message) },
                           );
                         }}
-                      >
-                        {t(service.isActive ? "services.deactivate" : "services.reactivate")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      />
+                      <RowAction
+                        intent="delete"
                         onClick={() => {
                           setError(null);
                           setDeleting(service);
                         }}
-                      >
-                        {t("common.form.delete")}
-                      </Button>
+                      />
                     </TableCell>
                   )}
                 </TableRow>

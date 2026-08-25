@@ -25,7 +25,7 @@
   },
   "fields": {
     "add": "Agregar campo",
-    "archivedBadge": "oculto",
+    "archivedBadge": "inactivo",
     "customTitle": "Campos personalizados",
     "empty": "Todavía no agregaste campos personalizados.",
     "form": {
@@ -40,16 +40,14 @@
     },
     "moveDown": "Bajar {{label}}",
     "moveUp": "Subir {{label}}",
-    "remove": "Quitar",
     "removeDialog": {
-      "title": "Quitar campo",
-      "body": "{{count}} registros tienen datos en «{{label}}». El campo se ocultará, pero sus valores no se borran y puedes restaurarlo.",
-      "confirm": "Ocultar campo",
+      "title": "Eliminar campo",
+      "body": "{{count}} registros tienen datos en «{{label}}». El campo se desactivará, pero sus valores no se borran y puedes reactivarlo.",
+      "confirm": "Desactivar campo",
       "bodyEmpty": "Vas a eliminar el campo «{{label}}». Todavía no tiene datos cargados, así que se borra por completo. Esta acción no se puede deshacer.",
       "confirmEmpty": "Eliminar campo"
     },
     "requiredBadge": "requerido",
-    "restore": "Restaurar",
     "standardHint": "Vienen con el catálogo y no se pueden quitar.",
     "standardTitle": "Campos estándar",
     "title": "Campos",
@@ -73,9 +71,7 @@
     "codeHint": "Nombre corto que lo identifica, por ejemplo «kg».",
     "status": "Estado",
     "active": "Activo",
-    "archived": "Archivado",
-    "archive": "Archivar",
-    "restore": "Restaurar",
+    "inactive": "Inactivo",
     "selector": "Subcatálogo",
     "noCatalogs": "Todavía no creaste subcatálogos. Puedes crearlos desde Campos."
   }

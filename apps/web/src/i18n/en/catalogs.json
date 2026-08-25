@@ -25,7 +25,7 @@
   },
   "fields": {
     "add": "Add field",
-    "archivedBadge": "hidden",
+    "archivedBadge": "inactive",
     "customTitle": "Custom fields",
     "empty": "You haven't added any custom fields yet.",
     "form": {
@@ -40,16 +40,14 @@
     },
     "moveDown": "Move {{label}} down",
     "moveUp": "Move {{label}} up",
-    "remove": "Remove",
     "removeDialog": {
-      "title": "Remove field",
-      "body": "{{count}} records have data in \"{{label}}\". The field will be hidden, but its values aren't deleted and you can restore it.",
-      "confirm": "Hide field",
+      "title": "Delete field",
+      "body": "{{count}} records have data in \"{{label}}\". The field will be deactivated, but its values aren't deleted and you can reactivate it.",
+      "confirm": "Deactivate field",
       "bodyEmpty": "You are about to delete the \"{{label}}\" field. It has no data yet, so it will be removed entirely. This can not be undone.",
       "confirmEmpty": "Delete field"
     },
     "requiredBadge": "required",
-    "restore": "Restore",
     "standardHint": "They come with the catalog and can't be removed.",
     "standardTitle": "Standard fields",
     "title": "Fields",
@@ -73,9 +71,7 @@
     "codeHint": "Short name that identifies it, for example \"kg\".",
     "status": "Status",
     "active": "Active",
-    "archived": "Archived",
-    "archive": "Archive",
-    "restore": "Restore",
+    "inactive": "Inactive",
     "selector": "Sub-catalog",
     "noCatalogs": "You haven't created sub-catalogs yet. You can create them from Fields."
   }

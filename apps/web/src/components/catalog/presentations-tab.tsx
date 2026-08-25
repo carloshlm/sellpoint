@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RowAction } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -200,17 +201,14 @@ function PresentationsTab({
                         una de lote (renombrarla y cambiarle la equivalencia),
                         que es un caso real de negocios que solo venden por
                         caja. Bloquearlo no daría seguridad, quitaría capacidad. */}
-                    <Button variant="ghost" size="sm" onClick={() => setEditingId(presentation.id)}>
-                      {t("common.form.edit")}
-                    </Button>
+                    <RowAction intent="edit" onClick={() => setEditingId(presentation.id)} />
                     {/* Desactivar y eliminar la PREDETERMINADA los rechaza el
                         API con 409 —el producto quedaría sin presentación de
                         venta preseleccionada—. Se muestran deshabilitados con
                         el motivo: antes se veían iguales que en cualquier fila
                         y el límite se descubría a los golpes. */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <RowAction
+                      intent={presentation.isActive ? "deactivate" : "reactivate"}
                       disabled={presentation.isDefaultSale}
                       title={
                         presentation.isDefaultSale
@@ -227,14 +225,9 @@ function PresentationsTab({
                           { onError },
                         );
                       }}
-                    >
-                      {presentation.isActive
-                        ? t("products.presentations.deactivate")
-                        : t("products.presentations.reactivate")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    />
+                    <RowAction
+                      intent="delete"
                       disabled={presentation.isDefaultSale}
                       title={
                         presentation.isDefaultSale
@@ -245,9 +238,7 @@ function PresentationsTab({
                         setError(null);
                         setPendingRemoval(presentation);
                       }}
-                    >
-                      {t("common.form.delete")}
-                    </Button>
+                    />
                   </TableCell>
                 )}
               </TableRow>
