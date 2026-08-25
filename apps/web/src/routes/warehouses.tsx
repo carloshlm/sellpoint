@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import type { Warehouse } from "@/lib/warehouses/api";
 import {
   useCreateWarehouse,
@@ -117,8 +118,12 @@ function WarehousesContent() {
           </TableHeader>
           <TableBody>
             {(warehouses ?? []).map((warehouse) => {
-              // F3-GUARDS-03: el motivo del API decide el `title`. Reactivar
-              // nunca se bloquea — la guarda solo corre al cerrar.
+              // F3-GUARDS-03, revisado (Carlos, 2026-08-25): el botón ya NO se
+              // deshabilita. Deshabilitado tenía `pointer-events: none`, así
+              // que el tooltip con el motivo no podía aparecer NUNCA — parecía
+              // un botón muerto sin explicación. Ahora el `title` avisa al
+              // hover, y si igual se hace clic, el 409 del server cuenta el
+              // mismo motivo en el alert. Reactivar nunca se bloquea.
               const bloqueo =
                 warehouse.isActive && warehouse.deactivationBlockedBy
                   ? t(
@@ -148,7 +153,6 @@ function WarehousesContent() {
                       />
                       <RowAction
                         intent={warehouse.isActive ? "deactivate" : "reactivate"}
-                        disabled={bloqueo !== null}
                         title={bloqueo ?? undefined}
                         onClick={() => {
                           setError(null);
@@ -200,6 +204,9 @@ function WarehousesContent() {
 
 function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: () => void }) {
   const { t } = useTranslation();
+  // La respuesta visible al clic en «Editar»: el form entra a la vista y el
+  // cursor queda en el primer campo (ver el docblock del hook).
+  const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const [name, setName] = useState(warehouse?.name ?? "");
   const [address, setAddress] = useState(warehouse?.address ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -209,6 +216,7 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
 
   return (
     <form
+      ref={formRef}
       className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();

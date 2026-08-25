@@ -316,4 +316,12 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind 4 cambió el default de los botones a `cursor: default` (el look
+     nativo de macOS). En una app de escritorio la mano ES la señal de "esto
+     se puede clickear" (Carlos, 2026-08-25): se restaura para todo control
+     habilitado. Los <a> con href ya la traen del navegador. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }

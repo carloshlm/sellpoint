@@ -196,6 +196,21 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
    * marcados: el caso común no gestiona nada y desmarcar es restringir.
    */
   describe("los almacenes donde se ofrece (F3-SVC-08)", () => {
+    /**
+     * La respuesta visible al clic (Carlos, 2026-08-25): el form vive arriba
+     * de la tabla y quien edita desde una fila lejana no lo ve aparecer. El
+     * foco en el primer campo ES la prueba de que el usuario quedó ahí.
+     */
+    it("editar deja el foco en el PRIMER campo del formulario", async () => {
+      const user = userEvent.setup();
+      await renderServices();
+      await screen.findByText("Corte de cabello");
+
+      await user.click(screen.getByRole("button", { name: "Editar" }));
+
+      expect(await screen.findByLabelText(/Código/)).toHaveFocus();
+    });
+
     it("editar precarga los almacenes del servicio", async () => {
       const user = userEvent.setup();
       mockedApi.listServices.mockResolvedValue({

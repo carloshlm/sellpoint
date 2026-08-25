@@ -81,19 +81,25 @@ function botonEstado(nombre: string) {
   return boton;
 }
 
+/**
+ * F3-GUARDS-03, revisado (Carlos, 2026-08-25): el botón bloqueado ya NO se
+ * deshabilita — deshabilitado tenía `pointer-events: none` y el tooltip con
+ * el motivo no podía aparecer nunca: parecía un botón muerto. Ahora el
+ * `title` avisa al hover y el 409 del server cuenta el mismo motivo al clic.
+ */
 describe("Almacenes: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
   });
 
-  it("con saldo, el botón queda deshabilitado y dice por qué", async () => {
+  it("con saldo, el botón sigue VIVO y el title dice por qué se va a rechazar", async () => {
     mockedApi.listWarehouses.mockResolvedValue([
       almacen({ id: "w1", name: "Central", deactivationBlockedBy: "stock" }),
     ]);
     await renderWarehouses();
 
-    await waitFor(() => expect(botonEstado("Central")).toBeDisabled());
+    await waitFor(() => expect(botonEstado("Central")).toBeEnabled());
     expect(botonEstado("Central").title).toContain("existencias");
   });
 
@@ -103,10 +109,27 @@ describe("Almacenes: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
     ]);
     await renderWarehouses();
 
-    await waitFor(() => expect(botonEstado("Central")).toBeDisabled());
+    await waitFor(() => expect(botonEstado("Central")).toBeEnabled());
     // Si los dos motivos dijeran lo mismo, el usuario no sabría qué hacer:
     // vaciar el almacén no destraba un traspaso en camino.
     expect(botonEstado("Central").title).toContain("camino");
+  });
+
+  it("el clic sobre uno bloqueado deja que el 409 del server explique", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([
+      almacen({ id: "w1", name: "Central", deactivationBlockedBy: "stock" }),
+    ]);
+    mockedApi.updateWarehouse.mockRejectedValue({
+      statusCode: 409,
+      message: "Este almacén todavía tiene existencias: muévelas antes de desactivarlo.",
+    });
+    await renderWarehouses();
+    await screen.findByText("Central");
+
+    await user.click(botonEstado("Central"));
+
+    expect(await screen.findByTestId("warehouses-error")).toHaveTextContent("existencias");
   });
 
   it("sin bloqueo, el botón funciona y no lleva title", async () => {

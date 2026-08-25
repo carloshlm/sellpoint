@@ -32,6 +32,7 @@ import {
   useServices,
   useUpdateService,
 } from "@/lib/services/hooks";
+import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import { useWarehouses } from "@/lib/warehouses/hooks";
 
 export const Route = createFileRoute("/catalog/services")({
@@ -257,6 +258,10 @@ function ServiceForm({
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation();
+  // El form vive ARRIBA de la tabla: quien editó desde la fila 15 no lo ve
+  // aparecer. El scroll es la respuesta visible al clic, y el foco queda en
+  // el primer campo — quien edita viene a escribir.
+  const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const [code, setCode] = useState(service?.code ?? "");
   const [name, setName] = useState(service?.name ?? "");
   const [description, setDescription] = useState(service?.description ?? "");
@@ -324,7 +329,7 @@ function ServiceForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={submit} noValidate className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           label={t("services.form.code")}

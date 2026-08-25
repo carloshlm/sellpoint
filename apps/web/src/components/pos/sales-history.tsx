@@ -241,7 +241,7 @@ function SaleRowView({
                 y el botón mentiría. Y sin `pos:cancel` no se pinta — deshacer
                 una operación asentada es decisión de gestión, no de
                 mostrador. */}
-            {!anulada && puedeAnular && (
+            {!anulada && puedeAnular ? (
               <RowAction
                 intent="delete"
                 onClick={() => {
@@ -252,6 +252,15 @@ function SaleRowView({
               >
                 {t("pos.history.cancel")}
               </RowAction>
+            ) : (
+              // Hueco del MISMO ancho que «Cancelar»: sin él, Reimprimir
+              // zigzagueaba verticalmente entre filas con y sin la acción
+              // (captura de Carlos, 2026-08-25).
+              <span aria-hidden="true" className="invisible">
+                <RowAction intent="delete" disabled tabIndex={-1}>
+                  {t("pos.history.cancel")}
+                </RowAction>
+              </span>
             )}
           </div>
         </td>

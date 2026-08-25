@@ -45,6 +45,7 @@ import {
   useUpdateProduct,
 } from "@/lib/products/hooks";
 import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
+import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 
 /** Las pestañas del detalle, como valores: la URL las tiene que validar. */
 const PRODUCT_TABS = ["info", "presentations", "composition", "stock", "kardex"] as const;
@@ -221,7 +222,10 @@ function ProductsContent() {
                   <TableCell>
                     {product.name}
                     {product.isComposite && (
-                      <Badge variant="default" className="ml-2">
+                      // warning y no default (Carlos, 2026-08-25): "Compuesto"
+                      // no es un estado apagado, es una señal de atención —
+                      // vender uno descuenta componentes.
+                      <Badge variant="warning" className="ml-2">
                         {t("products.compositeBadge")}
                       </Badge>
                     )}
@@ -403,6 +407,9 @@ function ProductDetailPanel({
 
 function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () => void }) {
   const { t, i18n } = useTranslation();
+  // La respuesta visible al clic que montó el form: entra a la vista con el
+  // cursor en el primer campo (ver el docblock del hook).
+  const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const uiLocale = resolveUiLocale(i18n);
   const { has } = usePermissions();
   const canManage = has("products:manage");
@@ -469,6 +476,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
 
   return (
     <form
+      ref={formRef}
       className="flex max-w-2xl flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();

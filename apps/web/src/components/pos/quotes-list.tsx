@@ -199,7 +199,7 @@ function QuoteRowView({
           {/* Solo una `open` se cancela. Una `loaded` ya se convirtió en venta,
               y lo que hay que deshacer es esa venta, no el papel que la
               originó. */}
-          {cotizacion.status === "open" && (
+          {cotizacion.status === "open" ? (
             <RowAction
               intent="delete"
               disabled={cancelar.isPending}
@@ -213,6 +213,15 @@ function QuoteRowView({
             >
               {t("pos.quote.cancel")}
             </RowAction>
+          ) : (
+            // Hueco del MISMO ancho que «Cancelar»: sin él, Reimprimir
+            // zigzagueaba verticalmente entre filas con y sin la acción
+            // (captura de Carlos, 2026-08-25).
+            <span aria-hidden="true" className="invisible">
+              <RowAction intent="delete" disabled tabIndex={-1}>
+                {t("pos.quote.cancel")}
+              </RowAction>
+            </span>
           )}
         </div>
       </td>

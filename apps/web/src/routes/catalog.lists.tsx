@@ -34,6 +34,7 @@ import {
   useLookupOptions,
   useUpdateRecord,
 } from "@/lib/catalogs/hooks";
+import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 
 export const Route = createFileRoute("/catalog/lists")({
   component: CatalogListsPage,
@@ -300,6 +301,9 @@ function RecordForm({
   onDone: () => void;
 }) {
   const { t } = useTranslation();
+  // La respuesta visible al clic en «Editar»: el form entra a la vista y el
+  // cursor queda en el primer campo (ver el docblock del hook).
+  const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const [code, setCode] = useState(record?.code ?? "");
   const [values, setValues] = useState<Record<string, unknown>>(record?.attributes ?? {});
   const [error, setError] = useState<string | null>(null);
@@ -322,6 +326,7 @@ function RecordForm({
 
   return (
     <form
+      ref={formRef}
       className="flex flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();

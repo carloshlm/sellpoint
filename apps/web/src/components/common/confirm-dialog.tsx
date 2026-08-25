@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 
 interface ConfirmDialogProps {
   /** Qué se va a hacer. Va como `aria-label` del diálogo. */
@@ -58,11 +59,19 @@ function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  // El diálogo es INLINE (no un modal centrado): puede montarse fuera del
+  // viewport y el clic que lo abrió parecería no hacer nada. El scroll lo trae
+  // a la vista y el foco va al CONTENEDOR, nunca al botón destructivo — un
+  // Enter por inercia no debe borrar nada.
+  const dialogRef = useScrollIntoView<HTMLDivElement>();
+
   return (
     <div
+      ref={dialogRef}
       role="alertdialog"
       aria-label={title}
       data-testid={testId}
+      tabIndex={-1}
       className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3"
     >
       <p className="text-sm">{body}</p>
