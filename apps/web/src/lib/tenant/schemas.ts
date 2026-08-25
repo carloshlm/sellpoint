@@ -24,6 +24,29 @@ export const businessStepSchema = z.object({
 
 export type BusinessStepValues = z.infer<typeof businessStepSchema>;
 
+/**
+ * "Datos del negocio" en Mi perfil (2026-08-25) — la puerta de edición
+ * PERMANENTE de lo que el wizard capturó una vez. Schema propio y no
+ * `businessStepSchema`: el wizard exige country/timezone/currency que acá no
+ * se editan, y `phone` solo existe en esta tarjeta (el wizard nunca lo pidió).
+ * Vacío es válido en phone — vaciarlo lo borra; si viene, 5-20 caracteres,
+ * espejo de `updateTenantSchema` (apps/api).
+ */
+export const businessDetailsSchema = z.object({
+  name: requiredString,
+  legalName: requiredString,
+  taxId: requiredString,
+  address: requiredString,
+  phone: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || (value.length >= 5 && value.length <= 20), {
+      message: "validation.phone",
+    }),
+});
+
+export type BusinessDetailsValues = z.infer<typeof businessDetailsSchema>;
+
 const emailSchema = z
   .string()
   .trim()

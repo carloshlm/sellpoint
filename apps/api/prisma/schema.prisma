@@ -21,6 +21,9 @@ model Tenant {
   // F1-WEB-ONBOARD-01 (paso 1 del wizard): aditivos, nullable — un tenant
   // creado antes de esta migración sigue operando con ambos en NULL.
   address        String?  @map("address")
+  // Teléfono del negocio (2026-08-25): editable desde "Mi perfil", nunca lo
+  // pide el wizard. El único campo del tenant borrable vía PATCH (null).
+  phone          String?  @db.VarChar(20)
   templateChoice String?  @map("template_choice")
   // F1-WEB-ONBOARD-03: el paso 3 (placeholder de almacén, F2, D2) NO tiene
   // columna propia — W4 (verify-report #357) revirtió `warehouseStepSeen`

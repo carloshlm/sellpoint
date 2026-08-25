@@ -13,6 +13,7 @@ function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
     name: "Acme",
     legalName: null,
     taxId: null,
+    phone: null,
     address: null,
     timezone: "America/Mexico_City",
     currency: "MXN",

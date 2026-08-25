@@ -14,6 +14,7 @@ const TENANT: AuthUser["tenant"] = {
   name: "Tienda",
   legalName: null,
   taxId: null,
+  phone: null,
   address: null,
   timezone: "America/Mexico_City",
   currency: "MXN",

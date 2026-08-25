@@ -125,6 +125,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
           legalName: null,
           taxId: null,
           address: null,
+          phone: null,
           timezone: expect.any(String),
           currency: "MXN",
           templateChoice: null,

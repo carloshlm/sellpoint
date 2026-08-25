@@ -60,6 +60,17 @@
       "email": "Email",
       "language": "Idioma"
     },
+    "business": {
+      "title": "Datos del negocio",
+      "subtitle": "Lo que capturaste al configurar tu negocio, editable cuando cambie.",
+      "name": "Nombre del negocio",
+      "legalName": "Nombre legal",
+      "taxId": "Identificación fiscal",
+      "address": "Dirección",
+      "phone": "Teléfono móvil (opcional)",
+      "submit": "Guardar cambios",
+      "success": "Los datos del negocio quedaron guardados."
+    },
     "preferences": {
       "title": "Preferencias",
       "languageLabel": "Idioma de la interfaz",

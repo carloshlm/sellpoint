@@ -1,0 +1,13 @@
+-- Teléfono del negocio (Carlos, 2026-08-25) — editable desde "Mi perfil".
+--
+-- Aditiva y nullable, como los campos del paso 1 del wizard (legal_name,
+-- tax_id, address): un tenant existente sigue operando con NULL y lo llena
+-- cuando quiera. A diferencia de esos tres, este campo NO participa del
+-- wizard ni de `primerPasoIncompleto` — nace opcional y se queda opcional,
+-- por eso el PATCH acepta null para borrarlo.
+--
+-- VARCHAR(20): un E.164 completo son hasta 15 dígitos más el '+'; el margen
+-- restante absorbe espacios de formato. No se valida formato por país en la
+-- base — la validación de forma vive en `updateTenantSchema`, el mismo
+-- criterio que `country` (sin CHECK SQL).
+ALTER TABLE "tenants" ADD COLUMN "phone" VARCHAR(20);

@@ -239,6 +239,61 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       expect(patchResponse.body).not.toHaveProperty("warehouseStepSeen");
     });
 
+    /**
+     * Teléfono del negocio (Carlos, 2026-08-25): editable desde "Mi perfil",
+     * NO desde el wizard. Es el único campo del tenant que se puede BORRAR
+     * (null): el wizard nunca lo pidió, así que exigirlo una vez capturado
+     * sería atrapar al usuario con un dato que siempre fue opcional.
+     */
+    describe("phone (Mi perfil, 2026-08-25)", () => {
+      it("PATCH phone persiste y un GET posterior lo refleja", async () => {
+        const owner = await registerActiveOwner();
+
+        const patchResponse = await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ phone: "+52 55 1234 5678" })
+          .expect(200);
+
+        expect(patchResponse.body).toMatchObject({ phone: "+52 55 1234 5678" });
+
+        const getResponse = await request(app.getHttpServer())
+          .get("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .expect(200);
+
+        expect(getResponse.body).toMatchObject({ phone: "+52 55 1234 5678" });
+      });
+
+      it("phone: null lo BORRA (es opcional también después de capturarlo)", async () => {
+        const owner = await registerActiveOwner();
+
+        await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ phone: "+52 55 1234 5678" })
+          .expect(200);
+
+        const cleared = await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ phone: null })
+          .expect(200);
+
+        expect(cleared.body).toMatchObject({ phone: null });
+      });
+
+      it("un phone que no cabe en la columna (más de 20) -> 400", async () => {
+        const owner = await registerActiveOwner();
+
+        await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ phone: "+52 55 1234 5678 9999 0000" })
+          .expect(400);
+      });
+    });
+
     it("body vacío -> 400 tenants.invalid_body", async () => {
       const owner = await registerActiveOwner();
 

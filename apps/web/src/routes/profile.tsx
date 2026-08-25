@@ -4,6 +4,7 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ActiveSessions } from "@/components/profile/active-sessions";
+import { BusinessDetails } from "@/components/profile/business-details";
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
 import { LanguagePreference } from "@/components/profile/language-preference";
 import { ProfileDetails } from "@/components/profile/profile-details";
@@ -45,6 +46,8 @@ function ProfileContent() {
         dependen de él se montan cuando llega; el resto no espera.
       */}
       {user && <ProfileDetails user={user} />}
+      {/* La tarjeta decide sola si existe: sin tenants:manage devuelve null. */}
+      {user && <BusinessDetails user={user} />}
       <LanguagePreference />
       <ChangePasswordForm />
       <ActiveSessions />

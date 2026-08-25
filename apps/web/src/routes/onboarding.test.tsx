@@ -68,6 +68,7 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
     name: "Acme",
     legalName: null,
     taxId: null,
+    phone: null,
     address: null,
     timezone: "America/Mexico_City",
     currency: "MXN",

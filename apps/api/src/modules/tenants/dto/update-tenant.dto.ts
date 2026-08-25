@@ -16,6 +16,11 @@ export const updateTenantSchema = z
     legalName: z.string().trim().min(1).optional(),
     taxId: z.string().trim().min(1).optional(),
     address: z.string().trim().min(1).optional(),
+    // El ÚNICO campo borrable (nullable): nunca lo exigió el wizard, así que
+    // capturarlo una vez no lo vuelve obligatorio. min(5)/max(20): suficiente
+    // para cualquier E.164 con formato, sin validar por país (mismo criterio
+    // laxo que `address` — la forma exacta es asunto del negocio, no nuestro).
+    phone: z.string().trim().min(5).max(20).nullable().optional(),
     timezone: z.string().trim().min(1).optional(),
     currency: z.enum(SUPPORTED_CURRENCIES).optional(),
     templateChoice: z.string().trim().min(1).optional(),

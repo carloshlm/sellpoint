@@ -21,6 +21,7 @@ function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
     legalName: "Acme SA de CV",
     taxId: "ACM010101AAA",
     address: "Av. Siempre Viva 123",
+    phone: null,
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,

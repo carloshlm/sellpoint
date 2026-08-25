@@ -60,6 +60,17 @@
       "email": "Email",
       "language": "Language"
     },
+    "business": {
+      "title": "Business details",
+      "subtitle": "What you entered when setting up your business, editable whenever it changes.",
+      "name": "Business name",
+      "legalName": "Legal name",
+      "taxId": "Tax ID",
+      "address": "Address",
+      "phone": "Mobile phone (optional)",
+      "submit": "Save changes",
+      "success": "Business details saved."
+    },
     "preferences": {
       "title": "Preferences",
       "languageLabel": "Interface language",
