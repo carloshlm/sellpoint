@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface WizardShellProps {
-  step: 1 | 2 | 3 | 4;
+  step: 1 | 2 | 3;
   children: React.ReactNode;
 }
 

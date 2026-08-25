@@ -15,7 +15,6 @@ export interface LoginResponse {
 }
 
 export interface RegisterTenantInput {
-  tenantName: string;
   email: string;
   password: string;
   firstName: string;

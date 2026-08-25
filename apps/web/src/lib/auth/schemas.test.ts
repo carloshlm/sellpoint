@@ -27,8 +27,9 @@ describe("auth schemas", () => {
   });
 
   describe("registerSchema (NIST: 12+ sin composición)", () => {
+    // Sin `tenantName` (Carlos, 2026-08-25): el negocio se nombra en el
+    // paso 1 del wizard, no en el registro.
     const base = {
-      tenantName: "Abarrotes Ana",
       firstName: "Ana",
       lastNamePaternal: "García",
       lastNameMaternal: "",
@@ -55,7 +56,7 @@ describe("auth schemas", () => {
     });
 
     it("campos obligatorios vacíos reportan validation.required", () => {
-      const result = registerSchema.safeParse({ ...base, tenantName: "  " });
+      const result = registerSchema.safeParse({ ...base, firstName: "  " });
       expect(result.success).toBe(false);
       expect(result.error?.issues[0]?.message).toBe("validation.required");
     });

@@ -109,6 +109,7 @@ describe("/me (e2e)", () => {
         taxId: null,
         address: null,
         phone: null,
+        theme: null,
         timezone: expect.any(String),
         currency: "MXN",
         templateChoice: null,

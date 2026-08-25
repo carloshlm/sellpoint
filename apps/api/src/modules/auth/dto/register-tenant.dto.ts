@@ -7,7 +7,10 @@ import { z } from "zod";
 export const passwordSchema = z.string().min(12, "auth.weak_password");
 
 export const registerTenantSchema = z.object({
-  tenantName: z.string().trim().min(1),
+  // OPCIONAL desde 2026-08-25 (Carlos): la pantalla de registro ya no lo
+  // pide — el negocio se nombra en el paso 1 del wizard (Nombre legal). Sin
+  // él, el tenant nace con un nombre provisional por locale (ver provision).
+  tenantName: z.string().trim().min(1).optional(),
   // CHECK (currency IN ('MXN','USD')) vive en la DB — acá solo se limita a
   // los dos valores soportados hoy.
   currency: z.enum(["MXN", "USD"]).optional(),

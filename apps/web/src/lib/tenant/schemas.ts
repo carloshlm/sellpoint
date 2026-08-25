@@ -69,31 +69,6 @@ export const businessDetailsSchema = z
 
 export type BusinessDetailsValues = z.infer<typeof businessDetailsSchema>;
 
-const emailSchema = z
-  .string()
-  .trim()
-  .min(1, "validation.required")
-  .toLowerCase()
-  .pipe(z.email("validation.email"));
-
-/**
- * F1-WEB-ONBOARD-04, paso 4 (D5, #347): "email+nombre+rol por fila, DTO sin
- * relajar" — mismos campos obligatorios que `userFormSchema`
- * (lib/rbac/schemas.ts), que a su vez espeja `create-user.dto.ts` del API.
- * `roleId` es UN rol por fila (no el checklist multi-rol del alta desde
- * /system/users) — el container lo envuelve en `roleIds: [roleId]` al
- * llamar `createUser`, que sigue exigiendo `roleIds.min(1)`.
- */
-export const inviteRowSchema = z.object({
-  email: emailSchema,
-  firstName: requiredString,
-  lastNamePaternal: requiredString,
-  roleId: requiredString,
-});
-
-export const invitesStepSchema = z.object({
-  rows: z.array(inviteRowSchema).min(1, "validation.required"),
-});
-
-export type InviteRowValues = z.infer<typeof inviteRowSchema>;
-export type InvitesStepValues = z.infer<typeof invitesStepSchema>;
+// El paso de invitar al equipo se quitó del wizard (Carlos, 2026-08-25) y
+// sus schemas se fueron con él: el alta de usuarios vive en Sistema →
+// Usuarios con su propio `userFormSchema` (lib/rbac/schemas.ts).

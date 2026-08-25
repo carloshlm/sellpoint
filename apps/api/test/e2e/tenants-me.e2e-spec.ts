@@ -306,6 +306,42 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       });
     });
 
+    /**
+     * El tema inicial del wizard (Carlos, 2026-08-25): el paso 3 guarda la
+     * elección aunque los ESTILOS lleguen después — la columna existe para
+     * que la preferencia no se pierda entre el wizard y el selector de
+     * Mi perfil. Cuatro valores cerrados, mismo criterio de validación que
+     * currency (enum en el DTO, sin CHECK SQL).
+     */
+    describe("theme (wizard de temas, 2026-08-25)", () => {
+      it("PATCH theme válido persiste y un GET posterior lo refleja", async () => {
+        const owner = await registerActiveOwner();
+
+        const patchResponse = await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ theme: "grape" })
+          .expect(200);
+        expect(patchResponse.body).toMatchObject({ theme: "grape" });
+
+        const getResponse = await request(app.getHttpServer())
+          .get("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .expect(200);
+        expect(getResponse.body).toMatchObject({ theme: "grape" });
+      });
+
+      it("un theme fuera del catálogo -> 400", async () => {
+        const owner = await registerActiveOwner();
+
+        await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ theme: "pink" })
+          .expect(400);
+      });
+    });
+
     it("body vacío -> 400 tenants.invalid_body", async () => {
       const owner = await registerActiveOwner();
 

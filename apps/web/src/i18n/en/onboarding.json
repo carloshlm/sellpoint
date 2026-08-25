@@ -1,7 +1,7 @@
 {
   "wizard": {
     "title": "Set up your business",
-    "stepLabel": "Step {{step}} of 4",
+    "stepLabel": "Step {{step}} of 3",
     "comingSoon": "This step isn't available yet. Come back later."
   },
   "step1": {
@@ -10,6 +10,7 @@
     "country": "Country",
     "countryPlaceholder": "Select a country",
     "legalName": "Legal name",
+    "legalNameHint": "Your business's legal name, as it appears on your documents. It will also be its visible name in SellPoint.",
     "taxId": "Tax ID",
     "taxIdWithAbbr": "Tax ID ({{abbr}})",
     "address": "Address",
@@ -75,16 +76,6 @@
     "error": "We couldn't save your business details."
   },
   "step2": {
-    "title": "Your catalog fields",
-    "subtitle": "Your products already have the essentials. Add your business's own fields, or do it later.",
-    "continue": "Continue",
-    "error": "We couldn't save the fields.",
-    "standardTitle": "Standard fields",
-    "fieldLabel": "Field name",
-    "fieldType": "Type",
-    "laterHint": "You can add or change fields anytime from Catalog and Fields."
-  },
-  "step3": {
     "title": "Your warehouse",
     "subtitle": "We already created one. If your business calls it something else, rename it.",
     "continue": "Continue",
@@ -93,21 +84,17 @@
     "nameHint": "For example: Main, North Branch, Distribution Center.",
     "existing": "You already have the warehouse {{name}}."
   },
-  "step4": {
-    "title": "Invite your team",
-    "subtitle": "This step is optional — you can invite people now or later from System → Users.",
-    "email": "Email",
-    "firstName": "First name",
-    "lastNamePaternal": "Last name",
-    "role": "Role",
-    "roleSelectPlaceholder": "Pick a role",
-    "rolesUnavailable": "We couldn't load the available roles.",
-    "addRow": "Add row",
-    "removeRow": "Remove row",
-    "sendInvites": "Send invitations",
-    "skip": "Skip",
-    "rowSuccess": "Invitation sent.",
-    "rowError": "We couldn't send this invitation.",
-    "finishError": "We couldn't finish the setup."
+  "step3": {
+    "title": "Pick a theme",
+    "subtitle": "This is how SellPoint will look for your business. It's just a starting point.",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "sand": "Sand",
+      "grape": "Grape"
+    },
+    "changeLaterHint": "You can change the theme anytime from My profile.",
+    "finish": "Finish",
+    "error": "We couldn't save the theme. Please try again."
   }
 }

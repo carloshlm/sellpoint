@@ -18,6 +18,7 @@ export interface TenantBlock {
   taxId: string | null;
   address: string | null;
   phone: string | null;
+  theme: string | null;
   timezone: string;
   currency: string;
   templateChoice: string | null;
@@ -34,6 +35,7 @@ export type UpdateTenantInput = Partial<
     | "taxId"
     | "address"
     | "phone"
+    | "theme"
     | "timezone"
     | "currency"
     | "templateChoice"

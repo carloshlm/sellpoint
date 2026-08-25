@@ -58,6 +58,7 @@ const DEMO_TENANT = {
   legalName: null,
   taxId: null,
   phone: null,
+  theme: null,
   address: null,
   timezone: "America/Mexico_City",
   currency: "MXN",
@@ -305,9 +306,10 @@ describe("F1-WEB-AUTH-04 — /register", () => {
     refreshSessionMock.mockRejectedValue({ statusCode: 401, message: "", error: "Unauthorized" });
   });
 
+  // Sin "Nombre del negocio" (Carlos, 2026-08-25): el negocio se nombra en
+  // el paso 1 del wizard, no en el registro.
   async function fillRegisterForm(overrides: { email?: string; password?: string } = {}) {
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Nombre del negocio"), "Ferretería El Tornillo");
     await user.type(screen.getByLabelText("Nombre"), "Ana");
     await user.type(screen.getByLabelText("Apellido paterno"), "García");
     await user.type(screen.getByLabelText("Email"), overrides.email ?? "ana@acme.mx");
@@ -333,7 +335,6 @@ describe("F1-WEB-AUTH-04 — /register", () => {
     // y el locale sale del idioma de la UI, no del navegador.
     expect(registerTenantMock).toHaveBeenCalledWith(
       {
-        tenantName: "Ferretería El Tornillo",
         firstName: "Ana",
         lastNamePaternal: "García",
         lastNameMaternal: undefined,

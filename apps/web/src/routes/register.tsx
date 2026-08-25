@@ -91,12 +91,9 @@ function RegisterPage() {
             {apiError}
           </p>
         )}
-        <TextField
-          label={t("auth.register.tenantName")}
-          autoComplete="organization"
-          error={errors.tenantName?.message ? t(errors.tenantName.message) : undefined}
-          {...register("tenantName")}
-        />
+        {/* Sin "Nombre del negocio" (Carlos, 2026-08-25): el negocio se
+            nombra en el paso 1 del wizard (Nombre legal) — un campo menos
+            entre el usuario y su cuenta. */}
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
             label={t("auth.register.firstName")}

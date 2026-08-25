@@ -5,12 +5,13 @@ import {
   INITIAL_WAREHOUSE_NAME,
   PRODUCTS_CATALOG_KEY,
   PRODUCTS_CATALOG_NAME,
+  PROVISIONAL_TENANT_NAME,
   resolveRolePermissionCodes,
   TENANT_ROLE_NAMES,
 } from "./role-catalog";
 
 export interface ProvisionTenantInput {
-  tenantName: string;
+  tenantName?: string;
   currency?: string;
   ownerEmail: string;
   // Ya hasheado por el caller (AuthService), FUERA de esta transacción —
@@ -45,7 +46,7 @@ export class TenantsService {
     return this.prisma.withNewTenantContext(async (tx, setTenantContext) => {
       const tenant = await tx.tenant.create({
         data: {
-          name: input.tenantName,
+          name: input.tenantName ?? PROVISIONAL_TENANT_NAME[input.locale ?? "es"],
           currency: input.currency ?? "MXN",
         },
       });

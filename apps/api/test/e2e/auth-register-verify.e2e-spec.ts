@@ -53,6 +53,27 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
     };
   }
 
+  /**
+   * El registro sin nombre de negocio (Carlos, 2026-08-25): la pantalla de
+   * registro ya no lo pide — el negocio se nombra en el paso 1 del wizard
+   * (Nombre legal). El tenant nace con un nombre PROVISIONAL por locale, que
+   * el paso 1 reemplaza siempre antes de operar.
+   */
+  it("registro SIN tenantName: 201, el tenant nace con nombre provisional", async () => {
+    const payload = registerPayload();
+    delete (payload as Record<string, unknown>).tenantName;
+
+    const response = await request(app.getHttpServer())
+      .post("/auth/register-tenant")
+      .send(payload)
+      .expect(201);
+
+    expect(response.body).toEqual({
+      tenantId: expect.any(String),
+      userId: expect.any(String),
+    });
+  });
+
   it("registro exitoso: 201 con tenantId/userId y dispara el mail de verificación con el link", async () => {
     const payload = registerPayload();
 

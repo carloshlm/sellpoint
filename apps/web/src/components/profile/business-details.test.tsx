@@ -39,6 +39,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     taxId: "ACM010101AAA",
     address: "Av. Siempre Viva 123",
     phone: "+525512345678",
+    theme: null,
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,

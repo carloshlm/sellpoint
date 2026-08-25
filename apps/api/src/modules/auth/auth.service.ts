@@ -44,7 +44,7 @@ const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const DUMMY_PASSWORD_FOR_TIMING = "dummy-password-constant-time-verify";
 
 export interface RegisterTenantInput {
-  tenantName: string;
+  tenantName?: string;
   currency?: string;
   email: string;
   password: string;

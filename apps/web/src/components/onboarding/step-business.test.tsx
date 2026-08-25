@@ -22,6 +22,7 @@ function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
     taxId: "ACM010101AAA",
     address: "Av. Siempre Viva 123",
     phone: null,
+    theme: null,
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,

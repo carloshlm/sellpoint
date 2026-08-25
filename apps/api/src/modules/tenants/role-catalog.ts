@@ -128,3 +128,14 @@ export function resolveRolePermissionCodes(
     Viewer: readCodes,
   };
 }
+
+/**
+ * El nombre PROVISIONAL de un tenant registrado sin nombre (2026-08-25): la
+ * pantalla de registro ya no lo pide y el paso 1 del wizard lo reemplaza
+ * SIEMPRE con el Nombre legal antes de operar. Por idioma del owner, mismo
+ * criterio que INITIAL_WAREHOUSE_NAME.
+ */
+export const PROVISIONAL_TENANT_NAME: Record<"es" | "en", string> = {
+  es: "Mi negocio",
+  en: "My business",
+};

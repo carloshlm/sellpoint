@@ -178,6 +178,9 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
       />
       <TextField
         label={t("onboarding.step1.legalName")}
+        // El registro ya no pide "Nombre del negocio" (Carlos, 2026-08-25):
+        // este campo lo nombra — el hint lo aclara.
+        hint={t("onboarding.step1.legalNameHint")}
         error={errors.legalName?.message ? t(errors.legalName.message) : undefined}
         {...register("legalName")}
       />

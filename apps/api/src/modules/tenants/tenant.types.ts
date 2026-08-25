@@ -19,6 +19,7 @@ export interface TenantBlock {
   taxId: string | null;
   address: string | null;
   phone: string | null;
+  theme: string | null;
   timezone: string;
   currency: string;
   templateChoice: string | null;
@@ -34,6 +35,7 @@ export const TENANT_SELECT = {
   taxId: true,
   address: true,
   phone: true,
+  theme: true,
   timezone: true,
   currency: true,
   templateChoice: true,
@@ -48,6 +50,7 @@ export type TenantRow = {
   taxId: string | null;
   address: string | null;
   phone: string | null;
+  theme: string | null;
   timezone: string;
   currency: string;
   templateChoice: string | null;
@@ -64,6 +67,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     taxId: row.taxId,
     address: row.address,
     phone: row.phone,
+    theme: row.theme,
     timezone: row.timezone,
     currency: row.currency,
     templateChoice: row.templateChoice,

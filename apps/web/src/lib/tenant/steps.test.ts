@@ -14,6 +14,7 @@ function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
     legalName: null,
     taxId: null,
     phone: null,
+    theme: null,
     address: null,
     timezone: "America/Mexico_City",
     currency: "MXN",
@@ -54,19 +55,6 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     ).toBe(1);
   });
 
-  it("con country+legalName+taxId+address, sin templateChoice: paso 2 (campos del catálogo)", () => {
-    expect(
-      primerPasoIncompleto(
-        tenant({
-          country: "MX",
-          legalName: "Acme SA de CV",
-          taxId: "ACM010101AAA",
-          address: "Av. Siempre Viva 123",
-        }),
-      ),
-    ).toBe(2);
-  });
-
   // Consecuencia deliberada del cambio ad-hoc: un tenant que YA había
   // pasado el paso 1 ANTES de que existiera `country` (los otros tres
   // completos, `country` en NULL) vuelve a caer en el paso 1 hasta elegirlo.
@@ -77,45 +65,43 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
-          templateChoice: "custom",
         }),
       ),
     ).toBe(1);
   });
 
-  // W4 (verify-report #357, revierte Deviation 6): el paso 3 es un
-  // placeholder SIN dato real — no hay ninguna señal server-side que
-  // distinga "recién llegó al paso 3" de "ya lo pasó", y no hace falta:
-  // con negocio y plantilla completos, el piso YA es 4. `effectiveStep =
-  // min(stepPedido, piso)` sigue mostrando el paso 3 cuando SE PIDE
-  // explícitamente (`goToStep(3)` tras terminar el paso 2) — lo que cambia
-  // es que el piso puro ya no "retiene" en 3 sin una escritura extra.
-  it("con negocio y plantilla completos: el piso YA es 4 (paso 3 no tiene estado propio que retener)", () => {
-    expect(
-      primerPasoIncompleto(
-        tenant({
-          country: "MX",
-          legalName: "Acme SA de CV",
-          taxId: "ACM010101AAA",
-          address: "Av. Siempre Viva 123",
-          templateChoice: "custom",
-        }),
-      ),
-    ).toBe(4);
+  /**
+   * El wizard de 3 pasos (Carlos, 2026-08-25): negocio → almacén → tema.
+   * `templateChoice` quedó como columna muerta y NO participa del piso.
+   */
+  const negocioCompleto = {
+    country: "MX",
+    legalName: "Acme SA de CV",
+    taxId: "ACM010101AAA",
+    address: "Av. Siempre Viva 123",
+  };
+
+  it("con el negocio completo y SIN almacén: paso 2", () => {
+    expect(primerPasoIncompleto(tenant(negocioCompleto), { hasWarehouse: false })).toBe(2);
   });
 
-  it("tenant ya onboarded: el piso sigue siendo 4 (el gate ya no monta el wizard en este caso)", () => {
+  it("con negocio y almacén: el piso es 3 (el tema, último paso)", () => {
+    expect(primerPasoIncompleto(tenant(negocioCompleto), { hasWarehouse: true })).toBe(3);
+  });
+
+  it("templateChoice NO participa: con negocio completo y sin almacén sigue siendo 2", () => {
     expect(
-      primerPasoIncompleto(
-        tenant({
-          country: "MX",
-          legalName: "Acme SA de CV",
-          taxId: "ACM010101AAA",
-          address: "Av. Siempre Viva 123",
-          templateChoice: "custom",
-          onboarded: true,
-        }),
-      ),
-    ).toBe(4);
+      primerPasoIncompleto(tenant({ ...negocioCompleto, templateChoice: "custom" }), {
+        hasWarehouse: false,
+      }),
+    ).toBe(2);
+  });
+
+  it("tenant ya onboarded: el piso sigue siendo 3 (el gate ya no monta el wizard en este caso)", () => {
+    expect(
+      primerPasoIncompleto(tenant({ ...negocioCompleto, onboarded: true }), {
+        hasWarehouse: true,
+      }),
+    ).toBe(3);
   });
 });

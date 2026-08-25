@@ -29,8 +29,9 @@ export const loginSchema = z.object({
   password: z.string().min(1, "validation.required"),
 });
 
+// Sin `tenantName` desde 2026-08-25 (Carlos): el negocio se nombra en el
+// paso 1 del wizard (Nombre legal), no en el registro.
 export const registerSchema = z.object({
-  tenantName: requiredString,
   firstName: requiredString,
   lastNamePaternal: requiredString,
   // Opcional: vacío se normaliza a undefined para no mandar "" al API.

@@ -1,7 +1,7 @@
 {
   "wizard": {
     "title": "Configura tu negocio",
-    "stepLabel": "Paso {{step}} de 4",
+    "stepLabel": "Paso {{step}} de 3",
     "comingSoon": "Este paso todavía no está disponible. Vuelve más tarde."
   },
   "step1": {
@@ -10,6 +10,7 @@
     "country": "País",
     "countryPlaceholder": "Elige un país",
     "legalName": "Nombre legal",
+    "legalNameHint": "El nombre legal de tu negocio, como aparece en tus documentos. También será su nombre visible en SellPoint.",
     "taxId": "Identificación fiscal",
     "taxIdWithAbbr": "Identificación fiscal ({{abbr}})",
     "address": "Dirección",
@@ -75,16 +76,6 @@
     "error": "No pudimos guardar los datos del negocio."
   },
   "step2": {
-    "title": "Campos de tu catálogo",
-    "subtitle": "Tus productos ya tienen lo esencial. Agrega los campos propios de tu negocio, o hazlo después.",
-    "continue": "Continuar",
-    "error": "No pudimos guardar los campos.",
-    "standardTitle": "Campos estándar",
-    "fieldLabel": "Nombre del campo",
-    "fieldType": "Tipo",
-    "laterHint": "Puedes agregar o cambiar campos cuando quieras desde Catálogo → Campos."
-  },
-  "step3": {
     "title": "Tu almacén",
     "subtitle": "Ya te creamos uno. Si tu negocio lo llama distinto, cámbiale el nombre.",
     "continue": "Continuar",
@@ -93,21 +84,17 @@
     "nameHint": "Por ejemplo: Central, Sucursal Norte, CEDIS.",
     "existing": "Ya tienes el almacén «{{name}}»."
   },
-  "step4": {
-    "title": "Invita a tu equipo",
-    "subtitle": "Este paso es opcional — puedes invitar ahora o hacerlo más tarde desde Sistema → Usuarios.",
-    "email": "Email",
-    "firstName": "Nombre",
-    "lastNamePaternal": "Apellido paterno",
-    "role": "Rol",
-    "roleSelectPlaceholder": "Elige un rol",
-    "rolesUnavailable": "No pudimos cargar los roles disponibles.",
-    "addRow": "Agregar fila",
-    "removeRow": "Quitar fila",
-    "sendInvites": "Enviar invitaciones",
-    "skip": "Omitir",
-    "rowSuccess": "Invitación enviada.",
-    "rowError": "No pudimos enviar esta invitación.",
-    "finishError": "No pudimos finalizar la configuración."
+  "step3": {
+    "title": "Elige un tema",
+    "subtitle": "Así se verá SellPoint para tu negocio. Es solo el punto de partida.",
+    "themes": {
+      "light": "Claro",
+      "dark": "Oscuro",
+      "sand": "Arena",
+      "grape": "Uva"
+    },
+    "changeLaterHint": "Podrás cambiar el tema cuando quieras desde Mi perfil.",
+    "finish": "Terminar",
+    "error": "No pudimos guardar el tema. Intenta de nuevo."
   }
 }

@@ -24,6 +24,9 @@ model Tenant {
   // Teléfono del negocio (2026-08-25): editable desde "Mi perfil", nunca lo
   // pide el wizard. El único campo del tenant borrable vía PATCH (null).
   phone          String?  @db.VarChar(20)
+  // Tema inicial elegido en el wizard (light|dark|sand|grape). El catálogo
+  // cerrado vive en updateTenantSchema, sin CHECK SQL (criterio country).
+  theme          String?  @db.VarChar(16)
   templateChoice String?  @map("template_choice")
   // F1-WEB-ONBOARD-03: el paso 3 (placeholder de almacén, F2, D2) NO tiene
   // columna propia — W4 (verify-report #357) revirtió `warehouseStepSeen`

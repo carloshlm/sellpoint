@@ -23,6 +23,7 @@ function user(permissions: string[]): AuthUser {
       legalName: null,
       taxId: null,
       phone: null,
+      theme: null,
       address: null,
       timezone: "America/Mexico_City",
       currency: "MXN",

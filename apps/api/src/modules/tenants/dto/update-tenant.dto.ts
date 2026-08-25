@@ -27,6 +27,9 @@ export const updateTenantSchema = z
     currency: z.enum(SUPPORTED_CURRENCIES).optional(),
     templateChoice: z.string().trim().min(1).optional(),
     country: z.string().refine(isCountryCode, { message: "tenants.invalid_country" }).optional(),
+    // El tema del wizard (2026-08-25): catálogo cerrado, sin CHECK SQL —
+    // mismo criterio que currency/country.
+    theme: z.enum(["light", "dark", "sand", "grape"]).optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "tenants.invalid_body",

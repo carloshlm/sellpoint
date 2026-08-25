@@ -79,8 +79,8 @@ function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps
   return (
     <form onSubmit={submit} className="flex flex-col gap-4" data-testid="step-warehouse">
       <div>
-        <h2 className="text-lg font-semibold">{t("onboarding.step3.title")}</h2>
-        <p className="text-sm text-muted-foreground">{t("onboarding.step3.subtitle")}</p>
+        <h2 className="text-lg font-semibold">{t("onboarding.step2.title")}</h2>
+        <p className="text-sm text-muted-foreground">{t("onboarding.step2.subtitle")}</p>
       </div>
 
       {(formError || error) && (
@@ -94,8 +94,8 @@ function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps
       )}
 
       <TextField
-        label={t("onboarding.step3.name")}
-        hint={t("onboarding.step3.nameHint")}
+        label={t("onboarding.step2.name")}
+        hint={t("onboarding.step2.nameHint")}
         value={name}
         onChange={(event) => setName(event.target.value)}
         data-testid="step-warehouse-name"
@@ -110,7 +110,7 @@ function StepWarehouse({ isSubmitting, formError, onSubmit }: StepWarehouseProps
         >
           {isSubmitting || createWarehouse.isPending || updateWarehouse.isPending
             ? t("common.form.submitting")
-            : t("onboarding.step3.continue")}
+            : t("onboarding.step2.continue")}
         </Button>
       </div>
     </form>
