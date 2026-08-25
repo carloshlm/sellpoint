@@ -58,6 +58,9 @@ function RegisterPage() {
         <p className="text-sm text-muted-foreground" data-testid="register-success">
           {t("auth.register.successBody", { email: submittedEmail })}
         </p>
+        {/* El correo que no aparece casi siempre está en spam (Carlos,
+            2026-08-25): decirlo acá ahorra el soporte más repetido del mundo. */}
+        <p className="text-sm text-muted-foreground">{t("auth.checkSpamHint")}</p>
         <Button asChild variant="outline">
           <Link to="/login">{t("auth.register.loginCta")}</Link>
         </Button>

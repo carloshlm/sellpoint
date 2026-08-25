@@ -1,5 +1,6 @@
 {
   "greeting": "Hello",
+  "linkFallback": "If the button does not work, copy and paste this link into your browser:",
   "verifyEmail": {
     "subject": "Verify your SellPoint account",
     "greeting": "Hi {firstName},",

@@ -46,6 +46,7 @@ function ForgotPasswordPage() {
         <p className="text-sm text-muted-foreground" data-testid="forgot-success">
           {t("auth.forgot.successBody", { email: submittedEmail })}
         </p>
+        <p className="text-sm text-muted-foreground">{t("auth.checkSpamHint")}</p>
         <Button asChild variant="outline">
           <Link to="/login">{t("auth.forgot.backToLogin")}</Link>
         </Button>

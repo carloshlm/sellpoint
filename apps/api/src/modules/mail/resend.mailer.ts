@@ -28,7 +28,7 @@ export class ResendMailer implements MailerPort {
   ) {}
 
   async send(message: MailMessage): Promise<void> {
-    const { subject, text } = renderMailTemplate(
+    const { subject, text, html } = renderMailTemplate(
       this.i18n,
       message.template,
       message.vars,
@@ -44,7 +44,7 @@ export class ResendMailer implements MailerPort {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ from, to: [message.to], subject, text }),
+        body: JSON.stringify({ from, to: [message.to], subject, text, html }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
 

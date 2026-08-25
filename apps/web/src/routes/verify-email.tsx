@@ -52,6 +52,7 @@ function VerifyEmailPage() {
         <p className="text-sm text-muted-foreground" data-testid="verify-check-email">
           {t("auth.verify.checkEmailBody")}
         </p>
+        <p className="text-sm text-muted-foreground">{t("auth.checkSpamHint")}</p>
         {goToLogin}
       </AuthCard>
     );
