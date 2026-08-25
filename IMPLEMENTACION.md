@@ -2575,7 +2575,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 - [x] Todo export es síncrono con tope: sobre el tope → 400 con clave i18n, y las filas NO se materializan
 - [x] El front tiene UN solo helper de descarga de blob (las 4 copias actuales, migradas con sus tests intactos)
 - [x] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
-- [ ] Tag `v0.6.0-fase5` creado sobre un commit con Deploy verde
+- [x] Tag `v0.6.0-fase5` creado sobre un commit con Deploy verde — `6d50c3c`, deploy verde verificado en el log
 
 ### Módulo F5-CORE — Infraestructura de exportación
 
