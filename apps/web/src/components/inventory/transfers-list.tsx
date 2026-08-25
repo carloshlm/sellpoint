@@ -1,11 +1,14 @@
 import { TRANSFER_STALE_DAYS } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
+import { downloadInTransit } from "@/lib/inventory/api";
 import type { TransferRow } from "@/lib/inventory/transfers-api";
 import {
   useCancelTransfer,
@@ -31,6 +34,7 @@ export function TransfersList() {
   const { t } = useTranslation();
   const { has } = usePermissions();
   const [tab, setTab] = useState<Tab>("incoming");
+  const [exportando, setExportando] = useState(false);
   const [destinationWarehouseId, setDestination] = useState<string | null>(null);
   const [soloDemorados, setSoloDemorados] = useState(false);
   const [recibiendo, setRecibiendo] = useState<TransferRow | null>(null);
@@ -47,7 +51,26 @@ export function TransfersList() {
 
   return (
     <section className="flex flex-col gap-4">
-      <h1 className="font-semibold text-xl">{t("inventory.transfers.title")}</h1>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-semibold text-xl">{t("inventory.transfers.title")}</h1>
+
+        {/* F5-EXP-03 — lo que salió y no llegó, en Excel.
+            El archivo baja el DETALLE (cada partida con su origen, destino y
+            folio) y no el agregado por producto de la ficha: quien lo baja
+            está rastreando mercancía, no mirando un total. */}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={exportando}
+          onClick={() => {
+            setExportando(true);
+            void downloadInTransit().finally(() => setExportando(false));
+          }}
+        >
+          <Download className="size-4" aria-hidden="true" />
+          {t("reports.table.export")}
+        </Button>
+      </header>
 
       <div role="tablist" className="flex gap-2">
         <TabBoton activo={tab === "incoming"} onClick={() => setTab("incoming")}>

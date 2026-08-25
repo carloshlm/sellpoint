@@ -31,6 +31,7 @@ vi.mock("../lib/inventory/api", () => ({
   createDocument: vi.fn(),
   addDocumentLine: vi.fn(),
   importDocumentLines: vi.fn(),
+  downloadExpiring: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 
@@ -105,6 +106,39 @@ afterEach(() => {
 });
 
 describe("Próximos a vencer (F3-LOTS-03)", () => {
+  /**
+   * F5-EXP-03 — exportar desde la pantalla que ya se está viendo.
+   *
+   * No hay pantalla nueva en Reportes: la tarjeta del hub enlaza acá. Y el
+   * permiso sigue siendo `inventory:read`, porque el archivo es la MISMA
+   * lectura en otro formato.
+   */
+  describe("el export (F5-EXP-03)", () => {
+    it("exporta con el plazo que está elegido", async () => {
+      const { user } = await renderExpiring();
+      await screen.findByText("YOG-1");
+
+      await user.click(screen.getByRole("button", { name: "7 días" }));
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() => expect(mocked.downloadExpiring).toHaveBeenCalledWith({ days: 7 }));
+    });
+
+    /**
+     * El archivo baja lo MISMO que la pantalla muestra. Si exportara siempre
+     * los 30 días por defecto, quien filtró a 7 abriría un Excel con cosas
+     * que no había pedido y no tendría cómo saber por qué.
+     */
+    it("con el plazo por defecto exporta 30 días", async () => {
+      const { user } = await renderExpiring();
+      await screen.findByText("YOG-1");
+
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() => expect(mocked.downloadExpiring).toHaveBeenCalledWith({ days: 30 }));
+    });
+  });
+
   it("pide 30 días por defecto y muestra el lote con su caducidad", async () => {
     await renderExpiring();
 

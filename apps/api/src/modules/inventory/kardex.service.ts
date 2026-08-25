@@ -419,6 +419,78 @@ export class KardexService {
   }
 
   /**
+   * F5-EXP-02 — el tránsito SIN agrupar, para exportarlo.
+   *
+   * `inTransit` agrupa por producto —«hay 30 unidades repartidas en 2
+   * traspasos»—, que es lo que un tablero necesita: cuánto falta, sin
+   * abrumar. Pero quien baja el archivo lo hace para RASTREAR, y para eso
+   * hace falta saber de qué bodega salió cada partida, hacia dónde va, con
+   * qué folio y desde cuándo.
+   *
+   * No es una segunda implementación: es la misma consulta con otro nivel de
+   * agregación, y el agregado de la pantalla se deriva de este detalle.
+   */
+  async inTransitDetail(
+    user: AuthUser,
+    scope: UserScope,
+    options: { productId?: string; originWarehouseId?: string } = {},
+  ) {
+    if (options.originWarehouseId !== undefined) {
+      assertWarehouseInScope(scope, options.originWarehouseId);
+    }
+
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const lineas = await tx.transferLine.findMany({
+        where: {
+          tenantId: user.tenantId,
+          ...(options.productId !== undefined ? { productId: options.productId } : {}),
+          transfer: {
+            status: "in_transit",
+            // El alcance mira el ORIGEN: es mercancía de la que sigo siendo
+            // responsable hasta que alguien la reciba.
+            ...(options.originWarehouseId !== undefined
+              ? { originWarehouseId: options.originWarehouseId }
+              : scope.warehouseIds === "all"
+                ? {}
+                : { originWarehouseId: { in: scope.warehouseIds } }),
+          },
+        },
+        select: {
+          quantitySent: true,
+          product: { select: { sku: true, name: true } },
+          lot: { select: { lotCode: true } },
+          transfer: {
+            select: {
+              createdAt: true,
+              origin: { select: { name: true } },
+              destination: { select: { name: true } },
+              // El folio del traspaso vive en su documento de SALIDA: un
+              // traspaso no tiene serie propia (criterio de F3-TRANSFER).
+              documents: {
+                where: { type: "exit" },
+                select: { folio: true },
+                take: 1,
+              },
+            },
+          },
+        },
+        orderBy: [{ transfer: { createdAt: "asc" } }, { id: "asc" }],
+      });
+
+      return lineas.map((linea) => ({
+        sku: linea.product.sku,
+        name: linea.product.name,
+        lotCode: linea.lot?.lotCode ?? null,
+        origin: linea.transfer.origin.name,
+        destination: linea.transfer.destination.name,
+        quantity: linea.quantitySent.toString(),
+        folio: linea.transfer.documents[0]?.folio ?? null,
+        sentAt: linea.transfer.createdAt,
+      }));
+    });
+  }
+
+  /**
    * `seq` NO sale en la respuesta: es `BigInt` y `JSON.stringify` revienta con
    * él. Sirve para ORDENAR, que es lo único para lo que existe.
    */

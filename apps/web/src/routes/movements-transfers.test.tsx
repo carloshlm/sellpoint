@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "../i18n";
+import * as inventoryApi from "../lib/inventory/api";
 import type { TransferDetail, TransferRow } from "../lib/inventory/transfers-api";
 import * as transfersApi from "../lib/inventory/transfers-api";
 import { createQueryClient } from "../lib/query-client";
@@ -25,8 +26,12 @@ vi.mock("../lib/inventory/transfers-api", () => ({
   cancelTransfer: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
+// La descarga vive en `inventory/api` y no en `transfers-api`: el endpoint es
+// del inventario (`inventory:read`), no del módulo de traspasos.
+vi.mock("../lib/inventory/api", () => ({ downloadInTransit: vi.fn() }));
 
 const mocked = vi.mocked(transfersApi);
+const mockedInventory = vi.mocked(inventoryApi);
 const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 
 const demoUser = (permissions: string[]): AuthUser => ({
@@ -140,6 +145,24 @@ afterEach(() => {
 });
 
 describe("Traspasos en tránsito (F3-TRANSFER-05)", () => {
+  /**
+   * F5-EXP-03 — el tránsito en Excel, desde la pantalla de traspasos.
+   *
+   * El archivo baja el DETALLE —cada partida con su origen, destino y folio—
+   * y no el agregado por producto de la ficha: quien lo baja está rastreando
+   * mercancía, no mirando un total.
+   */
+  describe("el export (F5-EXP-03)", () => {
+    it("el botón baja lo que está en tránsito", async () => {
+      mockedInventory.downloadInTransit.mockResolvedValue(undefined);
+      await renderTransfers();
+
+      await userEvent.click(await screen.findByRole("button", { name: /exportar/i }));
+
+      await waitFor(() => expect(mockedInventory.downloadInTransit).toHaveBeenCalledTimes(1));
+    });
+  });
+
   it("arranca en «pendientes de recibir» y muestra el folio del despacho", async () => {
     await renderTransfers();
 

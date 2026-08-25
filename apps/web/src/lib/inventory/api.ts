@@ -121,3 +121,32 @@ export async function downloadDocumentPdf(id: string, folio: string): Promise<vo
 
   await descargarBlob(data, `${folio}.pdf`);
 }
+
+/**
+ * F5-EXP-01 — los lotes por vencer, con el plazo que la pantalla tiene puesto.
+ *
+ * Permiso `inventory:read` y no `reports:read`: es la misma lectura que ya se
+ * está viendo, en otro formato.
+ */
+export async function downloadExpiring(
+  filtros: { days: number; warehouseId?: string },
+  format: "csv" | "xlsx" = "xlsx",
+): Promise<void> {
+  const { data } = await api.get<Blob>("/inventory/expiring/export", {
+    params: { ...filtros, format },
+    responseType: "blob",
+  });
+  await descargarBlob(data, `vencimientos.${format}`);
+}
+
+/** F5-EXP-02 — lo que salió y todavía no llegó, partida por partida. */
+export async function downloadInTransit(
+  filtros: { productId?: string; originWarehouseId?: string } = {},
+  format: "csv" | "xlsx" = "xlsx",
+): Promise<void> {
+  const { data } = await api.get<Blob>("/inventory/in-transit/export", {
+    params: { ...filtros, format },
+    responseType: "blob",
+  });
+  await descargarBlob(data, `en-transito.${format}`);
+}

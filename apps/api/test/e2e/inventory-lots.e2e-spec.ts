@@ -397,6 +397,115 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       expect(codigos).not.toContain("aaa-en90");
     });
 
+    /**
+     * F5-EXP-01 — vencimientos en Excel.
+     *
+     * Permiso `inventory:read` y NO `reports:read`: es la misma lectura de la
+     * pantalla en otro formato, y pedir un permiso nuevo para bajar lo que ya
+     * se está viendo sería una puerta sobre una puerta abierta (mismo criterio
+     * que «reimprimir es leer» de F4-UI-03).
+     */
+    describe("F5-EXP-01 — el export", () => {
+      function descargar(token: string, query = "") {
+        return request(app.getHttpServer())
+          .get(`/inventory/expiring/export${query}`)
+          .set("Authorization", bearer(token))
+          .buffer(true)
+          .parse((r, cb) => {
+            const chunks: Buffer[] = [];
+            r.on("data", (c: Buffer) => chunks.push(c));
+            r.on("end", () => cb(null, Buffer.concat(chunks)));
+          });
+      }
+
+      async function celdas(body: Buffer): Promise<{ name: string; rows: string[][] }> {
+        const ExcelJS = (await import("exceljs")).default;
+        const workbook = new ExcelJS.Workbook();
+        type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+        await workbook.xlsx.load(body as unknown as XlsxInput);
+        const sheet = workbook.worksheets[0];
+        const rows: string[][] = [];
+        sheet?.eachRow((row) => {
+          const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+          rows.push(values.map((v) => (v === null || v === undefined ? "" : String(v))));
+        });
+        return { name: sheet?.name ?? "", rows };
+      }
+
+      it("baja un xlsx con los lotes por vencer", async () => {
+        const { token } = await conCaducidades();
+
+        const response = await descargar(token, "?days=30").expect(200);
+
+        expect(response.headers["content-disposition"]).toContain("vencimientos.xlsx");
+        const { name, rows } = await celdas(response.body as Buffer);
+        expect(name).toBe("Vencimientos");
+        expect(rows.flat()).toContain("bbb-en10");
+      });
+
+      /**
+       * La UBICACIÓN es columna (directiva de Carlos, 2026-08-24): quien va a
+       * retirar la mercancía que se echa a perder necesita saber a qué estante
+       * ir, y el dato ya viaja en la consulta de la pantalla.
+       */
+      it("trae la ubicación y los días que faltan", async () => {
+        const { token } = await conCaducidades();
+
+        const { rows } = await celdas(
+          (await descargar(token, "?days=30").expect(200)).body as Buffer,
+        );
+        const columnaUbicacion = rows[0]?.indexOf("Ubicación") ?? -1;
+        const columnaDias = rows[0]?.indexOf("Días restantes") ?? -1;
+
+        expect(columnaUbicacion).toBeGreaterThan(-1);
+        expect(columnaDias).toBeGreaterThan(-1);
+        const fila = rows.find((r) => r.includes("bbb-en10"));
+        expect(fila?.[columnaUbicacion]).toBe("A-1");
+        expect(fila?.[columnaDias]).toBe("10");
+      });
+
+      /**
+       * Los YA VENCIDOS salen con días en negativo, no escondidos: son los que
+       * más urge sacar del almacén.
+       */
+      it("un lote ya vencido se exporta con los días en negativo", async () => {
+        const { token } = await conCaducidades();
+
+        const { rows } = await celdas(
+          (await descargar(token, "?days=30").expect(200)).body as Buffer,
+        );
+        const columnaDias = rows[0]?.indexOf("Días restantes") ?? -1;
+
+        expect(rows.find((r) => r.includes("zzz-ayer"))?.[columnaDias]).toBe("-1");
+      });
+
+      it("respeta el filtro de días, igual que la pantalla", async () => {
+        const { token } = await conCaducidades();
+
+        const { rows } = await celdas(
+          (await descargar(token, "?days=7").expect(200)).body as Buffer,
+        );
+
+        expect(rows.flat()).not.toContain("bbb-en10");
+      });
+
+      it("sin `inventory:read` no se exporta", async () => {
+        const { tenantId } = await conCaducidades();
+        const tokenService = app.get(TokenService);
+        const vendedor = tokenService.signAccessToken({
+          sub: randomUUID(),
+          tenantId,
+          permissions: ["pos:sell"],
+          locale: "es",
+        });
+
+        await request(app.getHttpServer())
+          .get("/inventory/expiring/export")
+          .set("Authorization", bearer(vendedor))
+          .expect(403);
+      });
+    });
+
     it("con `days=7` ya no trae el que vence en 10", async () => {
       const { token } = await conCaducidades();
 

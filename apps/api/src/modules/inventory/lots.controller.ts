@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Patch, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { normalizeLotCode } from "@sellpoint/shared";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { z } from "zod";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
@@ -9,6 +9,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { InventoryExportService } from "./inventory-export.service";
 import { LotsService } from "./lots.service";
 
 /**
@@ -49,7 +50,10 @@ const updateLotSchema = z.object({
 @ApiTags("inventory")
 @Controller()
 export class LotsController {
-  constructor(private readonly lots: LotsService) {}
+  constructor(
+    private readonly lots: LotsService,
+    private readonly exports: InventoryExportService,
+  ) {}
 
   @Get("products/:id/lots")
   @RequirePermissions("inventory:read")
@@ -70,6 +74,36 @@ export class LotsController {
    * Lo que está por vencerse. `days` es un número de días, no una fecha: la
    * pantalla ofrece 7/30/90 y así el cliente no tiene que calcular nada.
    */
+  /**
+   * F5-EXP-01: lo mismo en Excel. `inventory:read` y no `reports:read`: es la
+   * misma lectura de la pantalla en otro formato.
+   */
+  @Get("inventory/expiring/export")
+  @RequirePermissions("inventory:read")
+  async expiringExport(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Res() response: Response,
+    @Query("days") days?: string,
+    @Query("warehouseId") warehouseId?: string,
+    @Query("format") format?: string,
+  ) {
+    const parsed = Number(days);
+    const file = await this.exports.expiring(
+      user,
+      scope,
+      {
+        days: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 30,
+        ...(warehouseId !== undefined && warehouseId !== "" ? { warehouseId } : {}),
+      },
+      format === "csv" ? "csv" : "xlsx",
+    );
+    response
+      .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
   @Get("inventory/expiring")
   @RequirePermissions("inventory:read")
   expiring(

@@ -8,6 +8,7 @@ import { DocumentLinesService } from "./document-lines.service";
 import { DocumentPdfService } from "./document-pdf.service";
 import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
+import { InventoryExportService } from "./inventory-export.service";
 import { KardexController } from "./kardex.controller";
 import { KardexService } from "./kardex.service";
 import { LotsController } from "./lots.controller";
@@ -32,6 +33,7 @@ import { TransfersService } from "./transfers.service";
     DocumentImportService,
     StockLedgerService,
     ConfirmService,
+    InventoryExportService,
     DocumentPdfService,
     LotsService,
     TransfersService,

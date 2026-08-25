@@ -1,12 +1,14 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { MovementDirection, MovementReason } from "@sellpoint/shared";
 import { MOVEMENT_DIRECTIONS, MOVEMENT_REASONS } from "@sellpoint/shared";
+import type { Response } from "express";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { InventoryExportService } from "./inventory-export.service";
 import { KardexService } from "./kardex.service";
 
 /**
@@ -36,7 +38,10 @@ function entero(raw?: string): number | undefined {
 @ApiTags("inventory")
 @Controller()
 export class KardexController {
-  constructor(private readonly kardex: KardexService) {}
+  constructor(
+    private readonly kardex: KardexService,
+    private readonly exports: InventoryExportService,
+  ) {}
 
   @Get("products/:id/kardex")
   @RequirePermissions("inventory:read")
@@ -82,6 +87,33 @@ export class KardexController {
    * Stock que salió del origen y todavía nadie confirmó. El alcance mira el
    * ORIGEN: es mercancía de la que sigo siendo responsable.
    */
+  /**
+   * F5-EXP-02: lo mismo en Excel, pero SIN agrupar — el archivo se baja para
+   * rastrear cada partida, no para saber el total.
+   */
+  @Get("inventory/in-transit/export")
+  @RequirePermissions("inventory:read")
+  async inTransitExport(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query() query: Record<string, string>,
+    @Res() response: Response,
+  ) {
+    const file = await this.exports.inTransit(
+      user,
+      scope,
+      {
+        ...(query.productId ? { productId: query.productId } : {}),
+        ...(query.originWarehouseId ? { originWarehouseId: query.originWarehouseId } : {}),
+      },
+      query.format === "csv" ? "csv" : "xlsx",
+    );
+    response
+      .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
   @Get("inventory/in-transit")
   @RequirePermissions("inventory:read")
   inTransit(

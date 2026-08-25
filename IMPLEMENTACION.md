@@ -2704,19 +2704,20 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-EXP — Vencimientos y tránsito (herencias F3)
 
-- [ ] **F5-EXP-01** — Export de vencimientos
+- [x] **F5-EXP-01** *(cerrada el 2026-08-24)* — Export de vencimientos
   - **Salida:** export sobre la consulta que alimenta `/movements/expiring` (producto, lote, vencimiento, días restantes, almacén, **ubicación**, cantidad — `ExpiringRow.location` ya viaja, decisión 5), mismos filtros de la pantalla, vía helper de tope. Permiso: `inventory:read` — es la misma lectura de su pantalla en otro formato
   - **Verificar:** e2e: filas = consulta de expiring con filtros; contraprueba de alcance por almacén
   - **Depende de:** F5-CORE-02
   - **Estimación:** 1.5 h
 
-- [ ] **F5-EXP-02** — Export de stock en tránsito
-  - **Salida:** export sobre el `inTransit()` existente (producto, **lote** —`TransferLine.lotId` existe; ubicación NO: el traspaso no la guarda, la decide el destino al recibir (decisión 5)—, origen, destino, cantidad, folio del traspaso, fecha de salida), mismos filtros
+- [x] **F5-EXP-02** *(cerrada el 2026-08-24)* — Export de stock en tránsito
+  - **Salida:** export sobre `inTransitDetail` —método NUEVO (2026-08-24)— con producto, **lote** (`TransferLine.lotId`; ubicación NO: el traspaso no la guarda, la decide el destino al recibir), origen, destino, cantidad, folio del traspaso y fecha de salida. **No se pudo reusar `inTransit()` tal cual**: ese AGRUPA por producto —lo correcto para el tablero— y pierde el folio, el origen y el destino, que es justo lo que necesita quien baja el archivo para rastrear. No es una segunda implementación de un cálculo: misma tabla, otro nivel de agregación, y el agregado se deriva del detalle
+  - **Los dos exports viven en `modules/inventory`, no en `reports`**: su permiso es `inventory:read` porque son la misma lectura de su pantalla en otro formato, y colgarlos del módulo de reportes con el permiso del inventario sería una rareza que el próximo lector tendría que descifrar
   - **Verificar:** e2e: traspaso enviado-no-confirmado aparece; contraprueba: uno confirmado ya no; el alcance mira el ORIGEN (criterio existente de F3-KARDEX-04)
   - **Depende de:** F5-CORE-02
   - **Estimación:** 1 h
 
-- [ ] **F5-EXP-03** — Botones de export + tarjetas del hub
+- [x] **F5-EXP-03** *(cerrada el 2026-08-24)* — Botones de export + tarjetas del hub
   - **Salida:** «Exportar Excel» en `/movements/expiring` y en la vista de tránsito; tarjetas «Vencimientos» y «En tránsito» en el hub enlazando a esas pantallas
   - **Verificar:** tests de ruta: los botones disparan el helper de blob con los filtros activos; las tarjetas visibles según permiso
   - **Depende de:** F5-EXP-01, F5-EXP-02, F5-HUB-02

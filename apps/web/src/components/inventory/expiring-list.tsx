@@ -1,11 +1,18 @@
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
-import { addDocumentLine, createDocument, updateDocumentHeader } from "@/lib/inventory/api";
+import {
+  addDocumentLine,
+  createDocument,
+  downloadExpiring,
+  updateDocumentHeader,
+} from "@/lib/inventory/api";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { useExpiring } from "@/lib/inventory/hooks";
 import type { ExpiringRow } from "@/lib/inventory/types";
@@ -28,6 +35,7 @@ const PLAZOS = [7, 30, 90] as const;
 export function ExpiringList() {
   const { t } = useTranslation();
   const [days, setDays] = useState<number>(30);
+  const [exportando, setExportando] = useState(false);
   const { data, isPending } = useExpiring({ days });
 
   return (
@@ -48,6 +56,23 @@ export function ExpiringList() {
               {t(`inventory.expiring.days${plazo}`)}
             </button>
           ))}
+
+          {/* El archivo baja lo MISMO que la pantalla muestra: el plazo
+              elegido viaja con él. Exportar siempre los 30 días por defecto
+              le daría a quien filtró a 7 un Excel con cosas que no pidió, sin
+              forma de saber por qué. */}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exportando}
+            onClick={() => {
+              setExportando(true);
+              void downloadExpiring({ days }).finally(() => setExportando(false));
+            }}
+          >
+            <Download className="size-4" aria-hidden="true" />
+            {t("reports.table.export")}
+          </Button>
         </div>
       </header>
 

@@ -787,6 +787,138 @@ describe("Kardex (F3-KARDEX-01)", () => {
       return (res.body as { transfer: { id: string } }).transfer.id;
     }
 
+    /**
+     * F5-EXP-02 — el tránsito en Excel.
+     *
+     * ── Por qué el archivo trae MÁS detalle que la pantalla ─────────────────
+     *
+     * `inTransit()` agrupa por producto —«hay 30 unidades repartidas en 2
+     * traspasos»—, que es lo correcto para un tablero: dice cuánto falta sin
+     * abrumar. Pero quien BAJA el archivo lo hace para rastrear: necesita de
+     * qué bodega salió cada partida, hacia dónde va, con qué folio y desde
+     * cuándo. Un Excel que repita el agregado no serviría para eso.
+     *
+     * No es una segunda implementación de un cálculo: es la misma tabla con
+     * otro nivel de agregación, y el agregado de la pantalla se puede derivar
+     * de este detalle.
+     */
+    describe("F5-EXP-02 — el export", () => {
+      function descargar(token: string, query = "") {
+        return request(app.getHttpServer())
+          .get(`/inventory/in-transit/export${query}`)
+          .set("Authorization", bearer(token))
+          .buffer(true)
+          .parse((r, cb) => {
+            const chunks: Buffer[] = [];
+            r.on("data", (c: Buffer) => chunks.push(c));
+            r.on("end", () => cb(null, Buffer.concat(chunks)));
+          });
+      }
+
+      async function celdas(body: Buffer): Promise<{ name: string; rows: string[][] }> {
+        const ExcelJS = (await import("exceljs")).default;
+        const workbook = new ExcelJS.Workbook();
+        type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+        await workbook.xlsx.load(body as unknown as XlsxInput);
+        const sheet = workbook.worksheets[0];
+        const rows: string[][] = [];
+        sheet?.eachRow((row) => {
+          const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+          rows.push(values.map((v) => (v === null || v === undefined ? "" : String(v))));
+        });
+        return { name: sheet?.name ?? "", rows };
+      }
+
+      it("baja un xlsx con el origen, el destino y el folio de cada partida", async () => {
+        const { token, productId, warehouseA, warehouseB, mover } = await escenario();
+        await mover("entry", warehouseA, [{ productId, quantity: 50 }]);
+        await despachar(token, productId, warehouseA, warehouseB, 10);
+
+        const response = await descargar(token).expect(200);
+
+        expect(response.headers["content-disposition"]).toContain("en-transito.xlsx");
+        const { name, rows } = await celdas(response.body as Buffer);
+        expect(name).toBe("En tránsito");
+        expect(rows[0]).toEqual([
+          "Producto",
+          "SKU",
+          "Lote",
+          "Origen",
+          "Destino",
+          "Cantidad",
+          "Folio",
+          "Salió",
+        ]);
+        const fila = rows.find((r) => r.includes("Jabón"));
+        expect(fila?.join("|")).toContain("A ");
+        expect(fila?.join("|")).toContain("B ");
+      });
+
+      /**
+       * ⚠ Un traspaso YA RECIBIDO deja de estar en tránsito. Si siguiera
+       * apareciendo, alguien saldría a buscar mercancía que ya está en su
+       * estante.
+       */
+      it("un traspaso confirmado ya no aparece", async () => {
+        const { token, productId, warehouseA, warehouseB, mover } = await escenario();
+        await mover("entry", warehouseA, [{ productId, quantity: 50 }]);
+        // `despachar` ya devuelve el id del traspaso: listarlo para volver a
+        // encontrarlo sería dar una vuelta para llegar al mismo lugar.
+        const transferId = await despachar(token, productId, warehouseA, warehouseB, 10);
+
+        const antes = await celdas((await descargar(token).expect(200)).body as Buffer);
+        expect(antes.rows.length).toBe(2);
+
+        // Lo recibe: se crea el borrador de entrada y se confirma.
+        const borrador = await request(app.getHttpServer())
+          .post(`/transfers/${transferId}/receipt-draft`)
+          .set("Authorization", bearer(token))
+          .send({})
+          .expect(201);
+        await request(app.getHttpServer())
+          .post(`/inventory/documents/${(borrador.body as { id: string }).id}/confirm`)
+          .set("Authorization", bearer(token))
+          .send({})
+          .expect(201);
+
+        const despues = await celdas((await descargar(token).expect(200)).body as Buffer);
+        // Solo el encabezado: ya no hay nada en camino.
+        expect(despues.rows).toHaveLength(1);
+      });
+
+      /**
+       * El alcance mira el ORIGEN: es mercancía de la que sigo siendo
+       * responsable hasta que alguien la reciba (criterio de F3-KARDEX-04).
+       */
+      it("respeta el alcance por el almacén de ORIGEN", async () => {
+        const { token, tenantId, productId, warehouseA, warehouseB, mover } = await escenario();
+        await mover("entry", warehouseA, [{ productId, quantity: 50 }]);
+        await despachar(token, productId, warehouseA, warehouseB, 10);
+        const soloDestino = await tokenConAlcance(tenantId, [warehouseB]);
+
+        const { rows } = await celdas((await descargar(soloDestino).expect(200)).body as Buffer);
+
+        // Ve el almacén B, que es el DESTINO: la mercancía todavía no es suya.
+        expect(rows).toHaveLength(1);
+      });
+
+      it("sin `inventory:read` no se exporta", async () => {
+        const { tenantId } = await escenario();
+        const tokenService = app.get(TokenService);
+        const vendedor = tokenService.signAccessToken({
+          sub: randomUUID(),
+          tenantId,
+          permissions: ["pos:sell"],
+          locale: "es",
+        });
+
+        await request(app.getHttpServer())
+          .get("/inventory/in-transit/export")
+          .set("Authorization", bearer(vendedor))
+          .expect(403);
+      });
+    });
+
     it("un traspaso en tránsito aparece agregado por producto", async () => {
       const { token, productId, warehouseA, warehouseB, mover } = await escenario();
       await mover("entry", warehouseA, [{ productId, quantity: 50 }]);
