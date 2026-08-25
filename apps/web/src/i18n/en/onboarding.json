@@ -87,12 +87,6 @@
   "step3": {
     "title": "Pick a theme",
     "subtitle": "This is how SellPoint will look for your business. It's just a starting point.",
-    "themes": {
-      "light": "Light",
-      "dark": "Dark",
-      "sand": "Sand",
-      "grape": "Grape"
-    },
     "changeLaterHint": "You can change the theme anytime from My profile.",
     "finish": "Finish",
     "error": "We couldn't save the theme. Please try again."

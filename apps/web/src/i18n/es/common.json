@@ -100,26 +100,14 @@
     "scrollHint": "Desliza la tabla para ver más columnas."
   },
   "theme": {
-    "title": "Apariencia",
-    "brandLabel": "Tema de la plataforma",
-    "brandHelp": "Se aplica para todos los usuarios de tu empresa.",
-    "modeLabel": "Modo",
-    "modeLight": "Claro",
-    "modeDark": "Oscuro",
-    "modeSystem": "Según el sistema",
-    "brands": {
-      "cobalto": {
-        "name": "Cobalto",
-        "description": "Azul profesional, ideal para uso prolongado"
-      },
-      "menta": {
-        "name": "Menta",
-        "description": "Verde cálido, cercano al comercio"
-      },
-      "teal": {
-        "name": "Teal",
-        "description": "Azul y verde combinados, moderno"
-      }
+    "title": "Tema",
+    "subtitle": "El aspecto de SellPoint para todo tu negocio. El cambio se aplica al instante.",
+    "label": "Tema del negocio",
+    "names": {
+      "light": "Claro",
+      "dark": "Oscuro",
+      "sand": "Arena",
+      "grape": "Uva"
     }
   },
   "welcome": "Bienvenido a SellPoint"

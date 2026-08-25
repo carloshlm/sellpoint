@@ -87,12 +87,6 @@
   "step3": {
     "title": "Elige un tema",
     "subtitle": "Así se verá SellPoint para tu negocio. Es solo el punto de partida.",
-    "themes": {
-      "light": "Claro",
-      "dark": "Oscuro",
-      "sand": "Arena",
-      "grape": "Uva"
-    },
     "changeLaterHint": "Podrás cambiar el tema cuando quieras desde Mi perfil.",
     "finish": "Terminar",
     "error": "No pudimos guardar el tema. Intenta de nuevo."

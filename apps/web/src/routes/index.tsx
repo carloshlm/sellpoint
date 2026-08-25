@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
  * tenía el único color crudo de la paleta de Tailwind en todo `apps/web/src`,
  * más 3 strings clavados en español. El color pasa a tokens semánticos, que
  * es lo que el theming por tenant repinta; "SellPoint" se queda literal por
- * ser nombre propio. El barrido que lo impide vive en `lib/theme/brands.test.ts`.
+ * ser nombre propio. El barrido que lo impide vive en `lib/theme/themes.test.ts`.
  */
 function HomePage() {
   const { t } = useTranslation();

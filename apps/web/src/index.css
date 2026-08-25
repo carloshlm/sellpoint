@@ -6,29 +6,35 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================================
-   SISTEMA DE TEMAS — DOS EJES ORTOGONALES
+   SISTEMA DE TEMAS — UN SOLO EJE: `tenant.theme`
    ============================================================================
-   1. MARCA  (`data-brand` en <html>): la elige el TENANT en su configuración.
-      Cambia primary/fondos/bordes. Hoy: cobalto (default), menta, teal.
-   2. MODO   (clase `.dark` en <html>): lo elige el USUARIO (o su sistema).
-      Cambia claro/oscuro DENTRO de la marca elegida.
+   El TENANT elige su tema (wizard paso 3, o Mi perfil) y toda la app se
+   pinta con él. Cuatro temas, elegidos por Carlos del artefacto "Temas de
+   SellPoint" (2026-08-25):
 
-   Se combinan: `[data-brand="menta"]` + `.dark` = menta oscuro. Cada marca
-   define ambos modos, así que agregar una marca nueva es agregar UN bloque
-   claro y UNO oscuro acá + UNA entrada en `lib/theme/brands.ts`. El test
-   `brands.test.ts` FALLA si una marca queda declarada sin sus tokens CSS:
-   el sistema se protege solo de quedar a medias.
+     light  (Claro)   -> `:root` a secas. El aspecto original del sistema.
+     dark   (Grafito) -> `:root[data-theme="dark"]` + clase `.dark`.
+     sand   (Crema)   -> `:root[data-theme="sand"]`.
+     grape  (Bitono)  -> `:root[data-theme="grape"]` — sidebar uva profunda
+                         con contenido claro.
 
-   Sin JS o sin `data-brand`, `:root` ya trae cobalto completo -> la app
-   nunca aparece sin estilos (importante en el login, que carga antes de
-   saber a qué tenant pertenece el usuario).
+   `applyTheme` (lib/theme/apply-theme.ts) es la única puerta: escribe
+   `data-theme` y acompaña al oscuro con `.dark` (los semánticos oscuros y
+   las variantes `dark:` de los componentes cuelgan de la clase). Sin JS o
+   sin atributo, `:root` ya trae la paleta clara completa -> la app nunca
+   aparece sin estilos (importante en el login, que carga antes de saber a
+   qué tenant pertenece el usuario).
+
+   Agregar un tema nuevo = un bloque acá + una entrada en
+   `lib/theme/themes.ts` + el id en el enum del API. El test
+   `themes.test.ts` FALLA si el CSS y el catálogo se desincronizan.
    ============================================================================ */
 
-/* --- Tokens SEMÁNTICOS: iguales en TODAS las marcas ------------------------
-   "Correcto/cuidado/error" no es identidad de marca, es comunicación. Un
-   stock bajo tiene que verse igual de urgente en cobalto que en menta, y
-   nadie puede elegir un tema que vuelva el error indistinguible del éxito.
-   Por eso viven fuera de los bloques de marca. */
+/* --- Tokens SEMÁNTICOS: iguales en TODOS los temas -------------------------
+   "Correcto/cuidado/error" no es identidad, es comunicación. Un stock bajo
+   tiene que verse igual de urgente en crema que en grafito, y nadie puede
+   elegir un tema que vuelva el error indistinguible del éxito. Los temas
+   CLAROS usan estos; el oscuro usa los de `.dark`. */
 :root {
   --success: oklch(0.5861 0.1343 156.58);
   --success-foreground: oklch(1 0 0);
@@ -47,11 +53,10 @@
   --warning-soft: oklch(0.3 0.05 72);
 }
 
-/* ========================= MARCA: COBALTO (default) ========================
-   El azul manda (confianza, SaaS); el verde se reserva para venta/dinero vía
-   los tokens semánticos. Esquinas marcadas: preciso, corporativo. */
-:root,
-[data-brand="cobalto"] {
+/* ============================ TEMA: CLARO (default) ========================
+   El aspecto original: azul cobalto sobre gris frío claro. Vive en `:root`
+   sin atributo para que la app arranque pintada siempre. */
+:root {
   --background: oklch(0.973 0.007 268.55);
   --foreground: oklch(0.2527 0.0344 264.68);
   --card: oklch(1 0 0);
@@ -87,173 +92,122 @@
   --sidebar-ring: oklch(0.5164 0.2229 264.63);
 }
 
-.dark,
-[data-brand="cobalto"].dark {
-  --background: oklch(0.2101 0.0318 264.66);
-  --foreground: oklch(0.96 0.008 265);
-  --card: oklch(0.26 0.037 261.77);
-  --card-foreground: oklch(0.96 0.008 265);
-  --popover: oklch(0.26 0.037 261.77);
-  --popover-foreground: oklch(0.96 0.008 265);
-  --primary: oklch(0.6885 0.1629 265.98);
-  --primary-foreground: oklch(0.2101 0.0318 264.66);
-  --secondary: oklch(0.31 0.035 263);
-  --secondary-foreground: oklch(0.96 0.008 265);
-  --muted: oklch(0.31 0.035 263);
-  --muted-foreground: oklch(0.72 0.025 265);
-  --accent: oklch(0.31 0.035 263);
-  --accent-foreground: oklch(0.6885 0.1629 265.98);
-  --destructive: oklch(0.68 0.17 25);
-  --destructive-foreground: oklch(0.2101 0.0318 264.66);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.6885 0.1629 265.98);
-  --sidebar: oklch(0.26 0.037 261.77);
-  --sidebar-foreground: oklch(0.96 0.008 265);
-  --sidebar-primary: oklch(0.6885 0.1629 265.98);
-  --sidebar-primary-foreground: oklch(0.2101 0.0318 264.66);
-  --sidebar-accent: oklch(0.31 0.035 263);
-  --sidebar-accent-foreground: oklch(0.6885 0.1629 265.98);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.6885 0.1629 265.98);
+/* ========================= TEMA: OSCURO «Grafito» ==========================
+   Gris profundo y NEUTRO (la referencia es Gmail dark), nunca negro puro ni
+   azulado. El azul de la marca se aclara para leerse sobre fondo oscuro. */
+:root[data-theme="dark"] {
+  --background: #1b1d21;
+  --foreground: #e8eaed;
+  --card: #25272c;
+  --card-foreground: #e8eaed;
+  --popover: #25272c;
+  --popover-foreground: #e8eaed;
+  --primary: #7c9aff;
+  --primary-foreground: #10131c;
+  --secondary: #2c2f35;
+  --secondary-foreground: #e8eaed;
+  --muted: #2c2f35;
+  --muted-foreground: #a2a7ae;
+  --accent: #2c2f35;
+  --accent-foreground: #7c9aff;
+  --destructive: #f47c7c;
+  --destructive-foreground: #1b1d21;
+  --border: #383b42;
+  --input: #33363d;
+  --ring: #7c9aff;
+  --radius: 0.5rem;
+  --chart-1: #7c9aff;
+  --chart-2: #57d98a;
+  --chart-3: #e7b350;
+  --chart-4: #c79aef;
+  --chart-5: #6fd0d8;
+  --sidebar: #25272c;
+  --sidebar-foreground: #e8eaed;
+  --sidebar-primary: #7c9aff;
+  --sidebar-primary-foreground: #10131c;
+  --sidebar-accent: #2f3a55;
+  --sidebar-accent-foreground: #b9c8ff;
+  --sidebar-border: #383b42;
+  --sidebar-ring: #7c9aff;
 }
 
-/* ============================ MARCA: MENTA ================================
-   El verde manda (comercio, dinero); el azul queda de estructura. Esquinas
-   suaves: cálido, cercano al comercio de barrio. */
-[data-brand="menta"] {
-  --background: oklch(0.969 0.0068 145.52);
-  --foreground: oklch(0.2693 0.0232 167.85);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2693 0.0232 167.85);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2693 0.0232 167.85);
-  --primary: oklch(0.6222 0.1333 162.27);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9502 0.0126 149.25);
-  --secondary-foreground: oklch(0.2693 0.0232 167.85);
-  --muted: oklch(0.9502 0.0126 149.25);
-  --muted-foreground: oklch(0.5079 0.0296 161.09);
-  --accent: oklch(0.9502 0.0126 149.25);
-  --accent-foreground: oklch(0.6222 0.1333 162.27);
-  --destructive: oklch(0.585 0.1921 25.41);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9179 0.0161 148.4);
-  --input: oklch(0.9179 0.0161 148.4);
-  --ring: oklch(0.6222 0.1333 162.27);
-  --radius: 0.8125rem;
-  --chart-1: oklch(0.6222 0.1333 162.27);
-  --chart-2: oklch(0.5164 0.2229 264.63);
+/* =========================== TEMA: UVA «Bitono» ============================
+   El menú lateral en uva profunda y el contenido claro y neutro — el patrón
+   clásico de los SaaS. El primario es el tono exacto de la muestra de
+   Carlos (#5d5468). */
+:root[data-theme="grape"] {
+  --background: #f8f7fa;
+  --foreground: #2e2a36;
+  --card: #ffffff;
+  --card-foreground: #2e2a36;
+  --popover: #ffffff;
+  --popover-foreground: #2e2a36;
+  --primary: #5d5468;
+  --primary-foreground: #ffffff;
+  --secondary: #eceaef;
+  --secondary-foreground: #2e2a36;
+  --muted: #eceaef;
+  --muted-foreground: #6e6879;
+  --accent: #eceaef;
+  --accent-foreground: #5d5468;
+  --destructive: #c44f5c;
+  --destructive-foreground: #ffffff;
+  --border: #e4e1ea;
+  --input: #e4e1ea;
+  --ring: #5d5468;
+  --radius: 0.5rem;
+  --chart-1: #5d5468;
+  --chart-2: oklch(0.5861 0.1343 156.58);
   --chart-3: oklch(0.6264 0.1248 70.45);
-  --chart-4: oklch(0.65 0.16 300);
-  --chart-5: oklch(0.6 0.13 200);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2693 0.0232 167.85);
-  --sidebar-primary: oklch(0.6222 0.1333 162.27);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.9502 0.0126 149.25);
-  --sidebar-accent-foreground: oklch(0.6222 0.1333 162.27);
-  --sidebar-border: oklch(0.9179 0.0161 148.4);
-  --sidebar-ring: oklch(0.6222 0.1333 162.27);
+  --chart-4: #8f7fb0;
+  --chart-5: #4d7c94;
+  --sidebar: #453d52;
+  --sidebar-foreground: #d9d3e2;
+  --sidebar-primary: #cbbfe0;
+  --sidebar-primary-foreground: #453d52;
+  --sidebar-accent: #5a5069;
+  --sidebar-accent-foreground: #f3eff9;
+  --sidebar-border: #59506680;
+  --sidebar-ring: #cbbfe0;
 }
 
-[data-brand="menta"].dark {
-  --background: oklch(0.2064 0.0166 168.06);
-  --foreground: oklch(0.96 0.01 160);
-  --card: oklch(0.2472 0.0193 167.23);
-  --card-foreground: oklch(0.96 0.01 160);
-  --popover: oklch(0.2472 0.0193 167.23);
-  --popover-foreground: oklch(0.96 0.01 160);
-  --primary: oklch(0.7729 0.1535 163.22);
-  --primary-foreground: oklch(0.2064 0.0166 168.06);
-  --secondary: oklch(0.3 0.025 166);
-  --secondary-foreground: oklch(0.96 0.01 160);
-  --muted: oklch(0.3 0.025 166);
-  --muted-foreground: oklch(0.72 0.028 162);
-  --accent: oklch(0.3 0.025 166);
-  --accent-foreground: oklch(0.7729 0.1535 163.22);
-  --destructive: oklch(0.68 0.17 25);
-  --destructive-foreground: oklch(0.2064 0.0166 168.06);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.7729 0.1535 163.22);
-  --sidebar: oklch(0.2472 0.0193 167.23);
-  --sidebar-foreground: oklch(0.96 0.01 160);
-  --sidebar-primary: oklch(0.7729 0.1535 163.22);
-  --sidebar-primary-foreground: oklch(0.2064 0.0166 168.06);
-  --sidebar-accent: oklch(0.3 0.025 166);
-  --sidebar-accent-foreground: oklch(0.7729 0.1535 163.22);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.7729 0.1535 163.22);
-}
-
-/* ============================= MARCA: TEAL ================================
-   Azul y verde fundidos en un teal, con ambos vivos como acentos. Esquinas
-   medias: moderno, tecnológico, equilibrado. */
-[data-brand="teal"] {
-  --background: oklch(0.9667 0.0055 211.04);
-  --foreground: oklch(0.2538 0.0233 224.99);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2538 0.0233 224.99);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2538 0.0233 224.99);
-  --primary: oklch(0.587 0.0997 188.65);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9456 0.0097 204.91);
-  --secondary-foreground: oklch(0.2538 0.0233 224.99);
-  --muted: oklch(0.9456 0.0097 204.91);
-  --muted-foreground: oklch(0.5094 0.0268 217.01);
-  --accent: oklch(0.9456 0.0097 204.91);
-  --accent-foreground: oklch(0.587 0.0997 188.65);
-  --destructive: oklch(0.585 0.1921 25.41);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9172 0.0121 209.8);
-  --input: oklch(0.9172 0.0121 209.8);
-  --ring: oklch(0.587 0.0997 188.65);
-  --radius: 0.625rem;
-  --chart-1: oklch(0.587 0.0997 188.65);
-  --chart-2: oklch(0.5164 0.2229 264.63);
-  --chart-3: oklch(0.5861 0.1343 156.58);
-  --chart-4: oklch(0.6264 0.1248 70.45);
-  --chart-5: oklch(0.65 0.16 300);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.2538 0.0233 224.99);
-  --sidebar-primary: oklch(0.587 0.0997 188.65);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.9456 0.0097 204.91);
-  --sidebar-accent-foreground: oklch(0.587 0.0997 188.65);
-  --sidebar-border: oklch(0.9172 0.0121 209.8);
-  --sidebar-ring: oklch(0.587 0.0997 188.65);
-}
-
-[data-brand="teal"].dark {
-  --background: oklch(0.2075 0.0175 208.99);
-  --foreground: oklch(0.96 0.008 205);
-  --card: oklch(0.2519 0.0207 206.42);
-  --card-foreground: oklch(0.96 0.008 205);
-  --popover: oklch(0.2519 0.0207 206.42);
-  --popover-foreground: oklch(0.96 0.008 205);
-  --primary: oklch(0.7845 0.1325 181.91);
-  --primary-foreground: oklch(0.2075 0.0175 208.99);
-  --secondary: oklch(0.3 0.025 207);
-  --secondary-foreground: oklch(0.96 0.008 205);
-  --muted: oklch(0.3 0.025 207);
-  --muted-foreground: oklch(0.72 0.025 207);
-  --accent: oklch(0.3 0.025 207);
-  --accent-foreground: oklch(0.7845 0.1325 181.91);
-  --destructive: oklch(0.68 0.17 25);
-  --destructive-foreground: oklch(0.2075 0.0175 208.99);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.7845 0.1325 181.91);
-  --sidebar: oklch(0.2519 0.0207 206.42);
-  --sidebar-foreground: oklch(0.96 0.008 205);
-  --sidebar-primary: oklch(0.7845 0.1325 181.91);
-  --sidebar-primary-foreground: oklch(0.2075 0.0175 208.99);
-  --sidebar-accent: oklch(0.3 0.025 207);
-  --sidebar-accent-foreground: oklch(0.7845 0.1325 181.91);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.7845 0.1325 181.91);
+/* =========================== TEMA: ARENA «Crema» ===========================
+   Cremas cálidas y café tostado (la referencia es una cafetería): tranquilo
+   para jornadas largas de mostrador. */
+:root[data-theme="sand"] {
+  --background: #f7efe2;
+  --foreground: #3d2f23;
+  --card: #fffdf7;
+  --card-foreground: #3d2f23;
+  --popover: #fffdf7;
+  --popover-foreground: #3d2f23;
+  --primary: #a9714b;
+  --primary-foreground: #fff8ef;
+  --secondary: #eee4d1;
+  --secondary-foreground: #3d2f23;
+  --muted: #eee4d1;
+  --muted-foreground: #857664;
+  --accent: #eee4d1;
+  --accent-foreground: #8a5730;
+  --destructive: #c05744;
+  --destructive-foreground: #fff8ef;
+  --border: #e7d8bf;
+  --input: #e7d8bf;
+  --ring: #a9714b;
+  --radius: 0.5rem;
+  --chart-1: #a9714b;
+  --chart-2: oklch(0.5861 0.1343 156.58);
+  --chart-3: oklch(0.6264 0.1248 70.45);
+  --chart-4: #b08d3c;
+  --chart-5: #7c886b;
+  --sidebar: #fffdf7;
+  --sidebar-foreground: #3d2f23;
+  --sidebar-primary: #a9714b;
+  --sidebar-primary-foreground: #fff8ef;
+  --sidebar-accent: #f0e0c8;
+  --sidebar-accent-foreground: #8a5730;
+  --sidebar-border: #e7d8bf;
+  --sidebar-ring: #a9714b;
 }
 
 @theme inline {

@@ -8,6 +8,7 @@ import { BusinessDetails } from "@/components/profile/business-details";
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
 import { LanguagePreference } from "@/components/profile/language-preference";
 import { ProfileDetails } from "@/components/profile/profile-details";
+import { ThemePreference } from "@/components/profile/theme-preference";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/profile")({
@@ -46,8 +47,9 @@ function ProfileContent() {
         dependen de él se montan cuando llega; el resto no espera.
       */}
       {user && <ProfileDetails user={user} />}
-      {/* La tarjeta decide sola si existe: sin tenants:manage devuelve null. */}
+      {/* Las tarjetas deciden solas si existen: sin tenants:manage devuelven null. */}
       {user && <BusinessDetails user={user} />}
+      {user && <ThemePreference user={user} />}
       <LanguagePreference />
       <ChangePasswordForm />
       <ActiveSessions />

@@ -344,6 +344,25 @@ describe("/onboarding", () => {
       expect(mockedTenantApi.completeOnboarding).not.toHaveBeenCalled();
     });
 
+    /**
+     * La vista previa EN VIVO (Carlos, 2026-08-26): un tema se elige viendo.
+     * El clic re-pinta el documento al momento, sin esperar al PATCH.
+     */
+    it("el clic en una muestra aplica el tema AL MOMENTO, antes de Terminar", async () => {
+      const user = userEvent.setup();
+      await renderRoute("/onboarding");
+      await screen.findByRole("radio", { name: "Uva" });
+
+      await user.click(screen.getByRole("radio", { name: "Uva" }));
+
+      expect(document.documentElement.dataset.theme).toBe("grape");
+      expect(mockedTenantApi.updateMyTenant).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("radio", { name: "Claro" }));
+
+      expect(document.documentElement.dataset.theme).toBeUndefined();
+    });
+
     it("con lng: 'en', el paso 3 se muestra en inglés", async () => {
       await renderRoute("/onboarding", "en");
 

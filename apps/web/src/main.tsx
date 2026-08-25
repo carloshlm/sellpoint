@@ -9,14 +9,16 @@ import { i18n } from "./i18n";
 import { installAccountLanguageSync } from "./lib/auth/ui-language";
 import { registerServiceWorker } from "./lib/pwa/register-service-worker";
 import { createQueryClient } from "./lib/query-client";
-import { applyBrand } from "./lib/theme/apply-brand";
+import { applyTheme } from "./lib/theme/apply-theme";
+import { installTenantThemeSync } from "./lib/theme/tenant-theme-sync";
 import { routeTree } from "./routeTree.gen";
 
-// Marca por defecto ANTES del primer render: el login se pinta con la marca
-// de la plataforma porque todavía no sabemos a qué tenant pertenece quien
-// escribe su email (login por email global, decisión de f1-auth). Cuando el
-// login devuelva la config del tenant, se vuelve a llamar con `tenant.theme`.
-applyBrand();
+// Tema por defecto ANTES del primer render: el login se pinta con el tema
+// claro porque todavía no sabemos a qué tenant pertenece quien escribe su
+// email (login por email global, decisión de f1-auth). Apenas el store tenga
+// al usuario, la suscripción de abajo aplica el tema de SU negocio.
+applyTheme();
+installTenantThemeSync();
 
 // Las pantallas públicas arrancan en inglés (`INITIAL_LOCALE`), pero apenas
 // hay sesión manda el idioma de la CUENTA. Se instala una sola vez, acá, para
