@@ -68,6 +68,8 @@
       "taxId": "Identificación fiscal",
       "address": "Dirección",
       "phone": "Teléfono móvil (opcional)",
+      "phoneCountry": "Código de país",
+      "phoneCountryPlaceholder": "Elige un país",
       "submit": "Guardar cambios",
       "success": "Los datos del negocio quedaron guardados."
     },

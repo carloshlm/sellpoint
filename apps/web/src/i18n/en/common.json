@@ -68,6 +68,8 @@
       "taxId": "Tax ID",
       "address": "Address",
       "phone": "Mobile phone (optional)",
+      "phoneCountry": "Country code",
+      "phoneCountryPlaceholder": "Choose a country",
       "submit": "Save changes",
       "success": "Business details saved."
     },

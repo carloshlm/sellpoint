@@ -1,5 +1,6 @@
 {
   "currency_locked": "No se puede cambiar la moneda de un tenant que ya tiene transacciones registradas",
   "invalid_body": "Los datos enviados no son válidos",
-  "invalid_country": "El país no es válido"
+  "invalid_country": "El país no es válido",
+  "invalid_phone": "El teléfono debe venir en formato internacional, por ejemplo +525512345678"
 }

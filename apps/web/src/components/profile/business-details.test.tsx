@@ -38,7 +38,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     legalName: "Acme SA de CV",
     taxId: "ACM010101AAA",
     address: "Av. Siempre Viva 123",
-    phone: "+52 55 1234 5678",
+    phone: "+525512345678",
     timezone: "America/Mexico_City",
     currency: "MXN",
     templateChoice: null,
@@ -80,7 +80,79 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
     expect(screen.getByLabelText("Nombre legal")).toHaveValue("Acme SA de CV");
     expect(screen.getByLabelText("Identificación fiscal")).toHaveValue("ACM010101AAA");
     expect(screen.getByLabelText("Dirección")).toHaveValue("Av. Siempre Viva 123");
-    expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("+52 55 1234 5678");
+  });
+
+  /**
+   * El teléfono compuesto (Carlos, 2026-08-25, segunda pasada): la tarjeta
+   * pinta país + número, pero lo GUARDADO es un E.164 canónico. Al abrir, el
+   * canónico se descompone de vuelta — y como un dial no identifica país
+   * ("1" es todo el NANP), el país del tenant desempata.
+   */
+  describe("el teléfono se compone de país + número", () => {
+    it("el E.164 guardado se descompone: país en el select, nacional en el input", () => {
+      renderCard(demoUser(["tenants:manage"]));
+
+      expect(screen.getByLabelText("Código de país")).toHaveValue("MX");
+      expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("5512345678");
+    });
+
+    it("sin teléfono guardado, el país del NEGOCIO preselecciona el dial", () => {
+      const user = demoUser(["tenants:manage"]);
+      user.tenant = { ...user.tenant, phone: null };
+      renderCard(user);
+
+      expect(screen.getByLabelText("Código de país")).toHaveValue("MX");
+      expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("");
+    });
+
+    it("un dial compartido (+1) se desempata con el país del tenant", () => {
+      const user = demoUser(["tenants:manage"]);
+      user.tenant = { ...user.tenant, phone: "+15551234567", country: "CA" };
+      renderCard(user);
+
+      expect(screen.getByLabelText("Código de país")).toHaveValue("CA");
+      expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("5551234567");
+    });
+
+    it("guardar compone el canónico: dial del país elegido + número sin espacios", async () => {
+      const user = userEvent.setup();
+      const actor = demoUser(["tenants:manage"]);
+      actor.tenant = { ...actor.tenant, phone: null };
+      mockedUpdate.mockResolvedValue({ ...actor.tenant, phone: "+525598765432" });
+      renderCard(actor);
+
+      await user.type(screen.getByLabelText(/Teléfono móvil/), "55 9876 5432");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ phone: "+525598765432" });
+      });
+    });
+
+    it("cambiar SOLO el país re-compone el número con el dial nuevo", async () => {
+      const user = userEvent.setup();
+      mockedUpdate.mockResolvedValue(demoUser(["tenants:manage"]).tenant);
+      renderCard(demoUser(["tenants:manage"]));
+
+      await user.selectOptions(screen.getByLabelText("Código de país"), "US");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ phone: "+15512345678" });
+      });
+    });
+
+    it("un número con letras NO se manda: error de validación", async () => {
+      const user = userEvent.setup();
+      renderCard(demoUser(["tenants:manage"]));
+
+      await user.clear(screen.getByLabelText(/Teléfono móvil/));
+      await user.type(screen.getByLabelText(/Teléfono móvil/), "55ABC1234");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      expect(await screen.findByText(/solo dígitos/i)).toBeInTheDocument();
+      expect(mockedUpdate).not.toHaveBeenCalled();
+    });
   });
 
   it("sin cambios el botón Guardar está deshabilitado", () => {
@@ -111,7 +183,7 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/guardados/i);
   });
 
-  /** El teléfono es opcional: vaciarlo lo BORRA (null), no manda "". */
+  /** El teléfono es opcional: vaciar el NÚMERO lo BORRA (null), no manda "". */
   it("vaciar el teléfono lo borra con null", async () => {
     const user = userEvent.setup();
     mockedUpdate.mockResolvedValue({ ...demoUser(["tenants:manage"]).tenant, phone: null });

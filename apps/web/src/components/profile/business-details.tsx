@@ -1,12 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import {
+  COUNTRY_DIAL_CODES,
+  type CountryCode,
+  ISO_COUNTRY_CODES,
+  splitE164,
+} from "@sellpoint/shared";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
-import type { UpdateTenantInput } from "@/lib/tenant/api";
+import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
 import { type BusinessDetailsValues, businessDetailsSchema } from "@/lib/tenant/schemas";
 import type { AuthUser } from "@/stores/auth.store";
@@ -17,8 +24,13 @@ import type { AuthUser } from "@/stores/auth.store";
  * de la empresa — mezclar ambas confunde de quién es cada dato.
  *
  * Lo que el wizard capturó una vez (nombre legal, identificación fiscal,
- * dirección) se edita aquí para siempre; el wizard no se toca. `phone` solo
- * existe en esta tarjeta y es el único campo borrable.
+ * dirección) se edita aquí para siempre; el wizard no se toca.
+ *
+ * El teléfono se PINTA en dos partes (país con su dial + número nacional)
+ * pero se GUARDA como un solo E.164 canónico (`+525512345678`): el split es
+ * presentación, no modelo. El dial se preselecciona con el país del negocio,
+ * que es también el desempate al descomponer un guardado — un dial no
+ * identifica país ("1" es todo el NANP).
  *
  * Sin `tenants:manage` la tarjeta NO EXISTE — mismo criterio que el botón
  * Crear de los movimientos: deshabilitarla sugeriría que falta un clic, no
@@ -30,8 +42,27 @@ import type { AuthUser } from "@/stores/auth.store";
  * re-sincroniza el store al terminar, así el resto de la app ve el tenant
  * fresco sin recargar.
  */
+
+/** El E.164 guardado, de vuelta a país + número para el formulario. */
+function phoneFormDefaults(tenant: TenantBlock): { phoneCountry: string; phoneNumber: string } {
+  if (tenant.phone) {
+    const parts = splitE164(tenant.phone);
+    if (parts) {
+      const candidates = ISO_COUNTRY_CODES.filter(
+        (code) => COUNTRY_DIAL_CODES[code] === parts.dialCode,
+      );
+      const tenantCountry = candidates.find((code) => code === tenant.country);
+      return {
+        phoneCountry: tenantCountry ?? candidates[0] ?? "",
+        phoneNumber: parts.nationalNumber,
+      };
+    }
+  }
+  return { phoneCountry: tenant.country ?? "", phoneNumber: "" };
+}
+
 function BusinessDetails({ user }: { user: AuthUser }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const updateTenant = useUpdateMyTenant();
   const [apiError, setApiError] = useState<string | null>(null);
   const [succeeded, setSucceeded] = useState(false);
@@ -48,9 +79,21 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       legalName: user.tenant.legalName ?? "",
       taxId: user.tenant.taxId ?? "",
       address: user.tenant.address ?? "",
-      phone: user.tenant.phone ?? "",
+      ...phoneFormDefaults(user.tenant),
     },
   });
+
+  // Mismo patrón que el selector de país del wizard (step-business): nombres
+  // vía Intl.DisplayNames en el locale del usuario — nunca se guardan.
+  const countryOptions = useMemo(() => {
+    const displayNames = new Intl.DisplayNames([i18n.language], { type: "region" });
+    return [...ISO_COUNTRY_CODES]
+      .map((code) => ({
+        value: code,
+        label: `${displayNames.of(code) ?? code} (+${COUNTRY_DIAL_CODES[code]})`,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
+  }, [i18n.language]);
 
   if (!user.permissions.includes("tenants:manage")) {
     return null;
@@ -65,11 +108,25 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     if (dirtyFields.legalName) patch.legalName = values.legalName.trim();
     if (dirtyFields.taxId) patch.taxId = values.taxId.trim();
     if (dirtyFields.address) patch.address = values.address.trim();
-    // Vaciar el teléfono lo BORRA (null, no ""): es el único campo que el
-    // wizard nunca exigió, así que capturarlo no lo vuelve obligatorio.
-    if (dirtyFields.phone) {
-      const phone = values.phone.trim();
-      patch.phone = phone === "" ? null : phone;
+    if (dirtyFields.phoneNumber || dirtyFields.phoneCountry) {
+      // Componer el canónico: dial del país + número sin espacios. Número
+      // vacío BORRA (null): el wizard nunca exigió el teléfono, capturarlo
+      // una vez no lo vuelve obligatorio.
+      const digits = values.phoneNumber.replaceAll(" ", "").trim();
+      const composed =
+        digits === ""
+          ? null
+          : `+${COUNTRY_DIAL_CODES[values.phoneCountry as CountryCode]}${digits}`;
+      // Cambiar solo el país con el número vacío compone lo mismo que ya
+      // había: no hay nada que mandar (y un PATCH vacío es 400).
+      if (composed !== user.tenant.phone) {
+        patch.phone = composed;
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      reset(values);
+      return;
     }
 
     updateTenant.mutate(patch, {
@@ -133,13 +190,27 @@ function BusinessDetails({ user }: { user: AuthUser }) {
             error={errors.address?.message ? t(errors.address.message) : undefined}
             {...register("address")}
           />
-          <TextField
-            label={t("common.profile.business.phone")}
-            type="tel"
-            autoComplete="tel"
-            error={errors.phone?.message ? t(errors.phone.message) : undefined}
-            {...register("phone")}
-          />
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
+            <SelectField
+              className="sm:w-56 sm:shrink-0"
+              label={t("common.profile.business.phoneCountry")}
+              options={[
+                { value: "", label: t("common.profile.business.phoneCountryPlaceholder") },
+                ...countryOptions,
+              ]}
+              error={errors.phoneCountry?.message ? t(errors.phoneCountry.message) : undefined}
+              {...register("phoneCountry")}
+            />
+            <TextField
+              className="sm:flex-1"
+              label={t("common.profile.business.phone")}
+              type="tel"
+              autoComplete="tel-national"
+              inputMode="numeric"
+              error={errors.phoneNumber?.message ? t(errors.phoneNumber.message) : undefined}
+              {...register("phoneNumber")}
+            />
+          </div>
           <Button type="submit" disabled={!isDirty || updateTenant.isPending}>
             {updateTenant.isPending
               ? t("common.form.submitting")

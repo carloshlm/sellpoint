@@ -1,7 +1,7 @@
 {
   "required": "Este campo es obligatorio",
   "email": "Ingresa un correo válido",
-  "phone": "Escribe un teléfono de 5 a 20 caracteres",
+  "phone": "Escribe un número válido: solo dígitos y espacios, de 4 a 14 dígitos",
   "passwordMin": "La contraseña debe tener al menos 12 caracteres",
   "passwordMismatch": "Las contraseñas no coinciden",
   "rolesRequired": "Selecciona al menos un rol"

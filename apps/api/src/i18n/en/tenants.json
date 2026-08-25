@@ -1,5 +1,6 @@
 {
   "currency_locked": "Cannot change the currency of a tenant that already has recorded transactions",
   "invalid_body": "The submitted data is not valid",
-  "invalid_country": "The country is not valid"
+  "invalid_country": "The country is not valid",
+  "invalid_phone": "The phone must be in international format, for example +525512345678"
 }

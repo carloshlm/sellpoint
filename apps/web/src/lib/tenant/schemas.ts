@@ -1,4 +1,4 @@
-import { SUPPORTED_CURRENCIES } from "@sellpoint/shared";
+import { COUNTRY_DIAL_CODES, isCountryCode, SUPPORTED_CURRENCIES } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -28,22 +28,44 @@ export type BusinessStepValues = z.infer<typeof businessStepSchema>;
  * "Datos del negocio" en Mi perfil (2026-08-25) — la puerta de edición
  * PERMANENTE de lo que el wizard capturó una vez. Schema propio y no
  * `businessStepSchema`: el wizard exige country/timezone/currency que acá no
- * se editan, y `phone` solo existe en esta tarjeta (el wizard nunca lo pidió).
- * Vacío es válido en phone — vaciarlo lo borra; si viene, 5-20 caracteres,
- * espejo de `updateTenantSchema` (apps/api).
+ * se editan, y el teléfono solo existe en esta tarjeta (el wizard nunca lo
+ * pidió).
+ *
+ * El teléfono son DOS campos de formulario (país + número nacional) que el
+ * container compone en un E.164 canónico antes de mandarlo — el API solo
+ * acepta esa forma (`updateTenantSchema`, isE164). Número vacío es válido:
+ * vaciarlo borra el teléfono. Si hay número: solo dígitos y espacios (los
+ * espacios son formato de quien teclea, se quitan al componer), el país es
+ * obligatorio, y el total dial+número respeta el máximo ITU de 15 dígitos.
  */
-export const businessDetailsSchema = z.object({
-  name: requiredString,
-  legalName: requiredString,
-  taxId: requiredString,
-  address: requiredString,
-  phone: z
-    .string()
-    .trim()
-    .refine((value) => value === "" || (value.length >= 5 && value.length <= 20), {
-      message: "validation.phone",
-    }),
-});
+export const businessDetailsSchema = z
+  .object({
+    name: requiredString,
+    legalName: requiredString,
+    taxId: requiredString,
+    address: requiredString,
+    phoneCountry: z.string(),
+    phoneNumber: z.string(),
+  })
+  .superRefine((values, ctx) => {
+    const raw = values.phoneNumber.trim();
+    if (raw === "") {
+      return;
+    }
+    if (!/^[\d ]+$/.test(raw)) {
+      ctx.addIssue({ code: "custom", path: ["phoneNumber"], message: "validation.phone" });
+      return;
+    }
+    if (!isCountryCode(values.phoneCountry)) {
+      ctx.addIssue({ code: "custom", path: ["phoneCountry"], message: "validation.required" });
+      return;
+    }
+    const digits = raw.replaceAll(" ", "");
+    const dial = COUNTRY_DIAL_CODES[values.phoneCountry];
+    if (digits.length < 4 || dial.length + digits.length > 15) {
+      ctx.addIssue({ code: "custom", path: ["phoneNumber"], message: "validation.phone" });
+    }
+  });
 
 export type BusinessDetailsValues = z.infer<typeof businessDetailsSchema>;
 

@@ -246,23 +246,23 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
      * sería atrapar al usuario con un dato que siempre fue opcional.
      */
     describe("phone (Mi perfil, 2026-08-25)", () => {
-      it("PATCH phone persiste y un GET posterior lo refleja", async () => {
+      it("PATCH phone en E.164 canónico persiste y un GET posterior lo refleja", async () => {
         const owner = await registerActiveOwner();
 
         const patchResponse = await request(app.getHttpServer())
           .patch("/tenants/me")
           .set("Authorization", bearer(owner.accessToken))
-          .send({ phone: "+52 55 1234 5678" })
+          .send({ phone: "+525512345678" })
           .expect(200);
 
-        expect(patchResponse.body).toMatchObject({ phone: "+52 55 1234 5678" });
+        expect(patchResponse.body).toMatchObject({ phone: "+525512345678" });
 
         const getResponse = await request(app.getHttpServer())
           .get("/tenants/me")
           .set("Authorization", bearer(owner.accessToken))
           .expect(200);
 
-        expect(getResponse.body).toMatchObject({ phone: "+52 55 1234 5678" });
+        expect(getResponse.body).toMatchObject({ phone: "+525512345678" });
       });
 
       it("phone: null lo BORRA (es opcional también después de capturarlo)", async () => {
@@ -271,7 +271,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         await request(app.getHttpServer())
           .patch("/tenants/me")
           .set("Authorization", bearer(owner.accessToken))
-          .send({ phone: "+52 55 1234 5678" })
+          .send({ phone: "+525512345678" })
           .expect(200);
 
         const cleared = await request(app.getHttpServer())
@@ -283,13 +283,25 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         expect(cleared.body).toMatchObject({ phone: null });
       });
 
-      it("un phone que no cabe en la columna (más de 20) -> 400", async () => {
+      /**
+       * Solo E.164 CANÓNICO (2026-08-25, segunda pasada): la UI compone
+       * país + número y manda `+525512345678`; aceptar separadores acá
+       * invitaría a que la base acumule cinco formatos del mismo teléfono.
+       * La forma bonita es de quien pinta, no de quien guarda.
+       */
+      it.each([
+        ["con separadores", "+52 55 1234 5678"],
+        ["sin el prefijo +", "525512345678"],
+        ["con letras", "+52ABC512345"],
+        ["más largo que el máximo ITU (15 dígitos)", "+5255123456789012"],
+        ["más corto que un número marcable", "+5255123"],
+      ])("phone NO canónico (%s) -> 400", async (_label, phone) => {
         const owner = await registerActiveOwner();
 
         await request(app.getHttpServer())
           .patch("/tenants/me")
           .set("Authorization", bearer(owner.accessToken))
-          .send({ phone: "+52 55 1234 5678 9999 0000" })
+          .send({ phone })
           .expect(400);
       });
     });
@@ -402,6 +414,56 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       expect(loginTenant).toEqual(meTenant);
       const body = registerResponse.body as { tenantId: string };
       expect(loginTenant).toMatchObject({ id: body.tenantId, onboarded: false });
+    });
+  });
+
+  /**
+   * Data migration de phone (2026-08-25, segunda pasada): el primer despliegue
+   * aceptó teléfonos con separadores ("+52 55 1234 5678") y este endurecimiento
+   * a E.164 canónico no puede dejar atrás filas que el propio API ya no
+   * aceptaría. Mismo molde de replay que la data migration de tenants:manage:
+   * se ejecuta el SQL REAL del archivo, dos veces, para probar contenido e
+   * idempotencia de una sola pasada.
+   */
+  describe("Data migration: los phone guardados con separadores quedan canónicos", () => {
+    it("normaliza al replay del SQL real y es idempotente", async () => {
+      const dirty = await prisma.tenant.create({
+        data: { name: `Sucio ${randomUUID()}`, phone: "+52 55 1234 5678" },
+      });
+
+      const adminConnectionString = process.env.DATABASE_URL_ADMIN ?? process.env.DATABASE_URL;
+      if (!adminConnectionString) {
+        throw new Error("Falta DATABASE_URL_ADMIN (o DATABASE_URL) para replayar la migración");
+      }
+      const adminPrisma = new PrismaClient({
+        adapter: new PrismaPg({ connectionString: adminConnectionString }),
+      });
+
+      try {
+        const migrationSql = readFileSync(
+          join(__dirname, "../../prisma/migrations/20260825230000_tenant_phone_e164/migration.sql"),
+          "utf-8",
+        );
+        const statements = migrationSql
+          .split("\n")
+          .filter((line) => !line.trim().startsWith("--"))
+          .join("\n")
+          .split(";")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        for (const statement of statements) {
+          await adminPrisma.$executeRawUnsafe(statement);
+        }
+        for (const statement of statements) {
+          await adminPrisma.$executeRawUnsafe(statement);
+        }
+      } finally {
+        await adminPrisma.$disconnect();
+      }
+
+      const normalized = await prisma.tenant.findUniqueOrThrow({ where: { id: dirty.id } });
+      expect(normalized.phone).toBe("+525512345678");
     });
   });
 

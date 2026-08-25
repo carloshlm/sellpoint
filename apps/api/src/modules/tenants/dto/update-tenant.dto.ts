@@ -1,4 +1,4 @@
-import { isCountryCode, SUPPORTED_CURRENCIES } from "@sellpoint/shared";
+import { isCountryCode, isE164, SUPPORTED_CURRENCIES } from "@sellpoint/shared";
 import { z } from "zod";
 
 // F1-WEB-ONBOARD: PATCH parcial (paso 1 del wizard + futura pantalla de
@@ -17,10 +17,12 @@ export const updateTenantSchema = z
     taxId: z.string().trim().min(1).optional(),
     address: z.string().trim().min(1).optional(),
     // El ÚNICO campo borrable (nullable): nunca lo exigió el wizard, así que
-    // capturarlo una vez no lo vuelve obligatorio. min(5)/max(20): suficiente
-    // para cualquier E.164 con formato, sin validar por país (mismo criterio
-    // laxo que `address` — la forma exacta es asunto del negocio, no nuestro).
-    phone: z.string().trim().min(5).max(20).nullable().optional(),
+    // capturarlo una vez no lo vuelve obligatorio. Solo E.164 CANÓNICO
+    // (`+525512345678`, isE164 de @sellpoint/shared — la misma fuente que el
+    // selector del web): la UI compone país + número y manda un solo string;
+    // aceptar separadores acá dejaría cinco formatos del mismo teléfono en la
+    // base. Sin validación de longitudes por país, mismo criterio que country.
+    phone: z.string().refine(isE164, { message: "tenants.invalid_phone" }).nullable().optional(),
     timezone: z.string().trim().min(1).optional(),
     currency: z.enum(SUPPORTED_CURRENCIES).optional(),
     templateChoice: z.string().trim().min(1).optional(),
