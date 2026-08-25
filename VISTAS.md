@@ -1432,9 +1432,21 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 > «reimprimir es leer» del historial de F4.
 >
 > El hub pasa de 6 a **8 tarjetas** (entran Vencimientos y En tránsito, herencias de
-> F3). Tres tarjetas NO abren pantalla propia: **Catálogo** enlaza al listado existente
-> (`/catalog/products`), y **Almacenes** y **Usuarios** descargan el Excel directo —
-> una tabla acá duplicaría los listados que ya existen en Catálogo y Sistema.
+> F3), con **tres comportamientos** distintos (verificado contra el código al cerrar F5,
+> F5-DOCS-01):
+>
+> · **Pantalla propia** — Stock y Ventas: consultas con filtros que no existen en ningún
+>   otro lado.
+> · **Descarga directa** — Catálogo, Almacenes y Usuarios: una tabla acá duplicaría los
+>   listados que ya existen en Catálogo y Sistema.
+> · **Enlace a una pantalla que ya existe** — Kardex (`/catalog/products`), Vencimientos
+>   (`/movements/expiring`) y En tránsito (`/movements/transfers`), donde vive el botón de
+>   exportar.
+>
+> **Kardex enlaza y Catálogo descarga**, y no al revés como decía este documento antes de
+> construirlo: el kardex necesita un producto ELEGIDO —una pantalla nueva pediría el mismo
+> buscador que el catálogo ya tiene—, mientras que el catálogo completo se baja de un
+> golpe y no hay nada que elegir.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -1449,14 +1461,14 @@ justo cuando está anulada. El filtro existe para acotar, no para tapar.
 │                                                                │
 │  ┌─────────────────────┐  ┌─────────────────────┐             │
 │  │ 📜 Kardex           │  │ ⏰ Vencimientos     │             │
-│  │ Trazabilidad por    │  │ Lotes por caducar,  │             │
-│  │ producto            │  │ exportable          │             │
+│  │ → abre el catálogo  │  │ → abre la pantalla, │             │
+│  │   (elige producto)  │  │   con su exportar   │             │
 │  └─────────────────────┘  └─────────────────────┘             │
 │                                                                │
 │  ┌─────────────────────┐  ┌─────────────────────┐             │
 │  │ 🚚 En tránsito      │  │ 📋 Catálogo         │             │
-│  │ Traspasos sin       │  │ → abre el listado   │             │
-│  │ recibir, exportable │  │   de productos      │             │
+│  │ → abre traspasos,   │  │ 📤 descarga directa │             │
+│  │   con su exportar   │  │   (campos dinámicos)│             │
 │  └─────────────────────┘  └─────────────────────┘             │
 │                                                                │
 │  ┌─────────────────────┐  ┌─────────────────────┐             │

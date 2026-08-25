@@ -48,7 +48,7 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 - **Catálogos:** Productos (con schema dinámico), Almacenes
 - **Movimientos:** Entrada, Salida (ambas con motivo: factura, ajuste, traspaso, devolución, merma, etc.), Inventario físico. Los traspasos son un **proceso de 2 pasos con confirmación**: la salida deja stock "en tránsito" hasta que el almacén destino confirma la entrada. **Toda operación es un documento con folio y estado**: nace en **borrador** (`ENT`, `SAL`, `INV` — el traspaso es una salida con motivo, no una serie propia), se carga a mano o por Excel guardándose sola, **se retoma por su folio** si se cierra el sistema, muestra el stock resultante antes de confirmar, y al confirmarse se baja en PDF firmable.
 - **POS:** Venta rápida, búsqueda predictiva, escaneo de cámara, impresión ESC/POS
-- **Reportes:** Stock por almacén, Catálogos, Usuarios, Ventas
+- **Reportes:** Stock por almacén (valorizado, con detalle por lote y ubicación), Ventas por período, Kardex, Catálogo, Usuarios, Almacenes, Vencimientos y Stock en tránsito
 - **Sistema:** Usuarios, Roles, Permisos granulares por módulo
 
 ---
@@ -702,20 +702,22 @@ sellpoint/
 
 **Entregable:** vendedor opera el POS desde tablet con escáner e impresión por navegador; recepción genera cotizaciones `COT-…` que la caja carga sin recapturar.
 
-### Fase 5 — Reportes (1-2 semanas) — ATOMIZADA 2026-08-21
+### Fase 5 — Reportes ✅ CERRADA (2026-08-25)
 
-> Sincronía pre-F5 (2026-08-21): esta sección se reescribió con las decisiones tomadas
-> ANTES de la primera tarea — `topic_key: sellpoint/f5-atomizacion`.
+> Sincronía FINAL (F5-DOCS-01): esta sección cuenta lo que se CONSTRUYÓ, no lo que se
+> planeó. Las divergencias con el plan original están marcadas y explicadas.
 
-1. **Permiso `reports:read`** — ya vive en producción (migración `20260821180000`,
-   asignado a TenantAdmin/Manager/Viewer; POS_Seller no) y F5 lo **estrena**: hoy ningún
-   endpoint lo exige, la barrera `permissions-catalog.spec.ts` lo detectó huérfano.
-   **No existe `reports:export`**: exportar es leer.
+1. **Permiso `reports:read`** — vivía en producción desde la migración `20260821180000`
+   (TenantAdmin/Manager/Viewer; POS_Seller no) sin que ningún endpoint lo exigiera: lo
+   había delatado la barrera `permissions-catalog.spec.ts` buscando permisos huérfanos.
+   F5 lo estrenó con `GET /reports`. **No existe `reports:export`**: exportar es leer.
 2. **Hub `/reports` con 8 tarjetas** (VISTAS §10): stock por almacén (valorizado),
    ventas por período, kardex por producto, catálogo, almacenes, usuarios, **vencimientos**
    y **stock en tránsito** (las dos últimas, herencias de F3). Catálogo/usuarios/almacenes
    son **export directo** sin pantalla propia — una tabla duplicaría los listados que ya
-   existen en Catálogo y Sistema.
+   existen en Catálogo y Sistema. El catálogo del hub viaja como DATO (`GET /reports`
+   devuelve cada tarjeta con el permiso que exige) porque ese permiso **no es uniforme**:
+   ver el punto 6.
 3. **Costo promedio ponderado GLOBAL por producto** (decisión de Carlos, 2026-08-21 —
    la Bitácora de F3 lo dejaba «a decidir»): las entradas `invoice` guardan `unit_cost` a
    nivel presentación; F5 lo lleva a `base_unit` con `presentation.factor` y pondera por
@@ -723,14 +725,39 @@ sellpoint/
    (con fallback a `cost/factor` cuando no hay historial). Un traspaso no cambia lo que
    costó la mercancía; si un día cada sucursal compra a precios muy distintos, se migra a
    por-almacén.
-4. Frontend: TanStack Table en **modo manual** (paginación, filtros y orden server-side)
-   sobre un componente común de reporte; molde de gates y listados heredado del POS.
+4. Frontend: un componente común de reporte con `@tanstack/react-table` montado con
+   **solo `coreFeatures`** — más estricto que el «modo manual» que planeaba el diseño
+   original: activar `rowSortingFeature` o `rowPaginationFeature` ordenaría la PÁGINA
+   recibida y la presentaría como el todo, así que quien pide «los diez con más stock»
+   recibiría los diez mayores de veinte filas sin forma de notarlo. Molde de gates y
+   listados heredado del POS.
 5. **Exportación a Excel SÍNCRONA con tope de filas** (`exceljs` vía el
    `serializeSpreadsheet` de F2, parametrizado): superar el tope devuelve 400 con mensaje
    que pide acotar filtros — nunca un truncado silencioso. La generación asíncrona
    (cola Redis + worker) quedó **DIFERIDA**: sin un caso real que la exija sería código
    de fe (mismo criterio que F4-PRINT-BT). El kardex exportable REUSA
    `kardex.service.list` — no hay segunda implementación del saldo acumulado.
+
+6. **Vencimientos y tránsito se exportan con `inventory:read`, no con `reports:read`**, y
+   sus endpoints viven en el módulo de INVENTARIO (`GET /inventory/expiring/export` y
+   `GET /inventory/in-transit/export`): son la misma lectura de su pantalla en otro
+   formato, y exigir un permiso nuevo para bajar lo que ya se está viendo sería una puerta
+   sobre una puerta abierta. Colgarlos del módulo de reportes con el permiso del
+   inventario habría sido una rareza que el próximo lector tendría que descifrar.
+7. **Lo que reveló construirla** (divergencias con el plan del 2026-08-21):
+   - El **detalle por lote y ubicación** del reporte de stock (`?detail=lots`) nació de una
+     directiva de Carlos a mitad de fase: el almacenaje contempla la ubicación además del
+     lote y la caducidad. La ubicación PARTE el stock —es parte de la clave de
+     `stock_lots`—, así que «12 en A-1 y 8 en B-2» son dos filas.
+   - El export de tránsito **no pudo reusar `inTransit()`**: ese agrupa por producto
+     —correcto para el tablero— y pierde folio, origen y destino, que es lo que necesita
+     quien rastrea. Se agregó `inTransitDetail`: misma tabla, otro nivel de agregación.
+   - `belowMin` compara contra el TOTAL del producto y no contra el saldo de cada fila:
+     `stock_min` es un umbral global, y por fila marcaría en rojo tres bodegas con 40 cada
+     una contra un mínimo de 100 habiendo 120.
+   - El **filtro del `where` de ventas se extrajo a un builder compartido** con el POS
+     (`pos/sales-where.ts`), arrastrando sus dos semánticas caras: rango en días del
+     calendario del negocio y folio que también busca por código de barras.
 
 **Entregable:** todos los reportes solicitados en los requerimientos originales, visibles en sistema y descargables — más las herencias de F3: valorización con promedio ponderado, vencimientos y tránsito exportables.
 

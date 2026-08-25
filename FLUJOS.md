@@ -546,6 +546,17 @@ flowchart TD
 > criterio de F4-PRINT-BT: sin un caso real que lo exija (un tenant cuyos reportes
 > excedan el tope con filtros razonables), montarlo sería código de fe. Redis existe,
 > pero hoy solo hace rate-limiting y revocación de tokens.
+>
+> **Verificado contra el código al cerrar F5 (F5-DOCS-01, 2026-08-25):** el flujo es este.
+> Dos precisiones que el diagrama no decía y ahora sí:
+> **(1)** El `COUNT` va SIEMPRE primero y el `SELECT` solo ocurre si el resultado cabe —el
+> helper recibe contador y fetcher como funciones separadas justamente para eso—: si
+> recibiera las filas ya armadas, el tope las rechazaría DESPUÉS de que la base las trajo
+> y el proceso las sostuvo en memoria, que es el problema del que protege.
+> **(2)** Autorizado por el tope, el `SELECT` recorre páginas internamente hasta juntar el
+> total. No es «sin paginar»: el tamaño de página está acotado en los DTO, y ese bucle es
+> lo que hace que un producto muy movido no salga con el Excel cortado en la primera
+> página — un archivo truncado se lee como completo.
 
 ```mermaid
 sequenceDiagram
@@ -572,7 +583,7 @@ sequenceDiagram
         API-->>F: 400 reports.export_too_large
         F-->>V: "Acota los filtros" — NUNCA un truncado silencioso:<br/>un Excel cortado se lee como completo
     else Dentro del tope
-        API->>DB: SELECT sin paginar (mismos filtros)
+        API->>DB: SELECT recorriendo páginas hasta el total<br/>(mismos filtros; el tope ya lo autorizó)
         API->>API: serializeSpreadsheet(rows, 'xlsx')<br/>(el generador de F2, hoja y filename por reporte)
         API-->>F: application/xlsx + Content-Disposition
         F->>F: Descarga vía helper de blob compartido

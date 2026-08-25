@@ -859,11 +859,17 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 - **Actor:** TenantAdmin / Manager / Viewer (`reports:read`)
 - **Flujo principal:**
-  1. Reportes → tarjeta Catálogo → **abre el listado existente** (`/catalog/products`):
-     no hay pantalla duplicada
-  2. El export (`GET /reports/products/export`) baja el catálogo completo con todos los
-     campos, **dinámicos incluidos**, reusando la maquinaria de la plantilla de
-     importación de F2
+  1. Reportes → tarjeta Catálogo → **descarga directa**: `GET /reports/products/export`
+     baja el catálogo completo con todos los campos, **dinámicos incluidos**, reusando la
+     maquinaria de la plantilla de importación de F2 — así lo exportado se puede volver a
+     importar
+- **Corregido al construirlo (F5-DOCS-01):** este documento decía que la tarjeta «abre el
+  listado». Es al revés: **Catálogo descarga y Kardex enlaza** al listado, porque el
+  kardex necesita un producto ELEGIDO y el catálogo completo se baja de un golpe.
+- **Lo que NO se hereda de la plantilla:** su fila de EJEMPLO. Cuando el catálogo está
+  vacío la plantilla inventa un «Paracetamol 500mg» para enseñar el formato; en un reporte
+  eso diría que existe un producto que nadie dio de alta. Por eso se extrajo
+  `ImportService.catalogRows`: comparte columnas y filas, no el ejemplo.
 - **Flujos alternativos:**
   - 2a. El export de importación existente exige `products:manage` — por eso el reporte
     tiene SU endpoint con `reports:read`: un Viewer exporta el catálogo sin poder
@@ -916,16 +922,23 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 - **Actor:** TenantAdmin / Manager / Viewer (`reports:read`; vencimientos y tránsito
   usan el permiso de su pantalla origen, `inventory:read` — es la misma lectura en otro
-  formato)
+  formato). **Construido así** (F5-DOCS-01): esos dos endpoints viven en el módulo de
+  INVENTARIO (`GET /inventory/expiring/export`, `GET /inventory/in-transit/export`), no en
+  el de reportes — colgarlos de reports con el permiso del inventario sería una rareza.
 - **Flujo principal:**
   1. Reportes → tarjeta Usuarios o Almacenes → descarga directa del `.xlsx`
   2. Usuarios: nombre, email, roles, almacenes asignados, estado — **sin campos
      sensibles** (ni hashes, ni tokens, ni invitaciones pendientes)
   3. Almacenes: nombre, dirección, estado, productos con stock — acotado al alcance
-  4. Vencimientos y En tránsito: sus pantallas (`/movements/expiring`, traspasos) ganan
-     «Exportar Excel» con los filtros activos. Vencimientos incluye la **ubicación**
-     (el dato ya viaja en la consulta de la pantalla); En tránsito incluye el **lote**
-     pero NO ubicación — el traspaso no la guarda: la decide el destino al recibir
+  4. Vencimientos y En tránsito: sus pantallas (`/movements/expiring`,
+     `/movements/transfers`) ganan «Exportar Excel» con los filtros activos. Vencimientos
+     incluye la **ubicación** (el dato ya viaja en la consulta de la pantalla) y marca los
+     ya vencidos con días en NEGATIVO —son los que más urge sacar—; En tránsito incluye el
+     **lote** pero NO ubicación, porque el traspaso no la guarda: la decide el destino al
+     recibir
+  5. El de tránsito baja el **detalle** (cada partida con su origen, destino y folio) y no
+     el agregado por producto que muestra la ficha: quien lo baja está rastreando
+     mercancía, no mirando un total. Por eso usa `inTransitDetail` y no `inTransit()`
 - **Flujos alternativos:**
   - 1a. Un Viewer SIN `users:manage` descarga el reporte de usuarios igual: ese es el
     punto de que viva bajo `reports:read`.

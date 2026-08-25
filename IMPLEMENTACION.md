@@ -2565,16 +2565,16 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### ✅ Definición de "Fase 5 completa"
 
-- [ ] El nav muestra «Reportes» solo con `reports:read`; el hub `/reports` carga sus 8 tarjetas; un POS_Seller recibe 403 en el API y no ve la entrada (contraprueba obligatoria)
-- [ ] **Stock por almacén**: endpoint transversal NUEVO (producto × almacén, no existe hoy) con filtros server-side (almacén-dentro-del-alcance, bajo mínimo), orden estable con desempate por `id`, **valorizado** (costo promedio ponderado GLOBAL × stock; sin historial la celda va VACÍA, no un 0 fingido que se sumaría al total), y export con los mismos filtros, más un **detalle por lote/ubicación/caducidad** para los productos que manejan lotes (F5-STK-05)
-- [ ] **Ventas por período**: filtros fecha/vendedor/estado/almacén y **`UserScope` aplicado** — un usuario acotado a un almacén no ve ventas de otros (contraprueba); el `GET /pos/sales` de F4 conserva su semántica sin scope y la diferencia queda documentada
-- [ ] **Kardex**: exportable reusando `kardex.service.list` — el `balanceAfter` del Excel es idéntico al de la API paginada porque NO hay segunda implementación del saldo
-- [ ] **Vencimientos** y **En tránsito** exportables desde sus pantallas (herencias F3)
-- [ ] **Catálogo, usuarios y almacenes** descargables con `reports:read`: un Viewer sin `users:manage` ni `products:manage` baja los tres (esa es la prueba); usuarios SIN campos sensibles
-- [ ] El `cost-estimate` de BOM usa el promedio ponderado con fallback a `cost/factor`, probado en AMBOS caminos (con y sin historial)
-- [ ] Todo export es síncrono con tope: sobre el tope → 400 con clave i18n, y las filas NO se materializan
-- [ ] El front tiene UN solo helper de descarga de blob (las 4 copias actuales, migradas con sus tests intactos)
-- [ ] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
+- [x] El nav muestra «Reportes» solo con `reports:read`; el hub `/reports` carga sus 8 tarjetas; un POS_Seller recibe 403 en el API y no ve la entrada (contraprueba obligatoria)
+- [x] **Stock por almacén**: endpoint transversal NUEVO (producto × almacén, no existe hoy) con filtros server-side (almacén-dentro-del-alcance, bajo mínimo), orden estable con desempate por `id`, **valorizado** (costo promedio ponderado GLOBAL × stock; sin historial la celda va VACÍA, no un 0 fingido que se sumaría al total), y export con los mismos filtros, más un **detalle por lote/ubicación/caducidad** para los productos que manejan lotes (F5-STK-05)
+- [x] **Ventas por período**: filtros fecha/vendedor/estado/almacén y **`UserScope` aplicado** — un usuario acotado a un almacén no ve ventas de otros (contraprueba); el `GET /pos/sales` de F4 conserva su semántica sin scope y la diferencia queda documentada
+- [x] **Kardex**: exportable reusando `kardex.service.list` — el `balanceAfter` del Excel es idéntico al de la API paginada porque NO hay segunda implementación del saldo
+- [x] **Vencimientos** y **En tránsito** exportables desde sus pantallas (herencias F3)
+- [x] **Catálogo, usuarios y almacenes** descargables con `reports:read`: un Viewer sin `users:manage` ni `products:manage` baja los tres (esa es la prueba); usuarios SIN campos sensibles
+- [x] El `cost-estimate` de BOM usa el promedio ponderado con fallback a `cost/factor`, probado en AMBOS caminos (con y sin historial)
+- [x] Todo export es síncrono con tope: sobre el tope → 400 con clave i18n, y las filas NO se materializan
+- [x] El front tiene UN solo helper de descarga de blob (las 4 copias actuales, migradas con sus tests intactos)
+- [x] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
 - [ ] Tag `v0.6.0-fase5` creado sobre un commit con Deploy verde
 
 ### Módulo F5-CORE — Infraestructura de exportación
@@ -2747,9 +2747,10 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-DOCS — Sincronía de las fuentes de verdad
 
-- [ ] **F5-DOCS-01** — Sincronía FINAL contra lo construido
+- [x] **F5-DOCS-01** *(cerrada el 2026-08-25)* — Sincronía FINAL contra lo construido
   - **Salida:** la sincronía INICIAL ya se hizo **pre-F5 (2026-08-21**, `topic_key: sellpoint/f5-atomizacion`): permisos fantasma retirados de los cuatro docs, FLUJOS §8 reescrito al flujo síncrono, VISTAS §10 con 8 tarjetas y CU-REP-01..05. Esta tarea es el contraste final: cada divergencia entre lo documentado y lo que la implementación reveló se corrige del lado que estaba mal
   - **Verificar:** los cuatro docs cuentan el mismo diseño QUE EL CÓDIGO; el grep de genericidad sigue limpio
+  - **Divergencias encontradas, corregidas del lado del DOC** (2026-08-25): **(1)** VISTAS §10 y CU-REP-02 decían que la tarjeta de Catálogo «abre el listado» — es al revés: **Catálogo DESCARGA y Kardex enlaza**, porque el kardex necesita un producto elegido y el catálogo se baja de un golpe. **(2)** ARQUITECTURA describía TanStack Table «en modo manual»; se montó con SOLO `coreFeatures`, que es más estricto. **(3)** El diagrama de FLUJOS §8 decía «SELECT sin paginar»; el export recorre páginas internamente DESPUÉS de que el tope lo autoriza. **(4)** Faltaba en los cuatro docs que los exports de vencimientos y tránsito viven en el módulo de INVENTARIO con `inventory:read`. El grep de genericidad quedó limpio: las menciones de rubro son ejemplos ilustrativos o el documento original de requerimientos del cliente
   - **Depende de:** F5-CORE-01..F5-HUB-03
   - **Estimación:** 2 h
 
