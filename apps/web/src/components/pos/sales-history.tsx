@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Button } from "@/components/ui/button";
+import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { SaleRow } from "@/lib/pos/api";
@@ -60,7 +61,6 @@ export function SalesHistory() {
   const puedeAnular = has("pos:cancel");
 
   const total = data?.total ?? 0;
-  const paginas = Math.max(1, Math.ceil(total / (data?.pageSize ?? 20)));
 
   return (
     <section className="flex flex-col gap-4" data-testid="sales-history">
@@ -162,29 +162,12 @@ export function SalesHistory() {
         </ScrollableTable>
       )}
 
-      {paginas > 1 && (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={pagina <= 1}
-            onClick={() => setPagina((p) => p - 1)}
-          >
-            {t("pos.history.previous")}
-          </Button>
-          <span className="text-muted-foreground text-sm">
-            {t("pos.history.page", { page: pagina, pages: paginas })}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={pagina >= paginas}
-            onClick={() => setPagina((p) => p + 1)}
-          >
-            {t("pos.history.next")}
-          </Button>
-        </div>
-      )}
+      <Paginator
+        page={pagina}
+        pageSize={data?.pageSize ?? 20}
+        total={total}
+        onPageChange={setPagina}
+      />
     </section>
   );
 }

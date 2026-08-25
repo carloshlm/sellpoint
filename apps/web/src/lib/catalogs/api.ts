@@ -139,8 +139,17 @@ export async function removeField(
   return data;
 }
 
-export async function listRecords(catalogId: string): Promise<CatalogRecord[]> {
-  const { data } = await api.get<CatalogRecord[]>(`/catalogs/${catalogId}/records`);
+export interface RecordsPage {
+  rows: CatalogRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function listRecords(catalogId: string, page = 1): Promise<RecordsPage> {
+  const { data } = await api.get<RecordsPage>(`/catalogs/${catalogId}/records`, {
+    params: { page },
+  });
   return data;
 }
 

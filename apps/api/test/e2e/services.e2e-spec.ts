@@ -16,6 +16,76 @@ import { startTestApp } from "./support/start-test-app";
  * que el POS lo cobre llega en F4.
  */
 describe("Servicios (F3-SVC)", () => {
+  /**
+   * La paginación de servicios (Carlos, 2026-08-25): el listado traía TODO,
+   * sin límite ni en el server. Con cientos de servicios, cada apertura de la
+   * pantalla cargaba el catálogo entero.
+   *
+   * El contrato cambia de `Service[]` a `{rows, total, page, pageSize}` — la
+   * misma forma que productos, documentos y ventas.
+   */
+  describe("la paginación (2026-08-25)", () => {
+    it("devuelve la página pedida con su total", async () => {
+      const token = await registerAndLogin();
+      for (let i = 0; i < 25; i += 1) {
+        await request(app.getHttpServer())
+          .post("/services")
+          .set("Authorization", bearer(token))
+          .send({
+            code: `PAG${String(i).padStart(3, "0")}`,
+            name: `Servicio ${i}`,
+            price: 10,
+            warehouseIds: [],
+          })
+          .expect(201);
+      }
+
+      const primera = await request(app.getHttpServer())
+        .get("/services?page=1&pageSize=20")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const segunda = await request(app.getHttpServer())
+        .get("/services?page=2&pageSize=20")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const p1 = primera.body as { rows: { code: string }[]; total: number };
+      const p2 = segunda.body as { rows: { code: string }[]; total: number };
+      expect(p1.total).toBe(25);
+      expect(p1.rows).toHaveLength(20);
+      expect(p2.rows).toHaveLength(5);
+      // Sin repetidos entre páginas: el orden es estable.
+      const codigos = new Set([...p1.rows, ...p2.rows].map((r) => r.code));
+      expect(codigos.size).toBe(25);
+    });
+
+    it("sin parámetros aplica el default de 20: nunca vuelve el «todo»", async () => {
+      const token = await registerAndLogin();
+      for (let i = 0; i < 22; i += 1) {
+        await request(app.getHttpServer())
+          .post("/services")
+          .set("Authorization", bearer(token))
+          .send({
+            code: `DEF${String(i).padStart(3, "0")}`,
+            name: `Servicio ${i}`,
+            price: 10,
+            warehouseIds: [],
+          })
+          .expect(201);
+      }
+
+      const res = await request(app.getHttpServer())
+        .get("/services")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const body = res.body as { rows: unknown[]; total: number; pageSize: number };
+      expect(body.rows).toHaveLength(20);
+      expect(body.total).toBe(22);
+      expect(body.pageSize).toBe(20);
+    });
+  });
+
   let app: INestApplication<App>;
   const OWNER_PASSWORD = "twelve-characters";
 
@@ -76,7 +146,9 @@ describe("Servicios (F3-SVC)", () => {
       .get("/services")
       .set("Authorization", bearer(token))
       .expect(200);
-    expect((listed.body as { code: string }[]).map((s) => s.code)).toEqual(["CORTE"]);
+    expect((listed.body as { rows: { code: string }[] }).rows.map((s) => s.code)).toEqual([
+      "CORTE",
+    ]);
 
     await request(app.getHttpServer())
       .patch(`/services/${id}`)
@@ -100,7 +172,7 @@ describe("Servicios (F3-SVC)", () => {
       .get("/services")
       .set("Authorization", bearer(token))
       .expect(200);
-    expect(vacio.body).toEqual([]);
+    expect((vacio.body as { rows: unknown[]; total: number }).rows).toEqual([]);
   });
 
   it("el código repetido en el mismo tenant da 409", async () => {
@@ -155,7 +227,7 @@ describe("Servicios (F3-SVC)", () => {
       .get("/services")
       .set("Authorization", bearer(b))
       .expect(200);
-    expect(listado.body).toEqual([]);
+    expect((listado.body as { rows: unknown[] }).rows).toEqual([]);
 
     await request(app.getHttpServer())
       .patch(`/services/${id}`)
@@ -185,13 +257,17 @@ describe("Servicios (F3-SVC)", () => {
       .get("/services?query=manicu")
       .set("Authorization", bearer(token))
       .expect(200);
-    expect((porNombre.body as { code: string }[]).map((s) => s.code)).toEqual(["MANI"]);
+    expect((porNombre.body as { rows: { code: string }[] }).rows.map((s) => s.code)).toEqual([
+      "MANI",
+    ]);
 
     const porCodigo = await request(app.getHttpServer())
       .get("/services?query=tin")
       .set("Authorization", bearer(token))
       .expect(200);
-    expect((porCodigo.body as { code: string }[]).map((s) => s.code)).toEqual(["TINTE"]);
+    expect((porCodigo.body as { rows: { code: string }[] }).rows.map((s) => s.code)).toEqual([
+      "TINTE",
+    ]);
   });
 
   async function crearAlmacen(token: string, name: string): Promise<string> {
@@ -247,7 +323,9 @@ describe("Servicios (F3-SVC)", () => {
         .get("/services")
         .set("Authorization", bearer(token))
         .expect(200);
-      expect((lista.body as { warehouseIds: string[] }[])[0]?.warehouseIds).toEqual([central]);
+      expect((lista.body as { rows: { warehouseIds: string[] }[] }).rows[0]?.warehouseIds).toEqual([
+        central,
+      ]);
     });
 
     /** Sin almacenes es un estado VÁLIDO: un servicio en preparación. */

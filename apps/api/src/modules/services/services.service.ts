@@ -40,27 +40,42 @@ export class ServicesService {
     private readonly auditService: AuditService,
   ) {}
 
-  async list(user: AuthUser, query?: ListServicesQuery): Promise<ServiceSummary[]> {
+  async list(
+    user: AuthUser,
+    query?: ListServicesQuery,
+  ): Promise<{ rows: ServiceSummary[]; total: number; page: number; pageSize: number }> {
     const texto = query?.query;
+    const page = query?.page ?? 1;
+    const pageSize = query?.pageSize ?? 20;
+    const where = {
+      tenantId: user.tenantId,
+      // Por código O por nombre: quien dicta "manicura" por teléfono no
+      // sabe que su código es MANI.
+      ...(texto
+        ? {
+            OR: [
+              { code: { contains: texto, mode: "insensitive" as const } },
+              { name: { contains: texto, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const rows = await tx.service.findMany({
-        where: {
-          tenantId: user.tenantId,
-          // Por código O por nombre: quien dicta "manicura" por teléfono no
-          // sabe que su código es MANI.
-          ...(texto
-            ? {
-                OR: [
-                  { code: { contains: texto, mode: "insensitive" as const } },
-                  { name: { contains: texto, mode: "insensitive" as const } },
-                ],
-              }
-            : {}),
-        },
-        orderBy: { name: "asc" },
-        include: { warehouses: { select: { warehouseId: true } } },
-      });
-      return rows.map(toSummary);
+      const [total, rows] = await Promise.all([
+        tx.service.count({ where }),
+        tx.service.findMany({
+          where,
+          // Desempate por `id`: dos servicios con el MISMO nombre quedarían en
+          // un orden que Postgres decide y que cambia entre consultas — una
+          // fila saldría en dos páginas o en ninguna (criterio de la casa).
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          include: { warehouses: { select: { warehouseId: true } } },
+        }),
+      ]);
+      return { rows: rows.map(toSummary), total, page, pageSize };
     });
   }
 

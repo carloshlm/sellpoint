@@ -39,6 +39,10 @@ export const updateServiceSchema = z
 
 export const listServicesQuerySchema = z.object({
   query: z.string().trim().min(1).max(120).optional(),
+  // La paginación (2026-08-25): antes el listado traía TODO sin límite. El
+  // molde es el de productos — default 20, tope 100.
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
 
 export type CreateServiceDto = z.infer<typeof createServiceSchema>;

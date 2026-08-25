@@ -35,9 +35,22 @@ export interface UpdateServiceInput {
   warehouseIds?: string[];
 }
 
-export async function listServices(params: { query?: string } = {}): Promise<Service[]> {
-  const { data } = await api.get<Service[]>("/services", {
-    params: params.query ? { query: params.query } : undefined,
+export interface ServicesPage {
+  rows: Service[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function listServices(
+  params: { query?: string; page?: number; pageSize?: number } = {},
+): Promise<ServicesPage> {
+  const { data } = await api.get<ServicesPage>("/services", {
+    params: {
+      ...(params.query ? { query: params.query } : {}),
+      ...(params.page ? { page: params.page } : {}),
+      ...(params.pageSize ? { pageSize: params.pageSize } : {}),
+    },
   });
   return data;
 }

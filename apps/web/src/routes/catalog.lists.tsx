@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
@@ -11,6 +11,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Paginator } from "@/components/ui/paginator";
 import {
   Table,
   TableBody,
@@ -69,7 +70,14 @@ function CatalogListsContent() {
   const catalogId = selectedId || subCatalogs[0]?.id || "";
 
   const { data: fields } = useCatalogFields(catalogId || undefined);
-  const { data: records } = useCatalogRecords(catalogId || undefined);
+  const [pagina, setPagina] = useState(1);
+  // Cambiar de subcatálogo vuelve a la página 1.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: la dep ES el filtro
+  useEffect(() => {
+    setPagina(1);
+  }, [catalogId]);
+  const { data: recordsPage } = useCatalogRecords(catalogId || undefined, pagina);
+  const records = recordsPage?.rows;
   const [editing, setEditing] = useState<CatalogRecord | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -142,6 +150,13 @@ function CatalogListsContent() {
           setCreating(false);
           setEditing(record);
         }}
+      />
+
+      <Paginator
+        page={pagina}
+        pageSize={recordsPage?.pageSize ?? 20}
+        total={recordsPage?.total ?? 0}
+        onPageChange={setPagina}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import {
   listServices,
   removeService,
   type Service,
+  type ServicesPage,
   type UpdateServiceInput,
   updateService,
 } from "./api";
@@ -13,10 +14,13 @@ import {
 export const SERVICES_QUERY_KEY = ["services"] as const;
 
 /** La búsqueda entra en la CLAVE: dos filtros distintos son dos cachés. */
-export function useServices(params: { query?: string } = {}) {
-  return useQuery<Service[], ApiError>({
-    queryKey: [...SERVICES_QUERY_KEY, params.query ?? ""],
+export function useServices(params: { query?: string; page?: number } = {}) {
+  return useQuery<ServicesPage, ApiError>({
+    queryKey: [...SERVICES_QUERY_KEY, params],
     queryFn: () => listServices(params),
+    // Conserva la página anterior mientras llega la nueva: sin esto, cada
+    // cambio de página vacía la tabla y la pantalla parpadea.
+    placeholderData: (previous) => previous,
   });
 }
 

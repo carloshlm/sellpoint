@@ -75,6 +75,9 @@
     "loading": "Cargando tu sesión…"
   },
   "table": {
+    "next": "Siguiente",
+    "page": "Página {{page}} de {{pages}}",
+    "previous": "Anterior",
     "scrollHint": "Desliza la tabla para ver más columnas."
   },
   "theme": {

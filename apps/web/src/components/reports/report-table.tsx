@@ -9,6 +9,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Download } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 
 /**
@@ -98,8 +99,6 @@ export function ReportTable({
     data: rows as Fila[],
     columns: definiciones,
   });
-
-  const paginas = Math.max(1, Math.ceil(total / pageSize));
 
   function ordenarPor(key: string) {
     // Al cambiar el orden se vuelve a la página 1: quedarse en la 7 con un
@@ -198,29 +197,12 @@ export function ReportTable({
         </ScrollableTable>
       )}
 
-      {paginas > 1 && (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => onQueryChange({ page: page - 1, sortBy, sortDir })}
-          >
-            {t("reports.table.previous")}
-          </Button>
-          <span className="text-muted-foreground text-sm">
-            {t("reports.table.page", { page, pages: paginas })}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= paginas}
-            onClick={() => onQueryChange({ page: page + 1, sortBy, sortDir })}
-          >
-            {t("reports.table.next")}
-          </Button>
-        </div>
-      )}
+      <Paginator
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={(nueva) => onQueryChange({ page: nueva, sortBy, sortDir })}
+      />
     </div>
   );
 }

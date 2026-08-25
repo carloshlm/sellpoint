@@ -227,6 +227,61 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
     });
   });
 
+  /**
+   * La paginación del kardex (2026-08-25): el server pagina a 50 y la pestaña
+   * no tenía botones — un producto con más de 50 movimientos en el rango
+   * perdía los excedentes sin aviso. Lo mitigaba el rango inicial de 30 días,
+   * que es esconder el problema, no resolverlo.
+   */
+  describe("la paginación (2026-08-25)", () => {
+    it("con más de una página, pasar de página consulta al servidor", async () => {
+      mocked.getKardex.mockResolvedValue({
+        rows: [movimiento()],
+        total: 120,
+        page: 1,
+        pageSize: 50,
+        isComposite: false,
+      });
+      const user = renderTab(
+        <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,
+      );
+      await screen.findByText("ENT-000042");
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+
+      await waitFor(() =>
+        expect(mocked.getKardex).toHaveBeenLastCalledWith(
+          "p1",
+          expect.objectContaining({ page: 2 }),
+        ),
+      );
+    });
+
+    it("cambiar un filtro vuelve a la página 1", async () => {
+      mocked.getKardex.mockResolvedValue({
+        rows: [movimiento()],
+        total: 120,
+        page: 1,
+        pageSize: 50,
+        isComposite: false,
+      });
+      const user = renderTab(
+        <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,
+      );
+      await screen.findByText("ENT-000042");
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+      await user.selectOptions(screen.getByLabelText(/motivo/i), "loss");
+
+      await waitFor(() =>
+        expect(mocked.getKardex).toHaveBeenLastCalledWith(
+          "p1",
+          expect.objectContaining({ page: 1 }),
+        ),
+      );
+    });
+  });
+
   it("cambiar el motivo dispara el request con ese filtro", async () => {
     const user = renderTab(
       <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,

@@ -1,7 +1,7 @@
 import { formatQuantity, MOVEMENT_REASONS } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DateRangeFilter,
@@ -9,6 +9,7 @@ import {
   rangoUltimosDias,
 } from "@/components/common/date-range-filter";
 import { Button } from "@/components/ui/button";
+import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { downloadKardex } from "@/lib/inventory/kardex-api";
@@ -72,8 +73,18 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
     ...(rango.to !== "" ? { to: rango.to } : {}),
   };
   const [exportando, setExportando] = useState(false);
+  const [pagina, setPagina] = useState(1);
 
-  const { data, isPending } = useKardex(isComposite ? undefined : productId, filtrosDelExport);
+  // Cualquier filtro vuelve a la página 1 (ver el docblock del Paginator).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
+  useEffect(() => {
+    setPagina(1);
+  }, [warehouseId, reasonCode, direction, rango.from, rango.to]);
+
+  const { data, isPending } = useKardex(isComposite ? undefined : productId, {
+    ...filtrosDelExport,
+    page: pagina,
+  });
 
   // Un compuesto no tiene movimientos propios: se arma al consumirlo. Una
   // tabla vacía haría pensar que nunca se movió, que es otra cosa.
@@ -253,6 +264,12 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
           </table>
         </ScrollableTable>
       )}
+      <Paginator
+        page={pagina}
+        pageSize={data?.pageSize ?? 50}
+        total={data?.total ?? 0}
+        onPageChange={setPagina}
+      />
     </div>
   );
 }

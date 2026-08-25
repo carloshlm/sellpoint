@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
+import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useCreateDocument, useDocuments } from "@/lib/inventory/hooks";
@@ -61,6 +62,18 @@ export function DocumentList({ type }: DocumentListProps) {
    * es justo lo que hay que ver.
    */
   const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
+  const [pagina, setPagina] = useState(1);
+
+  /**
+   * Cualquier filtro VUELVE a la página 1, y el reset vive acá y no en cada
+   * `onChange`: quedarse en la página 3 de un filtro que ahora tiene una sola
+   * página muestra una tabla vacía que parece un bug — y un filtro nuevo que
+   * alguien agregue mañana solo tiene que sumarse a estas deps.
+   */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros; `type` cambia de pantalla y también resetea
+  useEffect(() => {
+    setPagina(1);
+  }, [type, folio, status, warehouseId, rango.from, rango.to]);
 
   // Debounce: buscar en cada tecla haría seis requests por un folio de seis
   // dígitos, y el usuario vería resultados parpadeando mientras escribe.
@@ -76,6 +89,7 @@ export function DocumentList({ type }: DocumentListProps) {
     ...(warehouseId !== null && { warehouseId }),
     ...(rango.from !== "" && { from: rango.from }),
     ...(rango.to !== "" && { to: rango.to }),
+    page: pagina,
   });
   const createDocument = useCreateDocument();
 
@@ -219,6 +233,13 @@ export function DocumentList({ type }: DocumentListProps) {
           </table>
         </ScrollableTable>
       )}
+
+      <Paginator
+        page={pagina}
+        pageSize={data?.pageSize ?? 20}
+        total={data?.total ?? 0}
+        onPageChange={setPagina}
+      />
     </section>
   );
 }

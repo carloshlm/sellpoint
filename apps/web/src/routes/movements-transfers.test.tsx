@@ -145,6 +145,36 @@ afterEach(() => {
 });
 
 describe("Traspasos en tránsito (F3-TRANSFER-05)", () => {
+  /** Misma historia que documentos y cotizaciones: el server recorta a 20. */
+  describe("la paginación (2026-08-25)", () => {
+    it("con más de una página, pasar de página consulta al servidor", async () => {
+      mocked.listTransfers.mockResolvedValue({ ...pagina([fila()]), total: 45 });
+      await renderTransfers();
+      const user = userEvent.setup();
+      await screen.findByRole("button", { name: /siguiente/i });
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+
+      await waitFor(() =>
+        expect(mocked.listTransfers).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })),
+      );
+    });
+
+    it("cambiar de tab vuelve a la página 1", async () => {
+      mocked.listTransfers.mockResolvedValue({ ...pagina([fila()]), total: 45 });
+      await renderTransfers();
+      const user = userEvent.setup();
+      await screen.findByRole("button", { name: /siguiente/i });
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+      await user.click(screen.getByRole("tab", { name: /salientes|outgoing|env/i }));
+
+      await waitFor(() =>
+        expect(mocked.listTransfers).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })),
+      );
+    });
+  });
+
   /**
    * F5-EXP-03 — el tránsito en Excel, desde la pantalla de traspasos.
    *

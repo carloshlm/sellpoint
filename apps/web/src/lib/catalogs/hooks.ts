@@ -15,6 +15,7 @@ import {
   listFields,
   listLookupOptions,
   listRecords,
+  type RecordsPage,
   removeField,
   type UpdateCatalogInput,
   type UpdateFieldInput,
@@ -110,11 +111,12 @@ export function useRemoveField(catalogId: string) {
   });
 }
 
-export function useCatalogRecords(catalogId: string | undefined) {
-  return useQuery<CatalogRecord[], ApiError>({
-    queryKey: recordsQueryKey(catalogId ?? ""),
-    queryFn: () => listRecords(catalogId as string),
+export function useCatalogRecords(catalogId: string | undefined, page = 1) {
+  return useQuery<RecordsPage, ApiError>({
+    queryKey: [...recordsQueryKey(catalogId ?? ""), page],
+    queryFn: () => listRecords(catalogId as string, page),
     enabled: Boolean(catalogId),
+    placeholderData: (previous) => previous,
   });
 }
 

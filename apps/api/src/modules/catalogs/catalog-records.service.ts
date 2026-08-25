@@ -50,10 +50,33 @@ export class CatalogRecordsService {
     private readonly auditService: AuditService,
   ) {}
 
-  async list(user: AuthUser, catalogId: string): Promise<CatalogRecordSummary[]> {
+  /**
+   * La paginación (2026-08-25): antes traía el subcatálogo ENTERO. El picker
+   * de lookups es OTRO método (`options`, con búsqueda y su propio tope): un
+   * select necesita opciones filtrables, no páginas.
+   */
+  async list(
+    user: AuthUser,
+    catalogId: string,
+    pagination?: { page?: number; pageSize?: number },
+  ): Promise<{ rows: CatalogRecordSummary[]; total: number; page: number; pageSize: number }> {
+    const page = Math.max(1, pagination?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, pagination?.pageSize ?? 20));
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.findCatalogOrFail(tx, user, catalogId);
-      return tx.catalogRecord.findMany({ where: { catalogId }, orderBy: { code: "asc" } });
+      const where = { catalogId };
+      const [total, rows] = await Promise.all([
+        tx.catalogRecord.count({ where }),
+        tx.catalogRecord.findMany({
+          where,
+          // `code` es único por catálogo: ordena sin necesitar desempate.
+          orderBy: { code: "asc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ]);
+      return { rows, total, page, pageSize };
     });
   }
 

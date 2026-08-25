@@ -105,6 +105,20 @@ const sesion = (): posApi.CashboxSession => ({
   warehouse: { id: "w1", name: "Almacén Centro" },
 });
 
+const cotizacion = (overrides: Partial<posApi.QuoteRow> = {}): posApi.QuoteRow => ({
+  id: "quote-1",
+  folio: "COT-000001",
+  warehouseId: "w1",
+  status: "open",
+  total: "30.00",
+  note: null,
+  createdAt: "2026-08-21T16:00:00.000Z",
+  lines: [],
+  warehouse: { id: "w1", name: "Almacén Centro" },
+  author: { id: "u1", name: "Ana Pérez" },
+  ...overrides,
+});
+
 const paraVender = (overrides: Partial<posApi.QuoteForSale> = {}): posApi.QuoteForSale => ({
   id: "quote-1",
   folio: "COT-000001",
@@ -147,6 +161,49 @@ async function renderRuta(path: string, permissions: string[]) {
 }
 
 describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
+  /**
+   * La paginación de VERDAD (Carlos, 2026-08-25): el server siempre recortó a
+   * 20 y la pantalla no lo decía — la cotización 21 desaparecía en silencio.
+   */
+  describe("la paginación (2026-08-25)", () => {
+    it("con más de una página, pasar de página consulta al servidor", async () => {
+      mocked.listQuotes.mockResolvedValue({
+        rows: [cotizacion()],
+        total: 45,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/pos/quotes", ["pos:quote"]);
+      await screen.findByText("COT-000001");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+
+      await waitFor(() =>
+        expect(mocked.listQuotes).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })),
+      );
+    });
+
+    it("cambiar el filtro de estado vuelve a la página 1", async () => {
+      mocked.listQuotes.mockResolvedValue({
+        rows: [cotizacion()],
+        total: 45,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/pos/quotes", ["pos:quote"]);
+      await screen.findByText("COT-000001");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+      await user.selectOptions(screen.getByLabelText(/estado/i), "open");
+
+      await waitFor(() =>
+        expect(mocked.listQuotes).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })),
+      );
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     useCartStore.getState().clear();

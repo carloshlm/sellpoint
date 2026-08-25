@@ -90,7 +90,12 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
-    mockedApi.listServices.mockResolvedValue([servicio()]);
+    mockedApi.listServices.mockResolvedValue({
+      rows: [servicio()],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
     mockedWarehouses.mockResolvedValue(ALMACENES);
   });
 
@@ -192,7 +197,12 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
   describe("los almacenes donde se ofrece (F3-SVC-08)", () => {
     it("editar precarga los almacenes del servicio", async () => {
       const user = userEvent.setup();
-      mockedApi.listServices.mockResolvedValue([servicio({ warehouseIds: ["w2"] })]);
+      mockedApi.listServices.mockResolvedValue({
+        rows: [servicio({ warehouseIds: ["w2"] })],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
       await renderServices();
       await screen.findByText("Corte de cabello");
 
@@ -260,7 +270,12 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     });
 
     it("el listado muestra en cuántos almacenes se ofrece", async () => {
-      mockedApi.listServices.mockResolvedValue([servicio({ warehouseIds: ["w1"] })]);
+      mockedApi.listServices.mockResolvedValue({
+        rows: [servicio({ warehouseIds: ["w1"] })],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      });
       await renderServices();
 
       const fila = (await screen.findByText("Corte de cabello")).closest("tr") as HTMLElement;

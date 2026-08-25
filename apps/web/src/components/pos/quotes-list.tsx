@@ -1,10 +1,11 @@
 import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
 import { Button } from "@/components/ui/button";
+import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { QuoteRow } from "@/lib/pos/api";
 import { useCancelQuote, useQuotes } from "@/lib/pos/hooks";
@@ -31,6 +32,15 @@ export function QuotesList() {
    */
   const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
 
+  const [pagina, setPagina] = useState(1);
+
+  // Cualquier filtro vuelve a la página 1: quedarse en la 3 de un filtro que
+  // ahora tiene una sola página muestra una tabla vacía que parece un bug.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
+  useEffect(() => {
+    setPagina(1);
+  }, [folio, estado, rango.from, rango.to]);
+
   const { data, isPending, error } = useQuotes({
     ...(folio.trim() !== "" && { folio: folio.trim() }),
     ...(estado !== "todas" && { status: estado }),
@@ -38,6 +48,7 @@ export function QuotesList() {
     // rechace la consulta por formato.
     ...(rango.from !== "" && { from: rango.from }),
     ...(rango.to !== "" && { to: rango.to }),
+    page: pagina,
   });
 
   return (
@@ -113,6 +124,12 @@ export function QuotesList() {
             </table>
           </ScrollableTable>
         ))}
+      <Paginator
+        page={pagina}
+        pageSize={data?.pageSize ?? 20}
+        total={data?.total ?? 0}
+        onPageChange={setPagina}
+      />
     </section>
   );
 }

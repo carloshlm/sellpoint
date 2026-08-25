@@ -99,7 +99,7 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
     useAuthStore.getState().clearAuth();
     mockedApi.listCatalogs.mockResolvedValue([PRODUCTS, UNITS]);
     mockedApi.listFields.mockResolvedValue([MEDIDA_FIELD]);
-    mockedApi.listRecords.mockResolvedValue([]);
+    mockedApi.listRecords.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
     mockedApi.listLookupOptions.mockResolvedValue([]);
   });
 
@@ -112,15 +112,20 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
   });
 
   it("las COLUMNAS salen de los campos del catálogo, no de una lista fija", async () => {
-    mockedApi.listRecords.mockResolvedValue([
-      {
-        id: "r1",
-        catalogId: "cat-units",
-        code: "kg",
-        attributes: { medida: "kilogramos" },
-        isActive: true,
-      },
-    ]);
+    mockedApi.listRecords.mockResolvedValue({
+      rows: [
+        {
+          id: "r1",
+          catalogId: "cat-units",
+          code: "kg",
+          attributes: { medida: "kilogramos" },
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
     await renderLists();
 
     const row = await screen.findByTestId("record-kg");
@@ -139,15 +144,20 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
         lookupCatalogId: "cat-otro",
       },
     ]);
-    mockedApi.listRecords.mockResolvedValue([
-      {
-        id: "r1",
-        catalogId: "cat-units",
-        code: "azucar",
-        attributes: { unidad: "uuid-kg" },
-        isActive: true,
-      },
-    ]);
+    mockedApi.listRecords.mockResolvedValue({
+      rows: [
+        {
+          id: "r1",
+          catalogId: "cat-units",
+          code: "azucar",
+          attributes: { unidad: "uuid-kg" },
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
     mockedApi.listLookupOptions.mockResolvedValue([
       { id: "uuid-kg", code: "kg", display: "kilogramos" },
     ]);
@@ -203,15 +213,20 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
 
   it("el 409 al archivar un registro referenciado se muestra y la fila NO desaparece", async () => {
     const user = userEvent.setup();
-    mockedApi.listRecords.mockResolvedValue([
-      {
-        id: "r1",
-        catalogId: "cat-units",
-        code: "kg",
-        attributes: { medida: "kilogramos" },
-        isActive: true,
-      },
-    ]);
+    mockedApi.listRecords.mockResolvedValue({
+      rows: [
+        {
+          id: "r1",
+          catalogId: "cat-units",
+          code: "kg",
+          attributes: { medida: "kilogramos" },
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
     mockedApi.updateRecord.mockRejectedValue({
       statusCode: 409,
       message: "Lo usa el campo Unidad",
@@ -226,15 +241,20 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
   });
 
   it("sin catalogs:write se puede leer pero no aparecen acciones de escritura", async () => {
-    mockedApi.listRecords.mockResolvedValue([
-      {
-        id: "r1",
-        catalogId: "cat-units",
-        code: "kg",
-        attributes: { medida: "kilogramos" },
-        isActive: true,
-      },
-    ]);
+    mockedApi.listRecords.mockResolvedValue({
+      rows: [
+        {
+          id: "r1",
+          catalogId: "cat-units",
+          code: "kg",
+          attributes: { medida: "kilogramos" },
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
     await renderLists(["catalogs:read"]);
 
     expect(await screen.findByTestId("record-kg")).toBeInTheDocument();

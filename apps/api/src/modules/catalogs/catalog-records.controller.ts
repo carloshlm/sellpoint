@@ -36,12 +36,21 @@ export class CatalogRecordsController {
     @Param("catalogId") catalogId: string,
     @Query("query") query: string | undefined,
     @CurrentUser() user: AuthUser,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
   ) {
     // Con `query` responde opciones {id, code, display} listas para el picker;
-    // sin él, las filas completas para la tabla.
-    return query === undefined
-      ? this.recordsService.list(user, catalogId)
-      : this.recordsService.options(user, catalogId, query);
+    // sin él, la PÁGINA de filas para la tabla. Un `page` basura cae al
+    // default en el service, no a un 500.
+    if (query !== undefined) {
+      return this.recordsService.options(user, catalogId, query);
+    }
+    const parsedPage = Number(page);
+    const parsedSize = Number(pageSize);
+    return this.recordsService.list(user, catalogId, {
+      ...(Number.isFinite(parsedPage) ? { page: Math.floor(parsedPage) } : {}),
+      ...(Number.isFinite(parsedSize) ? { pageSize: Math.floor(parsedSize) } : {}),
+    });
   }
 
   @Get("options")

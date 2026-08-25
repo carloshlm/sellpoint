@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Paginator } from "@/components/ui/paginator";
 import {
   Table,
   TableBody,
@@ -57,7 +58,14 @@ function ServicesContent() {
   const canManage = has("services:manage");
 
   const [query, setQuery] = useState("");
-  const { data: services, isPending } = useServices({ query: query.trim() || undefined });
+  const [pagina, setPagina] = useState(1);
+  // Cualquier filtro vuelve a la página 1 (ver el docblock del Paginator).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: la dep ES el filtro
+  useEffect(() => {
+    setPagina(1);
+  }, [query]);
+  const { data, isPending } = useServices({ query: query.trim() || undefined, page: pagina });
+  const services = data?.rows;
   const [editing, setEditing] = useState<Service | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Service | null>(null);
@@ -233,6 +241,12 @@ function ServicesContent() {
           }}
         />
       )}
+      <Paginator
+        page={pagina}
+        pageSize={data?.pageSize ?? 20}
+        total={data?.total ?? 0}
+        onPageChange={setPagina}
+      />
     </div>
   );
 }

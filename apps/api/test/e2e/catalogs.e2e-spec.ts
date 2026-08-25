@@ -21,6 +21,48 @@ import { startTestApp } from "./support/start-test-app";
  * lógica que se quiere probar.
  */
 describe("Motor de catálogos (F2-CAT)", () => {
+  /**
+   * La paginación de registros (Carlos, 2026-08-25): el listado traía TODO el
+   * subcatálogo de un tirón. El picker de lookups es OTRO endpoint (`options`,
+   * con búsqueda y tope propio) y no se toca: un select necesita opciones, no
+   * páginas.
+   */
+  describe("la paginación de registros (2026-08-25)", () => {
+    it("pagina a 20 por defecto y reparte sin repetir", async () => {
+      const { token } = await registerAndLogin();
+      const catalogo = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: "Proveedores paginados" })
+        .expect(201);
+      const catalogId = (catalogo.body as { id: string }).id;
+
+      for (let i = 0; i < 25; i += 1) {
+        await request(app.getHttpServer())
+          .post(`/catalogs/${catalogId}/records`)
+          .set("Authorization", bearer(token))
+          .send({ code: `PRV${String(i).padStart(3, "0")}`, attributes: {} })
+          .expect(201);
+      }
+
+      const primera = await request(app.getHttpServer())
+        .get(`/catalogs/${catalogId}/records`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const segunda = await request(app.getHttpServer())
+        .get(`/catalogs/${catalogId}/records?page=2`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const p1 = primera.body as { rows: { code: string }[]; total: number; pageSize: number };
+      const p2 = segunda.body as { rows: { code: string }[] };
+      expect(p1.total).toBe(25);
+      expect(p1.rows).toHaveLength(20);
+      expect(p2.rows).toHaveLength(5);
+      expect(new Set([...p1.rows, ...p2.rows].map((r) => r.code)).size).toBe(25);
+    });
+  });
+
   let app: INestApplication<App>;
   let prisma: PrismaService;
   const OWNER_PASSWORD = "twelve-characters";
@@ -555,7 +597,9 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .set("Authorization", bearer(token))
         .expect(200);
 
-      const records = list.body as { code: string; attributes: Record<string, string> }[];
+      const records = (
+        list.body as { rows: { code: string; attributes: Record<string, string> }[] }
+      ).rows;
       expect(records.map((r) => r.code)).toEqual(["kg", "lt"]);
       expect(records[0]?.attributes).toMatchObject({ medida: "kilogramos" });
     });
@@ -711,7 +755,9 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .get(`/catalogs/${unidadesId}/records`)
         .set("Authorization", bearer(token))
         .expect(200);
-      const lt = (list.body as { id: string; code: string }[]).find((r) => r.code === "lt");
+      const lt = (list.body as { rows: { id: string; code: string }[] }).rows.find(
+        (r) => r.code === "lt",
+      );
 
       await request(app.getHttpServer())
         .patch(`/catalogs/${unidadesId}/records/${lt?.id}`)

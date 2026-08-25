@@ -159,6 +159,60 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     expect(await screen.findByText("Borrador")).toBeInTheDocument();
   });
 
+  /**
+   * La paginación de VERDAD (Carlos, 2026-08-25).
+   *
+   * El server siempre paginó a 20, pero la pantalla no mandaba `page` ni
+   * pintaba botones: a partir del documento 21, los viejos simplemente
+   * desaparecían del listado sin ningún aviso. Peor que no paginar — los
+   * registros se perdían en silencio.
+   */
+  describe("la paginación (2026-08-25)", () => {
+    it("con más registros que una página, aparece el paginador y pasa de página", async () => {
+      mockedList.mockResolvedValue({
+        rows: [documento("ENT-000042")],
+        total: 45,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/movements/entries");
+      await screen.findByText("ENT-000042");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+
+      await waitFor(() =>
+        expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 })),
+      );
+    });
+
+    it("cambiar un filtro VUELVE a la página 1", async () => {
+      mockedList.mockResolvedValue({
+        rows: [documento("ENT-000042")],
+        total: 45,
+        page: 2,
+        pageSize: 20,
+      });
+      await renderRuta("/movements/entries");
+      await screen.findByText("ENT-000042");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /siguiente/i }));
+      await user.type(screen.getByPlaceholderText(/folio/i), "42");
+
+      await waitFor(() =>
+        expect(mockedList).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })),
+      );
+    });
+
+    it("con una sola página el paginador no estorba", async () => {
+      await renderRuta("/movements/entries");
+      await screen.findByText("ENT-000042");
+
+      expect(screen.queryByRole("button", { name: /siguiente/i })).not.toBeInTheDocument();
+    });
+  });
+
   it("escribir en el buscador manda `folio`", async () => {
     const user = userEvent.setup();
     await renderRuta("/movements/entries");

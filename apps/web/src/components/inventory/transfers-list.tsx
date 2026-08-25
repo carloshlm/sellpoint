@@ -1,11 +1,12 @@
 import { TRANSFER_STALE_DAYS } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import { downloadInTransit } from "@/lib/inventory/api";
@@ -41,10 +42,19 @@ export function TransfersList() {
   const [recibiendo, setRecibiendo] = useState<TransferRow | null>(null);
   const [cancelando, setCancelando] = useState<TransferRow | null>(null);
 
+  const [pagina, setPagina] = useState(1);
+
+  // Cualquier filtro —el tab incluido— vuelve a la página 1.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
+  useEffect(() => {
+    setPagina(1);
+  }, [tab, destinationWarehouseId, soloDemorados]);
+
   const { data, isPending } = useTransfers({
     direction: tab,
     ...(destinationWarehouseId !== null ? { destinationWarehouseId } : {}),
     ...(soloDemorados ? { olderThanDays: TRANSFER_STALE_DAYS } : {}),
+    page: pagina,
   });
 
   const meta = data?.meta ?? { incomingCount: 0, outgoingCount: 0 };
@@ -223,6 +233,12 @@ export function TransfersList() {
       {cancelando !== null && (
         <DialogoCancelar row={cancelando} onClose={() => setCancelando(null)} />
       )}
+      <Paginator
+        page={pagina}
+        pageSize={data?.pageSize ?? 20}
+        total={data?.total ?? 0}
+        onPageChange={setPagina}
+      />
     </section>
   );
 }
