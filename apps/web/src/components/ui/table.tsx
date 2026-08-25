@@ -1,10 +1,14 @@
 import type * as React from "react";
 
+import { SURFACE } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    // La piel de tarjeta viene de `SURFACE` (una sola fuente, tokenizada para
+    // el selector de temas): los listados no se pintan sobre el fondo de la
+    // página, van en su propia superficie — el molde de «Mi perfil».
+    <div data-slot="table-container" className={cn("relative w-full overflow-x-auto", SURFACE)}>
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}

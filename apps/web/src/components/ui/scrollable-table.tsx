@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SURFACE } from "@/components/ui/surface";
+import { cn } from "@/lib/utils";
 
 /**
  * Una tabla ancha dentro de una caja que hace scroll, **y que avisa cuando hay
@@ -36,7 +38,15 @@ export function ScrollableTable({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative">
-      <div ref={caja} data-testid="scrollable-table" onScroll={medir} className="overflow-x-auto">
+      {/* La misma `SURFACE` que `ui/table.tsx`: los listados van sobre su
+          tarjeta, no sobre el fondo — y el tema del wizard los re-pinta a
+          todos cambiando solo los tokens. */}
+      <div
+        ref={caja}
+        data-testid="scrollable-table"
+        onScroll={medir}
+        className={cn("overflow-x-auto", SURFACE)}
+      >
         {children}
       </div>
       {sobra && (
@@ -44,7 +54,10 @@ export function ScrollableTable({ children }: { children: React.ReactNode }) {
           {/* Degradado en el borde: la pista visual de que el contenido sigue. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent"
+            // `from-card` y no `from-background`: el degradado vive DENTRO de
+            // la tarjeta, así que tiene que fundirse con ella. Con el fondo de
+            // la página se veía una franja gris flotando sobre el blanco.
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-lg bg-gradient-to-l from-card to-transparent"
           />
           <p data-testid="scroll-hint" className="mt-1 text-muted-foreground text-xs">
             {t("common.table.scrollHint")}
