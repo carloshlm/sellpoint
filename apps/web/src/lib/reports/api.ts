@@ -9,8 +9,102 @@ import { descargarBlob } from "@/lib/download";
  */
 export type ReportFormat = "csv" | "xlsx";
 
-async function bajar(ruta: string, base: string, format: ReportFormat): Promise<void> {
-  const { data } = await api.get<Blob>(ruta, { params: { format }, responseType: "blob" });
+// ─────────────────────────────────────────────────────────────────────────
+// Las consultas de pantalla (F5-STK-04 / F5-SALES-03)
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface StockReportRow {
+  productId: string;
+  sku: string;
+  name: string;
+  baseUnit: string;
+  warehouseId: string;
+  warehouseName: string;
+  quantity: string;
+  stockMin: string;
+  totalQuantity: string;
+  belowMin: boolean;
+  /** `null` cuando el producto nunca se compró: ver `WeightedCostService`. */
+  avgCost: string | null;
+  totalValue: string | null;
+  /** Solo con `detail=lots`. */
+  lotCode?: string;
+  expiresAt?: string | null;
+  location?: string;
+}
+
+export interface StockReportQuery {
+  warehouseId?: string;
+  belowMin?: boolean;
+  search?: string;
+  detail?: "lots";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface StockReportPage {
+  rows: StockReportRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function getStockReport(query: StockReportQuery): Promise<StockReportPage> {
+  const { data } = await api.get<StockReportPage>("/reports/stock", { params: query });
+  return data;
+}
+
+export interface SalesReportRow {
+  id: string;
+  folio: string;
+  barcode: string | null;
+  createdAt: string;
+  status: string;
+  paymentMethod: string;
+  total: string;
+  warehouseId: string;
+  warehouse: { id: string; name: string };
+  seller: { id: string; name: string };
+}
+
+export interface SalesReportQuery {
+  warehouseId?: string;
+  from?: string;
+  to?: string;
+  folio?: string;
+  status?: "completed" | "canceled";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SalesReportPage {
+  rows: SalesReportRow[];
+  /** Del PERÍODO entero, no de la página: es el pie de la tabla. */
+  totals: { paymentMethod: string; total: string }[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function getSalesReport(query: SalesReportQuery): Promise<SalesReportPage> {
+  const { data } = await api.get<SalesReportPage>("/reports/sales", { params: query });
+  return data;
+}
+
+async function bajar(
+  ruta: string,
+  base: string,
+  format: ReportFormat,
+  // Genérico y no `Record<string, unknown>`: las interfaces con claves fijas
+  // no encajan en un índice de string, y forzarlo con un cast escondería un
+  // typo en el nombre de un filtro justo donde importa —el archivo saldría
+  // sin filtrar y en silencio—.
+  filtros: object = {},
+): Promise<void> {
+  const { data } = await api.get<Blob>(ruta, {
+    params: { ...filtros, format },
+    responseType: "blob",
+  });
   await descargarBlob(data, `${base}.${format}`);
 }
 
@@ -27,14 +121,23 @@ export function downloadCatalogReport(format: ReportFormat = "xlsx"): Promise<vo
 }
 
 /**
- * F5-STK-02 y F5-SALES-02: sus endpoints YA existen, pero sus pantallas llegan
- * en F5-STK-04 y F5-SALES-03. Mientras tanto el hub baja el Excel en vez de
- * enlazar a una ruta que no existe — un enlace muerto es peor que un archivo.
+ * Los exports de las dos pantallas.
+ *
+ * Reciben los MISMOS filtros que la consulta: si el archivo ignorara los
+ * filtros vigentes, traería el universo entero mientras la pantalla muestra
+ * tres filas — y nadie lo notaría hasta abrirlo.
  */
-export function downloadStockReport(format: ReportFormat = "xlsx"): Promise<void> {
-  return bajar("/reports/stock/export", "stock", format);
+export function downloadStockReport(
+  query: StockReportQuery = {},
+  format: ReportFormat = "xlsx",
+): Promise<void> {
+  const base = query.detail === "lots" ? "stock-por-lote" : "stock";
+  return bajar("/reports/stock/export", base, format, query);
 }
 
-export function downloadSalesReport(format: ReportFormat = "xlsx"): Promise<void> {
-  return bajar("/reports/sales/export", "ventas", format);
+export function downloadSalesReport(
+  query: SalesReportQuery = {},
+  format: ReportFormat = "xlsx",
+): Promise<void> {
+  return bajar("/reports/sales/export", "ventas", format, query);
 }

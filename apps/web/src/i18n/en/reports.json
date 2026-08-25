@@ -35,6 +35,29 @@
       "detail": "Goods that left a warehouse and haven't arrived yet."
     }
   },
+  "sales": {
+    "barcode": "Barcode",
+    "date": "Date",
+    "folio": "Receipt number",
+    "method": "Payment",
+    "seller": "Sold by",
+    "status": "Status",
+    "total": "Total",
+    "warehouse": "Warehouse"
+  },
+  "stock": {
+    "avgCost": "Average cost",
+    "byLot": "Detail by lot and location",
+    "expiresAt": "Expires",
+    "location": "Location",
+    "lot": "Lot",
+    "min": "Minimum",
+    "onlyBelowMin": "Only below minimum",
+    "product": "Product",
+    "quantity": "Quantity",
+    "value": "Value",
+    "warehouse": "Warehouse"
+  },
   "table": {
     "empty": "There is no data to show with these filters.",
     "export": "Export to Excel",

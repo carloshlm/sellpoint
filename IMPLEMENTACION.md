@@ -2633,7 +2633,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F5-STK-01, F5-COST-01
   - **Estimación:** 1.5 h
 
-- [ ] **F5-STK-04** — Pantalla `/reports/stock`
+- [x] **F5-STK-04** *(cerrada el 2026-08-24)* — Pantalla `/reports/stock`
   - **Salida:** ruta con el molde de gates del POS (`ProtectedRoute>OnboardingGate>AppLayout>PermissionGate reports:read`) sobre el componente común de reporte (F5-HUB-03): filtros, tabla server-side, paginador y «Exportar Excel»
   - **Verificar:** test de ruta (molde `pos-sales.test.tsx`): filtros disparan la query con los params correctos; Exportar llama al helper de blob; contraprueba: sin `reports:read` no renderiza
   - **Depende de:** F5-STK-02, F5-HUB-03
@@ -2660,7 +2660,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F5-SALES-01, F5-CORE-02
   - **Estimación:** 1 h
 
-- [ ] **F5-SALES-03** — Pantalla `/reports/sales`
+- [x] **F5-SALES-03** *(cerrada el 2026-08-24)* — Pantalla `/reports/sales`
   - **Salida:** ruta con filtros fecha/vendedor/estado/almacén sobre el componente común; reusa los patrones de `sales-history.tsx` SIN duplicar la pantalla del POS (audiencias distintas: `pos:view` es el mostrador, `reports:read` es el análisis)
   - **Verificar:** test de ruta: filtros → params; export → helper de blob; contraprueba de permiso
   - **Depende de:** F5-SALES-02, F5-HUB-03
@@ -2732,7 +2732,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 - [x] **F5-HUB-02** *(cerrada el 2026-08-24)* — Hub `/reports` + entrada en el nav
   - **Salida:** ruta `/reports` con las 8 tarjetas de VISTAS §10; `canSeeReportsNav = has("reports:read")` en el nav; las tarjetas de export directo (usuarios, almacenes, catálogo) descargan sin navegar; Catálogo enlaza a `/catalog/products`
   - **Verificar:** test de nav: con `reports:read` se ve; contraprueba: POS_Seller no lo ve y `/reports` lo rebota; las tarjetas de export llaman al helper
-  - **Stock y ventas DESCARGAN, no enlazan** (2026-08-24, transitorio): sus endpoints ya existen pero sus pantallas llegan en F5-STK-04 y F5-SALES-03, y no hay `notFoundComponent` en el router — enlazar a una ruta inexistente daría un «Not Found» al primer clic. Hay una barrera que recorre TODOS los enlaces del hub y falla si alguno apunta fuera de la lista de rutas reales. Cuando existan las pantallas, esas dos tarjetas cambian `descargar` por `to`
+  - **Stock y ventas vuelven a ENLAZAR** (2026-08-24): estuvieron descargando mientras sus pantallas no existían —el router no tiene `notFoundComponent` y un enlace muerto es peor que un archivo— y al cerrarse F5-STK-04 y F5-SALES-03 volvieron a ser enlaces. Queda la barrera que recorre TODOS los enlaces del hub y falla si alguno apunta fuera de la lista de rutas reales
   - **Depende de:** F5-HUB-01, F5-CAT-01, F5-CAT-02, F5-CAT-03
   - **Estimación:** 2 h
 

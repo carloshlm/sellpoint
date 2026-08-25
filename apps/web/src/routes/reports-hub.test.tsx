@@ -15,8 +15,6 @@ vi.mock("../lib/reports/api", () => ({
   downloadUsersReport: vi.fn(),
   downloadWarehousesReport: vi.fn(),
   downloadCatalogReport: vi.fn(),
-  downloadStockReport: vi.fn(),
-  downloadSalesReport: vi.fn(),
 }));
 
 /** Las rutas que el router conoce hoy. Ver la barrera de enlaces muertos. */
@@ -25,6 +23,8 @@ const RUTAS_EXISTENTES = [
   "/movements/expiring",
   "/movements/transfers",
   "/reports",
+  "/reports/sales",
+  "/reports/stock",
 ];
 
 const mocked = vi.mocked(reportsApi);
@@ -81,8 +81,6 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     mocked.downloadUsersReport.mockResolvedValue(undefined);
     mocked.downloadWarehousesReport.mockResolvedValue(undefined);
     mocked.downloadCatalogReport.mockResolvedValue(undefined);
-    mocked.downloadStockReport.mockResolvedValue(undefined);
-    mocked.downloadSalesReport.mockResolvedValue(undefined);
   });
 
   it("con `reports:read` se ven las ocho tarjetas", async () => {
@@ -120,22 +118,21 @@ describe("Hub de reportes (F5-HUB-02)", () => {
   });
 
   /**
-   * Stock y ventas DESCARGAN mientras no tengan pantalla propia (F5-STK-04 y
-   * F5-SALES-03). Sus endpoints ya existen: enlazar a una ruta inexistente
-   * daría un «Not Found» al primer clic, y un enlace muerto es peor que un
-   * archivo. Este test cambia el día que las pantallas existan.
+   * Con sus pantallas ya construidas, stock y ventas ENLAZAN. Desde el hub se
+   * entra a filtrar; exportar con los filtros puestos es más útil que bajar
+   * el universo entero de un botón.
    */
-  it("stock y ventas descargan su Excel mientras no tengan pantalla", async () => {
+  it("stock y ventas llevan a su pantalla", async () => {
     await renderRuta("/reports", ["reports:read"]);
-    const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: /stock por almacén/i }));
-    await user.click(screen.getByRole("button", { name: /^ventas$/i }));
-
-    await waitFor(() => {
-      expect(mocked.downloadStockReport).toHaveBeenCalledTimes(1);
-      expect(mocked.downloadSalesReport).toHaveBeenCalledTimes(1);
-    });
+    expect(await screen.findByRole("link", { name: /stock por almacén/i })).toHaveAttribute(
+      "href",
+      "/reports/stock",
+    );
+    expect(screen.getByRole("link", { name: /^ventas$/i })).toHaveAttribute(
+      "href",
+      "/reports/sales",
+    );
   });
 
   /**

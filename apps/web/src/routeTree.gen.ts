@@ -34,6 +34,8 @@ import { Route as PosIndexRouteImport } from './routes/pos.index'
 import { Route as PosCloseRouteImport } from './routes/pos.close'
 import { Route as PosSalesRouteImport } from './routes/pos.sales'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
+import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
+import { Route as ReportsStockRouteImport } from './routes/reports.stock'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
@@ -165,6 +167,16 @@ const ReportsIndexRoute = ReportsIndexRouteImport.update({
   path: '/reports/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsSalesRoute = ReportsSalesRouteImport.update({
+  id: '/reports/sales',
+  path: '/reports/sales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsStockRoute = ReportsStockRouteImport.update({
+  id: '/reports/stock',
+  path: '/reports/stock',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -216,6 +228,8 @@ export interface FileRoutesByFullPath {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/reports/sales': typeof ReportsSalesRoute
+  '/reports/stock': typeof ReportsStockRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
@@ -248,6 +262,8 @@ export interface FileRoutesByTo {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/reports/sales': typeof ReportsSalesRoute
+  '/reports/stock': typeof ReportsStockRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos': typeof PosIndexRoute
@@ -281,6 +297,8 @@ export interface FileRoutesById {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/reports/sales': typeof ReportsSalesRoute
+  '/reports/stock': typeof ReportsStockRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
@@ -315,6 +333,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/reports/sales'
+    | '/reports/stock'
     | '/system/roles'
     | '/system/users'
     | '/pos/'
@@ -347,6 +367,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/reports/sales'
+    | '/reports/stock'
     | '/system/roles'
     | '/system/users'
     | '/pos'
@@ -379,6 +401,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/reports/sales'
+    | '/reports/stock'
     | '/system/roles'
     | '/system/users'
     | '/pos/'
@@ -412,6 +436,8 @@ export interface RootRouteChildren {
   MovementsTransfersRoute: typeof MovementsTransfersRoute
   PosCloseRoute: typeof PosCloseRoute
   PosSalesRoute: typeof PosSalesRoute
+  ReportsSalesRoute: typeof ReportsSalesRoute
+  ReportsStockRoute: typeof ReportsStockRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
   PosIndexRoute: typeof PosIndexRoute
@@ -598,6 +624,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/sales': {
+      id: '/reports/sales'
+      path: '/reports/sales'
+      fullPath: '/reports/sales'
+      preLoaderRoute: typeof ReportsSalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports/stock': {
+      id: '/reports/stock'
+      path: '/reports/stock'
+      fullPath: '/reports/stock'
+      preLoaderRoute: typeof ReportsStockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -660,6 +700,8 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsTransfersRoute: MovementsTransfersRoute,
   PosCloseRoute: PosCloseRoute,
   PosSalesRoute: PosSalesRoute,
+  ReportsSalesRoute: ReportsSalesRoute,
+  ReportsStockRoute: ReportsStockRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
   PosIndexRoute: PosIndexRoute,

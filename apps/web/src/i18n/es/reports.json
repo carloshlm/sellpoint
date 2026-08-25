@@ -35,6 +35,29 @@
       "detail": "Mercancía que salió de un almacén y todavía no llega."
     }
   },
+  "sales": {
+    "barcode": "Código de barras",
+    "date": "Fecha",
+    "folio": "Folio",
+    "method": "Pago",
+    "seller": "Vendió",
+    "status": "Estado",
+    "total": "Total",
+    "warehouse": "Almacén"
+  },
+  "stock": {
+    "avgCost": "Costo promedio",
+    "byLot": "Detalle por lote y ubicación",
+    "expiresAt": "Caducidad",
+    "location": "Ubicación",
+    "lot": "Lote",
+    "min": "Mínimo",
+    "onlyBelowMin": "Solo bajo mínimo",
+    "product": "Producto",
+    "quantity": "Cantidad",
+    "value": "Valor",
+    "warehouse": "Almacén"
+  },
   "table": {
     "empty": "No hay datos que mostrar con estos filtros.",
     "export": "Exportar Excel",

@@ -14,8 +14,6 @@ import { useTranslation } from "react-i18next";
 import { usePermissions } from "@/lib/auth/permissions";
 import {
   downloadCatalogReport,
-  downloadSalesReport,
-  downloadStockReport,
   downloadUsersReport,
   downloadWarehousesReport,
 } from "@/lib/reports/api";
@@ -50,18 +48,11 @@ interface TarjetaDeReporte {
 }
 
 const TARJETAS: readonly TarjetaDeReporte[] = [
-  // Stock y ventas DESCARGAN, no navegan: sus endpoints ya existen pero sus
-  // pantallas llegan en F5-STK-04 y F5-SALES-03. Enlazar a una ruta que no
-  // existe daría un «Not Found» al primer clic, y un enlace muerto es peor
-  // que un archivo. Cuando las pantallas existan, `descargar` se cambia por
-  // `to` y el botón vuelve a ser enlace.
-  { key: "stock", icon: Package, descargar: downloadStockReport, permiso: "reports:read" },
-  {
-    key: "sales",
-    icon: FileSpreadsheet,
-    descargar: downloadSalesReport,
-    permiso: "reports:read",
-  },
+  // Con sus pantallas ya construidas (F5-STK-04 / F5-SALES-03) vuelven a ser
+  // enlaces: ahí se filtra y desde ahí se exporta con los filtros puestos,
+  // que es más útil que bajar el universo entero desde el hub.
+  { key: "stock", icon: Package, to: "/reports/stock", permiso: "reports:read" },
+  { key: "sales", icon: FileSpreadsheet, to: "/reports/sales", permiso: "reports:read" },
   { key: "kardex", icon: ScrollText, to: "/catalog/products", permiso: "reports:read" },
   {
     key: "products",
