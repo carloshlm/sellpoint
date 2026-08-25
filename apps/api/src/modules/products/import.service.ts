@@ -126,6 +126,35 @@ export class ImportService {
     user: AuthUser,
     format: SpreadsheetFormat,
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
+    const { header, rows, custom } = await this.catalogRows(user);
+
+    // Sin productos todavía, una fila de ejemplo: si no, nadie sabe si el
+    // precio va con punto o con coma, ni qué se espera en "unidad_base".
+    //
+    // Es lo que separa a la PLANTILLA del reporte de catálogo (F5-CAT-03):
+    // acá el archivo enseña un formato, allá informa lo que hay. Inventar un
+    // «Paracetamol» en un reporte sería decir que existe un producto que
+    // nadie dio de alta.
+    const body =
+      rows.length > 0
+        ? rows
+        : [["PAR-500", "Paracetamol 500mg", "unit", "0", "15.50", "9.00", ...custom.map(() => "")]];
+
+    return serializeSpreadsheet([header, ...body], format);
+  }
+
+  /**
+   * El catálogo COMPLETO como filas, con sus campos dinámicos resueltos a
+   * códigos legibles.
+   *
+   * Lo comparten la plantilla de importación (F2) y el reporte de catálogo
+   * (F5-CAT-03) para que las columnas no puedan divergir: si fueran dos
+   * listas, un día dirían cosas distintas y lo exportado dejaría de poder
+   * reimportarse.
+   */
+  async catalogRows(
+    user: AuthUser,
+  ): Promise<{ header: string[]; rows: string[][]; custom: string[] }> {
     const fields = await this.loadFields(user);
     const active = fields.filter((field) => !field.isArchived);
     const custom = active.map((field) => field.key);
@@ -172,14 +201,7 @@ export class ImportService {
       ];
     });
 
-    // Sin productos todavía, una fila de ejemplo: si no, nadie sabe si el
-    // precio va con punto o con coma, ni qué se espera en "unidad_base".
-    const body =
-      rows.length > 0
-        ? rows
-        : [["PAR-500", "Paracetamol 500mg", "unit", "0", "15.50", "9.00", ...custom.map(() => "")]];
-
-    return serializeSpreadsheet([header, ...body], format);
+    return { header, rows, custom };
   }
 
   async run(

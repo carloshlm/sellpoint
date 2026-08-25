@@ -2682,21 +2682,22 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-CAT — Catálogo, usuarios y almacenes (exports directos)
 
-- [ ] **F5-CAT-01** — Export de usuarios con `reports:read`
+- [x] **F5-CAT-01** *(cerrada el 2026-08-24)* — Export de usuarios con `reports:read`
   - **Salida:** `GET /reports/users/export`: nombre, email, roles, almacenes asignados, estado. Con `reports:read` y NO `users:manage`: un Viewer debe poder bajarlo sin acceso a `/system/users`. SIN campos sensibles (hashes, tokens, invitaciones pendientes fuera)
   - **Verificar:** e2e: Viewer sin `users:manage` descarga el xlsx (esa es la prueba); contraprueba: POS_Seller → 403; el xlsx no contiene columnas sensibles
   - **Depende de:** F5-CORE-02, F5-CORE-03
   - **Estimación:** 1.5 h
 
-- [ ] **F5-CAT-02** — Export de almacenes
+- [x] **F5-CAT-02** *(cerrada el 2026-08-24)* — Export de almacenes
   - **Salida:** `GET /reports/warehouses/export`: nombre, dirección, estado, productos con stock; limitado al alcance del usuario
   - **Verificar:** e2e: usuario acotado solo exporta sus almacenes (contraprueba); formato y descarga correctos
   - **Depende de:** F5-CORE-02, F5-CORE-03
   - **Estimación:** 1 h
 
-- [ ] **F5-CAT-03** — Export de catálogo con `reports:read`
+- [x] **F5-CAT-03** *(cerrada el 2026-08-24)* — Export de catálogo con `reports:read`
   - **Salida:** `GET /reports/products/export` REUSANDO la maquinaria de la plantilla de importación de F2 (`import.service.template` ya arma el archivo poblado con los campos dinámicos) — el endpoint existente exige `products:manage` y un Viewer no puede usarlo; este existe justamente para que exportar el catálogo sea LEER
   - **Verificar:** e2e: Viewer (sin `products:manage`) descarga el catálogo completo con campos dinámicos; contraprueba: las columnas son las mismas que las del template (misma fuente, no una segunda lista)
+  - **Lo que NO se reusa de la plantilla** (2026-08-24): la fila de EJEMPLO que inventa cuando el catálogo está vacío. Ahí los propósitos se separan —la plantilla enseña un formato, el reporte informa lo que hay— y un «Paracetamol 500mg» en un reporte diría que existe un producto que nadie dio de alta. Se extrajo `ImportService.catalogRows` para compartir columnas y filas sin compartir el ejemplo
   - **Depende de:** F5-CORE-02, F5-CORE-03
   - **Estimación:** 1.5 h
 

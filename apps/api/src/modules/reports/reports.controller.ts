@@ -7,6 +7,8 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { CatalogExportService } from "./catalog-export.service";
+import { type DirectExportQueryDto, directExportQuerySchema } from "./dto/direct-export.dto";
 import {
   type SalesExportQueryDto,
   type SalesReportQueryDto,
@@ -48,6 +50,7 @@ export class ReportsController {
     private readonly stockExport: StockExportService,
     private readonly salesReport: SalesReportService,
     private readonly salesExport: SalesExportService,
+    private readonly catalogExport: CatalogExportService,
   ) {}
 
   @Get()
@@ -104,6 +107,58 @@ export class ReportsController {
     @Res() response: Response,
   ) {
     const file = await this.salesExport.build(user, scope, query);
+    response
+      .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
+  /**
+   * F5-CAT-01/02/03 — los tres exports DIRECTOS.
+   *
+   * Existen porque el permiso de sus listados es de EDICIÓN (`users:manage`,
+   * `products:manage`) y un Viewer que solo lee se quedaba sin poder bajar su
+   * propio catálogo. Exportar es leer.
+   */
+  @Get("users/export")
+  @RequirePermissions("reports:read")
+  async usersExportFile(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(directExportQuerySchema, "reports.invalid_query"))
+    query: DirectExportQueryDto,
+    @Res() response: Response,
+  ) {
+    this.descargar(response, await this.catalogExport.users(user, query.format));
+  }
+
+  @Get("warehouses/export")
+  @RequirePermissions("reports:read")
+  async warehousesExportFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(directExportQuerySchema, "reports.invalid_query"))
+    query: DirectExportQueryDto,
+    @Res() response: Response,
+  ) {
+    this.descargar(response, await this.catalogExport.warehouses(user, scope, query.format));
+  }
+
+  @Get("products/export")
+  @RequirePermissions("reports:read")
+  async productsExportFile(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(directExportQuerySchema, "reports.invalid_query"))
+    query: DirectExportQueryDto,
+    @Res() response: Response,
+  ) {
+    this.descargar(response, await this.catalogExport.products(user, query.format));
+  }
+
+  /** Un solo lugar arma la descarga: seis endpoints repitiéndola era ruido. */
+  private descargar(
+    response: Response,
+    file: { body: Buffer; contentType: string; filename: string },
+  ) {
     response
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)

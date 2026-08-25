@@ -13,6 +13,8 @@ import { ProductsService } from "./products.service";
   imports: [AuditModule, CostModule],
   controllers: [ProductsController],
   providers: [ProductsService, PresentationsService, CompositionService, ImportService],
-  exports: [ProductsService, CompositionService],
+  // `ImportService` sale del módulo desde F5-CAT-03: el reporte de catálogo
+  // reusa su `catalogRows` para que las columnas no diverjan de la plantilla.
+  exports: [ProductsService, CompositionService, ImportService],
 })
 export class ProductsModule {}
