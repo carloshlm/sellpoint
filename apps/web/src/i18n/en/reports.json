@@ -12,7 +12,7 @@
     },
     "kardex": {
       "title": "Ledger",
-      "detail": "A product's movements, with its balance after each one."
+      "detail": "Pick a product and see its movements with the balance after each one."
     },
     "products": {
       "title": "Catalog",

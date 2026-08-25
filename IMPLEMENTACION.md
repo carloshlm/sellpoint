@@ -2668,15 +2668,16 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### Módulo F5-KDX — Kardex exportable (herencia F3)
 
-- [ ] **F5-KDX-01** — Export del kardex
+- [x] **F5-KDX-01** *(cerrada el 2026-08-24)* — Export del kardex
   - **Salida:** `GET /reports/kardex/:productId/export` REUSANDO `kardex.service.list` — mismos filtros (almacén/fechas/dirección/motivo/lote), sin paginar hasta el tope; columnas con `balanceAfter`, folio, tipo de documento, **lote y ubicación** (decisión 5: `stock_movements` ya guarda las dos y la pantalla ya las pinta — el Excel no puede contar menos que la pantalla). Cero segunda implementación de la window function
   - **Verificar:** e2e: el `balanceAfter` del xlsx es idéntico al de la API paginada para el mismo filtro (misma fuente); contraprueba: producto de otro tenant → 404; respeta el alcance
   - **Depende de:** F5-CORE-02, F5-CORE-03
   - **Estimación:** 1.5 h
 
-- [ ] **F5-KDX-02** — Botón de export en la pantalla de kardex + tarjeta del hub
+- [x] **F5-KDX-02** *(cerrada el 2026-08-24)* — Botón de export en la pantalla de kardex + tarjeta del hub
   - **Salida:** la tab de kardex existente gana «Exportar Excel» con los filtros activos; la tarjeta «Kardex» del hub enlaza ahí (no se construye pantalla nueva)
   - **Verificar:** test: el botón dispara la descarga con los filtros vigentes; contraprueba: sin producto seleccionado el botón queda deshabilitado
+  - **Sin guarda de `isComposite` en el botón** (2026-08-24): el componente ya retorna antes si el producto es compuesto, así que la guarda era CÓDIGO MUERTO — una contraprueba lo demostró: agregarla no ponía rojo ningún test porque el caso del que protegería no llega a esa línea
   - **Depende de:** F5-KDX-01, F5-HUB-02
   - **Estimación:** 1.5 h
 

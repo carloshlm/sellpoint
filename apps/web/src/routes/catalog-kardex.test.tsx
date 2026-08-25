@@ -30,6 +30,7 @@ vi.mock("../lib/inventory/kardex-api", () => ({
   getStock: vi.fn(),
   getInTransit: vi.fn(),
   updateLot: vi.fn(),
+  downloadKardex: vi.fn(),
 }));
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 
@@ -130,6 +131,7 @@ beforeEach(() => {
     isComposite: false,
   });
   mocked.getStock.mockResolvedValue(resumen());
+  mocked.downloadKardex.mockResolvedValue(undefined);
   mocked.getInTransit.mockResolvedValue({ rows: [] });
 });
 
@@ -169,6 +171,60 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
     const etiquetas = [...barra.querySelectorAll("label")].map((l) => l.textContent?.trim());
 
     expect(etiquetas).toEqual(["Almacén", "Motivo", "Movimiento", "Desde", "Hasta"]);
+  });
+
+  /**
+   * F5-KDX-02 — exportar el kardex desde su propia pantalla.
+   *
+   * No hay pantalla nueva en Reportes: la tarjeta del hub enlaza acá. Duplicar
+   * esta vista con otros filtros sería mantener dos que dicen lo mismo, y el
+   * kardex necesita un producto elegido — que es justo lo que esta pantalla ya
+   * resuelve.
+   */
+  describe("el export (F5-KDX-02)", () => {
+    it("exporta CON los filtros que están puestos", async () => {
+      const user = renderTab(
+        <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,
+      );
+      await screen.findByText("ENT-000042");
+
+      await user.selectOptions(screen.getByLabelText(/motivo/i), "loss");
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() =>
+        expect(mocked.downloadKardex).toHaveBeenCalledWith(
+          "p1",
+          expect.objectContaining({ reasonCode: "loss" }),
+        ),
+      );
+    });
+
+    /**
+     * El export no pagina y su schema es `.strict()`: mandarle `page` responde
+     * 400. Es el mismo bug que apareció en producción con los reportes de
+     * stock y ventas (2026-08-24) — acá se fija antes de que pase.
+     */
+    it("NO manda la paginación de la pantalla", async () => {
+      const user = renderTab(
+        <KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />,
+      );
+      await screen.findByText("ENT-000042");
+
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() => expect(mocked.downloadKardex).toHaveBeenCalled());
+      const enviado = mocked.downloadKardex.mock.calls[0]?.[1] ?? {};
+      expect(enviado).not.toHaveProperty("page");
+      expect(enviado).not.toHaveProperty("pageSize");
+    });
+
+    it("un compuesto no ofrece exportar: no tiene kardex propio", async () => {
+      renderTab(<KardexTab productId="p1" tracksLots={false} isComposite baseUnit="unit" />);
+
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: /exportar/i })).not.toBeInTheDocument(),
+      );
+    });
   });
 
   it("cambiar el motivo dispara el request con ese filtro", async () => {
@@ -623,6 +679,7 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
       isComposite: false,
     });
     mocked.getStock.mockResolvedValue(resumen());
+    mocked.downloadKardex.mockResolvedValue(undefined);
     mocked.getInTransit.mockResolvedValue({ rows: [] });
   };
 
@@ -656,6 +713,7 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
       isComposite: false,
     });
     mocked.getStock.mockResolvedValue(resumen());
+    mocked.downloadKardex.mockResolvedValue(undefined);
     mocked.getInTransit.mockResolvedValue({ rows: [] });
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 

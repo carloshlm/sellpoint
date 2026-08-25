@@ -1,5 +1,6 @@
 import { formatQuantity, MOVEMENT_REASONS } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,8 +8,10 @@ import {
   type RangoDeFechas,
   rangoUltimosDias,
 } from "@/components/common/date-range-filter";
+import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
+import { downloadKardex } from "@/lib/inventory/kardex-api";
 import { useKardex } from "@/lib/inventory/kardex-hooks";
 import { WarehouseSelect } from "./warehouse-select";
 
@@ -56,13 +59,21 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
    */
   const [rango, setRango] = useState<RangoDeFechas>(() => rangoUltimosDias(DIAS_INICIALES));
 
-  const { data, isPending } = useKardex(isComposite ? undefined : productId, {
+  /**
+   * Los filtros, separados de todo lo demás: el export los reusa TAL CUAL.
+   * Si el archivo se armara con otra lista, bajaría un universo distinto del
+   * que la pantalla muestra y nadie lo notaría hasta abrirlo.
+   */
+  const filtrosDelExport = {
     ...(warehouseId !== null ? { warehouseId } : {}),
     ...(reasonCode !== "" ? { reasonCode } : {}),
     ...(direction !== "" ? { direction: direction as "entry" | "exit" } : {}),
     ...(rango.from !== "" ? { from: rango.from } : {}),
     ...(rango.to !== "" ? { to: rango.to } : {}),
-  });
+  };
+  const [exportando, setExportando] = useState(false);
+
+  const { data, isPending } = useKardex(isComposite ? undefined : productId, filtrosDelExport);
 
   // Un compuesto no tiene movimientos propios: se arma al consumirlo. Una
   // tabla vacía haría pensar que nunca se movió, que es otra cosa.
@@ -131,6 +142,30 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
         </div>
 
         <DateRangeFilter id="kardex" from={rango.from} to={rango.to} onChange={setRango} />
+
+        {/* El export baja lo MISMO que la pantalla muestra: los filtros
+            vigentes viajan con él.
+
+            SIN guarda de `isComposite`: el componente ya retornó arriba si lo
+            es —un compuesto no tiene kardex propio, se arma al consumirlo—.
+            Una contraprueba lo demostró: agregar `!isComposite &&` acá no
+            ponía rojo ningún test, porque el caso del que protegería no puede
+            llegar hasta esta línea. */}
+        {
+          <Button
+            variant="outline"
+            size="sm"
+            className="mb-0.5"
+            disabled={exportando}
+            onClick={() => {
+              setExportando(true);
+              void downloadKardex(productId, filtrosDelExport).finally(() => setExportando(false));
+            }}
+          >
+            <Download className="size-4" aria-hidden="true" />
+            {t("reports.table.export")}
+          </Button>
+        }
       </div>
 
       {isPending ? (

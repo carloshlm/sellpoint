@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res } from "@nestjs/common";
+import { Controller, Get, Param, Query, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -9,6 +9,7 @@ import { RequirePermissions } from "../auth/decorators/require-permissions.decor
 import type { AuthUser } from "../auth/types/auth-user";
 import { CatalogExportService } from "./catalog-export.service";
 import { type DirectExportQueryDto, directExportQuerySchema } from "./dto/direct-export.dto";
+import { type KardexExportQueryDto, kardexExportQuerySchema } from "./dto/kardex-export.dto";
 import {
   type SalesExportQueryDto,
   type SalesReportQueryDto,
@@ -21,6 +22,7 @@ import {
   stockExportQuerySchema,
   stockReportQuerySchema,
 } from "./dto/stock-report.dto";
+import { KardexExportService } from "./kardex-export.service";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
 import { SalesReportService } from "./sales-report.service";
@@ -51,6 +53,7 @@ export class ReportsController {
     private readonly salesReport: SalesReportService,
     private readonly salesExport: SalesExportService,
     private readonly catalogExport: CatalogExportService,
+    private readonly kardexExport: KardexExportService,
   ) {}
 
   @Get()
@@ -154,7 +157,31 @@ export class ReportsController {
     this.descargar(response, await this.catalogExport.products(user, query.format));
   }
 
-  /** Un solo lugar arma la descarga: seis endpoints repitiéndola era ruido. */
+  /**
+   * F5-KDX-01: el kardex de un producto en Excel.
+   *
+   * Reusa `kardex.service.list`, así que el saldo del archivo es EL MISMO que
+   * el de la pantalla — no hay una segunda implementación de la window
+   * function que un día diga otra cosa.
+   */
+  @Get("kardex/:productId/export")
+  @RequirePermissions("reports:read")
+  async kardexExportFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Param("productId") productId: string,
+    @Query(new ZodValidationPipe(kardexExportQuerySchema, "reports.invalid_query"))
+    query: KardexExportQueryDto,
+    @Res() response: Response,
+  ) {
+    const { format, ...filtros } = query;
+    this.descargar(
+      response,
+      await this.kardexExport.build(user, scope, productId, filtros, format),
+    );
+  }
+
+  /** Un solo lugar arma la descarga: siete endpoints repitiéndola era ruido. */
   private descargar(
     response: Response,
     file: { body: Buffer; contentType: string; filename: string },

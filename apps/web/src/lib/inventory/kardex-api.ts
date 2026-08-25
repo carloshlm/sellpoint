@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { descargarBlob } from "@/lib/download";
 
 /** Espejo de `KardexService`. Los decimales viajan como string. */
 export interface KardexRow {
@@ -122,4 +123,23 @@ export async function updateLot(
     input,
   );
   return data;
+}
+
+/**
+ * F5-KDX-02 — el kardex en Excel, con los filtros que están puestos.
+ *
+ * Sin `page` ni `pageSize`: el endpoint del export no pagina y su schema es
+ * `.strict()`, así que mandárselos responde 400 (el bug que apareció en
+ * producción con los reportes de stock y ventas, 2026-08-24).
+ */
+export async function downloadKardex(
+  productId: string,
+  filtros: Omit<KardexParams, "page" | "pageSize"> = {},
+  format: "csv" | "xlsx" = "xlsx",
+): Promise<void> {
+  const { data } = await api.get<Blob>(`/reports/kardex/${productId}/export`, {
+    params: { ...filtros, format },
+    responseType: "blob",
+  });
+  await descargarBlob(data, `kardex.${format}`);
 }

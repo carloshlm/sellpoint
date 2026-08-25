@@ -154,6 +154,191 @@ describe("Kardex (F3-KARDEX-01)", () => {
       .set("Authorization", bearer(token));
 
   /**
+   * F5-KDX-01 — el kardex en Excel.
+   *
+   * ── Por qué REUSA `kardex.service.list` ─────────────────────────────────
+   *
+   * Porque el `balanceAfter` es lo único que justifica que el kardex exista, y
+   * lo calcula una window function sobre el orden total de los movimientos.
+   * Una segunda implementación para el export daría los mismos números hasta
+   * el día que no, y ese día nadie sabría cuál de los dos creerle.
+   */
+  describe("F5-KDX-01 — el export", () => {
+    function descargar(token: string, productId: string, query = "") {
+      return request(app.getHttpServer())
+        .get(`/reports/kardex/${productId}/export${query}`)
+        .set("Authorization", bearer(token))
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on("data", (c: Buffer) => chunks.push(c));
+          r.on("end", () => cb(null, Buffer.concat(chunks)));
+        });
+    }
+
+    async function celdas(body: Buffer): Promise<{ name: string; rows: string[][] }> {
+      const ExcelJS = (await import("exceljs")).default;
+      const workbook = new ExcelJS.Workbook();
+      type XlsxInput = Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(body as unknown as XlsxInput);
+      const sheet = workbook.worksheets[0];
+      const rows: string[][] = [];
+      sheet?.eachRow((row) => {
+        const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+        rows.push(values.map((v) => (v === null || v === undefined ? "" : String(v))));
+      });
+      return { name: sheet?.name ?? "", rows };
+    }
+
+    it("baja un xlsx con una fila por movimiento", async () => {
+      const { token, productId, warehouseA, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+      await mover("entry", warehouseA, [{ productId, quantity: 5 }]);
+
+      const response = await descargar(token, productId).expect(200);
+
+      expect(response.headers["content-disposition"]).toContain("kardex.xlsx");
+      const { name, rows } = await celdas(response.body as Buffer);
+      expect(name).toBe("Kardex");
+      // Encabezado + los dos movimientos.
+      expect(rows).toHaveLength(3);
+    });
+
+    /**
+     * ⚠ El corazón de la tarea: el saldo del Excel es EL MISMO que el de la
+     * API paginada, porque sale del mismo servicio. Si divergieran, el papel y
+     * la pantalla contarían dos historias del mismo inventario.
+     */
+    it("el saldo del Excel es idéntico al de la API", async () => {
+      const { token, productId, warehouseA, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+      await mover("exit", warehouseA, [{ productId, quantity: 4 }], {
+        reasonCode: "loss",
+        reasonNote: "merma",
+      });
+
+      const api = await kardex(token, productId).expect(200);
+      const saldosApi = (api.body as { rows: { balanceAfter: string }[] }).rows.map(
+        (r) => r.balanceAfter,
+      );
+
+      const { rows } = await celdas((await descargar(token, productId).expect(200)).body as Buffer);
+      const columnaSaldo = rows[0]?.indexOf("Saldo") ?? -1;
+      expect(columnaSaldo).toBeGreaterThan(-1);
+      const saldosExcel = rows.slice(1).map((fila) => fila[columnaSaldo]);
+
+      expect(saldosExcel).toEqual(saldosApi);
+    });
+
+    /**
+     * ⚠ El SIGNO va en la cantidad y no en una columna aparte: lo primero que
+     * alguien hace con este archivo es seleccionar la columna y mirar la suma,
+     * y sin signo esa suma no significa nada.
+     */
+    it("las salidas van en negativo, para que la columna se pueda sumar", async () => {
+      const { token, productId, warehouseA, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+      await mover("exit", warehouseA, [{ productId, quantity: 4 }], {
+        reasonCode: "loss",
+        reasonNote: "merma",
+      });
+
+      const { rows } = await celdas((await descargar(token, productId).expect(200)).body as Buffer);
+      const columna = rows[0]?.indexOf("Cantidad") ?? -1;
+      const cantidades = rows.slice(1).map((fila) => fila[columna]);
+
+      // Los decimales son del `DECIMAL(14,4)` del asiento: el archivo lleva el
+      // número EXACTO, sin redondear por estética.
+      expect(cantidades.some((c) => c?.startsWith("-4"))).toBe(true);
+      expect(cantidades.some((c) => c?.startsWith("10"))).toBe(true);
+    });
+
+    /**
+     * El kardex se pide de a 200 filas: un producto muy movido necesita varias
+     * vueltas. Sin el bucle, el Excel saldría CORTADO en 200 — y un archivo
+     * truncado se lee como completo, que es justo lo que el tope de filas
+     * viene a evitar.
+     */
+    it("un producto con más de una página se exporta ENTERO", async () => {
+      const { token, tenantId, productId, warehouseA, mover } = await escenario();
+      // Un documento real primero —para tener de dónde colgar— y después 204
+      // asientos sembrados a mano. Por el flujo de captura no serviría: el
+      // documento CONSOLIDA las líneas del mismo producto en un movimiento, y
+      // acá hacen falta 205 filas para pasar el corte de 200, que es donde se
+      // esconden los off-by-one.
+      const documentId = await mover("entry", warehouseA, [{ productId, quantity: 1 }]);
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const owner = await tx.user.findFirstOrThrow({ where: { tenantId } });
+        await tx.stockMovement.createMany({
+          data: Array.from({ length: 204 }, () => ({
+            tenantId,
+            documentId,
+            productId,
+            warehouseId: warehouseA,
+            direction: "entry" as const,
+            reasonCode: "adjustment" as const,
+            quantity: "1",
+            createdBy: owner.id,
+          })),
+        });
+      });
+
+      const { rows } = await celdas((await descargar(token, productId).expect(200)).body as Buffer);
+
+      // Encabezado + las 205.
+      expect(rows).toHaveLength(206);
+    });
+
+    it("respeta los filtros: un rango que no incluye nada baja solo el encabezado", async () => {
+      const { token, productId, warehouseA, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+
+      const response = await descargar(token, productId, "?from=2020-01-01&to=2020-01-31").expect(
+        200,
+      );
+
+      expect((await celdas(response.body as Buffer)).rows).toHaveLength(1);
+    });
+
+    it("un producto de otro tenant es 404, no un Excel vacío", async () => {
+      const { token } = await escenario();
+      const ajeno = await escenario();
+
+      await request(app.getHttpServer())
+        .get(`/reports/kardex/${ajeno.productId}/export`)
+        .set("Authorization", bearer(token))
+        .expect(404);
+    });
+
+    it("respeta el alcance: un almacén fuera del scope se rechaza", async () => {
+      const { tenantId, productId, warehouseA, warehouseB, mover } = await escenario();
+      await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+      const acotado = await tokenConAlcance(tenantId, [warehouseB]);
+
+      await request(app.getHttpServer())
+        .get(`/reports/kardex/${productId}/export?warehouseId=${warehouseA}`)
+        .set("Authorization", bearer(acotado))
+        .expect(403);
+    });
+
+    it("sin `reports:read` no se exporta", async () => {
+      const { tenantId, productId } = await escenario();
+      const tokenService = app.get(TokenService);
+      const sinPermiso = tokenService.signAccessToken({
+        sub: randomUUID(),
+        tenantId,
+        permissions: ["inventory:read"],
+        locale: "es",
+      });
+
+      await request(app.getHttpServer())
+        .get(`/reports/kardex/${productId}/export`)
+        .set("Authorization", bearer(sinPermiso))
+        .expect(403);
+    });
+  });
+
+  /**
    * ── EL RANGO DE FECHAS SON DÍAS DEL NEGOCIO (2026-08-24) ──────────────
    *
    * Carlos: «no me salen los movimientos de hoy, pero si pongo mañana sí».

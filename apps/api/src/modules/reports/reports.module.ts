@@ -1,7 +1,9 @@
 import { Module } from "@nestjs/common";
 import { CostModule } from "../cost/cost.module";
+import { InventoryModule } from "../inventory/inventory.module";
 import { ProductsModule } from "../products/products.module";
 import { CatalogExportService } from "./catalog-export.service";
+import { KardexExportService } from "./kardex-export.service";
 import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
@@ -15,7 +17,7 @@ import { StockReportService } from "./stock-report.service";
  * avanzan los módulos F5-STK, F5-SALES, F5-KDX y F5-CAT.
  */
 @Module({
-  imports: [CostModule, ProductsModule],
+  imports: [CostModule, ProductsModule, InventoryModule],
   controllers: [ReportsController],
   providers: [
     ReportsService,
@@ -24,6 +26,7 @@ import { StockReportService } from "./stock-report.service";
     SalesReportService,
     SalesExportService,
     CatalogExportService,
+    KardexExportService,
   ],
   exports: [ReportsService],
 })

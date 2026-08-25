@@ -12,7 +12,7 @@
     },
     "kardex": {
       "title": "Kardex",
-      "detail": "Movimientos de un producto, con su saldo después de cada uno."
+      "detail": "Elige un producto y mira sus movimientos con el saldo tras cada uno."
     },
     "products": {
       "title": "Catálogo",
