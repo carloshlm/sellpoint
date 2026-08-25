@@ -26,6 +26,13 @@ interface PrecioResuelto {
   quantityBase: Prisma.Decimal;
   presentationId: string | null;
   sku: string;
+  /**
+   * Un compuesto se ARMA al venderlo: no tiene saldo propio, así que su línea
+   * hay que expandirla en componentes antes de tocar el ledger. Viaja acá
+   * porque es en la resolución de precios donde ya se consultó el producto —
+   * preguntarlo de nuevo más abajo sería una consulta por línea.
+   */
+  isComposite: boolean;
 }
 
 /**
@@ -222,7 +229,18 @@ export class SalesService {
             quantityBase: precio.quantityBase,
             quantityInput: new Prisma.Decimal(line.quantity),
             unitCost: null,
-            expand: false,
+            // ── El compuesto se EXPANDE (criterio 1 de F4) ────────────────
+            //
+            // Estaba clavado en `false`, así que vender un compuesto intentaba
+            // descontar el compuesto mismo y respondía 422 «no hay suficiente
+            // existencia» de algo que por definición nunca tiene saldo: se
+            // arma al venderlo. Lo encontró la verificación de cierre de la
+            // fase contra producción (2026-08-25).
+            //
+            // El comentario de abajo ya prometía «el MISMO camino que una
+            // salida de F3: expandir compuestos»; el flag es lo que lo hace
+            // cierto.
+            expand: precio.isComposite,
           }));
 
         if (deProducto.length > 0) {
@@ -475,6 +493,8 @@ export class SalesService {
           unitPrice: servicio.price ?? new Prisma.Decimal(0),
           quantityBase: new Prisma.Decimal(line.quantity),
           presentationId: null,
+          // Un servicio no se compone de nada: no tiene existencias que armar.
+          isComposite: false,
           sku: servicio.code,
         });
         continue;
@@ -484,6 +504,7 @@ export class SalesService {
         where: { id: line.productId, tenantId: user.tenantId, isActive: true },
         select: {
           sku: true,
+          isComposite: true,
           presentations: {
             where: { isActive: true, isSellable: true },
             select: { id: true, factor: true, price: true, isDefaultSale: true },
@@ -515,6 +536,7 @@ export class SalesService {
         quantityBase: new Prisma.Decimal(line.quantity).times(presentacion.factor),
         presentationId: presentacion.id,
         sku: producto.sku,
+        isComposite: producto.isComposite,
       });
     }
 

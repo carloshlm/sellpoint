@@ -298,6 +298,168 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         .set("Authorization", bearer(token))
         .send(body);
 
+    /** El saldo de un producto en un almacén, leído de la tabla de saldos. */
+    async function saldo(tenantId: string, productId: string, warehouseId: string) {
+      const fila = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.findFirst({
+          where: { tenantId, productId, warehouseId },
+          select: { quantity: true },
+        }),
+      );
+      return fila?.quantity?.toString() ?? "0";
+    }
+
+    /** Un servicio vendible en ese almacén. No tiene existencias: ese es el punto. */
+    async function conServicio(token: string, tenantId: string, warehouseId: string) {
+      const creado = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({
+          code: `SRV-${randomUUID().slice(0, 8)}`,
+          name: "Fotocopia",
+          price: 5,
+          warehouseIds: [warehouseId],
+        })
+        .expect(201);
+      return (creado.body as { id: string }).id;
+    }
+
+    /**
+     * Un COMPUESTO con su receta: lleva `porUnidad` gr del componente que
+     * `conStock` acaba de cargar.
+     */
+    async function conCompuesto(
+      token: string,
+      tenantId: string,
+      componenteId: string,
+      porUnidad = 20,
+    ) {
+      const compuestoId = await prisma.withTenantContext(tenantId, async (tx) => {
+        const compuesto = await tx.product.create({
+          data: { tenantId, sku: `C-${randomUUID().slice(0, 8)}`, name: "Café servido" },
+        });
+        await tx.productPresentation.create({
+          data: {
+            tenantId,
+            productId: compuesto.id,
+            name: "Pieza",
+            factor: "1",
+            price: "30.00",
+            isDefaultSale: true,
+            allowFractionalInput: false,
+          },
+        });
+        return compuesto.id;
+      });
+
+      // Por el camino REAL: el endpoint deja `is_composite` en sincronía.
+      await request(app.getHttpServer())
+        .post(`/products/${compuestoId}/composition`)
+        .set("Authorization", bearer(token))
+        .send({ lines: [{ componentId: componenteId, quantity: porUnidad }] })
+        .expect(200);
+
+      return compuestoId;
+    }
+
+    /**
+     * ⚠ EL CRITERIO 1 DE LA FASE 4 (verificación de cierre, 2026-08-25).
+     *
+     * «vende un carrito mixto —producto simple, compuesto, servicio— y el
+     * ledger descuenta exactamente lo vendido: componentes del compuesto
+     * incluidos».
+     *
+     * Se descubrió ejecutándolo contra PRODUCCIÓN: vender un compuesto
+     * respondía 422 «no hay suficiente existencia» del compuesto mismo, que
+     * por definición nunca tiene saldo — se arma al venderlo. El docblock de
+     * este describe decía que la venta hereda «la expansión de compuestos» y
+     * ningún test lo probaba: ahí se coló.
+     */
+    it("vender un COMPUESTO descuenta sus componentes, no el compuesto", async () => {
+      const { token, tenantId } = await escenario();
+      const { productoId: componenteId, almacenId } = await conStock(token, tenantId, 500);
+      const compuestoId = await conCompuesto(token, tenantId, componenteId, 20);
+      await abrir(token).expect(201);
+
+      const antes = await saldo(tenantId, componenteId, almacenId);
+
+      await vender(token, {
+        paymentMethod: "cash",
+        lines: [{ productId: compuestoId, quantity: 3 }],
+      }).expect(201);
+
+      // 3 cafés × 20 gr = 60 gr del COMPONENTE.
+      expect(Number(await saldo(tenantId, componenteId, almacenId))).toBe(Number(antes) - 60);
+    });
+
+    /**
+     * El compuesto no deja rastro propio en el kardex: sus componentes sí, y
+     * cada movimiento sabe de qué compuesto salió (`parent_product_id`). Si el
+     * compuesto tuviera movimientos, tendría saldo — y eso es justo lo que no
+     * puede pasar.
+     */
+    it("el compuesto no genera movimientos propios; sus componentes los llevan marcados", async () => {
+      const { token, tenantId } = await escenario();
+      const { productoId: componenteId } = await conStock(token, tenantId, 500);
+      const compuestoId = await conCompuesto(token, tenantId, componenteId, 20);
+      await abrir(token).expect(201);
+
+      await vender(token, {
+        paymentMethod: "cash",
+        lines: [{ productId: compuestoId, quantity: 2 }],
+      }).expect(201);
+
+      const movimientos = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockMovement.findMany({
+          where: { tenantId, reasonCode: "sale" },
+          select: { productId: true, parentProductId: true, quantity: true },
+        }),
+      );
+
+      expect(movimientos.some((m) => m.productId === compuestoId)).toBe(false);
+      const delComponente = movimientos.find((m) => m.productId === componenteId);
+      expect(delComponente?.parentProductId).toBe(compuestoId);
+      expect(Number(delComponente?.quantity)).toBe(40);
+    });
+
+    /**
+     * El carrito MIXTO completo del criterio: simple + compuesto + servicio.
+     * El servicio no puede dejar NI UN movimiento — no tiene existencias, y
+     * que no aparezca es la forma de decirlo.
+     */
+    it("carrito mixto: el simple descuenta, el compuesto expande y el servicio no toca el stock", async () => {
+      const { token, tenantId } = await escenario();
+      const { productoId: simpleId, almacenId } = await conStock(token, tenantId, 100);
+      const { productoId: componenteId } = await conStock(token, tenantId, 500);
+      const compuestoId = await conCompuesto(token, tenantId, componenteId, 20);
+      const servicioId = await conServicio(token, tenantId, almacenId);
+      await abrir(token).expect(201);
+
+      const antes = {
+        simple: Number(await saldo(tenantId, simpleId, almacenId)),
+        componente: Number(await saldo(tenantId, componenteId, almacenId)),
+      };
+
+      const venta = await vender(token, {
+        paymentMethod: "cash",
+        lines: [
+          { productId: simpleId, quantity: 2 },
+          { productId: compuestoId, quantity: 3 },
+          { serviceId: servicioId, quantity: 4 },
+        ],
+      }).expect(201);
+
+      expect(Number(await saldo(tenantId, simpleId, almacenId))).toBe(antes.simple - 2);
+      expect(Number(await saldo(tenantId, componenteId, almacenId))).toBe(antes.componente - 60);
+
+      // Tres renglones en el papel, dos productos en el ledger.
+      expect((venta.body as { items: unknown[] }).items).toHaveLength(3);
+      const movimientos = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockMovement.count({ where: { tenantId, reasonCode: "sale" } }),
+      );
+      expect(movimientos).toBe(2);
+    });
+
     it("sin turno abierto no se vende", async () => {
       const { token, tenantId } = await escenario();
       const { productoId } = await conStock(token, tenantId);
