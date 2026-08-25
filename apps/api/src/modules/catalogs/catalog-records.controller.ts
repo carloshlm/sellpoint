@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -84,5 +95,19 @@ export class CatalogRecordsController {
     @Req() request: Request,
   ) {
     return this.recordsService.update(user, catalogId, recordId, dto, metaFrom(request));
+  }
+
+  // El mismo guard que archivar: referenciado por lookup -> 409
+  // catalogs.record_referenced. Ver el docblock de `remove` en el service.
+  @Delete(":recordId")
+  @HttpCode(204)
+  @RequirePermissions("catalogs:write")
+  remove(
+    @Param("catalogId") catalogId: string,
+    @Param("recordId") recordId: string,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.recordsService.remove(user, catalogId, recordId, metaFrom(request));
   }
 }

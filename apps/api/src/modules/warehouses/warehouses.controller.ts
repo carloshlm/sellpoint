@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -53,6 +64,15 @@ export class WarehousesController {
     @Req() request: Request,
   ) {
     return this.warehousesService.create(user, dto, metaFrom(request));
+  }
+
+  // Solo un almacén que nunca operó (409 warehouses.has_history si no) —
+  // ver el docblock de `WarehousesService.remove`.
+  @Delete(":id")
+  @HttpCode(204)
+  @RequirePermissions("warehouses:manage")
+  remove(@Param("id") id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+    return this.warehousesService.remove(user, id, metaFrom(request));
   }
 
   @Patch(":id")

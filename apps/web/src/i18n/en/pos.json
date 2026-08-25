@@ -98,6 +98,7 @@
     "cancel": "Cancel",
     "cancelBody": "Sale {{folio}} gets reversed: the stock returns to the warehouse and the opposite movement stays in the ledger. Nothing is deleted — it can be audited later.",
     "cancelFailed": "We couldn't cancel the sale.",
+    "cancelConfirm": "Cancel the sale",
     "cancelTitle": "Cancel sale {{folio}}",
     "canceled": "Canceled",
     "completed": "Charged",

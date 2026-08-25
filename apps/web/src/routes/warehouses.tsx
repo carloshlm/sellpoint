@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,12 @@ import {
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { Warehouse } from "@/lib/warehouses/api";
-import { useCreateWarehouse, useUpdateWarehouse, useWarehouses } from "@/lib/warehouses/hooks";
+import {
+  useCreateWarehouse,
+  useDeleteWarehouse,
+  useUpdateWarehouse,
+  useWarehouses,
+} from "@/lib/warehouses/hooks";
 
 export const Route = createFileRoute("/warehouses")({
   component: WarehousesPage,
@@ -49,7 +55,9 @@ function WarehousesContent() {
   const { data: warehouses, isPending } = useWarehouses();
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<Warehouse | null>(null);
   const updateWarehouse = useUpdateWarehouse();
+  const deleteWarehouse = useDeleteWarehouse();
   const [error, setError] = useState<string | null>(null);
 
   if (isPending) {
@@ -150,6 +158,13 @@ function WarehousesContent() {
                           );
                         }}
                       />
+                      <RowAction
+                        intent="delete"
+                        onClick={() => {
+                          setError(null);
+                          setDeleting(warehouse);
+                        }}
+                      />
                     </TableCell>
                   )}
                 </TableRow>
@@ -157,6 +172,27 @@ function WarehousesContent() {
             })}
           </TableBody>
         </Table>
+      )}
+
+      {/* Eliminar de verdad solo aplica a un almacén que nunca operó: con
+          historia el API contesta 409 (has_history) y la salida es
+          desactivarlo. El error se muestra arriba, la fila no desaparece. */}
+      {deleting && (
+        <ConfirmDialog
+          data-testid="delete-warehouse-dialog"
+          title={t("warehouses.delete.title")}
+          body={t("warehouses.delete.body", { name: deleting.name })}
+          confirmLabel={t("warehouses.delete.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          busy={deleteWarehouse.isPending}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => {
+            deleteWarehouse.mutate(deleting.id, {
+              onError: (apiError: ApiError) => setError(apiError.message),
+              onSettled: () => setDeleting(null),
+            });
+          }}
+        />
       )}
     </div>
   );

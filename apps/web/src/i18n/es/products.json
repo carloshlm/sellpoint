@@ -3,7 +3,7 @@
     "title": "Productos"
   },
   "add": "Nuevo producto",
-  "open": "Abrir",
+
   "back": "Volver a la lista",
   "empty": "Todavía no registraste productos.",
   "searchPlaceholder": "Código, nombre o código de barras",

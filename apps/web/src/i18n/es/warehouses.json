@@ -10,6 +10,11 @@
   "status": "Estado",
   "active": "Activo",
   "inactive": "Inactivo",
+  "delete": {
+    "title": "Eliminar almacén",
+    "body": "Vas a eliminar «{{name}}». Solo se puede eliminar un almacén que nunca operó; esta acción no se puede deshacer.",
+    "confirm": "Eliminar almacén"
+  },
   "deactivate": "Desactivar",
   "reactivate": "Reactivar",
   "blocked": {

@@ -82,6 +82,83 @@ describe("Almacenes (F2-WH)", () => {
     expect(creado).toMatchObject({ id, isActive: false });
   });
 
+  /**
+   * Eliminar un almacén (Carlos, 2026-08-25). La guarda es la de siempre en
+   * la casa (products.has_movements, F3-GUARDS): con HISTORIA detrás no se
+   * borra — el kardex y los folios lo referencian y el histórico no se
+   * reescribe. La salida no destructiva es desactivarlo. Solo un almacén que
+   * nunca operó (creado por error, un duplicado) se puede borrar de verdad.
+   */
+  describe("DELETE /warehouses/:id (2026-08-25)", () => {
+    it("un almacén sin historia se elimina y desaparece del listado", async () => {
+      const token = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Creado por error" })
+        .expect(201);
+      const id = (created.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .delete(`/warehouses/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(204);
+
+      const list = await request(app.getHttpServer())
+        .get("/warehouses")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((list.body as { id: string }[]).some((w) => w.id === id)).toBe(false);
+    });
+
+    it("con historia (aunque sea un borrador de documento) -> 409 y el almacén sigue", async () => {
+      const token = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Con historia" })
+        .expect(201);
+      const id = (created.body as { id: string }).id;
+
+      // Un borrador ya toma folio de la serie: es historia, no un borrón.
+      await request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set("Authorization", bearer(token))
+        .send({ type: "entry", warehouseId: id })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .delete(`/warehouses/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(409);
+      expect(response.body).toMatchObject({ code: "warehouses.has_history" });
+
+      const list = await request(app.getHttpServer())
+        .get("/warehouses")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((list.body as { id: string }[]).some((w) => w.id === id)).toBe(true);
+    });
+
+    it("un id de otro tenant -> 404 (aislamiento, no filtración)", async () => {
+      const tokenA = await registerAndLogin();
+      const tokenB = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(tokenA))
+        .send({ name: "Del tenant A" })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .delete(`/warehouses/${(created.body as { id: string }).id}`)
+        .set("Authorization", bearer(tokenB))
+        .expect(404);
+    });
+  });
+
   it("la dirección es OPCIONAL: un almacén sin dirección es válido", async () => {
     // MERCADOS.md § 4: los formatos postales difieren entre los 26 mercados,
     // así que no se exige ni se estructura.

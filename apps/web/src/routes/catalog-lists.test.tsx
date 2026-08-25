@@ -26,6 +26,7 @@ vi.mock("../lib/catalogs/api", () => ({
   listLookupOptions: vi.fn(),
   createRecord: vi.fn(),
   updateRecord: vi.fn(),
+  deleteRecord: vi.fn(),
 }));
 
 const mockedApi = vi.mocked(catalogsApi);
@@ -261,5 +262,74 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
     expect(await screen.findByTestId("record-kg")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nuevo registro" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desactivar" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Eliminar un registro (Carlos, 2026-08-25): uno libre se borra de verdad; el
+ * 409 de uno referenciado por lookup se muestra sin que la fila desaparezca.
+ */
+describe("Eliminar un registro (2026-08-25)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listCatalogs.mockResolvedValue([PRODUCTS, UNITS]);
+    mockedApi.listFields.mockResolvedValue([MEDIDA_FIELD]);
+    mockedApi.listLookupOptions.mockResolvedValue([]);
+    mockedApi.listRecords.mockResolvedValue({
+      rows: [
+        {
+          id: "r1",
+          catalogId: "cat-units",
+          code: "kg",
+          attributes: { medida: "kilogramos" },
+          isActive: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+  });
+
+  it("el primer clic PREGUNTA nombrando el código; nada viaja todavía", async () => {
+    const user = userEvent.setup();
+    await renderLists(["catalogs:read", "catalogs:write"]);
+    await screen.findByText("kg");
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+
+    expect(await screen.findByTestId("delete-record-dialog")).toHaveTextContent("kg");
+    expect(mockedApi.deleteRecord).not.toHaveBeenCalled();
+  });
+
+  it("recién al confirmar se borra", async () => {
+    const user = userEvent.setup();
+    mockedApi.deleteRecord.mockResolvedValue(undefined);
+    await renderLists(["catalogs:read", "catalogs:write"]);
+    await screen.findByText("kg");
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar registro" }));
+
+    await waitFor(() =>
+      expect(mockedApi.deleteRecord.mock.calls[0]?.slice(0, 2)).toEqual(["cat-units", "r1"]),
+    );
+  });
+
+  it("el 409 de uno referenciado se muestra y la fila no desaparece", async () => {
+    const user = userEvent.setup();
+    mockedApi.deleteRecord.mockRejectedValue({
+      statusCode: 409,
+      message: "Este registro está referenciado por un lookup.",
+    });
+    await renderLists(["catalogs:read", "catalogs:write"]);
+    await screen.findByText("kg");
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar registro" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("referenciado");
+    expect(screen.getByText("kg")).toBeInTheDocument();
   });
 });

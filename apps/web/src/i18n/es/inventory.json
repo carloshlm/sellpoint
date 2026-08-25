@@ -37,7 +37,7 @@
   "status": {
     "draft": "Borrador",
     "confirmed": "Confirmado",
-    "canceled": "Anulado"
+    "canceled": "Cancelado"
   },
   "transferStatus": {
     "in_transit": "En tránsito",
@@ -61,7 +61,7 @@
     "active": "Activos",
     "drafts": "Borradores",
     "confirmed": "Confirmados",
-    "canceled": "Anulados"
+    "canceled": "Cancelados"
   },
   "document": {
     "downloadPdf": "Descargar PDF",
@@ -69,10 +69,10 @@
     "saved": "Guardado",
     "saving": "Guardando…",
     "confirm": "Confirmar",
-    "cancel": "Anular",
+    "cancel": "Cancelar",
     "confirmTitle": "Confirmar {{type}}",
     "confirmBody": "Se van a asentar {{lines}} líneas y el stock del almacén va a cambiar. Un movimiento confirmado no se puede editar: corregirlo exige registrar otro.",
-    "cancelTitle": "Anular {{folio}}",
+    "cancelTitle": "Cancelar {{folio}}",
     "cancelBody": "El folio {{folio}} queda anulado y no se reutiliza. Las líneas cargadas se pierden.",
     "hasErrors": "Corrige las líneas marcadas antes de confirmar.",
     "quantity": "Cantidad",

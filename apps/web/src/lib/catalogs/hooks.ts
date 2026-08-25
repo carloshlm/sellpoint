@@ -10,6 +10,7 @@ import {
   createCatalog,
   createField,
   createRecord,
+  deleteRecord,
   type LookupOption,
   listCatalogs,
   listFields,
@@ -149,6 +150,18 @@ export function useUpdateRecord(catalogId: string) {
     onSuccess: () => {
       // También las opciones de lookup: archivar un registro lo saca del
       // picker de cualquier campo que apunte a este catálogo.
+      void queryClient.invalidateQueries({ queryKey: ["catalogs", catalogId] });
+    },
+  });
+}
+
+export function useDeleteRecord(catalogId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (recordId) => deleteRecord(catalogId, recordId),
+    onSuccess: () => {
+      // También las opciones de lookup: el registro borrado no debe seguir
+      // ofreciéndose en el picker de ningún campo que apunte acá.
       void queryClient.invalidateQueries({ queryKey: ["catalogs", catalogId] });
     },
   });

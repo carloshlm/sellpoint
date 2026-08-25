@@ -239,7 +239,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     await renderRuta("/movements/entries");
     await screen.findByText("ENT-000042");
 
-    await user.click(screen.getByRole("button", { name: "Anulados" }));
+    await user.click(screen.getByRole("button", { name: "Cancelados" }));
 
     await waitFor(() => {
       expect(mockedList).toHaveBeenCalledWith(expect.objectContaining({ status: "canceled" }));

@@ -182,3 +182,9 @@ export async function updateRecord(
   );
   return data;
 }
+
+// 204 sin body: un registro REFERENCIADO por lookup contesta 409
+// `catalogs.record_referenced` — el mismo guard que archivar.
+export async function deleteRecord(catalogId: string, recordId: string): Promise<void> {
+  await api.delete(`/catalogs/${catalogId}/records/${recordId}`);
+}

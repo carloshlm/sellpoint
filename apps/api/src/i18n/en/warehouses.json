@@ -1,5 +1,6 @@
 {
   "not_found": "This warehouse doesn't exist.",
+  "has_history": "This warehouse already has recorded operations: it can not be deleted. Deactivate it so it stops being used without losing the history.",
   "name_taken": "You already have a warehouse with that name.",
   "empty_update": "There are no changes to save.",
   "invalid_body": "The submitted data isn't valid.",

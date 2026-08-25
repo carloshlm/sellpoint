@@ -46,3 +46,10 @@ export async function updateWarehouse(id: string, input: UpdateWarehouseInput): 
   const { data } = await api.patch<Warehouse>(`/warehouses/${id}`, input);
   return data;
 }
+
+// 204 sin body: solo un almacén que nunca operó se puede borrar — con
+// historia el API contesta 409 `warehouses.has_history` y la salida es
+// desactivarlo.
+export async function deleteWarehouse(id: string): Promise<void> {
+  await api.delete(`/warehouses/${id}`);
+}

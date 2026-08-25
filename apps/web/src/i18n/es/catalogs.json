@@ -72,6 +72,11 @@
     "status": "Estado",
     "active": "Activo",
     "inactive": "Inactivo",
+    "delete": {
+      "title": "Eliminar registro",
+      "body": "Vas a eliminar «{{code}}». Solo se puede eliminar un registro que nada referencia; esta acción no se puede deshacer.",
+      "confirm": "Eliminar registro"
+    },
     "selector": "Subcatálogo",
     "noCatalogs": "Todavía no creaste subcatálogos. Puedes crearlos desde Campos."
   }

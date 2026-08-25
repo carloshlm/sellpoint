@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
+import { RowAction } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { QuoteRow } from "@/lib/pos/api";
 import { useCancelQuote, useQuotes } from "@/lib/pos/hooks";
@@ -164,39 +166,55 @@ function QuoteRowView({
         {formatMoney(Number(cotizacion.total), currency, locale)}
       </td>
       <td className="p-2">
-        <span className="text-xs">{t(`pos.quote.status.${cotizacion.status}`)}</span>
+        {/* El semáforo de estados de todos los listados (Carlos, 2026-08-25):
+            ámbar lo pendiente, verde lo asentado, rojo lo cancelado. */}
+        <Badge
+          variant={
+            cotizacion.status === "open"
+              ? "warning"
+              : cotizacion.status === "loaded"
+                ? "success"
+                : "destructive"
+          }
+        >
+          {t(`pos.quote.status.${cotizacion.status}`)}
+        </Badge>
         {error !== null && (
           <span role="alert" className="block text-destructive text-xs">
             {error}
           </span>
         )}
       </td>
-      <td className="p-2 text-right">
-        {/* El cliente perdió el papel: se reimprime en cualquier estado. */}
-        <PrintTicketButton
-          kind="quote"
-          id={cotizacion.id}
-          folio={cotizacion.folio}
-          label={t("pos.ticket.reprint")}
-        />
-        {/* Solo una `open` se cancela. Una `loaded` ya se convirtió en venta, y
-            lo que hay que deshacer es esa venta, no el papel que la originó. */}
-        {cotizacion.status === "open" && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={cancelar.isPending}
-            onClick={() => {
-              setError(null);
-              cancelar.mutate(
-                { id: cotizacion.id },
-                { onError: (e) => setError(e.message || t("pos.quote.cancelFailed")) },
-              );
-            }}
-          >
-            {t("pos.quote.cancel")}
-          </Button>
-        )}
+      <td className="p-2">
+        {/* items-center: Reimprimir y Cancelar conviven en la celda y sin el
+            flex quedaban a alturas distintas (captura de Carlos). */}
+        <div className="flex items-center justify-end gap-1">
+          {/* El cliente perdió el papel: se reimprime en cualquier estado. */}
+          <PrintTicketButton
+            kind="quote"
+            id={cotizacion.id}
+            folio={cotizacion.folio}
+            label={t("pos.ticket.reprint")}
+          />
+          {/* Solo una `open` se cancela. Una `loaded` ya se convirtió en venta,
+              y lo que hay que deshacer es esa venta, no el papel que la
+              originó. */}
+          {cotizacion.status === "open" && (
+            <RowAction
+              intent="delete"
+              disabled={cancelar.isPending}
+              onClick={() => {
+                setError(null);
+                cancelar.mutate(
+                  { id: cotizacion.id },
+                  { onError: (e) => setError(e.message || t("pos.quote.cancelFailed")) },
+                );
+              }}
+            >
+              {t("pos.quote.cancel")}
+            </RowAction>
+          )}
+        </div>
       </td>
     </tr>
   );

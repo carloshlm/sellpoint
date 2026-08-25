@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
+import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
@@ -215,7 +216,22 @@ export function DocumentList({ type }: DocumentListProps) {
                       {row.folio}
                     </a>
                   </td>
-                  <td className="px-2 py-2">{t(`inventory.status.${row.status}`)}</td>
+                  <td className="px-2 py-2">
+                    {/* El semáforo de estados de todos los listados (Carlos,
+                        2026-08-25): ámbar el borrador, verde lo confirmado,
+                        rojo lo anulado. */}
+                    <Badge
+                      variant={
+                        row.status === "draft"
+                          ? "warning"
+                          : row.status === "confirmed"
+                            ? "success"
+                            : "destructive"
+                      }
+                    >
+                      {t(`inventory.status.${row.status}`)}
+                    </Badge>
+                  </td>
                   <td className="px-2 py-2">{row.warehouse.name}</td>
                   <td className="px-2 py-2">
                     {row.reasonCode === null ? "—" : t(`inventory.reason.${row.reasonCode}`)}

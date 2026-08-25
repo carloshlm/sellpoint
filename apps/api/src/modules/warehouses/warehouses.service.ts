@@ -216,6 +216,63 @@ export class WarehousesService {
       return updated;
     });
   }
+
+  /**
+   * Eliminar de verdad (Carlos, 2026-08-25) — solo un almacén que NUNCA operó.
+   *
+   * La guarda es la de la casa (products.has_movements, F3-GUARDS): con
+   * historia detrás no se borra, porque el kardex, los folios y los cortes lo
+   * referencian y el histórico no se reescribe. Las FK `Restrict` son la red;
+   * este chequeo es la puerta amable con el motivo. La salida no destructiva
+   * sigue siendo desactivarlo.
+   *
+   * Lo que NO cuenta como historia se lo lleva el delete por diseño: el scope
+   * de usuarios y el vínculo con servicios (FK `Cascade`), y el almacén
+   * asignado de un usuario (FK `SetNull`) — configuración que apunta a un
+   * almacén muerto, no hechos que haya que preservar.
+   */
+  async remove(user: AuthUser, id: string, meta: RequestMeta): Promise<void> {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const current = await tx.warehouse.findFirst({ where: { id, tenantId: user.tenantId } });
+
+      if (!current) {
+        throw new NotFoundException({ message: "warehouses.not_found" });
+      }
+
+      // Todas las formas de tener historia — incluidas las VINCULADAS, donde
+      // este almacén es la contraparte de un movimiento o documento ajeno. Un
+      // BORRADOR también cuenta: ya tomó folio de la serie.
+      const historia = (
+        await Promise.all([
+          tx.inventoryDocument.count({ where: { warehouseId: id } }),
+          tx.inventoryDocument.count({ where: { linkedWarehouseId: id } }),
+          tx.stockMovement.count({ where: { warehouseId: id } }),
+          tx.stockMovement.count({ where: { linkedWarehouseId: id } }),
+          tx.transfer.count({ where: { originWarehouseId: id } }),
+          tx.transfer.count({ where: { destinationWarehouseId: id } }),
+          tx.sale.count({ where: { warehouseId: id } }),
+          tx.quote.count({ where: { warehouseId: id } }),
+          tx.cashboxSession.count({ where: { warehouseId: id } }),
+        ])
+      ).reduce((sum, count) => sum + count, 0);
+      if (historia > 0) {
+        throw new ConflictException({ message: "warehouses.has_history" });
+      }
+
+      await tx.warehouse.delete({ where: { id } });
+
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "warehouses.delete",
+        resourceType: "warehouse",
+        resourceId: id,
+        before: { name: current.name, isActive: current.isActive },
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    });
+  }
 }
 
 function isUniqueViolation(error: unknown): boolean {

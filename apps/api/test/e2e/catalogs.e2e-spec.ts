@@ -722,6 +722,58 @@ describe("Motor de catálogos (F2-CAT)", () => {
       });
     });
 
+    /**
+     * Eliminar un registro (Carlos, 2026-08-25). El mismo guard que archivar
+     * (`assertNotReferenced`): un registro al que alguien apunta por lookup no
+     * se borra ni se esconde — primero hay que soltar la referencia. Uno libre
+     * sí se borra de verdad: un typo en un subcatálogo no merece quedarse
+     * eternamente como "inactivo".
+     */
+    describe("DELETE de un registro (2026-08-25)", () => {
+      it("un registro libre se elimina y desaparece del listado", async () => {
+        const { token, unidadesId, kgId } = await setupUnidades();
+
+        await request(app.getHttpServer())
+          .delete(`/catalogs/${unidadesId}/records/${kgId}`)
+          .set("Authorization", bearer(token))
+          .expect(204);
+
+        const list = await request(app.getHttpServer())
+          .get(`/catalogs/${unidadesId}/records`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const rows = (list.body as { rows: { id: string }[] }).rows;
+        expect(rows.some((r) => r.id === kgId)).toBe(false);
+      });
+
+      it("uno REFERENCIADO por un lookup -> 409, el mismo guard que archivar", async () => {
+        const { token, unidadesId, kgId } = await setupUnidades();
+        const insumos = await request(app.getHttpServer())
+          .post("/catalogs")
+          .set("Authorization", bearer(token))
+          .send({ name: `Insumos del ${randomUUID()}` })
+          .expect(201);
+        const insumosId = (insumos.body as { id: string }).id;
+
+        await request(app.getHttpServer())
+          .post(`/catalogs/${insumosId}/fields`)
+          .set("Authorization", bearer(token))
+          .send({ label: "Unidad", fieldType: "lookup", lookupCatalogId: unidadesId })
+          .expect(201);
+        await request(app.getHttpServer())
+          .post(`/catalogs/${insumosId}/records`)
+          .set("Authorization", bearer(token))
+          .send({ code: "azucar", attributes: { unidad: kgId } })
+          .expect(201);
+
+        const blocked = await request(app.getHttpServer())
+          .delete(`/catalogs/${unidadesId}/records/${kgId}`)
+          .set("Authorization", bearer(token))
+          .expect(409);
+        expect(blocked.body).toMatchObject({ code: "catalogs.record_referenced" });
+      });
+    });
+
     it("F2-CAT-06: el picker devuelve código + display y filtra por ambos", async () => {
       const { token, unidadesId } = await setupUnidades();
 

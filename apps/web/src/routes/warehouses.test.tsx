@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
@@ -18,6 +19,7 @@ vi.mock("../lib/warehouses/api", () => ({
   listWarehouses: vi.fn(),
   createWarehouse: vi.fn(),
   updateWarehouse: vi.fn(),
+  deleteWarehouse: vi.fn(),
 }));
 
 const mockedApi = vi.mocked(warehousesApi);
@@ -129,5 +131,56 @@ describe("Almacenes: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
 
     await waitFor(() => expect(screen.getByText("Central")).toBeInTheDocument());
     expect(botonEstado("Central")).toBeEnabled();
+  });
+});
+
+/**
+ * Eliminar un almacén (Carlos, 2026-08-25): solo uno que nunca operó. El 409
+ * del API (has_history) se muestra — la salida no destructiva es desactivar.
+ */
+describe("Eliminar un almacén (2026-08-25)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listWarehouses.mockResolvedValue([almacen({ id: "w1", name: "Central" })]);
+  });
+
+  it("el primer clic PREGUNTA nombrando el almacén; nada viaja todavía", async () => {
+    const user = userEvent.setup();
+    await renderWarehouses();
+    await screen.findByText("Central");
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+
+    expect(await screen.findByTestId("delete-warehouse-dialog")).toHaveTextContent("Central");
+    expect(mockedApi.deleteWarehouse).not.toHaveBeenCalled();
+  });
+
+  it("recién al confirmar se borra", async () => {
+    const user = userEvent.setup();
+    mockedApi.deleteWarehouse.mockResolvedValue(undefined);
+    await renderWarehouses();
+    await screen.findByText("Central");
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar almacén" }));
+
+    await waitFor(() => expect(mockedApi.deleteWarehouse.mock.calls[0]?.[0]).toBe("w1"));
+  });
+
+  it("el 409 por historia se muestra y el diálogo se cierra", async () => {
+    const user = userEvent.setup();
+    mockedApi.deleteWarehouse.mockRejectedValue({
+      statusCode: 409,
+      message: "Este almacén ya tiene operaciones registradas: no se puede eliminar.",
+    });
+    await renderWarehouses();
+    await screen.findByText("Central");
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar almacén" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("operaciones registradas");
+    expect(screen.queryByTestId("delete-warehouse-dialog")).not.toBeInTheDocument();
   });
 });

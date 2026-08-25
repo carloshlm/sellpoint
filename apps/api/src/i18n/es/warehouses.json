@@ -1,5 +1,6 @@
 {
   "not_found": "El almacén no existe.",
+  "has_history": "Este almacén ya tiene operaciones registradas: no se puede eliminar. Desactívalo para que deje de usarse sin perder el historial.",
   "name_taken": "Ya tienes un almacén con ese nombre.",
   "empty_update": "No hay cambios que guardar.",
   "invalid_body": "Los datos enviados no son válidos.",

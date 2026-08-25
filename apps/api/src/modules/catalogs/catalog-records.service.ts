@@ -234,6 +234,40 @@ export class CatalogRecordsService {
     });
   }
 
+  /**
+   * Eliminar de verdad (Carlos, 2026-08-25). El MISMO guard que archivar
+   * (`assertNotReferenced`): un registro al que alguien apunta por lookup no
+   * se borra — primero hay que soltar la referencia. Uno libre sí se borra:
+   * un typo en un subcatálogo no merece quedarse eternamente como "inactivo".
+   */
+  async remove(user: AuthUser, catalogId: string, recordId: string, meta: RequestMeta) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      await this.findCatalogOrFail(tx, user, catalogId);
+
+      const current = await tx.catalogRecord.findFirst({
+        where: { id: recordId, catalogId, tenantId: user.tenantId },
+      });
+      if (!current) {
+        throw new NotFoundException({ message: "catalogs.record_not_found" });
+      }
+
+      await this.assertNotReferenced(tx, catalogId, recordId);
+
+      await tx.catalogRecord.delete({ where: { id: recordId } });
+
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "catalogs.record_delete",
+        resourceType: "catalog_record",
+        resourceId: recordId,
+        before: { code: current.code, isActive: current.isActive },
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+    });
+  }
+
   private async loadFields(
     tx: Prisma.TransactionClient,
     catalogId: string,

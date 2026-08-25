@@ -216,9 +216,9 @@ describe("Historial de ventas (F4-UI-03)", () => {
       await renderRuta("/pos/sales", ["pos:view"]);
 
       const fila = (await screen.findByText("VTA-000001")).closest("tr") as HTMLElement;
-      // Acotado a la FILA: "Anulada" también es una opción del filtro de
+      // Acotado a la FILA: "Cancelada" también es una opción del filtro de
       // estado, y buscarlo en toda la pantalla encontraría las dos.
-      expect(within(fila).getByText("Anulada")).toBeInTheDocument();
+      expect(within(fila).getByText("Cancelada")).toBeInTheDocument();
     });
 
     it("el filtro por estado consulta al servidor, no filtra en el cliente", async () => {
@@ -247,14 +247,14 @@ describe("Historial de ventas (F4-UI-03)", () => {
       await renderRuta("/pos/sales", ["pos:view"]);
       await screen.findByText("VTA-000001");
 
-      expect(screen.queryByRole("button", { name: "Anular" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
     });
 
     it("con `pos:cancel` el botón está", async () => {
       await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
       await screen.findByText("VTA-000001");
 
-      expect(screen.getByRole("button", { name: "Anular" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
     });
 
     it("una venta YA anulada no ofrece anular de nuevo", async () => {
@@ -263,7 +263,7 @@ describe("Historial de ventas (F4-UI-03)", () => {
       await screen.findByText("VTA-000001");
 
       // El API contestaría 409 y el botón habría mentido.
-      expect(screen.queryByRole("button", { name: "Anular" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
     });
 
     /**
@@ -275,7 +275,7 @@ describe("Historial de ventas (F4-UI-03)", () => {
     it("el diálogo de anular abarca la tabla entera", async () => {
       await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
       await screen.findByText("VTA-000001");
-      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
       const celda = (await screen.findByTestId("cancel-VTA-000001")).closest(
         "td",
@@ -293,24 +293,24 @@ describe("Historial de ventas (F4-UI-03)", () => {
     it("sin motivo el confirmar está bloqueado", async () => {
       await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
       await screen.findByText("VTA-000001");
-      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
       const dialogo = await screen.findByTestId("cancel-VTA-000001");
-      expect(within(dialogo).getByRole("button", { name: "Anular" })).toBeDisabled();
+      expect(within(dialogo).getByRole("button", { name: "Cancelar la venta" })).toBeDisabled();
     });
 
     it("con motivo, anula y manda la razón", async () => {
       mocked.cancelSale.mockResolvedValue({ ...venta(), status: "canceled" });
       await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
       await screen.findByText("VTA-000001");
-      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
       await userEvent.type(
         await screen.findByLabelText(/Por qué se anula/),
         "el cliente devolvió todo",
       );
       const dialogo = screen.getByTestId("cancel-VTA-000001");
-      await userEvent.click(within(dialogo).getByRole("button", { name: "Anular" }));
+      await userEvent.click(within(dialogo).getByRole("button", { name: "Cancelar la venta" }));
 
       await waitFor(() =>
         expect(mocked.cancelSale).toHaveBeenCalledWith("sale-1", "el cliente devolvió todo"),
@@ -329,11 +329,11 @@ describe("Historial de ventas (F4-UI-03)", () => {
       });
       await renderRuta("/pos/sales", ["pos:view", "pos:cancel"]);
       await screen.findByText("VTA-000001");
-      await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
       await userEvent.type(await screen.findByLabelText(/Por qué se anula/), "me equivoqué");
 
       const dialogo = screen.getByTestId("cancel-VTA-000001");
-      await userEvent.click(within(dialogo).getByRole("button", { name: "Anular" }));
+      await userEvent.click(within(dialogo).getByRole("button", { name: "Cancelar la venta" }));
 
       expect(await within(dialogo).findByText(/ya está anulada/)).toBeInTheDocument();
     });

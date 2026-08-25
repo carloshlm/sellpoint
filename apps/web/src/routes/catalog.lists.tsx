@@ -5,6 +5,7 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -29,6 +30,7 @@ import {
   useCatalogRecords,
   useCatalogs,
   useCreateRecord,
+  useDeleteRecord,
   useLookupOptions,
   useUpdateRecord,
 } from "@/lib/catalogs/hooks";
@@ -178,6 +180,8 @@ function RecordsTable({
 }) {
   const { t } = useTranslation();
   const updateRecord = useUpdateRecord(catalogId);
+  const deleteRecord = useDeleteRecord(catalogId);
+  const [deleting, setDeleting] = useState<CatalogRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (records.length === 0) {
@@ -245,12 +249,41 @@ function RecordsTable({
                       );
                     }}
                   />
+                  <RowAction
+                    intent="delete"
+                    onClick={() => {
+                      setError(null);
+                      setDeleting(record);
+                    }}
+                  />
                 </TableCell>
               )}
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {/* Eliminar de verdad solo aplica a un registro que nadie referencia:
+          el 409 (record_referenced) se muestra arriba y la fila no
+          desaparece. Un typo libre sí se borra — no merece quedarse
+          eternamente como "inactivo". */}
+      {deleting && (
+        <ConfirmDialog
+          data-testid="delete-record-dialog"
+          title={t("catalogs.records.delete.title")}
+          body={t("catalogs.records.delete.body", { code: deleting.code })}
+          confirmLabel={t("catalogs.records.delete.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          busy={deleteRecord.isPending}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => {
+            deleteRecord.mutate(deleting.id, {
+              onError: (apiError: ApiError) => setError(apiError.message),
+              onSettled: () => setDeleting(null),
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { ApiError } from "@/lib/api";
 import {
   type CreateWarehouseInput,
   createWarehouse,
+  deleteWarehouse,
   listWarehouses,
   type UpdateWarehouseInput,
   updateWarehouse,
@@ -44,6 +45,16 @@ export function useUpdateWarehouse() {
   const queryClient = useQueryClient();
   return useMutation<Warehouse, ApiError, { id: string; input: UpdateWarehouseInput }>({
     mutationFn: ({ id, input }) => updateWarehouse(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: WAREHOUSES_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeleteWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: deleteWarehouse,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: WAREHOUSES_QUERY_KEY });
     },

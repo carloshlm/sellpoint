@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { PrintTicketButton } from "@/components/pos/print-ticket-button";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
+import { RowAction } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { SaleRow } from "@/lib/pos/api";
@@ -218,39 +219,41 @@ function SaleRowView({
           {formatMoney(Number(venta.total), currency, locale)}
         </td>
         <td className="p-2">
-          {anulada ? (
-            <span className="rounded-md bg-destructive/10 px-2 py-1 text-destructive text-xs">
-              {t("pos.history.canceled")}
-            </span>
-          ) : (
-            <span className="text-xs">{t("pos.history.completed")}</span>
-          )}
+          {/* El estado SIEMPRE como badge de token — el mismo semáforo de
+              todos los listados (Carlos, 2026-08-25): verde lo asentado,
+              rojo lo cancelado. */}
+          <Badge variant={anulada ? "destructive" : "success"}>
+            {t(anulada ? "pos.history.canceled" : "pos.history.completed")}
+          </Badge>
         </td>
-        <td className="p-2 text-right">
-          {/* Reimprimir es LEER: se ofrece aunque la venta esté anulada, porque
-              quien reclama trae en la mano el ticket de la que se anuló. */}
-          <PrintTicketButton
-            kind="sale"
-            id={venta.id}
-            folio={venta.folio}
-            label={t("pos.ticket.reprint")}
-          />
-          {/* Anular una venta ya anulada no existe: el API contesta 409 y el
-              botón mentiría. Y sin `pos:cancel` no se pinta — deshacer una
-              operación asentada es decisión de gestión, no de mostrador. */}
-          {!anulada && puedeAnular && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setError(null);
-                setMotivo("");
-                setAnulando(true);
-              }}
-            >
-              {t("pos.history.cancel")}
-            </Button>
-          )}
+        <td className="p-2">
+          <div className="flex items-center justify-end gap-1">
+            {/* Reimprimir es LEER: se ofrece aunque la venta esté cancelada,
+                porque quien reclama trae en la mano el ticket de la que se
+                canceló. */}
+            <PrintTicketButton
+              kind="sale"
+              id={venta.id}
+              folio={venta.folio}
+              label={t("pos.ticket.reprint")}
+            />
+            {/* Cancelar una venta ya cancelada no existe: el API contesta 409
+                y el botón mentiría. Y sin `pos:cancel` no se pinta — deshacer
+                una operación asentada es decisión de gestión, no de
+                mostrador. */}
+            {!anulada && puedeAnular && (
+              <RowAction
+                intent="delete"
+                onClick={() => {
+                  setError(null);
+                  setMotivo("");
+                  setAnulando(true);
+                }}
+              >
+                {t("pos.history.cancel")}
+              </RowAction>
+            )}
+          </div>
         </td>
       </tr>
 
@@ -261,7 +264,7 @@ function SaleRowView({
               data-testid={`cancel-${venta.folio}`}
               title={t("pos.history.cancelTitle", { folio: venta.folio })}
               body={t("pos.history.cancelBody", { folio: venta.folio })}
-              confirmLabel={t("pos.history.cancel")}
+              confirmLabel={t("pos.history.cancelConfirm")}
               cancelLabel={t("common.form.cancel")}
               busy={anular.isPending}
               // El motivo es obligatorio en el API (mínimo 3). Decirlo ANTES

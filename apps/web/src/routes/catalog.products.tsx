@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RowAction } from "@/components/ui/row-action";
 import {
   Table,
   TableBody,
@@ -114,6 +115,9 @@ function ProductsContent() {
   const { open: openId, tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [creating, setCreating] = useState(false);
+  // Desactivar/Reactivar directo desde la fila (Carlos, 2026-08-25): apagar
+  // un producto no debería exigir abrir la ficha.
+  const toggleActive = useUpdateProduct();
   const [importing, setImporting] = useState(false);
 
   const { data, isPending } = useProducts({
@@ -231,13 +235,25 @@ function ProductsContent() {
                   <TableCell>{product.price ?? "—"}</TableCell>
                   {onlyComposite && <AvailabilityCell productId={product.id} />}
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    {/* «Editar» y no «Abrir» (Carlos, 2026-08-25): es la misma
+                        palabra que usan todos los demás listados para llegar a
+                        la edición, y el color de intención viaja con ella. */}
+                    <RowAction
+                      intent="edit"
                       onClick={() => navigate({ search: { open: product.id } })}
-                    >
-                      {t("products.open")}
-                    </Button>
+                    />
+                    {canManage && (
+                      <RowAction
+                        intent={product.isActive ? "deactivate" : "reactivate"}
+                        disabled={toggleActive.isPending}
+                        onClick={() =>
+                          toggleActive.mutate({
+                            id: product.id,
+                            input: { isActive: !product.isActive },
+                          })
+                        }
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

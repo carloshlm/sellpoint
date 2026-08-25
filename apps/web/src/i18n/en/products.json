@@ -3,7 +3,7 @@
     "title": "Products"
   },
   "add": "New product",
-  "open": "Open",
+
   "back": "Back to list",
   "empty": "You haven't registered any products yet.",
   "searchPlaceholder": "Code, name or barcode",
