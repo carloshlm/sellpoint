@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 
@@ -64,6 +65,25 @@ function ConfirmDialog({
   // a la vista y el foco va al CONTENEDOR, nunca al botón destructivo — un
   // Enter por inercia no debe borrar nada.
   const dialogRef = useScrollIntoView<HTMLDivElement>();
+
+  // Clic FUERA = cancelar (Carlos, 2026-08-25): sin esto, el diálogo seguía
+  // abierto mientras el usuario ya editaba o desactivaba otra fila — una
+  // confirmación destructiva olvidada en pantalla es una trampa. En ref y no
+  // en deps: el listener vive una sola vez, el callback puede cambiar.
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+  useEffect(() => {
+    // mousedown y no click: el click que MONTÓ el diálogo todavía puede estar
+    // burbujeando cuando el listener se registra; su mousedown ya pasó.
+    function cancelOnOutside(event: MouseEvent) {
+      const node = dialogRef.current;
+      if (node && event.target instanceof Node && !node.contains(event.target)) {
+        onCancelRef.current();
+      }
+    }
+    document.addEventListener("mousedown", cancelOnOutside);
+    return () => document.removeEventListener("mousedown", cancelOnOutside);
+  }, [dialogRef]);
 
   return (
     <div

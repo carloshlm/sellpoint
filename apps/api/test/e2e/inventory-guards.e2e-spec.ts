@@ -259,6 +259,12 @@ describe("Guardas de integridad (F3-GUARDS)", () => {
       // Con el total en el payload, quien lo intenta sabe cuánto tiene que
       // mover antes de poder cerrarlo.
       expect(Number((res.body as { total: string }).total)).toBe(10);
+      // Y el MENSAJE lo dice interpolado: el filter solo rellena placeholders
+      // desde `args`, y este total viajaba suelto — la pantalla mostraba
+      // «{total}» crudo (captura de Carlos, 2026-08-25).
+      const message = (res.body as { message: string }).message;
+      expect(message).toContain("10");
+      expect(message).not.toContain("{total}");
     });
 
     it("tras vaciarlo sí se desactiva", async () => {

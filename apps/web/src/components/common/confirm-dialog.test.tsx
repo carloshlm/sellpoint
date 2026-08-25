@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ConfirmDialog } from "./confirm-dialog";
 
 /**
@@ -41,5 +42,59 @@ describe("ConfirmDialog: la respuesta visible al clic que lo abre", () => {
 
     expect(screen.getByTestId("dialogo")).toHaveFocus();
     expect(screen.getByRole("button", { name: "Eliminar registro" })).not.toHaveFocus();
+  });
+});
+
+/**
+ * Clic fuera = cancelar (Carlos, 2026-08-25): el diálogo abierto seguía ahí
+ * aunque el usuario ya estuviera haciendo OTRA cosa — editar, desactivar —
+ * y una confirmación destructiva olvidada en pantalla es una trampa.
+ */
+describe("ConfirmDialog: el clic fuera lo cierra", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it("un clic FUERA del recuadro cancela", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <div>
+        <button type="button">Otra cosa</button>
+        <ConfirmDialog
+          data-testid="dialogo"
+          title="Eliminar registro"
+          body="Vas a eliminar «kg»."
+          confirmLabel="Eliminar registro"
+          cancelLabel="Cancelar"
+          onConfirm={() => {}}
+          onCancel={onCancel}
+        />
+      </div>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Otra cosa" }));
+
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("un clic DENTRO del recuadro no lo cierra", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    render(
+      <ConfirmDialog
+        data-testid="dialogo"
+        title="Eliminar registro"
+        body="Vas a eliminar «kg»."
+        confirmLabel="Eliminar registro"
+        cancelLabel="Cancelar"
+        onConfirm={() => {}}
+        onCancel={onCancel}
+      />,
+    );
+
+    await user.click(screen.getByText("Vas a eliminar «kg»."));
+
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });

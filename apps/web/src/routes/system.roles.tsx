@@ -228,15 +228,22 @@ function SystemRolesContent() {
         />
       )}
 
+      {/* Sobre tarjeta, como Mi perfil (Carlos, 2026-08-25): la lista y el
+          editor pintaban sus controles directo sobre el fondo. `self-start`:
+          cada tarjeta mide su contenido, no la altura de la otra columna. */}
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
-        <RoleList
-          roles={roles ?? []}
-          selectedRoleId={selectedRoleId}
-          canManage={canManage}
-          onSelect={handleSelect}
-          onDelete={setPendingRemoval}
-          onCreate={handleCreate}
-        />
+        <Card className="self-start">
+          <CardContent className="py-4">
+            <RoleList
+              roles={roles ?? []}
+              selectedRoleId={selectedRoleId}
+              canManage={canManage}
+              onSelect={handleSelect}
+              onDelete={setPendingRemoval}
+              onCreate={handleCreate}
+            />
+          </CardContent>
+        </Card>
 
         <div className="flex flex-col gap-4">
           {creating && canManage && (
@@ -249,71 +256,73 @@ function SystemRolesContent() {
           )}
 
           {!creating && selectedRole && (
-            <div className="flex flex-col gap-4">
-              {canManage ? (
-                // S2: editor de nombre — mismo TextField que RoleCreateForm,
-                // sin schema/RHF de por medio (no hay validación async, un
-                // solo campo controlado alcanza).
-                <TextField
-                  label={t("users.roles.form.name")}
-                  value={nameDraft}
-                  onChange={(event) => setNameDraft(event.target.value)}
-                />
-              ) : (
-                <h2 className="text-lg font-semibold">{selectedRole.name}</h2>
-              )}
-              {!canManage && (
-                <p className="text-sm text-muted-foreground">
-                  {t("users.roles.editor.readOnlyHint")}
-                </p>
-              )}
-              {saveError && (
-                <p
-                  role="alert"
-                  className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                >
-                  {saveError}
-                </p>
-              )}
-              {saveSuccess && (
-                <p
-                  role="status"
-                  className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
-                >
-                  {saveSuccess}
-                </p>
-              )}
-              {createSuccess && (
-                <p
-                  role="status"
-                  className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
-                >
-                  {createSuccess}
-                </p>
-              )}
-              <PermissionChecklist
-                groups={catalog ?? []}
-                baselinePermissionCodes={selectedRole.permissionCodes}
-                actorPermissionCodes={actorPermissionCodes}
-                selected={selected}
-                onToggle={handleToggle}
-                readOnly={!canManage}
-              />
-              {canManage && (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={updateRoleMutation.isPending || nameDraft.trim() === ""}
+            <Card>
+              <CardContent className="flex flex-col gap-4 py-6">
+                {canManage ? (
+                  // S2: editor de nombre — mismo TextField que RoleCreateForm,
+                  // sin schema/RHF de por medio (no hay validación async, un
+                  // solo campo controlado alcanza).
+                  <TextField
+                    label={t("users.roles.form.name")}
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                  />
+                ) : (
+                  <h2 className="text-lg font-semibold">{selectedRole.name}</h2>
+                )}
+                {!canManage && (
+                  <p className="text-sm text-muted-foreground">
+                    {t("users.roles.editor.readOnlyHint")}
+                  </p>
+                )}
+                {saveError && (
+                  <p
+                    role="alert"
+                    className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
                   >
-                    {t("users.roles.editor.save")}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancel}>
-                    {t("users.roles.editor.cancel")}
-                  </Button>
-                </div>
-              )}
-            </div>
+                    {saveError}
+                  </p>
+                )}
+                {saveSuccess && (
+                  <p
+                    role="status"
+                    className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
+                  >
+                    {saveSuccess}
+                  </p>
+                )}
+                {createSuccess && (
+                  <p
+                    role="status"
+                    className="rounded-md bg-success-soft px-3 py-2 text-sm text-success"
+                  >
+                    {createSuccess}
+                  </p>
+                )}
+                <PermissionChecklist
+                  groups={catalog ?? []}
+                  baselinePermissionCodes={selectedRole.permissionCodes}
+                  actorPermissionCodes={actorPermissionCodes}
+                  selected={selected}
+                  onToggle={handleToggle}
+                  readOnly={!canManage}
+                />
+                {canManage && (
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={updateRoleMutation.isPending || nameDraft.trim() === ""}
+                    >
+                      {t("users.roles.editor.save")}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleCancel}>
+                      {t("users.roles.editor.cancel")}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {!creating && !selectedRole && (

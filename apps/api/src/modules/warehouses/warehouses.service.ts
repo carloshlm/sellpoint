@@ -174,9 +174,14 @@ export class WarehousesService {
 
         const total = saldo._sum.quantity;
         if (total?.greaterThan(0)) {
+          // `total` viaja DOS veces a propósito: suelto en el payload (dato
+          // para quien consuma el API) y en `args` (insumo del filter para
+          // interpolar el mensaje — sin esto la pantalla mostraba «{total}»
+          // crudo, captura de Carlos 2026-08-25).
           throw new ConflictException({
             message: "warehouses.has_stock",
             total: total.toString(),
+            args: { total: total.toString() },
           });
         }
         if (enTransito > 0) {
