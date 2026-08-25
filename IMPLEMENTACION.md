@@ -2526,22 +2526,26 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ### ✅ Definición de "Fase 4 completa"
 
-- [ ] Un POS_Seller **abre turno** (nace en su almacén asignado), vende un carrito mixto —producto simple, compuesto, servicio— y el ledger descuenta exactamente lo vendido: componentes del compuesto incluidos, servicio sin un solo `stock_movement`
-- [ ] La venta toma folio `VTA-000001`; dos tenants arrancan su serie en 1; el folio de cotización es una serie `COT` independiente
-- [ ] **Los precios los pone el server**: el front manda ids y cantidades; alterar el POST no altera un precio
-- [ ] Dos ventas concurrentes del último ítem: una pasa, la otra recibe 409 con el detalle — y el **doble tap** con `Idempotency-Key` devuelve la misma venta sin duplicar stock
-- [ ] Vender un producto con `tracks_lots` descuenta el lote FEFO y el ticket lo muestra
-- [ ] La **anulación** (solo TenantAdmin/Manager, con justificación) restaura el stock exacto vía `sale_return`, compuestos incluidos; doble anulación → 409
-- [ ] El **cierre de caja** cuadra por método contra lo vendido del turno, registra declarado/calculado/diferencia, y un turno cerrado no vende
-- [ ] Una **cotización** se crea SIN turno con `pos:quote`, no mueve stock, imprime su ticket marcado COTIZACIÓN con precios de referencia y la leyenda del precio final en caja
-- [ ] Cargar `COT-…` en el POS **recalcula precios al catálogo vigente**, marca faltantes del almacén del turno, vincula `Sale.quote_id` al cobrar y la quote pasa a `loaded`; recargarla → 409
-- [ ] Los lookups del carrito **respetan el almacén del turno**: un servicio no asociado y un producto sin stock ahí NO aparecen; el barcode de presentación gana al legacy
-- [ ] El numpad esconde el `.` en presentaciones enteras y el backend revalida; el modal de cobro nunca se traga un error del server
-- [ ] Borrar un servicio ya vendido → 409 `services.has_sales`; la moneda del tenant se congela con **una venta** aunque no haya movimientos de almacén
-- [ ] El historial (`pos:view`) lista, filtra, reimprime; las anuladas se ven marcadas
-- [ ] Las tablas nuevas (`sales`, `sale_items`, `cashbox_sessions`, `quotes`, `quote_lines`) pasan los 4 canarios RLS **de comportamiento** + el estructural (lección del checklist de F3: una policy que existe no es una policy que filtra)
-- [ ] La PWA instala, y sin red dice qué no puede hacer en vez de fallar críptico
-- [ ] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
+- [x] Un POS_Seller **abre turno** (nace en su almacén asignado), vende un carrito mixto —producto simple, compuesto, servicio— y el ledger descuenta exactamente lo vendido: componentes del compuesto incluidos, servicio sin un solo `stock_movement`
+  - **⚠ NO se sostenía: el POS nunca expandía compuestos** (2026-08-25). `sales.service` armaba las líneas con `expand: false` clavado, así que vender un compuesto intentaba descontar el compuesto mismo y devolvía 422 «no hay suficiente existencia» de algo que por definición no tiene saldo. El comentario del código y el docblock del describe ya prometían la expansión, y ningún test la verificaba. Corregido en `8ca0a29` con tres e2e; verificado en producción con `VTA-000019`: ADVIL −2, componente −60 (3 × 20 gr) y el compuesto sin movimientos propios
+- [x] La venta toma folio `VTA-000001`; dos tenants arrancan su serie en 1; el folio de cotización es una serie `COT` independiente
+  - **Verificado en e2e y no contra producción**: ese folio ya se gastó. La decisión de reservarlo para esta prueba (2026-08-21) quedó superada por las ventas de verificación de F5. Se sumó el e2e que faltaba —«dos tenants arrancan su serie en VTA-000001, cada uno la suya»—, que es lo que de verdad demuestra que la serie es POR TENANT: que un tenant nuevo empiece en 1 ya lo cubrían otros tests, pero con un contador global el segundo negocio vería `VTA-000002` sin poder explicar el hueco. La serie `COT` sí se verificó en producción: `COT-000004` mientras las ventas iban por `VTA-000015`
+- [x] **Los precios los pone el server**: el front manda ids y cantidades; alterar el POST no altera un precio
+- [x] Dos ventas concurrentes del último ítem: una pasa, la otra recibe 409 con el detalle — y el **doble tap** con `Idempotency-Key` devuelve la misma venta sin duplicar stock
+  - **Es 422, no 409** (corregido del lado del CRITERIO, 2026-08-25): el sistema responde `422 inventory.insufficient_stock`, el mismo código que F3 usa desde que existe el ledger. 422 es lo correcto —la petición está bien formada; es el estado del inventario el que impide procesarla— y cambiarlo solo por este renglón habría roto la consistencia con el inventario. Verificado en producción: dos ventas simultáneas del último ítem dieron `[201, 422]` y el saldo quedó en 0, nunca negativo
+- [x] Vender un producto con `tracks_lots` descuenta el lote FEFO y el ticket lo muestra
+- [x] La **anulación** (solo TenantAdmin/Manager, con justificación) restaura el stock exacto vía `sale_return`, compuestos incluidos; doble anulación → 409
+- [x] El **cierre de caja** cuadra por método contra lo vendido del turno, registra declarado/calculado/diferencia, y un turno cerrado no vende
+- [x] Una **cotización** se crea SIN turno con `pos:quote`, no mueve stock, imprime su ticket marcado COTIZACIÓN con precios de referencia y la leyenda del precio final en caja
+- [x] Cargar `COT-…` en el POS **recalcula precios al catálogo vigente**, marca faltantes del almacén del turno, vincula `Sale.quote_id` al cobrar y la quote pasa a `loaded`; recargarla → 409
+- [x] Los lookups del carrito **respetan el almacén del turno**: un servicio no asociado y un producto sin stock ahí NO aparecen; el barcode de presentación gana al legacy
+- [x] El numpad esconde el `.` en presentaciones enteras y el backend revalida; el modal de cobro nunca se traga un error del server
+  - **⚠ NO se sostenía: el backend NO revalidaba** (2026-08-25). El numpad escondía el punto pero el API aceptaba `quantity: 1.5` en una presentación entera y devolvía 201, dejando el saldo en decimales que ningún conteo físico puede cuadrar. F3 lo revalida en su `line-resolver` desde que existe; el POS no. Corregido en `b5c37a9` con la misma regla y su clave i18n propia (`pos.integer_only_presentation`)
+- [x] Borrar un servicio ya vendido → 409 `services.has_sales`; la moneda del tenant se congela con **una venta** aunque no haya movimientos de almacén
+- [x] El historial (`pos:view`) lista, filtra, reimprime; las anuladas se ven marcadas
+- [x] Las tablas nuevas (`sales`, `sale_items`, `cashbox_sessions`, `quotes`, `quote_lines`) pasan los 4 canarios RLS **de comportamiento** + el estructural (lección del checklist de F3: una policy que existe no es una policy que filtra)
+- [x] La PWA instala, y sin red dice qué no puede hacer en vez de fallar críptico
+- [x] Suites verdes (api unit+integration+e2e, web, shared) + `typecheck:full` + Biome + deploy verde verificado en el log
 - [ ] Tag `v0.5.0-fase4` creado sobre un commit con Deploy verde
 
 **Estimación: ~3.5 semanas** (~55 h en 26 tareas + F4-PRINT-BT diferida — F4-TICKET-03 entró en la sincronía pre-F4, 2026-08-21).

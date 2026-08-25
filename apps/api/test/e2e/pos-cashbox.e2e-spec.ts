@@ -310,7 +310,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
     }
 
     /** Un servicio vendible en ese almacén. No tiene existencias: ese es el punto. */
-    async function conServicio(token: string, tenantId: string, warehouseId: string) {
+    async function conServicio(token: string, warehouseId: string) {
       const creado = await request(app.getHttpServer())
         .post("/services")
         .set("Authorization", bearer(token))
@@ -467,7 +467,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
       const { productoId: simpleId, almacenId } = await conStock(token, tenantId, 100);
       const { productoId: componenteId } = await conStock(token, tenantId, 500);
       const compuestoId = await conCompuesto(token, tenantId, componenteId, 20);
-      const servicioId = await conServicio(token, tenantId, almacenId);
+      const servicioId = await conServicio(token, almacenId);
       await abrir(token).expect(201);
 
       const antes = {
