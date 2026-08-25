@@ -34,15 +34,19 @@ export function StockReport() {
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortDir, setSortDir] = useState<"asc" | "desc" | undefined>(undefined);
 
+  /**
+   * Los FILTROS van separados de la paginación, y no es cosmético: el endpoint
+   * de export no pagina y su schema es `.strict()`, así que mandarle `page`
+   * responde 400. Se descubrió en producción, no en los tests —el mock de la
+   * API acepta cualquier objeto—.
+   */
   const filtros: StockReportQuery = {
     ...(warehouseId !== null && { warehouseId }),
     ...(belowMin && { belowMin: true }),
     ...(detalle && { detail: "lots" as const }),
-    page,
-    pageSize: 20,
   };
 
-  const { data, isPending, error } = useStockReport(filtros);
+  const { data, isPending, error } = useStockReport({ ...filtros, page, pageSize: 20 });
 
   const columnas = detalle
     ? [

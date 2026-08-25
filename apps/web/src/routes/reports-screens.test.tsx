@@ -212,6 +212,24 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       );
     });
 
+    /**
+     * ⚠ El export NO pagina, y su schema es `.strict()`: mandarle `page` o
+     * `pageSize` lo hace responder 400. Se descubrió en producción —los tests
+     * con la API mockeada no lo veían, porque el mock acepta cualquier cosa—.
+     */
+    it("exportar NO manda la paginación de la pantalla", async () => {
+      await renderRuta("/reports/stock");
+      await screen.findByText("Café");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() => expect(mocked.downloadStockReport).toHaveBeenCalled());
+      const enviado = mocked.downloadStockReport.mock.calls[0]?.[0] ?? {};
+      expect(enviado).not.toHaveProperty("page");
+      expect(enviado).not.toHaveProperty("pageSize");
+    });
+
     it("sin `reports:read` no se entra", async () => {
       await renderRuta("/reports/stock", ["pos:sell"]);
 
@@ -272,7 +290,7 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       );
     });
 
-    it("exportar usa los filtros vigentes", async () => {
+    it("exportar usa los filtros vigentes, pero NO la paginación", async () => {
       await renderRuta("/reports/sales");
       await screen.findByText("VTA-000001");
       const user = userEvent.setup();
@@ -285,6 +303,9 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
           expect.objectContaining({ status: "canceled" }),
         ),
       );
+      const enviado = mocked.downloadSalesReport.mock.calls[0]?.[0] ?? {};
+      expect(enviado).not.toHaveProperty("page");
+      expect(enviado).not.toHaveProperty("pageSize");
     });
 
     it("sin `reports:read` no se entra", async () => {

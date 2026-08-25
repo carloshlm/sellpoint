@@ -29,6 +29,10 @@ export function SalesReport() {
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortDir, setSortDir] = useState<"asc" | "desc" | undefined>(undefined);
 
+  /**
+   * Los FILTROS van separados de la paginación: el endpoint de export no
+   * pagina y su schema es `.strict()`, así que mandarle `page` responde 400.
+   */
   const filtros: SalesReportQuery = {
     ...(warehouseId !== null && { warehouseId }),
     ...(estado !== "todas" && { status: estado }),
@@ -36,11 +40,9 @@ export function SalesReport() {
     // consulta por formato.
     ...(rango.from !== "" && { from: rango.from }),
     ...(rango.to !== "" && { to: rango.to }),
-    page,
-    pageSize: 20,
   };
 
-  const { data, isPending, error } = useSalesReport(filtros);
+  const { data, isPending, error } = useSalesReport({ ...filtros, page, pageSize: 20 });
 
   const columnas = [
     { key: "folio", header: t("reports.sales.folio") },
