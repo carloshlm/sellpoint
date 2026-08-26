@@ -210,6 +210,167 @@
   --sidebar-ring: #a9714b;
 }
 
+/* ========================= TEMA: ESMERALDA «Hoja» ==========================
+   Verde botánico claro (eco, bienestar, orgánico): velo verde-crema con la
+   esmeralda profunda como primario — más azulada y honda que el verde de
+   «Activo» para que primario y estado nunca se confundan. */
+:root[data-theme="emerald"] {
+  --background: #f2f6f0;
+  --foreground: #24332a;
+  --card: #ffffff;
+  --card-foreground: #24332a;
+  --popover: #ffffff;
+  --popover-foreground: #24332a;
+  --primary: #2e7d5b;
+  --primary-foreground: #ffffff;
+  --secondary: #e7eee4;
+  --secondary-foreground: #24332a;
+  --muted: #e7eee4;
+  --muted-foreground: #63705f;
+  --accent: #e7eee4;
+  --accent-foreground: #24634a;
+  --destructive: #c34f4f;
+  --destructive-foreground: #ffffff;
+  --border: #dde8da;
+  --input: #dde8da;
+  --ring: #2e7d5b;
+  --radius: 0.5rem;
+  --chart-1: #2e7d5b;
+  --chart-2: oklch(0.5164 0.2229 264.63);
+  --chart-3: oklch(0.6264 0.1248 70.45);
+  --chart-4: #6f9450;
+  --chart-5: #4d7c94;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #24332a;
+  --sidebar-primary: #2e7d5b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e0efe4;
+  --sidebar-accent-foreground: #24634a;
+  --sidebar-border: #dde8da;
+  --sidebar-ring: #2e7d5b;
+}
+
+/* ========================== TEMA: MOTOR «Cabina» ===========================
+   El oscuro con rojo del negocio de autos: sidebar negro profundo (cockpit)
+   con contenido carbón y el rojo racing como primario. «Eliminar» va en
+   salmón claro A PROPÓSITO — sobre fondo oscuro se lee como alerta, y un
+   botón de marca jamás debe vestirse de advertencia. Tema oscuro: la clase
+   `.dark` lo acompaña (ver applyTheme). */
+:root[data-theme="cabin"] {
+  --background: #1d1f24;
+  --foreground: #e8e9ed;
+  --card: #26282e;
+  --card-foreground: #e8e9ed;
+  --popover: #26282e;
+  --popover-foreground: #e8e9ed;
+  --primary: #d92d3f;
+  --primary-foreground: #ffffff;
+  --secondary: #2e3037;
+  --secondary-foreground: #e8e9ed;
+  --muted: #2e3037;
+  --muted-foreground: #a0a4ac;
+  --accent: #2e3037;
+  --accent-foreground: #ff8b96;
+  --destructive: #ff8f85;
+  --destructive-foreground: #1d1f24;
+  --border: #393c43;
+  --input: #34363d;
+  --ring: #d92d3f;
+  --radius: 0.5rem;
+  --chart-1: #d92d3f;
+  --chart-2: #4cd08a;
+  --chart-3: #e3b452;
+  --chart-4: #7c9aff;
+  --chart-5: #6fd0d8;
+  --sidebar: #0e0f12;
+  --sidebar-foreground: #c9cbd2;
+  --sidebar-primary: #ff5a68;
+  --sidebar-primary-foreground: #0e0f12;
+  --sidebar-accent: #331b20;
+  --sidebar-accent-foreground: #ff8b96;
+  --sidebar-border: #26282e;
+  --sidebar-ring: #ff5a68;
+}
+
+/* ======================== TEMA: PASTEL «Algodón» ===========================
+   Rosa pastel (cosmética, spa, boutique): fondo rosa muy pálido y un rosa
+   medio dulce como primario — el fondo es el pastel, el primario sube medio
+   tono para leerse. «Eliminar» va en rojo franco, separado del rosa. */
+:root[data-theme="cotton"] {
+  --background: #fdf2f5;
+  --foreground: #43323a;
+  --card: #ffffff;
+  --card-foreground: #43323a;
+  --popover: #ffffff;
+  --popover-foreground: #43323a;
+  --primary: #e37e9e;
+  --primary-foreground: #ffffff;
+  --secondary: #f6e6ea;
+  --secondary-foreground: #43323a;
+  --muted: #f6e6ea;
+  --muted-foreground: #8a7078;
+  --accent: #f6e6ea;
+  --accent-foreground: #c25a7b;
+  --destructive: #c2404d;
+  --destructive-foreground: #ffffff;
+  --border: #f3dbe2;
+  --input: #f3dbe2;
+  --ring: #e37e9e;
+  --radius: 0.5rem;
+  --chart-1: #e37e9e;
+  --chart-2: oklch(0.5861 0.1343 156.58);
+  --chart-3: oklch(0.6264 0.1248 70.45);
+  --chart-4: #b08cc9;
+  --chart-5: #7ba6c9;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #43323a;
+  --sidebar-primary: #e37e9e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fbe3ea;
+  --sidebar-accent-foreground: #c25a7b;
+  --sidebar-border: #f3dbe2;
+  --sidebar-ring: #e37e9e;
+}
+
+/* ======================== TEMA: OSCURO «Carbón» ============================
+   Negro cálido con acento cobre: el azul desaparece y el sistema toma una
+   identidad de noche cálida. Tema oscuro: `.dark` lo acompaña. */
+:root[data-theme="charcoal"] {
+  --background: #161311;
+  --foreground: #ece5da;
+  --card: #201c18;
+  --card-foreground: #ece5da;
+  --popover: #201c18;
+  --popover-foreground: #ece5da;
+  --primary: #d9954a;
+  --primary-foreground: #241505;
+  --secondary: #272220;
+  --secondary-foreground: #ece5da;
+  --muted: #272220;
+  --muted-foreground: #a89e91;
+  --accent: #272220;
+  --accent-foreground: #eebd7f;
+  --destructive: #ef8577;
+  --destructive-foreground: #161311;
+  --border: #383129;
+  --input: #2d2723;
+  --ring: #d9954a;
+  --radius: 0.5rem;
+  --chart-1: #d9954a;
+  --chart-2: #6fce8e;
+  --chart-3: #e2b23c;
+  --chart-4: #c79aef;
+  --chart-5: #6fd0d8;
+  --sidebar: #201c18;
+  --sidebar-foreground: #ece5da;
+  --sidebar-primary: #d9954a;
+  --sidebar-primary-foreground: #241505;
+  --sidebar-accent: #3a2d1d;
+  --sidebar-accent-foreground: #eebd7f;
+  --sidebar-border: #383129;
+  --sidebar-ring: #d9954a;
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

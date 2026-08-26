@@ -73,6 +73,32 @@ describe("El tema desde Mi perfil (2026-08-26)", () => {
     expect(screen.getByRole("radio", { name: "Arena" })).toBeChecked();
   });
 
+  /** A diferencia del wizard, el perfil ofrece el catálogo COMPLETO. */
+  it("ofrece los OCHO temas, segunda tanda incluida", () => {
+    renderCard(demoUser(["tenants:manage"]));
+
+    expect(screen.getAllByRole("radio")).toHaveLength(8);
+    for (const nombre of ["Esmeralda", "Cabina", "Algodón", "Carbón"]) {
+      expect(screen.getByRole("radio", { name: nombre })).toBeInTheDocument();
+    }
+  });
+
+  it("elegir uno de la segunda tanda re-pinta y persiste igual que los básicos", async () => {
+    const user = userEvent.setup();
+    const actor = demoUser(["tenants:manage"]);
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, theme: "cabin" });
+    renderCard(actor);
+
+    await user.click(screen.getByRole("radio", { name: "Cabina" }));
+
+    expect(document.documentElement.dataset.theme).toBe("cabin");
+    // Cabina es un tema OSCURO: la clase dark lo acompaña.
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    await waitFor(() => {
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ theme: "cabin" });
+    });
+  });
+
   it("el clic re-pinta AL MOMENTO y manda el PATCH detrás", async () => {
     const user = userEvent.setup();
     const actor = demoUser(["tenants:manage"]);

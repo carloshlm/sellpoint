@@ -1,7 +1,14 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { applyTheme } from "./apply-theme";
-import { DEFAULT_THEME, resolveTheme, THEME_IDS, THEME_LIST, THEMES } from "./themes";
+import {
+  DEFAULT_THEME,
+  resolveTheme,
+  THEME_IDS,
+  THEME_LIST,
+  THEMES,
+  WIZARD_THEME_IDS,
+} from "./themes";
 
 const SRC_DIR = join(__dirname, "../..");
 const css = readFileSync(join(SRC_DIR, "index.css"), "utf-8");
@@ -28,7 +35,23 @@ describe("catálogo de temas", () => {
   it("los ids son EXACTAMENTE los del enum del API (update-tenant.dto.ts)", () => {
     // Si esto falla, el selector ofrece un tema que el PATCH rechaza con 400
     // — o el API acepta uno que la app no sabe pintar.
-    expect([...THEME_IDS].sort()).toEqual(["dark", "grape", "light", "sand"]);
+    expect([...THEME_IDS].sort()).toEqual([
+      "cabin",
+      "charcoal",
+      "cotton",
+      "dark",
+      "emerald",
+      "grape",
+      "light",
+      "sand",
+    ]);
+  });
+
+  it("el wizard ofrece SOLO la primera tanda; el perfil, las dos", () => {
+    // Elegir tema no debe volverse la parte larga del registro (Carlos,
+    // 2026-08-26) — el paso 3 avisa que en Mi perfil hay más.
+    expect([...WIZARD_THEME_IDS]).toEqual(["light", "dark", "sand", "grape"]);
+    expect(THEME_IDS.length).toBeGreaterThan(WIZARD_THEME_IDS.length);
   });
 });
 
@@ -72,9 +95,9 @@ describe("sincronía entre el catálogo y los tokens CSS", () => {
 
   it("los tokens semánticos NO se redefinen por tema claro: alerta y error son universales", () => {
     // Que un tenant elija su tema no puede volver indistinguible un error de
-    // un éxito. Los temas CLAROS usan los semánticos de :root; el oscuro usa
-    // los de `.dark` — por eso `applyTheme` acompaña ese tema con la clase.
-    for (const id of ["sand", "grape"] as const) {
+    // un éxito. Los temas CLAROS usan los semánticos de :root; los oscuros
+    // usan los de `.dark` — por eso `applyTheme` los acompaña con la clase.
+    for (const id of ["sand", "grape", "emerald", "cotton"] as const) {
       const block =
         css.match(new RegExp(`:root\\[data-theme="${id}"\\]\\s*\\{([^}]*)\\}`))?.[1] ?? "";
       expect(block).not.toContain("--success:");
@@ -155,14 +178,17 @@ describe("resolveTheme", () => {
 });
 
 describe("applyTheme", () => {
-  it("un tema no-default escribe data-theme; el oscuro además enciende la clase dark", () => {
+  it("un tema no-default escribe data-theme; los oscuros además encienden la clase dark", () => {
     applyTheme("sand");
     expect(document.documentElement.dataset.theme).toBe("sand");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
 
-    applyTheme("dark");
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    // Los TRES oscuros del catálogo (isDark), no solo el que se llama "dark".
+    for (const oscuro of ["dark", "cabin", "charcoal"] as const) {
+      applyTheme(oscuro);
+      expect(document.documentElement.dataset.theme).toBe(oscuro);
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+    }
   });
 
   it("el default LIMPIA el atributo y la clase: :root ya es la paleta clara", () => {

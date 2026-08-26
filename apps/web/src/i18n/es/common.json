@@ -107,7 +107,11 @@
       "light": "Claro",
       "dark": "Oscuro",
       "sand": "Arena",
-      "grape": "Uva"
+      "grape": "Uva",
+      "emerald": "Esmeralda",
+      "cabin": "Cabina",
+      "cotton": "Algodón",
+      "charcoal": "Carbón"
     }
   },
   "welcome": "Bienvenido a SellPoint"

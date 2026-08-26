@@ -331,6 +331,19 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         expect(getResponse.body).toMatchObject({ theme: "grape" });
       });
 
+      it("los temas de la segunda tanda (2026-08-26) también persisten", async () => {
+        const owner = await registerActiveOwner();
+
+        for (const theme of ["emerald", "cabin", "cotton", "charcoal"]) {
+          const response = await request(app.getHttpServer())
+            .patch("/tenants/me")
+            .set("Authorization", bearer(owner.accessToken))
+            .send({ theme })
+            .expect(200);
+          expect(response.body).toMatchObject({ theme });
+        }
+      });
+
       it("un theme fuera del catálogo -> 400", async () => {
         const owner = await registerActiveOwner();
 

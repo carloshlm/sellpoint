@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { THEME_LIST, type ThemeId } from "@/lib/theme/themes";
+import { THEME_LIST, type ThemeId, type ThemeOption } from "@/lib/theme/themes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,17 +16,28 @@ interface ThemePickerProps {
   value: ThemeId;
   onChange: (theme: ThemeId) => void;
   disabled?: boolean;
+  /**
+   * Qué temas ofrecer. El default es el catálogo COMPLETO (Mi perfil); el
+   * wizard pasa `WIZARD_THEME_LIST` — la primera tanda nada más.
+   */
+  options?: readonly ThemeOption[];
   /** Distingue los grupos cuando hubiera dos pickers montados (no hoy). */
   name?: string;
 }
 
-function ThemePicker({ value, onChange, disabled = false, name = "theme" }: ThemePickerProps) {
+function ThemePicker({
+  value,
+  onChange,
+  disabled = false,
+  options = THEME_LIST,
+  name = "theme",
+}: ThemePickerProps) {
   const { t } = useTranslation();
 
   return (
     <fieldset className="grid grid-cols-2 gap-3 border-0 p-0 sm:grid-cols-4" disabled={disabled}>
       <legend className="sr-only">{t("common.theme.label")}</legend>
-      {THEME_LIST.map((theme) => (
+      {options.map((theme) => (
         <label
           key={theme.id}
           data-testid={`theme-${theme.id}`}

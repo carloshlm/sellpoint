@@ -107,7 +107,11 @@
       "light": "Light",
       "dark": "Dark",
       "sand": "Sand",
-      "grape": "Grape"
+      "grape": "Grape",
+      "emerald": "Emerald",
+      "cabin": "Cabin",
+      "cotton": "Cotton",
+      "charcoal": "Charcoal"
     }
   },
   "welcome": "Welcome to SellPoint"

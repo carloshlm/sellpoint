@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ThemePicker } from "@/components/theme/theme-picker";
 import { Button } from "@/components/ui/button";
 import { applyTheme } from "@/lib/theme/apply-theme";
-import type { ThemeId } from "@/lib/theme/themes";
+import { type ThemeId, WIZARD_THEME_LIST } from "@/lib/theme/themes";
 
 /**
  * Paso 3 del wizard (Carlos, 2026-08-25): el TEMA inicial del negocio.
@@ -52,7 +52,14 @@ function StepTheme({ isSubmitting, formError, onSubmit }: StepThemeProps) {
         </p>
       )}
 
-      <ThemePicker value={selected} onChange={preview} disabled={isSubmitting} />
+      {/* Solo la primera tanda: elegir tema no debe volverse la parte larga
+          del registro. El hint de abajo avisa que en Mi perfil hay más. */}
+      <ThemePicker
+        value={selected}
+        onChange={preview}
+        disabled={isSubmitting}
+        options={WIZARD_THEME_LIST}
+      />
 
       <p className="text-muted-foreground text-xs">{t("onboarding.step3.changeLaterHint")}</p>
 

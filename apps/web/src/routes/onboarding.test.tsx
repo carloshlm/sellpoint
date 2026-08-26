@@ -304,6 +304,21 @@ describe("/onboarding", () => {
       expect(screen.getByText(/Mi perfil/)).toBeInTheDocument();
     });
 
+    /**
+     * La segunda tanda (Carlos, 2026-08-26) NO entra al wizard: elegir tema
+     * no debe volverse la parte larga del registro. El hint avisa que en
+     * Mi perfil hay más opciones.
+     */
+    it("los temas de la segunda tanda NO aparecen en el wizard, y el hint avisa que hay más", async () => {
+      await renderRoute("/onboarding");
+      await screen.findByRole("radio", { name: "Claro" });
+
+      expect(screen.getAllByRole("radio")).toHaveLength(4);
+      expect(screen.queryByRole("radio", { name: "Esmeralda" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("radio", { name: "Cabina" })).not.toBeInTheDocument();
+      expect(screen.getByText(/más opciones/)).toBeInTheDocument();
+    });
+
     it("Terminar guarda el tema elegido y COMPLETA el onboarding, aterrizando en /dashboard", async () => {
       const user = userEvent.setup();
       const done = tenantWithBusinessDone({ theme: "grape", onboarded: true });
