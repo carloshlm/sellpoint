@@ -120,10 +120,10 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       .set("Authorization", bearer(accessToken))
       .expect(200);
     const tenantAdmin = (roles.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "TenantAdmin",
+      (r) => r.name === "Admin",
     );
     if (!tenantAdmin) {
-      throw new Error("TenantAdmin no encontrado");
+      throw new Error("Admin no encontrado");
     }
     return tenantAdmin.id;
   }
@@ -200,14 +200,14 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
   });
 
   describe("W1b — escalada de privilegios por ASIGNACIÓN de roles (verify #274 pasada 2)", () => {
-    it("repro EXACTO del verify: actor con SOLO users:manage (SIN roles:manage) no puede auto-asignarse el rol TenantAdmin -> 403 (antes: 200)", async () => {
+    it("repro EXACTO del verify: actor con SOLO users:manage (SIN roles:manage) no puede auto-asignarse el rol Admin -> 403 (antes: 200)", async () => {
       const owner = await registerActiveOwner();
       const tenantAdminId = await tenantAdminRoleId(owner.accessToken);
 
-      // El owner YA nace con TenantAdmin (provisioning) — mandarle el MISMO
+      // El owner YA nace con Admin (provisioning) — mandarle el MISMO
       // roleId sería un no-op (`sameSet` -> rolesChanged=false, ni pasa por
       // el guard). Para reproducir el vector real hace falta un usuario
-      // real que TODAVÍA no tenga TenantAdmin: el owner crea un rol custom
+      // real que TODAVÍA no tenga Admin: el owner crea un rol custom
       // "HR Manager" (users:manage+users:read, SIN roles:manage — mismo
       // gap que documentó el verify: no explotable con el catálogo base) y
       // un user con ESE rol.
@@ -250,7 +250,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       expect(response.body).toMatchObject({ code: "users.cannot_assign_unheld_role_permission" });
 
       // No mutó nada: el target conserva EXACTAMENTE el rol que tenía antes
-      // del intento (no ganó TenantAdmin).
+      // del intento (no ganó Admin).
       const detail = await request(app.getHttpServer())
         .get(`/users/${target.body.id}`)
         .set("Authorization", bearer(owner.accessToken))
@@ -259,7 +259,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         expect.arrayContaining([expect.stringContaining("HR Manager")]),
       );
       expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).not.toContain(
-        "TenantAdmin",
+        "Admin",
       );
     });
 
@@ -281,7 +281,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
       expect(response.body).toMatchObject({ code: "users.cannot_assign_unheld_role_permission" });
     });
 
-    it("PATCH /users/:id: un TenantAdmin real SÍ puede asignar cualquier rol existente (camino feliz, sin regresión)", async () => {
+    it("PATCH /users/:id: un Admin real SÍ puede asignar cualquier rol existente (camino feliz, sin regresión)", async () => {
       const owner = await registerActiveOwner();
       const roles = await request(app.getHttpServer())
         .get("/roles")
@@ -328,7 +328,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
   });
 
   describe("W2 — lockout del tenant (protección del último admin)", () => {
-    it("PATCH /roles/:id: quitarle users:manage al ÚNICO rol admin (TenantAdmin) -> 409 roles.last_admin_protected", async () => {
+    it("PATCH /roles/:id: quitarle users:manage al ÚNICO rol admin (Admin) -> 409 roles.last_admin_protected", async () => {
       const owner = await registerActiveOwner();
       const roleId = await tenantAdminRoleId(owner.accessToken);
 
@@ -350,7 +350,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .expect(409);
       expect(response.body).toMatchObject({ code: "roles.last_admin_protected" });
 
-      // No mutó nada: el TenantAdmin conserva users:manage.
+      // No mutó nada: el Admin conserva users:manage.
       const after = await request(app.getHttpServer())
         .get("/roles")
         .set("Authorization", bearer(owner.accessToken))
@@ -374,8 +374,8 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         })
         .expect(201);
 
-      // El owner queda con AMBOS roles admin (TenantAdmin intacto +
-      // SecondAdmin) — la invariante la cubre TenantAdmin, así que
+      // El owner queda con AMBOS roles admin (Admin intacto +
+      // SecondAdmin) — la invariante la cubre Admin, así que
       // SecondAdmin puede perder permisos sin romper nada.
       await request(app.getHttpServer())
         .patch(`/users/${owner.userId}`)
@@ -401,7 +401,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .expect(200);
     });
 
-    it("PATCH /users/:id roleIds: sacarle el rol TenantAdmin al ÚNICO admin activo -> 409 roles.last_admin_protected", async () => {
+    it("PATCH /users/:id roleIds: sacarle el rol Admin al ÚNICO admin activo -> 409 roles.last_admin_protected", async () => {
       const owner = await registerActiveOwner();
       const roles = await request(app.getHttpServer())
         .get("/roles")
@@ -418,14 +418,12 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .expect(409);
       expect(response.body).toMatchObject({ code: "roles.last_admin_protected" });
 
-      // No mutó nada: el owner sigue siendo TenantAdmin.
+      // No mutó nada: el owner sigue siendo Admin.
       const detail = await request(app.getHttpServer())
         .get(`/users/${owner.userId}`)
         .set("Authorization", bearer(owner.accessToken))
         .expect(200);
-      expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).toContain(
-        "TenantAdmin",
-      );
+      expect((detail.body.roles as Array<{ name: string }>).map((r) => r.name)).toContain("Admin");
     });
 
     it("POST /users/:id/suspend: suspender al ÚNICO admin activo (actor distinto, con users:manage) -> 409 roles.last_admin_protected", async () => {

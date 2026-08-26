@@ -224,7 +224,7 @@
     "summaryDiscrepancies": "Discrepancies",
     "summarySkipped": "Skipped",
     "summaryNewLots": "New lots",
-    "needsManage": "A TenantAdmin must approve this count. The draft stays saved with its folio, waiting for them.",
+    "needsManage": "An Admin must approve this count. The draft stays saved with its folio, waiting for them.",
     "drifted": "{{count}} lines changed balance between counting and approval. What was counted has been applied.",
     "drifted_one": "{{count}} line changed balance between counting and approval. What was counted has been applied.",
     "importFailed": "The file could not be read. Check that it is the downloaded template."

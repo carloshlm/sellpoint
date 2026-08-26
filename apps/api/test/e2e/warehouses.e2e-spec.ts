@@ -242,7 +242,7 @@ describe("Almacenes (F2-WH)", () => {
     });
 
     /**
-     * El TenantAdmin que registra el tenant no tiene filas de alcance, así que
+     * El Admin que registra el tenant no tiene filas de alcance, así que
      * su scope es `all` por el default permisivo de F2-SCOPE-01 — y con el flag
      * sigue viendo todos. Lo que el flag SÍ filtra siempre es lo inactivo:
      * contra un almacén desactivado no se puede mover stock.

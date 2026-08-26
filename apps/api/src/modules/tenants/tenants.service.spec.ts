@@ -95,7 +95,7 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
     });
   });
 
-  it("crea los 4 roles base y asigna TenantAdmin al owner", async () => {
+  it("crea los 4 roles base y asigna Admin al owner", async () => {
     const { service, tx } = buildService();
 
     const result = await service.provision(baseInput);
@@ -104,17 +104,17 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
     expect(createdRoleNames.sort()).toEqual([...TENANT_ROLE_NAMES].sort());
 
     expect(tx.userRole.create).toHaveBeenCalledWith({
-      data: { userId: "user-1", roleId: tx.roleIdByName.get("TenantAdmin") },
+      data: { userId: "user-1", roleId: tx.roleIdByName.get("Admin") },
     });
     expect(result).toEqual({ tenantId: "tenant-1", userId: "user-1" });
   });
 
-  it("TenantAdmin recibe TODOS los permisos del catálogo existente", async () => {
+  it("Admin recibe TODOS los permisos del catálogo existente", async () => {
     const { service, tx } = buildService();
 
     await service.provision(baseInput);
 
-    const adminRoleId = tx.roleIdByName.get("TenantAdmin");
+    const adminRoleId = tx.roleIdByName.get("Admin");
     const adminCall = tx.rolePermission.createMany.mock.calls.find((call) =>
       call[0].data.some((d: { roleId: string }) => d.roleId === adminRoleId),
     );

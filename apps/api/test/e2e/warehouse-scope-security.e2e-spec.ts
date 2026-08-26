@@ -159,7 +159,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
   it("JwtAuthGuard rechaza (401) ANTES de cualquier trabajo de DB: token forjado sin bypass contra ruta protegida no ejecuta withTenantContext", async () => {
     const withTenantContextSpy = jest.spyOn(prisma, "withTenantContext");
     // permissions: [] a propósito — fuerza el camino de DB (sin bypass de
-    // TenantAdmin) en el diseño viejo, igual que T1 del verify-report.
+    // Admin) en el diseño viejo, igual que T1 del verify-report.
     const forged = forgedBearer({
       sub: randomUUID(),
       tenantId: randomUUID(),
@@ -224,7 +224,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
     expect(withTenantContextSpy).not.toHaveBeenCalled();
   });
 
-  it("camino feliz: TenantAdmin real autenticado en ruta PROTEGIDA -> scope 'all' vía bypass, SIN query a user_warehouse_scopes", async () => {
+  it("camino feliz: Admin real autenticado en ruta PROTEGIDA -> scope 'all' vía bypass, SIN query a user_warehouse_scopes", async () => {
     const interceptor = app.get(WarehouseScopeInterceptor);
     const original = interceptor.intercept.bind(interceptor);
     const captured: Array<{ url: string; scope: unknown }> = [];
@@ -245,7 +245,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
 
     // PATCH /me: única ruta protegida (sin @RequirePermissions extra) que no
     // necesita ningún dato de dominio adicional para ejercitarse — el owner
-    // de un tenant nuevo es TenantAdmin por default (f1-rbac). PATCH /me
+    // de un tenant nuevo es Admin por default (f1-rbac). PATCH /me
     // hace SU PROPIO `withTenantContext` (actualizar locale), por eso el
     // assert acá se hace sobre `req.scope` capturado (que la query de
     // `user_warehouse_scopes` del interceptor NUNCA corrió: si hubiera
@@ -274,7 +274,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
 
     // Token REAL firmado con la misma instancia de TokenService que usa la
     // app (verifica firma+issuer+audience de verdad) pero con `permissions`
-    // SIN los codes de TenantAdmin — fuerza el camino de DB, no el bypass.
+    // SIN los codes de Admin — fuerza el camino de DB, no el bypass.
     const accessToken = tokenService.signAccessToken({
       sub: tenantB.userId,
       tenantId: tenantB.tenantId,

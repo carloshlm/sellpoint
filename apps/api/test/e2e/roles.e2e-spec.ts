@@ -129,7 +129,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
 
     const names = (list.body as Array<{ name: string }>).map((r) => r.name);
     expect(names).toEqual(
-      expect.arrayContaining(["TenantAdmin", "Manager", "POS_Seller", "Viewer", "Cajero Senior"]),
+      expect.arrayContaining(["Admin", "Manager", "Seller", "Viewer", "Cajero Senior"]),
     );
   });
 
@@ -139,7 +139,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
     const response = await request(app.getHttpServer())
       .post("/roles")
       .set("Authorization", bearer(owner.accessToken))
-      .send({ name: "TenantAdmin", permissionCodes: [] })
+      .send({ name: "Admin", permissionCodes: [] })
       .expect(409);
     expect(response.body).toMatchObject({ code: "roles.name_taken" });
   });
@@ -197,7 +197,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
     expect(ttl).toBe(-1);
   });
 
-  it("criterio clave del batch: swap de permisos del rol TenantAdmin -> el REFRESH del owner trae los permisos frescos", async () => {
+  it("criterio clave del batch: swap de permisos del rol Admin -> el REFRESH del owner trae los permisos frescos", async () => {
     const owner = await registerActiveOwner();
 
     const rolesBefore = await request(app.getHttpServer())
@@ -206,9 +206,9 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .expect(200);
     const tenantAdmin = (
       rolesBefore.body as Array<{ id: string; name: string; permissionCodes: string[] }>
-    ).find((r) => r.name === "TenantAdmin");
+    ).find((r) => r.name === "Admin");
     if (!tenantAdmin) {
-      throw new Error("TenantAdmin no encontrado");
+      throw new Error("Admin no encontrado");
     }
     expect(tenantAdmin.permissionCodes).toContain("users:read");
 
@@ -265,7 +265,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
       .set("Authorization", bearer(owner.accessToken))
       .expect(200);
     const tenantAdmin = (roles.body as Array<{ id: string; name: string }>).find(
-      (r) => r.name === "TenantAdmin",
+      (r) => r.name === "Admin",
     );
 
     const response = await request(app.getHttpServer())

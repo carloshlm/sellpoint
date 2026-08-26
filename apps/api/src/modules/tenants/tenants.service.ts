@@ -77,7 +77,7 @@ export class TenantsService {
       for (const roleName of TENANT_ROLE_NAMES) {
         const role = await tx.role.create({ data: { tenantId: tenant.id, name: roleName } });
 
-        if (roleName === "TenantAdmin") {
+        if (roleName === "Admin") {
           ownerRoleId = role.id;
         }
 
@@ -94,7 +94,7 @@ export class TenantsService {
       }
 
       if (!ownerRoleId) {
-        throw new Error("TENANT_ROLE_NAMES no incluye TenantAdmin — invariante rota");
+        throw new Error("TENANT_ROLE_NAMES no incluye Admin — invariante rota");
       }
 
       await tx.userRole.create({ data: { userId: owner.id, roleId: ownerRoleId } });

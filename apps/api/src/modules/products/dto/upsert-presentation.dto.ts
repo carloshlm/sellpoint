@@ -4,7 +4,7 @@ import { moneyAmount } from "../money";
 /**
  * F2-PRESENT-01. `allowFractionalInput` es OPCIONAL a propósito: si no viene,
  * lo deriva el server de la categoría de la unidad base del producto. Que el
- * cliente pueda mandarlo es el override del TenantAdmin, no el camino normal.
+ * cliente pueda mandarlo es el override del Admin, no el camino normal.
  */
 export const createPresentationSchema = z.object({
   name: z.string().trim().min(1).max(64),

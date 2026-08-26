@@ -34,7 +34,7 @@ interface PresentationsTabProps {
 
 /**
  * F2-PRESENT-02/03/04 — tabla inline, sin wizards ni drag-and-drop
- * (ARQUITECTURA § 3.5: "el TenantAdmin no debería necesitar entrenamiento").
+ * (ARQUITECTURA § 3.5: "el Admin no debería necesitar entrenamiento").
  *
  * El toggle de "solo enteros" nace del estado que devuelve el SERVER, que lo
  * deriva de la categoría de la unidad base. La UI no lo calcula: si lo hiciera,

@@ -244,7 +244,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
   /**
    * El alcance por almacén, contra los dos endpoints.
    *
-   * El token se firma con permisos REDUCIDOS a propósito: un TenantAdmin
+   * El token se firma con permisos REDUCIDOS a propósito: un Admin
    * bypasea el scope a `"all"` (F2-SCOPE-01), así que con su token esto no
    * probaría nada. Con `inventory:read` a secas el interceptor va a la DB y
    * resuelve el alcance real.

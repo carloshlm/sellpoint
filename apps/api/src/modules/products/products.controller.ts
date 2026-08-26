@@ -49,7 +49,7 @@ function metaFrom(request: Request) {
 
 /**
  * F2-PROD / F2-PRESENT / F2-BOM. Leer es `products:read` (lo tiene hasta
- * POS_Seller, que necesita ver el catálogo para vender); escribir cualquier
+ * Seller, que necesita ver el catálogo para vender); escribir cualquier
  * cosa —producto, presentación o composición— es `products:manage`.
  */
 @ApiTags("products")

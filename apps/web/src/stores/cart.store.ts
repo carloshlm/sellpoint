@@ -118,7 +118,7 @@ function presentacionInicial(
       return existe.id;
     }
   }
-  // `isDefaultSale` es la que el TenantAdmin marcó como "así se vende esto".
+  // `isDefaultSale` es la que el Admin marcó como "así se vende esto".
   // El respaldo es la de menor factor, que el API ya devuelve primera.
   return (presentations.find((p) => p.isDefaultSale) ?? presentations[0])?.id;
 }

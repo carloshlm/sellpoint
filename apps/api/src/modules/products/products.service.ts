@@ -483,7 +483,7 @@ export class ProductsService {
 
 /**
  * `count` (cosas que se cuentan de a una) no admite decimales; el resto sí.
- * El TenantAdmin puede sobrescribirlo por presentación (F2-PRESENT).
+ * El Admin puede sobrescribirlo por presentación (F2-PRESENT).
  */
 export function derivesFractionalInput(baseUnit: string): boolean {
   return getUnit(baseUnit)?.category !== "count";

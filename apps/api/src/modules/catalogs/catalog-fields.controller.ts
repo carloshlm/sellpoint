@@ -35,7 +35,7 @@ const confirmQuerySchema = z
 
 /**
  * F2-CAT-03. Leer la estructura es `catalogs:read` (el form dinámico la
- * necesita para renderizarse); tocarla es `catalogs:manage`, solo TenantAdmin.
+ * necesita para renderizarse); tocarla es `catalogs:manage`, solo Admin.
  */
 @ApiTags("catalogs")
 @Controller("catalogs/:catalogId/fields")

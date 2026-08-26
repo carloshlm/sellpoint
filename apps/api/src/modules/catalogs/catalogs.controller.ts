@@ -16,7 +16,7 @@ function metaFrom(request: Request) {
 /**
  * F2-CAT-02. Asimetría deliberada de permisos: LEER catálogos es parte de la
  * operación diaria (`catalogs:read`, lo tiene hasta Viewer), pero crear o
- * modificar la ESTRUCTURA es `catalogs:manage` — solo TenantAdmin, porque
+ * modificar la ESTRUCTURA es `catalogs:manage` — solo Admin, porque
  * cambia la forma de los datos de todo el negocio.
  *
  * No hay DELETE a propósito: archivar es `PATCH { isActive: false }`. Borrar

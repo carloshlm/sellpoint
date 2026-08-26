@@ -131,7 +131,7 @@ describe("RBAC: PermissionsGuard (e2e)", () => {
 
     // Sin aserción sobre el TAMAÑO del catálogo: dev puede tener codes de
     // módulos futuros sembrados por prisma/seed.ts que CI/prod no tienen.
-    // Lo que importa es que el TenantAdmin nazca con permisos de gestión.
+    // Lo que importa es que el Admin nazca con permisos de gestión.
     expect(claims.permissions).toContain("users:manage");
     expect(claims.permissions).toContain("roles:manage");
   });

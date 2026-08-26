@@ -19,9 +19,9 @@ describe("resolveRolePermissionCodes", () => {
     "warehouses:manage",
   ];
 
-  it("TenantAdmin recibe TODOS los codes del catálogo", () => {
+  it("Admin recibe TODOS los codes del catálogo", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.TenantAdmin).toEqual(catalog);
+    expect(result.Admin).toEqual(catalog);
   });
 
   it("Manager no administra usuarios, roles, el negocio ni la ESTRUCTURA del catálogo", () => {
@@ -43,9 +43,9 @@ describe("resolveRolePermissionCodes", () => {
     expect(result.Manager).toContain("warehouses:manage");
   });
 
-  it("POS_Seller solo recibe pos:sell y products:read (si existen en el catálogo)", () => {
+  it("Seller solo recibe pos:sell y products:read (si existen en el catálogo)", () => {
     const result = resolveRolePermissionCodes(catalog);
-    expect(result.POS_Seller.sort()).toEqual(["pos:sell", "products:read"]);
+    expect(result.Seller.sort()).toEqual(["pos:sell", "products:read"]);
   });
 
   it("Viewer recibe solo codes que terminan en :read", () => {
@@ -80,9 +80,9 @@ describe("resolveRolePermissionCodes", () => {
   describe("permisos de inventario (F3-DB-05)", () => {
     const CODES = ["inventory:read", "inventory:movement", "inventory:manage"];
 
-    it("TenantAdmin recibe los tres", () => {
+    it("Admin recibe los tres", () => {
       const result = resolveRolePermissionCodes(CODES);
-      expect(result.TenantAdmin).toEqual(expect.arrayContaining(CODES));
+      expect(result.Admin).toEqual(expect.arrayContaining(CODES));
     });
 
     it("Manager mueve inventario pero NO aprueba conteos ni cancela traspasos", () => {
@@ -100,10 +100,10 @@ describe("resolveRolePermissionCodes", () => {
       expect(result.Viewer).toEqual(["inventory:read"]);
     });
 
-    it("POS_Seller no recibe ninguno: F4 decide qué necesita el POS", () => {
+    it("Seller no recibe ninguno: F4 decide qué necesita el POS", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.POS_Seller).toEqual([]);
+      expect(result.Seller).toEqual([]);
     });
   });
 
@@ -114,14 +114,14 @@ describe("resolveRolePermissionCodes", () => {
    * `MANAGER_EXCLUDED_CODES`: dar de alta un corte de pelo o cambiarle el
    * precio es tarea diaria, y nada de eso reescribe historia.
    *
-   * La excepción real está en POS_Seller: es el ÚNICO set explícito, y sin
+   * La excepción real está en Seller: es el ÚNICO set explícito, y sin
    * `services:read` el vendedor no tendría qué vender cuando llegue F4.
    */
   describe("permisos de servicios (F3-SVC-02)", () => {
     const CODES = ["services:read", "services:manage"];
 
-    it("TenantAdmin recibe los dos", () => {
-      expect(resolveRolePermissionCodes(CODES).TenantAdmin).toEqual(expect.arrayContaining(CODES));
+    it("Admin recibe los dos", () => {
+      expect(resolveRolePermissionCodes(CODES).Admin).toEqual(expect.arrayContaining(CODES));
     });
 
     it("Manager también los dos: gestionar servicios es tarea diaria", () => {
@@ -132,12 +132,12 @@ describe("resolveRolePermissionCodes", () => {
       expect(resolveRolePermissionCodes(CODES).Viewer).toEqual(["services:read"]);
     });
 
-    it("POS_Seller LEE servicios: en F4 los vende, y sin leerlos no hay qué vender", () => {
+    it("Seller LEE servicios: en F4 los vende, y sin leerlos no hay qué vender", () => {
       const result = resolveRolePermissionCodes(CODES);
 
-      expect(result.POS_Seller).toEqual(["services:read"]);
+      expect(result.Seller).toEqual(["services:read"]);
       // Pero no los administra: cambiar un precio no es tarea de mostrador.
-      expect(result.POS_Seller).not.toContain("services:manage");
+      expect(result.Seller).not.toContain("services:manage");
     });
   });
 
@@ -150,8 +150,8 @@ describe("resolveRolePermissionCodes", () => {
   describe("permisos del punto de venta (F4-DB-03)", () => {
     const CODES = ["pos:sell", "pos:quote", "pos:view"];
 
-    it("TenantAdmin recibe los tres", () => {
-      expect(resolveRolePermissionCodes(CODES).TenantAdmin.sort()).toEqual([
+    it("Admin recibe los tres", () => {
+      expect(resolveRolePermissionCodes(CODES).Admin.sort()).toEqual([
         "pos:quote",
         "pos:sell",
         "pos:view",
@@ -166,8 +166,8 @@ describe("resolveRolePermissionCodes", () => {
       ]);
     });
 
-    it("POS_Seller recibe los tres: vende, cotiza y reimprime", () => {
-      expect(resolveRolePermissionCodes(CODES).POS_Seller.sort()).toEqual([
+    it("Seller recibe los tres: vende, cotiza y reimprime", () => {
+      expect(resolveRolePermissionCodes(CODES).Seller.sort()).toEqual([
         "pos:quote",
         "pos:sell",
         "pos:view",
@@ -198,9 +198,9 @@ describe("resolveRolePermissionCodes", () => {
     it("`pos:quote` es independiente de `pos:sell`: se puede cotizar sin cobrar", () => {
       const soloCotizar = resolveRolePermissionCodes(["pos:quote"]);
 
-      expect(soloCotizar.TenantAdmin).toEqual(["pos:quote"]);
-      expect(soloCotizar.POS_Seller).toEqual(["pos:quote"]);
-      expect(soloCotizar.POS_Seller).not.toContain("pos:sell");
+      expect(soloCotizar.Admin).toEqual(["pos:quote"]);
+      expect(soloCotizar.Seller).toEqual(["pos:quote"]);
+      expect(soloCotizar.Seller).not.toContain("pos:sell");
     });
   });
 });

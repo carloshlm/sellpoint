@@ -60,7 +60,7 @@ export class WarehouseScopeService {
       // F3-HOME-01: encoger el alcance por debajo del almacén ASIGNADO da 409
       // EXPLÍCITO y no lo limpia solo. En F4 el turno de caja depende del
       // asignado: limpiarlo por atrás dejaría al vendedor varado a mitad de
-      // turno sin ninguna explicación. Que el TenantAdmin decida primero.
+      // turno sin ninguna explicación. Que el Admin decida primero.
       if (warehouseIds.length > 0) {
         const usuario = await tx.user.findFirst({
           where: { id: userId, tenantId: actor.tenantId },

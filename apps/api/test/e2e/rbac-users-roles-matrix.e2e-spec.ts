@@ -27,7 +27,7 @@ const PASSWORD = "twelve-characters";
  * (10 codes, prisma/seed.ts) que en CI/prod (4 codes, migración de
  * F1-RBAC-01/02) sin tocar el test.
  *
- * Los tokens de Manager/POS_Seller/Viewer se firman directo con
+ * Los tokens de Manager/Seller/Viewer se firman directo con
  * `TokenService` (mismo patrón que `rbac-permissions.e2e-spec.ts`) — no
  * hace falta loguear de verdad: `PermissionsGuard` solo mira los claims
  * `permissions` del JWT ya verificado, y `JwtAuthGuard` no exige que el
@@ -237,13 +237,13 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
     },
   );
 
-  it("solo TenantAdmin (el único con users:manage en el catálogo mínimo) puede suspender/reactivar", async () => {
-    const canManageUsers = permissionsByRole.TenantAdmin.includes("users:manage");
+  it("solo Admin (el único con users:manage en el catálogo mínimo) puede suspender/reactivar", async () => {
+    const canManageUsers = permissionsByRole.Admin.includes("users:manage");
     expect(canManageUsers).toBe(true);
 
     const suspend = await request(app.getHttpServer())
       .post(`/users/${targetUserId}/suspend`)
-      .set("Authorization", bearer(roleTokens.TenantAdmin));
+      .set("Authorization", bearer(roleTokens.Admin));
     expect(suspend.status).toBe(200);
 
     const forbiddenRole = permissionsByRole.Viewer.includes("users:manage") ? "Manager" : "Viewer";
@@ -254,7 +254,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
 
     const reactivate = await request(app.getHttpServer())
       .post(`/users/${targetUserId}/reactivate`)
-      .set("Authorization", bearer(roleTokens.TenantAdmin));
+      .set("Authorization", bearer(roleTokens.Admin));
     expect(reactivate.status).toBe(200);
   });
 

@@ -583,7 +583,7 @@ describe("Reporte de stock (F5-STK)", () => {
       expect((await cargarXlsx(response.body as Buffer)).name).toBe("Stock");
     });
 
-    it("un POS_Seller no puede exportar lo que no puede ver", async () => {
+    it("un Seller no puede exportar lo que no puede ver", async () => {
       const vendedor = tokenService.signAccessToken({
         sub: randomUUID(),
         tenantId,

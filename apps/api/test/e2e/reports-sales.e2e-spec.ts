@@ -468,7 +468,7 @@ describe("Reporte de ventas (F5-SALES)", () => {
       expect(rows).toHaveLength(2);
     });
 
-    it("un POS_Seller no puede exportar lo que no puede ver", async () => {
+    it("un Seller no puede exportar lo que no puede ver", async () => {
       const vendedor = tokenService.signAccessToken({
         sub: randomUUID(),
         tenantId,

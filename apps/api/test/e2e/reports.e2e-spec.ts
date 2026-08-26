@@ -115,9 +115,9 @@ describe("Reportes: la puerta de reports:read (F5-CORE-03)", () => {
    * en verde sin haber probado NINGÚN 403. Esto fija la matriz que la
    * atomización de F5 decidió.
    */
-  it("POS_Seller NO tiene reports:read y los otros tres SÍ", () => {
-    expect(permissionsByRole.POS_Seller).not.toContain("reports:read");
-    expect(permissionsByRole.TenantAdmin).toContain("reports:read");
+  it("Seller NO tiene reports:read y los otros tres SÍ", () => {
+    expect(permissionsByRole.Seller).not.toContain("reports:read");
+    expect(permissionsByRole.Admin).toContain("reports:read");
     expect(permissionsByRole.Manager).toContain("reports:read");
     expect(permissionsByRole.Viewer).toContain("reports:read");
   });

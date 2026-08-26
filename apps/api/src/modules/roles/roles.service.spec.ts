@@ -6,7 +6,7 @@ import type { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RolesService } from "./roles.service";
 
-// TenantAdmin-like: sostiene los 4 codes del catálogo mínimo. Los tests de
+// Admin-like: sostiene los 4 codes del catálogo mínimo. Los tests de
 // mecánica (create/update/remove/list) usan este actor a propósito —
 // cualquier actor que YA posee todo lo que otorga nunca puede activar el
 // guard W1 (escalada). Los tests DEDICADOS a W1 usan LIMITED_USER (abajo).
@@ -126,7 +126,7 @@ describe("RolesService.create (F1-RBAC-04)", () => {
     tx.role.create.mockRejectedValueOnce(uniqueViolation());
 
     await expect(
-      service.create(CURRENT_USER, { name: "TenantAdmin", permissionCodes: [] }, {}),
+      service.create(CURRENT_USER, { name: "Admin", permissionCodes: [] }, {}),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -324,7 +324,7 @@ describe("RolesService.update — W2 hardening (verify #274): protege al último
   function withExistingAdminRole(tx: ReturnType<typeof buildService>["tx"]) {
     tx.role.findFirst.mockResolvedValue({
       id: "role-1",
-      name: "TenantAdmin",
+      name: "Admin",
       permissions: [
         { permission: { code: "roles:manage" } },
         { permission: { code: "users:manage" } },
@@ -332,7 +332,7 @@ describe("RolesService.update — W2 hardening (verify #274): protege al último
         { permission: { code: "users:read" } },
       ],
     });
-    tx.role.update.mockResolvedValue({ id: "role-1", name: "TenantAdmin" });
+    tx.role.update.mockResolvedValue({ id: "role-1", name: "Admin" });
     tx.userRole.count.mockResolvedValue(1);
   }
 
@@ -439,9 +439,9 @@ describe("RolesService.remove (F1-RBAC-04)", () => {
   // userCount===0 (ACTIVO o no), y un rol admin sin ningún usuario asignado
   // nunca estaba cubriendo la invariante para empezar (0 usuarios activos
   // en ese rol). Documentado acá para que quede explícito, no implícito.
-  it("W2: el único rol TenantAdmin CON su usuario -> 409 role_in_use, nunca llega a borrarse", async () => {
+  it("W2: el único rol Admin CON su usuario -> 409 role_in_use, nunca llega a borrarse", async () => {
     const { service, tx } = buildService();
-    tx.role.findFirst.mockResolvedValue({ id: "role-1", name: "TenantAdmin" });
+    tx.role.findFirst.mockResolvedValue({ id: "role-1", name: "Admin" });
     tx.userRole.count.mockResolvedValue(1);
 
     await expect(service.remove(CURRENT_USER, "role-1", {})).rejects.toMatchObject({
@@ -457,7 +457,7 @@ describe("RolesService.list (F1-RBAC-05 helper reusado por el editor de roles)",
     tx.role.findMany.mockResolvedValue([
       {
         id: "role-1",
-        name: "TenantAdmin",
+        name: "Admin",
         permissions: [{ permission: { code: "users:manage" } }],
         users: [{ userId: "u1" }, { userId: "u2" }],
       },
@@ -466,7 +466,7 @@ describe("RolesService.list (F1-RBAC-05 helper reusado por el editor de roles)",
     const result = await service.list(CURRENT_USER);
 
     expect(result).toEqual([
-      { id: "role-1", name: "TenantAdmin", permissionCodes: ["users:manage"], userCount: 2 },
+      { id: "role-1", name: "Admin", permissionCodes: ["users:manage"], userCount: 2 },
     ]);
   });
 });

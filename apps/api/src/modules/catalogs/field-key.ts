@@ -17,7 +17,7 @@ const MAX_KEY_LENGTH = 63;
  * `attributes`.
  *
  * Se normaliza a ASCII (`NFD` + quitar diacríticos) por una razón concreta:
- * sin eso, "Código" y "Codigo" darían keys distintas y el TenantAdmin
+ * sin eso, "Código" y "Codigo" darían keys distintas y el Admin
  * terminaría con dos campos que para él son el mismo. Que ambas colapsen a la
  * misma key es lo que hace que el 409 de duplicado sea correcto y no molesto.
  *

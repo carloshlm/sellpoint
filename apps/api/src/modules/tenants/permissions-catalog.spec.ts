@@ -7,7 +7,7 @@ import * as path from "node:path";
  * ── El agujero que cierra, con nombre y fecha ────────────────────────────
  *
  * El 2026-08-21 el e2e del turno de caja pasó en local y **falló entero en CI
- * con 403**: el TenantAdmin recién registrado no tenía `pos:sell`. En local
+ * con 403**: el Admin recién registrado no tenía `pos:sell`. En local
  * andaba porque la base de desarrollo se había sembrado alguna vez; CI
  * construye la base solo con migraciones — que es exactamente lo que hace
  * producción.

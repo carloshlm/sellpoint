@@ -38,13 +38,13 @@ const READ_CODES = ALL_CODES.filter((c) => c.endsWith(":read"));
 
 // Roles base que se seedean POR tenant
 const ROLES: Record<string, readonly PermissionCode[]> = {
-  TenantAdmin: ALL_CODES,
+  Admin: ALL_CODES,
   // F1-WEB-ONBOARD-01 (D4 del design): tenants:manage tampoco es tarea de
   // Manager, mismo criterio que users:manage/roles:manage.
   Manager: ALL_CODES.filter(
     (c) => c !== "users:manage" && c !== "roles:manage" && c !== "tenants:manage",
   ),
-  POS_Seller: ["pos:sell", "products:read"],
+  Seller: ["pos:sell", "products:read"],
   Viewer: READ_CODES,
 };
 
@@ -133,14 +133,14 @@ async function main() {
       });
 
   const adminRole = await prisma.role.findUniqueOrThrow({
-    where: { tenantId_name: { tenantId: tenant.id, name: "TenantAdmin" } },
+    where: { tenantId_name: { tenantId: tenant.id, name: "Admin" } },
   });
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
     update: {},
     create: { userId: admin.id, roleId: adminRole.id },
   });
-  console.log(`✓ admin ${admin.email} con rol TenantAdmin`);
+  console.log(`✓ admin ${admin.email} con rol Admin`);
 
   // F3-HOME-03: el tenant demo estaba `onboarded: true` SIN un solo almacén —
   // un estado que ningún tenant real puede alcanzar desde que `provision()`

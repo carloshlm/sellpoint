@@ -284,12 +284,12 @@ describe("UsersAdminService.resendInvitation — gap S1", () => {
 });
 
 describe("UsersAdminService.create — W1b hardening (verify #274 pasada 2): escalada por asignación de roles", () => {
-  it("ACTOR (SOLO users:manage, SIN roles:manage) no puede crear un user con un rol TenantAdmin -> 403, no crea nada", async () => {
+  it("ACTOR (SOLO users:manage, SIN roles:manage) no puede crear un user con un rol Admin -> 403, no crea nada", async () => {
     const { service, tx } = buildService();
     tx.role.findMany.mockResolvedValueOnce([
       {
         id: "role-admin",
-        name: "TenantAdmin",
+        name: "Admin",
         permissions: [
           { permission: { code: "roles:manage" } },
           { permission: { code: "users:manage" } },
@@ -407,7 +407,7 @@ describe("UsersAdminService.update — W2 hardening (verify #274): protege al ú
 });
 
 describe("UsersAdminService.update — W1b hardening (verify #274 pasada 2): escalada por asignación de roles", () => {
-  it("repro EXACTO del verify: ACTOR con users:manage (SIN roles:manage) no puede auto-asignarse un rol TenantAdmin -> 403, sin mutar", async () => {
+  it("repro EXACTO del verify: ACTOR con users:manage (SIN roles:manage) no puede auto-asignarse un rol Admin -> 403, sin mutar", async () => {
     const { service, tx, permEpochService } = buildService();
     tx.user.findFirst.mockResolvedValue({
       id: ACTOR.userId,
@@ -417,7 +417,7 @@ describe("UsersAdminService.update — W1b hardening (verify #274 pasada 2): esc
     tx.role.findMany.mockResolvedValueOnce([
       {
         id: "role-admin",
-        name: "TenantAdmin",
+        name: "Admin",
         permissions: [
           { permission: { code: "roles:manage" } },
           { permission: { code: "users:manage" } },
@@ -569,7 +569,7 @@ describe("UsersAdminService.suspend — W2 hardening (verify #274): protege al �
       lastNameMaternal: null,
       status: "active",
       locale: "es",
-      roles: [{ role: { id: "role-1", name: "TenantAdmin" } }],
+      roles: [{ role: { id: "role-1", name: "Admin" } }],
     });
     // Post-mutación (simulada, actor DISTINTO al target): sin este admin
     // activo, el tenant se queda sin nadie que administre roles/usuarios.
@@ -599,7 +599,7 @@ describe("UsersAdminService.suspend — W2 hardening (verify #274): protege al �
       lastNameMaternal: null,
       status: "active",
       locale: "es",
-      roles: [{ role: { id: "role-1", name: "TenantAdmin" } }],
+      roles: [{ role: { id: "role-1", name: "Admin" } }],
     });
     tx.user.update.mockResolvedValue({
       id: "user-2",

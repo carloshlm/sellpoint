@@ -44,7 +44,7 @@ describe("WarehouseScopeInterceptor (remediación CRITICAL C1/C2, verify-report 
     expect(prisma.withTenantContext).not.toHaveBeenCalled();
   });
 
-  it("TenantAdmin (roles:manage + users:manage) verificado: bypass total, req.scope = 'all', SIN consultar la DB", async () => {
+  it("Admin (roles:manage + users:manage) verificado: bypass total, req.scope = 'all', SIN consultar la DB", async () => {
     const prisma = buildPrismaMock();
     const interceptor = new WarehouseScopeInterceptor(prisma as never);
     const req: Record<string, unknown> = {
@@ -74,7 +74,7 @@ describe("WarehouseScopeInterceptor (remediación CRITICAL C1/C2, verify-report 
   });
 
   it("solo un permiso de gestión (Manager): NO hace bypass, filtra por DB", async () => {
-    // El bypass exige LOS DOS codes de TenantAdmin. Con uno solo, el scope
+    // El bypass exige LOS DOS codes de Admin. Con uno solo, el scope
     // sale de la DB — se le asignan filas justamente para distinguir "filtró
     // por DB" de "hizo bypass": ambos casos sin filas darían "all" desde
     // F2-SCOPE-01 y el test no probaría nada.

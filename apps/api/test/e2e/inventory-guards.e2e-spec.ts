@@ -411,7 +411,7 @@ describe("Guardas de integridad (F3-GUARDS)", () => {
         .set(auth())
         .expect(200);
 
-      // Con alcance en UN almacén ve 2; el TenantAdmin, que ve todo, ve 4.
+      // Con alcance en UN almacén ve 2; el Admin, que ve todo, ve 4.
       expect((conAlcance.body as { units: number }).units).toBe(2);
       expect((sinAlcance.body as { units: number }).units).toBe(4);
     });

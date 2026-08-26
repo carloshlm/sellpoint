@@ -170,7 +170,7 @@ describe("Exports directos (F5-CAT)", () => {
 
       expect(rows[0]).toEqual(["Nombre", "Correo", "Roles", "Almacenes", "Estado"]);
       const ana = rows.find((r) => r[0]?.includes("Ana"));
-      expect(ana?.[2]).toContain("TenantAdmin");
+      expect(ana?.[2]).toContain("Admin");
       expect(ana?.[4]).toBe("Activo");
       // Sin alcance asignado NO es «ninguno», es «todos»: una celda vacía se
       // leería al revés y haría pensar que esta persona no puede operar en
@@ -206,7 +206,7 @@ describe("Exports directos (F5-CAT)", () => {
       );
     });
 
-    it("un POS_Seller no puede bajarlo", async () => {
+    it("un Seller no puede bajarlo", async () => {
       const vendedor = tokenService.signAccessToken({
         sub: randomUUID(),
         tenantId,
@@ -353,7 +353,7 @@ describe("Exports directos (F5-CAT)", () => {
       expect((await celdas(reporte.body as Buffer)).rows).toHaveLength(1);
     });
 
-    it("un POS_Seller no puede bajar el catálogo", async () => {
+    it("un Seller no puede bajar el catálogo", async () => {
       const vendedor = tokenService.signAccessToken({
         sub: randomUUID(),
         tenantId,

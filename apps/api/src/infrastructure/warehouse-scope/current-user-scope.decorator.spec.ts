@@ -17,7 +17,7 @@ describe("currentUserScopeFactory — @CurrentUserScope() (F1-SCOPE-04)", () => 
     expect(currentUserScopeFactory(undefined, ctx)).toEqual(scope);
   });
 
-  it("TenantAdmin: devuelve warehouseIds: 'all'", () => {
+  it("Admin: devuelve warehouseIds: 'all'", () => {
     const ctx = contextWithRequest({ scope: { warehouseIds: "all" } });
 
     expect(currentUserScopeFactory(undefined, ctx)).toEqual({ warehouseIds: "all" });

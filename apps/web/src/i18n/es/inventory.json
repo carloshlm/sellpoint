@@ -224,7 +224,7 @@
     "summaryDiscrepancies": "Discrepancias",
     "summarySkipped": "Omitidos",
     "summaryNewLots": "Lotes nuevos",
-    "needsManage": "Un TenantAdmin debe aprobar este conteo. El borrador queda guardado con su folio, esperándolo.",
+    "needsManage": "Un Admin debe aprobar este conteo. El borrador queda guardado con su folio, esperándolo.",
     "drifted": "{{count}} líneas cambiaron de saldo entre el conteo y la aprobación. Se aplicó lo contado.",
     "drifted_one": "{{count}} línea cambió de saldo entre el conteo y la aprobación. Se aplicó lo contado.",
     "importFailed": "No se pudo leer el archivo. Verifica que sea la plantilla descargada."

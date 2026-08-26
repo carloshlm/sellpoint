@@ -516,6 +516,80 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
     });
   });
 
+  /**
+   * Data migration del rename de roles (Carlos, 2026-08-26):
+   * TenantAdmin -> Admin y POS_Seller -> Seller para tenants ya
+   * provisionados. Mismo molde de replay que las otras: el SQL REAL, dos
+   * veces. La guarda NOT EXISTS respeta a un tenant que ya creó su propio
+   * "Admin": su rol inicial conserva el nombre viejo en vez de chocar con
+   * el unique(tenant_id, name).
+   */
+  describe("Data migration: los roles iniciales se renombran (2026-08-26)", () => {
+    async function replayRename() {
+      const adminConnectionString = process.env.DATABASE_URL_ADMIN ?? process.env.DATABASE_URL;
+      if (!adminConnectionString) {
+        throw new Error("Falta DATABASE_URL_ADMIN (o DATABASE_URL) para replayar la migración");
+      }
+      const adminPrisma = new PrismaClient({
+        adapter: new PrismaPg({ connectionString: adminConnectionString }),
+      });
+      try {
+        const migrationSql = readFileSync(
+          join(
+            __dirname,
+            "../../prisma/migrations/20260826050000_rename_initial_roles/migration.sql",
+          ),
+          "utf-8",
+        );
+        const statements = migrationSql
+          .split("\n")
+          .filter((line) => !line.trim().startsWith("--"))
+          .join("\n")
+          .split(";")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        for (const statement of statements) {
+          await adminPrisma.$executeRawUnsafe(statement);
+        }
+        for (const statement of statements) {
+          await adminPrisma.$executeRawUnsafe(statement);
+        }
+      } finally {
+        await adminPrisma.$disconnect();
+      }
+    }
+
+    it("renombra los roles viejos al replay del SQL real, idempotente", async () => {
+      const tenant = await prisma.tenant.create({ data: { name: `Legacy roles ${randomUUID()}` } });
+      await prisma.withTenantContext(tenant.id, async (tx) => {
+        await tx.role.create({ data: { tenantId: tenant.id, name: "TenantAdmin" } });
+        await tx.role.create({ data: { tenantId: tenant.id, name: "POS_Seller" } });
+      });
+
+      await replayRename();
+
+      const nombres = await prisma.withTenantContext(tenant.id, (tx) =>
+        tx.role.findMany({ where: { tenantId: tenant.id }, select: { name: true } }),
+      );
+      expect(nombres.map((r) => r.name).sort()).toEqual(["Admin", "Seller"]);
+    });
+
+    it("un tenant que YA tenía su propio rol «Admin» no choca: el inicial conserva el nombre viejo", async () => {
+      const tenant = await prisma.tenant.create({ data: { name: `Conflicto ${randomUUID()}` } });
+      await prisma.withTenantContext(tenant.id, async (tx) => {
+        await tx.role.create({ data: { tenantId: tenant.id, name: "TenantAdmin" } });
+        await tx.role.create({ data: { tenantId: tenant.id, name: "Admin" } });
+      });
+
+      await replayRename();
+
+      const nombres = await prisma.withTenantContext(tenant.id, (tx) =>
+        tx.role.findMany({ where: { tenantId: tenant.id }, select: { name: true } }),
+      );
+      expect(nombres.map((r) => r.name).sort()).toEqual(["Admin", "TenantAdmin"]);
+    });
+  });
+
   // 01.11/01.12: la data migration otorga `tenants:manage` a TenantAdmin de
   // tenants YA EXISTENTES (creados antes de que la migración corriera), sin
   // duplicar el grant. Se simula el estado "pre-migración" a mano (un tenant

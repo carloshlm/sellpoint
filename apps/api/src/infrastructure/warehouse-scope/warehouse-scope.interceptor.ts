@@ -40,7 +40,7 @@ type ScopedRequest = Request & RequestWithScope & { user?: AuthUser };
  *     scope, no se toca la DB, `getScope()` degrada fail-closed a `[]`;
  *   - en una ruta protegida, si el token no verifica, `JwtAuthGuard` ya
  *     lanzó 401 antes de que este interceptor exista;
- *   - el bypass de TenantAdmin (`TENANT_ADMIN_PERMISSION_CODES`) se evalúa
+ *   - el bypass de Admin (`TENANT_ADMIN_PERMISSION_CODES`) se evalúa
  *     solo sobre `permissions` ya verificados;
  *   - el trabajo de DB queda después del throttler -> restaura AD-7.
  *
@@ -52,7 +52,7 @@ type ScopedRequest = Request & RequestWithScope & { user?: AuthUser };
  * forjados y revive el vector cross-tenant que motivó el cambio. Cualquier
  * escritura nueva a `request.user` exige revisar este archivo.
  *
- * Criterio de bypass ("TenantAdmin ve todo"): reutiliza
+ * Criterio de bypass ("Admin ve todo"): reutiliza
  * `TENANT_ADMIN_PERMISSION_CODES` (`roles:manage` + `users:manage`) — la
  * MISMA invariante que `assertTenantRetainsAdmin` usa para "quién administra
  * el tenant" (f1-rbac, `tenant-admin-guard.ts`). Más robusto que el nombre
@@ -77,11 +77,9 @@ export class WarehouseScopeInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const isTenantAdmin = TENANT_ADMIN_PERMISSION_CODES.every((code) =>
-      user.permissions.includes(code),
-    );
+    const isAdmin = TENANT_ADMIN_PERMISSION_CODES.every((code) => user.permissions.includes(code));
 
-    if (isTenantAdmin) {
+    if (isAdmin) {
       req.scope = { warehouseIds: "all" };
       return next.handle();
     }
