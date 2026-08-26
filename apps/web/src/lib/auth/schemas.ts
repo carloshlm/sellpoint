@@ -15,6 +15,19 @@ export const passwordSchema = z.string().min(12, "validation.passwordMin");
 
 const requiredString = z.string().trim().min(1, "validation.required");
 
+/**
+ * "Tus datos" editable (2026-08-26): mismos requeridos del registro (nombre y
+ * apellido paterno); el materno es opcional y vacío significa "sin apellido
+ * materno" (viaja como null). El email NO está: no se edita por acá.
+ */
+export const profileDetailsSchema = z.object({
+  firstName: requiredString,
+  lastNamePaternal: requiredString,
+  lastNameMaternal: z.string(),
+});
+
+export type ProfileDetailsValues = z.infer<typeof profileDetailsSchema>;
+
 const emailSchema = z
   .string()
   .trim()

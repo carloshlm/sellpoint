@@ -62,17 +62,18 @@ describe("UsersController.me (GET /me, F1-WEB-AUTH bootstrap)", () => {
   });
 });
 
-describe("UsersController.updateMe (PATCH /me, F1-LOCALE-05)", () => {
-  it("delega en UsersService.updateLocale con el user del JWT y la meta de la request", async () => {
+describe("UsersController.updateMe (PATCH /me)", () => {
+  it("delega en UsersService.updateMe con el dto completo, el user del JWT y la meta", async () => {
     const usersService = {
-      updateLocale: jest.fn().mockResolvedValue(UPDATED),
+      updateMe: jest.fn().mockResolvedValue(UPDATED),
     } as unknown as UsersService;
     const controller = new UsersController(usersService);
 
     const request = { ip: "1.2.3.4", headers: { "user-agent": "jest" } } as never;
-    const result = await controller.updateMe({ locale: "en" }, CURRENT_USER, request);
+    const dto = { locale: "en" as const, firstName: "Ana María" };
+    const result = await controller.updateMe(dto, CURRENT_USER, request);
 
-    expect(usersService.updateLocale).toHaveBeenCalledWith(CURRENT_USER, "en", {
+    expect(usersService.updateMe).toHaveBeenCalledWith(CURRENT_USER, dto, {
       ip: "1.2.3.4",
       userAgent: "jest",
     });

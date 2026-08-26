@@ -62,9 +62,13 @@
     "title": "My profile",
     "details": {
       "title": "Your details",
-      "name": "Name",
+      "firstName": "First name",
+      "lastNamePaternal": "Paternal last name",
+      "lastNameMaternal": "Maternal last name (optional)",
       "email": "Email",
-      "language": "Language"
+      "language": "Language",
+      "emailHint": "Your email is your sign-in identity and cannot be changed.",
+      "success": "Your details were saved."
     },
     "business": {
       "title": "Business details",
@@ -77,6 +81,7 @@
       "phoneCountry": "Country code",
       "phoneCountryPlaceholder": "Choose a country",
       "country": "Country",
+      "countryHint": "It was chosen when setting up your business and cannot be changed.",
       "timezone": "Time zone",
       "timezonePlaceholder": "Choose a time zone",
       "currency": "Currency",

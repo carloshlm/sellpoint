@@ -5,7 +5,7 @@ import {
   ISO_COUNTRY_CODES,
   splitE164,
 } from "@sellpoint/shared";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { SelectField } from "@/components/form/select-field";
@@ -77,13 +77,10 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     register,
     handleSubmit,
     reset,
-    watch,
-    setValue,
     formState: { errors, isDirty, dirtyFields },
   } = useForm<BusinessDetailsValues>({
     resolver: zodResolver(businessDetailsSchema),
     defaultValues: {
-      country: user.tenant.country ?? "",
       name: user.tenant.name,
       legalName: user.tenant.legalName ?? "",
       taxId: user.tenant.taxId ?? "",
@@ -105,45 +102,27 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
   }, [i18n.language]);
 
-  // El select de País del NEGOCIO muestra solo el nombre — el dial code es
-  // asunto del teléfono, no del domicilio fiscal.
-  const businessCountryOptions = useMemo(() => {
+  // El país NO se edita (Carlos, 2026-08-26, segunda pasada): quedó fijo el
+  // mismo día que nació editable — los impuestos por país del roadmap
+  // dependerán de él, el mismo criterio que congeló la moneda. Solo se
+  // muestra su nombre en el locale del usuario.
+  const country = user.tenant.country ?? "";
+  const countryName = useMemo(() => {
+    if (country === "") {
+      return "";
+    }
     const displayNames = new Intl.DisplayNames([i18n.language], { type: "region" });
-    return [...ISO_COUNTRY_CODES]
-      .map((code) => ({ value: code, label: displayNames.of(code) ?? code }))
-      .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
-  }, [i18n.language]);
+    return displayNames.of(country) ?? country;
+  }, [country, i18n.language]);
 
   // Mismo criterio del wizard (step-business): zonas curadas con etiqueta
-  // i18n; el resto del mundo con su identificador IANA crudo.
-  const country = watch("country");
+  // i18n; el resto del mundo con su identificador IANA crudo. Con el país
+  // fijo, la lista tampoco cambia.
   const curatedZones = getCuratedTimezones(country);
   const countryZones = country ? resolveCountryTimezones(country) : undefined;
   const timezoneOptions = curatedZones
     ? curatedZones.map((tz) => ({ value: tz, label: t(`onboarding.step1.timezoneOptions.${tz}`) }))
     : (countryZones ?? ALL_TIMEZONES).map((tz) => ({ value: tz, label: tz }));
-
-  // Cambiar el país no deja una zona AJENA en silencio (contrato del wizard):
-  // única zona → se auto-selecciona; varias → se vacía y el guardado exige
-  // elegir. Sin heurística de navegador: acá ya hay un dato guardado y la
-  // corrección es del usuario, no una adivinanza. `shouldDirty` para que la
-  // zona derivada viaje en el PATCH junto con el país.
-  const previousCountryRef = useRef(user.tenant.country ?? "");
-  useEffect(() => {
-    if (country === previousCountryRef.current) {
-      return;
-    }
-    previousCountryRef.current = country;
-    const zones = country ? resolveCountryTimezones(country) : undefined;
-    const currentTimezone = watch("timezone");
-    if (zones ? !zones.includes(currentTimezone) : !ALL_TIMEZONES.includes(currentTimezone)) {
-      setValue("timezone", zones?.length === 1 ? (zones.at(0) ?? "") : "", {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    }
-    // `watch`/`setValue` son referencias estables de react-hook-form.
-  }, [country, watch, setValue]);
 
   if (!user.permissions.includes("tenants:manage")) {
     return null;
@@ -154,7 +133,6 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     setSucceeded(false);
 
     const patch: UpdateTenantInput = {};
-    if (dirtyFields.country) patch.country = values.country;
     if (dirtyFields.timezone) patch.timezone = values.timezone;
     if (dirtyFields.name) patch.name = values.name.trim();
     if (dirtyFields.legalName) patch.legalName = values.legalName.trim();
@@ -220,12 +198,17 @@ function BusinessDetails({ user }: { user: AuthUser }) {
               {t("common.profile.business.success")}
             </p>
           )}
-          <SelectField
-            label={t("common.profile.business.country")}
-            options={businessCountryOptions}
-            error={errors.country?.message ? t(errors.country.message) : undefined}
-            {...register("country")}
-          />
+          {/* El país quedó FIJO: los impuestos por país dependerán de él,
+              mismo criterio que la moneda. */}
+          <div className="flex flex-col gap-2">
+            <Label>{t("common.profile.business.country")}</Label>
+            <p data-testid="business-country" className="text-sm">
+              {countryName}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("common.profile.business.countryHint")}
+            </p>
+          </div>
           <TextField
             label={t("common.profile.business.name")}
             autoComplete="organization"

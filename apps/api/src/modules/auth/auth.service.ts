@@ -302,6 +302,8 @@ export class AuthService implements OnModuleInit {
           id: user.id,
           email: user.email,
           firstName: user.firstName,
+          lastNamePaternal: user.lastNamePaternal,
+          lastNameMaternal: user.lastNameMaternal,
           locale,
           permissions,
           tenant: toTenantBlock(tenantRow),
@@ -816,6 +818,8 @@ export interface LoginResult {
     id: string;
     email: string;
     firstName: string;
+    lastNamePaternal: string;
+    lastNameMaternal: string | null;
     locale: "es" | "en";
     permissions: string[];
     // A1 del design de f1-web-onboard: MISMO shape que `MeProfile.tenant`

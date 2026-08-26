@@ -62,9 +62,13 @@
     "title": "Mi perfil",
     "details": {
       "title": "Tus datos",
-      "name": "Nombre",
+      "firstName": "Nombre",
+      "lastNamePaternal": "Apellido paterno",
+      "lastNameMaternal": "Apellido materno (opcional)",
       "email": "Email",
-      "language": "Idioma"
+      "language": "Idioma",
+      "emailHint": "El correo es tu identidad de acceso y no puede cambiarse.",
+      "success": "Tus datos quedaron guardados."
     },
     "business": {
       "title": "Datos del negocio",
@@ -77,6 +81,7 @@
       "phoneCountry": "Código de país",
       "phoneCountryPlaceholder": "Elige un país",
       "country": "País",
+      "countryHint": "Se eligió al configurar tu negocio y no puede cambiarse.",
       "timezone": "Zona horaria",
       "timezonePlaceholder": "Elige una zona horaria",
       "currency": "Moneda",

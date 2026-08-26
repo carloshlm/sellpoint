@@ -14,6 +14,8 @@ export interface AuthUser {
   id: string;
   email: string;
   firstName: string;
+  lastNamePaternal: string;
+  lastNameMaternal: string | null;
   locale: "es" | "en";
   /**
    * F3-HOME-01. El almacén ASIGNADO del usuario: desde dónde opera por

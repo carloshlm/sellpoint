@@ -40,15 +40,14 @@ export type BusinessStepValues = z.infer<typeof businessStepSchema>;
  */
 export const businessDetailsSchema = z
   .object({
-    // País y zona horaria editables desde el perfil (Carlos, 2026-08-26) —
-    // los mismos requeridos del paso 1 del wizard. La moneda NO está acá a
-    // propósito: se muestra pero no se edita (se congela con el primer
-    // movimiento de inventario).
-    country: requiredString,
     name: requiredString,
     legalName: requiredString,
     taxId: requiredString,
     address: requiredString,
+    // Zona horaria editable (Carlos, 2026-08-26): los negocios se mudan
+    // dentro de su país. El PAÍS no está a propósito — quedó fijo el mismo
+    // día que nació editable: los impuestos por país del roadmap dependerán
+    // de él (mismo criterio que congeló la moneda).
     timezone: requiredString,
     phoneCountry: z.string(),
     phoneNumber: z.string(),

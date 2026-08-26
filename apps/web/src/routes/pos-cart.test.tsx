@@ -92,6 +92,8 @@ const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
   email: "cajero@demo.test",
   firstName: "Ana",
+  lastNamePaternal: "Pérez",
+  lastNameMaternal: null,
   locale: "es",
   permissions,
   tenant: {

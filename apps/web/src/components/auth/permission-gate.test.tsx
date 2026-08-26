@@ -15,6 +15,8 @@ function user(permissions: string[]): AuthUser {
     id: "u1",
     email: "ana@acme.mx",
     firstName: "Ana",
+    lastNamePaternal: "Pérez",
+    lastNameMaternal: null,
     locale: "es",
     permissions,
     tenant: {

@@ -81,6 +81,8 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
       id: "u1",
       email: "ana@test.com",
       firstName: "Ana",
+      lastNamePaternal: "Pérez",
+      lastNameMaternal: null,
       locale: "es",
       permissions: [],
       tenant: {
@@ -209,6 +211,8 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
       id: "u1",
       email: "ana@test.com",
       firstName: "Ana",
+      lastNamePaternal: "Pérez",
+      lastNameMaternal: null,
       locale: "es",
       permissions: [],
       tenant: {

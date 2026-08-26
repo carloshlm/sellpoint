@@ -116,3 +116,29 @@ export async function updateMyLocale(locale: "es" | "en"): Promise<{ locale: str
   const { data } = await api.patch<{ locale: string }>("/me", { locale });
   return data;
 }
+
+/**
+ * "Tus datos" editable (2026-08-26): nombre y apellidos por el mismo
+ * `PATCH /me`. El email NO viaja — es la identidad de acceso y el backend
+ * lo rechaza. `lastNameMaternal: null` lo borra (es opcional del registro).
+ */
+export interface UpdateMyProfileInput {
+  firstName?: string;
+  lastNamePaternal?: string;
+  lastNameMaternal?: string | null;
+}
+
+export interface MyProfileSummary {
+  id: string;
+  email: string;
+  firstName: string;
+  lastNamePaternal: string;
+  lastNameMaternal: string | null;
+  status: string;
+  locale: string;
+}
+
+export async function updateMyProfile(input: UpdateMyProfileInput): Promise<MyProfileSummary> {
+  const { data } = await api.patch<MyProfileSummary>("/me", input);
+  return data;
+}

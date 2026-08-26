@@ -77,6 +77,8 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         id: true,
         email: true,
         firstName: true,
+        lastNamePaternal: true,
+        lastNameMaternal: true,
         locale: true,
         defaultWarehouseId: true,
       },
@@ -85,6 +87,8 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
       id: "user-1",
       email: "owner@example.com",
       firstName: "Ana",
+      lastNamePaternal: "Pérez",
+      lastNameMaternal: null,
       locale: "es",
       permissions: ["products:read"],
       tenant: {
@@ -121,6 +125,69 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
     const result = await service.getMe(CURRENT_USER);
 
     expect(result).toMatchObject({ locale: "en" });
+  });
+});
+
+/**
+ * "Tus datos" editable (Carlos, 2026-08-26): PATCH /users/me crece a nombre y
+ * apellidos. El email NO: es la identidad de acceso (login + verificación) y
+ * cambiarlo exige su propio flujo con re-verificación.
+ */
+describe("UsersService.updateMe (perfil propio, 2026-08-26)", () => {
+  it("actualiza SOLO los campos presentes en el dto", async () => {
+    const { service, tx } = buildService();
+
+    await service.updateMe(CURRENT_USER, { firstName: "Ana María", lastNameMaternal: "Luna" }, {});
+
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: CURRENT_USER.userId },
+      data: { firstName: "Ana María", lastNameMaternal: "Luna" },
+    });
+  });
+
+  it("lastNameMaternal null lo BORRA (es opcional desde el registro)", async () => {
+    const { service, tx } = buildService();
+
+    await service.updateMe(CURRENT_USER, { lastNameMaternal: null }, {});
+
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: CURRENT_USER.userId },
+      data: { lastNameMaternal: null },
+    });
+  });
+
+  it("audita user.profile.updated con before/after SOLO de los campos tocados", async () => {
+    const { service, auditService } = buildService();
+
+    await service.updateMe(CURRENT_USER, { firstName: "Ana María" }, { ip: "1.2.3.4" });
+
+    expect(auditService.record).toHaveBeenCalledWith(expect.anything(), {
+      tenantId: CURRENT_USER.tenantId,
+      userId: CURRENT_USER.userId,
+      action: "user.profile.updated",
+      resourceType: "user",
+      resourceId: CURRENT_USER.userId,
+      before: { firstName: "Ana" },
+      after: { firstName: "Ana María" },
+      ip: "1.2.3.4",
+      userAgent: undefined,
+    });
+  });
+
+  /** El contrato viejo no se rompe: un PATCH de SOLO locale audita como siempre. */
+  it("con SOLO locale el action sigue siendo user.locale.updated", async () => {
+    const { service, auditService } = buildService();
+
+    await service.updateMe(CURRENT_USER, { locale: "en" }, {});
+
+    expect(auditService.record).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: "user.locale.updated",
+        before: { locale: "es" },
+        after: { locale: "en" },
+      }),
+    );
   });
 });
 

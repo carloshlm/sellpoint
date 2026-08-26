@@ -10,12 +10,15 @@ import {
   type LoginResponse,
   login,
   logout,
+  type MyProfileSummary,
   type RefreshResponse,
   type RegisterTenantInput,
   type RegisterTenantResponse,
   registerTenant,
   resetPassword,
+  type UpdateMyProfileInput,
   updateMyLocale,
+  updateMyProfile,
   verifyEmail,
 } from "@/lib/auth/api";
 
@@ -72,4 +75,11 @@ export function useActiveSessions(enabled = true) {
 
 export function useUpdateLocale() {
   return useMutation<{ locale: string }, ApiError, "es" | "en">({ mutationFn: updateMyLocale });
+}
+
+/** "Tus datos" editable (2026-08-26): PATCH parcial de nombre y apellidos. */
+export function useUpdateMyProfile() {
+  return useMutation<MyProfileSummary, ApiError, UpdateMyProfileInput>({
+    mutationFn: updateMyProfile,
+  });
 }

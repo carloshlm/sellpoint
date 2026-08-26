@@ -115,6 +115,8 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
         id: user.userId,
         email: user.email,
         firstName: "Ana",
+        lastNamePaternal: "Pérez",
+        lastNameMaternal: null,
         locale: "es",
         permissions: expect.any(Array),
         // F1-WEB-ONBOARD-01 (A1 del design): MISMO shape que `GET /me`

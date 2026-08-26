@@ -94,6 +94,8 @@ describe("/me (e2e)", () => {
       id: user.userId,
       email: user.email,
       firstName: "Ana",
+      lastNamePaternal: "Pérez",
+      lastNameMaternal: null,
       locale: "es",
       // F3-HOME-01: el almacén ASIGNADO viaja en el bootstrap porque el front
       // lo usa para preseleccionar en movimientos, y F4 para abrir el turno.
@@ -153,5 +155,78 @@ describe("/me (e2e)", () => {
 
   it("sin Authorization -> 401 (secure by default)", () => {
     return request(app.getHttpServer()).patch("/me").send({ locale: "en" }).expect(401);
+  });
+
+  /**
+   * "Tus datos" editable (Carlos, 2026-08-26): PATCH /me acepta nombre y
+   * apellidos. El email queda FUERA a propósito — es la identidad de acceso.
+   */
+  describe("PATCH /me con nombre y apellidos (2026-08-26)", () => {
+    it("actualiza nombre y apellidos; el materno con null se borra", async () => {
+      const user = await registerActiveUser();
+      const accessToken = accessTokenFor(user);
+
+      const updated = await request(app.getHttpServer())
+        .patch("/me")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ firstName: "Ana María", lastNamePaternal: "Gómez", lastNameMaternal: "Luna" })
+        .expect(200);
+      expect(updated.body).toMatchObject({
+        firstName: "Ana María",
+        lastNamePaternal: "Gómez",
+        lastNameMaternal: "Luna",
+      });
+
+      const cleared = await request(app.getHttpServer())
+        .patch("/me")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ lastNameMaternal: null })
+        .expect(200);
+      expect(cleared.body).toMatchObject({ lastNameMaternal: null });
+
+      // GET /me refleja lo persistido: no fue solo eco de la respuesta.
+      const me = await request(app.getHttpServer())
+        .get("/me")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .expect(200);
+      expect(me.body).toMatchObject({
+        firstName: "Ana María",
+        lastNamePaternal: "Gómez",
+        lastNameMaternal: null,
+      });
+    });
+
+    it("el email NO se puede cambiar por este endpoint (campo desconocido -> 400)", async () => {
+      const user = await registerActiveUser();
+      const accessToken = accessTokenFor(user);
+
+      await request(app.getHttpServer())
+        .patch("/me")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ email: "otro@example.com" })
+        .expect(400);
+    });
+
+    it("un body vacío -> 400 (al menos un campo)", async () => {
+      const user = await registerActiveUser();
+      const accessToken = accessTokenFor(user);
+
+      await request(app.getHttpServer())
+        .patch("/me")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({})
+        .expect(400);
+    });
+
+    it("un nombre vacío -> 400 (los requeridos del registro no se vacían)", async () => {
+      const user = await registerActiveUser();
+      const accessToken = accessTokenFor(user);
+
+      await request(app.getHttpServer())
+        .patch("/me")
+        .set("Authorization", `Bearer ${accessToken}`)
+        .send({ firstName: "   " })
+        .expect(400);
+    });
   });
 });

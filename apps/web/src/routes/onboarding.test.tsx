@@ -61,6 +61,8 @@ function demoUser(tenant: AuthUser["tenant"], overrides: Partial<AuthUser> = {})
     id: "u1",
     email: "ana@acme.mx",
     firstName: "Ana",
+    lastNamePaternal: "Pérez",
+    lastNameMaternal: null,
     locale: "es",
     permissions: ["tenants:manage"],
     tenant,

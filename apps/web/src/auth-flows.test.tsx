@@ -36,6 +36,7 @@ vi.mock("./lib/auth/api", () => ({
   changePassword: vi.fn(),
   getSessions: vi.fn(),
   updateMyLocale: vi.fn(),
+  updateMyProfile: vi.fn(),
 }));
 
 const loginMock = vi.mocked(login);
@@ -71,6 +72,8 @@ const demoUser = {
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
+  lastNamePaternal: "Pérez",
+  lastNameMaternal: null,
   locale: "es" as const,
   permissions: ["products:read"],
   tenant: DEMO_TENANT,
@@ -646,7 +649,9 @@ describe("F1-WEB-AUTH-10 — /profile", () => {
     await renderRoute("/profile");
 
     const details = await screen.findByTestId("profile-details");
-    expect(within(details).getByText("Ana")).toBeInTheDocument();
+    // "Tus datos" editable (2026-08-26): el nombre vive en un input; el
+    // email sigue siendo texto porque no se edita por acá.
+    expect(within(details).getByDisplayValue("Ana")).toBeInTheDocument();
     expect(within(details).getByText("ana@acme.mx")).toBeInTheDocument();
     // El AppLayout de F1-WEB-AUTH-09 envuelve la página.
     expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
@@ -790,6 +795,8 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     id: "u2",
     email: "beto@otra-empresa.mx",
     firstName: "Beto",
+    lastNamePaternal: "Pérez",
+    lastNameMaternal: null,
     locale: "es" as const,
     permissions: ["products:read"],
     tenant: DEMO_TENANT,

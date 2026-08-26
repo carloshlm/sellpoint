@@ -29,6 +29,8 @@ function makeUser(locale: AuthUser["locale"]): AuthUser {
     id: "u1",
     email: "ana@tienda.mx",
     firstName: "Ana",
+    lastNamePaternal: "Pérez",
+    lastNameMaternal: null,
     locale,
     permissions: [],
     tenant: TENANT,

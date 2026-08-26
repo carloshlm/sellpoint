@@ -47,10 +47,12 @@ function ProfileContent() {
         dependen de él se montan cuando llega; el resto no espera.
       */}
       {user && <ProfileDetails user={user} />}
+      {/* Preferencias va pegada a "Tus datos" (Carlos, 2026-08-26): ambas
+          hablan de la PERSONA; lo del negocio viene después. */}
+      <LanguagePreference />
       {/* Las tarjetas deciden solas si existen: sin tenants:manage devuelven null. */}
       {user && <BusinessDetails user={user} />}
       {user && <ThemePreference user={user} />}
-      <LanguagePreference />
       <ChangePasswordForm />
       <ActiveSessions />
     </div>

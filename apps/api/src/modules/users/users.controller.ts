@@ -25,7 +25,7 @@ export class UsersController {
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
   ) {
-    return this.usersService.updateLocale(user, dto.locale, {
+    return this.usersService.updateMe(user, dto, {
       ip: request.ip,
       userAgent: request.headers["user-agent"],
     });

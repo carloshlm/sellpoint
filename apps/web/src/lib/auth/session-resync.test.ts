@@ -18,6 +18,8 @@ const demoUser = {
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
+  lastNamePaternal: "Pérez",
+  lastNameMaternal: null,
   locale: "es" as const,
   permissions: ["users:read"],
   tenant: {

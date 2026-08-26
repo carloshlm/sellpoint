@@ -5,6 +5,7 @@ import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
+import type { UpdateMeDto } from "./dto/update-me.dto";
 
 export interface UserSummary {
   id: string;
@@ -25,6 +26,8 @@ export interface MeProfile {
   id: string;
   email: string;
   firstName: string;
+  lastNamePaternal: string;
+  lastNameMaternal: string | null;
   locale: string;
   /** F3-HOME-01. El almacén desde el que opera por defecto. */
   defaultWarehouseId: string | null;
@@ -65,6 +68,8 @@ export class UsersService {
           id: true,
           email: true,
           firstName: true,
+          lastNamePaternal: true,
+          lastNameMaternal: true,
           locale: true,
           // F3-HOME-01: el front lo necesita para preseleccionar el almacén en
           // los movimientos, y el POS de F4 para abrir el turno.
@@ -82,6 +87,8 @@ export class UsersService {
       id: row.id,
       email: row.email,
       firstName: row.firstName,
+      lastNamePaternal: row.lastNamePaternal,
+      lastNameMaternal: row.lastNameMaternal,
       locale: row.locale,
       defaultWarehouseId: row.defaultWarehouseId,
       permissions: user.permissions,
@@ -90,25 +97,51 @@ export class UsersService {
   }
 
   async updateLocale(user: AuthUser, locale: Locale, meta: RequestMeta): Promise<UserSummary> {
+    return this.updateMe(user, { locale }, meta);
+  }
+
+  /**
+   * "Tus datos" editable (Carlos, 2026-08-26): PATCH /users/me acepta nombre
+   * y apellidos además del locale. El email NO se toca por acá — es la
+   * identidad de acceso (login + verificación) y cambiarlo exigirá su propio
+   * flujo con re-verificación.
+   *
+   * Solo se persisten y auditan los campos PRESENTES en el dto (PATCH
+   * parcial). Un cambio de solo-locale conserva su action histórico
+   * `user.locale.updated`; cualquier cambio de nombre audita como
+   * `user.profile.updated`.
+   */
+  async updateMe(user: AuthUser, dto: UpdateMeDto, meta: RequestMeta): Promise<UserSummary> {
+    const fields = Object.fromEntries(
+      Object.entries(dto).filter(([, value]) => value !== undefined),
+    ) as Partial<UpdateMeDto>;
+    const touched = Object.keys(fields) as (keyof UpdateMeDto)[];
+    const onlyLocale = touched.length === 1 && touched[0] === "locale";
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const before = await tx.user.findUniqueOrThrow({
         where: { id: user.userId },
-        select: { locale: true },
+        select: {
+          firstName: true,
+          lastNamePaternal: true,
+          lastNameMaternal: true,
+          locale: true,
+        },
       });
 
       const updated = await tx.user.update({
         where: { id: user.userId },
-        data: { locale },
+        data: fields,
       });
 
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
         userId: user.userId,
-        action: "user.locale.updated",
+        action: onlyLocale ? "user.locale.updated" : "user.profile.updated",
         resourceType: "user",
         resourceId: user.userId,
-        before: { locale: before.locale },
-        after: { locale },
+        before: Object.fromEntries(touched.map((key) => [key, before[key]])),
+        after: Object.fromEntries(touched.map((key) => [key, fields[key]])),
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
