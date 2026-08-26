@@ -29,6 +29,8 @@ const ME: MeProfile = {
   id: "user-1",
   email: "owner@example.com",
   firstName: "Ana",
+  lastNamePaternal: "Pérez",
+  lastNameMaternal: null,
   locale: "es",
   defaultWarehouseId: null,
   permissions: [],
