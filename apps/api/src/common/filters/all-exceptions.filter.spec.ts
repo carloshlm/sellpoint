@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from "@nestjs/common";
+import { ThrottlerException } from "@nestjs/throttler";
 import type { I18nService } from "nestjs-i18n";
 import { AllExceptionsFilter } from "./all-exceptions.filter";
 
@@ -40,6 +41,29 @@ describe("AllExceptionsFilter", () => {
     translateMock = jest.fn((key: string) => key);
     i18n = { translate: translateMock } as unknown as I18nService;
     filter = new AllExceptionsFilter(i18n);
+  });
+
+  /**
+   * El 429 del throttler (Carlos, 2026-08-26): ThrottlerException lanza el
+   * texto en inglés "ThrottlerException: Too Many Requests" que no es clave
+   * i18n — llegaba CRUDO a la pantalla de login. El filter lo mapea a la
+   * clave existente `auth.too_many_attempts` antes de traducir.
+   */
+  it("el 429 del throttler se traduce: nunca llega el texto en inglés del framework", () => {
+    translateMock = jest.fn(() => "Demasiados intentos. Intenta de nuevo más tarde");
+    i18n = { translate: translateMock } as unknown as I18nService;
+    filter = new AllExceptionsFilter(i18n);
+
+    filter.catch(new ThrottlerException(), host);
+
+    expect(statusMock).toHaveBeenCalledWith(429);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 429,
+        code: "auth.too_many_attempts",
+        message: "Demasiados intentos. Intenta de nuevo más tarde",
+      }),
+    );
   });
 
   it("formatea HttpException con mensaje string libre (no clave i18n) sin tocarlo", () => {

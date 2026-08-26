@@ -81,6 +81,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
+    // El 429 del throttler (Carlos, 2026-08-26): ThrottlerException lanza
+    // "ThrottlerException: Too Many Requests" — texto del framework, no clave
+    // i18n — y llegaba CRUDO a la pantalla de login. Se mapea a la clave que
+    // ya existía para este caso y sigue el camino normal de traducción.
+    if (statusCode === HttpStatus.TOO_MANY_REQUESTS) {
+      body.message = "auth.too_many_attempts";
+    }
+
     body = this.translateIfKey(body, request);
 
     response.status(statusCode).json(body);
