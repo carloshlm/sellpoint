@@ -107,7 +107,16 @@ describe("/onboarding", () => {
     // El piso del paso 2 depende de si ya hay almacenes. Default "ya tiene
     // uno" para que los tests de otros pasos no caigan al 2.
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
-      { id: "w-1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+      {
+        id: "w-1",
+        name: "Central",
+        address: null,
+        phone: null,
+        email: null,
+        attributes: {},
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
     ]);
   });
 

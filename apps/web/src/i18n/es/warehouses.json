@@ -24,6 +24,10 @@
   "form": {
     "name": "Nombre del almacén",
     "address": "Dirección",
-    "addressHint": "Opcional. Escríbela como se use en tu país."
+    "addressHint": "Opcional. Escríbela como se use en tu país.",
+    "phoneCountry": "Código de país",
+    "phoneCountryPlaceholder": "Elige un país",
+    "phone": "Teléfono (opcional)",
+    "email": "Email (opcional)"
   }
 }

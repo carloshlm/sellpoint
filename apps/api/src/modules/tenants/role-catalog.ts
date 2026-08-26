@@ -40,6 +40,14 @@ export type TenantRoleName = (typeof TENANT_ROLE_NAMES)[number];
 export const PRODUCTS_CATALOG_KEY = "products";
 export const PRODUCTS_CATALOG_NAME = "Catálogo de Productos";
 
+// 2026-08-26: almacenes y servicios también tienen campos dinámicos — cada
+// catálogo del sistema es el ancla de los campos de SU entidad. La lista
+// cerrada systemKey→tabla vive en catalogs/system-catalogs.ts.
+export const WAREHOUSES_CATALOG_KEY = "warehouses";
+export const WAREHOUSES_CATALOG_NAME = "Catálogo de Almacenes";
+export const SERVICES_CATALOG_KEY = "services";
+export const SERVICES_CATALOG_NAME = "Catálogo de Servicios";
+
 /**
  * F3-HOME-03. El nombre del almacén con el que nace un tenant, por idioma del
  * owner. NEUTRO por LEY: sirve igual a una estética, un taller o un

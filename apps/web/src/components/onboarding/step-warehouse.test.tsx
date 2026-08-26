@@ -50,6 +50,9 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
       name: "Central",
       address: null,
       isActive: true,
+      phone: null,
+      email: null,
+      attributes: {},
       deactivationBlockedBy: null,
     });
     const onSubmit = renderStep();
@@ -98,6 +101,9 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
         name: "Almacén Central",
         address: null,
         isActive: true,
+        phone: null,
+        email: null,
+        attributes: {},
         deactivationBlockedBy: null,
       },
     ]);
@@ -122,6 +128,9 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
         name: "Almacén Central",
         address: null,
         isActive: true,
+        phone: null,
+        email: null,
+        attributes: {},
         deactivationBlockedBy: null,
       },
     ]);
@@ -130,6 +139,9 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
       name: "CEDIS",
       address: null,
       isActive: true,
+      phone: null,
+      email: null,
+      attributes: {},
       deactivationBlockedBy: null,
     });
     const onSubmit = renderStep();

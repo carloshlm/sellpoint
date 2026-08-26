@@ -5,13 +5,19 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
 import { warehouseScopeWhere } from "../inventory/warehouse-scope.helpers";
+import { WAREHOUSES_CATALOG_KEY } from "../tenants/role-catalog";
 import type { CreateWarehouseDto, UpdateWarehouseDto } from "./dto/upsert-warehouse.dto";
 
 export interface WarehouseSummary {
   id: string;
   name: string;
   address: string | null;
+  phone: string | null;
+  email: string | null;
+  /** Campos dinámicos del catálogo de sistema "warehouses" (2026-08-26). */
+  attributes: unknown;
   isActive: boolean;
 }
 
@@ -112,10 +118,26 @@ export class WarehousesService {
     meta: RequestMeta,
   ): Promise<WarehouseSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      if (input.attributes !== undefined) {
+        await assertSystemCatalogAttributes(tx, user, WAREHOUSES_CATALOG_KEY, input.attributes, {
+          invalid: "warehouses.invalid_attributes",
+          catalogMissing: "warehouses.catalog_missing",
+        });
+      }
+
       let warehouse: WarehouseSummary;
       try {
         warehouse = await tx.warehouse.create({
-          data: { tenantId: user.tenantId, name: input.name, address: input.address ?? null },
+          data: {
+            tenantId: user.tenantId,
+            name: input.name,
+            address: input.address ?? null,
+            phone: input.phone ?? null,
+            email: input.email ?? null,
+            ...(input.attributes !== undefined
+              ? { attributes: input.attributes as Prisma.InputJsonValue }
+              : {}),
+          },
         });
       } catch (error) {
         if (isUniqueViolation(error)) {
@@ -189,6 +211,13 @@ export class WarehousesService {
         }
       }
 
+      if (input.attributes !== undefined) {
+        await assertSystemCatalogAttributes(tx, user, WAREHOUSES_CATALOG_KEY, input.attributes, {
+          invalid: "warehouses.invalid_attributes",
+          catalogMissing: "warehouses.catalog_missing",
+        });
+      }
+
       let updated: WarehouseSummary;
       try {
         updated = await tx.warehouse.update({
@@ -196,6 +225,11 @@ export class WarehousesService {
           data: {
             ...(input.name !== undefined ? { name: input.name } : {}),
             ...(input.address !== undefined ? { address: input.address } : {}),
+            ...(input.phone !== undefined ? { phone: input.phone } : {}),
+            ...(input.email !== undefined ? { email: input.email } : {}),
+            ...(input.attributes !== undefined
+              ? { attributes: input.attributes as Prisma.InputJsonValue }
+              : {}),
             ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
           },
         });

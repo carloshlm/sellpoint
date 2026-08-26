@@ -7,6 +7,7 @@ import type { AuthUser } from "../auth/types/auth-user";
 import type { CreateFieldDto } from "./dto/create-field.dto";
 import type { UpdateFieldDto } from "./dto/update-field.dto";
 import { deriveFieldKey } from "./field-key";
+import { systemAttributeTable } from "./system-catalogs";
 
 export interface CatalogFieldSummary {
   id: string;
@@ -275,10 +276,10 @@ export class CatalogFieldsService {
     tx: Prisma.TransactionClient,
     user: AuthUser,
     catalogId: string,
-  ): Promise<{ id: string; isSystem: boolean }> {
+  ): Promise<{ id: string; isSystem: boolean; systemKey: string | null }> {
     const catalog = await tx.catalog.findFirst({
       where: { id: catalogId, tenantId: user.tenantId },
-      select: { id: true, isSystem: true },
+      select: { id: true, isSystem: true, systemKey: true },
     });
 
     if (!catalog) {
@@ -308,11 +309,12 @@ export class CatalogFieldsService {
   /**
    * Cuántos registros tienen ese campo cargado.
    *
-   * Ojo con la bifurcación: las filas del catálogo del SISTEMA viven en
-   * `products` (tabla de primera clase), las de un subcatálogo en
+   * Ojo con la bifurcación: las filas de un catálogo del SISTEMA viven en su
+   * tabla de primera clase (products, warehouses o services — el registry de
+   * system-catalogs.ts es la fuente única), las de un subcatálogo en
    * `catalog_records`. Es la única parte del motor donde esa diferencia
-   * asoma, y olvidarla haría que archivar un campo de producto dijera
-   * siempre "0 registros" y borrara datos sin preguntar.
+   * asoma, y olvidarla haría que archivar un campo dijera siempre
+   * "0 registros" y borrara datos sin preguntar.
    *
    * SQL crudo porque Prisma no expresa la existencia de una clave en jsonb.
    * Se usa `jsonb_exists(...)` y NO el operador `?`: el `?` es también el
@@ -325,12 +327,16 @@ export class CatalogFieldsService {
    */
   private async countRecordsUsingKey(
     tx: Prisma.TransactionClient,
-    catalog: { id: string; isSystem: boolean },
+    catalog: { id: string; isSystem: boolean; systemKey: string | null },
     key: string,
   ): Promise<number> {
-    const rows = catalog.isSystem
+    const table = systemAttributeTable(catalog.systemKey);
+    // `Prisma.raw` SOLO con la tabla salida del registry (lista cerrada):
+    // un identificador no es parametrizable y el systemKey de la DB jamás
+    // se interpola directo.
+    const rows = table
       ? await tx.$queryRaw<{ count: bigint }[]>`
-          SELECT count(*) AS count FROM products WHERE jsonb_exists(attributes, ${key})`
+          SELECT count(*) AS count FROM ${Prisma.raw(table)} WHERE jsonb_exists(attributes, ${key})`
       : await tx.$queryRaw<{ count: bigint }[]>`
           SELECT count(*) AS count FROM catalog_records
           WHERE catalog_id = ${catalog.id}::uuid AND jsonb_exists(attributes, ${key})`;

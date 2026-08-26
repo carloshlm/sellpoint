@@ -516,6 +516,16 @@ model Warehouse {
   tenantId  String   @map("tenant_id") @db.Uuid
   name      String
   address   String?
+  // Contacto estándar de la sucursal (Carlos, 2026-08-26): el ticket pinta
+  // la dirección y el teléfono del ALMACÉN con fallback al tenant. `phone`
+  // es E.164 canónico y se valida en el DTO (isE164), mismo criterio que
+  // Tenant.phone — sin CHECK SQL de formato.
+  phone     String?  @db.VarChar(20)
+  email     String?
+  // Campos dinámicos del catálogo de sistema "warehouses" — mismo motor que
+  // products (F2-CAT). El GIN se DECLARA acá para que la shadow DB no lo
+  // borre (lección de 20260816201608).
+  attributes Json    @default("{}")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -539,6 +549,7 @@ model Warehouse {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  @@index([attributes(ops: JsonbPathOps)], type: Gin)
   @@map("warehouses")
 }
 
@@ -559,6 +570,9 @@ model Service {
   description String?
   cost        Decimal? @db.Decimal(14, 2)
   price       Decimal? @db.Decimal(14, 2)
+  // Campos dinámicos del catálogo de sistema "services": lo específico de
+  // cada rubro (duración, comisión…) vive acá, nunca como columna.
+  attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -570,6 +584,7 @@ model Service {
 
   @@unique([tenantId, code])
   @@index([tenantId])
+  @@index([attributes(ops: JsonbPathOps)], type: Gin)
   @@map("services")
 }
 

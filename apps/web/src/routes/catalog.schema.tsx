@@ -74,17 +74,35 @@ function CatalogSchemaContent() {
   const updateField = useUpdateField(catalogId);
   const removeField = useRemoveField(catalogId);
 
-  // El mismo orden que el formulario de alta (Carlos, 2026-08-24): primero la
-  // identidad, después la unidad, y el costo ANTES que el precio.
-  const standardLabels = catalog?.isSystem
-    ? [
-        t("catalogs.standard.code"),
-        t("catalogs.standard.name"),
-        t("catalogs.standard.baseUnit"),
-        t("catalogs.standard.cost"),
-        t("catalogs.standard.price"),
-      ]
-    : [t("catalogs.standard.code")];
+  // El mismo orden que el formulario de alta de cada entidad (Carlos,
+  // 2026-08-24 y 2026-08-26): los estándar son POR CATÁLOGO del sistema —
+  // el viejo ternario `isSystem ? [5 de producto]` mentía para almacenes y
+  // servicios. Un subcatálogo solo trae su código.
+  const standardLabelsBySystemKey: Record<string, string[]> = {
+    products: [
+      t("catalogs.standard.code"),
+      t("catalogs.standard.name"),
+      t("catalogs.standard.baseUnit"),
+      t("catalogs.standard.cost"),
+      t("catalogs.standard.price"),
+    ],
+    warehouses: [
+      t("catalogs.standard.name"),
+      t("catalogs.standard.address"),
+      t("catalogs.standard.phone"),
+      t("catalogs.standard.email"),
+    ],
+    services: [
+      t("catalogs.standard.code"),
+      t("catalogs.standard.name"),
+      t("catalogs.standard.description"),
+      t("catalogs.standard.cost"),
+      t("catalogs.standard.price"),
+    ],
+  };
+  const standardLabels = (catalog?.systemKey != null
+    ? standardLabelsBySystemKey[catalog.systemKey]
+    : undefined) ?? [t("catalogs.standard.code")];
 
   /**
    * Subir o bajar un campo (Carlos, 2026-08-24). Se calcula el orden DESEADO

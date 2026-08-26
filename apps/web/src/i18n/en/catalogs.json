@@ -21,7 +21,11 @@
     "name": "Name",
     "price": "Price",
     "cost": "Cost",
-    "baseUnit": "Base unit"
+    "baseUnit": "Base unit",
+    "address": "Address",
+    "phone": "Phone",
+    "email": "Email",
+    "description": "Description"
   },
   "fields": {
     "add": "Add field",

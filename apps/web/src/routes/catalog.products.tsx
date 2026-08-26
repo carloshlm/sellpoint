@@ -414,7 +414,9 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const { has } = usePermissions();
   const canManage = has("products:manage");
   const { data: catalogs } = useCatalogs();
-  const productsCatalog = catalogs?.find((catalog) => catalog.isSystem);
+  // Por systemKey, NUNCA `find(isSystem)`: hay TRES catálogos del sistema y
+  // el de Almacenes ordena primero — bindearía los campos equivocados.
+  const productsCatalog = catalogs?.find((catalog) => catalog.systemKey === "products");
   const { data: fields } = useCatalogFields(productsCatalog?.id);
 
   const basePresentation = product?.presentations.find(

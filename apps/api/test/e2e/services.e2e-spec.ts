@@ -175,6 +175,68 @@ describe("Servicios (F3-SVC)", () => {
     expect((vacio.body as { rows: unknown[]; total: number }).rows).toEqual([]);
   });
 
+  /**
+   * Campos dinámicos (Carlos, 2026-08-26): `attributes` del servicio se
+   * valida contra el catálogo de sistema "services" — mismo motor que
+   * productos y almacenes.
+   */
+  describe("campos dinámicos (2026-08-26)", () => {
+    it("crea con attributes válidos y los devuelve; una clave desconocida es 400", async () => {
+      const token = await registerAndLogin();
+
+      const list = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const catalogId = (list.body as { id: string; systemKey: string | null }[]).find(
+        (c) => c.systemKey === "services",
+      )?.id;
+      await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Duración", fieldType: "number", required: false })
+        .expect(201);
+
+      const created = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({
+          code: "corte",
+          name: "Corte de cabello",
+          warehouseIds: [],
+          attributes: { duracion: 30 },
+        })
+        .expect(201);
+      expect(created.body).toMatchObject({ attributes: { duracion: 30 } });
+
+      const bad = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "tinte", name: "Tinte", warehouseIds: [], attributes: { colado: "x" } })
+        .expect(400);
+      expect(bad.body).toMatchObject({
+        code: "services.invalid_attributes",
+        errors: [{ key: "colado", code: "catalogs.field_unknown" }],
+      });
+    });
+
+    it("PATCH valida los attributes contra los campos del catálogo", async () => {
+      const token = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/services")
+        .set("Authorization", bearer(token))
+        .send({ code: "manicure", name: "Manicure", warehouseIds: [] })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/services/${(created.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ attributes: { inventado: "x" } })
+        .expect(400);
+    });
+  });
+
   it("el código repetido en el mismo tenant da 409", async () => {
     const token = await registerAndLogin();
     await request(app.getHttpServer())

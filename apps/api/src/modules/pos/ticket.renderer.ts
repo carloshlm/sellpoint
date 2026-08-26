@@ -1,5 +1,6 @@
 import { type Currency, formatMoney, formatQuantityWithUnit, type Locale } from "@sellpoint/shared";
 import { ticketBarcodeSvg } from "./barcode-svg";
+import type { TicketHeaderContact } from "./ticket-header";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -20,8 +21,19 @@ export interface TicketRow {
   lotCode: string | null;
 }
 
+/** `=== null` a secas trataría "" como texto imprimible: línea vacía en papel. */
+function noVacio(value: string | null): value is string {
+  return value !== null && value.trim() !== "";
+}
+
 export interface TicketInput {
-  tenant: { name: string; legalName: string | null; taxId: string | null; address: string | null };
+  tenant: { name: string; legalName: string | null; taxId: string | null };
+  /**
+   * El contacto que se imprime bajo la razón social (2026-08-26): dirección
+   * y teléfono del ALMACÉN con fallback al tenant, YA colapsados por el
+   * service (ticketHeaderContact) — este renderer no decide, pinta.
+   */
+  header: TicketHeaderContact;
   /**
    * `sale` imprime el ticket que el cliente se lleva; `quote` el papel con el
    * que vuelve. Es lo único que decide qué se muestra y qué se advierte.
@@ -97,12 +109,21 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
     content: [
       // ── Quién cobra ───────────────────────────────────────────────────
       { text: input.tenant.legalName ?? input.tenant.name, bold: true, alignment: "center" },
-      ...(input.tenant.taxId === null
-        ? []
-        : [{ text: input.tenant.taxId, alignment: "center", fontSize: 7 }]),
-      ...(input.tenant.address === null
-        ? []
-        : [{ text: input.tenant.address, alignment: "center", fontSize: 7 }]),
+      ...(noVacio(input.tenant.taxId)
+        ? [{ text: input.tenant.taxId, alignment: "center", fontSize: 7 }]
+        : []),
+      ...(noVacio(input.header.address)
+        ? [{ text: input.header.address, alignment: "center", fontSize: 7 }]
+        : []),
+      ...(noVacio(input.header.phone)
+        ? [
+            {
+              text: `${t("ticket.phone")}: ${input.header.phone}`,
+              alignment: "center",
+              fontSize: 7,
+            },
+          ]
+        : []),
 
       // ── La MARCA de cotización ────────────────────────────────────────
       //

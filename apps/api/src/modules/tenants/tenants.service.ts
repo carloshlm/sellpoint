@@ -7,7 +7,11 @@ import {
   PRODUCTS_CATALOG_NAME,
   PROVISIONAL_TENANT_NAME,
   resolveRolePermissionCodes,
+  SERVICES_CATALOG_KEY,
+  SERVICES_CATALOG_NAME,
   TENANT_ROLE_NAMES,
+  WAREHOUSES_CATALOG_KEY,
+  WAREHOUSES_CATALOG_NAME,
 } from "./role-catalog";
 
 export interface ProvisionTenantInput {
@@ -112,14 +116,22 @@ export class TenantsService {
       // El catálogo del sistema NO se renombra ni se archiva (F2-CAT-02): es
       // la referencia estable que ve todo el equipo y que nombran los docs y
       // el soporte. Los subcatálogos sí son libres.
-      await tx.catalog.create({
-        data: {
-          tenantId: tenant.id,
-          name: PRODUCTS_CATALOG_NAME,
-          systemKey: PRODUCTS_CATALOG_KEY,
-          isSystem: true,
-        },
-      });
+      // Los TRES catálogos del sistema (products F2-CAT; warehouses y services
+      // 2026-08-26): cada uno ancla los campos dinámicos de su entidad.
+      for (const sistema of [
+        { name: PRODUCTS_CATALOG_NAME, systemKey: PRODUCTS_CATALOG_KEY },
+        { name: WAREHOUSES_CATALOG_NAME, systemKey: WAREHOUSES_CATALOG_KEY },
+        { name: SERVICES_CATALOG_NAME, systemKey: SERVICES_CATALOG_KEY },
+      ]) {
+        await tx.catalog.create({
+          data: {
+            tenantId: tenant.id,
+            name: sistema.name,
+            systemKey: sistema.systemKey,
+            isSystem: true,
+          },
+        });
+      }
 
       // F3-HOME-03: el tenant nace CON su almacén, en esta misma transacción.
       // Antes existía el estado "tenant sin almacén" hasta que alguien

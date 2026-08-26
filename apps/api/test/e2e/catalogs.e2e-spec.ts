@@ -140,8 +140,12 @@ describe("Motor de catálogos (F2-CAT)", () => {
 
       const catalogs = await prisma.withTenantContext(tenantId, (tx) => tx.catalog.findMany());
 
-      expect(catalogs).toHaveLength(1);
-      expect(catalogs[0]).toMatchObject({ systemKey: PRODUCTS_CATALOG_KEY, isSystem: true });
+      // Desde 2026-08-26 el tenant nace con TRES catálogos del sistema:
+      // products, warehouses y services.
+      expect(catalogs).toHaveLength(3);
+      const claves = catalogs.map((c) => c.systemKey).sort();
+      expect(claves).toEqual(["products", "services", "warehouses"]);
+      expect(catalogs.every((c) => c.isSystem)).toBe(true);
     });
 
     it("cada tenant tiene el SUYO: el catálogo no se comparte entre negocios", async () => {
@@ -158,9 +162,10 @@ describe("Motor de catálogos (F2-CAT)", () => {
         tx.catalog.findMany(),
       );
 
-      expect(firstCatalogs).toHaveLength(1);
-      expect(secondCatalogs).toHaveLength(1);
-      expect(firstCatalogs[0]?.id).not.toBe(secondCatalogs[0]?.id);
+      expect(firstCatalogs).toHaveLength(3);
+      expect(secondCatalogs).toHaveLength(3);
+      const firstIds = new Set(firstCatalogs.map((c) => c.id));
+      expect(secondCatalogs.some((c) => firstIds.has(c.id))).toBe(false);
     });
 
     it("el backfill le da catálogo a un tenant PRE-F2 y es idempotente", async () => {
@@ -219,6 +224,71 @@ describe("Motor de catálogos (F2-CAT)", () => {
         await adminPrisma.$disconnect();
       }
     });
+
+    /**
+     * Data migration 2026-08-26: los tenants pre-existentes ganan los
+     * catálogos de sistema "warehouses" y "services" por backfill — mismo
+     * molde que el de products (SQL real, dos pasadas, NOT EXISTS).
+     */
+    it("el backfill de warehouses/services alcanza a un tenant viejo y es idempotente", async () => {
+      const adminConnectionString = process.env.DATABASE_URL_ADMIN ?? process.env.DATABASE_URL;
+      if (!adminConnectionString) {
+        throw new Error("Falta DATABASE_URL_ADMIN (o DATABASE_URL) para replayar la migración");
+      }
+      const adminPrisma = new PrismaClient({
+        adapter: new PrismaPg({ connectionString: adminConnectionString }),
+      });
+
+      try {
+        // Un tenant "viejo": solo con el catálogo de products, como quedaron
+        // todos los reales antes de esta migración.
+        const legacy = await adminPrisma.tenant.create({
+          data: { name: `Tenant pre-warehouses ${randomUUID()}` },
+        });
+        await adminPrisma.catalog.create({
+          data: {
+            tenantId: legacy.id,
+            name: "Catálogo de Productos",
+            systemKey: PRODUCTS_CATALOG_KEY,
+            isSystem: true,
+          },
+        });
+
+        const migrationSql = readFileSync(
+          join(
+            __dirname,
+            "../../prisma/migrations/20260826123000_warehouse_service_catalogs_backfill/migration.sql",
+          ),
+          "utf-8",
+        );
+        const statements = migrationSql
+          .split("\n")
+          .filter((line) => !line.trim().startsWith("--"))
+          .join("\n")
+          .split(";")
+          .map((statement) => statement.trim())
+          .filter((statement) => statement.length > 0);
+
+        for (const statement of statements) {
+          await adminPrisma.$executeRawUnsafe(statement);
+        }
+
+        const after = await adminPrisma.catalog.findMany({
+          where: { tenantId: legacy.id },
+          orderBy: { systemKey: "asc" },
+        });
+        expect(after.map((c) => c.systemKey)).toEqual(["products", "services", "warehouses"]);
+        expect(after.every((c) => c.isSystem)).toBe(true);
+
+        // Segunda pasada: el NOT EXISTS no debe duplicar ni romper.
+        for (const statement of statements) {
+          await adminPrisma.$executeRawUnsafe(statement);
+        }
+        expect(await adminPrisma.catalog.count({ where: { tenantId: legacy.id } })).toBe(3);
+      } finally {
+        await adminPrisma.$disconnect();
+      }
+    });
   });
 
   describe("F2-CAT-02 — CRUD de catálogos", () => {
@@ -237,10 +307,12 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .expect(200);
 
       const catalogs = response.body as { isSystem: boolean; name: string }[];
-      expect(catalogs).toHaveLength(2);
-      // Aunque el subcatálogo gane por nombre, el del sistema va primero: es
-      // el que el usuario viene a editar el 90% de las veces.
-      expect(catalogs[0]?.isSystem).toBe(true);
+      // 3 del sistema + el subcatálogo recién creado.
+      expect(catalogs).toHaveLength(4);
+      // Aunque el subcatálogo gane por nombre, los del sistema van primero:
+      // son los que el usuario viene a editar el 90% de las veces.
+      expect(catalogs.slice(0, 3).every((c) => c.isSystem)).toBe(true);
+      expect(catalogs[3]?.isSystem).toBe(false);
     });
 
     it("crea un subcatálogo y lo renombra", async () => {
@@ -313,12 +385,12 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .expect(201);
       const { id } = created.body as { id: string };
 
-      // El de B solo ve SU catálogo del sistema.
+      // El de B solo ve SUS catálogos del sistema (los tres), ninguno de A.
       const listB = await request(app.getHttpServer())
         .get("/catalogs")
         .set("Authorization", bearer(second.token))
         .expect(200);
-      expect(listB.body).toHaveLength(1);
+      expect(listB.body).toHaveLength(3);
 
       // Y tocar el de A por id es 404, no 403: no se confirma que exista.
       await request(app.getHttpServer())
@@ -647,6 +719,38 @@ describe("Motor de catálogos (F2-CAT)", () => {
       });
     });
 
+    /**
+     * Fix 2026-08-26: `catalogs.field_must_be_number` se emitía desde
+     * validate-attributes pero NO existía en es/en — el usuario veía la clave
+     * cruda. Este test exige el error TRADUCIDO (message texto + code clave),
+     * que es justo lo que translateFieldErrors solo hace si la clave existe.
+     */
+    it("un campo number con texto se rechaza con el error TRADUCIDO", async () => {
+      const { token, unidadesId } = await setupUnidades();
+
+      await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Gramaje", fieldType: "number", required: false })
+        .expect(201);
+
+      const wrongType = await request(app.getHttpServer())
+        .post(`/catalogs/${unidadesId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "gr", attributes: { medida: "gramos", gramaje: "quinientos" } })
+        .expect(400);
+
+      expect(wrongType.body).toMatchObject({
+        errors: [
+          {
+            key: "gramaje",
+            code: "catalogs.field_must_be_number",
+            message: "Este campo debe ser un número.",
+          },
+        ],
+      });
+    });
+
     it("una clave que no es de ningún campo no entra al JSONB", async () => {
       const { token, unidadesId } = await setupUnidades();
 
@@ -822,6 +926,96 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .set("Authorization", bearer(token))
         .expect(200);
       expect(options.body).toMatchObject([{ code: "kg" }]);
+    });
+  });
+
+  /**
+   * Generalización del motor (2026-08-26): con TRES catálogos de sistema, la
+   * bifurcación `isSystem ? products : catalog_records` miente para almacenes
+   * y servicios — contaría en la tabla equivocada y borraría campos con datos
+   * sin preguntar. El registry systemKey→tabla es la fuente única.
+   */
+  describe("campos dinámicos de almacenes y servicios (2026-08-26)", () => {
+    async function warehousesCatalogOf(token: string): Promise<string> {
+      const list = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const catalogo = (list.body as { id: string; systemKey: string | null }[]).find(
+        (c) => c.systemKey === "warehouses",
+      );
+      if (!catalogo) {
+        throw new Error("El tenant no tiene catálogo de sistema warehouses");
+      }
+      return catalogo.id;
+    }
+
+    it("quitar un campo del catálogo de almacenes CON datos exige confirmación", async () => {
+      const { tenantId, token } = await registerAndLogin();
+      const catalogId = await warehousesCatalogOf(token);
+
+      const field = await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Encargado", fieldType: "text", required: false })
+        .expect(201);
+      const fieldId = (field.body as { id: string }).id;
+
+      // El valor vive en warehouses.attributes — se siembra directo porque
+      // esta suite prueba el MOTOR, no el endpoint de almacenes (F4).
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
+        await tx.warehouse.update({
+          where: { id: almacen.id },
+          data: { attributes: { encargado: "Rosa" } },
+        });
+      });
+
+      const blocked = await request(app.getHttpServer())
+        .delete(`/catalogs/${catalogId}/fields/${fieldId}`)
+        .set("Authorization", bearer(token))
+        .expect(409);
+      expect(blocked.body).toMatchObject({ requiresConfirmation: true, recordCount: 1 });
+    });
+
+    it("un registro referenciado por un lookup desde un ALMACÉN no se borra", async () => {
+      const { tenantId, token } = await registerAndLogin();
+      const catalogId = await warehousesCatalogOf(token);
+
+      // Subcatálogo destino con un registro.
+      const region = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: "Regiones" })
+        .expect(201);
+      const regionId = (region.body as { id: string }).id;
+      const norte = await request(app.getHttpServer())
+        .post(`/catalogs/${regionId}/records`)
+        .set("Authorization", bearer(token))
+        .send({ code: "NTE", attributes: {} })
+        .expect(201);
+      const norteId = (norte.body as { id: string }).id;
+
+      const field = await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Región", fieldType: "lookup", lookupCatalogId: regionId, required: false })
+        .expect(201);
+      const fieldKey = (field.body as { key: string }).key;
+
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
+        await tx.warehouse.update({
+          where: { id: almacen.id },
+          data: { attributes: { [fieldKey]: norteId } },
+        });
+      });
+
+      const blocked = await request(app.getHttpServer())
+        .delete(`/catalogs/${regionId}/records/${norteId}`)
+        .set("Authorization", bearer(token))
+        .expect(409);
+      expect(blocked.body).toMatchObject({ code: "catalogs.record_referenced" });
     });
   });
 });

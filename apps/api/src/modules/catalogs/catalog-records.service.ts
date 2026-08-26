@@ -9,6 +9,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertValidAttributes, loadCatalogFields } from "./attribute-assertions";
 import type { CreateRecordDto, UpdateRecordDto } from "./dto/upsert-record.dto";
 import { type FieldDefinition, validateRecordAttributes } from "./validate-attributes";
 
@@ -272,16 +273,7 @@ export class CatalogRecordsService {
     tx: Prisma.TransactionClient,
     catalogId: string,
   ): Promise<FieldDefinition[]> {
-    return tx.catalogField.findMany({
-      where: { catalogId },
-      select: {
-        key: true,
-        fieldType: true,
-        required: true,
-        isArchived: true,
-        lookupCatalogId: true,
-      },
-    });
+    return loadCatalogFields(tx, catalogId);
   }
 
   private async assertAttributesValid(
@@ -290,46 +282,16 @@ export class CatalogRecordsService {
     fields: FieldDefinition[],
     attributes: Record<string, unknown>,
   ): Promise<void> {
-    const errors = validateRecordAttributes(fields, attributes);
-    if (errors.length > 0) {
-      throw new BadRequestException({ message: "catalogs.invalid_attributes", errors });
-    }
-
-    // Forma OK; ahora la existencia real de cada destino de lookup. La DB no
-    // puede hacerlo: es un UUID dentro de un JSONB, no una columna con FK.
-    for (const field of fields) {
-      if (field.isArchived || field.fieldType !== "lookup" || !field.lookupCatalogId) {
-        continue;
-      }
-
-      const value = attributes[field.key];
-      if (typeof value !== "string") {
-        continue;
-      }
-
-      const target = await tx.catalogRecord.findFirst({
-        where: {
-          id: value,
-          catalogId: field.lookupCatalogId,
-          tenantId: user.tenantId,
-          isActive: true,
-        },
-        select: { id: true },
-      });
-
-      if (!target) {
-        throw new BadRequestException({
-          message: "catalogs.invalid_attributes",
-          errors: [{ key: field.key, message: "catalogs.lookup_value_not_found" }],
-        });
-      }
-    }
+    // Delegado al helper compartido del motor (2026-08-26).
+    await assertValidAttributes(tx, user, fields, attributes, "catalogs.invalid_attributes");
   }
 
   /**
    * ¿Alguien apunta a este registro por lookup? Query INVERSA sobre el JSONB
-   * de los registros de otros catálogos y de los productos — es la que hace
-   * que el índice GIN valga la pena.
+   * de los registros de otros catálogos Y de las tres tablas de primera clase
+   * (products, warehouses, services — 2026-08-26) — es la que hace que los
+   * índices GIN valgan la pena. Olvidar una tabla dejaría borrar un registro
+   * con la referencia colgada dentro del JSONB de esa entidad.
    */
   private async assertNotReferenced(
     tx: Prisma.TransactionClient,
@@ -342,20 +304,21 @@ export class CatalogRecordsService {
     });
 
     for (const field of referencingFields) {
-      const [inRecords, inProducts] = await Promise.all([
+      const attributeFilter = { attributes: { path: [field.key], equals: recordId } };
+      const counts = await Promise.all([
         tx.catalogRecord.count({
-          where: {
-            catalogId: field.catalogId,
-            attributes: { path: [field.key], equals: recordId },
-          },
+          where: { catalogId: field.catalogId, ...attributeFilter },
         }),
-        tx.product.count({ where: { attributes: { path: [field.key], equals: recordId } } }),
+        tx.product.count({ where: attributeFilter }),
+        tx.warehouse.count({ where: attributeFilter }),
+        tx.service.count({ where: attributeFilter }),
       ]);
 
-      if (inRecords + inProducts > 0) {
+      const total = counts.reduce((sum, count) => sum + count, 0);
+      if (total > 0) {
         throw new ConflictException({
           message: "catalogs.record_referenced",
-          referencedBy: { fieldLabel: field.label, count: inRecords + inProducts },
+          referencedBy: { fieldLabel: field.label, count: total },
         });
       }
     }

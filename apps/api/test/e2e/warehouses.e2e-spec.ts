@@ -173,6 +173,136 @@ describe("Almacenes (F2-WH)", () => {
     expect(created.body).toMatchObject({ address: null });
   });
 
+  /**
+   * Contacto estándar + campos dinámicos (Carlos, 2026-08-26): el almacén
+   * gana phone (E.164 canónico, mismo criterio que el tenant) y email, y su
+   * `attributes` se valida contra el catálogo de sistema "warehouses".
+   */
+  describe("contacto y campos dinámicos (2026-08-26)", () => {
+    it("crea con phone, email y attributes; el GET los devuelve", async () => {
+      const token = await registerAndLogin();
+
+      // Un campo dinámico real en el catálogo de almacenes del tenant.
+      const list = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const catalogId = (list.body as { id: string; systemKey: string | null }[]).find(
+        (c) => c.systemKey === "warehouses",
+      )?.id;
+      await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Encargado", fieldType: "text", required: false })
+        .expect(201);
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({
+          name: "Sucursal Centro",
+          address: "Av. Juárez 10",
+          phone: "+525512345678",
+          email: "centro@negocio.mx",
+          attributes: { encargado: "Rosa" },
+        })
+        .expect(201);
+      expect(created.body).toMatchObject({
+        phone: "+525512345678",
+        email: "centro@negocio.mx",
+        attributes: { encargado: "Rosa" },
+      });
+
+      const fetched = await request(app.getHttpServer())
+        .get("/warehouses")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const sucursal = (fetched.body as { name: string; phone: string | null }[]).find(
+        (w) => w.name === "Sucursal Centro",
+      );
+      expect(sucursal).toMatchObject({ phone: "+525512345678", email: "centro@negocio.mx" });
+    });
+
+    it("un phone que no es E.164 canónico → 400 warehouses.invalid_phone", async () => {
+      const token = await registerAndLogin();
+
+      const response = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Tel malo", phone: "+52 55 1234" })
+        .expect(400);
+      expect(response.body).toMatchObject({ code: "warehouses.invalid_phone" });
+    });
+
+    it("un email inválido → 400 warehouses.invalid_email", async () => {
+      const token = await registerAndLogin();
+
+      const response = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Email malo", email: "no-es-email" })
+        .expect(400);
+      expect(response.body).toMatchObject({ code: "warehouses.invalid_email" });
+    });
+
+    it("attributes con una clave que no es de ningún campo → 400 con el error por campo", async () => {
+      const token = await registerAndLogin();
+
+      const response = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Atributos malos", attributes: { colado: "x" } })
+        .expect(400);
+      expect(response.body).toMatchObject({
+        code: "warehouses.invalid_attributes",
+        errors: [{ key: "colado", code: "catalogs.field_unknown" }],
+      });
+    });
+
+    it("un campo dinámico requerido ausente → 400 catalogs.field_required", async () => {
+      const token = await registerAndLogin();
+
+      const list = await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const catalogId = (list.body as { id: string; systemKey: string | null }[]).find(
+        (c) => c.systemKey === "warehouses",
+      )?.id;
+      await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Zona", fieldType: "text", required: true })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Sin zona", attributes: {} })
+        .expect(400);
+      expect(response.body).toMatchObject({
+        errors: [{ key: "zona", code: "catalogs.field_required" }],
+      });
+    });
+
+    it("PATCH con phone null lo limpia", async () => {
+      const token = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Con tel", phone: "+525512345678" })
+        .expect(201);
+
+      const patched = await request(app.getHttpServer())
+        .patch(`/warehouses/${(created.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ phone: null })
+        .expect(200);
+      expect((patched.body as { phone: string | null }).phone).toBeNull();
+    });
+  });
+
   it("nombre repetido dentro del tenant → 409", async () => {
     const token = await registerAndLogin();
     await request(app.getHttpServer())

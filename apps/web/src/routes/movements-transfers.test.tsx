@@ -137,8 +137,26 @@ beforeEach(() => {
   mocked.cancelTransfer.mockReset();
   mockedWarehouses.mockReset();
   mockedWarehouses.mockResolvedValue([
-    { id: "w1", name: "Bodega Norte", address: null, isActive: true, deactivationBlockedBy: null },
-    { id: "w2", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+    {
+      id: "w1",
+      name: "Bodega Norte",
+      address: null,
+      phone: null,
+      email: null,
+      attributes: {},
+      isActive: true,
+      deactivationBlockedBy: null,
+    },
+    {
+      id: "w2",
+      name: "Central",
+      address: null,
+      phone: null,
+      email: null,
+      attributes: {},
+      isActive: true,
+      deactivationBlockedBy: null,
+    },
   ]);
   mocked.listTransfers.mockResolvedValue(pagina([fila()]));
   mocked.getTransfer.mockResolvedValue(detalle());

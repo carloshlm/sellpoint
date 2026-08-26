@@ -449,3 +449,71 @@ describe("Renombrar el catálogo (F2-SCHEMA)", () => {
     expect(screen.getByRole("button", { name: /^guardar$/i })).toBeDisabled();
   });
 });
+
+/**
+ * Campos estándar POR CATÁLOGO (2026-08-26): cada catálogo del sistema lista
+ * los suyos — el ternario `isSystem ? [5 de producto] : [código]` mentía
+ * para almacenes y servicios.
+ */
+describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listCatalogs.mockResolvedValue([
+      {
+        id: "cat-wh",
+        name: "Catálogo de Almacenes",
+        systemKey: "warehouses",
+        isSystem: true,
+        isActive: true,
+      },
+      PRODUCTS_CATALOG,
+      {
+        id: "cat-svc",
+        name: "Catálogo de Servicios",
+        systemKey: "services",
+        isSystem: true,
+        isActive: true,
+      },
+      UNITS_CATALOG,
+    ]);
+    mockedApi.listFields.mockResolvedValue([]);
+    mockedApi.listLookupOptions.mockResolvedValue([]);
+  });
+
+  async function chipsDe(catalogId: string): Promise<(string | null)[]> {
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByRole("combobox"), catalogId);
+    const titulo = await screen.findByText("Campos estándar");
+    return [...(titulo.closest("section")?.querySelectorAll("li") ?? [])].map(
+      (li) => li.textContent,
+    );
+  }
+
+  it("almacenes lista su contacto estándar", async () => {
+    await renderSchema();
+    expect(await chipsDe("cat-wh")).toEqual(["Nombre", "Dirección", "Teléfono", "Email"]);
+  });
+
+  it("servicios lista sus cinco estándar", async () => {
+    await renderSchema();
+    expect(await chipsDe("cat-svc")).toEqual([
+      "Código",
+      "Nombre",
+      "Descripción",
+      "Costo",
+      "Precio",
+    ]);
+  });
+
+  it("productos conserva los cinco de siempre", async () => {
+    await renderSchema();
+    expect(await chipsDe("cat-products")).toEqual([
+      "Código",
+      "Nombre",
+      "Unidad base",
+      "Costo",
+      "Precio",
+    ]);
+  });
+});

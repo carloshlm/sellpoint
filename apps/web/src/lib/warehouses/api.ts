@@ -5,6 +5,11 @@ export interface Warehouse {
   id: string;
   name: string;
   address: string | null;
+  /** E.164 canónico; el form lo pinta como país + número (2026-08-26). */
+  phone: string | null;
+  email: string | null;
+  /** Campos dinámicos del catálogo de sistema "warehouses". */
+  attributes: Record<string, unknown>;
   isActive: boolean;
   /**
    * F3-GUARDS-03. Por qué NO se puede desactivar, o `null` si sí se puede.
@@ -17,11 +22,17 @@ export interface Warehouse {
 export interface CreateWarehouseInput {
   name: string;
   address?: string;
+  phone?: string;
+  email?: string;
+  attributes?: Record<string, unknown>;
 }
 
 export interface UpdateWarehouseInput {
   name?: string;
   address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  attributes?: Record<string, unknown>;
   isActive?: boolean;
 }
 

@@ -1,10 +1,18 @@
+import {
+  COUNTRY_DIAL_CODES,
+  type CountryCode,
+  ISO_COUNTRY_CODES,
+  splitE164,
+} from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +29,8 @@ import {
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
+import { fieldErrorsOf } from "@/lib/field-errors";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import type { Warehouse } from "@/lib/warehouses/api";
 import {
@@ -29,6 +39,7 @@ import {
   useUpdateWarehouse,
   useWarehouses,
 } from "@/lib/warehouses/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/warehouses")({
   component: WarehousesPage,
@@ -202,17 +213,50 @@ function WarehousesContent() {
   );
 }
 
+/** El E.164 guardado, de vuelta a país + número (patrón de Datos del negocio). */
+function phonePartsOf(
+  phone: string | null | undefined,
+  tenantCountry: string | null,
+): { country: string; number: string } {
+  if (phone) {
+    const parts = splitE164(phone);
+    if (parts) {
+      const candidates = ISO_COUNTRY_CODES.filter(
+        (code) => COUNTRY_DIAL_CODES[code] === parts.dialCode,
+      );
+      const matched = candidates.find((code) => code === tenantCountry);
+      return { country: matched ?? candidates[0] ?? "", number: parts.nationalNumber };
+    }
+  }
+  return { country: tenantCountry ?? "", number: "" };
+}
+
 function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: () => void }) {
   const { t } = useTranslation();
   // La respuesta visible al clic en «Editar»: el form entra a la vista y el
   // cursor queda en el primer campo (ver el docblock del hook).
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
+  const tenantCountry = useAuthStore((state) => state.user?.tenant.country ?? null);
   const [name, setName] = useState(warehouse?.name ?? "");
   const [address, setAddress] = useState(warehouse?.address ?? "");
+  const initialPhone = phonePartsOf(warehouse?.phone, tenantCountry);
+  const [phoneCountry, setPhoneCountry] = useState(initialPhone.country);
+  const [phoneNumber, setPhoneNumber] = useState(initialPhone.number);
+  const [email, setEmail] = useState(warehouse?.email ?? "");
+  const [attributes, setAttributes] = useState<Record<string, unknown>>(
+    warehouse?.attributes ?? {},
+  );
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const createWarehouse = useCreateWarehouse();
   const updateWarehouse = useUpdateWarehouse();
   const isSubmitting = createWarehouse.isPending || updateWarehouse.isPending;
+
+  // Los campos dinámicos del catálogo de sistema "warehouses" — por
+  // systemKey, NUNCA `find(isSystem)`: hay tres catálogos del sistema.
+  const { data: catalogs } = useCatalogs();
+  const warehousesCatalog = catalogs?.find((c) => c.systemKey === "warehouses");
+  const { data: dynamicFields } = useCatalogFields(warehousesCatalog?.id);
 
   return (
     <form
@@ -221,17 +265,49 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
       onSubmit={(event) => {
         event.preventDefault();
         setError(null);
-        const onError = (apiError: ApiError) => setError(apiError.message);
+        setFieldErrors({});
+        const onError = (apiError: ApiError) => {
+          const byField = fieldErrorsOf(apiError);
+          if (byField.size > 0) {
+            setFieldErrors(
+              Object.fromEntries([...byField].map(([key, message]) => [key, t(message)])),
+            );
+            return;
+          }
+          setError(apiError.message);
+        };
+
+        // El canónico: dial del país + número sin espacios. Vacío = sin
+        // teléfono (null en el PATCH; ausente en el POST).
+        const digits = phoneNumber.replaceAll(" ", "").trim();
+        const composedPhone =
+          digits === "" ? null : `+${COUNTRY_DIAL_CODES[phoneCountry as CountryCode]}${digits}`;
+        const trimmedEmail = email.trim();
 
         if (warehouse) {
           updateWarehouse.mutate(
-            { id: warehouse.id, input: { name, address: address || null } },
+            {
+              id: warehouse.id,
+              input: {
+                name,
+                address: address || null,
+                phone: composedPhone,
+                email: trimmedEmail === "" ? null : trimmedEmail,
+                attributes,
+              },
+            },
             { onSuccess: onDone, onError },
           );
           return;
         }
         createWarehouse.mutate(
-          { name, ...(address ? { address } : {}) },
+          {
+            name,
+            ...(address ? { address } : {}),
+            ...(composedPhone !== null ? { phone: composedPhone } : {}),
+            ...(trimmedEmail !== "" ? { email: trimmedEmail } : {}),
+            attributes,
+          },
           { onSuccess: onDone, onError },
         );
       }}
@@ -257,6 +333,30 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
         hint={t("warehouses.form.addressHint")}
         value={address}
         onChange={(event) => setAddress(event.target.value)}
+      />
+      {/* El contacto de la SUCURSAL (2026-08-26): el ticket lo pinta con
+          fallback al dato del negocio. */}
+      <PhonePartsField
+        countryLabel={t("warehouses.form.phoneCountry")}
+        countryPlaceholder={t("warehouses.form.phoneCountryPlaceholder")}
+        numberLabel={t("warehouses.form.phone")}
+        country={phoneCountry}
+        number={phoneNumber}
+        onCountryChange={setPhoneCountry}
+        onNumberChange={setPhoneNumber}
+      />
+      <TextField
+        label={t("warehouses.form.email")}
+        type="email"
+        autoComplete="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <DynamicForm
+        fields={dynamicFields ?? []}
+        values={attributes}
+        errors={fieldErrors}
+        onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
       <div className="flex gap-2">
         <Button type="submit" disabled={isSubmitting || !name.trim()}>

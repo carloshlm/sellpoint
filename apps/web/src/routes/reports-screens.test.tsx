@@ -103,8 +103,26 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
-      { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
-      { id: "w2", name: "Norte", address: null, isActive: true, deactivationBlockedBy: null },
+      {
+        id: "w1",
+        name: "Central",
+        address: null,
+        phone: null,
+        email: null,
+        attributes: {},
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
+      {
+        id: "w2",
+        name: "Norte",
+        address: null,
+        phone: null,
+        email: null,
+        attributes: {},
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
     ]);
     mocked.getStockReport.mockResolvedValue({
       rows: [filaStock()],

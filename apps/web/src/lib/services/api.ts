@@ -12,6 +12,8 @@ export interface Service {
   isActive: boolean;
   /** F3-SVC-07. En qué almacenes se ofrece. Vacío = no se vende en ninguno. */
   warehouseIds: string[];
+  /** Campos dinámicos del catálogo de sistema "services" (2026-08-26). */
+  attributes: Record<string, unknown>;
 }
 
 export interface CreateServiceInput {
@@ -22,6 +24,7 @@ export interface CreateServiceInput {
   price?: number;
   /** Requerido: olvidarlo crearía un servicio invendible en silencio. */
   warehouseIds: string[];
+  attributes?: Record<string, unknown>;
 }
 
 export interface UpdateServiceInput {
@@ -33,6 +36,7 @@ export interface UpdateServiceInput {
   isActive?: boolean;
   /** Presente = reemplazo completo del set. Ausente = no tocar. */
   warehouseIds?: string[];
+  attributes?: Record<string, unknown>;
 }
 
 export interface ServicesPage {

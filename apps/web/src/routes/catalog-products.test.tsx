@@ -499,3 +499,68 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
     expect(payload.cost).toBeUndefined();
   });
 });
+
+/**
+ * Fix crítico (2026-08-26): con TRES catálogos de sistema, `find(isSystem)`
+ * agarraba el PRIMERO — "Catálogo de Almacenes" por orden alfabético — y el
+ * form de producto bindeaba los campos del catálogo equivocado. El form debe
+ * resolver por `systemKey === "products"`.
+ */
+describe("el form de producto usa el catálogo de PRODUCTOS (2026-08-26)", () => {
+  it("con los tres catálogos de sistema pide los campos de products", async () => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "0.02" }],
+    });
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    // El de Almacenes va PRIMERO, como lo ordena el API (isSystem desc, name asc).
+    mockedCatalogs.listCatalogs.mockResolvedValue([
+      {
+        id: "cat-wh",
+        name: "Catálogo de Almacenes",
+        systemKey: "warehouses",
+        isSystem: true,
+        isActive: true,
+      },
+      {
+        id: "cat-prod",
+        name: "Catálogo de Productos",
+        systemKey: "products",
+        isSystem: true,
+        isActive: true,
+      },
+      {
+        id: "cat-svc",
+        name: "Catálogo de Servicios",
+        systemKey: "services",
+        isSystem: true,
+        isActive: true,
+      },
+    ] as catalogsApi.CatalogSummary[]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+
+    await waitFor(() => {
+      expect(mockedCatalogs.listFields).toHaveBeenCalledWith("cat-prod");
+    });
+    expect(mockedCatalogs.listFields).not.toHaveBeenCalledWith("cat-wh");
+  });
+});

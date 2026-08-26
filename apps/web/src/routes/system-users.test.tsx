@@ -141,8 +141,26 @@ const ROLES: rbacApi.RoleSummary[] = [
 
 // F3-NAV-03: los almacenes del checklist de alcance.
 const ALMACENES: warehousesApi.Warehouse[] = [
-  { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
-  { id: "w2", name: "Bodega Norte", address: null, isActive: true, deactivationBlockedBy: null },
+  {
+    id: "w1",
+    name: "Central",
+    address: null,
+    phone: null,
+    email: null,
+    attributes: {},
+    isActive: true,
+    deactivationBlockedBy: null,
+  },
+  {
+    id: "w2",
+    name: "Bodega Norte",
+    address: null,
+    phone: null,
+    email: null,
+    attributes: {},
+    isActive: true,
+    deactivationBlockedBy: null,
+  },
 ];
 
 // W2 (verify-report #341): `lng` opcional — instancia hermética de i18n

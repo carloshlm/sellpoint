@@ -21,7 +21,11 @@
     "name": "Nombre",
     "price": "Precio",
     "cost": "Costo",
-    "baseUnit": "Unidad base"
+    "baseUnit": "Unidad base",
+    "address": "Dirección",
+    "phone": "Teléfono",
+    "email": "Email",
+    "description": "Descripción"
   },
   "fields": {
     "add": "Agregar campo",

@@ -256,12 +256,24 @@ describe("Listado de documentos (F3-DOC-08)", () => {
    */
   describe("el almacén asignado preselecciona (F3-HOME-04)", () => {
     const DOS = [
-      { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+      {
+        id: "w1",
+        name: "Central",
+        address: null,
+        phone: null,
+        email: null,
+        attributes: {},
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
       {
         id: "w2",
         name: "Bodega Norte",
         address: null,
         isActive: true,
+        phone: null,
+        email: null,
+        attributes: {},
         deactivationBlockedBy: null,
       },
     ];
@@ -307,7 +319,16 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     it("el botón postea y navega al borrador recién creado", async () => {
       const user = userEvent.setup();
       mockedWarehouses.mockResolvedValue([
-        { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
+        {
+          id: "w1",
+          name: "Central",
+          address: null,
+          phone: null,
+          email: null,
+          attributes: {},
+          isActive: true,
+          deactivationBlockedBy: null,
+        },
       ]);
       mockedCreate.mockResolvedValue({ ...documento("ENT-000043", "draft"), id: "nuevo-id" });
       const router = await renderRuta("/movements/entries");

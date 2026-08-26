@@ -11,6 +11,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import type {
@@ -425,59 +426,13 @@ export class ProductsService {
     user: AuthUser,
     attributes: Record<string, unknown>,
   ): Promise<void> {
-    const catalog = await tx.catalog.findFirst({
-      where: { tenantId: user.tenantId, systemKey: PRODUCTS_CATALOG_KEY },
-      select: { id: true },
+    // Delegado al helper compartido del motor (2026-08-26): la misma
+    // validación que corren almacenes, servicios y los registros de
+    // subcatálogo, con las claves de error de ESTE módulo.
+    await assertSystemCatalogAttributes(tx, user, PRODUCTS_CATALOG_KEY, attributes, {
+      invalid: "products.invalid_attributes",
+      catalogMissing: "products.catalog_missing",
     });
-
-    if (!catalog) {
-      // Un tenant sin catálogo de productos no debería existir (F2-CAT-01 +
-      // backfill). Si pasa, es mejor fallar fuerte que aceptar cualquier cosa.
-      throw new ConflictException({ message: "products.catalog_missing" });
-    }
-
-    const fields: FieldDefinition[] = await tx.catalogField.findMany({
-      where: { catalogId: catalog.id },
-      select: {
-        key: true,
-        fieldType: true,
-        required: true,
-        isArchived: true,
-        lookupCatalogId: true,
-      },
-    });
-
-    const errors = validateRecordAttributes(fields, attributes);
-    if (errors.length > 0) {
-      throw new BadRequestException({ message: "products.invalid_attributes", errors });
-    }
-
-    // Existencia real de cada destino de lookup: la DB no puede garantizarla
-    // porque es un UUID dentro de un JSONB.
-    for (const field of fields) {
-      if (field.isArchived || field.fieldType !== "lookup" || !field.lookupCatalogId) {
-        continue;
-      }
-      const value = attributes[field.key];
-      if (typeof value !== "string") {
-        continue;
-      }
-      const target = await tx.catalogRecord.findFirst({
-        where: {
-          id: value,
-          catalogId: field.lookupCatalogId,
-          tenantId: user.tenantId,
-          isActive: true,
-        },
-        select: { id: true },
-      });
-      if (!target) {
-        throw new BadRequestException({
-          message: "products.invalid_attributes",
-          errors: [{ key: field.key, message: "catalogs.lookup_value_not_found" }],
-        });
-      }
-    }
   }
 }
 

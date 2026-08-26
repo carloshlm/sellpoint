@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
 import type { Service } from "@/lib/services/api";
 import {
   useCreateService,
@@ -282,6 +284,14 @@ function ServiceForm({
     );
   }
 
+  const [attributes, setAttributes] = useState<Record<string, unknown>>(service?.attributes ?? {});
+
+  // Los campos dinámicos del catálogo de sistema "services" — por systemKey,
+  // NUNCA `find(isSystem)`: hay tres catálogos del sistema.
+  const { data: catalogs } = useCatalogs();
+  const servicesCatalog = catalogs?.find((c) => c.systemKey === "services");
+  const { data: dynamicFields } = useCatalogFields(servicesCatalog?.id);
+
   const createService = useCreateService();
   const updateService = useUpdateService();
   const isSubmitting = createService.isPending || updateService.isPending;
@@ -308,6 +318,7 @@ function ServiceForm({
             cost: importe(cost) ?? null,
             price: importe(price) ?? null,
             warehouseIds,
+            attributes,
           },
         },
         handlers,
@@ -323,6 +334,7 @@ function ServiceForm({
         ...(description.trim() === "" ? {} : { description }),
         ...(importe(cost) === undefined ? {} : { cost: importe(cost) }),
         ...(importe(price) === undefined ? {} : { price: importe(price) }),
+        attributes,
       },
       handlers,
     );
@@ -347,6 +359,11 @@ function ServiceForm({
         label={t("services.form.description")}
         value={description}
         onChange={(event) => setDescription(event.target.value)}
+      />
+      <DynamicForm
+        fields={dynamicFields ?? []}
+        values={attributes}
+        onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField

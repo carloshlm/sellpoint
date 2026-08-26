@@ -22,6 +22,8 @@ export const createServiceSchema = z.object({
    * alta porque el form siempre lo manda (nace con todos marcados).
    */
   warehouseIds: z.array(z.uuid()).max(200),
+  /** Campos dinámicos: la forma real la valida el motor de catálogos. */
+  attributes: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const updateServiceSchema = z
@@ -34,6 +36,7 @@ export const updateServiceSchema = z
     isActive: z.boolean().optional(),
     /** Presente = REEMPLAZO completo del set. Ausente = no tocar. */
     warehouseIds: z.array(z.uuid()).max(200).optional(),
+    attributes: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "services.empty_update" });
 

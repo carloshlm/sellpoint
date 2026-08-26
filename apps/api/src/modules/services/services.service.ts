@@ -4,6 +4,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
+import { SERVICES_CATALOG_KEY } from "../tenants/role-catalog";
 import type {
   CreateServiceDto,
   ListServicesQuery,
@@ -18,6 +20,8 @@ export interface ServiceSummary {
   description: string | null;
   cost: string | null;
   price: string | null;
+  /** Campos dinámicos del catálogo de sistema "services" (2026-08-26). */
+  attributes: unknown;
   isActive: boolean;
   /** F3-SVC-07. En qué almacenes se ofrece. Vacío = no se vende en ninguno. */
   warehouseIds: string[];
@@ -85,6 +89,13 @@ export class ServicesService {
     meta: RequestMeta,
   ): Promise<ServiceSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      if (input.attributes !== undefined) {
+        await assertSystemCatalogAttributes(tx, user, SERVICES_CATALOG_KEY, input.attributes, {
+          invalid: "services.invalid_attributes",
+          catalogMissing: "services.catalog_missing",
+        });
+      }
+
       let service: Awaited<ReturnType<typeof tx.service.create>>;
       try {
         service = await tx.service.create({
@@ -95,6 +106,9 @@ export class ServicesService {
             description: input.description ?? null,
             cost: input.cost ?? null,
             price: input.price ?? null,
+            ...(input.attributes !== undefined
+              ? { attributes: input.attributes as Prisma.InputJsonValue }
+              : {}),
           },
         });
       } catch (error) {
@@ -141,6 +155,13 @@ export class ServicesService {
         throw new NotFoundException({ message: "services.not_found" });
       }
 
+      if (input.attributes !== undefined) {
+        await assertSystemCatalogAttributes(tx, user, SERVICES_CATALOG_KEY, input.attributes, {
+          invalid: "services.invalid_attributes",
+          catalogMissing: "services.catalog_missing",
+        });
+      }
+
       let updated: Awaited<ReturnType<typeof tx.service.update>>;
       try {
         updated = await tx.service.update({
@@ -151,6 +172,9 @@ export class ServicesService {
             ...(input.description !== undefined ? { description: input.description ?? null } : {}),
             ...(input.cost !== undefined ? { cost: input.cost ?? null } : {}),
             ...(input.price !== undefined ? { price: input.price ?? null } : {}),
+            ...(input.attributes !== undefined
+              ? { attributes: input.attributes as Prisma.InputJsonValue }
+              : {}),
             ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
           },
         });
@@ -279,6 +303,7 @@ function toSummary(row: {
   description: string | null;
   cost: Prisma.Decimal | null;
   price: Prisma.Decimal | null;
+  attributes: unknown;
   isActive: boolean;
   warehouses?: { warehouseId: string }[];
 }): ServiceSummary {
@@ -290,6 +315,7 @@ function toSummary(row: {
     // String y no number: un Decimal serializado a number pierde precisión.
     cost: row.cost?.toString() ?? null,
     price: row.price?.toString() ?? null,
+    attributes: row.attributes,
     isActive: row.isActive,
     warehouseIds: (row.warehouses ?? []).map((fila) => fila.warehouseId),
   };

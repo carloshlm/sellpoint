@@ -5,5 +5,7 @@
   "invalid_body": "Los datos enviados no son válidos.",
   "invalid_query": "Los filtros de búsqueda no son válidos.",
   "not_found": "El servicio no existe.",
-  "warehouses_invalid": "Alguno de los almacenes no existe, no es tuyo o está desactivado."
+  "warehouses_invalid": "Alguno de los almacenes no existe, no es tuyo o está desactivado.",
+  "invalid_attributes": "Revisa los campos marcados.",
+  "catalog_missing": "Este negocio no tiene catálogo de servicios. Contacta a soporte."
 }

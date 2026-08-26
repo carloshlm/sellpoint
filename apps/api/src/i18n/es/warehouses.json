@@ -5,5 +5,9 @@
   "empty_update": "No hay cambios que guardar.",
   "invalid_body": "Los datos enviados no son válidos.",
   "has_stock": "Este almacén todavía tiene {total} en existencia: no se puede desactivar. Muévela a otro almacén o regístrale una salida antes de cerrarlo.",
-  "has_transfers_in_transit": "Este almacén tiene traspasos en tránsito sin confirmar: no se puede desactivar hasta que se reciban o se cancelen."
+  "has_transfers_in_transit": "Este almacén tiene traspasos en tránsito sin confirmar: no se puede desactivar hasta que se reciban o se cancelen.",
+  "invalid_phone": "El teléfono debe estar en formato internacional, por ejemplo +525512345678.",
+  "invalid_email": "Ese email no parece válido.",
+  "invalid_attributes": "Revisa los campos marcados.",
+  "catalog_missing": "Este negocio no tiene catálogo de almacenes. Contacta a soporte."
 }

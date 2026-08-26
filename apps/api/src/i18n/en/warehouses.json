@@ -5,5 +5,9 @@
   "empty_update": "There are no changes to save.",
   "invalid_body": "The submitted data isn't valid.",
   "has_stock": "This warehouse still holds {total} in stock: it cannot be deactivated. Move it or write it off before closing it.",
-  "has_transfers_in_transit": "This warehouse has unconfirmed transfers in transit: it cannot be deactivated until they are received or canceled."
+  "has_transfers_in_transit": "This warehouse has unconfirmed transfers in transit: it cannot be deactivated until they are received or canceled.",
+  "invalid_phone": "The phone must be in international format, e.g. +15551234567.",
+  "invalid_email": "That email doesn't look valid.",
+  "invalid_attributes": "Check the highlighted fields.",
+  "catalog_missing": "This business has no warehouse catalog. Contact support."
 }

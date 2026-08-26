@@ -10,6 +10,7 @@ import {
   type TicketRow,
   type TicketWidth,
 } from "./ticket.renderer";
+import { ticketHeaderContact } from "./ticket-header";
 
 /**
  * Las Type1 que trae pdfkit: sin archivos de fuente que empaquetar en la
@@ -49,7 +50,7 @@ export class TicketService {
         where: { id: saleId, tenantId: user.tenantId },
         include: {
           items: { orderBy: { lineNo: "asc" } },
-          warehouse: { select: { name: true } },
+          warehouse: { select: { name: true, address: true, phone: true } },
           seller: { select: { firstName: true, lastNamePaternal: true } },
         },
       });
@@ -59,7 +60,14 @@ export class TicketService {
 
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
-        select: { name: true, legalName: true, taxId: true, address: true, currency: true },
+        select: {
+          name: true,
+          legalName: true,
+          taxId: true,
+          address: true,
+          phone: true,
+          currency: true,
+        },
       });
 
       // ── El LOTE que salió, del ledger ─────────────────────────────────
@@ -82,8 +90,10 @@ export class TicketService {
           name: tenant.name,
           legalName: tenant.legalName,
           taxId: tenant.taxId,
-          address: tenant.address,
         },
+        // El contacto del ALMACÉN con fallback al negocio (2026-08-26): la
+        // regla vive en ticketHeaderContact, el renderer solo pinta.
+        header: ticketHeaderContact(tenant, venta.warehouse),
         kind: "sale" as const,
         folio: venta.folio,
         barcode: venta.barcode,
@@ -121,7 +131,7 @@ export class TicketService {
         where: { id: quoteId, tenantId: user.tenantId },
         include: {
           lines: { orderBy: { lineNo: "asc" } },
-          warehouse: { select: { name: true } },
+          warehouse: { select: { name: true, address: true, phone: true } },
           author: { select: { firstName: true, lastNamePaternal: true } },
         },
       });
@@ -131,7 +141,14 @@ export class TicketService {
 
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
-        select: { name: true, legalName: true, taxId: true, address: true, currency: true },
+        select: {
+          name: true,
+          legalName: true,
+          taxId: true,
+          address: true,
+          phone: true,
+          currency: true,
+        },
       });
 
       // Una cotización NO tiene lotes: no movió stock, así que no hay reparto
@@ -143,8 +160,8 @@ export class TicketService {
           name: tenant.name,
           legalName: tenant.legalName,
           taxId: tenant.taxId,
-          address: tenant.address,
         },
+        header: ticketHeaderContact(tenant, cotizacion.warehouse),
         kind: "quote" as const,
         folio: cotizacion.folio,
         createdAt: cotizacion.createdAt,

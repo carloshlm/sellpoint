@@ -160,9 +160,36 @@ beforeEach(() => {
   // TRES almacenes a propósito: excluido el origen quedan dos, así que el
   // selector NO auto-elige y "sin destino" es un estado alcanzable de verdad.
   mockedWarehouses.mockResolvedValue([
-    { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
-    { id: "w2", name: "Bodega Norte", address: null, isActive: true, deactivationBlockedBy: null },
-    { id: "w3", name: "Bodega Sur", address: null, isActive: true, deactivationBlockedBy: null },
+    {
+      id: "w1",
+      name: "Central",
+      address: null,
+      phone: null,
+      email: null,
+      attributes: {},
+      isActive: true,
+      deactivationBlockedBy: null,
+    },
+    {
+      id: "w2",
+      name: "Bodega Norte",
+      address: null,
+      phone: null,
+      email: null,
+      attributes: {},
+      isActive: true,
+      deactivationBlockedBy: null,
+    },
+    {
+      id: "w3",
+      name: "Bodega Sur",
+      address: null,
+      phone: null,
+      email: null,
+      attributes: {},
+      isActive: true,
+      deactivationBlockedBy: null,
+    },
   ]);
   mockedProducts.mockReset();
   mockedProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });

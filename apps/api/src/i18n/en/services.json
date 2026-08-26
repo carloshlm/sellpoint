@@ -5,5 +5,7 @@
   "invalid_body": "The submitted data isn't valid.",
   "invalid_query": "The search filters aren't valid.",
   "not_found": "This service doesn't exist.",
-  "warehouses_invalid": "One of the warehouses doesn't exist, isn't yours, or is deactivated."
+  "warehouses_invalid": "One of the warehouses doesn't exist, isn't yours, or is deactivated.",
+  "invalid_attributes": "Check the highlighted fields.",
+  "catalog_missing": "This business has no service catalog. Contact support."
 }

@@ -76,8 +76,8 @@ describe("Importación de productos (F2-IMPORT)", () => {
       .get("/catalogs")
       .set("Authorization", bearer(token))
       .expect(200);
-    const productsCatalog = (catalogs.body as { id: string; isSystem: boolean }[]).find(
-      (catalog) => catalog.isSystem,
+    const productsCatalog = (catalogs.body as { id: string; systemKey: string | null }[]).find(
+      (catalog) => catalog.systemKey === "products",
     );
 
     await request(app.getHttpServer())
@@ -351,8 +351,8 @@ describe("Importación de productos (F2-IMPORT)", () => {
         .get("/catalogs")
         .set("Authorization", bearer(token))
         .expect(200);
-      const productsCatalog = (catalogs.body as { id: string; isSystem: boolean }[]).find(
-        (catalog) => catalog.isSystem,
+      const productsCatalog = (catalogs.body as { id: string; systemKey: string | null }[]).find(
+        (catalog) => catalog.systemKey === "products",
       );
 
       const subcatalog = await request(app.getHttpServer())

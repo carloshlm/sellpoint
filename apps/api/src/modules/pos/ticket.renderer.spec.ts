@@ -24,8 +24,9 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       name: "Mi Negocio",
       legalName: "DISTRIBUIDORA DEL NORTE S.A. DE C.V.",
       taxId: "DNO010203AB4",
-      address: "Av. Siempre Viva 742",
     },
+    // Ya colapsado por el service (2026-08-26): almacén con fallback al tenant.
+    header: { address: "Av. Siempre Viva 742", phone: "+525512345678" },
     kind: "sale",
     folio: "VTA-000042",
     createdAt: new Date("2026-08-21T19:42:00Z"),
@@ -64,6 +65,30 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
 
       expect(json).toContain("DISTRIBUIDORA DEL NORTE");
       expect(json).toContain("DNO010203AB4");
+    });
+
+    /**
+     * El contacto del encabezado (2026-08-26) llega YA colapsado en `header`
+     * (almacén con fallback al negocio — la regla vive en ticketHeaderContact
+     * y se prueba allá). Acá solo se fija que el renderer lo pinta.
+     */
+    it("pinta la dirección y el teléfono del header", () => {
+      const json = textos(buildTicketDefinition(base, t));
+
+      expect(json).toContain("Av. Siempre Viva 742");
+      expect(json).toContain("ticket.phone: +525512345678");
+    });
+
+    it("sin contacto no pinta líneas vacías (null y cadena en blanco)", () => {
+      const sinContacto = textos(
+        buildTicketDefinition({ ...base, header: { address: null, phone: null } }, t),
+      );
+      expect(sinContacto).not.toContain("ticket.phone");
+
+      const enBlanco = textos(
+        buildTicketDefinition({ ...base, header: { address: "   ", phone: "" } }, t),
+      );
+      expect(enBlanco).not.toContain("ticket.phone");
     });
 
     it("el folio va siempre: es lo que la persona busca", () => {
@@ -235,7 +260,8 @@ describe("el código de barras del folio", () => {
     lotCode: null,
   };
   const base: TicketInput = {
-    tenant: { name: "Mi Negocio", legalName: null, taxId: null, address: null },
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    header: { address: null, phone: null },
     kind: "sale",
     folio: "VTA-000042",
     createdAt: new Date("2026-08-21T19:42:00Z"),

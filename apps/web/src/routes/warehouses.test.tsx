@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { createI18n } from "../i18n";
+import * as catalogsApi from "../lib/catalogs/api";
 import { createQueryClient } from "../lib/query-client";
 import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
@@ -21,8 +22,39 @@ vi.mock("../lib/warehouses/api", () => ({
   updateWarehouse: vi.fn(),
   deleteWarehouse: vi.fn(),
 }));
+vi.mock("../lib/catalogs/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof catalogsApi>()),
+  listCatalogs: vi.fn(),
+  listFields: vi.fn(),
+}));
 
 const mockedApi = vi.mocked(warehousesApi);
+const mockedCatalogs = vi.mocked(catalogsApi);
+
+/** Los tres catálogos del sistema, como los devuelve el API. */
+const CATALOGOS_SISTEMA = [
+  {
+    id: "cat-wh",
+    name: "Catálogo de Almacenes",
+    systemKey: "warehouses",
+    isSystem: true,
+    isActive: true,
+  },
+  {
+    id: "cat-prod",
+    name: "Catálogo de Productos",
+    systemKey: "products",
+    isSystem: true,
+    isActive: true,
+  },
+  {
+    id: "cat-svc",
+    name: "Catálogo de Servicios",
+    systemKey: "services",
+    isSystem: true,
+    isActive: true,
+  },
+] as catalogsApi.CatalogSummary[];
 
 const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
@@ -52,6 +84,9 @@ const almacen = (over: Partial<warehousesApi.Warehouse>): warehousesApi.Warehous
   id: "w1",
   name: "Central",
   address: null,
+  phone: null,
+  email: null,
+  attributes: {},
   isActive: true,
   deactivationBlockedBy: null,
   ...over,
@@ -208,5 +243,100 @@ describe("Eliminar un almacén (2026-08-25)", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("operaciones registradas");
     expect(screen.queryByTestId("delete-warehouse-dialog")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Contacto estándar + campos dinámicos (Carlos, 2026-08-26): teléfono
+ * compuesto país+número (E.164 canónico al guardar, patrón del teléfono del
+ * negocio), email, y el DynamicForm del catálogo de sistema "warehouses".
+ */
+describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
+  beforeEach(() => {
+    // vi.mock persiste llamadas entre tests: sin el reset, `calls[0]` del
+    // tercer test apuntaba al payload del primero.
+    mockedApi.createWarehouse.mockReset();
+    mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("el alta compone el E.164 con el país del tenant preseleccionado y manda el email", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([]);
+    mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
+    await renderWarehouses();
+
+    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+
+    // El país del NEGOCIO preselecciona el dial, como en Datos del negocio.
+    expect(screen.getByLabelText("Código de país")).toHaveValue("MX");
+
+    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText(/Teléfono/), "55 9988 7766");
+    await user.type(screen.getByLabelText(/Email/), "sucursal@negocio.mx");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    // Sobre el PRIMER argumento: React Query le pasa al `mutationFn` un
+    // segundo con el contexto de la mutación, que no es asunto del test.
+    await waitFor(() => {
+      expect(mockedApi.createWarehouse.mock.calls[0]?.[0]).toMatchObject({
+        name: "Sucursal",
+        phone: "+525599887766",
+        email: "sucursal@negocio.mx",
+      });
+    });
+  });
+
+  it("al editar, el E.164 guardado se descompone en país + número", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([
+      almacen({ name: "Central", phone: "+525599887766", email: "central@negocio.mx" }),
+    ]);
+    await renderWarehouses();
+
+    const fila = (await screen.findByText("Central")).closest("tr");
+    const editar = Array.from(fila?.querySelectorAll("button") ?? []).find(
+      (b) => b.textContent === "Editar",
+    );
+    if (!editar) throw new Error("no encontré Editar");
+    await user.click(editar);
+
+    expect(screen.getByLabelText("Código de país")).toHaveValue("MX");
+    expect(screen.getByLabelText(/Teléfono/)).toHaveValue("5599887766");
+    expect(screen.getByLabelText(/Email/)).toHaveValue("central@negocio.mx");
+  });
+
+  it("pinta los campos dinámicos del catálogo de almacenes y los manda en attributes", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([]);
+    mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
+    mockedCatalogs.listFields.mockResolvedValue([
+      {
+        id: "f1",
+        key: "encargado",
+        label: "Encargado",
+        fieldType: "text",
+        lookupCatalogId: null,
+        required: false,
+        position: 1,
+        isArchived: false,
+      },
+    ] as catalogsApi.CatalogField[]);
+    await renderWarehouses();
+
+    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(await screen.findByLabelText("Encargado"), "Rosa");
+    expect(screen.getByLabelText("Encargado")).toHaveValue("Rosa");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockedApi.createWarehouse.mock.calls[0]?.[0]).toMatchObject({
+        attributes: { encargado: "Rosa" },
+      });
+    });
+
+    // Solo pide los campos del catálogo de ALMACENES, no el primero isSystem.
+    expect(mockedCatalogs.listFields).toHaveBeenCalledWith("cat-wh");
   });
 });

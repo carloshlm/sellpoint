@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { createI18n } from "../i18n";
+import * as catalogsApi from "../lib/catalogs/api";
 import { createQueryClient } from "../lib/query-client";
 import * as servicesApi from "../lib/services/api";
 import * as warehousesApi from "../lib/warehouses/api";
@@ -29,13 +30,37 @@ vi.mock("../lib/warehouses/api", () => ({
   createWarehouse: vi.fn(),
   updateWarehouse: vi.fn(),
 }));
+vi.mock("../lib/catalogs/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof catalogsApi>()),
+  listCatalogs: vi.fn(),
+  listFields: vi.fn(),
+}));
 
 const mockedApi = vi.mocked(servicesApi);
+const mockedCatalogs = vi.mocked(catalogsApi);
 const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 
 const ALMACENES: warehousesApi.Warehouse[] = [
-  { id: "w1", name: "Central", address: null, isActive: true, deactivationBlockedBy: null },
-  { id: "w2", name: "Bodega Norte", address: null, isActive: true, deactivationBlockedBy: null },
+  {
+    id: "w1",
+    name: "Central",
+    address: null,
+    phone: null,
+    email: null,
+    attributes: {},
+    isActive: true,
+    deactivationBlockedBy: null,
+  },
+  {
+    id: "w2",
+    name: "Bodega Norte",
+    address: null,
+    phone: null,
+    email: null,
+    attributes: {},
+    isActive: true,
+    deactivationBlockedBy: null,
+  },
 ];
 
 const demoUser = (permissions: string[]): AuthUser => ({
@@ -71,6 +96,7 @@ const servicio = (over: Partial<servicesApi.Service> = {}): servicesApi.Service 
   price: "150",
   isActive: true,
   warehouseIds: ["w1", "w2"],
+  attributes: {},
   ...over,
 });
 
@@ -308,5 +334,73 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
 
     expect(screen.queryByRole("button", { name: "Nuevo servicio" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Campos dinámicos del servicio (Carlos, 2026-08-26): el form pinta los del
+ * catálogo de sistema "services" (por systemKey, nunca `find(isSystem)`) y
+ * los manda en `attributes`.
+ */
+describe("campos dinámicos del servicio (2026-08-26)", () => {
+  beforeEach(() => {
+    mockedApi.createService.mockReset();
+    mockedCatalogs.listCatalogs.mockResolvedValue([
+      {
+        id: "cat-wh",
+        name: "Catálogo de Almacenes",
+        systemKey: "warehouses",
+        isSystem: true,
+        isActive: true,
+      },
+      {
+        id: "cat-prod",
+        name: "Catálogo de Productos",
+        systemKey: "products",
+        isSystem: true,
+        isActive: true,
+      },
+      {
+        id: "cat-svc",
+        name: "Catálogo de Servicios",
+        systemKey: "services",
+        isSystem: true,
+        isActive: true,
+      },
+    ] as catalogsApi.CatalogSummary[]);
+    mockedCatalogs.listFields.mockResolvedValue([
+      {
+        id: "f1",
+        key: "duracion",
+        label: "Duración (min)",
+        fieldType: "number",
+        lookupCatalogId: null,
+        required: false,
+        position: 1,
+        isArchived: false,
+      },
+    ] as catalogsApi.CatalogField[]);
+  });
+
+  it("pinta el campo dinámico y lo manda en attributes", async () => {
+    const user = userEvent.setup();
+    mockedApi.listServices.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+    mockedWarehouses.mockResolvedValue(ALMACENES);
+    mockedApi.createService.mockResolvedValue(servicio());
+    await renderServices();
+
+    await user.click(await screen.findByRole("button", { name: "Nuevo servicio" }));
+    await user.type(screen.getByLabelText("Código"), "TINTE");
+    await user.type(screen.getByLabelText("Nombre"), "Tinte");
+    await user.type(await screen.findByLabelText("Duración (min)"), "45");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockedApi.createService.mock.calls[0]?.[0]).toMatchObject({
+        code: "TINTE",
+        attributes: { duracion: 45 },
+      });
+    });
+    expect(mockedCatalogs.listFields).toHaveBeenCalledWith("cat-svc");
   });
 });

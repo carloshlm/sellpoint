@@ -125,19 +125,23 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
   // el tenant, en la misma transacción que los roles, porque un tenant sin él
   // no puede dar de alta un producto — y el motor no tendría dónde colgar los
   // campos personalizados.
-  it("crea el Catálogo de Productos del sistema en la misma tx que el tenant", async () => {
+  it("crea los TRES catálogos del sistema en la misma tx que el tenant", async () => {
     const { service, tx } = buildService();
 
     await service.provision(baseInput);
 
-    expect(tx.catalog.create).toHaveBeenCalledTimes(1);
-    expect(tx.catalog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        tenantId: "tenant-1",
-        systemKey: "products",
-        isSystem: true,
-      }),
-    });
+    // products (F2-CAT) + warehouses y services (2026-08-26): cada uno es el
+    // ancla de los campos dinámicos de su entidad.
+    expect(tx.catalog.create).toHaveBeenCalledTimes(3);
+    for (const systemKey of ["products", "warehouses", "services"]) {
+      expect(tx.catalog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: "tenant-1",
+          systemKey,
+          isSystem: true,
+        }),
+      });
+    }
   });
 
   /**
