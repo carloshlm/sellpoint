@@ -494,17 +494,28 @@ function LineRow({
     }
   }, [lotCode, expiresAt, stockProducto]);
 
+  // La altura del input (py-1 + text-sm + borde): las celdas de texto centran
+  // su primera línea a esta altura para alinear con los inputs de la fila.
+  const LINE_CELL = "flex min-h-[30px] items-center";
+
   const conError = row.errors.length > 0;
   const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
 
   return (
-    <tr className={`border-b last:border-0 ${conError ? "bg-destructive/5" : ""}`}>
-      <td className="px-2 py-2">{row.lineNo}</td>
+    // `align-top` + `LINE_CELL` (Carlos, 2026-08-26): la celda de cantidad
+    // crece con sus ayudas (equivalencia, disponible, lotes) y con el
+    // centrado por defecto el input quedaba a otra altura que el resto de la
+    // fila. Ahora todo alinea al tope y cada celda de texto centra su
+    // contenido a la altura del input — las ayudas caen debajo.
+    <tr className={`border-b align-top last:border-0 ${conError ? "bg-destructive/5" : ""}`}>
       <td className="px-2 py-2">
-        <span className="font-mono">{row.sku}</span>
-        {product !== undefined && (
-          <span className="ml-2 text-muted-foreground">{product.name}</span>
-        )}
+        <div className={LINE_CELL}>{row.lineNo}</div>
+      </td>
+      <td className="px-2 py-2">
+        <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
+          <span className="font-mono">{row.sku}</span>
+          {product !== undefined && <span className="text-muted-foreground">{product.name}</span>}
+        </div>
       </td>
       <td className="px-2 py-2">
         {editable && product !== undefined ? (
@@ -593,7 +604,9 @@ function LineRow({
       )}
       {esConteo && (
         <>
-          <td className="px-2 py-2">{row.theoretical}</td>
+          <td className="px-2 py-2">
+            <div className={LINE_CELL}>{row.theoretical}</div>
+          </td>
           <td className="px-2 py-2">
             {row.counted ?? "—"}
             {row.newLot && (
@@ -676,13 +689,17 @@ function LineRow({
         </>
       )}
       <td className="px-2 py-2">
-        {formatQuantity(row.stockBefore, product?.baseUnit ?? "")} →{" "}
-        {formatQuantity(row.stockAfter, product?.baseUnit ?? "")}
-        {!esConteo && row.newLot && (
-          <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
-            {t("inventory.document.newLot")}
+        <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
+          <span>
+            {formatQuantity(row.stockBefore, product?.baseUnit ?? "")} →{" "}
+            {formatQuantity(row.stockAfter, product?.baseUnit ?? "")}
           </span>
-        )}
+          {!esConteo && row.newLot && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+              {t("inventory.document.newLot")}
+            </span>
+          )}
+        </div>
       </td>
       {/*
         Quitar una línea del BORRADOR no toca el ledger: la línea todavía no
@@ -691,19 +708,23 @@ function LineRow({
       */}
       {editable && !esConteo && (
         <td className="px-2 py-2 text-right">
-          <button
-            type="button"
-            onClick={() => quitar.mutate()}
-            disabled={quitar.isPending}
-            className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
-          >
-            {t("inventory.document.removeLine")}
-          </button>
+          <div className={`${LINE_CELL} justify-end`}>
+            <button
+              type="button"
+              onClick={() => quitar.mutate()}
+              disabled={quitar.isPending}
+              className="text-muted-foreground text-xs underline-offset-2 hover:text-destructive hover:underline"
+            >
+              {t("inventory.document.removeLine")}
+            </button>
+          </div>
         </td>
       )}
       {conError && (
         <td className="px-2 py-2 text-destructive text-xs">
-          {row.errors.map((error) => t(error.code, error.args)).join(" · ")}
+          <div className={LINE_CELL}>
+            {row.errors.map((error) => t(error.code, error.args)).join(" · ")}
+          </div>
         </td>
       )}
     </tr>
