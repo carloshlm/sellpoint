@@ -97,7 +97,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         }
       >
         <div className="flex h-14 shrink-0 items-center justify-center border-b border-sidebar-border px-4 md:justify-start">
-          <span className="truncate text-lg font-semibold">{expanded ? "SellPoint" : "SP"}</span>
+          <span className="truncate text-lg font-semibold">{expanded ? "SellPointy" : "SP"}</span>
         </div>
         {/* ── El menú se DESPLAZA cuando no cabe (2026-08-22) ──────────────
             En un celular de 700 px, este menú mide 844: «Roles» terminaba en el

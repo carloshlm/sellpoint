@@ -10,7 +10,7 @@
     "country": "Country",
     "countryPlaceholder": "Select a country",
     "legalName": "Legal name",
-    "legalNameHint": "Your business's legal name, as it appears on your documents. It will also be its visible name in SellPoint.",
+    "legalNameHint": "Your business's legal name, as it appears on your documents. It will also be its visible name in SellPointy.",
     "taxId": "Tax ID",
     "taxIdWithAbbr": "Tax ID ({{abbr}})",
     "address": "Address",
@@ -86,7 +86,7 @@
   },
   "step3": {
     "title": "Pick a theme",
-    "subtitle": "This is how SellPoint will look for your business. It's just a starting point.",
+    "subtitle": "This is how SellPointy will look for your business. It's just a starting point.",
     "changeLaterHint": "These are the four basics. From My profile you can change the theme anytime — and pick from more options.",
     "finish": "Finish",
     "error": "We couldn't save the theme. Please try again."

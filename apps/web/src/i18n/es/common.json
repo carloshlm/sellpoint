@@ -111,7 +111,7 @@
   },
   "theme": {
     "title": "Tema",
-    "subtitle": "El aspecto de SellPoint para todo tu negocio. El cambio se aplica al instante.",
+    "subtitle": "El aspecto de SellPointy para todo tu negocio. El cambio se aplica al instante.",
     "label": "Tema del negocio",
     "names": {
       "light": "Claro",
@@ -124,5 +124,5 @@
       "charcoal": "Carbón"
     }
   },
-  "welcome": "Bienvenido a SellPoint"
+  "welcome": "Bienvenido a SellPointy"
 }

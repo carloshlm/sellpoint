@@ -28,7 +28,7 @@ describe("i18n wiring", () => {
       </I18nextProvider>,
     );
 
-    expect(screen.getByTestId("welcome-probe")).toHaveTextContent("Bienvenido a SellPoint");
+    expect(screen.getByTestId("welcome-probe")).toHaveTextContent("Bienvenido a SellPointy");
   });
 
   it("cambia el texto renderizado tras changeLanguage('en')", async () => {
@@ -44,7 +44,7 @@ describe("i18n wiring", () => {
       await i18n.changeLanguage("en");
     });
 
-    expect(screen.getByTestId("welcome-probe")).toHaveTextContent("Welcome to SellPoint");
+    expect(screen.getByTestId("welcome-probe")).toHaveTextContent("Welcome to SellPointy");
   });
 
   it("una clave inexistente no rompe: devuelve la clave (fallback default de i18next)", () => {

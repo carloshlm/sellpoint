@@ -4,7 +4,7 @@ import { ConsoleMailer } from "./console.mailer";
 
 function fakeI18n(): I18nService {
   const dict: Record<string, string> = {
-    "emails.verifyEmail.subject": "Verifica tu cuenta de SellPoint",
+    "emails.verifyEmail.subject": "Verifica tu cuenta de SellPointy",
     "emails.verifyEmail.greeting": "Hola {firstName},",
     "emails.verifyEmail.body": "Confirma tu correo.",
     "emails.verifyEmail.cta": "Verificar correo",

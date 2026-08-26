@@ -35,12 +35,12 @@ describe("LanguageSwitcher", () => {
 
   it("cambia el idioma de la pantalla y mueve la marca de activo", async () => {
     renderSwitcher();
-    expect(screen.getByTestId("probe")).toHaveTextContent("Welcome to SellPoint");
+    expect(screen.getByTestId("probe")).toHaveTextContent("Welcome to SellPointy");
     expect(screen.getByRole("button", { name: "English" })).toHaveAttribute("aria-pressed", "true");
 
     await userEvent.click(screen.getByRole("button", { name: "Español" }));
 
-    expect(screen.getByTestId("probe")).toHaveTextContent("Bienvenido a SellPoint");
+    expect(screen.getByTestId("probe")).toHaveTextContent("Bienvenido a SellPointy");
     expect(screen.getByRole("button", { name: "Español" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "English" })).toHaveAttribute(
       "aria-pressed",

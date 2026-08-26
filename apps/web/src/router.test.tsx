@@ -34,7 +34,7 @@ describe("Router", () => {
     expect(await screen.findByTestId("shared-import")).toHaveTextContent("$1,234.56");
     expect(screen.getByTestId("tailwind-check")).toHaveTextContent("Tailwind activo");
     expect(screen.getByTestId("shadcn-check")).toHaveTextContent("Probar");
-    expect(screen.getByTestId("i18n-check")).toHaveTextContent("Bienvenido a SellPoint");
+    expect(screen.getByTestId("i18n-check")).toHaveTextContent("Bienvenido a SellPointy");
   });
 
   /**
@@ -49,7 +49,7 @@ describe("Router", () => {
     expect(await screen.findByTestId("shared-import")).toHaveTextContent("Demo total:");
     expect(screen.getByTestId("tailwind-check")).toHaveTextContent("Tailwind is live");
     expect(screen.getByTestId("shadcn-check")).toHaveTextContent("Try it");
-    expect(screen.getByTestId("i18n-check")).toHaveTextContent("Welcome to SellPoint");
+    expect(screen.getByTestId("i18n-check")).toHaveTextContent("Welcome to SellPointy");
   });
 
   it("la ruta /login renderiza el form real de inicio de sesión", async () => {

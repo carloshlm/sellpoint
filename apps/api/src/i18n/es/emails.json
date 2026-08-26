@@ -2,23 +2,23 @@
   "greeting": "Hola",
   "linkFallback": "Si el botón no funciona, copia y pega este enlace en tu navegador:",
   "verifyEmail": {
-    "subject": "Verifica tu cuenta de SellPoint",
+    "subject": "Verifica tu cuenta de SellPointy",
     "greeting": "Hola {firstName},",
-    "body": "Gracias por registrarte en SellPoint. Confirma tu correo para activar tu cuenta.",
+    "body": "Gracias por registrarte en SellPointy. Confirma tu correo para activar tu cuenta.",
     "cta": "Verificar correo",
     "expiry": "Este link vence en 24 horas. Si no creaste esta cuenta, ignora este correo."
   },
   "resetPassword": {
-    "subject": "Restablece tu contraseña de SellPoint",
+    "subject": "Restablece tu contraseña de SellPointy",
     "greeting": "Hola {firstName},",
     "body": "Recibimos una solicitud para restablecer tu contraseña.",
     "cta": "Restablecer contraseña",
     "expiry": "Este link vence en 30 minutos. Si no pediste esto, ignora este correo."
   },
   "inviteUser": {
-    "subject": "Te invitaron a SellPoint",
+    "subject": "Te invitaron a SellPointy",
     "greeting": "Hola {firstName},",
-    "body": "Te dieron de alta en SellPoint. Entra al link para definir tu contraseña y activar tu cuenta.",
+    "body": "Te dieron de alta en SellPointy. Entra al link para definir tu contraseña y activar tu cuenta.",
     "cta": "Definir mi contraseña",
     "expiry": "Este link vence en 7 días. Si no esperabas esta invitación, ignora este correo."
   }

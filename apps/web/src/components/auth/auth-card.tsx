@@ -27,7 +27,7 @@ function AuthCard({ title, description, children, footer }: AuthCardProps) {
         <div className="flex justify-end">
           <LanguageSwitcher />
         </div>
-        <p className="text-center text-2xl font-semibold text-primary">SellPoint</p>
+        <p className="text-center text-2xl font-semibold text-primary">SellPointy</p>
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">{title}</CardTitle>

@@ -43,7 +43,7 @@ async function bootstrap() {
   });
 
   const openApiConfig = new DocumentBuilder()
-    .setTitle("SellPoint API")
+    .setTitle("SellPointy API")
     .setDescription("API de control de inventario y punto de venta")
     .setVersion("0.0.1")
     .build();

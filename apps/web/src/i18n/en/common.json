@@ -111,7 +111,7 @@
   },
   "theme": {
     "title": "Theme",
-    "subtitle": "How SellPoint looks for your whole business. Changes apply instantly.",
+    "subtitle": "How SellPointy looks for your whole business. Changes apply instantly.",
     "label": "Business theme",
     "names": {
       "light": "Light",
@@ -124,5 +124,5 @@
       "charcoal": "Charcoal"
     }
   },
-  "welcome": "Welcome to SellPoint"
+  "welcome": "Welcome to SellPointy"
 }

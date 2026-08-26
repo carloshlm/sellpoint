@@ -2,23 +2,23 @@
   "greeting": "Hello",
   "linkFallback": "If the button does not work, copy and paste this link into your browser:",
   "verifyEmail": {
-    "subject": "Verify your SellPoint account",
+    "subject": "Verify your SellPointy account",
     "greeting": "Hi {firstName},",
-    "body": "Thanks for signing up to SellPoint. Confirm your email to activate your account.",
+    "body": "Thanks for signing up to SellPointy. Confirm your email to activate your account.",
     "cta": "Verify email",
     "expiry": "This link expires in 24 hours. If you didn't create this account, ignore this email."
   },
   "resetPassword": {
-    "subject": "Reset your SellPoint password",
+    "subject": "Reset your SellPointy password",
     "greeting": "Hi {firstName},",
     "body": "We received a request to reset your password.",
     "cta": "Reset password",
     "expiry": "This link expires in 30 minutes. If you didn't request this, ignore this email."
   },
   "inviteUser": {
-    "subject": "You've been invited to SellPoint",
+    "subject": "You've been invited to SellPointy",
     "greeting": "Hi {firstName},",
-    "body": "You were added to SellPoint. Follow the link to set your password and activate your account.",
+    "body": "You were added to SellPointy. Follow the link to set your password and activate your account.",
     "cta": "Set my password",
     "expiry": "This link expires in 7 days. If you weren't expecting this invitation, ignore this email."
   }

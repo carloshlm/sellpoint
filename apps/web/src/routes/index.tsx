@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
  * S1 del verify de f1-web-auth: esta ruta es PÚBLICA (200 en producción) y
  * tenía el único color crudo de la paleta de Tailwind en todo `apps/web/src`,
  * más 3 strings clavados en español. El color pasa a tokens semánticos, que
- * es lo que el theming por tenant repinta; "SellPoint" se queda literal por
+ * es lo que el theming por tenant repinta; "SellPointy" se queda literal por
  * ser nombre propio. El barrido que lo impide vive en `lib/theme/themes.test.ts`.
  */
 function HomePage() {
@@ -24,7 +24,7 @@ function HomePage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6">
-      <h1 className="text-3xl font-semibold">SellPoint</h1>
+      <h1 className="text-3xl font-semibold">SellPointy</h1>
       <p className="text-muted-foreground" data-testid="shared-import">
         {t("common.home.demoTotal", { amount: formatMoney(1234.56, "MXN", "es") })}
       </p>
