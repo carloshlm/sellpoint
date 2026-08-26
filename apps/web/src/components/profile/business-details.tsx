@@ -5,16 +5,18 @@ import {
   ISO_COUNTRY_CODES,
   splitE164,
 } from "@sellpoint/shared";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
+import { getCuratedTimezones, resolveCountryTimezones } from "@/lib/tenant/markets";
 import { type BusinessDetailsValues, businessDetailsSchema } from "@/lib/tenant/schemas";
 import type { AuthUser } from "@/stores/auth.store";
 
@@ -42,6 +44,10 @@ import type { AuthUser } from "@/stores/auth.store";
  * re-sincroniza el store al terminar, así el resto de la app ve el tenant
  * fresco sin recargar.
  */
+
+// Mismo respaldo que el wizard para un país NO curado: el catálogo IANA
+// completo del runtime (no hay 418 traducciones que mantener).
+const ALL_TIMEZONES = Intl.supportedValuesOf("timeZone");
 
 /** El E.164 guardado, de vuelta a país + número para el formulario. */
 function phoneFormDefaults(tenant: TenantBlock): { phoneCountry: string; phoneNumber: string } {
@@ -71,14 +77,18 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isDirty, dirtyFields },
   } = useForm<BusinessDetailsValues>({
     resolver: zodResolver(businessDetailsSchema),
     defaultValues: {
+      country: user.tenant.country ?? "",
       name: user.tenant.name,
       legalName: user.tenant.legalName ?? "",
       taxId: user.tenant.taxId ?? "",
       address: user.tenant.address ?? "",
+      timezone: user.tenant.timezone,
       ...phoneFormDefaults(user.tenant),
     },
   });
@@ -95,6 +105,46 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
   }, [i18n.language]);
 
+  // El select de País del NEGOCIO muestra solo el nombre — el dial code es
+  // asunto del teléfono, no del domicilio fiscal.
+  const businessCountryOptions = useMemo(() => {
+    const displayNames = new Intl.DisplayNames([i18n.language], { type: "region" });
+    return [...ISO_COUNTRY_CODES]
+      .map((code) => ({ value: code, label: displayNames.of(code) ?? code }))
+      .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
+  }, [i18n.language]);
+
+  // Mismo criterio del wizard (step-business): zonas curadas con etiqueta
+  // i18n; el resto del mundo con su identificador IANA crudo.
+  const country = watch("country");
+  const curatedZones = getCuratedTimezones(country);
+  const countryZones = country ? resolveCountryTimezones(country) : undefined;
+  const timezoneOptions = curatedZones
+    ? curatedZones.map((tz) => ({ value: tz, label: t(`onboarding.step1.timezoneOptions.${tz}`) }))
+    : (countryZones ?? ALL_TIMEZONES).map((tz) => ({ value: tz, label: tz }));
+
+  // Cambiar el país no deja una zona AJENA en silencio (contrato del wizard):
+  // única zona → se auto-selecciona; varias → se vacía y el guardado exige
+  // elegir. Sin heurística de navegador: acá ya hay un dato guardado y la
+  // corrección es del usuario, no una adivinanza. `shouldDirty` para que la
+  // zona derivada viaje en el PATCH junto con el país.
+  const previousCountryRef = useRef(user.tenant.country ?? "");
+  useEffect(() => {
+    if (country === previousCountryRef.current) {
+      return;
+    }
+    previousCountryRef.current = country;
+    const zones = country ? resolveCountryTimezones(country) : undefined;
+    const currentTimezone = watch("timezone");
+    if (zones ? !zones.includes(currentTimezone) : !ALL_TIMEZONES.includes(currentTimezone)) {
+      setValue("timezone", zones?.length === 1 ? (zones.at(0) ?? "") : "", {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    // `watch`/`setValue` son referencias estables de react-hook-form.
+  }, [country, watch, setValue]);
+
   if (!user.permissions.includes("tenants:manage")) {
     return null;
   }
@@ -104,6 +154,8 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     setSucceeded(false);
 
     const patch: UpdateTenantInput = {};
+    if (dirtyFields.country) patch.country = values.country;
+    if (dirtyFields.timezone) patch.timezone = values.timezone;
     if (dirtyFields.name) patch.name = values.name.trim();
     if (dirtyFields.legalName) patch.legalName = values.legalName.trim();
     if (dirtyFields.taxId) patch.taxId = values.taxId.trim();
@@ -168,6 +220,12 @@ function BusinessDetails({ user }: { user: AuthUser }) {
               {t("common.profile.business.success")}
             </p>
           )}
+          <SelectField
+            label={t("common.profile.business.country")}
+            options={businessCountryOptions}
+            error={errors.country?.message ? t(errors.country.message) : undefined}
+            {...register("country")}
+          />
           <TextField
             label={t("common.profile.business.name")}
             autoComplete="organization"
@@ -190,6 +248,26 @@ function BusinessDetails({ user }: { user: AuthUser }) {
             error={errors.address?.message ? t(errors.address.message) : undefined}
             {...register("address")}
           />
+          <SelectField
+            label={t("common.profile.business.timezone")}
+            options={[
+              { value: "", label: t("common.profile.business.timezonePlaceholder") },
+              ...timezoneOptions,
+            ]}
+            error={errors.timezone?.message ? t(errors.timezone.message) : undefined}
+            {...register("timezone")}
+          />
+          {/* La moneda SOLO se muestra: se congela con la operación y
+              editarla prometería una conversión que el sistema no hace. */}
+          <div className="flex flex-col gap-2">
+            <Label>{t("common.profile.business.currency")}</Label>
+            <p data-testid="business-currency" className="text-sm">
+              {t(`onboarding.step1.currencyOptions.${user.tenant.currency}`)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("common.profile.business.currencyHint")}
+            </p>
+          </div>
           <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
             <SelectField
               className="sm:w-56 sm:shrink-0"

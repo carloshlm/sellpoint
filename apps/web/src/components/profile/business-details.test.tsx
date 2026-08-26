@@ -156,6 +156,101 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
     });
   });
 
+  /**
+   * País y zona horaria editables + moneda visible (Carlos, 2026-08-26). El
+   * orden replica el del wizard: País hasta arriba, Zona horaria después de
+   * Dirección. La moneda SOLO se muestra: se congela con el primer movimiento
+   * de inventario y editarla aquí sería prometer algo que el sistema no da.
+   */
+  describe("país, zona horaria y moneda (2026-08-26)", () => {
+    it("país y zona llegan precargados del tenant", () => {
+      renderCard(demoUser(["tenants:manage"]));
+
+      expect(screen.getByLabelText("País")).toHaveValue("MX");
+      expect(screen.getByLabelText("Zona horaria")).toHaveValue("America/Mexico_City");
+    });
+
+    it("el país va hasta arriba y la zona horaria después de la dirección", () => {
+      renderCard(demoUser(["tenants:manage"]));
+
+      const country = screen.getByLabelText("País");
+      const name = screen.getByLabelText("Nombre del negocio");
+      const address = screen.getByLabelText("Dirección");
+      const timezone = screen.getByLabelText("Zona horaria");
+
+      // DOCUMENT_POSITION_FOLLOWING = el argumento está DESPUÉS del receptor.
+      expect(country.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(
+        address.compareDocumentPosition(timezone) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("la moneda se muestra con su nombre pero NO es un campo editable", () => {
+      renderCard(demoUser(["tenants:manage"]));
+
+      expect(screen.getByTestId("business-currency")).toHaveTextContent("Peso mexicano (MXN)");
+      expect(screen.queryByRole("combobox", { name: "Moneda" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("textbox", { name: "Moneda" })).not.toBeInTheDocument();
+    });
+
+    it("cambiar la zona horaria manda SOLO timezone", async () => {
+      const user = userEvent.setup();
+      mockedUpdate.mockResolvedValue({
+        ...demoUser(["tenants:manage"]).tenant,
+        timezone: "America/Cancun",
+      });
+      renderCard(demoUser(["tenants:manage"]));
+
+      await user.selectOptions(screen.getByLabelText("Zona horaria"), "America/Cancun");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ timezone: "America/Cancun" });
+      });
+    });
+
+    /**
+     * Mismo contrato del wizard: al cambiar el país, una zona que no le
+     * pertenece no se queda en silencio. Con UNA sola zona en el país nuevo
+     * se auto-selecciona y viaja en el PATCH junto con el país.
+     */
+    it("cambiar a un país de UNA zona deriva la zona y manda ambos", async () => {
+      const user = userEvent.setup();
+      mockedUpdate.mockResolvedValue({
+        ...demoUser(["tenants:manage"]).tenant,
+        country: "GT",
+        timezone: "America/Guatemala",
+      });
+      renderCard(demoUser(["tenants:manage"]));
+
+      await user.selectOptions(screen.getByLabelText("País"), "GT");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({
+          country: "GT",
+          timezone: "America/Guatemala",
+        });
+      });
+    });
+
+    /**
+     * Con VARIAS zonas en el país nuevo no se adjudica ninguna: la zona se
+     * vacía y el guardado exige elegir una — nunca viaja una zona ajena.
+     */
+    it("cambiar a un país de varias zonas exige elegir la zona antes de guardar", async () => {
+      const user = userEvent.setup();
+      renderCard(demoUser(["tenants:manage"]));
+
+      await user.selectOptions(screen.getByLabelText("País"), "US");
+      expect(screen.getByLabelText("Zona horaria")).toHaveValue("");
+
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+      expect(await screen.findByText("Este campo es obligatorio")).toBeInTheDocument();
+      expect(mockedUpdate).not.toHaveBeenCalled();
+    });
+  });
+
   it("sin cambios el botón Guardar está deshabilitado", () => {
     renderCard(demoUser(["tenants:manage"]));
 

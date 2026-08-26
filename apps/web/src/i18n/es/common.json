@@ -76,6 +76,11 @@
       "phone": "Teléfono móvil (opcional)",
       "phoneCountry": "Código de país",
       "phoneCountryPlaceholder": "Elige un país",
+      "country": "País",
+      "timezone": "Zona horaria",
+      "timezonePlaceholder": "Elige una zona horaria",
+      "currency": "Moneda",
+      "currencyHint": "La elegiste al configurar tu negocio y no puede cambiarse.",
       "submit": "Guardar cambios",
       "success": "Los datos del negocio quedaron guardados."
     },

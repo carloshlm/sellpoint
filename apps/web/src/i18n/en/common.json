@@ -76,6 +76,11 @@
       "phone": "Mobile phone (optional)",
       "phoneCountry": "Country code",
       "phoneCountryPlaceholder": "Choose a country",
+      "country": "Country",
+      "timezone": "Time zone",
+      "timezonePlaceholder": "Choose a time zone",
+      "currency": "Currency",
+      "currencyHint": "You chose it when setting up your business and it cannot be changed.",
       "submit": "Save changes",
       "success": "Business details saved."
     },
