@@ -12,6 +12,18 @@
 # Uso esperado en el server (una vez instalado):
 #   /opt/sellpoint/scripts/backup-postgres.sh
 #
+#
+# ── RESTORE (probado el 2026-08-27, F6-DRILL-01 — RTO 19 s con DB de 388 KB) ──
+# 1. Bajar el dump:   RCLONE_CONFIG=~/.config/rclone/rclone.conf \
+#      /home/deploy/bin/rclone copy r2:sellpoint-backups/<dump> /tmp/restore/
+# 2. Parar el api del ambiente destino (nadie escribe durante el restore):
+#      docker stop <container-api>
+# 3. Restaurar POR STDIN, conservando owners (los roles sellpoint/sellpoint_app
+#    existen en ambos clusters; sus passwords NO viajan en el dump):
+#      docker exec -i <container-postgres> pg_restore -U sellpoint \
+#        -d <db-destino> --clean --if-exists < /tmp/restore/<dump>
+# 4. docker start <container-api> y esperar healthy.
+# OJO: --clean deja el destino como ESPEJO del dump — todo lo previo se pierde.
 set -euo pipefail
 
 COMPOSE_FILE="/opt/sellpoint/docker-compose.prod.yml"
