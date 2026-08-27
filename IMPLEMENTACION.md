@@ -2896,9 +2896,10 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 | Decisión | Valor |
 |---|---|
-| Planes fijos | **Basic $199** · **Pro $349** · **Plus $499** MXN/mes |
-| Premium | Todo lo de Plus + desarrollo a la medida; **precio dinámico por tenant** (`custom_price`), sin precio publicado, CTA "Contactar" |
-| Ciclo anual | 10× el mensual (2 meses gratis): Basic $1,990 · Pro $3,490 · Plus $4,990 |
+| Planes fijos (México) | **Basic $199** · **Pro $349** · **Plus $499** MXN/mes |
+| Mercados iniciales (2026-08-27) | **México, Canadá y Estados Unidos, en ese orden.** El precio es POR MERCADO, no por tipo de cambio: EE.UU. **$15/$29/$45 USD** (entrada agresiva contra Square $29+, Clover $15, Toast $69) · Canadá **$19/$39/$59 CAD**. Un país futuro sin precio propio paga la tarifa USD (default internacional) |
+| Premium | Todo lo de Plus + desarrollo a la medida; **precio dinámico por tenant** (`custom_price` en la moneda del tenant), sin precio publicado, CTA "Contactar" |
+| Ciclo anual | 10× el mensual (2 meses gratis) **en todas las monedas**: MXN $1,990/$3,490/$4,990 · USD $150/$290/$450 · CAD $190/$390/$590 |
 | Trial | **14 días con nivel Plus**, sin tarjeta, arranca al registrarse |
 | Free tier (post-trial / post-gracia) | Puede entrar y VER todo; sin crear/editar en catálogos, inventario ni cotizaciones; **máximo 10 ventas al día**; el modal de planes aparece SIEMPRE al iniciar sesión |
 | Basic sin control de inventario | Las ventas proceden **con stock en cero** (saldo queda negativo, kardex completo); Pro/Plus validan stock normal |
@@ -2908,11 +2909,13 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 | Cupones | Por tenant, **uno activo a la vez**: monto fijo con vigencia (ej. -$200 × 12 meses → Plus cobra $299) o 100% gratis por un período definido |
 | Fecha de cobro | Anclada al día del primer pago: paga el 5-ago → vence el 5-sep (mensual) o el 5-ago-2027 (anual). Meses cortos: 31-ene → 28-feb → **31**-mar (el ancla no se reescribe) |
 | Impago | `due_at` vence → **10 días de gracia** con avisos → día 11 cae al free tier. Nada se borra jamás |
-| Moneda | MXN. Facturación fiscal (CFDI) fuera de scope — se integra con Facturapi cuando la pida un cliente |
+| Monedas | MXN, USD y CAD vía `plan_prices`; el precio se resuelve por el `country` del tenant (existe desde F1) con fallback a USD. Facturación fiscal (CFDI en México) fuera de scope — se integra con Facturapi cuando la pida un cliente |
 
 ### Matriz de features por plan
 
 Los límites numéricos y flags calientes son COLUMNAS de `plans`; los booleanos de módulos van en el JSONB `features` (validado con `planFeaturesSchema` de shared — el catálogo se edita desde el backoffice sin migración).
+
+Precios mostrados en MXN (mercado base); EE.UU. y Canadá tienen su propia tabla en `plan_prices` (ver decisiones).
 
 | | Free | Basic $199 | Pro $349 | Plus $499 | Premium |
 |---|---|---|---|---|---|
@@ -2938,7 +2941,8 @@ Los límites numéricos y flags calientes son COLUMNAS de `plans`; los booleanos
 
 **Modelo de datos** — 5 tablas nuevas + 1 columna + 1 drop, migraciones con CHECKs en SQL crudo (patrón F3):
 
-- `plans` — catálogo global **SIN RLS** (mismo criterio que `permissions`). 5 filas (free/basic/pro/plus/premium) sembradas EN la migración con `ON CONFLICT (code) DO NOTHING`. Columnas: `code` (CHECK), `name`, `sort_order`, `price_monthly`/`price_yearly` (NULL en free/premium), `currency`, `is_public`, `is_active`, `max_users`, `max_warehouses`, `daily_sales_limit`, `write_access`, `stock_control`, `features` JSONB, y el enchufe `gateway_product_id`/`gateway_price_monthly_id`/`gateway_price_yearly_id`.
+- `plans` — catálogo global **SIN RLS** (mismo criterio que `permissions`). 5 filas (free/basic/pro/plus/premium) sembradas EN la migración con `ON CONFLICT (code) DO NOTHING`. Columnas: `code` (CHECK), `name`, `sort_order`, `is_public`, `is_active`, `max_users`, `max_warehouses`, `daily_sales_limit`, `write_access`, `stock_control`, `features` JSONB, y `gateway_product_id` (enchufe Stripe). **Los precios NO viven aquí**: viven en `plan_prices` — una sola fuente de verdad por mercado.
+- `plan_prices` — precios por mercado, **SIN RLS** (catálogo global). `plan_id`, `country` CHAR(2), `currency` CHAR(3), `price_monthly`, `price_yearly` (CHECK `= price_monthly × 10`), `gateway_price_monthly_id`/`gateway_price_yearly_id` (los price IDs de Stripe son por moneda — van aquí, no en `plans`), UNIQUE `(plan_id, country)`. Seed: 9 filas (basic/pro/plus × MX/US/CA); free y premium no tienen filas (sin precio publicado). Resolución: fila del `country` del tenant → fallback a la fila `US` (default internacional). El precio es POR MERCADO, no por tipo de cambio.
 - `tenant_subscriptions` — 1 por tenant (`tenant_id` UNIQUE), RLS + bypass. `status` CHECK IN (`trialing|active|past_due|free|canceled`), `billing_cycle` (`monthly|yearly`), **`anchor_day` 1-31 fijado con el PRIMER pago y nunca recalculado**, `trial_ends_at`, `service_period_start/end` (lo pagado), `due_at` (hoy == period_end; con pasarela divergirán), `grace_ends_at`, `custom_price` (Premium), `canceled_at`, `cancel_at_period_end`, `notes`, `gateway`/`gateway_customer_id`/`gateway_subscription_id`. CHECKs de coherencia por estado. Índices `(status, due_at)` y `(status, trial_ends_at)`.
 - `subscription_payments` — RLS + bypass. SNAPSHOT del cobro (`plan_id`, `plan_code`, `billing_cycle`, `gross_amount`, `discount_amount`, `amount` con CHECK `amount = gross - discount`), `method` (`transfer|cash|card|other|courtesy`), `gateway` + `gateway_reference` + `external_id` (UNIQUE parcial — idempotencia del webhook futuro, inerte hoy), `paid_at`, `period_start/end`, `status` (`recorded|voided`) + `voided_*`, `recorded_by`. **Un pago no se borra: se anula** con razón, y el período se recalcula desde los pagos vivos.
 - `tenant_discounts` — RLS + bypass. `kind` (`fixed_amount|free`), `amount`, `starts_at/ends_at`, `max_periods`/`applied_periods`, `is_active` con **UNIQUE parcial: un activo por tenant** (no se apilan cupones; se revoca uno y se otorga otro).
@@ -2990,15 +2994,15 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ### Módulo F7-DB — modelo de datos
 
-- [ ] **F7-DB-01** — Tabla `plans` + CHECKs (SIN RLS)
-  - **Salida:** migración `_f7_plans` con la DDL completa, CHECK de `code`, CHECK de precios positivos, y el comentario de por qué NO lleva RLS (catálogo global, criterio de `permissions`).
-  - **Verificar:** `prisma migrate dev` ok; insertar `code='bogus'` falla.
-  - **Depende de:** — · **Estimación:** 45 min
+- [ ] **F7-DB-01** — Tablas `plans` + `plan_prices` + CHECKs (SIN RLS)
+  - **Salida:** migración `_f7_plans` con las dos DDL, CHECK de `code`, CHECK de precios positivos, CHECK `price_yearly = price_monthly * 10`, UNIQUE `(plan_id, country)`, y el comentario de por qué NO llevan RLS (catálogo global, criterio de `permissions`) y de por qué el precio vive por mercado.
+  - **Verificar:** `prisma migrate dev` ok; insertar `code='bogus'` falla; dos filas del mismo (plan, país) → 23505.
+  - **Depende de:** — · **Estimación:** 1 h
 
-- [ ] **F7-DB-02** — Seed de los 5 planes en la MIGRACIÓN
-  - **Salida:** `INSERT … ON CONFLICT (code) DO NOTHING` de free/basic/pro/plus/premium con la matriz completa (precios 199/349/499, límites 3/1 · 6/4 · 20/10, `daily_sales_limit=10` en free). Datos de referencia por el pipeline, no por `seed.ts`.
-  - **Verificar:** 5 filas; `price_yearly = price_monthly × 10` en los tres publicados (test).
-  - **Depende de:** F7-DB-01 · **Estimación:** 1 h
+- [ ] **F7-DB-02** — Seed de los 5 planes + 9 precios en la MIGRACIÓN
+  - **Salida:** `INSERT … ON CONFLICT DO NOTHING` de free/basic/pro/plus/premium (límites 3/1 · 6/4 · 20/10, `daily_sales_limit=10` en free) + las 9 filas de `plan_prices`: MX $199/$349/$499 MXN · US $15/$29/$45 USD · CA $19/$39/$59 CAD, cada una con su anual ×10. Datos de referencia por el pipeline, no por `seed.ts`.
+  - **Verificar:** 5 planes y 9 precios; free y premium sin filas de precio (test).
+  - **Depende de:** F7-DB-01 · **Estimación:** 1.5 h
 
 - [ ] **F7-DB-03** — `tenant_subscriptions` + RLS + CHECKs de coherencia
   - **Salida:** DDL completa, policy `tenant_isolation` canónica, CHECKs por estado (`trialing⇒trial_ends_at`, `active⇒due_at+cycle+anchor`, `past_due⇒grace_ends_at`, `canceled⇒canceled_at`), índices `(status, due_at)` y `(status, trial_ends_at)`.
@@ -3043,8 +3047,8 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Depende de:** F7-DB-03 · **Estimación:** 1.5 h
 
 - [ ] **F7-CORE-04** — `BillingService.recordPayment()`
-  - **Salida:** valida plan/ciclo/`custom_price`, aplica cupón (`computeChargeAmount`), `periodStart = servicePeriodEnd ?? paidAt` (con override explícito), `periodEnd = addBillingPeriod(...)`, fija `anchor_day` en el primer pago, mueve a `active`, limpia `grace_ends_at`, incrementa `applied_periods`, audita, invalida caché y encola `payment-received`.
-  - **Verificar:** trial→active; past_due→active sin regalar días; con cupón cobra el neto; Premium sin `custom_price` → 422.
+  - **Salida:** resuelve el precio por el `country` del tenant vía `plan_prices` (fallback US), valida plan/ciclo/`custom_price`, aplica cupón (`computeChargeAmount`), `periodStart = servicePeriodEnd ?? paidAt` (con override explícito), `periodEnd = addBillingPeriod(...)`, fija `anchor_day` en el primer pago, mueve a `active`, limpia `grace_ends_at`, incrementa `applied_periods`, audita, invalida caché y encola `payment-received`. El snapshot del pago guarda la `currency` resuelta.
+  - **Verificar:** trial→active; past_due→active sin regalar días; con cupón cobra el neto; Premium sin `custom_price` → 422; tenant con `country='US'` cobra $45 USD y uno sin precio propio (ej. `'CO'`) cae a la tarifa USD.
   - **Depende de:** F7-CORE-02, F7-SHARED-03 · **Estimación:** 3 h
 
 - [ ] **F7-CORE-05** — `voidPayment()` y recálculo del período
@@ -3170,8 +3174,8 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Depende de:** F7-CORE-02 · **Estimación:** 2 h
 
 - [ ] **F7-WEB-02** — `GET /billing/plans` (`@Public`) y `GET /billing/me`
-  - **Salida:** `billing.controller.ts`; Premium sale sin precio (CTA "Contactar"); `/billing/me` con historial propio (permiso `tenants:manage`).
-  - **Verificar:** sin token, `/billing/plans` responde 200 con los 4 planes visibles (free excluido).
+  - **Salida:** `billing.controller.ts`; los precios salen en la moneda del tenant autenticado (su `country`); sin sesión acepta `?country=` con fallback US. Premium sale sin precio (CTA "Contactar"); `/billing/me` con historial propio (permiso `tenants:manage`).
+  - **Verificar:** sin token, `/billing/plans` responde 200 con los 4 planes visibles (free excluido); un tenant MX ve MXN y uno US ve USD.
   - **Depende de:** F7-DB-02 · **Estimación:** 1.5 h
 
 - [ ] **F7-WEB-03** — Primitivo `Dialog`
@@ -3180,8 +3184,8 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Depende de:** — · **Estimación:** 2 h
 
 - [ ] **F7-WEB-04** — `usePlan()` + `PlansModal`
-  - **Salida:** hook (`hasFeature`, `canWrite`, `status`, `daysLeft`) + modal con las 4 tarjetas, toggle mensual/anual (anual muestra 10×) y Premium con "Contactar".
-  - **Verificar:** RTL: Basic ve Pro/Plus como upgrade; el toggle anual muestra los precios ×10.
+  - **Salida:** hook (`hasFeature`, `canWrite`, `status`, `daysLeft`) + modal con las 4 tarjetas en la moneda del tenant, toggle mensual/anual (anual muestra 10×) y Premium con "Contactar".
+  - **Verificar:** RTL: Basic ve Pro/Plus como upgrade; el toggle anual muestra los precios ×10; un tenant US ve USD.
   - **Depende de:** F7-WEB-02, F7-WEB-03 · **Estimación:** 2.5 h
 
 - [ ] **F7-WEB-05** — `PlanGate`
@@ -3217,7 +3221,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 ### Módulo F7-E2E — end to end
 
 - [ ] **F7-E2E-01** — registro → trial → pago → active → renovación
-  - **Verificar:** el `due_at` de la segunda renovación respeta el ancla (caso 31-ene → 28-feb → 31-mar).
+  - **Verificar:** el `due_at` de la segunda renovación respeta el ancla (caso 31-ene → 28-feb → 31-mar); el mismo flujo con un tenant `country='US'` cobra y registra USD.
   - **Depende de:** F7-ADMIN-03, F7-CRON-02 · **Estimación:** 2 h
 
 - [ ] **F7-E2E-02** — trial vencido → free → 10 ventas/día + solo-lectura
@@ -3256,7 +3260,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ---
 
-**Estimación total Fase 7:** ~46 tareas, ~95 h ≈ **3 semanas** de trabajo enfocado.
+**Estimación total Fase 7:** ~46 tareas, ~98 h ≈ **3 semanas** de trabajo enfocado.
 
 ---
 
