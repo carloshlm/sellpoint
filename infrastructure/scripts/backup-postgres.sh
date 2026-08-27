@@ -138,7 +138,29 @@ log "Subiendo a ${BUCKET}…"
 # 4. Retención: 14 días, visible en git (no un lifecycle rule invisible en
 #    un dashboard). Se borra por fecha directamente en el bucket.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 3b. Respaldo cifrado de los .env (F6-SECRETS-01): si el server muere, las
+#     credenciales y llaves JWT de ambos ambientes se recuperan de R2 con la
+#     misma clave age de los dumps. Nombre FIJO (se sobrescribe): el .env no
+#     necesita historial, necesita la última versión. Sin cifrado no viaja:
+#     un .env plano en R2 sería regalar el reino.
+# ---------------------------------------------------------------------------
+PASO="respaldo de .env"
+if [ -f "${AGE_RECIPIENT_FILE}" ] && [ -x "${AGE}" ]; then
+  for ambiente in sellpoint sellpoint-sandbox; do
+    if [ -f "/opt/${ambiente}/.env" ]; then
+      "${AGE}" -R "${AGE_RECIPIENT_FILE}" -o "/tmp/${ambiente}.env.age" "/opt/${ambiente}/.env"
+      "${RCLONE}" copyto "/tmp/${ambiente}.env.age" "${BUCKET}/env/${ambiente}.env.age" --quiet
+      rm -f "/tmp/${ambiente}.env.age"
+    fi
+  done
+  log "Respaldo de .env cifrados OK."
+fi
+
 PASO="retención"
+# Los env/*.age sobreviven la retención porque se reescriben a diario (la
+# fecha del objeto siempre es de hoy). Si el cron muriera >14 días, la
+# alerta de arriba habría gritado mucho antes.
 log "Borrando backups con más de ${RETENTION_DAYS} días…"
 "${RCLONE}" delete "${BUCKET}" --min-age "${RETENTION_DAYS}d" --quiet
 

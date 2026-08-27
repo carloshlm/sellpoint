@@ -51,4 +51,6 @@ RUN npm install --no-save --no-audit --no-fund prisma@7.9.0 dotenv@17.4.2
 COPY apps/api/prisma ./prisma
 COPY apps/api/prisma.config.ts ./prisma.config.ts
 
+# F6-SUPPLY-02: el one-shot tampoco corre como root — solo LEE el schema.
+USER node
 CMD ["npx", "prisma", "migrate", "deploy"]

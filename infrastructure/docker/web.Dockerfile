@@ -26,7 +26,10 @@ ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
 RUN pnpm --filter web build
 
 # --- Runtime: nginx sirviendo el build estático ---
-FROM nginx:alpine AS runtime
+# F6-SUPPLY-02: la variante UNPRIVILEGED corre como usuario nginx (101) sin
+# root en ningún proceso — a cambio escucha en 8080 (los puertos <1024 piden
+# privilegio). Los vhosts del edge apuntan a web:8080/sandbox-web:8080.
+FROM nginxinc/nginx-unprivileged:alpine AS runtime
 COPY infrastructure/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080

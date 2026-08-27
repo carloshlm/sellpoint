@@ -88,6 +88,24 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
+  # F6-SUPPLY-02: escaneo de vulnerabilidades INFORMATIVO (continue-on-error:
+  # con 3 clientes, un gate duro de CVEs frena más de lo que protege — se
+  # endurece cuando haya más que perder). Solo CRITICAL, solo la api (la web
+  # es nginx sirviendo estáticos). Corre en GitHub: cero recursos del server.
+  trivy:
+    name: escaneo trivy (informativo)
+    needs: build-push
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: escanear la imagen api
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/carloshlm/sellpoint-api:${{ github.sha }}
+          severity: CRITICAL
+          exit-code: "1"
+          ignore-unfixed: true
+
   deploy:
     name: deploy via ssh + smoke test
     needs: build-push

@@ -1,0 +1,36 @@
+# F6-SUPPLY-01 — Retención de imágenes en GHCR (verify W4: hoy crecen sin
+# techo). Hermano del F6-DISK-RETENTION ya cerrado: aquel limpia el disco del
+# VPS (24 h), este limpia el REGISTRY.
+#
+# 30 versiones por paquete ≈ los últimos ~10 deploys (cada uno empuja
+# api+web+migrate con :sha y :latest). El rollback del server solo mira 24 h
+# atrás, así que 30 versiones en el registry son colchón de sobra — lo demás
+# es almacenamiento pagando renta a nadie.
+#
+# Corre semanal (domingo 08:00 UTC, antes del backup de las 09:15 que no
+# tiene nada que ver pero así todo lo programado queda en la misma mañana)
+# y a demanda por workflow_dispatch. Cero recursos del server: vive en
+# GitHub (LEY de la Fase 6).
+name: GHCR Retention
+
+on:
+  schedule:
+    - cron: "0 8 * * 0"
+  workflow_dispatch:
+
+jobs:
+  limpiar:
+    name: conservar las ultimas 30 versiones por paquete
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        paquete: [sellpoint-api, sellpoint-web, sellpoint-migrate]
+    steps:
+      - name: borrar versiones viejas de ${{ matrix.paquete }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.paquete }}
+          package-type: container
+          min-versions-to-keep: 30
