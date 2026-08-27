@@ -164,8 +164,23 @@ rollback_and_exit() {
 write_image_tag "${NEW_TAG}"
 
 echo "Corriendo migraciones (one-shot, antes de tocar la app viva)..."
-if ! docker compose -f "${COMPOSE_FILE}" run --rm migrate < /dev/null; then
-  echo "Migración FALLÓ. Revirtiendo IMAGE_TAG a ${PREV_TAG} sin desplegar."
+# Con retry: los deploys de prod y sandbox corren en paralelo sobre el MISMO
+# daemon y a veces pullean la misma imagen a la vez — containerd pierde la
+# carrera con "failed commit on ref"/"lease does not exist" (visto el
+# 2026-08-26 y el 2026-08-27). El segundo intento encuentra la capa que el
+# otro deploy ya bajó. `prisma migrate deploy` es idempotente: reintentar una
+# migración que sí corrió es un no-op.
+MIGRATE_OK=0
+for intento in 1 2 3; do
+  if docker compose -f "${COMPOSE_FILE}" run --rm migrate < /dev/null; then
+    MIGRATE_OK=1
+    break
+  fi
+  echo "Migración falló (intento ${intento}/3); reintentando en 15s..."
+  sleep 15
+done
+if [ "${MIGRATE_OK}" != "1" ]; then
+  echo "Migración FALLÓ tras 3 intentos. Revirtiendo IMAGE_TAG a ${PREV_TAG} sin desplegar."
   write_image_tag "${PREV_TAG}"
   exit 1
 fi
