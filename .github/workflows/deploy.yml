@@ -97,9 +97,21 @@ jobs:
     needs: build-push
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      contents: read
+      packages: read
     steps:
+      # Trivy pullea la imagen del registry: necesita la misma sesión que
+      # cualquier docker pull contra GHCR.
+      - name: login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: escanear la imagen api
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/carloshlm/sellpoint-api:${{ github.sha }}
           severity: CRITICAL
