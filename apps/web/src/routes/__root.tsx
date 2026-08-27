@@ -1,5 +1,6 @@
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { SandboxBanner } from "@/components/layout/sandbox-banner";
 import { useSessionBootstrap } from "@/lib/auth/session-bootstrap";
 
 export const Route = createRootRoute({
@@ -17,6 +18,9 @@ function RootLayout() {
 
   return (
     <>
+      {/* En el ROOT y no en AppLayout: el aviso de sandbox debe verse
+          también en /login — es donde más duele confundirse de ambiente. */}
+      <SandboxBanner />
       <Outlet />
       {import.meta.env.DEV && <ReactQueryDevtools buttonPosition="bottom-right" />}
     </>

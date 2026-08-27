@@ -124,5 +124,6 @@
       "charcoal": "Carbón"
     }
   },
-  "welcome": "Bienvenido a SellPointy"
+  "welcome": "Bienvenido a SellPointy",
+  "sandboxBanner": "SANDBOX — ambiente de pruebas. Nada de lo que hagas aquí afecta tu negocio real."
 }

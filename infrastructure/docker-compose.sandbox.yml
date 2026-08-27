@@ -1,0 +1,159 @@
+# Compose del SANDBOX (sandbox.sellpointy.com) — corre en el MISMO server que
+# producción como stack separado. Ubicación real: /opt/sellpoint-sandbox/.
+#
+# ── Qué es y qué NO es este ambiente (2026-08-26) ────────────────────────
+#
+# Una producción de ensayo: mismas imágenes GHCR (el tag lo pone el pipeline
+# de la rama develop), mismo NODE_ENV=production, mismos code paths. Se
+# diferencia SOLO por su .env (/opt/sellpoint-sandbox/.env: DB propia, JWT
+# keys propias, APP_URL/MAIL_FROM de sandbox).
+#
+# - SIN `ports:` de NINGÚN tipo: el tráfico entra por el nginx-edge de
+#   PRODUCCIÓN (vhost sandbox.sellpointy.com con resolver diferido) a través
+#   de la red externa compartida. Publicar puertos duplicaría la superficie
+#   expuesta y chocaría con los del stack de prod.
+# - SIN nginx/php-fpm/certbot propios: el edge y el TLS pertenecen a prod.
+# - SIN backups: este ambiente es DESECHABLE por diseño — recuperarlo es
+#   re-migrar y re-sembrar, nunca restaurar. backup-postgres.sh no lo conoce.
+# - Límites de memoria CHICOS y cpu_shares bajos: bajo contención, producción
+#   gana siempre. Total de caps del sandbox: 512M.
+name: sellpoint-sandbox
+
+x-logging: &log-rotado
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  web:
+    image: ghcr.io/carloshlm/sellpoint-web:${IMAGE_TAG}
+    container_name: sellpoint-sandbox-web
+    restart: unless-stopped
+    logging: *log-rotado
+    mem_limit: 16M
+    cpu_shares: 128
+    networks:
+      sandbox: {}
+      # El alias es el nombre con el que el vhost del edge de prod resuelve
+      # este contenedor (proxy_pass http://sandbox-web). El nombre REAL del
+      # contenedor no importa para el ruteo — el alias es el contrato.
+      edge:
+        aliases:
+          - sandbox-web
+
+  api:
+    image: ghcr.io/carloshlm/sellpoint-api:${IMAGE_TAG}
+    container_name: sellpoint-sandbox-api
+    restart: unless-stopped
+    logging: *log-rotado
+    # 256M con heap de 128 (NODE_OPTIONS en el .env del sandbox). memswap =
+    # mem deshabilita swap: OOM-kill diagnosticable antes que thrashing.
+    mem_limit: 256M
+    memswap_limit: 256M
+    cpu_shares: 256
+    env_file:
+      - /opt/sellpoint-sandbox/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      sandbox: {}
+      edge:
+        aliases:
+          - sandbox-api
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: sellpoint-sandbox-postgres
+    restart: unless-stopped
+    logging: *log-rotado
+    # SIN ports (ni 127.0.0.1): la inspección de la DB sandbox se hace con
+    # `docker exec -it sellpoint-sandbox-postgres psql ...` — un puerto más
+    # en el host es superficie que este ambiente no necesita.
+    # Tuning proporcional a su cap de 192M.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - effective_cache_size=128MB
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - random_page_cost=1.1
+    mem_limit: 192M
+    cpu_shares: 256
+    env_file:
+      - /opt/sellpoint-sandbox/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - sandbox
+
+  redis:
+    image: redis:7-alpine
+    container_name: sellpoint-sandbox-redis
+    restart: unless-stopped
+    logging: *log-rotado
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "16mb", "--maxmemory-policy", "volatile-ttl"]
+    mem_limit: 48M
+    memswap_limit: 48M
+    cpu_shares: 128
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - sandbox
+
+  # One-shot: `docker compose run --rm migrate` — nunca se levanta con `up -d`.
+  migrate:
+    image: ghcr.io/carloshlm/sellpoint-migrate:${IMAGE_TAG}
+    container_name: sellpoint-sandbox-migrate
+    env_file:
+      - /opt/sellpoint-sandbox/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+    networks:
+      - sandbox
+
+networks:
+  # Red interna del sandbox: postgres y redis viven SOLO acá.
+  sandbox:
+    driver: bridge
+  # La red compartida con el nginx-edge de producción. EXTERNA: la crea
+  # deploy-remote.sh de forma idempotente — ningún stack es su dueño, así el
+  # `down` de uno no rompe el `up` del otro.
+  edge:
+    external: true
+    name: sellpoint-edge-sandbox
+
+volumes:
+  # El project name los prefija: sellpoint-sandbox_postgres_data — sin
+  # colisión con los volúmenes de producción.
+  postgres_data:
+  redis_data:

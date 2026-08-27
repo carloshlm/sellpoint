@@ -13,7 +13,28 @@
 # de los tiradores del `ssh -n` del workflow.
 set -euo pipefail
 NEW_TAG="$1"
-cd /opt/sellpoint
+
+# ── Parámetros por entorno (2026-08-26, dos ambientes) ───────────────────
+#
+# Los defaults REPRODUCEN el comportamiento histórico de producción: sin
+# overrides, este script hace exactamente lo mismo que siempre. El pipeline
+# del sandbox (deploy-sandbox.yml) lo invoca con BASE_DIR/COMPOSE_FILE/
+# SMOKE_DOMAIN propios y WITH_EDGE=0 — el edge (nginx) y php-fpm pertenecen
+# al stack de producción; el sandbox no tiene los suyos y el smoke atraviesa
+# el edge de prod vía la red compartida.
+: "${BASE_DIR:=/opt/sellpoint}"
+: "${COMPOSE_FILE:=docker-compose.prod.yml}"
+: "${SMOKE_DOMAIN:=system.laradoc.com}"
+: "${GHCR_OWNER:=carloshlm}"
+: "${EDGE_CONTAINER:=sellpoint-nginx-edge}"
+: "${WITH_EDGE:=1}"
+
+cd "${BASE_DIR}"
+
+# La red que comparte el edge de prod con web/api del sandbox. Idempotente y
+# con `|| true`: si ya existe (lo normal) no pasa nada, y su creación jamás
+# aborta un deploy.
+docker network create sellpoint-edge-sandbox >/dev/null 2>&1 || true
 
 # Un día de imágenes. Es lo que necesita el rollback: `rollback_and_exit` hace
 # `up -d` SIN pull, o sea que cuenta con que la imagen previa siga local.
@@ -92,7 +113,7 @@ limpiar_imagenes_viejas() {
         docker rmi "${id}" >/dev/null 2>&1 || true
       fi
     done <<EOF
-$(docker images "ghcr.io/carloshlm/${repo}" --format '{{.ID}}|{{.CreatedAt}}')
+$(docker images "ghcr.io/${GHCR_OWNER}/${repo}" --format '{{.ID}}|{{.CreatedAt}}')
 EOF
   done
 }
@@ -105,7 +126,7 @@ docker image prune -f >/dev/null 2>&1 || true
 # Guarda de disco. Si aun así queda poco, es mejor abortar acá —con un mensaje
 # que dice qué pasa y dónde mirar— que a mitad del deploy con un críptico
 # "sed: couldn't flush <unknown>: No space left on device".
-DISK_FREE_MB="$(df -Pm /opt/sellpoint | awk 'NR==2 {print $4}')"
+DISK_FREE_MB="$(df -Pm "${BASE_DIR}" | awk 'NR==2 {print $4}')"
 if [ "${DISK_FREE_MB}" -lt "${MIN_FREE_MB}" ]; then
   echo "ABORTA: quedan ${DISK_FREE_MB} MB libres y el deploy necesita al menos ${MIN_FREE_MB} MB."
   echo "Nada fue modificado. Revisá 'docker system df' y 'du -sh /var/lib/docker/*' en el server."
@@ -129,9 +150,9 @@ write_image_tag() {
 rollback_and_exit() {
   echo "Rollback a ${PREV_TAG}."
   write_image_tag "${PREV_TAG}"
-  docker compose -f docker-compose.prod.yml up -d || true
+  docker compose -f "${COMPOSE_FILE}" up -d || true
   for i in $(seq 1 10); do
-    if curl -fsS --resolve system.laradoc.com:443:127.0.0.1 https://system.laradoc.com/api/health > /dev/null; then
+    if curl -fsS --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" "https://${SMOKE_DOMAIN}/api/health" > /dev/null; then
       echo "Rollback verificado: /api/health responde con el tag previo."
       break
     fi
@@ -143,7 +164,7 @@ rollback_and_exit() {
 write_image_tag "${NEW_TAG}"
 
 echo "Corriendo migraciones (one-shot, antes de tocar la app viva)..."
-if ! docker compose -f docker-compose.prod.yml run --rm migrate < /dev/null; then
+if ! docker compose -f "${COMPOSE_FILE}" run --rm migrate < /dev/null; then
   echo "Migración FALLÓ. Revirtiendo IMAGE_TAG a ${PREV_TAG} sin desplegar."
   write_image_tag "${PREV_TAG}"
   exit 1
@@ -152,15 +173,18 @@ fi
 echo "Pull + up -d..."
 # `pull` ignora los servicios con build: (php-fpm) — su imagen se buildea
 # acá. Con cache es un no-op de ~1s cuando el Dockerfile no cambió.
-if ! docker compose -f docker-compose.prod.yml build php-fpm; then
-  echo "Build de php-fpm FALLÓ. Revirtiendo IMAGE_TAG sin desplegar."
-  write_image_tag "${PREV_TAG}"
-  exit 1
+# php-fpm existe SOLO en el stack de producción (WITH_EDGE=1).
+if [ "${WITH_EDGE}" = "1" ]; then
+  if ! docker compose -f "${COMPOSE_FILE}" build php-fpm; then
+    echo "Build de php-fpm FALLÓ. Revirtiendo IMAGE_TAG sin desplegar."
+    write_image_tag "${PREV_TAG}"
+    exit 1
+  fi
 fi
 # --ignore-buildable: sin esto, pull intenta bajar del registry la imagen
 # local de php-fpm (sellpoint-php-fpm:local, que no existe en ningún
 # registry) y aborta el deploy entero.
-if ! docker compose -f docker-compose.prod.yml pull --ignore-buildable; then
+if ! docker compose -f "${COMPOSE_FILE}" pull --ignore-buildable; then
   echo "Pull FALLÓ. Revirtiendo IMAGE_TAG sin desplegar."
   write_image_tag "${PREV_TAG}"
   exit 1
@@ -168,17 +192,25 @@ fi
 # up -d espera los healthchecks de depends_on: si un container nuevo no
 # llega a healthy, sale != 0 — y ESO debe disparar rollback, no matar el
 # script (ver rollback_and_exit arriba).
-if ! docker compose -f docker-compose.prod.yml up -d; then
+if ! docker compose -f "${COMPOSE_FILE}" up -d; then
   echo "up -d FALLÓ (¿healthcheck de un container nuevo?)."
   rollback_and_exit
+fi
+
+# El sandbox no tiene nginx ni php-fpm propios: su tráfico entra por el
+# edge de PRODUCCIÓN (vhost con resolver diferido). Nada que validar ni
+# recargar acá — directo al smoke, que sí atraviesa el edge compartido.
+if [ "${WITH_EDGE}" != "1" ]; then
+  echo "WITH_EDGE=0: sin nginx/php-fpm propios, se salta validación y reload del edge."
 fi
 
 # Regla dura (D2): config de nginx SIEMPRE `nginx -t` antes de reload,
 # NUNCA --force-recreate. `up -d` NO reinicia nginx-edge si solo cambió
 # el contenido de conf.d/ (bind-mount): sin este reload explícito la
 # config nueva queda en disco pero jamás en memoria.
+if [ "${WITH_EDGE}" = "1" ]; then
 echo "Validando config de nginx (nginx -t)..."
-if ! docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -t < /dev/null; then
+if ! docker compose -f "${COMPOSE_FILE}" exec -T nginx-edge nginx -t < /dev/null; then
   echo "nginx -t FALLÓ. Abortando deploy SIN recargar (la config vieja sigue sirviendo)."
   exit 1
 fi
@@ -189,12 +221,12 @@ fi
 # reload graceful de php-fpm (termina workers al vaciarse, relee TODO:
 # php.ini, extensiones, pools). Idempotente y barato — se hace SIEMPRE.
 echo "Recargando php-fpm (USR2 graceful)..."
-docker compose -f docker-compose.prod.yml exec -T php-fpm kill -USR2 1 < /dev/null || \
+docker compose -f "${COMPOSE_FILE}" exec -T php-fpm kill -USR2 1 < /dev/null || \
   echo "AVISO: reload de php-fpm falló (¿container caído?) — up -d de arriba ya lo habría levantado"
 
 echo "nginx -t OK. Recargando (nginx -s reload)..."
 T0="$(date -u '+%Y-%m-%dT%H:%M:%S')"
-docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload < /dev/null
+docker compose -f "${COMPOSE_FILE}" exec -T nginx-edge nginx -s reload < /dev/null
 
 # Gate de EVIDENCIA del reload (C1 del verify): exit 0 del comando solo
 # prueba que la señal se emitió. La prueba de que el master la procesó es
@@ -205,20 +237,21 @@ docker compose -f docker-compose.prod.yml exec -T nginx-edge nginx -s reload < /
 # SIGPIPE (141) y el gate falla justo cuando SÍ hay evidencia (falso
 # negativo real del run 31142186631, 2026-08-07).
 sleep 2
-RELOAD_LOG="$(docker logs --since "${T0}" sellpoint-nginx-edge 2>&1 || true)"
+RELOAD_LOG="$(docker logs --since "${T0}" "${EDGE_CONTAINER}" 2>&1 || true)"
 if [[ "${RELOAD_LOG}" != *"reconfiguring"* ]]; then
   echo "Reload SIN EVIDENCIA en el log de nginx (no apareció 'reconfiguring'). Abortando."
   exit 1
 fi
 echo "Reload confirmado por log del master (reconfiguring)."
+fi # WITH_EDGE
 
 # --resolve contra el origen, no a través de Cloudflare (S5 de f0): se
 # ejercita el vhost real, el TLS real y el strip de /api real sin que una
 # caída de CF dispare un rollback espurio.
-echo "Smoke test /api/health en system.laradoc.com, contra el origen (hasta 30 intentos x 5s)..."
+echo "Smoke test /api/health en ${SMOKE_DOMAIN}, contra el origen (hasta 30 intentos x 5s)..."
 SMOKE_OK=0
 for i in $(seq 1 30); do
-  if curl -fsS --resolve system.laradoc.com:443:127.0.0.1 https://system.laradoc.com/api/health > /dev/null; then
+  if curl -fsS --resolve "${SMOKE_DOMAIN}:443:127.0.0.1" "https://${SMOKE_DOMAIN}/api/health" > /dev/null; then
     SMOKE_OK=1
     break
   fi

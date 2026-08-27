@@ -124,5 +124,6 @@
       "charcoal": "Charcoal"
     }
   },
-  "welcome": "Welcome to SellPointy"
+  "welcome": "Welcome to SellPointy",
+  "sandboxBanner": "SANDBOX — test environment. Nothing you do here affects your real business."
 }
