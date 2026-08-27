@@ -19,6 +19,9 @@ COPY apps/web ./apps/web
 # URL del API bakeada en build (override: --build-arg VITE_API_URL=...)
 ARG VITE_API_URL=http://localhost:3000
 ENV VITE_API_URL=$VITE_API_URL
+# DSN de Sentry (publico por diseno: vive en el JS del cliente); vacio = apagado. F6-WATCH-02.
+ARG VITE_SENTRY_DSN=
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
 
 RUN pnpm --filter web build
 

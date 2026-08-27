@@ -34,6 +34,9 @@ const baseEnvSchema = z.object({
   // --- Mail (f1-auth AD-9) ---
   MAIL_DRIVER: z.enum(["console", "resend", "noop"]).default("console"),
   MAIL_FROM: z.string().optional(),
+  // F6-WATCH-02: DSN de Sentry — vacío/ausente = Sentry apagado (dev y
+  // sandbox no reportan; solo el .env de producción lo lleva).
+  SENTRY_DSN: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   APP_URL: z.url().default("http://localhost:5173"),
 

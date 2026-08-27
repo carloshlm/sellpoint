@@ -81,6 +81,7 @@ jobs:
           # se toca — este override es SOLO de este workflow.
           build-args: |
             VITE_API_URL=/api
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
           tags: |
             ghcr.io/carloshlm/sellpoint-web:latest
             ghcr.io/carloshlm/sellpoint-web:${{ github.sha }}

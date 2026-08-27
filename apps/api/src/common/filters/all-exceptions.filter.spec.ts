@@ -10,6 +10,11 @@ import { ThrottlerException } from "@nestjs/throttler";
 import type { I18nService } from "nestjs-i18n";
 import { AllExceptionsFilter } from "./all-exceptions.filter";
 
+// F6-WATCH-02: el filter reporta a Sentry los 5xx (errores nuestros); los
+// 4xx son del cliente y ensuciarían el proyecto.
+jest.mock("@sentry/node", () => ({ captureException: jest.fn() }));
+const sentryMock = jest.requireMock("@sentry/node") as { captureException: jest.Mock };
+
 /**
  * verify #271 C2 / decisión de Carlos (`sdd/f1-auth/decisions-carlos`): el
  * filtro traduce `message` cuando tiene forma de clave i18n (`namespace.key`)
@@ -239,5 +244,21 @@ describe("AllExceptionsFilter", () => {
     expect(body.sku).toBe("AGUA");
     // …y `args` no, que es lo que lo distingue de él.
     expect(body).not.toHaveProperty("args");
+  });
+
+  describe("reporte a Sentry (F6-WATCH-02)", () => {
+    it("un error NO-HTTP (500) se reporta a Sentry", () => {
+      const explosion = new Error("se rompió algo interno");
+
+      filter.catch(explosion, host);
+
+      expect(sentryMock.captureException).toHaveBeenCalledWith(explosion);
+    });
+
+    it("un 4xx del cliente NO se reporta", () => {
+      filter.catch(new NotFoundException({ message: "products.not_found" }), host);
+
+      expect(sentryMock.captureException).not.toHaveBeenCalled();
+    });
   });
 });

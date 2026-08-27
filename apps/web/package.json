@@ -15,6 +15,7 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@hookform/resolvers": "^5.7.1",
     "@sellpoint/shared": "workspace:*",
+    "@sentry/react": "^10.71.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-query-devtools": "^5.101.4",

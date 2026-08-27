@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from "@nestjs/common";
+import * as Sentry from "@sentry/node";
 import { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
@@ -59,6 +60,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const statusCode =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    // F6-WATCH-02: los 5xx son errores NUESTROS y van a Sentry (si hay DSN
+    // configurado; sin init, captureException es un no-op silencioso). Los
+    // 4xx son del cliente — reportarlos ensuciaría el proyecto con ruido.
+    if (statusCode >= 500) {
+      Sentry.captureException(exception);
+    }
     const error = STATUS_TEXT[statusCode] ?? "Error";
 
     let body: Record<string, unknown>;

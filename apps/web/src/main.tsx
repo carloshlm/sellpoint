@@ -9,6 +9,7 @@ import { i18n } from "./i18n";
 import { installAccountLanguageSync } from "./lib/auth/ui-language";
 import { registerServiceWorker } from "./lib/pwa/register-service-worker";
 import { createQueryClient } from "./lib/query-client";
+import { installSentry } from "./lib/sentry";
 import { applyTheme } from "./lib/theme/apply-theme";
 import { installTenantThemeSync } from "./lib/theme/tenant-theme-sync";
 import { routeTree } from "./routeTree.gen";
@@ -19,6 +20,9 @@ import { routeTree } from "./routeTree.gen";
 // al usuario, la suscripción de abajo aplica el tema de SU negocio.
 applyTheme();
 installTenantThemeSync();
+// Sentry solo-errores, gateado por hostname (solo producción real) — el
+// import del SDK es dinámico: apagado, no pesa ni un byte. F6-WATCH-02.
+installSentry();
 
 // Las pantallas públicas arrancan en inglés (`INITIAL_LOCALE`), pero apenas
 // hay sesión manda el idioma de la CUENTA. Se instala una sola vez, acá, para

@@ -2,6 +2,7 @@ import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import * as Sentry from "@sentry/node";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { Logger } from "nestjs-pino";
@@ -9,6 +10,13 @@ import { AppModule } from "./app.module";
 import { Env } from "./config/env.schema";
 
 async function bootstrap() {
+  // F6-WATCH-02: Sentry SOLO con DSN presente (producción). Solo errores:
+  // tracing/profiling apagados — la LEY de la Fase 6 no paga observabilidad
+  // de lujo con 2-3 clientes.
+  if (process.env.SENTRY_DSN) {
+    Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0 });
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 

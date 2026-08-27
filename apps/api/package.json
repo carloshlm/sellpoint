@@ -30,6 +30,7 @@
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
     "@sellpoint/shared": "workspace:*",
+    "@sentry/node": "^10.71.0",
     "argon2": "^0.45.1",
     "bwip-js": "^4.11.4",
     "cookie-parser": "^1.4.7",

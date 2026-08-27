@@ -82,6 +82,7 @@ jobs:
           # ambiente lo decide el vhost que la sirve, no el build.
           build-args: |
             VITE_API_URL=/api
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
           tags: |
             ghcr.io/carloshlm/sellpoint-web:${{ github.sha }}
           cache-from: type=gha,scope=web

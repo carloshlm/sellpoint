@@ -2806,7 +2806,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** —
   - **Estimación:** 20 min
 
-- [ ] **F6-WATCH-02** — Sentry SOLO errores (free tier)
+- [ ] **F6-WATCH-02** *(código LISTO el 2026-08-27: SDKs integrados con gate por hostname/DSN, filter reporta solo 5xx, DSN por `vars.VITE_SENTRY_DSN` y `SENTRY_DSN`; FALTA: cuenta de Carlos + DSN + verificar el error real en el dashboard)* — Sentry SOLO errores (free tier)
   - **Salida:** `@sentry/nestjs` en la api y `@sentry/react` en el front, con tracing/profiling/replay APAGADOS (`tracesSampleRate: 0` — solo captura de errores: el overhead de un SDK en modo mínimo es aceptable a cambio de enterarse de los errores de clientes reales antes de que llamen). DSN por env: vacío = desactivado (dev y sandbox sin Sentry). Source maps del front subidos en CI.
   - **Verificar:** un error forzado en sandbox NO reporta; el mismo en prod aparece en el dashboard con stack legible.
   - **Depende de:** — (paso de Carlos: cuenta free de Sentry y el DSN al .env de prod)
