@@ -192,7 +192,7 @@ fi
 # up -d espera los healthchecks de depends_on: si un container nuevo no
 # llega a healthy, sale != 0 — y ESO debe disparar rollback, no matar el
 # script (ver rollback_and_exit arriba).
-if ! docker compose -f "${COMPOSE_FILE}" up -d; then
+if ! docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans; then
   echo "up -d FALLÓ (¿healthcheck de un container nuevo?)."
   rollback_and_exit
 fi
