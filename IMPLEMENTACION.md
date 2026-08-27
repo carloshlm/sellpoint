@@ -2977,17 +2977,17 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ### Módulo F7-SHARED — contratos y matemática pura
 
-- [ ] **F7-SHARED-01** — Contratos de billing en `@sellpoint/shared`
+- [x] **F7-SHARED-01** *(cerrada el 2026-08-27 — packages/shared/src/billing.ts; PAYMENT_METHODS chocaba con el del POS → SUBSCRIPTION_PAYMENT_METHODS)* — Contratos de billing en `@sellpoint/shared`
   - **Salida:** `packages/shared/src/billing.ts` con `PLAN_CODES`, `SUBSCRIPTION_STATUSES`, `BILLING_CYCLES`, `PAYMENT_METHODS`, `DISCOUNT_KINDS`, `TRIAL_DAYS=14`, `GRACE_DAYS=10`, `planFeaturesSchema` (Zod estricto) y `subscriptionBlockSchema`. Exportado en `index.ts`.
   - **Verificar:** tests de shared en verde; `planFeaturesSchema` rechaza una key desconocida.
   - **Depende de:** — · **Estimación:** 1 h
 
-- [ ] **F7-SHARED-02** — `addBillingPeriod` + `resolveAnchorDay` + `graceEndsAt`
+- [x] **F7-SHARED-02** *(cerrada el 2026-08-27 — addBillingPeriod es pura de CALENDARIO (recibe/devuelve YYYY-MM-DD y avanza desde la fecha del vencimiento anterior, no del arranque del período); dueInstant/graceEndsAt traducen a instantes con límite abierto, criterio de day-range)* — `addBillingPeriod` + `resolveAnchorDay` + `graceEndsAt`
   - **Salida:** funciones puras con ancla y meses cortos: 5-ago→5-sep; 5-ago→5-ago-2027 (anual); 31-ene→28-feb→**31**-mar; 29-feb-2028→28-feb-2029. Resultado = fin del día LOCAL del negocio (usa `localCalendarDate`/`dayRangeToInstants`).
   - **Verificar:** ≥12 casos incluyendo bisiesto y cambio de horario.
   - **Depende de:** F7-SHARED-01 · **Estimación:** 2.5 h
 
-- [ ] **F7-SHARED-03** — `computeChargeAmount` (precio + cupón + Premium)
+- [x] **F7-SHARED-03** *(cerrada el 2026-08-27 — centavos enteros vía scaledInteger, jamás IEEE-754; customPrice gana siempre como override por tenant)* — `computeChargeAmount` (precio + cupón + Premium)
   - **Salida:** plan+ciclo → bruto; `custom_price` gana cuando el plan no publica precio; cupón `fixed_amount` resta con piso en 0; `free` deja neto 0.
   - **Verificar:** Plus + cupón $200 = $299; Premium sin `custom_price` lanza; cupón $600 sobre Basic $199 da 0, no negativo.
   - **Depende de:** F7-SHARED-01 · **Estimación:** 1.5 h
