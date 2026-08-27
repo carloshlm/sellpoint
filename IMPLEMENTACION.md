@@ -2773,7 +2773,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 ### Módulo F6-DRILL — Los ensayos (cero costo de runtime; lo primero SIEMPRE)
 
 - [ ] **F6-DRILL-01** — Restore drill: restaurar un backup real de R2 en el sandbox
-  - **Salida:** procedimiento ejecutado y DOCUMENTADO: bajar el dump más reciente de `r2:sellpoint-backups` con rclone, `pg_restore` contra el postgres del SANDBOX (down del stack, restore, up), y la app sandbox sirviendo los datos del backup de producción. Tiempos medidos = RTO/RPO reales, no teóricos. El paso a paso queda listo para F6-DR-02 (runbook).
+  - **Salida:** procedimiento ejecutado y DOCUMENTADO: bajar el dump más reciente de `r2:sellpoint-backups` con rclone, `pg_restore` contra el postgres del SANDBOX (down del stack, restore, up), y la app sandbox sirviendo los datos del backup de producción. Tiempos medidos = RTO/RPO reales, no teóricos. El paso a paso queda documentado en la bitácora y en el docblock del script de backup (el RUNBOOK formal quedó pospuesto — ver Pospuestos).
   - **Verificar:** login en sandbox.sellpointy.com contra los datos restaurados; un producto/venta de prod visible.
   - **Depende de:** — (el sandbox ya existe: es el laboratorio perfecto)
   - **Estimación:** 1 h
@@ -2813,7 +2813,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Estimación:** 2 h
 
 - [ ] **F6-WATCH-03** — Alertas de costos (Vultr; reemplaza al F6-COSTS de AWS, obsoleto tras deploy-vultr)
-  - **Salida:** billing alert configurada en el panel de Vultr con umbral acordado; free tiers de Cloudflare/R2/Resend documentados en el runbook con sus límites (qué pasa si se exceden).
+  - **Salida:** billing alert configurada en el panel de Vultr con umbral acordado; free tiers de Cloudflare/R2/Resend documentados en `env.prod.example` con sus límites (qué pasa si se exceden).
   - **Verificar:** la alerta existe en el panel con el umbral correcto.
   - **Depende de:** —
   - **Estimación:** 15 min
@@ -2846,24 +2846,10 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** —
   - **Estimación:** 1.5 h
 
-### Módulo F6-DR — Recuperación de desastre, a lo simple
-
-- [ ] **F6-DR-01** — Auto-backups del VPS en Vultr
-  - **Salida:** auto-backups activados en el panel de Vultr (~20% del costo del server, $1-2 USD/mes — OK de Carlos en el panel) + procedimiento de snapshot manual documentado para ANTES de cambios grandes de infra. Complementa (no sustituye) los dumps a R2: el backup del VPS recupera la máquina; el dump recupera los datos.
-  - **Verificar:** el panel muestra el primer backup automático completado.
-  - **Depende de:** —
-  - **Estimación:** 15 min
-
-- [ ] **F6-DR-02** — RUNBOOK.md de operaciones
-  - **Salida:** documento en el repo con: deploy y rollback manual paso a paso, restore desde R2 (el procedimiento probado en F6-DRILL-01), alta de un ambiente nuevo (incluido el ALTER ROLE de sellpoint_app post-primer-deploy), cómo mirar logs (`docker logs` vía SSH — esto ABSORBE al F6-LOGS original: con este volumen, los json-file rotados + SSH bastan y Loki queda pospuesto), troubleshooting con los incidentes REALES ya vividos (disco 100%, DNS ambiguo de la red compartida, lease de pulls concurrentes, heredoc drenado), y cuentas/accesos (dónde vive cada credencial).
-  - **Verificar:** una persona que no sea Carlos podría ejecutar un restore siguiendo solo el documento.
-  - **Depende de:** F6-DRILL-01, F6-DRILL-02 (documenta lo ENSAYADO, no lo imaginado)
-  - **Estimación:** 2 h
-
 ### Módulo F6-SECRETS — Versión ligera
 
 - [ ] **F6-SECRETS-01** — Respaldo cifrado de los .env + rotación de JWT documentada
-  - **Salida:** copia cifrada con `age` de los DOS `.env` (prod y sandbox) en R2, actualizada cuando cambien, con procedimiento de restauración en el runbook; y el procedimiento de ROTACIÓN de llaves JWT documentado (generar par nuevo, ventana de convivencia, invalidación de sesiones). SIN gestor de secretos corriendo (Infisical/sops-daemon): un servicio más en 2 GB es exactamente lo que la LEY DE LA FASE veta — el chmod 600 + el respaldo cifrado + la rotación documentada son el básico correcto para este tamaño.
+  - **Salida:** copia cifrada con `age` de los DOS `.env` (prod y sandbox) en R2, actualizada cuando cambien, con procedimiento de restauración documentado junto al script; y el procedimiento de ROTACIÓN de llaves JWT documentado en la bitácora (generar par nuevo, ventana de convivencia, invalidación de sesiones). SIN gestor de secretos corriendo (Infisical/sops-daemon): un servicio más en 2 GB es exactamente lo que la LEY DE LA FASE veta — el chmod 600 + el respaldo cifrado + la rotación documentada son el básico correcto para este tamaño.
   - **Verificar:** restaurar el .env desde R2 en un directorio temporal y compararlo con el vivo.
   - **Depende de:** F6-BACKUPS-02 (reusa la clave age)
   - **Estimación:** 1 h
@@ -2879,8 +2865,22 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 - **fail2ban custom para `/auth/*`** — redundante: el throttler de Nest + el `limit_req` de F6-EDGE-02 cubren la misma amenaza sin un daemon más.
 - **Cloudflare naranja + Origin Certificate** — el gris funciona y el ACME está probado; el proxy naranja (ocultar IP, WAF) se evalúa cuando haya más clientes que proteger. Era el F6-CF-PROXY original.
 - **Gestor de secretos con servicio (Infisical)** — peso injustificado a este tamaño; ver F6-SECRETS-01.
+- **F6-DR completo: auto-backups de Vultr + RUNBOOK.md** *(decisión de Carlos, 2026-08-27: fuera de los primeros meses)* — los DATOS ya quedan cubiertos por los dumps diarios a R2 (con alerta y cifrado tras F6-BACKUPS); el backup de la MÁQUINA y el documento formal de operaciones esperan a que haya más clientes o más manos operando. Mientras tanto, la documentación operativa vive en la bitácora de este archivo, los docblocks de los scripts y la memoria del asistente. Las tareas, congeladas tal cual para retomarlas:
 
-**Estimación de la fase:** ~11 h de trabajo efectivo (repartibles en una semana tranquila, sin bloquear el desarrollo).
+  - [ ] **F6-DR-01** — Auto-backups del VPS en Vultr
+    - **Salida:** auto-backups activados en el panel de Vultr (~20% del costo del server, $1-2 USD/mes — OK de Carlos en el panel) + procedimiento de snapshot manual documentado para ANTES de cambios grandes de infra. Complementa (no sustituye) los dumps a R2: el backup del VPS recupera la máquina; el dump recupera los datos.
+    - **Verificar:** el panel muestra el primer backup automático completado.
+    - **Depende de:** —
+    - **Estimación:** 15 min
+
+  - [ ] **F6-DR-02** — RUNBOOK.md de operaciones
+    - **Salida:** documento en el repo con: deploy y rollback manual paso a paso, restore desde R2 (el procedimiento probado en F6-DRILL-01), alta de un ambiente nuevo (incluido el ALTER ROLE de sellpoint_app post-primer-deploy), cómo mirar logs (`docker logs` vía SSH — esto ABSORBE al F6-LOGS original: con este volumen, los json-file rotados + SSH bastan y Loki queda pospuesto), troubleshooting con los incidentes REALES ya vividos (disco 100%, DNS ambiguo de la red compartida, lease de pulls concurrentes, heredoc drenado), y cuentas/accesos (dónde vive cada credencial).
+    - **Verificar:** una persona que no sea Carlos podría ejecutar un restore siguiendo solo el documento.
+    - **Depende de:** F6-DRILL-01, F6-DRILL-02 (documenta lo ENSAYADO, no lo imaginado)
+    - **Estimación:** 2 h
+
+
+**Estimación de la fase:** ~9 h de trabajo efectivo (repartibles en una semana tranquila, sin bloquear el desarrollo).
 
 ---
 
