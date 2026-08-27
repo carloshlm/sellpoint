@@ -27,6 +27,12 @@ RUN pnpm --filter api deploy --prod --legacy /prod/api
 # --- Etapa de runtime: imagen mínima solo con dist + deps de producción ---
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
+
+# El runtime solo ejecuta `node dist/main`: npm, npx y corepack sobran, y el
+# node-tar embebido del npm de la imagen base fue el único CRITICAL del primer
+# escaneo de Trivy (CVE-2026-59873). Fuera el gestor, fuera la CVE.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+
 WORKDIR /app
 
 COPY --from=build /prod/api/node_modules ./node_modules
