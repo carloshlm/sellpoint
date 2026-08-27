@@ -16,7 +16,7 @@
 8. [Fase 4 — POS PWA](#fase-4--pos-pwa-outline)
 9. [Fase 5 — Reportes](#fase-5--reportes-atomizada-2026-08-21)
 10. [Fase 6 — Hardening de Producción](#fase-6--hardening-de-producción-outline)
-11. [Fase 7 — Planes + Billing + Suscripciones](#fase-7--planes--billing--suscripciones)
+11. [Fase 7 — Planes + Billing + Suscripciones](#fase-7--planes--billing--suscripciones-atomizada-2026-08-27-cobro-manual)
 12. [Fase 8 — Mobile (futuro)](#fase-8--mobile-futuro)
 13. [Fase 9+ — Extensiones Verticales (futuro)](#fase-9--extensiones-verticales-futuro-fuera-de-mvp)
 14. [Bitácora de Decisiones](#13-bitácora-de-decisiones)
@@ -2884,406 +2884,379 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ---
 
-## Fase 7 — Planes + Billing + Suscripciones
+## Fase 7 — Planes + Billing + Suscripciones (ATOMIZADA 2026-08-27, cobro manual)
 
-> **Objetivo:** habilitar monetización del SaaS. Planes (Chica/Mediana/Empresa), suscripciones mensuales/anuales, pagos con Stripe (vía adapter pattern), límites por plan, trial de 14 días sin tarjeta, grace period de 7 días, dunning automático. Facturación fiscal (CFDI/SAT) **fuera de scope MVP** — se integra después con Facturapi cuando lo pida el primer cliente.
+> **Objetivo:** monetizar el SaaS con 4 planes (Basic/Pro/Plus + Premium a la medida), trial de 14 días con nivel Plus, free tier post-trial, cupones por tenant y ciclo mensual/anual anclado al día de pago. **Cobro MANUAL en esta fase**: Carlos registra los pagos (transferencia/efectivo) desde un backoffice y el sistema calcula vencimientos, avisa por correo y degrada solo. Stripe queda **pospuesto** con el enchufe listo (ver Pospuestos al final).
 >
-> 🔌 **MCP al abrir esta fase:** instalar **Stripe MCP oficial** (API de Stripe: products, prices, subscriptions, webhooks de prueba). Ver `topic_key: decision/mcps-del-proyecto...` en engram.
+> **LEY DE LA FASE (criterio de Carlos, 2026-08-27):** el diseño se decidió tras analizar a la competencia mexicana (Ontaz $99-499, SICOVI $499-1,699, AtentiPOS $299-599, POS Express $249-449, Alegra $187-524, BIND $1,499+). Con 2-3 clientes fundadores, una pasarela automática son ~2 semanas de integración que hoy no pagan renta: el motor de suscripciones se construye completo y la pasarela se enchufa después sin migración. Misma regla de recursos de la Fase 6: nada pesado para el VPS de 2GB (el cron es `@nestjs/schedule` dentro del proceso api, NO BullMQ).
+>
+> Esta sección REEMPLAZA el diseño anterior de la fase (Chica/Mediana/Empresa con Stripe-first, gracia de 7 días y BullMQ, 2026-08-14). Los pre-requisitos que aquella versión pedía ya están cumplidos: `Tenant.createdAt` existe desde F1 y los guards son componibles (`@RequirePermissions` + guards de feature tipo `TenantCurrencyChangeableGuard`).
 
-### Defaults confirmados
+### Decisiones de negocio confirmadas (2026-08-27)
 
 | Decisión | Valor |
 |---|---|
-| Pasarela | Stripe (vía `PaymentGatewayPort` con adapter pattern) |
-| Moneda | MXN (hardcoded; multi-moneda futuro) |
-| Trial | 14 días sin tarjeta |
-| Dimensiones del plan | `max_users`, `max_warehouses`, `features` (JSONB de flags) |
-| Comportamiento al límite | Hard block + modal "Mejorá tu plan" |
-| Pricing | `price_monthly_cents` + `price_annual_cents` (anual ~17% descuento) |
-| Pago fallido | Grace 7 días → read-only |
-| Downgrade con exceso | Bloqueado con mensaje "Desactivá X usuarios primero" |
-| Cambio mid-cycle | Prorating automático de Stripe |
-| Cancelación | Al final del período (reactivable durante grace) |
-| Facturación fiscal | Fuera de scope MVP. Recibos no fiscales (PDF Stripe). |
-| Refunds | Manual desde Stripe Dashboard |
+| Planes fijos | **Basic $199** · **Pro $349** · **Plus $499** MXN/mes |
+| Premium | Todo lo de Plus + desarrollo a la medida; **precio dinámico por tenant** (`custom_price`), sin precio publicado, CTA "Contactar" |
+| Ciclo anual | 10× el mensual (2 meses gratis): Basic $1,990 · Pro $3,490 · Plus $4,990 |
+| Trial | **14 días con nivel Plus**, sin tarjeta, arranca al registrarse |
+| Free tier (post-trial / post-gracia) | Puede entrar y VER todo; sin crear/editar en catálogos, inventario ni cotizaciones; **máximo 10 ventas al día**; el modal de planes aparece SIEMPRE al iniciar sesión |
+| Basic sin control de inventario | Las ventas proceden **con stock en cero** (saldo queda negativo, kardex completo); Pro/Plus validan stock normal |
+| Límites | Basic **3 usuarios / 1 almacén** · Pro **6 / 4** · Plus **20 / 10** · Premium ilimitado |
+| Cotizaciones | Desde **Pro** |
+| Subcatálogos + campos personalizados + roles personalizados | Solo **Plus** (los 4 roles base — Admin/Manager/Seller/Viewer — en todos) |
+| Cupones | Por tenant, **uno activo a la vez**: monto fijo con vigencia (ej. -$200 × 12 meses → Plus cobra $299) o 100% gratis por un período definido |
+| Fecha de cobro | Anclada al día del primer pago: paga el 5-ago → vence el 5-sep (mensual) o el 5-ago-2027 (anual). Meses cortos: 31-ene → 28-feb → **31**-mar (el ancla no se reescribe) |
+| Impago | `due_at` vence → **10 días de gracia** con avisos → día 11 cae al free tier. Nada se borra jamás |
+| Moneda | MXN. Facturación fiscal (CFDI) fuera de scope — se integra con Facturapi cuando la pida un cliente |
 
-### Pre-requisitos a dejar listos en fases anteriores
+### Matriz de features por plan
 
-Aunque Fase 7 va al final, estas piezas **deben estar preparadas** para que la integración sea suave:
+Los límites numéricos y flags calientes son COLUMNAS de `plans`; los booleanos de módulos van en el JSONB `features` (validado con `planFeaturesSchema` de shared — el catálogo se edita desde el backoffice sin migración).
 
-- **F1-AUTH** debe persistir `tenant.created_at` (necesario para "grandfathered plan" de tenants beta).
-- **F1-RBAC** debe permitir guards componibles (ej: `@Roles('TenantAdmin') @CheckLimit('max_users')`).
-- Al lanzar Fase 7, **se agregará el guard `@CheckLimit` en endpoints existentes** (crear usuario, crear almacén). Esto queda anotado en la Bitácora cuando se ejecute (entrada formal por ser cambio retroactivo a tareas ya cerradas).
+| | Free | Basic $199 | Pro $349 | Plus $499 | Premium |
+|---|---|---|---|---|---|
+| `write_access` (crear/editar) | ❌ | ✅ | ✅ | ✅ | ✅ |
+| `daily_sales_limit` | **10** | ∞ | ∞ | ∞ | ∞ |
+| `stock_control` | ❌ | **❌** | ✅ | ✅ | ✅ |
+| `max_users` / `max_warehouses` | 1 / 1 | 3 / 1 | 6 / 4 | 20 / 10 | ∞ (NULL) |
+| POS + ticket · `pos` | ✅ (10/día) | ✅ | ✅ | ✅ | ✅ |
+| Productos y servicios | solo lectura | ✅ | ✅ | ✅ | ✅ |
+| Presentaciones / BOM · `compositions` | solo lectura | ❌ | ✅ | ✅ | ✅ |
+| Cotizaciones · `quotes` | solo lectura | ❌ | ✅ | ✅ | ✅ |
+| Movimientos + Kardex · `movements` | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Traspasos · `transfers` | ❌ | ❌ | ✅ (tiene 4 almacenes) | ✅ | ✅ |
+| Lotes y caducidad · `lots` | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Subcatálogos + campos dinámicos · `custom_fields` | solo lectura | ❌ | ❌ | ✅ | ✅ |
+| Roles personalizados · `custom_roles` | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Reportes · `reports` / export · `reports_export` | básicos | básicos | ✅ + export | ✅ + export | ✅ |
+| Desarrollo a la medida | — | — | — | — | ✅ |
 
----
+**Invariantes duras:** (1) los límites se aplican **SOLO al crear** — un downgrade jamás suspende usuarios ni borra almacenes; `max_users=1` en Free significa "no puedes invitar a nadie más", no "se apagan los demás". (2) `stock_control=false` también en Free: un tenant que era Basic (con negativos por diseño) y cae a Free debe poder hacer sus 10 ventas. (3) El free tier es una FILA del catálogo (`code='free'`, `is_public=false`), no un `if`: el resolver tiene un solo camino.
 
-### Módulo F7-PLAN — Definición de Planes
+### Diseño (resumen ejecutable)
 
-- [ ] **F7-PLAN-01** — Schema `plans` y migration
-  - **Salida:** tabla `plans` con: `id`, `code` (chica|mediana|empresa), `name`, `max_users`, `max_warehouses`, `features` JSONB, `price_monthly_cents`, `price_annual_cents`, `currency`, `is_active`, `stripe_product_id`, `stripe_price_monthly_id`, `stripe_price_annual_id`, `created_at`, `updated_at`. Migration aplicada.
-  - **Verificar:** `prisma migrate dev` ok; tabla existe en DB local.
-  - **Depende de:** —
-  - **Estimación:** 30 min
+**Modelo de datos** — 5 tablas nuevas + 1 columna + 1 drop, migraciones con CHECKs en SQL crudo (patrón F3):
 
-- [ ] **F7-PLAN-02** — Seed de 3 planes default (Chica/Mediana/Empresa)
-  - **Salida:** seed con planes: Chica (3 usuarios, 1 almacén, $499 MXN/mes), Mediana (10 usuarios, 5 almacenes, $1499 MXN/mes), Empresa (50 usuarios, 20 almacenes, $4999 MXN/mes). Precios anuales con ~17% descuento (2 meses gratis).
-  - **Verificar:** `pnpm db:seed` deja 3 planes activos.
-  - **Depende de:** F7-PLAN-01
-  - **Estimación:** 30 min
+- `plans` — catálogo global **SIN RLS** (mismo criterio que `permissions`). 5 filas (free/basic/pro/plus/premium) sembradas EN la migración con `ON CONFLICT (code) DO NOTHING`. Columnas: `code` (CHECK), `name`, `sort_order`, `price_monthly`/`price_yearly` (NULL en free/premium), `currency`, `is_public`, `is_active`, `max_users`, `max_warehouses`, `daily_sales_limit`, `write_access`, `stock_control`, `features` JSONB, y el enchufe `gateway_product_id`/`gateway_price_monthly_id`/`gateway_price_yearly_id`.
+- `tenant_subscriptions` — 1 por tenant (`tenant_id` UNIQUE), RLS + bypass. `status` CHECK IN (`trialing|active|past_due|free|canceled`), `billing_cycle` (`monthly|yearly`), **`anchor_day` 1-31 fijado con el PRIMER pago y nunca recalculado**, `trial_ends_at`, `service_period_start/end` (lo pagado), `due_at` (hoy == period_end; con pasarela divergirán), `grace_ends_at`, `custom_price` (Premium), `canceled_at`, `cancel_at_period_end`, `notes`, `gateway`/`gateway_customer_id`/`gateway_subscription_id`. CHECKs de coherencia por estado. Índices `(status, due_at)` y `(status, trial_ends_at)`.
+- `subscription_payments` — RLS + bypass. SNAPSHOT del cobro (`plan_id`, `plan_code`, `billing_cycle`, `gross_amount`, `discount_amount`, `amount` con CHECK `amount = gross - discount`), `method` (`transfer|cash|card|other|courtesy`), `gateway` + `gateway_reference` + `external_id` (UNIQUE parcial — idempotencia del webhook futuro, inerte hoy), `paid_at`, `period_start/end`, `status` (`recorded|voided`) + `voided_*`, `recorded_by`. **Un pago no se borra: se anula** con razón, y el período se recalcula desde los pagos vivos.
+- `tenant_discounts` — RLS + bypass. `kind` (`fixed_amount|free`), `amount`, `starts_at/ends_at`, `max_periods`/`applied_periods`, `is_active` con **UNIQUE parcial: un activo por tenant** (no se apilan cupones; se revoca uno y se otorga otro).
+- `billing_notifications` — RLS. `UNIQUE(subscription_id, kind, anchor_at)` ES la idempotencia de los avisos del cron (INSERT antes del mail; P2002 = ya enviado).
+- `users.is_platform_admin` BOOLEAN NOT NULL DEFAULT false — excluido de `updateUserSchema` y de los SELECT públicos (test que lo fija).
+- **Drop de los CHECKs `quantity >= 0`** de `stock_by_warehouse` y `stock_lots`: la barrera pasa de estructural a de plan — quien la impone es `StockLedgerService`.
+- **Bypass RLS acotado:** segunda policy `billing_admin_bypass` (GUC `app.billing_admin`) SOLO en las 4 tablas de billing, prendida únicamente por `PrismaService.withBillingAdminContext()` — regla dura hermana de AD-1. Un SELECT a `sales` desde ese contexto devuelve 0 filas (test que lo fija: el bypass NO es global).
+- Sin tabla de eventos: cada transición se audita con `AuditService.record()` (acciones `billing.*`; `userId` ausente en las del cron).
 
-- [ ] **F7-PLAN-03** — Sincronizar planes con Stripe Products/Prices
-  - **Salida:** script `pnpm sync:stripe-plans` que crea/actualiza un `Product` + 2 `Price` (mensual y anual) en Stripe por cada plan local; persiste IDs en columnas `stripe_*` de `plans`. Idempotente.
-  - **Verificar:** dashboard de Stripe muestra los 3 productos con 2 precios cada uno; DB tiene los IDs.
-  - **Depende de:** F7-PLAN-02, F7-STRIPE-01
-  - **Estimación:** 1.5 h
+**Máquina de estados** — regla de oro: **el cron SOLO degrada; promover es siempre un acto humano (registrar el pago)**. Un bug del cron no puede regalar un plan.
 
-- [ ] **F7-PLAN-04** — Endpoint `GET /plans` (público)
-  - **Salida:** controller que devuelve planes activos con precios, features y límites. Sin auth requerida (para la landing).
-  - **Verificar:** curl devuelve los 3 planes con shape esperado.
-  - **Depende de:** F7-PLAN-02
-  - **Estimación:** 30 min
+```
+registro (TenantsService.provision, MISMA tx) ──► trialing (plus, 14 días)
+trialing ──pago──► active            trialing ──cron trial_ends_at──► free
+active ──cron due_at──► past_due (gracia 10 días, avisos)
+past_due ──pago──► active            past_due ──cron grace_ends_at (día 11)──► free
+free ──pago──► active (re-ancla anchor_day al día del pago)
+* ──Carlos──► canceled (cancel_at_period_end) ──vence período──► free · ──reactivate──► active
+```
 
-- [ ] **F7-PLAN-05** — CRUD de Planes (SuperAdmin)
-  - **Salida:** endpoints `POST/PUT/DELETE /admin/plans` con guard `@Roles('SuperAdmin')`. La edición sincroniza con Stripe automáticamente.
-  - **Verificar:** SuperAdmin crea plan nuevo y aparece en Stripe.
-  - **Depende de:** F7-PLAN-03
-  - **Estimación:** 2 h
+Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días; el DTO permite override explícito de `periodStart` para "reactivar desde hoy sin cobrar los meses muertos" (decisión de Carlos, no default). Matemática pura en `packages/shared/src/billing.ts` (`addBillingPeriod`, `resolveAnchorDay`, `graceEndsAt`, `computeChargeAmount`) sobre `localCalendarDate`/`dayRangeToInstants` — el día del NEGOCIO, no UTC (la lección del Kardex).
 
-- [ ] **F7-PLAN-06** — Soft-delete y protección de planes con suscripciones
-  - **Salida:** no permitir borrar plan con suscripciones activas; en lugar de DELETE, hacer soft-delete (`is_active=false`). Tests unitarios.
-  - **Verificar:** intento de borrar plan con suscripciones falla con 409.
-  - **Depende de:** F7-PLAN-05
-  - **Estimación:** 1 h
+**Enforcement** — `EntitlementsService.resolve(tenantId)`: `trialing/active/past_due` → plan de la suscripción; `free/canceled/sin fila` → plan `free` (fail-closed con WARN). Caché Redis `entitlements:{tenantId}` TTL 300s con `DEL` explícito en cada cambio (NO va en el JWT: un token de 15 min conservaría el plan viejo tras la degradación de las 3 AM); si Redis cae, fail-open a Postgres — nunca a "todo permitido". `SubscriptionGuard` como 4º APP_GUARD (`Throttler → JwtAuth → Permissions → Subscription`: un 403 de rol nunca se disfraza de 402 de plan): deja pasar `@Public`/GET/HEAD/`@AllowedInFreeTier`/`/billing/*`/`/admin/*`; free tier + método mutante → **402** `billing.read_only`; `@RequiresFeature('x')` sin flag → 402; `@CheckPlanLimit('users'|'warehouses')` cuenta y bloquea al crear. `PlanRequiredException` propia (Nest no trae 402). El límite de 10 ventas/día NO va en el guard: se valida dentro de la transacción de la venta, ANTES de gastar folio, con la zona horaria del negocio. **Basic vende sin stock por la opción "asentar todo, permitir negativos"**: `allowNegative` en `resolveLotsFefo` y `StockLedgerService.apply` (solo se salta la validación; el `SELECT FOR UPDATE` ordenado NO se toca), activado únicamente en la venta con `!entitlements.stockControl` — kardex completo, y el saldo negativo ES la lista de qué inventariar al subir a Pro (el conteo de F3 lo corrige).
 
----
+**Backoffice de Carlos** — no existe SuperAdmin hoy (roles son por tenant). Auth mínima en AND: `is_platform_admin` **Y** email en `BILLING_ADMIN_EMAILS` (env, obligatoria en prod) **Y** status active **Y** email verificado → `PlatformAdminGuard` (el flag NO viaja en el JWT: query por PK solo en `/admin/*`). Sin app aparte: mismo login. Endpoints `/admin/billing/*` (fuera del SubscriptionGuard — Carlos no puede quedarse sin backoffice por su propia suscripción): lista cross-tenant con MRR, detalle, **registrar pago** (el corazón), anular con razón, PATCH subscription (plan/ciclo/custom_price/anchor), cupones, cancel/reactivate, GET/PATCH plans (edita precios y features sin migración), y run-daily manual del cron. Front: UNA pantalla `/admin/billing` (tabla + modal "Registrar pago"); el resto solo-API hasta que duela.
 
-### Módulo F7-SUB — Suscripciones
+**Frontend** — `SubscriptionBlock` emitido por login y `GET /me` (patrón A1; `TenantBlock` NO se toca) → `AuthUser.subscription`. `GET /billing/plans` `@Public()` para la pantalla de planes (Premium sin precio) y `GET /billing/me` con el historial propio. `PlanGate` con el patrón exacto de `OnboardingGate` (compuesto después de él): free tier ve **children + PlansModal encima** — sin `Navigate`, porque el free tier VE todo; el dismiss vive SOLO en memoria, nunca en localStorage → reaparece cada sesión por construcción. Primitivo `Dialog` nuevo en `components/ui` (no existe). `BillingBanner` en `AppLayout`: trial "quedan N días", past_due rojo, free "N/10 ventas hoy". Sidebar por feature **con candado** (upsell: el cliente ve qué se pierde; click → PlansModal): el permiso decide si el ROL puede, el feature si el PLAN incluye. Interceptor 402 global → abre PlansModal con el motivo. `usePlan().canWrite` apaga los CTAs de crear/editar en free tier.
 
-- [ ] **F7-SUB-01** — Schema `subscriptions` y migration
-  - **Salida:** tabla `subscriptions` con: `id`, `tenant_id` (unique), `plan_id`, `status` (trial|active|past_due|canceled|paused), `billing_cycle` (monthly|annual), `current_period_start`, `current_period_end`, `trial_end`, `canceled_at`, `cancel_at_period_end` bool, `grace_period_end`, `gateway_subscription_id`, `gateway_customer_id`. RLS por `tenant_id`.
-  - **Verificar:** migration ok; RLS activa; index en `gateway_subscription_id`.
-  - **Depende de:** F7-PLAN-01
-  - **Estimación:** 45 min
-
-- [ ] **F7-SUB-02** — Schema `webhook_events` para idempotency
-  - **Salida:** tabla `webhook_events` con `gateway`, `event_id` (unique), `event_type`, `payload` JSONB, `processed_at`, `error`.
-  - **Verificar:** migration ok; índice unique en (`gateway`, `event_id`).
-  - **Depende de:** —
-  - **Estimación:** 20 min
-
-- [ ] **F7-SUB-03** — `SubscriptionService` (lectura)
-  - **Salida:** método `getCurrentSubscription(tenantId)` que devuelve suscripción del tenant con plan asociado (JOIN). Cache opcional vía Redis.
-  - **Verificar:** unit test con factory.
-  - **Depende de:** F7-SUB-01
-  - **Estimación:** 1 h
-
-- [ ] **F7-SUB-04** — Crear trial automático al registrar tenant
-  - **Salida:** hook que, al crearse un `Tenant` nuevo, crea una `Subscription` con `status='trial'`, `trial_end = now() + 14 days`, asignada al plan Chica por default. Atómico con la creación del tenant.
-  - **Verificar:** registrar tenant nuevo y ver subscription en DB.
-  - **Depende de:** F7-SUB-01, F7-ONBOARD-01
-  - **Estimación:** 1 h
-
-- [ ] **F7-SUB-05** — `SubscriptionStateGuard` global
-  - **Salida:** guard global que bloquea acceso a la API si `subscription.status='canceled'` o si `status='past_due'` y `now() > grace_period_end`. Devuelve 402 Payment Required con metadata. Whitelist de endpoints de billing (para que puedan pagar/reactivar).
-  - **Verificar:** request de tenant cancelado retorna 402; request de tenant en grace retorna 200 con header `X-Billing-Warning`.
-  - **Depende de:** F7-SUB-03
-  - **Estimación:** 2 h
-
-- [ ] **F7-SUB-06** — Endpoint `GET /me/subscription`
-  - **Salida:** devuelve plan actual, status, próxima fecha de cobro, monto, métodos de pago, días restantes de trial/grace.
-  - **Verificar:** TenantAdmin ve su suscripción; otros roles ven versión limitada (sin métodos de pago).
-  - **Depende de:** F7-SUB-03
-  - **Estimación:** 1 h
-
-- [ ] **F7-SUB-07** — Endpoint `POST /me/subscription/change-plan`
-  - **Salida:** acepta `{plan_id, billing_cycle}`; valida que el nuevo plan acepte los recursos actuales (usuarios, almacenes). Si excede, retorna 422 con detalle. Si ok, llama a Stripe con `proration_behavior='create_prorations'`.
-  - **Verificar:** TenantAdmin upgradea de Chica a Mediana; Stripe refleja cambio; webhook actualiza DB.
-  - **Depende de:** F7-SUB-06, F7-STRIPE-04
-  - **Estimación:** 2 h
-
-- [ ] **F7-SUB-08** — Endpoints `POST /me/subscription/cancel` y `/reactivate`
-  - **Salida:** cancel marca `cancel_at_period_end=true` en Stripe (no inmediato); reactivate lo revierte si está dentro del período activo.
-  - **Verificar:** TenantAdmin cancela; sigue activo hasta fin de período; puede reactivar.
-  - **Depende de:** F7-SUB-06, F7-STRIPE-04
-  - **Estimación:** 1.5 h
+**Cron y correos** — `@nestjs/schedule` a las 3:00 `America/Mexico_City` (`BILLING_CRON_ENABLED/TZ/HOUR` en env). Un job, 5 pasos públicos testeables y disparables desde `/admin`: `expireTrials → openGrace → expireGrace → sendReminders → invalidateCaches`. Idempotente por construcción (`updateMany WHERE status` + el UNIQUE de notificaciones). 6 templates nuevos en la unión `MailTemplate` + `emails.json` es/en: `trial-ending` (T-3), `trial-ended`, `payment-due-soon` (T-7/T-3), `payment-past-due`, `plan-downgraded`, `payment-received` (este lo dispara `recordPayment`). Destinatario: el usuario activo más antiguo con `tenants:manage`.
 
 ---
 
-### Módulo F7-LIMIT — Límites por Plan
+### Módulo F7-SHARED — contratos y matemática pura
 
-- [ ] **F7-LIMIT-01** — `PlanLimitsService`
-  - **Salida:** servicio con métodos: `getLimit(tenantId, dimension)`, `getCurrentUsage(tenantId, dimension)`, `canCreate(tenantId, dimension)`. Soporta `max_users` y `max_warehouses`.
-  - **Verificar:** unit tests con casos: bajo límite, en el límite, sobre el límite.
-  - **Depende de:** F7-SUB-03
-  - **Estimación:** 2 h
+- [ ] **F7-SHARED-01** — Contratos de billing en `@sellpoint/shared`
+  - **Salida:** `packages/shared/src/billing.ts` con `PLAN_CODES`, `SUBSCRIPTION_STATUSES`, `BILLING_CYCLES`, `PAYMENT_METHODS`, `DISCOUNT_KINDS`, `TRIAL_DAYS=14`, `GRACE_DAYS=10`, `planFeaturesSchema` (Zod estricto) y `subscriptionBlockSchema`. Exportado en `index.ts`.
+  - **Verificar:** tests de shared en verde; `planFeaturesSchema` rechaza una key desconocida.
+  - **Depende de:** — · **Estimación:** 1 h
 
-- [ ] **F7-LIMIT-02** — Decorador `@CheckLimit(dimension)`
-  - **Salida:** decorator + interceptor de Nest que, antes del handler, llama `canCreate`; si false, lanza `PlanLimitExceededException` (HTTP 422 con `code=PLAN_LIMIT_EXCEEDED` + detalle).
-  - **Verificar:** endpoint dummy con `@CheckLimit('max_users')` bloquea cuando se excede.
-  - **Depende de:** F7-LIMIT-01
-  - **Estimación:** 1.5 h
+- [ ] **F7-SHARED-02** — `addBillingPeriod` + `resolveAnchorDay` + `graceEndsAt`
+  - **Salida:** funciones puras con ancla y meses cortos: 5-ago→5-sep; 5-ago→5-ago-2027 (anual); 31-ene→28-feb→**31**-mar; 29-feb-2028→28-feb-2029. Resultado = fin del día LOCAL del negocio (usa `localCalendarDate`/`dayRangeToInstants`).
+  - **Verificar:** ≥12 casos incluyendo bisiesto y cambio de horario.
+  - **Depende de:** F7-SHARED-01 · **Estimación:** 2.5 h
 
-- [ ] **F7-LIMIT-03** — Integrar `@CheckLimit('max_users')` en `POST /users`
-  - **Salida:** decorator agregado al endpoint de crear usuario (creado en F1). **Entrada formal en Bitácora** por ser modificación retroactiva.
-  - **Verificar:** tenant en plan Chica con 3 usuarios no puede crear el cuarto.
-  - **Depende de:** F7-LIMIT-02
-  - **Estimación:** 30 min
+- [ ] **F7-SHARED-03** — `computeChargeAmount` (precio + cupón + Premium)
+  - **Salida:** plan+ciclo → bruto; `custom_price` gana cuando el plan no publica precio; cupón `fixed_amount` resta con piso en 0; `free` deja neto 0.
+  - **Verificar:** Plus + cupón $200 = $299; Premium sin `custom_price` lanza; cupón $600 sobre Basic $199 da 0, no negativo.
+  - **Depende de:** F7-SHARED-01 · **Estimación:** 1.5 h
 
-- [ ] **F7-LIMIT-04** — Integrar `@CheckLimit('max_warehouses')` en `POST /warehouses`
-  - **Salida:** decorator en endpoint de crear almacén. Entrada en Bitácora.
-  - **Verificar:** tenant plan Chica con 1 almacén no puede crear el segundo.
-  - **Depende de:** F7-LIMIT-02
-  - **Estimación:** 30 min
+### Módulo F7-DB — modelo de datos
 
-- [ ] **F7-LIMIT-05** — Endpoint `GET /me/usage`
-  - **Salida:** devuelve `{users: {current, max}, warehouses: {current, max}}` para que el frontend muestre barras de uso.
-  - **Verificar:** TenantAdmin ve uso actual vs límites.
-  - **Depende de:** F7-LIMIT-01
-  - **Estimación:** 45 min
+- [ ] **F7-DB-01** — Tabla `plans` + CHECKs (SIN RLS)
+  - **Salida:** migración `_f7_plans` con la DDL completa, CHECK de `code`, CHECK de precios positivos, y el comentario de por qué NO lleva RLS (catálogo global, criterio de `permissions`).
+  - **Verificar:** `prisma migrate dev` ok; insertar `code='bogus'` falla.
+  - **Depende de:** — · **Estimación:** 45 min
 
-- [ ] **F7-LIMIT-06** — Modal frontend "Mejorá tu plan"
-  - **Salida:** componente `<UpgradeModal>` que se dispara cuando un POST retorna 422 con `code=PLAN_LIMIT_EXCEEDED`. Muestra qué límite se alcanzó y CTA "Ver planes".
-  - **Verificar:** intento de crear usuario sobre el límite abre modal en web.
-  - **Depende de:** F7-LIMIT-03, F7-VIEW-TA-02
-  - **Estimación:** 1.5 h
+- [ ] **F7-DB-02** — Seed de los 5 planes en la MIGRACIÓN
+  - **Salida:** `INSERT … ON CONFLICT (code) DO NOTHING` de free/basic/pro/plus/premium con la matriz completa (precios 199/349/499, límites 3/1 · 6/4 · 20/10, `daily_sales_limit=10` en free). Datos de referencia por el pipeline, no por `seed.ts`.
+  - **Verificar:** 5 filas; `price_yearly = price_monthly × 10` en los tres publicados (test).
+  - **Depende de:** F7-DB-01 · **Estimación:** 1 h
+
+- [ ] **F7-DB-03** — `tenant_subscriptions` + RLS + CHECKs de coherencia
+  - **Salida:** DDL completa, policy `tenant_isolation` canónica, CHECKs por estado (`trialing⇒trial_ends_at`, `active⇒due_at+cycle+anchor`, `past_due⇒grace_ends_at`, `canceled⇒canceled_at`), índices `(status, due_at)` y `(status, trial_ends_at)`.
+  - **Verificar:** `status='active'` sin `due_at` falla; SELECT sin contexto RLS devuelve 0 filas.
+  - **Depende de:** F7-DB-01 · **Estimación:** 1.5 h
+
+- [ ] **F7-DB-04** — `subscription_payments` + `tenant_discounts` + `billing_notifications`
+  - **Salida:** las tres tablas con RLS, CHECK `amount = gross - discount`, UNIQUE parcial de descuento activo, UNIQUE parcial de `external_id` y UNIQUE de notificación.
+  - **Verificar:** dos descuentos activos del mismo tenant → 23505; misma notificación dos veces → 23505.
+  - **Depende de:** F7-DB-03 · **Estimación:** 1.5 h
+
+- [ ] **F7-DB-05** — Policy `billing_admin_bypass` + `PrismaService.withBillingAdminContext`
+  - **Salida:** segunda policy en las 4 tablas de billing; método nuevo en `prisma.service.ts` con docblock de regla dura (la ÚNICA puerta cross-tenant; solo cron y backoffice).
+  - **Verificar:** desde el contexto se ven suscripciones de 2 tenants Y un SELECT a `sales` devuelve 0 filas — el test que fija que el bypass NO es global.
+  - **Depende de:** F7-DB-04 · **Estimación:** 2 h
+
+- [ ] **F7-DB-06** — `users.is_platform_admin`
+  - **Salida:** migración + campo Prisma `DEFAULT false NOT NULL`, excluido de `updateUserSchema` y de los SELECT públicos.
+  - **Verificar:** `PATCH /users/:id` con `isPlatformAdmin: true` en el body NO lo escribe.
+  - **Depende de:** — · **Estimación:** 45 min
+
+- [ ] **F7-DB-07** — Dropear los CHECKs `quantity >= 0`
+  - **Salida:** migración `_f7_allow_negative_stock` que dropea `stock_by_warehouse_quantity_check` y `stock_lots_quantity_check`, con el comentario de que la barrera pasa a ser de plan (la impone `StockLedgerService`).
+  - **Verificar:** un UPDATE a saldo negativo ya no falla; el test de F3 que asumía el CHECK se reescribe contra el ledger.
+  - **Depende de:** — · **Estimación:** 1 h
+
+### Módulo F7-CORE — resolver y servicio de suscripciones
+
+- [ ] **F7-CORE-01** — `EntitlementsService.resolve()` sin caché
+  - **Salida:** servicio + interfaz `Entitlements`; `trialing/active/past_due` → plan de la suscripción, resto → `free`; tenant sin fila → `free` con WARN (fail-closed). `features` parseado con Zod, nunca `any`.
+  - **Verificar:** unit con los 5 estados + tenant sin fila.
+  - **Depende de:** F7-DB-04, F7-SHARED-01 · **Estimación:** 2 h
+
+- [ ] **F7-CORE-02** — Caché Redis + invalidación
+  - **Salida:** key `entitlements:{tenantId}` TTL 300s, `invalidate(tenantId)`, fail-open a Postgres con WARN si Redis cae.
+  - **Verificar:** segunda llamada no toca DB; `invalidate` fuerza relectura; con Redis caído responde igual (no "todo permitido").
+  - **Depende de:** F7-CORE-01 · **Estimación:** 1.5 h
+
+- [ ] **F7-CORE-03** — Trial en `TenantsService.provision()`
+  - **Salida:** fila `trialing` (plan Plus, `trial_ends_at = +14 días` fin del día local) creada DENTRO de la misma transacción de `withNewTenantContext`, después de `setTenantContext`. Audit `billing.trial_started`.
+  - **Verificar:** `POST /auth/register-tenant` deja la fila con 14 días; si el insert falla, el tenant no nace.
+  - **Depende de:** F7-DB-03 · **Estimación:** 1.5 h
+
+- [ ] **F7-CORE-04** — `BillingService.recordPayment()`
+  - **Salida:** valida plan/ciclo/`custom_price`, aplica cupón (`computeChargeAmount`), `periodStart = servicePeriodEnd ?? paidAt` (con override explícito), `periodEnd = addBillingPeriod(...)`, fija `anchor_day` en el primer pago, mueve a `active`, limpia `grace_ends_at`, incrementa `applied_periods`, audita, invalida caché y encola `payment-received`.
+  - **Verificar:** trial→active; past_due→active sin regalar días; con cupón cobra el neto; Premium sin `custom_price` → 422.
+  - **Depende de:** F7-CORE-02, F7-SHARED-03 · **Estimación:** 3 h
+
+- [ ] **F7-CORE-05** — `voidPayment()` y recálculo del período
+  - **Salida:** marca `voided` con razón, recalcula `service_period_end` desde los pagos vivos y devuelve el status coherente. Audita.
+  - **Verificar:** anular el último pago regresa la suscripción a `past_due`/`free` según corresponda.
+  - **Depende de:** F7-CORE-04 · **Estimación:** 2 h
+
+- [ ] **F7-CORE-06** — `changePlan()` / `cancel()` / `reactivate()` / cupones
+  - **Salida:** transiciones del backoffice con razón obligatoria, audit e invalidación de caché en cada una. `cancel` con `cancel_at_period_end`; `reactivate` solo con período vivo.
+  - **Verificar:** unit por transición; cancelar con período vivo mantiene el servicio hasta el corte.
+  - **Depende de:** F7-CORE-04 · **Estimación:** 2.5 h
+
+### Módulo F7-GUARD — enforcement
+
+- [ ] **F7-GUARD-01** — `PlanRequiredException` (402) + i18n `billing.json`
+  - **Salida:** excepción propia con status 402 + `apps/api/src/i18n/{es,en}/billing.json` (read_only, feature_not_in_plan, daily_sales_limit_reached, user_limit_reached, warehouse_limit_reached, subscription_canceled, plan_not_found, custom_price_required, discount_overlap, payment_period_overlap, not_platform_admin).
+  - **Verificar:** la excepción sale con `statusCode: 402`, mensaje traducido y `code` crudo (el `AllExceptionsFilter` ya la traduce sin tocarlo — test que lo fija).
+  - **Depende de:** — · **Estimación:** 45 min
+
+- [ ] **F7-GUARD-02** — Decoradores `@RequiresFeature` / `@AllowedInFreeTier` / `@CheckPlanLimit`
+  - **Salida:** tres decoradores con sus keys de Reflector, patrón `require-permissions.decorator.ts`.
+  - **Verificar:** specs de metadata.
+  - **Depende de:** — · **Estimación:** 45 min
+
+- [ ] **F7-GUARD-03** — `SubscriptionGuard` como 4º APP_GUARD
+  - **Salida:** guard con solo-lectura del free tier + features, registrado al final de la cadena en `app.module.ts` con el comentario del porqué del orden (403 de rol nunca se disfraza de 402). `@AllowedInFreeTier` aplicado a: `POST /pos/sales`, abrir/cerrar sesión de caja, cancelar venta, `PATCH /me`.
+  - **Verificar:** free tier + POST → 402 `billing.read_only`; free tier + GET → 200; `@AllowedInFreeTier` pasa; Basic + `@RequiresFeature('lots')` → 402.
+  - **Depende de:** F7-GUARD-02, F7-CORE-02 · **Estimación:** 3 h
+
+- [ ] **F7-GUARD-04** — `@CheckPlanLimit` en `POST /users` y `POST /warehouses`
+  - **Salida:** decorador aplicado a los dos endpoints existentes. **Entrada formal en Bitácora** (cambio retroactivo a tareas cerradas de F1/F3).
+  - **Verificar:** Basic con 3 usuarios no crea el cuarto (402 `billing.user_limit_reached`); Basic con 1 almacén no crea el segundo; Premium (`max_users` NULL) crea sin tope.
+  - **Depende de:** F7-GUARD-03 · **Estimación:** 1 h
+
+### Módulo F7-POS — stock y ventas
+
+- [ ] **F7-POS-01** — `allowNegative` en `resolveLotsFefo`
+  - **Salida:** opción nueva; con ella un `shortfall > 0` no lanza — el faltante se asigna al lote elegido o la línea sigue sin lote.
+  - **Verificar:** stock 0 con `allowNegative` devuelve plan válido; SIN el flag sigue lanzando `inventory.insufficient_stock` (regresión F3/F4 intacta).
+  - **Depende de:** F7-DB-07 · **Estimación:** 2 h
+
+- [ ] **F7-POS-02** — `allowNegative` en `StockLedgerService.apply`
+  - **Salida:** flag en `LedgerInput` que salta SOLO el bloque de validación de salida. El `SELECT … FOR UPDATE` ordenado NO se toca (sigue siendo la barrera anti-carrera del saldo).
+  - **Verificar:** salida sobre saldo 0 deja `quantity=-3` con su `stock_movement`; sin el flag sigue el 422.
+  - **Depende de:** F7-POS-01 · **Estimación:** 2 h
+
+- [ ] **F7-POS-03** — Basic vende sin validar stock
+  - **Salida:** `SalesService.crearVenta` pasa `allowNegative: !entitlements.stockControl` a FEFO y al ledger. SOLO la venta: entradas/salidas/traspasos/conteos validan siempre.
+  - **Verificar:** tenant Basic vende con stock 0 (201, kardex escrito, saldo negativo); tenant Pro sigue con 422.
+  - **Depende de:** F7-POS-02, F7-CORE-02 · **Estimación:** 1.5 h
+
+- [ ] **F7-POS-04** — Límite de 10 ventas/día del free tier
+  - **Salida:** `SalesPlanGate.assertDailySaleAllowed` llamado dentro de `withTenantContext` y ANTES de `nextFolio` (una venta rechazada no gasta folio). Cuenta con el índice `[tenantId, createdAt Desc]` y el día del NEGOCIO (`zonaDelNegocio` + `dayRangeToInstants`), excluyendo canceladas. Plan de pago = 0 queries. El off-by-one bajo concurrencia queda documentado como aceptado.
+  - **Verificar:** venta 11 → 402 `billing.daily_sales_limit_reached` sin gastar folio; la venta del día siguiente (zona del negocio, no UTC) pasa.
+  - **Depende de:** F7-GUARD-01, F7-CORE-02 · **Estimación:** 2.5 h
+
+### Módulo F7-ADMIN — backoffice
+
+- [ ] **F7-ADMIN-01** — `BILLING_ADMIN_EMAILS` + `PlatformAdminGuard`
+  - **Salida:** env nueva (superRefine: obligatoria y no vacía en producción) + guard con el AND completo (flag + whitelist + active + verificado).
+  - **Verificar:** flag sin email en whitelist → 403; email sin flag → 403; todo en orden → 200.
+  - **Depende de:** F7-DB-06 · **Estimación:** 2 h
+
+- [ ] **F7-ADMIN-02** — `GET /admin/billing/tenants` (cross-tenant)
+  - **Salida:** lista con plan/status/`due_at`/último pago/MRR vía `withBillingAdminContext`; detalle por tenant con pagos y cupón vigente. `/admin/*` excluido del `SubscriptionGuard`.
+  - **Verificar:** e2e con 2 tenants: el admin ve ambos; un TenantAdmin normal recibe 403.
+  - **Depende de:** F7-ADMIN-01, F7-DB-05 · **Estimación:** 2 h
+
+- [ ] **F7-ADMIN-03** — `POST /admin/billing/tenants/:id/payments`
+  - **Salida:** DTO Zod (`amount`, `method`, `paidAt`, `gatewayReference?`, `periodStart?`, `notes?`) sobre `recordPayment`. El `amount` se valida contra `computeChargeAmount`; si difiere se acepta con WARN en notes, pero el período JAMÁS se calcula desde el monto.
+  - **Verificar:** e2e trial→active con `due_at` correcto; el segundo pago mueve al mes siguiente respetando el ancla.
+  - **Depende de:** F7-ADMIN-02, F7-CORE-04 · **Estimación:** 2 h
+
+- [ ] **F7-ADMIN-04** — `void`, `PATCH subscription`, `cancel`, `reactivate`
+  - **Salida:** los 4 endpoints con razón obligatoria y audit.
+  - **Verificar:** e2e de cada uno; `audit_logs` guarda `before`/`after`.
+  - **Depende de:** F7-ADMIN-03, F7-CORE-05, F7-CORE-06 · **Estimación:** 2.5 h
+
+- [ ] **F7-ADMIN-05** — Cupones y edición de planes
+  - **Salida:** `POST/DELETE` de cupones + `GET/PATCH /admin/billing/plans/:code` (features validados con `planFeaturesSchema`; editar precio invalida cachés).
+  - **Verificar:** dos cupones activos → 409 `billing.discount_overlap`; editar `price_monthly` refresca los entitlements.
+  - **Depende de:** F7-ADMIN-04 · **Estimación:** 2 h
+
+- [ ] **F7-ADMIN-06** — Aviso de stock negativo al subir de plan
+  - **Salida:** `changePlan` hacia un plan con `stock_control=true` responde con `warnings.negativeStock: [{sku, warehouse, quantity}]` — la lista de qué inventariar.
+  - **Verificar:** Basic con negativos → upgrade a Pro responde 200 con la lista.
+  - **Depende de:** F7-ADMIN-04, F7-POS-03 · **Estimación:** 1.5 h
+
+### Módulo F7-CRON — job diario
+
+- [ ] **F7-CRON-01** — `@nestjs/schedule` + env + run-daily manual
+  - **Salida:** dependencia + `ScheduleModule.forRoot()`, `BILLING_CRON_ENABLED/TZ/HOUR` en env (apagado en tests), y `POST /admin/billing/jobs/run-daily`.
+  - **Verificar:** con `BILLING_CRON_ENABLED=false` el cron no se registra; el endpoint corre `run()`.
+  - **Depende de:** F7-ADMIN-01 · **Estimación:** 1.5 h
+
+- [ ] **F7-CRON-02** — `expireTrials()` + `openGrace()` + `expireGrace()`
+  - **Salida:** las 3 transiciones con `updateMany` idempotente y audit sin `userId`. Lectura cross-tenant con `withBillingAdminContext`; mutación + audit dentro del `withTenantContext` del tenant afectado.
+  - **Verificar:** unit con reloj fake: trial vencido→free; `due_at` vencido→past_due con gracia a 10 días; día 11→free; correr dos veces no duplica nada.
+  - **Depende de:** F7-CRON-01, F7-CORE-06 · **Estimación:** 3 h
+
+- [ ] **F7-CRON-03** — `sendReminders()` con dedup
+  - **Salida:** ventanas T-3 del trial, T-7 y T-3 del vencimiento, T-3 de la gracia; INSERT en `billing_notifications` ANTES del mail (P2002 = ya enviado); mail post-commit best-effort.
+  - **Verificar:** dos corridas el mismo día → 1 solo mail por (suscripción, kind, ancla).
+  - **Depende de:** F7-CRON-02, F7-MAIL-01 · **Estimación:** 2.5 h
+
+- [ ] **F7-CRON-04** — `invalidateCaches()`
+  - **Salida:** `DEL entitlements:{tenantId}` de los tenants tocados al cierre de `run()`.
+  - **Verificar:** tras degradar, la siguiente request lee `free` sin esperar el TTL.
+  - **Depende de:** F7-CRON-02, F7-CORE-02 · **Estimación:** 45 min
+
+### Módulo F7-MAIL — plantillas
+
+- [ ] **F7-MAIL-01** — 6 templates de billing
+  - **Salida:** unión `MailTemplate` extendida (trial-ending, trial-ended, payment-due-soon, payment-past-due, plan-downgraded, payment-received) + `emails.json` es/en con shape `{subject, greeting, body, cta}` + render en el driver. Vars como string (moneda/fecha se formatean en el emisor con helpers de shared).
+  - **Verificar:** `MAIL_DRIVER=console` imprime los 6 con vars sustituidas; el test de la unión cerrada se actualiza.
+  - **Depende de:** — · **Estimación:** 2 h
+
+### Módulo F7-WEB — frontend
+
+- [ ] **F7-WEB-01** — `SubscriptionBlock` en login y `GET /me` + store
+  - **Salida:** `subscription.types.ts` (tipo + `SUBSCRIPTION_SELECT` + mapper, patrón A1) emitido por los DOS endpoints; espejo en `apps/web/src/lib/billing/api.ts`; `AuthUser.subscription` en `auth.store.ts`. `TenantBlock` NO se toca. Incluye `daysLeft` calculado en el server con la zona del tenant.
+  - **Verificar:** los dos emisores devuelven el mismo shape (test gemelo del de `TenantBlock`).
+  - **Depende de:** F7-CORE-02 · **Estimación:** 2 h
+
+- [ ] **F7-WEB-02** — `GET /billing/plans` (`@Public`) y `GET /billing/me`
+  - **Salida:** `billing.controller.ts`; Premium sale sin precio (CTA "Contactar"); `/billing/me` con historial propio (permiso `tenants:manage`).
+  - **Verificar:** sin token, `/billing/plans` responde 200 con los 4 planes visibles (free excluido).
+  - **Depende de:** F7-DB-02 · **Estimación:** 1.5 h
+
+- [ ] **F7-WEB-03** — Primitivo `Dialog`
+  - **Salida:** `apps/web/src/components/ui/dialog.tsx`: portal + backdrop + `role="dialog"` + `aria-modal` + focus trap + Escape.
+  - **Verificar:** test de accesibilidad; cierre por Escape y por backdrop.
+  - **Depende de:** — · **Estimación:** 2 h
+
+- [ ] **F7-WEB-04** — `usePlan()` + `PlansModal`
+  - **Salida:** hook (`hasFeature`, `canWrite`, `status`, `daysLeft`) + modal con las 4 tarjetas, toggle mensual/anual (anual muestra 10×) y Premium con "Contactar".
+  - **Verificar:** RTL: Basic ve Pro/Plus como upgrade; el toggle anual muestra los precios ×10.
+  - **Depende de:** F7-WEB-02, F7-WEB-03 · **Estimación:** 2.5 h
+
+- [ ] **F7-WEB-05** — `PlanGate`
+  - **Salida:** patrón exacto de `OnboardingGate`, compuesto DESPUÉS de él en todas las rutas protegidas: bootstrap → `SessionLoading` (nunca Navigate en la ventana, lección S6); status ≠ free → children; free → children + `PlansModal` encima. Dismiss SOLO en memoria.
+  - **Verificar:** free tier ve dashboard + modal; el reload lo vuelve a mostrar; `active` no lo ve; sin flash en el bootstrap.
+  - **Depende de:** F7-WEB-04 · **Estimación:** 2 h
+
+- [ ] **F7-WEB-06** — `BillingBanner` en `AppLayout`
+  - **Salida:** trial "Te quedan N días de prueba (plan Plus)" / past_due rojo "Tu pago venció el DD/MM, te quedan N días" / free "Modo gratuito: N/10 ventas hoy". En `AppLayout`, no en `__root` (sin sesión no hay suscripción).
+  - **Verificar:** RTL por estado; `active` no pinta nada.
+  - **Depende de:** F7-WEB-01 · **Estimación:** 1.5 h
+
+- [ ] **F7-WEB-07** — Sidebar por feature (candado)
+  - **Salida:** `app-layout.tsx` compone `has(perm) && hasFeature(x)`; los módulos que el plan no incluye se pintan con candado y abren `PlansModal` (upsell — no se ocultan).
+  - **Verificar:** Basic ve "Movimientos" con candado; Plus lo ve normal; el permiso sigue mandando (un Viewer sin `inventory:read` no lo ve ni con Plus).
+  - **Depende de:** F7-WEB-04 · **Estimación:** 2 h
+
+- [ ] **F7-WEB-08** — Interceptor 402 + solo-lectura en UI
+  - **Salida:** el cliente HTTP abre `PlansModal` con el `code` de cualquier 402; `usePlan().canWrite` apaga los CTAs de crear/editar en productos, servicios, subcatálogos, campos, almacenes, movimientos y cotizaciones.
+  - **Verificar:** free tier no ve "Nuevo producto"; un 402 del backend abre el modal con el motivo correcto.
+  - **Depende de:** F7-WEB-05 · **Estimación:** 2.5 h
+
+- [ ] **F7-WEB-09** — Pantalla "Mi plan" (`/settings/billing`)
+  - **Salida:** plan actual, ciclo, próximo vencimiento, cupón vigente e historial de pagos propio.
+  - **Verificar:** requiere `tenants:manage`; muestra solo lo del propio tenant.
+  - **Depende de:** F7-WEB-02 · **Estimación:** 2 h
+
+- [ ] **F7-WEB-10** — Backoffice `/admin/billing`
+  - **Salida:** tabla de tenants (plan, status, vencimiento, último pago, MRR) + modal "Registrar pago". Link del sidebar solo si `isPlatformAdmin`. El resto del backoffice queda solo-API.
+  - **Verificar:** un no-admin no ve el link y la ruta le devuelve 403.
+  - **Depende de:** F7-ADMIN-03, F7-WEB-03 · **Estimación:** 3 h
+
+### Módulo F7-E2E — end to end
+
+- [ ] **F7-E2E-01** — registro → trial → pago → active → renovación
+  - **Verificar:** el `due_at` de la segunda renovación respeta el ancla (caso 31-ene → 28-feb → 31-mar).
+  - **Depende de:** F7-ADMIN-03, F7-CRON-02 · **Estimación:** 2 h
+
+- [ ] **F7-E2E-02** — trial vencido → free → 10 ventas/día + solo-lectura
+  - **Verificar:** venta 11 = 402; `POST /products` = 402; `GET /products` = 200.
+  - **Depende de:** F7-POS-04, F7-GUARD-03 · **Estimación:** 2 h
+
+- [ ] **F7-E2E-03** — vencimiento → gracia 10 días → día 11 free → pago tardío reactiva
+  - **Verificar:** días 1-10 escribe normal; día 11 no; el pago del día 12 devuelve `active` sin regalar días.
+  - **Depende de:** F7-CRON-02 · **Estimación:** 2 h
+
+- [ ] **F7-E2E-04** — Basic vende con stock 0 y sube a Pro
+  - **Verificar:** venta OK con saldo negativo y kardex escrito; el upgrade avisa los negativos; un conteo físico los corrige.
+  - **Depende de:** F7-POS-03, F7-ADMIN-06 · **Estimación:** 2 h
+
+- [ ] **F7-E2E-05** — Cupón: Plus $499 − $200 × 12 meses
+  - **Verificar:** los 12 pagos cobran $299 y el 13º $499; `applied_periods` llega a 12.
+  - **Depende de:** F7-ADMIN-05 · **Estimación:** 1.5 h
+
+- [ ] **F7-E2E-06** — Aislamiento del backoffice
+  - **Verificar:** el admin lee suscripciones de 2 tenants y **0 ventas** de un tenant ajeno desde el mismo contexto.
+  - **Depende de:** F7-DB-05 · **Estimación:** 1.5 h
+
+### Módulo F7-DOC — documentación
+
+- [ ] **F7-DOC-01** — README del módulo billing + runbook de Carlos
+  - **Salida:** `apps/api/src/modules/billing/README.md`: máquina de estados, modelo de datos, runbook del dueño (registrar un pago, anularlo, dar un cupón, correr el cron a mano, dar de alta un Premium con `custom_price`) y la sección del enchufe de Stripe (qué columnas ya existen, qué falta).
+  - **Verificar:** revisado por Carlos.
+  - **Depende de:** F7-E2E-06 · **Estimación:** 2.5 h
+
+### Pospuestos de la Fase 7 (con nombre y razón)
+
+- **Integración Stripe (pasarela automática)** — pospuesta por decisión de Carlos (2026-08-27): con 2-3 clientes fundadores el cobro manual cuesta minutos al mes; la pasarela son ~2 semanas de integración. **El enchufe queda listo**: `plans.gateway_product_id`/`gateway_price_*_id`, `tenant_subscriptions.gateway/gateway_customer_id/gateway_subscription_id`, `subscription_payments.gateway/gateway_reference/external_id` con su UNIQUE parcial (la idempotencia del webhook ya vive en la DB), y el período se calcula SIEMPRE en `recordPayment()` — el webhook de Stripe será un caller más de ese método con `gateway='stripe'`. Faltará: `StripeAdapter`, `POST /webhooks/stripe`, tabla `webhook_events` y el flujo de tarjeta en el front (Stripe Elements). El MCP oficial de Stripe se instala cuando esa sub-fase abra.
+- **Facturación fiscal CFDI (Facturapi)** — cuando la pida el primer cliente; los competidores la cobran como diferenciador (SICOVI por timbres) y SellPointy compite por precio mientras tanto.
+- **Apilar cupones** — un solo descuento activo por tenant (UNIQUE parcial); si algún día hace falta, se dropea el índice y se agrega orden de aplicación sin cambiar el modelo.
+- **Contador exacto del límite diario bajo concurrencia** — el off-by-one del `COUNT` es aceptable para un tier gratuito; el refinamiento exacto (serializar con `nextSequenceValue` del día) queda documentado por si aparece contención.
 
 ---
 
-### Módulo F7-STRIPE — Integración Stripe
-
-- [ ] **F7-STRIPE-01** — Setup Stripe SDK + configuración
-  - **Salida:** `stripe` npm instalado; `StripeConfig` lee `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` de env. Modo test por default. Keys de producción solo en EC2.
-  - **Verificar:** `StripeClient.balance.retrieve()` responde en local.
-  - **Depende de:** —
-  - **Estimación:** 30 min
-
-- [ ] **F7-STRIPE-02** — Definir `PaymentGatewayPort` (interface)
-  - **Salida:** interface en `packages/shared` con métodos: `createCustomer`, `createSubscription`, `updateSubscription`, `cancelSubscription`, `attachPaymentMethod`, `setDefaultPaymentMethod`, `listInvoices`, `verifyWebhookSignature`. Types compilan en API.
-  - **Verificar:** types compilan; interface usable desde un mock.
-  - **Depende de:** —
-  - **Estimación:** 45 min
-
-- [ ] **F7-STRIPE-03** — `StripeAdapter` — Customer + PaymentMethod
-  - **Salida:** implementación de `createCustomer`, `attachPaymentMethod`, `setDefaultPaymentMethod`. Errores de Stripe mapeados a excepciones del dominio.
-  - **Verificar:** crear customer en Stripe vía test integration; ID persiste.
-  - **Depende de:** F7-STRIPE-01, F7-STRIPE-02
-  - **Estimación:** 1.5 h
-
-- [ ] **F7-STRIPE-04** — `StripeAdapter` — Subscription lifecycle (con soporte de `subscription_items`)
-  - **Salida:** `createSubscription`, `updateSubscription` (cambio de plan con prorating), `cancelSubscription` (con `cancel_at_period_end=true`), `reactivateSubscription`. **Diseñar la subscription con `items: [...]`** (array) desde el inicio, no como `price` único, para preparar add-ons de Fase 9 sin refactor. En MVP el array tiene un solo item (el plan base).
-  - **Verificar:** flujo completo: crear subscription → upgrade → cancelar → reactivar, todo reflejado en Stripe. Modelo de datos local soporta múltiples items aunque inicialmente haya 1 solo.
-  - **Depende de:** F7-STRIPE-03
-  - **Estimación:** 3 h
-
-- [ ] **F7-STRIPE-05** — Endpoint webhook `POST /webhooks/stripe`
-  - **Salida:** endpoint que verifica firma con `STRIPE_WEBHOOK_SECRET`, valida idempotency contra `webhook_events`, encola job para procesar. Retorna 200 ASAP (< 5 s).
-  - **Verificar:** webhook con firma inválida retorna 401; evento duplicado no se reprocesa.
-  - **Depende de:** F7-SUB-02, F7-STRIPE-01
-  - **Estimación:** 2 h
-
-- [ ] **F7-STRIPE-06** — Handler de eventos `customer.subscription.*`
-  - **Salida:** job worker (BullMQ) que procesa `customer.subscription.created`, `.updated`, `.deleted`, `.trial_will_end`. Sincroniza `subscriptions` local con Stripe.
-  - **Verificar:** disparar evento desde Stripe CLI; DB local refleja cambio en < 5 s.
-  - **Depende de:** F7-STRIPE-05
-  - **Estimación:** 2 h
-
-- [ ] **F7-STRIPE-07** — Handler de eventos `invoice.*`
-  - **Salida:** procesa `invoice.paid`, `invoice.payment_failed`, `invoice.finalized`. Crea/actualiza filas en tabla `invoices`. En `payment_failed`, marca `subscription.status='past_due'` y dispara F7-DUNNING.
-  - **Verificar:** simular pago fallido con Stripe CLI; subscription pasa a `past_due`; invoice queda registrada.
-  - **Depende de:** F7-STRIPE-05, F7-INVOICE-01
-  - **Estimación:** 2 h
-
-- [ ] **F7-STRIPE-08** — Stripe CLI configurado para dev local
-  - **Salida:** documentar uso de `stripe listen --forward-to localhost:3000/webhooks/stripe` en README del módulo billing. Script `pnpm stripe:listen`.
-  - **Verificar:** developer puede recibir webhooks reales en local.
-  - **Depende de:** F7-STRIPE-05
-  - **Estimación:** 30 min
-
----
-
-### Módulo F7-INVOICE — Facturas
-
-- [ ] **F7-INVOICE-01** — Schema `invoices` y migration
-  - **Salida:** tabla `invoices` con `id`, `tenant_id`, `subscription_id`, `gateway_invoice_id` (unique), `amount_cents`, `currency`, `status` (pending|paid|failed|refunded), `period_start`, `period_end`, `paid_at`, `pdf_url`. RLS por tenant.
-  - **Verificar:** migration ok; RLS activa.
-  - **Depende de:** F7-SUB-01
-  - **Estimación:** 30 min
-
-- [ ] **F7-INVOICE-02** — Sync de invoices desde Stripe (backfill)
-  - **Salida:** script `pnpm sync:invoices` que, para cada tenant con suscripción, trae invoices de Stripe y persiste. Idempotente vía `gateway_invoice_id`.
-  - **Verificar:** correr script con datos seed; invoices aparecen en DB sin duplicados.
-  - **Depende de:** F7-INVOICE-01, F7-STRIPE-04
-  - **Estimación:** 1.5 h
-
-- [ ] **F7-INVOICE-03** — Endpoint `GET /me/invoices`
-  - **Salida:** lista paginada de invoices del tenant, ordenadas por fecha desc.
-  - **Verificar:** TenantAdmin ve historial; otros roles no.
-  - **Depende de:** F7-INVOICE-01
-  - **Estimación:** 45 min
-
-- [ ] **F7-INVOICE-04** — Endpoint `GET /me/invoices/:id/pdf`
-  - **Salida:** redirect a `pdf_url` de Stripe (signed URL temporal). Valida que la invoice pertenezca al tenant del request.
-  - **Verificar:** click en "Descargar PDF" abre PDF de Stripe; tenant ajeno recibe 404.
-  - **Depende de:** F7-INVOICE-03
-  - **Estimación:** 30 min
-
----
-
-### Módulo F7-TRIAL — Trial de 14 Días
-
-- [ ] **F7-TRIAL-01** — Job de fin de trial
-  - **Salida:** job cron diario que verifica suscripciones con `trial_end < now()` y `status='trial'`. Si tienen método de pago: pasa a `active` y dispara primera factura vía Stripe. Si no: pasa a `past_due` (dispara dunning).
-  - **Verificar:** correr job manualmente con datos seed.
-  - **Depende de:** F7-SUB-04
-  - **Estimación:** 1.5 h
-
-- [ ] **F7-TRIAL-02** — Banner "Quedan X días de prueba" en frontend
-  - **Salida:** componente `<TrialBanner>` que se muestra en layout principal mientras `subscription.status='trial'`. Muestra días restantes y CTA "Agregar método de pago".
-  - **Verificar:** tenant en trial ve banner; tenant active no.
-  - **Depende de:** F7-SUB-06
-  - **Estimación:** 1 h
-
-- [ ] **F7-TRIAL-03** — Email automático "Tu prueba termina en 3 días"
-  - **Salida:** trigger en handler de `customer.subscription.trial_will_end` de Stripe (se dispara 3 días antes) que encola email vía BullMQ.
-  - **Verificar:** simular evento con Stripe CLI; email se envía.
-  - **Depende de:** F7-STRIPE-06
-  - **Estimación:** 1 h
-
----
-
-### Módulo F7-DUNNING — Manejo de Pagos Fallidos
-
-- [ ] **F7-DUNNING-01** — Transición a `past_due` con grace period
-  - **Salida:** cuando `invoice.payment_failed` llega, suscripción pasa a `past_due` con `grace_period_end = now() + 7 days`.
-  - **Verificar:** simular pago fallido; subscription queda `past_due` con `grace_period_end` seteado.
-  - **Depende de:** F7-STRIPE-07
-  - **Estimación:** 1 h
-
-- [ ] **F7-DUNNING-02** — Modo read-only después del grace
-  - **Salida:** `SubscriptionStateGuard` (F7-SUB-05) extendido: si `status='past_due'` y `now() > grace_period_end`, todos los POST/PUT/DELETE retornan 402. GET sigue funcionando (read-only). Whitelist de endpoints de billing.
-  - **Verificar:** tenant post-grace puede listar pero no crear/editar.
-  - **Depende de:** F7-DUNNING-01, F7-SUB-05
-  - **Estimación:** 1 h
-
-- [ ] **F7-DUNNING-03** — Emails de recordatorio escalonados
-  - **Salida:** job cron diario que envía emails: día 1 ("Tu pago falló, actualizá tu método"), día 4 ("Quedan 3 días"), día 7 ("Mañana entrás en modo solo-lectura"). Tracking de envío para no duplicar.
-  - **Verificar:** simular pago fallido; correr cron varios días; verificar emails únicos.
-  - **Depende de:** F7-DUNNING-01
-  - **Estimación:** 2 h
-
-- [ ] **F7-DUNNING-04** — Banner "Tu pago falló" en frontend
-  - **Salida:** banner crítico (rojo) cuando `subscription.status='past_due'`. Muestra días restantes hasta read-only. CTA "Actualizar método de pago".
-  - **Verificar:** tenant `past_due` ve banner en toda la app.
-  - **Depende de:** F7-DUNNING-01
-  - **Estimación:** 1 h
-
----
-
-### Módulo F7-VIEW-SA — Vistas SuperAdmin
-
-- [ ] **F7-VIEW-SA-01** — Tabla de Tenants con plan/status
-  - **Salida:** vista `/admin/tenants` con columnas: tenant, plan actual, status, próximo cobro, MRR contribuído. Filtros por status.
-  - **Verificar:** SuperAdmin ve todos los tenants con info de billing.
-  - **Depende de:** F7-SUB-01
-  - **Estimación:** 2 h
-
-- [ ] **F7-VIEW-SA-02** — Dashboard MRR/ARR simple
-  - **Salida:** vista `/admin/billing/dashboard` con cards: MRR actual, ARR proyectado, # tenants activos, # en trial, # past_due. Datos calculados en backend.
-  - **Verificar:** números coinciden con queries manuales.
-  - **Depende de:** F7-SUB-01, F7-INVOICE-01
-  - **Estimación:** 2.5 h
-
-- [ ] **F7-VIEW-SA-03** — Override manual de suscripción
-  - **Salida:** SuperAdmin puede asignar plan distinto a un tenant sin pasar por Stripe (caso: cliente VIP, deal especial). Audit log obligatorio (campo `notes` requerido).
-  - **Verificar:** SuperAdmin cambia plan de tenant manualmente; queda registro en `audit_logs`.
-  - **Depende de:** F7-VIEW-SA-01
-  - **Estimación:** 1.5 h
-
----
-
-### Módulo F7-VIEW-TA — Vistas TenantAdmin
-
-- [ ] **F7-VIEW-TA-01** — Vista "Mi Plan"
-  - **Salida:** página `/settings/billing` con plan actual, ciclo, próximo cobro, monto, status, link a comparativa.
-  - **Verificar:** TenantAdmin ve su plan; otros roles redirigen.
-  - **Depende de:** F7-SUB-06
-  - **Estimación:** 1.5 h
-
-- [ ] **F7-VIEW-TA-02** — Vista comparativa de planes
-  - **Salida:** página `/settings/billing/plans` con los 3 planes lado a lado, features, precios mensual/anual (toggle), botones "Elegir plan". Plan actual marcado.
-  - **Verificar:** TenantAdmin ve comparativa; click en "Elegir" inicia flujo de cambio.
-  - **Depende de:** F7-PLAN-04
-  - **Estimación:** 2 h
-
-- [ ] **F7-VIEW-TA-03** — Flujo de cambio de plan
-  - **Salida:** modal de confirmación que muestra: plan actual → plan nuevo, prorrateo estimado (vía Stripe preview), próximo cobro. Confirmar dispara `POST /me/subscription/change-plan`.
-  - **Verificar:** cambio se aplica y refleja inmediatamente en UI.
-  - **Depende de:** F7-SUB-07, F7-VIEW-TA-02
-  - **Estimación:** 1.5 h
-
-- [ ] **F7-VIEW-TA-04** — Gestión de métodos de pago (Stripe Elements)
-  - **Salida:** sección "Método de pago" con tarjeta actual (last4 + brand). Botón "Actualizar" abre Stripe Elements (SetupIntent) para reemplazar tarjeta de forma PCI-compliant.
-  - **Verificar:** TenantAdmin actualiza tarjeta; cambio refleja en Stripe; PCI scope queda en Stripe (no toca nuestros servers).
-  - **Depende de:** F7-STRIPE-03
-  - **Estimación:** 2.5 h
-
-- [ ] **F7-VIEW-TA-05** — Historial de facturas + cancelar/reactivar
-  - **Salida:** tabla con facturas (fecha, monto, status, descargar PDF). Botón "Cancelar suscripción" con confirmación (advierte "seguirás activo hasta DD/MM"). Botón "Reactivar" si está cancelada antes del fin de período.
-  - **Verificar:** TenantAdmin descarga PDF; cancela y reactiva sin perder data.
-  - **Depende de:** F7-INVOICE-03, F7-SUB-08
-  - **Estimación:** 2 h
-
----
-
-### Módulo F7-ONBOARD — Onboarding con Billing
-
-- [ ] **F7-ONBOARD-01** — Crear Stripe Customer al registrar tenant
-  - **Salida:** al registrarse, además de crear `Tenant`, crear `Customer` en Stripe y persistir `gateway_customer_id`. Atómico (si falla Stripe, rollback de la transacción).
-  - **Verificar:** registrar tenant nuevo; aparece en Stripe Dashboard; si Stripe está caído, tenant no se crea.
-  - **Depende de:** F7-STRIPE-03
-  - **Estimación:** 1.5 h
-
-- [ ] **F7-ONBOARD-02** — Validar flujo end-to-end de signup → trial activo
-  - **Salida:** test manual + checklist. Signup termina con: tenant creado, Stripe Customer creado, Subscription en trial, banner visible. Modificar pantalla post-signup para mostrar "Tu prueba de 14 días empezó".
-  - **Verificar:** flujo completo de signup termina con tenant en trial activo y mensajería clara.
-  - **Depende de:** F7-SUB-04, F7-ONBOARD-01, F7-TRIAL-02
-  - **Estimación:** 1 h
-
----
-
-### Módulo F7-TEST — Tests End-to-End
-
-- [ ] **F7-TEST-01** — E2E: trial → active → cancel
-  - **Salida:** test e2e que: registra tenant → verifica trial → agrega método de pago → simula fin de trial vía Stripe CLI → verifica active → cancela → verifica `cancel_at_period_end`.
-  - **Verificar:** test corre verde en CI con Stripe en modo test.
-  - **Depende de:** F7-VIEW-TA-05, F7-STRIPE-08
-  - **Estimación:** 2 h
-
-- [ ] **F7-TEST-02** — E2E: pago fallido → grace → read-only
-  - **Salida:** test e2e que: tenant activo → simula `invoice.payment_failed` → verifica past_due → avanza tiempo > 7 días → verifica read-only (POST falla con 402).
-  - **Verificar:** test corre verde.
-  - **Depende de:** F7-DUNNING-02
-  - **Estimación:** 2 h
-
-- [ ] **F7-TEST-03** — E2E: límite de plan + upgrade
-  - **Salida:** test e2e que: tenant plan Chica con 3 usuarios → intenta crear cuarto → recibe 422 → upgradea a Mediana → crea cuarto OK.
-  - **Verificar:** test corre verde.
-  - **Depende de:** F7-LIMIT-06, F7-VIEW-TA-03
-  - **Estimación:** 1.5 h
-
----
-
-### Módulo F7-DOC — Documentación
-
-- [ ] **F7-DOC-01** — Doc del módulo billing + runbook de webhooks
-  - **Salida:** `apps/api/src/billing/README.md` con: arquitectura del módulo, modelo de datos, mapeo de eventos Stripe → handlers, troubleshooting (qué hacer si un webhook falla, cómo reprocesar, cómo resincronizar tenant con Stripe).
-  - **Verificar:** doc revisado por el usuario.
-  - **Depende de:** F7-TEST-03
-  - **Estimación:** 1.5 h
-
----
-
-**Estimación total Fase 7:** ~3-4 semanas.
+**Estimación total Fase 7:** ~46 tareas, ~95 h ≈ **3 semanas** de trabajo enfocado.
 
 ---
 
