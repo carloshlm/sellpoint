@@ -26,7 +26,14 @@ x-logging: &log-rotado
     max-file: "3"
 
 services:
-  web:
+  # ⚠️ Los servicios se llaman sandbox-web/sandbox-api y NO web/api, y no es
+  # cosmético: Docker registra el NOMBRE DEL SERVICIO como DNS en TODAS las
+  # redes a las que el contenedor se conecta — los aliases se suman, no
+  # reemplazan. Con el servicio llamado "api", el nombre quedaba AMBIGUO en
+  # la red compartida y el nginx de producción llegó a resolver "api" hacia
+  # el SANDBOX (incidente 2026-08-27: tres forgot-password de prod cayeron
+  # en la DB sandbox). El nombre único por diseño elimina la clase de bug.
+  sandbox-web:
     image: ghcr.io/carloshlm/sellpoint-web:${IMAGE_TAG}
     container_name: sellpoint-sandbox-web
     restart: unless-stopped
@@ -34,15 +41,10 @@ services:
     mem_limit: 16M
     cpu_shares: 128
     networks:
-      sandbox: {}
-      # El alias es el nombre con el que el vhost del edge de prod resuelve
-      # este contenedor (proxy_pass http://sandbox-web). El nombre REAL del
-      # contenedor no importa para el ruteo — el alias es el contrato.
-      edge:
-        aliases:
-          - sandbox-web
+      - sandbox
+      - edge
 
-  api:
+  sandbox-api:
     image: ghcr.io/carloshlm/sellpoint-api:${IMAGE_TAG}
     container_name: sellpoint-sandbox-api
     restart: unless-stopped
@@ -66,10 +68,8 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      sandbox: {}
-      edge:
-        aliases:
-          - sandbox-api
+      - sandbox
+      - edge
 
   postgres:
     image: postgres:16-alpine
