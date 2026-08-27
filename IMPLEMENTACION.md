@@ -2812,7 +2812,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** — (paso de Carlos: cuenta free de Sentry y el DSN al .env de prod)
   - **Estimación:** 2 h
 
-- [ ] **F6-WATCH-03** — Alertas de costos (Vultr; reemplaza al F6-COSTS de AWS, obsoleto tras deploy-vultr)
+- [x] **F6-WATCH-03** *(cerrada el 2026-08-27 — el panel nuevo de Vultr ya no tiene umbral en dólares; lo que hay lo cubre: Invoices por email [gasto FIJO ~$10/mes → el recibo ES la alerta de anomalías] + Bandwidth alerts a 75/90/100% [el ÚNICO costo variable del plan] + Outage notifications, todo Enabled y verificado por Carlos en su panel. Nota: el crédito promocional de $250 expira el primer mes — desde el mes 2 el cargo va a la tarjeta)* — Alertas de costos (Vultr; reemplaza al F6-COSTS de AWS, obsoleto tras deploy-vultr)
   - **Salida:** billing alert configurada en el panel de Vultr con umbral acordado; free tiers de Cloudflare/R2/Resend documentados en `env.prod.example` con sus límites (qué pasa si se exceden).
   - **Verificar:** la alerta existe en el panel con el umbral correcto.
   - **Depende de:** —
