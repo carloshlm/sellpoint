@@ -66,7 +66,12 @@ services:
       php-fpm:
         condition: service_started
     networks:
+      # La red del stack + la externa compartida con el SANDBOX (2026-08-27):
+      # por ahí el vhost sandbox.sellpointy.com alcanza sandbox-web/sandbox-api.
+      # ⚠️ Agregar una red RECREA nginx-edge en el próximo up -d (blip de
+      # segundos, una sola vez) — misma excepción documentada que `logging:`.
       - sellpoint
+      - sandbox-edge
 
   web:
     image: ghcr.io/carloshlm/sellpoint-web:${IMAGE_TAG}
@@ -244,6 +249,11 @@ services:
 networks:
   sellpoint:
     driver: bridge
+  # EXTERNA: la crea deploy-remote.sh idempotente — ningún stack es su dueño,
+  # así el `down` del sandbox jamás rompe el `up -d` de producción.
+  sandbox-edge:
+    external: true
+    name: sellpoint-edge-sandbox
 
 volumes:
   postgres_data:
