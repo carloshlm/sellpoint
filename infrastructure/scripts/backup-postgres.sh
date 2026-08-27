@@ -18,11 +18,14 @@
 #      /home/deploy/bin/rclone copy r2:sellpoint-backups/<dump> /tmp/restore/
 # 2. Parar el api del ambiente destino (nadie escribe durante el restore):
 #      docker stop <container-api>
-# 3. Restaurar POR STDIN, conservando owners (los roles sellpoint/sellpoint_app
+# 3. DESCIFRAR (F6-BACKUPS-02: los dumps en R2 van cifrados con age; la
+#    clave privada la guarda Carlos FUERA del server):
+#      age -d -i <archivo-con-la-clave-privada> < <dump>.age > <dump>
+# 4. Restaurar POR STDIN, conservando owners (los roles sellpoint/sellpoint_app
 #    existen en ambos clusters; sus passwords NO viajan en el dump):
 #      docker exec -i <container-postgres> pg_restore -U sellpoint \
 #        -d <db-destino> --clean --if-exists < /tmp/restore/<dump>
-# 4. docker start <container-api> y esperar healthy.
+# 5. docker start <container-api> y esperar healthy.
 # OJO: --clean deja el destino como ESPEJO del dump — todo lo previo se pierde.
 set -euo pipefail
 
@@ -32,16 +35,50 @@ COMPOSE_FILE="/opt/sellpoint/docker-compose.prod.yml"
 # una sesión de login — un `rclone` a secas fallaría con "command not found"
 # silenciosamente en cada corrida nocturna.
 RCLONE="/home/deploy/bin/rclone"
+AGE="/home/deploy/bin/age"
 BUCKET="r2:sellpoint-backups"
 RETENTION_DAYS="14"
+# F6-BACKUPS-02: la clave PÚBLICA de age (la privada vive con Carlos, fuera
+# del server). Si el archivo no existe, el backup sube SIN cifrar y lo avisa
+# — degradarse es mejor que no respaldar.
+AGE_RECIPIENT_FILE="/opt/sellpoint/age-recipient.txt"
+ENV_FILE="/opt/sellpoint/.env"
 TIMESTAMP="$(date -u +%Y%m%d-%H%M)"
 DUMP_NAME="sellpoint-${TIMESTAMP}.dump"
 DUMP_PATH="/tmp/${DUMP_NAME}"
 
 log() { printf '\n[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1"; }
 
+# ── F6-BACKUPS-01: si el backup muere, GRITA por correo ──────────────────
+# Mismo patrón (y mismas credenciales del .env) que cert-expiry-check.sh.
+# Fail-mode benigno: sin credenciales, la alerta queda solo en el log del
+# cron — jamás rompe el backup por no poder avisar.
+alertar() {
+  local mensaje="$1"
+  local api_key from to
+  api_key="$(grep '^RESEND_API_KEY=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)"
+  from="$(grep '^MAIL_FROM=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)"
+  to="$(grep '^ALERT_EMAIL=' "${ENV_FILE}" 2>/dev/null | cut -d= -f2-)"
+  if [ -z "${api_key}" ] || [ -z "${from}" ] || [ -z "${to}" ]; then
+    log "AVISO: sin credenciales de alerta en .env — el fallo queda solo en este log"
+    return 0
+  fi
+  curl -s -o /dev/null -X POST https://api.resend.com/emails \
+    -H "Authorization: Bearer ${api_key}" \
+    -H "Content-Type: application/json" \
+    -d "$(printf '{"from":"SellPointy Backups <%s>","to":["%s"],"subject":"FALLO el backup nocturno de Postgres","text":%s}' \
+         "${from}" "${to}" "$(printf '%s' "${mensaje}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')")" || true
+}
+
+PASO="arranque"
+on_error() {
+  log "ERROR en el paso: ${PASO}"
+  alertar "El backup nocturno de Postgres FALLÓ en el paso: ${PASO}. Revisa /opt/sellpoint/logs/backup.log en el server (ssh deploy@216.238.73.144). Sin backup de hoy hasta que se corrija."
+}
+trap on_error ERR
+
 cleanup() {
-  rm -f "${DUMP_PATH}"
+  rm -f "${DUMP_PATH}" "${DUMP_PATH}.age"
 }
 trap cleanup EXIT
 
@@ -49,6 +86,7 @@ trap cleanup EXIT
 # 1. Dump — formato custom (-Fc): ya viene comprimido y permite restaurar
 #    selectivo con pg_restore (a diferencia de un dump plano de texto).
 # ---------------------------------------------------------------------------
+PASO="pg_dump"
 log "Generando dump: ${DUMP_NAME}"
 # ⚠️ POSTGRES_USER/POSTGRES_DB NO se leen del entorno de este script (que
 # corre standalone por cron, sin sourcear /opt/sellpoint/.env) — se toman
@@ -63,23 +101,44 @@ docker compose -f "${COMPOSE_FILE}" exec -T postgres \
 # 2. Verificación mínima: un dump de 0 bytes es peor que no tener backup
 #    (da falsa sensación de seguridad). Se corta acá si pasa.
 # ---------------------------------------------------------------------------
+PASO="verificación de tamaño"
 DUMP_SIZE="$(stat -c%s "${DUMP_PATH}" 2>/dev/null || stat -f%z "${DUMP_PATH}")"
 if [ "${DUMP_SIZE}" -eq 0 ]; then
   log "ERROR: el dump salió con 0 bytes. Abortando sin subir a R2."
+  alertar "El backup nocturno generó un dump de 0 BYTES — no se subió nada a R2. Revisa el estado de Postgres."
   exit 1
 fi
 log "Dump generado OK (${DUMP_SIZE} bytes)."
 
 # ---------------------------------------------------------------------------
+# 2b. Cifrado (F6-BACKUPS-02): age con la clave pública del server; nadie
+#     sin la privada (que vive con Carlos) puede leer un dump robado de R2.
+#     CPU una vez al día — despreciable. Sin recipient: sube sin cifrar y
+#     lo avisa por correo (degradación visible, nunca silenciosa).
+# ---------------------------------------------------------------------------
+PASO="cifrado age"
+UPLOAD_PATH="${DUMP_PATH}"
+if [ -f "${AGE_RECIPIENT_FILE}" ] && [ -x "${AGE}" ]; then
+  "${AGE}" -R "${AGE_RECIPIENT_FILE}" -o "${DUMP_PATH}.age" "${DUMP_PATH}"
+  UPLOAD_PATH="${DUMP_PATH}.age"
+  log "Dump cifrado OK ($(stat -c%s "${UPLOAD_PATH}") bytes)."
+else
+  log "AVISO: sin ${AGE_RECIPIENT_FILE} o sin binario age — subiendo SIN cifrar."
+  alertar "AVISO: el backup de hoy se subió SIN CIFRAR (falta la clave age o el binario en el server)."
+fi
+
+# ---------------------------------------------------------------------------
 # 3. Subida a R2 vía rclone (binario estático, soporte nativo S3-compatible).
 # ---------------------------------------------------------------------------
+PASO="subida a R2"
 log "Subiendo a ${BUCKET}…"
-"${RCLONE}" copy "${DUMP_PATH}" "${BUCKET}" --quiet
+"${RCLONE}" copy "${UPLOAD_PATH}" "${BUCKET}" --quiet
 
 # ---------------------------------------------------------------------------
 # 4. Retención: 14 días, visible en git (no un lifecycle rule invisible en
 #    un dashboard). Se borra por fecha directamente en el bucket.
 # ---------------------------------------------------------------------------
+PASO="retención"
 log "Borrando backups con más de ${RETENTION_DAYS} días…"
 "${RCLONE}" delete "${BUCKET}" --min-age "${RETENTION_DAYS}d" --quiet
 
