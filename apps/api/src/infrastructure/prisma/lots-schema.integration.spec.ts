@@ -141,10 +141,16 @@ describe("lotes: product_lots y stock_lots (F3-DB-06)", () => {
       expect(second.warehouseId).toBe(otherWarehouseId);
     });
 
-    it("el saldo de un lote nunca es negativo", async () => {
+    it("el saldo de un lote PUEDE ser negativo desde F7: la barrera es de plan, no de la base", async () => {
+      // Hasta F7 este test fijaba el CHECK `quantity >= 0`. La Fase 7 lo
+      // dropeó a propósito (F7-DB-07): Basic vende sin control de inventario
+      // y el negativo es el estado válido que documenta qué inventariar al
+      // subir de plan. Quien impone el piso ahora es StockLedgerService —
+      // valida dentro de su SELECT FOR UPDATE salvo que el plan del tenant
+      // tenga stock_control apagado (ver stock-ledger.integration.spec).
       const lot = await createLot(`negativo-${Date.now()}`);
 
-      await expect(createStock(lot.id, { quantity: -1 })).rejects.toThrow();
+      await expect(createStock(lot.id, { quantity: -1 })).resolves.toBeTruthy();
     });
   });
 

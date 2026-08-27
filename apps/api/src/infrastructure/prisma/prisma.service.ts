@@ -72,4 +72,27 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       { timeout: 10_000 },
     );
   }
+
+  /**
+   * F7-DB-05: la ÚNICA puerta cross-tenant del sistema. Solo la usan el cron
+   * de billing y el backoffice del dueño (PlatformAdminGuard).
+   *
+   * NO abre acceso a las tablas de negocio: la policy `billing_admin_bypass`
+   * existe únicamente en las 4 tablas de billing — un SELECT a `sales` o
+   * `warehouses` desde acá sigue devolviendo cero filas (fijado por test de
+   * integración). El GUC es transaction-local por la misma razón que el de
+   * tenant: con pooling, una conexión reutilizada jamás lo hereda.
+   *
+   * Regla dura (hermana de AD-1): `set_config('app.billing_admin', ...)`
+   * fuera de este método está prohibido.
+   */
+  async withBillingAdminContext<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.billing_admin', 'on', true)`;
+        return fn(tx);
+      },
+      { timeout: 10_000 },
+    );
+  }
 }

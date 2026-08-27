@@ -83,6 +83,12 @@ model Tenant {
   productLots    ProductLot[]
   stockLots      StockLot[]
 
+  // Billing (Fase 7)
+  subscription         TenantSubscription?
+  subscriptionPayments SubscriptionPayment[]
+  discounts            TenantDiscount[]
+  billingNotifications BillingNotification[]
+
   @@map("tenants")
 }
 
@@ -119,6 +125,12 @@ model User {
   // F4 no puede vender desde "una lista", necesita un almacén concreto.
   // Nullable a propósito — un Viewer contable no opera stock.
   defaultWarehouseId String?    @map("default_warehouse_id") @db.Uuid
+  // F7-DB-06: el plano de administración del DUEÑO de la plataforma (no
+  // existe SuperAdmin: los roles son por tenant). El guard lo exige en AND
+  // con la whitelist BILLING_ADMIN_EMAILS del env. Excluido a propósito de
+  // updateUserSchema (un PATCH jamás lo escribe) y NUNCA viaja en el JWT —
+  // se consulta por PK solo en /admin/*, para que revocarlo sea inmediato.
+  isPlatformAdmin    Boolean    @default(false) @map("is_platform_admin")
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -128,7 +140,7 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   warehouseScopes         UserWarehouseScope[]
-  defaultWarehouse        Warehouse?               @relation("UserDefaultWarehouse", fields: [defaultWarehouseId], references: [id])
+  defaultWarehouse        Warehouse?               @relation("UserDefaultWarehouse", fields: [defaultWarehouseId], references: [id], onDelete: Restrict)
   // Dos relaciones al mismo modelo: quién REGISTRÓ el movimiento (siempre) y
   // quién lo AUTORIZÓ (opcional, para mermas y ajustes que piden visto bueno).
   movementsCreated        StockMovement[]          @relation("MovementCreatedBy")
@@ -148,6 +160,7 @@ model User {
   quotesCanceled          Quote[]                  @relation("QuoteCanceledBy")
 
   @@index([tenantId])
+  @@index([defaultWarehouseId])
   @@map("users")
 }
 
@@ -574,7 +587,7 @@ model Service {
   // cada rubro (duración, comisión…) vive acá, nunca como columna.
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant     Tenant             @relation(fields: [tenantId], references: [id])
@@ -604,7 +617,7 @@ model ServiceWarehouse {
   // compara directo, sin depender de un JOIN (mismo patrón que
   // `user_warehouse_scopes`).
   tenantId    String   @map("tenant_id") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
 
   service   Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
@@ -754,7 +767,7 @@ model StockMovement {
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   lot             ProductLot?          @relation(fields: [lotId], references: [id], onDelete: Restrict)
   document        InventoryDocument?   @relation(fields: [documentId], references: [id], onDelete: Restrict)
-  sale            Sale?                @relation(fields: [saleId], references: [id])
+  sale            Sale?                @relation(fields: [saleId], references: [id], onDelete: Restrict)
   product         Product              @relation("MovementProduct", fields: [productId], references: [id])
   parentProduct   Product?             @relation("MovementParentProduct", fields: [parentProductId], references: [id], onDelete: Restrict)
   warehouse       Warehouse            @relation("MovementWarehouse", fields: [warehouseId], references: [id])
@@ -773,6 +786,7 @@ model StockMovement {
   @@index([tenantId, warehouseId, createdAt(sort: Desc)])
   @@index([documentId])
   @@index([presentationId])
+  @@index([saleId])
   @@map("stock_movements")
 }
 
@@ -1082,8 +1096,10 @@ model StockLot {
   lot       ProductLot @relation(fields: [lotId], references: [id], onDelete: Restrict)
   warehouse Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
 
-  // El CHECK `quantity >= 0` vive en la migración: saldo negativo por lote no
-  // es un estado válido, igual que en `stock_by_warehouse`.
+  // F7-DB-07: el CHECK `quantity >= 0` se DROPEÓ (igual que en
+  // `stock_by_warehouse`) — Basic vende sin control de inventario y el saldo
+  // negativo es un estado válido. La barrera la impone StockLedgerService
+  // según el plan del tenant, no la base.
   @@id([lotId, warehouseId, location])
   @@index([tenantId])
   @@index([warehouseId])
@@ -1273,16 +1289,16 @@ model CashboxSession {
   cashDifference Decimal?             @map("cash_difference") @db.Decimal(14, 2)
   closingNote    String?              @map("closing_note")
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant    Tenant    @relation(fields: [tenantId], references: [id])
   warehouse Warehouse @relation(fields: [warehouseId], references: [id])
   opener    User      @relation("CashboxOpenedBy", fields: [openedBy], references: [id])
-  closer    User?     @relation("CashboxClosedBy", fields: [closedBy], references: [id])
+  closer    User?     @relation("CashboxClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   sales     Sale[]
 
   @@index([tenantId])
-  @@index([tenantId, warehouseId, openedAt(sort: Desc)])
+  @@index([tenantId, warehouseId, openedAt(sort: Desc)], map: "cashbox_sessions_tenant_warehouse_opened_idx")
   @@map("cashbox_sessions")
 }
 
@@ -1338,14 +1354,14 @@ model Sale {
   warehouse Warehouse       @relation(fields: [warehouseId], references: [id])
   session   CashboxSession  @relation(fields: [cashboxSessionId], references: [id])
   seller    User            @relation("SaleCreatedBy", fields: [createdBy], references: [id])
-  canceler  User?           @relation("SaleCanceledBy", fields: [canceledBy], references: [id])
+  canceler  User?           @relation("SaleCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
   items     SaleItem[]
   movements StockMovement[]
-  quote     Quote?          @relation(fields: [quoteId], references: [id])
+  quote     Quote?          @relation(fields: [quoteId], references: [id], onDelete: Restrict)
 
   @@unique([tenantId, folio])
-  @@index([tenantId, createdAt(sort: Desc)])
-  @@index([tenantId, cashboxSessionId])
+  @@index([tenantId, createdAt(sort: Desc)], map: "sales_tenant_created_idx")
+  @@index([tenantId, cashboxSessionId], map: "sales_tenant_session_idx")
   @@map("sales")
 }
 
@@ -1382,9 +1398,9 @@ model SaleItem {
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
   sale         Sale                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product      Product?             @relation(fields: [productId], references: [id])
-  service      Service?             @relation(fields: [serviceId], references: [id])
-  presentation ProductPresentation? @relation(fields: [presentationId], references: [id])
+  product      Product?             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  service      Service?             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  presentation ProductPresentation? @relation(fields: [presentationId], references: [id], onDelete: Restrict)
 
   @@unique([saleId, lineNo])
   @@index([tenantId])
@@ -1435,15 +1451,15 @@ model Quote {
   tenant    Tenant      @relation(fields: [tenantId], references: [id])
   warehouse Warehouse   @relation(fields: [warehouseId], references: [id])
   author    User        @relation("QuoteCreatedBy", fields: [createdBy], references: [id])
-  canceler  User?       @relation("QuoteCanceledBy", fields: [canceledBy], references: [id])
+  canceler  User?       @relation("QuoteCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
   lines     QuoteLine[]
   /// La venta que la cargó, si llegó a cobrarse. Uno a uno: una cotización se
   /// carga UNA vez (`sales.quote_id` es UNIQUE).
   sale      Sale?
 
   @@unique([tenantId, folio])
-  @@index([tenantId, createdAt(sort: Desc)])
-  @@index([tenantId, status])
+  @@index([tenantId, createdAt(sort: Desc)], map: "quotes_tenant_created_idx")
+  @@index([tenantId, status], map: "quotes_tenant_status_idx")
   @@map("quotes")
 }
 
@@ -1480,11 +1496,247 @@ model QuoteLine {
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
   quote        Quote                @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  product      Product?             @relation(fields: [productId], references: [id])
-  service      Service?             @relation(fields: [serviceId], references: [id])
-  presentation ProductPresentation? @relation(fields: [presentationId], references: [id])
+  product      Product?             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  service      Service?             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  presentation ProductPresentation? @relation(fields: [presentationId], references: [id], onDelete: Restrict)
 
   @@unique([quoteId, lineNo])
   @@index([tenantId])
   @@map("quote_lines")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Billing (Fase 7) — planes, suscripciones y cobro MANUAL
+//
+// `plans` y `plan_prices` son catálogo GLOBAL sin tenant_id y SIN RLS (mismo
+// criterio que `permissions`/`units`). Las cuatro tablas con tenant_id llevan
+// la policy canónica `tenant_isolation` MÁS `billing_admin_bypass` (solo
+// ellas): el backoffice del dueño y el cron leen cross-tenant por
+// `PrismaService.withBillingAdminContext()` — la ÚNICA puerta, regla dura
+// hermana de AD-1. Un SELECT a una tabla de negocio desde ese contexto sigue
+// devolviendo cero filas (fijado por test).
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// El catálogo de planes: 5 filas sembradas en la migración (free/basic/pro/
+/// plus/premium). Lo que el enforcement lee en caliente va en COLUMNA (con
+/// CHECK); la matriz de booleanos vive en `features` JSONB (validada con
+/// `planFeaturesSchema` de shared al leer y escribir) porque el dueño la
+/// ajusta desde el backoffice sin migración.
+///
+/// Los PRECIOS no viven aquí: viven en `plan_prices`, por MERCADO. `free` es
+/// una fila real (el modo gratuito es dato editable, no un `if`): write=off,
+/// 10 ventas/día. `premium` no publica precio — el suyo es
+/// `tenant_subscriptions.custom_price`.
+model Plan {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // CHECK (code IN ('free','basic','pro','plus','premium')) en la migración.
+  code        String  @unique @db.VarChar(16)
+  name        String  @db.VarChar(64)
+  description String?
+  sortOrder   Int     @default(0) @map("sort_order") @db.SmallInt
+  // free y premium no se publican con precio en la pantalla de planes.
+  isPublic    Boolean @default(true) @map("is_public")
+  isActive    Boolean @default(true) @map("is_active")
+
+  // Límites y flags calientes. NULL = ilimitado.
+  maxUsers        Int?    @map("max_users")
+  maxWarehouses   Int?    @map("max_warehouses")
+  dailySalesLimit Int?    @map("daily_sales_limit")
+  writeAccess     Boolean @default(true) @map("write_access")
+  stockControl    Boolean @default(true) @map("stock_control")
+  features        Json    @default("{}")
+
+  // Enchufe de la pasarela (POSPUESTO). Los price IDs van en `plan_prices`:
+  // en Stripe el precio es por moneda.
+  gatewayProductId String? @map("gateway_product_id") @db.VarChar(64)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  prices        PlanPrice[]
+  subscriptions TenantSubscription[]
+  payments      SubscriptionPayment[]
+
+  @@map("plans")
+}
+
+/// El precio de un plan en un MERCADO (país). El precio es por mercado, no
+/// por tipo de cambio: $199 MXN ≈ $11 USD sería regalado contra Square.
+/// Resolución: la fila del `country` del tenant → fallback a la fila `US`
+/// (default internacional). free y premium no tienen filas.
+model PlanPrice {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId       String  @map("plan_id") @db.Uuid
+  country      String  @db.Char(2)
+  currency     String  @db.Char(3)
+  priceMonthly Decimal @map("price_monthly") @db.Decimal(14, 2)
+  // CHECK (price_yearly = price_monthly * 10) en la migración: 2 meses gratis
+  // es una regla de la casa, no una coincidencia del seed.
+  priceYearly  Decimal @map("price_yearly") @db.Decimal(14, 2)
+
+  gatewayPriceMonthlyId String? @map("gateway_price_monthly_id") @db.VarChar(64)
+  gatewayPriceYearlyId  String? @map("gateway_price_yearly_id") @db.VarChar(64)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, country])
+  @@map("plan_prices")
+}
+
+/// UNA suscripción por tenant. El `anchor_day` (1-31) se fija con el PRIMER
+/// pago y NUNCA se recalcula: es lo único que sostiene la cadena
+/// 31-ene → 28-feb → 31-mar. `service_period_*` es lo PAGADO; `due_at` es la
+/// fecha de cobro del siguiente período (hoy coinciden; con pasarela
+/// divergirán). Los CHECKs de coherencia por estado viven en la migración:
+/// un `active` sin `due_at` no puede existir ni por bug.
+model TenantSubscription {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @unique @map("tenant_id") @db.Uuid
+  planId   String @map("plan_id") @db.Uuid
+  // CHECK (status IN ('trialing','active','past_due','free','canceled')).
+  status   String @db.VarChar(16)
+
+  // CHECK (billing_cycle IN ('monthly','yearly')); NULL en trial/free.
+  billingCycle String? @map("billing_cycle") @db.VarChar(8)
+  anchorDay    Int?    @map("anchor_day") @db.SmallInt
+
+  trialEndsAt        DateTime? @map("trial_ends_at") @db.Timestamptz(6)
+  servicePeriodStart DateTime? @map("service_period_start") @db.Timestamptz(6)
+  servicePeriodEnd   DateTime? @map("service_period_end") @db.Timestamptz(6)
+  dueAt              DateTime? @map("due_at") @db.Timestamptz(6)
+  graceEndsAt        DateTime? @map("grace_ends_at") @db.Timestamptz(6)
+
+  // Solo Premium. La invariante "plan sin precio publicado ⇒ custom_price"
+  // la impone BillingService (no hay CHECK cross-tabla) y la fija un test.
+  customPrice Decimal? @map("custom_price") @db.Decimal(14, 2)
+
+  canceledAt        DateTime? @map("canceled_at") @db.Timestamptz(6)
+  cancelAtPeriodEnd Boolean   @default(false) @map("cancel_at_period_end")
+  notes             String?
+
+  // Enchufe de la pasarela (POSPUESTO).
+  gateway               String  @default("manual") @db.VarChar(16)
+  gatewayCustomerId     String? @map("gateway_customer_id") @db.VarChar(64)
+  gatewaySubscriptionId String? @map("gateway_subscription_id") @db.VarChar(64)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant                @relation(fields: [tenantId], references: [id])
+  plan          Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments      SubscriptionPayment[]
+  notifications BillingNotification[]
+
+  // El barrido del cron entra por estos dos.
+  @@index([status, dueAt])
+  @@index([status, trialEndsAt])
+  @@map("tenant_subscriptions")
+}
+
+/// Un pago registrado (hoy a mano por el dueño; mañana también por la
+/// pasarela — `gateway`/`external_id` son ese enchufe, con su UNIQUE parcial
+/// para la idempotencia del webhook). Las columnas de plan/precio son
+/// SNAPSHOT: si Plus sube de precio, el recibo de agosto sigue diciendo lo
+/// que se cobró. Un pago NO se borra: se anula (`voided`) con razón, y el
+/// período de servicio se recalcula desde los pagos vivos — es dinero, la
+/// corrección deja rastro.
+model SubscriptionPayment {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String @map("tenant_id") @db.Uuid
+  subscriptionId String @map("subscription_id") @db.Uuid
+
+  planId       String @map("plan_id") @db.Uuid
+  planCode     String @map("plan_code") @db.VarChar(16)
+  billingCycle String @map("billing_cycle") @db.VarChar(8)
+
+  grossAmount    Decimal @map("gross_amount") @db.Decimal(14, 2)
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  // CHECK (amount = gross_amount - discount_amount) en la migración.
+  amount         Decimal @db.Decimal(14, 2)
+  currency       String  @default("MXN") @db.Char(3)
+  discountId     String? @map("discount_id") @db.Uuid
+
+  // CHECK (method IN ('transfer','cash','card','other','courtesy')).
+  method           String  @db.VarChar(16)
+  gateway          String  @default("manual") @db.VarChar(16)
+  gatewayReference String? @map("gateway_reference") @db.VarChar(128)
+  externalId       String? @map("external_id") @db.VarChar(128)
+
+  paidAt      DateTime @map("paid_at") @db.Timestamptz(6)
+  periodStart DateTime @map("period_start") @db.Timestamptz(6)
+  periodEnd   DateTime @map("period_end") @db.Timestamptz(6)
+
+  // CHECK (status IN ('recorded','voided')).
+  status     String    @default("recorded") @db.VarChar(16)
+  voidedAt   DateTime? @map("voided_at") @db.Timestamptz(6)
+  // Sin FK a users a propósito: los escribe también el cron/backoffice desde
+  // el contexto de billing, y el rastro humano completo vive en audit_logs.
+  voidedBy   String?   @map("voided_by") @db.Uuid
+  voidReason String?   @map("void_reason")
+  recordedBy String?   @map("recorded_by") @db.Uuid
+  notes      String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  subscription TenantSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  plan         Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, paidAt(sort: Desc)])
+  @@index([subscriptionId, periodEnd(sort: Desc)])
+  @@map("subscription_payments")
+}
+
+/// Un cupón por tenant con vigencia: monto fijo por período ("-$200/mes
+/// durante 12 períodos") o gratis por un rango de fechas. UN solo activo por
+/// tenant (UNIQUE parcial en la migración): no se apilan — se revoca uno y
+/// se otorga otro. El monto va en la MONEDA del tenant.
+model TenantDiscount {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  // CHECK (kind IN ('fixed_amount','free')); fixed_amount exige amount > 0.
+  kind     String @db.VarChar(16)
+
+  amount   Decimal? @db.Decimal(14, 2)
+  currency String   @default("MXN") @db.Char(3)
+
+  startsAt       DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime? @map("ends_at") @db.Timestamptz(6)
+  maxPeriods     Int?      @map("max_periods") @db.SmallInt
+  appliedPeriods Int       @default(0) @map("applied_periods") @db.SmallInt
+
+  reason    String?
+  isActive  Boolean @default(true) @map("is_active")
+  createdBy String? @map("created_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("tenant_discounts")
+}
+
+/// El registro de avisos enviados. El UNIQUE (suscripción, kind, ancla) ES la
+/// idempotencia del cron: se inserta ANTES de mandar el correo, y si el job
+/// corre dos veces el segundo INSERT rebota con 23505 y el mail no sale.
+model BillingNotification {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String @map("tenant_id") @db.Uuid
+  subscriptionId String @map("subscription_id") @db.Uuid
+  // CHECK (kind IN (...)) en la migración — el catálogo de avisos.
+  kind           String @db.VarChar(32)
+
+  // El vencimiento del que habla el aviso: lo que lo hace único.
+  anchorAt DateTime @map("anchor_at") @db.Timestamptz(6)
+  sentAt   DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  subscription TenantSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([subscriptionId, kind, anchorAt], map: "billing_notifications_dedup_uq")
+  @@map("billing_notifications")
 }
