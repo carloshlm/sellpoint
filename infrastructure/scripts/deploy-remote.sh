@@ -24,7 +24,7 @@ NEW_TAG="$1"
 # el edge de prod vía la red compartida.
 : "${BASE_DIR:=/opt/sellpoint}"
 : "${COMPOSE_FILE:=docker-compose.prod.yml}"
-: "${SMOKE_DOMAIN:=system.laradoc.com}"
+: "${SMOKE_DOMAIN:=app.sellpointy.com}"
 : "${GHCR_OWNER:=carloshlm}"
 : "${EDGE_CONTAINER:=sellpoint-nginx-edge}"
 : "${WITH_EDGE:=1}"
