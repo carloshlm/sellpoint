@@ -7,7 +7,9 @@ function buildTx() {
   const roleIdByName = new Map<string, string>();
   let roleCounter = 0;
 
-  const tenant = { create: jest.fn().mockResolvedValue({ id: "tenant-1" }) };
+  const tenant = {
+    create: jest.fn().mockResolvedValue({ id: "tenant-1", timezone: "America/Mexico_City" }),
+  };
   const user = {
     create: jest.fn().mockResolvedValue({ id: "user-1" }),
     // F3-HOME-03: provision asigna el almacén inicial al owner.
@@ -32,6 +34,11 @@ function buildTx() {
   const userRole = { create: jest.fn().mockResolvedValue(undefined) };
   const catalog = { create: jest.fn().mockResolvedValue({ id: "catalog-1" }) };
   const warehouse = { create: jest.fn().mockResolvedValue({ id: "warehouse-1" }) };
+  // F7-CORE-03: el trial nace con el tenant, en la misma transacción.
+  const plan = {
+    findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "plan-plus", code: "plus" }),
+  };
+  const tenantSubscription = { create: jest.fn().mockResolvedValue({ id: "sub-1" }) };
 
   return {
     tenant,
@@ -42,6 +49,8 @@ function buildTx() {
     userRole,
     catalog,
     warehouse,
+    plan,
+    tenantSubscription,
     roleIdByName,
   };
 }
@@ -93,6 +102,32 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
         locale: "es",
       }),
     });
+  });
+
+  it("el tenant nace con su trial de 14 días nivel Plus, en la MISMA transacción (F7-CORE-03)", async () => {
+    const { service, tx, auditService } = buildService();
+
+    await service.provision(baseInput);
+
+    expect(tx.plan.findUniqueOrThrow).toHaveBeenCalledWith({ where: { code: "plus" } });
+    expect(tx.tenantSubscription.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        planId: "plan-plus",
+        status: "trialing",
+        trialEndsAt: expect.any(Date),
+      }),
+    });
+    // El fin del trial es un INSTANTE futuro a ~14 días (fin del día local:
+    // el día 14 completo es hábil — misma semántica que los vencimientos).
+    const { trialEndsAt } = tx.tenantSubscription.create.mock.calls[0][0].data;
+    const dias = (trialEndsAt.getTime() - Date.now()) / 86_400_000;
+    expect(dias).toBeGreaterThan(13.9);
+    expect(dias).toBeLessThan(15.1);
+    expect(auditService.record).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: "billing.trial_started", resourceType: "subscription" }),
+    );
   });
 
   it("crea los 4 roles base y asigna Admin al owner", async () => {

@@ -21,5 +21,12 @@
     "body": "You were added to SellPointy. Follow the link to set your password and activate your account.",
     "cta": "Set my password",
     "expiry": "This link expires in 7 days. If you weren't expecting this invitation, ignore this email."
+  },
+  "paymentReceived": {
+    "subject": "We received your SellPointy payment",
+    "greeting": "Hi {firstName},",
+    "body": "We recorded your payment of {amount} for the {planName} plan of {tenantName}. Your service is covered until {periodEnd}. Thanks for trusting SellPointy!",
+    "cta": "",
+    "expiry": ""
   }
 }

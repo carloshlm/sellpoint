@@ -23,6 +23,7 @@ import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
+import { BillingModule } from "./modules/billing/billing.module";
 import { CatalogsModule } from "./modules/catalogs/catalogs.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { MailModule } from "./modules/mail/mail.module";
@@ -111,6 +112,7 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     AuditModule,
     MailModule,
     TenantsModule,
+    BillingModule,
     AuthModule,
     // F1-LOCALE-05: PATCH /me (cambio de locale del propio user).
     // F1-RBAC-03/04/05: CRUD de usuarios/roles + catálogo de permisos.

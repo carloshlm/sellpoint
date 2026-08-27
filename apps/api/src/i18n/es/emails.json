@@ -21,5 +21,12 @@
     "body": "Te dieron de alta en SellPointy. Entra al link para definir tu contraseña y activar tu cuenta.",
     "cta": "Definir mi contraseña",
     "expiry": "Este link vence en 7 días. Si no esperabas esta invitación, ignora este correo."
+  },
+  "paymentReceived": {
+    "subject": "Recibimos tu pago de SellPointy",
+    "greeting": "Hola {firstName},",
+    "body": "Registramos tu pago de {amount} por el plan {planName} de {tenantName}. Tu servicio queda cubierto hasta el {periodEnd}. ¡Gracias por confiar en SellPointy!",
+    "cta": "",
+    "expiry": ""
   }
 }

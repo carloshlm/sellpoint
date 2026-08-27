@@ -1,0 +1,8 @@
+{
+  "subscription_not_found": "Este negocio no tiene una suscripción registrada.",
+  "subscription_canceled": "La suscripción está cancelada. Reactívala antes de registrar un pago.",
+  "custom_price_required": "Un plan sin precio publicado necesita un precio pactado por cliente.",
+  "payment_already_voided": "Este pago ya fue anulado.",
+  "reactivation_window_over": "El período pagado ya venció: la reactivación es con un nuevo pago.",
+  "discount_overlap": "Ya hay un descuento activo para este negocio. Revoca el vigente antes de otorgar otro."
+}

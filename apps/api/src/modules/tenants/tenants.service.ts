@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { dueInstant, localCalendarDate, TRIAL_DAYS } from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import {
@@ -160,6 +161,31 @@ export class TenantsService {
         resourceId: tenant.id,
         ip: input.ip,
         userAgent: input.userAgent,
+      });
+
+      // F7-CORE-03: el tenant nace CON su trial (14 días, nivel Plus) en esta
+      // misma transacción — no existe un tenant sin suscripción. El fin del
+      // trial es el FIN DEL DÍA LOCAL a 14 días (dueInstant, límite abierto):
+      // el día 14 completo sigue siendo hábil, misma semántica que los
+      // vencimientos de cobro.
+      const trialPlan = await tx.plan.findUniqueOrThrow({ where: { code: "plus" } });
+      const en14Dias = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+      const subscription = await tx.tenantSubscription.create({
+        data: {
+          tenantId: tenant.id,
+          planId: trialPlan.id,
+          status: "trialing",
+          trialEndsAt: dueInstant(localCalendarDate(tenant.timezone, en14Dias), tenant.timezone),
+        },
+      });
+
+      await this.auditService.record(tx, {
+        tenantId: tenant.id,
+        userId: owner.id,
+        action: "billing.trial_started",
+        resourceType: "subscription",
+        resourceId: subscription.id,
+        after: { planCode: trialPlan.code, trialEndsAt: subscription.trialEndsAt?.toISOString() },
       });
 
       return { tenantId: tenant.id, userId: owner.id };

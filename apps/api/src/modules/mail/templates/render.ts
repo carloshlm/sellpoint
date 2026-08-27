@@ -19,6 +19,8 @@ const TEMPLATE_KEYS: Record<MailTemplate, string> = {
   // explicarle que lo dieron de alta y que el link define su PRIMERA
   // contraseña.
   "invite-user": "emails.inviteUser",
+  // F7-CORE-04: el recibo del pago manual registrado por el backoffice.
+  "payment-received": "emails.paymentReceived",
 };
 
 // El azul primario de la marca, FIJO en hex a propósito: un correo se lee en

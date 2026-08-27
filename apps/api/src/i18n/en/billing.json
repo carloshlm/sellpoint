@@ -1,0 +1,8 @@
+{
+  "subscription_not_found": "This business has no subscription on record.",
+  "subscription_canceled": "The subscription is canceled. Reactivate it before recording a payment.",
+  "custom_price_required": "A plan without a published price needs a per-client agreed price.",
+  "payment_already_voided": "This payment was already voided.",
+  "reactivation_window_over": "The paid period is over: reactivation happens through a new payment.",
+  "discount_overlap": "There is already an active discount for this business. Revoke it before granting another."
+}
