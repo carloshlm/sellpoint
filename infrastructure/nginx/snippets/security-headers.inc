@@ -11,4 +11,8 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header X-Frame-Options "SAMEORIGIN" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Strict-Transport-Security "max-age=31536000" always;
+# F6-EDGE-01: capacidades del navegador que NINGÚN sitio de este server usa,
+# apagadas. camera=(self) y NO camera=(): el escáner de códigos del POS usa
+# la cámara del propio origen — cerrarla del todo lo rompería.
+add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=()" always;
 server_tokens off;
