@@ -2762,30 +2762,125 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 ---
 
-## Fase 6 — Hardening de Producción (outline)
+## Fase 6 — Hardening de Producción
 
-> **Nota:** el deploy básico (walking skeleton) ya está hecho en **F0-DEPLOY** y funcionando desde el día uno. Esta fase **endurece** la infra existente: pasa de "está corriendo" a "está listo para clientes reales".
+> **Objetivo:** pasar de "está corriendo" a "está listo para clientes reales". El deploy básico (walking skeleton) existe desde F0-DEPLOY; esta fase lo endurece.
+>
+> **LEY DE LA FASE (Carlos, 2026-08-27):** el proyecto es CHICO — 2-3 clientes iniciales en un VPS de 2 GB que ya corre producción + sandbox (~1.7 GB de caps comprometidos). El hardening es BÁSICO y de bajo consumo: **nada que corra permanente en el server se agrega sin pagar su renta en RAM**, y ningún gate nuevo puede volver lento el flujo de trabajo. Lo pesado queda pospuesto con razón escrita (ver el final de la fase), no descartado para siempre: se revisa cuando los clientes lo justifiquen.
+>
+> Orden de ejecución = orden de las tareas: primero lo que protege DATOS (drills y backups), después lo que da OJOS (uptime, Sentry), después lo estático que no cuesta nada (headers, rate limit, CI).
 
-- **F6-SECRETS** — Migrar de `.env` en disco a un gestor de secretos (a decidir: sops/age o Infisical — Parameter Store descartado al salir de AWS, ver decisión deploy-vultr); rotación de claves JWT
-- **F6-BACKUPS** — Endurecer el backup de F0 (cifrado del dump, alerting si el cron falla; el básico a R2 ya corre desde F0-DEPLOY-13)
-- **F6-RESTORE-DRILL** — Probar end-to-end el restore desde backup; documentar RTO/RPO
-- **F6-LOGS** — Destino de logs a decidir (CloudWatch descartado al salir de AWS → Loki self-hosted o similar); retención + alertas básicas
-- **F6-ROLLBACK-DRILL** — Ejercitar la rama de rollback de deploy.yml con un fallo inducido (herencia de F0: nunca corrió en real; hacerlo ANTES del primer dato de cliente) — verify W3
-- **F6-GHCR-RETENTION** — Retención de imágenes en GHCR (actions/delete-package-versions); hoy crecen sin techo — verify W4
+### Módulo F6-DRILL — Los ensayos (cero costo de runtime; lo primero SIEMPRE)
+
+- [ ] **F6-DRILL-01** — Restore drill: restaurar un backup real de R2 en el sandbox
+  - **Salida:** procedimiento ejecutado y DOCUMENTADO: bajar el dump más reciente de `r2:sellpoint-backups` con rclone, `pg_restore` contra el postgres del SANDBOX (down del stack, restore, up), y la app sandbox sirviendo los datos del backup de producción. Tiempos medidos = RTO/RPO reales, no teóricos. El paso a paso queda listo para F6-DR-02 (runbook).
+  - **Verificar:** login en sandbox.sellpointy.com contra los datos restaurados; un producto/venta de prod visible.
+  - **Depende de:** — (el sandbox ya existe: es el laboratorio perfecto)
+  - **Estimación:** 1 h
+
+- [ ] **F6-DRILL-02** — Rollback drill: fallo inducido en un deploy del sandbox
+  - **Salida:** un push a develop con una migración rota A PROPÓSITO; el guardián de deploy-remote.sh revierte sin desplegar y el sandbox sigue sirviendo la versión previa. La rama de rollback post-`up -d` (fallo de healthcheck) se induce en un segundo ensayo. Ambos documentados con sus logs.
+  - **Verificar:** el run falla en rojo, el sandbox responde 200 con el tag previo, y el `.env` conserva el IMAGE_TAG anterior.
+  - **Depende de:** —
+  - **Estimación:** 1 h
+
+### Módulo F6-BACKUPS — Endurecer lo que ya corre
+
+- [ ] **F6-BACKUPS-01** — Alerta por correo si el backup falla
+  - **Salida:** `backup-postgres.sh` notifica vía Resend (mismo patrón que `cert-expiry-check.sh`: RESEND_API_KEY/MAIL_FROM/ALERT_EMAIL del .env) ante CUALQUIER fallo — dump vacío, rclone caído, disco lleno. Un backup muerto en silencio se descubre el día que se necesita, que es el peor día posible.
+  - **Verificar:** inducir un fallo (bucket inválido en una corrida manual) → llega el correo.
+  - **Depende de:** —
+  - **Estimación:** 45 min
+
+- [ ] **F6-BACKUPS-02** — Cifrado del dump con `age`
+  - **Salida:** el dump se cifra con `age` (binario estático, SIN daemon — CPU una vez al día, despreciable) antes de subir a R2. Clave pública en el server; la privada la guarda Carlos FUERA del server (password manager). El procedimiento de restore de F6-DRILL-01 se actualiza con el descifrado.
+  - **Verificar:** el objeto en R2 no es un dump legible; el restore drill completo funciona con la clave privada.
+  - **Depende de:** F6-DRILL-01 (para re-verificar el restore con cifrado)
+  - **Estimación:** 1 h
+
+### Módulo F6-WATCH — Ojos sin carga al server
+
+- [ ] **F6-WATCH-01** — Uptime externo (UptimeRobot free)
+  - **Salida:** monitores HTTP a `https://app.sellpointy.com/api/health` y `https://sandbox.sellpointy.com/api/health` con alertas al correo de Carlos. Corre AFUERA: cero recursos del VPS. (Paso de Carlos: crear la cuenta free.)
+  - **Verificar:** parar el api del sandbox un minuto → llega la alerta → arranca de nuevo → llega el "up".
+  - **Depende de:** —
+  - **Estimación:** 20 min
+
+- [ ] **F6-WATCH-02** — Sentry SOLO errores (free tier)
+  - **Salida:** `@sentry/nestjs` en la api y `@sentry/react` en el front, con tracing/profiling/replay APAGADOS (`tracesSampleRate: 0` — solo captura de errores: el overhead de un SDK en modo mínimo es aceptable a cambio de enterarse de los errores de clientes reales antes de que llamen). DSN por env: vacío = desactivado (dev y sandbox sin Sentry). Source maps del front subidos en CI.
+  - **Verificar:** un error forzado en sandbox NO reporta; el mismo en prod aparece en el dashboard con stack legible.
+  - **Depende de:** — (paso de Carlos: cuenta free de Sentry y el DSN al .env de prod)
+  - **Estimación:** 2 h
+
+- [ ] **F6-WATCH-03** — Alertas de costos (Vultr; reemplaza al F6-COSTS de AWS, obsoleto tras deploy-vultr)
+  - **Salida:** billing alert configurada en el panel de Vultr con umbral acordado; free tiers de Cloudflare/R2/Resend documentados en el runbook con sus límites (qué pasa si se exceden).
+  - **Verificar:** la alerta existe en el panel con el umbral correcto.
+  - **Depende de:** —
+  - **Estimación:** 15 min
+
+### Módulo F6-EDGE — Config estática de nginx (cero costo de runtime)
+
+- [ ] **F6-EDGE-01** — Afinar las cabeceras de seguridad
+  - **Salida:** `security-headers.inc` revisado: HSTS con `preload`, `Permissions-Policy` mínima (camera/mic/geolocation off), X-Frame-Options/nosniff confirmados. CSP PRAGMÁTICA para la SPA — sin nonces ni strict-dynamic: una CSP estricta rompe la app a cambio de un riesgo que con 3 clientes no paga su renta; la de Helmet en la api se queda como está.
+  - **Verificar:** `curl -sI https://app.sellpointy.com` muestra las cabeceras; Mozilla Observatory sube de calificación sin romper ninguna pantalla (smoke con Playwright).
+  - **Depende de:** —
+  - **Estimación:** 1 h
+
+- [ ] **F6-EDGE-02** — `limit_req` sobre `/api/auth/*`
+  - **Salida:** zona `limit_req_zone` de 1m (memoria despreciable) con rate bajo + burst SOLO en las rutas de auth del vhost de app: defensa en profundidad debajo del throttler de Nest — si la api se satura, nginx corta antes. El resto del API no se limita en nginx (el throttler ya gobierna).
+  - **Verificar:** ráfaga contra el SANDBOX devuelve 429/503 de nginx; el login normal no se ve afectado.
+  - **Depende de:** —
+  - **Estimación:** 45 min
+
+### Módulo F6-SUPPLY — Cadena de suministro (corre en GitHub, cero server)
+
+- [ ] **F6-SUPPLY-01** — Retención de imágenes en GHCR
+  - **Salida:** workflow semanal con `actions/delete-package-versions` que conserva las últimas N versiones de `sellpoint-{api,web,migrate}` (hoy crecen sin techo — verify W4). Es el hermano del F6-DISK-RETENTION ya cerrado: aquel limpia el disco del VPS, este el registry.
+  - **Verificar:** tras la primera corrida, GHCR muestra ≤ N versiones por paquete y el deploy sigue funcionando.
+  - **Depende de:** —
+  - **Estimación:** 30 min
+
+- [ ] **F6-SUPPLY-02** — Docker harden básico
+  - **Salida:** usuario non-root en las imágenes de api y web (si falta) + escaneo Trivy en CI SOLO severidad CRITICAL y en modo INFORMATIVO (no bloquea el deploy: con 3 clientes, un gate duro de CVEs frena más de lo que protege — se endurece cuando haya más que perder).
+  - **Verificar:** `docker exec sellpoint-api whoami` ≠ root; el reporte de Trivy aparece en el run del CI.
+  - **Depende de:** —
+  - **Estimación:** 1.5 h
+
+### Módulo F6-DR — Recuperación de desastre, a lo simple
+
+- [ ] **F6-DR-01** — Auto-backups del VPS en Vultr
+  - **Salida:** auto-backups activados en el panel de Vultr (~20% del costo del server, $1-2 USD/mes — OK de Carlos en el panel) + procedimiento de snapshot manual documentado para ANTES de cambios grandes de infra. Complementa (no sustituye) los dumps a R2: el backup del VPS recupera la máquina; el dump recupera los datos.
+  - **Verificar:** el panel muestra el primer backup automático completado.
+  - **Depende de:** —
+  - **Estimación:** 15 min
+
+- [ ] **F6-DR-02** — RUNBOOK.md de operaciones
+  - **Salida:** documento en el repo con: deploy y rollback manual paso a paso, restore desde R2 (el procedimiento probado en F6-DRILL-01), alta de un ambiente nuevo (incluido el ALTER ROLE de sellpoint_app post-primer-deploy), cómo mirar logs (`docker logs` vía SSH — esto ABSORBE al F6-LOGS original: con este volumen, los json-file rotados + SSH bastan y Loki queda pospuesto), troubleshooting con los incidentes REALES ya vividos (disco 100%, DNS ambiguo de la red compartida, lease de pulls concurrentes, heredoc drenado), y cuentas/accesos (dónde vive cada credencial).
+  - **Verificar:** una persona que no sea Carlos podría ejecutar un restore siguiendo solo el documento.
+  - **Depende de:** F6-DRILL-01, F6-DRILL-02 (documenta lo ENSAYADO, no lo imaginado)
+  - **Estimación:** 2 h
+
+### Módulo F6-SECRETS — Versión ligera
+
+- [ ] **F6-SECRETS-01** — Respaldo cifrado de los .env + rotación de JWT documentada
+  - **Salida:** copia cifrada con `age` de los DOS `.env` (prod y sandbox) en R2, actualizada cuando cambien, con procedimiento de restauración en el runbook; y el procedimiento de ROTACIÓN de llaves JWT documentado (generar par nuevo, ventana de convivencia, invalidación de sesiones). SIN gestor de secretos corriendo (Infisical/sops-daemon): un servicio más en 2 GB es exactamente lo que la LEY DE LA FASE veta — el chmod 600 + el respaldo cifrado + la rotación documentada son el básico correcto para este tamaño.
+  - **Verificar:** restaurar el .env desde R2 en un directorio temporal y compararlo con el vivo.
+  - **Depende de:** F6-BACKUPS-02 (reusa la clave age)
+  - **Estimación:** 1 h
+
+### Historia: tareas cerradas por adelantado
+
 - [x] **F6-DISK-RETENTION** *(cerrada el 2026-08-18, adelantada desde F6 por incidente en producción)* — Retención de imágenes Docker **en el server** y guarda de disco en `deploy-remote.sh`. Hermana de F6-GHCR-RETENTION (esa es del registry; esta es del disco del VPS). **Incidente:** el disco llegó a 100% (47 GB) con **380 imágenes, 37.71 GB** — 7 en uso y 373 cadáveres. Dos deploys seguidos murieron en el PRIMER `sed` del `.env` con `sed: couldn't flush: No space left on device`, un mensaje que no dice nada de lo que realmente pasa. **Causa raíz doble:** (1) el cleanup era `docker image prune -f` **sin `-a`**, que solo borra imágenes *dangling* — y acá TODAS están etiquetadas con su SHA, así que ninguna lo es: la línea corrió en cada deploy exitoso durante meses **liberando 0 bytes**, y el propio log del run 32183405990 lo dice literal (`Total reclaimed space: 0B`); (2) vivía al FINAL del script y solo tras un smoke OK, o sea que necesitaba disco sano para poder liberar disco, y cada fallo dejaba basura apretando el trinquete. **Hecho:** el bloque de higiene se movió al principio del script, usa `docker image prune -af --filter "until=168h"` (una semana, que es lo que necesita el rollback porque hace `up -d` SIN pull y cuenta con la imagen previa local), corre siempre y con `|| true` (es higiene, no un requisito), y se le sumó una **guarda de disco** que aborta con un mensaje accionable —y sin tocar nada— si quedan menos de 3000 MB. Carlos liberó 36.21 GB a mano con `prune -a -f` para desatascar (100% → 26%). El script se copia por `scp` en cada deploy, así que el arreglo se despliega solo
-- **F6-CF-PROXY** — Decidir Cloudflare naranja vs gris: hoy naranja funciona (ACME verificado atravesando CF) pero el origen sigue alcanzable por IP y una renovación fallida de cert sería silenciosa; evaluar Origin Certificate de CF (15 años) + Authenticated Origin Pulls + alerting de renovación — verify W7
 - [x] **F6-TYPECHECK-TESTS** *(cerrada el 2026-08-17: 0 errores + `typecheck:full` en el job `checks`)* — Cerrar el hueco de tipos de los TESTS del API y engancharlo a CI. Hoy los `.spec.ts` no los verifica NADIE: `tsconfig.build.json` los excluye y `ts-jest` transpila sin chequear por `isolatedModules` en `tsconfig.base.json`. Se descubrió el 2026-08-16 con dos deploys en rojo seguidos (F2-CAT y el cierre de F2). Ya existe `pnpm typecheck:full` (`apps/api/tsconfig.typecheck.json`) que los incluye; **reporta 26 errores preexistentes en 9 archivos**, todos de Fase 1 y concentrados en autenticación (`auth.controller.spec` 8, `token.service.spec` 4, `auth-resolve-tenant-by-email` 4). Cuatro familias: 7 × `Object is possibly undefined` (accesos tipo `rows[0].campo` sin `?.`), 6 × `ConfigService` genérico sin parametrizar, 4 × mock de `Response` inferido como `never`, y **9 de mocks DESACTUALIZADOS** (`Expected 5 arguments, but got 4`) — este último grupo es el que importa: son tests que llaman a una firma que ya cambió, así que pasan en verde probando una forma que no existe. **Criterio de hecho: llegar a cero Y sumar `typecheck:full` al job `checks`** — sin lo segundo, arreglarlos hoy no impide que mañana entren otros. `apps/web` ya quedó cubierto (`pnpm typecheck` = `tsc -b`, el mismo gate que `pnpm build`).
-- **F6-SENTRY** — Sentry frontend + backend con `@sentry/nestjs`, source maps subidos en CI
-- **F6-HEADERS** — Cabeceras de seguridad endurecidas: CSP estricta, HSTS preload, X-Frame-Options, Permissions-Policy
-- **F6-DOCKER-HARDEN** — Imágenes productivas: multi-stage, non-root user, scan con Trivy en CI
-- **F6-RATE-LIMIT-NGINX** — Rate limiting a nivel Nginx (defensa en profundidad sobre el throttler de Nest)
-- **F6-FAIL2BAN-CUSTOM** — Reglas custom de fail2ban para abuso de `/auth/*`
-- **F6-UPTIME** — Healthcheck externo (UptimeRobot o equivalente) con alertas a email/Slack
-- **F6-RUNBOOK** — Documento de operaciones: deploy, rollback rápido, restore, troubleshooting, contactos
-- **F6-DR** — Plan de disaster recovery: snapshots EBS automáticos, runbook de recuperación
-- **F6-COSTS** — Setup de alertas de costos en AWS Billing
 
-**Estimación:** 1 semana.
+### Pospuestos de la fase (por la LEY DE LA FASE, no por descuido)
+
+- **Logs centralizados (Loki o similar)** — RAM que el VPS de 2 GB no tiene. Los json-file rotados (10m×3 por servicio) + `docker logs` vía SSH cubren el volumen actual. Se revisa al crecer.
+- **fail2ban custom para `/auth/*`** — redundante: el throttler de Nest + el `limit_req` de F6-EDGE-02 cubren la misma amenaza sin un daemon más.
+- **Cloudflare naranja + Origin Certificate** — el gris funciona y el ACME está probado; el proxy naranja (ocultar IP, WAF) se evalúa cuando haya más clientes que proteger. Era el F6-CF-PROXY original.
+- **Gestor de secretos con servicio (Infisical)** — peso injustificado a este tamaño; ver F6-SECRETS-01.
+
+**Estimación de la fase:** ~11 h de trabajo efectivo (repartibles en una semana tranquila, sin bloquear el desarrollo).
 
 ---
 
