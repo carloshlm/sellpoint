@@ -10,6 +10,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { TransfersService } from "./transfers.service";
 
 /** Una fecha de query string, o `undefined` si vino basura. */
@@ -32,6 +33,7 @@ const cancelTransferSchema = z.object({
 });
 
 @ApiTags("inventory")
+@RequiresFeature("transfers")
 @Controller("transfers")
 export class TransfersController {
   constructor(private readonly transfers: TransfersService) {}

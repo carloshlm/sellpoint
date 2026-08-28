@@ -22,6 +22,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { ConfirmService } from "./confirm.service";
 import { CountTemplateService } from "./count-template.service";
 import { DocumentImportService } from "./document-import.service";
@@ -55,6 +56,7 @@ import {
  * consulta los usa cualquiera que audite.
  */
 @ApiTags("inventory")
+@RequiresFeature("movements")
 @Controller("inventory/documents")
 export class DocumentsController {
   constructor(

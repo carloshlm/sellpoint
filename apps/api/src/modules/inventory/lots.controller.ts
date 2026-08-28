@@ -9,6 +9,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { InventoryExportService } from "./inventory-export.service";
 import { LotsService } from "./lots.service";
 
@@ -136,6 +137,7 @@ export class LotsController {
    * REORDENA de qué partida sale la próxima venta. Es una operación de
    * inventario, aunque parezca una edición de catálogo.
    */
+  @RequiresFeature("lots")
   @Patch("products/:id/lots/:lotId")
   @RequirePermissions("inventory:movement")
   updateLot(

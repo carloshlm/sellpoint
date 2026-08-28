@@ -24,6 +24,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
 import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
 import { BillingModule } from "./modules/billing/billing.module";
+import { SubscriptionGuard } from "./modules/billing/guards/subscription.guard";
 import { CatalogsModule } from "./modules/catalogs/catalogs.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { MailModule } from "./modules/mail/mail.module";
@@ -144,6 +145,11 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     // permisos de claims ya verificados (firma + epoch). Sin
     // @RequirePermissions un endpoint solo exige estar logueado.
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    // F7-GUARD-03: el plan, AL FINAL — primero "quién eres" (JwtAuth), luego
+    // "tu rol lo permite" (Permissions), al final "tu plan lo incluye". Así
+    // un 403 de permisos nunca se disfraza de 402 de plan, y este guard no
+    // gasta un roundtrip en requests que ya iban a rebotar por rol.
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
     // F1-SCOPE-03 (remediación CRITICAL C1/C2, verify-report `sdd/f1-scope`):
     // interceptor global, NO middleware — corre DESPUÉS de ThrottlerGuard y
     // JwtAuthGuard, así que lee `req.user` (firma + epoch YA verificados) en

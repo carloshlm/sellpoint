@@ -5,6 +5,7 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { CheckPlanLimit } from "../billing/decorators/check-plan-limit.decorator";
 import { type CreateUserDto, createUserSchema } from "./dto/create-user.dto";
 import {
   type ReplaceWarehouseScopeDto,
@@ -29,6 +30,7 @@ export class UsersAdminController {
     private readonly warehouseScopeService: WarehouseScopeService,
   ) {}
 
+  @CheckPlanLimit("users")
   @Post()
   @RequirePermissions("users:manage")
   create(

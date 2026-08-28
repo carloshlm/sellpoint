@@ -4,6 +4,7 @@ import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
 import { type UpdateMeDto, updateMeSchema } from "./dto/update-me.dto";
 import { UsersService } from "./users.service";
 
@@ -19,6 +20,7 @@ export class UsersController {
     return this.usersService.getMe(user);
   }
 
+  @AllowedInFreeTier()
   @Patch("me")
   updateMe(
     @Body(new ZodValidationPipe(updateMeSchema, "users.invalid_body")) dto: UpdateMeDto,

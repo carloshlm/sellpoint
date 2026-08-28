@@ -18,6 +18,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { CheckPlanLimit } from "../billing/decorators/check-plan-limit.decorator";
 import {
   type CreateWarehouseDto,
   createWarehouseSchema,
@@ -55,6 +56,7 @@ export class WarehousesController {
       : this.warehousesService.list(user);
   }
 
+  @CheckPlanLimit("warehouses")
   @Post()
   @RequirePermissions("warehouses:manage")
   create(

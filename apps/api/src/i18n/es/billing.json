@@ -1,8 +1,16 @@
 {
-  "subscription_not_found": "Este negocio no tiene una suscripción registrada.",
-  "subscription_canceled": "La suscripción está cancelada. Reactívala antes de registrar un pago.",
   "custom_price_required": "Un plan sin precio publicado necesita un precio pactado por cliente.",
+  "daily_sales_limit_reached": "Alcanzaste las {limit} ventas de hoy del modo gratuito. Contrata un plan para vender sin límite.",
+  "discount_overlap": "Ya hay un descuento activo para este negocio. Revoca el vigente antes de otorgar otro.",
+  "feature_not_in_plan": "Tu plan no incluye esta función. Mejora tu plan para activarla.",
+  "not_platform_admin": "Esta sección es solo para la administración de la plataforma.",
   "payment_already_voided": "Este pago ya fue anulado.",
+  "payment_period_overlap": "El período de ese pago se encima con uno ya registrado.",
+  "plan_not_found": "Ese plan no existe.",
   "reactivation_window_over": "El período pagado ya venció: la reactivación es con un nuevo pago.",
-  "discount_overlap": "Ya hay un descuento activo para este negocio. Revoca el vigente antes de otorgar otro."
+  "read_only": "Tu cuenta está en modo gratuito: puedes consultar todo y vender hasta 10 veces al día. Contrata un plan para crear y editar.",
+  "subscription_canceled": "La suscripción está cancelada. Reactívala antes de registrar un pago.",
+  "subscription_not_found": "Este negocio no tiene una suscripción registrada.",
+  "user_limit_reached": "Tu plan permite hasta {limit} usuarios. Mejora tu plan para invitar más.",
+  "warehouse_limit_reached": "Tu plan permite hasta {limit} almacenes. Mejora tu plan para crear más."
 }

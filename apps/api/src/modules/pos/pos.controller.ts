@@ -20,6 +20,8 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { CashboxService } from "./cashbox.service";
 import { type CreateSaleDto, createSaleSchema } from "./dto/create-sale.dto";
 import {
@@ -88,6 +90,7 @@ export class PosController {
     return { session: await this.cashbox.current(user) };
   }
 
+  @AllowedInFreeTier()
   @Post("session")
   @RequirePermissions("pos:sell")
   open(
@@ -111,6 +114,7 @@ export class PosController {
   }
 
   /** Cierra el turno con su arqueo. La diferencia se registra, no bloquea. */
+  @AllowedInFreeTier()
   @Post("session/close")
   @HttpCode(200)
   @RequirePermissions("pos:sell")
@@ -144,6 +148,7 @@ export class PosController {
    * El cobro. Exige turno abierto — sin él no hay almacén del que descontar, y
    * una venta suelta sería dinero que nadie cuadra al cerrar el día.
    */
+  @AllowedInFreeTier()
   @Post("sales")
   @RequirePermissions("pos:sell")
   createSale(
@@ -232,6 +237,7 @@ export class PosController {
   // pasa en el mostrador, por teléfono o caminando por el pasillo. Exigir caja
   // abierta para contestar una pregunta sería burocracia pura.
 
+  @RequiresFeature("quotes")
   @Post("quotes")
   @RequirePermissions("pos:quote")
   createQuote(
@@ -275,6 +281,7 @@ export class PosController {
     return this.quotes.detail(user, id);
   }
 
+  @RequiresFeature("quotes")
   @Post("quotes/:id/cancel")
   @HttpCode(200)
   @RequirePermissions("pos:quote")
@@ -291,6 +298,7 @@ export class PosController {
    * Anular. `pos:cancel` — que NO está en `POS_SELLER_CODES`: deshacer una
    * operación asentada es decisión de gestión, no de mostrador.
    */
+  @AllowedInFreeTier()
   @Post("sales/:id/cancel")
   @HttpCode(200)
   @RequirePermissions("pos:cancel")
