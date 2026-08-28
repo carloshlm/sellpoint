@@ -227,7 +227,11 @@
       "discountAmount": "Discount",
       "expectedCharge": "Owes: {{amount}}",
       "amountReceivedRequired": "Amount received",
-      "mustMatch": "Received + discount must equal the plan price."
+      "mustMatch": "Received + discount must equal the plan price.",
+      "country": "Country",
+      "currency": "Currency",
+      "filterCurrency": "Currency",
+      "allCurrencies": "All"
     },
     "capabilities": {
       "pos": "Point of sale and receipts",

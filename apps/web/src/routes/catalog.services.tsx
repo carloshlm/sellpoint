@@ -153,71 +153,69 @@ function ServicesContent() {
           {t("services.empty")}
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="px-2">{t("services.form.code")}</TableHead>
-                <TableHead className="px-2">{t("services.form.name")}</TableHead>
-                <TableHead className="px-2">{t("services.form.cost")}</TableHead>
-                <TableHead className="px-2">{t("services.form.price")}</TableHead>
-                <TableHead className="px-2">{t("services.warehouses.column")}</TableHead>
-                <TableHead className="px-2">{t("services.status")}</TableHead>
-                {canManage && <TableHead className="px-2" />}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-2">{t("services.form.code")}</TableHead>
+              <TableHead className="px-2">{t("services.form.name")}</TableHead>
+              <TableHead className="px-2">{t("services.form.cost")}</TableHead>
+              <TableHead className="px-2">{t("services.form.price")}</TableHead>
+              <TableHead className="px-2">{t("services.warehouses.column")}</TableHead>
+              <TableHead className="px-2">{t("services.status")}</TableHead>
+              {canManage && <TableHead className="px-2" />}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(services ?? []).map((service) => (
+              <TableRow key={service.id} data-testid={`service-${service.id}`}>
+                <TableCell className="px-2 font-mono">{service.code}</TableCell>
+                <TableCell className="px-2 font-medium">{service.name}</TableCell>
+                <TableCell className="px-2">{service.cost ?? "—"}</TableCell>
+                <TableCell className="px-2">{service.price ?? "—"}</TableCell>
+                <TableCell className="px-2">
+                  {t("services.warehouses.count", {
+                    count: service.warehouseIds.length,
+                    total: (warehouses ?? []).length,
+                  })}
+                </TableCell>
+                <TableCell className="px-2">
+                  <Badge variant={service.isActive ? "success" : "default"}>
+                    {t(service.isActive ? "services.active" : "services.inactive")}
+                  </Badge>
+                </TableCell>
+                {canManage && (
+                  <TableCell className="px-2 text-right">
+                    <RowAction
+                      intent="edit"
+                      onClick={() => {
+                        setError(null);
+                        setCreating(false);
+                        setEditing(service);
+                      }}
+                    />
+                    <RowAction
+                      intent={service.isActive ? "deactivate" : "reactivate"}
+                      onClick={() => {
+                        setError(null);
+                        updateService.mutate(
+                          { id: service.id, input: { isActive: !service.isActive } },
+                          { onError: (apiError: ApiError) => setError(apiError.message) },
+                        );
+                      }}
+                    />
+                    <RowAction
+                      intent="delete"
+                      onClick={() => {
+                        setError(null);
+                        setDeleting(service);
+                      }}
+                    />
+                  </TableCell>
+                )}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(services ?? []).map((service) => (
-                <TableRow key={service.id} data-testid={`service-${service.id}`}>
-                  <TableCell className="px-2 font-mono">{service.code}</TableCell>
-                  <TableCell className="px-2 font-medium">{service.name}</TableCell>
-                  <TableCell className="px-2">{service.cost ?? "—"}</TableCell>
-                  <TableCell className="px-2">{service.price ?? "—"}</TableCell>
-                  <TableCell className="px-2">
-                    {t("services.warehouses.count", {
-                      count: service.warehouseIds.length,
-                      total: (warehouses ?? []).length,
-                    })}
-                  </TableCell>
-                  <TableCell className="px-2">
-                    <Badge variant={service.isActive ? "success" : "default"}>
-                      {t(service.isActive ? "services.active" : "services.inactive")}
-                    </Badge>
-                  </TableCell>
-                  {canManage && (
-                    <TableCell className="px-2 text-right">
-                      <RowAction
-                        intent="edit"
-                        onClick={() => {
-                          setError(null);
-                          setCreating(false);
-                          setEditing(service);
-                        }}
-                      />
-                      <RowAction
-                        intent={service.isActive ? "deactivate" : "reactivate"}
-                        onClick={() => {
-                          setError(null);
-                          updateService.mutate(
-                            { id: service.id, input: { isActive: !service.isActive } },
-                            { onError: (apiError: ApiError) => setError(apiError.message) },
-                          );
-                        }}
-                      />
-                      <RowAction
-                        intent="delete"
-                        onClick={() => {
-                          setError(null);
-                          setDeleting(service);
-                        }}
-                      />
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       {/* Solo el borrado pide confirmación: es lo único sin vuelta atrás de

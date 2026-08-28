@@ -45,7 +45,13 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
     tenantSubscription: { findUnique: Mock; update: Mock };
     plan: { findUniqueOrThrow: Mock; findMany?: Mock };
     planPrice: { findUnique: Mock };
-    subscriptionPayment: { create: Mock; findUniqueOrThrow: Mock; findMany: Mock; update: Mock };
+    subscriptionPayment: {
+      create: Mock;
+      findFirst: Mock;
+      findUniqueOrThrow: Mock;
+      findMany: Mock;
+      update: Mock;
+    };
     tenantDiscount: { findFirst: Mock; create: Mock; update: Mock };
     user: { findFirst: Mock };
   };
@@ -118,6 +124,9 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
         create: jest
           .fn()
           .mockImplementation(({ data }) => Promise.resolve({ id: "pay-1", ...data })),
+        // La guarda de orden pregunta por el último pago vivo: sin pagos
+        // previos, cualquier fecha (no futura) es válida.
+        findFirst: jest.fn().mockResolvedValue(null),
         findUniqueOrThrow: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         update: jest

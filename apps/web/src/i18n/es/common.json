@@ -227,7 +227,11 @@
       "discountAmount": "Descuento",
       "expectedCharge": "Debe pagar: {{amount}}",
       "amountReceivedRequired": "Monto recibido",
-      "mustMatch": "Recibido + descuento tiene que dar el precio del plan."
+      "mustMatch": "Recibido + descuento tiene que dar el precio del plan.",
+      "country": "País",
+      "currency": "Moneda",
+      "filterCurrency": "Moneda",
+      "allCurrencies": "Todas"
     },
     "capabilities": {
       "pos": "Punto de venta y tickets",

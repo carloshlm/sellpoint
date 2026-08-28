@@ -8,6 +8,7 @@
   "invalid_amount": "The amount is not valid: use numbers with up to two decimals.",
   "invalid_body": "Check the submitted data.",
   "not_platform_admin": "This section is only for platform administration.",
+  "paid_at_before_last": "This business already has a payment recorded on {last}: an earlier date would break the period order.",
   "paid_at_in_future": "The payment date cannot be in the future: record what already happened.",
   "payment_already_voided": "This payment was already voided.",
   "payment_period_overlap": "That payment's period overlaps with one already recorded.",

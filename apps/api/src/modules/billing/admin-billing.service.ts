@@ -12,6 +12,8 @@ export interface AdminTenantRow {
   tenantId: string;
   tenantName: string;
   country: string | null;
+  /** La moneda del negocio: por la que se filtra y en la que se le cobra. */
+  currency: string;
   /**
    * La zona del NEGOCIO, para que el backoffice pinte la fecha de cobro de
    * cada uno en su propia zona y no en la de quien mira la tabla.
@@ -131,6 +133,7 @@ export class AdminBillingService {
         tenantName: tenant.name,
         charges: this.chargesDe(tenant, planes, cuponPorTenant.get(tenant.id) ?? null, sub ?? null),
         country: tenant.country,
+        currency: tenant.currency,
         timezone: tenant.timezone,
         planCode: sub?.plan.code ?? planFree.code,
         planName: sub?.plan.name ?? planFree.name,

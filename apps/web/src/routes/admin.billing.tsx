@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenants, recordPayment } from "@/lib/billing/api";
 import { formatDeadline, formatInstant } from "@/lib/billing/dates";
@@ -51,6 +52,9 @@ function AdminBilling() {
   const [viendo, setViendo] = useState<{ tenantId: string; tenantName: string } | null>(null);
   // El ciclo elegido decide qué cargo se muestra y se propone.
   const [ciclo, setCiclo] = useState<"monthly" | "yearly">("monthly");
+  // El filtro de moneda: con clientes en tres mercados, la tabla completa
+  // mezcla números que no se suman entre sí.
+  const [moneda, setMoneda] = useState("");
   // El plan del cobro: el vigente del negocio, o el que se elija. De él
   // depende el precio, así que el autocálculo lo sigue.
   const [planPago, setPlanPago] = useState("");
@@ -131,16 +135,43 @@ function AdminBilling() {
           <CardTitle>{t("common.billing.admin.title")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-3 text-muted-foreground text-sm">
-            {Object.entries(data?.mrrByCurrency ?? {})
-              .map(([currency, amount]) => `MRR ${currency}: $${amount}`)
-              .join(" · ") || t("common.billing.admin.noMrr")}
-          </p>
-          <div className="overflow-x-auto">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-muted-foreground text-sm">
+              {Object.entries(data?.mrrByCurrency ?? {})
+                .filter(([currency]) => moneda === "" || currency === moneda)
+                .map(([currency, amount]) => `MRR ${currency}: $${amount}`)
+                .join(" · ") || t("common.billing.admin.noMrr")}
+            </p>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="filtro-moneda" className="text-sm">
+                {t("common.billing.admin.filterCurrency")}
+              </Label>
+              {/* Las monedas que EXISTEN en la tabla, no un catálogo fijo:
+                  ofrecer un filtro vacío es ofrecer un callejón sin salida. */}
+              <select
+                id="filtro-moneda"
+                value={moneda}
+                onChange={(event) => setMoneda(event.target.value)}
+                className="rounded-md border p-1 text-sm"
+              >
+                <option value="">{t("common.billing.admin.allCurrencies")}</option>
+                {[...new Set((data?.tenants ?? []).map((fila) => fila.currency))]
+                  .sort()
+                  .map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+          <ScrollableTable>
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b">
                   <th className="px-2 py-1">{t("common.billing.admin.tenant")}</th>
+                  <th className="px-2 py-1">{t("common.billing.admin.country")}</th>
+                  <th className="px-2 py-1">{t("common.billing.admin.currency")}</th>
                   <th className="px-2 py-1">{t("common.billing.admin.plan")}</th>
                   <th className="px-2 py-1">{t("common.billing.admin.status")}</th>
                   <th className="px-2 py-1">{t("common.billing.admin.dueAt")}</th>
@@ -149,69 +180,73 @@ function AdminBilling() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.tenants ?? []).map((fila) => (
-                  <tr key={fila.tenantId} className="border-b">
-                    <td className="px-2 py-1">
-                      <button
-                        type="button"
-                        className="text-left underline-offset-2 hover:underline"
-                        onClick={() =>
-                          setViendo({ tenantId: fila.tenantId, tenantName: fila.tenantName })
-                        }
-                      >
-                        {fila.tenantName}
-                      </button>
-                    </td>
-                    <td className="px-2 py-1">{fila.planName}</td>
-                    <td className="px-2 py-1">{t(`common.billing.me.status.${fila.status}`)}</td>
-                    <td className="px-2 py-1">{vence(fila.dueAt, fila.timezone)}</td>
-                    <td className="px-2 py-1">{fecha(fila.lastPaymentAt, fila.timezone)}</td>
-                    <td className="px-2 py-1">
-                      <div className="flex justify-end gap-2">
-                        <Button
+                {(data?.tenants ?? [])
+                  .filter((fila) => moneda === "" || fila.currency === moneda)
+                  .map((fila) => (
+                    <tr key={fila.tenantId} className="border-b">
+                      <td className="px-2 py-1">
+                        <button
                           type="button"
-                          size="sm"
-                          variant="outline"
+                          className="text-left underline-offset-2 hover:underline"
                           onClick={() =>
                             setViendo({ tenantId: fila.tenantId, tenantName: fila.tenantName })
                           }
                         >
-                          {t("common.billing.admin.detail")}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            // Sin suscripción no hay plan vigente: se propone
-                            // el primer plan vendible para que el formulario
-                            // arranque con una cuenta ya cuadrada.
-                            const inicial =
-                              fila.status === "none"
-                                ? (fila.charges[0]?.planCode ?? "")
-                                : fila.planCode;
-                            setPagando({
-                              tenantId: fila.tenantId,
-                              tenantName: fila.tenantName,
-                              planCode: fila.status === "none" ? null : fila.planCode,
-                              charges: fila.charges,
-                            });
-                            setCiclo("monthly");
-                            setPlanPago(inicial);
-                            setRecibido(
-                              fila.charges.find((c) => c.planCode === inicial)?.monthly ?? "",
-                            );
-                            setDescuento("0");
-                          }}
-                        >
-                          {t("common.billing.admin.recordPayment")}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {fila.tenantName}
+                        </button>
+                      </td>
+                      <td className="px-2 py-1">{fila.country ?? "—"}</td>
+                      <td className="px-2 py-1">{fila.currency}</td>
+                      <td className="px-2 py-1">{fila.planName}</td>
+                      <td className="px-2 py-1">{t(`common.billing.me.status.${fila.status}`)}</td>
+                      <td className="px-2 py-1">{vence(fila.dueAt, fila.timezone)}</td>
+                      <td className="px-2 py-1">{fecha(fila.lastPaymentAt, fila.timezone)}</td>
+                      <td className="px-2 py-1">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setViendo({ tenantId: fila.tenantId, tenantName: fila.tenantName })
+                            }
+                          >
+                            {t("common.billing.admin.detail")}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              // Sin suscripción no hay plan vigente: se propone
+                              // el primer plan vendible para que el formulario
+                              // arranque con una cuenta ya cuadrada.
+                              const inicial =
+                                fila.status === "none"
+                                  ? (fila.charges[0]?.planCode ?? "")
+                                  : fila.planCode;
+                              setPagando({
+                                tenantId: fila.tenantId,
+                                tenantName: fila.tenantName,
+                                planCode: fila.status === "none" ? null : fila.planCode,
+                                charges: fila.charges,
+                              });
+                              setCiclo("monthly");
+                              setPlanPago(inicial);
+                              setRecibido(
+                                fila.charges.find((c) => c.planCode === inicial)?.monthly ?? "",
+                              );
+                              setDescuento("0");
+                            }}
+                          >
+                            {t("common.billing.admin.recordPayment")}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
         </CardContent>
       </Card>
 

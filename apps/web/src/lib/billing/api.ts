@@ -79,6 +79,7 @@ export interface AdminTenants {
     billingCycle: string | null;
     dueAt: string | null;
     lastPaymentAt: string | null;
+    currency: string;
     timezone: string;
     /**
      * Lo que pagaría por CADA plan vendible, con su cupón ya aplicado. Por

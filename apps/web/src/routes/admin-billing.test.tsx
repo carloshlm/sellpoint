@@ -90,6 +90,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          currency: "MXN",
           timezone: "America/Mexico_City",
           charges: [
             { planCode: "basic", monthly: "199.00", yearly: "1990.00", currency: "MXN" },
@@ -270,6 +271,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          currency: "MXN",
           timezone: "America/Mexico_City",
           charges: [
             { planCode: "basic", monthly: "199.00", yearly: "1990.00", currency: "MXN" },
@@ -321,6 +323,89 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     expect(screen.getByLabelText("Descuento")).toHaveValue("0");
   });
 
+  /**
+   * Carlos (2026-08-29) pidió país y moneda en la tabla, y un filtro por
+   * moneda: con clientes en tres mercados, una tabla que los mezcla obliga a
+   * leer fila por fila para saber en qué se le cobra a cada uno.
+   */
+  it("la tabla muestra país y moneda, y el filtro deja solo esa moneda", async () => {
+    mockedTenants.mockResolvedValue({
+      tenants: [
+        {
+          tenantId: "t1",
+          tenantName: "Acme",
+          country: "MX",
+          currency: "MXN",
+          planCode: "plus",
+          planName: "Plus",
+          status: "active",
+          billingCycle: "monthly",
+          dueAt: null,
+          lastPaymentAt: null,
+          timezone: "America/Mexico_City",
+          charges: [{ planCode: "plus", monthly: "499.00", yearly: "4990.00", currency: "MXN" }],
+        },
+        {
+          tenantId: "t9",
+          tenantName: "Maple Inc",
+          country: "CA",
+          currency: "CAD",
+          planCode: "pro",
+          planName: "Pro",
+          status: "active",
+          billingCycle: "monthly",
+          dueAt: null,
+          lastPaymentAt: null,
+          timezone: "America/Toronto",
+          charges: [{ planCode: "pro", monthly: "39.00", yearly: "390.00", currency: "CAD" }],
+        },
+      ],
+      mrrByCurrency: { MXN: "499.00", CAD: "39.00" },
+    });
+    await renderAdmin(true);
+    const user = userEvent.setup();
+
+    // Dentro de la FILA: "CAD" también existe como opción del filtro, y
+    // buscarlo suelto encontraría dos elementos distintos.
+    const fila = (await screen.findByText("Maple Inc")).closest("tr");
+    expect(fila).toHaveTextContent("CA");
+    expect(fila).toHaveTextContent("CAD");
+
+    await user.selectOptions(screen.getByLabelText("Moneda"), "CAD");
+
+    expect(screen.getByText("Maple Inc")).toBeInTheDocument();
+    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    // El MRR sigue al filtro: mostrar el de una moneda que ya no se ve sería
+    // un número sin tabla que lo explique.
+    expect(screen.getByText(/MRR CAD/)).toBeInTheDocument();
+    expect(screen.queryByText(/MRR MXN/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Carlos (2026-08-29): «cuando anulas algún pago no se recarga el listado
+   * de abajo». Anular corrige la historia — y el historial es justo la
+   * pantalla que tiene que reflejar esa corrección al instante.
+   */
+  it("anular un pago recarga el historial y la tabla", async () => {
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Acme" }));
+    await screen.findByTestId("tenant-detail");
+    const consultasPrevias = mockedDetail.mock.calls.length;
+
+    await user.click(screen.getByRole("button", { name: "Anular" }));
+    await user.type(screen.getByLabelText(/Por qué se anula/), "transferencia rebotada");
+    await user.click(screen.getByRole("button", { name: "Anular el pago" }));
+
+    await waitFor(() => {
+      expect(mockedVoid).toHaveBeenCalled();
+    });
+    // El expediente se vuelve a pedir: sin esto, el pago sigue viéndose vivo.
+    await waitFor(() => {
+      expect(mockedDetail.mock.calls.length).toBeGreaterThan(consultasPrevias);
+    });
+  });
+
   /** El negocio anterior a la Fase 7: sin suscripción, pero cobrable. */
   it("un negocio con status `none` se muestra como «Sin suscripción»", async () => {
     mockedTenants.mockResolvedValue({
@@ -335,6 +420,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          currency: "MXN",
           timezone: "America/Mexico_City",
           // Sin suscripción, pero con precios: es a quien hay que cobrarle.
           charges: [

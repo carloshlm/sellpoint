@@ -511,6 +511,94 @@ describe("Ciclo de vida de la suscripción (F7-E2E-01)", () => {
     });
   });
 
+  /**
+   * ── EL ORDEN DE LOS PAGOS (Carlos, 2026-08-29) ─────────────────────────
+   *
+   * «No es buena idea poder registrar pagos con fecha anterior a pagos ya
+   * realizados porque se pierde un orden en los períodos.»
+   *
+   * Tiene razón, y la razón es estructural: el período de un pago encadena
+   * con el vencimiento anterior, NO con su propia fecha. Capturar un pago
+   * fechado antes del último deja el historial ordenado por fecha diciendo
+   * una cosa y los períodos diciendo otra — se ve un pago del día 26
+   * cubriendo noviembre y uno del 28 cubriendo octubre. Ninguno de los dos
+   * números está mal; lo que está mal es que se puedan capturar así.
+   *
+   * Se compara contra los pagos VIVOS: anular uno libera su fecha, porque
+   * anular es corregir la historia.
+   */
+  describe("un pago no puede ser anterior al último registrado", () => {
+    it("capturar una fecha previa al último pago se rechaza", async () => {
+      const negocio = await registerTenant(app, "lifecycle-orden");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      const hace5dias = new Date(Date.now() - 5 * 86_400_000).toISOString();
+      const hace10dias = new Date(Date.now() - 10 * 86_400_000).toISOString();
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: hace5dias,
+        amountReceived: "499.00",
+      }).expect(201);
+
+      const rechazo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: hace10dias,
+        amountReceived: "499.00",
+      }).expect(422);
+
+      expect(rechazo.body).toMatchObject({ code: "billing.paid_at_before_last" });
+    });
+
+    it("la MISMA fecha del último pago sí entra: dos cobros en un día pasan", async () => {
+      const negocio = await registerTenant(app, "lifecycle-mismo-dia");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      const ayer = new Date(Date.now() - 86_400_000).toISOString();
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: ayer,
+        amountReceived: "499.00",
+      }).expect(201);
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: ayer,
+        amountReceived: "499.00",
+      }).expect(201);
+    });
+
+    /** Anular libera la fecha: la historia corregida ya no la ocupa. */
+    it("tras anular el último pago, una fecha anterior vuelve a entrar", async () => {
+      const negocio = await registerTenant(app, "lifecycle-orden-anulado");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      const hace5dias = new Date(Date.now() - 5 * 86_400_000).toISOString();
+
+      const pago = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: hace5dias,
+        amountReceived: "499.00",
+      }).expect(201);
+      await request(app.getHttpServer())
+        .post(
+          `/admin/billing/tenants/${negocio.tenantId}/payments/${(pago.body as { id: string }).id}/void`,
+        )
+        .set("Authorization", bearer(admin.token))
+        .send({ reason: "capturado por error" })
+        .expect(201);
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+        amountReceived: "499.00",
+      }).expect(201);
+    });
+  });
+
   describe("anular un pago corrige la historia", () => {
     /**
      * Un pago no se borra. Se anula con razón, y el estado presente se

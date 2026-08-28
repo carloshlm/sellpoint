@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenantDetail, voidPayment } from "@/lib/billing/api";
 import { formatDeadline, formatInstant } from "@/lib/billing/dates";
@@ -94,7 +95,7 @@ export function TenantDetailDialog({
           {data && data.payments.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("common.billing.admin.noPayments")}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollableTable>
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b">
@@ -157,7 +158,7 @@ export function TenantDetailDialog({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollableTable>
           )}
           {/* Las notas explican los cobros que no cuadran con la tarifa. */}
           {(data?.payments ?? []).some((p) => p.notes) ? (

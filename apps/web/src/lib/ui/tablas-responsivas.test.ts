@@ -16,6 +16,15 @@ import { join } from "node:path";
  * Carlos la vio en su celular) y los listados de Entradas, Salidas y
  * Traspasos, que tenían el MISMO defecto y nadie miró. Arreglar la instancia
  * y no la clase es cómo la segunda tanda llegó a producción.
+ *
+ * ── Y por qué ya no basta con `overflow-x-auto` (2026-08-29) ────────────
+ *
+ * Esta barrera aceptaba el `div` a mano como equivalente de
+ * `<ScrollableTable>`, y NO lo es: el div deja deslizar pero no AVISA. En un
+ * celular la barra de scroll es invisible, así que la tabla se corta en el
+ * borde y parece terminar ahí. Carlos lo vio en Productos, Servicios,
+ * Subcatálogos y Almacenes — todos «pasaban» este test. Ahora se exige el
+ * componente que además pinta el degradado y la leyenda.
  */
 const RAIZ = join(__dirname, "../..");
 
@@ -50,10 +59,10 @@ describe("tablas responsivas (LEY de layout)", () => {
         // El contenedor tiene que estar en las 3 líneas de arriba: más lejos
         // que eso ya no es "envolver", es esperanza.
         const contexto = lineas.slice(Math.max(0, indice - 3), indice + 1).join("\n");
-        // Dos formas válidas: el contenedor a mano, o `<ScrollableTable>` —
-        // que además avisa cuando hay más columnas de las que caben.
-        const envuelta =
-          contexto.includes("overflow-x-auto") || contexto.includes("<ScrollableTable>");
+        // UNA sola forma válida: `<ScrollableTable>`. Un `overflow-x-auto`
+        // suelto deja deslizar pero no avisa, y lo que no se anuncia no se
+        // descubre.
+        const envuelta = contexto.includes("<ScrollableTable>");
         if (!envuelta) {
           infractoras.push(`  · ${archivo.replace(RAIZ, "src")}:${indice + 1}`);
         }

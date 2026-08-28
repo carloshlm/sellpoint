@@ -139,6 +139,29 @@ export class BillingService {
       if (localCalendarDate(tz, input.paidAt) > localCalendarDate(tz, new Date())) {
         throw new UnprocessableEntityException({ message: "billing.paid_at_in_future" });
       }
+
+      // ── El ORDEN de los pagos ─────────────────────────────────────────
+      //
+      // El período de un pago encadena con el vencimiento anterior, NO con su
+      // propia fecha. Capturar uno fechado antes del último deja el historial
+      // ordenado por fecha diciendo una cosa y los períodos diciendo otra: un
+      // pago del día 26 cubriendo noviembre y uno del 28 cubriendo octubre.
+      // Ninguno de los dos números está mal — lo que está mal es poder
+      // capturarlos así (Carlos, 2026-08-29).
+      //
+      // Se mira solo los pagos VIVOS: anular uno libera su fecha, porque
+      // anular es corregir la historia.
+      const ultimo = await tx.subscriptionPayment.findFirst({
+        where: { subscriptionId: sub.id, status: "recorded" },
+        orderBy: { paidAt: "desc" },
+        select: { paidAt: true },
+      });
+      if (ultimo && input.paidAt < ultimo.paidAt) {
+        throw new UnprocessableEntityException({
+          message: "billing.paid_at_before_last",
+          args: { last: localCalendarDate(tz, ultimo.paidAt) },
+        });
+      }
       // free re-ancla y arranca en el día del pago: sus meses muertos no se
       // cobran. El resto encadena con el período anterior (no se regalan
       // días) salvo override explícito del backoffice.
