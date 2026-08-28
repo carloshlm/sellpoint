@@ -45,3 +45,41 @@ describe("BillingBanner (F7-WEB-06)", () => {
     expect(screen.queryByTestId("billing-banner")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * El limbo entre el vencimiento y el barrido de las 3 AM (Carlos,
+ * 2026-08-29): movió un `due_at` al pasado en producción y la app no le
+ * decía nada. El estado sigue siendo `active` hasta que el cron lo mueva
+ * —eso es correcto: nadie pierde acceso por un reloj— pero avisar no puede
+ * esperar a las 3 de la mañana.
+ */
+describe("aviso de vencimiento sin esperar al barrido", () => {
+  it("un `active` marcado overdue anuncia la fecha en que venció", () => {
+    renderBanner({
+      status: "active",
+      overdue: true,
+      dueAt: "2026-08-27T06:00:00.000Z",
+      daysLeft: 0,
+    });
+
+    expect(screen.getByTestId("billing-banner")).toHaveTextContent(/venció el/i);
+  });
+
+  it("un `active` al corriente sigue sin pintar nada", () => {
+    renderBanner({ status: "active", overdue: false });
+
+    expect(screen.queryByTestId("billing-banner")).not.toBeInTheDocument();
+  });
+
+  /** El aviso gana al resto: es la noticia más urgente de la pantalla. */
+  it("el aviso de vencido tiene prioridad sobre el del trial", () => {
+    renderBanner({
+      status: "trialing",
+      overdue: true,
+      dueAt: "2026-08-27T06:00:00.000Z",
+      daysLeft: 3,
+    });
+
+    expect(screen.getByTestId("billing-banner")).toHaveTextContent(/venció el/i);
+  });
+});

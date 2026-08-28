@@ -84,6 +84,72 @@ describe("toSubscriptionBlock (F7-WEB-01)", () => {
     expect(block.billingCycle).toBe("monthly");
   });
 
+  /**
+   * ── EL LIMBO ENTRE EL VENCIMIENTO Y EL BARRIDO (Carlos, 2026-08-29) ────
+   *
+   * Carlos movió un `due_at` al pasado en producción y entró: la app no le
+   * decía nada. Y estaba bien que no lo degradara —el cron corre a las 3 AM
+   * y el estado es un dato persistido, no un cálculo por request— pero MAL
+   * que no lo avisara: entre que vence y que el barrido pasa, el cliente no
+   * veía absolutamente nada.
+   *
+   * `overdue` es solo para AVISAR. El corte y los correos siguen siendo del
+   * cron: nadie pierde acceso por un reloj.
+   */
+  it("un active con el vencimiento ya pasado se marca `overdue`, sin cambiar de estado", () => {
+    const block = toSubscriptionBlock(
+      { ...base, status: "active", billingCycle: "monthly", dueAt: "2026-08-27T06:00:00.000Z" },
+      CDMX,
+      new Date("2026-08-28T16:00:00.000Z"),
+    );
+
+    expect(block.overdue).toBe(true);
+    // El estado NO se toca: degradar sigue siendo del barrido.
+    expect(block.status).toBe("active");
+    expect(block.daysLeft).toBe(0);
+  });
+
+  it("el instante del vencimiento es límite ABIERTO: alcanzarlo ya es haber vencido", () => {
+    const justo = toSubscriptionBlock(
+      { ...base, status: "active", dueAt: "2026-08-27T06:00:00.000Z" },
+      CDMX,
+      new Date("2026-08-27T06:00:00.000Z"),
+    );
+    const unMsAntes = toSubscriptionBlock(
+      { ...base, status: "active", dueAt: "2026-08-27T06:00:00.000Z" },
+      CDMX,
+      new Date("2026-08-27T05:59:59.999Z"),
+    );
+
+    expect(justo.overdue).toBe(true);
+    // El último día hábil COMPLETO todavía no vence: es el día que pagó.
+    expect(unMsAntes.overdue).toBe(false);
+  });
+
+  it("un active al corriente no está vencido", () => {
+    const block = toSubscriptionBlock(
+      { ...base, status: "active", dueAt: "2026-09-06T06:00:00.000Z" },
+      CDMX,
+      new Date("2026-09-01T18:00:00.000Z"),
+    );
+    expect(block.overdue).toBe(false);
+  });
+
+  /** `past_due` ya tiene su propio aviso: marcarlo dos veces sería ruido. */
+  it("past_due NO se marca overdue: su banner ya cuenta la gracia", () => {
+    const block = toSubscriptionBlock(
+      {
+        ...base,
+        status: "past_due",
+        dueAt: "2026-08-20T06:00:00.000Z",
+        graceEndsAt: "2026-08-31T06:00:00.000Z",
+      },
+      CDMX,
+      new Date("2026-08-28T16:00:00.000Z"),
+    );
+    expect(block.overdue).toBe(false);
+  });
+
   it("free y canceled no tienen cuenta regresiva", () => {
     const block = toSubscriptionBlock({ ...base, status: "free" }, CDMX, new Date());
     expect(block.daysLeft).toBeNull();
@@ -98,6 +164,7 @@ describe("toSubscriptionBlock (F7-WEB-01)", () => {
       "dueAt",
       "features",
       "graceEndsAt",
+      "overdue",
       "planCode",
       "planName",
       "status",

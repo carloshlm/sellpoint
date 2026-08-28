@@ -150,7 +150,8 @@
       "trial_one": "You have 1 trial day left with the full Plus plan — choose your plan",
       "pastDue": "Your payment is overdue. {{count}} days left before switching to free mode",
       "pastDue_one": "Your payment is overdue. 1 day left before switching to free mode",
-      "free": "Free mode: view everything and make up to {{limit}} sales a day — get a plan"
+      "free": "Free mode: view everything and make up to {{limit}} sales a day — get a plan",
+      "overdue": "Your payment was due on {{date}}. Settle it to keep your plan"
     },
     "me": {
       "title": "My plan",

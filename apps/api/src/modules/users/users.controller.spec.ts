@@ -44,6 +44,7 @@ const ME: MeProfile = {
     dueAt: null,
     graceEndsAt: null,
     daysLeft: 14,
+    overdue: false,
     writeAccess: true,
     stockControl: true,
     dailySalesLimit: null,

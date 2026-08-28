@@ -84,6 +84,12 @@ Reglas que los tests fijan (`billing-*.e2e-spec.ts`, 49 casos):
 - Todas las fechas guardadas son **límite abierto**: el instante es el
   arranque del día siguiente al último día hábil. La fecha legible de un
   vencimiento es la del milisegundo anterior (`getTime() - 1`).
+- **El estado es un DATO que el cron persiste, no un cálculo por request.**
+  Entre que un `due_at` vence y que el barrido de las 3 AM lo mueve, el
+  `status` sigue diciendo `active` — y está bien: nadie pierde acceso por un
+  reloj. Pero el `SubscriptionBlock` trae `overdue: true` en esa ventana, y
+  el banner lo anuncia al instante. Avisar es inmediato; degradar es del
+  cron.
 
 ## 3. El modelo de datos
 

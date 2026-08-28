@@ -15,6 +15,11 @@ export function usePlan() {
     planCode: subscription?.planCode ?? null,
     status: subscription?.status ?? null,
     daysLeft: subscription?.daysLeft ?? null,
+    // El vencimiento ya pasó y el barrido todavía no lo procesó: solo para
+    // AVISAR — el corte lo sigue decidiendo `writeAccess`, que viene del
+    // estado que el cron persiste.
+    overdue: subscription?.overdue ?? false,
+    dueAt: subscription?.dueAt ?? null,
     canWrite: subscription?.writeAccess ?? false,
     stockControl: subscription?.stockControl ?? false,
     dailySalesLimit: subscription?.dailySalesLimit ?? null,

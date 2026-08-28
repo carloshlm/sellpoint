@@ -10,8 +10,33 @@ import { useBillingStore } from "@/stores/billing.store";
  */
 export function BillingBanner() {
   const { t } = useTranslation();
-  const { status, daysLeft, planCode, dailySalesLimit } = usePlan();
+  const { status, daysLeft, planCode, dailySalesLimit, overdue, dueAt } = usePlan();
   const openPlansModal = useBillingStore((state) => state.openPlansModal);
+
+  /**
+   * El vencimiento ya pasó y el barrido de las 3 AM todavía no lo procesó.
+   * Va PRIMERO —antes que cualquier otro estado— porque es la noticia más
+   * urgente que puede tener el negocio en pantalla, y porque sin esto no
+   * veía nada entre que su pago vencía y que el cron lo movía.
+   *
+   * El instante guardado es límite ABIERTO (el arranque del día siguiente al
+   * último día hábil), así que la fecha que el cliente reconoce como "su
+   * vencimiento" es la del milisegundo anterior.
+   */
+  if (overdue && dueAt) {
+    return (
+      <button
+        type="button"
+        data-testid="billing-banner"
+        onClick={openPlansModal}
+        className="w-full bg-destructive px-4 py-2 text-center text-destructive-foreground text-sm"
+      >
+        {t("common.billing.banner.overdue", {
+          date: new Date(Date.parse(dueAt) - 1).toLocaleDateString(),
+        })}
+      </button>
+    );
+  }
 
   if (status === "trialing") {
     return (

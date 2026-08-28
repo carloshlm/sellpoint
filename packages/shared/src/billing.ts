@@ -93,6 +93,17 @@ export const subscriptionBlockSchema = z.object({
   dueAt: z.iso.datetime().nullable(),
   graceEndsAt: z.iso.datetime().nullable(),
   daysLeft: z.number().int().nullable(),
+  /**
+   * El vencimiento YA PASÓ y el sistema todavía no lo procesó: el barrido
+   * corre una vez al día (3 AM) y hasta entonces el `status` sigue diciendo
+   * `active`. Sin esta bandera el cliente no vería NADA entre que su pago
+   * vence y que el cron lo mueve — justo cuando más falta hace avisarle
+   * (Carlos, 2026-08-29).
+   *
+   * Es solo para AVISAR: el corte y los correos siguen siendo del cron.
+   * Nadie pierde acceso por un reloj.
+   */
+  overdue: z.boolean(),
   writeAccess: z.boolean(),
   stockControl: z.boolean(),
   dailySalesLimit: z.number().int().positive().nullable(),

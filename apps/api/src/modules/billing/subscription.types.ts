@@ -45,6 +45,15 @@ export function toSubscriptionBlock(
     daysLeft = Math.max(0, daysBetween(hoy, ultimoDiaHabil));
   }
 
+  // Un `active` cuyo vencimiento ya pasó: el barrido de las 3 AM todavía no
+  // lo movió a `past_due`. El instante guardado es límite ABIERTO (el
+  // arranque del día siguiente al último día hábil), así que alcanzarlo ES
+  // haber vencido. `past_due` no se marca acá: ese ya tiene su propio aviso.
+  const overdue =
+    entitlements.status === "active" &&
+    entitlements.dueAt !== null &&
+    now.getTime() >= Date.parse(entitlements.dueAt);
+
   return {
     planCode: entitlements.planCode,
     planName: entitlements.planName,
@@ -54,6 +63,7 @@ export function toSubscriptionBlock(
     dueAt: entitlements.dueAt,
     graceEndsAt: entitlements.graceEndsAt,
     daysLeft,
+    overdue,
     writeAccess: entitlements.writeAccess,
     stockControl: entitlements.stockControl,
     dailySalesLimit: entitlements.dailySalesLimit,
