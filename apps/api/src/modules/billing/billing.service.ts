@@ -507,6 +507,42 @@ export class BillingService {
     });
   }
 
+  /**
+   * F7-WEB-02 — la pantalla de planes: el catálogo publicable con el precio
+   * del MERCADO pedido (fallback US para países sin tarifa propia). Free se
+   * excluye (no se vende: es a donde se cae) y Premium sale con precio null —
+   * su CTA es "Contactar", el precio se pacta por cliente.
+   */
+  async listPublicPlans(country: string) {
+    const planes = await this.prisma.plan.findMany({
+      where: { isActive: true, code: { not: "free" } },
+      include: { prices: true },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    return planes.map((plan) => {
+      const price =
+        plan.prices.find((p) => p.country === country) ??
+        plan.prices.find((p) => p.country === "US") ??
+        null;
+      return {
+        code: plan.code,
+        name: plan.name,
+        description: plan.description,
+        maxUsers: plan.maxUsers,
+        maxWarehouses: plan.maxWarehouses,
+        features: plan.features,
+        price: price
+          ? {
+              currency: price.currency,
+              monthly: String(price.priceMonthly),
+              yearly: String(price.priceYearly),
+            }
+          : null,
+      };
+    });
+  }
+
   /** La fila del país del tenant, o la tarifa US (default internacional). */
   private async resolvePrice(tx: Prisma.TransactionClient, planId: string, country: string | null) {
     if (country) {

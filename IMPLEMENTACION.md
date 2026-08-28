@@ -3178,17 +3178,17 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** los dos emisores devuelven el mismo shape (test gemelo del de `TenantBlock`).
   - **Depende de:** F7-CORE-02 · **Estimación:** 2 h
 
-- [ ] **F7-WEB-02** — `GET /billing/plans` (`@Public`) y `GET /billing/me`
+- [x] **F7-WEB-02** *(cerrada el 2026-08-28 — listPublicPlans excluye free, resuelve por país con fallback US; /billing/me reusa el detalle del backoffice: es SU tenant)* — `GET /billing/plans` (`@Public`) y `GET /billing/me`
   - **Salida:** `billing.controller.ts`; los precios salen en la moneda del tenant autenticado (su `country`); sin sesión acepta `?country=` con fallback US. Premium sale sin precio (CTA "Contactar"); `/billing/me` con historial propio (permiso `tenants:manage`).
   - **Verificar:** sin token, `/billing/plans` responde 200 con los 4 planes visibles (free excluido); un tenant MX ve MXN y uno US ve USD.
   - **Depende de:** F7-DB-02 · **Estimación:** 1.5 h
 
-- [ ] **F7-WEB-03** — Primitivo `Dialog`
+- [x] **F7-WEB-03** *(cerrada el 2026-08-28 — portal + aria-modal + Escape + backdrop + foco adentro; cerrado se DESMONTA, sin foco fantasma)* — Primitivo `Dialog`
   - **Salida:** `apps/web/src/components/ui/dialog.tsx`: portal + backdrop + `role="dialog"` + `aria-modal` + focus trap + Escape.
   - **Verificar:** test de accesibilidad; cierre por Escape y por backdrop.
   - **Depende de:** — · **Estimación:** 2 h
 
-- [ ] **F7-WEB-04** — `usePlan()` + `PlansModal`
+- [x] **F7-WEB-04** *(cerrada el 2026-08-28 — el modal sin botón de pago a propósito: cobro manual, todo cambio pasa por contacto; el footer promete que nada se borra)* — `usePlan()` + `PlansModal`
   - **Salida:** hook (`hasFeature`, `canWrite`, `status`, `daysLeft`) + modal con las 4 tarjetas en la moneda del tenant, toggle mensual/anual (anual muestra 10×) y Premium con "Contactar".
   - **Verificar:** RTL: Basic ve Pro/Plus como upgrade; el toggle anual muestra los precios ×10; un tenant US ve USD.
   - **Depende de:** F7-WEB-02, F7-WEB-03 · **Estimación:** 2.5 h

@@ -128,5 +128,22 @@
     }
   },
   "welcome": "Bienvenido a SellPointy",
-  "sandboxBanner": "SANDBOX — ambiente de pruebas. Nada de lo que hagas aquí afecta tu negocio real."
+  "sandboxBanner": "SANDBOX — ambiente de pruebas. Nada de lo que hagas aquí afecta tu negocio real.",
+  "billing": {
+    "plans": {
+      "title": "Elige el plan de tu negocio",
+      "monthly": "Mensual",
+      "yearly": "Anual · 2 meses gratis",
+      "perMonth": "/mes",
+      "perYear": "/año",
+      "customPrice": "A tu medida",
+      "maxUsers": "Hasta {{count}} usuarios",
+      "maxWarehouses": "Hasta {{count}} almacenes",
+      "unlimitedUsers": "Usuarios ilimitados",
+      "unlimitedWarehouses": "Almacenes ilimitados",
+      "current": "Tu plan actual",
+      "contact": "Contáctanos",
+      "footer": "Para contratar o cambiar de plan, contáctanos y lo activamos el mismo día. Tu información nunca se borra."
+    }
+  }
 }

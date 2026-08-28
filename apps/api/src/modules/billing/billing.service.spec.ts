@@ -43,7 +43,7 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
   let tx: {
     tenant: { findUniqueOrThrow: Mock };
     tenantSubscription: { findUnique: Mock; update: Mock };
-    plan: { findUniqueOrThrow: Mock };
+    plan: { findUniqueOrThrow: Mock; findMany?: Mock };
     planPrice: { findUnique: Mock };
     subscriptionPayment: { create: Mock; findUniqueOrThrow: Mock; findMany: Mock; update: Mock };
     tenantDiscount: { findFirst: Mock; create: Mock; update: Mock };
@@ -527,6 +527,59 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
         tx,
         expect.objectContaining({ action: "billing.discount_revoked" }),
       );
+    });
+  });
+
+  describe("listPublicPlans (F7-WEB-02)", () => {
+    beforeEach(() => {
+      tx.plan.findMany = jest.fn().mockResolvedValue([
+        {
+          code: "basic",
+          name: "Basic",
+          description: "POS",
+          sortOrder: 1,
+          maxUsers: 3,
+          maxWarehouses: 1,
+          features: {},
+          prices: [
+            { country: "MX", currency: "MXN", priceMonthly: "199", priceYearly: "1990" },
+            { country: "US", currency: "USD", priceMonthly: "15", priceYearly: "150" },
+          ],
+        },
+        {
+          code: "premium",
+          name: "Premium",
+          description: "A la medida",
+          sortOrder: 4,
+          maxUsers: null,
+          maxWarehouses: null,
+          features: {},
+          prices: [],
+        },
+      ]);
+      // El catálogo es global (sin RLS): se lee con el cliente base.
+      // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
+      (service as any).prisma.plan = tx.plan;
+    });
+
+    it("excluye free, resuelve el precio del país pedido y Premium sale SIN precio", async () => {
+      const planes = await service.listPublicPlans("MX");
+
+      expect(tx.plan.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isActive: true, code: { not: "free" } },
+        }),
+      );
+      expect(planes[0]).toMatchObject({
+        code: "basic",
+        price: { currency: "MXN", monthly: "199", yearly: "1990" },
+      });
+      expect(planes[1]).toMatchObject({ code: "premium", price: null });
+    });
+
+    it("un país sin precio propio cae a la tarifa US", async () => {
+      const planes = await service.listPublicPlans("CO");
+      expect(planes[0]?.price).toMatchObject({ currency: "USD", monthly: "15" });
     });
   });
 });

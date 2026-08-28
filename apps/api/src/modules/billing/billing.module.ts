@@ -5,6 +5,7 @@ import { AuditModule } from "../audit/audit.module";
 import { MailModule } from "../mail/mail.module";
 import { AdminBillingController } from "./admin-billing.controller";
 import { AdminBillingService } from "./admin-billing.service";
+import { BillingController } from "./billing.controller";
 import { BillingService } from "./billing.service";
 import { BillingCronRegistrar } from "./billing-cron.registrar";
 import { BillingDailyJob } from "./billing-daily.job";
@@ -21,7 +22,7 @@ import { SalesPlanGate } from "./sales-plan.gate";
  */
 @Module({
   imports: [RedisModule, AuditModule, MailModule, ScheduleModule.forRoot()],
-  controllers: [AdminBillingController],
+  controllers: [AdminBillingController, BillingController],
   providers: [
     EntitlementsService,
     BillingService,
