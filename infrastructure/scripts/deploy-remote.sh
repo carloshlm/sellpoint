@@ -199,8 +199,23 @@ fi
 # --ignore-buildable: sin esto, pull intenta bajar del registry la imagen
 # local de php-fpm (sellpoint-php-fpm:local, que no existe en ningún
 # registry) y aborta el deploy entero.
-if ! docker compose -f "${COMPOSE_FILE}" pull --ignore-buildable; then
-  echo "Pull FALLÓ. Revirtiendo IMAGE_TAG sin desplegar."
+#
+# Con retry, IGUAL que la migración: la carrera de pulls paralelos (prod y
+# sandbox sobre el mismo daemon) pega en CUALQUIER pull del script — el
+# 2026-08-28 tumbó este paso con "lease does not exist" después de que el
+# retry de la migración ya había salvado el suyo. El reintento encuentra
+# las capas que el otro deploy dejó completas.
+PULL_OK=0
+for intento in 1 2 3; do
+  if docker compose -f "${COMPOSE_FILE}" pull --ignore-buildable; then
+    PULL_OK=1
+    break
+  fi
+  echo "Pull falló (intento ${intento}/3); reintentando en 15s..."
+  sleep 15
+done
+if [ "${PULL_OK}" != "1" ]; then
+  echo "Pull FALLÓ tras 3 intentos. Revirtiendo IMAGE_TAG sin desplegar."
   write_image_tag "${PREV_TAG}"
   exit 1
 fi
