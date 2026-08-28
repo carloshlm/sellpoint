@@ -91,6 +91,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           dueAt: null,
           lastPaymentAt: null,
           timezone: "America/Mexico_City",
+          charge: { monthly: "499.00", yearly: "4990.00", currency: "MXN" },
         },
       ],
       mrrByCurrency: { MXN: "499.00" },
@@ -118,6 +119,8 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           status: "recorded",
           periodStart: "2026-08-28T06:00:00.000Z",
           periodEnd: "2026-09-28T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
           notes: null,
         },
       ],
@@ -148,30 +151,31 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
    * El seguro del cobro (Carlos, 2026-08-29): el server rechaza un monto que
    * no cubre el plan, y la casilla es la forma de decir "lo acepto igual".
    */
-  it("la casilla de pago parcial viaja al server solo cuando se marca", async () => {
+  /**
+   * La regla del cuadre (Carlos, 2026-08-29): recibido + descuento = precio.
+   * El formulario propone el cargo y deja capturar lo que perdonaste; el
+   * server rechaza cualquier combinación que no dé el precio.
+   */
+  it("propone el cargo y manda monto y descuento", async () => {
     await renderAdmin(true);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
 
-    await user.type(screen.getByLabelText(/Monto recibido/), "100");
+    // El cargo a la vista y ya propuesto en el campo: cuadrar la cuenta no
+    // puede exigir calculadora.
+    expect(screen.getByTestId("expected-charge")).toHaveTextContent("499.00 MXN");
+    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
+
+    await user.clear(screen.getByLabelText(/Monto recibido/));
+    await user.type(screen.getByLabelText(/Monto recibido/), "300.00");
+    await user.clear(screen.getByLabelText("Descuento"));
+    await user.type(screen.getByLabelText("Descuento"), "199.00");
     await user.click(screen.getByRole("button", { name: "Registrar" }));
+
     await waitFor(() => {
       expect(mockedRecord).toHaveBeenCalledWith(
         "t1",
-        expect.objectContaining({ amountReceived: "100", allowPartial: undefined }),
-      );
-    });
-
-    // El modal se cierra al registrar con éxito: se vuelve a abrir para el
-    // segundo intento, que es lo que haría el dueño en la pantalla real.
-    await user.click(screen.getByRole("button", { name: "Registrar pago" }));
-    await user.type(screen.getByLabelText(/Monto recibido/), "100");
-    await user.click(screen.getByLabelText(/Aceptar aunque no cubra/));
-    await user.click(screen.getByRole("button", { name: "Registrar" }));
-    await waitFor(() => {
-      expect(mockedRecord).toHaveBeenLastCalledWith(
-        "t1",
-        expect.objectContaining({ amountReceived: "100", allowPartial: true }),
+        expect.objectContaining({ amountReceived: "300.00", discountAmount: "199.00" }),
       );
     });
   });
@@ -224,6 +228,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           dueAt: null,
           lastPaymentAt: null,
           timezone: "America/Mexico_City",
+          charge: null,
         },
       ],
       mrrByCurrency: {},

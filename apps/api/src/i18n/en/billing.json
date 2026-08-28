@@ -1,7 +1,8 @@
 {
-  "amount_below_charge": "The amount received ({received}) does not cover this period's charge ({expected}). Confirm the partial payment to record it anyway.",
+  "amount_mismatch": "The numbers do not add up: you received {received} but with the discount applied it should be {expected} (price {gross} − discount {discount}).",
   "custom_price_required": "A plan without a published price needs a per-client agreed price.",
   "daily_sales_limit_reached": "You reached today's {limit} sales of free mode. Get a plan to sell without limits.",
+  "discount_above_charge": "The discount ({discount}) cannot exceed the plan price ({gross}).",
   "discount_overlap": "There is already an active discount for this business. Revoke it before granting another.",
   "feature_not_in_plan": "Your plan does not include this feature. Upgrade your plan to enable it.",
   "invalid_amount": "The amount is not valid: use numbers with up to two decimals.",

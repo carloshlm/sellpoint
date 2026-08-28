@@ -107,22 +107,49 @@ function BillingSettings() {
           {data && data.payments.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("common.billing.me.noPayments")}</p>
           ) : (
-            <ul className="space-y-1 text-sm">
+            <ul className="space-y-3 text-sm">
               {(data?.payments ?? []).map((pago) => (
-                <li key={pago.id} className="flex justify-between gap-2">
-                  <span>
-                    {fecha(pago.paidAt)} · {pago.planCode} ·{" "}
-                    {t(`common.billing.me.method.${pago.method}`)}
-                    {pago.status === "voided" ? ` · ${t("common.billing.me.voided")}` : ""}
-                  </span>
-                  <span className="font-medium tabular-nums">
-                    {formatMoney(
-                      Number(pago.amount),
-                      // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot del pago
-                      pago.currency as any,
-                      locale,
-                    )}
-                  </span>
+                <li
+                  key={pago.id}
+                  className={pago.status === "voided" ? "text-muted-foreground" : ""}
+                >
+                  <div className="flex justify-between gap-2">
+                    <span>
+                      {fecha(pago.paidAt)} · {pago.planCode} ·{" "}
+                      {t(`common.billing.me.method.${pago.method}`)}
+                      {pago.status === "voided" ? ` · ${t("common.billing.me.voided")}` : ""}
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {formatMoney(
+                        Number(pago.amount),
+                        // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot del pago
+                        pago.currency as any,
+                        locale,
+                      )}
+                    </span>
+                  </div>
+                  {/*
+                    El PERÍODO que cubrió el pago: la respuesta a "¿hasta
+                    cuándo tengo pagado?", que es lo que el cliente viene a
+                    buscar acá. El fin es un límite ABIERTO.
+                  */}
+                  <p className="text-muted-foreground text-xs">
+                    {t("common.billing.me.period")}: {fecha(pago.periodStart)} —{" "}
+                    {vence(pago.periodEnd)}
+                    {Number(pago.discountAmount) > 0 ? (
+                      <>
+                        {" · "}
+                        {t("common.billing.me.discountLine", {
+                          amount: formatMoney(
+                            Number(pago.discountAmount),
+                            // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot del pago
+                            pago.currency as any,
+                            locale,
+                          ),
+                        })}
+                      </>
+                    ) : null}
+                  </p>
                 </li>
               ))}
             </ul>

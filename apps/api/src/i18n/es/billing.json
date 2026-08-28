@@ -1,7 +1,8 @@
 {
-  "amount_below_charge": "El monto recibido ({received}) no cubre el cargo del período ({expected}). Confirma el pago parcial si quieres registrarlo igual.",
+  "amount_mismatch": "La cuenta no cuadra: recibiste {received} y con el descuento aplicado deberían ser {expected} (precio {gross} − descuento {discount}).",
   "custom_price_required": "Un plan sin precio publicado necesita un precio pactado por cliente.",
   "daily_sales_limit_reached": "Alcanzaste las {limit} ventas de hoy del modo gratuito. Contrata un plan para vender sin límite.",
+  "discount_above_charge": "El descuento ({discount}) no puede ser mayor que el precio del plan ({gross}).",
   "discount_overlap": "Ya hay un descuento activo para este negocio. Revoca el vigente antes de otorgar otro.",
   "feature_not_in_plan": "Tu plan no incluye esta función. Mejora tu plan para activarla.",
   "invalid_amount": "El monto no es válido: usa números con hasta dos decimales.",

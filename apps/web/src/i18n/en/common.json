@@ -178,7 +178,10 @@
         "other": "Other",
         "courtesy": "Courtesy"
       },
-      "dueWas": "Was due on {{date}}"
+      "dueWas": "Was due on {{date}}",
+      "period": "Period",
+      "received": "Received",
+      "discountLine": "discount {{amount}}"
     },
     "admin": {
       "title": "Billing backoffice",
@@ -212,9 +215,11 @@
       "discount": "Active discount: {{detail}}",
       "close": "Close",
       "period": "Period",
-      "allowPartial": "Accept even if it does not cover the plan price",
-      "allowPartialHint": "The shortfall is recorded on the payment and in the audit log.",
-      "paidAtHint": "Cannot be in the future."
+      "paidAtHint": "Cannot be in the future.",
+      "discountAmount": "Discount",
+      "expectedCharge": "Owes: {{amount}}",
+      "amountReceivedRequired": "Amount received",
+      "mustMatch": "Received + discount must equal the plan price."
     }
   }
 }

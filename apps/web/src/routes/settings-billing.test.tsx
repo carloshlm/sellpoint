@@ -92,6 +92,8 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
           status: "recorded",
           periodStart: "2026-08-05T18:00:00.000Z",
           periodEnd: "2026-09-06T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
           notes: null,
         },
       ],
@@ -105,6 +107,54 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     expect(screen.getByText(/Plus/)).toBeInTheDocument();
     expect(await screen.findByText(/Transferencia/)).toBeInTheDocument();
     expect(screen.getByText(/\$499\.00/)).toBeInTheDocument();
+  });
+
+  /**
+   * Carlos (2026-08-29): «cuando un cliente ve sus pagos, ¿puedes poner el
+   * período que cubre cada pago? También el monto recibido y el descuento».
+   *
+   * Es la pregunta que trae al cliente a esta pantalla: no "cuánto pagué"
+   * sino "hasta cuándo tengo pagado". Y con la regla del cuadre, el monto
+   * mostrado ES el recibido — por eso no hace falta una columna aparte.
+   */
+  it("cada pago muestra el período que cubrió y su descuento", async () => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-06T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [
+        {
+          id: "pay-1",
+          paidAt: "2026-08-05T18:00:00.000Z",
+          amount: "300.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "recorded",
+          periodStart: "2026-08-05T18:00:00.000Z",
+          periodEnd: "2026-09-06T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "199.00",
+          notes: null,
+        },
+      ],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+    });
+
+    await renderBilling(["tenants:manage"]);
+
+    // El período, con el fin como límite ABIERTO: cubrió hasta el 5-sep.
+    expect(await screen.findByText(/Período: 5\/8\/2026 — 5\/9\/2026/)).toBeInTheDocument();
+    // Lo que entró y lo que se le perdonó, ambos a la vista.
+    expect(screen.getByText(/\$300\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/descuento \$199\.00/)).toBeInTheDocument();
   });
 
   /**

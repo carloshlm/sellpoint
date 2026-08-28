@@ -229,7 +229,12 @@ describe("Trial vencido → modo gratuito (F7-E2E-02)", () => {
       await request(app.getHttpServer())
         .post(`/admin/billing/tenants/${negocio.tenantId}/payments`)
         .set("Authorization", bearer(admin.token))
-        .send({ billingCycle: "monthly", method: "transfer", paidAt: new Date().toISOString() })
+        .send({
+          billingCycle: "monthly",
+          method: "transfer",
+          paidAt: new Date().toISOString(),
+          amountReceived: "499.00",
+        })
         .expect(201);
 
       for (let i = 0; i < 11; i += 1) {

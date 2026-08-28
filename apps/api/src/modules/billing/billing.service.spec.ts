@@ -155,6 +155,9 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       billingCycle: "monthly" as const,
       method: "transfer" as const,
       paidAt: new Date("2026-08-05T18:00:00.000Z"), // 5-ago local CDMX
+      // La regla del cuadre (Carlos, 2026-08-29): recibido + descuento debe
+      // dar el precio, así que capturar el monto es obligatorio.
+      amountReceived: "499.00",
     };
 
     it("trial→active: fija el ancla al día LOCAL del pago y el vencimiento un mes después", async () => {
@@ -202,7 +205,7 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
     });
 
     it("planCode en el pago cambia el plan en el mismo acto (fin de trial Plus → paga Basic)", async () => {
-      await service.recordPayment({ ...pagoBase, planCode: "basic" });
+      await service.recordPayment({ ...pagoBase, planCode: "basic", amountReceived: "199.00" });
 
       const update = tx.tenantSubscription.update.mock.calls[0][0].data;
       expect(update.planId).toBe("plan-basic");
@@ -263,7 +266,7 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
         appliedPeriods: 3,
       });
 
-      await service.recordPayment(pagoBase);
+      await service.recordPayment({ ...pagoBase, amountReceived: "299.00" });
 
       const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
       expect(pago.discountAmount).toBe("200.00");
@@ -295,7 +298,7 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
     it("el precio sale del MERCADO del tenant: country US cobra USD", async () => {
       tx.tenant.findUniqueOrThrow.mockResolvedValue(tenantRow({ country: "US" }));
 
-      await service.recordPayment(pagoBase);
+      await service.recordPayment({ ...pagoBase, amountReceived: "45.00" });
 
       const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
       expect(pago.grossAmount).toBe("45.00");
@@ -305,7 +308,7 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
     it("un país sin precio propio cae a la tarifa US (default internacional)", async () => {
       tx.tenant.findUniqueOrThrow.mockResolvedValue(tenantRow({ country: "CO" }));
 
-      await service.recordPayment(pagoBase);
+      await service.recordPayment({ ...pagoBase, amountReceived: "45.00" });
 
       const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
       expect(pago.grossAmount).toBe("45.00");
@@ -327,19 +330,37 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       );
       tx.planPrice.findUnique.mockResolvedValue(null);
 
-      await service.recordPayment(pagoBase);
+      await service.recordPayment({ ...pagoBase, amountReceived: "1250.00" });
 
       const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
       expect(pago.grossAmount).toBe("1250.00");
       expect(pago.amount).toBe("1250.00");
     });
 
-    it("si el monto recibido difiere del calculado, la diferencia va a NOTAS y el período no se toca", async () => {
-      await service.recordPayment({ ...pagoBase, amountReceived: "2000.00" });
+    /**
+     * Antes, un monto distinto se registraba igual y la diferencia quedaba en
+     * una nota de texto. Ahora la cuenta cuadra o no hay pago: lo que se
+     * perdona se captura como DESCUENTO, que es un dato y no prosa.
+     */
+    it("un monto que no cuadra con el cargo se RECHAZA", async () => {
+      await expect(
+        service.recordPayment({ ...pagoBase, amountReceived: "2000.00" }),
+      ).rejects.toThrow();
+      expect(tx.subscriptionPayment.create).not.toHaveBeenCalled();
+    });
+
+    it("recibido + descuento = precio: 300 con 199 de descuento entra y queda asentado", async () => {
+      await service.recordPayment({
+        ...pagoBase,
+        amountReceived: "300.00",
+        discountAmount: "199.00",
+      });
 
       const pago = tx.subscriptionPayment.create.mock.calls[0][0].data;
-      expect(pago.amount).toBe("499.00"); // el calculado manda
-      expect(pago.notes).toContain("2000.00");
+      expect(pago.grossAmount).toBe("499.00");
+      expect(pago.discountAmount).toBe("199.00");
+      // Con la cuenta cuadrada, lo guardado ES lo recibido.
+      expect(pago.amount).toBe("300.00");
     });
 
     it("un pago sobre una suscripción cancelada rebota: primero se reactiva", async () => {

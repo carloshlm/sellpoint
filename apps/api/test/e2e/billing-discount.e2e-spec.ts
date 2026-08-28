@@ -61,11 +61,21 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
       .set("Authorization", bearer(admin.token))
       .send(body);
 
-  const pagar = (tenantId: string) =>
+  /**
+   * El monto recibido ES el cargo esperado: la regla del cuadre obliga a
+   * capturarlo, así que cada llamada declara cuánto debería entrar — y el
+   * test falla si el cupón calculara otra cosa. Es una aserción más, gratis.
+   */
+  const pagar = (tenantId: string, amountReceived: string) =>
     request(app.getHttpServer())
       .post(`/admin/billing/tenants/${tenantId}/payments`)
       .set("Authorization", bearer(admin.token))
-      .send({ billingCycle: "monthly", method: "transfer", paidAt: new Date().toISOString() });
+      .send({
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date().toISOString(),
+        amountReceived,
+      });
 
   const cupones = (tenantId: string) =>
     prisma.withTenantContext(tenantId, (tx) => tx.tenantDiscount.findMany({ where: { tenantId } }));
@@ -91,7 +101,10 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
 
       const cobrados: string[] = [];
       for (let i = 0; i < 13; i += 1) {
-        const pago = await pagar(negocio.tenantId).expect(201);
+        // El cupón cubre 12 períodos: del 13º en adelante entra la tarifa
+        // completa. Capturar el monto esperado hace que el test falle si el
+        // cupón se agotara antes o durara de más.
+        const pago = await pagar(negocio.tenantId, i < 12 ? "299.00" : "499.00").expect(201);
         cobrados.push((pago.body as { amount: string }).amount);
       }
 
@@ -111,7 +124,7 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
         maxPeriods: 12,
       });
 
-      const pago = await pagar(negocio.tenantId).expect(201);
+      const pago = await pagar(negocio.tenantId, "299.00").expect(201);
 
       expect(pago.body).toMatchObject({
         grossAmount: "499",
@@ -129,7 +142,7 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
     it("`free` cobra 0 y el pago queda registrado igual", async () => {
       const negocio = await negocioConCupon({ kind: "free", maxPeriods: 2 });
 
-      const primero = await pagar(negocio.tenantId).expect(201);
+      const primero = await pagar(negocio.tenantId, "0").expect(201);
       expect(primero.body).toMatchObject({
         grossAmount: "499",
         discountAmount: "499",
@@ -171,7 +184,9 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
       });
       const [cupon] = await cupones(negocio.tenantId);
 
-      expect((await pagar(negocio.tenantId).expect(201)).body).toMatchObject({ amount: "299" });
+      expect((await pagar(negocio.tenantId, "299.00").expect(201)).body).toMatchObject({
+        amount: "299",
+      });
 
       await request(app.getHttpServer())
         .delete(`/admin/billing/tenants/${negocio.tenantId}/discounts/${cupon?.id}`)
@@ -179,7 +194,9 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
         .send({ reason: "terminó la promoción" })
         .expect(200);
 
-      expect((await pagar(negocio.tenantId).expect(201)).body).toMatchObject({ amount: "499" });
+      expect((await pagar(negocio.tenantId, "499.00").expect(201)).body).toMatchObject({
+        amount: "499",
+      });
     });
   });
 
@@ -192,7 +209,9 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
         maxPeriods: 12,
       });
 
-      expect((await pagar(negocio.tenantId).expect(201)).body).toMatchObject({ amount: "499" });
+      expect((await pagar(negocio.tenantId, "499.00").expect(201)).body).toMatchObject({
+        amount: "499",
+      });
     });
 
     it("un cupón que ya venció tampoco", async () => {
@@ -203,7 +222,9 @@ describe("Cupones con vigencia (F7-E2E-05)", () => {
         endsAt: new Date(Date.now() - 86_400_000).toISOString(),
       });
 
-      expect((await pagar(negocio.tenantId).expect(201)).body).toMatchObject({ amount: "499" });
+      expect((await pagar(negocio.tenantId, "499.00").expect(201)).body).toMatchObject({
+        amount: "499",
+      });
     });
   });
 });

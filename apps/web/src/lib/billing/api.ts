@@ -45,6 +45,8 @@ export interface MyBilling {
     status: string;
     periodStart: string;
     periodEnd: string;
+    grossAmount: string;
+    discountAmount: string;
     notes: string | null;
   }[];
   activeDiscount: {
@@ -75,6 +77,8 @@ export interface AdminTenants {
     dueAt: string | null;
     lastPaymentAt: string | null;
     timezone: string;
+    /** Lo que debe pagar hoy, con su cupón ya aplicado. */
+    charge: { monthly: string; yearly: string; currency: string } | null;
   }[];
   mrrByCurrency: Record<string, string>;
 }
@@ -108,9 +112,10 @@ export interface RecordPaymentInput {
   method: "transfer" | "cash" | "card" | "other" | "courtesy";
   paidAt: string;
   planCode?: string;
-  amountReceived?: string;
-  /** Confirma un pago que no cubre el cargo; sin esto el server lo rechaza. */
-  allowPartial?: boolean;
+  /** Obligatorio: lo que el cliente transfirió de verdad. */
+  amountReceived: string;
+  /** Lo perdonado en este pago; recibido + descuento = precio del plan. */
+  discountAmount?: string;
   notes?: string;
 }
 

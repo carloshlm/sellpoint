@@ -142,12 +142,22 @@ describe("Aislamiento del backoffice (F7-E2E-06)", () => {
       await request(app.getHttpServer())
         .post(`/admin/billing/tenants/${negocioA.tenantId}/payments`)
         .set("Authorization", bearer(admin.token))
-        .send({ billingCycle: "monthly", method: "transfer", paidAt: new Date().toISOString() })
+        .send({
+          billingCycle: "monthly",
+          method: "transfer",
+          paidAt: new Date().toISOString(),
+          amountReceived: "499.00",
+        })
         .expect(201);
       await request(app.getHttpServer())
         .post(`/admin/billing/tenants/${negocioB.tenantId}/payments`)
         .set("Authorization", bearer(admin.token))
-        .send({ billingCycle: "monthly", method: "transfer", paidAt: new Date().toISOString() })
+        .send({
+          billingCycle: "monthly",
+          method: "transfer",
+          paidAt: new Date().toISOString(),
+          amountReceived: "59.00",
+        })
         .expect(201);
 
       const listado = await request(app.getHttpServer())

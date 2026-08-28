@@ -34,10 +34,10 @@ export interface RecordPaymentInput {
   paidAt: Date;
   /** Cambia el plan en el mismo acto (caso típico: fin de trial Plus → paga Basic). */
   planCode?: PlanCode;
-  /** Lo que el cliente realmente transfirió — si difiere del calculado, queda en notas. */
-  amountReceived?: string;
-  /** Confirmación explícita para aceptar un pago que no cubre el cargo. */
-  allowPartial?: boolean;
+  /** Lo que el cliente transfirió de verdad. Obligatorio: la cuenta cuadra o no se registra. */
+  amountReceived: string;
+  /** Lo perdonado en ESTE pago, encima del cupón vigente. */
+  discountAmount?: string;
   gatewayReference?: string;
   /** Override explícito: "reactivar desde hoy sin cobrar los meses muertos". */
   periodStart?: Date;
@@ -65,6 +65,12 @@ export interface RecordPaymentInput {
  *    intacto (semántica Stripe): el servicio pagado se respeta hasta el
  *    corte y el CRON hace la transición al vencer.
  */
+/** Centavos → texto decimal, sin IEEE-754 (mismo criterio que shared). */
+function centavosATexto(cents: number): string {
+  const abs = Math.abs(Math.round(cents));
+  return `${Math.trunc(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
+}
+
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
@@ -154,39 +160,45 @@ export class BillingService {
       const dueDate = addBillingPeriod(fromDueDate, input.billingCycle, anchorDay);
       const dueAt = dueInstant(dueDate, tz);
 
-      // ── El pago que NO cubre el período ───────────────────────────────
+      // ── LA CUENTA TIENE QUE CUADRAR ───────────────────────────────────
       //
-      // Registrar $100 sobre un plan de $499 activaba el mes completo y solo
-      // dejaba una nota: un error de dedo regalaba un mes en silencio. Ahora
-      // se rechaza ANTES de asentar nada, diciendo cuánto falta.
+      //     recibido + descuento (cupón + el de este pago) = precio de lista
       //
-      // Se rechaza solo por DEBAJO: quien transfirió de más no puede quedar
-      // bloqueado por haber pagado de sobra. Y `allowPartial` deja forzarlo
-      // —a veces un cobro incompleto se acepta a propósito— pero como un
-      // acto explícito que queda escrito en el pago.
-      if (
-        input.amountReceived !== undefined &&
-        input.allowPartial !== true &&
-        scaledInteger(input.amountReceived, 2) < scaledInteger(cargo.net, 2)
-      ) {
+      // Es la regla de un libro de caja, y reemplaza al viejo "pago parcial
+      // forzado con una nota": un cobro incompleto se captura como DESCUENTO
+      // explícito — un dato que se puede sumar, auditar y explicar, en vez de
+      // prosa dentro de un campo de texto.
+      //
+      // Y tiene un efecto secundario feliz: con la cuenta cuadrada, `amount`
+      // ES el monto recibido. El dato queda consistente por construcción, sin
+      // una columna más que mantener sincronizada.
+      const descuentoExtra = scaledInteger(input.discountAmount ?? "0", 2);
+      const descuentoTotal = scaledInteger(cargo.discount, 2) + descuentoExtra;
+      const brutoCents = scaledInteger(cargo.gross, 2);
+
+      if (descuentoTotal > brutoCents) {
+        // Cobrar en negativo no existe: un descuento mayor que el precio es
+        // un error de captura, no una decisión comercial.
         throw new UnprocessableEntityException({
-          message: "billing.amount_below_charge",
-          args: { received: input.amountReceived, expected: cargo.net },
+          message: "billing.discount_above_charge",
+          args: { discount: centavosATexto(descuentoTotal), gross: cargo.gross },
         });
       }
 
-      // Si lo transferido no coincide con el cargo, se registra el CALCULADO
-      // (el CHECK amount = gross − discount no admite otra cosa) y la
-      // diferencia queda dicha en notas.
-      const difiere = input.amountReceived !== undefined && input.amountReceived !== cargo.net;
-      const notas = [
-        input.notes,
-        difiere
-          ? `Monto recibido: ${input.amountReceived} (el cargo calculado es ${cargo.net})`
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      const netoEsperado = centavosATexto(brutoCents - descuentoTotal);
+      if (scaledInteger(input.amountReceived, 2) !== brutoCents - descuentoTotal) {
+        throw new UnprocessableEntityException({
+          message: "billing.amount_mismatch",
+          args: {
+            received: input.amountReceived,
+            expected: netoEsperado,
+            gross: cargo.gross,
+            discount: centavosATexto(descuentoTotal),
+          },
+        });
+      }
+
+      const notas = input.notes ?? null;
 
       const payment = await tx.subscriptionPayment.create({
         data: {
@@ -196,8 +208,8 @@ export class BillingService {
           planCode: plan.code,
           billingCycle: input.billingCycle,
           grossAmount: cargo.gross,
-          discountAmount: cargo.discount,
-          amount: cargo.net,
+          discountAmount: centavosATexto(descuentoTotal),
+          amount: netoEsperado,
           currency: price?.currency ?? tenant.currency,
           discountId: discount?.id ?? null,
           method: input.method,
@@ -247,7 +259,15 @@ export class BillingService {
       });
 
       const destinatario = await this.resolveBillingRecipient(tx, tenantId);
-      return { payment, subscription: actualizada, destinatario, tenant, plan, cargo, dueDate };
+      return {
+        payment,
+        subscription: actualizada,
+        destinatario,
+        tenant,
+        plan,
+        cobrado: netoEsperado,
+        dueDate,
+      };
     });
 
     await this.entitlements.invalidate(tenantId);
@@ -256,7 +276,7 @@ export class BillingService {
       tenantName: resultado.tenant.name,
       planName: resultado.plan.name,
       amount: formatMoney(
-        Number(resultado.cargo.net),
+        Number(resultado.cobrado),
         (resultado.payment.currency as Currency) ?? "MXN",
         resultado.destinatario?.locale === "en" ? "en" : "es",
       ),

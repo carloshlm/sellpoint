@@ -16,7 +16,7 @@ describe("AdminBillingService", () => {
     tenantSubscription: { findMany: jest.Mock; findUnique: jest.Mock };
     subscriptionPayment: { findMany: jest.Mock };
     tenant: { findMany: jest.Mock };
-    tenantDiscount: { findFirst: jest.Mock };
+    tenantDiscount: { findFirst: jest.Mock; findMany: jest.Mock };
     stockByWarehouse: { findMany: jest.Mock };
     plan: { findUniqueOrThrow: jest.Mock; findMany: jest.Mock; update: jest.Mock };
     planPrice: { upsert: jest.Mock };
@@ -35,7 +35,10 @@ describe("AdminBillingService", () => {
       tenantSubscription: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
       subscriptionPayment: { findMany: jest.fn().mockResolvedValue([]) },
       tenant: { findMany: jest.fn().mockResolvedValue([]) },
-      tenantDiscount: { findFirst: jest.fn().mockResolvedValue(null) },
+      tenantDiscount: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       stockByWarehouse: { findMany: jest.fn().mockResolvedValue([]) },
       plan: { findUniqueOrThrow: jest.fn(), findMany: jest.fn(), update: jest.fn() },
       planPrice: { upsert: jest.fn() },

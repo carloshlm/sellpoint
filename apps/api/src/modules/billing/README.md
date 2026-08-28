@@ -180,9 +180,15 @@ curl -s -X POST "$BASE/tenants/<tenantId>/payments" -H "$AUTH" \
   -H 'Content-Type: application/json' -d '{
     "billingCycle": "monthly",
     "method": "transfer",
-    "paidAt": "2026-08-28T18:00:00.000Z"
+    "paidAt": "2026-08-28T18:00:00.000Z",
+    "amountReceived": "499.00",
+    "discountAmount": "0"
   }'
 ```
+
+La pantalla muestra el cargo vigente del negocio y lo propone en el campo, así
+que el caso normal es confirmar. Cuando el cliente transfirió de menos y se le
+perdona la diferencia, esa diferencia va en `discountAmount`.
 
 - `method`: `transfer` · `cash` · `card` · `other` · `courtesy`.
 - `planCode` (opcional) cambia el plan EN EL MISMO ACTO — el caso típico:
@@ -191,14 +197,20 @@ curl -s -X POST "$BASE/tenants/<tenantId>/payments" -H "$AUTH" \
   en el día del negocio): un pago es un hecho, y un hecho futuro es un error
   de dedo que contaría para el MRR. Cobrar por adelantado se hace con la
   fecha de HOY — el período encadena solo con el anterior.
-- `amountReceived` (opcional): lo que de verdad llegó. **Si NO cubre el
-  cargo, el pago se rechaza** con 422 `billing.amount_below_charge` diciendo
-  cuánto falta — un error de dedo no puede regalar un mes. Para aceptarlo
-  igual, `allowPartial: true` (en la UI, la casilla "Aceptar aunque no cubra
-  el costo del plan"): el faltante queda escrito en `notes` y en la bitácora.
-  Un pago de MÁS nunca se rechaza. El pago siempre registra el monto
-  CALCULADO (el CHECK no admite otra cosa) y **el período jamás se deriva del
-  monto**.
+- **`amountReceived` es OBLIGATORIO y la cuenta tiene que cuadrar**:
+
+      recibido + descuento (cupón + el de este pago) = precio de lista
+
+  Si no da, 422 `billing.amount_mismatch` diciendo cuánto se esperaba. Un
+  cobro incompleto no se "fuerza": se captura como `discountAmount` — un dato
+  que se puede sumar, auditar y explicar, en vez de prosa en un campo de
+  texto. Un descuento mayor que el precio también rebota
+  (`billing.discount_above_charge`): cobrar en negativo no existe.
+
+  Efecto secundario feliz: con la cuenta cuadrada, `amount` **ES** el monto
+  recibido, así que el dato queda consistente por construcción y no hace
+  falta una columna más que mantener sincronizada. Y **el período jamás se
+  deriva del monto**.
 - `periodStart` (opcional): override explícito — "reactivar desde hoy sin
   cobrar los meses muertos" cuando NO quieres el encadenamiento por defecto.
 

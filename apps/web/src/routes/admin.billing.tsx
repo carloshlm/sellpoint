@@ -41,8 +41,14 @@ function AdminBilling() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const [pagando, setPagando] = useState<{ tenantId: string; tenantName: string } | null>(null);
+  const [pagando, setPagando] = useState<{
+    tenantId: string;
+    tenantName: string;
+    charge: { monthly: string; yearly: string; currency: string } | null;
+  } | null>(null);
   const [viendo, setViendo] = useState<{ tenantId: string; tenantName: string } | null>(null);
+  // El ciclo elegido decide qué cargo se muestra y se propone.
+  const [ciclo, setCiclo] = useState<"monthly" | "yearly">("monthly");
   const [error, setError] = useState<string | null>(null);
 
   const { data } = useQuery({
@@ -136,7 +142,11 @@ function AdminBilling() {
                           type="button"
                           size="sm"
                           onClick={() =>
-                            setPagando({ tenantId: fila.tenantId, tenantName: fila.tenantName })
+                            setPagando({
+                              tenantId: fila.tenantId,
+                              tenantName: fila.tenantName,
+                              charge: fila.charge,
+                            })
                           }
                         >
                           {t("common.billing.admin.recordPayment")}
@@ -177,8 +187,8 @@ function AdminBilling() {
                 method: form.get("method") as "transfer" | "cash" | "card" | "other" | "courtesy",
                 paidAt: new Date(`${form.get("paidAt")}T12:00:00`).toISOString(),
                 planCode: (form.get("planCode") as string) || undefined,
-                amountReceived: (form.get("amountReceived") as string) || undefined,
-                allowPartial: form.get("allowPartial") === "on" || undefined,
+                amountReceived: (form.get("amountReceived") as string) || "0",
+                discountAmount: (form.get("discountAmount") as string) || "0",
                 notes: (form.get("notes") as string) || undefined,
               },
             });
@@ -188,7 +198,13 @@ function AdminBilling() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="pay-cycle">{t("common.billing.admin.cycle")}</Label>
-              <select id="pay-cycle" name="cycle" className="w-full rounded-md border p-2 text-sm">
+              <select
+                id="pay-cycle"
+                name="cycle"
+                value={ciclo}
+                onChange={(event) => setCiclo(event.target.value as "monthly" | "yearly")}
+                className="w-full rounded-md border p-2 text-sm"
+              >
                 <option value="monthly">{t("common.billing.plans.monthly")}</option>
                 <option value="yearly">{t("common.billing.plans.yearly")}</option>
               </select>
@@ -241,34 +257,45 @@ function AdminBilling() {
               </select>
             </div>
           </div>
-          <div>
-            <Label htmlFor="pay-amount">{t("common.billing.admin.amountReceived")}</Label>
-            <input
-              id="pay-amount"
-              name="amountReceived"
-              inputMode="decimal"
-              placeholder="499.00"
-              className="w-full rounded-md border p-2 text-sm"
-            />
+          {/*
+            El cargo a la vista: cuadrar la cuenta sin ver el número sería
+            pedirle al dueño que saque calculadora.
+          */}
+          {pagando?.charge ? (
+            <p className="rounded-md bg-muted px-3 py-2 text-sm" data-testid="expected-charge">
+              {t("common.billing.admin.expectedCharge", {
+                amount: `${pagando.charge[ciclo]} ${pagando.charge.currency}`,
+              })}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="pay-amount">{t("common.billing.admin.amountReceivedRequired")}</Label>
+              <input
+                id="pay-amount"
+                name="amountReceived"
+                inputMode="decimal"
+                required
+                defaultValue={pagando?.charge?.[ciclo] ?? ""}
+                className="w-full rounded-md border p-2 text-sm"
+              />
+            </div>
+            <div>
+              <Label htmlFor="pay-discount">{t("common.billing.admin.discountAmount")}</Label>
+              <input
+                id="pay-discount"
+                name="discountAmount"
+                inputMode="decimal"
+                defaultValue="0"
+                className="w-full rounded-md border p-2 text-sm"
+              />
+            </div>
           </div>
+          <p className="text-muted-foreground text-xs">{t("common.billing.admin.mustMatch")}</p>
           <div>
             <Label htmlFor="pay-notes">{t("common.billing.admin.notes")}</Label>
             <input id="pay-notes" name="notes" className="w-full rounded-md border p-2 text-sm" />
           </div>
-          {/*
-            El seguro del cobro: sin esto, un monto por debajo del plan se
-            rechaza en el server. Marcarlo es decidir aceptar el faltante, no
-            saltarse una validación por descuido.
-          */}
-          <label className="flex items-start gap-2 text-sm" htmlFor="pay-partial">
-            <input id="pay-partial" name="allowPartial" type="checkbox" className="mt-1" />
-            <span>
-              {t("common.billing.admin.allowPartial")}
-              <span className="block text-muted-foreground text-xs">
-                {t("common.billing.admin.allowPartialHint")}
-              </span>
-            </span>
-          </label>
           <Button type="submit" disabled={registrar.isPending}>
             {t("common.billing.admin.confirmPayment")}
           </Button>

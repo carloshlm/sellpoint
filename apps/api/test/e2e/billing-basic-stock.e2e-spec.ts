@@ -97,6 +97,7 @@ describe("Basic vende con stock en cero (F7-E2E-04)", () => {
         method: "transfer",
         paidAt: new Date().toISOString(),
         planCode: "basic",
+        amountReceived: "199.00",
       })
       .expect(201);
 

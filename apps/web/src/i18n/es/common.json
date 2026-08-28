@@ -178,7 +178,10 @@
         "other": "Otro",
         "courtesy": "Cortesía"
       },
-      "dueWas": "Venció el {{date}}"
+      "dueWas": "Venció el {{date}}",
+      "period": "Período",
+      "received": "Recibido",
+      "discountLine": "descuento {{amount}}"
     },
     "admin": {
       "title": "Backoffice de cobros",
@@ -212,9 +215,11 @@
       "discount": "Descuento vigente: {{detail}}",
       "close": "Cerrar",
       "period": "Período",
-      "allowPartial": "Aceptar aunque no cubra el costo del plan",
-      "allowPartialHint": "El faltante queda escrito en el pago y en la bitácora.",
-      "paidAtHint": "No puede ser futura."
+      "paidAtHint": "No puede ser futura.",
+      "discountAmount": "Descuento",
+      "expectedCharge": "Debe pagar: {{amount}}",
+      "amountReceivedRequired": "Monto recibido",
+      "mustMatch": "Recibido + descuento tiene que dar el precio del plan."
     }
   }
 }

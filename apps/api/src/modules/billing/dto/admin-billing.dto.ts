@@ -18,14 +18,17 @@ export const recordPaymentSchema = z.object({
   paidAt: z.coerce.date(),
   /** Cambia el plan en el mismo acto (fin de trial Plus → paga Basic). */
   planCode: z.enum(PLAN_CODES).optional(),
-  /** Lo transferido de verdad; si difiere del cargo, queda en notas. */
-  amountReceived: money.optional(),
   /**
-   * Confirmación explícita para registrar un pago que NO cubre el cargo.
-   * Sin esto, un `amountReceived` por debajo del período se rechaza: el
-   * error de dedo no puede regalar un mes (Carlos, 2026-08-29).
+   * Lo que el cliente transfirió DE VERDAD. Obligatorio: registrar un cobro
+   * sin decir cuánto entró es lo único que un libro de caja no admite.
    */
-  allowPartial: z.boolean().optional(),
+  amountReceived: money,
+  /**
+   * Lo que se le perdona en ESTE pago, encima del cupón vigente. La cuenta
+   * tiene que cuadrar — recibido + descuento = precio del plan — y por eso
+   * el faltante se captura como descuento y no como una nota suelta.
+   */
+  discountAmount: money.optional(),
   gatewayReference: z.string().trim().max(128).optional(),
   /** Override explícito: "reactivar desde hoy sin cobrar los meses muertos". */
   periodStart: z.coerce.date().optional(),

@@ -76,6 +76,7 @@ describe("Vencimiento, gracia y pago tardío (F7-E2E-03)", () => {
         billingCycle: "monthly",
         method: "transfer",
         paidAt: new Date().toISOString(),
+        amountReceived: "499.00",
         ...body,
       });
 

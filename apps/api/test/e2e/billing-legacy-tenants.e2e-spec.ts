@@ -87,6 +87,7 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
         billingCycle: "monthly",
         method: "transfer",
         paidAt: new Date().toISOString(),
+        amountReceived: "499.00",
         ...body,
       });
 
@@ -190,7 +191,7 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
 
     it("el historial trae el período que cubrió cada pago", async () => {
       const negocio = await negocioSinSuscripcion();
-      await pagar(negocio.tenantId, { planCode: "plus" }).expect(201);
+      await pagar(negocio.tenantId, { planCode: "plus", amountReceived: "499.00" }).expect(201);
 
       const res = await request(app.getHttpServer())
         .get(`/admin/billing/tenants/${negocio.tenantId}`)
@@ -208,7 +209,10 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
     it("el pago crea la suscripción que no existía y la deja activa", async () => {
       const negocio = await negocioSinSuscripcion();
 
-      const pago = await pagar(negocio.tenantId, { planCode: "pro" }).expect(201);
+      const pago = await pagar(negocio.tenantId, {
+        planCode: "pro",
+        amountReceived: "349.00",
+      }).expect(201);
 
       expect(pago.body).toMatchObject({ planCode: "pro", amount: "349", currency: "MXN" });
       const sub = await prisma.withTenantContext(negocio.tenantId, (tx) =>
@@ -239,7 +243,10 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
     it("el alta respeta el mercado: un negocio canadiense paga en CAD", async () => {
       const negocio = await negocioSinSuscripcion("CA");
 
-      const pago = await pagar(negocio.tenantId, { planCode: "basic" }).expect(201);
+      const pago = await pagar(negocio.tenantId, {
+        planCode: "basic",
+        amountReceived: "19.00",
+      }).expect(201);
 
       expect(pago.body).toMatchObject({ currency: "CAD", amount: "19" });
     });
@@ -253,7 +260,7 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
         .send({ sku: "LEG-1", name: "Antes", baseUnit: "unit", price: 10 })
         .expect(402);
 
-      await pagar(negocio.tenantId, { planCode: "plus" }).expect(201);
+      await pagar(negocio.tenantId, { planCode: "plus", amountReceived: "499.00" }).expect(201);
 
       await request(app.getHttpServer())
         .post("/products")

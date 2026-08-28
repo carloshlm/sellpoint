@@ -102,6 +102,9 @@ export function TenantDetailDialog({
                     <th className="px-2 py-1">{t("common.billing.admin.plan")}</th>
                     <th className="px-2 py-1">{t("common.billing.admin.method")}</th>
                     <th className="px-2 py-1">{t("common.billing.admin.period")}</th>
+                    <th className="px-2 py-1 text-right">
+                      {t("common.billing.admin.discountAmount")}
+                    </th>
                     <th className="px-2 py-1 text-right">{t("common.billing.admin.amount")}</th>
                     <th className="px-2 py-1" />
                   </tr>
@@ -117,6 +120,16 @@ export function TenantDetailDialog({
                       <td className="px-2 py-1">{t(`common.billing.me.method.${pago.method}`)}</td>
                       <td className="px-2 py-1 whitespace-nowrap">
                         {fecha(pago.periodStart)} — {vence(pago.periodEnd)}
+                      </td>
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        {Number(pago.discountAmount) > 0
+                          ? formatMoney(
+                              Number(pago.discountAmount),
+                              // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot
+                              pago.currency as any,
+                              locale,
+                            )
+                          : "—"}
                       </td>
                       <td className="px-2 py-1 text-right font-medium tabular-nums">
                         {formatMoney(
