@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenantDetail, voidPayment } from "@/lib/billing/api";
+import { formatDeadline, formatInstant } from "@/lib/billing/dates";
 
 /**
  * El expediente de UN negocio dentro del backoffice: su suscripción, su
@@ -54,8 +55,9 @@ export function TenantDetailDialog({
   });
 
   const locale = i18n.language === "en" ? "en" : "es";
-  const fecha = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "es-MX") : "—";
+  const timeZone = data?.timezone ?? undefined;
+  const vence = (iso: string | null) => formatDeadline(iso, timeZone, locale);
+  const fecha = (iso: string | null) => formatInstant(iso, timeZone, locale);
 
   return (
     <Dialog
@@ -71,7 +73,7 @@ export function TenantDetailDialog({
             {t(`common.billing.me.status.${data?.subscription.status ?? "none"}`)}
           </p>
           {data?.subscription.dueAt ? (
-            <p>{t("common.billing.me.nextDue", { date: fecha(data.subscription.dueAt) })}</p>
+            <p>{t("common.billing.me.nextDue", { date: vence(data.subscription.dueAt) })}</p>
           ) : null}
           {data?.activeDiscount ? (
             <p>
@@ -114,7 +116,7 @@ export function TenantDetailDialog({
                       <td className="px-2 py-1">{pago.planCode}</td>
                       <td className="px-2 py-1">{t(`common.billing.me.method.${pago.method}`)}</td>
                       <td className="px-2 py-1 whitespace-nowrap">
-                        {fecha(pago.periodStart)} — {fecha(pago.periodEnd)}
+                        {fecha(pago.periodStart)} — {vence(pago.periodEnd)}
                       </td>
                       <td className="px-2 py-1 text-right font-medium tabular-nums">
                         {formatMoney(

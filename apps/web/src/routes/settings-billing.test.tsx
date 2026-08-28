@@ -90,6 +90,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
         },
       ],
       activeDiscount: null,
+      timezone: "America/Mexico_City",
     });
 
     await renderBilling(["tenants:manage"]);
@@ -112,6 +113,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
       },
       payments: [],
       activeDiscount: null,
+      timezone: "America/Mexico_City",
     });
     await renderBilling(["products:read"]);
 

@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenants, recordPayment } from "@/lib/billing/api";
+import { formatDeadline, formatInstant } from "@/lib/billing/dates";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/admin/billing")({
@@ -70,8 +71,12 @@ function AdminBilling() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const locale = i18n.language === "en" ? "en-US" : "es-MX";
-  const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(locale) : "—");
+  // El dueño de la plataforma ve la fecha DE CADA NEGOCIO en la zona de ese
+  // negocio: es su fecha de cobro, no la de quien mira la tabla.
+  const vence = (iso: string | null, timeZone: string | null) =>
+    formatDeadline(iso, timeZone ?? undefined, i18n.language);
+  const fecha = (iso: string | null, timeZone: string | null) =>
+    formatInstant(iso, timeZone ?? undefined, i18n.language);
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,8 +118,8 @@ function AdminBilling() {
                     </td>
                     <td className="px-2 py-1">{fila.planName}</td>
                     <td className="px-2 py-1">{t(`common.billing.me.status.${fila.status}`)}</td>
-                    <td className="px-2 py-1">{fecha(fila.dueAt)}</td>
-                    <td className="px-2 py-1">{fecha(fila.lastPaymentAt)}</td>
+                    <td className="px-2 py-1">{vence(fila.dueAt, fila.timezone)}</td>
+                    <td className="px-2 py-1">{fecha(fila.lastPaymentAt, fila.timezone)}</td>
                     <td className="px-2 py-1">
                       <div className="flex justify-end gap-2">
                         <Button

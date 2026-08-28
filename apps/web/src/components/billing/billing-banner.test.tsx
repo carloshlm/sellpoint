@@ -13,8 +13,12 @@ import { BillingBanner } from "./billing-banner";
 function renderBanner(sub: Record<string, unknown>) {
   useAuthStore.setState({
     accessToken: "token",
-    // biome-ignore lint/suspicious/noExplicitAny: fixture parcial a propósito
-    user: { subscription: { ...SUBSCRIPTION_PLUS, ...sub } } as any,
+    user: {
+      subscription: { ...SUBSCRIPTION_PLUS, ...sub },
+      // La zona del negocio: la fecha del vencimiento se lee en SU calendario.
+      tenant: { timezone: "America/Mexico_City" },
+      // biome-ignore lint/suspicious/noExplicitAny: fixture parcial a propósito
+    } as any,
   });
   return render(
     <I18nextProvider i18n={createI18n()}>
@@ -62,7 +66,7 @@ describe("aviso de vencimiento sin esperar al barrido", () => {
       daysLeft: 0,
     });
 
-    expect(screen.getByTestId("billing-banner")).toHaveTextContent(/venció el/i);
+    expect(screen.getByTestId("billing-banner")).toHaveTextContent("venció el 26/8/2026");
   });
 
   it("un `active` al corriente sigue sin pintar nada", () => {

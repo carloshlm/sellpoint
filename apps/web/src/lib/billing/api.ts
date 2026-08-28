@@ -53,6 +53,8 @@ export interface MyBilling {
     maxPeriods: number | null;
     appliedPeriods: number;
   } | null;
+  /** La zona del negocio: sus fechas de cobro se leen en SU calendario. */
+  timezone: string;
 }
 
 export async function getMyBilling(): Promise<MyBilling> {
@@ -72,6 +74,7 @@ export interface AdminTenants {
     billingCycle: string | null;
     dueAt: string | null;
     lastPaymentAt: string | null;
+    timezone: string;
   }[];
   mrrByCurrency: Record<string, string>;
 }

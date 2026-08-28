@@ -1,5 +1,7 @@
 import { useTranslation } from "react-i18next";
+import { formatDeadline } from "@/lib/billing/dates";
 import { usePlan } from "@/lib/billing/use-plan";
+import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
 
 /**
@@ -9,7 +11,10 @@ import { useBillingStore } from "@/stores/billing.store";
  * clickeable hacia el modal de planes: el aviso y la salida, juntos.
  */
 export function BillingBanner() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // La zona del NEGOCIO: su fecha de cobro no cambia porque el dueño abra la
+  // app desde otro país.
+  const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
   const { status, daysLeft, planCode, dailySalesLimit, overdue, dueAt } = usePlan();
   const openPlansModal = useBillingStore((state) => state.openPlansModal);
 
@@ -32,7 +37,7 @@ export function BillingBanner() {
         className="w-full bg-destructive px-4 py-2 text-center text-destructive-foreground text-sm"
       >
         {t("common.billing.banner.overdue", {
-          date: new Date(Date.parse(dueAt) - 1).toLocaleDateString(),
+          date: formatDeadline(dueAt, timeZone, i18n.language),
         })}
       </button>
     );

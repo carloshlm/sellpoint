@@ -90,6 +90,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          timezone: "America/Mexico_City",
         },
       ],
       mrrByCurrency: { MXN: "499.00" },
@@ -121,6 +122,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
         },
       ],
       activeDiscount: null,
+      timezone: "America/Mexico_City",
     });
   });
 
@@ -189,7 +191,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     expect(mockedDetail).toHaveBeenCalledWith("t1");
     expect(screen.getByText("$499.00")).toBeInTheDocument();
     // El período que cubrió el pago: la respuesta a "¿hasta cuándo pagó?".
-    expect(screen.getByText(/28\/8\/2026 — 28\/9\/2026/)).toBeInTheDocument();
+    expect(screen.getByText(/28\/8\/2026 — 27\/9\/2026/)).toBeInTheDocument();
   });
 
   it("desde el expediente se anula un pago, con su razón", async () => {
@@ -221,6 +223,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          timezone: "America/Mexico_City",
         },
       ],
       mrrByCurrency: {},

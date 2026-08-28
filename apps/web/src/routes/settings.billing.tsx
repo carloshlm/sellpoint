@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePermissions } from "@/lib/auth/permissions";
 import { getMyBilling } from "@/lib/billing/api";
+import { formatDeadline, formatInstant } from "@/lib/billing/dates";
 import { usePlan } from "@/lib/billing/use-plan";
+import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
 
 export const Route = createFileRoute("/settings/billing")({
@@ -38,6 +40,9 @@ function BillingSettings() {
   const { has } = usePermissions();
   const { subscription, daysLeft } = usePlan();
   const openPlansModal = useBillingStore((state) => state.openPlansModal);
+  // Al tope con los demás hooks: abajo hay un early return, y un hook
+  // después de un `return` se llama en un orden distinto en cada render.
+  const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
 
   const { data } = useQuery({
     queryKey: ["billing", "me"],
@@ -50,8 +55,10 @@ function BillingSettings() {
   }
 
   const locale = i18n.language === "en" ? "en" : "es";
-  const fecha = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "es-MX") : "—";
+  // `vence` para los límites abiertos y `fecha` para los hechos puntuales:
+  // confundirlos muestra un día de más justo en la pantalla del cobro.
+  const vence = (iso: string | null) => formatDeadline(iso, timeZone, locale);
+  const fecha = (iso: string | null) => formatInstant(iso, timeZone, locale);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -69,7 +76,7 @@ function BillingSettings() {
             <p>{t("common.billing.me.trialDays", { count: daysLeft })}</p>
           ) : null}
           {data?.subscription.dueAt ? (
-            <p>{t("common.billing.me.nextDue", { date: fecha(data.subscription.dueAt) })}</p>
+            <p>{t("common.billing.me.nextDue", { date: vence(data.subscription.dueAt) })}</p>
           ) : null}
           {data?.activeDiscount ? (
             <p>

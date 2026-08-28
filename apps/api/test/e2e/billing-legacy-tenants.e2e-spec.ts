@@ -72,6 +72,8 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
     return negocio;
   }
 
+  const res_tenants = (res: { body: unknown }) => (res.body as { tenants: unknown[] }).tenants;
+
   const listar = () =>
     request(app.getHttpServer())
       .get("/admin/billing/tenants")
@@ -163,6 +165,27 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
         .expect(200);
 
       expect(res.body).toMatchObject({ subscription: { status: "none" } });
+    });
+
+    /**
+     * La zona del negocio viaja con su fila: el backoffice pinta la fecha de
+     * cobro de CADA negocio en la zona de ESE negocio, no en la de quien
+     * mira la tabla. Un vencimiento es un hecho del negocio.
+     */
+    it("la lista y el detalle traen la zona horaria del negocio", async () => {
+      const negocio = await negocioSinSuscripcion();
+
+      const lista = await listar().expect(200);
+      const fila = (res_tenants(lista) as { tenantId: string; timezone: string }[]).find(
+        (f) => f.tenantId === negocio.tenantId,
+      );
+      expect(fila?.timezone).toBe("America/Mexico_City");
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/admin/billing/tenants/${negocio.tenantId}`)
+        .set("Authorization", bearer(admin.token))
+        .expect(200);
+      expect((detalle.body as { timezone: string }).timezone).toBe("America/Mexico_City");
     });
 
     it("el historial trae el período que cubrió cada pago", async () => {

@@ -90,6 +90,11 @@ Reglas que los tests fijan (`billing-*.e2e-spec.ts`, 49 casos):
   reloj. Pero el `SubscriptionBlock` trae `overdue: true` en esa ventana, y
   el banner lo anuncia al instante. Avisar es inmediato; degradar es del
   cron.
+- **Las fechas se leen en la zona del NEGOCIO**, nunca en la del navegador:
+  el vencimiento de un negocio de CDMX no cambia porque su dueño abra la app
+  desde Madrid. En el front eso vive en `lib/billing/dates.ts`
+  (`formatInstant` para hechos puntuales, `formatDeadline` para límites
+  abiertos) y la zona viaja en la sesión y en cada fila del backoffice.
 
 ## 3. El modelo de datos
 

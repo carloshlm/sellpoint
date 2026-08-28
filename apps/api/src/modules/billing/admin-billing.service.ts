@@ -6,6 +6,11 @@ export interface AdminTenantRow {
   tenantId: string;
   tenantName: string;
   country: string | null;
+  /**
+   * La zona del NEGOCIO, para que el backoffice pinte la fecha de cobro de
+   * cada uno en su propia zona y no en la de quien mira la tabla.
+   */
+  timezone: string;
   planCode: string;
   planName: string;
   status: string;
@@ -75,7 +80,7 @@ export class AdminBillingService {
     // EXACTAMENTE a los que hay que cobrarles: 8 de 10 en producción
     // (Carlos, 2026-08-29).
     const tenants = await this.prisma.tenant.findMany({
-      select: { id: true, name: true, country: true, createdAt: true },
+      select: { id: true, name: true, country: true, timezone: true, createdAt: true },
       orderBy: { createdAt: "asc" },
     });
     const subPorTenant = new Map(subs.map((s) => [s.tenantId, s]));
@@ -91,6 +96,7 @@ export class AdminBillingService {
         tenantId: tenant.id,
         tenantName: tenant.name,
         country: tenant.country,
+        timezone: tenant.timezone,
         planCode: sub?.plan.code ?? planFree.code,
         planName: sub?.plan.name ?? planFree.name,
         // `none` es distinto de `free`: uno nunca tuvo suscripción, el otro
@@ -124,6 +130,12 @@ export class AdminBillingService {
    * cobrarle.
    */
   async getTenantDetail(tenantId: string) {
+    // `tenants` no lleva RLS: la zona se lee con el cliente base.
+    const { timezone } = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+
     const detalle = await this.prisma.withTenantContext(tenantId, async (tx) => {
       const subscription = await tx.tenantSubscription.findUnique({
         where: { tenantId },
@@ -144,7 +156,7 @@ export class AdminBillingService {
     });
 
     if (detalle) {
-      return detalle;
+      return { ...detalle, timezone };
     }
 
     const plan = await this.prisma.plan.findUniqueOrThrow({ where: { code: "free" } });
@@ -168,6 +180,7 @@ export class AdminBillingService {
       },
       payments: [],
       activeDiscount: null,
+      timezone,
     };
   }
 
