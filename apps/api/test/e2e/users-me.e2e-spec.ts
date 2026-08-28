@@ -117,7 +117,16 @@ describe("/me (e2e)", () => {
         templateChoice: null,
         onboarded: false,
         country: null,
+        sellWithoutStock: false,
       },
+      // F7-WEB-01 (A1): el plan efectivo — el tenant nace en trial Plus.
+      subscription: expect.objectContaining({
+        planCode: "plus",
+        status: "trialing",
+        daysLeft: expect.any(Number),
+        writeAccess: true,
+        stockControl: true,
+      }),
     });
     expect(response.body).not.toHaveProperty("passwordHash");
   });
