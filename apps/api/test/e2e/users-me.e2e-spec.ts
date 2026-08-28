@@ -102,6 +102,7 @@ describe("/me (e2e)", () => {
       // Acá es el inicial del tenant, que `provision()` le asigna al owner.
       defaultWarehouseId: expect.any(String),
       permissions: ["products:read"],
+      isPlatformAdmin: false,
       // F1-WEB-ONBOARD-01 (A1 del design): mismo shape que
       // `LoginResult.user.tenant` — ver tenants-me.e2e-spec.ts "Contrato".
       tenant: {

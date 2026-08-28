@@ -33,6 +33,7 @@ import {
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
 import { fieldErrorsOf } from "@/lib/field-errors";
 import type { ProductDetail } from "@/lib/products/api";
@@ -105,7 +106,8 @@ function ProductsPage() {
 function ProductsContent() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const canManage = has("products:manage");
+  const { canWrite } = usePlan();
+  const canManage = has("products:manage") && canWrite;
 
   const [query, setQuery] = useState("");
   const [onlyComposite, setOnlyComposite] = useState(false);
@@ -412,7 +414,8 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const uiLocale = resolveUiLocale(i18n);
   const { has } = usePermissions();
-  const canManage = has("products:manage");
+  const { canWrite } = usePlan();
+  const canManage = has("products:manage") && canWrite;
   const { data: catalogs } = useCatalogs();
   // Por systemKey, NUNCA `find(isSystem)`: hay TRES catálogos del sistema y
   // el de Almacenes ordena primero — bindearía los campos equivocados.

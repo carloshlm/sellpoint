@@ -144,6 +144,57 @@
       "current": "Tu plan actual",
       "contact": "Contáctanos",
       "footer": "Para contratar o cambiar de plan, contáctanos y lo activamos el mismo día. Tu información nunca se borra."
+    },
+    "banner": {
+      "trial": "Te quedan {{count}} días de prueba con el plan Plus completo — elige tu plan",
+      "trial_one": "Te queda 1 día de prueba con el plan Plus completo — elige tu plan",
+      "pastDue": "Tu pago venció. Te quedan {{count}} días antes de pasar al modo gratuito",
+      "pastDue_one": "Tu pago venció. Te queda 1 día antes de pasar al modo gratuito",
+      "free": "Modo gratuito: consulta todo y vende hasta {{limit}} ventas al día — contrata un plan"
+    },
+    "me": {
+      "title": "Mi plan",
+      "status": {
+        "trialing": "En prueba",
+        "active": "Activo",
+        "past_due": "Pago vencido",
+        "free": "Modo gratuito",
+        "canceled": "Cancelado"
+      },
+      "trialDays": "Te quedan {{count}} días de prueba",
+      "trialDays_one": "Te queda 1 día de prueba",
+      "nextDue": "Próximo pago: {{date}}",
+      "discount": "Descuento vigente: -${{amount}} por período ({{used}}/{{total}} usados)",
+      "viewPlans": "Ver planes",
+      "history": "Historial de pagos",
+      "noPayments": "Aún no hay pagos registrados.",
+      "voided": "anulado",
+      "method": {
+        "transfer": "Transferencia",
+        "cash": "Efectivo",
+        "card": "Tarjeta",
+        "other": "Otro",
+        "courtesy": "Cortesía"
+      }
+    },
+    "admin": {
+      "title": "Backoffice de cobros",
+      "noMrr": "Sin pagos vigentes todavía.",
+      "tenant": "Negocio",
+      "plan": "Plan",
+      "status": "Estado",
+      "dueAt": "Vence",
+      "lastPayment": "Último pago",
+      "recordPayment": "Registrar pago",
+      "paymentTitle": "Registrar pago — {{tenant}}",
+      "cycle": "Ciclo",
+      "method": "Método",
+      "paidAt": "Fecha de pago",
+      "planCode": "Plan (opcional)",
+      "keepPlan": "Mantener el actual",
+      "amountReceived": "Monto recibido (opcional)",
+      "notes": "Notas",
+      "confirmPayment": "Registrar"
     }
   }
 }

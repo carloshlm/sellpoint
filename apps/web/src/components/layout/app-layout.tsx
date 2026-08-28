@@ -7,8 +7,10 @@ import {
   Calculator,
   CalendarClock,
   ClipboardList,
+  CreditCard,
   FileText,
   LayoutDashboard,
+  Lock,
   LogOut,
   Menu,
   Package,
@@ -22,10 +24,14 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { BillingBanner } from "@/components/billing/billing-banner";
+import { PlanGate } from "@/components/billing/plan-gate";
 import { OfflineBanner } from "@/components/layout/offline-banner";
 import { useLogout } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { useAuthStore } from "@/stores/auth.store";
+import { useBillingStore } from "@/stores/billing.store";
 
 /**
  * F1-WEB-AUTH-09: shell autenticado — sidebar colapsable + header con menú de
@@ -42,6 +48,28 @@ import { useAuthStore } from "@/stores/auth.store";
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const { has } = usePermissions();
+  // F7-WEB-07: el PERMISO decide si el ROL puede; el FEATURE si el PLAN
+  // incluye. Lo que el plan no incluye se muestra CON CANDADO (no se
+  // oculta): un SaaS que quiere upsell deja ver lo que te pierdes — el
+  // click abre el modal de planes.
+  const { hasFeature } = usePlan();
+  const openPlansModal = useBillingStore((state) => state.openPlansModal);
+  const navLock = (
+    label: string,
+    Icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>,
+  ) => (
+    <button
+      type="button"
+      key={label}
+      aria-label={label}
+      onClick={openPlansModal}
+      className="flex items-center gap-3 rounded-md px-3 py-2 text-left font-medium text-sm opacity-60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring"
+    >
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      {expanded && <span className="truncate">{label}</span>}
+      <Lock className="ml-auto size-3 shrink-0" aria-hidden="true" />
+    </button>
+  );
   const [expanded, setExpanded] = React.useState(
     () => window.matchMedia?.("(min-width: 768px)")?.matches ?? true,
   );
@@ -76,6 +104,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // El botón de CREAR, que exige `inventory:movement`, vive dentro de cada
   // pantalla: quien audita tiene que poder mirar sin poder mover.
   const canSeeInventoryNav = has("inventory:read");
+  // F7-WEB-09/10: Mi plan para quien administra el negocio; el backoffice
+  // SOLO para el dueño de la plataforma (el server re-verifica igual).
+  const canSeeBillingNav = has("tenants:manage");
+  const isPlatformAdmin = useAuthStore((state) => state.user?.isPlatformAdmin === true);
 
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
@@ -159,7 +191,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {expanded && <span className="truncate">{t("services.nav.item")}</span>}
                 </Link>
               )}
-              {canSeeListsNav && (
+              {canSeeListsNav &&
+                !hasFeature("custom_fields") &&
+                navLock(t("catalogs.nav.lists"), Package)}
+              {canSeeListsNav && hasFeature("custom_fields") && (
                 <Link
                   to="/catalog/lists"
                   aria-label={t("catalogs.nav.lists")}
@@ -169,7 +204,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {expanded && <span className="truncate">{t("catalogs.nav.lists")}</span>}
                 </Link>
               )}
-              {canSeeSchemaNav && (
+              {canSeeSchemaNav &&
+                !hasFeature("custom_fields") &&
+                navLock(t("catalogs.nav.schema"), Settings)}
+              {canSeeSchemaNav && hasFeature("custom_fields") && (
                 <Link
                   to="/catalog/schema"
                   aria-label={t("catalogs.nav.schema")}
@@ -213,23 +251,27 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               )}
               {(
                 [
-                  ["/movements/entries", "inventory.nav.entries", ArrowDownToLine],
-                  ["/movements/exits", "inventory.nav.exits", ArrowUpFromLine],
-                  ["/movements/transfers", "inventory.nav.transfers", ArrowLeftRight],
-                  ["/movements/counts", "inventory.nav.counts", ClipboardList],
-                  ["/movements/expiring", "inventory.nav.expiring", CalendarClock],
+                  ["/movements/entries", "inventory.nav.entries", ArrowDownToLine, "movements"],
+                  ["/movements/exits", "inventory.nav.exits", ArrowUpFromLine, "movements"],
+                  ["/movements/transfers", "inventory.nav.transfers", ArrowLeftRight, "transfers"],
+                  ["/movements/counts", "inventory.nav.counts", ClipboardList, "movements"],
+                  ["/movements/expiring", "inventory.nav.expiring", CalendarClock, "lots"],
                 ] as const
-              ).map(([to, label, Icon]) => (
-                <Link
-                  key={to}
-                  to={to}
-                  aria-label={t(label)}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  {expanded && <span className="truncate">{t(label)}</span>}
-                </Link>
-              ))}
+              ).map(([to, label, Icon, feature]) =>
+                hasFeature(feature) ? (
+                  <Link
+                    key={to}
+                    to={to}
+                    aria-label={t(label)}
+                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                  >
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    {expanded && <span className="truncate">{t(label)}</span>}
+                  </Link>
+                ) : (
+                  navLock(t(label), Icon)
+                ),
+              )}
             </fieldset>
           )}
 
@@ -260,7 +302,8 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {expanded && <span className="truncate">{t("pos.nav.sell")}</span>}
                 </Link>
               )}
-              {canSeeQuoteNav && (
+              {canSeeQuoteNav && !hasFeature("quotes") && navLock(t("pos.nav.quote"), FileText)}
+              {canSeeQuoteNav && hasFeature("quotes") && (
                 <Link
                   to="/pos/quotes"
                   aria-label={t("pos.nav.quote")}
@@ -347,6 +390,27 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               )}
             </fieldset>
           )}
+
+          {canSeeBillingNav && (
+            <Link
+              to="/settings/billing"
+              aria-label={t("common.billing.me.title")}
+              className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+            >
+              <CreditCard className="size-4 shrink-0" aria-hidden="true" />
+              {expanded && <span className="truncate">{t("common.billing.me.title")}</span>}
+            </Link>
+          )}
+          {isPlatformAdmin && (
+            <Link
+              to="/admin/billing"
+              aria-label={t("common.billing.admin.title")}
+              className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+            >
+              <Wrench className="size-4 shrink-0" aria-hidden="true" />
+              {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
+            </Link>
+          )}
         </nav>
       </aside>
 
@@ -378,7 +442,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           El padding es menor en celular: 16px de cada lado sobre 390px de
           ancho se come el 8% de la pantalla.
         */}
+        <BillingBanner />
         <main className="min-w-0 flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
+        <PlanGate />
       </div>
     </div>
   );

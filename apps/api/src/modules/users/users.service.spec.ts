@@ -110,6 +110,7 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         lastNameMaternal: true,
         locale: true,
         defaultWarehouseId: true,
+        isPlatformAdmin: true,
       },
     });
     expect(result).toEqual({

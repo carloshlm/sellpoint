@@ -309,6 +309,9 @@ export class AuthService implements OnModuleInit {
           lastNameMaternal: user.lastNameMaternal,
           locale,
           permissions,
+          // F7-WEB-10: solo para MOSTRAR el link del backoffice — el guard
+          // del server re-verifica las cuatro llaves en cada request.
+          isPlatformAdmin: user.isPlatformAdmin,
           tenant: toTenantBlock(tenantRow),
           // F7-WEB-01: el MISMO mapper que GET /me (patrón A1) — el resolver
           // ya viene cacheado de Redis, esto no agrega un roundtrip a la DB.
@@ -831,6 +834,7 @@ export interface LoginResult {
     lastNameMaternal: string | null;
     locale: "es" | "en";
     permissions: string[];
+    isPlatformAdmin: boolean;
     // A1 del design de f1-web-onboard: MISMO shape que `MeProfile.tenant`
     // (users.service.ts) — evita el store con dos emisores divergentes.
     tenant: TenantBlock;

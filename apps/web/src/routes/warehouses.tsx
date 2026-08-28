@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
 import { fieldErrorsOf } from "@/lib/field-errors";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
@@ -63,7 +64,8 @@ function WarehousesPage() {
 function WarehousesContent() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const canManage = has("warehouses:manage");
+  const { canWrite } = usePlan();
+  const canManage = has("warehouses:manage") && canWrite;
   const { data: warehouses, isPending } = useWarehouses();
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [creating, setCreating] = useState(false);

@@ -119,6 +119,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
         lastNameMaternal: null,
         locale: "es",
         permissions: expect.any(Array),
+        isPlatformAdmin: false,
         // F1-WEB-ONBOARD-01 (A1 del design): MISMO shape que `GET /me`
         // `tenant` — ver el contrato en tenants-me.e2e-spec.ts.
         tenant: {

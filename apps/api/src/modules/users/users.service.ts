@@ -34,6 +34,8 @@ export interface MeProfile {
   /** F3-HOME-01. El almacén desde el que opera por defecto. */
   defaultWarehouseId: string | null;
   permissions: string[];
+  /** F7-WEB-10: solo para el LINK del backoffice; el guard re-verifica. */
+  isPlatformAdmin: boolean;
   /**
    * A1 del design de f1-web-onboard: MISMO shape que `LoginResult.user.tenant`
    * (auth.service.ts) — el `OnboardingGate` del front lo lee del store sin
@@ -79,6 +81,7 @@ export class UsersService {
           // F3-HOME-01: el front lo necesita para preseleccionar el almacén en
           // los movimientos, y el POS de F4 para abrir el turno.
           defaultWarehouseId: true,
+          isPlatformAdmin: true,
         },
       });
       const tenantRow = await tx.tenant.findUniqueOrThrow({
@@ -97,6 +100,7 @@ export class UsersService {
       locale: row.locale,
       defaultWarehouseId: row.defaultWarehouseId,
       permissions: user.permissions,
+      isPlatformAdmin: row.isPlatformAdmin,
       tenant: toTenantBlock(tenantRow),
       // F7-WEB-01: el MISMO mapper que login (patrón A1).
       subscription: toSubscriptionBlock(

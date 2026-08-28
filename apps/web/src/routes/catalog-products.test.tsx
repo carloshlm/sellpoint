@@ -567,3 +567,28 @@ describe("el form de producto usa el catálogo de PRODUCTOS (2026-08-26)", () =>
     expect(mockedCatalogs.listFields).not.toHaveBeenCalledWith("cat-wh");
   });
 });
+
+describe("Solo-lectura del free tier (F7-WEB-08)", () => {
+  it("con el permiso del ROL pero sin plan de escritura, el botón Nuevo producto NO existe", async () => {
+    const usuario = demoUser(["products:read", "products:manage"]);
+    usuario.subscription = { ...SUBSCRIPTION_PLUS, status: "free", writeAccess: false };
+    useAuthStore.getState().setAuth("jwt", usuario);
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Productos" })).toBeInTheDocument();
+    // El permiso dice que el ROL puede; el PLAN dice que no — y el plan manda
+    // en la UI igual que el 402 manda en el API.
+    expect(screen.queryByRole("button", { name: "Nuevo producto" })).not.toBeInTheDocument();
+  });
+});

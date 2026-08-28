@@ -35,6 +35,16 @@ installRefreshInterceptor(api);
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
+    // F7-WEB-08: cualquier 402 significa "tu plan no lo incluye" — se abre
+    // el modal de planes ADEMÁS de rechazar (la pantalla que llamó igual
+    // muestra su error). El import es dinámico y perezoso: este módulo lo
+    // cargan también flujos sin sesión y el store no debe entrar al bundle
+    // del login por un interceptor.
+    if (error.response?.status === 402) {
+      void import("@/stores/billing.store").then(({ useBillingStore }) => {
+        useBillingStore.getState().openPlansModal();
+      });
+    }
     const fallback: ApiError = {
       statusCode: 0,
       message: error.message,

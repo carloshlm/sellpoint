@@ -34,6 +34,7 @@ const ME: MeProfile = {
   locale: "es",
   defaultWarehouseId: null,
   permissions: [],
+  isPlatformAdmin: false,
   subscription: {
     planCode: "plus",
     planName: "Plus",

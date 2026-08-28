@@ -25,6 +25,12 @@ export interface AuthUser {
    */
   defaultWarehouseId?: string | null;
   permissions: string[];
+  /**
+   * F7-WEB-10: SOLO para mostrar el link del backoffice — el guard del
+   * server re-verifica las cuatro llaves en cada request. Opcional a
+   * propósito: su ausencia es un link oculto, jamás un privilegio.
+   */
+  isPlatformAdmin?: boolean;
   tenant: TenantBlock;
   /**
    * F7-WEB-01 (A1): el plan efectivo del negocio, MISMO shape en login y en

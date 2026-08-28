@@ -90,3 +90,71 @@ describe("Grupo de navegación «Movimientos» (F3-NAV-02)", () => {
     expect(await screen.findByRole("group", { name: "Movimientos" })).toBeInTheDocument();
   });
 });
+
+describe("Candados por plan en el nav (F7-WEB-07)", () => {
+  it("un plan SIN movements ve el grupo con CANDADO (botón, no link) que abre el modal de planes", async () => {
+    const user = demoUser(["inventory:read", "pos:quote"]);
+    user.subscription = {
+      ...SUBSCRIPTION_PLUS,
+      planCode: "basic",
+      status: "active",
+      features: {
+        ...SUBSCRIPTION_PLUS.features,
+        movements: false,
+        transfers: false,
+        lots: false,
+        quotes: false,
+      },
+    };
+    useAuthStore.getState().setAuth("jwt-demo", user);
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    // Entradas es BOTÓN (candado), no link: se VE lo que el plan no incluye.
+    const candado = await screen.findByRole("button", { name: "Entradas" });
+    expect(candado).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Entradas" })).not.toBeInTheDocument();
+    // La cotización también queda con candado en Basic.
+    expect(screen.getByRole("button", { name: "Cotización" })).toBeInTheDocument();
+
+    // El click abre el modal de planes: el candado ES el upsell.
+    const { useBillingStore } = await import("@/stores/billing.store");
+    candado.click();
+    expect(useBillingStore.getState().plansModalOpen).toBe(true);
+  });
+
+  it("el permiso sigue mandando: sin inventory:read no hay ni candado", async () => {
+    const user = demoUser(["pos:sell"]);
+    user.subscription = {
+      ...SUBSCRIPTION_PLUS,
+      features: { ...SUBSCRIPTION_PLUS.features, movements: false },
+    };
+    useAuthStore.getState().setAuth("jwt-demo", user);
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    await screen.findByRole("navigation", { name: "Navegación principal" });
+    expect(screen.queryByRole("button", { name: "Entradas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Entradas" })).not.toBeInTheDocument();
+  });
+});

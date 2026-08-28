@@ -21,6 +21,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as WarehousesRouteImport } from './routes/warehouses'
+import { Route as AdminBillingRouteImport } from './routes/admin.billing'
 import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
@@ -36,6 +37,7 @@ import { Route as PosSalesRouteImport } from './routes/pos.sales'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
+import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
@@ -100,6 +102,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const WarehousesRoute = WarehousesRouteImport.update({
   id: '/warehouses',
   path: '/warehouses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBillingRoute = AdminBillingRouteImport.update({
+  id: '/admin/billing',
+  path: '/admin/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatalogListsRoute = CatalogListsRouteImport.update({
@@ -177,6 +184,11 @@ const ReportsStockRoute = ReportsStockRouteImport.update({
   path: '/reports/stock',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsBillingRoute = SettingsBillingRouteImport.update({
+  id: '/settings/billing',
+  path: '/settings/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -217,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
   '/warehouses': typeof WarehousesRoute
+  '/admin/billing': typeof AdminBillingRoute
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
@@ -230,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/pos/sales': typeof PosSalesRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/stock': typeof ReportsStockRoute
+  '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
@@ -251,6 +265,7 @@ export interface FileRoutesByTo {
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
   '/warehouses': typeof WarehousesRoute
+  '/admin/billing': typeof AdminBillingRoute
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
@@ -264,6 +279,7 @@ export interface FileRoutesByTo {
   '/pos/sales': typeof PosSalesRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/stock': typeof ReportsStockRoute
+  '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos': typeof PosIndexRoute
@@ -286,6 +302,7 @@ export interface FileRoutesById {
   '/verify': typeof VerifyRoute
   '/verify-email': typeof VerifyEmailRoute
   '/warehouses': typeof WarehousesRoute
+  '/admin/billing': typeof AdminBillingRoute
   '/catalog/lists': typeof CatalogListsRoute
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
@@ -299,6 +316,7 @@ export interface FileRoutesById {
   '/pos/sales': typeof PosSalesRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/stock': typeof ReportsStockRoute
+  '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
@@ -322,6 +340,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/verify-email'
     | '/warehouses'
+    | '/admin/billing'
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
@@ -335,6 +354,7 @@ export interface FileRouteTypes {
     | '/pos/sales'
     | '/reports/sales'
     | '/reports/stock'
+    | '/settings/billing'
     | '/system/roles'
     | '/system/users'
     | '/pos/'
@@ -356,6 +376,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/verify-email'
     | '/warehouses'
+    | '/admin/billing'
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
@@ -369,6 +390,7 @@ export interface FileRouteTypes {
     | '/pos/sales'
     | '/reports/sales'
     | '/reports/stock'
+    | '/settings/billing'
     | '/system/roles'
     | '/system/users'
     | '/pos'
@@ -390,6 +412,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/verify-email'
     | '/warehouses'
+    | '/admin/billing'
     | '/catalog/lists'
     | '/catalog/products'
     | '/catalog/schema'
@@ -403,6 +426,7 @@ export interface FileRouteTypes {
     | '/pos/sales'
     | '/reports/sales'
     | '/reports/stock'
+    | '/settings/billing'
     | '/system/roles'
     | '/system/users'
     | '/pos/'
@@ -425,6 +449,7 @@ export interface RootRouteChildren {
   VerifyRoute: typeof VerifyRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   WarehousesRoute: typeof WarehousesRoute
+  AdminBillingRoute: typeof AdminBillingRoute
   CatalogListsRoute: typeof CatalogListsRoute
   CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
@@ -438,6 +463,7 @@ export interface RootRouteChildren {
   PosSalesRoute: typeof PosSalesRoute
   ReportsSalesRoute: typeof ReportsSalesRoute
   ReportsStockRoute: typeof ReportsStockRoute
+  SettingsBillingRoute: typeof SettingsBillingRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
   PosIndexRoute: typeof PosIndexRoute
@@ -531,6 +557,13 @@ declare module '@tanstack/react-router' {
       path: '/warehouses'
       fullPath: '/warehouses'
       preLoaderRoute: typeof WarehousesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/billing': {
+      id: '/admin/billing'
+      path: '/admin/billing'
+      fullPath: '/admin/billing'
+      preLoaderRoute: typeof AdminBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/catalog/lists': {
@@ -638,6 +671,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsStockRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/billing': {
+      id: '/settings/billing'
+      path: '/settings/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof SettingsBillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -689,6 +729,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyRoute: VerifyRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   WarehousesRoute: WarehousesRoute,
+  AdminBillingRoute: AdminBillingRoute,
   CatalogListsRoute: CatalogListsRoute,
   CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
@@ -702,6 +743,7 @@ const rootRouteChildren: RootRouteChildren = {
   PosSalesRoute: PosSalesRoute,
   ReportsSalesRoute: ReportsSalesRoute,
   ReportsStockRoute: ReportsStockRoute,
+  SettingsBillingRoute: SettingsBillingRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
   PosIndexRoute: PosIndexRoute,

@@ -144,6 +144,57 @@
       "current": "Your current plan",
       "contact": "Contact us",
       "footer": "To subscribe or change plans, contact us and we will activate it the same day. Your data is never deleted."
+    },
+    "banner": {
+      "trial": "You have {{count}} trial days left with the full Plus plan — choose your plan",
+      "trial_one": "You have 1 trial day left with the full Plus plan — choose your plan",
+      "pastDue": "Your payment is overdue. {{count}} days left before switching to free mode",
+      "pastDue_one": "Your payment is overdue. 1 day left before switching to free mode",
+      "free": "Free mode: view everything and make up to {{limit}} sales a day — get a plan"
+    },
+    "me": {
+      "title": "My plan",
+      "status": {
+        "trialing": "On trial",
+        "active": "Active",
+        "past_due": "Past due",
+        "free": "Free mode",
+        "canceled": "Canceled"
+      },
+      "trialDays": "You have {{count}} trial days left",
+      "trialDays_one": "You have 1 trial day left",
+      "nextDue": "Next payment: {{date}}",
+      "discount": "Active discount: -${{amount}} per period ({{used}}/{{total}} used)",
+      "viewPlans": "View plans",
+      "history": "Payment history",
+      "noPayments": "No payments recorded yet.",
+      "voided": "voided",
+      "method": {
+        "transfer": "Transfer",
+        "cash": "Cash",
+        "card": "Card",
+        "other": "Other",
+        "courtesy": "Courtesy"
+      }
+    },
+    "admin": {
+      "title": "Billing backoffice",
+      "noMrr": "No active payments yet.",
+      "tenant": "Business",
+      "plan": "Plan",
+      "status": "Status",
+      "dueAt": "Due",
+      "lastPayment": "Last payment",
+      "recordPayment": "Record payment",
+      "paymentTitle": "Record payment — {{tenant}}",
+      "cycle": "Cycle",
+      "method": "Method",
+      "paidAt": "Payment date",
+      "planCode": "Plan (optional)",
+      "keepPlan": "Keep current",
+      "amountReceived": "Amount received (optional)",
+      "notes": "Notes",
+      "confirmPayment": "Record"
     }
   }
 }

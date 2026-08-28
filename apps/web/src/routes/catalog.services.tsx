@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
 import type { Service } from "@/lib/services/api";
 import {
@@ -59,7 +60,8 @@ function ServicesPage() {
 function ServicesContent() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const canManage = has("services:manage");
+  const { canWrite } = usePlan();
+  const canManage = has("services:manage") && canWrite;
 
   const [query, setQuery] = useState("");
   const [pagina, setPagina] = useState(1);
