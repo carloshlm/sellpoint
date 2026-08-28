@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { RedisModule } from "../../infrastructure/redis/redis.module";
 import { AuditModule } from "../audit/audit.module";
 import { MailModule } from "../mail/mail.module";
+import { AdminBillingController } from "./admin-billing.controller";
+import { AdminBillingService } from "./admin-billing.service";
 import { BillingService } from "./billing.service";
 import { EntitlementsService } from "./entitlements.service";
 import { SalesPlanGate } from "./sales-plan.gate";
@@ -16,7 +18,8 @@ import { SalesPlanGate } from "./sales-plan.gate";
  */
 @Module({
   imports: [RedisModule, AuditModule, MailModule],
-  providers: [EntitlementsService, BillingService, SalesPlanGate],
+  controllers: [AdminBillingController],
+  providers: [EntitlementsService, BillingService, SalesPlanGate, AdminBillingService],
   exports: [EntitlementsService, BillingService, SalesPlanGate],
 })
 export class BillingModule {}

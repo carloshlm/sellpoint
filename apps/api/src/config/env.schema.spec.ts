@@ -157,9 +157,30 @@ describe("validateEnv", () => {
         MAIL_DRIVER: "resend",
         RESEND_API_KEY: "re_xxx",
         MAIL_FROM: "no-reply@system.laradoc.com",
+        // F7-ADMIN-01: producción exige la whitelist del backoffice.
+        BILLING_ADMIN_EMAILS: "carlos@sellpointy.com",
       });
 
       expect(result.MAIL_DRIVER).toBe("resend");
+    });
+  });
+
+  describe("F7-ADMIN-01: la whitelist del backoffice", () => {
+    it("en producción es obligatoria: sin ella el backoffice no tiene dueño", () => {
+      expect(() =>
+        validateEnv({
+          ...validEnv,
+          NODE_ENV: "production",
+          MAIL_DRIVER: "resend",
+          RESEND_API_KEY: "re_xxx",
+          MAIL_FROM: "no-reply@sellpointy.com",
+        }),
+      ).toThrow(/BILLING_ADMIN_EMAILS/);
+    });
+
+    it("en dev puede faltar (default vacío = backoffice cerrado)", () => {
+      const result = validateEnv(validEnv);
+      expect(result.BILLING_ADMIN_EMAILS).toBe("");
     });
   });
 });

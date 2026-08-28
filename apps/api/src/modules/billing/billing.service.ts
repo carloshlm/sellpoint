@@ -312,9 +312,11 @@ export class BillingService {
   async changePlan(
     tenantId: string,
     input: {
-      planCode: PlanCode;
-      customPrice?: string;
+      planCode?: PlanCode;
+      customPrice?: string | null;
       billingCycle?: BillingCycle;
+      anchorDay?: number;
+      notes?: string | null;
       reason: string;
       changedBy?: string;
     },
@@ -329,7 +331,9 @@ export class BillingService {
         throw new NotFoundException({ message: "billing.subscription_not_found" });
       }
 
-      const plan = await tx.plan.findUniqueOrThrow({ where: { code: input.planCode } });
+      const plan = input.planCode
+        ? await tx.plan.findUniqueOrThrow({ where: { code: input.planCode } })
+        : sub.plan;
       const price = await this.resolvePrice(tx, plan.id, tenant.country);
       const customPrice =
         input.customPrice ?? (sub.customPrice === null ? null : String(sub.customPrice));
@@ -344,6 +348,10 @@ export class BillingService {
           planId: plan.id,
           ...(input.customPrice !== undefined ? { customPrice: input.customPrice } : {}),
           ...(input.billingCycle !== undefined ? { billingCycle: input.billingCycle } : {}),
+          // El ancla a mano es palanca de RESCATE del backoffice: normalmente
+          // la fija el primer pago y nunca se toca.
+          ...(input.anchorDay !== undefined ? { anchorDay: input.anchorDay } : {}),
+          ...(input.notes !== undefined ? { notes: input.notes } : {}),
         },
       });
 

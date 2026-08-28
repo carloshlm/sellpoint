@@ -57,9 +57,24 @@ const baseEnvSchema = z.object({
   THROTTLE_AUTH_IP_TTL_SEC: z.coerce.number().int().positive().default(900),
   THROTTLE_AUTH_EMAIL_LIMIT: z.coerce.number().int().positive().default(10),
   THROTTLE_AUTH_EMAIL_TTL_SEC: z.coerce.number().int().positive().default(3600),
+
+  // --- Billing (F7-ADMIN-01) ---
+  // Whitelist del backoffice, separada por comas. Es la SEGUNDA llave del
+  // PlatformAdminGuard (en AND con users.is_platform_admin): sin ella,
+  // nadie entra a /admin/* — obligatoria en producción (superRefine).
+  BILLING_ADMIN_EMAILS: z.string().default(""),
 });
 
 export const envSchema = baseEnvSchema.superRefine((config, ctx) => {
+  if (config.NODE_ENV === "production" && config.BILLING_ADMIN_EMAILS.trim() === "") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["BILLING_ADMIN_EMAILS"],
+      message:
+        "BILLING_ADMIN_EMAILS es obligatoria en producción (F7-ADMIN-01): sin ella el backoffice no tiene dueño.",
+    });
+  }
+
   if (config.COOKIE_DOMAIN !== "") {
     ctx.addIssue({
       code: "custom",
