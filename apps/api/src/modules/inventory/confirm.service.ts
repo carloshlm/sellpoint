@@ -306,8 +306,22 @@ export class ConfirmService {
         continue;
       }
       // El CHECK `quantity > 0` del ledger no admite movimientos en cero.
+      //
+      // El primer movimiento pone el teórico EN CERO y el segundo asienta lo
+      // contado. Con un teórico positivo ese "poner en cero" es una salida;
+      // con uno NEGATIVO es una entrada por su valor absoluto.
+      //
+      // ⚠ El teórico negativo era imposible hasta F7-DB-07, que quitó los
+      // CHECK `quantity >= 0` para que el plan Basic pueda vender sin
+      // existencias. Sin esta rama, el conteo del negocio que sube de Basic a
+      // Pro sumaba lo contado ENCIMA del negativo (teórico -3 + contado 12 =
+      // 9) en vez de dejar el saldo en lo que se contó — justo el escenario
+      // que el upgrade anuncia como `warnings.negativeStock`. Lo cazó
+      // billing-basic-stock.e2e-spec.ts (F7-E2E-04).
       if (teorico.greaterThan(0)) {
         exit.push({ ...line, quantityBase: teorico });
+      } else if (teorico.lessThan(0)) {
+        entry.push({ ...line, quantityBase: teorico.negated() });
       }
       if (contado.greaterThan(0)) {
         entry.push({ ...line, quantityBase: contado });

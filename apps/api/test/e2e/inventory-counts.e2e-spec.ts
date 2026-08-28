@@ -499,6 +499,50 @@ describe("Inventario físico (F3-COUNT)", () => {
       expect(Number(body.stock.find((s) => s.productId === simpleId)?.quantity)).toBe(35);
     });
 
+    /**
+     * ── EL TEÓRICO NEGATIVO (2026-08-28) ────────────────────────────────
+     *
+     * Era imposible hasta F7: el CHECK `quantity >= 0` de la base lo impedía,
+     * y F7-DB-07 lo quitó para que el plan Basic —que no lleva control de
+     * inventario— pueda vender con saldo en cero. El negativo que queda ES la
+     * lista de lo que hay que inventariar el día que ese negocio suba a Pro,
+     * así que el conteo TIENE que poder corregirlo.
+     *
+     * Un conteo es ABSOLUTO: lo contado es el saldo nuevo, no un delta que se
+     * suma a lo que había. Con teórico positivo eso se logra con la salida
+     * del teórico entero; con teórico NEGATIVO, el movimiento que lo pone en
+     * cero es una ENTRADA por su valor absoluto. Sin esa rama, un teórico de
+     * −3 contado en 12 terminaba en 9.
+     */
+    it("un teórico NEGATIVO se corrige: contado 12 sobre −3 deja 12, no 9", async () => {
+      const { token, tenantId, warehouseId, simpleSku, simpleId } = await escenario();
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId: simpleId, warehouseId },
+          data: { quantity: -3 },
+        }),
+      );
+
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,12`,
+      );
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as {
+        movements: { productId: string; direction: string; quantityBase: string }[];
+        stock: { productId: string; quantity: string }[];
+      };
+
+      expect(Number(body.stock.find((s) => s.productId === simpleId)?.quantity)).toBe(12);
+      // Dos entradas: la que devuelve el negativo a cero y la de lo contado.
+      const suyos = body.movements.filter((m) => m.productId === simpleId);
+      expect(suyos.map((m) => [m.direction, Number(m.quantityBase)])).toEqual([
+        ["entry", 3],
+        ["entry", 12],
+      ]);
+    });
+
     /** Contar lo mismo que había no es un movimiento: no pasó nada. */
     it("una línea que coincide no genera movimientos", async () => {
       const { token, warehouseId, simpleSku, simpleId } = await escenario();
