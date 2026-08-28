@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
@@ -51,6 +52,7 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    sellWithoutStock: false,
     country: null,
     ...overrides,
   };
@@ -65,6 +67,7 @@ function demoUser(tenant: AuthUser["tenant"], overrides: Partial<AuthUser> = {})
     lastNameMaternal: null,
     locale: "es",
     permissions: ["tenants:manage"],
+    subscription: SUBSCRIPTION_PLUS,
     tenant,
     ...overrides,
   };

@@ -3,6 +3,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { PermissionGate } from "./permission-gate";
 
 /**
@@ -19,6 +20,7 @@ function user(permissions: string[]): AuthUser {
     lastNameMaternal: null,
     locale: "es",
     permissions,
+    subscription: SUBSCRIPTION_PLUS,
     tenant: {
       id: "tenant-1",
       name: "Acme",
@@ -32,6 +34,7 @@ function user(permissions: string[]): AuthUser {
       templateChoice: null,
       country: "MX",
       onboarded: true,
+      sellWithoutStock: false,
     },
   };
 }

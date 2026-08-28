@@ -6,6 +6,7 @@ import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as tenantApi from "@/lib/tenant/api";
 import type { AuthUser } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { BusinessDetails } from "./business-details";
 
 /**
@@ -34,6 +35,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions,
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -47,6 +49,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 
@@ -291,5 +294,35 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Algo salió mal");
+  });
+
+  describe("Vender sin existencias (F7-POS-05)", () => {
+    it("con plan CON control de stock el switch aparece apagado y al activarlo manda el PATCH", async () => {
+      const user = demoUser(["tenants:manage"]);
+      mockedUpdate.mockResolvedValue({ ...user.tenant, sellWithoutStock: true });
+      renderCard(user);
+
+      const toggle = screen.getByRole("checkbox", { name: "Vender sin existencias" });
+      expect(toggle).not.toBeChecked();
+      expect(toggle).toBeEnabled();
+
+      await userEvent.click(toggle);
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ sellWithoutStock: true });
+      });
+    });
+
+    it("en un plan SIN control (Basic/Free) aparece activado y BLOQUEADO con la nota del plan", () => {
+      const user = demoUser(["tenants:manage"]);
+      user.subscription = { ...SUBSCRIPTION_PLUS, stockControl: false };
+      renderCard(user);
+
+      const toggle = screen.getByRole("checkbox", { name: "Vender sin existencias" });
+      expect(toggle).toBeChecked();
+      expect(toggle).toBeDisabled();
+      expect(screen.getByText(/incluido en tu plan/i)).toBeInTheDocument();
+      expect(mockedUpdate).not.toHaveBeenCalled();
+    });
   });
 });

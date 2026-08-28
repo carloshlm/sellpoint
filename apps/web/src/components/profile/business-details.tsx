@@ -12,6 +12,7 @@ import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
@@ -71,6 +72,7 @@ function BusinessDetails({ user }: { user: AuthUser }) {
   const { t, i18n } = useTranslation();
   const updateTenant = useUpdateMyTenant();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [sellWithoutStock, setSellWithoutStock] = useState(user.tenant.sellWithoutStock);
   const [succeeded, setSucceeded] = useState(false);
 
   const {
@@ -272,6 +274,41 @@ function BusinessDetails({ user }: { user: AuthUser }) {
               {...register("phoneNumber")}
             />
           </div>
+          {/* F7-POS-05: "Vender sin existencias" — decisión de Carlos
+              (2026-08-27). Guardado INMEDIATO (fuera del form): es un toggle
+              operativo, no un dato del wizard. En planes sin control de stock
+              (Basic/Free) la venta sin existencias es del plan: se muestra
+              activado y bloqueado. */}
+          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="sell-without-stock">
+                {t("common.profile.business.sellWithoutStock")}
+              </Label>
+              <p className="text-muted-foreground text-xs">
+                {user.subscription.stockControl
+                  ? t("common.profile.business.sellWithoutStockHint")
+                  : t("common.profile.business.sellWithoutStockPlanNote")}
+              </p>
+            </div>
+            <Checkbox
+              id="sell-without-stock"
+              aria-label={t("common.profile.business.sellWithoutStock")}
+              checked={!user.subscription.stockControl || sellWithoutStock}
+              disabled={!user.subscription.stockControl || updateTenant.isPending}
+              onCheckedChange={(checked) => {
+                const next = checked === true;
+                setSellWithoutStock(next);
+                updateTenant.mutate(
+                  { sellWithoutStock: next },
+                  {
+                    // Si el PATCH falla, el switch vuelve a decir la verdad.
+                    onError: () => setSellWithoutStock(!next),
+                  },
+                );
+              }}
+            />
+          </div>
+
           <Button type="submit" disabled={!isDirty || updateTenant.isPending}>
             {updateTenant.isPending
               ? t("common.form.submitting")

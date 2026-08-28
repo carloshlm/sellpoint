@@ -324,4 +324,31 @@ describe("StockLedgerService.apply (F3-CORE-05)", () => {
     expect(await saldo(producto.id)).toBe(esperado.toNumber());
     expect(await saldo(producto.id)).toBe(50);
   });
+
+  describe("allowNegative (F7-POS-02) — la barrera es de plan, no del ledger", () => {
+    it("sin el flag, la salida sobre saldo insuficiente sigue en 422", async () => {
+      await expect(apply("exit", [linea(productAId, 999999)])).rejects.toMatchObject({
+        response: { message: "inventory.insufficient_stock" },
+      });
+    });
+
+    it("con allowNegative la salida asienta, el movimiento existe y el saldo queda NEGATIVO", async () => {
+      const antes = (await saldo(productAId)) ?? 0;
+
+      await prisma.withTenantContext(tenantId, (tx) =>
+        ledger.apply(tx, {
+          tenantId,
+          userId,
+          direction: "exit",
+          reasonCode: "loss",
+          warehouseId,
+          lines: [linea(productAId, antes + 3)],
+          header: { documentId },
+          allowNegative: true,
+        }),
+      );
+
+      expect(await saldo(productAId)).toBe(-3);
+    });
+  });
 });

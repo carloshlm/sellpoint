@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { TransferDetail, TransferRow } from "../lib/inventory/transfers-api";
@@ -42,6 +43,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions,
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -55,6 +57,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 

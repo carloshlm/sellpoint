@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "./i18n";
 import {
   changePassword,
@@ -66,6 +67,7 @@ const DEMO_TENANT = {
   templateChoice: null,
   country: "MX",
   onboarded: true,
+  sellWithoutStock: false,
 } as const;
 
 const demoUser = {
@@ -76,6 +78,7 @@ const demoUser = {
   lastNameMaternal: null,
   locale: "es" as const,
   permissions: ["products:read"],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: DEMO_TENANT,
 };
 
@@ -799,6 +802,7 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     lastNameMaternal: null,
     locale: "es" as const,
     permissions: ["products:read"],
+    subscription: SUBSCRIPTION_PLUS,
     tenant: DEMO_TENANT,
   };
 

@@ -24,6 +24,8 @@ export interface TenantBlock {
   templateChoice: string | null;
   onboarded: boolean;
   country: string | null;
+  /** F7-POS-05: el toggle "Vender sin existencias" de los ajustes del negocio. */
+  sellWithoutStock: boolean;
 }
 
 /** PATCH parcial — espejo de `update-tenant.dto.ts` (apps/api). */
@@ -40,6 +42,7 @@ export type UpdateTenantInput = Partial<
     | "currency"
     | "templateChoice"
     | "country"
+    | "sellWithoutStock"
   >
 >;
 

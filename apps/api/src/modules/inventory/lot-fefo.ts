@@ -231,6 +231,11 @@ export async function resolveLotsFefo(
   warehouseId: string,
   lines: ExpandedLine[],
   reasonCode?: MovementReason | null,
+  // F7-POS-01: con `allowNegative` un faltante NO lanza — el shortfall se
+  // suma al último lote elegido (o la línea sigue sin lote si no hay
+  // ninguno) y la venta procede. Lo activa SOLO la venta, cuando el plan no
+  // controla stock o el admin prendió "Vender sin existencias".
+  options: { allowNegative?: boolean } = {},
 ): Promise<ExpandedLine[]> {
   // Solo las líneas que NO traen lote forzado necesitan reparto. El resto
   // pasa tal cual: si el usuario eligió un lote, sabe algo que el sistema no.
@@ -267,7 +272,7 @@ export async function resolveLotsFefo(
     const plan = planes[siguiente] as FefoLinePlan;
     siguiente += 1;
 
-    if (plan.shortfall.greaterThan(0)) {
+    if (plan.shortfall.greaterThan(0) && options.allowNegative !== true) {
       // Decir "no hay stock" cuando el anaquel tiene doce cajas a la vista es
       // la peor forma de tener razón: quien lo lee concluye que el sistema
       // está roto y termina vendiéndolo por fuera. Si lo que falta es
@@ -305,13 +310,21 @@ export async function resolveLotsFefo(
       continue;
     }
 
-    for (const take of plan.takes) {
+    for (const [i, take] of plan.takes.entries()) {
+      // F7-POS-01: si se vendió más de lo que hay, el faltante se suma al
+      // ÚLTIMO lote del reparto — así el saldo por lote absorbe el negativo
+      // y la invariante Σ stock_lots == stock_by_warehouse sigue en pie.
+      const esUltima = i === plan.takes.length - 1;
+      const quantity =
+        esUltima && plan.shortfall.greaterThan(0)
+          ? take.quantity.plus(plan.shortfall)
+          : take.quantity;
       resultado.push({
         ...line,
         // El índice de la línea ORIGINAL: el error de una sublínea tiene que
         // pintarse sobre la fila que el usuario ve, no sobre una que inventamos.
         lineIndex: line.lineIndex,
-        quantityBase: take.quantity,
+        quantityBase: quantity,
         lotId: take.lotId,
         location: take.location,
       });

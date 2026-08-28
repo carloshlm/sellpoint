@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { resyncSession } from "@/lib/auth/session-resync";
 import { createQueryClient } from "@/lib/query-client";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import type { PermissionGroup, RoleSummary, UserDetail } from "./api";
 import * as rbacApi from "./api";
 import {
@@ -81,6 +82,7 @@ const DEMO_TENANT = {
   templateChoice: null,
   country: "MX",
   onboarded: true,
+  sellWithoutStock: false,
 } as const;
 
 const PERMISSION_GROUPS: PermissionGroup[] = [
@@ -256,6 +258,7 @@ describe("re-sync de sesión (D3)", () => {
       lastNameMaternal: null,
       locale: "es",
       permissions: ["users:read"],
+      subscription: SUBSCRIPTION_PLUS,
       tenant: DEMO_TENANT,
     });
     const { Wrapper } = wrapper();
@@ -316,6 +319,7 @@ describe("re-sync de sesión (D3)", () => {
       lastNameMaternal: null,
       locale: "es",
       permissions: ["users:read"],
+      subscription: SUBSCRIPTION_PLUS,
       tenant: DEMO_TENANT,
     });
     const { promise, catchCalled } = trackedRejectedPromise();
@@ -339,6 +343,7 @@ describe("re-sync de sesión (D3)", () => {
       lastNameMaternal: null,
       locale: "es",
       permissions: ["users:manage"],
+      subscription: SUBSCRIPTION_PLUS,
       tenant: DEMO_TENANT,
     });
     const { Wrapper } = wrapper();

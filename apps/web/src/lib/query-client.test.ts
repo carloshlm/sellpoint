@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createQueryClient } from "./query-client";
 
 const DEMO_TENANT = {
@@ -17,6 +18,7 @@ const DEMO_TENANT = {
   templateChoice: null,
   country: "MX",
   onboarded: true,
+  sellWithoutStock: false,
 } as const;
 
 const ana: AuthUser = {
@@ -27,6 +29,7 @@ const ana: AuthUser = {
   lastNameMaternal: null,
   locale: "es",
   permissions: ["products:read"],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: DEMO_TENANT,
 };
 
@@ -38,6 +41,7 @@ const beto: AuthUser = {
   lastNameMaternal: null,
   locale: "es",
   permissions: ["products:read"],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: DEMO_TENANT,
 };
 

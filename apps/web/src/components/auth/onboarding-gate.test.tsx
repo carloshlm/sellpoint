@@ -12,6 +12,7 @@ import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { OnboardingGate } from "./onboarding-gate";
 
 /**
@@ -36,6 +37,7 @@ function tenant(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["tenant"]
     templateChoice: null,
     country: "MX",
     onboarded: false,
+    sellWithoutStock: false,
     ...overrides,
   };
 }
@@ -49,6 +51,7 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
     lastNameMaternal: null,
     locale: "es",
     permissions: ["tenants:manage"],
+    subscription: SUBSCRIPTION_PLUS,
     tenant: tenant(),
     ...overrides,
   };

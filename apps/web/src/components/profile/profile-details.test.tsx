@@ -7,6 +7,7 @@ import * as authApi from "@/lib/auth/api";
 import { createQueryClient } from "@/lib/query-client";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { ProfileDetails } from "./profile-details";
 
 /**
@@ -30,6 +31,7 @@ const demoUser = (): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions: [],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -43,6 +45,7 @@ const demoUser = (): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 

@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
 import { createQueryClient } from "../lib/query-client";
@@ -40,6 +41,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions,
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "t1",
     name: "Demo",
@@ -53,6 +55,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 

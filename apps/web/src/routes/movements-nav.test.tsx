@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
 import { routeTree } from "../routeTree.gen";
@@ -25,6 +26,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions,
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -38,6 +40,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 

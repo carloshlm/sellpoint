@@ -8,6 +8,8 @@ import { localCalendarDate, POS_FOLIO_PREFIXES } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { EntitlementsService } from "../billing/entitlements.service";
+import { SalesPlanGate } from "../billing/sales-plan.gate";
 import { expandComposition } from "../inventory/composition-expander";
 import { nextFolio, nextSequenceValue } from "../inventory/folio";
 import type { ResolvedLine } from "../inventory/line-resolver";
@@ -65,6 +67,8 @@ export class SalesService {
     private readonly prisma: PrismaService,
     private readonly ledger: StockLedgerService,
     private readonly cashbox: CashboxService,
+    private readonly entitlements: EntitlementsService,
+    private readonly salesPlanGate: SalesPlanGate,
   ) {}
 
   /**
@@ -112,6 +116,19 @@ export class SalesService {
     // fechas, aplicada aquí de nacimiento).
     const zona = await this.zonaDelNegocio(user.tenantId);
 
+    // F7-POS-03/04: el plan efectivo (cacheado en Redis) y el toggle del
+    // negocio, ANTES de abrir la transacción — lecturas baratas que deciden
+    // la regla de stock y el límite diario.
+    const entitlements = await this.entitlements.resolve(user.tenantId);
+    const negocio = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { sellWithoutStock: true },
+    });
+    // La regla efectiva (decisión de Carlos, 2026-08-27): vende sin validar
+    // stock quien no tiene control de inventario en su plan O quien prendió
+    // "Vender sin existencias" en los ajustes del negocio.
+    const allowNegative = !entitlements.stockControl || negocio?.sellWithoutStock === true;
+
     return this.prisma
       .withTenantContext(user.tenantId, async (tx) => {
         const precios = await this.resolverPrecios(tx, user, dto.lines);
@@ -156,6 +173,16 @@ export class SalesService {
             throw new ConflictException({ message: "pos.quote_not_open" });
           }
         }
+
+        // F7-POS-04: el límite diario del free tier se valida ANTES del
+        // folio — una venta rechazada no gasta numeración.
+        await this.salesPlanGate.assertDailySaleAllowed(
+          tx,
+          user.tenantId,
+          entitlements.dailySalesLimit,
+          zona,
+          new Date(),
+        );
 
         const folio = await nextFolio(tx, user.tenantId, "sale", POS_FOLIO_PREFIXES.sale);
 
@@ -253,6 +280,7 @@ export class SalesService {
             sesion.warehouseId,
             expandidas,
             "sale",
+            { allowNegative },
           );
 
           await this.ledger.apply(tx, {
@@ -263,6 +291,7 @@ export class SalesService {
             warehouseId: sesion.warehouseId,
             lines: conLotes,
             header: { saleId: venta.id, reference: folio },
+            allowNegative,
           });
         }
 

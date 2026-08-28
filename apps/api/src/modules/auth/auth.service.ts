@@ -18,6 +18,8 @@ import { HASHER, type HashPort } from "../../infrastructure/crypto/hash.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { REDIS_CLIENT } from "../../infrastructure/redis/redis.module";
 import { AuditService } from "../audit/audit.service";
+import { EntitlementsService } from "../billing/entitlements.service";
+import { type SubscriptionBlock, toSubscriptionBlock } from "../billing/subscription.types";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
 import { TenantsService } from "../tenants/tenants.service";
@@ -87,6 +89,7 @@ export class AuthService implements OnModuleInit {
     private readonly refreshTokenService: RefreshTokenService,
     configService: ConfigService<Env, true>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly entitlements: EntitlementsService,
   ) {
     this.appUrl = configService.get("APP_URL", { infer: true });
     this.accessTtlSeconds = configService.get("JWT_ACCESS_TTL_MIN", { infer: true }) * 60;
@@ -307,6 +310,12 @@ export class AuthService implements OnModuleInit {
           locale,
           permissions,
           tenant: toTenantBlock(tenantRow),
+          // F7-WEB-01: el MISMO mapper que GET /me (patrón A1) — el resolver
+          // ya viene cacheado de Redis, esto no agrega un roundtrip a la DB.
+          subscription: toSubscriptionBlock(
+            await this.entitlements.resolve(tenantId),
+            tenantRow.timezone,
+          ),
         },
       };
     });
@@ -825,6 +834,8 @@ export interface LoginResult {
     // A1 del design de f1-web-onboard: MISMO shape que `MeProfile.tenant`
     // (users.service.ts) — evita el store con dos emisores divergentes.
     tenant: TenantBlock;
+    /** F7-WEB-01: mismo shape que `MeProfile.subscription` (patrón A1). */
+    subscription: SubscriptionBlock;
   };
 }
 

@@ -87,7 +87,10 @@
       "currency": "Moneda",
       "currencyHint": "La elegiste al configurar tu negocio y no puede cambiarse.",
       "submit": "Guardar cambios",
-      "success": "Los datos del negocio quedaron guardados."
+      "success": "Los datos del negocio quedaron guardados.",
+      "sellWithoutStock": "Vender sin existencias",
+      "sellWithoutStockHint": "Permite cobrar aunque el inventario marque cero; el kardex registra el faltante para el siguiente conteo.",
+      "sellWithoutStockPlanNote": "Incluido en tu plan: sin control de inventario, la venta nunca se bloquea."
     },
     "preferences": {
       "title": "Preferencias",

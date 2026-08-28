@@ -23,6 +23,14 @@ export interface LedgerInput {
   tenantId: string;
   userId: string;
   direction: MovementDirection;
+  /**
+   * F7-POS-02: salta SOLO la validación de saldo del paso 4 — el SELECT FOR
+   * UPDATE ordenado no se toca (sigue siendo la barrera anti-carrera del
+   * UPDATE). Lo activa únicamente la VENTA cuando el plan del tenant no
+   * controla stock o el admin prendió "Vender sin existencias"; entradas,
+   * salidas manuales, traspasos y conteos validan SIEMPRE.
+   */
+  allowNegative?: boolean;
   reasonCode: MovementReason;
   warehouseId: string;
   lines: ExpandedLine[];
@@ -88,7 +96,7 @@ const lotKey = (lotId: string, warehouseId: string, location: string) =>
 @Injectable()
 export class StockLedgerService {
   async apply(tx: Prisma.TransactionClient, input: LedgerInput): Promise<LedgerResult> {
-    const { tenantId, warehouseId, direction, lines } = input;
+    const { tenantId, warehouseId, direction, lines, allowNegative } = input;
     const signo = direction === "entry" ? 1 : -1;
 
     // ── 1. Agrupar ────────────────────────────────────────────────────────
@@ -170,7 +178,7 @@ export class StockLedgerService {
     );
 
     // ── 4. Validar contra lo que se acaba de leer BLOQUEADO ───────────────
-    if (direction === "exit") {
+    if (direction === "exit" && allowNegative !== true) {
       for (const grupo of porStock.values()) {
         const disponible = saldoPorProducto.get(grupo.productId) ?? new Prisma.Decimal(0);
         if (disponible.lessThan(grupo.delta)) {

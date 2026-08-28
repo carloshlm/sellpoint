@@ -33,6 +33,10 @@ export const updateTenantSchema = z
     theme: z
       .enum(["light", "dark", "sand", "grape", "emerald", "cabin", "cotton", "charcoal"])
       .optional(),
+    // F7-POS-05: "Vender sin existencias". En planes CON control de stock lo
+    // decide el admin; en Free/Basic la venta sin stock ya es implícita por
+    // plan y este valor no cambia nada (la regla efectiva es un OR).
+    sellWithoutStock: z.boolean().optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "tenants.invalid_body",

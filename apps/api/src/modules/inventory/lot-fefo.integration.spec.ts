@@ -237,4 +237,27 @@ describe("resolveLotsFefo (F3-CORE-08)", () => {
       });
     });
   });
+
+  describe("allowNegative (F7-POS-01) — vender sin stock asienta, no miente", () => {
+    it("sin el flag, la regresión de F3/F4 sigue intacta: faltante lanza", async () => {
+      await expect(fefo([linea(100000)])).rejects.toMatchObject({
+        response: { message: "inventory.insufficient_stock" },
+      });
+    });
+
+    it("con allowNegative el faltante no lanza: se suma al último lote elegido y el total pedido se respeta", async () => {
+      const pedido = 100000;
+      const result = await prisma.withTenantContext(tenantId, (tx) =>
+        resolveLotsFefo(tx, tenantId, warehouseId, [linea(pedido)], undefined, {
+          allowNegative: true,
+        }),
+      );
+
+      const total = result.reduce((acc, l) => acc.plus(l.quantityBase), new Prisma.Decimal(0));
+      expect(total.toString()).toBe(String(pedido));
+      // El faltante quedó asignado a un lote REAL: el kardex por lote sigue
+      // cuadrando con el saldo por almacén (Σ lots == by_warehouse).
+      expect(result.every((l) => l.lotId !== undefined)).toBe(true);
+    });
+  });
 });

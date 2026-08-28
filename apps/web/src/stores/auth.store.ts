@@ -1,3 +1,4 @@
+import type { SubscriptionBlock } from "@sellpoint/shared";
 import { create } from "zustand";
 import type { TenantBlock } from "@/lib/tenant/api";
 
@@ -25,6 +26,12 @@ export interface AuthUser {
   defaultWarehouseId?: string | null;
   permissions: string[];
   tenant: TenantBlock;
+  /**
+   * F7-WEB-01 (A1): el plan efectivo del negocio, MISMO shape en login y en
+   * GET /me — el tipo viene de @sellpoint/shared (subscriptionBlockSchema),
+   * la única fuente. Lo consumen el PlanGate, el banner y el sidebar (F7-WEB).
+   */
+  subscription: SubscriptionBlock;
 }
 
 interface AuthState {

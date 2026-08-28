@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import type { KardexRow, StockSummary } from "../lib/inventory/kardex-api";
 import * as kardexApi from "../lib/inventory/kardex-api";
@@ -44,6 +45,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions,
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -57,6 +59,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 

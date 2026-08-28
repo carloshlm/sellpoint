@@ -150,6 +150,35 @@ function buildService(overrides?: {
     del: jest.fn().mockResolvedValue(1),
   };
 
+  const entitlements = {
+    resolve: jest.fn().mockResolvedValue({
+      planCode: "plus",
+      planName: "Plus",
+      status: "trialing",
+      billingCycle: null,
+      writeAccess: true,
+      stockControl: true,
+      dailySalesLimit: null,
+      maxUsers: 20,
+      maxWarehouses: 10,
+      features: {
+        pos: true,
+        compositions: true,
+        quotes: true,
+        movements: true,
+        transfers: true,
+        lots: true,
+        custom_fields: true,
+        custom_roles: true,
+        reports: true,
+        reports_export: true,
+      },
+      trialEndsAt: null,
+      dueAt: null,
+      graceEndsAt: null,
+    }),
+  };
+
   const service = new AuthService(
     tenantsService,
     hasher,
@@ -163,6 +192,7 @@ function buildService(overrides?: {
     refreshTokenService,
     configService,
     redis as never,
+    entitlements as never,
   );
 
   return {
@@ -502,6 +532,14 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
           templateChoice: null,
           onboarded: false,
         },
+        // F7-WEB-01 (A1): MISMO shape que el otro emisor — ver
+        // subscription.types.spec.ts para la matemática de daysLeft.
+        subscription: expect.objectContaining({
+          planCode: "plus",
+          status: "trialing",
+          daysLeft: null,
+          writeAccess: true,
+        }),
       },
     });
   });

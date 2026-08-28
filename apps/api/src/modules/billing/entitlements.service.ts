@@ -14,6 +14,7 @@ export interface Entitlements {
   planCode: PlanCode;
   planName: string;
   status: string;
+  billingCycle: "monthly" | "yearly" | null;
   writeAccess: boolean;
   stockControl: boolean;
   dailySalesLimit: number | null;
@@ -111,7 +112,7 @@ export class EntitlementsService {
         // regala acceso — se degrada a free y se deja rastro.
         this.logger.warn(`Tenant ${tenantId} sin fila de suscripción: resolviendo plan free`);
         const freePlan = await tx.plan.findUniqueOrThrow({ where: { code: "free" } });
-        return this.toEntitlements(freePlan as PlanRow, "free", null, null, null);
+        return this.toEntitlements(freePlan as PlanRow, "free", null, null, null, null);
       }
 
       const planEfectivo =
@@ -122,6 +123,7 @@ export class EntitlementsService {
       return this.toEntitlements(
         planEfectivo,
         sub.status,
+        (sub.billingCycle as "monthly" | "yearly" | null) ?? null,
         sub.trialEndsAt,
         sub.dueAt,
         sub.graceEndsAt,
@@ -132,6 +134,7 @@ export class EntitlementsService {
   private toEntitlements(
     plan: PlanRow,
     status: string,
+    billingCycle: "monthly" | "yearly" | null,
     trialEndsAt: Date | null,
     dueAt: Date | null,
     graceEndsAt: Date | null,
@@ -140,6 +143,7 @@ export class EntitlementsService {
       planCode: plan.code as PlanCode,
       planName: plan.name,
       status,
+      billingCycle,
       writeAccess: plan.writeAccess,
       stockControl: plan.stockControl,
       dailySalesLimit: plan.dailySalesLimit,

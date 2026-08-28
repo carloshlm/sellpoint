@@ -7,6 +7,7 @@ import { createQueryClient } from "@/lib/query-client";
 import * as tenantApi from "@/lib/tenant/api";
 import { applyTheme } from "@/lib/theme/apply-theme";
 import type { AuthUser } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { ThemePreference } from "./theme-preference";
 
 /**
@@ -31,6 +32,7 @@ const demoUser = (permissions: string[], theme: string | null = null): AuthUser 
   lastNameMaternal: null,
   locale: "es",
   permissions,
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -44,6 +46,7 @@ const demoUser = (permissions: string[], theme: string | null = null): AuthUser 
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 

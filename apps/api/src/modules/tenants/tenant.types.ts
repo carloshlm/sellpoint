@@ -25,6 +25,9 @@ export interface TenantBlock {
   templateChoice: string | null;
   onboarded: boolean;
   country: string | null;
+  // F7-POS-05: el toggle "Vender sin existencias" — el front lo pinta en los
+  // ajustes del negocio (editable con plan con control; fijo en Basic/Free).
+  sellWithoutStock: boolean;
 }
 
 /** Select de Prisma que alimenta `toTenantBlock` — un solo lugar para los 3 consumidores. */
@@ -41,6 +44,7 @@ export const TENANT_SELECT = {
   templateChoice: true,
   onboarded: true,
   country: true,
+  sellWithoutStock: true,
 } as const;
 
 export type TenantRow = {
@@ -56,6 +60,7 @@ export type TenantRow = {
   templateChoice: string | null;
   onboarded: boolean;
   country: string | null;
+  sellWithoutStock: boolean;
 };
 
 /** Función pura: fila de Prisma → `TenantBlock`. Testeable sin DB. */
@@ -73,5 +78,6 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     templateChoice: row.templateChoice,
     onboarded: row.onboarded,
     country: row.country,
+    sellWithoutStock: row.sellWithoutStock,
   };
 }

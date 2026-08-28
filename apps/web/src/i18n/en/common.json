@@ -87,7 +87,10 @@
       "currency": "Currency",
       "currencyHint": "You chose it when setting up your business and it cannot be changed.",
       "submit": "Save changes",
-      "success": "Business details saved."
+      "success": "Business details saved.",
+      "sellWithoutStock": "Sell without stock",
+      "sellWithoutStockHint": "Allows charging even when inventory shows zero; the kardex records the shortage for the next count.",
+      "sellWithoutStockPlanNote": "Included in your plan: without inventory control, sales are never blocked."
     },
     "preferences": {
       "title": "Preferences",

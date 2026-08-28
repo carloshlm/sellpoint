@@ -4,6 +4,7 @@ import { AuditModule } from "../audit/audit.module";
 import { MailModule } from "../mail/mail.module";
 import { BillingService } from "./billing.service";
 import { EntitlementsService } from "./entitlements.service";
+import { SalesPlanGate } from "./sales-plan.gate";
 
 /**
  * F7-CORE — el motor de suscripciones y cobro manual.
@@ -15,7 +16,7 @@ import { EntitlementsService } from "./entitlements.service";
  */
 @Module({
   imports: [RedisModule, AuditModule, MailModule],
-  providers: [EntitlementsService, BillingService],
-  exports: [EntitlementsService, BillingService],
+  providers: [EntitlementsService, BillingService, SalesPlanGate],
+  exports: [EntitlementsService, BillingService, SalesPlanGate],
 })
 export class BillingModule {}

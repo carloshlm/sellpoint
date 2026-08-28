@@ -1,5 +1,6 @@
 import type { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { updateTenantSchema } from "./dto/update-tenant.dto";
 import { TenantProfileService } from "./tenant-profile.service";
 
 const ACTOR: AuthUser = {
@@ -80,6 +81,11 @@ describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
       templateChoice: null,
       onboarded: false,
     });
+  });
+
+  it("F7-POS-05: el PATCH acepta y persiste sellWithoutStock (el schema lo deja pasar)", async () => {
+    const parsed = updateTenantSchema.parse({ sellWithoutStock: true });
+    expect(parsed).toEqual({ sellWithoutStock: true });
   });
 
   it("resuelve dentro de withTenantContext(actor.tenantId)", async () => {

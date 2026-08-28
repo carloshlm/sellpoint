@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { useAuthStore } from "./auth.store";
 
 const demoUser = {
@@ -9,6 +10,7 @@ const demoUser = {
   lastNameMaternal: null,
   locale: "es" as const,
   permissions: ["products:read"],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -22,6 +24,7 @@ const demoUser = {
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 };
 

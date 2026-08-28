@@ -1,5 +1,6 @@
 import { getMe } from "@/lib/auth/api";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { resyncSession } from "./session-resync";
 
 /**
@@ -22,6 +23,7 @@ const demoUser = {
   lastNameMaternal: null,
   locale: "es" as const,
   permissions: ["users:read"],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -35,6 +37,7 @@ const demoUser = {
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 };
 

@@ -1,5 +1,6 @@
 import { createI18n } from "@/i18n";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { installAccountLanguageSync } from "./ui-language";
 
 /**
@@ -21,6 +22,7 @@ const TENANT: AuthUser["tenant"] = {
   currency: "MXN",
   templateChoice: null,
   onboarded: true,
+  sellWithoutStock: false,
   country: "MX",
 };
 
@@ -33,6 +35,7 @@ function makeUser(locale: AuthUser["locale"]): AuthUser {
     lastNameMaternal: null,
     locale,
     permissions: [],
+    subscription: SUBSCRIPTION_PLUS,
     tenant: TENANT,
   };
 }

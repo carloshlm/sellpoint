@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { AuthModule } from "../auth/auth.module";
+import { BillingModule } from "../billing/billing.module";
 import { MailModule } from "../mail/mail.module";
 import { UserInvitationService } from "./user-invitation.service";
 import { UsersController } from "./users.controller";
@@ -19,7 +20,7 @@ import { WarehouseScopeService } from "./warehouse-scope.service";
 // ÚNICO lugar con queries de auth en vez de duplicar el SQL de
 // `password_reset_tokens` acá.
 @Module({
-  imports: [AuditModule, AuthModule, MailModule],
+  imports: [AuditModule, AuthModule, MailModule, BillingModule],
   controllers: [UsersController, UsersAdminController],
   providers: [UsersService, UsersAdminService, UserInvitationService, WarehouseScopeService],
 })

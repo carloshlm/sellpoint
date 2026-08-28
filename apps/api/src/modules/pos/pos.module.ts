@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { BillingModule } from "../billing/billing.module";
 import { InventoryModule } from "../inventory/inventory.module";
 import { CashboxService } from "./cashbox.service";
 import { LookupService } from "./lookup.service";
@@ -12,7 +13,7 @@ import { TicketService } from "./ticket.service";
  * pueda saber de qué almacén descuenta.
  */
 @Module({
-  imports: [InventoryModule],
+  imports: [InventoryModule, BillingModule],
   controllers: [PosController],
   providers: [CashboxService, SalesService, LookupService, QuotesService, TicketService],
   exports: [CashboxService, SalesService, LookupService, QuotesService, TicketService],

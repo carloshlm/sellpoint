@@ -59,7 +59,36 @@ function buildService(overrides?: {
     record: jest.fn().mockResolvedValue(undefined),
   } as unknown as AuditService;
 
-  const service = new UsersService(prisma as never, auditService);
+  const entitlements = {
+    resolve: jest.fn().mockResolvedValue({
+      planCode: "plus",
+      planName: "Plus",
+      status: "trialing",
+      billingCycle: null,
+      writeAccess: true,
+      stockControl: true,
+      dailySalesLimit: null,
+      maxUsers: 20,
+      maxWarehouses: 10,
+      features: {
+        pos: true,
+        compositions: true,
+        quotes: true,
+        movements: true,
+        transfers: true,
+        lots: true,
+        custom_fields: true,
+        custom_roles: true,
+        reports: true,
+        reports_export: true,
+      },
+      trialEndsAt: null,
+      dueAt: null,
+      graceEndsAt: null,
+    }),
+  };
+
+  const service = new UsersService(prisma as never, auditService, entitlements as never);
   return { service, prisma, auditService, tx };
 }
 
@@ -104,6 +133,14 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         templateChoice: null,
         onboarded: false,
       },
+      // F7-WEB-01 (A1): MISMO shape que el otro emisor — ver
+      // subscription.types.spec.ts para la matemática de daysLeft.
+      subscription: expect.objectContaining({
+        planCode: "plus",
+        status: "trialing",
+        daysLeft: null,
+        writeAccess: true,
+      }),
     });
     expect(result).not.toHaveProperty("passwordHash");
   });

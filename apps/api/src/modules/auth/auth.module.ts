@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { BillingModule } from "../billing/billing.module";
 import { MailModule } from "../mail/mail.module";
 import { TenantsModule } from "../tenants/tenants.module";
 import { AuthController } from "./auth.controller";
@@ -16,7 +17,7 @@ import { TokenService } from "./services/token.service";
 // global) — Nest resuelve esa dependencia vía el import de AuthModule en
 // AppModule, sin duplicar el provider.
 @Module({
-  imports: [TenantsModule, MailModule, AuditModule],
+  imports: [TenantsModule, MailModule, AuditModule, BillingModule],
   controllers: [AuthController],
   providers: [
     AuthService,

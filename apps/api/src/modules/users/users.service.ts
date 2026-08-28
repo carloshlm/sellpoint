@@ -4,6 +4,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { EntitlementsService } from "../billing/entitlements.service";
+import { type SubscriptionBlock, toSubscriptionBlock } from "../billing/subscription.types";
 import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
 import type { UpdateMeDto } from "./dto/update-me.dto";
 
@@ -38,6 +40,8 @@ export interface MeProfile {
    * importar si llegó por login o por bootstrap/resync.
    */
   tenant: TenantBlock;
+  /** F7-WEB-01: mismo shape que `LoginResult.user.subscription` (patrón A1). */
+  subscription: SubscriptionBlock;
 }
 
 /**
@@ -51,6 +55,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /**
@@ -93,6 +98,11 @@ export class UsersService {
       defaultWarehouseId: row.defaultWarehouseId,
       permissions: user.permissions,
       tenant: toTenantBlock(tenantRow),
+      // F7-WEB-01: el MISMO mapper que login (patrón A1).
+      subscription: toSubscriptionBlock(
+        await this.entitlements.resolve(user.tenantId),
+        tenantRow.timezone,
+      ),
     };
   }
 

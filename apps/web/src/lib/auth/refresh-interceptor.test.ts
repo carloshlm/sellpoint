@@ -5,6 +5,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import { useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { __resetRefreshStateForTests, installRefreshInterceptor } from "./refresh-interceptor";
 
 /** Respuesta con el shape que axios espera de un adaptador. */
@@ -85,6 +86,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
       lastNameMaternal: null,
       locale: "es",
       permissions: [],
+      subscription: SUBSCRIPTION_PLUS,
       tenant: {
         id: "tenant-1",
         name: "Acme",
@@ -98,6 +100,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
         templateChoice: null,
         country: "MX",
         onboarded: true,
+        sellWithoutStock: false,
       },
     });
   });
@@ -215,6 +218,7 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
       lastNameMaternal: null,
       locale: "es",
       permissions: [],
+      subscription: SUBSCRIPTION_PLUS,
       tenant: {
         id: "tenant-1",
         name: "Acme",
@@ -228,6 +232,7 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
         templateChoice: null,
         country: "MX",
         onboarded: true,
+        sellWithoutStock: false,
       },
     });
   });

@@ -46,6 +46,10 @@ model Tenant {
   // sin nueva migración.
   country        String?  @db.Char(2)
   onboarded      Boolean  @default(false)
+  // F7-POS-03: el toggle "Vender sin existencias". La regla efectiva de la
+  // venta es `!plan.stockControl || sellWithoutStock` — en Free/Basic es
+  // implícita; en Pro/Plus/Premium la decide el admin (default estricto).
+  sellWithoutStock Boolean @default(false) @map("sell_without_stock")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

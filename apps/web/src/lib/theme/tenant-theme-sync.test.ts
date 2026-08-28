@@ -1,4 +1,5 @@
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { applyTheme } from "./apply-theme";
 import { installTenantThemeSync } from "./tenant-theme-sync";
 
@@ -14,6 +15,7 @@ const userWithTheme = (theme: string | null): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions: [],
+  subscription: SUBSCRIPTION_PLUS,
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -27,6 +29,7 @@ const userWithTheme = (theme: string | null): AuthUser => ({
     templateChoice: null,
     country: "MX",
     onboarded: true,
+    sellWithoutStock: false,
   },
 });
 
