@@ -1,4 +1,5 @@
 {
+  "amount_below_charge": "The amount received ({received}) does not cover this period's charge ({expected}). Confirm the partial payment to record it anyway.",
   "custom_price_required": "A plan without a published price needs a per-client agreed price.",
   "daily_sales_limit_reached": "You reached today's {limit} sales of free mode. Get a plan to sell without limits.",
   "discount_overlap": "There is already an active discount for this business. Revoke it before granting another.",
@@ -9,6 +10,7 @@
   "payment_already_voided": "This payment was already voided.",
   "payment_period_overlap": "That payment's period overlaps with one already recorded.",
   "plan_not_found": "That plan does not exist.",
+  "plan_required": "Missing plan: this business has no previous subscription to inherit it from.",
   "reactivation_window_over": "The paid period is over: reactivation happens through a new payment.",
   "read_only": "Your account is in free mode: you can view everything and sell up to 10 times a day. Get a plan to create and edit.",
   "subscription_canceled": "The subscription is canceled. Reactivate it before recording a payment.",

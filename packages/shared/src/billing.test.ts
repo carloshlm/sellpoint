@@ -10,6 +10,7 @@ import {
   PLAN_CODES,
   planFeaturesSchema,
   resolveAnchorDay,
+  resolveMarket,
   SUBSCRIPTION_PAYMENT_METHODS,
   SUBSCRIPTION_STATUSES,
   subscriptionBlockSchema,
@@ -245,5 +246,35 @@ describe("computeChargeAmount (F7-SHARED-03)", () => {
         discount: { kind: "fixed_amount", amount: "0.10" },
       }),
     ).toEqual({ gross: "0.30", discount: "0.10", net: "0.20" });
+  });
+});
+
+/**
+ * `resolveMarket` — qué tarifa le toca a un negocio. Nació de un bug que
+ * Carlos vio en producción el 2026-08-29: negocios con moneda MXN viendo
+ * (y a punto de pagar) precios en dólares porque su `country` era NULL.
+ */
+describe("resolveMarket", () => {
+  it("el país elegido en el onboarding manda sobre todo", () => {
+    expect(resolveMarket({ country: "MX", currency: "USD" })).toBe("MX");
+    expect(resolveMarket({ country: "CA", currency: "MXN" })).toBe("CA");
+  });
+
+  it("sin país, la moneda del negocio decide el mercado", () => {
+    expect(resolveMarket({ country: null, currency: "MXN" })).toBe("MX");
+    expect(resolveMarket({ country: null, currency: "CAD" })).toBe("CA");
+    expect(resolveMarket({ country: null, currency: "USD" })).toBe("US");
+  });
+
+  it("sin país ni moneda conocida, US es el default internacional", () => {
+    expect(resolveMarket({ country: null, currency: null })).toBe("US");
+    expect(resolveMarket({})).toBe("US");
+    // EUR y GBP no tienen tarifa propia todavía: caen al default sin romper.
+    expect(resolveMarket({ country: null, currency: "EUR" })).toBe("US");
+  });
+
+  it("normaliza a mayúsculas: el país llega de la base, no de un formulario", () => {
+    expect(resolveMarket({ country: "mx" })).toBe("MX");
+    expect(resolveMarket({ country: null, currency: "mxn" })).toBe("MX");
   });
 });

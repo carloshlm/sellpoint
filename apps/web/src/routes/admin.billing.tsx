@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { TenantDetailDialog } from "@/components/billing/tenant-detail-dialog";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,7 @@ function AdminBilling() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [pagando, setPagando] = useState<{ tenantId: string; tenantName: string } | null>(null);
+  const [viendo, setViendo] = useState<{ tenantId: string; tenantName: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data } = useQuery({
@@ -98,21 +100,43 @@ function AdminBilling() {
               <tbody>
                 {(data?.tenants ?? []).map((fila) => (
                   <tr key={fila.tenantId} className="border-b">
-                    <td className="px-2 py-1">{fila.tenantName}</td>
+                    <td className="px-2 py-1">
+                      <button
+                        type="button"
+                        className="text-left underline-offset-2 hover:underline"
+                        onClick={() =>
+                          setViendo({ tenantId: fila.tenantId, tenantName: fila.tenantName })
+                        }
+                      >
+                        {fila.tenantName}
+                      </button>
+                    </td>
                     <td className="px-2 py-1">{fila.planName}</td>
                     <td className="px-2 py-1">{t(`common.billing.me.status.${fila.status}`)}</td>
                     <td className="px-2 py-1">{fecha(fila.dueAt)}</td>
                     <td className="px-2 py-1">{fecha(fila.lastPaymentAt)}</td>
                     <td className="px-2 py-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() =>
-                          setPagando({ tenantId: fila.tenantId, tenantName: fila.tenantName })
-                        }
-                      >
-                        {t("common.billing.admin.recordPayment")}
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setViendo({ tenantId: fila.tenantId, tenantName: fila.tenantName })
+                          }
+                        >
+                          {t("common.billing.admin.detail")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() =>
+                            setPagando({ tenantId: fila.tenantId, tenantName: fila.tenantName })
+                          }
+                        >
+                          {t("common.billing.admin.recordPayment")}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -121,6 +145,12 @@ function AdminBilling() {
           </div>
         </CardContent>
       </Card>
+
+      <TenantDetailDialog
+        tenantId={viendo?.tenantId ?? null}
+        tenantName={viendo?.tenantName ?? ""}
+        onClose={() => setViendo(null)}
+      />
 
       <Dialog
         open={pagando !== null}
@@ -143,6 +173,7 @@ function AdminBilling() {
                 paidAt: new Date(`${form.get("paidAt")}T12:00:00`).toISOString(),
                 planCode: (form.get("planCode") as string) || undefined,
                 amountReceived: (form.get("amountReceived") as string) || undefined,
+                allowPartial: form.get("allowPartial") === "on" || undefined,
                 notes: (form.get("notes") as string) || undefined,
               },
             });
@@ -212,6 +243,20 @@ function AdminBilling() {
             <Label htmlFor="pay-notes">{t("common.billing.admin.notes")}</Label>
             <input id="pay-notes" name="notes" className="w-full rounded-md border p-2 text-sm" />
           </div>
+          {/*
+            El seguro del cobro: sin esto, un monto por debajo del plan se
+            rechaza en el server. Marcarlo es decidir aceptar el faltante, no
+            saltarse una validación por descuido.
+          */}
+          <label className="flex items-start gap-2 text-sm" htmlFor="pay-partial">
+            <input id="pay-partial" name="allowPartial" type="checkbox" className="mt-1" />
+            <span>
+              {t("common.billing.admin.allowPartial")}
+              <span className="block text-muted-foreground text-xs">
+                {t("common.billing.admin.allowPartialHint")}
+              </span>
+            </span>
+          </label>
           <Button type="submit" disabled={registrar.isPending}>
             {t("common.billing.admin.confirmPayment")}
           </Button>

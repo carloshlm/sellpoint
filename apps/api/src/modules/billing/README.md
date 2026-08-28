@@ -27,8 +27,11 @@ eso se ve y se corrige con un pago—; jamás regalar un plan que nadie pagó.
 | Precio publicado | no se vende | ✅ | ✅ | ✅ | **pactado por cliente** |
 
 - Precios por **MERCADO**, no por tipo de cambio: MX $199/$349/$499 MXN ·
-  US $15/$29/$45 USD · CA $19/$39/$59 CAD. La fila del país del tenant manda;
-  sin fila propia, la tarifa `US` es el default internacional.
+  US $15/$29/$45 USD · CA $19/$39/$59 CAD. El mercado lo resuelve
+  `resolveMarket` (shared): el `country` del negocio manda; sin país, su
+  MONEDA lo deriva (MXN→MX, CAD→CA); y `US` es el default internacional. La
+  MISMA función la usan la vitrina y el cobro — mostrar un precio y cobrar
+  otro sería el peor error de este módulo.
 - **Anual = mensual × 10** (dos meses gratis). Lo exige un CHECK de la base:
   no es una coincidencia del seed, es regla de la casa.
 - El trial es de **14 días con nivel Plus**, sin tarjeta, y nace en la MISMA
@@ -40,7 +43,7 @@ eso se ve y se corrige con un pago—; jamás regalar un plan que nadie pagó.
 
 La matriz vive en `plans.features` (JSONB validado con `planFeaturesSchema`)
 más columnas calientes duras (`max_users`, `daily_sales_limit`, …). Se edita
-**sin migración** desde el backoffice — ver runbook §5.7.
+**sin migración** desde el backoffice — ver runbook §5.8.
 
 ## 2. La máquina de estados
 
@@ -138,7 +141,11 @@ flag no viaja en el JWT: se consulta por PK en cada request de `/admin/*`,
 así que revocarlo es inmediato.
 
 La operación semanal vive en la UI: **`app.sellpointy.com/admin/billing`**
-(tabla de negocios + modal "Registrar pago"). Todo lo demás es solo-API.
+(tabla de negocios + expediente + modal "Registrar pago"). La tabla lista
+**todos los negocios**, tengan o no suscripción: los anteriores a la Fase 7
+salen como "Sin suscripción", y registrarles un pago los da de alta (exige
+`planCode`, porque no hay plan previo del que heredar). Todo lo demás es
+solo-API.
 Para usar la API a mano, primero un token:
 
 ```bash
@@ -169,10 +176,14 @@ curl -s -X POST "$BASE/tenants/<tenantId>/payments" -H "$AUTH" \
 - `method`: `transfer` · `cash` · `card` · `other` · `courtesy`.
 - `planCode` (opcional) cambia el plan EN EL MISMO ACTO — el caso típico:
   el trial Plus que contrata Basic paga $199 y queda en Basic.
-- `amountReceived` (opcional): lo que de verdad llegó. El pago SIEMPRE
-  registra el monto CALCULADO (el CHECK no admite otra cosa); si difiere,
-  la diferencia queda dicha en `notes`. **El período jamás se deriva del
-  monto.**
+- `amountReceived` (opcional): lo que de verdad llegó. **Si NO cubre el
+  cargo, el pago se rechaza** con 422 `billing.amount_below_charge` diciendo
+  cuánto falta — un error de dedo no puede regalar un mes. Para aceptarlo
+  igual, `allowPartial: true` (en la UI, la casilla "Aceptar aunque no cubra
+  el costo del plan"): el faltante queda escrito en `notes` y en la bitácora.
+  Un pago de MÁS nunca se rechaza. El pago siempre registra el monto
+  CALCULADO (el CHECK no admite otra cosa) y **el período jamás se deriva del
+  monto**.
 - `periodStart` (opcional): override explícito — "reactivar desde hoy sin
   cobrar los meses muertos" cuando NO quieres el encadenamiento por defecto.
 
@@ -180,7 +191,21 @@ El cargo se calcula solo: precio del mercado del tenant (o `custom_price` en
 Premium) − cupón vigente. La suscripción pasa a `active`, la gracia se limpia
 y al negocio le llega el correo `payment-received`.
 
-### 5.2 Anular un pago
+### 5.2 El expediente de un negocio
+
+En la UI, el **nombre del negocio** abre su expediente: plan, estado, cupón
+vigente y el **historial de pagos** con el período que cubrió cada uno, sus
+notas y el botón de anular. Por API:
+
+```bash
+curl -s "$BASE/tenants/<tenantId>" -H "$AUTH"
+```
+
+Un negocio SIN suscripción —los anteriores a la Fase 7— responde `status:
+"none"` sobre el plan `free` en vez de 404: es lo que el sistema le aplica
+hoy, y es a quien hay que cobrarle.
+
+### 5.3 Anular un pago
 
 Un pago capturado por error NO se borra — se anula con razón, y el estado
 presente se recalcula desde los pagos vivos (puede volver a `active`,
@@ -192,7 +217,7 @@ curl -s -X POST "$BASE/tenants/<tenantId>/payments/<paymentId>/void" \
   -d '{"reason": "transferencia rebotada"}'
 ```
 
-### 5.3 Dar un cupón (y quitarlo)
+### 5.4 Dar un cupón (y quitarlo)
 
 Un solo cupón activo por negocio; para cambiar, se revoca y se otorga otro.
 
@@ -215,7 +240,7 @@ curl -s -X DELETE "$BASE/tenants/<tenantId>/discounts/<discountId>" \
 El cupón se agota solo: `applied_periods` sube con cada pago y el período 13
 cobra tarifa de lista sin que nadie tenga que acordarse.
 
-### 5.4 Correr el barrido a mano
+### 5.5 Correr el barrido a mano
 
 ```bash
 curl -s -X POST "$BASE/jobs/run-daily" -H "$AUTH" -d '{}'
@@ -226,7 +251,7 @@ transiciones son `updateMany WHERE status = ...` (la segunda pasada mueve 0
 filas) y los avisos rebotan en el UNIQUE de `billing_notifications`. Úsalo
 para "córrelo y mira qué movió" — el log dice cuántas suscripciones tocó.
 
-### 5.5 Dar de alta un Premium
+### 5.6 Dar de alta un Premium
 
 Premium no tiene precio publicado: exige `custom_price` pactado por cliente.
 Dos pasos — primero el plan con su precio, luego el pago normal:
@@ -243,7 +268,7 @@ curl -s -X PATCH "$BASE/tenants/<tenantId>/subscription" -H "$AUTH" \
 Mover a Premium sin `customPrice` (ni uno previo) rebota con 422
 `billing.custom_price_required` — la invariante la impone `BillingService`.
 
-### 5.6 Cancelar y reactivar
+### 5.7 Cancelar y reactivar
 
 ```bash
 curl -s -X POST "$BASE/tenants/<tenantId>/cancel" -H "$AUTH" \
@@ -255,7 +280,7 @@ curl -s -X POST "$BASE/tenants/<tenantId>/reactivate" -H "$AUTH" \
 # Solo con el período aún vivo; vencido, la puerta es un pago (422).
 ```
 
-### 5.7 Editar precios y features de un plan
+### 5.8 Editar precios y features de un plan
 
 ```bash
 curl -s "$BASE/plans" -H "$AUTH"          # el catálogo completo con precios
@@ -271,7 +296,7 @@ El anual se deriva SIEMPRE (×10); las `features` pasan por el schema estricto
 FUTUROS — cada pago viejo guarda su snapshot. Los entitlements cacheados
 expiran solos (TTL ≤ 5 min).
 
-### 5.8 Cambios de plan y el aviso de negativos
+### 5.9 Cambios de plan y el aviso de negativos
 
 `PATCH .../subscription` con `planCode` mueve el plan sin cobrar (el cobro con
 cambio de plan es §5.1). Al mover a un plan CON control de stock, la respuesta

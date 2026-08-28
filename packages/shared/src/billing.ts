@@ -240,3 +240,32 @@ export function computeChargeAmount(input: ChargeInput): ChargeAmount {
     net: centsToText(grossCents - discountCents),
   };
 }
+
+/**
+ * El MERCADO cuya tarifa le corresponde a un negocio: el país que decide
+ * en qué moneda se le cobra y qué precios ve.
+ *
+ * El orden importa y es el de la confianza en el dato:
+ *
+ *  1. `country` — lo que el negocio eligió en su onboarding. Manda siempre.
+ *  2. `currency` — el segundo mejor dato. Los tenants anteriores al
+ *     onboarding tienen `country` en NULL pero SÍ tienen moneda: asumir
+ *     Estados Unidos con un "MXN" escrito en su propia fila es peor que
+ *     derivarlo.
+ *  3. `US` — el default internacional, para quien no dice ni una cosa ni la
+ *     otra.
+ *
+ * ⚠ Vive acá y no en cada llamador porque lo usan los DOS caminos: la
+ * vitrina de planes (qué precio VE) y `resolvePrice` (cuánto se le COBRA).
+ * Que divergieran sería mostrar un precio y cobrar otro.
+ */
+export function resolveMarket(tenant: {
+  country?: string | null;
+  currency?: string | null;
+}): string {
+  if (tenant.country) {
+    return tenant.country.toUpperCase();
+  }
+  const porMoneda: Record<string, string> = { MXN: "MX", CAD: "CA", USD: "US" };
+  return porMoneda[(tenant.currency ?? "").toUpperCase()] ?? "US";
+}

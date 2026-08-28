@@ -159,7 +159,8 @@
         "active": "Activo",
         "past_due": "Pago vencido",
         "free": "Modo gratuito",
-        "canceled": "Cancelado"
+        "canceled": "Cancelado",
+        "none": "Sin suscripción"
       },
       "trialDays": "Te quedan {{count}} días de prueba",
       "trialDays_one": "Te queda 1 día de prueba",
@@ -194,7 +195,23 @@
       "keepPlan": "Mantener el actual",
       "amountReceived": "Monto recibido (opcional)",
       "notes": "Notas",
-      "confirmPayment": "Registrar"
+      "confirmPayment": "Registrar",
+      "detail": "Ver detalle",
+      "detailTitle": "{{tenant}}",
+      "noSubscription": "Sin suscripción",
+      "history": "Historial de pagos",
+      "noPayments": "Este negocio no tiene pagos registrados.",
+      "amount": "Monto",
+      "void": "Anular",
+      "voidTitle": "Anular el pago",
+      "voidReason": "¿Por qué se anula? (queda en la bitácora)",
+      "voidConfirm": "Anular el pago",
+      "voided": "Anulado",
+      "discount": "Descuento vigente: {{detail}}",
+      "close": "Cerrar",
+      "period": "Período",
+      "allowPartial": "Aceptar aunque no cubra el costo del plan",
+      "allowPartialHint": "El faltante queda escrito en el pago y en la bitácora."
     }
   }
 }

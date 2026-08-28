@@ -159,7 +159,8 @@
         "active": "Active",
         "past_due": "Past due",
         "free": "Free mode",
-        "canceled": "Canceled"
+        "canceled": "Canceled",
+        "none": "No subscription"
       },
       "trialDays": "You have {{count}} trial days left",
       "trialDays_one": "You have 1 trial day left",
@@ -194,7 +195,23 @@
       "keepPlan": "Keep current",
       "amountReceived": "Amount received (optional)",
       "notes": "Notes",
-      "confirmPayment": "Record"
+      "confirmPayment": "Record",
+      "detail": "View details",
+      "detailTitle": "{{tenant}}",
+      "noSubscription": "No subscription",
+      "history": "Payment history",
+      "noPayments": "This business has no recorded payments.",
+      "amount": "Amount",
+      "void": "Void",
+      "voidTitle": "Void payment",
+      "voidReason": "Why is it being voided? (kept in the audit log)",
+      "voidConfirm": "Void payment",
+      "voided": "Voided",
+      "discount": "Active discount: {{detail}}",
+      "close": "Close",
+      "period": "Period",
+      "allowPartial": "Accept even if it does not cover the plan price",
+      "allowPartialHint": "The shortfall is recorded on the payment and in the audit log."
     }
   }
 }

@@ -240,6 +240,107 @@ describe("Ciclo de vida de la suscripción (F7-E2E-01)", () => {
     });
   });
 
+  /**
+   * ── EL PAGO QUE NO CUBRE (Carlos, 2026-08-29) ──────────────────────────
+   *
+   * «Al registrar un pago por cualquier cantidad, por ejemplo 100 pesos, se
+   * activa el plan aunque el costo sea 499.» Tenía razón en que era un
+   * riesgo: el monto recibido solo iba a las notas y el período se otorgaba
+   * completo igual, así que un error de dedo regalaba un mes.
+   *
+   * La decisión (Carlos, opción A): **rechazar por defecto y permitir
+   * forzar**. El sistema no puede decidir solo que un cobro incompleto está
+   * bien —a veces lo está, y por eso existe `allowPartial`—, pero tampoco
+   * puede dejar que un tecleo se convierta en un mes regalado en silencio.
+   * Forzarlo es un acto explícito y queda escrito en el pago.
+   */
+  describe("un pago que no cubre el período", () => {
+    it("registrar 100 sobre un plan de 499 se RECHAZA, y dice cuánto falta", async () => {
+      const negocio = await registerTenant(app, "lifecycle-parcial");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const rechazo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date().toISOString(),
+        amountReceived: "100",
+      }).expect(422);
+
+      expect(rechazo.body).toMatchObject({ code: "billing.amount_below_charge" });
+      expect((rechazo.body as { message: string }).message).toContain("499");
+
+      // Y NADA se movió: sigue en su trial, sin pago fantasma.
+      const sub = await suscripcionDe(negocio.tenantId);
+      expect(sub.status).toBe("trialing");
+      const pagos = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.subscriptionPayment.count(),
+      );
+      expect(pagos).toBe(0);
+    });
+
+    it("con `allowPartial` sí entra, y el faltante queda escrito en el pago", async () => {
+      const negocio = await registerTenant(app, "lifecycle-parcial-ok");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const pago = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date().toISOString(),
+        amountReceived: "100",
+        allowPartial: true,
+      }).expect(201);
+
+      expect((pago.body as { notes: string }).notes).toContain("100");
+      expect((await suscripcionDe(negocio.tenantId)).status).toBe("active");
+    });
+
+    it("pagar de MÁS no se rechaza: quien transfirió de sobra no queda bloqueado", async () => {
+      const negocio = await registerTenant(app, "lifecycle-demas");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const pago = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date().toISOString(),
+        amountReceived: "600",
+      }).expect(201);
+
+      expect((pago.body as { notes: string }).notes).toContain("600");
+    });
+
+    it("el monto exacto pasa sin ruido y sin nota", async () => {
+      const negocio = await registerTenant(app, "lifecycle-exacto");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const pago = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date().toISOString(),
+        amountReceived: "499.00",
+      }).expect(201);
+
+      expect((pago.body as { notes: string | null }).notes).toBeNull();
+    });
+
+    /** Una cortesía cobra 0: exigirle que "cubra" sería un absurdo. */
+    it("un cupón que deja el cargo en 0 acepta un `amountReceived` de 0", async () => {
+      const negocio = await registerTenant(app, "lifecycle-cortesia");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      await request(app.getHttpServer())
+        .post(`/admin/billing/tenants/${negocio.tenantId}/discounts`)
+        .set("Authorization", bearer(admin.token))
+        .send({ kind: "free", startsAt: new Date().toISOString(), reason: "cortesía" })
+        .expect(201);
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "courtesy",
+        paidAt: new Date().toISOString(),
+        amountReceived: "0",
+      }).expect(201);
+    });
+  });
+
   describe("anular un pago corrige la historia", () => {
     /**
      * Un pago no se borra. Se anula con razón, y el estado presente se

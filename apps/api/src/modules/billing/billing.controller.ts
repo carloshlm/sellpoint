@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from "@nestjs/common";
+import { resolveMarket } from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { Public } from "../auth/decorators/public.decorator";
@@ -27,14 +28,19 @@ export class BillingController {
   @Public()
   @Get("plans")
   async listPlans(@CurrentUser() user: AuthUser | undefined, @Query("country") country?: string) {
+    // Con sesión manda el MERCADO del negocio (país, o su moneda si el
+    // tenant es anterior al onboarding); sin sesión, el `?country=` de la
+    // landing con `US` como default internacional. La resolución vive en
+    // `resolveMarket` — la MISMA que usa el cobro, para que nadie vea un
+    // precio y termine pagando otro.
     let resolved = country?.toUpperCase() ?? "US";
     if (user) {
       // `tenants` no lleva RLS: la lectura del país va con el cliente base.
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { country: true },
+        select: { country: true, currency: true },
       });
-      resolved = tenant?.country ?? resolved;
+      resolved = tenant ? resolveMarket(tenant) : resolved;
     }
     return this.billing.listPublicPlans(resolved);
   }

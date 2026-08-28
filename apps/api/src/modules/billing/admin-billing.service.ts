@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { type PlanFeatures, planFeaturesSchema, scaledInteger } from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 
@@ -69,24 +69,38 @@ export class AdminBillingService {
       return { subs, pagosVigentes };
     });
 
-    // `tenants` no lleva RLS: los nombres se leen con el cliente base.
+    // La lista parte de los NEGOCIOS y no de las suscripciones (`tenants` no
+    // lleva RLS, se lee con el cliente base). Al revés —que era como estaba—
+    // los negocios anteriores a la Fase 7 desaparecían del backoffice, y son
+    // EXACTAMENTE a los que hay que cobrarles: 8 de 10 en producción
+    // (Carlos, 2026-08-29).
     const tenants = await this.prisma.tenant.findMany({
-      where: { id: { in: subs.map((s) => s.tenantId) } },
-      select: { id: true, name: true, country: true },
+      select: { id: true, name: true, country: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
     });
-    const porId = new Map(tenants.map((t) => [t.id, t]));
+    const subPorTenant = new Map(subs.map((s) => [s.tenantId, s]));
 
-    const rows: AdminTenantRow[] = subs.map((sub) => ({
-      tenantId: sub.tenantId,
-      tenantName: porId.get(sub.tenantId)?.name ?? sub.tenantId,
-      country: porId.get(sub.tenantId)?.country ?? null,
-      planCode: sub.plan.code,
-      planName: sub.plan.name,
-      status: sub.status,
-      billingCycle: sub.billingCycle,
-      dueAt: sub.dueAt,
-      lastPaymentAt: sub.payments[0]?.paidAt ?? null,
-    }));
+    // El plan que el sistema le aplica HOY a quien no tiene suscripción: el
+    // mismo `free` del resolver, para que la tabla no mienta sobre lo que el
+    // cliente está viviendo.
+    const planFree = await this.prisma.plan.findUniqueOrThrow({ where: { code: "free" } });
+
+    const rows: AdminTenantRow[] = tenants.map((tenant) => {
+      const sub = subPorTenant.get(tenant.id);
+      return {
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        country: tenant.country,
+        planCode: sub?.plan.code ?? planFree.code,
+        planName: sub?.plan.name ?? planFree.name,
+        // `none` es distinto de `free`: uno nunca tuvo suscripción, el otro
+        // cayó al modo gratuito. Al dueño le cambia qué hacer con cada uno.
+        status: sub?.status ?? "none",
+        billingCycle: sub?.billingCycle ?? null,
+        dueAt: sub?.dueAt ?? null,
+        lastPaymentAt: sub?.payments[0]?.paidAt ?? null,
+      };
+    });
 
     const mrrCents = new Map<string, number>();
     for (const pago of pagosVigentes) {
@@ -101,14 +115,22 @@ export class AdminBillingService {
     return { tenants: rows, mrrByCurrency };
   }
 
+  /**
+   * El expediente de un negocio. Un tenant SIN suscripción —los anteriores a
+   * la Fase 7— responde su estado real (`none` sobre el plan `free`, que es
+   * lo que el resolver le aplica hoy) en vez de un 404: el backoffice ahora
+   * los lista, y su propio dueño abre "Mi plan" igual que cualquier otro.
+   * Un 404 acá sería una pared en el lugar exacto donde hay que decidir qué
+   * cobrarle.
+   */
   async getTenantDetail(tenantId: string) {
-    return this.prisma.withTenantContext(tenantId, async (tx) => {
+    const detalle = await this.prisma.withTenantContext(tenantId, async (tx) => {
       const subscription = await tx.tenantSubscription.findUnique({
         where: { tenantId },
         include: { plan: true },
       });
       if (!subscription) {
-        throw new NotFoundException({ message: "billing.subscription_not_found" });
+        return null;
       }
       const payments = await tx.subscriptionPayment.findMany({
         where: { subscriptionId: subscription.id },
@@ -120,6 +142,33 @@ export class AdminBillingService {
       });
       return { subscription, payments, activeDiscount };
     });
+
+    if (detalle) {
+      return detalle;
+    }
+
+    const plan = await this.prisma.plan.findUniqueOrThrow({ where: { code: "free" } });
+    return {
+      subscription: {
+        tenantId,
+        planId: plan.id,
+        status: "none",
+        billingCycle: null,
+        anchorDay: null,
+        trialEndsAt: null,
+        servicePeriodStart: null,
+        servicePeriodEnd: null,
+        dueAt: null,
+        graceEndsAt: null,
+        customPrice: null,
+        canceledAt: null,
+        cancelAtPeriodEnd: false,
+        notes: null,
+        plan,
+      },
+      payments: [],
+      activeDiscount: null,
+    };
   }
 
   /**

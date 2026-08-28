@@ -17,7 +17,9 @@ import {
   localCalendarDate,
   type PlanCode,
   resolveAnchorDay,
+  resolveMarket,
   type SubscriptionPaymentMethod,
+  scaledInteger,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -34,6 +36,8 @@ export interface RecordPaymentInput {
   planCode?: PlanCode;
   /** Lo que el cliente realmente transfirió — si difiere del calculado, queda en notas. */
   amountReceived?: string;
+  /** Confirmación explícita para aceptar un pago que no cubre el cargo. */
+  allowPartial?: boolean;
   gatewayReference?: string;
   /** Override explícito: "reactivar desde hoy sin cobrar los meses muertos". */
   periodStart?: Date;
@@ -77,13 +81,15 @@ export class BillingService {
 
     const resultado = await this.prisma.withTenantContext(tenantId, async (tx) => {
       const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-      const sub = await tx.tenantSubscription.findUnique({
-        where: { tenantId },
-        include: { plan: true },
-      });
-      if (!sub) {
-        throw new NotFoundException({ message: "billing.subscription_not_found" });
-      }
+      // El negocio ANTERIOR a la Fase 7 no tiene fila: registrarle un pago
+      // es darlo de alta. Nace sin trial —ya pagó, no está probando— y con
+      // el plan que el pago declare, porque no hay ninguno del que heredar.
+      const sub =
+        (await tx.tenantSubscription.findUnique({
+          where: { tenantId },
+          include: { plan: true },
+        })) ?? (await this.crearSuscripcionDesdePago(tx, tenantId, input.planCode));
+
       if (sub.status === "canceled") {
         // La reactivación es un acto explícito del backoffice, no un efecto
         // colateral de capturar un pago.
@@ -94,7 +100,7 @@ export class BillingService {
         ? await tx.plan.findUniqueOrThrow({ where: { code: input.planCode } })
         : sub.plan;
 
-      const price = await this.resolvePrice(tx, plan.id, tenant.country);
+      const price = await this.resolvePrice(tx, plan.id, tenant);
       if (!price && sub.customPrice === null) {
         // La invariante de Premium, con su clave i18n — el Error genérico de
         // shared es para quien programa, no para quien cobra.
@@ -136,6 +142,27 @@ export class BillingService {
         : localCalendarDate(tz, periodStart);
       const dueDate = addBillingPeriod(fromDueDate, input.billingCycle, anchorDay);
       const dueAt = dueInstant(dueDate, tz);
+
+      // ── El pago que NO cubre el período ───────────────────────────────
+      //
+      // Registrar $100 sobre un plan de $499 activaba el mes completo y solo
+      // dejaba una nota: un error de dedo regalaba un mes en silencio. Ahora
+      // se rechaza ANTES de asentar nada, diciendo cuánto falta.
+      //
+      // Se rechaza solo por DEBAJO: quien transfirió de más no puede quedar
+      // bloqueado por haber pagado de sobra. Y `allowPartial` deja forzarlo
+      // —a veces un cobro incompleto se acepta a propósito— pero como un
+      // acto explícito que queda escrito en el pago.
+      if (
+        input.amountReceived !== undefined &&
+        input.allowPartial !== true &&
+        scaledInteger(input.amountReceived, 2) < scaledInteger(cargo.net, 2)
+      ) {
+        throw new UnprocessableEntityException({
+          message: "billing.amount_below_charge",
+          args: { received: input.amountReceived, expected: cargo.net },
+        });
+      }
 
       // Si lo transferido no coincide con el cargo, se registra el CALCULADO
       // (el CHECK amount = gross − discount no admite otra cosa) y la
@@ -226,6 +253,40 @@ export class BillingService {
     });
 
     return resultado.payment;
+  }
+
+  /**
+   * Da de alta la suscripción de un negocio que no tenía ninguna — los
+   * anteriores a la Fase 7, que hoy viven en modo gratuito por el
+   * fail-closed del resolver.
+   *
+   * Nace `free` y sin trial: el estado real hasta que el pago que la está
+   * creando la mueva a `active` unas líneas más abajo. Exige `planCode`
+   * porque no hay plan previo del que heredar y adivinar qué contrató el
+   * cliente sería inventar dinero.
+   */
+  private async crearSuscripcionDesdePago(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    planCode: PlanCode | undefined,
+  ) {
+    if (!planCode) {
+      throw new UnprocessableEntityException({ message: "billing.plan_required" });
+    }
+    const plan = await tx.plan.findUniqueOrThrow({ where: { code: planCode } });
+    const creada = await tx.tenantSubscription.create({
+      data: { tenantId, planId: plan.id, status: "free" },
+    });
+
+    await this.auditService.record(tx, {
+      tenantId,
+      action: "billing.subscription_created",
+      resourceType: "subscription",
+      resourceId: creada.id,
+      after: { planCode: plan.code, origen: "alta desde pago del backoffice" },
+    });
+
+    return { ...creada, plan };
   }
 
   async voidPayment(
@@ -334,7 +395,7 @@ export class BillingService {
       const plan = input.planCode
         ? await tx.plan.findUniqueOrThrow({ where: { code: input.planCode } })
         : sub.plan;
-      const price = await this.resolvePrice(tx, plan.id, tenant.country);
+      const price = await this.resolvePrice(tx, plan.id, tenant);
       const customPrice =
         input.customPrice ?? (sub.customPrice === null ? null : String(sub.customPrice));
       if (!price && customPrice === null) {
@@ -543,15 +604,26 @@ export class BillingService {
     });
   }
 
-  /** La fila del país del tenant, o la tarifa US (default internacional). */
-  private async resolvePrice(tx: Prisma.TransactionClient, planId: string, country: string | null) {
-    if (country) {
-      const local = await tx.planPrice.findUnique({
-        where: { planId_country: { planId, country } },
-      });
-      if (local) {
-        return local;
-      }
+  /**
+   * La fila del MERCADO del tenant, o la tarifa US (default internacional).
+   *
+   * El mercado sale de `resolveMarket` —país, o moneda si el tenant es
+   * anterior al onboarding— y no de `country` a secas: un negocio con "MXN"
+   * en su fila y el país en NULL habría sido COBRADO en dólares. Es la misma
+   * función que usa la vitrina de planes, a propósito: mostrar un precio y
+   * cobrar otro sería el peor error posible de este módulo.
+   */
+  private async resolvePrice(
+    tx: Prisma.TransactionClient,
+    planId: string,
+    tenant: { country: string | null; currency: string },
+  ) {
+    const market = resolveMarket(tenant);
+    const local = await tx.planPrice.findUnique({
+      where: { planId_country: { planId, country: market } },
+    });
+    if (local) {
+      return local;
     }
     return tx.planPrice.findUnique({ where: { planId_country: { planId, country: "US" } } });
   }

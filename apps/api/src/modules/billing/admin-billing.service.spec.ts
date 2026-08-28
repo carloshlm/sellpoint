@@ -24,7 +24,7 @@ describe("AdminBillingService", () => {
   let prisma: {
     withBillingAdminContext: jest.Mock;
     withTenantContext: jest.Mock;
-    plan: { findMany: jest.Mock; update: jest.Mock };
+    plan: { findMany: jest.Mock; update: jest.Mock; findUniqueOrThrow: jest.Mock };
     planPrice: { upsert: jest.Mock };
     tenant: { findMany: jest.Mock };
   };
@@ -48,6 +48,7 @@ describe("AdminBillingService", () => {
         update: jest
           .fn()
           .mockImplementation(({ data }) => Promise.resolve({ code: "plus", ...data })),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ code: "free", name: "Free" }),
       },
       planPrice: { upsert: jest.fn() },
       tenant: { findMany: jest.fn().mockResolvedValue([]) },
@@ -92,6 +93,29 @@ describe("AdminBillingService", () => {
         status: "active",
         lastPaymentAt: expect.any(Date),
       });
+    });
+
+    /**
+     * La lista parte de los NEGOCIOS y no de las suscripciones. Al revés
+     * —como estaba— los anteriores a la Fase 7 desaparecían del backoffice,
+     * que son justo a los que hay que cobrarles (Carlos, 2026-08-29).
+     */
+    it("un negocio SIN suscripción sale igual, con status `none` sobre el plan free", async () => {
+      tx.tenantSubscription.findMany.mockResolvedValue([]);
+      prisma.tenant.findMany.mockResolvedValue([{ id: TENANT_A, name: "Viejo", country: null }]);
+
+      const lista = await service.listTenants();
+
+      expect(lista.tenants).toEqual([
+        expect.objectContaining({
+          tenantId: TENANT_A,
+          tenantName: "Viejo",
+          status: "none",
+          planCode: "free",
+          dueAt: null,
+          lastPaymentAt: null,
+        }),
+      ]);
     });
 
     it("el MRR sale de los pagos VIGENTES, por moneda; el anual aporta su doceava parte", async () => {

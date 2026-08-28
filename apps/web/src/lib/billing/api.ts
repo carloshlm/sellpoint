@@ -43,7 +43,9 @@ export interface MyBilling {
     billingCycle: string;
     planCode: string;
     status: string;
+    periodStart: string;
     periodEnd: string;
+    notes: string | null;
   }[];
   activeDiscount: {
     kind: string;
@@ -79,12 +81,33 @@ export async function getAdminTenants(): Promise<AdminTenants> {
   return data;
 }
 
+/**
+ * El detalle de UN negocio para el backoffice (GET /admin/billing/tenants/:id)
+ * — la misma forma que `GET /billing/me`, porque es el mismo dato visto por
+ * el dueño de la plataforma en vez de por el dueño del negocio.
+ */
+export type AdminTenantDetail = MyBilling;
+
+export async function getAdminTenantDetail(tenantId: string): Promise<AdminTenantDetail> {
+  const { data } = await api.get<AdminTenantDetail>(`/admin/billing/tenants/${tenantId}`);
+  return data;
+}
+
+export async function voidPayment(tenantId: string, paymentId: string, reason: string) {
+  const { data } = await api.post(`/admin/billing/tenants/${tenantId}/payments/${paymentId}/void`, {
+    reason,
+  });
+  return data;
+}
+
 export interface RecordPaymentInput {
   billingCycle: "monthly" | "yearly";
   method: "transfer" | "cash" | "card" | "other" | "courtesy";
   paidAt: string;
   planCode?: string;
   amountReceived?: string;
+  /** Confirma un pago que no cubre el cargo; sin esto el server lo rechaza. */
+  allowPartial?: boolean;
   notes?: string;
 }
 
