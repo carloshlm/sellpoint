@@ -76,6 +76,7 @@ describe("contratos de billing (F7-SHARED-01)", () => {
       dueAt: null,
       graceEndsAt: null,
       daysLeft: 14,
+      overdue: false,
       writeAccess: true,
       stockControl: true,
       dailySalesLimit: null,
