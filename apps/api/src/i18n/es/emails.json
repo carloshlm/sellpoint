@@ -28,5 +28,40 @@
     "body": "Registramos tu pago de {amount} por el plan {planName} de {tenantName}. Tu servicio queda cubierto hasta el {periodEnd}. ¡Gracias por confiar en SellPointy!",
     "cta": "",
     "expiry": ""
+  },
+  "trialEnding": {
+    "subject": "Tu prueba de SellPointy termina en {daysLeft} días",
+    "greeting": "Hola {firstName},",
+    "body": "La prueba gratuita de {tenantName} (plan Plus completo) termina el {deadline}. Para seguir sin interrupciones, contrata tu plan antes de esa fecha — si no, tu cuenta pasará al modo gratuito: podrás consultar todo y hacer hasta 10 ventas al día.",
+    "cta": "",
+    "expiry": ""
+  },
+  "trialEnded": {
+    "subject": "Tu prueba de SellPointy terminó — tu información sigue aquí",
+    "greeting": "Hola {firstName},",
+    "body": "La prueba de {tenantName} terminó y tu cuenta pasó al modo gratuito: puedes entrar, consultar todo y hacer hasta 10 ventas al día. Nada se borró. Cuando contrates un plan, todo vuelve a quedar disponible al instante.",
+    "cta": "",
+    "expiry": ""
+  },
+  "paymentDueSoon": {
+    "subject": "Tu plan de SellPointy vence el {deadline}",
+    "greeting": "Hola {firstName},",
+    "body": "El plan {planName} de {tenantName} vence el {deadline}. Realiza tu pago antes de esa fecha para seguir sin interrupciones.",
+    "cta": "",
+    "expiry": ""
+  },
+  "paymentPastDue": {
+    "subject": "No recibimos tu pago de SellPointy",
+    "greeting": "Hola {firstName},",
+    "body": "El plan {planName} de {tenantName} venció el {deadline} y aún no registramos tu pago. Tienes {daysLeft} días para ponerte al corriente; después tu cuenta pasará al modo gratuito (consulta y 10 ventas al día). Tu información no se borra.",
+    "cta": "",
+    "expiry": ""
+  },
+  "planDowngraded": {
+    "subject": "Tu cuenta de SellPointy pasó al modo gratuito",
+    "greeting": "Hola {firstName},",
+    "body": "El período de gracia de {tenantName} terminó y tu cuenta pasó al modo gratuito: puedes consultar todo y hacer hasta 10 ventas al día. Nada se borró — al registrar tu pago, tu plan vuelve al instante.",
+    "cta": "",
+    "expiry": ""
   }
 }

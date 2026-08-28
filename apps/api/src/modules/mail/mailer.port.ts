@@ -7,7 +7,16 @@ export const MAILER = Symbol("MAILER");
 
 // F7: "payment-received" entra con F7-CORE-04 (lo dispara recordPayment);
 // los 5 avisos del cron de billing llegan con F7-MAIL-01.
-export type MailTemplate = "verify-email" | "reset-password" | "invite-user" | "payment-received";
+export type MailTemplate =
+  | "verify-email"
+  | "reset-password"
+  | "invite-user"
+  | "payment-received"
+  | "trial-ending"
+  | "trial-ended"
+  | "payment-due-soon"
+  | "payment-past-due"
+  | "plan-downgraded";
 
 export interface MailMessage {
   to: string;

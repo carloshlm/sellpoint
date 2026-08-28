@@ -28,5 +28,40 @@
     "body": "We recorded your payment of {amount} for the {planName} plan of {tenantName}. Your service is covered until {periodEnd}. Thanks for trusting SellPointy!",
     "cta": "",
     "expiry": ""
+  },
+  "trialEnding": {
+    "subject": "Your SellPointy trial ends in {daysLeft} days",
+    "greeting": "Hi {firstName},",
+    "body": "The free trial of {tenantName} (full Plus plan) ends on {deadline}. To continue without interruptions, get your plan before that date — otherwise your account will switch to free mode: you can view everything and make up to 10 sales a day.",
+    "cta": "",
+    "expiry": ""
+  },
+  "trialEnded": {
+    "subject": "Your SellPointy trial ended — your data is still here",
+    "greeting": "Hi {firstName},",
+    "body": "The trial of {tenantName} ended and your account switched to free mode: you can log in, view everything and make up to 10 sales a day. Nothing was deleted. When you get a plan, everything comes back instantly.",
+    "cta": "",
+    "expiry": ""
+  },
+  "paymentDueSoon": {
+    "subject": "Your SellPointy plan is due on {deadline}",
+    "greeting": "Hi {firstName},",
+    "body": "The {planName} plan of {tenantName} is due on {deadline}. Make your payment before that date to continue without interruptions.",
+    "cta": "",
+    "expiry": ""
+  },
+  "paymentPastDue": {
+    "subject": "We did not receive your SellPointy payment",
+    "greeting": "Hi {firstName},",
+    "body": "The {planName} plan of {tenantName} was due on {deadline} and we have not recorded your payment. You have {daysLeft} days to catch up; afterwards your account will switch to free mode (view-only plus 10 sales a day). Your data is not deleted.",
+    "cta": "",
+    "expiry": ""
+  },
+  "planDowngraded": {
+    "subject": "Your SellPointy account switched to free mode",
+    "greeting": "Hi {firstName},",
+    "body": "The grace period of {tenantName} ended and your account switched to free mode: you can view everything and make up to 10 sales a day. Nothing was deleted — once your payment is recorded, your plan comes back instantly.",
+    "cta": "",
+    "expiry": ""
   }
 }

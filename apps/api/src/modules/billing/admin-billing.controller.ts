@@ -4,6 +4,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { AdminBillingService } from "./admin-billing.service";
 import { BillingService } from "./billing.service";
+import { BillingDailyJob } from "./billing-daily.job";
 import { AllowedInFreeTier } from "./decorators/allowed-in-free-tier.decorator";
 import {
   type GrantDiscountDto,
@@ -36,6 +37,7 @@ export class AdminBillingController {
   constructor(
     private readonly adminBilling: AdminBillingService,
     private readonly billing: BillingService,
+    private readonly dailyJob: BillingDailyJob,
   ) {}
 
   @Get("tenants")
@@ -136,6 +138,17 @@ export class AdminBillingController {
       reason: dto.reason,
       revokedBy: user.userId,
     });
+  }
+
+  /**
+   * F7-CRON-01: el barrido a demanda — para el runbook ("córrelo a mano y
+   * mira qué movió") y para los e2e. Idempotente por construcción: correrlo
+   * dos veces no degrada ni avisa dos veces.
+   */
+  @Post("jobs/run-daily")
+  async runDaily() {
+    await this.dailyJob.run(new Date());
+    return { ok: true };
   }
 
   @Get("plans")

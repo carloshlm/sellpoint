@@ -1,10 +1,13 @@
 import { Module } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
 import { RedisModule } from "../../infrastructure/redis/redis.module";
 import { AuditModule } from "../audit/audit.module";
 import { MailModule } from "../mail/mail.module";
 import { AdminBillingController } from "./admin-billing.controller";
 import { AdminBillingService } from "./admin-billing.service";
 import { BillingService } from "./billing.service";
+import { BillingCronRegistrar } from "./billing-cron.registrar";
+import { BillingDailyJob } from "./billing-daily.job";
 import { EntitlementsService } from "./entitlements.service";
 import { SalesPlanGate } from "./sales-plan.gate";
 
@@ -17,9 +20,16 @@ import { SalesPlanGate } from "./sales-plan.gate";
  * controllers llegan con esos módulos.
  */
 @Module({
-  imports: [RedisModule, AuditModule, MailModule],
+  imports: [RedisModule, AuditModule, MailModule, ScheduleModule.forRoot()],
   controllers: [AdminBillingController],
-  providers: [EntitlementsService, BillingService, SalesPlanGate, AdminBillingService],
+  providers: [
+    EntitlementsService,
+    BillingService,
+    SalesPlanGate,
+    AdminBillingService,
+    BillingDailyJob,
+    BillingCronRegistrar,
+  ],
   exports: [EntitlementsService, BillingService, SalesPlanGate],
 })
 export class BillingModule {}

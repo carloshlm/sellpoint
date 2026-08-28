@@ -63,6 +63,15 @@ const baseEnvSchema = z.object({
   // PlatformAdminGuard (en AND con users.is_platform_admin): sin ella,
   // nadie entra a /admin/* — obligatoria en producción (superRefine).
   BILLING_ADMIN_EMAILS: z.string().default(""),
+  // F7-CRON-01: el barrido diario. Apagado por DEFAULT (a diferencia del
+  // throttle): degradar suscripciones es opt-in explícito del ambiente — los
+  // tests y cualquier entorno nuevo jamás registran el cron sin decidirlo.
+  BILLING_CRON_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  BILLING_CRON_TZ: z.string().default("America/Mexico_City"),
+  BILLING_CRON_HOUR: z.coerce.number().int().min(0).max(23).default(3),
 });
 
 export const envSchema = baseEnvSchema.superRefine((config, ctx) => {

@@ -21,6 +21,12 @@ const TEMPLATE_KEYS: Record<MailTemplate, string> = {
   "invite-user": "emails.inviteUser",
   // F7-CORE-04: el recibo del pago manual registrado por el backoffice.
   "payment-received": "emails.paymentReceived",
+  // F7-MAIL-01: los avisos del ciclo de cobro (los dispara el cron diario).
+  "trial-ending": "emails.trialEnding",
+  "trial-ended": "emails.trialEnded",
+  "payment-due-soon": "emails.paymentDueSoon",
+  "payment-past-due": "emails.paymentPastDue",
+  "plan-downgraded": "emails.planDowngraded",
 };
 
 // El azul primario de la marca, FIJO en hex a propósito: un correo se lee en
