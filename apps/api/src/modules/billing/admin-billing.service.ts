@@ -18,12 +18,18 @@ export interface AdminTenantRow {
    */
   timezone: string;
   /**
-   * Lo que ESTE negocio debe pagar hoy, con su cupón vigente ya aplicado y
-   * en la moneda de su mercado. Va en la fila porque el formulario de cobro
-   * exige cuadrar la cuenta, y cuadrarla sin ver el número sería pedirle al
-   * dueño que saque calculadora.
+   * Lo que ESTE negocio pagaría por CADA plan vendible, con su cupón vigente
+   * ya aplicado y en la moneda de su mercado.
+   *
+   * Va en la fila porque el formulario de cobro exige cuadrar la cuenta, y
+   * cuadrarla sin ver el número sería pedirle al dueño que saque
+   * calculadora. Y va por PLAN —no solo el vigente— por dos razones: el
+   * formulario deja cambiar de plan en el mismo acto, y un negocio SIN
+   * suscripción no tiene plan vigente del cual sacar precio (Carlos,
+   * 2026-08-29: «cuando un usuario no tiene un plan asignado no funciona el
+   * autocompletado»).
    */
-  charge: { monthly: string; yearly: string; currency: string } | null;
+  charges: { planCode: string; monthly: string; yearly: string; currency: string }[];
   planCode: string;
   planName: string;
   status: string;
@@ -113,7 +119,6 @@ export class AdminBillingService {
     // Los precios de TODOS los planes en UNA query: el cargo de cada negocio
     // se arma en memoria (una tabla de 50 negocios no puede costar 100 viajes).
     const planes = await this.prisma.plan.findMany({ include: { prices: true } });
-    const preciosPorPlan = new Map(planes.map((plan) => [plan.id, plan.prices]));
     const descuentos = await this.prisma.withBillingAdminContext((tx) =>
       tx.tenantDiscount.findMany({ where: { isActive: true } }),
     );
@@ -124,7 +129,7 @@ export class AdminBillingService {
       return {
         tenantId: tenant.id,
         tenantName: tenant.name,
-        charge: sub ? this.chargeDe(sub, tenant, preciosPorPlan, cuponPorTenant) : null,
+        charges: this.chargesDe(tenant, planes, cuponPorTenant.get(tenant.id) ?? null, sub ?? null),
         country: tenant.country,
         timezone: tenant.timezone,
         planCode: sub?.plan.code ?? planFree.code,
@@ -160,44 +165,61 @@ export class AdminBillingService {
    * cobrarle.
    */
   /**
-   * El cargo vigente de un negocio: precio de su mercado (o `custom_price` en
-   * Premium) menos su cupón activo. Devuelve `null` cuando no hay precio que
-   * publicar — un Premium sin precio pactado todavía.
+   * El precio de cada plan vendible para ESTE negocio: tarifa de su mercado
+   * (o el `custom_price` pactado cuando el plan es el suyo y no publica
+   * precio, que es el caso de Premium) menos su cupón vigente.
+   *
+   * Los planes sin precio para ese negocio simplemente no salen: un Premium
+   * al que todavía no se le pactó precio no tiene nada que cobrar, y ofrecer
+   * un cero sería peor que no ofrecer nada.
    */
-  private chargeDe(
-    sub: { planId: string; customPrice: unknown },
-    tenant: { id: string; country: string | null; currency: string },
-    preciosPorPlan: Map<
-      string,
-      { country: string; currency: string; priceMonthly: unknown; priceYearly: unknown }[]
-    >,
-    cuponPorTenant: Map<string, { kind: string; amount: unknown }>,
-  ): { monthly: string; yearly: string; currency: string } | null {
+  private chargesDe(
+    tenant: { country: string | null; currency: string },
+    planes: {
+      id: string;
+      code: string;
+      isActive: boolean;
+      prices: { country: string; currency: string; priceMonthly: unknown; priceYearly: unknown }[];
+    }[],
+    cupon: { kind: string; amount: unknown } | null,
+    sub: { planId: string; customPrice: unknown } | null,
+  ): { planCode: string; monthly: string; yearly: string; currency: string }[] {
     const market = resolveMarket(tenant);
-    const precios = preciosPorPlan.get(sub.planId) ?? [];
-    const price =
-      precios.find((p) => p.country === market) ?? precios.find((p) => p.country === "US");
-    const customPrice = sub.customPrice === null ? null : String(sub.customPrice);
-    if (!price && customPrice === null) {
-      return null;
-    }
-
-    const cupon = cuponPorTenant.get(tenant.id) ?? null;
     const discount = cupon
       ? {
           kind: cupon.kind as "fixed_amount" | "free",
           amount: cupon.amount === null ? null : String(cupon.amount),
         }
       : null;
-    const base = price
-      ? { monthly: String(price.priceMonthly), yearly: String(price.priceYearly) }
-      : null;
 
-    return {
-      monthly: computeChargeAmount({ price: base, cycle: "monthly", customPrice, discount }).net,
-      yearly: computeChargeAmount({ price: base, cycle: "yearly", customPrice, discount }).net,
-      currency: price?.currency ?? tenant.currency,
-    };
+    const filas: { planCode: string; monthly: string; yearly: string; currency: string }[] = [];
+    for (const plan of planes) {
+      // `free` no se vende: es a donde se cae, no algo que se cobre.
+      if (!plan.isActive || plan.code === "free") {
+        continue;
+      }
+      const price =
+        plan.prices.find((p) => p.country === market) ??
+        plan.prices.find((p) => p.country === "US") ??
+        null;
+      // El precio pactado solo aplica al plan que el negocio TIENE: es un
+      // acuerdo con ese cliente sobre ese plan, no una tarifa general.
+      const customPrice =
+        sub && sub.planId === plan.id && sub.customPrice !== null ? String(sub.customPrice) : null;
+      if (!price && customPrice === null) {
+        continue;
+      }
+      const base = price
+        ? { monthly: String(price.priceMonthly), yearly: String(price.priceYearly) }
+        : null;
+      filas.push({
+        planCode: plan.code,
+        monthly: computeChargeAmount({ price: base, cycle: "monthly", customPrice, discount }).net,
+        yearly: computeChargeAmount({ price: base, cycle: "yearly", customPrice, discount }).net,
+        currency: price?.currency ?? tenant.currency,
+      });
+    }
+    return filas;
   }
 
   async getTenantDetail(tenantId: string) {

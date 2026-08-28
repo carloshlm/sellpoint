@@ -80,8 +80,12 @@ export interface AdminTenants {
     dueAt: string | null;
     lastPaymentAt: string | null;
     timezone: string;
-    /** Lo que debe pagar hoy, con su cupón ya aplicado. */
-    charge: { monthly: string; yearly: string; currency: string } | null;
+    /**
+     * Lo que pagaría por CADA plan vendible, con su cupón ya aplicado. Por
+     * plan y no solo por el vigente: el formulario deja cambiar de plan, y
+     * un negocio sin suscripción no tiene ninguno del cual sacar precio.
+     */
+    charges: { planCode: string; monthly: string; yearly: string; currency: string }[];
   }[];
   mrrByCurrency: Record<string, string>;
 }

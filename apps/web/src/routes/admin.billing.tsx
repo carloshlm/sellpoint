@@ -45,11 +45,15 @@ function AdminBilling() {
   const [pagando, setPagando] = useState<{
     tenantId: string;
     tenantName: string;
-    charge: { monthly: string; yearly: string; currency: string } | null;
+    planCode: string | null;
+    charges: { planCode: string; monthly: string; yearly: string; currency: string }[];
   } | null>(null);
   const [viendo, setViendo] = useState<{ tenantId: string; tenantName: string } | null>(null);
   // El ciclo elegido decide qué cargo se muestra y se propone.
   const [ciclo, setCiclo] = useState<"monthly" | "yearly">("monthly");
+  // El plan del cobro: el vigente del negocio, o el que se elija. De él
+  // depende el precio, así que el autocálculo lo sigue.
+  const [planPago, setPlanPago] = useState("");
   // Los dos lados de la cuenta, controlados: escribir uno completa el otro.
   const [recibido, setRecibido] = useState("");
   const [descuento, setDescuento] = useState("0");
@@ -60,6 +64,17 @@ function AdminBilling() {
     queryFn: getAdminTenants,
     enabled: user?.isPlatformAdmin === true,
   });
+
+  /**
+   * El precio del plan que se está cobrando. Si el negocio no tiene
+   * suscripción, `planPago` es el del desplegable —el único que hay— y por
+   * eso el autocálculo funciona igual que para uno con plan vigente.
+   */
+  const cargoVigente = (): string | undefined =>
+    pagando?.charges.find((c) => c.planCode === planPago)?.[ciclo];
+
+  const monedaVigente = (): string | undefined =>
+    pagando?.charges.find((c) => c.planCode === planPago)?.currency;
 
   /**
    * El otro lado de la cuenta. `recibido + descuento = cargo`, así que
@@ -167,13 +182,24 @@ function AdminBilling() {
                           type="button"
                           size="sm"
                           onClick={() => {
+                            // Sin suscripción no hay plan vigente: se propone
+                            // el primer plan vendible para que el formulario
+                            // arranque con una cuenta ya cuadrada.
+                            const inicial =
+                              fila.status === "none"
+                                ? (fila.charges[0]?.planCode ?? "")
+                                : fila.planCode;
                             setPagando({
                               tenantId: fila.tenantId,
                               tenantName: fila.tenantName,
-                              charge: fila.charge,
+                              planCode: fila.status === "none" ? null : fila.planCode,
+                              charges: fila.charges,
                             });
                             setCiclo("monthly");
-                            setRecibido(fila.charge?.monthly ?? "");
+                            setPlanPago(inicial);
+                            setRecibido(
+                              fila.charges.find((c) => c.planCode === inicial)?.monthly ?? "",
+                            );
                             setDescuento("0");
                           }}
                         >
@@ -214,7 +240,8 @@ function AdminBilling() {
                 billingCycle: form.get("cycle") as "monthly" | "yearly",
                 method: form.get("method") as "transfer" | "cash" | "card" | "other" | "courtesy",
                 paidAt: new Date(`${form.get("paidAt")}T12:00:00`).toISOString(),
-                planCode: (form.get("planCode") as string) || undefined,
+                // Igual al vigente = "mantener": no se manda nada.
+                planCode: planPago === pagando.planCode ? undefined : planPago || undefined,
                 amountReceived: recibido || "0",
                 discountAmount: descuento || "0",
                 notes: (form.get("notes") as string) || undefined,
@@ -235,7 +262,7 @@ function AdminBilling() {
                   setCiclo(nuevo);
                   // Cambiar de ciclo cambia el precio: la cuenta se rehace
                   // entera en vez de quedar cuadrando contra el anterior.
-                  setRecibido(pagando?.charge?.[nuevo] ?? "");
+                  setRecibido(pagando?.charges.find((c) => c.planCode === planPago)?.[nuevo] ?? "");
                   setDescuento("0");
                 }}
                 className="w-full rounded-md border p-2 text-sm"
@@ -278,17 +305,38 @@ function AdminBilling() {
             </div>
             <div>
               <Label htmlFor="pay-plan">{t("common.billing.admin.planCode")}</Label>
+              {/*
+                Solo los planes que ESE negocio puede pagar (los que tienen
+                precio en su mercado), y "mantener el actual" únicamente si
+                tiene uno: a un negocio sin suscripción no se le puede
+                mantener nada, y el server exige el plan.
+              */}
               <select
                 id="pay-plan"
                 name="planCode"
+                value={planPago}
+                onChange={(event) => {
+                  const nuevo = event.target.value;
+                  setPlanPago(nuevo);
+                  // Otro plan, otro precio: la cuenta se rehace entera.
+                  const precio = pagando?.charges.find((c) => c.planCode === nuevo)?.[ciclo] ?? "";
+                  setRecibido(precio);
+                  setDescuento("0");
+                }}
                 className="w-full rounded-md border p-2 text-sm"
               >
-                <option value="">{t("common.billing.admin.keepPlan")}</option>
-                {["basic", "pro", "plus", "premium"].map((code) => (
-                  <option key={code} value={code}>
-                    {code}
+                {pagando?.planCode === null ? null : (
+                  <option value={pagando?.planCode ?? ""}>
+                    {t("common.billing.admin.keepPlan")}
                   </option>
-                ))}
+                )}
+                {(pagando?.charges ?? [])
+                  .filter((c) => c.planCode !== pagando?.planCode)
+                  .map((c) => (
+                    <option key={c.planCode} value={c.planCode}>
+                      {c.planCode}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
@@ -296,10 +344,10 @@ function AdminBilling() {
             El cargo a la vista: cuadrar la cuenta sin ver el número sería
             pedirle al dueño que saque calculadora.
           */}
-          {pagando?.charge ? (
+          {cargoVigente() ? (
             <p className="rounded-md bg-muted px-3 py-2 text-sm" data-testid="expected-charge">
               {t("common.billing.admin.expectedCharge", {
-                amount: `${pagando.charge[ciclo]} ${pagando.charge.currency}`,
+                amount: `${cargoVigente()} ${monedaVigente()}`,
               })}
             </p>
           ) : null}
@@ -314,7 +362,7 @@ function AdminBilling() {
                 value={recibido}
                 onChange={(event) => {
                   setRecibido(event.target.value);
-                  setDescuento(complemento(event.target.value, pagando?.charge?.[ciclo]));
+                  setDescuento(complemento(event.target.value, cargoVigente()));
                 }}
                 className="w-full rounded-md border p-2 text-sm"
               />
@@ -328,7 +376,7 @@ function AdminBilling() {
                 value={descuento}
                 onChange={(event) => {
                   setDescuento(event.target.value);
-                  setRecibido(complemento(event.target.value, pagando?.charge?.[ciclo]));
+                  setRecibido(complemento(event.target.value, cargoVigente()));
                 }}
                 className="w-full rounded-md border p-2 text-sm"
               />

@@ -108,6 +108,58 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
       expect(fila?.planCode).toBe("free");
     });
 
+    /**
+     * Carlos (2026-08-29): «cuando un usuario no tiene un plan asignado no
+     * funciona el autocompletado de Monto Recibido y Descuento».
+     *
+     * La causa era que el cargo se calculaba SOLO para el plan de la
+     * suscripción — y estos negocios no tienen ninguna. Pero el hueco era
+     * más ancho: el formulario deja elegir plan, así que el cargo depende
+     * del plan ELEGIDO, no del vigente. Por eso la fila trae el precio de
+     * todos los planes vendibles en el mercado de ese negocio.
+     */
+    it("un negocio sin suscripción trae igual el precio de cada plan vendible", async () => {
+      const negocio = await negocioSinSuscripcion();
+
+      const lista = await listar().expect(200);
+      const fila = (
+        res_tenants(lista) as {
+          tenantId: string;
+          charges: { planCode: string; monthly: string; yearly: string; currency: string }[];
+        }[]
+      ).find((f) => f.tenantId === negocio.tenantId);
+
+      const basic = fila?.charges.find((c) => c.planCode === "basic");
+      const plus = fila?.charges.find((c) => c.planCode === "plus");
+      expect(basic).toMatchObject({ monthly: "199.00", yearly: "1990.00", currency: "MXN" });
+      expect(plus).toMatchObject({ monthly: "499.00", currency: "MXN" });
+    });
+
+    it("el cupón vigente ya viene aplicado en el precio de cada plan", async () => {
+      const negocio = await negocioSinSuscripcion();
+      await request(app.getHttpServer())
+        .post(`/admin/billing/tenants/${negocio.tenantId}/discounts`)
+        .set("Authorization", bearer(admin.token))
+        .send({
+          kind: "fixed_amount",
+          amount: "100",
+          startsAt: new Date().toISOString(),
+          reason: "promoción",
+        })
+        .expect(201);
+
+      const lista = await listar().expect(200);
+      const fila = (
+        res_tenants(lista) as {
+          tenantId: string;
+          charges: { planCode: string; monthly: string }[];
+        }[]
+      ).find((f) => f.tenantId === negocio.tenantId);
+
+      // 499 − 100: lo que de verdad hay que recibir por Plus.
+      expect(fila?.charges.find((c) => c.planCode === "plus")?.monthly).toBe("399.00");
+    });
+
     it("los que sí tienen suscripción siguen saliendo con su plan y su vencimiento", async () => {
       const negocio = await registerTenant(app, "legacy-activo");
       await setTenantMarket(prisma, negocio.tenantId, "MX");

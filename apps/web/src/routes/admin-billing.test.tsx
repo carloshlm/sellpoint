@@ -91,7 +91,10 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           dueAt: null,
           lastPaymentAt: null,
           timezone: "America/Mexico_City",
-          charge: { monthly: "499.00", yearly: "4990.00", currency: "MXN" },
+          charges: [
+            { planCode: "basic", monthly: "199.00", yearly: "1990.00", currency: "MXN" },
+            { planCode: "plus", monthly: "499.00", yearly: "4990.00", currency: "MXN" },
+          ],
         },
       ],
       mrrByCurrency: { MXN: "499.00" },
@@ -246,6 +249,78 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-08-29): «cuando un usuario no tiene un plan asignado no
+   * funciona el autocompletado de Monto Recibido y Descuento».
+   *
+   * La causa: el precio se leía del plan VIGENTE, y estos negocios no tienen
+   * ninguno. Ahora la fila trae el precio de cada plan vendible y el
+   * formulario arranca proponiendo el primero — con su cuenta ya cuadrada.
+   */
+  it("un negocio SIN plan propone el primero vendible y autocompleta igual", async () => {
+    mockedTenants.mockResolvedValue({
+      tenants: [
+        {
+          tenantId: "t2",
+          tenantName: "Negocio Cinco",
+          country: "MX",
+          planCode: "free",
+          planName: "Free",
+          status: "none",
+          billingCycle: null,
+          dueAt: null,
+          lastPaymentAt: null,
+          timezone: "America/Mexico_City",
+          charges: [
+            { planCode: "basic", monthly: "199.00", yearly: "1990.00", currency: "MXN" },
+            { planCode: "plus", monthly: "499.00", yearly: "4990.00", currency: "MXN" },
+          ],
+        },
+      ],
+      mrrByCurrency: {},
+    });
+    await renderAdmin(true);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+    // Arranca con el primer plan vendible y su precio, no en blanco.
+    expect(screen.getByTestId("expected-charge")).toHaveTextContent("199.00 MXN");
+    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("199.00");
+
+    // Y el autocálculo funciona, que era justo lo que no pasaba.
+    await user.clear(screen.getByLabelText(/Monto recibido/));
+    await user.type(screen.getByLabelText(/Monto recibido/), "100");
+    expect(screen.getByLabelText("Descuento")).toHaveValue("99.00");
+
+    await user.click(screen.getByRole("button", { name: "Registrar" }));
+    await waitFor(() => {
+      expect(mockedRecord).toHaveBeenCalledWith(
+        "t2",
+        expect.objectContaining({
+          // El plan viaja SIEMPRE: sin suscripción previa el server lo exige.
+          planCode: "basic",
+          amountReceived: "100",
+          discountAmount: "99.00",
+        }),
+      );
+    });
+  });
+
+  it("cambiar de plan rehace la cuenta con el precio de ESE plan", async () => {
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+    // El negocio está en plus (499); al mover a basic, el cargo baja a 199.
+    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
+    await user.selectOptions(screen.getByLabelText(/Plan/), "basic");
+
+    expect(screen.getByTestId("expected-charge")).toHaveTextContent("199.00 MXN");
+    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("199.00");
+    expect(screen.getByLabelText("Descuento")).toHaveValue("0");
+  });
+
   /** El negocio anterior a la Fase 7: sin suscripción, pero cobrable. */
   it("un negocio con status `none` se muestra como «Sin suscripción»", async () => {
     mockedTenants.mockResolvedValue({
@@ -261,7 +336,11 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           dueAt: null,
           lastPaymentAt: null,
           timezone: "America/Mexico_City",
-          charge: null,
+          // Sin suscripción, pero con precios: es a quien hay que cobrarle.
+          charges: [
+            { planCode: "basic", monthly: "199.00", yearly: "1990.00", currency: "MXN" },
+            { planCode: "plus", monthly: "499.00", yearly: "4990.00", currency: "MXN" },
+          ],
         },
       ],
       mrrByCurrency: {},
