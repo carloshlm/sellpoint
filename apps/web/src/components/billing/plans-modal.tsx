@@ -130,14 +130,20 @@ export function PlansModal() {
 
             {/* Los límites primero: son la pregunta que todos hacen. */}
             <ul className="mb-3 space-y-1 border-b pb-3 font-medium text-sm">
+              {/*
+                NULL es "sin límite" y tiene su propia frase. Componerla como
+                "Sin límite · {{count}} usuarios" produjo «Sin límite · 2
+                usuarios» en Premium — un absurdo que el test no vio porque
+                afirmaba la subcadena "Sin límite", que era cierta.
+              */}
               <li>
                 {plan.maxUsers === null
-                  ? `${t("common.billing.plans.unlimited")} · ${t("common.billing.plans.users", { count: 2 })}`
+                  ? t("common.billing.plans.unlimitedUsers")
                   : t("common.billing.plans.users", { count: plan.maxUsers })}
               </li>
               <li>
                 {plan.maxWarehouses === null
-                  ? `${t("common.billing.plans.unlimited")} · ${t("common.billing.plans.warehouses", { count: 2 })}`
+                  ? t("common.billing.plans.unlimitedWarehouses")
                   : t("common.billing.plans.warehouses", { count: plan.maxWarehouses })}
               </li>
             </ul>

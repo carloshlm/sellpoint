@@ -175,7 +175,12 @@ describe("el listado de lo que incluye cada plan", () => {
     const basic = await screen.findByTestId("plan-basic");
     expect(basic).toHaveTextContent("3 usuarios");
     expect(basic).toHaveTextContent("1 almacén");
+    // ⚠ El texto COMPLETO, no una subcadena: la versión anterior afirmaba
+    // /Sin límite/ y pasaba mientras la pantalla decía «Sin límite · 2
+    // usuarios». Lo cazó una captura de Playwright, no la suite.
     const premium = screen.getByTestId("plan-premium");
-    expect(premium).toHaveTextContent(/Sin límite/);
+    expect(premium).toHaveTextContent("Usuarios ilimitados");
+    expect(premium).toHaveTextContent("Almacenes ilimitados");
+    expect(premium).not.toHaveTextContent("2 usuarios");
   });
 });
