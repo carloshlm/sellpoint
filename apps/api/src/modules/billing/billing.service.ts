@@ -122,6 +122,17 @@ export class BillingService {
       });
 
       const tz = tenant.timezone;
+
+      // Un pago es un HECHO: "este cliente me transfirió". Un hecho futuro no
+      // existe — es un error de dedo en el año, el mes o el día, y no uno
+      // inofensivo: ese pago contaría para el MRR y otorgaría período.
+      //
+      // Se compara el DÍA del negocio y no el instante: el formulario captura
+      // "hoy" como mediodía local, que en UTC ya puede ser mañana. Rechazar
+      // eso sería rechazar la operación más común del backoffice.
+      if (localCalendarDate(tz, input.paidAt) > localCalendarDate(tz, new Date())) {
+        throw new UnprocessableEntityException({ message: "billing.paid_at_in_future" });
+      }
       // free re-ancla y arranca en el día del pago: sus meses muertos no se
       // cobran. El resto encadena con el período anterior (no se regalan
       // días) salvo override explícito del backoffice.

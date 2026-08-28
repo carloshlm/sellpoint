@@ -17,7 +17,10 @@ vi.mock("@/lib/billing/api", async (importOriginal) => ({
 const mockedMyBilling = vi.mocked(billingApi.getMyBilling);
 
 /** F7-WEB-09 — "Mi plan": estado del ciclo + historial, solo tenants:manage. */
-const demoUser = (permissions: string[]): AuthUser => ({
+const demoUser = (
+  permissions: string[],
+  subscription: Partial<AuthUser["subscription"]> = {},
+): AuthUser => ({
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
@@ -25,7 +28,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   lastNameMaternal: null,
   locale: "es",
   permissions,
-  subscription: { ...SUBSCRIPTION_PLUS, status: "active", planName: "Plus" },
+  subscription: { ...SUBSCRIPTION_PLUS, status: "active", planName: "Plus", ...subscription },
   tenant: {
     id: "tenant-1",
     name: "Acme",
@@ -43,8 +46,11 @@ const demoUser = (permissions: string[]): AuthUser => ({
   },
 });
 
-async function renderBilling(permissions: string[]) {
-  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
+async function renderBilling(
+  permissions: string[],
+  subscription: Partial<AuthUser["subscription"]> = {},
+) {
+  useAuthStore.getState().setAuth("jwt", demoUser(permissions, subscription));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/settings/billing"] }),
@@ -99,6 +105,32 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     expect(screen.getByText(/Plus/)).toBeInTheDocument();
     expect(await screen.findByText(/Transferencia/)).toBeInTheDocument();
     expect(screen.getByText(/\$499\.00/)).toBeInTheDocument();
+  });
+
+  /**
+   * Carlos vio "Próximo pago: 26/8/2026" sobre una fecha que YA venció
+   * (2026-08-29). Llamarle "próximo" a algo que pasó le miente al cliente
+   * sobre su propia situación justo en la pantalla del cobro.
+   */
+  it("con el pago vencido dice que venció, no «próximo pago»", async () => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-08-27T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+    });
+
+    await renderBilling(["tenants:manage"], { overdue: true, status: "active" });
+
+    expect(await screen.findByText(/Venció el 26\/8\/2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/Próximo pago/)).not.toBeInTheDocument();
   });
 
   it("sin tenants:manage la pantalla NO existe", async () => {

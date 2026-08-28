@@ -7,6 +7,7 @@
   "invalid_amount": "El monto no es válido: usa números con hasta dos decimales.",
   "invalid_body": "Revisa los datos enviados.",
   "not_platform_admin": "Esta sección es solo para la administración de la plataforma.",
+  "paid_at_in_future": "La fecha del pago no puede ser futura: se registra lo que ya ocurrió.",
   "payment_already_voided": "Este pago ya fue anulado.",
   "payment_period_overlap": "El período de ese pago se encima con uno ya registrado.",
   "plan_not_found": "Ese plan no existe.",

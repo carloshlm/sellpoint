@@ -177,7 +177,8 @@
         "card": "Card",
         "other": "Other",
         "courtesy": "Courtesy"
-      }
+      },
+      "dueWas": "Was due on {{date}}"
     },
     "admin": {
       "title": "Billing backoffice",
@@ -212,7 +213,8 @@
       "close": "Close",
       "period": "Period",
       "allowPartial": "Accept even if it does not cover the plan price",
-      "allowPartialHint": "The shortfall is recorded on the payment and in the audit log."
+      "allowPartialHint": "The shortfall is recorded on the payment and in the audit log.",
+      "paidAtHint": "Cannot be in the future."
     }
   }
 }

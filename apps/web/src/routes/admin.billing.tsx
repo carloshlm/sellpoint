@@ -209,14 +209,21 @@ function AdminBilling() {
             </div>
             <div>
               <Label htmlFor="pay-date">{t("common.billing.admin.paidAt")}</Label>
+              {/* `max` corta el error de dedo en el propio calendario; el
+                  server lo rechaza igual (422 paid_at_in_future) porque una
+                  validación de navegador no es una regla de negocio. */}
               <input
                 id="pay-date"
                 name="paidAt"
                 type="date"
                 required
+                max={new Date().toISOString().slice(0, 10)}
                 defaultValue={new Date().toISOString().slice(0, 10)}
                 className="w-full rounded-md border p-2 text-sm"
               />
+              <span className="text-muted-foreground text-xs">
+                {t("common.billing.admin.paidAtHint")}
+              </span>
             </div>
             <div>
               <Label htmlFor="pay-plan">{t("common.billing.admin.planCode")}</Label>

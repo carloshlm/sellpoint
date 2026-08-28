@@ -341,6 +341,66 @@ describe("Ciclo de vida de la suscripción (F7-E2E-01)", () => {
     });
   });
 
+  /**
+   * ── LA FECHA QUE TODAVÍA NO OCURRIÓ (Carlos, 2026-08-29) ───────────────
+   *
+   * Probando en producción quedó un pago con `paid_at` en octubre estando en
+   * agosto. El backoffice registra HECHOS —"este cliente me transfirió"— y un
+   * hecho futuro no existe: es un error de dedo en el año, el mes o el día.
+   * Y no es inofensivo: ese pago cuenta para el MRR y otorga período.
+   *
+   * Cobrar por adelantado se sigue haciendo con la fecha de HOY; el período
+   * encadena solo con el anterior, que es justamente la regla de "no se
+   * regalan días".
+   */
+  describe("la fecha del pago no puede ser futura", () => {
+    it("registrar un pago con fecha de mañana se rechaza", async () => {
+      const negocio = await registerTenant(app, "lifecycle-futuro");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      const rechazo = await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date(Date.now() + 86_400_000).toISOString(),
+      }).expect(422);
+
+      expect(rechazo.body).toMatchObject({ code: "billing.paid_at_in_future" });
+      const pagos = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.subscriptionPayment.count(),
+      );
+      expect(pagos).toBe(0);
+    });
+
+    /**
+     * El día del NEGOCIO, no el instante: capturar "hoy" desde el formulario
+     * manda las 12:00 locales, que en UTC pueden ser mañana. Rechazar eso
+     * sería rechazar la operación más común del backoffice.
+     */
+    it("hoy en el calendario del negocio SIEMPRE pasa, aunque en UTC ya sea mañana", async () => {
+      const negocio = await registerTenant(app, "lifecycle-hoy");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+      const hoyLocal = localCalendarDate(TZ, new Date());
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        // 23:30 locales de CDMX ya son el día siguiente en UTC.
+        paidAt: `${hoyLocal}T05:29:00.000Z`,
+      }).expect(201);
+    });
+
+    it("una fecha pasada sigue entrando: capturar tarde es normal", async () => {
+      const negocio = await registerTenant(app, "lifecycle-pasado");
+      await setTenantMarket(prisma, negocio.tenantId, "MX");
+
+      await registrarPago(negocio.tenantId, {
+        billingCycle: "monthly",
+        method: "transfer",
+        paidAt: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+      }).expect(201);
+    });
+  });
+
   describe("anular un pago corrige la historia", () => {
     /**
      * Un pago no se borra. Se anula con razón, y el estado presente se

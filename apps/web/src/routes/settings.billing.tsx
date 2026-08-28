@@ -76,7 +76,13 @@ function BillingSettings() {
             <p>{t("common.billing.me.trialDays", { count: daysLeft })}</p>
           ) : null}
           {data?.subscription.dueAt ? (
-            <p>{t("common.billing.me.nextDue", { date: vence(data.subscription.dueAt) })}</p>
+            <p>
+              {/* Llamar "próximo pago" a una fecha que ya pasó es mentirle al
+                  cliente sobre su propia situación. */}
+              {t(subscription?.overdue ? "common.billing.me.dueWas" : "common.billing.me.nextDue", {
+                date: vence(data.subscription.dueAt),
+              })}
+            </p>
           ) : null}
           {data?.activeDiscount ? (
             <p>

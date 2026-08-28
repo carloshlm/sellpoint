@@ -187,6 +187,10 @@ curl -s -X POST "$BASE/tenants/<tenantId>/payments" -H "$AUTH" \
 - `method`: `transfer` · `cash` · `card` · `other` · `courtesy`.
 - `planCode` (opcional) cambia el plan EN EL MISMO ACTO — el caso típico:
   el trial Plus que contrata Basic paga $199 y queda en Basic.
+- `paidAt` **no puede ser futura** (422 `billing.paid_at_in_future`, medido
+  en el día del negocio): un pago es un hecho, y un hecho futuro es un error
+  de dedo que contaría para el MRR. Cobrar por adelantado se hace con la
+  fecha de HOY — el período encadena solo con el anterior.
 - `amountReceived` (opcional): lo que de verdad llegó. **Si NO cubre el
   cargo, el pago se rechaza** con 422 `billing.amount_below_charge` diciendo
   cuánto falta — un error de dedo no puede regalar un mes. Para aceptarlo
