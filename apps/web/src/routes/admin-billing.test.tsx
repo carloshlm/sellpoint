@@ -153,31 +153,64 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
    */
   /**
    * La regla del cuadre (Carlos, 2026-08-29): recibido + descuento = precio.
-   * El formulario propone el cargo y deja capturar lo que perdonaste; el
-   * server rechaza cualquier combinación que no dé el precio.
+   * Y como uno DETERMINA al otro, teclear los dos sería pedirle al dueño que
+   * haga la resta a mano: escribir uno completa el otro.
    */
-  it("propone el cargo y manda monto y descuento", async () => {
+  it("propone el cargo del negocio al abrir el modal", async () => {
+    await renderAdmin(true);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+    expect(screen.getByTestId("expected-charge")).toHaveTextContent("499.00 MXN");
+    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
+    expect(screen.getByLabelText("Descuento")).toHaveValue("0");
+  });
+
+  it("al capturar el monto recibido, el descuento se calcula solo", async () => {
     await renderAdmin(true);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
 
-    // El cargo a la vista y ya propuesto en el campo: cuadrar la cuenta no
-    // puede exigir calculadora.
-    expect(screen.getByTestId("expected-charge")).toHaveTextContent("499.00 MXN");
-    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("499.00");
-
     await user.clear(screen.getByLabelText(/Monto recibido/));
-    await user.type(screen.getByLabelText(/Monto recibido/), "300.00");
-    await user.clear(screen.getByLabelText("Descuento"));
-    await user.type(screen.getByLabelText("Descuento"), "199.00");
-    await user.click(screen.getByRole("button", { name: "Registrar" }));
+    await user.type(screen.getByLabelText(/Monto recibido/), "300");
 
+    expect(screen.getByLabelText("Descuento")).toHaveValue("199.00");
+
+    await user.click(screen.getByRole("button", { name: "Registrar" }));
     await waitFor(() => {
       expect(mockedRecord).toHaveBeenCalledWith(
         "t1",
-        expect.objectContaining({ amountReceived: "300.00", discountAmount: "199.00" }),
+        expect.objectContaining({ amountReceived: "300", discountAmount: "199.00" }),
       );
     });
+  });
+
+  it("y al revés: capturar el descuento completa el monto recibido", async () => {
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+    await user.clear(screen.getByLabelText("Descuento"));
+    await user.type(screen.getByLabelText("Descuento"), "199");
+
+    expect(screen.getByLabelText(/Monto recibido/)).toHaveValue("300.00");
+  });
+
+  /**
+   * Capturar de más no deja un descuento NEGATIVO: se queda en cero y el
+   * server rechaza el desajuste, que es lo que tiene que pasar con un monto
+   * que no cuadra.
+   */
+  it("un monto mayor que el cargo deja el descuento en cero, no en negativo", async () => {
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Registrar pago" }));
+
+    await user.clear(screen.getByLabelText(/Monto recibido/));
+    await user.type(screen.getByLabelText(/Monto recibido/), "600");
+
+    expect(screen.getByLabelText("Descuento")).toHaveValue("0.00");
   });
 
   /**

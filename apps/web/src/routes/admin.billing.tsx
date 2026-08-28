@@ -1,3 +1,4 @@
+import { scaledInteger } from "@sellpoint/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -49,6 +50,9 @@ function AdminBilling() {
   const [viendo, setViendo] = useState<{ tenantId: string; tenantName: string } | null>(null);
   // El ciclo elegido decide qué cargo se muestra y se propone.
   const [ciclo, setCiclo] = useState<"monthly" | "yearly">("monthly");
+  // Los dos lados de la cuenta, controlados: escribir uno completa el otro.
+  const [recibido, setRecibido] = useState("");
+  const [descuento, setDescuento] = useState("0");
   const [error, setError] = useState<string | null>(null);
 
   const { data } = useQuery({
@@ -56,6 +60,27 @@ function AdminBilling() {
     queryFn: getAdminTenants,
     enabled: user?.isPlatformAdmin === true,
   });
+
+  /**
+   * El otro lado de la cuenta. `recibido + descuento = cargo`, así que
+   * escribir uno DETERMINA el otro y teclearlo dos veces sería pedirle al
+   * dueño que haga la resta a mano.
+   *
+   * La aritmética va en CENTAVOS (`scaledInteger`) y no en flotantes: 499.10
+   * menos 0.10 en IEEE-754 no da 499 exacto, y este número termina siendo
+   * comparado por igualdad en el server.
+   *
+   * Nunca baja de cero: si alguien captura más de lo que se debe, el
+   * complemento es 0 y el server rechaza el desajuste — que es exactamente
+   * lo que tiene que pasar con un monto que no cuadra.
+   */
+  const complemento = (valor: string, cargo: string | undefined): string => {
+    if (cargo === undefined) {
+      return "";
+    }
+    const centavos = Math.max(0, scaledInteger(cargo, 2) - scaledInteger(valor || "0", 2));
+    return `${Math.trunc(centavos / 100)}.${String(centavos % 100).padStart(2, "0")}`;
+  };
 
   const registrar = useMutation({
     mutationFn: ({
@@ -141,13 +166,16 @@ function AdminBilling() {
                         <Button
                           type="button"
                           size="sm"
-                          onClick={() =>
+                          onClick={() => {
                             setPagando({
                               tenantId: fila.tenantId,
                               tenantName: fila.tenantName,
                               charge: fila.charge,
-                            })
-                          }
+                            });
+                            setCiclo("monthly");
+                            setRecibido(fila.charge?.monthly ?? "");
+                            setDescuento("0");
+                          }}
                         >
                           {t("common.billing.admin.recordPayment")}
                         </Button>
@@ -187,8 +215,8 @@ function AdminBilling() {
                 method: form.get("method") as "transfer" | "cash" | "card" | "other" | "courtesy",
                 paidAt: new Date(`${form.get("paidAt")}T12:00:00`).toISOString(),
                 planCode: (form.get("planCode") as string) || undefined,
-                amountReceived: (form.get("amountReceived") as string) || "0",
-                discountAmount: (form.get("discountAmount") as string) || "0",
+                amountReceived: recibido || "0",
+                discountAmount: descuento || "0",
                 notes: (form.get("notes") as string) || undefined,
               },
             });
@@ -202,7 +230,14 @@ function AdminBilling() {
                 id="pay-cycle"
                 name="cycle"
                 value={ciclo}
-                onChange={(event) => setCiclo(event.target.value as "monthly" | "yearly")}
+                onChange={(event) => {
+                  const nuevo = event.target.value as "monthly" | "yearly";
+                  setCiclo(nuevo);
+                  // Cambiar de ciclo cambia el precio: la cuenta se rehace
+                  // entera en vez de quedar cuadrando contra el anterior.
+                  setRecibido(pagando?.charge?.[nuevo] ?? "");
+                  setDescuento("0");
+                }}
                 className="w-full rounded-md border p-2 text-sm"
               >
                 <option value="monthly">{t("common.billing.plans.monthly")}</option>
@@ -276,7 +311,11 @@ function AdminBilling() {
                 name="amountReceived"
                 inputMode="decimal"
                 required
-                defaultValue={pagando?.charge?.[ciclo] ?? ""}
+                value={recibido}
+                onChange={(event) => {
+                  setRecibido(event.target.value);
+                  setDescuento(complemento(event.target.value, pagando?.charge?.[ciclo]));
+                }}
                 className="w-full rounded-md border p-2 text-sm"
               />
             </div>
@@ -286,7 +325,11 @@ function AdminBilling() {
                 id="pay-discount"
                 name="discountAmount"
                 inputMode="decimal"
-                defaultValue="0"
+                value={descuento}
+                onChange={(event) => {
+                  setDescuento(event.target.value);
+                  setRecibido(complemento(event.target.value, pagando?.charge?.[ciclo]));
+                }}
                 className="w-full rounded-md border p-2 text-sm"
               />
             </div>

@@ -143,7 +143,15 @@
       "unlimitedWarehouses": "Almacenes ilimitados",
       "current": "Tu plan actual",
       "contact": "Contáctanos",
-      "footer": "Para contratar o cambiar de plan, contáctanos y lo activamos el mismo día. Tu información nunca se borra."
+      "footer": "Para contratar o cambiar de plan, contáctanos y lo activamos el mismo día. Tu información nunca se borra.",
+      "includes": "Incluye",
+      "notIncluded": "No incluido: {{item}}",
+      "users": "{{count}} usuarios",
+      "users_one": "1 usuario",
+      "warehouses": "{{count}} almacenes",
+      "warehouses_one": "1 almacén",
+      "unlimited": "Sin límite",
+      "sellWithoutStock": "Vende aunque no tengas existencias cargadas"
     },
     "banner": {
       "trial": "Te quedan {{count}} días de prueba con el plan Plus completo — elige tu plan",
@@ -220,6 +228,19 @@
       "expectedCharge": "Debe pagar: {{amount}}",
       "amountReceivedRequired": "Monto recibido",
       "mustMatch": "Recibido + descuento tiene que dar el precio del plan."
+    },
+    "capabilities": {
+      "pos": "Punto de venta y tickets",
+      "stockControl": "Control de inventario",
+      "movements": "Entradas, salidas y kardex",
+      "transfers": "Traspasos entre almacenes",
+      "quotes": "Cotizaciones",
+      "compositions": "Presentaciones y recetas",
+      "lots": "Lotes y caducidades",
+      "custom_fields": "Subcatálogos y campos propios",
+      "custom_roles": "Roles personalizados",
+      "reports": "Reportes",
+      "reports_export": "Exportar reportes"
     }
   }
 }

@@ -143,7 +143,15 @@
       "unlimitedWarehouses": "Unlimited warehouses",
       "current": "Your current plan",
       "contact": "Contact us",
-      "footer": "To subscribe or change plans, contact us and we will activate it the same day. Your data is never deleted."
+      "footer": "To subscribe or change plans, contact us and we will activate it the same day. Your data is never deleted.",
+      "includes": "Includes",
+      "notIncluded": "Not included: {{item}}",
+      "users": "{{count}} users",
+      "users_one": "1 user",
+      "warehouses": "{{count}} warehouses",
+      "warehouses_one": "1 warehouse",
+      "unlimited": "Unlimited",
+      "sellWithoutStock": "Sell even without stock loaded"
     },
     "banner": {
       "trial": "You have {{count}} trial days left with the full Plus plan — choose your plan",
@@ -220,6 +228,19 @@
       "expectedCharge": "Owes: {{amount}}",
       "amountReceivedRequired": "Amount received",
       "mustMatch": "Received + discount must equal the plan price."
+    },
+    "capabilities": {
+      "pos": "Point of sale and receipts",
+      "stockControl": "Inventory control",
+      "movements": "Entries, exits and stock ledger",
+      "transfers": "Transfers between warehouses",
+      "quotes": "Quotes",
+      "compositions": "Presentations and recipes",
+      "lots": "Lots and expiration dates",
+      "custom_fields": "Subcatalogs and custom fields",
+      "custom_roles": "Custom roles",
+      "reports": "Reports",
+      "reports_export": "Export reports"
     }
   }
 }

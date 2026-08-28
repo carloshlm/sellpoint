@@ -26,20 +26,45 @@ export function Dialog({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * El callback vive en una ref para que el listener de Escape no dependa de
+   * su identidad. Quien usa este diálogo escribe `onClose={() => setX(null)}`
+   * —una función NUEVA en cada render— y con eso en las dependencias el
+   * efecto se re-ejecutaba en cada cambio de estado del padre.
+   */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    // El foco entra al panel al abrir; al cerrar, el desmontaje libera.
-    panelRef.current?.focus();
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+  }, [open]);
+
+  /**
+   * ⚠ El foco entra al panel SOLO al abrir, y por eso este efecto depende
+   * únicamente de `open`.
+   *
+   * Antes compartía efecto con el listener de Escape, que dependía también
+   * de `onClose`: como esa función se recrea en cada render del padre, el
+   * efecto corría de nuevo con cada cambio de estado y el `focus()` ROBABA
+   * el cursor. Con campos no controlados no se notaba —escribir no
+   * re-renderizaba al padre—, pero en cuanto un diálogo tuvo un input
+   * controlado, solo entraba la PRIMERA letra de lo que se tecleaba
+   * (2026-08-29). Volver a meter dependencias acá reintroduce ese bug.
+   */
+  useEffect(() => {
+    if (open) {
+      panelRef.current?.focus();
+    }
+  }, [open]);
 
   if (!open) {
     return null;

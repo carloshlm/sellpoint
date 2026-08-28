@@ -15,6 +15,9 @@ export interface PublicPlan {
   description: string | null;
   maxUsers: number | null;
   maxWarehouses: number | null;
+  /** Columna dura, fuera de `features`: es lo que separa a Basic de Pro. */
+  stockControl: boolean;
+  dailySalesLimit: number | null;
   features: Partial<PlanFeatures>;
   price: { currency: string; monthly: string; yearly: string } | null;
 }

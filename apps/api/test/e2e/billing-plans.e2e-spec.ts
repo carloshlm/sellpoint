@@ -122,6 +122,31 @@ describe("Catálogo público de planes (GET /billing/plans)", () => {
       expect(precioDe(res.body, "plus")?.currency).toBe("USD");
     });
 
+    /**
+     * La vitrina tiene que poder EXPLICAR qué incluye cada plan, y el control
+     * de inventario —lo que separa a Basic de Pro— no vive en `features`
+     * sino en una columna dura. Sin exponerlo, la pantalla de planes no
+     * podría decir la diferencia más importante del catálogo.
+     */
+    it("cada plan viaja con lo que incluye: features, control de stock y límites", async () => {
+      const res = await request(app.getHttpServer()).get("/billing/plans").expect(200);
+      const planes = res.body as {
+        code: string;
+        stockControl: boolean;
+        dailySalesLimit: number | null;
+        features: Record<string, boolean>;
+      }[];
+
+      const basic = planes.find((p) => p.code === "basic");
+      const pro = planes.find((p) => p.code === "pro");
+      expect(basic?.stockControl).toBe(false);
+      expect(pro?.stockControl).toBe(true);
+      expect(basic?.features.quotes).toBe(false);
+      expect(pro?.features.quotes).toBe(true);
+      // Los planes de pago no tienen tope de ventas: NULL es "sin límite".
+      expect(basic?.dailySalesLimit).toBeNull();
+    });
+
     it("free no se vende y Premium sale sin precio (su CTA es contactar)", async () => {
       const res = await request(app.getHttpServer()).get("/billing/plans").expect(200);
 

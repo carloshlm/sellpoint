@@ -27,7 +27,9 @@ const PLANES = [
     description: "POS sin control de inventario",
     maxUsers: 3,
     maxWarehouses: 1,
-    features: {},
+    stockControl: false,
+    dailySalesLimit: null,
+    features: { pos: true, quotes: false, movements: false, lots: false },
     price: { currency: "MXN", monthly: "199.00", yearly: "1990.00" },
   },
   {
@@ -36,7 +38,20 @@ const PLANES = [
     description: "Todo",
     maxUsers: 20,
     maxWarehouses: 10,
-    features: {},
+    stockControl: true,
+    dailySalesLimit: null,
+    features: {
+      pos: true,
+      quotes: true,
+      movements: true,
+      transfers: true,
+      compositions: true,
+      lots: true,
+      custom_fields: true,
+      custom_roles: true,
+      reports: true,
+      reports_export: true,
+    },
     price: { currency: "MXN", monthly: "499.00", yearly: "4990.00" },
   },
   {
@@ -45,7 +60,9 @@ const PLANES = [
     description: "A la medida",
     maxUsers: null,
     maxWarehouses: null,
-    features: {},
+    stockControl: true,
+    dailySalesLimit: null,
+    features: { pos: true, quotes: true, movements: true, lots: true },
     price: null,
   },
 ];
@@ -109,5 +126,56 @@ describe("PlansModal (F7-WEB-04)", () => {
 
     expect(useBillingStore.getState().plansModalOpen).toBe(false);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-08-29): «que sea más entendible al usuario final qué incluye
+ * cada plan; se ve mejor en un listado». Quien elige no lee UNA tarjeta:
+ * compara tres — y para eso las capacidades tienen que estar todas, en el
+ * mismo orden, en las tres.
+ */
+describe("el listado de lo que incluye cada plan", () => {
+  it("Plus muestra sus capacidades como incluidas", async () => {
+    renderModal();
+
+    const plus = await screen.findByTestId("plan-plus");
+    expect(plus).toHaveTextContent("Control de inventario");
+    expect(plus).toHaveTextContent("Lotes y caducidades");
+    expect(plus).toHaveTextContent("Cotizaciones");
+  });
+
+  /**
+   * La clave de poder comparar: lo NO incluido no se esconde, se muestra
+   * apagado. Con listas de distinto largo la vista no puede saltar de una
+   * tarjeta a otra por la misma línea.
+   */
+  it("Basic muestra TAMBIÉN lo que no trae, para poder comparar", async () => {
+    renderModal();
+
+    const basic = await screen.findByTestId("plan-basic");
+    // Están las once líneas en las dos tarjetas, incluidas o no.
+    expect(basic).toHaveTextContent("Control de inventario");
+    expect(basic).toHaveTextContent("Cotizaciones");
+    // Y lo que no incluye queda dicho en texto, no solo por el color.
+    expect(basic.querySelector('[title^="No incluido"]')).not.toBeNull();
+  });
+
+  /** Vender sin existencias es una VENTAJA del mostrador sin inventario. */
+  it("Basic explica que puede vender sin existencias cargadas", async () => {
+    renderModal();
+
+    const basic = await screen.findByTestId("plan-basic");
+    expect(basic).toHaveTextContent(/Vende aunque no tengas existencias/);
+  });
+
+  it("los límites de usuarios y almacenes se leen en palabras", async () => {
+    renderModal();
+
+    const basic = await screen.findByTestId("plan-basic");
+    expect(basic).toHaveTextContent("3 usuarios");
+    expect(basic).toHaveTextContent("1 almacén");
+    const premium = screen.getByTestId("plan-premium");
+    expect(premium).toHaveTextContent(/Sin límite/);
   });
 });

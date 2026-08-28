@@ -623,6 +623,11 @@ export class BillingService {
         description: plan.description,
         maxUsers: plan.maxUsers,
         maxWarehouses: plan.maxWarehouses,
+        // El control de inventario es columna dura y NO vive en `features`,
+        // pero es la diferencia más importante del catálogo —lo que separa a
+        // Basic de Pro— así que la vitrina tiene que poder decirlo.
+        stockControl: plan.stockControl,
+        dailySalesLimit: plan.dailySalesLimit,
         features: plan.features,
         price: price
           ? {

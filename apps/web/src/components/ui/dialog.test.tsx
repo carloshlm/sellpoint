@@ -65,4 +65,36 @@ describe("Dialog (F7-WEB-03)", () => {
     render(<Demo />);
     expect(screen.getByRole("dialog").contains(document.activeElement)).toBe(true);
   });
+
+  /**
+   * ── EL FOCO QUE SE ROBABA A SÍ MISMO (2026-08-29) ────────────────────
+   *
+   * El `focus()` de apertura compartía efecto con el listener de Escape, que
+   * dependía de `onClose` — una función que el padre recrea en CADA render.
+   * Resultado: cada cambio de estado del padre devolvía el cursor al panel.
+   *
+   * Con campos no controlados nadie lo vio, porque escribir no re-renderiza
+   * al padre. En cuanto un diálogo tuvo un input controlado (el autocálculo
+   * del cobro), solo entraba la PRIMERA letra de lo que se tecleaba.
+   */
+  it("escribir en un campo NO devuelve el foco al panel en cada tecla", async () => {
+    function ConOnCloseNuevoCadaRender() {
+      const [valor, setValor] = useState("");
+      return (
+        <Dialog open onClose={() => undefined} title="Cobro">
+          <label htmlFor="monto">Monto</label>
+          <input id="monto" value={valor} onChange={(e) => setValor(e.target.value)} />
+        </Dialog>
+      );
+    }
+
+    render(<ConOnCloseNuevoCadaRender />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Monto"), "499");
+
+    // Las TRES teclas llegaron: sin el arreglo, aquí habría un "4".
+    expect(screen.getByLabelText("Monto")).toHaveValue("499");
+    expect(screen.getByLabelText("Monto")).toHaveFocus();
+  });
 });
