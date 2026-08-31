@@ -22,7 +22,7 @@
     "name": "Name",
     "description": "Description",
     "cost": "Cost",
-    "price": "Price",
+    "price": "Sale price",
     "priceHint": "What you charge for this service."
   },
   "delete": {

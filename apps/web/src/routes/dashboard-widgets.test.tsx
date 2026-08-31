@@ -49,7 +49,7 @@ const SERIES: dashboardApi.DashboardSeries = {
 const PRODUCTS: dashboardApi.DashboardProducts = {
   topSold: [
     {
-      productId: "p1",
+      itemId: "p1",
       sku: "COC-600",
       name: "Coca-Cola 600ml",
       units: "842",
@@ -57,7 +57,7 @@ const PRODUCTS: dashboardApi.DashboardProducts = {
       deltaPct: 32,
     },
     {
-      productId: "p2",
+      itemId: "p2",
       sku: "SAB-45",
       name: "Sabritas 45g",
       units: "3",
@@ -67,7 +67,7 @@ const PRODUCTS: dashboardApi.DashboardProducts = {
   ],
   topProfit: [
     {
-      productId: "p2",
+      itemId: "p2",
       sku: "SAB-45",
       name: "Sabritas 45g",
       revenue: "60",

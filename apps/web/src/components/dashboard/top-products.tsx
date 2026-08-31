@@ -35,7 +35,7 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
         ) : (
           <ol className="flex flex-col gap-1 text-sm">
             {data.topSold.map((producto, i) => (
-              <li key={producto.productId} className="flex items-center gap-2">
+              <li key={producto.itemId} className="flex items-center gap-2">
                 <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
                 <span className="min-w-0 flex-1 truncate">{producto.name}</span>
                 {producto.deltaPct !== null && producto.deltaPct !== 0 && (
@@ -67,7 +67,7 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
         ) : (
           <ol className="flex flex-col gap-1 text-sm">
             {data.topProfit.map((producto, i) => (
-              <li key={producto.productId} className="flex items-center gap-2">
+              <li key={producto.itemId} className="flex items-center gap-2">
                 <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
                 <span className="min-w-0 flex-1 truncate">{producto.name}</span>
                 <span className="text-muted-foreground text-xs tabular-nums">

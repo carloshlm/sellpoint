@@ -25,6 +25,13 @@ import { buildSalesWhere } from "./sales-where";
 /** Lo que el catálogo dice que cuesta una línea. NUNCA lo que mandó el POST. */
 interface PrecioResuelto {
   unitPrice: Prisma.Decimal;
+  /**
+   * El costo de CATÁLOGO en la unidad vendida (Carlos, 2026-09-01): el de la
+   * presentación para productos, el del servicio para servicios. Es la
+   * PRIMERA fuente del snapshot — es el número que el dueño ve y edita. El
+   * promedio de compras queda de red para catálogos sin costo.
+   */
+  catalogCost: Prisma.Decimal | null;
   /** Cuánto vale en unidad BASE, ya multiplicado por el factor. */
   quantityBase: Prisma.Decimal;
   presentationId: string | null;
@@ -237,12 +244,20 @@ export class SalesService {
                 const precio = precios[i] as PrecioResuelto;
                 const cantidad = new Prisma.Decimal(line.quantity);
                 const desc = new Prisma.Decimal(line.discount ?? 0);
-                // El costo viaja en la MISMA unidad que unitPrice (la
-                // presentación vendida): promedio base × factor, donde el
-                // factor es quantityBase/quantity — exacto, porque
-                // quantityBase nació de esa multiplicación. Así la utilidad
-                // es (unitPrice − unitCost) × quantity, simétrica al precio.
-                const costoBase = line.productId ? costosBase.get(line.productId) : undefined;
+                // El costo viaja en la MISMA unidad que unitPrice. Fuente
+                // PRIMERA: el catálogo (presentación o servicio — el número
+                // que el dueño ve y edita; Carlos, 2026-09-01). De red, el
+                // promedio ponderado de compras × factor (quantityBase /
+                // quantity — exacto, porque quantityBase nació de esa
+                // multiplicación). Sin ninguno: null, jamás 0.
+                const costoPromedio = line.productId ? costosBase.get(line.productId) : undefined;
+                const costoBase =
+                  precio.catalogCost ??
+                  (costoPromedio !== undefined
+                    ? costoPromedio
+                        .times(precio.quantityBase)
+                        .dividedBy(new Prisma.Decimal(line.quantity))
+                    : undefined);
                 return {
                   tenantId: user.tenantId,
                   lineNo: i + 1,
@@ -251,9 +266,7 @@ export class SalesService {
                   presentationId: precio.presentationId,
                   quantity: cantidad,
                   unitPrice: precio.unitPrice,
-                  ...(costoBase !== undefined && {
-                    unitCost: costoBase.times(precio.quantityBase).dividedBy(cantidad),
-                  }),
+                  ...(costoBase !== undefined && costoBase !== null && { unitCost: costoBase }),
                   discount: desc,
                   lineTotal: precio.unitPrice.times(cantidad).minus(desc),
                 };
@@ -532,7 +545,7 @@ export class SalesService {
       if (line.serviceId !== undefined) {
         const servicio = await tx.service.findFirst({
           where: { id: line.serviceId, tenantId: user.tenantId, isActive: true },
-          select: { code: true, price: true },
+          select: { code: true, price: true, cost: true },
         });
         if (servicio === null) {
           throw new UnprocessableEntityException({
@@ -542,6 +555,7 @@ export class SalesService {
         }
         resueltos.push({
           unitPrice: servicio.price ?? new Prisma.Decimal(0),
+          catalogCost: servicio.cost,
           quantityBase: new Prisma.Decimal(line.quantity),
           presentationId: null,
           // Un servicio no se compone de nada: no tiene existencias que armar.
@@ -562,6 +576,7 @@ export class SalesService {
               id: true,
               factor: true,
               price: true,
+              cost: true,
               isDefaultSale: true,
               name: true,
               allowFractionalInput: true,
@@ -606,6 +621,7 @@ export class SalesService {
 
       resueltos.push({
         unitPrice: presentacion.price ?? new Prisma.Decimal(0),
+        catalogCost: presentacion.cost,
         quantityBase: new Prisma.Decimal(line.quantity).times(presentacion.factor),
         presentationId: presentacion.id,
         sku: producto.sku,

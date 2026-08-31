@@ -142,12 +142,20 @@ describe("El snapshot de costo en la venta (F5-DASH-01)", () => {
     return venta.items.map((item) => item.unitCost?.toString() ?? null);
   }
 
-  it("la línea congela el promedio ponderado vigente al cobrar", async () => {
+  it("sin costo en el catálogo, la RED es el promedio ponderado de compras", async () => {
     const { token, tenantId } = await registerAndLogin();
     const { productoId, almacenId } = await producto(tenantId);
-    // 10 piezas a $10 y 10 a $20 → promedio $15.
+    // 10 piezas a $10 y 10 a $20 → promedio $15. Las facturas dejan el
+    // catálogo en $20 (la última) — se borra a propósito para probar la red:
+    // un catálogo sin costo no deja la utilidad ciega si hay historial.
     await comprar(token, almacenId, productoId, 10, 10);
     await comprar(token, almacenId, productoId, 10, 20);
+    await prisma.withTenantContext(tenantId, (tx) =>
+      tx.productPresentation.updateMany({
+        where: { productId: productoId },
+        data: { cost: null },
+      }),
+    );
     await request(app.getHttpServer())
       .post("/pos/session")
       .set("Authorization", bearer(token))
@@ -234,7 +242,83 @@ describe("El snapshot de costo en la venta (F5-DASH-01)", () => {
     expect(await costosGuardados(tenantId)).toEqual([null]);
   });
 
-  it("una venta de servicio guarda null: los servicios no tienen costo de compra", async () => {
+  it("un servicio congela el costo de SU catálogo: ahí es donde vive (Carlos, 2026-09-01)", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const almacenId = await prisma.withTenantContext(tenantId, async (tx) => {
+      const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
+      return almacen.id;
+    });
+    const servicio = await request(app.getHttpServer())
+      .post("/services")
+      .set("Authorization", bearer(token))
+      .send({
+        code: `SRV-${randomUUID().slice(0, 8)}`,
+        name: "Consulta Médica Básica",
+        cost: 10,
+        price: 50,
+        warehouseIds: [almacenId],
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post("/pos/session")
+      .set("Authorization", bearer(token))
+      .send({})
+      .expect(201);
+
+    await vender(token, {
+      paymentMethod: "cash",
+      lines: [{ serviceId: (servicio.body as { id: string }).id, quantity: 1 }],
+    }).expect(201);
+
+    expect(await costosGuardados(tenantId)).toEqual(["10"]);
+  });
+
+  it("el costo de CATÁLOGO de la presentación gana al promedio de compras", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const { productoId, almacenId } = await producto(tenantId);
+    // Compras a $10 y $20 (promedio 15)… pero el catálogo declara $12: el
+    // catálogo es la fuente que el dueño ve y edita — manda (Carlos,
+    // 2026-09-01). El promedio queda de red para catálogos sin costo.
+    await comprar(token, almacenId, productoId, 10, 10);
+    await comprar(token, almacenId, productoId, 10, 20);
+    await prisma.withTenantContext(tenantId, (tx) =>
+      tx.productPresentation.updateMany({
+        where: { productId: productoId },
+        data: { cost: "12" },
+      }),
+    );
+    await request(app.getHttpServer())
+      .post("/pos/session")
+      .set("Authorization", bearer(token))
+      .send({})
+      .expect(201);
+
+    await vender(token, {
+      paymentMethod: "cash",
+      lines: [{ productId: productoId, quantity: 1 }],
+    }).expect(201);
+
+    expect(await costosGuardados(tenantId)).toEqual(["12"]);
+  });
+
+  it("la entrada por FACTURA actualiza el costo del catálogo", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const { productoId, almacenId } = await producto(tenantId);
+
+    await comprar(token, almacenId, productoId, 5, 18);
+
+    const presentacion = await prisma.withTenantContext(tenantId, (tx) =>
+      tx.productPresentation.findFirstOrThrow({
+        where: { productId: productoId },
+        select: { cost: true },
+      }),
+    );
+    // La factura es la verdad más fresca del costo: el catálogo se actualiza
+    // solo — y la siguiente venta congela este número.
+    expect(presentacion.cost?.toString()).toBe("18");
+  });
+
+  it("una venta de servicio SIN costo en catálogo guarda null: no hay 0 fingido", async () => {
     const { token, tenantId } = await registerAndLogin();
     const almacenId = await prisma.withTenantContext(tenantId, async (tx) => {
       const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });

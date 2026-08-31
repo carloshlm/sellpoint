@@ -14,7 +14,7 @@
     "lint": "biome check .",
     "lint:packages": "turbo run lint",
     "format": "biome format --write .",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=1",
     "typecheck:full": "turbo run typecheck:full",
     "prepare": "husky"
   },

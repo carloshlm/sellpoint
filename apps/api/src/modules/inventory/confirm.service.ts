@@ -201,6 +201,17 @@ export class ConfirmService {
       // tenía — omitir no es borrar.
       await this.actualizarUbicacionDeReferencia(tx, user.tenantId, lines, conLotes);
 
+      // ── La FACTURA refresca el costo del catálogo (Carlos, 2026-09-01) ──
+      //
+      // El catálogo es la fuente del costo que la venta congela; una compra
+      // real es su verdad más fresca. Cada línea con costo actualiza la
+      // presentación en que se capturó — la MISMA unidad, sin conversiones —
+      // y una línea capturada en unidad base actualiza la presentación de
+      // factor 1 si existe. Solo la factura: un ajuste no es una compra.
+      if (document.type === "entry" && reasonCode === "invoice") {
+        await this.actualizarCostoDeCatalogo(tx, user.tenantId, lines);
+      }
+
       // 6. Sellar. ÚLTIMO: a partir de acá el trigger congela el documento.
       const confirmed = await this.documents.markConfirmed(
         tx,
@@ -259,6 +270,35 @@ export class ConfirmService {
    * pisar la del producto con la de una línea inventaría una única verdad
    * donde hay varias.
    */
+  private async actualizarCostoDeCatalogo(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    lines: {
+      productId: string;
+      presentationId: string | null;
+      unitCost: Prisma.Decimal | null;
+    }[],
+  ): Promise<void> {
+    for (const line of lines) {
+      if (line.unitCost === null) {
+        continue;
+      }
+      if (line.presentationId !== null) {
+        await tx.productPresentation.updateMany({
+          where: { id: line.presentationId, tenantId },
+          data: { cost: line.unitCost },
+        });
+        continue;
+      }
+      // Capturada en unidad base: el costo es por pieza — la presentación de
+      // factor 1 es su lugar. Sin ella no se adivina contra qué factor.
+      await tx.productPresentation.updateMany({
+        where: { productId: line.productId, tenantId, factor: 1 },
+        data: { cost: line.unitCost },
+      });
+    }
+  }
+
   private async actualizarUbicacionDeReferencia(
     tx: Prisma.TransactionClient,
     tenantId: string,

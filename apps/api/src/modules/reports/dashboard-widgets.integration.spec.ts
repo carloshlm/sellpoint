@@ -94,7 +94,8 @@ describe("Los widgets del dashboard (integration)", () => {
 
   interface Venta {
     creadaEn: string;
-    productoId: string;
+    productoId?: string;
+    servicioId?: string;
     quantity: number;
     unitPrice: number;
     unitCost?: number;
@@ -122,7 +123,8 @@ describe("Los widgets del dashboard (integration)", () => {
               {
                 tenantId: ctx.tenantId,
                 lineNo: 1,
-                productId: v.productoId,
+                ...(v.productoId !== undefined && { productId: v.productoId }),
+                ...(v.servicioId !== undefined && { serviceId: v.servicioId }),
                 quantity: v.quantity,
                 unitPrice: v.unitPrice,
                 discount: 0,
@@ -232,6 +234,47 @@ describe("Los widgets del dashboard (integration)", () => {
     expect(r.topSold.find((p) => p.name === "Botana")?.deltaPct).toBe(100);
     // A no tiene historia previa: null, no un +∞ disfrazado.
     expect(r.topSold[1]?.deltaPct).toBeNull();
+  });
+
+  it("los SERVICIOS compiten en los dos tops: también son ventas y también dejan (Carlos, 2026-09-01)", async () => {
+    const ctx = await escenario();
+    const servicio = await prisma.withTenantContext(ctx.tenantId, (tx) =>
+      tx.service.create({
+        data: {
+          tenantId: ctx.tenantId,
+          code: `CON-${randomUUID().slice(0, 6)}`,
+          name: "Consulta Médica",
+          cost: "10",
+          price: "50",
+        },
+      }),
+    );
+    // 8 consultas a $50 con costo $10 → venta 400, utilidad 320.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      servicioId: servicio.id,
+      quantity: 8,
+      unitPrice: 50,
+      unitCost: 10,
+    });
+    // Un producto que vende más pero deja menos: 20 × $30 con costo $28.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T19:00:00Z",
+      productoId: ctx.productoA,
+      quantity: 20,
+      unitPrice: 30,
+      unitCost: 28,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    // Más vendidos por unidades: el producto (20) sobre la consulta (8)…
+    expect(r.topSold[0]?.name).toBe("Agua 1L");
+    expect(r.topSold[1]?.name).toBe("Consulta Médica");
+    // …pero en utilidad la consulta arrasa: 320 contra 40.
+    expect(r.topProfit[0]?.name).toBe("Consulta Médica");
+    expect(r.topProfit[0]?.profit).toBe("320.00");
+    expect(r.topProfit[0]?.marginPct).toBe(80);
   });
 
   it("inventario: cuenta agotados y bajos, predice días y el valor solo viaja con reports:read", async () => {

@@ -39,7 +39,7 @@ export interface DashboardSeries {
 
 export interface DashboardProducts {
   topSold: {
-    productId: string;
+    itemId: string;
     sku: string;
     name: string;
     units: string;
@@ -47,7 +47,7 @@ export interface DashboardProducts {
     deltaPct: number | null;
   }[];
   topProfit: {
-    productId: string;
+    itemId: string;
     sku: string;
     name: string;
     revenue: string;

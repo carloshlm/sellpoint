@@ -8,7 +8,8 @@ import { type DashboardPeriod, resolvePeriodWindow } from "./dashboard-period";
 
 export interface DashboardProducts {
   topSold: {
-    productId: string;
+    /** Producto O servicio: los dos compiten — ambos son ventas. */
+    itemId: string;
     sku: string;
     name: string;
     units: string;
@@ -17,7 +18,7 @@ export interface DashboardProducts {
     deltaPct: number | null;
   }[];
   topProfit: {
-    productId: string;
+    itemId: string;
     sku: string;
     name: string;
     revenue: string;
@@ -59,20 +60,22 @@ export class DashboardProductsService {
         user.tenantId,
         (tx) =>
           tx.$queryRaw<
-            { product_id: string; sku: string; name: string; units: string; revenue: string }[]
+            { item_id: string; sku: string; name: string; units: string; revenue: string }[]
           >`
-          SELECT i.product_id, p.sku, p.name,
+          SELECT COALESCE(i.product_id, i.service_id) AS item_id,
+                 COALESCE(p.sku, sv.code) AS sku,
+                 COALESCE(p.name, sv.name) AS name,
                  SUM(i.quantity)::text AS units,
                  SUM(i.line_total)::text AS revenue
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
-            JOIN products p ON p.id = i.product_id
+            LEFT JOIN products p ON p.id = i.product_id
+            LEFT JOIN services sv ON sv.id = i.service_id
            WHERE s.tenant_id = ${user.tenantId}::uuid
              AND s.status = 'completed'
-             AND i.product_id IS NOT NULL
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${desde} AND s.created_at < ${hasta}
-           GROUP BY i.product_id, p.sku, p.name
+           GROUP BY COALESCE(i.product_id, i.service_id), COALESCE(p.sku, sv.code), COALESCE(p.name, sv.name)
            ORDER BY SUM(i.quantity) DESC
            LIMIT 10`,
       );
@@ -85,7 +88,7 @@ export class DashboardProductsService {
         (tx) =>
           tx.$queryRaw<
             {
-              product_id: string;
+              item_id: string;
               sku: string;
               name: string;
               revenue: string;
@@ -93,33 +96,35 @@ export class DashboardProductsService {
               profit: string;
             }[]
           >`
-          SELECT i.product_id, p.sku, p.name,
+          SELECT COALESCE(i.product_id, i.service_id) AS item_id,
+                 COALESCE(p.sku, sv.code) AS sku,
+                 COALESCE(p.name, sv.name) AS name,
                  SUM(i.line_total)::text AS revenue,
                  SUM(i.unit_cost * i.quantity)::numeric(14,2)::text AS cost,
                  SUM(i.line_total - i.unit_cost * i.quantity)::numeric(14,2)::text AS profit
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
-            JOIN products p ON p.id = i.product_id
+            LEFT JOIN products p ON p.id = i.product_id
+            LEFT JOIN services sv ON sv.id = i.service_id
            WHERE s.tenant_id = ${user.tenantId}::uuid
              AND s.status = 'completed'
-             AND i.product_id IS NOT NULL
              AND i.unit_cost IS NOT NULL
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${ventana.desde} AND s.created_at < ${ventana.hasta}
-           GROUP BY i.product_id, p.sku, p.name
+           GROUP BY COALESCE(i.product_id, i.service_id), COALESCE(p.sku, sv.code), COALESCE(p.name, sv.name)
            ORDER BY SUM(i.line_total - i.unit_cost * i.quantity) DESC
            LIMIT 5`,
       ),
     ]);
 
-    const ventaPrevia = new Map(previos.map((f) => [f.product_id, new Prisma.Decimal(f.revenue)]));
+    const ventaPrevia = new Map(previos.map((f) => [f.item_id, new Prisma.Decimal(f.revenue)]));
 
     return {
       topSold: top.map((f) => {
-        const anterior = ventaPrevia.get(f.product_id);
+        const anterior = ventaPrevia.get(f.item_id);
         const actual = new Prisma.Decimal(f.revenue);
         return {
-          productId: f.product_id,
+          itemId: f.item_id,
           sku: f.sku,
           name: f.name,
           units: f.units,
@@ -133,7 +138,7 @@ export class DashboardProductsService {
       topProfit: utilidad.map((f) => {
         const revenue = new Prisma.Decimal(f.revenue);
         return {
-          productId: f.product_id,
+          itemId: f.item_id,
           sku: f.sku,
           name: f.name,
           revenue: f.revenue,
