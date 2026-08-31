@@ -10,6 +10,21 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "incremental": true,
+    // El `.tsbuildinfo` va DENTRO de `dist` a propósito. Sin esto, DOS builds
+    // seguidos dejan el `dist` VACÍO (2026-08-31).
+    //
+    // Por omisión tsc lo escribe al lado de la config
+    // (`apps/api/tsconfig.build.tsbuildinfo`), fuera de `outDir`. Y
+    // `nest-cli.json` tiene `deleteOutDir: true`, que borra `dist` antes de
+    // compilar. El archivo sobrevive a ese borrado, tsc lo lee, ve que las
+    // firmas no cambiaron y NO emite nada: quedan cero `.js` y un
+    // `Cannot find module .../dist/main` al arrancar. Solo se cura borrando
+    // el archivo a mano, que es justo lo que nadie sabe que hay que hacer.
+    //
+    // Dentro de `dist`, el borrado se lo lleva junto con las salidas y cada
+    // build parte de cero. No se pierde nada: con `deleteOutDir` la
+    // compilación incremental del build nunca tuvo de dónde partir.
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "paths": {
       "@sellpoint/*": ["../../packages/*/dist"]
     }
