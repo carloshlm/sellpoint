@@ -2782,25 +2782,25 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** F5-DASH-01, F5-DASH-02
   - **Estimación:** 3 h
 
-- [ ] **F5-DASH-04** — `GET /reports/dashboard/series`: mes vs mes y por hora
+- [x] **F5-DASH-04** *(cerrada el 2026-08-31)* — `GET /reports/dashboard/series`: mes vs mes y por hora
   - **Salida:** dos series por día (mes actual y anterior, alineadas por día 1..31, huecos en 0) + ventas por hora de HOY (24 casillas, hora local del negocio). `reports:read` + `UserScope`
   - **Verificar:** e2e: los días se agrupan por fecha LOCAL (contraprueba: venta a las 23:30 del día 5 no cae en el día 6); un mes de 31 vs uno de 30 no desalinea
   - **Depende de:** F5-DASH-03
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-05** — `GET /reports/dashboard/products`: los tops
+- [x] **F5-DASH-05** *(cerrada el 2026-08-31)* — `GET /reports/dashboard/products`: los tops
   - **Salida:** con `period=today|week|month|prev_month` — top 10 más vendidos (unidades + venta) y top 5 por utilidad (venta, costo, utilidad, margen % — solo líneas con snapshot) + Δ% de cada producto vs el período equivalente anterior (el dato que alimenta la alerta «Producto X creció 32%»). `reports:read` + `UserScope`
   - **Verificar:** e2e: el orden del top de utilidad difiere del de vendidos cuando los márgenes lo mandan (el escenario lo delata: mucho volumen con margen chico vs poco volumen con margen gordo); contraprueba: líneas sin snapshot no entran al top de utilidad
   - **Depende de:** F5-DASH-01
   - **Estimación:** 3 h
 
-- [ ] **F5-DASH-06** — `GET /reports/dashboard/inventory`: la salud del stock
+- [x] **F5-DASH-06** *(cerrada el 2026-08-31)* — `GET /reports/dashboard/inventory`: la salud del stock
   - **Salida:** conteo de agotados (total 0 con `stockMin > 0`), conteo bajo mínimo (reusa la lógica `belowMin` de F5-STK), valor del inventario (reusa la valorización con costo ponderado; este CAMPO se omite sin `reports:read`) y lista de atención top 5 con **días estimados** (`stock ÷ velocidad de venta de los últimos 14 días`; null si no vendió — el dato predictivo que convierte el widget en herramienta). Endpoint con `inventory:read`, gating por campo para el valor
   - **Verificar:** e2e: el producto que se agota primero encabeza la lista; contraprueba: sin `reports:read` la respuesta no trae `inventoryValue`; un producto sin ventas en 14 días trae `daysLeft: null`, no Infinity
   - **Depende de:** —
   - **Estimación:** 3 h
 
-- [ ] **F5-DASH-07** — `GET /reports/dashboard/payment-methods`: la distribución
+- [x] **F5-DASH-07** *(cerrada el 2026-08-31)* — `GET /reports/dashboard/payment-methods`: la distribución
   - **Salida:** con el mismo `period` de F5-DASH-05 — total y % por método (reusa el `groupBy(paymentMethod)` de sales-report). `reports:read` + `UserScope`
   - **Verificar:** e2e: los % suman 100 (o la lista viene vacía sin ventas, nunca NaN); contraprueba: canceladas fuera
   - **Depende de:** —
@@ -2826,39 +2826,40 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** F5-DASH-03, F5-DASH-09
   - **Estimación:** 3 h
 
-- [ ] **F5-DASH-11** — Las dos gráficas de ventas
+- [x] **F5-DASH-11** *(cerrada el 2026-08-31)* — Las dos gráficas de ventas
   - **Salida:** «Ventas: mes actual vs anterior» (líneas, la del mes anterior atenuada) y «Ventas por hora de hoy» (barras) sobre los envoltorios de F5-DASH-08, consumiendo F5-DASH-04
   - **Verificar:** test web: las dos series llegan a la gráfica con los días alineados; el vacío del negocio nuevo muestra el estado vacío del envoltorio
   - **Depende de:** F5-DASH-04, F5-DASH-08
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-12** — El filtro de período y los tops
+- [x] **F5-DASH-12** *(cerrada el 2026-08-31)* — El filtro de período y los tops
   - **Salida:** filtro global «Hoy | Esta semana | Este mes | Mes anterior» (estado compartido de la pantalla) que gobierna tops y métodos de pago + las dos listas: top 10 vendidos (#, producto, unidades, venta) y top 5 utilidad (producto, venta, costo, utilidad, margen %)
   - **Verificar:** test web: cambiar el período dispara las queries con el param correcto; la lista de utilidad muestra margen % formateado; vacíos honestos
   - **Depende de:** F5-DASH-05, F5-DASH-10
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-13** — Los widgets de inventario
+- [x] **F5-DASH-13** *(cerrada el 2026-08-31)* — Los widgets de inventario
   - **Salida:** tres contadores clickeables (🔴 agotados, 🟠 bajo mínimo, 💰 valor del inventario) que navegan a `/reports/stock` YA filtrado + la lista «Productos a atender» con días estimados y semáforo. Consumen F5-DASH-06; el valor solo aparece con `reports:read`
   - **Verificar:** test web: click en «agotados» navega con el filtro puesto; `daysLeft: null` muestra «—»; sin `reports:read` el contador de valor no existe
   - **Depende de:** F5-DASH-06, F5-DASH-10
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-14** — El donut de métodos de pago
+- [x] **F5-DASH-14** *(cerrada el 2026-08-31)* — El donut de métodos de pago
   - **Salida:** `ChartDonut` con la distribución del período del filtro global + leyenda con % (Efectivo/Tarjeta/Transferencia, i18n)
   - **Verificar:** test web: 3 métodos pintan 3 segmentos con sus %; sin ventas, el estado vacío
   - **Depende de:** F5-DASH-07, F5-DASH-12
   - **Estimación:** 1 h
 
-- [ ] **F5-DASH-15** — Las alertas inteligentes
+- [x] **F5-DASH-15** *(cerrada el 2026-08-31)* — Las alertas inteligentes
   - **Salida:** bloque de hasta 4 frases accionables compuestas EN EL CLIENTE con datos ya cargados — cero requests extra: «🔴 N productos agotados», «⚠️ Ventas X% abajo del mismo día de la semana pasada», «📈 Producto X creció Y%» (el Δ de F5-DASH-05), «💳 El Z% de tus ventas es en efectivo». Cada una enlaza a su pantalla. Sin condiciones cumplidas, el bloque no aparece
   - **Verificar:** test web: cada regla dispara con su dato y calla sin él; contraprueba: sin ninguna condición el bloque desaparece completo (no un título huérfano)
   - **Depende de:** F5-DASH-10, F5-DASH-12, F5-DASH-13
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-16** — Verificación integral del panel
+- [x] **F5-DASH-16** *(cerrada el 2026-08-31)* — Verificación integral del panel
   - **Salida:** pasada Playwright en navegador real — desktop y móvil, tema claro y oscuro, negocio NUEVO sin ventas (cada widget con su vacío honesto, cero NaN/undefined), usuario sin `reports:read` — y el presupuesto de peticiones del dashboard medido y documentado (≤6 por carga; el throttle global es 300/min)
   - **Verificar:** capturas de las 4 variantes revisadas; el contador de Redis confirma el presupuesto; Carlos da el visto comercial a la pantalla
+  - **Presupuesto MEDIDO: 9 peticiones por carga** (2026-08-31) — 5 propias del panel + 4 del arranque de sesión; caben ~33 cargas/min contra el throttle de 300. Verificado en navegador: claro y oscuro (los tokens repintan las gráficas solos), móvil (una columna limpia, donut con leyenda), negocio VACÍO (3 vacíos honestos, cero NaN — y reveló que la gráfica del mes pintaba una línea plana de ceros: se le aplicó el criterio del donut) y la alerta del método dominante disparándose con datos reales. El caso sin `reports:read` queda cubierto por el par unit/e2e (el dato ni viaja). recharts entra PEREZOSO al panel: ansioso, cada test de rutas pagaba sus módulos y la corrida paralela de turbo tenía timeouts aleatorios
   - **Depende de:** F5-DASH-10..15
   - **Estimación:** 2 h
 

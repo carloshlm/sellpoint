@@ -30,6 +30,9 @@ function SalesCharts() {
     total: Number(h.total),
   }));
   const sinVentasHoy = data.byHour.every((h) => Number(h.total) === 0);
+  // Mismo criterio que el donut: un mes entero en cero (negocio recién
+  // nacido) pintaría una línea plana que parece bug — vacío honesto.
+  const sinVentasMes = data.byDay.every((d) => Number(d.current) === 0 && Number(d.previous) === 0);
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -37,7 +40,7 @@ function SalesCharts() {
         <h2 className="font-medium text-sm">{t("dashboard.charts.monthVsPrev")}</h2>
         <ChartLine
           label={t("dashboard.charts.monthVsPrev")}
-          data={porDia}
+          data={sinVentasMes ? [] : porDia}
           xKey="day"
           lines={[
             { dataKey: t("dashboard.charts.current"), token: "primary" },
