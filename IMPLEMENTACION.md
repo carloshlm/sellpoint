@@ -2819,9 +2819,10 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** —
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-10** — La fila de KPIs en `/dashboard`
+- [x] **F5-DASH-10** *(cerrada el 2026-08-31)* — La fila de KPIs en `/dashboard`
   - **Salida:** `lib/dashboard/api.ts` + `hooks.ts` (patrón de reports) y la pantalla monta 4 `KpiCard` (Ventas hoy, Ventas del mes + meta, Utilidad del mes, Tickets) gated con `reports:read`. Sin permiso: bienvenida limpia + los widgets que sí le tocan — sin huecos ni tarjetas rotas. La `ExpiringCard` existente se conserva
   - **Verificar:** test web: con `reports:read` se ven las 4 tarjetas con sus valores; contraprueba: sin él no aparece NINGÚN número de dinero; utilidad `null` muestra «Aún sin datos de costo», no $0
+  - **La puerta del permiso vive en `enabled` de la query** (2026-08-31): sin `reports:read` el dato NI SE PIDE — ocultarlo con CSS dejaría los números del negocio en la pestaña Red del cajero. Contraprueba por mutación cazada. Verificado en navegador con ventas reales: las 4 tarjetas, la barra de meta viva y la utilidad honesta
   - **Depende de:** F5-DASH-03, F5-DASH-09
   - **Estimación:** 3 h
 
