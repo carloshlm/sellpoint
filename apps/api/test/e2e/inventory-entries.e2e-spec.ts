@@ -395,4 +395,59 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
         .expect(404);
     });
   });
+  /**
+   * ── LA ENTRADA TAMBIÉN DEJA LA UBICACIÓN EN EL PRODUCTO ──────────────
+   *
+   * Carlos (2026-08-31): «la ubicación se debe llenar con la de la última
+   * entrada de ese producto (Entrada, Inventario)».
+   *
+   * Tiene toda la lógica: recibir mercancía es el otro momento en que alguien
+   * decide físicamente dónde va a quedar. Guardarla solo al contar dejaría el
+   * catálogo desactualizado hasta el siguiente inventario.
+   *
+   * «Última» de verdad: la entrada de hoy pisa lo que dijera la de ayer.
+   */
+  describe("la ubicación de referencia del producto", () => {
+    const ubicacionDe = async (id: string) => {
+      const res = await request(app.getHttpServer()).get(`/products/${id}`).set(auth()).expect(200);
+      return (res.body as { location: string | null }).location;
+    };
+
+    it("al confirmar, la ubicación capturada queda en el producto", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Ubicación" });
+      const linea = await agregar(id, { productId, quantity: 5 }).expect(201);
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${(linea.body as { id: string }).id}`)
+        .set(auth())
+        .send({ location: "D-04-02" })
+        .expect(200);
+
+      await confirmar(id).expect(201);
+
+      expect(await ubicacionDe(productId)).toBe("D-04-02");
+    });
+
+    it("una entrada posterior pisa la anterior: manda la ÚLTIMA", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Ubicación" });
+      const linea = await agregar(id, { productId, quantity: 3 }).expect(201);
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${(linea.body as { id: string }).id}`)
+        .set(auth())
+        .send({ location: "E-11-01" })
+        .expect(200);
+
+      await confirmar(id).expect(201);
+
+      expect(await ubicacionDe(productId)).toBe("E-11-01");
+    });
+
+    it("una línea SIN ubicación no borra la que el producto ya tenía", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Ubicación" });
+      await agregar(id, { productId, quantity: 2 }).expect(201);
+
+      await confirmar(id).expect(201);
+
+      expect(await ubicacionDe(productId)).toBe("E-11-01");
+    });
+  });
 });
