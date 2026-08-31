@@ -187,6 +187,20 @@ export class ConfirmService {
         });
       }
 
+      // ── La UBICACIÓN de los productos SIN lote ────────────────────────
+      //
+      // El saldo por ubicación vive en `stock_lots`, cuya clave es (lote,
+      // almacén, ubicación): un producto sin lote guarda su saldo en
+      // `stock_by_warehouse`, que no la tiene. Así que acá la ubicación no
+      // puede partir existencias — pero sí actualizar la de REFERENCIA del
+      // producto, que es lo útil: el inventario físico es justamente el
+      // momento en que alguien descubre dónde está de verdad cada cosa
+      // (Carlos, 2026-08-31).
+      //
+      // Solo con valor: una línea sin ubicación no pisa la que el producto ya
+      // tenía — omitir no es borrar.
+      await this.actualizarUbicacionDeReferencia(tx, user.tenantId, lines, conLotes);
+
       // 6. Sellar. ÚLTIMO: a partir de acá el trigger congela el documento.
       const confirmed = await this.documents.markConfirmed(
         tx,
@@ -237,6 +251,35 @@ export class ConfirmService {
    * puede tardar horas, y leerlo sin bloquear dejaría una carrera con
    * cualquier venta que entre en el medio.
    */
+  /**
+   * Copia al catálogo la ubicación capturada para productos SIN lote.
+   *
+   * Los que SÍ llevan lote no entran: para ellos la ubicación es parte de la
+   * identidad de su saldo (un lote puede estar repartido en dos estantes), y
+   * pisar la del producto con la de una línea inventaría una única verdad
+   * donde hay varias.
+   */
+  private async actualizarUbicacionDeReferencia(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    lines: { productId: string; location: string | null }[],
+    resueltas: ExpandedLine[],
+  ): Promise<void> {
+    const conLote = new Set(resueltas.filter((l) => l.lotId).map((l) => l.productId));
+    const porProducto = new Map<string, string>();
+    for (const line of lines) {
+      const location = line.location?.trim();
+      if (!location || conLote.has(line.productId)) {
+        continue;
+      }
+      porProducto.set(line.productId, location);
+    }
+
+    for (const [productId, location] of porProducto) {
+      await tx.product.updateMany({ where: { id: productId, tenantId }, data: { location } });
+    }
+  }
+
   private async expandCount(
     tx: Prisma.TransactionClient,
     user: AuthUser,

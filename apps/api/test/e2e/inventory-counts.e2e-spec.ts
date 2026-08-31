@@ -540,6 +540,84 @@ describe("Inventario físico (F3-COUNT)", () => {
     });
   });
 
+  /**
+   * ── LA UBICACIÓN NO DEPENDE DE LOS LOTES (Carlos, 2026-08-31) ────────
+   *
+   * «Hay productos que no tienen lote ni caducidad y sí deberían poder tener
+   * ubicación si el negocio tiene activo ese parámetro.»
+   *
+   * Tiene razón, pero con un matiz que decide el diseño: el saldo POR
+   * ubicación vive en `stock_lots`, cuya clave es (lote, almacén, ubicación).
+   * Un producto sin lote guarda su saldo en `stock_by_warehouse`, que no la
+   * tiene — así que capturar una ubicación ahí no puede partir existencias.
+   *
+   * Lo que sí puede, y es lo útil: **actualizar la ubicación de REFERENCIA
+   * del producto**. El inventario físico es justamente el momento en que
+   * alguien descubre dónde está de verdad cada cosa, así que contar pasa a
+   * ser la forma natural de mantener el catálogo al día.
+   */
+  describe("la ubicación de un producto SIN lote", () => {
+    /** Un borrador con su CSV cargado; el helper de F3-COUNT-03 vive en otro bloque. */
+    async function conteoCon(token: string, warehouseId: string, csv: string) {
+      const creado = await request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set("Authorization", bearer(token))
+        .send({ type: "physical_count", warehouseId })
+        .expect(201);
+      const id = (creado.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/lines/import`)
+        .set("Authorization", bearer(token))
+        .send({ file: csv, format: "csv", mode: "replace" })
+        .expect(200);
+      return id;
+    }
+
+    it("al aprobar el conteo, actualiza la ubicación de referencia del producto", async () => {
+      const { token, tenantId, warehouseId, simpleSku, simpleId } = await escenario();
+      const id = await conteoCon(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,B-01-01,40`,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/confirm`)
+        .set("Authorization", bearer(token))
+        .send({})
+        .expect(201);
+
+      const producto = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.product.findUniqueOrThrow({ where: { id: simpleId }, select: { location: true } }),
+      );
+      expect(producto.location).toBe("B-01-01");
+    });
+
+    /** Sin ubicación capturada no se pisa la que ya tenía: omitir no es borrar. */
+    it("una línea sin ubicación deja intacta la del producto", async () => {
+      const { token, tenantId, warehouseId, simpleSku, simpleId } = await escenario();
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.product.update({ where: { id: simpleId }, data: { location: "C-9" } }),
+      );
+      const id = await conteoCon(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,40`,
+      );
+
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/confirm`)
+        .set("Authorization", bearer(token))
+        .send({})
+        .expect(201);
+
+      const producto = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.product.findUniqueOrThrow({ where: { id: simpleId }, select: { location: true } }),
+      );
+      expect(producto.location).toBe("C-9");
+    });
+  });
+
   describe("un solo conteo abierto por almacén", () => {
     const crear = (token: string, warehouseId: string, type = "physical_count") =>
       request(app.getHttpServer())

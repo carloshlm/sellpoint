@@ -26,6 +26,7 @@ import {
 import { useStock } from "@/lib/inventory/kardex-hooks";
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
 import { MONEY_STEP } from "@/lib/products/money";
+import { useAuthStore } from "@/stores/auth.store";
 import { AddLineForm } from "./add-line-form";
 import { CountPanel, CountSummary } from "./count-panel";
 import { DocumentHeaderForm } from "./document-header-form";
@@ -58,6 +59,9 @@ interface DocumentDetailProps {
 export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const { t } = useTranslation();
   const { has } = usePermissions();
+  // El interruptor de ubicaciones del NEGOCIO. Hook: va arriba del return
+  // temprano de carga, o React ve distinta cantidad entre renders.
+  const usaUbicaciones = useAuthStore((state) => state.user?.tenant?.usesLocations === true);
   const { data: document, isPending } = useDocument(documentId);
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
   // La línea recién agregada desde el buscador: su CANTIDAD recibe el foco.
@@ -133,6 +137,21 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const conLote =
     (document.type === "entry" || document.type === "physical_count") &&
     document.products.some((p) => p.tracksLots === true);
+
+  /**
+   * La UBICACIÓN no depende de los lotes: la decide el NEGOCIO.
+   *
+   * Carlos (2026-08-31): «hay productos sin lote ni caducidad que sí deberían
+   * poder tener ubicación». Tiene razón — atarla a `tracksLots` dejaba sin
+   * dónde escribirla justo a los productos más comunes.
+   *
+   * Para los que llevan lote, la ubicación es parte de la identidad del saldo
+   * (`stock_lots` es lote+almacén+ubicación). Para los que no, se guarda como
+   * la ubicación de REFERENCIA del producto al confirmar: el conteo es el
+   * momento en que se descubre dónde está de verdad cada cosa.
+   */
+  const conUbicacion =
+    usaUbicaciones && (document.type === "entry" || document.type === "physical_count");
   const productosPorId = new Map(document.products.map((p) => [p.id, p]));
 
   return (
@@ -297,8 +316,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     <th className="px-2 py-2 font-medium">
                       {t("inventory.document.lotExpiresAt")}
                     </th>
-                    <th className="px-2 py-2 font-medium">{t("inventory.document.location")}</th>
                   </>
+                )}
+                {conUbicacion && (
+                  <th className="px-2 py-2 font-medium">{t("inventory.document.location")}</th>
                 )}
                 <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
                 {editable && !esConteo && <th className="px-2 py-2" />}
@@ -324,6 +345,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     editable={editable}
                     conCosto={conCosto}
                     conLote={conLote}
+                    conUbicacion={conUbicacion}
                     esSalida={document.type === "exit"}
                     esConteo={esConteo}
                   />
@@ -393,6 +415,7 @@ function LineRow({
   editable,
   conCosto,
   conLote,
+  conUbicacion,
   esSalida,
   esConteo,
   autoFocusQuantity,
@@ -403,6 +426,7 @@ function LineRow({
   editable: boolean;
   conCosto: boolean;
   conLote: boolean;
+  conUbicacion: boolean;
   esSalida: boolean;
   esConteo: boolean;
   autoFocusQuantity: boolean;
@@ -829,36 +853,37 @@ function LineRow({
               "—"
             )}
           </td>
-          {/*
-            La UBICACIÓN va con el lote porque es donde el saldo vive de
-            verdad: `stock_lots` guarda (lote, ubicación), así que contar el
-            estante A-1 no dice nada del B-2. El CSV ya la traía; lo que
-            faltaba era poder escribirla.
-          */}
-          <td className="px-2 py-2">
-            {product?.tracksLots === true ? (
-              editable ? (
-                <>
-                  <label htmlFor={`line-${row.lineNo}-location`} className="sr-only">
-                    {t("inventory.document.location")}
-                  </label>
-                  <input
-                    id={`line-${row.lineNo}-location`}
-                    type="text"
-                    value={location}
-                    onChange={(event) => setLocation(event.target.value)}
-                    placeholder={t("inventory.document.locationPlaceholder")}
-                    className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  />
-                </>
-              ) : (
-                (row.location ?? "—")
-              )
-            ) : (
-              "—"
-            )}
-          </td>
         </>
+      )}
+      {/*
+        La UBICACIÓN no se pregunta por el LOTE, se pregunta por el NEGOCIO.
+        Para un producto con lote es parte de la identidad del saldo
+        (`stock_lots` es lote+almacén+ubicación: contar el estante A-1 no dice
+        nada del B-2). Para uno sin lote es su ubicación de REFERENCIA, que se
+        actualiza al confirmar el conteo. En ambos casos se captura igual, y
+        atarla a `tracksLots` dejaba sin dónde escribirla justo a los productos
+        más comunes (Carlos, 2026-08-31).
+      */}
+      {conUbicacion && (
+        <td className="px-2 py-2">
+          {editable ? (
+            <>
+              <label htmlFor={`line-${row.lineNo}-location`} className="sr-only">
+                {t("inventory.document.location")}
+              </label>
+              <input
+                id={`line-${row.lineNo}-location`}
+                type="text"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder={t("inventory.document.locationPlaceholder")}
+                className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+              />
+            </>
+          ) : (
+            (row.location ?? "—")
+          )}
+        </td>
       )}
       <td className="px-2 py-2">
         <div className={`${LINE_CELL} flex-wrap gap-x-2`}>

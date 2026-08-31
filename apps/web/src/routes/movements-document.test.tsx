@@ -44,7 +44,7 @@ const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 const mockedProducts = vi.mocked(productsApi.listProducts);
 const mockedUsers = vi.mocked(rbacApi.listUsers);
 
-const demoUser = (permissions: string[]): AuthUser => ({
+const demoUser = (permissions: string[], usesLocations = false): AuthUser => ({
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
@@ -67,7 +67,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
-    usesLocations: false,
+    usesLocations,
   },
 });
 
@@ -124,8 +124,11 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   ...overrides,
 });
 
-async function renderDoc(permissions: string[] = ["inventory:read", "inventory:movement"]) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+async function renderDoc(
+  permissions: string[] = ["inventory:read", "inventory:movement"],
+  usesLocations = false,
+) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, usesLocations));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/movements/documents/doc-1"] }),
@@ -172,6 +175,30 @@ afterEach(() => {
 });
 
 describe("Pantalla del documento (F3-DOC-09)", () => {
+  /**
+   * La UBICACIÓN la decide el NEGOCIO, no el lote.
+   *
+   * Carlos (2026-08-31): «hay productos que no tienen lote ni caducidad y sin
+   * embargo sí deberían poder tener ubicación si el negocio tiene activo ese
+   * parámetro». Antes el campo colgaba de `tracksLots`, así que justo los
+   * productos más comunes se quedaban sin dónde escribirla.
+   */
+  describe("la ubicación no depende del lote", () => {
+    it("un producto SIN lote la puede capturar si el negocio usa ubicaciones", async () => {
+      await renderDoc(["inventory:read", "inventory:movement"], true);
+
+      await screen.findByText("PAR-500");
+      expect(screen.getByLabelText("Ubicación")).toBeInTheDocument();
+    });
+
+    it("sin el parámetro del negocio, la columna no aparece", async () => {
+      await renderDoc(["inventory:read", "inventory:movement"], false);
+
+      await screen.findByText("PAR-500");
+      expect(screen.queryByLabelText("Ubicación")).not.toBeInTheDocument();
+    });
+  });
+
   describe("la cara del borrador", () => {
     it("muestra el folio y sus líneas", async () => {
       await renderDoc();
