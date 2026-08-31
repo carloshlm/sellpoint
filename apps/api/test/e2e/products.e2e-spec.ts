@@ -1172,4 +1172,148 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect((conSaldo.body as { hasLotStock: boolean }).hasLotStock).toBe(true);
     });
   });
+
+  /**
+   * ── UN PRODUCTO INACTIVO CON STOCK ES INVENTARIO FANTASMA ─────────────
+   *
+   * Carlos (2026-08-29): «para poder deshabilitar un producto no debe tener
+   * stock en ningún almacén».
+   *
+   * Tiene razón y la consecuencia es contable: la plantilla del conteo
+   * físico excluye los inactivos, así que ese saldo deja de aparecer en el
+   * inventario — nadie lo cuenta, nadie lo ajusta, y el almacén tiene
+   * mercancía que el sistema ya no menciona. En sandbox había un producto
+   * desactivado con 285.5 unidades repartidas en dos almacenes.
+   *
+   * Es la misma familia que `products.lots_in_stock`: apagar algo que
+   * todavía tiene existencias exige sacarlas primero.
+   */
+  describe("desactivar exige que no quede stock (2026-08-29)", () => {
+    async function productoConStock(token: string, tenantId: string, cantidad: number) {
+      const creado = await createProduct(token, {
+        sku: `DESACT-${randomUUID().slice(0, 8)}`,
+        name: "Producto con saldo",
+        baseUnit: "unit",
+        price: 10,
+      }).expect(201);
+      const productId = (creado.body as { id: string }).id;
+
+      const almacen = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.warehouse.findFirstOrThrow({ select: { id: true } }),
+      );
+      const doc = await request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set("Authorization", bearer(token))
+        .send({ type: "entry", warehouseId: almacen.id })
+        .expect(201);
+      const docId = (doc.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${docId}`)
+        .set("Authorization", bearer(token))
+        .send({ reasonCode: "adjustment", reasonNote: "carga" })
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${docId}/lines`)
+        .set("Authorization", bearer(token))
+        .send({ productId, quantity: cantidad })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${docId}/confirm`)
+        .set("Authorization", bearer(token))
+        .send({})
+        .expect(201);
+
+      return { productId, warehouseId: almacen.id };
+    }
+
+    const desactivar = (token: string, productId: string) =>
+      request(app.getHttpServer())
+        .patch(`/products/${productId}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: false });
+
+    it("con existencias se rechaza, y dice EN QUÉ almacén y cuánto", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { productId } = await productoConStock(token, tenantId, 30);
+
+      const rechazo = await desactivar(token, productId).expect(409);
+
+      expect(rechazo.body).toMatchObject({ code: "products.stock_in_warehouses" });
+      // El TEXTO, no solo el código: sin `args` el mensaje mostraría la llave
+      // "{count}" cruda y un aserto por `code` no lo delataría.
+      expect((rechazo.body as { message: string }).message).toContain("1 almacén");
+      expect((rechazo.body as { message: string }).message).not.toContain("{");
+      // El dato, no solo el texto: sin saber DÓNDE está, el usuario no sabe
+      // qué salida capturar para poder desactivarlo.
+      const almacenes = (rechazo.body as { warehouses: { name: string; quantity: string }[] })
+        .warehouses;
+      expect(almacenes).toHaveLength(1);
+      expect(Number(almacenes[0]?.quantity)).toBe(30);
+      expect(almacenes[0]?.name).toEqual(expect.any(String));
+    });
+
+    it("sin existencias se desactiva sin problema", async () => {
+      const { token } = await registerAndLogin();
+      const creado = await createProduct(token, {
+        sku: `LIMPIO-${randomUUID().slice(0, 8)}`,
+        name: "Sin saldo",
+        baseUnit: "unit",
+        price: 10,
+      }).expect(201);
+
+      await desactivar(token, (creado.body as { id: string }).id).expect(200);
+    });
+
+    /**
+     * Un saldo NEGATIVO tampoco deja apagar: es una deuda de inventario por
+     * resolver, y desactivar el producto la volvería invisible para siempre.
+     */
+    it("un saldo negativo también lo impide", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { productId, warehouseId } = await productoConStock(token, tenantId, 5);
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId, warehouseId },
+          data: { quantity: -2 },
+        }),
+      );
+
+      const rechazo = await desactivar(token, productId).expect(409);
+      expect(
+        Number((rechazo.body as { warehouses: { quantity: string }[] }).warehouses[0]?.quantity),
+      ).toBe(-2);
+    });
+
+    it("con el saldo en CERO sí se desactiva: la fila existe pero no hay nada", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { productId, warehouseId } = await productoConStock(token, tenantId, 5);
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId, warehouseId },
+          data: { quantity: 0 },
+        }),
+      );
+
+      await desactivar(token, productId).expect(200);
+    });
+
+    /** REACTIVAR siempre se puede: nada que sacar antes de encender. */
+    it("volver a activarlo no exige nada", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { productId, warehouseId } = await productoConStock(token, tenantId, 7);
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        await tx.stockByWarehouse.updateMany({
+          where: { productId, warehouseId },
+          data: { quantity: 0 },
+        });
+        await tx.product.update({ where: { id: productId }, data: { isActive: false } });
+      });
+
+      await request(app.getHttpServer())
+        .patch(`/products/${productId}`)
+        .set("Authorization", bearer(token))
+        .send({ isActive: true })
+        .expect(200);
+    });
+  });
 });

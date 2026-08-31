@@ -121,6 +121,10 @@ function ProductsContent() {
   // Desactivar/Reactivar directo desde la fila (Carlos, 2026-08-25): apagar
   // un producto no debería exigir abrir la ficha.
   const toggleActive = useUpdateProduct();
+  // Desactivar puede REBOTAR: un producto con existencias no se apaga (sería
+  // inventario fantasma — el conteo excluye los inactivos). Sin este aviso el
+  // clic no haría nada visible y el usuario creería que la app se colgó.
+  const [errorAcción, setErrorAcción] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   const { data, isPending } = useProducts({
@@ -197,6 +201,17 @@ function ProductsContent() {
         </div>
       </div>
 
+      {/* El rechazo de desactivar, arriba de la tabla: la fila donde se hizo
+          clic puede quedar fuera de la vista al scrollear, el aviso no. */}
+      {errorAcción ? (
+        <p
+          data-testid="product-action-error"
+          className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
+        >
+          {errorAcción}
+        </p>
+      ) : null}
+
       {isPending ? (
         <p role="status">{t("common.form.loading")}</p>
       ) : (data?.items ?? []).length === 0 ? (
@@ -252,12 +267,29 @@ function ProductsContent() {
                       <RowAction
                         intent={product.isActive ? "deactivate" : "reactivate"}
                         disabled={toggleActive.isPending}
-                        onClick={() =>
-                          toggleActive.mutate({
-                            id: product.id,
-                            input: { isActive: !product.isActive },
-                          })
-                        }
+                        onClick={() => {
+                          setErrorAcción(null);
+                          toggleActive.mutate(
+                            { id: product.id, input: { isActive: !product.isActive } },
+                            {
+                              onError: (apiError) => {
+                                // El mensaje dice CUÁNTOS almacenes; el detalle
+                                // dice cuáles y con cuánto, que es lo que el
+                                // usuario necesita para poder sacarlo.
+                                const almacenes = (
+                                  apiError as { warehouses?: { name: string; quantity: string }[] }
+                                ).warehouses;
+                                setErrorAcción(
+                                  almacenes?.length
+                                    ? `${apiError.message} (${almacenes
+                                        .map((a) => `${a.name}: ${a.quantity}`)
+                                        .join(" · ")})`
+                                    : apiError.message,
+                                );
+                              },
+                            },
+                          );
+                        }}
                       />
                     )}
                   </TableCell>

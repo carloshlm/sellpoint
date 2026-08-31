@@ -219,6 +219,46 @@ describe("Desactivar y reactivar un producto", () => {
     });
   });
 
+  /**
+   * Carlos (2026-08-29): «para poder deshabilitar un producto no debe tener
+   * stock en ningún almacén». El server lo rechaza con 409 — y el botón de
+   * la FILA no tenía `onError`, así que el clic no habría hecho nada visible
+   * y el usuario habría creído que la app se colgó.
+   */
+  it("si el server rechaza por existencias, la lista dice dónde está el stock", async () => {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    mockedProducts.updateProduct.mockRejectedValue({
+      statusCode: 409,
+      code: "products.stock_in_warehouses",
+      message: "No se puede desactivar: el producto todavía tiene existencias en 2 almacén(es).",
+      warehouses: [
+        { name: "Almacén Central", quantity: "255.5" },
+        { name: "Almacén Sur", quantity: "30" },
+      ],
+    });
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Desactivar" }));
+
+    const aviso = await screen.findByTestId("product-action-error");
+    expect(aviso).toHaveTextContent(/todavía tiene existencias/);
+    // El DÓNDE y el CUÁNTO: sin eso el usuario no sabe qué salida capturar.
+    expect(aviso).toHaveTextContent("Almacén Central: 255.5");
+    expect(aviso).toHaveTextContent("Almacén Sur: 30");
+  });
+
   it("el listado marca los inactivos: un producto apagado sin señal parece un bug de stock", async () => {
     mockedProducts.listProducts.mockResolvedValue({
       total: 1,

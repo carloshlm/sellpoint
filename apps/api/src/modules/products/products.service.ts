@@ -239,6 +239,12 @@ export class ProductsService {
         await this.assertLotsCanBeDisabled(tx, id);
       }
 
+      // Mismo criterio con el producto entero: apagar algo que todavía tiene
+      // existencias exige sacarlas antes. REACTIVAR nunca pide nada.
+      if (input.isActive === false && current.isActive) {
+        await this.assertCanBeDeactivated(tx, user.tenantId, id);
+      }
+
       try {
         const product = await tx.product.update({
           where: { id },
@@ -374,6 +380,48 @@ export class ProductsService {
    * histórico del lote (que además no se borra nunca — los movimientos lo
    * referencian).
    */
+  /**
+   * Un producto inactivo con saldo es **inventario fantasma**: la plantilla
+   * del conteo físico excluye los inactivos, así que ese stock deja de
+   * aparecer en el inventario — nadie lo cuenta, nadie lo ajusta, y el
+   * almacén tiene mercancía que el sistema ya no menciona (Carlos,
+   * 2026-08-29; en sandbox había uno con 285.5 unidades en dos almacenes).
+   *
+   * Se rechaza con CUALQUIER saldo distinto de cero, negativos incluidos: un
+   * negativo es una deuda de inventario por resolver, y desactivar el
+   * producto la volvería invisible para siempre.
+   *
+   * La respuesta nombra los almacenes y sus cantidades porque sin saber
+   * DÓNDE está, el usuario no sabe qué salida capturar para poder apagarlo.
+   */
+  private async assertCanBeDeactivated(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    productId: string,
+  ): Promise<void> {
+    const conSaldo = await tx.stockByWarehouse.findMany({
+      where: { tenantId, productId, NOT: { quantity: 0 } },
+      select: { quantity: true, warehouse: { select: { name: true } } },
+      orderBy: { warehouse: { name: "asc" } },
+    });
+
+    if (conSaldo.length === 0) {
+      return;
+    }
+
+    throw new ConflictException({
+      message: "products.stock_in_warehouses",
+      // `args` alimenta la interpolación del mensaje; sin esto la pantalla
+      // mostraría "{count}" literal — y un test que solo mira el `code` no
+      // lo vería.
+      args: { count: conSaldo.length },
+      warehouses: conSaldo.map((row) => ({
+        name: row.warehouse.name,
+        quantity: row.quantity.toString(),
+      })),
+    });
+  }
+
   private async assertLotsCanBeDisabled(
     tx: Prisma.TransactionClient,
     productId: string,
