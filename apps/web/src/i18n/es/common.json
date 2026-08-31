@@ -106,7 +106,10 @@
     }
   },
   "session": {
-    "loading": "Cargando tu sesión…"
+    "loading": "Cargando tu sesión…",
+    "unavailableTitle": "No pudimos confirmar tu sesión",
+    "unavailableBody": "Tu sesión sigue abierta: solo no pudimos confirmarla ahora mismo. Suele pasar al recargar muchas veces seguidas. Espera unos segundos y reintenta.",
+    "retry": "Reintentar"
   },
   "table": {
     "next": "Siguiente",

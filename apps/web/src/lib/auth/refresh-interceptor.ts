@@ -123,13 +123,25 @@ export function installRefreshInterceptor(api: AxiosInstance): void {
         const token = await runSingleFlightRefresh(refreshClient);
         retriableConfig.headers.Authorization = `Bearer ${token}`;
         return await api.request(retriableConfig);
-      } catch {
-        // El refresh falló: la sesión está muerta de verdad (refresh
-        // expirado, familia revocada, backend caído). Limpiamos para que
-        // ProtectedRoute expulse a /login de forma reactiva. Se rechaza con
-        // el error ORIGINAL, no con el del refresh: al llamador le importa
-        // que su request falló por falta de sesión.
-        useAuthStore.getState().clearAuth();
+      } catch (fallo) {
+        // El refresh falló. **Solo un 401/403 significa sesión muerta**
+        // (refresh expirado, familia revocada): ahí se limpia para que
+        // ProtectedRoute expulse a /login de forma reactiva.
+        //
+        // Un 429 —el límite de volumen tras navegar rápido—, un 5xx o la red
+        // caída son TEMPORALES: desloguear por eso expulsa a alguien cuya
+        // cookie sigue siendo válida y le hace perder lo que estuviera
+        // haciendo (Carlos, 2026-08-31). Se deja la sesión en pie y se
+        // rechaza la request; la siguiente volverá a intentar.
+        const status = (fallo as { statusCode?: number; response?: { status?: number } } | null)
+          ?.statusCode;
+        const httpStatus =
+          status ?? (fallo as { response?: { status?: number } } | null)?.response?.status;
+        if (httpStatus === 401 || httpStatus === 403) {
+          useAuthStore.getState().clearAuth();
+        }
+        // Se rechaza con el error ORIGINAL, no con el del refresh: al
+        // llamador le importa que SU request falló.
         return Promise.reject(error);
       }
     },

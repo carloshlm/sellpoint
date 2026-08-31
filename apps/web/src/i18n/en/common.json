@@ -106,7 +106,10 @@
     }
   },
   "session": {
-    "loading": "Loading your session…"
+    "loading": "Loading your session…",
+    "unavailableTitle": "We could not confirm your session",
+    "unavailableBody": "Your session is still open — we just could not confirm it right now. This usually happens after reloading many times in a row. Wait a few seconds and try again.",
+    "retry": "Try again"
   },
   "table": {
     "next": "Next",

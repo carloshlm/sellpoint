@@ -31,6 +31,8 @@ function fail(config: InternalAxiosRequestConfig, status: number, message: strin
  */
 function buildHarness(options?: {
   refreshFails?: boolean;
+  /** Con qué status falla el refresh: 401 es sesión muerta, 429 es temporal. */
+  refreshFailStatus?: number;
   refreshDelayMs?: number;
   alwaysUnauthorized?: boolean;
 }) {
@@ -46,7 +48,7 @@ function buildHarness(options?: {
         await new Promise((resolve) => setTimeout(resolve, options.refreshDelayMs));
       }
       if (options?.refreshFails) {
-        return fail(config, 401, "refresh rechazado");
+        return fail(config, options.refreshFailStatus ?? 401, "refresh rechazado");
       }
       tokenCounter += 1;
       return ok(config, { accessToken: `token-nuevo-${tokenCounter}`, expiresIn: 900 });
@@ -159,7 +161,24 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
     expect(calls.protected).toBe(2); // original + un único reintento
   });
 
-  it("si el refresh falla, limpia la sesión para que ProtectedRoute expulse a /login", async () => {
+  /**
+   * ── UN 429 NO ES UNA SESIÓN MUERTA (Carlos, 2026-08-31) ──────────────
+   *
+   * El refresh puede fallar por el límite de VOLUMEN (navegar rápido, varias
+   * pestañas) o porque el backend tuvo un hipo. La cookie sigue viva: borrar
+   * la sesión ahí expulsa a alguien que no hizo nada malo y le tira el
+   * trabajo. Solo un 401/403 significa que la sesión se acabó.
+   */
+  it.each([429, 500, 503])("un refresh que falla con %i NO cierra la sesión", async (code) => {
+    const { client } = buildHarness({ refreshFails: true, refreshFailStatus: code });
+
+    await expect(client.get("/roles")).rejects.toBeDefined();
+
+    // La sesión queda EN PIE: la siguiente request volverá a intentar.
+    expect(useAuthStore.getState().accessToken).not.toBeNull();
+  });
+
+  it("si el refresh falla con 401, limpia la sesión para que ProtectedRoute expulse a /login", async () => {
     const { client } = buildHarness({ refreshFails: true });
 
     await expect(client.get("/roles")).rejects.toBeDefined();
