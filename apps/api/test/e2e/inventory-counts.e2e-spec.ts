@@ -518,15 +518,18 @@ describe("Inventario físico (F3-COUNT)", () => {
       expect(posC9).toBeLessThan(sinUbicacion);
     });
 
-    it("con el interruptor APAGADO manda el código, como siempre", async () => {
+    it("con el interruptor APAGADO manda el NOMBRE, no el código", async () => {
       const { token, tenantId, warehouseId } = await escenario();
       const stamp = randomUUID().slice(0, 6);
+      // Los nombres van al REVÉS que los códigos a propósito: si alguien
+      // ordenara por SKU, este escenario lo delata. Con nombres "naturales"
+      // los dos órdenes coinciden y el test no probaría nada.
       await prisma.withTenantContext(tenantId, async (tx) => {
         await tx.product.create({
-          data: { tenantId, sku: `ZZZ-${stamp}`, name: "Último por SKU", location: "A-1" },
+          data: { tenantId, sku: `ZZZ-${stamp}`, name: `Aceite ${stamp}`, location: "A-1" },
         });
         await tx.product.create({
-          data: { tenantId, sku: `AAA-${stamp}`, name: "Primero por SKU", location: "C-9" },
+          data: { tenantId, sku: `AAA-${stamp}`, name: `Zanahoria ${stamp}`, location: "C-9" },
         });
       });
 
@@ -535,8 +538,29 @@ describe("Inventario físico (F3-COUNT)", () => {
         (filas[0] ?? []).map((c) => c.trim().toLowerCase()).indexOf(nombre);
       const skus = filas.slice(1).map((f) => String(f[col("sku")] ?? ""));
 
-      // Sin el interruptor, el alfabeto: AAA antes que ZZZ.
-      expect(skus.indexOf(`AAA-${stamp}`)).toBeLessThan(skus.indexOf(`ZZZ-${stamp}`));
+      // Aceite antes que Zanahoria, aunque su código sea el último del alfabeto.
+      expect(skus.indexOf(`ZZZ-${stamp}`)).toBeLessThan(skus.indexOf(`AAA-${stamp}`));
+    });
+
+    it("dentro de una misma ubicación también manda el nombre", async () => {
+      const { token, tenantId, warehouseId } = await escenario();
+      const stamp = randomUUID().slice(0, 6);
+      await prisma.tenant.update({ where: { id: tenantId }, data: { usesLocations: true } });
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        await tx.product.create({
+          data: { tenantId, sku: `ZZZ-${stamp}`, name: `Aceite ${stamp}`, location: "B-2" },
+        });
+        await tx.product.create({
+          data: { tenantId, sku: `AAA-${stamp}`, name: `Zanahoria ${stamp}`, location: "B-2" },
+        });
+      });
+
+      const filas = await plantilla(token, warehouseId);
+      const col = (nombre: string) =>
+        (filas[0] ?? []).map((c) => c.trim().toLowerCase()).indexOf(nombre);
+      const skus = filas.slice(1).map((f) => String(f[col("sku")] ?? ""));
+
+      expect(skus.indexOf(`ZZZ-${stamp}`)).toBeLessThan(skus.indexOf(`AAA-${stamp}`));
     });
   });
 

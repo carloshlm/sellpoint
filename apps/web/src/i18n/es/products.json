@@ -41,7 +41,7 @@
     "tracksLots": "Este producto se controla por lote y caducidad",
     "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
     "location": "Ubicación en el almacén",
-    "locationHint": "Dónde suele estar: pasillo, estante o rack. Sirve para encontrarlo y para que la hoja del inventario físico se ordene por recorrido en vez de por código. No lleva existencias por ubicación."
+    "locationHint": "Dónde suele estar: pasillo, estante o rack. Sirve para encontrarlo y para que la hoja del inventario físico se ordene por recorrido en vez de por nombre. Se actualiza sola con cada entrada e inventario. No lleva existencias por ubicación."
   },
   "presentations": {
     "add": "Agregar presentación",

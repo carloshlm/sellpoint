@@ -65,14 +65,20 @@ export class CountTemplateService {
       // que contarlo no significa nada.
       const productos = await tx.product.findMany({
         where: { tenantId: user.tenantId, isActive: true, isComposite: false },
-        // Por RECORRIDO del almacén, no por SKU: una hoja de 300 líneas
-        // ordenada alfabéticamente obliga a cruzar el almacén en zigzag.
+        // Quien USA ubicaciones cuenta por RECORRIDO del almacén: una hoja de
+        // 300 líneas en cualquier otro orden obliga a cruzarlo en zigzag.
         // `nulls: "last"` deja al final los que no tienen ubicación — son los
-        // que hay que buscar, y ponerlos primero castigaría a quien sí
-        // ordenó su catálogo (Carlos, 2026-08-30).
+        // que hay que buscar, y ponerlos primero castigaría a quien sí ordenó
+        // su catálogo (Carlos, 2026-08-30).
+        //
+        // Quien no las usa cuenta por NOMBRE, no por SKU (Carlos, 2026-08-31):
+        // el que camina el almacén con la hoja en la mano lee "Aceite de oliva
+        // 1L", no "ACT-0091". Ordenar por un código que nadie tiene memorizado
+        // es ordenar para la máquina. Y el nombre manda también DENTRO de cada
+        // ubicación, por lo mismo.
         orderBy: usesLocations
-          ? [{ location: { sort: "asc", nulls: "last" } }, { sku: "asc" }]
-          : { sku: "asc" },
+          ? [{ location: { sort: "asc", nulls: "last" } }, { name: "asc" }]
+          : { name: "asc" },
         select: {
           id: true,
           sku: true,

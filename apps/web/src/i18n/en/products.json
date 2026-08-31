@@ -41,7 +41,7 @@
     "tracksLots": "This product is tracked by lot and expiry date",
     "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",
     "location": "Location in the warehouse",
-    "locationHint": "Where it usually sits: aisle, shelf or rack. Helps you find it and sorts the stock count sheet by walking route instead of by code. It does not track stock per location."
+    "locationHint": "Where it usually sits: aisle, shelf or rack. Helps you find it and sorts the stock count sheet by walking route instead of by name. It updates itself with every entry and stock count. It does not track stock per location."
   },
   "presentations": {
     "add": "Add presentation",
