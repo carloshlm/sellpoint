@@ -8,7 +8,12 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CatalogExportService } from "./catalog-export.service";
+import { DashboardInventoryService } from "./dashboard-inventory.service";
 import { DashboardKpisService } from "./dashboard-kpis.service";
+import { DashboardPaymentsService } from "./dashboard-payments.service";
+import { type DashboardPeriod, dashboardPeriodSchema } from "./dashboard-period";
+import { DashboardProductsService } from "./dashboard-products.service";
+import { DashboardSeriesService } from "./dashboard-series.service";
 import { type DirectExportQueryDto, directExportQuerySchema } from "./dto/direct-export.dto";
 import { type KardexExportQueryDto, kardexExportQuerySchema } from "./dto/kardex-export.dto";
 import {
@@ -56,6 +61,10 @@ export class ReportsController {
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
     private readonly dashboardKpis: DashboardKpisService,
+    private readonly dashboardSeries: DashboardSeriesService,
+    private readonly dashboardProducts: DashboardProductsService,
+    private readonly dashboardInventory: DashboardInventoryService,
+    private readonly dashboardPayments: DashboardPaymentsService,
   ) {}
 
   @Get()
@@ -99,6 +108,45 @@ export class ReportsController {
   @RequirePermissions("reports:read")
   dashboardKpisEndpoint(@CurrentUser() user: AuthUser, @CurrentUserScope() scope: UserScope) {
     return this.dashboardKpis.kpis(user, scope);
+  }
+
+  @Get("dashboard/series")
+  @RequirePermissions("reports:read")
+  dashboardSeriesEndpoint(@CurrentUser() user: AuthUser, @CurrentUserScope() scope: UserScope) {
+    return this.dashboardSeries.series(user, scope);
+  }
+
+  @Get("dashboard/products")
+  @RequirePermissions("reports:read")
+  dashboardProductsEndpoint(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query("period", new ZodValidationPipe(dashboardPeriodSchema, "reports.invalid_query"))
+    period: DashboardPeriod,
+  ) {
+    return this.dashboardProducts.products(user, scope, period);
+  }
+
+  /**
+   * F5-DASH-06: `inventory:read` y no `reports:read` — la salud del stock es
+   * de quien opera el almacén. El VALOR del inventario (dinero) se omite del
+   * cuerpo sin `reports:read`: gating por campo, dentro del service.
+   */
+  @Get("dashboard/inventory")
+  @RequirePermissions("inventory:read")
+  dashboardInventoryEndpoint(@CurrentUser() user: AuthUser, @CurrentUserScope() scope: UserScope) {
+    return this.dashboardInventory.inventory(user, scope);
+  }
+
+  @Get("dashboard/payment-methods")
+  @RequirePermissions("reports:read")
+  dashboardPaymentsEndpoint(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query("period", new ZodValidationPipe(dashboardPeriodSchema, "reports.invalid_query"))
+    period: DashboardPeriod,
+  ) {
+    return this.dashboardPayments.paymentMethods(user, scope, period);
   }
 
   @Get("sales")

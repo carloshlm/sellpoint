@@ -78,6 +78,81 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
     });
   });
 
+  it("los widgets responden sus formas vacías y cada puerta exige su permiso (F5-DASH-04..07)", async () => {
+    const { token, tenantId } = await ownerToken();
+
+    const series = await request(app.getHttpServer())
+      .get("/reports/dashboard/series")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    const cuerpoSeries = series.body as {
+      byDay: unknown[];
+      byHour: { hour: number; total: string }[];
+    };
+    expect(cuerpoSeries.byDay.length).toBeGreaterThanOrEqual(28);
+    expect(cuerpoSeries.byHour).toHaveLength(24);
+
+    const products = await request(app.getHttpServer())
+      .get("/reports/dashboard/products?period=week")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(products.body).toEqual({ topSold: [], topProfit: [] });
+
+    const payments = await request(app.getHttpServer())
+      .get("/reports/dashboard/payment-methods")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(payments.body).toEqual({ methods: [] });
+
+    // Un período fuera del catálogo no pasa del pipe.
+    await request(app.getHttpServer())
+      .get("/reports/dashboard/products?period=ayer")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(400);
+
+    // El widget de INVENTARIO es de quien opera el almacén: entra con
+    // inventory:read… pero el VALOR (dinero) se omite sin reports:read.
+    const almacenero = tokenService.signAccessToken({
+      sub: randomUUID(),
+      tenantId,
+      permissions: ["inventory:read"],
+      locale: "es",
+    });
+    const inventario = await request(app.getHttpServer())
+      .get("/reports/dashboard/inventory")
+      .set("Authorization", `Bearer ${almacenero}`)
+      .expect(200);
+    expect(inventario.body).toEqual({ outOfStock: 0, belowMin: 0, attention: [] });
+    expect(inventario.body).not.toHaveProperty("inventoryValue");
+
+    const duenio = await request(app.getHttpServer())
+      .get("/reports/dashboard/inventory")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(duenio.body).toHaveProperty("inventoryValue");
+
+    // Y las puertas: el vendedor no entra a las series; el almacenero
+    // tampoco a los números de venta.
+    const vendedor = tokenService.signAccessToken({
+      sub: randomUUID(),
+      tenantId,
+      permissions: ["pos:sell"],
+      locale: "es",
+    });
+    await request(app.getHttpServer())
+      .get("/reports/dashboard/series")
+      .set("Authorization", `Bearer ${vendedor}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get("/reports/dashboard/inventory")
+      .set("Authorization", `Bearer ${vendedor}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get("/reports/dashboard/products")
+      .set("Authorization", `Bearer ${almacenero}`)
+      .expect(403);
+  });
+
   it("un vendedor sin reports:read -> 403: los números del negocio no son del mostrador", async () => {
     const { tenantId } = await ownerToken();
     const vendedor = tokenService.signAccessToken({

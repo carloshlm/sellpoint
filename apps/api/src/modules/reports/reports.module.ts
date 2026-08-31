@@ -3,7 +3,11 @@ import { CostModule } from "../cost/cost.module";
 import { InventoryModule } from "../inventory/inventory.module";
 import { ProductsModule } from "../products/products.module";
 import { CatalogExportService } from "./catalog-export.service";
+import { DashboardInventoryService } from "./dashboard-inventory.service";
 import { DashboardKpisService } from "./dashboard-kpis.service";
+import { DashboardPaymentsService } from "./dashboard-payments.service";
+import { DashboardProductsService } from "./dashboard-products.service";
+import { DashboardSeriesService } from "./dashboard-series.service";
 import { KardexExportService } from "./kardex-export.service";
 import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
@@ -22,6 +26,10 @@ import { StockReportService } from "./stock-report.service";
   controllers: [ReportsController],
   providers: [
     DashboardKpisService,
+    DashboardSeriesService,
+    DashboardProductsService,
+    DashboardInventoryService,
+    DashboardPaymentsService,
     ReportsService,
     StockReportService,
     StockExportService,
