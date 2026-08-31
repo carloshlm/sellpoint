@@ -4,5 +4,6 @@
   "phone": "Enter a valid number: digits and spaces only, 4 to 14 digits",
   "passwordMin": "Password must be at least 12 characters",
   "passwordMismatch": "Passwords don't match",
-  "rolesRequired": "Select at least one role"
+  "rolesRequired": "Select at least one role",
+  "money": "Enter a valid amount, with up to 2 decimals"
 }

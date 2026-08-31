@@ -56,6 +56,10 @@ model Tenant {
   /// necesita un campo más en cada alta. No lleva saldo por ubicación: eso
   /// vive en `stock_lots` y se activa con `tracksLots` del producto.
   usesLocations    Boolean @default(false) @map("uses_locations")
+  /// F5-DASH-02: la meta mensual de ventas — el número contra el que el
+  /// dashboard pinta «85% alcanzado». NULL = el negocio no persigue meta;
+  /// borrable como phone.
+  monthlySalesGoal Decimal? @map("monthly_sales_goal") @db.Decimal(14, 2)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

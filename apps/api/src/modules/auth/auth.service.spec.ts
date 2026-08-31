@@ -120,6 +120,7 @@ function buildService(overrides?: {
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    monthlySalesGoal: null,
   };
   const tx = {
     tenant: {
@@ -531,6 +532,7 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
           currency: "MXN",
           templateChoice: null,
           onboarded: false,
+          monthlySalesGoal: null,
         },
         // F7-WEB-01 (A1): MISMO shape que el otro emisor — ver
         // subscription.types.spec.ts para la matemática de daysLeft.

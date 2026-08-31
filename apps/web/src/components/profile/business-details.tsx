@@ -89,6 +89,7 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       taxId: user.tenant.taxId ?? "",
       address: user.tenant.address ?? "",
       timezone: user.tenant.timezone,
+      monthlySalesGoal: user.tenant.monthlySalesGoal ?? "",
       ...phoneFormDefaults(user.tenant),
     },
   });
@@ -141,6 +142,12 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     if (dirtyFields.legalName) patch.legalName = values.legalName.trim();
     if (dirtyFields.taxId) patch.taxId = values.taxId.trim();
     if (dirtyFields.address) patch.address = values.address.trim();
+    if (dirtyFields.monthlySalesGoal) {
+      // Vacío BORRA (null) — mismo criterio que phone: capturar la meta una
+      // vez no la vuelve obligatoria. La coma decimal se normaliza a punto.
+      const meta = values.monthlySalesGoal.trim().replace(",", ".");
+      patch.monthlySalesGoal = meta === "" ? null : Number(meta);
+    }
     if (dirtyFields.phoneNumber || dirtyFields.phoneCountry) {
       // Componer el canónico: dial del país + número sin espacios. Número
       // vacío BORRA (null): el wizard nunca exigió el teléfono, capturarlo
@@ -233,6 +240,15 @@ function BusinessDetails({ user }: { user: AuthUser }) {
             autoComplete="street-address"
             error={errors.address?.message ? t(errors.address.message) : undefined}
             {...register("address")}
+          />
+          <TextField
+            label={t("common.profile.business.monthlySalesGoal")}
+            hint={t("common.profile.business.monthlySalesGoalHint")}
+            error={
+              errors.monthlySalesGoal?.message ? t(errors.monthlySalesGoal.message) : undefined
+            }
+            inputMode="decimal"
+            {...register("monthlySalesGoal")}
           />
           <SelectField
             label={t("common.profile.business.timezone")}

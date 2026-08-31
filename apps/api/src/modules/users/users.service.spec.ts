@@ -39,6 +39,7 @@ function buildService(overrides?: {
     currency: "MXN",
     templateChoice: null,
     onboarded: false,
+    monthlySalesGoal: null,
   };
 
   const tx = {
@@ -133,6 +134,7 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: false,
+        monthlySalesGoal: null,
       },
       // F7-WEB-01 (A1): MISMO shape que el otro emisor — ver
       // subscription.types.spec.ts para la matemática de daysLeft.

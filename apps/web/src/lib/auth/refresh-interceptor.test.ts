@@ -104,6 +104,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
         onboarded: true,
         sellWithoutStock: false,
         usesLocations: false,
+        monthlySalesGoal: null,
       },
     });
   });
@@ -254,6 +255,7 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
         onboarded: true,
         sellWithoutStock: false,
         usesLocations: false,
+        monthlySalesGoal: null,
       },
     });
   });

@@ -68,6 +68,7 @@ const demoUser = (permissions: string[], usesLocations = false): AuthUser => ({
     onboarded: true,
     sellWithoutStock: false,
     usesLocations,
+    monthlySalesGoal: null,
   },
 });
 

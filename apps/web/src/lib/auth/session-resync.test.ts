@@ -39,6 +39,7 @@ const demoUser = {
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    monthlySalesGoal: null,
   },
 };
 

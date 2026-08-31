@@ -245,6 +245,67 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
      * (null): el wizard nunca lo pidió, así que exigirlo una vez capturado
      * sería atrapar al usuario con un dato que siempre fue opcional.
      */
+    describe("monthlySalesGoal (F5-DASH-02, 2026-08-31)", () => {
+      // La meta mensual de ventas: el número contra el que el dashboard pinta
+      // su barra de «85% alcanzado». Nullable como phone — quitarla es tan
+      // válido como ponerla.
+      it("PATCH con meta la persiste y un GET posterior la refleja", async () => {
+        const owner = await registerActiveOwner();
+
+        const patchResponse = await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ monthlySalesGoal: 800000 })
+          .expect(200);
+
+        expect(patchResponse.body).toMatchObject({ monthlySalesGoal: "800000" });
+
+        const getResponse = await request(app.getHttpServer())
+          .get("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .expect(200);
+
+        expect(getResponse.body).toMatchObject({ monthlySalesGoal: "800000" });
+      });
+
+      it("null la BORRA: un negocio puede dejar de perseguir un número", async () => {
+        const owner = await registerActiveOwner();
+        await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ monthlySalesGoal: 500000 })
+          .expect(200);
+
+        const res = await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ monthlySalesGoal: null })
+          .expect(200);
+
+        expect(res.body).toMatchObject({ monthlySalesGoal: null });
+      });
+
+      it("una meta negativa -> 400 (contraprueba)", async () => {
+        const owner = await registerActiveOwner();
+
+        await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ monthlySalesGoal: -100 })
+          .expect(400);
+      });
+
+      it("una meta con más de 2 decimales -> 400: es dinero, no ciencia", async () => {
+        const owner = await registerActiveOwner();
+
+        await request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send({ monthlySalesGoal: 1000.555 })
+          .expect(400);
+      });
+    });
+
     describe("phone (Mi perfil, 2026-08-25)", () => {
       it("PATCH phone en E.164 canónico persiste y un GET posterior lo refleja", async () => {
         const owner = await registerActiveOwner();

@@ -1,4 +1,10 @@
-import { isCountryCode, isE164, SUPPORTED_CURRENCIES } from "@sellpoint/shared";
+import {
+  hasValidMoneyScale,
+  isCountryCode,
+  isE164,
+  MONEY_MAX,
+  SUPPORTED_CURRENCIES,
+} from "@sellpoint/shared";
 import { z } from "zod";
 
 // F1-WEB-ONBOARD: PATCH parcial (paso 1 del wizard + futura pantalla de
@@ -38,6 +44,18 @@ export const updateTenantSchema = z
     // plan y este valor no cambia nada (la regla efectiva es un OR).
     sellWithoutStock: z.boolean().optional(),
     usesLocations: z.boolean().optional(),
+    // F5-DASH-02: la meta mensual de ventas. Positiva y con 2 decimales — es
+    // dinero, y la misma regla que valida precios (hasValidMoneyScale) valida
+    // la meta: dos fuentes de verdad para "cuántos decimales tiene el dinero"
+    // divergirían tarde o temprano. Nullable: dejar de perseguir un número es
+    // tan válido como ponerlo (mismo criterio que phone).
+    monthlySalesGoal: z
+      .number()
+      .positive()
+      .max(MONEY_MAX)
+      .refine(hasValidMoneyScale, { message: "tenants.invalid_goal" })
+      .nullable()
+      .optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "tenants.invalid_body",

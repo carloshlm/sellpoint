@@ -2768,9 +2768,10 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** —
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-02** — Meta mensual del negocio
+- [x] **F5-DASH-02** *(cerrada el 2026-08-31)* — Meta mensual del negocio
   - **Salida:** `tenants.monthly_sales_goal Decimal(14,2) NULL` + `PATCH /tenants/me` la acepta (positiva o null para quitarla, `updateTenantSchema` en shared) + campo «Meta mensual de ventas» en Mi perfil (visible con `tenants:manage`)
   - **Verificar:** e2e: PATCH con meta la persiste y con null la borra; contraprueba: negativa → 400; test web: el campo guarda y se refleja
+  - **La meta viaja como NÚMERO en el PATCH y como STRING en el TenantBlock** (2026-08-31): el DTO valida con las mismas reglas del dinero de shared (hasValidMoneyScale/MONEY_MAX) y el bloque serializa el Decimal como string, igual que el resto del dinero del sistema. El campo del form tolera coma decimal («12500,50») y la normaliza a punto. Verificado en navegador: guarda, persiste en base y sobrevive un login nuevo
   - **Depende de:** —
   - **Estimación:** 2 h
 

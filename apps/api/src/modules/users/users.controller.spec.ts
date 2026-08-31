@@ -75,6 +75,7 @@ const ME: MeProfile = {
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    monthlySalesGoal: null,
     country: "MX",
   },
 };

@@ -47,6 +47,7 @@ const demoUser = (): AuthUser => ({
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    monthlySalesGoal: null,
   },
 });
 

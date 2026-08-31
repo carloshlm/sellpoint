@@ -51,6 +51,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    monthlySalesGoal: null,
   },
 });
 
@@ -119,6 +120,35 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
 
       expect(screen.getByLabelText("Código de país")).toHaveValue("CA");
       expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("5551234567");
+    });
+
+    it("la meta mensual se guarda como número (F5-DASH-02)", async () => {
+      const user = userEvent.setup();
+      const actor = demoUser(["tenants:manage"]);
+      mockedUpdate.mockResolvedValue({ ...actor.tenant, monthlySalesGoal: "800000" });
+      renderCard(actor);
+
+      await user.type(screen.getByLabelText(/Meta mensual de ventas/), "800000");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ monthlySalesGoal: 800000 });
+      });
+    });
+
+    it("vaciar la meta la BORRA: manda null, no cero ni string vacío", async () => {
+      const user = userEvent.setup();
+      const actor = demoUser(["tenants:manage"]);
+      actor.tenant = { ...actor.tenant, monthlySalesGoal: "500000" };
+      mockedUpdate.mockResolvedValue({ ...actor.tenant, monthlySalesGoal: null });
+      renderCard(actor);
+
+      await user.clear(screen.getByLabelText(/Meta mensual de ventas/));
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ monthlySalesGoal: null });
+      });
     });
 
     it("guardar compone el canónico: dial del país elegido + número sin espacios", async () => {

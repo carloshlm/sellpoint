@@ -80,6 +80,7 @@ describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
       currency: "MXN",
       templateChoice: null,
       onboarded: false,
+      monthlySalesGoal: null,
     });
   });
 
@@ -110,6 +111,7 @@ describe("TenantProfileService.update (F1-WEB-ONBOARD)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: false,
+        monthlySalesGoal: null,
       },
     });
 
@@ -155,6 +157,7 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: true,
+        monthlySalesGoal: null,
       },
     });
 
@@ -200,14 +203,17 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
         currency: "MXN",
         templateChoice: null,
         onboarded: true,
+        monthlySalesGoal: null,
       },
     });
 
     await expect(service.completeOnboarding(ACTOR, {})).resolves.toMatchObject({
       onboarded: true,
+      monthlySalesGoal: null,
     });
     await expect(service.completeOnboarding(ACTOR, {})).resolves.toMatchObject({
       onboarded: true,
+      monthlySalesGoal: null,
     });
   });
 });

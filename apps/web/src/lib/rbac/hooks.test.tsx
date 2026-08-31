@@ -84,6 +84,7 @@ const DEMO_TENANT = {
   onboarded: true,
   sellWithoutStock: false,
   usesLocations: false,
+  monthlySalesGoal: null,
 } as const;
 
 const PERMISSION_GROUPS: PermissionGroup[] = [

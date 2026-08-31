@@ -51,8 +51,20 @@ export const businessDetailsSchema = z
     timezone: requiredString,
     phoneCountry: z.string(),
     phoneNumber: z.string(),
+    // F5-DASH-02: la meta mensual como TEXTO de formulario — vacío es válido
+    // (borra la meta). Si trae algo: número positivo con hasta 2 decimales.
+    // La coma se tolera como separador decimal de quien teclea («12500,50»);
+    // el container la normaliza a punto antes de validar y de mandar.
+    monthlySalesGoal: z.string(),
   })
   .superRefine((values, ctx) => {
+    const meta = values.monthlySalesGoal.trim().replace(",", ".");
+    if (meta !== "") {
+      const numero = Number(meta);
+      if (!Number.isFinite(numero) || numero <= 0 || !/^\d+(\.\d{1,2})?$/.test(meta)) {
+        ctx.addIssue({ code: "custom", path: ["monthlySalesGoal"], message: "validation.money" });
+      }
+    }
     const raw = values.phoneNumber.trim();
     if (raw === "") {
       return;

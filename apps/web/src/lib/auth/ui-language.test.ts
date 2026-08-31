@@ -24,6 +24,7 @@ const TENANT: AuthUser["tenant"] = {
   onboarded: true,
   sellWithoutStock: false,
   usesLocations: false,
+  monthlySalesGoal: null,
   country: "MX",
 };
 

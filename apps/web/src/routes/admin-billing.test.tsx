@@ -53,6 +53,7 @@ const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    monthlySalesGoal: null,
   },
 });
 

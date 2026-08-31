@@ -32,6 +32,11 @@ export interface TenantBlock {
    * No lleva saldo por ubicación — eso vive en los lotes.
    */
   usesLocations: boolean;
+  /**
+   * F5-DASH-02: la meta mensual de ventas — string decimal («800000») o null.
+   * El dashboard pinta contra ella la barra de «% alcanzado».
+   */
+  monthlySalesGoal: string | null;
 }
 
 /** PATCH parcial — espejo de `update-tenant.dto.ts` (apps/api). */
@@ -51,7 +56,12 @@ export type UpdateTenantInput = Partial<
     | "sellWithoutStock"
     | "usesLocations"
   >
->;
+> & {
+  // En el PATCH la meta viaja como NÚMERO (el DTO del API valida positivo y
+  // 2 decimales); en el TenantBlock vive como string decimal. Por eso no
+  // entra al Pick de arriba.
+  monthlySalesGoal?: number | null;
+};
 
 export async function getMyTenant(): Promise<TenantBlock> {
   const { data } = await api.get<TenantBlock>("/tenants/me");
