@@ -48,10 +48,15 @@ describe("api — declara el idioma de la UI (W2)", () => {
   });
 });
 
-// Integración real contra el API — se saltea si el API no está corriendo
+// Integración real contra el API — se saltea si el API no está corriendo.
+//
+// Es la ÚNICA excepción a la barrera de red de src/test/setup.ts, y por eso
+// pide el transporte real (`adapter: ["xhr", "http"]`) a propósito: salir a
+// la red acá es la intención declarada del test, no un mock olvidado. Todo
+// lo demás sigue bloqueado.
 describe.runIf(probe)("api /health (integración)", () => {
   it("el frontend puede consumir /health", async () => {
-    const { data } = await api.get("/health");
+    const { data } = await api.get("/health", { adapter: ["xhr", "http"] });
 
     expect(data).toEqual({ status: "ok", db: "ok", redis: "ok" });
   });
