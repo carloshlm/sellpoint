@@ -1174,6 +1174,78 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
   });
 
   /**
+   * ── LA UBICACIÓN DE REFERENCIA (Carlos, 2026-08-30) ───────────────────
+   *
+   * Dónde SUELE estar el producto. Lo importante es lo que NO es: **no parte
+   * el saldo**. Llevar existencias por ubicación es lo que hacen los lotes
+   * (`stock_lots` tiene clave lote+almacén+ubicación) y convertiría cada
+   * venta en "¿de qué estante lo saco?" — un WMS que exige una disciplina
+   * que un negocio chico no sostiene, y sin ella el dato se vuelve basura
+   * con apariencia de precisión.
+   *
+   * Sirve para dos cosas concretas: encontrarlo, y ordenar la hoja del
+   * inventario físico por recorrido del almacén.
+   */
+  describe("ubicación de referencia del producto", () => {
+    it("se guarda al crear y viaja en el detalle", async () => {
+      const { token } = await registerAndLogin();
+
+      const creado = await createProduct(token, {
+        sku: `UBI-${randomUUID().slice(0, 8)}`,
+        name: "Con ubicación",
+        baseUnit: "unit",
+        price: 10,
+        location: "Pasillo 3 · Estante B",
+      }).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/products/${(creado.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      expect((detalle.body as { location: string }).location).toBe("Pasillo 3 · Estante B");
+    });
+
+    it("se puede editar y VACIAR: dejarla en blanco es «no sé dónde está»", async () => {
+      const { token } = await registerAndLogin();
+      const creado = await createProduct(token, {
+        sku: `UBI2-${randomUUID().slice(0, 8)}`,
+        name: "Se muda",
+        baseUnit: "unit",
+        price: 10,
+        location: "A-1",
+      }).expect(201);
+      const id = (creado.body as { id: string }).id;
+
+      const movido = await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ location: "C-9" })
+        .expect(200);
+      expect((movido.body as { location: string }).location).toBe("C-9");
+
+      const vaciado = await request(app.getHttpServer())
+        .patch(`/products/${id}`)
+        .set("Authorization", bearer(token))
+        .send({ location: null })
+        .expect(200);
+      expect((vaciado.body as { location: string | null }).location).toBeNull();
+    });
+
+    it("es opcional: un producto sin ubicación se crea igual", async () => {
+      const { token } = await registerAndLogin();
+
+      const creado = await createProduct(token, {
+        sku: `UBI3-${randomUUID().slice(0, 8)}`,
+        name: "Sin ubicación",
+        baseUnit: "unit",
+        price: 10,
+      }).expect(201);
+
+      expect((creado.body as { location: string | null }).location).toBeNull();
+    });
+  });
+
+  /**
    * ── UN PRODUCTO INACTIVO CON STOCK ES INVENTARIO FANTASMA ─────────────
    *
    * Carlos (2026-08-29): «para poder deshabilitar un producto no debe tener

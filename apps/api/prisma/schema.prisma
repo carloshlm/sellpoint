@@ -407,6 +407,12 @@ model Product {
   /// si el producto tiene saldo en `stock_lots` — esa guarda vive en el
   /// service, no en la base.
   tracksLots  Boolean  @default(false) @map("tracks_lots")
+  /// Dónde SUELE estar en el almacén (pasillo, estante, rack). Dato de
+  /// REFERENCIA: no parte el saldo — el stock por ubicación vive en
+  /// `stock_lots`, cuya clave es (lote, almacén, ubicación). Sirve para
+  /// encontrar el producto y para ordenar la hoja del inventario físico por
+  /// recorrido del almacén en vez de por SKU (Carlos, 2026-08-30).
+  location    String?  @db.VarChar(64)
   stockMin    Decimal  @default(0) @map("stock_min") @db.Decimal(14, 4)
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")

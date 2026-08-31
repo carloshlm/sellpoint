@@ -30,6 +30,7 @@ export interface Presentation {
 
 export interface ProductDetail extends Omit<ProductListItem, "price"> {
   stockMin: string;
+  location: string | null;
   presentations: Presentation[];
   /** Opt-in al control de lote y caducidad (F3-LOTS-01). */
   tracksLots?: boolean;
@@ -97,6 +98,7 @@ export interface UpsertProductInput {
   name?: string;
   baseUnit?: string;
   stockMin?: number;
+  location?: string | null;
   isComposite?: boolean;
   tracksLots?: boolean;
   attributes?: Record<string, unknown>;

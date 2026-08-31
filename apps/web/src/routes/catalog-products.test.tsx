@@ -77,6 +77,7 @@ const PRODUCT: productsApi.ProductDetail = {
   isActive: true,
   attributes: {},
   stockMin: "0",
+  location: null,
   presentations: [],
 };
 

@@ -57,13 +57,19 @@ export class CountTemplateService {
       // que contarlo no significa nada.
       const productos = await tx.product.findMany({
         where: { tenantId: user.tenantId, isActive: true, isComposite: false },
-        orderBy: { sku: "asc" },
+        // Por RECORRIDO del almacén, no por SKU: una hoja de 300 líneas
+        // ordenada alfabéticamente obliga a cruzar el almacén en zigzag.
+        // `nulls: "last"` deja al final los que no tienen ubicación — son los
+        // que hay que buscar, y ponerlos primero castigaría a quien sí
+        // ordenó su catálogo (Carlos, 2026-08-30).
+        orderBy: [{ location: { sort: "asc", nulls: "last" } }, { sku: "asc" }],
         select: {
           id: true,
           sku: true,
           name: true,
           baseUnit: true,
           tracksLots: true,
+          location: true,
         },
       });
       const productIds = productos.map((p) => p.id);

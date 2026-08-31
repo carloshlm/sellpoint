@@ -462,6 +462,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const [name, setName] = useState(product?.name ?? "");
   const [baseUnit, setBaseUnit] = useState(product?.baseUnit ?? "unit");
   const [stockMin, setStockMin] = useState(product?.stockMin ?? "0");
+  const [location, setLocation] = useState(product?.location ?? "");
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(basePresentation?.price ?? "");
@@ -531,6 +532,9 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
           name,
           baseUnit,
           stockMin: Number(stockMin) || 0,
+          // Vacío es "sin ubicación", no la cadena vacía: la hoja del conteo
+          // los manda al final por NULL.
+          location: location.trim() === "" ? null : location.trim(),
           isComposite,
           tracksLots,
           attributes,
@@ -642,6 +646,13 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         value={stockMin}
         disabled={!canManage}
         onChange={(event) => setStockMin(event.target.value)}
+      />
+      <TextField
+        label={t("products.form.location")}
+        hint={t("products.form.locationHint")}
+        value={location}
+        disabled={!canManage}
+        onChange={(event) => setLocation(event.target.value)}
       />
 
       <DynamicForm

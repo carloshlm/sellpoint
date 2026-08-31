@@ -3,7 +3,6 @@
     "title": "Productos"
   },
   "add": "Nuevo producto",
-
   "back": "Volver a la lista",
   "empty": "Todavía no registraste productos.",
   "searchPlaceholder": "Código, nombre o código de barras",
@@ -40,7 +39,9 @@
     "stockMin": "Stock mínimo",
     "stockMinHint": "Cuando las existencias bajen de esta cantidad, el producto aparece marcado como «bajo mínimo» para que lo repongas. Deja 0 si no quieres el aviso.",
     "tracksLots": "Este producto se controla por lote y caducidad",
-    "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero."
+    "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
+    "location": "Ubicación en el almacén",
+    "locationHint": "Dónde suele estar: pasillo, estante o rack. Sirve para encontrarlo y para que la hoja del inventario físico se ordene por recorrido en vez de por código. No lleva existencias por ubicación."
   },
   "presentations": {
     "add": "Agregar presentación",

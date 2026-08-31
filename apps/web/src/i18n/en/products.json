@@ -3,7 +3,6 @@
     "title": "Products"
   },
   "add": "New product",
-
   "back": "Back to list",
   "empty": "You haven't registered any products yet.",
   "searchPlaceholder": "Code, name or barcode",
@@ -40,7 +39,9 @@
     "stockMin": "Minimum stock",
     "stockMinHint": "When stock drops below this amount, the product shows as «below minimum» so you can restock. Leave 0 to skip the warning.",
     "tracksLots": "This product is tracked by lot and expiry date",
-    "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first."
+    "tracksLotsLocked": "Cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",
+    "location": "Location in the warehouse",
+    "locationHint": "Where it usually sits: aisle, shelf or rack. Helps you find it and sorts the stock count sheet by walking route instead of by code. It does not track stock per location."
   },
   "presentations": {
     "add": "Add presentation",

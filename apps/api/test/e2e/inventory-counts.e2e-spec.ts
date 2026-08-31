@@ -476,6 +476,46 @@ describe("Inventario físico (F3-COUNT)", () => {
    * Solo aplica al CONTEO: entradas y salidas simultáneas son normales — dos
    * personas descargando camiones distintos no se estorban.
    */
+  /**
+   * ── LA HOJA SE ORDENA POR RECORRIDO, NO POR SKU (Carlos, 2026-08-30) ──
+   *
+   * La ubicación del producto es un dato de REFERENCIA —dónde suele estar—,
+   * no parte el saldo. Su valor entero está acá: una hoja de 300 líneas
+   * ordenada por SKU obliga a cruzar el almacén en zigzag; ordenada por
+   * ubicación, el conteo es un paseo de ida.
+   *
+   * Los productos sin ubicación van al final: son los que hay que buscar, y
+   * mandarlos al principio castigaría al que sí ordenó su catálogo.
+   */
+  describe("la plantilla se ordena por ubicación", () => {
+    it("agrupa por recorrido del almacén y deja al final lo que no tiene ubicación", async () => {
+      const { token, tenantId, warehouseId } = await escenario();
+      const stamp = randomUUID().slice(0, 6);
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        await tx.product.create({
+          data: { tenantId, sku: `ZZZ-${stamp}`, name: "Último por SKU", location: "A-1" },
+        });
+        await tx.product.create({
+          data: { tenantId, sku: `AAA-${stamp}`, name: "Primero por SKU", location: "C-9" },
+        });
+      });
+
+      // `plantilla` devuelve la matriz cruda: la fila 0 es el encabezado.
+      const filas = await plantilla(token, warehouseId);
+      const col = (nombre: string) =>
+        (filas[0] ?? []).map((c) => c.trim().toLowerCase()).indexOf(nombre);
+      const skus = filas.slice(1).map((f) => String(f[col("sku")] ?? ""));
+      const posA1 = skus.indexOf(`ZZZ-${stamp}`);
+      const posC9 = skus.indexOf(`AAA-${stamp}`);
+      const sinUbicacion = skus.findIndex((sku) => sku.startsWith("SIM-"));
+
+      // A-1 antes que C-9, aunque su SKU sea el último del alfabeto.
+      expect(posA1).toBeLessThan(posC9);
+      // Y los que no tienen ubicación, después de los que sí.
+      expect(posC9).toBeLessThan(sinUbicacion);
+    });
+  });
+
   describe("un solo conteo abierto por almacén", () => {
     const crear = (token: string, warehouseId: string, type = "physical_count") =>
       request(app.getHttpServer())

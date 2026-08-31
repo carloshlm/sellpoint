@@ -18,6 +18,8 @@ export const createProductSchema = z.object({
   sku: z.string().trim().min(1).max(64),
   name: z.string().trim().min(1).max(200),
   baseUnit: z.string().trim().min(1).max(8).default("unit"),
+  /** Dónde SUELE estar (pasillo, estante). Referencia: no parte el saldo. */
+  location: z.string().trim().max(64).nullish(),
   stockMin: z.number().nonnegative().default(0),
   isComposite: z.boolean().default(false),
   /** Opt-in al control de lote y caducidad. Ver la guarda de `update`. */
@@ -34,6 +36,9 @@ export const updateProductSchema = z
     name: z.string().trim().min(1).max(200).optional(),
     baseUnit: z.string().trim().min(1).max(8).optional(),
     stockMin: z.number().nonnegative().optional(),
+    // `null` la BORRA (el producto ya no tiene un lugar fijo); `undefined`
+    // es «no la toques» — misma distinción que el código de barras.
+    location: z.string().trim().max(64).nullable().optional(),
     isComposite: z.boolean().optional(),
     tracksLots: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),
