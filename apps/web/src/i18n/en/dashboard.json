@@ -3,6 +3,12 @@
     "empty": "No data for this period"
   },
   "kpi": {
-    "goalProgress": "{{pct}}% of goal"
+    "goalProgress": "{{pct}}% of goal",
+    "salesToday": "Today's sales",
+    "salesMonth": "This month's sales",
+    "profitMonth": "This month's profit",
+    "ticketsToday": "Today's tickets",
+    "averageTicket": "{{value}} average",
+    "profitPending": "No cost data yet"
   }
 }

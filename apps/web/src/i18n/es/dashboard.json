@@ -3,6 +3,12 @@
     "empty": "Sin datos del período"
   },
   "kpi": {
-    "goalProgress": "{{pct}}% de la meta"
+    "goalProgress": "{{pct}}% de la meta",
+    "salesToday": "Ventas de hoy",
+    "salesMonth": "Ventas del mes",
+    "profitMonth": "Utilidad del mes",
+    "ticketsToday": "Tickets de hoy",
+    "averageTicket": "{{value}} promedio",
+    "profitPending": "Aún sin datos de costo"
   }
 }
