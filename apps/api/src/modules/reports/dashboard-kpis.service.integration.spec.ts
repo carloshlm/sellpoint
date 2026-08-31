@@ -180,8 +180,22 @@ describe("DashboardKpisService (integration)", () => {
     await venta(esc.tenantId, { creadaEn: "2026-03-08T15:00:00Z", total: 150, warehouseId: w });
     await venta(esc.tenantId, { creadaEn: "2026-03-08T20:00:00Z", total: 60, warehouseId: w });
     // Mes anterior: 100 dentro del corrido (10-feb) y 500 después (20-feb).
-    await venta(esc.tenantId, { creadaEn: "2026-02-10T18:00:00Z", total: 100, warehouseId: w });
-    await venta(esc.tenantId, { creadaEn: "2026-02-20T18:00:00Z", total: 500, warehouseId: w });
+    // La de febrero trae costo: utilidad previa 100 − 60 = 40, la base de la
+    // delta de utilidad.
+    await venta(esc.tenantId, {
+      creadaEn: "2026-02-10T18:00:00Z",
+      total: 100,
+      warehouseId: w,
+      items: [{ lineTotal: 100, quantity: 1, unitCost: 60 }],
+    });
+    // La del 20-feb también trae costo: si alguien comparara contra el mes
+    // COMPLETO en vez del corrido, esta utilidad de 400 lo delataría.
+    await venta(esc.tenantId, {
+      creadaEn: "2026-02-20T18:00:00Z",
+      total: 500,
+      warehouseId: w,
+      items: [{ lineTotal: 500, quantity: 1, unitCost: 100 }],
+    });
     return esc;
   }
 
@@ -231,6 +245,10 @@ describe("DashboardKpisService (integration)", () => {
     // Solo la línea de 200 con costo 30×2: 200 − 60 = 140. La línea sin
     // snapshot no INVENTA una utilidad del 100%.
     expect(kpis.profit.month).toBe("140");
+    // Y la delta contra febrero corrido (utilidad 40): (140−40)/40 = +250%.
+    // La MISMA ley del corrido que ventas — la utilidad no compara un mes
+    // parcial contra uno completo.
+    expect(kpis.profit.deltaVsPrevMonthPct).toBe(250);
   });
 
   it("el alcance por almacén acota TODOS los números", async () => {
@@ -274,5 +292,6 @@ describe("DashboardKpisService (integration)", () => {
     expect(kpis.month.goal).toBeNull();
     expect(kpis.month.goalPct).toBeNull();
     expect(kpis.profit.month).toBeNull();
+    expect(kpis.profit.deltaVsPrevMonthPct).toBeNull();
   });
 });

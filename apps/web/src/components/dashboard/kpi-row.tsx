@@ -44,6 +44,7 @@ function KpiRow() {
       <KpiCard
         label={t("dashboard.kpi.profitMonth")}
         value={data.profit.month === null ? null : dinero(data.profit.month)}
+        deltaPct={data.profit.deltaVsPrevMonthPct}
         detail={data.profit.month === null ? t("dashboard.kpi.profitPending") : undefined}
       />
       <KpiCard

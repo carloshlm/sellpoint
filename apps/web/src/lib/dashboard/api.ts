@@ -18,7 +18,11 @@ export interface DashboardKpis {
     goal: string | null;
     goalPct: number | null;
   };
-  profit: { month: string | null };
+  profit: {
+    month: string | null;
+    /** Δ% vs la utilidad del mes anterior corrido; null sin base previa. */
+    deltaVsPrevMonthPct: number | null;
+  };
 }
 
 export async function getDashboardKpis(): Promise<DashboardKpis> {

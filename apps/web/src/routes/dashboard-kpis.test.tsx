@@ -35,7 +35,7 @@ const mocked = vi.mocked(dashboardApi.getDashboardKpis);
 const KPIS: DashboardKpis = {
   today: { total: "48520", tickets: 126, averageTicket: "385.08", deltaVsLastWeekPct: 12.4 },
   month: { total: "685240", deltaVsPrevMonthPct: 8.7, goal: "800000", goalPct: 85.7 },
-  profit: { month: "214580" },
+  profit: { month: "214580", deltaVsPrevMonthPct: 11.2 },
 };
 
 const demoUser = (permissions: string[]): AuthUser => ({
@@ -102,6 +102,8 @@ describe("La fila de KPIs (F5-DASH-10)", () => {
     expect(screen.getByText("85.7% de la meta")).toBeInTheDocument();
     expect(screen.getByText("Utilidad del mes")).toBeInTheDocument();
     expect(screen.getByText("$214,580.00")).toBeInTheDocument();
+    // La utilidad compara contra el mes anterior corrido, como las ventas.
+    expect(screen.getByText(/11.2%/)).toHaveClass("text-success");
     expect(screen.getByText("Tickets de hoy")).toBeInTheDocument();
     expect(screen.getByText("126")).toBeInTheDocument();
     expect(screen.getByText("$385.08 promedio")).toBeInTheDocument();
@@ -119,7 +121,7 @@ describe("La fila de KPIs (F5-DASH-10)", () => {
   });
 
   it("la utilidad sin snapshot dice «Aún sin datos de costo», no $0", async () => {
-    mocked.mockResolvedValue({ ...KPIS, profit: { month: null } });
+    mocked.mockResolvedValue({ ...KPIS, profit: { month: null, deltaVsPrevMonthPct: null } });
 
     await renderDashboard();
 
@@ -132,7 +134,7 @@ describe("La fila de KPIs (F5-DASH-10)", () => {
     mocked.mockResolvedValue({
       today: { total: "0", tickets: 0, averageTicket: null, deltaVsLastWeekPct: null },
       month: { total: "0", deltaVsPrevMonthPct: null, goal: null, goalPct: null },
-      profit: { month: null },
+      profit: { month: null, deltaVsPrevMonthPct: null },
     });
 
     await renderDashboard();

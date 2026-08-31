@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
@@ -103,19 +103,77 @@ afterEach(() => {
 });
 
 describe("Tarjeta de próximos a vencer (F3-LOTS-03)", () => {
-  it("con lotes por vencer, muestra cuántos y enlaza a la vista", async () => {
+  it("con lotes por vencer, muestra el conteo, las filas urgentes y el enlace", async () => {
     mocked.listExpiring.mockResolvedValue([
       fila(),
-      fila({ lot: { id: "l2", lotCode: "st20", expiresAt: "2026-07-05T00:00:00.000Z" } }),
+      fila({
+        productId: "p2",
+        name: "Leche entera",
+        lot: { id: "l2", lotCode: "st20", expiresAt: "2026-07-05T00:00:00.000Z" },
+        daysLeft: 3,
+      }),
     ]);
 
     await renderDashboard();
 
     // Por testid y no por nombre accesible: el NAV lateral tiene un enlace con
     // exactamente el mismo texto, y buscar por nombre agarraba ese.
-    const enlace = await screen.findByTestId("expiring-card");
-    expect(enlace).toHaveAttribute("href", "/movements/expiring");
-    expect(enlace).toHaveTextContent("2");
+    const tarjeta = await screen.findByTestId("expiring-card");
+    expect(tarjeta).toHaveTextContent("2");
+    // Las filas cuentan QUÉ vence: producto, lote y el semáforo de días —
+    // el más urgente primero.
+    expect(tarjeta).toHaveTextContent("Leche entera");
+    expect(tarjeta).toHaveTextContent("st20");
+    const urgente = within(tarjeta).getByText("3 días");
+    expect(urgente).toHaveClass("text-destructive");
+    const holgado = within(tarjeta).getByText("10 días");
+    expect(holgado).toHaveClass("text-warning");
+    // El orden es por urgencia: la leche (3 días) antes que el yogur (10).
+    expect(tarjeta.textContent?.indexOf("Leche")).toBeLessThan(
+      tarjeta.textContent?.indexOf("Yogur") ?? -1,
+    );
+    expect(within(tarjeta).getByRole("link")).toHaveAttribute("href", "/movements/expiring");
+  });
+
+  it("un lote VENCIDO dice «Vencido», no un número negativo de días", async () => {
+    mocked.listExpiring.mockResolvedValue([fila({ daysLeft: -2, expired: true })]);
+
+    await renderDashboard();
+
+    const tarjeta = await screen.findByTestId("expiring-card");
+    expect(within(tarjeta).getByText("Vencido")).toHaveClass("text-destructive");
+    expect(tarjeta).not.toHaveTextContent("-2");
+  });
+
+  it("con más de tres filas, muestra las 3 más urgentes y el conteo dice el total", async () => {
+    mocked.listExpiring.mockResolvedValue([
+      fila({ daysLeft: 10 }),
+      fila({
+        productId: "p2",
+        name: "B",
+        lot: { id: "l2", lotCode: "b", expiresAt: "x" },
+        daysLeft: 2,
+      }),
+      fila({
+        productId: "p3",
+        name: "C",
+        lot: { id: "l3", lotCode: "c", expiresAt: "x" },
+        daysLeft: 5,
+      }),
+      fila({
+        productId: "p4",
+        name: "D",
+        lot: { id: "l4", lotCode: "d", expiresAt: "x" },
+        daysLeft: 20,
+      }),
+    ]);
+
+    await renderDashboard();
+
+    const tarjeta = await screen.findByTestId("expiring-card");
+    expect(tarjeta).toHaveTextContent("4");
+    expect(within(tarjeta).queryByText("D")).not.toBeInTheDocument();
+    expect(within(tarjeta).getByText("B")).toBeInTheDocument();
   });
 
   /**

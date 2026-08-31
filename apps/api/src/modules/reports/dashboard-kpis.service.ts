@@ -26,6 +26,12 @@ export interface DashboardKpis {
   profit: {
     /** null cuando NINGUNA línea del mes tiene costo congelado (F5-DASH-01). */
     month: string | null;
+    /**
+     * Δ% vs la utilidad del mes anterior a mismo día corrido — la misma ley
+     * que ventas. null sin base previa (el snapshot nació el 2026-08-31: la
+     * primera delta madura un mes después, y eso es un dato, no un hueco).
+     */
+    deltaVsPrevMonthPct: number | null;
   };
 }
 
@@ -98,12 +104,13 @@ export class DashboardKpisService {
       };
     };
 
-    const [diaHoy, diaPasado, mesActual, mesPasado, utilidad] = await Promise.all([
+    const [diaHoy, diaPasado, mesActual, mesPasado, utilidad, utilidadPasada] = await Promise.all([
       suma(inicioHoy, ahora),
       suma(inicioMismoDiaPasado, haceUnaSemana),
       suma(inicioMes, ahora),
       suma(inicioMesAnterior, corteMesAnterior),
       this.utilidadDelMes(user.tenantId, alcance, inicioMes, ahora),
+      this.utilidadDelMes(user.tenantId, alcance, inicioMesAnterior, corteMesAnterior),
     ]);
 
     const goal = tenant?.monthlySalesGoal ?? null;
@@ -119,12 +126,15 @@ export class DashboardKpisService {
         total: mesActual.total.toString(),
         deltaVsPrevMonthPct: deltaPct(mesActual.total, mesPasado.total),
         goal: goal?.toString() ?? null,
-        goalPct:
-          goal !== null && goal.greaterThan(0)
-            ? redondear(mesActual.total.dividedBy(goal).times(100))
-            : null,
+        goalPct: goal?.greaterThan(0)
+          ? redondear(mesActual.total.dividedBy(goal).times(100))
+          : null,
       },
-      profit: { month: utilidad?.toString() ?? null },
+      profit: {
+        month: utilidad?.toString() ?? null,
+        deltaVsPrevMonthPct:
+          utilidad !== null && utilidadPasada !== null ? deltaPct(utilidad, utilidadPasada) : null,
+      },
     };
   }
 

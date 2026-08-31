@@ -179,7 +179,8 @@
     "lot": "Lot",
     "discard": "Write off as expired",
     "discardFailed": "The exit could not be created. Try again.",
-    "card": "Expiring soon"
+    "card": "Expiring soon",
+    "viewAll": "View all"
   },
   "transfers": {
     "title": "Transfers in transit",

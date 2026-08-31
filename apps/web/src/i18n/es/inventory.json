@@ -179,7 +179,8 @@
     "lot": "Lote",
     "discard": "Dar salida por caducado",
     "discardFailed": "No se pudo crear la salida. Intenta de nuevo.",
-    "card": "Próximos a vencer"
+    "card": "Próximos a vencer",
+    "viewAll": "Ver todos"
   },
   "transfers": {
     "title": "Traspasos en tránsito",
