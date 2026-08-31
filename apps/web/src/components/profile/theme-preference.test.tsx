@@ -47,6 +47,7 @@ const demoUser = (permissions: string[], theme: string | null = null): AuthUser 
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 });
 

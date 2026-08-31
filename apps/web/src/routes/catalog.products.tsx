@@ -47,6 +47,7 @@ import {
 } from "@/lib/products/hooks";
 import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
+import { useAuthStore } from "@/stores/auth.store";
 
 /** Las pestañas del detalle, como valores: la URL las tiene que validar. */
 const PRODUCT_TABS = ["info", "presentations", "composition", "stock", "kardex"] as const;
@@ -463,6 +464,7 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
   const [baseUnit, setBaseUnit] = useState(product?.baseUnit ?? "unit");
   const [stockMin, setStockMin] = useState(product?.stockMin ?? "0");
   const [location, setLocation] = useState(product?.location ?? "");
+  const usaUbicaciones = useAuthStore((state) => state.user?.tenant?.usesLocations === true);
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(basePresentation?.price ?? "");
@@ -647,13 +649,19 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         disabled={!canManage}
         onChange={(event) => setStockMin(event.target.value)}
       />
-      <TextField
-        label={t("products.form.location")}
-        hint={t("products.form.locationHint")}
-        value={location}
-        disabled={!canManage}
-        onChange={(event) => setLocation(event.target.value)}
-      />
+      {/*
+        Solo si el negocio usa ubicaciones: a quien no las lleva, un campo
+        más en cada alta es ruido que hay que ignorar cada vez.
+      */}
+      {usaUbicaciones && (
+        <TextField
+          label={t("products.form.location")}
+          hint={t("products.form.locationHint")}
+          value={location}
+          disabled={!canManage}
+          onChange={(event) => setLocation(event.target.value)}
+        />
+      )}
 
       <DynamicForm
         fields={fields ?? []}

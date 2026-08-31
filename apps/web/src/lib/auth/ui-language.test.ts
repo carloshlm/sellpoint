@@ -23,6 +23,7 @@ const TENANT: AuthUser["tenant"] = {
   templateChoice: null,
   onboarded: true,
   sellWithoutStock: false,
+  usesLocations: false,
   country: "MX",
 };
 

@@ -55,6 +55,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 });
 

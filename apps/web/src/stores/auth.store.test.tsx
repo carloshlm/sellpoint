@@ -25,6 +25,7 @@ const demoUser = {
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 };
 

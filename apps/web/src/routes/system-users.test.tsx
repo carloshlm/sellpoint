@@ -84,6 +84,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     // está onboarded para que OnboardingGate nunca intercepte estas rutas.
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 });
 

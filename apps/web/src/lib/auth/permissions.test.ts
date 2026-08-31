@@ -35,6 +35,7 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
       country: "MX",
       onboarded: true,
       sellWithoutStock: false,
+      usesLocations: false,
     },
     ...overrides,
   };

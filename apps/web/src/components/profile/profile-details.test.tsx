@@ -46,6 +46,7 @@ const demoUser = (): AuthUser => ({
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 });
 

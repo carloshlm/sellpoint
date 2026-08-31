@@ -90,7 +90,9 @@
       "success": "Los datos del negocio quedaron guardados.",
       "sellWithoutStock": "Vender sin existencias",
       "sellWithoutStockHint": "Permite cobrar aunque el inventario marque cero; el kardex registra el faltante para el siguiente conteo.",
-      "sellWithoutStockPlanNote": "Incluido en tu plan: sin control de inventario, la venta nunca se bloquea."
+      "sellWithoutStockPlanNote": "Incluido en tu plan: sin control de inventario, la venta nunca se bloquea.",
+      "usesLocations": "Usar ubicaciones de almacén",
+      "usesLocationsHint": "Agrega el campo «Ubicación» a los productos y ordena la hoja del inventario físico por recorrido del almacén en vez de por código. No lleva existencias por ubicación."
     },
     "preferences": {
       "title": "Preferencias",

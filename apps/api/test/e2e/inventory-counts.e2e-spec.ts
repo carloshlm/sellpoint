@@ -491,6 +491,9 @@ describe("Inventario físico (F3-COUNT)", () => {
     it("agrupa por recorrido del almacén y deja al final lo que no tiene ubicación", async () => {
       const { token, tenantId, warehouseId } = await escenario();
       const stamp = randomUUID().slice(0, 6);
+      // El orden por recorrido es del negocio que USA ubicaciones: para el
+      // resto, ordenar por una columna vacía sería barajar la hoja sin motivo.
+      await prisma.tenant.update({ where: { id: tenantId }, data: { usesLocations: true } });
       await prisma.withTenantContext(tenantId, async (tx) => {
         await tx.product.create({
           data: { tenantId, sku: `ZZZ-${stamp}`, name: "Último por SKU", location: "A-1" },
@@ -513,6 +516,27 @@ describe("Inventario físico (F3-COUNT)", () => {
       expect(posA1).toBeLessThan(posC9);
       // Y los que no tienen ubicación, después de los que sí.
       expect(posC9).toBeLessThan(sinUbicacion);
+    });
+
+    it("con el interruptor APAGADO manda el código, como siempre", async () => {
+      const { token, tenantId, warehouseId } = await escenario();
+      const stamp = randomUUID().slice(0, 6);
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        await tx.product.create({
+          data: { tenantId, sku: `ZZZ-${stamp}`, name: "Último por SKU", location: "A-1" },
+        });
+        await tx.product.create({
+          data: { tenantId, sku: `AAA-${stamp}`, name: "Primero por SKU", location: "C-9" },
+        });
+      });
+
+      const filas = await plantilla(token, warehouseId);
+      const col = (nombre: string) =>
+        (filas[0] ?? []).map((c) => c.trim().toLowerCase()).indexOf(nombre);
+      const skus = filas.slice(1).map((f) => String(f[col("sku")] ?? ""));
+
+      // Sin el interruptor, el alfabeto: AAA antes que ZZZ.
+      expect(skus.indexOf(`AAA-${stamp}`)).toBeLessThan(skus.indexOf(`ZZZ-${stamp}`));
     });
   });
 

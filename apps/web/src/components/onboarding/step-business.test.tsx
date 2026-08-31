@@ -28,6 +28,7 @@ function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
     templateChoice: null,
     onboarded: false,
     sellWithoutStock: false,
+    usesLocations: false,
     country: "MX",
     ...overrides,
   };

@@ -53,6 +53,14 @@ export class CountTemplateService {
     const filas = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await assertActiveWarehouse(tx, user.tenantId, warehouseId);
 
+      // El orden por recorrido solo tiene sentido si el negocio usa
+      // ubicaciones: para quien no las llena, ordenar por una columna vacía
+      // sería barajar la hoja sin motivo. `tenants` no lleva RLS.
+      const { usesLocations } = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { usesLocations: true },
+      });
+
       // Un compuesto NO tiene existencias propias: se arma al consumirlo, así
       // que contarlo no significa nada.
       const productos = await tx.product.findMany({
@@ -62,7 +70,9 @@ export class CountTemplateService {
         // `nulls: "last"` deja al final los que no tienen ubicación — son los
         // que hay que buscar, y ponerlos primero castigaría a quien sí
         // ordenó su catálogo (Carlos, 2026-08-30).
-        orderBy: [{ location: { sort: "asc", nulls: "last" } }, { sku: "asc" }],
+        orderBy: usesLocations
+          ? [{ location: { sort: "asc", nulls: "last" } }, { sku: "asc" }]
+          : { sku: "asc" },
         select: {
           id: true,
           sku: true,

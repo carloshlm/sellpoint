@@ -37,6 +37,7 @@ export const updateTenantSchema = z
     // decide el admin; en Free/Basic la venta sin stock ya es implícita por
     // plan y este valor no cambia nada (la regla efectiva es un OR).
     sellWithoutStock: z.boolean().optional(),
+    usesLocations: z.boolean().optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "tenants.invalid_body",

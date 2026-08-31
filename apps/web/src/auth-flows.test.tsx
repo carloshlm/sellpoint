@@ -68,6 +68,7 @@ const DEMO_TENANT = {
   country: "MX",
   onboarded: true,
   sellWithoutStock: false,
+  usesLocations: false,
 } as const;
 
 const demoUser = {

@@ -73,6 +73,7 @@ function BusinessDetails({ user }: { user: AuthUser }) {
   const updateTenant = useUpdateMyTenant();
   const [apiError, setApiError] = useState<string | null>(null);
   const [sellWithoutStock, setSellWithoutStock] = useState(user.tenant.sellWithoutStock);
+  const [usesLocations, setUsesLocations] = useState(user.tenant.usesLocations);
   const [succeeded, setSucceeded] = useState(false);
 
   const {
@@ -304,6 +305,36 @@ function BusinessDetails({ user }: { user: AuthUser }) {
                     // Si el PATCH falla, el switch vuelve a decir la verdad.
                     onError: () => setSellWithoutStock(!next),
                   },
+                );
+              }}
+            />
+          </div>
+
+          {/*
+            Las UBICACIONES son de NEGOCIO y no de plan: cobrar por un campo
+            de texto sería débil, y quien contrata el plan más chico para su
+            mostrador es justo quien más necesita acordarse de dónde dejó las
+            cosas. Apagado por defecto — un almacén sin pasillos no necesita
+            un campo más en cada alta de producto.
+          */}
+          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="uses-locations">{t("common.profile.business.usesLocations")}</Label>
+              <p className="text-muted-foreground text-xs">
+                {t("common.profile.business.usesLocationsHint")}
+              </p>
+            </div>
+            <Checkbox
+              id="uses-locations"
+              aria-label={t("common.profile.business.usesLocations")}
+              checked={usesLocations}
+              disabled={updateTenant.isPending}
+              onCheckedChange={(checked) => {
+                const next = checked === true;
+                setUsesLocations(next);
+                updateTenant.mutate(
+                  { usesLocations: next },
+                  { onError: () => setUsesLocations(!next) },
                 );
               }}
             />

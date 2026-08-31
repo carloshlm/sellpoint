@@ -30,6 +30,7 @@ const userWithTheme = (theme: string | null): AuthUser => ({
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 });
 

@@ -136,6 +136,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
           onboarded: false,
           country: null,
           sellWithoutStock: false,
+          usesLocations: false,
         },
         // F7-WEB-01 (A1): el plan efectivo — el tenant nace en trial Plus.
         subscription: expect.objectContaining({

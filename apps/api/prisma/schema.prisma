@@ -50,6 +50,12 @@ model Tenant {
   // venta es `!plan.stockControl || sellWithoutStock` — en Free/Basic es
   // implícita; en Pro/Plus/Premium la decide el admin (default estricto).
   sellWithoutStock Boolean @default(false) @map("sell_without_stock")
+  /// El interruptor de UBICACIONES: muestra el campo "Ubicación" en los
+  /// productos y ordena la hoja del inventario físico por recorrido del
+  /// almacén. Apagado por defecto — un negocio que no ordena por pasillos no
+  /// necesita un campo más en cada alta. No lleva saldo por ubicación: eso
+  /// vive en `stock_lots` y se activa con `tracksLots` del producto.
+  usesLocations    Boolean @default(false) @map("uses_locations")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

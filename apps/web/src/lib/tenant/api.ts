@@ -26,6 +26,12 @@ export interface TenantBlock {
   country: string | null;
   /** F7-POS-05: el toggle "Vender sin existencias" de los ajustes del negocio. */
   sellWithoutStock: boolean;
+  /**
+   * El interruptor de UBICACIONES: muestra el campo "Ubicación" en la ficha
+   * del producto y ordena la hoja del inventario por recorrido del almacén.
+   * No lleva saldo por ubicación — eso vive en los lotes.
+   */
+  usesLocations: boolean;
 }
 
 /** PATCH parcial — espejo de `update-tenant.dto.ts` (apps/api). */
@@ -43,6 +49,7 @@ export type UpdateTenantInput = Partial<
     | "templateChoice"
     | "country"
     | "sellWithoutStock"
+    | "usesLocations"
   >
 >;
 

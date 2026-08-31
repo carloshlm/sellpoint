@@ -90,7 +90,9 @@
       "success": "Business details saved.",
       "sellWithoutStock": "Sell without stock",
       "sellWithoutStockHint": "Allows charging even when inventory shows zero; the kardex records the shortage for the next count.",
-      "sellWithoutStockPlanNote": "Included in your plan: without inventory control, sales are never blocked."
+      "sellWithoutStockPlanNote": "Included in your plan: without inventory control, sales are never blocked.",
+      "usesLocations": "Use warehouse locations",
+      "usesLocationsHint": "Adds a «Location» field to products and sorts the stock count sheet by walking route instead of by code. It does not track stock per location."
     },
     "preferences": {
       "title": "Preferences",

@@ -53,6 +53,7 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
     templateChoice: null,
     onboarded: false,
     sellWithoutStock: false,
+    usesLocations: false,
     country: null,
     ...overrides,
   };

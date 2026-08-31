@@ -52,6 +52,7 @@ const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
     country: "MX",
     onboarded: true,
     sellWithoutStock: false,
+    usesLocations: false,
   },
 });
 

@@ -38,6 +38,7 @@ function tenant(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["tenant"]
     country: "MX",
     onboarded: false,
     sellWithoutStock: false,
+    usesLocations: false,
     ...overrides,
   };
 }

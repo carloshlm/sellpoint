@@ -101,6 +101,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
         country: "MX",
         onboarded: true,
         sellWithoutStock: false,
+        usesLocations: false,
       },
     });
   });
@@ -233,6 +234,7 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
         country: "MX",
         onboarded: true,
         sellWithoutStock: false,
+        usesLocations: false,
       },
     });
   });
