@@ -10,5 +10,52 @@
     "ticketsToday": "Today's tickets",
     "averageTicket": "{{value}} average",
     "profitPending": "No cost data yet"
+  },
+  "charts": {
+    "monthVsPrev": "Sales: this month vs last",
+    "byHour": "Today's sales by hour",
+    "current": "This month",
+    "previous": "Last month"
+  },
+  "period": {
+    "today": "Today",
+    "week": "This week",
+    "month": "This month",
+    "prevMonth": "Last month"
+  },
+  "top": {
+    "sold": "Top sellers",
+    "profit": "Top profit",
+    "units": "Units",
+    "revenue": "Revenue",
+    "cost": "Cost",
+    "profitCol": "Profit",
+    "margin": "Margin",
+    "empty": "No sales in this period"
+  },
+  "inventory": {
+    "title": "Inventory",
+    "outOfStock": "Out of stock",
+    "belowMin": "Low stock",
+    "value": "Inventory value",
+    "attention": "Products needing attention",
+    "stockCol": "Stock",
+    "minCol": "Min",
+    "daysLeft": "{{days}} days left",
+    "noPace": "No sales pace",
+    "empty": "Nothing to attend: stock is healthy"
+  },
+  "payments": {
+    "title": "Payment methods",
+    "cash": "Cash",
+    "card": "Card",
+    "transfer": "Transfer"
+  },
+  "alerts": {
+    "outOfStock": "{{count}} products out of stock",
+    "outOfStock_one": "{{count}} product out of stock",
+    "salesDown": "Sales {{pct}}% below the same day last week",
+    "productUp": "{{name}} grew {{pct}}% in sales this month",
+    "dominantMethod": "{{pct}}% of this month's sales are {{method}}"
   }
 }

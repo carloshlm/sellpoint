@@ -22,13 +22,13 @@ import { useAuthStore } from "@/stores/auth.store";
  * dos formas con las mismas columnas obligaría a dejar celdas vacías que se
  * leen como datos faltantes.
  */
-export function StockReport() {
+export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boolean } = {}) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
 
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
-  const [belowMin, setBelowMin] = useState(false);
+  const [belowMin, setBelowMin] = useState(initialBelowMin);
   const [detalle, setDetalle] = useState(false);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);

@@ -19,7 +19,13 @@ import { type AuthUser, useAuthStore } from "../stores/auth.store";
  * dice «Aún sin datos de costo» — porque «no sé» y «$0» son historias
  * distintas.
  */
-vi.mock("../lib/dashboard/api", () => ({ getDashboardKpis: vi.fn() }));
+vi.mock("../lib/dashboard/api", () => ({
+  getDashboardKpis: vi.fn(),
+  getDashboardSeries: vi.fn().mockResolvedValue({ byDay: [], byHour: [] }),
+  getDashboardProducts: vi.fn().mockResolvedValue({ topSold: [], topProfit: [] }),
+  getDashboardInventory: vi.fn().mockResolvedValue({ outOfStock: 0, belowMin: 0, attention: [] }),
+  getDashboardPayments: vi.fn().mockResolvedValue({ methods: [] }),
+}));
 vi.mock("../lib/inventory/api", () => ({
   listExpiring: vi.fn().mockResolvedValue([]),
 }));

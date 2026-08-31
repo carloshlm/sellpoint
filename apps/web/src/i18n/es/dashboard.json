@@ -10,5 +10,52 @@
     "ticketsToday": "Tickets de hoy",
     "averageTicket": "{{value}} promedio",
     "profitPending": "Aún sin datos de costo"
+  },
+  "charts": {
+    "monthVsPrev": "Ventas: mes actual vs anterior",
+    "byHour": "Ventas de hoy por hora",
+    "current": "Mes actual",
+    "previous": "Mes anterior"
+  },
+  "period": {
+    "today": "Hoy",
+    "week": "Esta semana",
+    "month": "Este mes",
+    "prevMonth": "Mes anterior"
+  },
+  "top": {
+    "sold": "Más vendidos",
+    "profit": "Mayor utilidad",
+    "units": "Unidades",
+    "revenue": "Venta",
+    "cost": "Costo",
+    "profitCol": "Utilidad",
+    "margin": "Margen",
+    "empty": "Sin ventas en el período"
+  },
+  "inventory": {
+    "title": "Inventario",
+    "outOfStock": "Agotados",
+    "belowMin": "Stock bajo",
+    "value": "Valor del inventario",
+    "attention": "Productos a atender",
+    "stockCol": "Stock",
+    "minCol": "Mínimo",
+    "daysLeft": "{{days}} días restantes",
+    "noPace": "Sin ritmo de venta",
+    "empty": "Nada que atender: el stock está sano"
+  },
+  "payments": {
+    "title": "Métodos de pago",
+    "cash": "Efectivo",
+    "card": "Tarjeta",
+    "transfer": "Transferencia"
+  },
+  "alerts": {
+    "outOfStock": "{{count}} productos agotados",
+    "outOfStock_one": "{{count}} producto agotado",
+    "salesDown": "Ventas {{pct}}% abajo del mismo día de la semana pasada",
+    "productUp": "{{name}} creció {{pct}}% sus ventas este mes",
+    "dominantMethod": "El {{pct}}% de tus ventas del mes es con {{method}}"
   }
 }
