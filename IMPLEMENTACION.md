@@ -2775,9 +2775,10 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** —
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-03** — `GET /reports/dashboard/kpis`: los cuatro números de arriba
+- [x] **F5-DASH-03** *(cerrada el 2026-08-31)* — `GET /reports/dashboard/kpis`: los cuatro números de arriba
   - **Salida:** ventas de HOY (total, tickets, ticket promedio, Δ% vs el mismo día de la semana pasada), ventas del MES (total, Δ% vs el mes anterior **a mismo día corrido** — comparar el mes completo contra uno parcial miente), utilidad del mes (suma de `(unitPrice − unitCost) × quantity` SOLO en líneas con snapshot; `null` si ninguna lo tiene, para que el front distinga «cero» de «aún no hay dato») y meta (`goal` + `%` si existe). `reports:read` + `UserScope` + timezone del negocio
   - **Verificar:** e2e con ventas sembradas en días/horas límite de la timezone (una venta a las 23:30 CDMX cae en el día local correcto); contraprueba: las canceladas no suman; usuario acotado a un almacén no ve los totales del otro
+  - **El corrido aplica TAMBIÉN al día** (2026-08-31): hoy a las 10am se compara contra el mismo día pasado HASTA las 10am — la ley del «mes a mismo día corrido», aplicada consistente. La matemática entera se fija en un spec de integración con ClockPort falso (reloj congelado el 15-mar-2026 12:00 CDMX); el e2e cubre la puerta del permiso y la forma. Tres contrapruebas por mutación: canceladas, mes completo vs corrido, UTC crudo — cada una cazada
   - **Depende de:** F5-DASH-01, F5-DASH-02
   - **Estimación:** 3 h
 

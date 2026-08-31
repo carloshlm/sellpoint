@@ -8,6 +8,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CatalogExportService } from "./catalog-export.service";
+import { DashboardKpisService } from "./dashboard-kpis.service";
 import { type DirectExportQueryDto, directExportQuerySchema } from "./dto/direct-export.dto";
 import { type KardexExportQueryDto, kardexExportQuerySchema } from "./dto/kardex-export.dto";
 import {
@@ -54,6 +55,7 @@ export class ReportsController {
     private readonly salesExport: SalesExportService,
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
+    private readonly dashboardKpis: DashboardKpisService,
   ) {}
 
   @Get()
@@ -88,6 +90,17 @@ export class ReportsController {
    * `pos:view` y NO aplica alcance —la cajera busca el ticket que el cliente
    * trae en la mano—; éste pide `reports:read` y sí lo aplica.
    */
+  /**
+   * F5-DASH-03 — los cuatro números de arriba del dashboard. Sin query: el
+   * período es SIEMPRE «hoy y este mes» del negocio; los widgets con filtro
+   * de período tienen sus propios endpoints (F5-DASH-05/07).
+   */
+  @Get("dashboard/kpis")
+  @RequirePermissions("reports:read")
+  dashboardKpisEndpoint(@CurrentUser() user: AuthUser, @CurrentUserScope() scope: UserScope) {
+    return this.dashboardKpis.kpis(user, scope);
+  }
+
   @Get("sales")
   @RequirePermissions("reports:read")
   sales(
