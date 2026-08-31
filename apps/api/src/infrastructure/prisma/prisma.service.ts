@@ -16,6 +16,44 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
+    await this.assertRolNoSaltaRls();
+  }
+
+  /**
+   * El rol de conexión NO puede saltarse RLS (f1-auth R1/U1-12).
+   *
+   * Todo el aislamiento entre negocios descansa en las policies de RLS, y
+   * Postgres se las salta enteras para un rol `SUPERUSER` o `BYPASSRLS`. Con
+   * `DATABASE_URL` apuntando a uno de esos, la API arranca sin una sola queja
+   * y cada consulta ve las filas de TODOS los negocios: no es un permiso de
+   * más, es el multi-tenant apagado.
+   *
+   * Y falla en silencio, que es lo peor. El 2026-08-31, en el entorno local
+   * de Carlos, un negocio recién creado —sin un solo movimiento— recibió un
+   * 403 de "ya tienes transacciones registradas": el contador estaba viendo
+   * los movimientos de los demás. El síntoma no se parecía en nada a la
+   * causa.
+   *
+   * Por eso se verifica al ARRANCAR y se cae con un mensaje que dice qué
+   * hacer. Un `.env` viejo tiene que romper el arranque, no el aislamiento.
+   */
+  private async assertRolNoSaltaRls(): Promise<void> {
+    const roles = await this.$queryRaw<
+      { rolname: string; rolsuper: boolean; rolbypassrls: boolean }[]
+    >`SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
+
+    const rol = roles[0];
+    if (!rol || !(rol.rolsuper || rol.rolbypassrls)) {
+      return;
+    }
+
+    const privilegio = rol.rolsuper ? "SUPERUSER" : "BYPASSRLS";
+    throw new Error(
+      `DATABASE_URL conecta como "${rol.rolname}", que tiene ${privilegio} y por lo ` +
+        "tanto se salta el RLS: la API vería los datos de todos los negocios mezclados. " +
+        "Apunta DATABASE_URL al rol de la aplicación (sellpoint_app, ver .env.example); " +
+        "el rol con privilegios va en DATABASE_URL_ADMIN, que solo usan las migraciones.",
+    );
   }
 
   async onModuleDestroy(): Promise<void> {

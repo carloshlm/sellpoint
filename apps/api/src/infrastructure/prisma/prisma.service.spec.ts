@@ -110,3 +110,39 @@ describe("PrismaService — withTenantContext (integration)", () => {
     });
   });
 });
+
+/**
+ * El rol de conexión NO puede saltarse RLS.
+ *
+ * `setup-env.js` ya documenta la regla (f1-auth R1/U1-12: la API conecta
+ * SIEMPRE como `sellpoint_app`, nunca como el superusuario `sellpoint`) y la
+ * cuida con un default en los tests. Pero eso solo protege a los tests: un
+ * `.env` viejo o un servidor mal configurado apuntan `DATABASE_URL` al
+ * superusuario y la API arranca tan campante, con el aislamiento entre
+ * negocios APAGADO y sin un solo error a la vista.
+ *
+ * Descubierto el 2026-08-31 en el entorno local de Carlos: un negocio recién
+ * creado, sin un solo movimiento, recibía un 403 de "ya tienes transacciones"
+ * porque el conteo veía las filas de TODOS los demás negocios.
+ */
+describe("PrismaService — el rol de conexión no puede saltarse RLS", () => {
+  it("con un rol BYPASSRLS el arranque FALLA en vez de servir datos cruzados", async () => {
+    const conSuperusuario = new PrismaService(
+      new ConfigService<Env, true>({ DATABASE_URL: process.env.DATABASE_URL_ADMIN }),
+    );
+
+    await expect(conSuperusuario.onModuleInit()).rejects.toThrow(/RLS/);
+
+    await conSuperusuario.onModuleDestroy();
+  });
+
+  it("con el rol de la aplicación arranca normal", async () => {
+    const conRolDeApp = new PrismaService(
+      new ConfigService<Env, true>({ DATABASE_URL: process.env.DATABASE_URL }),
+    );
+
+    await expect(conRolDeApp.onModuleInit()).resolves.toBeUndefined();
+
+    await conRolDeApp.onModuleDestroy();
+  });
+});
