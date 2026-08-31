@@ -248,9 +248,68 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
 
     const filaProducto = (await screen.findByText("PAR-500")).closest("tr") as HTMLElement;
 
+    // El teórico y la diferencia son lectura; lo CONTADO es el campo que se
+    // captura, así que vive en un input (2026-08-31).
     expect(within(filaProducto).getByText("40")).toBeInTheDocument();
-    expect(within(filaProducto).getByText("35")).toBeInTheDocument();
+    expect(within(filaProducto).getByLabelText(/Contado/i)).toHaveValue(35);
     expect(within(filaProducto).getByText("-5")).toBeInTheDocument();
+  });
+
+  /**
+   * ── LO QUE SE EDITA EN UN CONTEO ES LO CONTADO (Carlos, 2026-08-31) ──
+   *
+   * El campo editable mandaba `quantity`, pero en una línea de conteo
+   * `quantity` guarda **el teórico que se vio al capturar**: lo contado vive
+   * en `counted`. Así que corregir una cantidad en pantalla no corregía el
+   * conteo — pisaba el teórico, y al aprobar se asentaba lo del Excel.
+   *
+   * Carlos lo vio como "el inventario me suma": tecleó 28 donde el archivo
+   * decía 10, y el sistema iba a aplicar 10.
+   */
+  it("editar la cantidad guarda lo CONTADO, no el teórico", async () => {
+    mocked.updateDocumentLine.mockResolvedValue(undefined as never);
+    await renderCount();
+    const user = userEvent.setup();
+
+    const campo = await screen.findByLabelText(/Contado/i);
+    await user.clear(campo);
+    await user.type(campo, "28");
+
+    await waitFor(
+      () => {
+        expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          "line-1",
+          expect.objectContaining({ counted: 28 }),
+        );
+      },
+      { timeout: 3000 },
+    );
+    // Y NUNCA el teórico: pisarlo falsea la reconciliación.
+    expect(mocked.updateDocumentLine).not.toHaveBeenCalledWith(
+      "doc-1",
+      "line-1",
+      expect.objectContaining({ quantity: 28 }),
+    );
+  });
+
+  /**
+   * Carlos: «me aparecen columnas repetidas como Cantidad; Lote, Caducidad,
+   * Ubicación y Stock no están alineadas con su encabezado».
+   *
+   * El conteo agregaba TRES celdas al cuerpo (teórico, contado, diferencia)
+   * y ningún encabezado, así que todo lo que venía después salía corrido.
+   */
+  it("los encabezados coinciden con las celdas: nada queda corrido", async () => {
+    await renderCount();
+
+    const tabla = (await screen.findByText("PAR-500")).closest("table") as HTMLElement;
+    const encabezados = within(tabla).getAllByRole("columnheader").length;
+    const celdas = within(
+      (await screen.findByText("PAR-500")).closest("tr") as HTMLElement,
+    ).getAllByRole("cell").length;
+
+    expect(celdas).toBe(encabezados);
   });
 
   it("el resumen sale de `countSummary`", async () => {

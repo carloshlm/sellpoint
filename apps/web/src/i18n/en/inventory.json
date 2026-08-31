@@ -216,7 +216,7 @@
     "upload": "Upload count",
     "uploadHint": "Upload the file with the «counted» column filled in. It replaces what was loaded before.",
     "freshHint": "The count is applied against the balance at approval time, not the current one: if someone sells while you count, it is taken into account.",
-    "theoretical": "Theoretical",
+    "theoretical": "Expected",
     "counted": "Counted",
     "difference": "Difference",
     "onlyDiscrepancies": "Discrepancies only",

@@ -63,6 +63,26 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   // La línea recién agregada desde el buscador: su CANTIDAD recibe el foco.
   const [focusLineId, setFocusLineId] = useState<string | null>(null);
   const [confirmado, setConfirmado] = useState(false);
+  // El aviso de "asentado": se trae a la vista al confirmar.
+  const avisoRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Al asentar, el aviso de "movimiento confirmado" se trae a la vista.
+   *
+   * Vive ARRIBA del documento y un conteo de 300 líneas deja al usuario a
+   * media página: sin esto confirma, no ve cambiar nada donde está mirando y
+   * no sabe si funcionó (Carlos, 2026-08-31).
+   *
+   * Va como EFECTO y no dentro del `onSuccess`: así React lo limpia con el
+   * desmontaje en vez de dispararse fuera del ciclo de vida. Y
+   * `scrollIntoView` se llama con `?.` porque jsdom no lo implementa — en un
+   * test no debe reventar por un adorno visual.
+   */
+  useEffect(() => {
+    if (confirmado) {
+      avisoRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    }
+  }, [confirmado]);
   // El error del confirm/anular. Sin esto el fallo era SILENCIOSO: el diálogo
   // se cerraba y el usuario veía "no pasa nada" — indebuggeable hasta para
   // quien lo reporta. El filtro del API ya manda el mensaje traducido.
@@ -161,6 +181,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
 
       {confirmado && (
         <div
+          ref={avisoRef}
           role="status"
           // Verde y no el morado de la marca: `bg-primary/10` decía "aquí hay
           // algo" pero no "salió bien", y este aviso aparece justo después de
@@ -246,8 +267,27 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
               <tr className="border-b text-left text-muted-foreground">
                 <th className="px-2 py-2 font-medium">#</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.document.product")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.document.presentation")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.document.quantity")}</th>
+                {/*
+                  En un CONTEO no se elige presentación ni se captura una
+                  "cantidad a mover": se cuenta lo que hay, en unidad base
+                  (Carlos, 2026-08-31 — el SKU ya trae su presentación del
+                  catálogo, y dejarla editable acá invita a cambiar el
+                  significado de lo contado). Sus columnas son otras.
+                */}
+                {esConteo ? (
+                  <>
+                    <th className="px-2 py-2 font-medium">{t("inventory.count.theoretical")}</th>
+                    <th className="px-2 py-2 font-medium">{t("inventory.count.counted")}</th>
+                    <th className="px-2 py-2 font-medium">{t("inventory.count.difference")}</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="px-2 py-2 font-medium">
+                      {t("inventory.document.presentation")}
+                    </th>
+                    <th className="px-2 py-2 font-medium">{t("inventory.document.quantity")}</th>
+                  </>
+                )}
                 {conCosto && (
                   <th className="px-2 py-2 font-medium">{t("inventory.document.unitCost")}</th>
                 )}
@@ -370,6 +410,8 @@ function LineRow({
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(row.quantityInput ?? "");
+  // Lo CONTADO: el dato que un inventario físico viene a capturar.
+  const [counted, setCounted] = useState(row.counted ?? "");
   const [unitCost, setUnitCost] = useState(row.unitCost ?? "");
   const [lotCode, setLotCode] = useState(row.lotCode ?? "");
   const [expiresAt, setExpiresAt] = useState(row.expiresAt?.slice(0, 10) ?? "");
@@ -381,6 +423,7 @@ function LineRow({
   const primeraCargaLote = useRef(true);
   const primeraCargaCaducidad = useRef(true);
   const primeraCargaUbicacion = useRef(true);
+  const primeraCargaContado = useRef(true);
   const quantityRef = useRef<HTMLInputElement | null>(null);
   /**
    * El stock del producto se consulta PEREZOSO: recién cuando el usuario
@@ -417,6 +460,12 @@ function LineRow({
   const guardarLote = useMutation({
     mutationFn: (value: string | null) =>
       updateDocumentLine(documentId, row.id, { lotCode: value }),
+    onSuccess: invalidar,
+  });
+
+  const guardarContado = useMutation({
+    mutationFn: (value: number | null) =>
+      updateDocumentLine(documentId, row.id, { counted: value }),
     onSuccess: invalidar,
   });
 
@@ -482,6 +531,23 @@ function LineRow({
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [lotCode, row.lotCode, guardarLote.mutate]);
+
+  useEffect(() => {
+    if (primeraCargaContado.current) {
+      primeraCargaContado.current = false;
+      return;
+    }
+    if (counted === (row.counted ?? "")) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      // Vacío es "no llegué a contar esta fila", que NO es contar cero: el
+      // resumen las separa como omitidas y el asiento no las toca.
+      const parsed = counted.trim() === "" ? null : Number(counted);
+      guardarContado.mutate(parsed !== null && Number.isFinite(parsed) ? parsed : null);
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [counted, row.counted, guardarContado.mutate]);
 
   useEffect(() => {
     if (primeraCargaUbicacion.current) {
@@ -561,19 +627,74 @@ function LineRow({
           {product !== undefined && <span className="text-muted-foreground">{product.name}</span>}
         </div>
       </td>
-      <td className="px-2 py-2">
-        {editable && product !== undefined ? (
-          <>
-            <label htmlFor={`line-${row.lineNo}-presentation`} className="sr-only">
-              {t("inventory.document.presentation")}
-            </label>
-            <select
-              id={`line-${row.lineNo}-presentation`}
-              value={row.presentationId ?? ""}
-              onChange={(event) => guardarPresentacion.mutate(event.target.value || null)}
-              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-            >
-              {/*
+      {esConteo ? (
+        <>
+          {/* Teórico: lo que el sistema creía tener al capturar la línea. */}
+          <td className="px-2 py-2">
+            <div className={LINE_CELL}>{row.theoretical ?? "—"}</div>
+          </td>
+          {/*
+            CONTADO — el único campo editable de un conteo, y el que se
+            asienta. Antes este input mandaba `quantity`, que en una línea de
+            conteo guarda el TEÓRICO: corregir acá no corregía el conteo,
+            pisaba la referencia y al aprobar se aplicaba lo del archivo
+            (Carlos, 2026-08-31).
+          */}
+          <td className="px-2 py-2">
+            {editable ? (
+              <>
+                <label htmlFor={`line-${row.lineNo}-counted`} className="sr-only">
+                  {t("inventory.count.counted")}
+                </label>
+                <input
+                  id={`line-${row.lineNo}-counted`}
+                  ref={quantityRef}
+                  type="number"
+                  step="0.0001"
+                  value={counted}
+                  onChange={(event) => setCounted(event.target.value)}
+                  className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                />
+                {guardarContado.isPending && (
+                  <span className="ml-2 text-muted-foreground text-xs">
+                    {t("inventory.document.saving")}
+                  </span>
+                )}
+              </>
+            ) : (
+              (row.counted ?? "—")
+            )}
+            {row.newLot && (
+              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
+                {t("inventory.count.newLot")}
+              </span>
+            )}
+          </td>
+          <td
+            className={`px-2 py-2 ${
+              row.difference !== null && row.difference !== undefined && row.difference !== "0"
+                ? "font-medium text-destructive"
+                : ""
+            }`}
+          >
+            {row.difference ?? "—"}
+          </td>
+        </>
+      ) : (
+        <>
+          <td className="px-2 py-2">
+            {editable && product !== undefined ? (
+              <>
+                <label htmlFor={`line-${row.lineNo}-presentation`} className="sr-only">
+                  {t("inventory.document.presentation")}
+                </label>
+                <select
+                  id={`line-${row.lineNo}-presentation`}
+                  value={row.presentationId ?? ""}
+                  onChange={(event) => guardarPresentacion.mutate(event.target.value || null)}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                >
+                  {/*
                 La opción sintética "Unidad base" solo existe si ninguna
                 presentación ya la representa (factor 1) — dos nombres para lo
                 mismo confunden, y peor: la sintética no pasa por
@@ -581,50 +702,52 @@ function LineRow({
                 enteros". Se conserva únicamente mientras la línea siga
                 guardada sin presentación, para no mentir sobre su estado.
               */}
-              {(!product.presentations.some((p) => Number(p.factor) === 1) ||
-                row.presentationId === null) && (
-                <option value="">{t("inventory.document.presentationBase")}</option>
-              )}
-              {product.presentations.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </>
-        ) : (
-          (presentacion?.name ?? t("inventory.document.presentationBase"))
-        )}
-      </td>
-      <td className="px-2 py-2">
-        {editable ? (
-          <>
-            <label htmlFor={`line-${row.lineNo}-quantity`} className="sr-only">
-              {t("inventory.document.quantity")}
-            </label>
-            <input
-              id={`line-${row.lineNo}-quantity`}
-              ref={quantityRef}
-              type="number"
-              step="0.0001"
-              value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
-              className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
-            />
-            {guardar.isPending && (
-              <span className="ml-2 text-muted-foreground text-xs">
-                {t("inventory.document.saving")}
-              </span>
+                  {(!product.presentations.some((p) => Number(p.factor) === 1) ||
+                    row.presentationId === null) && (
+                    <option value="">{t("inventory.document.presentationBase")}</option>
+                  )}
+                  {product.presentations.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              (presentacion?.name ?? t("inventory.document.presentationBase"))
             )}
-          </>
-        ) : (
-          (row.quantityInput ?? "—")
-        )}
-        <Equivalencia row={row} product={product} locale={resolveUiLocale(i18n)} />
-        {esSalida && <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />}
-        {esSalida && <RepartoFefo row={row} />}
-        {esSalida && product?.isComposite === true && <Compuesto product={product} />}
-      </td>
+          </td>
+          <td className="px-2 py-2">
+            {editable ? (
+              <>
+                <label htmlFor={`line-${row.lineNo}-quantity`} className="sr-only">
+                  {t("inventory.document.quantity")}
+                </label>
+                <input
+                  id={`line-${row.lineNo}-quantity`}
+                  ref={quantityRef}
+                  type="number"
+                  step="0.0001"
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                  className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                />
+                {guardar.isPending && (
+                  <span className="ml-2 text-muted-foreground text-xs">
+                    {t("inventory.document.saving")}
+                  </span>
+                )}
+              </>
+            ) : (
+              (row.quantityInput ?? "—")
+            )}
+            <Equivalencia row={row} product={product} locale={resolveUiLocale(i18n)} />
+            {esSalida && <Disponible row={row} product={product} locale={resolveUiLocale(i18n)} />}
+            {esSalida && <RepartoFefo row={row} />}
+            {esSalida && product?.isComposite === true && <Compuesto product={product} />}
+          </td>
+        </>
+      )}
       {conCosto && (
         <td className="px-2 py-2">
           {editable ? (
@@ -645,30 +768,6 @@ function LineRow({
             (row.unitCost ?? "—")
           )}
         </td>
-      )}
-      {esConteo && (
-        <>
-          <td className="px-2 py-2">
-            <div className={LINE_CELL}>{row.theoretical}</div>
-          </td>
-          <td className="px-2 py-2">
-            {row.counted ?? "—"}
-            {row.newLot && (
-              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">
-                {t("inventory.count.newLot")}
-              </span>
-            )}
-          </td>
-          <td
-            className={`px-2 py-2 ${
-              row.difference !== null && row.difference !== undefined && row.difference !== "0"
-                ? "font-medium text-destructive"
-                : ""
-            }`}
-          >
-            {row.difference ?? "—"}
-          </td>
-        </>
       )}
       {/*
         F3-LOTS: la captura del lote vive en la ENTRADA — en la salida lo
