@@ -10,6 +10,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { EntitlementsService } from "../billing/entitlements.service";
 import { SalesPlanGate } from "../billing/sales-plan.gate";
+import { WeightedCostService } from "../cost/weighted-cost.service";
 import { expandComposition } from "../inventory/composition-expander";
 import { nextFolio, nextSequenceValue } from "../inventory/folio";
 import type { ResolvedLine } from "../inventory/line-resolver";
@@ -69,6 +70,7 @@ export class SalesService {
     private readonly cashbox: CashboxService,
     private readonly entitlements: EntitlementsService,
     private readonly salesPlanGate: SalesPlanGate,
+    private readonly weightedCost: WeightedCostService,
   ) {}
 
   /**
@@ -128,6 +130,17 @@ export class SalesService {
     // stock quien no tiene control de inventario en su plan O quien prendió
     // "Vender sin existencias" en los ajustes del negocio.
     const allowNegative = !entitlements.stockControl || negocio?.sellWithoutStock === true;
+
+    // F5-DASH-01: el costo promedio ponderado se CONGELA en la línea al
+    // cobrar — es lo que vuelve calculable la utilidad de esta venta para
+    // siempre, sin depender del promedio del futuro. Se consulta ANTES de la
+    // transacción: es historial de compras, no estado de esta venta (y el
+    // servicio abre su propio contexto de tenant). Un producto sin compras
+    // queda AUSENTE del mapa — su línea guarda null, jamás un 0 fingido.
+    const productosVendidos = [
+      ...new Set(dto.lines.flatMap((line) => (line.productId ? [line.productId] : []))),
+    ];
+    const costosBase = await this.weightedCost.averageCosts(user.tenantId, productosVendidos);
 
     return this.prisma
       .withTenantContext(user.tenantId, async (tx) => {
@@ -224,6 +237,12 @@ export class SalesService {
                 const precio = precios[i] as PrecioResuelto;
                 const cantidad = new Prisma.Decimal(line.quantity);
                 const desc = new Prisma.Decimal(line.discount ?? 0);
+                // El costo viaja en la MISMA unidad que unitPrice (la
+                // presentación vendida): promedio base × factor, donde el
+                // factor es quantityBase/quantity — exacto, porque
+                // quantityBase nació de esa multiplicación. Así la utilidad
+                // es (unitPrice − unitCost) × quantity, simétrica al precio.
+                const costoBase = line.productId ? costosBase.get(line.productId) : undefined;
                 return {
                   tenantId: user.tenantId,
                   lineNo: i + 1,
@@ -232,6 +251,9 @@ export class SalesService {
                   presentationId: precio.presentationId,
                   quantity: cantidad,
                   unitPrice: precio.unitPrice,
+                  ...(costoBase !== undefined && {
+                    unitCost: costoBase.times(precio.quantityBase).dividedBy(cantidad),
+                  }),
                   discount: desc,
                   lineTotal: precio.unitPrice.times(cantidad).minus(desc),
                 };

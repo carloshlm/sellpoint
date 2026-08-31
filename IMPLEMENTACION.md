@@ -2761,9 +2761,10 @@ Decisiones cerradas (Carlos, 2026-08-31):
 
 Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`startOfDayUtc`/`endOfDayUtc` de shared vía el patrón de `buildSalesWhere`), nunca UTC crudo. Todas las cifras excluyen ventas canceladas y respetan `UserScope` (alcance por almacén). Los endpoints viven en `modules/reports/` — el dashboard ES reportes: mismo guard, mismo scope. Son 5 endpoints y no 1 a propósito: cada widget carga y falla solo, y el dashboard entero cuesta ≤6 requests (holgado contra el throttle global de 300/min). «Clientes atendidos» = tickets: no existe modelo Customer todavía; cuando llegue su fase, la tarjeta ya estará esperándolo.
 
-- [ ] **F5-DASH-01** — Snapshot de costo en la venta
+- [x] **F5-DASH-01** *(cerrada el 2026-08-31)* — Snapshot de costo en la venta
   - **Salida:** migración aditiva `sale_items.unit_cost Decimal(14,4) NULL` + `crearVenta` lo llena por línea con `WeightedCostService.averageCosts` (null si el producto nunca se compró con costo — nunca `0` fingido; null para servicios). Las ventas viejas quedan en null y NO se rellenan. La venta jamás se bloquea por no tener costo
   - **Verificar:** e2e: comprar a $10, comprar a $20, vender → la línea guarda el promedio vigente; contraprueba: producto sin compras guarda null, no 0; una venta de servicio guarda null
+  - **El costo se congela en la unidad VENDIDA** (2026-08-31): el promedio es por unidad base y la línea vende presentaciones — sin multiplicar por el factor, una Caja ×12 habría guardado el costo de UNA pieza y el margen mentiría ×12. Test dedicado lo fija (promedio $10, caja ×12 → 120). Los costos se consultan ANTES de la transacción (historial de compras, no estado de la venta). Un compuesto queda null: nunca se compra con factura
   - **Depende de:** —
   - **Estimación:** 2 h
 

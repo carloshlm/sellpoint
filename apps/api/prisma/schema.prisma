@@ -1408,6 +1408,13 @@ model SaleItem {
   /// Lo que el cajero tecleó, en la presentación elegida.
   quantity       Decimal  @db.Decimal(14, 4)
   unitPrice      Decimal  @map("unit_price") @db.Decimal(14, 2)
+  /// F5-DASH-01: el costo promedio ponderado CONGELADO al cobrar, en la misma
+  /// unidad que unitPrice (la presentación vendida) — así la utilidad es
+  /// `(unitPrice − unitCost) × quantity` sin saber de factores. NULL cuando el
+  /// producto nunca se compró con costo (nunca 0 fingido) y en servicios. Las
+  /// ventas anteriores a la columna quedan NULL a propósito: la utilidad se
+  /// calcula solo desde acá (Carlos, 2026-08-31 — exactitud sobre historia).
+  unitCost       Decimal? @map("unit_cost") @db.Decimal(14, 4)
   discount       Decimal  @default(0) @db.Decimal(14, 2)
   lineTotal      Decimal  @map("line_total") @db.Decimal(14, 2)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
