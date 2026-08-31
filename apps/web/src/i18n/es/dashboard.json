@@ -31,7 +31,8 @@
     "cost": "Costo",
     "profitCol": "Utilidad",
     "margin": "Margen",
-    "empty": "Sin ventas en el período"
+    "empty": "Sin ventas en el período",
+    "profitEmpty": "Aún sin costos congelados. Registra tus compras con costo y cada venta nueva contará su utilidad."
   },
   "inventory": {
     "title": "Inventario",

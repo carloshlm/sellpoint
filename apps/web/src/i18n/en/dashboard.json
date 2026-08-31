@@ -31,7 +31,8 @@
     "cost": "Cost",
     "profitCol": "Profit",
     "margin": "Margin",
-    "empty": "No sales in this period"
+    "empty": "No sales in this period",
+    "profitEmpty": "No frozen costs yet. Record your purchases with cost and every new sale will track its profit."
   },
   "inventory": {
     "title": "Inventory",

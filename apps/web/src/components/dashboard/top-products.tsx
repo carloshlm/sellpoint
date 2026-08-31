@@ -59,7 +59,11 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
       <section className="flex flex-col gap-2 rounded-lg border bg-card p-4">
         <h2 className="font-medium text-sm">{t("dashboard.top.profit")}</h2>
         {data.topProfit.length === 0 ? (
-          vacio
+          // El vacío de utilidad NO es el de ventas: puede haber ventas de
+          // sobra y cero costos congelados (F5-DASH-01 nació después que
+          // ellas). Decir «sin ventas» aquí sería mentir — se dice lo que
+          // falta y cómo conseguirlo.
+          <p className="text-muted-foreground text-sm">{t("dashboard.top.profitEmpty")}</p>
         ) : (
           <ol className="flex flex-col gap-1 text-sm">
             {data.topProfit.map((producto, i) => (

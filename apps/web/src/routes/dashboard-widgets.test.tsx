@@ -194,6 +194,19 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     });
   });
 
+  it("con ventas pero sin costos, la lista de utilidad NO miente «sin ventas»", async () => {
+    // El caso real de Carlos (2026-09-01): ventas previas al snapshot de
+    // costo. Hay ventas — lo que no hay es costos congelados, y el vacío
+    // tiene que decir ESO.
+    mocked.getDashboardProducts.mockResolvedValue({ ...PRODUCTS, topProfit: [] });
+
+    await renderDashboard();
+
+    await screen.findByText("Mayor utilidad");
+    expect(screen.getByText(/Aún sin costos congelados/)).toBeInTheDocument();
+    expect(screen.queryByText("Sin ventas en el período")).not.toBeInTheDocument();
+  });
+
   it("los tops cuentan las dos historias y la lista de atención predice días", async () => {
     await renderDashboard();
 
