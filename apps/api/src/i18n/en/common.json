@@ -1,4 +1,5 @@
 {
   "hello": "Hello",
-  "welcome": "Welcome to SellPointy"
+  "welcome": "Welcome to SellPointy",
+  "too_many_requests": "You're going too fast. Wait a few seconds and try again"
 }

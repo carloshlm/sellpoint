@@ -51,7 +51,13 @@ const baseEnvSchema = z.object({
   // --- Throttling (f1-auth AD-7) ---
   THROTTLE_ENABLED: booleanFromString,
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(1),
-  THROTTLE_GLOBAL_LIMIT: z.coerce.number().int().positive().default(100),
+  // 300 y no 100 (Carlos, 2026-08-31): es un límite ANTI-BOT, no de uso.
+  // Medido en el navegador: una carga completa de página dispara 4-6
+  // peticiones, así que 100/min se agotaba con ~17 recargas — y Carlos lo
+  // logró él solo recargando rápido, con el agravante de que la IP se
+  // comparte por oficina (NAT). A 300/min caben ~50 cargas por minuto entre
+  // todos los que comparten la IP; un bot dañino manda miles.
+  THROTTLE_GLOBAL_LIMIT: z.coerce.number().int().positive().default(300),
   THROTTLE_GLOBAL_TTL_SEC: z.coerce.number().int().positive().default(60),
   THROTTLE_AUTH_IP_LIMIT: z.coerce.number().int().positive().default(5),
   THROTTLE_AUTH_IP_TTL_SEC: z.coerce.number().int().positive().default(900),

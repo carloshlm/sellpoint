@@ -167,4 +167,51 @@ describe("Throttling de /auth/* (e2e)", () => {
     // auth-email (10, y ni siquiera aplica acá).
     expect(blockedAtIndex).toBe(5);
   });
+  // ── EL PORTERO GLOBAL TIENE SU PROPIA VOZ Y UN LÍMITE HUMANO ─────────
+  //
+  // Carlos, con su sesión iniciada, recargó la página quince veces en quince
+  // segundos y el sistema le contestó «Demasiados intentos» — el mensaje del
+  // presupuesto de CREDENCIALES, que suena a castigo y no dice qué hacer. Dos
+  // problemas, dos arreglos (2026-08-31):
+  //
+  // 1. El límite global era 100/min por IP y cada carga de página dispara
+  //    4-6 peticiones (medido en el navegador): ~17 recargas agotaban la IP
+  //    entera — que una oficina detrás de un NAT comparte. A 300/min caben
+  //    ~50 cargas por minuto: holgado para humanos, ridículo para un bot.
+  // 2. Su 429 ahora dice «vas muy rápido», no «demasiados intentos»: cada
+  //    portero con su voz (el de credenciales conserva la suya — eso ya lo
+  //    fijan los tests de arriba).
+  //
+  // Se martilla `POST /auth/refresh` porque está EXENTO del presupuesto de
+  // credenciales (self-DoS real del 2026-08-14): el primer 429 que aparezca
+  // solo puede venir del portero global.
+  // (En este archivo los comentarios van con `//`: el título del describe
+  // contiene `/*` y un docblock posterior armaría el falso emparejamiento
+  // en el quita-comentarios de e2e-harness.spec.)
+  describe("el throttler global (volumen)", () => {
+    it("deja pasar 300 por minuto y el 301º recibe «vas muy rápido», no «demasiados intentos»", async () => {
+      const ip = nextFakeIp();
+
+      let blocked: { status: number; body: Record<string, unknown> } | null = null;
+      for (let i = 0; i < 301; i += 1) {
+        const res = await request(app.getHttpServer())
+          .post("/auth/refresh")
+          .set("X-Forwarded-For", ip)
+          .send();
+        if (res.status === 429) {
+          blocked = { status: res.status, body: res.body as Record<string, unknown> };
+          // El índice delata qué límite actuó: 100 = el default viejo.
+          expect(i).toBe(300);
+          break;
+        }
+        expect(res.status).toBe(401);
+      }
+
+      expect(blocked).not.toBeNull();
+      expect(blocked?.body).toMatchObject({
+        code: "common.too_many_requests",
+        message: "Vas muy rápido. Espera unos segundos y vuelve a intentarlo",
+      });
+    });
+  });
 });

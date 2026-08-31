@@ -1,4 +1,5 @@
 {
   "hello": "Hola",
-  "welcome": "Bienvenido a SellPointy"
+  "welcome": "Bienvenido a SellPointy",
+  "too_many_requests": "Vas muy rápido. Espera unos segundos y vuelve a intentarlo"
 }

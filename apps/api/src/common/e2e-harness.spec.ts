@@ -42,6 +42,12 @@ function especificaciones(): string[] {
  * de un falso negativo acá es que un spec se cuele; el de un falso positivo,
  * que nadie confíe en la barrera.
  */
+// ⚠ Limitación conocida (2026-08-31): este regex no entiende STRINGS. Un
+// `/*` dentro de un título (`"Throttling de /auth/* (e2e)"`) se empareja con
+// el primer `*/` real que aparezca después y se come todo lo del medio —
+// incluida la llamada que este guardián busca. Por eso ese spec comenta con
+// `//`. Si este falso positivo vuelve a aparecer, el arreglo de fondo es
+// quitar los strings antes que los comentarios.
 function sinComentarios(ruta: string): string {
   return readFileSync(ruta, "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")

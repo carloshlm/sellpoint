@@ -91,7 +91,8 @@ describe("validateEnv", () => {
       expect(result.REFRESH_FAMILY_MAX_DAYS).toBe(30);
       expect(result.THROTTLE_ENABLED).toBe(true);
       expect(result.TRUST_PROXY_HOPS).toBe(1);
-      expect(result.THROTTLE_GLOBAL_LIMIT).toBe(100);
+      // 300 y no 100 (2026-08-31): límite anti-bot con margen humano — ver env.schema.ts.
+      expect(result.THROTTLE_GLOBAL_LIMIT).toBe(300);
       expect(result.THROTTLE_GLOBAL_TTL_SEC).toBe(60);
       expect(result.THROTTLE_AUTH_IP_LIMIT).toBe(5);
       expect(result.THROTTLE_AUTH_IP_TTL_SEC).toBe(900);

@@ -1,6 +1,8 @@
 import {
   ArgumentsHost,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   NotFoundException,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -49,17 +51,47 @@ describe("AllExceptionsFilter", () => {
   });
 
   /**
-   * El 429 del throttler (Carlos, 2026-08-26): ThrottlerException lanza el
-   * texto en inglés "ThrottlerException: Too Many Requests" que no es clave
-   * i18n — llegaba CRUDO a la pantalla de login. El filter lo mapea a la
-   * clave existente `auth.too_many_attempts` antes de traducir.
+   * Los DOS 429 del sistema hablan distinto (Carlos, 2026-08-31).
+   *
+   * El throttler GLOBAL frena VOLUMEN: navegar rápido, una oficina entera
+   * detrás del mismo NAT, un script descontrolado. Su ThrottlerException trae
+   * el texto en inglés del framework ("ThrottlerException: Too Many
+   * Requests"), que además llegaba crudo a la pantalla — se mapea a
+   * `common.too_many_requests` ("Vas muy rápido…").
+   *
+   * El presupuesto de CREDENCIALES (AuthEmailThrottlerGuard) frena el
+   * adivinado de contraseñas y ya lanza su propia clave. A quien recargó la
+   * página quince veces, "Demasiados intentos" le sonaba a acusación y no le
+   * decía qué hacer; a quien falló la contraseña cinco veces, "vas muy
+   * rápido" le mentiría. Cada portero con su voz.
    */
-  it("el 429 del throttler se traduce: nunca llega el texto en inglés del framework", () => {
-    translateMock = jest.fn(() => "Demasiados intentos. Intenta de nuevo más tarde");
+  it("el 429 del throttler global se traduce a 'vas muy rápido': nunca llega el texto del framework", () => {
+    translateMock = jest.fn(() => "Vas muy rápido. Espera unos segundos y vuelve a intentarlo");
     i18n = { translate: translateMock } as unknown as I18nService;
     filter = new AllExceptionsFilter(i18n);
 
     filter.catch(new ThrottlerException(), host);
+
+    expect(statusMock).toHaveBeenCalledWith(429);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 429,
+        code: "common.too_many_requests",
+        message: "Vas muy rápido. Espera unos segundos y vuelve a intentarlo",
+      }),
+    );
+  });
+
+  it("el 429 del presupuesto de credenciales conserva SU clave: no se disfraza de volumen", () => {
+    translateMock = jest.fn(() => "Demasiados intentos. Intenta de nuevo más tarde");
+    i18n = { translate: translateMock } as unknown as I18nService;
+    filter = new AllExceptionsFilter(i18n);
+
+    // La misma forma que lanza AuthEmailThrottlerGuard.tooManyAttempts().
+    filter.catch(
+      new HttpException({ message: "auth.too_many_attempts" }, HttpStatus.TOO_MANY_REQUESTS),
+      host,
+    );
 
     expect(statusMock).toHaveBeenCalledWith(429);
     expect(jsonMock).toHaveBeenCalledWith(

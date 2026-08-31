@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from "@nestjs/common";
+import { ThrottlerException } from "@nestjs/throttler";
 import * as Sentry from "@sentry/node";
 import { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
@@ -89,12 +90,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
-    // El 429 del throttler (Carlos, 2026-08-26): ThrottlerException lanza
-    // "ThrottlerException: Too Many Requests" — texto del framework, no clave
-    // i18n — y llegaba CRUDO a la pantalla de login. Se mapea a la clave que
-    // ya existía para este caso y sigue el camino normal de traducción.
-    if (statusCode === HttpStatus.TOO_MANY_REQUESTS) {
-      body.message = "auth.too_many_attempts";
+    // Los DOS 429 del sistema hablan distinto (Carlos, 2026-08-31; antes
+    // 2026-08-26 se mapeaba todo a `auth.too_many_attempts`).
+    //
+    // La ThrottlerException del portero GLOBAL frena VOLUMEN —navegar rápido,
+    // una oficina detrás del mismo NAT— y trae el texto en inglés del
+    // framework, no una clave i18n: se mapea a "vas muy rápido", que dice qué
+    // pasó y qué hacer. El presupuesto de CREDENCIALES ya lanza su propia
+    // clave (`auth.too_many_attempts`) y NO se toca: a quien recargó quince
+    // veces, "demasiados intentos" le sonaba a acusación; a quien falló la
+    // contraseña cinco veces, "vas muy rápido" le mentiría. Se distingue por
+    // el TIPO de la excepción, no adivinando por el texto.
+    if (statusCode === HttpStatus.TOO_MANY_REQUESTS && exception instanceof ThrottlerException) {
+      body.message = "common.too_many_requests";
     }
 
     body = this.translateIfKey(body, request);
