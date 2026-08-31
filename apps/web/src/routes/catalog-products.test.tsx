@@ -98,7 +98,7 @@ async function openProduct() {
   );
 
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: "Editar" }));
+  await user.click(await screen.findByRole("button", { name: "Ver" }));
   return user;
 }
 
@@ -400,7 +400,7 @@ describe("El menú devuelve al listado (bug de navegación)", () => {
     );
 
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Editar" }));
+    await user.click(await screen.findByRole("button", { name: "Ver" }));
 
     // Se lee del ROUTER y no de `window.location`: con `createMemoryHistory`
     // la barra del navegador no se toca, así que mirar ahí daría un falso rojo.
@@ -417,7 +417,7 @@ describe("El menú devuelve al listado (bug de navegación)", () => {
 
     // El listado de vuelta: la fila con su botón "Abrir", y sin las pestañas
     // del detalle.
-    expect(await screen.findByRole("button", { name: "Editar" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Ver" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Presentaciones" })).not.toBeInTheDocument();
   });
 

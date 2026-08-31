@@ -53,6 +53,7 @@
     "description": "You don't have permission to view this section."
   },
   "actions": {
+    "view": "View",
     "edit": "Edit",
     "deactivate": "Deactivate",
     "reactivate": "Reactivate",

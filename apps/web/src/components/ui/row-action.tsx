@@ -17,9 +17,13 @@ import { cn } from "@/lib/utils";
  * `SURFACE` (ui/surface.ts): los temas del wizard re-pintan estos enlaces
  * cambiando solo los tokens de index.css.
  */
-export type RowActionIntent = "edit" | "deactivate" | "reactivate" | "delete";
+export type RowActionIntent = "view" | "edit" | "deactivate" | "reactivate" | "delete";
 
 export const INTENT_CLASS: Record<RowActionIntent, string> = {
+  // `view` comparte color con `edit`: las dos LLEVAN al detalle, y el color
+  // dice "esta es la acción principal de la fila". Lo que cambia es la
+  // promesa de la palabra — ver no compromete a nada, editar sí.
+  view: "text-primary hover:text-primary",
   edit: "text-primary hover:text-primary",
   deactivate: "text-warning hover:text-warning",
   reactivate: "text-success hover:text-success",
@@ -27,6 +31,7 @@ export const INTENT_CLASS: Record<RowActionIntent, string> = {
 };
 
 const INTENT_LABEL_KEY: Record<RowActionIntent, string> = {
+  view: "common.actions.view",
   edit: "common.actions.edit",
   deactivate: "common.actions.deactivate",
   reactivate: "common.actions.reactivate",

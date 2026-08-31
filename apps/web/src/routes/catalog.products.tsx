@@ -257,11 +257,12 @@ function ProductsContent() {
                   <TableCell>{product.price ?? "—"}</TableCell>
                   {onlyComposite && <AvailabilityCell productId={product.id} />}
                   <TableCell className="text-right">
-                    {/* «Editar» y no «Abrir» (Carlos, 2026-08-25): es la misma
-                        palabra que usan todos los demás listados para llegar a
-                        la edición, y el color de intención viaja con ella. */}
+                    {/* «Ver» y no «Editar» (Carlos, 2026-08-31): el enlace abre
+                        la ficha, y desde ahí se edita SI se tiene permiso. A
+                        quien solo puede leer, «Editar» le prometía algo que la
+                        pantalla no le iba a dar. */}
                     <RowAction
-                      intent="edit"
+                      intent="view"
                       onClick={() => navigate({ search: { open: product.id } })}
                     />
                     {canManage && (

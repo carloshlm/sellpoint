@@ -53,6 +53,7 @@
     "description": "No tienes permiso para ver esta sección."
   },
   "actions": {
+    "view": "Ver",
     "edit": "Editar",
     "deactivate": "Desactivar",
     "reactivate": "Reactivar",
