@@ -1,0 +1,8 @@
+{
+  "chart": {
+    "empty": "No data for this period"
+  },
+  "kpi": {
+    "goalProgress": "{{pct}}% of goal"
+  }
+}

@@ -2812,9 +2812,10 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** —
   - **Estimación:** 2 h
 
-- [ ] **F5-DASH-09** — `KpiCard`: la tarjeta que cuenta la historia
+- [x] **F5-DASH-09** *(cerrada el 2026-08-31)* — `KpiCard`: la tarjeta que cuenta la historia
   - **Salida:** componente `KpiCard` (valor grande con `formatMoney`/número, delta con flecha y color semántico — verde sube/rojo baja, invertible para métricas donde subir es malo —, sparkline SVG inline opcional y barra de progreso de meta) + `dashboard.json` es/en registrado en i18n
   - **Verificar:** test: delta positiva pinta verde con ↑ y negativa rojo con ↓; con meta pinta la barra al % correcto; sin datos muestra «—», no NaN
+  - **tailwind-merge esconde mutantes** (2026-08-31): con `cn()`, dos clases de color en conflicto se deduplican con «la última gana» — un mutante que pintaba text-success Y text-destructive salía indistinguible del correcto en el caso probado. Lo cazó el caso ESPEJO (invertDelta con delta negativa → verde): al probar colores semánticos con cn(), probar los dos sentidos no es opcional
   - **Depende de:** —
   - **Estimación:** 2 h
 

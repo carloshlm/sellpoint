@@ -1,0 +1,8 @@
+{
+  "chart": {
+    "empty": "Sin datos del período"
+  },
+  "kpi": {
+    "goalProgress": "{{pct}}% de la meta"
+  }
+}
