@@ -2,6 +2,7 @@
   "authorizer_invalid": "Quien autoriza no es un usuario de este negocio.",
   "composite_has_no_stock": "Un producto compuesto no tiene existencias propias: se arma al venderlo o consumirlo.",
   "composite_without_composition": "Este producto compuesto no tiene componentes definidos.",
+  "count_already_open": "Ya hay un inventario físico abierto para este almacén ({folio}). Cancélalo o confírmalo antes de empezar otro.",
   "count_file_too_large": "El archivo supera los 5 MB. Divídelo en partes más chicas.",
   "count_requires_manage": "Aprobar un inventario físico requiere permiso de administración: puede reescribir el saldo de todo un almacén.",
   "document_empty": "El movimiento no tiene líneas: agrega al menos un producto antes de confirmar.",

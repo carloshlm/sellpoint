@@ -2,6 +2,7 @@
   "authorizer_invalid": "The authorizing person isn't a user of this business.",
   "composite_has_no_stock": "A composite product has no stock of its own: it's assembled when sold or consumed.",
   "composite_without_composition": "This composite product has no components defined.",
+  "count_already_open": "There is already an open stock count for this warehouse ({folio}). Cancel or confirm it before starting another.",
   "count_file_too_large": "The file is over 5 MB. Please split it into smaller parts.",
   "count_requires_manage": "Approving a physical count requires the manage permission: it can rewrite a whole warehouse's balance.",
   "document_empty": "This movement has no lines: add at least one product before confirming.",

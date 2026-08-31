@@ -99,7 +99,20 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const conCosto = rules?.requiresUnitCost ?? false;
   // Columnas de lote solo si el documento es una entrada Y algún producto los
   // controla — en los demás documentos serían ancho muerto.
-  const conLote = document.type === "entry" && document.products.some((p) => p.tracksLots === true);
+  /**
+   * El CONTEO también captura lote, caducidad y ubicación.
+   *
+   * Antes solo la entrada mostraba estas columnas, y el resultado era una
+   * trampa: al subir la plantilla, una línea sin lote fallaba con
+   * `inventory.lot_required` —"falta indicar cuál"— y la pantalla no ofrecía
+   * NINGÚN lugar donde indicarlo. El usuario quedaba pidiéndole al Excel algo
+   * que ya había fallado (Carlos, 2026-08-30).
+   *
+   * La salida sigue fuera: ahí el lote lo elige FEFO, no la persona.
+   */
+  const conLote =
+    (document.type === "entry" || document.type === "physical_count") &&
+    document.products.some((p) => p.tracksLots === true);
   const productosPorId = new Map(document.products.map((p) => [p.id, p]));
 
   return (
@@ -149,7 +162,13 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
       {confirmado && (
         <div
           role="status"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-primary/10 px-4 py-3 text-sm"
+          // Verde y no el morado de la marca: `bg-primary/10` decía "aquí hay
+          // algo" pero no "salió bien", y este aviso aparece justo después de
+          // mover stock — el momento donde más importa distinguir el éxito de
+          // un simple mensaje (Carlos, 2026-08-30). El token `success` ya
+          // existía en el tema, con su par para el modo oscuro; nadie lo
+          // estaba usando.
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-success-soft px-4 py-3 text-sm"
         >
           <div className="flex flex-col">
             <span className="font-medium">{t("inventory.document.confirmedTitle")}</span>
@@ -238,6 +257,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     <th className="px-2 py-2 font-medium">
                       {t("inventory.document.lotExpiresAt")}
                     </th>
+                    <th className="px-2 py-2 font-medium">{t("inventory.document.location")}</th>
                   </>
                 )}
                 <th className="px-2 py-2 font-medium">{t("inventory.document.stockChange")}</th>
@@ -353,10 +373,14 @@ function LineRow({
   const [unitCost, setUnitCost] = useState(row.unitCost ?? "");
   const [lotCode, setLotCode] = useState(row.lotCode ?? "");
   const [expiresAt, setExpiresAt] = useState(row.expiresAt?.slice(0, 10) ?? "");
+  // La ubicación (pasillo, estante, rack): el modelo y el CSV ya la
+  // guardaban, pero ninguna pantalla la dejaba escribir.
+  const [location, setLocation] = useState(row.location ?? "");
   const primeraCarga = useRef(true);
   const primeraCargaCosto = useRef(true);
   const primeraCargaLote = useRef(true);
   const primeraCargaCaducidad = useRef(true);
+  const primeraCargaUbicacion = useRef(true);
   const quantityRef = useRef<HTMLInputElement | null>(null);
   /**
    * El stock del producto se consulta PEREZOSO: recién cuando el usuario
@@ -393,6 +417,12 @@ function LineRow({
   const guardarLote = useMutation({
     mutationFn: (value: string | null) =>
       updateDocumentLine(documentId, row.id, { lotCode: value }),
+    onSuccess: invalidar,
+  });
+
+  const guardarUbicacion = useMutation({
+    mutationFn: (value: string | null) =>
+      updateDocumentLine(documentId, row.id, { location: value }),
     onSuccess: invalidar,
   });
 
@@ -452,6 +482,20 @@ function LineRow({
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [lotCode, row.lotCode, guardarLote.mutate]);
+
+  useEffect(() => {
+    if (primeraCargaUbicacion.current) {
+      primeraCargaUbicacion.current = false;
+      return;
+    }
+    if (location === (row.location ?? "")) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      guardarUbicacion.mutate(location.trim() === "" ? null : location.trim());
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [location, row.location, guardarUbicacion.mutate]);
 
   useEffect(() => {
     if (primeraCargaCaducidad.current) {
@@ -681,6 +725,35 @@ function LineRow({
                 </>
               ) : (
                 (row.expiresAt?.slice(0, 10) ?? "—")
+              )
+            ) : (
+              "—"
+            )}
+          </td>
+          {/*
+            La UBICACIÓN va con el lote porque es donde el saldo vive de
+            verdad: `stock_lots` guarda (lote, ubicación), así que contar el
+            estante A-1 no dice nada del B-2. El CSV ya la traía; lo que
+            faltaba era poder escribirla.
+          */}
+          <td className="px-2 py-2">
+            {product?.tracksLots === true ? (
+              editable ? (
+                <>
+                  <label htmlFor={`line-${row.lineNo}-location`} className="sr-only">
+                    {t("inventory.document.location")}
+                  </label>
+                  <input
+                    id={`line-${row.lineNo}-location`}
+                    type="text"
+                    value={location}
+                    onChange={(event) => setLocation(event.target.value)}
+                    placeholder={t("inventory.document.locationPlaceholder")}
+                    className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                </>
+              ) : (
+                (row.location ?? "—")
               )
             ) : (
               "—"

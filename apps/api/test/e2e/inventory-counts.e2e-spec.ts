@@ -355,6 +355,13 @@ describe("Inventario físico (F3-COUNT)", () => {
         warehouseId,
         `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,35`,
       );
+      // Solo cabe UN conteo abierto por almacén: para probar el otro caso hay
+      // que cerrar el primero, igual que haría quien opera.
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${menos.id}/cancel`)
+        .set("Authorization", bearer(token))
+        .send({ reason: "se prueba el otro sentido" })
+        .expect(200);
       const mas = await borradorCon(
         token,
         warehouseId,
@@ -454,6 +461,73 @@ describe("Inventario físico (F3-COUNT)", () => {
    * kardex cuenta la historia real: "había 120, se contó 115", y no un "-5"
    * que no dice de dónde salió.
    */
+  /**
+   * ── UN SOLO CONTEO ABIERTO POR ALMACÉN (Carlos, 2026-08-30) ───────────
+   *
+   * «No debería poder tener más de 1 inventario físico abierto por almacén;
+   * deberías poder cancelar uno si quieres abrir uno nuevo.»
+   *
+   * Un conteo es una FOTO del almacén en un momento. Dos borradores abiertos
+   * sobre el mismo almacén son dos fotos que se contradicen, y peor: cada uno
+   * guarda el teórico que vio al capturarse, así que aprobar el segundo
+   * pisaría el ajuste del primero con datos viejos. En producción se vieron
+   * tres borradores del mismo almacén.
+   *
+   * Solo aplica al CONTEO: entradas y salidas simultáneas son normales — dos
+   * personas descargando camiones distintos no se estorban.
+   */
+  describe("un solo conteo abierto por almacén", () => {
+    const crear = (token: string, warehouseId: string, type = "physical_count") =>
+      request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set("Authorization", bearer(token))
+        .send({ type, warehouseId });
+
+    it("el segundo conteo en el mismo almacén se rechaza, nombrando el folio abierto", async () => {
+      const { token, warehouseId } = await escenario();
+      const primero = await crear(token, warehouseId).expect(201);
+
+      const rechazo = await crear(token, warehouseId).expect(409);
+
+      expect(rechazo.body).toMatchObject({ code: "inventory.count_already_open" });
+      // El FOLIO, no solo el "no": sin él, el usuario no sabe cuál cancelar.
+      expect((rechazo.body as { message: string }).message).toContain(
+        (primero.body as { folio: string }).folio,
+      );
+    });
+
+    it("en OTRO almacén sí se puede: la foto es por almacén", async () => {
+      const { token, tenantId, warehouseId } = await escenario();
+      await crear(token, warehouseId).expect(201);
+      const otro = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.warehouse.create({ data: { tenantId, name: `Otro ${randomUUID().slice(0, 6)}` } }),
+      );
+
+      await crear(token, otro.id).expect(201);
+    });
+
+    it("cancelado el primero, el siguiente entra", async () => {
+      const { token, warehouseId } = await escenario();
+      const primero = await crear(token, warehouseId).expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${(primero.body as { id: string }).id}/cancel`)
+        .set("Authorization", bearer(token))
+        .send({ reason: "se abrió por error" })
+        .expect(200);
+
+      await crear(token, warehouseId).expect(201);
+    });
+
+    /** Entradas y salidas no se estorban: dos camiones a la vez es normal. */
+    it("las entradas simultáneas siguen permitidas", async () => {
+      const { token, warehouseId } = await escenario();
+      await crear(token, warehouseId, "entry").expect(201);
+
+      await crear(token, warehouseId, "entry").expect(201);
+    });
+  });
+
   describe("F3-COUNT-03 — aprobar mueve el stock", () => {
     async function conteo(token: string, warehouseId: string, csv: string) {
       const creado = await request(app.getHttpServer())
@@ -497,6 +571,71 @@ describe("Inventario físico (F3-COUNT)", () => {
       expect(Number(suyos.find((m) => m.direction === "exit")?.quantityBase)).toBe(40);
       expect(Number(suyos.find((m) => m.direction === "entry")?.quantityBase)).toBe(35);
       expect(Number(body.stock.find((s) => s.productId === simpleId)?.quantity)).toBe(35);
+    });
+
+    /**
+     * ── LA PREVIA DEL CONTEO NO SUMA: FIJA (Carlos, 2026-08-30) ─────────
+     *
+     * Carlos capturó un conteo y vio, en una línea cuya diferencia era CERO,
+     * que el stock pasaba de 266.5 a 279.5. La previsualización calculaba
+     * `después = antes + cantidad` —la fórmula de una ENTRADA— cuando un
+     * conteo REEMPLAZA el saldo por lo contado.
+     *
+     * Es la pantalla donde se decide si confirmar un ajuste de inventario:
+     * una columna que dice "va a subir" cuando en realidad "se va a quedar
+     * igual" es peor que no mostrar nada.
+     *
+     * El efecto real por producto es `saldo − teórico + contado`, acumulado
+     * línea a línea: así un producto con tres lotes contados muestra el
+     * total al que va a llegar.
+     */
+    it("la previa NO suma lo contado: contar lo mismo deja el saldo igual", async () => {
+      const { token, warehouseId, simpleSku, simpleId } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,40`,
+      );
+
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const fila = (
+        previa.body as {
+          rows: {
+            productId: string;
+            stockBefore: string;
+            stockAfter: string;
+            difference: string | null;
+          }[];
+        }
+      ).rows.find((l) => l.productId === simpleId);
+
+      // El teórico es 40 y se contaron 40: el saldo NO se mueve.
+      expect(fila?.difference).toBe("0");
+      expect(Number(fila?.stockBefore)).toBe(40);
+      expect(Number(fila?.stockAfter)).toBe(40);
+    });
+
+    it("contar de MENOS baja el saldo a lo contado, no lo suma", async () => {
+      const { token, warehouseId, simpleSku, simpleId } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,35`,
+      );
+
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const fila = (previa.body as { rows: { productId: string; stockAfter: string }[] }).rows.find(
+        (l) => l.productId === simpleId,
+      );
+
+      // Sumaría 75; lo correcto es que quede en 35.
+      expect(Number(fila?.stockAfter)).toBe(35);
     });
 
     /**

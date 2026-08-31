@@ -71,6 +71,37 @@ export class DocumentsService {
       // nunca: mejor frenarlo antes de que alguien cargue 80 líneas.
       await assertActiveWarehouse(tx, user.tenantId, input.warehouseId);
 
+      // ── UN SOLO CONTEO ABIERTO POR ALMACÉN ────────────────────────────
+      //
+      // Un conteo es una FOTO del almacén en un momento. Dos borradores
+      // sobre el mismo almacén son dos fotos que se contradicen — y peor:
+      // cada línea guarda el teórico que vio al capturarse, así que aprobar
+      // el segundo pisaría el ajuste del primero con datos ya viejos.
+      //
+      // Entradas y salidas sí conviven: dos personas descargando camiones
+      // distintos no se estorban (Carlos, 2026-08-30).
+      if (input.type === "physical_count") {
+        const abierto = await tx.inventoryDocument.findFirst({
+          where: {
+            tenantId: user.tenantId,
+            warehouseId: input.warehouseId,
+            type: "physical_count",
+            status: "draft",
+          },
+          select: { folio: true },
+          orderBy: { createdAt: "asc" },
+        });
+        if (abierto) {
+          // El FOLIO en el mensaje: sin él, "ya hay uno abierto" obliga a
+          // buscarlo a mano para saber cuál cancelar.
+          throw new ConflictException({
+            message: "inventory.count_already_open",
+            args: { folio: abierto.folio },
+            folio: abierto.folio,
+          });
+        }
+      }
+
       const folio = await nextFolio(tx, user.tenantId, input.type, FOLIO_PREFIXES[input.type]);
 
       return tx.inventoryDocument.create({
@@ -518,7 +549,26 @@ export class DocumentsService {
           acumulado.get(line.productId) ??
           saldoPorProducto.get(line.productId) ??
           new Prisma.Decimal(0);
-        const delta = (res?.quantityBase ?? new Prisma.Decimal(0)).mul(signo);
+
+        // ── Un conteo REEMPLAZA, no suma ──────────────────────────────────
+        //
+        // La entrada y la salida mueven el saldo por su cantidad; el conteo
+        // dice cuánto HAY, así que su efecto es `saldo − teórico + contado`.
+        // Con la fórmula de entrada, contar 40 sobre un teórico de 40 mostraba
+        // que el saldo pasaría de 40 a 80 — y esta es la pantalla donde se
+        // decide si confirmar un ajuste de inventario, así que una columna
+        // que dice "va a subir" cuando en realidad "se queda igual" es peor
+        // que no mostrar nada (Carlos, 2026-08-30).
+        //
+        // Las líneas SIN contar no mueven nada: quien contaba no llegó a esa
+        // fila, y omitir no es contar cero.
+        const delta = esConteo
+          ? line.counted === null
+            ? new Prisma.Decimal(0)
+            : new Prisma.Decimal(line.counted.toString()).minus(
+                teoricoPorLinea.get(line.lineNo) ?? new Prisma.Decimal(0),
+              )
+          : (res?.quantityBase ?? new Prisma.Decimal(0)).mul(signo);
         const despues = antes.plus(delta);
         acumulado.set(line.productId, despues);
 
