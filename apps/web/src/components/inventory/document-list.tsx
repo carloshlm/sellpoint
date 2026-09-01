@@ -5,6 +5,7 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useCreateDocument, useDocuments } from "@/lib/inventory/hooks";
 import type { DocumentStatus, InventoryDocumentType } from "@/lib/inventory/types";
@@ -93,6 +94,7 @@ export function DocumentList({ type }: DocumentListProps) {
     page: pagina,
   });
   const createDocument = useCreateDocument();
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // El rango CUENTA como filtro: si no, una búsqueda vacía por fechas diría
   // «todavía no hay documentos» en vez de «no hay en este rango», y el usuario
@@ -109,8 +111,19 @@ export function DocumentList({ type }: DocumentListProps) {
     if (warehouseId === null) {
       return;
     }
-    const created = await createDocument.mutateAsync({ type, warehouseId });
-    await navigate({ to: "/movements/documents/$documentId", params: { documentId: created.id } });
+    setCreateError(null);
+    try {
+      const created = await createDocument.mutateAsync({ type, warehouseId });
+      await navigate({
+        to: "/movements/documents/$documentId",
+        params: { documentId: created.id },
+      });
+    } catch (error) {
+      // Carlos (2026-09-01): el 409 de «ya hay un inventario abierto» se
+      // perdía y el botón parecía muerto. El mensaje del API ya viene
+      // traducido y con el folio que estorba.
+      setCreateError((error as ApiError).message || t("inventory.list.createFailed"));
+    }
   }
 
   return (
@@ -128,6 +141,12 @@ export function DocumentList({ type }: DocumentListProps) {
           </button>
         )}
       </header>
+
+      {createError !== null && (
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
+          {createError}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">

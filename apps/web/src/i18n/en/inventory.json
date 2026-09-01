@@ -47,6 +47,7 @@
   "list": {
     "searchFolio": "Search by number…",
     "create": "Create",
+    "createFailed": "The document could not be created. Try again.",
     "empty": "There are no movements of this type yet.",
     "noResults": "No movement matches your search.",
     "lines": "Lines",
@@ -217,7 +218,7 @@
   "count": {
     "templateXlsx": "Template .xlsx",
     "templateHint": "Lot-tracked products get one row per lot and location; leave those columns empty for the rest.",
-    "upload": "Upload count",
+    "upload": "Choose file",
     "uploadHint": "Upload the file with the «counted» column filled in. It replaces what was loaded before.",
     "freshHint": "The count is applied against the balance at approval time, not the current one: if someone sells while you count, it is taken into account.",
     "theoretical": "Expected",
@@ -235,7 +236,8 @@
     "drifted_one": "{{count}} line changed balance between counting and approval. What was counted has been applied.",
     "importFailed": "The file could not be read. Check that it is the downloaded template.",
     "importDone": "Count loaded: {{count}} rows.",
-    "importDoneWithErrors": "{{count}} rows could not be read: check them in the list."
+    "importDoneWithErrors": "{{count}} rows could not be read: check them in the list.",
+    "importNoCounted": "{{count}} rows were loaded, but none has a value in «counted». Check that you saved the file in Excel after filling it in, then upload it again."
   },
   "kardex": {
     "title": "Kardex",

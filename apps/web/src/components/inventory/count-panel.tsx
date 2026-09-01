@@ -20,7 +20,12 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
   // El resultado de la última subida: el éxito se DICE (cuadro verde con el
   // foco), no se deja adivinar por el resumen que cambia solo (Carlos,
   // 2026-09-01).
-  const [done, setDone] = useState<{ imported: number; withErrors: number } | null>(null);
+  const [done, setDone] = useState<{
+    imported: number;
+    withErrors: number;
+    /** Ninguna fila trajo «contado»: casi siempre, un archivo subido sin guardar. */
+    noCounted: boolean;
+  } | null>(null);
 
   const subir = useMutation({
     mutationFn: async (file: File) => {
@@ -38,8 +43,18 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
         mode: "replace",
       });
     },
-    onSuccess: (resultado: { imported: number; withErrors: number }) => {
-      setDone({ imported: resultado.imported, withErrors: resultado.withErrors });
+    onSuccess: (resultado: {
+      imported: number;
+      withErrors: number;
+      rows?: { counted: number | null }[];
+    }) => {
+      // Carlos (2026-09-01): subió el conteo y vio «0 coinciden, 19 omitidos»
+      // sin explicación. Si NINGUNA fila trae «contado», se dice: lo más
+      // probable es que el archivo se subió sin guardar los cambios de Excel.
+      const noCounted =
+        resultado.imported > 0 &&
+        (resultado.rows ?? []).every((r) => r.counted === null || r.counted === undefined);
+      setDone({ imported: resultado.imported, withErrors: resultado.withErrors, noCounted });
       void queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, doc.id] });
     },
     onError: () => setError(t("inventory.count.importFailed")),
@@ -102,6 +117,16 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
             </p>
           )}
         </SuccessNotice>
+      )}
+
+      {done !== null && done.noCounted && (
+        <p
+          role="alert"
+          data-testid="count-import-no-counted"
+          className="rounded-md bg-warning-soft px-3 py-2 text-sm"
+        >
+          {t("inventory.count.importNoCounted", { count: done.imported })}
+        </p>
       )}
     </div>
   );

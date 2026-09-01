@@ -213,7 +213,7 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
     await renderCount();
     await screen.findByText("INV-000007");
 
-    expect(screen.getByLabelText(/subir conteo/i)).toHaveClass("sr-only");
+    expect(screen.getByLabelText(/elegir archivo/i)).toHaveClass("sr-only");
   });
 
   it("subir el archivo lo manda al borrador, en base64", async () => {
@@ -224,7 +224,7 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
     const archivo = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "conteo.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    await user.upload(screen.getByLabelText(/subir conteo/i), archivo);
+    await user.upload(screen.getByLabelText(/elegir archivo/i), archivo);
 
     await waitFor(() => {
       expect(mocked.importDocumentLines).toHaveBeenCalledWith(
@@ -245,7 +245,7 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
     await screen.findByText("INV-000007");
 
     await user.upload(
-      screen.getByLabelText(/subir conteo/i),
+      screen.getByLabelText(/elegir archivo/i),
       new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "conteo.xlsx", {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       }),
@@ -416,5 +416,56 @@ describe("Inventario físico: reconciliación y aprobación (F3-COUNT-05)", () =
     await user.click(await screen.findByRole("button", { name: /^confirmar inventario físico$/i }));
 
     expect(await screen.findByText(/2 líneas cambiaron/i)).toBeInTheDocument();
+  });
+});
+
+describe("subir el conteo (Carlos, 2026-09-01)", () => {
+  const archivo = () =>
+    new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "conteo.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+  it("el botón dice «Elegir archivo», igual que al importar catálogos", async () => {
+    await renderCount();
+    await screen.findByText("INV-000007");
+
+    expect(screen.getByText("Elegir archivo")).toHaveAttribute("for", "count-upload");
+  });
+
+  it("si ninguna fila trae «contado», lo dice — no deja que «0 coinciden» lo cuente", async () => {
+    mocked.importDocumentLines.mockResolvedValue({
+      imported: 19,
+      withErrors: 0,
+      rows: [
+        { row: 2, counted: null },
+        { row: 3, counted: null },
+      ],
+    });
+    const { user } = await renderCount();
+    await screen.findByText("INV-000007");
+
+    await user.upload(screen.getByLabelText(/elegir archivo/i), archivo());
+
+    const aviso = await screen.findByTestId("count-import-no-counted");
+    expect(aviso).toHaveTextContent(/contado/);
+    expect(aviso).toHaveTextContent(/guardado el archivo/i);
+  });
+
+  it("con al menos una fila contada, no hay aviso", async () => {
+    mocked.importDocumentLines.mockResolvedValue({
+      imported: 2,
+      withErrors: 0,
+      rows: [
+        { row: 2, counted: 0 },
+        { row: 3, counted: null },
+      ],
+    });
+    const { user } = await renderCount();
+    await screen.findByText("INV-000007");
+
+    await user.upload(screen.getByLabelText(/elegir archivo/i), archivo());
+
+    await screen.findByTestId("count-import-done");
+    expect(screen.queryByTestId("count-import-no-counted")).not.toBeInTheDocument();
   });
 });

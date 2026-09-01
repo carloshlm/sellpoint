@@ -47,6 +47,7 @@
   "list": {
     "searchFolio": "Buscar por folio…",
     "create": "Crear",
+    "createFailed": "No se pudo crear el documento. Intenta de nuevo.",
     "empty": "Todavía no hay movimientos de este tipo.",
     "noResults": "Ningún movimiento coincide con lo que buscas.",
     "lines": "Líneas",
@@ -217,7 +218,7 @@
   "count": {
     "templateXlsx": "Plantilla .xlsx",
     "templateHint": "Los productos con lote traen una fila por lote y ubicación; deja esas columnas vacías en los que no lo manejan.",
-    "upload": "Subir conteo",
+    "upload": "Elegir archivo",
     "uploadHint": "Sube el archivo con la columna «contado» llena. Reemplaza lo cargado antes.",
     "freshHint": "El conteo se aplica sobre el saldo del momento de aprobar, no sobre el de ahora: si alguien vende mientras cuentas, se toma en cuenta.",
     "theoretical": "Teórico",
@@ -235,7 +236,8 @@
     "drifted_one": "{{count}} línea cambió de saldo entre el conteo y la aprobación. Se aplicó lo contado.",
     "importFailed": "No se pudo leer el archivo. Verifica que sea la plantilla descargada.",
     "importDone": "Conteo cargado: {{count}} filas.",
-    "importDoneWithErrors": "{{count}} filas no se pudieron leer: revísalas en el listado."
+    "importDoneWithErrors": "{{count}} filas no se pudieron leer: revísalas en el listado.",
+    "importNoCounted": "Se cargaron {{count}} filas, pero ninguna trae un valor en «contado». Revisa que hayas guardado el archivo en Excel después de llenarlo y súbelo de nuevo."
   },
   "kardex": {
     "title": "Kardex",

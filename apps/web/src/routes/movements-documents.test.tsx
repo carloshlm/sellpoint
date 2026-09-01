@@ -386,3 +386,41 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     });
   });
 });
+
+/**
+ * Carlos (2026-09-01): con un inventario en borrador, «Crear» no hacía NADA
+ * visible — el 409 del API se perdía en un `mutateAsync` sin catch. El
+ * mensaje del servidor trae el folio abierto y se muestra tal cual.
+ */
+describe("crear con uno abierto (Carlos, 2026-09-01)", () => {
+  it("el 409 se muestra con el folio que estorba y el botón vuelve a servir", async () => {
+    const user = userEvent.setup();
+    mockedWarehouses.mockResolvedValue([
+      {
+        id: "w1",
+        code: "ALM-001",
+        name: "Central",
+        address: null,
+        phone: null,
+        email: null,
+        attributes: {},
+        isActive: true,
+        deactivationBlockedBy: null,
+      },
+    ]);
+    mockedCreate.mockRejectedValue({
+      statusCode: 409,
+      message:
+        "Ya hay un inventario físico abierto para este almacén (INV-000009). Cancélalo o confírmalo antes de empezar otro.",
+    });
+    const router = await renderRuta("/movements/counts");
+    await screen.findByText("ENT-000042");
+
+    await user.click(screen.getByRole("button", { name: /crear/i }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent("INV-000009");
+    expect(router.state.location.pathname).toBe("/movements/counts");
+    expect(screen.getByRole("button", { name: /crear/i })).toBeEnabled();
+  });
+});

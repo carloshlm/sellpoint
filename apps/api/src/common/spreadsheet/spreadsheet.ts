@@ -62,7 +62,7 @@ export async function parseSpreadsheet(
     // `row.values` es 1-based y su índice 0 viene vacío — de ahí el slice.
     const values = Array.isArray(row.values) ? row.values.slice(1) : [];
     for (const value of values) {
-      cells.push(cellToString(value));
+      cells.push(cellToString(resolveFormula(sheet, row, value)));
     }
     rows.push(cells);
   });
@@ -111,6 +111,68 @@ export async function serializeSpreadsheet(
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     filename: `${base}.xlsx`,
   };
+}
+
+/** Una referencia simple a otra celda: `G2`, `$G$2`. Nada más. */
+const SIMPLE_REFERENCE = /^\$?([A-Z]{1,3})\$?(\d+)$/;
+
+interface FormulaCell {
+  formula?: unknown;
+  sharedFormula?: unknown;
+  result?: unknown;
+}
+
+/**
+ * Una fórmula SIN resultado en caché no es lo que Excel escribe —Excel siempre
+ * guarda el valor calculado—: es lo que ExcelJS devuelve cuando ese valor es
+ * «falsy» (`if (model.value)` en su cell-xform), o sea un 0. En un conteo, un
+ * `=G2` que da 0 es «conté cero», no «no conté» (Carlos, 2026-09-01).
+ *
+ * Se resuelve solo el caso que se puede resolver sin evaluar nada: la fórmula
+ * es una referencia simple a una celda de la MISMA fila (la de `=G2`
+ * arrastrado hacia abajo). Para una compartida, la fila es la de la celda
+ * hija, no la de la maestra. Cualquier otra fórmula queda como estaba.
+ */
+function resolveFormula(sheet: ExcelJS.Worksheet, row: ExcelJS.Row, value: unknown): unknown {
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+  const cell = value as FormulaCell;
+  if (cell.result !== undefined) {
+    return value;
+  }
+  const formula =
+    typeof cell.formula === "string"
+      ? cell.formula
+      : typeof cell.sharedFormula === "string"
+        ? (sheet.getCell(cell.sharedFormula).value as FormulaCell | null)?.formula
+        : undefined;
+  if (typeof formula !== "string") {
+    return value;
+  }
+  const match = SIMPLE_REFERENCE.exec(formula.trim().toUpperCase());
+  if (match === null) {
+    return value;
+  }
+  const [, column, referencedRow] = match;
+  if (column === undefined || referencedRow === undefined) {
+    return value;
+  }
+  // La maestra tiene que apuntar a su propia fila para que arrastrarla
+  // signifique «la misma columna, en cada fila».
+  const masterRow =
+    typeof cell.sharedFormula === "string"
+      ? Number(sheet.getCell(cell.sharedFormula).row)
+      : row.number;
+  if (Number(referencedRow) !== masterRow) {
+    return value;
+  }
+  const referenced = row.getCell(column).value;
+  // Un solo salto: si la referida también es una fórmula sin caché, no se
+  // persigue — se devuelve vacío en vez de adivinar.
+  return referenced !== null && typeof referenced === "object" && "formula" in referenced
+    ? ""
+    : referenced;
 }
 
 /**
