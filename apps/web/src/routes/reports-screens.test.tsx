@@ -156,6 +156,19 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       expect(screen.getByText(/\$8\.00/)).toBeInTheDocument();
     });
 
+    /**
+     * Carlos (2026-09-01): la flecha de «Producto» no hacía nada — el API
+     * siempre ordena por nombre y el toggle asc/desc no viajaba a ningún
+     * lado. Un control que no controla es peor que ninguno: se quita.
+     */
+    it("ninguna columna ofrece ordenar: el orden lo fija el servidor", async () => {
+      await renderRuta("/reports/stock");
+      await screen.findByText("Café");
+
+      expect(screen.queryByRole("button", { name: /producto/i })).not.toBeInTheDocument();
+      expect(screen.queryByText("↑")).not.toBeInTheDocument();
+    });
+
     it("filtrar por almacén viaja al API", async () => {
       await renderRuta("/reports/stock");
       await screen.findByText("Café");

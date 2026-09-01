@@ -145,6 +145,7 @@
   "composite_without_composition": "Este producto compuesto no tiene componentes definidos.",
   "insufficient_stock": "No hay suficiente existencia de «{{sku}}»: hay {{available}} y se piden {{requested}}.",
   "lot_required": "Este producto se controla por lote: falta indicar cuál.",
+  "expiry_required": "Este producto se controla por lote: falta la fecha de caducidad del lote.",
   "lot_not_tracked": "Este producto no se controla por lote.",
   "lot_expiry_mismatch": "El lote «{{lotCode}}» ya existe con otra fecha de caducidad.",
   "insufficient_lot_stock": "El lote «{{lotCode}}» tiene {{available}} y se piden {{requested}}.",

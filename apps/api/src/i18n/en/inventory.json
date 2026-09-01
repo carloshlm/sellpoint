@@ -24,6 +24,7 @@
   "lot_not_found": "The lot does not exist.",
   "lot_not_tracked": "This product isn't tracked by lot.",
   "lot_required": "This product is tracked by lot: please indicate which one.",
+  "expiry_required": "This product is tracked by lot: the lot's expiry date is missing.",
   "note_required": "An explanation is missing: this reason requires a note.",
   "presentation_invalid": "The chosen presentation doesn't belong to this product or is inactive.",
   "product_inactive": "This product is inactive.",

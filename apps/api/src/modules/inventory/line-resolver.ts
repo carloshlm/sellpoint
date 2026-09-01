@@ -345,6 +345,23 @@ async function resolveLot(
         args: { lotCode, lineIndex, field: "expiresAt" },
       });
     }
+    // Un lote heredado SIN fecha (de antes de la regla de abajo) no puede
+    // seguir recibiendo mercancía a ciegas: o la línea trae la caducidad —y
+    // el lote se la queda, porque la fecha es del lote— o la entrada no pasa.
+    if (options.direction === "entry" && guardada === null) {
+      if (pedida === null) {
+        throw new UnprocessableEntityException({
+          message: "inventory.expiry_required",
+          args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
+        });
+      }
+      if (!preview) {
+        await tx.productLot.update({
+          where: { id: existing.id },
+          data: { expiresAt: new Date(line.expiresAt as string) },
+        });
+      }
+    }
     // Elegir el lote a mano NO es una llave maestra. FEFO ya se niega a tomar
     // un vencido para una venta; si esto no estuviera, bastaría con teclear el
     // código del lote para saltarse la regla — y quien lo teclea suele ser
@@ -374,6 +391,17 @@ async function resolveLot(
     }
 
     return { lotId: existing.id, location };
+  }
+
+  // Un lote NUEVO nace con su caducidad o no nace (Carlos, 2026-09-01): sin
+  // fecha, FEFO no lo puede ordenar y «próximos a vencer» nunca lo verá.
+  // Misma obligatoriedad que el código del lote, y en el mismo momento: la
+  // ENTRADA, que es cuando la partida llega al negocio.
+  if (options.direction === "entry" && !line.expiresAt) {
+    throw new UnprocessableEntityException({
+      message: "inventory.expiry_required",
+      args: { sku: product.sku, lotCode, lineIndex, field: "expiresAt" },
+    });
   }
 
   // En previa NO se crea: mirar no puede dejar lotes fantasma en la base. Se

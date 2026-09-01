@@ -31,8 +31,6 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
   const [belowMin, setBelowMin] = useState(initialBelowMin);
   const [detalle, setDetalle] = useState(false);
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string | undefined>(undefined);
-  const [sortDir, setSortDir] = useState<"asc" | "desc" | undefined>(undefined);
 
   /**
    * Los FILTROS van separados de la paginación, y no es cosmético: el endpoint
@@ -58,7 +56,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         { key: "quantity", header: t("reports.stock.quantity"), numeric: true },
       ]
     : [
-        { key: "name", header: t("reports.stock.product"), sortable: true },
+        { key: "name", header: t("reports.stock.product") },
         { key: "warehouseName", header: t("reports.stock.warehouse") },
         { key: "quantity", header: t("reports.stock.quantity"), numeric: true },
         { key: "stockMin", header: t("reports.stock.min"), numeric: true },
@@ -91,10 +89,10 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
           ),
   }));
 
+  // Sin orden por columna (Carlos, 2026-09-01): el API ordena siempre por
+  // nombre y una flecha que no cambia nada es peor que ninguna.
   function cambiarConsulta(query: ReportQuery) {
     setPage(query.page);
-    setSortBy(query.sortBy);
-    setSortDir(query.sortDir);
   }
 
   /** Cualquier cambio de filtro vuelve a la página 1: ver `ReportTable`. */
@@ -144,8 +142,6 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         page={page}
         pageSize={data?.pageSize ?? 20}
         isPending={isPending}
-        {...(sortBy !== undefined && { sortBy })}
-        {...(sortDir !== undefined && { sortDir })}
         error={error === null ? null : (error?.message ?? null)}
         onQueryChange={cambiarConsulta}
         onExport={() => void downloadStockReport(filtros)}

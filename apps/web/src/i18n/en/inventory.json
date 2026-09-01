@@ -145,6 +145,7 @@
   "composite_without_composition": "This composite product has no components defined.",
   "insufficient_stock": "Not enough stock of \"{{sku}}\": there are {{available}} and {{requested}} were requested.",
   "lot_required": "This product is tracked by lot: please indicate which one.",
+  "expiry_required": "This product is tracked by lot: the lot's expiry date is missing.",
   "lot_not_tracked": "This product isn't tracked by lot.",
   "lot_expiry_mismatch": "Lot \"{{lotCode}}\" already exists with a different expiry date.",
   "insufficient_lot_stock": "Lot \"{{lotCode}}\" has {{available}} and {{requested}} were requested.",

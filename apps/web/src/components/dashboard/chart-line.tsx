@@ -20,6 +20,8 @@ interface ChartLineProps {
   formatValue?: (value: number) => string;
   /** Formato de los ticks del eje Y (p. ej. moneda SIN centavos: en un eje, los `.00` son ruido). */
   formatAxis?: (value: number) => string;
+  /** Formato del ENCABEZADO del tooltip (p. ej. «Día 24»: un «24» pelón no dice de qué habla). */
+  formatLabel?: (label: string) => string;
 }
 
 /**
@@ -35,6 +37,7 @@ function ChartLine({
   height = 260,
   formatValue,
   formatAxis,
+  formatLabel,
 }: ChartLineProps) {
   if (data.length === 0) {
     return <ChartEmpty label={label} height={height} />;
@@ -57,6 +60,7 @@ function ChartLine({
           />
           <Tooltip
             formatter={formatValue ? (valor) => formatValue(Number(valor)) : undefined}
+            labelFormatter={formatLabel ? (etiqueta) => formatLabel(String(etiqueta)) : undefined}
             contentStyle={{
               background: "var(--popover)",
               border: "1px solid var(--border)",

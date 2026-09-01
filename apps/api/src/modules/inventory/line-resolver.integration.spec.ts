@@ -195,6 +195,54 @@ describe("resolveLines (F3-CORE-04)", () => {
       });
     });
 
+    /**
+     * Carlos (2026-09-01): «me dejó hacer una entrada de un producto
+     * controlado por lotes sin poner fecha de caducidad». Un lote sin fecha
+     * es un lote que FEFO no puede ordenar y que el aviso de «próximos a
+     * vencer» nunca verá: en ENTRADA la caducidad es obligatoria, igual que
+     * el código del lote.
+     */
+    it("una entrada a un lote NUEVO exige la caducidad", async () => {
+      await expect(
+        resolve([{ productId: loteadoId, quantity: 5, lotCode: `sin-fecha-${Date.now()}` }]),
+      ).rejects.toMatchObject({
+        response: { message: "inventory.expiry_required", args: { field: "expiresAt" } },
+      });
+    });
+
+    it("un lote viejo SIN fecha también la exige — y la toma de la línea que la trae", async () => {
+      const lotCode = `legado-${Date.now()}`;
+      // Un lote heredado de antes de la regla: existe, pero sin caducidad.
+      const legado = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.create({ data: { tenantId, productId: loteadoId, lotCode } }),
+      );
+
+      await expect(resolve([{ productId: loteadoId, quantity: 1, lotCode }])).rejects.toMatchObject(
+        { response: { message: "inventory.expiry_required" } },
+      );
+
+      await resolve([{ productId: loteadoId, quantity: 1, lotCode, expiresAt: "2027-01-31" }]);
+      const actualizado = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.findUniqueOrThrow({ where: { id: legado.id }, select: { expiresAt: true } }),
+      );
+      // La fecha es del LOTE: la primera entrada que la trae se la deja puesta.
+      expect(actualizado.expiresAt?.toISOString().slice(0, 10)).toBe("2027-01-31");
+    });
+
+    it("en SALIDA un lote existente no exige fecha: no es el momento en que entra", async () => {
+      const lotCode = `salida-${Date.now()}`;
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productLot.create({ data: { tenantId, productId: loteadoId, lotCode } }),
+      );
+
+      await expect(
+        resolve([{ productId: loteadoId, quantity: 1, lotCode }], {
+          direction: "exit",
+          reasonCode: "loss",
+        }),
+      ).resolves.toBeDefined();
+    });
+
     it("el lote se crea si no existía, y se reusa si ya estaba", async () => {
       const lotCode = `st${Date.now()}`;
       const [first] = await resolve([
@@ -232,7 +280,12 @@ describe("resolveLines (F3-CORE-04)", () => {
 
     it("sin ubicación, la ubicación es `''` y no nula: entra en la clave del saldo", async () => {
       const [line] = await resolve([
-        { productId: loteadoId, quantity: 1, lotCode: `st-ubic-${Date.now()}` },
+        {
+          productId: loteadoId,
+          quantity: 1,
+          lotCode: `st-ubic-${Date.now()}`,
+          expiresAt: "2027-06-30",
+        },
       ]);
 
       expect(line?.location).toBe("");

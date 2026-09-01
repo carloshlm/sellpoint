@@ -15,7 +15,9 @@
     "monthVsPrev": "Sales: this month vs last",
     "byHour": "Today's sales by hour",
     "current": "This month",
-    "previous": "Last month"
+    "previous": "Last month",
+    "dayLabel": "Day {{day}}",
+    "hourLabel": "{{hour}}:00"
   },
   "period": {
     "today": "Today",

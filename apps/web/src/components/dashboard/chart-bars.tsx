@@ -13,6 +13,8 @@ interface ChartBarsProps {
   formatValue?: (value: number) => string;
   /** Formato de los ticks del eje Y (p. ej. moneda SIN centavos: en un eje, los `.00` son ruido). */
   formatAxis?: (value: number) => string;
+  /** Formato del ENCABEZADO del tooltip (p. ej. «15 hrs.»: un «15» pelón no dice de qué habla). */
+  formatLabel?: (label: string) => string;
 }
 
 /** Barras simples (F5-DASH-08) — las ventas por hora del día. */
@@ -25,6 +27,7 @@ function ChartBars({
   height = 260,
   formatValue,
   formatAxis,
+  formatLabel,
 }: ChartBarsProps) {
   if (data.length === 0) {
     return <ChartEmpty label={label} height={height} />;
@@ -47,6 +50,7 @@ function ChartBars({
           />
           <Tooltip
             formatter={formatValue ? (valor) => formatValue(Number(valor)) : undefined}
+            labelFormatter={formatLabel ? (etiqueta) => formatLabel(String(etiqueta)) : undefined}
             cursor={{ fill: "var(--muted)" }}
             contentStyle={{
               background: "var(--popover)",

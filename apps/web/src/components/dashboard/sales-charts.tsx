@@ -63,6 +63,9 @@ function SalesCharts() {
           ]}
           formatValue={dinero}
           formatAxis={(valor) => dineroEje.format(valor)}
+          // «Día 24» y no «24» (Carlos, 2026-09-01): el encabezado del
+          // tooltip tiene que decir de qué habla.
+          formatLabel={(dia) => t("dashboard.charts.dayLabel", { day: dia })}
         />
       </section>
       <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4">
@@ -75,6 +78,7 @@ function SalesCharts() {
           barKey="total"
           formatValue={dinero}
           formatAxis={(valor) => dineroEje.format(valor)}
+          formatLabel={(hora) => t("dashboard.charts.hourLabel", { hour: hora })}
         />
       </section>
     </div>

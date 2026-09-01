@@ -15,7 +15,9 @@
     "monthVsPrev": "Ventas: mes actual vs anterior",
     "byHour": "Ventas de hoy por hora",
     "current": "Mes actual",
-    "previous": "Mes anterior"
+    "previous": "Mes anterior",
+    "dayLabel": "Día {{day}}",
+    "hourLabel": "{{hour}} hrs."
   },
   "period": {
     "today": "Hoy",
