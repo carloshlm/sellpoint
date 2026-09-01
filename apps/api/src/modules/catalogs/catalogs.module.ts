@@ -4,6 +4,7 @@ import { CatalogFieldsController } from "./catalog-fields.controller";
 import { CatalogFieldsService } from "./catalog-fields.service";
 import { CatalogRecordsController } from "./catalog-records.controller";
 import { CatalogRecordsService } from "./catalog-records.service";
+import { CatalogRecordsImportService } from "./catalog-records-import.service";
 import { CatalogsController } from "./catalogs.controller";
 import { CatalogsService } from "./catalogs.service";
 
@@ -12,7 +13,12 @@ import { CatalogsService } from "./catalogs.service";
 @Module({
   imports: [AuditModule],
   controllers: [CatalogsController, CatalogFieldsController, CatalogRecordsController],
-  providers: [CatalogsService, CatalogFieldsService, CatalogRecordsService],
+  providers: [
+    CatalogsService,
+    CatalogFieldsService,
+    CatalogRecordsService,
+    CatalogRecordsImportService,
+  ],
   exports: [CatalogsService, CatalogFieldsService, CatalogRecordsService],
 })
 export class CatalogsModule {}

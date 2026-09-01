@@ -67,6 +67,21 @@
     "lookupPlaceholder": "Choose an option",
     "lookupEmpty": "The catalog this field points to has no records yet."
   },
+  "import": {
+    "button": "Import",
+    "title": "Import records",
+    "step1": "1. Download the template: it brings this sub-catalog's fields and the records you already created.",
+    "step2": "2. Edit it and upload it (Excel).",
+    "downloadXlsx": "Excel template",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen",
+    "confirm": "Import",
+    "report": "{{valid}} valid rows ({{created}} new, {{updated}} updates) · {{failed}} with errors",
+    "rowError": "Row {{row}}: {{message}}",
+    "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
+    "skipErrors": "Import the valid ones and skip rows with errors",
+    "done": "{{count}} records imported."
+  },
   "records": {
     "title": "Records",
     "add": "New record",

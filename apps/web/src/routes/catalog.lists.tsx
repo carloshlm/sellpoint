@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ImportDialog } from "@/components/common/import-dialog";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -26,6 +27,7 @@ import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { CatalogField, CatalogRecord } from "@/lib/catalogs/api";
 import {
+  recordsQueryKey,
   useCatalogFields,
   useCatalogRecords,
   useCatalogs,
@@ -34,6 +36,7 @@ import {
   useLookupOptions,
   useUpdateRecord,
 } from "@/lib/catalogs/hooks";
+import { downloadRecordsImportTemplate, runRecordsImport } from "@/lib/catalogs/import-api";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 
 export const Route = createFileRoute("/catalog/lists")({
@@ -84,6 +87,7 @@ function CatalogListsContent() {
   const records = recordsPage?.rows;
   const [editing, setEditing] = useState<CatalogRecord | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   if (isPending) {
     return <p role="status">{t("common.form.loading")}</p>;
@@ -120,10 +124,31 @@ function CatalogListsContent() {
             setCreating(false);
           }}
         />
-        {canWrite && !creating && !editing && (
-          <Button onClick={() => setCreating(true)}>{t("catalogs.records.add")}</Button>
+        {canWrite && !creating && !editing && !importing && (
+          <div className="flex gap-2">
+            {/* Importar por Excel (Carlos, 2026-09-01): el mismo flujo de
+                productos, servicios y almacenes, para CUALQUIER subcatálogo. */}
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              {t("catalogs.import.button")}
+            </Button>
+            <Button onClick={() => setCreating(true)}>{t("catalogs.records.add")}</Button>
+          </div>
         )}
       </div>
+
+      {importing && (
+        <ImportDialog
+          // El id del catálogo va en el prefijo: cambiar de subcatálogo
+          // remonta el diálogo con el estado limpio.
+          key={catalogId}
+          testIdPrefix="records-import"
+          i18nPrefix="catalogs.import"
+          downloadTemplate={() => downloadRecordsImportTemplate(catalogId)}
+          run={(input) => runRecordsImport(catalogId, input)}
+          invalidate={[recordsQueryKey(catalogId)]}
+          onClose={() => setImporting(false)}
+        />
+      )}
 
       {(creating || editing) && (
         <Card>

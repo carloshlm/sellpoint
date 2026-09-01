@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
+import * as importApi from "../lib/catalogs/import-api";
 import { createQueryClient } from "../lib/query-client";
 import { routeTree } from "../routeTree.gen";
 
@@ -30,7 +31,13 @@ vi.mock("../lib/catalogs/api", () => ({
   deleteRecord: vi.fn(),
 }));
 
+vi.mock("../lib/catalogs/import-api", () => ({
+  downloadRecordsImportTemplate: vi.fn(),
+  runRecordsImport: vi.fn(),
+}));
+
 const mockedApi = vi.mocked(catalogsApi);
+const mockedImport = vi.mocked(importApi);
 
 const demoUser = (permissions: string[]): AuthUser => ({
   id: "u1",
@@ -277,6 +284,70 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
  * Eliminar un registro (Carlos, 2026-08-25): uno libre se borra de verdad; el
  * 409 de uno referenciado por lookup se muestra sin que la fila desaparezca.
  */
+/**
+ * Importar registros por Excel (Carlos, 2026-09-01): para CUALQUIER
+ * subcatálogo, con el diálogo común. El endpoint va parametrizado por el
+ * catálogo que está seleccionado en pantalla.
+ */
+describe("importar registros de un subcatálogo (2026-09-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedApi.listCatalogs.mockResolvedValue([PRODUCTS, UNITS]);
+    mockedApi.listFields.mockResolvedValue([MEDIDA_FIELD]);
+    mockedApi.listRecords.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+    mockedApi.listLookupOptions.mockResolvedValue([]);
+  });
+
+  it("la plantilla y el dry-run van al subcatálogo elegido; al aplicar, cuadro verde con foco", async () => {
+    const user = userEvent.setup();
+    mockedImport.downloadRecordsImportTemplate.mockResolvedValue(undefined);
+    mockedImport.runRecordsImport.mockResolvedValue({
+      valid: 3,
+      failed: 0,
+      created: 2,
+      updated: 1,
+      errors: [],
+      applied: false,
+    });
+    await renderLists();
+
+    await user.click(await screen.findByRole("button", { name: "Importar" }));
+    await user.click(screen.getByRole("button", { name: "Plantilla Excel" }));
+    expect(mockedImport.downloadRecordsImportTemplate).toHaveBeenCalledWith("cat-units");
+
+    await user.upload(
+      screen.getByLabelText("Elegir archivo"),
+      new File([new Uint8Array([0x50, 0x4b])], "laboratorios.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+    await waitFor(() =>
+      expect(mockedImport.runRecordsImport).toHaveBeenCalledWith(
+        "cat-units",
+        expect.objectContaining({ dryRun: true }),
+      ),
+    );
+    expect(await screen.findByTestId("records-import-report")).toHaveTextContent("2 altas");
+
+    mockedImport.runRecordsImport.mockResolvedValue({
+      valid: 3,
+      failed: 0,
+      created: 2,
+      updated: 1,
+      errors: [],
+      applied: true,
+    });
+    // Dos botones dicen «Importar» (el de la cabecera ya no: se esconde
+    // mientras el diálogo está abierto); el del reporte es el que aplica.
+    await user.click(screen.getByRole("button", { name: "Importar" }));
+
+    const listo = await screen.findByTestId("records-import-done");
+    expect(listo).toHaveTextContent("3 registros");
+    expect(listo).toHaveFocus();
+  });
+});
+
 describe("Eliminar un registro (2026-08-25)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
