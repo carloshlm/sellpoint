@@ -197,16 +197,14 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
     });
   });
 
-  it("también se puede bajar en csv", async () => {
-    mocked.downloadCountTemplate.mockResolvedValue(undefined);
+  it("la plantilla del conteo solo existe en Excel (Carlos, 2026-09-01)", async () => {
     const { user } = await renderCount();
     await screen.findByText("INV-000007");
 
-    await user.click(screen.getByRole("button", { name: /plantilla .csv/i }));
-
-    await waitFor(() => {
-      expect(mocked.downloadCountTemplate).toHaveBeenLastCalledWith("w1", "csv");
-    });
+    expect(screen.queryByRole("button", { name: /plantilla .csv/i })).not.toBeInTheDocument();
+    expect(document.getElementById("count-upload")).toHaveAttribute("accept", ".xlsx");
+    // `user` se usa para mantener la firma del arnés compartido.
+    void user;
   });
 
   /** Input `sr-only` + label, el patrón de F2-IMPORT: un `<input file>` crudo no se puede estilar. */
@@ -222,13 +220,15 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
     const { user } = await renderCount();
     await screen.findByText("INV-000007");
 
-    const archivo = new File(["sku,contado\nPAR-500,35"], "conteo.csv", { type: "text/csv" });
+    const archivo = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "conteo.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     await user.upload(screen.getByLabelText(/subir conteo/i), archivo);
 
     await waitFor(() => {
       expect(mocked.importDocumentLines).toHaveBeenCalledWith(
         "doc-1",
-        expect.objectContaining({ format: "csv", mode: "replace" }),
+        expect.objectContaining({ format: "xlsx", mode: "replace" }),
       );
     });
   });

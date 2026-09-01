@@ -8,6 +8,7 @@ import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
+import { ServiceImportDialog } from "@/components/services/service-import-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +75,7 @@ function ServicesContent() {
   const services = data?.rows;
   const [editing, setEditing] = useState<Service | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Service | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,16 +93,23 @@ function ServicesContent() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("services.page.title")}</h1>
         {canManage && !creating && !editing && (
-          <Button
-            onClick={() => {
-              setError(null);
-              setCreating(true);
-            }}
-          >
-            {t("services.add")}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              {t("services.import.title")}
+            </Button>
+            <Button
+              onClick={() => {
+                setError(null);
+                setCreating(true);
+              }}
+            >
+              {t("services.add")}
+            </Button>
+          </div>
         )}
       </div>
+
+      {importing && <ServiceImportDialog onClose={() => setImporting(false)} />}
 
       {error && (
         <p

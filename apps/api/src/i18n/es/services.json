@@ -2,10 +2,17 @@
   "code_taken": "Ya tienes un servicio con ese código.",
   "empty_update": "No hay cambios que guardar.",
   "has_sales": "No puedes eliminar un servicio que ya se vendió o cotizó. Desactívalo para esconderlo del punto de venta.",
-  "invalid_body": "Los datos enviados no son válidos.",
+  "invalid_body": "El cuerpo de la importación no es válido",
   "invalid_query": "Los filtros de búsqueda no son válidos.",
   "not_found": "El servicio no existe.",
   "warehouses_invalid": "Alguno de los almacenes no existe, no es tuyo o está desactivado.",
   "invalid_attributes": "Revisa los campos marcados.",
-  "catalog_missing": "Este negocio no tiene catálogo de servicios. Contacta a soporte."
+  "catalog_missing": "Este negocio no tiene catálogo de servicios. Contacta a soporte.",
+  "import_too_large": "El archivo supera el límite de 2 MB",
+  "import_unreadable": "No se pudo leer el archivo. ¿Es un Excel válido?",
+  "import_empty": "El archivo no trae filas de datos",
+  "import_missing_required": "Faltan el código o el nombre",
+  "import_duplicate_code": "El código se repite dentro del archivo",
+  "import_invalid_money": "El monto no es válido (positivo, hasta 2 decimales)",
+  "import_invalid_attributes": "Hay campos personalizados inválidos"
 }

@@ -59,22 +59,16 @@ describe("ProductImportDialog (F2-IMPORT-04)", () => {
     expect(input).toHaveAttribute("accept", expect.stringContaining(".xlsx"));
   });
 
-  it("un .csv se manda como texto plano", async () => {
-    const user = userEvent.setup();
+  it("el selector de archivo solo acepta Excel (Carlos, 2026-09-01)", () => {
     renderDialog();
 
-    await user.upload(
-      screen.getByLabelText("Elegir archivo"),
-      new File(["sku,nombre\nA-1,Uno"], "productos.csv", { type: "text/csv" }),
+    // Dos formatos era una decisión que nadie necesitaba tomar: el CSV se fue
+    // del flujo y el input ya ni lo ofrece.
+    expect(screen.getByLabelText("Elegir archivo")).toHaveAttribute(
+      "accept",
+      ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
-
-    await waitFor(() =>
-      expect(mockedApi.runImport).toHaveBeenCalledWith({
-        content: "sku,nombre\nA-1,Uno",
-        format: "csv",
-        dryRun: true,
-      }),
-    );
+    expect(screen.queryByRole("button", { name: "Plantilla CSV" })).not.toBeInTheDocument();
   });
 
   it("un .xlsx viaja en base64 y declara su formato", async () => {
@@ -103,7 +97,9 @@ describe("ProductImportDialog (F2-IMPORT-04)", () => {
 
     await user.upload(
       screen.getByLabelText("Elegir archivo"),
-      new File(["sku,nombre\nA-1,Uno"], "productos.csv", { type: "text/csv" }),
+      new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "productos.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
     );
 
     // "3 válidas" no alcanza: 2 de esas PISAN productos ya cargados.
@@ -112,14 +108,11 @@ describe("ProductImportDialog (F2-IMPORT-04)", () => {
     expect(breakdown).toHaveTextContent("2");
   });
 
-  it("la plantilla se puede pedir en los dos formatos", async () => {
+  it("la plantilla solo existe en Excel", async () => {
     const user = userEvent.setup();
     renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Plantilla Excel" }));
     expect(mockedApi.downloadImportTemplate).toHaveBeenCalledWith("xlsx");
-
-    await user.click(screen.getByRole("button", { name: "Plantilla CSV" }));
-    expect(mockedApi.downloadImportTemplate).toHaveBeenLastCalledWith("csv");
   });
 });

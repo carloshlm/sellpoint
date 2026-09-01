@@ -10,6 +10,7 @@ import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
 import { createQueryClient } from "../lib/query-client";
 import * as servicesApi from "../lib/services/api";
+import * as importApi from "../lib/services/import-api";
 import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
@@ -19,6 +20,11 @@ import { routeTree } from "../routeTree.gen";
  * Un servicio se vende pero NO mueve inventario: acá no hay almacén, ni
  * presentación, ni lote. Es el CRUD más simple del sistema a propósito.
  */
+vi.mock("../lib/services/import-api", () => ({
+  downloadServiceImportTemplate: vi.fn(),
+  readServiceImportFile: vi.fn().mockResolvedValue("QkFTRTY0"),
+  runServiceImport: vi.fn(),
+}));
 vi.mock("../lib/services/api", () => ({
   listServices: vi.fn(),
   createService: vi.fn(),
@@ -407,5 +413,48 @@ describe("campos dinámicos del servicio (2026-08-26)", () => {
       });
     });
     expect(mockedCatalogs.listFields).toHaveBeenCalledWith("cat-svc");
+  });
+
+  it("importar: dry-run con reporte y aplicar solo tras verlo (Carlos, 2026-09-01)", async () => {
+    const user = userEvent.setup();
+    const mockedRun = vi.mocked(importApi.runServiceImport);
+    mockedRun.mockResolvedValue({
+      valid: 2,
+      failed: 0,
+      created: 1,
+      updated: 1,
+      errors: [],
+      applied: false,
+    });
+    await renderServices();
+
+    await user.click(await screen.findByRole("button", { name: "Importar servicios" }));
+    await user.upload(
+      screen.getByLabelText("Elegir archivo"),
+      new File([new Uint8Array([0x50, 0x4b])], "servicios.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+
+    // Primero el reporte SIN escribir: dry-run obligatorio.
+    await waitFor(() =>
+      expect(mockedRun).toHaveBeenCalledWith({ content: "QkFTRTY0", dryRun: true }),
+    );
+    expect(await screen.findByTestId("service-import-report")).toHaveTextContent("1 altas");
+
+    mockedRun.mockResolvedValue({
+      valid: 2,
+      failed: 0,
+      created: 1,
+      updated: 1,
+      errors: [],
+      applied: true,
+    });
+    await user.click(screen.getByRole("button", { name: "Importar" }));
+
+    await waitFor(() =>
+      expect(mockedRun).toHaveBeenLastCalledWith({ content: "QkFTRTY0", skipErrors: false }),
+    );
+    expect(await screen.findByTestId("service-import-done")).toHaveTextContent("2 servicios");
   });
 });

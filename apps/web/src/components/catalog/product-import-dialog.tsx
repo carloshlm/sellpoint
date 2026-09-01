@@ -92,9 +92,9 @@ function ProductImportDialog({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-2">
           <p className="text-sm">{t("products.import.step1")}</p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => void downloadImportTemplate("csv")}>
-              {t("products.import.downloadCsv")}
-            </Button>
+            {/* Solo Excel (Carlos, 2026-09-01): dos formatos era una decisión
+                que nadie necesitaba tomar, y el CSV rompía acentos en Excel
+                según la configuración regional de cada máquina. */}
             <Button variant="outline" size="sm" onClick={() => void downloadImportTemplate("xlsx")}>
               {t("products.import.downloadXlsx")}
             </Button>
@@ -113,7 +113,7 @@ function ProductImportDialog({ onClose }: { onClose: () => void }) {
             <input
               id="import-file"
               type="file"
-              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="peer sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];

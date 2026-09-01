@@ -49,13 +49,6 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
         >
           {t("inventory.count.templateXlsx")}
         </button>
-        <button
-          type="button"
-          onClick={() => void downloadCountTemplate(doc.warehouse.id, "csv")}
-          className="rounded-md border border-input px-3 py-2 text-sm"
-        >
-          {t("inventory.count.templateCsv")}
-        </button>
 
         {/* Input `sr-only` detrás de su label: un `<input type="file">` crudo no
             se puede estilar y cada navegador lo dibuja distinto. Mismo patrón
@@ -69,7 +62,7 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
         <input
           id="count-upload"
           type="file"
-          accept=".csv,.xlsx"
+          accept=".xlsx"
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];

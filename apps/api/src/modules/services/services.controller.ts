@@ -9,13 +9,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { type ImportServicesDto, importServicesSchema } from "./dto/import-services.dto";
 import {
   type CreateServiceDto,
   createServiceSchema,
@@ -25,6 +28,7 @@ import {
   updateServiceSchema,
 } from "./dto/upsert-service.dto";
 import { ServicesService } from "./services.service";
+import { ServicesImportService } from "./services-import.service";
 
 function metaFrom(request: Request) {
   return { ip: request.ip, userAgent: request.headers["user-agent"] };
@@ -40,7 +44,42 @@ function metaFrom(request: Request) {
 @ApiTags("services")
 @Controller("services")
 export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {}
+  constructor(
+    private readonly servicesService: ServicesService,
+    private readonly importService: ServicesImportService,
+  ) {}
+
+  /** La plantilla trae los servicios ya dados de alta — editar y resubir. */
+  @Get("import/template")
+  @RequirePermissions("services:manage")
+  async importTemplate(@CurrentUser() user: AuthUser, @Res() response: Response) {
+    const { body, contentType, filename } = await this.importService.template(user);
+    response
+      .setHeader("Content-Type", contentType)
+      .setHeader("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(body);
+  }
+
+  @Post("import")
+  @HttpCode(200)
+  @RequirePermissions("services:manage")
+  import(
+    @Body(new ZodValidationPipe(importServicesSchema, "services.invalid_body"))
+    dto: ImportServicesDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.importService.run(
+      user,
+      dto.content,
+      {
+        dryRun: dto.dryRun,
+        skipErrors: dto.skipErrors,
+        locale: getLocale(request as Request & RequestWithLocale),
+      },
+      metaFrom(request),
+    );
+  }
 
   @Get()
   @RequirePermissions("services:read")

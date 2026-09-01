@@ -38,5 +38,18 @@
     "selectAll": "Select all",
     "clearAll": "Clear all",
     "count": "{{count}} of {{total}}"
+  },
+  "import": {
+    "title": "Import services",
+    "step1": "1. Download the template: it brings your catalog fields and the services you already created.",
+    "step2": "2. Edit it and upload it (Excel).",
+    "downloadXlsx": "Excel template",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen",
+    "confirm": "Import",
+    "report": "{{valid}} valid rows ({{created}} new, {{updated}} updates) · {{failed}} with errors",
+    "rowError": "Row {{row}}:",
+    "skipErrors": "Import the valid ones and skip rows with errors",
+    "done": "{{count}} services imported."
   }
 }
