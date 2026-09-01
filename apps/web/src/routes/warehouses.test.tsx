@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
@@ -103,8 +103,8 @@ const almacen = (over: Partial<warehousesApi.Warehouse>): warehousesApi.Warehous
   ...over,
 });
 
-async function renderWarehouses() {
-  useAuthStore.getState().setAuth("jwt", demoUser(["warehouses:read", "warehouses:manage"]));
+async function renderWarehouses(permissions = ["warehouses:read", "warehouses:manage"]) {
+  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/warehouses"] }),
@@ -437,5 +437,74 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
 
     // Solo pide los campos del catálogo de ALMACENES, no el primero isSystem.
     expect(mockedCatalogs.listFields).toHaveBeenCalledWith("cat-wh");
+  });
+});
+
+describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
+  beforeEach(() => {
+    mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+    mockedApi.listWarehouses.mockResolvedValue([
+      almacen({ id: "w1", code: "ALM-001", name: "Almacén Central", address: "Calle Central 5" }),
+      almacen({ id: "w2", code: "ALM-002", name: "Almacén Norte", address: "Calle Norte 5" }),
+      almacen({ id: "w3", code: "ALM-003", name: "Almacén Sur", address: null }),
+    ]);
+  });
+
+  it("filtra por nombre sin distinguir mayúsculas; el resto de filas desaparece", async () => {
+    await renderWarehouses();
+    const user = userEvent.setup();
+    expect(await screen.findByText("Almacén Norte")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/buscar almacén/i), "norte");
+
+    expect(screen.getByText("Almacén Norte")).toBeInTheDocument();
+    expect(screen.queryByText("Almacén Central")).not.toBeInTheDocument();
+    expect(screen.queryByText("Almacén Sur")).not.toBeInTheDocument();
+  });
+
+  it("también encuentra por código y por dirección", async () => {
+    await renderWarehouses();
+    const user = userEvent.setup();
+    const campo = await screen.findByLabelText(/buscar almacén/i);
+
+    await user.type(campo, "alm-003");
+    expect(screen.getByText("Almacén Sur")).toBeInTheDocument();
+    expect(screen.queryByText("Almacén Norte")).not.toBeInTheDocument();
+
+    await user.clear(campo);
+    await user.type(campo, "calle central");
+    expect(screen.getByText("Almacén Central")).toBeInTheDocument();
+    expect(screen.queryByText("Almacén Sur")).not.toBeInTheDocument();
+  });
+
+  it("sin coincidencias lo dice, sin confundirlo con «no hay almacenes»", async () => {
+    await renderWarehouses();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText(/buscar almacén/i), "zzz");
+
+    expect(screen.getByTestId("warehouses-no-matches")).toBeInTheDocument();
+    expect(screen.queryByTestId("warehouses-empty")).not.toBeInTheDocument();
+  });
+});
+
+describe("el menú CATÁLOGO (Carlos, 2026-09-01)", () => {
+  it("ordena Almacenes, Productos, Servicios, Campos y Subcatálogos", async () => {
+    mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+    mockedApi.listWarehouses.mockResolvedValue([almacen({})]);
+    await renderWarehouses([
+      "warehouses:read",
+      "products:read",
+      "services:read",
+      "catalogs:read",
+      "catalogs:manage",
+    ]);
+
+    const grupo = await screen.findByRole("group", { name: "Catálogo" });
+    const enlaces = within(grupo)
+      .getAllByRole("link")
+      .map((enlace) => enlace.textContent);
+    expect(enlaces).toEqual(["Almacenes", "Productos", "Servicios", "Campos", "Subcatálogos"]);
   });
 });

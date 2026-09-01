@@ -412,3 +412,35 @@ describe("Eliminar un registro (2026-08-25)", () => {
     expect(screen.getByText("kg")).toBeInTheDocument();
   });
 });
+
+describe("buscador de registros (Carlos, 2026-09-01)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedApi.listCatalogs.mockResolvedValue([PRODUCTS, UNITS]);
+    mockedApi.listFields.mockResolvedValue([MEDIDA_FIELD]);
+    mockedApi.listRecords.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+    mockedApi.listLookupOptions.mockResolvedValue([]);
+  });
+
+  it("lo que se escribe viaja al API como búsqueda, desde la página 1", async () => {
+    await renderLists();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/buscar registro/i), "hugo");
+
+    await waitFor(() => {
+      expect(mockedApi.listRecords).toHaveBeenCalledWith("cat-units", 1, "hugo");
+    });
+  });
+
+  it("sin coincidencias lo dice, sin confundirlo con «no hay registros»", async () => {
+    await renderLists();
+    const user = userEvent.setup();
+    expect(await screen.findByTestId("records-empty")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/buscar registro/i), "zzz");
+
+    expect(await screen.findByTestId("records-no-matches")).toBeInTheDocument();
+    expect(screen.queryByTestId("records-empty")).not.toBeInTheDocument();
+  });
+});

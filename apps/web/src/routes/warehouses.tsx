@@ -19,6 +19,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RowAction } from "@/components/ui/row-action";
 import {
   Table,
@@ -69,6 +71,18 @@ function WarehousesContent() {
   const { canWrite } = usePlan();
   const canManage = has("warehouses:manage") && canWrite;
   const { data: warehouses, isPending } = useWarehouses();
+  // Buscador (Carlos, 2026-09-01). Se filtra en el cliente: el API devuelve
+  // los almacenes COMPLETOS sin paginar, así que pedirle al server que
+  // busque sería un viaje de ida y vuelta por una lista que ya está aquí.
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const visibles = (warehouses ?? []).filter(
+    (warehouse) =>
+      !needle ||
+      warehouse.code.toLowerCase().includes(needle) ||
+      warehouse.name.toLowerCase().includes(needle) ||
+      (warehouse.address ?? "").toLowerCase().includes(needle),
+  );
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -136,9 +150,24 @@ function WarehousesContent() {
         </Card>
       )}
 
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="warehouse-search">{t("warehouses.search")}</Label>
+        <Input
+          id="warehouse-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("warehouses.searchPlaceholder")}
+          className="max-w-sm"
+        />
+      </div>
+
       {(warehouses ?? []).length === 0 ? (
         <p className="text-sm text-muted-foreground" data-testid="warehouses-empty">
           {t("warehouses.empty")}
+        </p>
+      ) : visibles.length === 0 ? (
+        <p className="text-sm text-muted-foreground" data-testid="warehouses-no-matches">
+          {t("warehouses.noMatches")}
         </p>
       ) : (
         <Table>
@@ -152,7 +181,7 @@ function WarehousesContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(warehouses ?? []).map((warehouse) => {
+            {visibles.map((warehouse) => {
               // F3-GUARDS-03, revisado (Carlos, 2026-08-25): el botón ya NO se
               // deshabilita. Deshabilitado tenía `pointer-events: none`, así
               // que el tooltip con el motivo no podía aparecer NUNCA — parecía

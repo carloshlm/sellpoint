@@ -529,3 +529,18 @@ describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
     ]);
   });
 });
+
+describe("nuevo subcatálogo (Carlos, 2026-09-01)", () => {
+  it("al nombrarlo sugiere el plural, con ejemplos", async () => {
+    await renderSchema();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /nuevo subcatálogo/i }));
+
+    const campo = await screen.findByLabelText(/nombre del subcatálogo/i);
+    const leyenda = screen.getByText(/en plural/i);
+    expect(leyenda).toHaveTextContent(/Proveedores/);
+    expect(leyenda).toHaveTextContent(/Clientes/);
+    expect(campo).toHaveAccessibleDescription(expect.stringMatching(/en plural/i));
+  });
+});

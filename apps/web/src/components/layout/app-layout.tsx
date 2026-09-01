@@ -97,9 +97,15 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const canSeeListsNav = has("catalogs:read");
   const canSeeSchemaNav = has("catalogs:manage");
   const canSeeServicesNav = has("services:read");
-  const canSeeCatalogNav =
-    canSeeProductsNav || canSeeServicesNav || canSeeListsNav || canSeeSchemaNav;
   const canSeeWarehousesNav = has("warehouses:read");
+  // Almacenes vive DENTRO del grupo Catálogo (Carlos, 2026-09-01): es un
+  // catálogo más, con su código y su importación, y va primero.
+  const canSeeCatalogNav =
+    canSeeWarehousesNav ||
+    canSeeProductsNav ||
+    canSeeServicesNav ||
+    canSeeListsNav ||
+    canSeeSchemaNav;
   // F3-NAV-02: los cinco listados de movimientos se ven con `inventory:read`.
   // El botón de CREAR, que exige `inventory:movement`, vive dentro de cada
   // pantalla: quien audita tiene que poder mirar sin poder mover.
@@ -171,6 +177,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {t("catalogs.nav.group")}
                 </span>
               )}
+              {canSeeWarehousesNav && (
+                <Link
+                  to="/warehouses"
+                  aria-label={t("warehouses.nav.group")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Warehouse className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("warehouses.nav.group")}</span>}
+                </Link>
+              )}
               {canSeeProductsNav && (
                 <Link
                   to="/catalog/products"
@@ -191,19 +207,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {expanded && <span className="truncate">{t("services.nav.item")}</span>}
                 </Link>
               )}
-              {canSeeListsNav &&
-                !hasFeature("custom_fields") &&
-                navLock(t("catalogs.nav.lists"), Package)}
-              {canSeeListsNav && hasFeature("custom_fields") && (
-                <Link
-                  to="/catalog/lists"
-                  aria-label={t("catalogs.nav.lists")}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-                >
-                  <Package className="size-4 shrink-0" aria-hidden="true" />
-                  {expanded && <span className="truncate">{t("catalogs.nav.lists")}</span>}
-                </Link>
-              )}
               {canSeeSchemaNav &&
                 !hasFeature("custom_fields") &&
                 navLock(t("catalogs.nav.schema"), Settings)}
@@ -217,22 +220,19 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   {expanded && <span className="truncate">{t("catalogs.nav.schema")}</span>}
                 </Link>
               )}
-            </fieldset>
-          )}
-
-          {canSeeWarehousesNav && (
-            <fieldset
-              aria-label={t("warehouses.nav.group")}
-              className="m-0 flex flex-col gap-1 border-0 p-0"
-            >
-              <Link
-                to="/warehouses"
-                aria-label={t("warehouses.nav.group")}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-              >
-                <Warehouse className="size-4 shrink-0" aria-hidden="true" />
-                {expanded && <span className="truncate">{t("warehouses.nav.group")}</span>}
-              </Link>
+              {canSeeListsNav &&
+                !hasFeature("custom_fields") &&
+                navLock(t("catalogs.nav.lists"), Package)}
+              {canSeeListsNav && hasFeature("custom_fields") && (
+                <Link
+                  to="/catalog/lists"
+                  aria-label={t("catalogs.nav.lists")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Package className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("catalogs.nav.lists")}</span>}
+                </Link>
+              )}
             </fieldset>
           )}
 

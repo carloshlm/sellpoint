@@ -112,10 +112,10 @@ export function useRemoveField(catalogId: string) {
   });
 }
 
-export function useCatalogRecords(catalogId: string | undefined, page = 1) {
+export function useCatalogRecords(catalogId: string | undefined, page = 1, search?: string) {
   return useQuery<RecordsPage, ApiError>({
-    queryKey: [...recordsQueryKey(catalogId ?? ""), page],
-    queryFn: () => listRecords(catalogId as string, page),
+    queryKey: [...recordsQueryKey(catalogId ?? ""), page, search ?? ""],
+    queryFn: () => listRecords(catalogId as string, page, search),
     enabled: Boolean(catalogId),
     placeholderData: (previous) => previous,
   });

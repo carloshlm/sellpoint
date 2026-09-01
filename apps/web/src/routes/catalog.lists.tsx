@@ -13,6 +13,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
 import {
@@ -78,12 +80,16 @@ function CatalogListsContent() {
 
   const { data: fields } = useCatalogFields(catalogId || undefined);
   const [pagina, setPagina] = useState(1);
-  // Cambiar de subcatálogo vuelve a la página 1.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: la dep ES el filtro
+  // Buscador (Carlos, 2026-09-01): va al server porque la tabla está
+  // paginada — filtrar solo la página visible mentiría.
+  const [query, setQuery] = useState("");
+  const search = query.trim() || undefined;
+  // Cambiar de subcatálogo o de búsqueda vuelve a la página 1.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
   useEffect(() => {
     setPagina(1);
-  }, [catalogId]);
-  const { data: recordsPage } = useCatalogRecords(catalogId || undefined, pagina);
+  }, [catalogId, search]);
+  const { data: recordsPage } = useCatalogRecords(catalogId || undefined, pagina, search);
   const records = recordsPage?.rows;
   const [editing, setEditing] = useState<CatalogRecord | null>(null);
   const [creating, setCreating] = useState(false);
@@ -170,9 +176,21 @@ function CatalogListsContent() {
         </Card>
       )}
 
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="record-search">{t("catalogs.records.search")}</Label>
+        <Input
+          id="record-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("catalogs.records.searchPlaceholder")}
+          className="max-w-sm"
+        />
+      </div>
+
       <RecordsTable
         fields={visibleFields}
         records={records ?? []}
+        searching={Boolean(search)}
         canWrite={canWrite}
         catalogId={catalogId}
         onEdit={(record) => {
@@ -194,12 +212,15 @@ function CatalogListsContent() {
 function RecordsTable({
   fields,
   records,
+  searching,
   canWrite,
   catalogId,
   onEdit,
 }: {
   fields: readonly CatalogField[];
   records: readonly CatalogRecord[];
+  /** Con búsqueda activa, el vacío es «sin coincidencias», no «sin registros». */
+  searching: boolean;
   canWrite: boolean;
   catalogId: string;
   onEdit: (record: CatalogRecord) => void;
@@ -211,7 +232,11 @@ function RecordsTable({
   const [error, setError] = useState<string | null>(null);
 
   if (records.length === 0) {
-    return (
+    return searching ? (
+      <p className="text-sm text-muted-foreground" data-testid="records-no-matches">
+        {t("catalogs.records.noMatches")}
+      </p>
+    ) : (
       <p className="text-sm text-muted-foreground" data-testid="records-empty">
         {t("catalogs.records.empty")}
       </p>

@@ -98,6 +98,7 @@ export class CatalogRecordsController {
     @CurrentUser() user: AuthUser,
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
+    @Query("search") search?: string,
   ) {
     // Con `query` responde opciones {id, code, display} listas para el picker;
     // sin él, la PÁGINA de filas para la tabla. Un `page` basura cae al
@@ -110,6 +111,7 @@ export class CatalogRecordsController {
     return this.recordsService.list(user, catalogId, {
       ...(Number.isFinite(parsedPage) ? { page: Math.floor(parsedPage) } : {}),
       ...(Number.isFinite(parsedSize) ? { pageSize: Math.floor(parsedSize) } : {}),
+      ...(typeof search === "string" ? { search } : {}),
     });
   }
 

@@ -413,7 +413,7 @@ function NewCatalogButton({ onCreated }: { onCreated: (id: string) => void }) {
 
   return (
     <form
-      className="flex items-end gap-2"
+      className="flex items-start gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         setError(null);
@@ -433,15 +433,20 @@ function NewCatalogButton({ onCreated }: { onCreated: (id: string) => void }) {
       <TextField
         label={t("catalogs.schema.newCatalogName")}
         value={name}
+        hint={t("catalogs.schema.newCatalogHint")}
         error={error ?? undefined}
         onChange={(event) => setName(event.target.value)}
       />
-      <Button type="submit" disabled={createCatalog.isPending || !name.trim()}>
-        {t("common.form.save")}
-      </Button>
-      <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-        {t("common.form.cancel")}
-      </Button>
+      {/* pt-7 = alto del label + su gap: los botones quedan a la altura del
+          input, no de la leyenda que va debajo. */}
+      <div className="flex gap-2 pt-7">
+        <Button type="submit" disabled={createCatalog.isPending || !name.trim()}>
+          {t("common.form.save")}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          {t("common.form.cancel")}
+        </Button>
+      </div>
     </form>
   );
 }

@@ -146,9 +146,15 @@ export interface RecordsPage {
   pageSize: number;
 }
 
-export async function listRecords(catalogId: string, page = 1): Promise<RecordsPage> {
+export async function listRecords(
+  catalogId: string,
+  page = 1,
+  search?: string,
+): Promise<RecordsPage> {
+  // `search` y no `query`: `?query=` en esta misma ruta responde las opciones
+  // del picker de lookups, no la tabla.
   const { data } = await api.get<RecordsPage>(`/catalogs/${catalogId}/records`, {
-    params: { page },
+    params: { page, ...(search ? { search } : {}) },
   });
   return data;
 }

@@ -61,6 +61,55 @@ describe("Motor de catálogos (F2-CAT)", () => {
       expect(p2.rows).toHaveLength(5);
       expect(new Set([...p1.rows, ...p2.rows].map((r) => r.code)).size).toBe(25);
     });
+
+    /**
+     * El buscador de registros (Carlos, 2026-09-01): `search` filtra por código
+     * y por el VALOR de cualquier atributo, sin distinguir mayúsculas. Las
+     * CLAVES del JSON no cuentan — buscar «nombre» no puede traer todo el
+     * subcatálogo solo porque cada fila tenga un campo así.
+     */
+    it("search filtra por código o por el valor de cualquier campo, nunca por la clave", async () => {
+      const { token } = await registerAndLogin();
+      const catalogo = await request(app.getHttpServer())
+        .post("/catalogs")
+        .set("Authorization", bearer(token))
+        .send({ name: "Proveedores buscables" })
+        .expect(201);
+      const catalogId = (catalogo.body as { id: string }).id;
+      await request(app.getHttpServer())
+        .post(`/catalogs/${catalogId}/fields`)
+        .set("Authorization", bearer(token))
+        .send({ label: "Nombre", fieldType: "text" })
+        .expect(201);
+      for (const [code, nombre] of [
+        ["PRV001", "Hugo Sánchez"],
+        ["PRV002", "Paco Pérez"],
+        ["OTRO-1", "Luis Hugo"],
+      ]) {
+        await request(app.getHttpServer())
+          .post(`/catalogs/${catalogId}/records`)
+          .set("Authorization", bearer(token))
+          .send({ code, attributes: { nombre } })
+          .expect(201);
+      }
+
+      const buscar = async (search: string) => {
+        const res = await request(app.getHttpServer())
+          .get(`/catalogs/${catalogId}/records`)
+          .query({ search })
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const body = res.body as { rows: { code: string }[]; total: number };
+        return { codes: body.rows.map((r) => r.code).sort(), total: body.total };
+      };
+
+      expect(await buscar("hugo")).toEqual({ codes: ["OTRO-1", "PRV001"], total: 2 });
+      expect(await buscar("prv")).toEqual({ codes: ["PRV001", "PRV002"], total: 2 });
+      expect(await buscar("nombre")).toEqual({ codes: [], total: 0 });
+      // Los comodines de LIKE llegan como texto literal, no como patrón.
+      expect(await buscar("%")).toEqual({ codes: [], total: 0 });
+      expect(await buscar("   ")).toEqual({ codes: ["OTRO-1", "PRV001", "PRV002"], total: 3 });
+    });
   });
 
   let app: INestApplication<App>;

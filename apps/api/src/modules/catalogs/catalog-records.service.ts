@@ -21,6 +21,11 @@ export interface CatalogRecordSummary {
   isActive: boolean;
 }
 
+/** `%`, `_` y `\` valen como texto literal dentro de un LIKE. */
+function likePattern(needle: string): string {
+  return `%${needle.replace(/[\\%_]/g, "\\$&")}%`;
+}
+
 /** Opción lista para un picker de lookup (F2-CAT-06). */
 export interface LookupOption {
   id: string;
@@ -59,14 +64,35 @@ export class CatalogRecordsService {
   async list(
     user: AuthUser,
     catalogId: string,
-    pagination?: { page?: number; pageSize?: number },
+    pagination?: { page?: number; pageSize?: number; search?: string },
   ): Promise<{ rows: CatalogRecordSummary[]; total: number; page: number; pageSize: number }> {
     const page = Math.max(1, pagination?.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, pagination?.pageSize ?? 20));
+    const search = pagination?.search?.trim() ?? "";
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.findCatalogOrFail(tx, user, catalogId);
-      const where = { catalogId };
+      // El buscador (Carlos, 2026-09-01) mira el código y el VALOR de cualquier
+      // atributo, sin distinguir mayúsculas. Va en SQL porque los atributos
+      // son un JSONB: Prisma solo sabe buscar en una ruta fija y distingue
+      // mayúsculas. `jsonb_each_text` recorre los valores y NO las claves —
+      // buscar «nombre» no puede traer toda la lista porque cada fila tenga
+      // un campo así. Los comodines de LIKE se escapan: son texto del usuario.
+      const ids = search
+        ? (
+            await tx.$queryRaw<{ id: string }[]>`
+              SELECT id FROM catalog_records
+              WHERE catalog_id = ${catalogId}::uuid
+                AND (
+                  code ILIKE ${likePattern(search)}
+                  OR EXISTS (
+                    SELECT 1 FROM jsonb_each_text(attributes) AS kv
+                    WHERE kv.value ILIKE ${likePattern(search)}
+                  )
+                )`
+          ).map((row) => row.id)
+        : null;
+      const where = { catalogId, ...(ids ? { id: { in: ids } } : {}) };
       const [total, rows] = await Promise.all([
         tx.catalogRecord.count({ where }),
         tx.catalogRecord.findMany({
