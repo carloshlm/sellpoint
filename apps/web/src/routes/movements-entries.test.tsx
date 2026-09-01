@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
@@ -135,6 +135,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
       baseUnit: "unit",
       isComposite: false,
       tracksLots: false,
+      location: null,
       availableUnits: null,
       presentations: [CAJA],
     },
@@ -497,7 +498,7 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       });
     });
 
-    it("una caducidad YA tecleada no se pisa", async () => {
+    it("la caducidad SIGUE al lote: elegir un lote conocido pone la SUYA (Carlos, 2026-09-01)", async () => {
       const d = detalleConLotes();
       (d.rows[0] as DocumentRow).expiresAt = "2026-12-31";
       mocked.getDocument.mockResolvedValue(d);
@@ -533,11 +534,19 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
 
       await user.click(screen.getByLabelText(/^lote/i));
       await user.type(screen.getByLabelText(/^lote/i), "st4");
-      // Tiempo de sobra para que un autocompletado equivocado hiciera daño.
-      await new Promise((r) => setTimeout(r, 400));
+      // La regla vieja («lo tecleado no se pisa») dejaba pegada una fecha
+      // que no era de ese lote — el bug del pantallazo de Carlos. La fecha
+      // pertenece al LOTE: elegirlo la trae, siempre.
+      await waitFor(() => {
+        expect(screen.getByLabelText(/caducidad/i)).toHaveValue("2027-03-05");
+      });
 
-      // Lo que el usuario capturó es SUYO: el dato conocido solo llena vacíos.
-      expect(screen.getByLabelText(/caducidad/i)).toHaveValue("2026-12-31");
+      // Lo que SÍ sigue siendo del usuario: corregir la fecha del MISMO lote
+      // sin que el autocompletado se la pelee de vuelta.
+      const caducidad = screen.getByLabelText(/caducidad/i);
+      fireEvent.change(caducidad, { target: { value: "2027-04-01" } });
+      await new Promise((r) => setTimeout(r, 300));
+      expect(caducidad).toHaveValue("2027-04-01");
     });
 
     /**

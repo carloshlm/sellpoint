@@ -19,14 +19,20 @@ import { basePresentationName, derivesFractionalInput } from "./products.service
 /** 5 MB de contenido REAL (ya decodificado, no en base64). */
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
+// El orden lo dictó Carlos (2026-09-01): espeja el formulario de producto.
+// `sku`/`precio`/`costo` conservan su clave — los archivos ya descargados y
+// el parser leen por NOMBRE de encabezado, y renombrarlas rompería ambos.
 const STANDARD_COLUMNS = [
+  "codigo_de_barras",
   "sku",
   "nombre",
   "unidad_base",
-  "stock_minimo",
-  "precio",
   "costo",
+  "precio",
+  "stock_minimo",
+  "ubicacion",
   "controla_lotes",
+  "es_compuesto",
 ] as const;
 
 export interface ImportRowError {
@@ -92,6 +98,9 @@ interface ParsedRow {
   cost: number | null;
   /** `null` = la columna no vino: NO se toca lo que ya estaba. */
   tracksLots: boolean | null;
+  isComposite: boolean | null;
+  barcode: string | null;
+  location: string | null;
   attributes: Record<string, unknown>;
   existingId: string | null;
 }
@@ -138,7 +147,21 @@ export class ImportService {
     const body =
       rows.length > 0
         ? rows
-        : [["PAR-500", "Paracetamol 500mg", "unit", "0", "15.50", "9.00", ...custom.map(() => "")]];
+        : [
+            [
+              "7501001234567",
+              "PAR-500",
+              "Paracetamol 500mg",
+              "unit",
+              "9.00",
+              "15.50",
+              "0",
+              "A-01-01",
+              "NO",
+              "NO",
+              ...custom.map(() => ""),
+            ],
+          ];
 
     return serializeSpreadsheet([header, ...body], format);
   }
@@ -167,7 +190,7 @@ export class ImportService {
         include: {
           presentations: {
             where: { isDefaultSale: true },
-            select: { price: true, cost: true },
+            select: { price: true, cost: true, barcode: true },
             take: 1,
           },
         },
@@ -178,12 +201,16 @@ export class ImportService {
       const attributes = (product.attributes ?? {}) as Record<string, unknown>;
       const base = product.presentations[0];
       return [
+        base?.barcode ?? "",
         product.sku,
         product.name,
         product.baseUnit,
-        product.stockMin.toString(),
-        base?.price?.toString() ?? "",
         base?.cost?.toString() ?? "",
+        base?.price?.toString() ?? "",
+        product.stockMin.toString(),
+        product.location ?? "",
+        product.tracksLots ? "SI" : "NO",
+        product.isComposite ? "SI" : "NO",
         ...custom.map((key) => {
           const value = attributes[key];
           if (value === undefined || value === null) {
@@ -369,6 +396,9 @@ export class ImportService {
         price: money.precio ?? null,
         cost: money.costo ?? null,
         tracksLots: parseBooleanCell(value("controla_lotes")),
+        isComposite: parseBooleanCell(value("es_compuesto")),
+        barcode: value("codigo_de_barras") || null,
+        location: value("ubicacion") || null,
         attributes,
       });
     }
@@ -463,6 +493,8 @@ export class ImportService {
               stockMin: item.stockMin,
               // `null` = la columna no vino: no se toca lo que ya estaba.
               ...(item.tracksLots !== null ? { tracksLots: item.tracksLots } : {}),
+              ...(item.isComposite !== null ? { isComposite: item.isComposite } : {}),
+              ...(item.location !== null ? { location: item.location } : {}),
               attributes: item.attributes as Prisma.InputJsonValue,
             },
           });
@@ -473,12 +505,13 @@ export class ImportService {
             where: { productId: item.existingId, isDefaultSale: true },
             select: { id: true },
           });
-          if (base && (item.price !== null || item.cost !== null)) {
+          if (base && (item.price !== null || item.cost !== null || item.barcode !== null)) {
             await tx.productPresentation.update({
               where: { id: base.id },
               data: {
                 ...(item.price !== null ? { price: item.price } : {}),
                 ...(item.cost !== null ? { cost: item.cost } : {}),
+                ...(item.barcode !== null ? { barcode: item.barcode } : {}),
               },
             });
           }
@@ -493,6 +526,8 @@ export class ImportService {
             baseUnit: item.baseUnit,
             stockMin: item.stockMin,
             tracksLots: item.tracksLots ?? false,
+            isComposite: item.isComposite ?? false,
+            ...(item.location !== null && { location: item.location }),
             attributes: item.attributes as Prisma.InputJsonValue,
           },
         });
@@ -507,6 +542,7 @@ export class ImportService {
             allowFractionalInput: derivesFractionalInput(item.baseUnit),
             price: item.price,
             cost: item.cost,
+            ...(item.barcode !== null && { barcode: item.barcode }),
           },
         });
       }

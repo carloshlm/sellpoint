@@ -198,8 +198,9 @@ export class ConfirmService {
       // (Carlos, 2026-08-31).
       //
       // Solo con valor: una línea sin ubicación no pisa la que el producto ya
-      // tenía — omitir no es borrar.
-      await this.actualizarUbicacionDeReferencia(tx, user.tenantId, lines, conLotes);
+      // tenía — omitir no es borrar. Aplica a TODOS, con lote incluido: la
+      // referencia de la ficha y el saldo por ubicación son datos distintos.
+      await this.actualizarUbicacionDeReferencia(tx, user.tenantId, lines);
 
       // ── La FACTURA refresca el costo del catálogo (Carlos, 2026-09-01) ──
       //
@@ -264,11 +265,6 @@ export class ConfirmService {
    */
   /**
    * Copia al catálogo la ubicación capturada para productos SIN lote.
-   *
-   * Los que SÍ llevan lote no entran: para ellos la ubicación es parte de la
-   * identidad de su saldo (un lote puede estar repartido en dos estantes), y
-   * pisar la del producto con la de una línea inventaría una única verdad
-   * donde hay varias.
    */
   private async actualizarCostoDeCatalogo(
     tx: Prisma.TransactionClient,
@@ -303,13 +299,15 @@ export class ConfirmService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     lines: { productId: string; location: string | null }[],
-    resueltas: ExpandedLine[],
   ): Promise<void> {
-    const conLote = new Set(resueltas.filter((l) => l.lotId).map((l) => l.productId));
+    // TODOS los productos, con lote o sin él (Carlos, 2026-09-01): la ficha
+    // guarda «dónde suele estar» — una REFERENCIA, no el saldo. El saldo por
+    // (lote, ubicación) sigue viviendo en stock_lots; excluir a los de lote
+    // solo dejaba muda su ficha. La última línea con ubicación gana.
     const porProducto = new Map<string, string>();
     for (const line of lines) {
       const location = line.location?.trim();
-      if (!location || conLote.has(line.productId)) {
+      if (!location) {
         continue;
       }
       porProducto.set(line.productId, location);

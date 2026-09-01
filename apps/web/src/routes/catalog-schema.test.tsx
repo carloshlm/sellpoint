@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
@@ -245,6 +245,19 @@ describe("Editor de campos (F2-SCHEMA)", () => {
         isArchived: false,
       }),
     );
+  });
+
+  it("el preview muestra TODOS los campos estándar, no solo el código (Carlos, 2026-09-01)", async () => {
+    mockedApi.listFields.mockResolvedValue([textField()]);
+    await renderSchema();
+    await screen.findByText("Vienen con el catálogo y no se pueden quitar.");
+
+    // La previsualización promete «así se ve el formulario» — mostrando solo
+    // Código, mentía: el formulario real trae los cinco estándar.
+    const preview = screen.getByTestId("schema-preview");
+    for (const etiqueta of ["Código", "Nombre", "Unidad base", "Costo", "Precio"]) {
+      expect(within(preview).getByLabelText(etiqueta)).toBeDisabled();
+    }
   });
 
   it("el preview refleja los campos vigentes del catálogo elegido", async () => {
@@ -500,15 +513,9 @@ describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
     expect(await chipsDe("cat-wh")).toEqual(["Nombre", "Dirección", "Teléfono", "Email"]);
   });
 
-  it("servicios lista sus cinco estándar", async () => {
+  it("servicios lista sus cuatro estándar — sin «Descripción» (Carlos, 2026-09-01)", async () => {
     await renderSchema();
-    expect(await chipsDe("cat-svc")).toEqual([
-      "Código",
-      "Nombre",
-      "Descripción",
-      "Costo",
-      "Precio",
-    ]);
+    expect(await chipsDe("cat-svc")).toEqual(["Código", "Nombre", "Costo", "Precio"]);
   });
 
   it("productos conserva los cinco de siempre", async () => {

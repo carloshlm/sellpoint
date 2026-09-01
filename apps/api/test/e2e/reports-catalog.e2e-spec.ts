@@ -287,7 +287,8 @@ describe("Exports directos (F5-CAT)", () => {
       const response = await descargar("/reports/products/export", viewer()).expect(200);
       const { rows } = await celdas(response.body as Buffer);
 
-      expect(rows.some((r) => r[0] === sku)).toBe(true);
+      // Columna 1: el código de barras ocupa la 0 desde el 2026-09-01.
+      expect(rows.some((r) => r[1] === sku)).toBe(true);
     });
 
     /**
@@ -295,6 +296,31 @@ describe("Exports directos (F5-CAT)", () => {
      * —campos dinámicos incluidos—: si fueran dos listas, un día dirían cosas
      * distintas y lo exportado dejaría de poder reimportarse.
      */
+    it("las columnas de Carlos, en su orden, y cada valor en SU columna (2026-09-01)", async () => {
+      // El bug que esto entierra: STANDARD_COLUMNS declaraba 7 encabezados y
+      // la fila emitía 6 — `controla_lotes` nunca se escribía y todo lo
+      // posterior aparecía corrido una celda.
+      const response = await descargar("/reports/products/export", auth()).expect(200);
+      const { rows } = await celdas(response.body as Buffer);
+
+      expect(rows[0]?.slice(0, 10)).toEqual([
+        "codigo_de_barras",
+        "sku",
+        "nombre",
+        "unidad_base",
+        "costo",
+        "precio",
+        "stock_minimo",
+        "ubicacion",
+        "controla_lotes",
+        "es_compuesto",
+      ]);
+      const fila = rows.find((r) => r[1] === sku);
+      // La columna de lotes dice SI/NO — no el texto de un campo vecino.
+      expect(["SI", "NO"]).toContain(fila?.[8]);
+      expect(["SI", "NO"]).toContain(fila?.[9]);
+    });
+
     it("las columnas son las mismas que las de la plantilla de importación", async () => {
       const plantilla = await descargar("/products/import/template?format=xlsx", auth()).expect(
         200,

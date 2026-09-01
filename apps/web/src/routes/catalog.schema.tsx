@@ -92,10 +92,11 @@ function CatalogSchemaContent() {
       t("catalogs.standard.phone"),
       t("catalogs.standard.email"),
     ],
+    // Sin «Descripción» (Carlos, 2026-09-01): en servicios duplicaba al
+    // nombre y de estándar solo tenía el nombre.
     services: [
       t("catalogs.standard.code"),
       t("catalogs.standard.name"),
-      t("catalogs.standard.description"),
       t("catalogs.standard.cost"),
       t("catalogs.standard.price"),
     ],
@@ -313,8 +314,14 @@ function CatalogSchemaContent() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <p className="text-xs text-muted-foreground">{t("catalogs.schema.previewHint")}</p>
-            <TextField label={t("catalogs.standard.code")} disabled value="" />
-            <DynamicForm fields={fields ?? []} values={{}} disabled onChange={() => {}} />
+            {/* TODOS los estándar del catálogo elegido (Carlos, 2026-09-01):
+                mostrar solo el código prometía un formulario que no existe. */}
+            <div data-testid="schema-preview" className="flex flex-col gap-4">
+              {standardLabels.map((etiqueta) => (
+                <TextField key={etiqueta} label={etiqueta} disabled value="" />
+              ))}
+              <DynamicForm fields={fields ?? []} values={{}} disabled onChange={() => {}} />
+            </div>
           </CardContent>
         </Card>
       </div>

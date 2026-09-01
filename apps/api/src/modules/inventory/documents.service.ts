@@ -418,6 +418,9 @@ export class DocumentsService {
                 baseUnit: true,
                 isComposite: true,
                 tracksLots: true,
+                // La ubicación de REFERENCIA del catálogo: la pantalla la
+                // ofrece como valor inicial de la línea (Carlos, 2026-09-01).
+                location: true,
                 presentations: {
                   where: { isActive: true },
                   orderBy: { factor: "asc" },

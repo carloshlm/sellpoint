@@ -441,6 +441,29 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       expect(await ubicacionDe(productId)).toBe("E-11-01");
     });
 
+    it("un producto CON lote también actualiza su referencia (Carlos, 2026-09-01)", async () => {
+      // La ubicación del catálogo es «dónde suele estar» — REFERENCIA, no
+      // saldo. El saldo por (lote, ubicación) sigue viviendo en stock_lots;
+      // que el producto lleve lote no es razón para dejar su ficha muda.
+      const creado = await request(app.getHttpServer())
+        .post("/products")
+        .set(auth())
+        .send({ sku: `LOT-${randomUUID().slice(0, 8)}`, name: "Con lote", tracksLots: true })
+        .expect(201);
+      const conLote = (creado.body as { id: string }).id;
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Ubicación" });
+      const linea = await agregar(id, { productId: conLote, quantity: 4 }).expect(201);
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${(linea.body as { id: string }).id}`)
+        .set(auth())
+        .send({ location: "R-07", lotCode: "L1", expiresAt: "2027-01-01" })
+        .expect(200);
+
+      await confirmar(id).expect(201);
+
+      expect(await ubicacionDe(conLote)).toBe("R-07");
+    });
+
     it("una línea SIN ubicación no borra la que el producto ya tenía", async () => {
       const id = await borrador({ reasonCode: "adjustment", reasonNote: "Ubicación" });
       await agregar(id, { productId, quantity: 2 }).expect(201);

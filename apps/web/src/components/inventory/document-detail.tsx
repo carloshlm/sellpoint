@@ -439,9 +439,11 @@ function LineRow({
   const [unitCost, setUnitCost] = useState(row.unitCost ?? "");
   const [lotCode, setLotCode] = useState(row.lotCode ?? "");
   const [expiresAt, setExpiresAt] = useState(row.expiresAt?.slice(0, 10) ?? "");
-  // La ubicación (pasillo, estante, rack): el modelo y el CSV ya la
-  // guardaban, pero ninguna pantalla la dejaba escribir.
-  const [location, setLocation] = useState(row.location ?? "");
+  // La ubicación (pasillo, estante, rack). La línea NACE con la de la FICHA
+  // del producto (Carlos, 2026-09-01): la ficha dice dónde suele estar, y
+  // quien recibe solo corrige si esta vez quedó en otro lado. Al confirmar,
+  // lo capturado vuelve a la ficha — el ciclo se cierra solo.
+  const [location, setLocation] = useState(row.location ?? product?.location ?? "");
   const primeraCarga = useRef(true);
   const primeraCargaCosto = useRef(true);
   const primeraCargaLote = useRef(true);
@@ -609,24 +611,27 @@ function LineRow({
   }, [autoFocusQuantity]);
 
   /**
-   * ── Autocompletar la caducidad (Carlos, 2026-08-24) ──────────────────
+   * ── La caducidad SIGUE al lote (Carlos, 2026-08-24 y 2026-09-01) ─────
    *
-   * Si el lote tecleado YA existe para este producto, su caducidad es un dato
-   * conocido: obligar a re-teclearla invita a capturarla distinta y partir el
-   * lote en dos. Solo llena VACÍOS — lo que el usuario capturó es suyo — y el
-   * guardado lo hace el autosave de `expiresAt`, que ya existía.
+   * Si el lote tecleado YA existe, su caducidad es un dato conocido y se
+   * pone SIEMPRE — la primera versión solo llenaba vacíos, y al cambiar de
+   * lote la fecha del anterior se quedaba pegada (el bug exacto del
+   * pantallazo: «ST2 ya existe con otra fecha»). Un lote desconocido LIMPIA
+   * la fecha: es del lote, no de la línea. El ref evita re-procesar el mismo
+   * código — así la fecha que el usuario corrija a mano no se le pelea.
    */
+  const ultimoLoteProcesado = useRef((row.lotCode ?? "").trim());
   useEffect(() => {
-    if (expiresAt !== "" || lotCode.trim() === "" || stockProducto === undefined) {
+    const codigo = lotCode.trim();
+    if (codigo === "" || stockProducto === undefined || ultimoLoteProcesado.current === codigo) {
       return;
     }
+    ultimoLoteProcesado.current = codigo;
     const conocido = stockProducto.rows
       .flatMap((r) => r.lots ?? [])
-      .find((lot) => lot.lotCode === lotCode.trim());
-    if (conocido?.expiresAt != null) {
-      setExpiresAt(conocido.expiresAt.slice(0, 10));
-    }
-  }, [lotCode, expiresAt, stockProducto]);
+      .find((lot) => lot.lotCode === codigo);
+    setExpiresAt(conocido?.expiresAt != null ? conocido.expiresAt.slice(0, 10) : "");
+  }, [lotCode, stockProducto]);
 
   // La altura del input (py-1 + text-sm + borde): las celdas de texto centran
   // su primera línea a esta altura para alinear con los inputs de la fila.

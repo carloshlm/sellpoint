@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
+import * as kardexApi from "../lib/inventory/kardex-api";
 import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
 import * as productsApi from "../lib/products/api";
 import { createQueryClient } from "../lib/query-client";
@@ -38,11 +39,17 @@ vi.mock("../lib/inventory/api", () => ({
 vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 vi.mock("../lib/products/api", () => ({ listProducts: vi.fn() }));
 vi.mock("../lib/rbac/api", () => ({ listUsers: vi.fn() }));
+vi.mock("../lib/inventory/kardex-api", () => ({
+  getStock: vi.fn(),
+  getKardex: vi.fn(),
+  getInTransit: vi.fn(),
+}));
 
 const mocked = vi.mocked(inventoryApi);
 const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 const mockedProducts = vi.mocked(productsApi.listProducts);
 const mockedUsers = vi.mocked(rbacApi.listUsers);
+const mockedStock = vi.mocked(kardexApi.getStock);
 
 const demoUser = (permissions: string[], usesLocations = false): AuthUser => ({
   id: "u1",
@@ -117,6 +124,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
       baseUnit: "unit",
       isComposite: false,
       tracksLots: false,
+      location: null,
       availableUnits: null,
       presentations: [],
     },
@@ -168,6 +176,15 @@ beforeEach(() => {
   mockedProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });
   mockedUsers.mockReset();
   mockedUsers.mockResolvedValue([]);
+  mockedStock.mockReset();
+  mockedStock.mockResolvedValue({
+    isComposite: false,
+    rows: [],
+    total: "0",
+    stockMin: "0",
+    belowMin: false,
+    baseUnit: "unit",
+  });
   mocked.getDocument.mockResolvedValue(detalle());
 });
 
@@ -184,7 +201,89 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
    * parámetro». Antes el campo colgaba de `tracksLots`, así que justo los
    * productos más comunes se quedaban sin dónde escribirla.
    */
+  describe("la caducidad sigue al lote (Carlos, 2026-09-01)", () => {
+    const detalleConLote = () =>
+      detalle({
+        products: [
+          {
+            id: "p1",
+            sku: "PAR-500",
+            name: "Paracetamol 500mg",
+            baseUnit: "unit",
+            isComposite: false,
+            tracksLots: true,
+            location: null,
+            availableUnits: null,
+            presentations: [],
+          },
+        ],
+      });
+
+    it("cambiar a OTRO lote conocido re-llena su caducidad — no se queda la del anterior", async () => {
+      const user = userEvent.setup();
+      mockedStock.mockResolvedValue({
+        isComposite: false,
+        total: "10",
+        stockMin: "0",
+        belowMin: false,
+        baseUnit: "unit",
+        rows: [
+          {
+            warehouseId: "w1",
+            warehouseName: "Central",
+            quantity: "10",
+            lots: [
+              { lotCode: "ST1", expiresAt: "2026-07-01T00:00:00.000Z", quantity: "4" },
+              { lotCode: "ST2", expiresAt: "2026-09-30T00:00:00.000Z", quantity: "6" },
+            ],
+          },
+        ],
+      } as never);
+      mocked.getDocument.mockResolvedValue(detalleConLote());
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const lote = screen.getByLabelText("Lote");
+      await user.click(lote);
+      await user.type(lote, "ST1");
+      const caducidad = screen.getByLabelText("Caducidad") as HTMLInputElement;
+      await waitFor(() => expect(caducidad.value).toBe("2026-07-01"));
+
+      // El bug: al cambiar de lote, la fecha del anterior se quedaba pegada
+      // y solo se corregía limpiando el calendario a mano.
+      await user.clear(lote);
+      await user.type(lote, "ST2");
+      await waitFor(() => expect(caducidad.value).toBe("2026-09-30"));
+    });
+  });
+
   describe("la ubicación no depende del lote", () => {
+    it("la línea nace con la ubicación de la FICHA del producto, editable", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          products: [
+            {
+              id: "p1",
+              sku: "PAR-500",
+              name: "Paracetamol 500mg",
+              baseUnit: "unit",
+              isComposite: false,
+              tracksLots: false,
+              location: "B-03-07",
+              availableUnits: null,
+              presentations: [],
+            },
+          ],
+        }),
+      );
+      await renderDoc(["inventory:read", "inventory:movement"], true);
+
+      await screen.findByText("PAR-500");
+      // La ficha dice dónde suele estar: la línea arranca ahí y quien recibe
+      // solo corrige si esta vez quedó en otro lado.
+      expect(screen.getByLabelText("Ubicación")).toHaveValue("B-03-07");
+    });
+
     it("un producto SIN lote la puede capturar si el negocio usa ubicaciones", async () => {
       await renderDoc(["inventory:read", "inventory:movement"], true);
 

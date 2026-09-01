@@ -124,6 +124,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
       baseUnit: "unit",
       isComposite: false,
       tracksLots: false,
+      location: null,
       availableUnits: null,
       presentations: [],
     },

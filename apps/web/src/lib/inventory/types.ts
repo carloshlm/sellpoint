@@ -108,6 +108,8 @@ export interface DocumentProduct {
   baseUnit: string;
   isComposite: boolean;
   tracksLots: boolean;
+  /** La ubicación de REFERENCIA de la ficha: valor inicial de la línea. */
+  location: string | null;
   /**
    * Unidades ARMABLES de un compuesto, con los componentes DE ESTE ALMACÉN.
    * `null` en los productos simples: su saldo ya lo dice.
