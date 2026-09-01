@@ -61,7 +61,13 @@ describe("Los widgets del dashboard (integration)", () => {
           lastNamePaternal: "Pérez",
         },
       });
-      const almacen = await tx.warehouse.create({ data: { tenantId: tenant.id, name: "Central" } });
+      const almacen = await tx.warehouse.create({
+        data: {
+          tenantId: tenant.id,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: "Central",
+        },
+      });
       const a = await tx.product.create({
         data: {
           tenantId: tenant.id,

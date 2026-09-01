@@ -61,7 +61,11 @@ describe("WeightedCostService (F5-COST-01)", () => {
       userId = user.id;
 
       const warehouse = await tx.warehouse.create({
-        data: { tenantId, name: `Central cost ${stamp}` },
+        data: {
+          tenantId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Central cost ${stamp}`,
+        },
       });
       warehouseId = warehouse.id;
 
@@ -244,7 +248,13 @@ describe("WeightedCostService (F5-COST-01)", () => {
         reasonCode: "customer_return",
       });
       const destino = await prisma.withTenantContext(tenantId, (tx) =>
-        tx.warehouse.create({ data: { tenantId, name: `Destino ${Date.now()}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Destino ${Date.now()}`,
+          },
+        }),
       );
       await asentar({
         productId: producto.id,
@@ -315,7 +325,13 @@ describe("WeightedCostService (F5-COST-01)", () => {
      */
     it("compras en dos almacenes se promedian juntas", async () => {
       const otro = await prisma.withTenantContext(tenantId, (tx) =>
-        tx.warehouse.create({ data: { tenantId, name: `Norte cost ${Date.now()}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Norte cost ${Date.now()}`,
+          },
+        }),
       );
       const producto = await prisma.withTenantContext(tenantId, (tx) =>
         tx.product.create({ data: { tenantId, sku: `CG-${Date.now()}`, name: "Dos bodegas" } }),

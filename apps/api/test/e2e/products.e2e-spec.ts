@@ -703,7 +703,13 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
 
       // 1 kg de azúcar en stock (F3 lo va a mover; acá se siembra).
       const warehouse = await prisma.withTenantContext(tenantId, (tx) =>
-        tx.warehouse.create({ data: { tenantId, name: `Central ${randomUUID()}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${randomUUID()}`,
+          },
+        }),
       );
       await prisma.withTenantContext(tenantId, (tx) =>
         tx.stockByWarehouse.create({
@@ -1088,7 +1094,11 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
 
       await prisma.withTenantContext(tenantId, async (tx) => {
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `Central lots ${randomUUID().slice(0, 8)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central lots ${randomUUID().slice(0, 8)}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: { tenantId, productId: id, lotCode: "st10", expiresAt: new Date("2026-07-01") },
@@ -1121,7 +1131,11 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
 
       await prisma.withTenantContext(tenantId, async (tx) => {
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `Vacío ${randomUUID().slice(0, 8)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Vacío ${randomUUID().slice(0, 8)}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: { tenantId, productId: id, lotCode: "agotado" },
@@ -1155,7 +1169,11 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
 
       await prisma.withTenantContext(tenantId, async (tx) => {
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `Con saldo ${randomUUID().slice(0, 8)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Con saldo ${randomUUID().slice(0, 8)}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: { tenantId, productId: id, lotCode: "st30" },

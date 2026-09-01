@@ -142,6 +142,9 @@ export class TenantsService {
       const warehouse = await tx.warehouse.create({
         data: {
           tenantId: tenant.id,
+          // El primer código de la serie del negocio, el mismo que generaría
+          // el service para un alta sin código (Carlos, 2026-09-01).
+          code: "ALM-001",
           name: INITIAL_WAREHOUSE_NAME[input.locale ?? "es"],
         },
       });

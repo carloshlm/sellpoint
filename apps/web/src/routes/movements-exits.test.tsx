@@ -168,6 +168,7 @@ beforeEach(() => {
   mockedWarehouses.mockResolvedValue([
     {
       id: "w1",
+      code: "ALM-001",
       name: "Central",
       address: null,
       phone: null,
@@ -178,6 +179,7 @@ beforeEach(() => {
     },
     {
       id: "w2",
+      code: "ALM-002",
       name: "Bodega Norte",
       address: null,
       phone: null,
@@ -188,6 +190,7 @@ beforeEach(() => {
     },
     {
       id: "w3",
+      code: "ALM-003",
       name: "Bodega Sur",
       address: null,
       phone: null,

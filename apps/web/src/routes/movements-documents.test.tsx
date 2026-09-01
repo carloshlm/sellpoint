@@ -263,6 +263,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     const DOS = [
       {
         id: "w1",
+        code: "ALM-001",
         name: "Central",
         address: null,
         phone: null,
@@ -273,6 +274,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
       },
       {
         id: "w2",
+        code: "ALM-002",
         name: "Bodega Norte",
         address: null,
         isActive: true,
@@ -326,6 +328,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
       mockedWarehouses.mockResolvedValue([
         {
           id: "w1",
+          code: "ALM-001",
           name: "Central",
           address: null,
           phone: null,

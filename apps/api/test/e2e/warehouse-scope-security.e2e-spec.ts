@@ -60,7 +60,11 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
     // tenantId de B sin tener credenciales de B.
     await prisma.withTenantContext(tenantB.tenantId, async (tx) => {
       const warehouse = await tx.warehouse.create({
-        data: { tenantId: tenantB.tenantId, name: `Almacén B ${randomUUID()}` },
+        data: {
+          tenantId: tenantB.tenantId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Almacén B ${randomUUID()}`,
+        },
       });
       warehouseIdB = warehouse.id;
       await tx.userWarehouseScope.create({

@@ -110,6 +110,7 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
       {
         id: "w1",
+        code: "ALM-001",
         name: "Central",
         address: null,
         phone: null,
@@ -120,6 +121,7 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       },
       {
         id: "w2",
+        code: "ALM-002",
         name: "Norte",
         address: null,
         phone: null,

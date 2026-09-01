@@ -89,8 +89,20 @@ describe("Kardex (F3-KARDEX-01)", () => {
           tx.product.create({ data: { tenantId, sku: `OTR-${stamp}`, name: "Otro" } }),
         ]);
         const [a, b] = await Promise.all([
-          tx.warehouse.create({ data: { tenantId, name: `A ${stamp}` } }),
-          tx.warehouse.create({ data: { tenantId, name: `B ${stamp}` } }),
+          tx.warehouse.create({
+            data: {
+              tenantId,
+              code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+              name: `A ${stamp}`,
+            },
+          }),
+          tx.warehouse.create({
+            data: {
+              tenantId,
+              code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+              name: `B ${stamp}`,
+            },
+          }),
         ]);
         return { productId: producto.id, otroId: otro.id, warehouseA: a.id, warehouseB: b.id };
       },

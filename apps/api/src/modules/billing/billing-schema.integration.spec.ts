@@ -65,7 +65,13 @@ describe("modelo de datos de billing (F7-DB)", () => {
       });
     }
     await prisma.withTenantContext(tenantA, async (tx) => {
-      await tx.warehouse.create({ data: { tenantId: tenantA, name: `Bodega A ${stamp}` } });
+      await tx.warehouse.create({
+        data: {
+          tenantId: tenantA,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Bodega A ${stamp}`,
+        },
+      });
     });
   });
 

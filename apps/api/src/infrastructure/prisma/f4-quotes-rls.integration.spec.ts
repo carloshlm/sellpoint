@@ -45,7 +45,11 @@ describe("RLS y guardas de la cotización (F4-DB-02)", () => {
         },
       });
       const almacen = await tx.warehouse.create({
-        data: { tenantId: tenantAId, name: `Central COT ${stamp}` },
+        data: {
+          tenantId: tenantAId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Central COT ${stamp}`,
+        },
       });
       const producto = await tx.product.create({
         data: { tenantId: tenantAId, sku: `COT-${stamp}`, name: "Jarabe" },

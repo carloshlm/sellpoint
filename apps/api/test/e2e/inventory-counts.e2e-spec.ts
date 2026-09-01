@@ -82,7 +82,11 @@ describe("Inventario físico (F3-COUNT)", () => {
     const datos = await prisma.withTenantContext(tenantId, async (tx) => {
       const stamp = randomUUID().slice(0, 6);
       const warehouse = await tx.warehouse.create({
-        data: { tenantId, name: `Central ${stamp}` },
+        data: {
+          tenantId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Central ${stamp}`,
+        },
       });
 
       const [simple, conLotes, compuesto, sinSaldo] = await Promise.all([
@@ -670,7 +674,13 @@ describe("Inventario físico (F3-COUNT)", () => {
       const { token, tenantId, warehouseId } = await escenario();
       await crear(token, warehouseId).expect(201);
       const otro = await prisma.withTenantContext(tenantId, (tx) =>
-        tx.warehouse.create({ data: { tenantId, name: `Otro ${randomUUID().slice(0, 6)}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Otro ${randomUUID().slice(0, 6)}`,
+          },
+        }),
       );
 
       await crear(token, otro.id).expect(201);

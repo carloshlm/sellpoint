@@ -21,7 +21,24 @@
     "stock": "No puedes desactivarlo: todavía tiene existencias. Muévelas a otro almacén primero.",
     "transfersInTransit": "No puedes desactivarlo: tiene traspasos en camino. Recíbelos antes de cerrarlo."
   },
+  "import": {
+    "button": "Importar almacenes",
+    "title": "Importar almacenes",
+    "step1": "1. Descarga la plantilla: trae los campos de tu catálogo y los almacenes que ya diste de alta.",
+    "step2": "2. Edítala y súbela (Excel).",
+    "downloadXlsx": "Plantilla Excel",
+    "chooseFile": "Elegir archivo",
+    "noFile": "Ningún archivo elegido",
+    "confirm": "Importar",
+    "report": "{{valid}} filas válidas ({{created}} altas, {{updated}} actualizaciones) · {{failed}} con error",
+    "rowError": "Fila {{row}}: {{message}}",
+    "rowErrorWithCode": "Fila {{row}}: {{code}} - {{message}}",
+    "skipErrors": "Importar las válidas y saltar las filas con error",
+    "done": "Se importaron {{count}} almacenes."
+  },
   "form": {
+    "code": "Código",
+    "codeHint": "La clave con la que identificas este almacén, única en tu negocio. Es la que usa la plantilla de importación.",
     "name": "Nombre del almacén",
     "address": "Dirección",
     "addressHint": "Opcional. Escríbela como se use en tu país.",

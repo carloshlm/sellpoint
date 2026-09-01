@@ -608,7 +608,11 @@ describe("Importación de productos (F2-IMPORT)", () => {
       const id = (list.body as { items: { id: string }[] }).items[0]?.id as string;
       await prisma.withTenantContext(tenantId, async (tx) => {
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `Imp ${randomUUID().slice(0, 8)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Imp ${randomUUID().slice(0, 8)}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: { tenantId, productId: id, lotCode: "st10" },

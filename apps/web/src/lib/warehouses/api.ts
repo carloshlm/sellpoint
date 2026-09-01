@@ -3,6 +3,8 @@ import { api } from "@/lib/api";
 /** Espejo de los DTO de `apps/api/src/modules/warehouses` (F2-WH-01). */
 export interface Warehouse {
   id: string;
+  /** El código estándar, único por negocio (Carlos, 2026-09-01). */
+  code: string;
   name: string;
   address: string | null;
   /** E.164 canónico; el form lo pinta como país + número (2026-08-26). */
@@ -20,6 +22,8 @@ export interface Warehouse {
 }
 
 export interface CreateWarehouseInput {
+  /** Obligatorio en la pantalla; el API lo genera si falta (onboarding). */
+  code?: string;
   name: string;
   address?: string;
   phone?: string;
@@ -28,6 +32,7 @@ export interface CreateWarehouseInput {
 }
 
 export interface UpdateWarehouseInput {
+  code?: string;
   name?: string;
   address?: string | null;
   phone?: string | null;

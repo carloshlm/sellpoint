@@ -76,8 +76,20 @@ describe("Reporte de stock (F5-STK)", () => {
       userId = (await tx.user.findFirstOrThrow({ where: { tenantId } })).id;
 
       const [central, norte] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: "Central stock" } }),
-        tx.warehouse.create({ data: { tenantId, name: "Norte stock" } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Central stock",
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Norte stock",
+          },
+        }),
       ]);
       centralId = central.id;
       norteId = norte.id;

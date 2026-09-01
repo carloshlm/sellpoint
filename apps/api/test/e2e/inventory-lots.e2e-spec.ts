@@ -88,8 +88,20 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
         },
       });
       const [central, norte] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: `Central ${randomUUID().slice(0, 6)}` } }),
-        tx.warehouse.create({ data: { tenantId, name: `Norte ${randomUUID().slice(0, 6)}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${randomUUID().slice(0, 6)}`,
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Norte ${randomUUID().slice(0, 6)}`,
+          },
+        }),
       ]);
 
       // st30 vence DESPUÉS que st10; sinFecha no vence nunca.
@@ -351,7 +363,11 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
           },
         });
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `Central ${randomUUID().slice(0, 6)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${randomUUID().slice(0, 6)}`,
+          },
         });
 
         const [pronto, lejos, vencido, agotado] = await Promise.all([
@@ -582,7 +598,11 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       // El MISMO producto, con un lote más, en OTRA bodega.
       const lejano = await prisma.withTenantContext(tenantId, async (tx) => {
         const otro = await tx.warehouse.create({
-          data: { tenantId, name: `Lejos ${randomUUID().slice(0, 6)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Lejos ${randomUUID().slice(0, 6)}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: { tenantId, productId, lotCode: "solo-alla", expiresAt: enDias(3) },
@@ -622,7 +642,11 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
           },
         });
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `W ${randomUUID().slice(0, 6)}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `W ${randomUUID().slice(0, 6)}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: { tenantId, productId: producto.id, lotCode: "sinFecha" },
@@ -671,7 +695,13 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
         const producto = await tx.product.create({
           data: { tenantId, sku: `ED-${stamp}`, name: "Editable", tracksLots: true },
         });
-        const warehouse = await tx.warehouse.create({ data: { tenantId, name: `W ${stamp}` } });
+        const warehouse = await tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `W ${stamp}`,
+          },
+        });
         // "pronto" vence antes que "tarde": es el primero en salir.
         const [pronto, tarde] = await Promise.all([
           tx.productLot.create({

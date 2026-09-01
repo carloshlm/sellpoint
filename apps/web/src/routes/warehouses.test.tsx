@@ -10,6 +10,7 @@ import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
 import { createQueryClient } from "../lib/query-client";
 import * as warehousesApi from "../lib/warehouses/api";
+import * as importApi from "../lib/warehouses/import-api";
 import { routeTree } from "../routeTree.gen";
 
 /**
@@ -22,6 +23,10 @@ vi.mock("../lib/warehouses/api", () => ({
   createWarehouse: vi.fn(),
   updateWarehouse: vi.fn(),
   deleteWarehouse: vi.fn(),
+}));
+vi.mock("../lib/warehouses/import-api", () => ({
+  downloadWarehouseImportTemplate: vi.fn(),
+  runWarehouseImport: vi.fn(),
 }));
 vi.mock("../lib/catalogs/api", async (importOriginal) => ({
   ...(await importOriginal<typeof catalogsApi>()),
@@ -87,6 +92,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
 
 const almacen = (over: Partial<warehousesApi.Warehouse>): warehousesApi.Warehouse => ({
   id: "w1",
+  code: "ALM-001",
   name: "Central",
   address: null,
   phone: null,
@@ -256,6 +262,63 @@ describe("Eliminar un almacén (2026-08-25)", () => {
  * compuesto país+número (E.164 canónico al guardar, patrón del teléfono del
  * negocio), email, y el DynamicForm del catálogo de sistema "warehouses".
  */
+/**
+ * Importar almacenes por Excel (Carlos, 2026-09-01): el mismo flujo de dos
+ * pasos de productos y servicios, con el diálogo común de la casa.
+ */
+describe("importar almacenes (2026-09-01)", () => {
+  beforeEach(() => {
+    mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+    mockedApi.listWarehouses.mockResolvedValue([almacen({})]);
+  });
+
+  it("dry-run con reporte y aplicar solo tras verlo; al final, el cuadro verde", async () => {
+    const user = userEvent.setup();
+    const mockedRun = vi.mocked(importApi.runWarehouseImport);
+    mockedRun.mockResolvedValue({
+      valid: 2,
+      failed: 0,
+      created: 1,
+      updated: 1,
+      errors: [],
+      applied: false,
+    });
+    await renderWarehouses();
+
+    await user.click(await screen.findByRole("button", { name: "Importar almacenes" }));
+    await user.upload(
+      screen.getByLabelText("Elegir archivo"),
+      new File([new Uint8Array([0x50, 0x4b])], "almacenes.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+
+    // Primero el reporte SIN escribir: dry-run obligatorio.
+    await waitFor(() =>
+      expect(mockedRun).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true })),
+    );
+    expect(await screen.findByTestId("warehouse-import-report")).toHaveTextContent("1 altas");
+
+    mockedRun.mockResolvedValue({
+      valid: 2,
+      failed: 0,
+      created: 1,
+      updated: 1,
+      errors: [],
+      applied: true,
+    });
+    await user.click(screen.getByRole("button", { name: "Importar" }));
+
+    await waitFor(() =>
+      expect(mockedRun).toHaveBeenLastCalledWith(expect.objectContaining({ skipErrors: false })),
+    );
+    const listo = await screen.findByTestId("warehouse-import-done");
+    expect(listo).toHaveTextContent("2 almacenes");
+    expect(listo).toHaveFocus();
+  });
+});
+
 describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
   beforeEach(() => {
     // vi.mock persiste llamadas entre tests: sin el reset, `calls[0]` del
@@ -276,6 +339,8 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     // El país del NEGOCIO preselecciona el dial, como en Datos del negocio.
     expect(screen.getByLabelText("Código de país")).toHaveValue("MX");
 
+    // El código es obligatorio desde 2026-09-01: sin él, Guardar no enciende.
+    await user.type(screen.getByLabelText("Código"), "SUC-01");
     await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
     await user.type(screen.getByLabelText(/Teléfono/), "55 9988 7766");
     await user.type(screen.getByLabelText(/Email/), "sucursal@negocio.mx");
@@ -288,6 +353,34 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
         name: "Sucursal",
         phone: "+525599887766",
         email: "sucursal@negocio.mx",
+      });
+    });
+  });
+
+  /**
+   * El código estándar (Carlos, 2026-09-01): obligatorio en el alta —el
+   * botón no se enciende sin él— y viaja en el POST; el listado lo enseña
+   * como primera columna, igual que el sku en productos.
+   */
+  it("el alta exige el código, lo manda, y el listado lo muestra", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([almacen({ code: "NORTE-01", name: "Norte" })]);
+    mockedApi.createWarehouse.mockResolvedValue(almacen({ code: "SUR-01", name: "Sur" }));
+    await renderWarehouses();
+
+    expect(await screen.findByText("NORTE-01")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nuevo almacén" }));
+    await user.type(screen.getByLabelText("Nombre del almacén"), "Sur");
+    // Con nombre pero SIN código, Guardar sigue apagado.
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("Código"), "SUR-01");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockedApi.createWarehouse.mock.calls[0]?.[0]).toMatchObject({
+        code: "SUR-01",
+        name: "Sur",
       });
     });
   });
@@ -330,6 +423,7 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     await renderWarehouses();
 
     await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.type(screen.getByLabelText("Código"), "SUC-02");
     await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
     await user.type(await screen.findByLabelText("Encargado"), "Rosa");
     expect(screen.getByLabelText("Encargado")).toHaveValue("Rosa");

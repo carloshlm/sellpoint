@@ -21,7 +21,24 @@
     "stock": "You can't deactivate it: it still holds stock. Move it to another warehouse first.",
     "transfersInTransit": "You can't deactivate it: it has transfers on the way. Receive them before closing it."
   },
+  "import": {
+    "button": "Import warehouses",
+    "title": "Import warehouses",
+    "step1": "1. Download the template: it brings your catalog fields and the warehouses you already created.",
+    "step2": "2. Edit it and upload it (Excel).",
+    "downloadXlsx": "Excel template",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen",
+    "confirm": "Import",
+    "report": "{{valid}} valid rows ({{created}} new, {{updated}} updates) · {{failed}} with errors",
+    "rowError": "Row {{row}}: {{message}}",
+    "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
+    "skipErrors": "Import the valid ones and skip rows with errors",
+    "done": "{{count}} warehouses imported."
+  },
   "form": {
+    "code": "Code",
+    "codeHint": "The key you identify this warehouse by, unique in your business. It's the one the import template uses.",
     "name": "Warehouse name",
     "address": "Address",
     "addressHint": "Optional. Write it the way it's used in your country.",

@@ -78,7 +78,11 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
     const { propio, otro } = await prisma.withTenantContext(tenantId, async (tx) => {
       const existente = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
       const segundo = await tx.warehouse.create({
-        data: { tenantId, name: `Sucursal ${randomUUID().slice(0, 6)}` },
+        data: {
+          tenantId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Sucursal ${randomUUID().slice(0, 6)}`,
+        },
       });
       return { propio: existente.id, otro: segundo.id };
     });

@@ -99,7 +99,11 @@ describe("RLS de Fase 2 (F2-DB-09)", () => {
       });
 
       const warehouse = await tx.warehouse.create({
-        data: { tenantId: tenantAId, name: `Almacén RLS ${Date.now()}` },
+        data: {
+          tenantId: tenantAId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Almacén RLS ${Date.now()}`,
+        },
       });
       await tx.stockByWarehouse.create({
         data: { tenantId: tenantAId, productId: product.id, warehouseId: warehouse.id },

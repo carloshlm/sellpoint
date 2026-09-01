@@ -49,7 +49,13 @@ describe("DocumentsService — ciclo de vida (F3-DOC-03)", () => {
             lastNamePaternal: "Carga",
           },
         }),
-        tx.warehouse.create({ data: { tenantId: tenant.id, name: `Central ${stamp}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId: tenant.id,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${stamp}`,
+          },
+        }),
       ]);
       warehouseId = warehouse.id;
       user = { userId: created.id, tenantId: tenant.id } as AuthUser;
@@ -401,7 +407,11 @@ describe("DocumentsService — ciclo de vida (F3-DOC-03)", () => {
 
       await prisma.withTenantContext(user.tenantId, async (tx) => {
         const otro = await tx.warehouse.create({
-          data: { tenantId: user.tenantId, name: `Lejos ${stamp}` },
+          data: {
+            tenantId: user.tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Lejos ${stamp}`,
+          },
         });
         const harina = await tx.product.create({
           data: { tenantId: user.tenantId, sku: `HAR-${stamp}`, name: "Harina" },

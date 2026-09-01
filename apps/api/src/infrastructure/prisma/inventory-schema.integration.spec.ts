@@ -59,8 +59,20 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
         },
       });
       const [warehouse, other] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: `Central ${stamp}` } }),
-        tx.warehouse.create({ data: { tenantId, name: `Sucursal ${stamp}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${stamp}`,
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Sucursal ${stamp}`,
+          },
+        }),
       ]);
 
       // El documento contenedor de los movimientos de prueba. Nace confirmado
@@ -102,7 +114,13 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
             lastNamePaternal: "Vecino",
           },
         }),
-        tx.warehouse.create({ data: { tenantId: otherTenantId, name: `Vecino ${stamp}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId: otherTenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Vecino ${stamp}`,
+          },
+        }),
       ]);
       otherTenantUserId = user.id;
       otherTenantWarehouseId = warehouse.id;

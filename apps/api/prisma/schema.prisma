@@ -547,6 +547,11 @@ model ProductComposition {
 model Warehouse {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId  String   @map("tenant_id") @db.Uuid
+  /// El código estándar (Carlos, 2026-09-01), como el sku del producto y el
+  /// code del servicio: la llave que la persona ve y por la que casa la
+  /// planilla de importación. Único por negocio. Si el alta no lo trae, el
+  /// service lo genera (`ALM-001`, `ALM-002`…).
+  code      String   @db.VarChar(64)
   name      String
   address   String?
   // Contacto estándar de la sucursal (Carlos, 2026-08-26): el ticket pinta
@@ -581,6 +586,7 @@ model Warehouse {
   stockLots       StockLot[]
 
   @@unique([tenantId, name])
+  @@unique([tenantId, code])
   @@index([tenantId])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
   @@map("warehouses")

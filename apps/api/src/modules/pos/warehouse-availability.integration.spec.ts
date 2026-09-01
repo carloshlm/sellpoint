@@ -43,8 +43,24 @@ describe("sellableStock (F4-CART-01)", () => {
     tenantId = tenant.id;
 
     await prisma.withTenantContext(tenantId, async (tx) => {
-      central = (await tx.warehouse.create({ data: { tenantId, name: `Central ${stamp}` } })).id;
-      sucursal = (await tx.warehouse.create({ data: { tenantId, name: `Sucursal ${stamp}` } })).id;
+      central = (
+        await tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${stamp}`,
+          },
+        })
+      ).id;
+      sucursal = (
+        await tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Sucursal ${stamp}`,
+          },
+        })
+      ).id;
 
       const producto = async (sku: string, extra: Record<string, unknown> = {}) =>
         (

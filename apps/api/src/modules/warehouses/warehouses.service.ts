@@ -12,6 +12,8 @@ import type { CreateWarehouseDto, UpdateWarehouseDto } from "./dto/upsert-wareho
 
 export interface WarehouseSummary {
   id: string;
+  /** El código estándar, único por negocio (Carlos, 2026-09-01). */
+  code: string;
   name: string;
   address: string | null;
   phone: string | null;
@@ -103,6 +105,46 @@ export class WarehousesService {
    * lo que alimenta los selectores de movimientos. Un almacén desactivado no
    * aparece aunque esté en el alcance: no se puede mover stock contra él.
    */
+  /**
+   * El código no se repite en el negocio. Se pregunta ANTES del INSERT y no
+   * solo por el índice único: Prisma no siempre dice en el P2002 QUÉ índice
+   * chocó, y «ya tienes uno con ese nombre» cuando lo repetido era el código
+   * manda a corregir el campo equivocado. El índice sigue siendo la guarda
+   * real ante dos altas simultáneas.
+   */
+  private async assertCodeFree(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    code: string,
+  ): Promise<void> {
+    const repetido = await tx.warehouse.findFirst({
+      where: { tenantId, code },
+      select: { id: true },
+    });
+    if (repetido !== null) {
+      throw new ConflictException({ message: "warehouses.code_taken" });
+    }
+  }
+
+  /**
+   * El siguiente código de la serie `ALM-NNN` del negocio (Carlos,
+   * 2026-09-01). Se mira el MAYOR número ya usado y no la cantidad de
+   * almacenes: si alguien borró el ALM-002, contar daría otra vez ALM-002 y
+   * chocaría con el índice único de un ALM-003 que sí existe.
+   *
+   * Los códigos capturados a mano que no siguen el patrón (`NORTE-01`) no
+   * cuentan para la serie — son de la persona, no del sistema.
+   */
+  private async nextCode(tx: Prisma.TransactionClient, tenantId: string): Promise<string> {
+    const [fila] = await tx.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(substring(code FROM '^ALM-(\\d+)$')::int) AS max
+        FROM warehouses
+       WHERE tenant_id = ${tenantId}::uuid
+         AND code ~ '^ALM-\\d+$'`;
+    const siguiente = (fila?.max ?? 0) + 1;
+    return `ALM-${String(siguiente).padStart(3, "0")}`;
+  }
+
   async listScoped(user: AuthUser, scope: UserScope): Promise<WarehouseSummary[]> {
     return this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.warehouse.findMany({
@@ -125,11 +167,18 @@ export class WarehousesService {
         });
       }
 
+      if (input.code !== undefined) {
+        await this.assertCodeFree(tx, user.tenantId, input.code);
+      }
+
       let warehouse: WarehouseSummary;
       try {
         warehouse = await tx.warehouse.create({
           data: {
             tenantId: user.tenantId,
+            // Sin código en el alta (onboarding, otro cliente del API) se
+            // genera el siguiente de la serie del negocio.
+            code: input.code ?? (await this.nextCode(tx, user.tenantId)),
             name: input.name,
             address: input.address ?? null,
             phone: input.phone ?? null,
@@ -140,8 +189,11 @@ export class WarehousesService {
           },
         });
       } catch (error) {
-        if (isUniqueViolation(error)) {
-          throw new ConflictException({ message: "warehouses.name_taken" });
+        const campo = uniqueViolationOn(error);
+        if (campo !== null) {
+          throw new ConflictException({
+            message: campo === "code" ? "warehouses.code_taken" : "warehouses.name_taken",
+          });
         }
         throw error;
       }
@@ -218,11 +270,16 @@ export class WarehousesService {
         });
       }
 
+      if (input.code !== undefined && input.code !== current.code) {
+        await this.assertCodeFree(tx, user.tenantId, input.code);
+      }
+
       let updated: WarehouseSummary;
       try {
         updated = await tx.warehouse.update({
           where: { id },
           data: {
+            ...(input.code !== undefined ? { code: input.code } : {}),
             ...(input.name !== undefined ? { name: input.name } : {}),
             ...(input.address !== undefined ? { address: input.address } : {}),
             ...(input.phone !== undefined ? { phone: input.phone } : {}),
@@ -234,8 +291,11 @@ export class WarehousesService {
           },
         });
       } catch (error) {
-        if (isUniqueViolation(error)) {
-          throw new ConflictException({ message: "warehouses.name_taken" });
+        const campo = uniqueViolationOn(error);
+        if (campo !== null) {
+          throw new ConflictException({
+            message: campo === "code" ? "warehouses.code_taken" : "warehouses.name_taken",
+          });
         }
         throw error;
       }
@@ -314,6 +374,16 @@ export class WarehousesService {
   }
 }
 
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+/**
+ * Qué índice único chocó: `code` o `name`. Los dos son únicos por negocio y
+ * el usuario merece saber CUÁL repitió — «ya tienes uno con ese nombre»
+ * cuando lo repetido era el código lo manda a corregir el campo equivocado.
+ */
+function uniqueViolationOn(error: unknown): "code" | "name" | null {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return null;
+  }
+  const target = (error.meta as { target?: string[] | string } | undefined)?.target;
+  const columnas = Array.isArray(target) ? target : [String(target ?? "")];
+  return columnas.some((c) => c.includes("code")) ? "code" : "name";
 }

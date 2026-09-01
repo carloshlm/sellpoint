@@ -11,6 +11,11 @@ import { z } from "zod";
 // llega sin tipar: la forma real la valida el motor de catálogos contra los
 // campos del catálogo de sistema "warehouses".
 export const createWarehouseSchema = z.object({
+  // Opcional en el API, obligatorio en la pantalla (Carlos, 2026-09-01):
+  // quien no lo manda —el onboarding, otro cliente del API— recibe uno
+  // generado (`ALM-NNN`). Mismo espíritu que el sku que se completa solo
+  // desde el código de barras.
+  code: z.string().trim().min(1).max(64).optional(),
   name: z.string().trim().min(1).max(120),
   address: z.string().trim().max(500).optional(),
   phone: z.string().refine(isE164, { message: "warehouses.invalid_phone" }).optional(),
@@ -20,6 +25,7 @@ export const createWarehouseSchema = z.object({
 
 export const updateWarehouseSchema = z
   .object({
+    code: z.string().trim().min(1).max(64).optional(),
     name: z.string().trim().min(1).max(120).optional(),
     address: z.string().trim().max(500).nullable().optional(),
     phone: z.string().refine(isE164, { message: "warehouses.invalid_phone" }).nullable().optional(),

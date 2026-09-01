@@ -83,6 +83,74 @@ describe("Almacenes (F2-WH)", () => {
   });
 
   /**
+   * El CÓDIGO estándar del almacén (Carlos, 2026-09-01): como el sku del
+   * producto, la llave visible y la del match de la importación. Obligatorio
+   * en pantalla; en el API es opcional porque el onboarding y otros clientes
+   * no lo mandan — y entonces se genera el siguiente de la serie.
+   */
+  describe("el código del almacén (2026-09-01)", () => {
+    it("se guarda el código capturado y el listado lo devuelve", async () => {
+      const token = await registerAndLogin();
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ code: "NORTE-01", name: "Bodega Norte" })
+        .expect(201);
+
+      expect(created.body).toMatchObject({ code: "NORTE-01", name: "Bodega Norte" });
+    });
+
+    it("sin código, el alta recibe el siguiente de la serie del negocio", async () => {
+      const token = await registerAndLogin();
+
+      // El tenant NACE con «Almacén Central» = ALM-001 (onboarding): el
+      // siguiente sin código es ALM-002.
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Sucursal sin código" })
+        .expect(201);
+
+      expect((created.body as { code: string }).code).toBe("ALM-002");
+    });
+
+    it("un código repetido en el mismo negocio → 409 code_taken, no name_taken", async () => {
+      const token = await registerAndLogin();
+      await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ code: "DUP", name: "Uno" })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ code: "DUP", name: "Otro nombre" })
+        .expect(409);
+
+      expect((res.body as { message: string }).message).toContain("código");
+    });
+
+    it("el código se puede corregir por PATCH", async () => {
+      const token = await registerAndLogin();
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ code: "VIEJO", name: "Bodega" })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/warehouses/${(created.body as { id: string }).id}`)
+        .set("Authorization", bearer(token))
+        .send({ code: "NUEVO" })
+        .expect(200);
+
+      expect((res.body as { code: string }).code).toBe("NUEVO");
+    });
+  });
+
+  /**
    * Eliminar un almacén (Carlos, 2026-08-25). La guarda es la de siempre en
    * la casa (products.has_movements, F3-GUARDS): con HISTORIA detrás no se
    * borra — el kardex y los folios lo referencian y el histórico no se

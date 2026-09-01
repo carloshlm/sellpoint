@@ -508,9 +508,9 @@ describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
     );
   }
 
-  it("almacenes lista su contacto estándar", async () => {
+  it("almacenes lista su código y su contacto estándar (código desde 2026-09-01)", async () => {
     await renderSchema();
-    expect(await chipsDe("cat-wh")).toEqual(["Nombre", "Dirección", "Teléfono", "Email"]);
+    expect(await chipsDe("cat-wh")).toEqual(["Código", "Nombre", "Dirección", "Teléfono", "Email"]);
   });
 
   it("servicios lista sus cuatro estándar — sin «Descripción» (Carlos, 2026-09-01)", async () => {

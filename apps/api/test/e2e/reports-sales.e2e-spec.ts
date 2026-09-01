@@ -81,8 +81,20 @@ describe("Reporte de ventas (F5-SALES)", () => {
     await prisma.withTenantContext(tenantId, async (tx) => {
       userId = (await tx.user.findFirstOrThrow({ where: { tenantId } })).id;
       const [central, norte] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: "Central ventas" } }),
-        tx.warehouse.create({ data: { tenantId, name: "Norte ventas" } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Central ventas",
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Norte ventas",
+          },
+        }),
       ]);
       centralId = central.id;
       norteId = norte.id;

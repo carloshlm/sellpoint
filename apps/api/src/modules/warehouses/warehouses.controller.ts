@@ -9,16 +9,19 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CheckPlanLimit } from "../billing/decorators/check-plan-limit.decorator";
+import { type ImportWarehousesDto, importWarehousesSchema } from "./dto/import-warehouses.dto";
 import {
   type CreateWarehouseDto,
   createWarehouseSchema,
@@ -26,6 +29,7 @@ import {
   updateWarehouseSchema,
 } from "./dto/upsert-warehouse.dto";
 import { WarehousesService } from "./warehouses.service";
+import { WarehousesImportService } from "./warehouses-import.service";
 
 function metaFrom(request: Request) {
   return { ip: request.ip, userAgent: request.headers["user-agent"] };
@@ -34,7 +38,46 @@ function metaFrom(request: Request) {
 @ApiTags("warehouses")
 @Controller("warehouses")
 export class WarehousesController {
-  constructor(private readonly warehousesService: WarehousesService) {}
+  constructor(
+    private readonly warehousesService: WarehousesService,
+    private readonly importService: WarehousesImportService,
+  ) {}
+
+  /**
+   * Importar por Excel (Carlos, 2026-09-01) — mismo contrato que productos y
+   * servicios: la plantilla trae lo ya dado de alta y el match es por código.
+   * Va ANTES de las rutas con `:id`: `import/template` no es un identificador.
+   */
+  @Get("import/template")
+  @RequirePermissions("warehouses:manage")
+  async importTemplate(@CurrentUser() user: AuthUser, @Res() response: Response) {
+    const { body, contentType, filename } = await this.importService.template(user);
+    response
+      .setHeader("Content-Type", contentType)
+      .setHeader("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(body);
+  }
+
+  @Post("import")
+  @HttpCode(200)
+  @RequirePermissions("warehouses:manage")
+  import(
+    @Body(new ZodValidationPipe(importWarehousesSchema, "warehouses.invalid_body"))
+    dto: ImportWarehousesDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.importService.run(
+      user,
+      dto.content,
+      {
+        dryRun: dto.dryRun,
+        skipErrors: dto.skipErrors,
+        locale: getLocale(request as Request & RequestWithLocale),
+      },
+      metaFrom(request),
+    );
+  }
 
   /**
    * `?scoped=true` acota a los almacenes ACTIVOS dentro del alcance del

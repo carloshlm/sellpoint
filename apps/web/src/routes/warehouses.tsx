@@ -12,6 +12,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ImportDialog } from "@/components/common/import-dialog";
 import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -40,6 +41,7 @@ import {
   useUpdateWarehouse,
   useWarehouses,
 } from "@/lib/warehouses/hooks";
+import { downloadWarehouseImportTemplate, runWarehouseImport } from "@/lib/warehouses/import-api";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/warehouses")({
@@ -69,6 +71,7 @@ function WarehousesContent() {
   const { data: warehouses, isPending } = useWarehouses();
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Warehouse | null>(null);
   const updateWarehouse = useUpdateWarehouse();
   const deleteWarehouse = useDeleteWarehouse();
@@ -82,10 +85,28 @@ function WarehousesContent() {
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("warehouses.page.title")}</h1>
-        {canManage && !creating && !editing && (
-          <Button onClick={() => setCreating(true)}>{t("warehouses.add")}</Button>
+        {canManage && !creating && !editing && !importing && (
+          <div className="flex gap-2">
+            {/* Importar por Excel (Carlos, 2026-09-01): el mismo flujo de
+                productos y servicios, match por código. */}
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              {t("warehouses.import.button")}
+            </Button>
+            <Button onClick={() => setCreating(true)}>{t("warehouses.add")}</Button>
+          </div>
         )}
       </header>
+
+      {importing && (
+        <ImportDialog
+          testIdPrefix="warehouse-import"
+          i18nPrefix="warehouses.import"
+          downloadTemplate={downloadWarehouseImportTemplate}
+          run={runWarehouseImport}
+          invalidate={[["warehouses"]]}
+          onClose={() => setImporting(false)}
+        />
+      )}
 
       {error && (
         <p
@@ -123,6 +144,7 @@ function WarehousesContent() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>{t("warehouses.form.code")}</TableHead>
               <TableHead>{t("warehouses.form.name")}</TableHead>
               <TableHead>{t("warehouses.form.address")}</TableHead>
               <TableHead>{t("warehouses.status")}</TableHead>
@@ -148,6 +170,7 @@ function WarehousesContent() {
 
               return (
                 <TableRow key={warehouse.id} data-testid={`warehouse-${warehouse.id}`}>
+                  <TableCell className="font-mono">{warehouse.code}</TableCell>
                   <TableCell className="font-medium">{warehouse.name}</TableCell>
                   <TableCell>{warehouse.address ?? "—"}</TableCell>
                   <TableCell>
@@ -239,6 +262,7 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
   // cursor queda en el primer campo (ver el docblock del hook).
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const tenantCountry = useAuthStore((state) => state.user?.tenant.country ?? null);
+  const [code, setCode] = useState(warehouse?.code ?? "");
   const [name, setName] = useState(warehouse?.name ?? "");
   const [address, setAddress] = useState(warehouse?.address ?? "");
   const initialPhone = phonePartsOf(warehouse?.phone, tenantCountry);
@@ -291,6 +315,7 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
             {
               id: warehouse.id,
               input: {
+                code: code.trim(),
                 name,
                 address: address || null,
                 phone: composedPhone,
@@ -304,6 +329,7 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
         }
         createWarehouse.mutate(
           {
+            code: code.trim(),
             name,
             ...(address ? { address } : {}),
             ...(composedPhone !== null ? { phone: composedPhone } : {}),
@@ -323,6 +349,15 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
           {error}
         </p>
       )}
+      {/* El código estándar (Carlos, 2026-09-01): la llave visible del
+          almacén y la del match de la importación. Obligatorio acá aunque el
+          API lo genere si falta — quien captura a mano decide su código. */}
+      <TextField
+        label={t("warehouses.form.code")}
+        hint={t("warehouses.form.codeHint")}
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+      />
       <TextField
         label={t("warehouses.form.name")}
         value={name}
@@ -361,7 +396,7 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
         onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
       <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting || !name.trim()}>
+        <Button type="submit" disabled={isSubmitting || !name.trim() || !code.trim()}>
           {isSubmitting ? t("common.form.submitting") : t("common.form.save")}
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

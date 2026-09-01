@@ -50,6 +50,7 @@ const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 const ALMACENES: warehousesApi.Warehouse[] = [
   {
     id: "w1",
+    code: "ALM-001",
     name: "Central",
     address: null,
     phone: null,
@@ -60,6 +61,7 @@ const ALMACENES: warehousesApi.Warehouse[] = [
   },
   {
     id: "w2",
+    code: "ALM-002",
     name: "Bodega Norte",
     address: null,
     phone: null,

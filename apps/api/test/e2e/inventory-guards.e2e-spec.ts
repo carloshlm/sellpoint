@@ -85,8 +85,20 @@ describe("Guardas de integridad (F3-GUARDS)", () => {
 
     const { warehouseId, otroId } = await prisma.withTenantContext(tenantId, async (tx) => {
       const [a, b] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: `Central ${stamp}` } }),
-        tx.warehouse.create({ data: { tenantId, name: `Norte ${stamp}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${stamp}`,
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Norte ${stamp}`,
+          },
+        }),
       ]);
       return { warehouseId: a.id, otroId: b.id };
     });

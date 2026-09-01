@@ -37,7 +37,11 @@ describe("RLS de servicios por almacén (F3-SVC-06)", () => {
         data: { tenantId: tenantAId, code: `SW-${Date.now()}`, name: "Corte" },
       });
       const almacen = await tx.warehouse.create({
-        data: { tenantId: tenantAId, name: `Central SW ${Date.now()}` },
+        data: {
+          tenantId: tenantAId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Central SW ${Date.now()}`,
+        },
       });
       servicioAId = servicio.id;
       almacenAId = almacen.id;

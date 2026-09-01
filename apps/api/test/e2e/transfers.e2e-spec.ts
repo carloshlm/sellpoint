@@ -88,9 +88,27 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
           data: { tenantId, sku: `TR-${randomUUID().slice(0, 8)}`, name: "Caja" },
         });
         const [a, b, c] = await Promise.all([
-          tx.warehouse.create({ data: { tenantId, name: `Central ${randomUUID().slice(0, 6)}` } }),
-          tx.warehouse.create({ data: { tenantId, name: `Norte ${randomUUID().slice(0, 6)}` } }),
-          tx.warehouse.create({ data: { tenantId, name: `Sur ${randomUUID().slice(0, 6)}` } }),
+          tx.warehouse.create({
+            data: {
+              tenantId,
+              code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+              name: `Central ${randomUUID().slice(0, 6)}`,
+            },
+          }),
+          tx.warehouse.create({
+            data: {
+              tenantId,
+              code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+              name: `Norte ${randomUUID().slice(0, 6)}`,
+            },
+          }),
+          tx.warehouse.create({
+            data: {
+              tenantId,
+              code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+              name: `Sur ${randomUUID().slice(0, 6)}`,
+            },
+          }),
         ]);
         return { productId: product.id, central: a.id, norte: b.id, sur: c.id };
       },

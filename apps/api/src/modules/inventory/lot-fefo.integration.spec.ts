@@ -43,7 +43,11 @@ describe("resolveLotsFefo (F3-CORE-08)", () => {
         data: { tenantId, sku: `KY6-${stamp}`, name: "KY6 TABLETA", tracksLots: true },
       });
       const warehouse = await tx.warehouse.create({
-        data: { tenantId, name: `Central fefo ${stamp}` },
+        data: {
+          tenantId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Central fefo ${stamp}`,
+        },
       });
 
       const lote = async (lotCode: string, expiresAt: string | null, quantity: number) => {
@@ -201,7 +205,11 @@ describe("resolveLotsFefo (F3-CORE-08)", () => {
           data: { tenantId, sku: `CAD-${stamp}`, name: "Todo vencido", tracksLots: true },
         });
         const warehouse = await tx.warehouse.create({
-          data: { tenantId, name: `Cad ${stamp}` },
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Cad ${stamp}`,
+          },
         });
         const lot = await tx.productLot.create({
           data: {

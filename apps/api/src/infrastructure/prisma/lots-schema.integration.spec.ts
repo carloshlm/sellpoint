@@ -42,8 +42,20 @@ describe("lotes: product_lots y stock_lots (F3-DB-06)", () => {
         tx.product.create({ data: { tenantId, sku: `LOT-B-${stamp}`, name: "Otro con lotes" } }),
       ]);
       const [warehouse, second] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: `Central ${stamp}` } }),
-        tx.warehouse.create({ data: { tenantId, name: `Sucursal ${stamp}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Central ${stamp}`,
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Sucursal ${stamp}`,
+          },
+        }),
       ]);
       productId = product.id;
       otherProductId = other.id;

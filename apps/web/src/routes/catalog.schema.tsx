@@ -87,6 +87,7 @@ function CatalogSchemaContent() {
       t("catalogs.standard.price"),
     ],
     warehouses: [
+      t("catalogs.standard.code"),
       t("catalogs.standard.name"),
       t("catalogs.standard.address"),
       t("catalogs.standard.phone"),

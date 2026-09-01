@@ -120,8 +120,22 @@ describe("Exports directos (F5-CAT)", () => {
     await prisma.withTenantContext(tenantId, async (tx) => {
       userId = (await tx.user.findFirstOrThrow({ where: { tenantId } })).id;
       const [, norte] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId, name: "Central cat", address: "Calle 5" } }),
-        tx.warehouse.create({ data: { tenantId, name: "Norte cat", isActive: false } }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Central cat",
+            address: "Calle 5",
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: "Norte cat",
+            isActive: false,
+          },
+        }),
       ]);
       norteId = norte.id;
     });

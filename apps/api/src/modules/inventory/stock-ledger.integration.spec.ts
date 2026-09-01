@@ -60,7 +60,11 @@ describe("StockLedgerService.apply (F3-CORE-05)", () => {
         }),
       ]);
       const warehouse = await tx.warehouse.create({
-        data: { tenantId, name: `Central ledger ${stamp}` },
+        data: {
+          tenantId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Central ledger ${stamp}`,
+        },
       });
       const document = await tx.inventoryDocument.create({
         data: {

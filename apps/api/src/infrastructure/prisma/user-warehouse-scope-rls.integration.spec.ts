@@ -47,7 +47,11 @@ describe("user_warehouse_scopes — RLS (F1-SCOPE-01/02)", () => {
 
     const warehouse = await prisma.withTenantContext(tenantAId, (tx) =>
       tx.warehouse.create({
-        data: { tenantId: tenantAId, name: `Almacén scope ${Date.now()}` },
+        data: {
+          tenantId: tenantAId,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: `Almacén scope ${Date.now()}`,
+        },
       }),
     );
     warehouseId = warehouse.id;

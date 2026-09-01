@@ -74,8 +74,20 @@ describe("RLS y append-only de Fase 3 (F3-DB-04)", () => {
         data: { tenantId: tenantAId, sku: `RLS-F3-${stamp}`, name: "Producto RLS F3" },
       });
       const [origin, destination] = await Promise.all([
-        tx.warehouse.create({ data: { tenantId: tenantAId, name: `Origen ${stamp}` } }),
-        tx.warehouse.create({ data: { tenantId: tenantAId, name: `Destino ${stamp}` } }),
+        tx.warehouse.create({
+          data: {
+            tenantId: tenantAId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Origen ${stamp}`,
+          },
+        }),
+        tx.warehouse.create({
+          data: {
+            tenantId: tenantAId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Destino ${stamp}`,
+          },
+        }),
       ]);
 
       const transfer = await tx.transfer.create({

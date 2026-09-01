@@ -47,6 +47,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     const user = userEvent.setup();
     mockedApi.createWarehouse.mockResolvedValue({
       id: "w-1",
+      code: "ALM-001",
       name: "Central",
       address: null,
       isActive: true,
@@ -98,6 +99,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     mockedApi.listWarehouses.mockResolvedValue([
       {
         id: "w-1",
+        code: "ALM-001",
         name: "Almacén Central",
         address: null,
         isActive: true,
@@ -125,6 +127,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     mockedApi.listWarehouses.mockResolvedValue([
       {
         id: "w-1",
+        code: "ALM-001",
         name: "Almacén Central",
         address: null,
         isActive: true,
@@ -136,6 +139,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     ]);
     mockedApi.updateWarehouse.mockResolvedValue({
       id: "w-1",
+      code: "ALM-001",
       name: "CEDIS",
       address: null,
       isActive: true,

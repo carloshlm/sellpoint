@@ -150,6 +150,7 @@ beforeEach(() => {
   mockedWarehouses.mockResolvedValue([
     {
       id: "w1",
+      code: "ALM-001",
       name: "Bodega Norte",
       address: null,
       phone: null,
@@ -160,6 +161,7 @@ beforeEach(() => {
     },
     {
       id: "w2",
+      code: "ALM-002",
       name: "Central",
       address: null,
       phone: null,

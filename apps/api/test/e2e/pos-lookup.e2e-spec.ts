@@ -82,7 +82,13 @@ describe("Buscador del POS (F4-CART-01)", () => {
     const datos = await prisma.withTenantContext(tenantId, async (tx) => {
       const central = (await tx.warehouse.findFirstOrThrow({ select: { id: true } })).id;
       const sucursal = (
-        await tx.warehouse.create({ data: { tenantId, name: `Sucursal ${stamp}` } })
+        await tx.warehouse.create({
+          data: {
+            tenantId,
+            code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+            name: `Sucursal ${stamp}`,
+          },
+        })
       ).id;
 
       const producto = async (

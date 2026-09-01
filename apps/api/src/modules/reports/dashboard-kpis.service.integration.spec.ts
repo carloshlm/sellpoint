@@ -65,10 +65,18 @@ describe("DashboardKpisService (integration)", () => {
         },
       });
       const almacen = await tx.warehouse.create({
-        data: { tenantId: tenant.id, name: "Central" },
+        data: {
+          tenantId: tenant.id,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: "Central",
+        },
       });
       const otro = await tx.warehouse.create({
-        data: { tenantId: tenant.id, name: "Sucursal" },
+        data: {
+          tenantId: tenant.id,
+          code: `WH-${Math.random().toString(36).slice(2, 10)}`,
+          name: "Sucursal",
+        },
       });
       const producto = await tx.product.create({
         data: { tenantId: tenant.id, sku: `KPI-${randomUUID().slice(0, 8)}`, name: "Genérico" },

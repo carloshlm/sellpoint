@@ -114,6 +114,7 @@ describe("/onboarding", () => {
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
       {
         id: "w-1",
+        code: "ALM-w-1",
         name: "Central",
         address: null,
         phone: null,
