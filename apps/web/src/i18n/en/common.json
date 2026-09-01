@@ -108,6 +108,9 @@
       }
     }
   },
+  "dialog": {
+    "close": "Close"
+  },
   "list": {
     "scrollHint": "Swipe to see the rest."
   },

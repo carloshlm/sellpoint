@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 /**
  * F7-WEB-03 — el primitivo de diálogo modal de la casa. Antes de F7 los
@@ -23,6 +24,7 @@ export function Dialog({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -92,9 +94,22 @@ export function Dialog({
         tabIndex={-1}
         className="max-h-full w-full max-w-3xl overflow-y-auto rounded-lg border bg-background p-6 shadow-lg outline-none"
       >
-        <h2 id={titleId} className="mb-4 font-semibold text-lg">
-          {title}
-        </h2>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <h2 id={titleId} className="font-semibold text-lg">
+            {title}
+          </h2>
+          {/* La X existe por el celular (Carlos, 2026-09-01): el panel llena
+              la pantalla —no queda backdrop que tocar— y Escape no existe en
+              un teléfono. Sin un botón visible, el diálogo es una trampa. */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.dialog.close")}
+            className="-m-2 shrink-0 rounded-md p-2 text-muted-foreground leading-none transition-colors hover:bg-muted hover:text-foreground"
+          >
+            ✕
+          </button>
+        </div>
         {children}
       </div>
     </div>,

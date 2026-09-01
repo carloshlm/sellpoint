@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
 import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
@@ -199,14 +200,13 @@ function BusinessDetails({ user }: { user: AuthUser }) {
               {apiError}
             </p>
           )}
+          {/* SuccessNotice y no un <p>: mueve el FOCO al cuadro (y con él el
+              scroll) — en un celular el formulario es largo y el mensaje vive
+              arriba, así que guardar parecía no hacer nada (Carlos, 2026-09-01). */}
           {succeeded && (
-            <p
-              role="status"
-              data-testid="business-details-success"
-              className="rounded-md bg-success/10 px-3 py-2 text-sm text-success"
-            >
+            <SuccessNotice testId="business-details-success">
               {t("common.profile.business.success")}
-            </p>
+            </SuccessNotice>
           )}
           {/* El país quedó FIJO: los impuestos por país dependerán de él,
               mismo criterio que la moneda. */}

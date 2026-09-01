@@ -139,6 +139,26 @@ export const UNITS = {
     namePluralEs: "Metros",
     namePluralEn: "Meters",
   },
+  // Imperiales (Carlos, 2026-09-01). Los factores son DEFINICIONES exactas
+  // —1 in = 2.54 cm por convención internacional desde 1959—, no medidas:
+  // con base centímetro quedan exactos en decimal y las conversiones no
+  // arrastran redondeo.
+  in: {
+    category: "length",
+    factor: 2.54,
+    nameEs: "Pulgada",
+    nameEn: "Inch",
+    namePluralEs: "Pulgadas",
+    namePluralEn: "Inches",
+  },
+  ft: {
+    category: "length",
+    factor: 30.48,
+    nameEs: "Pie",
+    nameEn: "Foot",
+    namePluralEs: "Pies",
+    namePluralEn: "Feet",
+  },
 } as const satisfies Record<string, UnitDefinition>;
 
 export type UnitCode = keyof typeof UNITS;

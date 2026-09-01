@@ -136,6 +136,28 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
       });
     });
 
+    /**
+     * Carlos (2026-09-01): en celular el formulario es largo y el mensaje de
+     * éxito vive arriba — guardar «no hacía nada» visible. El foco se va al
+     * cuadro verde (y el navegador lo trae a la vista con el scroll).
+     */
+    it("al guardar, el mensaje de éxito recibe el foco para que el scroll lo alcance", async () => {
+      const user = userEvent.setup();
+      const actor = demoUser(["tenants:manage"]);
+      mockedUpdate.mockResolvedValue({ ...actor.tenant });
+      renderCard(actor);
+
+      // Hay que ENSUCIAR un campo: sin cambios, guardar no manda nada (y con
+      // razón — un PATCH vacío es 400).
+      await user.type(screen.getByLabelText(/Meta mensual de ventas/), "90000");
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      const aviso = await screen.findByTestId("business-details-success");
+      expect(aviso).toHaveAttribute("role", "status");
+      expect(aviso).toHaveClass("bg-success-soft");
+      expect(aviso).toHaveFocus();
+    });
+
     it("vaciar la meta la BORRA: manda null, no cero ni string vacío", async () => {
       const user = userEvent.setup();
       const actor = demoUser(["tenants:manage"]);

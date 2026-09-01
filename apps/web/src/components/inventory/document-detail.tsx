@@ -893,8 +893,11 @@ function LineRow({
       <td className="px-2 py-2">
         <div className={`${LINE_CELL} flex-wrap gap-x-2`}>
           <span>
-            {formatQuantity(row.stockBefore, product?.baseUnit ?? "")} →{" "}
-            {formatQuantity(row.stockAfter, product?.baseUnit ?? "")}
+            {/* Sin saldo que contar (anulados, conteos asentados): «—» antes
+                que un número reconstruido a medias. El exacto vive en el kardex. */}
+            {row.stockBefore === null || row.stockAfter === null
+              ? "—"
+              : `${formatQuantity(row.stockBefore, product?.baseUnit ?? "")} → ${formatQuantity(row.stockAfter, product?.baseUnit ?? "")}`}
           </span>
           {!esConteo && row.newLot && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
@@ -958,7 +961,9 @@ function Disponible({
 }) {
   const { t } = useTranslation();
 
-  if (product === undefined) {
+  // Sin `available` no hay nada que decir: el documento ya no es un borrador
+  // y «disponible» es una pregunta de la previa (Carlos, 2026-09-01).
+  if (product === undefined || row.available === null) {
     return null;
   }
   // El plural lo decide la CANTIDAD: «1 pieza», «2 piezas».

@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { I18nextProvider } from "react-i18next";
+import { createI18n } from "../../i18n";
 import { Dialog } from "./dialog";
 
 /**
@@ -17,9 +19,13 @@ function Demo({ onClose = () => {} }: { onClose?: () => void }) {
     onClose();
   };
   return (
-    <Dialog open={open} onClose={close} title="Elige tu plan">
-      <button type="button">Contratar</button>
-    </Dialog>
+    // El provider es por el botón de cerrar del propio Dialog, que traduce su
+    // etiqueta accesible; el resto del contenido llega ya traducido de fuera.
+    <I18nextProvider i18n={createI18n()}>
+      <Dialog open={open} onClose={close} title="Elige tu plan">
+        <button type="button">Contratar</button>
+      </Dialog>
+    </I18nextProvider>
   );
 }
 
@@ -41,6 +47,21 @@ describe("Dialog (F7-WEB-03)", () => {
     }
     render(<Cerrado />);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Carlos (2026-09-01): en celular el panel llena la pantalla — no queda
+   * backdrop que tocar, y Escape no existe en un teléfono. Sin un botón
+   * visible, el diálogo es una trampa táctil.
+   */
+  it("tiene un botón de cerrar visible: en un teléfono no hay Escape ni backdrop", async () => {
+    const onClose = vi.fn();
+    render(<Demo onClose={onClose} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("Escape cierra", async () => {

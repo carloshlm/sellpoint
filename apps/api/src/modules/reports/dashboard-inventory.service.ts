@@ -103,11 +103,16 @@ export class DashboardInventoryService {
           name: f.name,
           stock: f.total,
           stockMin: f.stock_min,
-          daysLeft: conRitmo
-            ? Number(
-                new Prisma.Decimal(f.total).dividedBy(vendido.dividedBy(14)).toDP(1).toString(),
-              )
-            : null,
+          // Stock en cero o abajo = 0 días, SIEMPRE (Carlos, 2026-09-01):
+          // «−14 días restantes» no significa nada para quien repone, y el
+          // «sin ritmo» tampoco aplica — lo que está en cero ya se acabó.
+          daysLeft: new Prisma.Decimal(f.total).lessThanOrEqualTo(0)
+            ? 0
+            : conRitmo
+              ? Number(
+                  new Prisma.Decimal(f.total).dividedBy(vendido.dividedBy(14)).toDP(1).toString(),
+                )
+              : null,
         };
       })
       // Urgencia: menos días primero; sin ritmo (null) al final — no se sabe

@@ -57,9 +57,14 @@ export interface DocumentRow {
   expiresAt: string | null;
   location: string | null;
   newLot: boolean;
-  available: string;
-  stockBefore: string;
-  stockAfter: string;
+  /**
+   * `null` en documentos que ya no son borrador: «disponible» es una pregunta
+   * de la previa, y el saldo antes/después solo se muestra cuando se puede
+   * contar de los movimientos reales (un anulado nunca movió nada).
+   */
+  available: string | null;
+  stockBefore: string | null;
+  stockAfter: string | null;
   /**
    * El reparto FEFO que se APLICARÍA. Sale del mismo `allocateFefo` que usa el
    * confirm, así que es de donde realmente va a salir la mercancía. `null` en

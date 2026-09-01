@@ -375,6 +375,12 @@ export class DocumentsService {
 
       const direction = document.type === "exit" ? "exit" : "entry";
       const esConteo = document.type === "physical_count";
+      // Un documento asentado o anulado es HISTORIA. La previa —errores,
+      // «disponible», plan FEFO, proyección del saldo contra el de HOY— es
+      // cosa de borradores: correrla sobre un confirmado producía «hay 0 y
+      // se piden 29» en una salida que acababa de dejar el saldo en 0
+      // (Carlos, 2026-09-01). Lo que pasó no se recalcula: se cuenta.
+      const esBorrador = document.status === "draft";
       const resolved = await resolveLines(
         tx,
         user.tenantId,
@@ -448,7 +454,7 @@ export class DocumentsService {
         number,
         { lotCode: string; expiresAt: Date | null; location: string; quantity: string }[]
       >();
-      if (direction === "exit") {
+      if (direction === "exit" && esBorrador) {
         const conCantidad = document.lines
           .map((line, index) => ({ line, index, res: resolved[index] }))
           // Con lote FORZADO no hay reparto que mostrar: el usuario ya eligió.
@@ -541,6 +547,43 @@ export class DocumentsService {
         }
       }
 
+      // ── El saldo REAL alrededor del asiento (solo confirmados) ────────
+      //
+      // No se proyecta contra el saldo de HOY (ya movido por este documento y
+      // por todo lo posterior): se reconstruye de los movimientos, con la
+      // misma suma acumulada del kardex. Por producto: el saldo tras el
+      // último movimiento del documento, menos lo que el documento movió, es
+      // el saldo con el que ARRANCÓ el asiento.
+      //
+      // Un conteo asentado y los compuestos (que mueven componentes, no a sí
+      // mismos) no tienen esta cadena por línea: su fila queda sin saldo y la
+      // pantalla muestra «—», que es mejor que un número reconstruido a
+      // medias. El saldo por movimiento, exacto, vive en el kardex.
+      const historiaPorProducto = new Map<string, Prisma.Decimal>();
+      if (document.status === "confirmed" && !esConteo) {
+        const historia = await tx.$queryRaw<{ product_id: string; before_real: string }[]>`
+          WITH del_doc AS (
+            SELECT product_id,
+                   MAX(seq) AS last_seq,
+                   SUM(CASE WHEN direction = 'entry' THEN quantity ELSE -quantity END) AS delta_doc
+              FROM stock_movements
+             WHERE tenant_id = ${user.tenantId}::uuid
+               AND document_id = ${documentId}::uuid
+             GROUP BY product_id
+          )
+          SELECT d.product_id,
+                 ((SELECT COALESCE(SUM(CASE WHEN m.direction = 'entry' THEN m.quantity ELSE -m.quantity END), 0)
+                     FROM stock_movements m
+                    WHERE m.tenant_id = ${user.tenantId}::uuid
+                      AND m.product_id = d.product_id
+                      AND m.warehouse_id = ${document.warehouseId}::uuid
+                      AND m.seq <= d.last_seq) - d.delta_doc)::text AS before_real
+            FROM del_doc d`;
+        for (const fila of historia) {
+          historiaPorProducto.set(fila.product_id, new Prisma.Decimal(fila.before_real));
+        }
+      }
+
       const signo = direction === "entry" ? 1 : -1;
       // Acumulado por producto: dos líneas del mismo producto tienen que
       // mostrar el efecto ENCADENADO, no las dos partiendo del mismo saldo.
@@ -548,10 +591,13 @@ export class DocumentsService {
 
       const rows = document.lines.map((line, index) => {
         const res = resolved[index];
-        const antes =
-          acumulado.get(line.productId) ??
-          saldoPorProducto.get(line.productId) ??
-          new Prisma.Decimal(0);
+        // En borrador, la base es el saldo ACTUAL (es una previa); en un
+        // asentado, el saldo real del momento del asiento — y si no lo hay
+        // (anulado, conteo, compuesto), `null`: la pantalla dirá «—».
+        const base = esBorrador
+          ? (saldoPorProducto.get(line.productId) ?? new Prisma.Decimal(0))
+          : (historiaPorProducto.get(line.productId) ?? null);
+        const antes = acumulado.get(line.productId) ?? base;
 
         // ── Un conteo REEMPLAZA, no suma ──────────────────────────────────
         //
@@ -572,17 +618,26 @@ export class DocumentsService {
                 teoricoPorLinea.get(line.lineNo) ?? new Prisma.Decimal(0),
               )
           : (res?.quantityBase ?? new Prisma.Decimal(0)).mul(signo);
-        const despues = antes.plus(delta);
-        acumulado.set(line.productId, despues);
+        const despues = antes === null ? null : antes.plus(delta);
+        if (despues !== null) {
+          acumulado.set(line.productId, despues);
+        }
 
         // Una línea de conteo SIN contar está omitida, no mal: quien contaba
         // no llegó a esa fila. Marcarla en rojo sería acusarlo de un error que
-        // no cometió.
+        // no cometió. Y en un documento que ya no es borrador no hay NADA que
+        // corregir: los errores son de la previa, y la previa ya pasó.
         const omitida = esConteo && line.counted === null;
-        const errors = omitida ? [] : [...(res?.errors ?? [])];
+        const errors = !esBorrador || omitida ? [] : [...(res?.errors ?? [])];
         // La previa de una SALIDA avisa antes de confirmar; el rechazo duro lo
         // hace el ledger, con la fila ya bloqueada.
-        if (direction === "exit" && despues.lessThan(0) && errors.length === 0) {
+        if (
+          esBorrador &&
+          direction === "exit" &&
+          despues !== null &&
+          despues.lessThan(0) &&
+          errors.length === 0
+        ) {
           errors.push({
             field: "quantity",
             code: "inventory.insufficient_stock",
@@ -592,7 +647,7 @@ export class DocumentsService {
             // más se necesita: en un documento de cuarenta líneas.
             args: {
               sku: res?.sku ?? "",
-              available: antes.toString(),
+              available: antes?.toString() ?? "0",
               requested: delta.abs().toString(),
             },
           });
@@ -614,11 +669,13 @@ export class DocumentsService {
           lotCode: line.lotCode,
           expiresAt: line.expiresAt,
           location: line.location,
-          newLot: res?.newLot ?? false,
-          available: antes.toString(),
-          stockBefore: antes.toString(),
-          stockAfter: despues.toString(),
-          lotPlan: planPorLinea.get(index) ?? null,
+          newLot: esBorrador ? (res?.newLot ?? false) : false,
+          // «Disponible» y el plan FEFO son preguntas de borrador; sobre un
+          // asentado, la respuesta honesta es que ya no aplican.
+          available: esBorrador ? (antes?.toString() ?? "0") : null,
+          stockBefore: antes?.toString() ?? null,
+          stockAfter: despues?.toString() ?? null,
+          lotPlan: esBorrador ? (planPorLinea.get(index) ?? null) : null,
           ...(esConteo
             ? {
                 theoretical: (teoricoPorLinea.get(line.lineNo) ?? new Prisma.Decimal(0)).toString(),

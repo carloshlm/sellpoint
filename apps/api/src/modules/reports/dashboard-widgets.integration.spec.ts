@@ -362,9 +362,65 @@ describe("Los widgets del dashboard (integration)", () => {
     // B sin costo conocido no inventa valor.
     expect(conDinero.inventoryValue).toBe("42");
     expect(sinDinero.inventoryValue).toBeUndefined();
-    // A la cabeza el que se agota primero: A con 3 días; B sin ritmo → null y al final.
-    expect(conDinero.attention[0]?.daysLeft).toBe(3);
-    expect(conDinero.attention[1]?.daysLeft).toBeNull();
+    // A la cabeza el que YA se acabó: B agotado dice 0 días — con o sin ritmo,
+    // lo que está en cero no tiene «no se sabe cuándo se acaba»: ya se acabó
+    // (Carlos, 2026-09-01). A, con ritmo, conserva sus 3 días.
+    expect(conDinero.attention[0]?.daysLeft).toBe(0);
+    expect(conDinero.attention[1]?.daysLeft).toBe(3);
+  });
+
+  /**
+   * Carlos (2026-09-01): un producto con stock NEGATIVO (vendido sin
+   * existencias) mostraba «−14 días restantes» — un plazo negativo no
+   * significa nada para quien repone. Stock en cero o abajo = 0 días, y el
+   * front lo pinta en rojo (0 ≤ 3).
+   */
+  it("inventario: stock negativo o en cero dice 0 días restantes, nunca un número negativo", async () => {
+    const ctx = await escenario();
+    await prisma.withTenantContext(ctx.tenantId, async (tx) => {
+      // A quedó en −5 (se vendió sin existencias) y TIENE ritmo de venta.
+      await tx.stockByWarehouse.create({
+        data: {
+          tenantId: ctx.tenantId,
+          productId: ctx.productoA,
+          warehouseId: ctx.warehouseId,
+          quantity: -5,
+        },
+      });
+      const ventaAncla = await tx.sale.create({
+        data: {
+          tenantId: ctx.tenantId,
+          folio: `WN-${randomUUID().slice(0, 10)}`,
+          warehouseId: ctx.warehouseId,
+          cashboxSessionId: ctx.sesionId,
+          paymentMethod: "cash",
+          subtotal: 0,
+          total: 0,
+          createdBy: ctx.usuarioId,
+          status: "completed",
+        },
+      });
+      await tx.stockMovement.create({
+        data: {
+          tenantId: ctx.tenantId,
+          productId: ctx.productoA,
+          warehouseId: ctx.warehouseId,
+          direction: "exit",
+          reasonCode: "sale",
+          saleId: ventaAncla.id,
+          quantity: 28,
+          createdBy: ctx.usuarioId,
+          createdAt: new Date("2026-03-10T18:00:00Z"),
+        },
+      });
+    });
+
+    const r = await inventario.inventory(USER(ctx, ["inventory:read"]), TODO);
+
+    const filaA = r.attention.find((f) => f.productId === ctx.productoA);
+    // Con ritmo y stock −5, la división daría −2.5: se dice 0, que es la
+    // verdad útil — no queda nada que vender.
+    expect(filaA?.daysLeft).toBe(0);
   });
 
   it("métodos de pago: los % suman 100 y el dominante encabeza; sin ventas, lista vacía", async () => {

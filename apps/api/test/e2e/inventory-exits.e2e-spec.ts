@@ -205,6 +205,87 @@ describe("Confirmar una salida (F3-EXIT-01)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-09-01): sacó las 29 piezas que tenía, el confirm pasó — y la
+   * pantalla del documento CONFIRMADO decía «hay 0 y se piden 29», «0 → −29»
+   * y «corrige las líneas antes de confirmar». El detalle corría la PREVIA
+   * contra el saldo de HOY (ya descontado) sobre un documento que es
+   * historia. Un asentado cuenta lo que PASÓ; no hay nada que corregir.
+   */
+  describe("un documento asentado es historia, no una previa", () => {
+    async function productoPropio(): Promise<string> {
+      const res = await request(app.getHttpServer())
+        .post("/products")
+        .set(auth())
+        .send({ sku: `HIST-${randomUUID()}`, price: 10, name: "Historia" })
+        .expect(201);
+      return (res.body as { id: string }).id;
+    }
+
+    it("el detalle de una salida CONFIRMADA cuenta lo que pasó, sin errores fantasma", async () => {
+      const propio = await productoPropio();
+      await cargarStock(propio, 29);
+      const id = await documento("exit", { reasonCode: "loss", reasonNote: "Vaciar el anaquel" });
+      await agregar(id, { productId: propio, quantity: 29 }).expect(201);
+      await confirmar(id).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+
+      const body = detalle.body as {
+        summary: { errors: number };
+        rows: {
+          errors: unknown[];
+          stockBefore: string | null;
+          stockAfter: string | null;
+          available: string | null;
+          lotPlan: unknown;
+        }[];
+      };
+      const fila = body.rows[0];
+      // Sin error fantasma: el stock YA se movió y nada está mal.
+      expect(fila?.errors).toEqual([]);
+      expect(body.summary.errors).toBe(0);
+      // La historia REAL del asiento: había 29 y quedaron 0 — no la
+      // proyección «0 → −29» contra el saldo de después.
+      expect(fila?.stockBefore).toBe("29");
+      expect(fila?.stockAfter).toBe("0");
+      // «Disponible» y el plan FEFO son cosas de borrador: acá ya no aplican.
+      expect(fila?.available).toBeNull();
+      expect(fila?.lotPlan).toBeNull();
+    });
+
+    it("un documento ANULADO no proyecta saldos: nunca movió nada", async () => {
+      const propio = await productoPropio();
+      await cargarStock(propio, 10);
+      const id = await documento("exit", { reasonCode: "loss", reasonNote: "No va" });
+      await agregar(id, { productId: propio, quantity: 4 }).expect(201);
+      await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/cancel`)
+        .set(auth())
+        .send({ reason: "Capturado por error" })
+        .expect(200);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+
+      const fila = (
+        detalle.body as {
+          rows: { errors: unknown[]; stockBefore: string | null; stockAfter: string | null }[];
+        }
+      ).rows[0];
+      expect(fila?.errors).toEqual([]);
+      // No hay asiento del cual contar la historia: la columna no miente con
+      // una proyección — simplemente no está.
+      expect(fila?.stockBefore).toBeNull();
+      expect(fila?.stockAfter).toBeNull();
+    });
+  });
+
   describe("productos compuestos", () => {
     /**
      * Un compuesto NUNCA tiene saldo propio: se arma al consumirlo. Sacar 2
