@@ -108,6 +108,9 @@
       }
     }
   },
+  "list": {
+    "scrollHint": "Swipe to see the rest."
+  },
   "session": {
     "loading": "Loading your session…",
     "unavailableTitle": "We could not confirm your session",

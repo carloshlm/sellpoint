@@ -9,10 +9,23 @@ interface ChartBarsProps {
   barKey: string;
   token?: ChartToken;
   height?: number;
+  /** Formato del valor en el tooltip (p. ej. moneda con centavos). */
+  formatValue?: (value: number) => string;
+  /** Formato de los ticks del eje Y (p. ej. moneda SIN centavos: en un eje, los `.00` son ruido). */
+  formatAxis?: (value: number) => string;
 }
 
 /** Barras simples (F5-DASH-08) — las ventas por hora del día. */
-function ChartBars({ label, data, xKey, barKey, token = "primary", height = 260 }: ChartBarsProps) {
+function ChartBars({
+  label,
+  data,
+  xKey,
+  barKey,
+  token = "primary",
+  height = 260,
+  formatValue,
+  formatAxis,
+}: ChartBarsProps) {
   if (data.length === 0) {
     return <ChartEmpty label={label} height={height} />;
   }
@@ -27,9 +40,13 @@ function ChartBars({ label, data, xKey, barKey, token = "primary", height = 260 
             tickLine={false}
             axisLine={false}
             fontSize={12}
-            width={44}
+            // Con símbolo de moneda el tick es más ancho: sin este margen
+            // extra, «$6,000» se corta contra el borde izquierdo.
+            width={formatAxis ? 60 : 44}
+            tickFormatter={formatAxis}
           />
           <Tooltip
+            formatter={formatValue ? (valor) => formatValue(Number(valor)) : undefined}
             cursor={{ fill: "var(--muted)" }}
             contentStyle={{
               background: "var(--popover)",

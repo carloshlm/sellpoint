@@ -2,6 +2,7 @@ import type { Currency } from "@sellpoint/shared";
 import { formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { ScrollableList } from "@/components/ui/scrollable-list";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useDashboardInventory } from "@/lib/dashboard/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -26,7 +27,7 @@ function InventoryWidgets() {
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+    <section className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 className="font-medium text-sm">{t("dashboard.inventory.title")}</h2>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         <Link
@@ -71,27 +72,31 @@ function InventoryWidgets() {
       {data.attention.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("dashboard.inventory.empty")}</p>
       ) : (
-        <ul className="flex flex-col gap-1 text-sm">
-          {data.attention.map((producto) => (
-            <li key={producto.productId} className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate">{producto.name}</span>
-              <span className="text-muted-foreground tabular-nums">
-                {Number(producto.stock)}/{Number(producto.stockMin)}
-              </span>
-              <span
-                className={
-                  producto.daysLeft !== null && producto.daysLeft <= 3
-                    ? "text-destructive text-xs tabular-nums"
-                    : "text-warning text-xs tabular-nums"
-                }
-              >
-                {producto.daysLeft === null
-                  ? t("dashboard.inventory.noPace")
-                  : t("dashboard.inventory.daysLeft", { days: producto.daysLeft })}
-              </span>
-            </li>
-          ))}
-        </ul>
+        // Caja deslizable con `min-w`: en un celular las filas no caben y sin
+        // scroll se cortaban en el borde (revisión móvil, Carlos 2026-08-31).
+        <ScrollableList>
+          <ul className="flex min-w-[24rem] flex-col gap-1 text-sm">
+            {data.attention.map((producto) => (
+              <li key={producto.productId} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{producto.name}</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {Number(producto.stock)}/{Number(producto.stockMin)}
+                </span>
+                <span
+                  className={
+                    producto.daysLeft !== null && producto.daysLeft <= 3
+                      ? "text-destructive text-xs tabular-nums"
+                      : "text-warning text-xs tabular-nums"
+                  }
+                >
+                  {producto.daysLeft === null
+                    ? t("dashboard.inventory.noPace")
+                    : t("dashboard.inventory.daysLeft", { days: producto.daysLeft })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </ScrollableList>
       )}
     </section>
   );

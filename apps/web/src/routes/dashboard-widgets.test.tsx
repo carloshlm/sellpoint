@@ -220,6 +220,9 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     expect(screen.getByText("Sin ritmo de venta")).toBeInTheDocument();
     // El donut con su leyenda.
     expect(screen.getByText("62%")).toBeInTheDocument();
+    // Las tres listas (dos tops + atención) viven en cajas deslizables: en un
+    // celular las filas no caben y sin scroll se cortaban en el borde.
+    expect(screen.getAllByTestId("scrollable-list")).toHaveLength(3);
   });
 
   it("las alertas se componen de lo cargado — y cada endpoint se pidió UNA sola vez", async () => {

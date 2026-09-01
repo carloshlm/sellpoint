@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { ScrollableList } from "@/components/ui/scrollable-list";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useExpiring } from "@/lib/inventory/hooks";
 
@@ -38,28 +39,32 @@ export function ExpiringCard() {
           {total}
         </span>
       </div>
-      <ul className="flex flex-col gap-1 text-sm">
-        {urgentes.map((fila) => (
-          <li key={fila.lot.id} className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 truncate">{fila.name}</span>
-            <span className="text-muted-foreground text-xs">{fila.lot.lotCode}</span>
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {Number(fila.quantity)} u
-            </span>
-            <span
-              className={
-                fila.expired || fila.daysLeft <= 7
-                  ? "text-destructive text-xs tabular-nums"
-                  : "text-warning text-xs tabular-nums"
-              }
-            >
-              {fila.expired
-                ? t("inventory.expiring.expired")
-                : t("inventory.expiring.daysLeft", { count: fila.daysLeft })}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {/* Caja deslizable con `min-w`: en un celular las filas no caben y sin
+          scroll se cortaban en el borde (revisión móvil, Carlos 2026-08-31). */}
+      <ScrollableList>
+        <ul className="flex min-w-[24rem] flex-col gap-1 text-sm">
+          {urgentes.map((fila) => (
+            <li key={fila.lot.id} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate">{fila.name}</span>
+              <span className="text-muted-foreground text-xs">{fila.lot.lotCode}</span>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {Number(fila.quantity)} u
+              </span>
+              <span
+                className={
+                  fila.expired || fila.daysLeft <= 7
+                    ? "text-destructive text-xs tabular-nums"
+                    : "text-warning text-xs tabular-nums"
+                }
+              >
+                {fila.expired
+                  ? t("inventory.expiring.expired")
+                  : t("inventory.expiring.daysLeft", { count: fila.daysLeft })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </ScrollableList>
       <Link to="/movements/expiring" className="w-fit text-primary text-sm hover:underline">
         {t("inventory.expiring.viewAll")} →
       </Link>

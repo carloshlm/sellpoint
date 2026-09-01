@@ -21,9 +21,16 @@ function PaymentDonut({ period }: { period: DashboardPeriod }) {
   }));
 
   return (
-    <section className="flex flex-col gap-2 rounded-lg border bg-card p-4">
+    <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4">
       <h2 className="font-medium text-sm">{t("dashboard.payments.title")}</h2>
-      <ChartDonut label={t("dashboard.payments.title")} data={segmentos} height={200} />
+      <ChartDonut
+        label={t("dashboard.payments.title")}
+        data={segmentos}
+        height={200}
+        // Los segmentos son porcentajes: «Efectivo: 60.9» pelón parece un
+        // importe — el símbolo dice de qué habla (Carlos, 2026-08-31).
+        formatValue={(valor) => `${valor}%`}
+      />
       {data.methods.length > 0 && (
         <ul className="flex flex-wrap gap-3 text-sm">
           {data.methods.map((m) => (

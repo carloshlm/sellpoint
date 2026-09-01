@@ -16,6 +16,10 @@ interface ChartLineProps {
   xKey: string;
   lines: { dataKey: string; token?: ChartToken; name?: string }[];
   height?: number;
+  /** Formato del valor en el tooltip (p. ej. moneda con centavos). */
+  formatValue?: (value: number) => string;
+  /** Formato de los ticks del eje Y (p. ej. moneda SIN centavos: en un eje, los `.00` son ruido). */
+  formatAxis?: (value: number) => string;
 }
 
 /**
@@ -23,7 +27,15 @@ interface ChartLineProps {
  * referencia en `muted` — el ojo compara sin leyenda. Solo este archivo y sus
  * dos hermanos importan recharts (guardián en charts.test.tsx).
  */
-function ChartLine({ label, data, xKey, lines, height = 260 }: ChartLineProps) {
+function ChartLine({
+  label,
+  data,
+  xKey,
+  lines,
+  height = 260,
+  formatValue,
+  formatAxis,
+}: ChartLineProps) {
   if (data.length === 0) {
     return <ChartEmpty label={label} height={height} />;
   }
@@ -38,9 +50,13 @@ function ChartLine({ label, data, xKey, lines, height = 260 }: ChartLineProps) {
             tickLine={false}
             axisLine={false}
             fontSize={12}
-            width={44}
+            // Con símbolo de moneda el tick es más ancho: sin este margen
+            // extra, «$6,000» se corta contra el borde izquierdo.
+            width={formatAxis ? 60 : 44}
+            tickFormatter={formatAxis}
           />
           <Tooltip
+            formatter={formatValue ? (valor) => formatValue(Number(valor)) : undefined}
             contentStyle={{
               background: "var(--popover)",
               border: "1px solid var(--border)",

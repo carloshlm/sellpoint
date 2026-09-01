@@ -108,6 +108,9 @@
       }
     }
   },
+  "list": {
+    "scrollHint": "Desliza para ver el resto."
+  },
   "session": {
     "loading": "Cargando tu sesión…",
     "unavailableTitle": "No pudimos confirmar tu sesión",

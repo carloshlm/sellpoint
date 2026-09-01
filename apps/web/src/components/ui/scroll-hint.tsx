@@ -14,7 +14,15 @@ import { useTranslation } from "react-i18next";
  * Aparece SOLO si sobra contenido y desaparece al llegar al final: una
  * leyenda permanente se vuelve parte del decorado y deja de leerse.
  */
-export function ScrollHint({ visible }: { visible: boolean }) {
+export function ScrollHint({
+  visible,
+  // La leyenda por defecto habla de tablas y columnas; las LISTAS del panel
+  // (F5-DASH) pasan la suya — «columnas» en una lista sería mentir.
+  messageKey = "common.table.scrollHint",
+}: {
+  visible: boolean;
+  messageKey?: string;
+}) {
   const { t } = useTranslation();
 
   if (!visible) {
@@ -31,7 +39,7 @@ export function ScrollHint({ visible }: { visible: boolean }) {
         className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-lg bg-gradient-to-l from-card to-transparent"
       />
       <p data-testid="scroll-hint" className="mt-1 text-muted-foreground text-xs">
-        {t("common.table.scrollHint")}
+        {t(messageKey)}
       </p>
     </>
   );

@@ -133,6 +133,9 @@ describe("Tarjeta de próximos a vencer (F3-LOTS-03)", () => {
       tarjeta.textContent?.indexOf("Yogur") ?? -1,
     );
     expect(within(tarjeta).getByRole("link")).toHaveAttribute("href", "/movements/expiring");
+    // Las filas viven en una caja deslizable: en un celular no caben y sin
+    // scroll se cortaban en el borde de la tarjeta.
+    expect(within(tarjeta).getByTestId("scrollable-list")).toBeInTheDocument();
   });
 
   it("un lote VENCIDO dice «Vencido», no un número negativo de días", async () => {

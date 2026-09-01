@@ -1,8 +1,11 @@
+import type { Currency } from "@sellpoint/shared";
+import { formatMoney, localeToBcp47 } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
 import { ChartBars } from "@/components/dashboard/chart-bars";
 import { ChartLine } from "@/components/dashboard/chart-line";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useDashboardSeries } from "@/lib/dashboard/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 
 /**
  * F5-DASH-11 — las dos gráficas de ventas: el mes contra el anterior (la
@@ -13,12 +16,24 @@ import { useDashboardSeries } from "@/lib/dashboard/hooks";
 function SalesCharts() {
   const { t } = useTranslation();
   const { has } = usePermissions();
+  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const puedeVer = has("reports:read");
   const { data } = useDashboardSeries(puedeVer);
 
   if (!puedeVer || data === undefined) {
     return null;
   }
+
+  // Los dos ejes hablan de DINERO y sin símbolo no se nota (Carlos,
+  // 2026-08-31): tooltip con centavos, eje sin ellos — en un eje, cinco
+  // ticks terminados en `.00` son puro ruido.
+  const dinero = (valor: number) => formatMoney(valor, currency, locale);
+  const dineroEje = new Intl.NumberFormat(localeToBcp47(locale), {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  });
 
   const porDia = data.byDay.map((d) => ({
     day: String(d.day),
@@ -36,7 +51,7 @@ function SalesCharts() {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <section className="flex flex-col gap-2 rounded-lg border bg-card p-4">
+      <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4">
         <h2 className="font-medium text-sm">{t("dashboard.charts.monthVsPrev")}</h2>
         <ChartLine
           label={t("dashboard.charts.monthVsPrev")}
@@ -46,9 +61,11 @@ function SalesCharts() {
             { dataKey: t("dashboard.charts.current"), token: "primary" },
             { dataKey: t("dashboard.charts.previous"), token: "muted" },
           ]}
+          formatValue={dinero}
+          formatAxis={(valor) => dineroEje.format(valor)}
         />
       </section>
-      <section className="flex flex-col gap-2 rounded-lg border bg-card p-4">
+      <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4">
         <h2 className="font-medium text-sm">{t("dashboard.charts.byHour")}</h2>
         <ChartBars
           label={t("dashboard.charts.byHour")}
@@ -56,6 +73,8 @@ function SalesCharts() {
           data={sinVentasHoy ? [] : porHora}
           xKey="hour"
           barKey="total"
+          formatValue={dinero}
+          formatAxis={(valor) => dineroEje.format(valor)}
         />
       </section>
     </div>

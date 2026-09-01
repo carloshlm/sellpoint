@@ -1,6 +1,7 @@
 import type { Currency } from "@sellpoint/shared";
 import { formatMoney } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
+import { ScrollableList } from "@/components/ui/scrollable-list";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { DashboardPeriod } from "@/lib/dashboard/api";
 import { useDashboardProducts } from "@/lib/dashboard/hooks";
@@ -28,35 +29,40 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <section className="flex flex-col gap-2 rounded-lg border bg-card p-4">
+      <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4">
         <h2 className="font-medium text-sm">{t("dashboard.top.sold")}</h2>
         {data.topSold.length === 0 ? (
           vacio
         ) : (
-          <ol className="flex flex-col gap-1 text-sm">
-            {data.topSold.map((producto, i) => (
-              <li key={producto.itemId} className="flex items-center gap-2">
-                <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
-                <span className="min-w-0 flex-1 truncate">{producto.name}</span>
-                {producto.deltaPct !== null && producto.deltaPct !== 0 && (
-                  <span
-                    className={
-                      producto.deltaPct > 0 ? "text-success text-xs" : "text-destructive text-xs"
-                    }
-                  >
-                    {producto.deltaPct > 0 ? "▲" : "▼"} {Math.abs(producto.deltaPct)}%
+          // El `min-w` es lo que crea el scroll: sin él, flexbox tritura el
+          // nombre hasta que la fila "cabe" en un celular (revisión móvil,
+          // Carlos 2026-08-31).
+          <ScrollableList>
+            <ol className="flex min-w-[26rem] flex-col gap-1 text-sm">
+              {data.topSold.map((producto, i) => (
+                <li key={producto.itemId} className="flex items-center gap-2">
+                  <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <span className="min-w-0 flex-1 truncate">{producto.name}</span>
+                  {producto.deltaPct !== null && producto.deltaPct !== 0 && (
+                    <span
+                      className={
+                        producto.deltaPct > 0 ? "text-success text-xs" : "text-destructive text-xs"
+                      }
+                    >
+                      {producto.deltaPct > 0 ? "▲" : "▼"} {Math.abs(producto.deltaPct)}%
+                    </span>
+                  )}
+                  <span className="text-muted-foreground tabular-nums">
+                    {Number(producto.units)} {t("dashboard.top.units").toLowerCase()}
                   </span>
-                )}
-                <span className="text-muted-foreground tabular-nums">
-                  {Number(producto.units)} {t("dashboard.top.units").toLowerCase()}
-                </span>
-                <span className="w-24 text-right tabular-nums">{dinero(producto.revenue)}</span>
-              </li>
-            ))}
-          </ol>
+                  <span className="w-24 text-right tabular-nums">{dinero(producto.revenue)}</span>
+                </li>
+              ))}
+            </ol>
+          </ScrollableList>
         )}
       </section>
-      <section className="flex flex-col gap-2 rounded-lg border bg-card p-4">
+      <section className="flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-4">
         <h2 className="font-medium text-sm">{t("dashboard.top.profit")}</h2>
         {data.topProfit.length === 0 ? (
           // El vacío de utilidad NO es el de ventas: puede haber ventas de
@@ -65,18 +71,20 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
           // falta y cómo conseguirlo.
           <p className="text-muted-foreground text-sm">{t("dashboard.top.profitEmpty")}</p>
         ) : (
-          <ol className="flex flex-col gap-1 text-sm">
-            {data.topProfit.map((producto, i) => (
-              <li key={producto.itemId} className="flex items-center gap-2">
-                <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
-                <span className="min-w-0 flex-1 truncate">{producto.name}</span>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {producto.marginPct}% {t("dashboard.top.margin").toLowerCase()}
-                </span>
-                <span className="w-24 text-right tabular-nums">{dinero(producto.profit)}</span>
-              </li>
-            ))}
-          </ol>
+          <ScrollableList>
+            <ol className="flex min-w-[24rem] flex-col gap-1 text-sm">
+              {data.topProfit.map((producto, i) => (
+                <li key={producto.itemId} className="flex items-center gap-2">
+                  <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <span className="min-w-0 flex-1 truncate">{producto.name}</span>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {producto.marginPct}% {t("dashboard.top.margin").toLowerCase()}
+                  </span>
+                  <span className="w-24 text-right tabular-nums">{dinero(producto.profit)}</span>
+                </li>
+              ))}
+            </ol>
+          </ScrollableList>
         )}
       </section>
     </div>
