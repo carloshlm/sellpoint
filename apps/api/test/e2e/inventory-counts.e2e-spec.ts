@@ -862,6 +862,92 @@ describe("Inventario físico (F3-COUNT)", () => {
       ]);
     });
 
+    /**
+     * ── EL RESIDUO SIN LOTE (Carlos, 2026-09-01) ─────────────────────────
+     *
+     * Gentamicina: una venta sin existencias dejó el PRODUCTO en −5 sin tocar
+     * ningún lote (no había). Luego el conteo dijo «lote ST1: 50». El conteo
+     * cuadraba cada lote contra SU saldo y nunca miraba el del producto, así
+     * que el lote quedó en 50 y el producto en 45: la pestaña «Stock por
+     * almacén» decía 50 y 45 a la vez. Lo contado es la fuente de verdad:
+     * el residuo que no pertenece a ningún lote se cancela con un movimiento
+     * SIN lote, y el producto termina igual a la suma de sus lotes.
+     */
+    it("un producto con lotes en −5 sin lote, contado en 50, queda en 50 (no en 45)", async () => {
+      const { token, tenantId, warehouseId, sinSaldoSku, ...rest } = await escenario();
+      const sinSaldoId = await prisma.withTenantContext(tenantId, async (tx) => {
+        const p = await tx.product.findFirstOrThrow({ where: { sku: sinSaldoSku } });
+        // La venta sin existencias: el producto en −5 y NINGÚN lote.
+        await tx.stockByWarehouse.create({
+          data: { tenantId, productId: p.id, warehouseId, quantity: -5 },
+        });
+        return p.id;
+      });
+      void rest;
+
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${sinSaldoSku},ST1,2028-11-18,A-03-46,50`,
+      );
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as {
+        movements: {
+          productId: string;
+          direction: string;
+          quantityBase: string;
+          lotId: string | null;
+        }[];
+        stock: { productId: string; quantity: string }[];
+      };
+
+      expect(Number(body.stock.find((s) => s.productId === sinSaldoId)?.quantity)).toBe(50);
+      const suyos = body.movements.filter((m) => m.productId === sinSaldoId);
+      // Primero el residuo sin lote (+5 → cero), después lo contado en su lote.
+      expect(suyos.map((m) => [m.direction, Number(m.quantityBase), m.lotId === null])).toEqual([
+        ["entry", 5, true],
+        ["entry", 50, false],
+      ]);
+    });
+
+    it("un residuo POSITIVO sin lote se descuenta aunque todos los lotes coincidan", async () => {
+      const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
+      // Los lotes suman 30; al producto le sobran 4 que no son de ningún lote.
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId: lotesId, warehouseId },
+          data: { quantity: 34 },
+        }),
+      );
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,9`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,1`,
+        ].join("\n"),
+      );
+
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as {
+        movements: {
+          productId: string;
+          direction: string;
+          quantityBase: string;
+          lotId: string | null;
+        }[];
+        stock: { productId: string; quantity: string }[];
+      };
+
+      expect(Number(body.stock.find((s) => s.productId === lotesId)?.quantity)).toBe(30);
+      const suyos = body.movements.filter((m) => m.productId === lotesId);
+      expect(suyos.map((m) => [m.direction, Number(m.quantityBase), m.lotId])).toEqual([
+        ["exit", 4, null],
+      ]);
+    });
+
     /** Contar lo mismo que había no es un movimiento: no pasó nada. */
     it("una línea que coincide no genera movimientos", async () => {
       const { token, warehouseId, simpleSku, simpleId } = await escenario();

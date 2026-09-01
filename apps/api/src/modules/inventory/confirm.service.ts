@@ -364,6 +364,51 @@ export class ConfirmService {
     const entry: ExpandedLine[] = [];
     let drifted = 0;
 
+    // ── El residuo SIN lote (Carlos, 2026-09-01) ──────────────────────────
+    //
+    // Cada línea con lote se cuadra contra SU saldo por (lote, ubicación), y
+    // eso deja sin mirar el saldo del PRODUCTO. Una venta sin existencias
+    // pone el producto en −5 sin tocar ningún lote; después el conteo dice
+    // «ST1: 50», el lote queda en 50 y el producto en 45 — «Stock por
+    // almacén» mostrando 50 y 45 a la vez. Lo contado es la fuente de
+    // verdad: la diferencia entre el saldo del producto y la suma de TODOS
+    // sus lotes en este almacén no pertenece a ningún lote y se cancela con
+    // un movimiento sin lote antes de asentar lo contado. Así el producto
+    // termina igual a la suma de sus lotes, que es la invariante del ledger.
+    const productosConLote = [
+      ...new Set(contadas.filter((l) => l.lotId !== undefined).map((l) => l.productId)),
+    ].sort();
+    if (productosConLote.length > 0) {
+      const sumas = await tx.$queryRaw<{ product_id: string; total: string }[]>`
+        SELECT pl.product_id, COALESCE(SUM(sl.quantity), 0)::text AS total
+          FROM stock_lots sl
+          JOIN product_lots pl ON pl.id = sl.lot_id
+         WHERE sl.tenant_id = ${user.tenantId}::uuid
+           AND sl.warehouse_id = ${document.warehouseId}::uuid
+           AND pl.product_id = ANY(${productosConLote}::uuid[])
+         GROUP BY pl.product_id`;
+      const sumaLotes = new Map(sumas.map((r) => [r.product_id, new Prisma.Decimal(r.total)]));
+      for (const productId of productosConLote) {
+        const saldo = porProducto.get(productId) ?? new Prisma.Decimal(0);
+        const residuo = saldo.minus(sumaLotes.get(productId) ?? new Prisma.Decimal(0));
+        if (residuo.isZero()) {
+          continue;
+        }
+        const plantilla = contadas.find((l) => l.productId === productId);
+        if (plantilla === undefined) {
+          continue;
+        }
+        const sinLote: ExpandedLine = {
+          ...plantilla,
+          lotId: undefined,
+          location: undefined,
+          quantityBase: residuo.abs(),
+          quantityInput: residuo.abs(),
+        };
+        (residuo.greaterThan(0) ? exit : entry).push(sinLote);
+      }
+    }
+
     for (const [index, line] of resolved.entries()) {
       const capturada = lines[index];
       if (capturada?.counted === null || capturada === undefined) {
