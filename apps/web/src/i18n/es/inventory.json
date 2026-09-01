@@ -216,10 +216,14 @@
     "cancelFailed": "No se pudo cancelar. Actualiza la pantalla para ver cómo quedó."
   },
   "count": {
-    "templateXlsx": "Plantilla .xlsx",
+    "title": "Subir el conteo",
+    "step1": "1. Descarga la plantilla: trae los productos de este almacén con su teórico.",
+    "templateXlsx": "Plantilla Excel",
     "templateHint": "Los productos con lote traen una fila por lote y ubicación; deja esas columnas vacías en los que no lo manejan.",
+    "step2": "2. Llena la columna «contado», guarda el archivo y súbelo aquí.",
     "upload": "Elegir archivo",
-    "uploadHint": "Sube el archivo con la columna «contado» llena. Reemplaza lo cargado antes.",
+    "noFile": "Ningún archivo elegido",
+    "uploadHint": "Las filas sin «contado» quedan como omitidas. Subirlo de nuevo reemplaza lo cargado antes.",
     "freshHint": "El conteo se aplica sobre el saldo del momento de aprobar, no sobre el de ahora: si alguien vende mientras cuentas, se toma en cuenta.",
     "theoretical": "Teórico",
     "counted": "Contado",

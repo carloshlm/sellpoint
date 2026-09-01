@@ -337,7 +337,11 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                 )
                 .map((row) => (
                   <LineRow
-                    key={row.lineNo}
+                    // Por `id` y no por `lineNo` (Carlos, 2026-09-01): al volver a
+                    // subir el conteo, las líneas nuevas traen los mismos números y
+                    // React reutilizaba el componente con su contado viejo en el
+                    // useState — cajita vacía con la diferencia ya calculada.
+                    key={row.id}
                     documentId={documentId}
                     row={row}
                     autoFocusQuantity={row.id === focusLineId}

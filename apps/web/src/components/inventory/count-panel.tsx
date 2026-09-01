@@ -1,10 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import { downloadCountTemplate, importDocumentLines } from "@/lib/inventory/api";
 import { DOCUMENTS_QUERY_KEY } from "@/lib/inventory/hooks";
 import type { DocumentDetail } from "@/lib/inventory/types";
+import { cn } from "@/lib/utils";
 
 /**
  * F3-COUNT-04 — la cabecera del conteo: bajar la plantilla y subir lo contado.
@@ -17,6 +21,7 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState("");
   // El resultado de la última subida: el éxito se DICE (cuadro verde con el
   // foco), no se deja adivinar por el resumen que cambia solo (Carlos,
   // 2026-09-01).
@@ -60,75 +65,103 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
     onError: () => setError(t("inventory.count.importFailed")),
   });
 
+  // La misma tarjeta que importar catálogos (Carlos, 2026-09-01): pasos
+  // numerados, botones grises, fondo blanco. Un panel distinto para hacer lo
+  // mismo obliga a aprender dos veces.
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-input p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => void downloadCountTemplate(doc.warehouse.id, "xlsx")}
-          className="rounded-md border border-input px-3 py-2 text-sm"
-        >
-          {t("inventory.count.templateXlsx")}
-        </button>
+    <Card data-testid="count-panel">
+      <CardHeader>
+        <CardTitle>{t("inventory.count.title")}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm">{t("inventory.count.step1")}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => void downloadCountTemplate(doc.warehouse.id, "xlsx")}
+          >
+            {t("inventory.count.templateXlsx")}
+          </Button>
+          <p className="text-muted-foreground text-xs">{t("inventory.count.templateHint")}</p>
+        </div>
 
-        {/* Input `sr-only` detrás de su label: un `<input type="file">` crudo no
-            se puede estilar y cada navegador lo dibuja distinto. Mismo patrón
-            que la importación de productos (F2-IMPORT-05). */}
-        <label
-          htmlFor="count-upload"
-          className="cursor-pointer rounded-md bg-primary px-3 py-2 text-primary-foreground text-sm"
-        >
-          {t("inventory.count.upload")}
-        </label>
-        <input
-          id="count-upload"
-          type="file"
-          accept=".xlsx"
-          className="sr-only"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file !== undefined) {
-              setError(null);
-              setDone(null);
-              subir.mutate(file);
-            }
-          }}
-        />
-      </div>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm">{t("inventory.count.step2")}</p>
+          {/* Input `sr-only` detrás de su label: un `<input type="file">` crudo no
+              se puede estilar y cada navegador lo dibuja distinto. Mismo patrón
+              que la importación de productos (F2-IMPORT-05). */}
+          <div className="flex items-center gap-3">
+            <input
+              id="count-upload"
+              type="file"
+              accept=".xlsx"
+              className="peer sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file !== undefined) {
+                  setFileName(file.name);
+                  setError(null);
+                  setDone(null);
+                  subir.mutate(file);
+                }
+              }}
+            />
+            <Label
+              htmlFor="count-upload"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "cursor-pointer peer-focus-visible:border-ring peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
+              )}
+            >
+              {t("inventory.count.upload")}
+            </Label>
+            <span className="text-muted-foreground text-xs">
+              {fileName || t("inventory.count.noFile")}
+            </span>
+          </div>
+          <p className="text-muted-foreground text-xs">{t("inventory.count.uploadHint")}</p>
+        </div>
 
-      <p className="text-muted-foreground text-xs">{t("inventory.count.templateHint")}</p>
-      <p className="text-muted-foreground text-xs">{t("inventory.count.uploadHint")}</p>
-      {/* La pregunta más frecuente de un inventario: "¿y si alguien vende
-          mientras cuento?". Se contesta antes de que la hagan. */}
-      <p className="text-muted-foreground text-xs">{t("inventory.count.freshHint")}</p>
+        {/* La pregunta más frecuente de un inventario: "¿y si alguien vende
+            mientras cuento?". Se contesta antes de que la hagan. */}
+        <p className="text-muted-foreground text-xs">{t("inventory.count.freshHint")}</p>
 
-      {error !== null && (
-        <p role="alert" className="text-destructive text-sm">
-          {error}
-        </p>
-      )}
+        {subir.isPending && (
+          <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>
+        )}
 
-      {done !== null && (
-        <SuccessNotice testId="count-import-done">
-          <p className="font-medium">{t("inventory.count.importDone", { count: done.imported })}</p>
-          {done.withErrors > 0 && (
-            <p className="text-muted-foreground">
-              {t("inventory.count.importDoneWithErrors", { count: done.withErrors })}
+        {error !== null && (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        )}
+
+        {done !== null && (
+          <SuccessNotice testId="count-import-done">
+            <p className="font-medium">
+              {t("inventory.count.importDone", { count: done.imported })}
             </p>
-          )}
-        </SuccessNotice>
-      )}
+            {done.withErrors > 0 && (
+              <p className="text-muted-foreground">
+                {t("inventory.count.importDoneWithErrors", { count: done.withErrors })}
+              </p>
+            )}
+          </SuccessNotice>
+        )}
 
-      {done !== null && done.noCounted && (
-        <p
-          role="alert"
-          data-testid="count-import-no-counted"
-          className="rounded-md bg-warning-soft px-3 py-2 text-sm"
-        >
-          {t("inventory.count.importNoCounted", { count: done.imported })}
-        </p>
-      )}
-    </div>
+        {done !== null && done.noCounted && (
+          <p
+            role="alert"
+            data-testid="count-import-no-counted"
+            className="rounded-md bg-warning-soft px-3 py-2 text-sm"
+          >
+            {t("inventory.count.importNoCounted", { count: done.imported })}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

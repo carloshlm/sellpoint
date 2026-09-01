@@ -216,10 +216,14 @@
     "cancelFailed": "It could not be canceled. Refresh the screen to see how it ended up."
   },
   "count": {
-    "templateXlsx": "Template .xlsx",
+    "title": "Upload the count",
+    "step1": "1. Download the template: it brings this warehouse's products with their expected quantity.",
+    "templateXlsx": "Excel template",
     "templateHint": "Lot-tracked products get one row per lot and location; leave those columns empty for the rest.",
+    "step2": "2. Fill in the «counted» column, save the file and upload it here.",
     "upload": "Choose file",
-    "uploadHint": "Upload the file with the «counted» column filled in. It replaces what was loaded before.",
+    "noFile": "No file chosen",
+    "uploadHint": "Rows without «counted» are left as skipped. Uploading again replaces what was loaded before.",
     "freshHint": "The count is applied against the balance at approval time, not the current one: if someone sells while you count, it is taken into account.",
     "theoretical": "Expected",
     "counted": "Counted",

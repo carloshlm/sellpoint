@@ -191,7 +191,7 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
     const { user } = await renderCount();
     await screen.findByText("INV-000007");
 
-    await user.click(screen.getByRole("button", { name: /plantilla .xlsx/i }));
+    await user.click(screen.getByRole("button", { name: /plantilla excel/i }));
 
     await waitFor(() => {
       expect(mocked.downloadCountTemplate).toHaveBeenCalledWith("w1", "xlsx");
@@ -467,5 +467,63 @@ describe("subir el conteo (Carlos, 2026-09-01)", () => {
 
     await screen.findByTestId("count-import-done");
     expect(screen.queryByTestId("count-import-no-counted")).not.toBeInTheDocument();
+  });
+});
+
+describe("el panel de captura y la cajita de «contado» (Carlos, 2026-09-01, noche)", () => {
+  const archivo = () =>
+    new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "conteo.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+  /**
+   * Las líneas iban con `key={lineNo}`: al subir el conteo de nuevo (modo
+   * «replace») las líneas nuevas traen los MISMOS números de línea, React
+   * reutiliza el componente y el `useState` inicial del contado se queda con
+   * el valor viejo — la cajita vacía mientras la diferencia ya dice 13.
+   */
+  it("tras volver a subir el conteo, la cajita muestra el contado nuevo", async () => {
+    mocked.getDocument.mockResolvedValueOnce(
+      detalle({ rows: [fila({ id: "line-1", counted: null, difference: null })] }),
+    );
+    mocked.getDocument.mockResolvedValue(
+      detalle({ rows: [fila({ id: "line-9", counted: "50", difference: "13" })] }),
+    );
+    mocked.importDocumentLines.mockResolvedValue({ imported: 1, withErrors: 0, rows: [] });
+    const { user } = await renderCount();
+    await screen.findByText("INV-000007");
+    expect(screen.getByLabelText(/^contado$/i)).toHaveValue(null);
+
+    await user.upload(screen.getByLabelText(/elegir archivo/i), archivo());
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^contado$/i)).toHaveValue(50);
+    });
+  });
+
+  it("se ve como el diálogo de importar catálogos: tarjeta, pasos numerados y botones grises", async () => {
+    await renderCount();
+    await screen.findByText("INV-000007");
+
+    expect(screen.getByText("Subir el conteo")).toBeInTheDocument();
+    expect(screen.getByText(/^1\. Descarga la plantilla/)).toBeInTheDocument();
+    expect(screen.getByText(/^2\. Llena la columna «contado»/)).toBeInTheDocument();
+    expect(screen.getByText("Ningún archivo elegido")).toBeInTheDocument();
+
+    const elegir = screen.getByText("Elegir archivo");
+    expect(elegir).not.toHaveClass("bg-primary");
+    expect(elegir.className).toMatch(/border/);
+    expect(screen.getByRole("button", { name: /plantilla excel/i }).className).toMatch(/border/);
+  });
+
+  it("al elegir un archivo, su nombre reemplaza a «Ningún archivo elegido»", async () => {
+    mocked.importDocumentLines.mockResolvedValue({ imported: 1, withErrors: 0, rows: [] });
+    const { user } = await renderCount();
+    await screen.findByText("INV-000007");
+
+    await user.upload(screen.getByLabelText(/elegir archivo/i), archivo());
+
+    expect(await screen.findByText("conteo.xlsx")).toBeInTheDocument();
+    expect(screen.queryByText("Ningún archivo elegido")).not.toBeInTheDocument();
   });
 });
