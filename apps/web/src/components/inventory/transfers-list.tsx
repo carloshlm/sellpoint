@@ -18,7 +18,7 @@ import {
 } from "@/lib/inventory/transfers-hooks";
 import { WarehouseSelect } from "./warehouse-select";
 
-type Tab = "incoming" | "outgoing";
+type Tab = "incoming" | "outgoing" | "canceled";
 
 /**
  * F3-TRANSFER-05/06/07 — traspasos en tránsito.
@@ -32,7 +32,7 @@ type Tab = "incoming" | "outgoing";
  * visibles: con paginación, contar la página diría "1" cuando hay siete.
  */
 export function TransfersList() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { has } = usePermissions();
   const [tab, setTab] = useState<Tab>("incoming");
   const [exportando, setExportando] = useState(false);
@@ -50,14 +50,17 @@ export function TransfersList() {
     setPagina(1);
   }, [tab, destinationWarehouseId, soloDemorados]);
 
+  // La pestaña «Cancelados» no lleva dirección: un cancelado le importa a
+  // quien era origen y a quien esperaba recibirlo (Carlos, 2026-09-01).
+  const enCancelados = tab === "canceled";
   const { data, isPending } = useTransfers({
-    direction: tab,
+    ...(enCancelados ? { status: "canceled" as const } : { direction: tab }),
     ...(destinationWarehouseId !== null ? { destinationWarehouseId } : {}),
-    ...(soloDemorados ? { olderThanDays: TRANSFER_STALE_DAYS } : {}),
+    ...(soloDemorados && !enCancelados ? { olderThanDays: TRANSFER_STALE_DAYS } : {}),
     page: pagina,
   });
 
-  const meta = data?.meta ?? { incomingCount: 0, outgoingCount: 0 };
+  const meta = data?.meta ?? { incomingCount: 0, outgoingCount: 0, canceledCount: 0 };
   const filas = data?.rows ?? [];
 
   return (
@@ -105,6 +108,9 @@ export function TransfersList() {
         <TabBoton activo={tab === "outgoing"} onClick={() => setTab("outgoing")}>
           {t("inventory.transfers.outgoing")} ({meta.outgoingCount})
         </TabBoton>
+        <TabBoton activo={enCancelados} onClick={() => setTab("canceled")}>
+          {t("inventory.transfers.canceledTab")} ({meta.canceledCount})
+        </TabBoton>
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
@@ -119,14 +125,17 @@ export function TransfersList() {
             scoped={false}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={soloDemorados}
-            onChange={(event) => setSoloDemorados(event.target.checked)}
-          />
-          {t("inventory.transfers.olderThanStale")}
-        </label>
+        {/* «Más de 7 días» habla de días EN TRÁNSITO: en cancelados no aplica. */}
+        {!enCancelados && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={soloDemorados}
+              onChange={(event) => setSoloDemorados(event.target.checked)}
+            />
+            {t("inventory.transfers.olderThanStale")}
+          </label>
+        )}
       </div>
 
       {isPending ? (
@@ -143,7 +152,16 @@ export function TransfersList() {
                 <th className="px-2 py-2 font-medium">{t("inventory.transfers.destination")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.transfers.sentBy")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.transfers.lines")}</th>
-                <th className="px-2 py-2 font-medium">{t("inventory.transfers.days")}</th>
+                {enCancelados ? (
+                  <>
+                    <th className="px-2 py-2 font-medium">{t("inventory.transfers.canceledOn")}</th>
+                    <th className="px-2 py-2 font-medium">
+                      {t("inventory.transfers.cancelMotive")}
+                    </th>
+                  </>
+                ) : (
+                  <th className="px-2 py-2 font-medium">{t("inventory.transfers.days")}</th>
+                )}
                 <th className="px-2 py-2 font-medium" />
               </tr>
             </thead>
@@ -167,22 +185,44 @@ export function TransfersList() {
                   <td className="px-2 py-2">{row.destination.name}</td>
                   <td className="px-2 py-2">{row.createdBy.name}</td>
                   <td className="px-2 py-2">{row.lineCount}</td>
-                  <td className="px-2 py-2">
-                    {row.daysInTransit}
-                    {/* El badge sale del DATO `isStale`, no de comparar días acá:
-                      el umbral vive en el servidor y una segunda copia se
-                      desincronizaría. */}
-                    {row.isStale && (
-                      <Badge
-                        variant="warning"
-                        data-testid="stale-badge"
-                        title={t("inventory.transfers.staleTitle")}
-                        className="ml-2"
-                      >
-                        !
-                      </Badge>
-                    )}
-                  </td>
+                  {enCancelados ? (
+                    <>
+                      <td className="px-2 py-2">
+                        {row.canceledAt === null
+                          ? "—"
+                          : new Intl.DateTimeFormat(i18n.language, {
+                              dateStyle: "short",
+                            }).format(new Date(row.canceledAt))}
+                      </td>
+                      {/* El motivo Y quién lo decidió: es la fila que alguien
+                          abre preguntando «¿qué pasó con esa mercancía?». */}
+                      <td className="max-w-72 px-2 py-2">
+                        <span className="block">{row.cancelReason ?? "—"}</span>
+                        {row.canceledBy !== null && (
+                          <span className="text-muted-foreground text-xs">
+                            {row.canceledBy.name}
+                          </span>
+                        )}
+                      </td>
+                    </>
+                  ) : (
+                    <td className="px-2 py-2">
+                      {row.daysInTransit}
+                      {/* El badge sale del DATO `isStale`, no de comparar días acá:
+                        el umbral vive en el servidor y una segunda copia se
+                        desincronizaría. */}
+                      {row.isStale && (
+                        <Badge
+                          variant="warning"
+                          data-testid="stale-badge"
+                          title={t("inventory.transfers.staleTitle")}
+                          className="ml-2"
+                        >
+                          !
+                        </Badge>
+                      )}
+                    </td>
+                  )}
                   <td className="flex justify-end gap-2 py-2">
                     {/* Recepción ya empezada: el diálogo no tiene nada que
                         anunciar —el borrador existe— y repetir "Recibir" hace
@@ -210,7 +250,8 @@ export function TransfersList() {
                           })}
                         </Link>
                       ))}
-                    {has("inventory:manage") && (
+                    {/* Sobre un cancelado no hay nada que volver a cancelar. */}
+                    {!enCancelados && has("inventory:manage") && (
                       <button
                         type="button"
                         onClick={() => setCancelando(row)}

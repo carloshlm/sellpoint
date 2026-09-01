@@ -56,11 +56,12 @@ export class TransfersService {
     const page = Math.max(1, options.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20));
 
-    const where: Prisma.TransferWhereInput = {
+    // La base SIN status ni alcance direccional: los contadores de las
+    // pestañas la reusan fijando su propio status y dirección — si heredaran
+    // el status del filtro activo, mirar la pestaña «Cancelados» pintaría
+    // los números de pendientes con cancelados (Carlos, 2026-09-01).
+    const whereBase: Prisma.TransferWhereInput = {
       tenantId: user.tenantId,
-      // En tránsito por default: lo que ya se recibió o se canceló es
-      // historia, y esta pantalla existe para lo que está pendiente.
-      status: options.status ?? "in_transit",
       ...(options.originWarehouseId !== undefined
         ? { originWarehouseId: options.originWarehouseId }
         : {}),
@@ -68,12 +69,17 @@ export class TransfersService {
         ? { destinationWarehouseId: options.destinationWarehouseId }
         : {}),
       ...this.rangoDeFechas(options),
+    };
+    const where: Prisma.TransferWhereInput = {
+      ...whereBase,
+      // En tránsito por default: lo que ya se recibió o se canceló es
+      // historia, y esta pantalla existe para lo que está pendiente.
+      status: options.status ?? "in_transit",
       ...this.porAlcance(scope, options.direction),
     };
 
-    const [total, rows, incomingCount, outgoingCount] = await this.prisma.withTenantContext(
-      user.tenantId,
-      async (tx) =>
+    const [total, rows, incomingCount, outgoingCount, canceledCount] =
+      await this.prisma.withTenantContext(user.tenantId, async (tx) =>
         Promise.all([
           tx.transfer.count({ where }),
           tx.transfer.findMany({
@@ -89,6 +95,11 @@ export class TransfersService {
               id: true,
               status: true,
               createdAt: true,
+              // La historia de la cancelación: la pestaña «Cancelados» dice
+              // qué pasó, cuándo y quién lo decidió.
+              canceledAt: true,
+              cancelReason: true,
+              canceller: { select: { id: true, firstName: true, lastNamePaternal: true } },
               origin: { select: { id: true, name: true } },
               destination: { select: { id: true, name: true } },
               creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
@@ -109,13 +120,18 @@ export class TransfersService {
             },
           }),
           tx.transfer.count({
-            where: { ...where, ...this.porAlcance(scope, "incoming") },
+            where: { ...whereBase, status: "in_transit", ...this.porAlcance(scope, "incoming") },
           }),
           tx.transfer.count({
-            where: { ...where, ...this.porAlcance(scope, "outgoing") },
+            where: { ...whereBase, status: "in_transit", ...this.porAlcance(scope, "outgoing") },
+          }),
+          // Sin dirección: un cancelado le importa a quien era origen Y a
+          // quien esperaba recibirlo.
+          tx.transfer.count({
+            where: { ...whereBase, status: "canceled", ...this.porAlcance(scope) },
           }),
         ]),
-    );
+      );
 
     const ahora = Date.now();
 
@@ -154,12 +170,20 @@ export class TransfersService {
           lineCount: row._count.lines,
           daysInTransit,
           isStale: daysInTransit > TRANSFER_STALE_DAYS,
+          canceledAt: row.canceledAt,
+          cancelReason: row.cancelReason,
+          canceledBy: row.canceller
+            ? {
+                id: row.canceller.id,
+                name: `${row.canceller.firstName} ${row.canceller.lastNamePaternal}`.trim(),
+              }
+            : null,
         };
       }),
       total,
       page,
       pageSize,
-      meta: { incomingCount, outgoingCount },
+      meta: { incomingCount, outgoingCount, canceledCount },
     };
   }
 

@@ -281,7 +281,7 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
 
       const res = await listar(scoped);
 
-      expect(res.body.meta).toEqual({ incomingCount: 1, outgoingCount: 0 });
+      expect(res.body.meta).toEqual({ incomingCount: 1, outgoingCount: 0, canceledCount: 0 });
     });
   });
 
@@ -844,6 +844,46 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
         .set("Authorization", bearer(token))
         .expect(200);
       expect(lotes.body).toEqual([]);
+    });
+
+    /**
+     * Carlos (2026-09-01): «si cancelo un traspaso, ¿se pierde?». No se
+     * perdía de la BASE, pero sí de la pantalla: la lista solo enseñaba lo
+     * en tránsito. La pestaña «Cancelados» lo trae con su motivo, su fecha y
+     * quién lo canceló — y sin ensuciar los contadores de pendientes.
+     */
+    it("el cancelado queda visible en la lista con su motivo, sin ensuciar los contadores", async () => {
+      const { token, central, norte, despachar } = await escenario();
+      const { transfer } = await despachar(central, norte, 10);
+      await cancelar(token, transfer.id, { reason: "El camión nunca salió del patio" }).expect(200);
+
+      const res = await request(app.getHttpServer())
+        .get("/transfers?status=canceled")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const body = res.body as {
+        rows: {
+          id: string;
+          status: string;
+          cancelReason: string | null;
+          canceledAt: string | null;
+          canceledBy: { name: string } | null;
+        }[];
+        meta: { incomingCount: number; outgoingCount: number; canceledCount: number };
+      };
+      const fila = body.rows.find((r) => r.id === transfer.id);
+      expect(fila).toMatchObject({
+        status: "canceled",
+        cancelReason: "El camión nunca salió del patio",
+      });
+      expect(fila?.canceledAt).not.toBeNull();
+      expect(fila?.canceledBy?.name).toBe("Ana Pérez");
+      expect(body.meta.canceledCount).toBe(1);
+      // Los contadores de pendientes cuentan PENDIENTES aunque se esté
+      // mirando otra pestaña — el único traspaso del escenario ya se canceló.
+      expect(body.meta.incomingCount).toBe(0);
+      expect(body.meta.outgoingCount).toBe(0);
     });
 
     it("sin justificación, 400", async () => {

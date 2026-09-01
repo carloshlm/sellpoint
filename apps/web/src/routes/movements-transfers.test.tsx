@@ -76,6 +76,9 @@ const fila = (overrides: Partial<TransferRow> = {}): TransferRow => ({
   lineCount: 3,
   daysInTransit: 1,
   isStale: false,
+  canceledAt: null,
+  cancelReason: null,
+  canceledBy: null,
   ...overrides,
 });
 
@@ -110,7 +113,10 @@ const detalle = (overrides: Partial<TransferDetail> = {}): TransferDetail => ({
   ...overrides,
 });
 
-const pagina = (rows: TransferRow[], meta = { incomingCount: 1, outgoingCount: 0 }) => ({
+const pagina = (
+  rows: TransferRow[],
+  meta = { incomingCount: 1, outgoingCount: 0, canceledCount: 0 },
+) => ({
   rows,
   total: rows.length,
   page: 1,
@@ -246,7 +252,7 @@ describe("Traspasos en tránsito (F3-TRANSFER-05)", () => {
     // 1 fila en pantalla pero 7 entrantes en total: si los contadores se
     // calcularan contando la página, dirían 1 y mentirían con la paginación.
     mocked.listTransfers.mockResolvedValue(
-      pagina([fila()], { incomingCount: 7, outgoingCount: 4 }),
+      pagina([fila()], { incomingCount: 7, outgoingCount: 4, canceledCount: 0 }),
     );
     await renderTransfers();
 
@@ -294,8 +300,49 @@ describe("Traspasos en tránsito (F3-TRANSFER-05)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-09-01): un traspaso cancelado no se perdía de la base, pero
+   * sí de la pantalla. La pestaña «Cancelados» lo enseña con su motivo y su
+   * fecha — y sin acciones: sobre un cancelado no hay nada que recibir ni
+   * que volver a cancelar.
+   */
+  it("la pestaña «Cancelados» pide ese status y muestra el motivo, sin acciones", async () => {
+    const { user } = await renderTransfers();
+    await screen.findByText("SAL-000124");
+    mocked.listTransfers.mockResolvedValue(
+      pagina(
+        [
+          fila({
+            status: "canceled",
+            canceledAt: "2026-08-30T15:00:00.000Z",
+            cancelReason: "El camión nunca salió del patio",
+            canceledBy: { id: "u1", name: "Ana Pérez" },
+          }),
+        ],
+        { incomingCount: 0, outgoingCount: 0, canceledCount: 1 },
+      ),
+    );
+
+    await user.click(screen.getByRole("tab", { name: /Cancelados/ }));
+
+    await waitFor(() => {
+      expect(mocked.listTransfers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "canceled" }),
+      );
+    });
+    // Y sin `direction`: un cancelado se ve seas el origen o el destino.
+    const ultimo = mocked.listTransfers.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(ultimo.direction).toBeUndefined();
+
+    expect(await screen.findByText("El camión nunca salió del patio")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Recibir" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar traspaso" })).not.toBeInTheDocument();
+  });
+
   it("sin nada en tránsito, cada tab dice lo suyo", async () => {
-    mocked.listTransfers.mockResolvedValue(pagina([], { incomingCount: 0, outgoingCount: 0 }));
+    mocked.listTransfers.mockResolvedValue(
+      pagina([], { incomingCount: 0, outgoingCount: 0, canceledCount: 0 }),
+    );
     await renderTransfers();
 
     expect(await screen.findByText(/no hay traspasos/i)).toBeInTheDocument();

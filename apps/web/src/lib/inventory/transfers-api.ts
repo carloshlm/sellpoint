@@ -25,6 +25,10 @@ export interface TransferRow {
   daysInTransit: number;
   /** Más de una semana en viaje: el aviso de "revisá si llegó". */
   isStale: boolean;
+  /** La historia de la cancelación: `null` mientras el traspaso viva. */
+  canceledAt: string | null;
+  cancelReason: string | null;
+  canceledBy: { id: string; name: string } | null;
 }
 
 export interface TransferPage {
@@ -32,8 +36,8 @@ export interface TransferPage {
   total: number;
   page: number;
   pageSize: number;
-  /** Los contadores de los dos tabs, ya acotados al alcance del usuario. */
-  meta: { incomingCount: number; outgoingCount: number };
+  /** Los contadores de los tres tabs, ya acotados al alcance del usuario. */
+  meta: { incomingCount: number; outgoingCount: number; canceledCount: number };
 }
 
 export interface TransferLineDetail {
