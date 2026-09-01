@@ -42,6 +42,12 @@ export interface ImportRowError {
   field?: string;
   /** Clave i18n cruda, para que el front discrimine sin parsear texto. */
   code?: string;
+  /**
+   * El código interno (sku) de la fila, cuando lo trae. «Fila 2» obliga a
+   * contar renglones en el Excel; con el código, la fila se encuentra con un
+   * Ctrl+F (Carlos, 2026-09-01). Ausente —no vacío— cuando la fila no lo tiene.
+   */
+  itemCode?: string;
 }
 
 export interface ImportReport {
@@ -287,8 +293,13 @@ export class ImportService {
       const sku = value("sku");
       const name = value("nombre");
 
+      // Todo error de esta fila lleva su código, si lo hay: es lo que permite
+      // encontrarla en el Excel sin contar renglones.
+      const conCodigo = (error: ImportRowError): ImportRowError =>
+        sku ? { ...error, itemCode: sku } : error;
+
       if (!sku || !name) {
-        errors.push({ row: rowNumber, message: "products.import_missing_required" });
+        errors.push(conCodigo({ row: rowNumber, message: "products.import_missing_required" }));
         continue;
       }
 
@@ -296,14 +307,18 @@ export class ImportService {
       // el upsert — dos filas con el mismo SKU es una planilla mal armada, no
       // una intención.
       if (seenSkus.has(sku)) {
-        errors.push({ row: rowNumber, field: "sku", message: "products.import_duplicate_sku" });
+        errors.push(
+          conCodigo({ row: rowNumber, field: "sku", message: "products.import_duplicate_sku" }),
+        );
         continue;
       }
       seenSkus.add(sku);
 
       const baseUnit = value("unidad_base") || "unit";
       if (!getUnit(baseUnit)) {
-        errors.push({ row: rowNumber, field: "unidad_base", message: "products.unknown_unit" });
+        errors.push(
+          conCodigo({ row: rowNumber, field: "unidad_base", message: "products.unknown_unit" }),
+        );
         continue;
       }
 
@@ -340,7 +355,7 @@ export class ImportService {
       }
 
       if (lookupError) {
-        errors.push(lookupError);
+        errors.push(conCodigo(lookupError));
         continue;
       }
 
@@ -349,11 +364,13 @@ export class ImportService {
         attributes,
       );
       if (attributeErrors.length > 0) {
-        errors.push({
-          row: rowNumber,
-          field: attributeErrors[0]?.key,
-          message: attributeErrors[0]?.message ?? "products.invalid_attributes",
-        });
+        errors.push(
+          conCodigo({
+            row: rowNumber,
+            field: attributeErrors[0]?.key,
+            message: attributeErrors[0]?.message ?? "products.invalid_attributes",
+          }),
+        );
         continue;
       }
 
@@ -383,7 +400,7 @@ export class ImportService {
       }
 
       if (moneyError) {
-        errors.push(moneyError);
+        errors.push(conCodigo(moneyError));
         continue;
       }
 
@@ -443,6 +460,7 @@ export class ImportService {
           row: item.row,
           field: "controla_lotes",
           message: "products.lots_in_stock",
+          itemCode: item.sku,
         });
         continue;
       }

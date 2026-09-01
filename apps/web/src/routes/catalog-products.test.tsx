@@ -489,6 +489,23 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
     return user;
   }
 
+  /**
+   * Carlos (2026-09-01): la unidad base guarda su CÓDIGO (`unit`, `gr`) y ese
+   * código es el que viaja en la plantilla de importación — el desplegable lo
+   * enseña entre paréntesis para que nadie tenga que adivinarlo al armar su
+   * Excel.
+   */
+  it("el desplegable de unidad base enseña el código junto al nombre", async () => {
+    await abrirAlta();
+
+    const select = screen.getByLabelText(/Unidad base/);
+    const etiquetas = Array.from(select.querySelectorAll("option")).map((o) => o.textContent);
+
+    expect(etiquetas).toContain("Pieza (unit)");
+    expect(etiquetas).toContain("Gramo (gr)");
+    expect(etiquetas).toContain("Mililitro (ml)");
+  });
+
   it("con solo código de barras, el interno se completa solo", async () => {
     const user = await abrirAlta();
 

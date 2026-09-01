@@ -5,6 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
 import {
   downloadServiceImportTemplate,
@@ -140,8 +141,18 @@ function ServiceImportDialog({ onClose }: { onClose: () => void }) {
               <ul className="flex flex-col gap-1 text-destructive text-xs">
                 {report.errors.slice(0, 10).map((rowError) => (
                   <li key={`${rowError.row}-${rowError.field ?? ""}`}>
-                    {t("services.import.rowError", { row: rowError.row })}{" "}
-                    {rowError.translated ?? rowError.message}
+                    {/* Con el código al lado, la fila se encuentra en el
+                        Excel con un Ctrl+F (Carlos, 2026-09-01). */}
+                    {t(
+                      rowError.itemCode
+                        ? "services.import.rowErrorWithCode"
+                        : "services.import.rowError",
+                      {
+                        row: rowError.row,
+                        code: rowError.itemCode,
+                        message: rowError.translated ?? rowError.message,
+                      },
+                    )}
                   </li>
                 ))}
               </ul>
@@ -168,12 +179,11 @@ function ServiceImportDialog({ onClose }: { onClose: () => void }) {
         )}
 
         {done && (
-          <p
-            className="rounded-md bg-success-soft px-3 py-2 text-sm"
-            data-testid="service-import-done"
-          >
-            {t("services.import.done", { count: done.created + done.updated })}
-          </p>
+          <SuccessNotice testId="service-import-done">
+            <p className="font-medium">
+              {t("services.import.done", { count: done.created + done.updated })}
+            </p>
+          </SuccessNotice>
         )}
 
         <Button variant="outline" size="sm" className="w-fit" onClick={onClose}>

@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { EntitlementsService } from "../billing/entitlements.service";
 import {
   assertActiveWarehouse,
   assertWarehouseInScope,
@@ -9,6 +10,7 @@ import {
 import { CashboxService } from "./cashbox.service";
 import type { LookupQuery } from "./dto/lookup.dto";
 import { LOOKUP_STRATEGIES, type LookupItem } from "./lookup.strategies";
+import { allowNegativeStock } from "./stock-policy";
 
 /** Lo que el POS recibe de una búsqueda. */
 export interface LookupResult {
@@ -36,6 +38,7 @@ export class LookupService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cashbox: CashboxService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async search(user: AuthUser, scope: UserScope, query: LookupQuery): Promise<LookupResult> {
@@ -67,6 +70,11 @@ export class LookupService {
       );
     }
 
+    // La MISMA regla que el cobro: si la caja va a aceptar la venta sin
+    // stock, el buscador no tiene derecho a esconder el producto (ver
+    // `stock-policy.ts`). Se resuelve ANTES de la transacción.
+    const allowNegative = await allowNegativeStock(this.entitlements, this.prisma, user.tenantId);
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const ctx = {
         tx,
@@ -74,6 +82,7 @@ export class LookupService {
         warehouseId,
         q: query.q,
         limit: query.limit,
+        allowNegative,
       };
 
       const items: LookupItem[] = [];

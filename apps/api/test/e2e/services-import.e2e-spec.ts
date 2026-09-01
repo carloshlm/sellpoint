@@ -165,7 +165,9 @@ describe("Importar servicios por Excel", () => {
 
     expect(res.body).toMatchObject({ valid: 1, failed: 1 });
     expect((res.body as { errors: { field?: string; message: string }[] }).errors[0]).toMatchObject(
-      { field: "codigo", message: "services.import_duplicate_code" },
+      // `itemCode`: el código de la fila, para que el error se encuentre en el
+      // Excel sin contar renglones (Carlos, 2026-09-01).
+      { field: "codigo", message: "services.import_duplicate_code", itemCode: "DUP-01" },
     );
   });
 });

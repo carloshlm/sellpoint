@@ -9,6 +9,7 @@ import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
+import { EntitlementsService } from "../billing/entitlements.service";
 import { nextFolio } from "../inventory/folio";
 import {
   assertActiveWarehouse,
@@ -22,6 +23,7 @@ import type {
   QuoteLineDto,
 } from "./dto/quote.dto";
 import { conDisponibilidad, type LookupItem, SELECT_PRODUCTO } from "./lookup.strategies";
+import { allowNegativeStock } from "./stock-policy";
 import { sellableStock } from "./warehouse-availability";
 
 /** Lo que el catálogo dice de una línea. NUNCA lo que mandó el POST. */
@@ -69,6 +71,7 @@ export class QuotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cashbox: CashboxService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async create(user: AuthUser, scope: UserScope, dto: CreateQuoteDto) {
@@ -308,8 +311,12 @@ export class QuotesService {
               where: { id: { in: productIds }, tenantId: user.tenantId, isActive: true },
               select: SELECT_PRODUCTO,
             });
+      // La MISMA regla que el buscador y el cobro (`stock-policy.ts`): con
+      // «Vender sin existencias», una línea en cero no se marca como no
+      // disponible — la caja la va a cobrar igual.
+      const allowNegative = await allowNegativeStock(this.entitlements, this.prisma, user.tenantId);
       const items = await conDisponibilidad(
-        { tx, tenantId: user.tenantId, warehouseId: sesion.warehouseId },
+        { tx, tenantId: user.tenantId, warehouseId: sesion.warehouseId, allowNegative },
         productos,
         "quote",
       );

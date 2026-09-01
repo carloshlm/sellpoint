@@ -100,6 +100,13 @@ export interface LookupContext {
   warehouseId: string;
   q: string;
   limit: number;
+  /**
+   * La MISMA regla que el cobro (`allowNegative` en sales.service): vende sin
+   * validar stock quien no tiene control de inventario en su plan o quien
+   * prendió «Vender sin existencias». Si el buscador filtrara con otra regla,
+   * el toggle mentiría: escondería lo que la caja sí cobraría.
+   */
+  allowNegative: boolean;
 }
 
 export interface LookupStrategy {
@@ -220,7 +227,7 @@ type ProductoCrudo = {
  * cobrarlo, y el 422 `pos.presentation_not_sellable` llegaría recién en la caja.
  */
 export async function conDisponibilidad(
-  ctx: Pick<LookupContext, "tx" | "tenantId" | "warehouseId">,
+  ctx: Pick<LookupContext, "tx" | "tenantId" | "warehouseId" | "allowNegative">,
   productos: ProductoCrudo[],
   matchedBy: LookupKind,
   presentacionPorProducto: Map<string, string> = new Map(),
@@ -237,32 +244,36 @@ export async function conDisponibilidad(
     vendibles.map((p) => p.id),
   );
 
-  return vendibles
-    .map((p) => {
-      const disponible = stock.get(p.id);
-      return {
-        type: "product" as const,
-        matchedBy,
-        id: p.id,
-        sku: p.sku,
-        name: p.name,
-        baseUnit: p.baseUnit,
-        isComposite: p.isComposite,
-        available: (disponible?.available ?? 0).toString(),
-        expired: (disponible?.expired ?? 0).toString(),
-        presentations: p.presentations.map((pr) => ({
-          id: pr.id,
-          name: pr.name,
-          factor: pr.factor.toString(),
-          price: pr.price?.toString() ?? null,
-          barcode: pr.barcode,
-          isDefaultSale: pr.isDefaultSale,
-          allowFractionalInput: pr.allowFractionalInput,
-        })),
-        matchedPresentationId: presentacionPorProducto.get(p.id) ?? null,
-      };
-    })
-    .filter((item) => Number(item.available) > 0);
+  return (
+    vendibles
+      .map((p) => {
+        const disponible = stock.get(p.id);
+        return {
+          type: "product" as const,
+          matchedBy,
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          baseUnit: p.baseUnit,
+          isComposite: p.isComposite,
+          available: (disponible?.available ?? 0).toString(),
+          expired: (disponible?.expired ?? 0).toString(),
+          presentations: p.presentations.map((pr) => ({
+            id: pr.id,
+            name: pr.name,
+            factor: pr.factor.toString(),
+            price: pr.price?.toString() ?? null,
+            barcode: pr.barcode,
+            isDefaultSale: pr.isDefaultSale,
+            allowFractionalInput: pr.allowFractionalInput,
+          })),
+          matchedPresentationId: presentacionPorProducto.get(p.id) ?? null,
+        };
+      })
+      // Con «Vender sin existencias» no se esconde nada: el disponible viaja
+      // como es (0 incluido) y el cajero decide con el dato a la vista.
+      .filter((item) => ctx.allowNegative || Number(item.available) > 0)
+  );
 }
 
 /**

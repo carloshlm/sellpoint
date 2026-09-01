@@ -465,6 +465,35 @@ describe("Importación de productos (F2-IMPORT)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-09-01): «Fila 2: esa unidad no existe» obliga a abrir el
+   * Excel y contar filas. Con el código interno al lado, la fila se encuentra
+   * con un Ctrl+F. Viaja como dato aparte (`itemCode`) y no pegado al
+   * mensaje: el front decide cómo pintarlo.
+   */
+  it("cada error de fila dice el código interno del producto", async () => {
+    const { token } = await registerAndLogin();
+
+    const report = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({
+        content: "sku,nombre,unidad_base\nCODINT001,Sin unidad,quintal\n,Sin código,unit",
+        dryRun: true,
+      })
+      .expect(200);
+
+    const errors = (report.body as { errors: ImportRowError[] }).errors;
+    expect(errors[0]).toMatchObject({
+      row: 2,
+      itemCode: "CODINT001",
+      code: "products.unknown_unit",
+    });
+    // Sin código no hay qué decir: el campo simplemente no viene, no viene vacío.
+    expect(errors[1]).toMatchObject({ row: 3, code: "products.import_missing_required" });
+    expect(errors[1]).not.toHaveProperty("itemCode");
+  });
+
   it("los productos importados nacen con su presentación base y su precio", async () => {
     const { token } = await registerAndLogin();
 

@@ -48,7 +48,8 @@
     "noFile": "Ningún archivo elegido",
     "confirm": "Importar",
     "report": "{{valid}} filas válidas ({{created}} altas, {{updated}} actualizaciones) · {{failed}} con error",
-    "rowError": "Fila {{row}}:",
+    "rowError": "Fila {{row}}: {{message}}",
+    "rowErrorWithCode": "Fila {{row}}: {{code}} - {{message}}",
     "skipErrors": "Importar las válidas y saltar las filas con error",
     "done": "Se importaron {{count}} servicios."
   }

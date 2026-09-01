@@ -7,6 +7,8 @@ export interface ImportRowError {
   row: number;
   message: string;
   field?: string;
+  /** El código interno de la fila, si lo trae: para encontrarla en el Excel sin contar renglones. */
+  itemCode?: string;
 }
 
 export interface ImportReport {

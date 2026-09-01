@@ -455,6 +455,45 @@ describe("campos dinámicos del servicio (2026-08-26)", () => {
     await waitFor(() =>
       expect(mockedRun).toHaveBeenLastCalledWith({ content: "QkFTRTY0", skipErrors: false }),
     );
-    expect(await screen.findByTestId("service-import-done")).toHaveTextContent("2 servicios");
+    const listo = await screen.findByTestId("service-import-done");
+    expect(listo).toHaveTextContent("2 servicios");
+    // El éxito se VE y se OYE (Carlos, 2026-09-01): cuadro verde con el foco
+    // puesto, igual que en productos y en el conteo.
+    expect(listo).toHaveAttribute("role", "status");
+    expect(listo).toHaveClass("bg-success-soft");
+    expect(listo).toHaveFocus();
+  });
+
+  it("los errores del reporte nombran el código del servicio", async () => {
+    const user = userEvent.setup();
+    vi.mocked(importApi.runServiceImport).mockResolvedValue({
+      valid: 0,
+      failed: 1,
+      created: 0,
+      updated: 0,
+      errors: [
+        {
+          row: 2,
+          field: "codigo",
+          message: "services.import_duplicate_code",
+          translated: "Ese código se repite en el archivo.",
+          itemCode: "DUP-01",
+        },
+      ],
+      applied: false,
+    });
+    await renderServices();
+
+    await user.click(await screen.findByRole("button", { name: "Importar servicios" }));
+    await user.upload(
+      screen.getByLabelText("Elegir archivo"),
+      new File([new Uint8Array([0x50, 0x4b])], "servicios.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+
+    expect(await screen.findByTestId("service-import-report")).toHaveTextContent(
+      "Fila 2: DUP-01 - Ese código se repite en el archivo.",
+    );
   });
 });

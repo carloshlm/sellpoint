@@ -234,6 +234,30 @@ describe("Inventario físico: captura (F3-COUNT-04)", () => {
   });
 
   /**
+   * Carlos (2026-09-01): subir el conteo no decía nada al terminar — el
+   * resumen cambiaba «solo». El éxito va en un cuadro verde con el foco
+   * puesto, el mismo de importar productos y servicios.
+   */
+  it("al subir el conteo, el éxito se ve en un cuadro verde con el foco puesto", async () => {
+    mocked.importDocumentLines.mockResolvedValue({ imported: 12, withErrors: 0, rows: [] });
+    const { user } = await renderCount();
+    await screen.findByText("INV-000007");
+
+    await user.upload(
+      screen.getByLabelText(/subir conteo/i),
+      new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "conteo.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+
+    const listo = await screen.findByTestId("count-import-done");
+    expect(listo).toHaveAttribute("role", "status");
+    expect(listo).toHaveClass("bg-success-soft");
+    expect(listo).toHaveTextContent("Conteo cargado: 12 filas.");
+    expect(listo).toHaveFocus();
+  });
+
+  /**
    * El teórico se relee al aprobar, no al contar. Decirlo evita la pregunta
    * más frecuente de un inventario: "¿y si alguien vende mientras cuento?".
    */

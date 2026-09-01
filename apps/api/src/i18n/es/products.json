@@ -15,7 +15,7 @@
   "import_has_errors": "El archivo tiene filas con error. Corrígelas o marca la opción para importar solo las válidas.",
   "import_missing_required": "Faltan el código o el nombre.",
   "import_too_large": "El archivo supera los 5 MB. Divídelo en partes más chicas.",
-  "import_unreadable": "No pudimos leer el archivo. Verifica que sea el CSV o el Excel de la plantilla.",
+  "import_unreadable": "No pudimos leer el archivo. Verifica que sea el Excel de la plantilla.",
   "invalid_attributes": "Revisa los campos marcados.",
   "invalid_body": "Los datos enviados no son válidos.",
   "is_component": "No se puede eliminar: este producto es componente de otro.",

@@ -5,6 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
 import {
   downloadImportTemplate,
@@ -156,10 +157,18 @@ function ProductImportDialog({ onClose }: { onClose: () => void }) {
               <ul className="max-h-40 overflow-y-auto text-xs text-muted-foreground">
                 {report.errors.map((rowError) => (
                   <li key={`${rowError.row}-${rowError.message}`}>
-                    {t("products.import.rowError", {
-                      row: rowError.row,
-                      message: t(rowError.message),
-                    })}
+                    {/* Con el código interno al lado, la fila se encuentra
+                        en el Excel con un Ctrl+F (Carlos, 2026-09-01). */}
+                    {t(
+                      rowError.itemCode
+                        ? "products.import.rowErrorWithCode"
+                        : "products.import.rowError",
+                      {
+                        row: rowError.row,
+                        code: rowError.itemCode,
+                        message: t(rowError.message),
+                      },
+                    )}
                   </li>
                 ))}
               </ul>
@@ -191,14 +200,16 @@ function ProductImportDialog({ onClose }: { onClose: () => void }) {
         )}
 
         {done && (
-          <div className="flex flex-col gap-3" data-testid="import-done">
-            <p className="text-sm">{t("products.import.done", { count: done.imported })}</p>
-            <p className="text-sm text-muted-foreground">
-              {t("products.import.doneBreakdown", {
-                created: done.created,
-                updated: done.updated,
-              })}
-            </p>
+          <div className="flex flex-col gap-3">
+            <SuccessNotice testId="import-done">
+              <p className="font-medium">{t("products.import.done", { count: done.imported })}</p>
+              <p className="text-muted-foreground">
+                {t("products.import.doneBreakdown", {
+                  created: done.created,
+                  updated: done.updated,
+                })}
+              </p>
+            </SuccessNotice>
             <div>
               <Button onClick={onClose}>{t("products.import.close")}</Button>
             </div>

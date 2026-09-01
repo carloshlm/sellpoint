@@ -159,7 +159,7 @@
   "count_file_too_large": "The file is over 5 MB. Please split it into smaller parts.",
   "invalid_body": "The submitted data isn't valid.",
   "document_line_not_found": "That line doesn't exist in this movement.",
-  "import_unreadable": "We couldn't read the file. Make sure it's the CSV or Excel template.",
+  "import_unreadable": "We couldn't read the file. Make sure it's the Excel template.",
   "import_empty": "The file has no rows to load.",
   "reason_required": "The movement reason is missing.",
   "expiring": {
@@ -212,7 +212,6 @@
   },
   "count": {
     "templateXlsx": "Template .xlsx",
-    "templateCsv": "Template .csv",
     "templateHint": "Lot-tracked products get one row per lot and location; leave those columns empty for the rest.",
     "upload": "Upload count",
     "uploadHint": "Upload the file with the «counted» column filled in. It replaces what was loaded before.",
@@ -230,7 +229,9 @@
     "needsManage": "An Admin must approve this count. The draft stays saved with its folio, waiting for them.",
     "drifted": "{{count}} lines changed balance between counting and approval. What was counted has been applied.",
     "drifted_one": "{{count}} line changed balance between counting and approval. What was counted has been applied.",
-    "importFailed": "The file could not be read. Check that it is the downloaded template."
+    "importFailed": "The file could not be read. Check that it is the downloaded template.",
+    "importDone": "Count loaded: {{count}} rows.",
+    "importDoneWithErrors": "{{count}} rows could not be read: check them in the list."
   },
   "kardex": {
     "title": "Kardex",

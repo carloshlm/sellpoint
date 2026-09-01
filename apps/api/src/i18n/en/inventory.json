@@ -12,7 +12,7 @@
   "expired_lot_not_sellable": "Lot {lotCode} of {sku} expired on {expiresAt}: it cannot be sold. Use an expiry write-off to remove it from inventory.",
   "expired_stock_not_sellable": "{sku} has {expired} in stock, but it is expired: it cannot be sold. Use an expiry write-off to remove it from inventory.",
   "import_empty": "The file has no rows to load.",
-  "import_unreadable": "We couldn't read the file. Make sure it's the CSV or Excel template.",
+  "import_unreadable": "We couldn't read the file. Make sure it's the Excel template.",
   "insufficient_lot_stock": "Lot \"{lotCode}\" has {available} and {requested} were requested.",
   "insufficient_stock": "Not enough stock of \"{sku}\": there are {available} and {requested} were requested.",
   "integer_only_presentation": "The presentation \"{presentationName}\" only accepts whole quantities.",

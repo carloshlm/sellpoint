@@ -7,7 +7,14 @@ export interface ServiceImportReport {
   failed: number;
   created: number;
   updated: number;
-  errors: { row: number; field?: string; message: string; translated?: string }[];
+  errors: {
+    row: number;
+    field?: string;
+    message: string;
+    translated?: string;
+    /** El código de la fila, si lo trae: para encontrarla en el Excel sin contar renglones. */
+    itemCode?: string;
+  }[];
   applied: boolean;
 }
 

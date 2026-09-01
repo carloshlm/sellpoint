@@ -21,6 +21,7 @@ import { dailyTicketCode } from "./daily-code";
 import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
 import { buildSalesWhere } from "./sales-where";
+import { allowNegativeStock } from "./stock-policy";
 
 /** Lo que el catálogo dice que cuesta una línea. NUNCA lo que mandó el POST. */
 interface PrecioResuelto {
@@ -127,16 +128,11 @@ export class SalesService {
 
     // F7-POS-03/04: el plan efectivo (cacheado en Redis) y el toggle del
     // negocio, ANTES de abrir la transacción — lecturas baratas que deciden
-    // la regla de stock y el límite diario.
+    // la regla de stock y el límite diario. La regla de stock vive en
+    // `stock-policy.ts`: la comparten el buscador y la cotización, y si
+    // difirieran el toggle mentiría.
     const entitlements = await this.entitlements.resolve(user.tenantId);
-    const negocio = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { sellWithoutStock: true },
-    });
-    // La regla efectiva (decisión de Carlos, 2026-08-27): vende sin validar
-    // stock quien no tiene control de inventario en su plan O quien prendió
-    // "Vender sin existencias" en los ajustes del negocio.
-    const allowNegative = !entitlements.stockControl || negocio?.sellWithoutStock === true;
+    const allowNegative = await allowNegativeStock(this.entitlements, this.prisma, user.tenantId);
 
     // F5-DASH-01: el costo promedio ponderado se CONGELA en la línea al
     // cobrar — es lo que vuelve calculable la utilidad de esta venta para

@@ -264,6 +264,30 @@ describe("Buscador del POS (F4-CART-01)", () => {
       expect(items(res).filter((i) => i.type === "product")).toHaveLength(0);
     });
 
+    /**
+     * «Vender sin existencias» (Carlos, 2026-09-01). El cobro ya respetaba el
+     * toggle (`allowNegative` en sales.service) pero el BUSCADOR seguía
+     * escondiendo lo que estaba en cero — y un producto que no se puede ni
+     * agregar al carrito jamás llega al cobro que sí lo permitiría. La regla
+     * del filtro tiene que ser LA MISMA que la del cobro, o el toggle miente.
+     */
+    it("con «Vender sin existencias», el producto en cero SÍ se ofrece — y dice su disponible real", async () => {
+      const e = await escenario();
+      await prisma.withTenantContext(e.tenantId, (tx) =>
+        tx.tenant.update({ where: { id: e.tenantId }, data: { sellWithoutStock: true } }),
+      );
+      await abrirTurno(e.token, e.central).expect(201);
+
+      const res = await buscar(e.token, "Agua").expect(200);
+      const productos = items(res).filter((i) => i.type === "product");
+      const enCero = productos.find((i) => i.type === "product" && i.id === e.sinStock);
+
+      expect(enCero).toBeDefined();
+      // El disponible viaja como ES: el cajero ve el 0 y decide con la
+      // información en la mano, no con un número maquillado.
+      expect(enCero?.type === "product" && enCero.available).toBe("0");
+    });
+
     it("la respuesta dice contra qué almacén se resolvió", async () => {
       const e = await escenario();
       await abrirTurno(e.token, e.central).expect(201);

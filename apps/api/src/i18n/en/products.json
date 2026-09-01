@@ -15,7 +15,7 @@
   "import_has_errors": "The file has rows with errors. Fix them or check the option to import only the valid ones.",
   "import_missing_required": "The code or the name is missing.",
   "import_too_large": "The file is over 5 MB. Please split it into smaller parts.",
-  "import_unreadable": "We couldn't read the file. Make sure it's the CSV or Excel template.",
+  "import_unreadable": "We couldn't read the file. Make sure it's the Excel template.",
   "invalid_attributes": "Check the highlighted fields.",
   "invalid_body": "The submitted data isn't valid.",
   "is_component": "Can't delete it: this product is a component of another one.",

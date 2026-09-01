@@ -615,7 +615,13 @@ function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () 
         label={t("products.form.baseUnit")}
         value={baseUnit}
         disabled={!canManage}
-        options={UNIT_CODES.map((code) => ({ value: code, label: unitName(code, uiLocale) }))}
+        // «Pieza (unit)»: el código entre paréntesis es el que se guarda y el
+        // que viaja en la plantilla de importación — así nadie lo adivina al
+        // armar su Excel (Carlos, 2026-09-01).
+        options={UNIT_CODES.map((code) => ({
+          value: code,
+          label: `${unitName(code, uiLocale)} (${code})`,
+        }))}
         onChange={(event) => setBaseUnit(event.target.value)}
       />
 

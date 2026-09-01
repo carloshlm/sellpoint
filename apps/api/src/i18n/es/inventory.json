@@ -12,7 +12,7 @@
   "expired_lot_not_sellable": "El lote {lotCode} de {sku} venció el {expiresAt}: no se puede vender. Para sacarlo del inventario usa una salida por caducado.",
   "expired_stock_not_sellable": "De {sku} hay {expired} en existencia, pero está vencido: no se puede vender. Para sacarlo del inventario usa una salida por caducado.",
   "import_empty": "El archivo no tiene filas para cargar.",
-  "import_unreadable": "No pudimos leer el archivo. Verifica que sea el CSV o el Excel de la plantilla.",
+  "import_unreadable": "No pudimos leer el archivo. Verifica que sea el Excel de la plantilla.",
   "insufficient_lot_stock": "El lote «{lotCode}» tiene {available} y se piden {requested}.",
   "insufficient_stock": "No hay suficiente existencia de «{sku}»: hay {available} y se piden {requested}.",
   "integer_only_presentation": "La presentación «{presentationName}» solo acepta cantidades enteras.",

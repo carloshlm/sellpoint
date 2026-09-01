@@ -22,6 +22,8 @@ export interface ServiceImportRowError {
   field?: string;
   message: string;
   translated?: string;
+  /** El código de la fila, para encontrarla en el Excel sin contar renglones. */
+  itemCode?: string;
 }
 
 export interface ServiceImportReport {
@@ -123,12 +125,19 @@ export class ServicesImportService {
 
       const code = value("codigo");
       const name = value("nombre");
+      // Todo error de esta fila lleva su código, si lo hay: es lo que permite
+      // encontrarla en el Excel sin contar renglones (Carlos, 2026-09-01).
+      const conCodigo = (error: ServiceImportRowError): ServiceImportRowError =>
+        code ? { ...error, itemCode: code } : error;
+
       if (!code || !name) {
-        errors.push({ row: rowNumber, message: "services.import_missing_required" });
+        errors.push(conCodigo({ row: rowNumber, message: "services.import_missing_required" }));
         continue;
       }
       if (vistos.has(code)) {
-        errors.push({ row: rowNumber, field: "codigo", message: "services.import_duplicate_code" });
+        errors.push(
+          conCodigo({ row: rowNumber, field: "codigo", message: "services.import_duplicate_code" }),
+        );
         continue;
       }
       vistos.add(code);
@@ -153,7 +162,7 @@ export class ServicesImportService {
         money[column] = amount;
       }
       if (moneyError) {
-        errors.push(moneyError);
+        errors.push(conCodigo(moneyError));
         continue;
       }
 
@@ -186,7 +195,7 @@ export class ServicesImportService {
         attributes[column] = field?.fieldType === "number" ? Number(raw) : raw;
       }
       if (lookupError) {
-        errors.push(lookupError);
+        errors.push(conCodigo(lookupError));
         continue;
       }
 
@@ -195,11 +204,13 @@ export class ServicesImportService {
         attributes,
       );
       if (attributeErrors.length > 0) {
-        errors.push({
-          row: rowNumber,
-          field: attributeErrors[0]?.key,
-          message: attributeErrors[0]?.message ?? "services.import_invalid_attributes",
-        });
+        errors.push(
+          conCodigo({
+            row: rowNumber,
+            field: attributeErrors[0]?.key,
+            message: attributeErrors[0]?.message ?? "services.import_invalid_attributes",
+          }),
+        );
         continue;
       }
 

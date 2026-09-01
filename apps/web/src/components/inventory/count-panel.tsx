@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import { downloadCountTemplate, importDocumentLines } from "@/lib/inventory/api";
 import { DOCUMENTS_QUERY_KEY } from "@/lib/inventory/hooks";
 import type { DocumentDetail } from "@/lib/inventory/types";
@@ -16,6 +17,10 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // El resultado de la última subida: el éxito se DICE (cuadro verde con el
+  // foco), no se deja adivinar por el resumen que cambia solo (Carlos,
+  // 2026-09-01).
+  const [done, setDone] = useState<{ imported: number; withErrors: number } | null>(null);
 
   const subir = useMutation({
     mutationFn: async (file: File) => {
@@ -33,7 +38,8 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
         mode: "replace",
       });
     },
-    onSuccess: () => {
+    onSuccess: (resultado: { imported: number; withErrors: number }) => {
+      setDone({ imported: resultado.imported, withErrors: resultado.withErrors });
       void queryClient.invalidateQueries({ queryKey: [...DOCUMENTS_QUERY_KEY, doc.id] });
     },
     onError: () => setError(t("inventory.count.importFailed")),
@@ -68,6 +74,7 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
             const file = event.target.files?.[0];
             if (file !== undefined) {
               setError(null);
+              setDone(null);
               subir.mutate(file);
             }
           }}
@@ -84,6 +91,17 @@ export function CountPanel({ document: doc }: { document: DocumentDetail }) {
         <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
+      )}
+
+      {done !== null && (
+        <SuccessNotice testId="count-import-done">
+          <p className="font-medium">{t("inventory.count.importDone", { count: done.imported })}</p>
+          {done.withErrors > 0 && (
+            <p className="text-muted-foreground">
+              {t("inventory.count.importDoneWithErrors", { count: done.withErrors })}
+            </p>
+          )}
+        </SuccessNotice>
       )}
     </div>
   );
