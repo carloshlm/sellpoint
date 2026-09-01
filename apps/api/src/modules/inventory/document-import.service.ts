@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
-import type { InventoryDocumentType } from "@sellpoint/shared";
+import { type InventoryDocumentType, normalizeLotCode } from "@sellpoint/shared";
 import {
   parseSpreadsheet,
   type SpreadsheetFormat,
@@ -136,6 +136,7 @@ export class DocumentImportService {
         const sku = (raw[idx("sku")] ?? "").trim();
         const productId = porSku.get(sku.toLowerCase()) ?? null;
         const nombrePresentacion = texto(raw[idx("presentacion")]);
+        const lote = texto(raw[idx("lote")]);
         const presentationId =
           productId === null || nombrePresentacion === null
             ? null
@@ -152,7 +153,12 @@ export class DocumentImportService {
           presentationId,
           quantity: num(raw[idx("cantidad")]),
           unitCost: num(raw[idx("costo_unitario")]),
-          lotCode: texto(raw[idx("lote")]),
+          // NORMALIZADO, igual que en `lotCodeField()` de los DTOs: esta era
+          // la única puerta al API que leía la celda tal cual, y como
+          // `product_lots` tiene `@@unique([productId, lotCode])`, «st9» y
+          // «ST9» entraban como DOS lotes del mismo producto — existencias
+          // partidas y FEFO tratándolos por separado (Carlos, 2026-09-01).
+          lotCode: lote === null ? null : normalizeLotCode(lote) || null,
           expiresAt: texto(raw[idx("caducidad")]),
           location: texto(raw[idx("ubicacion")]),
           counted: num(raw[idx("contado")]),

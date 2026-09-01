@@ -393,6 +393,29 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
       expect((detalle.body as { lines: unknown[] }).lines).toHaveLength(1);
     });
 
+    /**
+     * Carlos (2026-09-01): la planilla era la puerta por donde entraban lotes
+     * en minúsculas. Todos los demás caminos al API normalizan en el DTO
+     * (`lotCodeField`), pero el import leía la celda tal cual — y como
+     * `product_lots` tiene `@@unique([productId, lotCode])`, «st9» y «ST9»
+     * terminaban siendo DOS lotes del mismo producto: existencias partidas y
+     * FEFO tratándolos por separado.
+     */
+    it("el lote de la planilla entra NORMALIZADO: «st9» y «ST9» no pueden ser dos lotes", async () => {
+      const id = await nuevoBorrador();
+
+      await importar(id, csv([[sku, "", "2", "", "st9-a", "", ""]])).expect(200);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+      const linea = (detalle.body as { lines: { lotCode: string | null }[] }).lines[0];
+      // El guion sobrevive (los lotes de proveedor lo traen); lo que se
+      // unifica son las mayúsculas.
+      expect(linea?.lotCode).toBe("ST9-A");
+    });
+
     it("una fila con sku inexistente entra MARCADA y no aborta las demás", async () => {
       const id = await nuevoBorrador();
 

@@ -111,7 +111,7 @@ describe("Inventario físico (F3-COUNT)", () => {
           data: {
             tenantId,
             productId: conLotes.id,
-            lotCode: "bbb-sep",
+            lotCode: "BBB-SEP",
             expiresAt: new Date("2026-09-30"),
           },
         }),
@@ -119,7 +119,7 @@ describe("Inventario físico (F3-COUNT)", () => {
           data: {
             tenantId,
             productId: conLotes.id,
-            lotCode: "zzz-jul",
+            lotCode: "ZZZ-JUL",
             expiresAt: new Date("2026-07-01"),
           },
         }),
@@ -127,7 +127,7 @@ describe("Inventario físico (F3-COUNT)", () => {
           data: {
             tenantId,
             productId: conLotes.id,
-            lotCode: "aaa-dic",
+            lotCode: "AAA-DIC",
             expiresAt: new Date("2026-12-31"),
           },
         }),
@@ -224,7 +224,7 @@ describe("Inventario físico (F3-COUNT)", () => {
       const col = (nombre: string) => header.indexOf(nombre);
       const suyas = filas.slice(1).filter((f) => f[col("sku")] === lotesSku);
 
-      expect(suyas.map((f) => f[col("lote")])).toEqual(["zzz-jul", "bbb-sep", "aaa-dic"]);
+      expect(suyas.map((f) => f[col("lote")])).toEqual(["ZZZ-JUL", "BBB-SEP", "AAA-DIC"]);
       expect(suyas.map((f) => f[col("teorico")])).toEqual(["9", "20", "1"]);
       expect(suyas.map((f) => f[col("ubicacion")])).toEqual(["B-2", "A-1", "C-3"]);
       expect(suyas[0]?.[col("caducidad")]).toBe("2026-07-01");
@@ -382,6 +382,10 @@ describe("Inventario físico (F3-COUNT)", () => {
       const { detalle } = await borradorCon(
         token,
         warehouseId,
+        // El lote va en MINÚSCULAS a propósito (Carlos, 2026-09-01): quien
+        // cuenta teclea como puede, y el import normaliza — así la fila da
+        // con el lote que YA existe en vez de inventar uno nuevo y partir el
+        // saldo. Antes del fix, «zzz-jul» y «ZZZ-JUL» eran dos lotes.
         `sku,lote,caducidad,ubicacion,contado\n${lotesSku},zzz-jul,2026-07-01,B-2,7`,
       );
       const fila = (detalle.rows as Record<string, unknown>[])[0];
@@ -401,9 +405,9 @@ describe("Inventario físico (F3-COUNT)", () => {
         [
           "sku,lote,caducidad,ubicacion,contado",
           `${simpleSku},,,,40`,
-          `${lotesSku},zzz-jul,2026-07-01,B-2,7`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,7`,
           // Sin `contado`: quien contaba no llegó a esa fila.
-          `${lotesSku},bbb-sep,2026-09-30,A-1,`,
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,`,
         ].join("\n"),
       );
 
@@ -870,9 +874,9 @@ describe("Inventario físico (F3-COUNT)", () => {
         warehouseId,
         [
           "sku,lote,caducidad,ubicacion,contado",
-          `${lotesSku},bbb-sep,2026-09-30,A-1,20`,
-          `${lotesSku},zzz-jul,2026-07-01,B-2,9`,
-          `${lotesSku},aaa-dic,2026-12-31,C-3,1`,
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,9`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,1`,
         ].join("\n"),
       );
 
@@ -899,10 +903,10 @@ describe("Inventario físico (F3-COUNT)", () => {
         warehouseId,
         [
           "sku,lote,caducidad,ubicacion,contado",
-          `${lotesSku},bbb-sep,2026-09-30,A-1,20`,
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
           // Del lote de julio había 9 y se contaron 5.
-          `${lotesSku},zzz-jul,2026-07-01,B-2,5`,
-          `${lotesSku},aaa-dic,2026-12-31,C-3,1`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,5`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,1`,
         ].join("\n"),
       );
 
@@ -921,18 +925,22 @@ describe("Inventario físico (F3-COUNT)", () => {
         warehouseId,
         [
           "sku,lote,caducidad,ubicacion,contado",
-          `${lotesSku},bbb-sep,2026-09-30,A-1,20`,
-          `${lotesSku},zzz-jul,2026-07-01,B-2,9`,
-          `${lotesSku},aaa-dic,2026-12-31,C-3,1`,
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,9`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,1`,
           `${lotesSku},lote-encontrado,2027-03-01,D-4,6`,
         ].join("\n"),
       );
 
       await aprobar(token, id).expect(201);
 
+      // Nace NORMALIZADO aunque la planilla lo traiga en minúsculas: el
+      // código de lote es una clave (`@@unique([productId, lotCode])`), y
+      // dejar entrar «lote-encontrado» y «LOTE-ENCONTRADO» como dos lotes
+      // partiría el saldo del mismo producto (Carlos, 2026-09-01).
       const creado = await prisma.withTenantContext(tenantId, (tx) =>
         tx.productLot.findFirst({
-          where: { productId: lotesId, lotCode: "lote-encontrado" },
+          where: { productId: lotesId, lotCode: "LOTE-ENCONTRADO" },
           select: { id: true, expiresAt: true },
         }),
       );
@@ -943,7 +951,7 @@ describe("Inventario físico (F3-COUNT)", () => {
         .set("Authorization", bearer(token))
         .expect(200);
       const nuevo = (lotes.body as { lotCode: string; totalQuantity: string }[]).find(
-        (l) => l.lotCode === "lote-encontrado",
+        (l) => l.lotCode === "LOTE-ENCONTRADO",
       );
       expect(Number(nuevo?.totalQuantity)).toBe(6);
     });
