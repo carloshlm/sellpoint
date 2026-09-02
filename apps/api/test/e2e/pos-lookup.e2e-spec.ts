@@ -191,7 +191,7 @@ describe("Buscador del POS (F4-CART-01)", () => {
 
       const res = await buscar(token, "agua").expect(409);
 
-      expect((res.body as { message: string }).message).toContain("turno de caja");
+      expect((res.body as { message: string }).message).toContain("Abre la caja");
     });
 
     /**

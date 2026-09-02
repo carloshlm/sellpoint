@@ -175,7 +175,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
       const res = await abrir(token).expect(409);
 
-      expect((res.body as { message: string }).message).toContain("turno de caja abierto");
+      expect((res.body as { message: string }).message).toContain("caja abierta");
     });
 
     it("cerrado el anterior, se puede abrir otro: un turno viejo no encierra a nadie", async () => {
@@ -546,7 +546,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         lines: [{ productId: productoId, quantity: 1 }],
       }).expect(409);
 
-      expect((res.body as { message: string }).message).toContain("turno de caja");
+      expect((res.body as { message: string }).message).toContain("Abre la caja");
     });
 
     it("con turno, cobra: folio VTA, total del catálogo y stock descontado", async () => {
