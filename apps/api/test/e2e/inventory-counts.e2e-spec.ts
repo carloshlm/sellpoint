@@ -948,6 +948,174 @@ describe("Inventario físico (F3-COUNT)", () => {
       ]);
     });
 
+    /**
+     * ── EL CONTEO ES ABSOLUTO POR PRODUCTO (Carlos, 2026-09-01) ─────────
+     *
+     * INV-000009: los lotes vivían SIN ubicación (2, 3, 3) y la planilla los
+     * puso en A-03-02 con 60, 61, 62, 63. Cada fila abrió una cubeta nueva
+     * (lote, A-03-02) y las viejas (lote, «») quedaron intactas: 246 contadas
+     * y el stock decía 254. La regla de Carlos: todo lo que hay se vacía —
+     * salidas si es positivo, entradas si es negativo— y después entra lo
+     * que dice el Excel. La única cubeta que se respeta es la de una fila
+     * OMITIDA: omitir no es contar cero.
+     */
+    it("un lote que cambió de ubicación en la planilla se mueve, no se duplica", async () => {
+      const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          // BBB-SEP estaba en A-1 con 20; se contó en X-9.
+          `${lotesSku},BBB-SEP,2026-09-30,X-9,20`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,9`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,1`,
+        ].join("\n"),
+      );
+
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as {
+        movements: {
+          productId: string;
+          direction: string;
+          quantityBase: string;
+          lotId: string | null;
+        }[];
+        stock: { productId: string; quantity: string }[];
+      };
+
+      expect(Number(body.stock.find((s) => s.productId === lotesId)?.quantity)).toBe(30);
+      const suyos = body.movements.filter((m) => m.productId === lotesId);
+      expect(suyos.map((m) => [m.direction, Number(m.quantityBase)])).toEqual([
+        ["exit", 20],
+        ["entry", 20],
+      ]);
+      const cubetas = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockLot.findMany({
+          where: { warehouseId, lot: { productId: lotesId, lotCode: "BBB-SEP" } },
+          select: { location: true, quantity: true },
+          orderBy: { location: "asc" },
+        }),
+      );
+      expect(cubetas.map((c) => [c.location, Number(c.quantity)])).toEqual([
+        ["A-1", 0],
+        ["X-9", 20],
+      ]);
+    });
+
+    it("las cubetas que la planilla no menciona se vacían: el total queda en lo contado", async () => {
+      const { token, warehouseId, lotesSku, lotesId } = await escenario();
+      // Solo dos de los tres lotes vienen en la planilla; AAA-DIC (1 pieza)
+      // no aparece por ningún lado. Lo contado suma 29 y el stock debe decir 29.
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,9`,
+        ].join("\n"),
+      );
+
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as {
+        movements: { productId: string; direction: string; quantityBase: string }[];
+        stock: { productId: string; quantity: string }[];
+      };
+
+      expect(Number(body.stock.find((s) => s.productId === lotesId)?.quantity)).toBe(29);
+      expect(
+        body.movements
+          .filter((m) => m.productId === lotesId)
+          .map((m) => [m.direction, Number(m.quantityBase)]),
+      ).toEqual([["exit", 1]]);
+    });
+
+    it("una fila OMITIDA conserva su cubeta: omitir no es contar cero", async () => {
+      const { token, warehouseId, lotesSku, lotesId } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,1`,
+        ].join("\n"),
+      );
+
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as { movements: { productId: string }[] };
+
+      expect(body.movements.filter((m) => m.productId === lotesId)).toHaveLength(0);
+    });
+
+    it("la previa de un conteo nunca dice «no hay suficiente existencia»", async () => {
+      const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
+      // El producto en 10 con lotes que suman 30: la previa vieja encadenaba
+      // 10 − 20 − 9 − 1 y acusaba falta de existencia por contar cero.
+      await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockByWarehouse.updateMany({
+          where: { productId: lotesId, warehouseId },
+          data: { quantity: 10 },
+        }),
+      );
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,0`,
+          `${lotesSku},ZZZ-JUL,2026-07-01,B-2,0`,
+          `${lotesSku},AAA-DIC,2026-12-31,C-3,0`,
+        ].join("\n"),
+      );
+
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (
+        previa.body as { rows: { errors: { code: string }[]; stockAfter: string | null }[] }
+      ).rows;
+      expect(filas.flatMap((f) => f.errors.map((e) => e.code))).toEqual([]);
+      // El encadenado arranca de lo que de verdad hay en cubetas (30) y
+      // termina en lo contado: cero.
+      expect(Number(filas.at(-1)?.stockAfter)).toBe(0);
+
+      const res = await aprobar(token, id).expect(201);
+      const body = res.body as { stock: { productId: string; quantity: string }[] };
+      expect(Number(body.stock.find((s) => s.productId === lotesId)?.quantity)).toBe(0);
+    });
+
+    it("dos filas con el mismo lote y ubicación se marcan: la segunda repite a la primera", async () => {
+      const { token, warehouseId, lotesSku } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        [
+          "sku,lote,caducidad,ubicacion,contado",
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,20`,
+          `${lotesSku},BBB-SEP,2026-09-30,A-1,21`,
+        ].join("\n"),
+      );
+
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (
+        previa.body as { rows: { errors: { code: string; args?: { lineNo?: number } }[] }[] }
+      ).rows;
+      expect(filas[0]?.errors).toEqual([]);
+      expect(filas[1]?.errors).toEqual([
+        expect.objectContaining({ code: "inventory.count_duplicate_row", args: { lineNo: 1 } }),
+      ]);
+
+      const res = await aprobar(token, id).expect(422);
+      expect((res.body as { message: string }).message).toMatch(/repite/);
+    });
+
     /** Contar lo mismo que había no es un movimiento: no pasó nada. */
     it("una línea que coincide no genera movimientos", async () => {
       const { token, warehouseId, simpleSku, simpleId } = await escenario();

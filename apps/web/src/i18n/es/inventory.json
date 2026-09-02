@@ -148,6 +148,7 @@
   "lot_required": "Este producto se controla por lote: falta indicar cuál.",
   "expiry_required": "Este producto se controla por lote: falta la fecha de caducidad del lote.",
   "lot_not_tracked": "Este producto no se controla por lote.",
+  "count_duplicate_row": "Esta fila repite el lote y la ubicación de la fila {{lineNo}}: deja una sola.",
   "lot_expiry_mismatch": "El lote «{{lotCode}}» ya existe con otra fecha de caducidad.",
   "insufficient_lot_stock": "El lote «{{lotCode}}» tiene {{available}} y se piden {{requested}}.",
   "transfer_same_warehouse": "El almacén destino tiene que ser distinto del origen.",

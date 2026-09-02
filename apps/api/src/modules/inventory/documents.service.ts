@@ -15,6 +15,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import { CompositionService } from "../products/composition.service";
+import { bucketKeyByCode, loadCountBuckets, sumBuckets } from "./count-buckets";
 import type { ListDocumentsQueryDto, UpdateDocumentDto } from "./dto/document.dto";
 import { nextFolio } from "./folio";
 import { resolveLines } from "./line-resolver";
@@ -396,7 +397,12 @@ export class DocumentsService {
           expiresAt: l.expiresAt,
           location: l.location,
         })),
-        { direction, reasonCode: document.reasonCode ?? "adjustment", mode: "preview" },
+        {
+          direction,
+          reasonCode: document.reasonCode ?? "adjustment",
+          mode: "preview",
+          allowEmptyQuantity: esConteo,
+        },
       );
 
       // El saldo actual de los productos involucrados, en UNA query.
@@ -511,38 +517,68 @@ export class DocumentsService {
       // El teórico de un producto CON lote se lee por (lote, ubicación) y no
       // del total del producto: contar el estante B-2 no dice nada del A-1.
       const teoricoPorLinea = new Map<number, Prisma.Decimal>();
+      // El saldo con el que ARRANCA el encadenado de cada producto con lote:
+      // la suma de sus cubetas REPRESENTADAS en la planilla. El conteo es
+      // absoluto (Carlos, 2026-09-01): lo que no está en la planilla se vacía
+      // y el residuo sin lote se cancela, así que partir del saldo del
+      // producto mostraría un «antes» que ya no va a existir — y acusaba
+      // «no hay suficiente existencia» al contar cero sobre un producto cuyo
+      // saldo era menor que la suma de sus lotes.
+      const inicioPorProducto = new Map<string, Prisma.Decimal>();
+      // Fila repetida (mismo lote y ubicación que otra): línea → primera.
+      const repetidaDe = new Map<number, number>();
       if (esConteo && document.lines.length > 0) {
         const conLote = document.lines.filter((l) => l.lotCode !== null);
-        const lotes =
-          conLote.length === 0
-            ? []
-            : await tx.stockLot.findMany({
-                where: {
-                  warehouseId: document.warehouseId,
-                  lot: {
-                    productId: { in: conLote.map((l) => l.productId) },
-                    lotCode: { in: conLote.map((l) => l.lotCode as string) },
-                  },
-                },
-                select: {
-                  location: true,
-                  quantity: true,
-                  lot: { select: { productId: true, lotCode: true } },
-                },
-              });
-        const porLote = new Map(
-          lotes.map((l) => [
-            `${l.lot.productId}|${l.lot.lotCode}|${l.location}`,
-            new Prisma.Decimal(l.quantity.toString()),
-          ]),
+        const cubetas = await loadCountBuckets(
+          tx,
+          user.tenantId,
+          document.warehouseId,
+          [...new Set(conLote.map((l) => l.productId))],
+          false,
         );
+        const porLote = new Map<string, Prisma.Decimal>();
+        for (const lista of cubetas.values()) {
+          for (const cubeta of lista) {
+            porLote.set(
+              `${cubeta.productId}|${bucketKeyByCode(cubeta.lotCode, cubeta.location)}`,
+              cubeta.quantity,
+            );
+          }
+        }
+
+        const representadas = new Map<string, Set<string>>();
+        const vistas = new Map<string, number>();
+        for (const line of conLote) {
+          const clave = bucketKeyByCode(line.lotCode as string, (line.location ?? "").trim());
+          const suyas = representadas.get(line.productId) ?? new Set<string>();
+          suyas.add(clave);
+          representadas.set(line.productId, suyas);
+          if (line.counted !== null) {
+            const primera = vistas.get(`${line.productId}|${clave}`);
+            if (primera !== undefined) {
+              repetidaDe.set(line.lineNo, primera);
+            } else {
+              vistas.set(`${line.productId}|${clave}`, line.lineNo);
+            }
+          }
+        }
+        for (const [productId, claves] of representadas) {
+          if (!conLote.some((l) => l.productId === productId && l.counted !== null)) {
+            continue;
+          }
+          const lista = (cubetas.get(productId) ?? []).filter((b) =>
+            claves.has(bucketKeyByCode(b.lotCode, b.location)),
+          );
+          inicioPorProducto.set(productId, sumBuckets(lista));
+        }
 
         for (const line of document.lines) {
           const teorico =
             line.lotCode === null
               ? (saldoPorProducto.get(line.productId) ?? new Prisma.Decimal(0))
-              : (porLote.get(`${line.productId}|${line.lotCode}|${line.location ?? ""}`) ??
-                new Prisma.Decimal(0));
+              : (porLote.get(
+                  `${line.productId}|${bucketKeyByCode(line.lotCode, (line.location ?? "").trim())}`,
+                ) ?? new Prisma.Decimal(0));
           teoricoPorLinea.set(line.lineNo, teorico);
         }
       }
@@ -595,7 +631,9 @@ export class DocumentsService {
         // asentado, el saldo real del momento del asiento — y si no lo hay
         // (anulado, conteo, compuesto), `null`: la pantalla dirá «—».
         const base = esBorrador
-          ? (saldoPorProducto.get(line.productId) ?? new Prisma.Decimal(0))
+          ? (inicioPorProducto.get(line.productId) ??
+            saldoPorProducto.get(line.productId) ??
+            new Prisma.Decimal(0))
           : (historiaPorProducto.get(line.productId) ?? null);
         const antes = acumulado.get(line.productId) ?? base;
 
@@ -629,6 +667,14 @@ export class DocumentsService {
         // corregir: los errores son de la previa, y la previa ya pasó.
         const omitida = esConteo && line.counted === null;
         const errors = !esBorrador || omitida ? [] : [...(res?.errors ?? [])];
+        const repite = repetidaDe.get(line.lineNo);
+        if (esBorrador && repite !== undefined) {
+          errors.push({
+            field: "lotCode",
+            code: "inventory.count_duplicate_row",
+            args: { lineNo: repite },
+          });
+        }
         // La previa de una SALIDA avisa antes de confirmar; el rechazo duro lo
         // hace el ledger, con la fila ya bloqueada.
         if (

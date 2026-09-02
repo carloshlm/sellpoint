@@ -58,6 +58,14 @@ export interface ResolveOptions {
    * previsualizado y lo asentado se validen igual.
    */
   mode?: "strict" | "preview";
+  /**
+   * En un CONTEO la cantidad de la línea es lo contado, y puede venir vacía
+   * (fila omitida) o en cero (el estante estaba vacío, que es el hallazgo más
+   * importante de un inventario). Ninguna de las dos es un error: la línea
+   * se resuelve igual —producto, lote, ubicación— con cantidad 0, y lo que se
+   * mueve lo decide `expandCount` (Carlos, 2026-09-01).
+   */
+  allowEmptyQuantity?: boolean;
 }
 
 type ProductRow = {
@@ -230,14 +238,17 @@ async function resolveOne(
 
   // Una cantidad ausente es un estado válido del BORRADOR, pero no de un
   // asiento: acá es donde deja de serlo.
-  if (line.quantity === undefined || line.quantity === null) {
+  if (
+    (line.quantity === undefined || line.quantity === null) &&
+    options.allowEmptyQuantity !== true
+  ) {
     throw new UnprocessableEntityException({
       message: "inventory.quantity_must_be_positive",
       args: { lineIndex, field: "quantity" },
     });
   }
 
-  const quantityInput = new Prisma.Decimal(line.quantity.toString());
+  const quantityInput = new Prisma.Decimal((line.quantity ?? 0).toString());
   let quantityBase = quantityInput;
   let presentationId: string | null = null;
 

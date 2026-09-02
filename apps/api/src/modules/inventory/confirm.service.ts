@@ -6,6 +6,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { type ExpandedLine, expandComposition } from "./composition-expander";
+import { bucketKeyById, bucketsToZero, loadCountBuckets, sumBuckets } from "./count-buckets";
 import { DocumentsService } from "./documents.service";
 import { resolveLines } from "./line-resolver";
 import { resolveLotsFefo } from "./lot-fefo";
@@ -92,7 +93,7 @@ export class ConfirmService {
           expiresAt: l.expiresAt,
           location: l.location,
         })),
-        { direction, reasonCode },
+        { direction, reasonCode, allowEmptyQuantity: document.type === "physical_count" },
       );
 
       // 2. Un compuesto sale como sus componentes (solo en salidas).
@@ -324,14 +325,18 @@ export class ConfirmService {
     document: InventoryDocument,
     lines: { lineNo: number; counted: Prisma.Decimal | null; quantity: Prisma.Decimal | null }[],
     resolved: ExpandedLine[],
-  ): Promise<{ exit: ExpandedLine[]; entry: ExpandedLine[]; drifted: number }> {
+  ): Promise<{
+    pre: ExpandedLine[];
+    exit: ExpandedLine[];
+    entry: ExpandedLine[];
+    drifted: number;
+  }> {
     const contadas = resolved.filter((_line, index) => lines[index]?.counted !== null);
     if (contadas.length === 0) {
-      return { exit: [], entry: [], drifted: 0 };
+      return { pre: [], exit: [], entry: [], drifted: 0 };
     }
 
     const productIds = [...new Set(contadas.map((l) => l.productId))].sort();
-    const lotIds = [...new Set(contadas.map((l) => l.lotId).filter(Boolean))].sort() as string[];
 
     // El MISMO `FOR UPDATE` ordenado del ledger: tomarlo acá primero evita
     // leer un teórico que cambie antes de asentarlo.
@@ -345,59 +350,88 @@ export class ConfirmService {
          FOR UPDATE`;
     const porProducto = new Map(saldos.map((r) => [r.product_id, new Prisma.Decimal(r.quantity)]));
 
+    // TODAS las cubetas de los productos con lote, bloqueadas: las que la
+    // planilla menciona y las que no.
+    const productosConLote = [
+      ...new Set(contadas.filter((l) => l.lotId !== undefined).map((l) => l.productId)),
+    ].sort();
+    const cubetas = await loadCountBuckets(
+      tx,
+      user.tenantId,
+      document.warehouseId,
+      productosConLote,
+      true,
+    );
     const porLote = new Map<string, Prisma.Decimal>();
-    if (lotIds.length > 0) {
-      const filas = await tx.$queryRaw<{ lot_id: string; location: string; quantity: string }[]>`
-        SELECT lot_id, location, quantity::text AS quantity
-          FROM stock_lots
-         WHERE tenant_id = ${user.tenantId}::uuid
-           AND warehouse_id = ${document.warehouseId}::uuid
-           AND lot_id = ANY(${lotIds}::uuid[])
-         ORDER BY lot_id, location
-           FOR UPDATE`;
-      for (const fila of filas) {
-        porLote.set(`${fila.lot_id}|${fila.location}`, new Prisma.Decimal(fila.quantity));
+    for (const lista of cubetas.values()) {
+      for (const cubeta of lista) {
+        porLote.set(bucketKeyById(cubeta.lotId, cubeta.location), cubeta.quantity);
       }
     }
 
     const exit: ExpandedLine[] = [];
     const entry: ExpandedLine[] = [];
+    // Lo que sube ANTES de las salidas: negativos que hay que devolver a
+    // cero (residuo sin lote, cubetas en negativo, teóricos negativos). Va en
+    // su propia pasada porque el ledger no admite sacar más de lo que hay, y
+    // con un producto en 10 cuyos lotes suman 30 las salidas (30) rebotarían
+    // contra el saldo (10) si el residuo (+20) no hubiera entrado primero.
+    const pre: ExpandedLine[] = [];
     let drifted = 0;
 
-    // ── El residuo SIN lote (Carlos, 2026-09-01) ──────────────────────────
+    // ── Filas repetidas ─────────────────────────────────────────────────
+    // Dos filas con el mismo (lote, ubicación) no se pueden sumar ni elegir:
+    // la segunda "sacaría" un teórico que la primera ya sacó (INV-000009:
+    // 60+60+61+61+62+63+63 = 430 pedidos sobre 254). La previa las marca; acá
+    // se rechaza por si alguien confirma sin mirar.
+    const vistas = new Map<string, number>();
+    for (const [index, line] of resolved.entries()) {
+      if (lines[index]?.counted === null || line.lotId === undefined) {
+        continue;
+      }
+      const clave = `${line.productId}|${bucketKeyById(line.lotId, line.location ?? "")}`;
+      const primera = vistas.get(clave);
+      if (primera !== undefined) {
+        throw new UnprocessableEntityException({
+          message: "inventory.count_duplicate_row",
+          args: { lineNo: primera, lineIndex: index, field: "lotCode" },
+        });
+      }
+      vistas.set(clave, lines[index]?.lineNo ?? index + 1);
+    }
+
+    // ── El conteo es ABSOLUTO por producto (Carlos, 2026-09-01) ──────────
     //
-    // Cada línea con lote se cuadra contra SU saldo por (lote, ubicación), y
-    // eso deja sin mirar el saldo del PRODUCTO. Una venta sin existencias
-    // pone el producto en −5 sin tocar ningún lote; después el conteo dice
-    // «ST1: 50», el lote queda en 50 y el producto en 45 — «Stock por
-    // almacén» mostrando 50 y 45 a la vez. Lo contado es la fuente de
-    // verdad: la diferencia entre el saldo del producto y la suma de TODOS
-    // sus lotes en este almacén no pertenece a ningún lote y se cancela con
-    // un movimiento sin lote antes de asentar lo contado. Así el producto
-    // termina igual a la suma de sus lotes, que es la invariante del ledger.
-    const productosConLote = [
-      ...new Set(contadas.filter((l) => l.lotId !== undefined).map((l) => l.productId)),
-    ].sort();
-    if (productosConLote.length > 0) {
-      const sumas = await tx.$queryRaw<{ product_id: string; total: string }[]>`
-        SELECT pl.product_id, COALESCE(SUM(sl.quantity), 0)::text AS total
-          FROM stock_lots sl
-          JOIN product_lots pl ON pl.id = sl.lot_id
-         WHERE sl.tenant_id = ${user.tenantId}::uuid
-           AND sl.warehouse_id = ${document.warehouseId}::uuid
-           AND pl.product_id = ANY(${productosConLote}::uuid[])
-         GROUP BY pl.product_id`;
-      const sumaLotes = new Map(sumas.map((r) => [r.product_id, new Prisma.Decimal(r.total)]));
-      for (const productId of productosConLote) {
-        const saldo = porProducto.get(productId) ?? new Prisma.Decimal(0);
-        const residuo = saldo.minus(sumaLotes.get(productId) ?? new Prisma.Decimal(0));
-        if (residuo.isZero()) {
-          continue;
-        }
-        const plantilla = contadas.find((l) => l.productId === productId);
-        if (plantilla === undefined) {
-          continue;
-        }
+    // Cada línea con lote se cuadra contra SU cubeta (lote, ubicación), y eso
+    // dejaba dos huecos: el saldo del PRODUCTO (una venta sin existencias lo
+    // pone en −5 sin tocar lotes: el lote quedaba en 50 y el producto en 45)
+    // y las cubetas que la planilla NO menciona (los lotes vivían sin
+    // ubicación con 2, 3, 3; la planilla los contó en A-03-02 y las cubetas
+    // viejas siguieron ahí: 246 contadas, 254 en stock). Lo contado es la
+    // fuente de verdad: todo lo que hay se vacía —salida si es positivo,
+    // entrada si es negativo— y después entra lo que dice la planilla. La
+    // única cubeta que se respeta es la de una fila OMITIDA: omitir no es
+    // contar cero.
+    const representadas = new Map<string, Set<string>>();
+    for (const line of resolved) {
+      if (line.lotId === undefined) {
+        continue;
+      }
+      const claves = representadas.get(line.productId) ?? new Set<string>();
+      claves.add(bucketKeyById(line.lotId, line.location ?? ""));
+      representadas.set(line.productId, claves);
+    }
+    for (const productId of productosConLote) {
+      const lista = cubetas.get(productId) ?? [];
+      const plantilla = contadas.find((l) => l.productId === productId);
+      if (plantilla === undefined) {
+        continue;
+      }
+      // El residuo que no pertenece a ningún lote.
+      const residuo = (porProducto.get(productId) ?? new Prisma.Decimal(0)).minus(
+        sumBuckets(lista),
+      );
+      if (!residuo.isZero()) {
         const sinLote: ExpandedLine = {
           ...plantilla,
           lotId: undefined,
@@ -405,7 +439,21 @@ export class ConfirmService {
           quantityBase: residuo.abs(),
           quantityInput: residuo.abs(),
         };
-        (residuo.greaterThan(0) ? exit : entry).push(sinLote);
+        (residuo.greaterThan(0) ? exit : pre).push(sinLote);
+      }
+      // Las cubetas que la planilla no menciona.
+      const vaciar = bucketsToZero(lista, representadas.get(productId) ?? new Set(), (b) =>
+        bucketKeyById(b.lotId, b.location),
+      );
+      for (const cubeta of vaciar) {
+        const linea: ExpandedLine = {
+          ...plantilla,
+          lotId: cubeta.lotId,
+          location: cubeta.location,
+          quantityBase: cubeta.quantity.abs(),
+          quantityInput: cubeta.quantity.abs(),
+        };
+        (cubeta.quantity.greaterThan(0) ? exit : pre).push(linea);
       }
     }
 
@@ -454,7 +502,7 @@ export class ConfirmService {
       }
     }
 
-    return { exit, entry, drifted };
+    return { pre, exit, entry, drifted };
   }
 
   /**
@@ -467,7 +515,7 @@ export class ConfirmService {
     tx: Prisma.TransactionClient,
     user: AuthUser,
     document: InventoryDocument,
-    conteo: { exit: ExpandedLine[]; entry: ExpandedLine[]; drifted: number },
+    conteo: { pre: ExpandedLine[]; exit: ExpandedLine[]; entry: ExpandedLine[]; drifted: number },
     header: LedgerHeader,
   ) {
     const base = {
@@ -478,6 +526,12 @@ export class ConfirmService {
       header,
     };
 
+    // Primero lo que devuelve los negativos a cero: sin esto, las salidas
+    // rebotarían contra un saldo menor que la suma de sus lotes.
+    const previa =
+      conteo.pre.length > 0
+        ? await this.ledger.apply(tx, { ...base, direction: "entry" as const, lines: conteo.pre })
+        : null;
     const salida =
       conteo.exit.length > 0
         ? await this.ledger.apply(tx, { ...base, direction: "exit" as const, lines: conteo.exit })
@@ -490,9 +544,13 @@ export class ConfirmService {
     // El saldo que vale es el de la ÚLTIMA pasada: la entrada corre después de
     // la salida, así que su foto ya incluye las dos.
     return {
-      movements: [...(salida?.movements ?? []), ...(entrada?.movements ?? [])],
-      stock: entrada?.stock ?? salida?.stock ?? [],
-      lots: entrada?.lots ?? salida?.lots ?? [],
+      movements: [
+        ...(previa?.movements ?? []),
+        ...(salida?.movements ?? []),
+        ...(entrada?.movements ?? []),
+      ],
+      stock: entrada?.stock ?? salida?.stock ?? previa?.stock ?? [],
+      lots: entrada?.lots ?? salida?.lots ?? previa?.lots ?? [],
     };
   }
 

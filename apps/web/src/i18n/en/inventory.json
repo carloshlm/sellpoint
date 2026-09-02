@@ -148,6 +148,7 @@
   "lot_required": "This product is tracked by lot: please indicate which one.",
   "expiry_required": "This product is tracked by lot: the lot's expiry date is missing.",
   "lot_not_tracked": "This product isn't tracked by lot.",
+  "count_duplicate_row": "This row repeats the lot and location of row {{lineNo}}: keep only one.",
   "lot_expiry_mismatch": "Lot \"{{lotCode}}\" already exists with a different expiry date.",
   "insufficient_lot_stock": "Lot \"{{lotCode}}\" has {{available}} and {{requested}} were requested.",
   "transfer_same_warehouse": "The destination warehouse must be different from the origin.",
