@@ -689,3 +689,52 @@ describe("abrir un producto deja las pestañas a la vista", () => {
     expect(scroll.mock.calls.at(-1)?.[0]).toMatchObject({ block: "start" });
   });
 });
+
+/**
+ * Carlos (2026-09-02): el nombre del producto también abre la ficha, igual
+ * que «Ver», con la mano del cursor — y sin cambiarle el estilo al texto.
+ */
+describe("el nombre del producto abre la ficha", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "0.02" }],
+    });
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("clic en el nombre = clic en «Ver», con cursor de mano y el texto tal cual", async () => {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    const nombre = await screen.findByRole("button", { name: "Azucar" });
+    expect(nombre).toHaveClass("cursor-pointer");
+    expect(nombre.className).not.toMatch(/underline|text-primary|font-/);
+
+    await user.click(nombre);
+
+    await waitFor(() => {
+      expect((router.state.location.search as { open?: string }).open).toBe("prod-1");
+    });
+    expect(
+      await screen.findByRole("navigation", { name: /secciones del producto/i }),
+    ).toBeInTheDocument();
+  });
+});

@@ -238,7 +238,16 @@ function ProductsContent() {
                 <TableRow key={product.id} data-testid={`product-${product.sku}`}>
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>
-                    {product.name}
+                    {/* El nombre abre la ficha como «Ver» (Carlos, 2026-09-02): un
+                        botón sin estilo propio —hereda fuente y color— con la
+                        mano del cursor como única señal. */}
+                    <button
+                      type="button"
+                      className="cursor-pointer text-left"
+                      onClick={() => navigate({ search: { open: product.id } })}
+                    >
+                      {product.name}
+                    </button>
                     {product.isComposite && (
                       // warning y no default (Carlos, 2026-08-25): "Compuesto"
                       // no es un estado apagado, es una señal de atención —
