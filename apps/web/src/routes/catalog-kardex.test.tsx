@@ -771,7 +771,8 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
     conMovimiento();
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
-    expect(await screen.findByText(/\+12$/)).toBeInTheDocument();
+    // Con su unidad (Carlos, 2026-09-02): «+12 piezas», sin decimales.
+    expect(await screen.findByText(/\+12 piezas$/)).toBeInTheDocument();
     expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262$/);
   });
 
@@ -802,5 +803,29 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
     expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262\.5$/);
+  });
+});
+
+/**
+ * Carlos (2026-09-02): en el kardex solo las filas con presentación decían
+ * «Pieza»; las demás eran un número pelado. La unidad va en todas.
+ */
+describe("la cantidad siempre lleva su unidad", () => {
+  it("«+50 piezas» y «−1 pieza», con presentación o sin ella", async () => {
+    mocked.getInTransit.mockResolvedValue({ rows: [] });
+    mocked.getKardex.mockResolvedValue({
+      rows: [
+        movimiento({ id: "m1", quantity: "50" }),
+        movimiento({ id: "m2", direction: "exit", quantity: "1", balanceAfter: "49" }),
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 50,
+      isComposite: false,
+    });
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    expect(await screen.findByText(/\+50 piezas/)).toBeInTheDocument();
+    expect(screen.getByText(/−1 pieza$/)).toBeInTheDocument();
   });
 });

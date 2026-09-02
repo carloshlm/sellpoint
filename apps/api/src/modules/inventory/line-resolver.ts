@@ -288,6 +288,11 @@ async function resolveOne(
         ? null
         : new Prisma.Decimal(line.unitCost.toString()),
     expand,
+    // La ubicación capturada también en una línea SIN lote (Carlos,
+    // 2026-09-02): el ledger la guarda en el movimiento y el kardex la
+    // muestra. Con lote manda la de `resolveLot`, que entra en la llave de
+    // `stock_lots`.
+    ...(line.location?.trim() ? { location: line.location.trim() } : {}),
     ...lot,
     ...(preview ? { errors: [] } : {}),
   };

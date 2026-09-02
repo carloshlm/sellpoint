@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { InventoryDocumentType } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { buildDocumentDefinition, type PdfRow } from "./document-pdf.renderer";
@@ -19,6 +20,78 @@ const FONTS = {
     bolditalics: "Helvetica-BoldOblique",
   },
 };
+
+type PdfDocumentSource = {
+  type: string;
+  status: string;
+  lines: {
+    lineNo: number;
+    quantity: Prisma.Decimal | null;
+    theoretical: Prisma.Decimal | null;
+    counted: Prisma.Decimal | null;
+    unitCost: Prisma.Decimal | null;
+    lotCode: string | null;
+    expiresAt: Date | null;
+    location: string | null;
+    product: { sku: string; name: string; baseUnit: string };
+    presentation: { name: string } | null;
+  }[];
+  movements: {
+    quantity: Prisma.Decimal;
+    unitCost: Prisma.Decimal | null;
+    location: string | null;
+    product: { sku: string; name: string; baseUnit: string };
+    presentation: { name: string } | null;
+    lot: { lotCode: string; expiresAt: Date | null } | null;
+  }[];
+};
+
+/**
+ * Las filas que se imprimen.
+ *
+ * Una ENTRADA o SALIDA confirmada se arma con sus `stock_movements` —lo que
+ * realmente pasó, incluida la partición FEFO en varios lotes—. Un CONTEO no
+ * (Carlos, 2026-09-02): asienta dos movimientos por línea (salida del teórico
+ * y entrada de lo contado) y ninguno sabe qué se contó; su papel son sus
+ * líneas, con el teórico que se vio al capturar y lo contado, siempre.
+ */
+export function pdfRowsFor(document: PdfDocumentSource): PdfRow[] {
+  const esConteo = document.type === "physical_count";
+  if (!esConteo && document.status === "confirmed" && document.movements.length > 0) {
+    return document.movements.map((m, index) => ({
+      lineNo: index + 1,
+      sku: m.product.sku,
+      name: m.product.name,
+      presentationName: m.presentation?.name ?? null,
+      quantityInput: m.quantity.toString(),
+      quantityBase: m.quantity.toString(),
+      baseUnit: m.product.baseUnit,
+      unitCost: m.unitCost?.toString() ?? null,
+      lotCode: m.lot?.lotCode ?? null,
+      expiresAt: m.lot?.expiresAt ?? null,
+      location: m.location,
+      theoretical: null,
+      counted: null,
+    }));
+  }
+  return document.lines.map((l) => ({
+    lineNo: l.lineNo,
+    sku: l.product.sku,
+    name: l.product.name,
+    presentationName: l.presentation?.name ?? null,
+    quantityInput: l.quantity?.toString() ?? null,
+    quantityBase: l.quantity?.toString() ?? null,
+    baseUnit: l.product.baseUnit,
+    unitCost: l.unitCost?.toString() ?? null,
+    lotCode: l.lotCode,
+    expiresAt: l.expiresAt,
+    location: l.location,
+    // En un conteo `quantity` guarda el teórico que se VIO al capturar la fila
+    // (ver document-import.service); `theoretical` es la columna dedicada.
+    theoretical: esConteo ? ((l.theoretical ?? l.quantity)?.toString() ?? null) : null,
+    counted: l.counted?.toString() ?? null,
+  }));
+}
 
 @Injectable()
 export class DocumentPdfService {
@@ -67,6 +140,12 @@ export class DocumentPdfService {
       if (document === null) {
         throw new NotFoundException({ message: "inventory.document_not_found" });
       }
+      // Un borrador no tiene PDF (Carlos, 2026-09-02): lo que se imprime es lo
+      // que pasó, y un borrador todavía no pasó. La marca de agua «BORRADOR» no
+      // alcanzaba — el papel igual circulaba.
+      if (document.status === "draft") {
+        throw new ConflictException({ message: "inventory.pdf_draft" });
+      }
 
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
@@ -76,38 +155,7 @@ export class DocumentPdfService {
       const nombre = (p: { firstName: string; lastNamePaternal: string } | null) =>
         p === null ? null : `${p.firstName} ${p.lastNamePaternal}`;
 
-      const rows: PdfRow[] =
-        document.status === "confirmed" && document.movements.length > 0
-          ? document.movements.map((m, index) => ({
-              lineNo: index + 1,
-              sku: m.product.sku,
-              name: m.product.name,
-              presentationName: m.presentation?.name ?? null,
-              quantityInput: m.quantity.toString(),
-              quantityBase: m.quantity.toString(),
-              baseUnit: m.product.baseUnit,
-              unitCost: m.unitCost?.toString() ?? null,
-              lotCode: m.lot?.lotCode ?? null,
-              expiresAt: m.lot?.expiresAt ?? null,
-              location: m.location,
-              theoretical: null,
-              counted: null,
-            }))
-          : document.lines.map((l) => ({
-              lineNo: l.lineNo,
-              sku: l.product.sku,
-              name: l.product.name,
-              presentationName: l.presentation?.name ?? null,
-              quantityInput: l.quantity?.toString() ?? null,
-              quantityBase: l.quantity?.toString() ?? null,
-              baseUnit: l.product.baseUnit,
-              unitCost: l.unitCost?.toString() ?? null,
-              lotCode: l.lotCode,
-              expiresAt: l.expiresAt,
-              location: l.location,
-              theoretical: l.theoretical?.toString() ?? null,
-              counted: l.counted?.toString() ?? null,
-            }));
+      const rows = pdfRowsFor(document);
 
       return {
         folio: document.folio,

@@ -1,4 +1,10 @@
-import { formatQuantityWithUnit, type InventoryDocumentType, type Locale } from "@sellpoint/shared";
+import {
+  formatQuantity,
+  formatQuantityWithUnit,
+  type InventoryDocumentType,
+  type Locale,
+} from "@sellpoint/shared";
+import { Prisma } from "../../generated/prisma/client";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -53,6 +59,25 @@ const fecha = (value: Date): string =>
     .format(value)
     .replace(",", "");
 
+const MESES: Record<Locale, readonly string[]> = {
+  es: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
+
+/**
+ * La caducidad de un lote: «2026 Ago 23» (Carlos, 2026-09-02).
+ *
+ * Salía «Sun Aug 23»: los diez primeros caracteres del `toString()` de un
+ * Date — en inglés, con el día de la semana y sin el año, en un papel que se
+ * firma en español. La fecha es un DÍA del calendario, así que se lee en UTC
+ * (así se guarda) y el mes se nombra en el idioma de quien imprime.
+ */
+function fechaLote(value: Date | string, locale: Locale): string {
+  const date = value instanceof Date ? value : new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
+  const mes = MESES[locale]?.[date.getUTCMonth()] ?? MESES.es[date.getUTCMonth()];
+  return `${date.getUTCFullYear()} ${mes} ${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
 const dato = (label: string, value: string | null) =>
   value === null || value === "" ? [] : [{ text: [{ text: `${label}: `, bold: true }, value] }];
 
@@ -101,15 +126,19 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
 
   const cuerpo = rows.map((row) => {
     if (esConteo) {
-      const teorico = Number(row.theoretical ?? 0);
-      const contado = Number(row.counted ?? 0);
+      // Formateados por su unidad (Carlos, 2026-09-02): «200» y no «200.0000»
+      // para piezas, tres decimales para lo que se pesa. La diferencia se
+      // resta en Decimal: la coma flotante no entra a un papel que se firma.
+      const teorico = row.theoretical ?? "0";
+      const contado = row.counted ?? "0";
+      const diferencia = new Prisma.Decimal(contado).minus(new Prisma.Decimal(teorico)).toString();
       return [
         String(row.lineNo),
         row.sku,
         row.name,
-        row.theoretical ?? "",
-        row.counted ?? "",
-        String(contado - teorico),
+        row.theoretical === null ? "" : formatQuantity(row.theoretical, row.baseUnit),
+        row.counted === null ? "" : formatQuantity(row.counted, row.baseUnit),
+        formatQuantity(diferencia, row.baseUnit),
       ];
     }
 
@@ -137,7 +166,11 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
       cantidad,
       ...(conLotes
         ? [
-            [row.lotCode, row.expiresAt ? String(row.expiresAt).slice(0, 10) : null, row.location]
+            [
+              row.lotCode,
+              row.expiresAt ? fechaLote(row.expiresAt, input.locale) : null,
+              row.location,
+            ]
               .filter(Boolean)
               .join(" · ") || "—",
           ]

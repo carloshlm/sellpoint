@@ -404,9 +404,18 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
   });
 
   describe("el PDF", () => {
-    it("se puede bajar en cualquier estado, con el folio de nombre", async () => {
+    /** Carlos (2026-09-02): un borrador no se imprime. El botón ni aparece. */
+    it("en borrador NO hay botón de PDF", async () => {
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      expect(screen.queryByRole("button", { name: /pdf/i })).not.toBeInTheDocument();
+    });
+
+    it("confirmado, se baja con el folio de nombre", async () => {
       const user = userEvent.setup();
       mocked.downloadDocumentPdf.mockResolvedValue(undefined);
+      mocked.getDocument.mockResolvedValue(detalle({ status: "confirmed" }));
       await renderDoc();
       await screen.findByText("PAR-500");
 
@@ -425,8 +434,8 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       await screen.findByText("PAR-500");
       expect(screen.queryByLabelText(/cantidad/i)).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /confirmar/i })).not.toBeInTheDocument();
-      // Pero el PDF sí: auditar es leer.
-      expect(screen.getByRole("button", { name: /pdf/i })).toBeInTheDocument();
+      // Y en un borrador tampoco hay PDF: eso no es un permiso, es el estado.
+      expect(screen.queryByRole("button", { name: /pdf/i })).not.toBeInTheDocument();
     });
   });
 });

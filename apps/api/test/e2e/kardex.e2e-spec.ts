@@ -202,6 +202,112 @@ describe("Kardex (F3-KARDEX-01)", () => {
       return { name: sheet?.name ?? "", rows };
     }
 
+    /**
+     * Carlos (2026-09-02): el Excel salía con «physical_count», «adjustment»
+     * y «10.0000». Las columnas hablan el idioma del usuario, dicen la unidad
+     * y si el producto solo acepta enteros, y la cantidad se pinta según eso:
+     * sin decimales para piezas; dos para lo continuo, cuatro si el registro
+     * los trae.
+     */
+    describe("el Excel habla el idioma del usuario (Carlos, 2026-09-02)", () => {
+      const columna = (rows: string[][], nombre: string) => {
+        const idx = rows[0]?.indexOf(nombre) ?? -1;
+        expect(idx).toBeGreaterThan(-1);
+        return rows.slice(1).map((fila) => fila[idx]);
+      };
+
+      it("en español: Tipo, Movimiento y Motivo traducidos, unidad y «Solo enteros»", async () => {
+        const { token, productId, warehouseA, mover } = await escenario();
+        await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+
+        const { rows } = await celdas(
+          (await descargar(token, productId).expect(200)).body as Buffer,
+        );
+
+        expect(rows[0]).toEqual([
+          "Fecha",
+          "Folio",
+          "Tipo",
+          "Movimiento",
+          "Motivo",
+          "Lote",
+          "Ubicación",
+          "Almacén",
+          "Unidad",
+          "Solo enteros",
+          "Cantidad",
+          "Saldo",
+          "Costo unitario",
+          "Usuario",
+        ]);
+        expect(columna(rows, "Tipo")).toEqual(["Entrada"]);
+        expect(columna(rows, "Movimiento")).toEqual(["Entrada"]);
+        expect(columna(rows, "Motivo")[0]).not.toMatch(/^[a-z_]+$/);
+        expect(columna(rows, "Unidad")).toEqual(["Pieza"]);
+        expect(columna(rows, "Solo enteros")).toEqual(["Sí"]);
+        expect(columna(rows, "Cantidad")).toEqual(["10"]);
+        expect(columna(rows, "Saldo")).toEqual(["10"]);
+      });
+
+      it("en inglés, todo en inglés", async () => {
+        const { tenantId, productId, warehouseA, mover } = await escenario();
+        await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
+        // El idioma sale del TOKEN (la preferencia del usuario), no del
+        // Accept-Language: un usuario en inglés recibe el archivo en inglés.
+        const userId = await prisma.withTenantContext(tenantId, async (tx) => {
+          const owner = await tx.user.findFirstOrThrow({ select: { id: true } });
+          return owner.id;
+        });
+        const tokenEn = app.get(TokenService).signAccessToken({
+          sub: userId,
+          tenantId,
+          permissions: ["reports:read", "inventory:read"],
+          locale: "en",
+        });
+
+        const response = await request(app.getHttpServer())
+          .get(`/reports/kardex/${productId}/export`)
+          .set("Authorization", bearer(tokenEn))
+          .buffer(true)
+          .parse((r, cb) => {
+            const chunks: Buffer[] = [];
+            r.on("data", (c: Buffer) => chunks.push(c));
+            r.on("end", () => cb(null, Buffer.concat(chunks)));
+          })
+          .expect(200);
+        const { rows } = await celdas(response.body as Buffer);
+
+        expect(rows[0]?.slice(2, 5)).toEqual(["Type", "Movement", "Reason"]);
+        expect(columna(rows, "Type")).toEqual(["Entry"]);
+        expect(columna(rows, "Unit")).toEqual(["Piece"]);
+        expect(columna(rows, "Integers only")).toEqual(["Yes"]);
+      });
+
+      it("un producto en kilos pinta dos decimales, y cuatro cuando el registro los trae", async () => {
+        const { token, tenantId, warehouseA, mover } = await escenario();
+        const kiloId = await prisma.withTenantContext(tenantId, async (tx) => {
+          const p = await tx.product.create({
+            data: {
+              tenantId,
+              sku: `KG-${randomUUID().slice(0, 6)}`,
+              name: "Harina",
+              baseUnit: "kg",
+            },
+          });
+          return p.id;
+        });
+        await mover("entry", warehouseA, [{ productId: kiloId, quantity: 2.5 }]);
+        await mover("entry", warehouseA, [{ productId: kiloId, quantity: 1.2345 }]);
+
+        const { rows } = await celdas((await descargar(token, kiloId).expect(200)).body as Buffer);
+
+        // Del más reciente al más viejo, como la pantalla.
+        expect(columna(rows, "Solo enteros")).toEqual(["No", "No"]);
+        expect(columna(rows, "Cantidad")).toEqual(["1.2345", "2.50"]);
+        expect(columna(rows, "Saldo")).toEqual(["3.7345", "2.50"]);
+      });
+    });
+
     it("baja un xlsx con una fila por movimiento", async () => {
       const { token, productId, warehouseA, mover } = await escenario();
       await mover("entry", warehouseA, [{ productId, quantity: 10 }]);
@@ -230,14 +336,15 @@ describe("Kardex (F3-KARDEX-01)", () => {
       });
 
       const api = await kardex(token, productId).expect(200);
-      const saldosApi = (api.body as { rows: { balanceAfter: string }[] }).rows.map(
-        (r) => r.balanceAfter,
+      const saldosApi = (api.body as { rows: { balanceAfter: string }[] }).rows.map((r) =>
+        Number(r.balanceAfter),
       );
 
       const { rows } = await celdas((await descargar(token, productId).expect(200)).body as Buffer);
       const columnaSaldo = rows[0]?.indexOf("Saldo") ?? -1;
       expect(columnaSaldo).toBeGreaterThan(-1);
-      const saldosExcel = rows.slice(1).map((fila) => fila[columnaSaldo]);
+      // El Excel pinta según la unidad («15», no «15.0000»): se compara el NÚMERO.
+      const saldosExcel = rows.slice(1).map((fila) => Number(fila[columnaSaldo]));
 
       expect(saldosExcel).toEqual(saldosApi);
     });

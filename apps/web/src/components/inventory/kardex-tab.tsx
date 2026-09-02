@@ -1,4 +1,4 @@
-import { formatQuantity, MOVEMENT_REASONS } from "@sellpoint/shared";
+import { formatQuantity, formatQuantityWithUnit, MOVEMENT_REASONS } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -222,7 +222,9 @@ export function KardexTab({ productId, tracksLots, isComposite, baseUnit }: Kard
                     {/* El signo lo da la dirección: un kardex sin signo obliga
                         a leer dos columnas para saber si sumó o restó. */}
                     {row.direction === "entry" ? "+" : "−"}
-                    {formatQuantity(row.quantity, baseUnit)}
+                    {/* Con su unidad en TODAS las filas (Carlos, 2026-09-02): antes
+                        solo las que traían presentación decían «Pieza». */}
+                    {formatQuantityWithUnit(row.quantity, baseUnit, resolveUiLocale(i18n))}
                     {row.presentation !== null && (
                       <span className="ml-2 text-muted-foreground text-xs">
                         {row.presentation.quantityInPresentation} {row.presentation.name}

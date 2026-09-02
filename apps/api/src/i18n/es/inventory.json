@@ -4,6 +4,7 @@
   "composite_without_composition": "Este producto compuesto no tiene componentes definidos.",
   "count_already_open": "Ya hay un inventario físico abierto para este almacén ({folio}). Cancélalo o confírmalo antes de empezar otro.",
   "count_duplicate_row": "Esta fila repite el lote y la ubicación de la fila {lineNo}: deja una sola.",
+  "pdf_draft": "Un borrador no tiene PDF: confírmalo primero.",
   "count_required": "Falta el contado en la fila {lineNo}: escribe cuántas piezas hay (0 si no hay ninguna).",
   "count_negative": "El contado de la fila {lineNo} es negativo: no puede haber menos de cero piezas.",
   "count_invalid": "El contado de la fila {row} no es un número.",
@@ -50,5 +51,29 @@
   "transfer_wrong_destination": "Este traspaso no viene hacia este almacén.",
   "unit_cost_required": "Falta el costo unitario.",
   "warehouse_inactive": "Este almacén está desactivado: no se puede mover mercancía en él.",
-  "warehouse_out_of_scope": "No tienes acceso a este almacén."
+  "warehouse_out_of_scope": "No tienes acceso a este almacén.",
+  "kardexExport": {
+    "date": "Fecha",
+    "folio": "Folio",
+    "typeHeader": "Tipo",
+    "movement": "Movimiento",
+    "reason": "Motivo",
+    "lot": "Lote",
+    "location": "Ubicación",
+    "warehouse": "Almacén",
+    "unit": "Unidad",
+    "integersOnly": "Solo enteros",
+    "quantity": "Cantidad",
+    "balance": "Saldo",
+    "unitCost": "Costo unitario",
+    "user": "Usuario",
+    "yes": "Sí",
+    "no": "No",
+    "type": {
+      "entry": "Entrada",
+      "exit": "Salida",
+      "physical_count": "Inventario físico",
+      "sale": "Venta"
+    }
+  }
 }

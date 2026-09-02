@@ -4,6 +4,7 @@
   "composite_without_composition": "This composite product has no components defined.",
   "count_already_open": "There is already an open stock count for this warehouse ({folio}). Cancel or confirm it before starting another.",
   "count_duplicate_row": "This row repeats the lot and location of row {lineNo}: keep only one.",
+  "pdf_draft": "A draft has no PDF: confirm it first.",
   "count_required": "Row {lineNo} has no count: enter how many units there are (0 if none).",
   "count_negative": "The count on row {lineNo} is negative: there can't be fewer than zero units.",
   "count_invalid": "The count on row {row} is not a number.",
@@ -50,5 +51,29 @@
   "transfer_wrong_destination": "This transfer isn't headed to this warehouse.",
   "unit_cost_required": "The unit cost is missing.",
   "warehouse_inactive": "This warehouse is inactive: stock can't be moved in it.",
-  "warehouse_out_of_scope": "You don't have access to this warehouse."
+  "warehouse_out_of_scope": "You don't have access to this warehouse.",
+  "kardexExport": {
+    "date": "Date",
+    "folio": "Folio",
+    "typeHeader": "Type",
+    "movement": "Movement",
+    "reason": "Reason",
+    "lot": "Lot",
+    "location": "Location",
+    "warehouse": "Warehouse",
+    "unit": "Unit",
+    "integersOnly": "Integers only",
+    "quantity": "Quantity",
+    "balance": "Balance",
+    "unitCost": "Unit cost",
+    "user": "User",
+    "yes": "Yes",
+    "no": "No",
+    "type": {
+      "entry": "Entry",
+      "exit": "Exit",
+      "physical_count": "Stock count",
+      "sale": "Sale"
+    }
+  }
 }

@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Query, Res } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
+import { I18nService } from "nestjs-i18n";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -60,6 +62,7 @@ export class ReportsController {
     private readonly salesExport: SalesExportService,
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
+    private readonly i18n: I18nService,
     private readonly dashboardKpis: DashboardKpisService,
     private readonly dashboardSeries: DashboardSeriesService,
     private readonly dashboardProducts: DashboardProductsService,
@@ -233,12 +236,16 @@ export class ReportsController {
     @Param("productId") productId: string,
     @Query(new ZodValidationPipe(kardexExportQuerySchema, "reports.invalid_query"))
     query: KardexExportQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
     const { format, ...filtros } = query;
+    const locale = getLocale(request);
     this.descargar(
       response,
-      await this.kardexExport.build(user, scope, productId, filtros, format),
+      await this.kardexExport.build(user, scope, productId, filtros, format, locale, (key) =>
+        this.i18n.translate(key, { lang: locale }),
+      ),
     );
   }
 

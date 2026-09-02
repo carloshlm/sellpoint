@@ -337,6 +337,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
     it("baja como application/pdf, con el folio de nombre, y es un PDF válido", async () => {
       const id = await borrador({ reasonCode: "adjustment", reasonNote: "Para imprimir" });
       await agregar(id, { productId, quantity: 4 }).expect(201);
+      await confirmar(id).expect(201);
       const detalle = await request(app.getHttpServer())
         .get(`/inventory/documents/${id}`)
         .set(auth())
@@ -372,6 +373,7 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
         .set(auth())
         .send({ lines })
         .expect(200);
+      await confirmar(id).expect(201);
 
       const res = await request(app.getHttpServer())
         .get(`/inventory/documents/${id}/pdf`)
@@ -386,6 +388,23 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
 
       const paginas = (res.body as Buffer).toString("latin1").match(/\/Type\s*\/Page[^s]/g) ?? [];
       expect(paginas.length).toBeGreaterThan(1);
+    });
+
+    /**
+     * Carlos (2026-09-02): un borrador no tiene PDF. Lo que se imprime es lo
+     * que pasó, y un borrador todavía no pasó — la marca de agua «BORRADOR»
+     * no alcanzaba: el papel igual circulaba.
+     */
+    it("un BORRADOR no tiene PDF: 409 y se explica", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Todavía no" });
+      await agregar(id, { productId, quantity: 4 }).expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}/pdf`)
+        .set(auth())
+        .expect(409);
+
+      expect((res.body as { message: string }).message).toMatch(/borrador/i);
     });
 
     it("un documento de otro tenant no tiene PDF", async () => {
@@ -425,6 +444,16 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       await confirmar(id).expect(201);
 
       expect(await ubicacionDe(productId)).toBe("D-04-02");
+      // Y también en el MOVIMIENTO (Carlos, 2026-09-02): el kardex muestra la
+      // ubicación del momento, no solo la del lote.
+      const kardex = await request(app.getHttpServer())
+        .get(`/products/${productId}/kardex`)
+        .set(auth())
+        .expect(200);
+      const movimiento = (
+        kardex.body as { rows: { document: { id: string }; location: string | null }[] }
+      ).rows.find((r) => r.document.id === id);
+      expect(movimiento?.location).toBe("D-04-02");
     });
 
     it("una entrada posterior pisa la anterior: manda la ÚLTIMA", async () => {

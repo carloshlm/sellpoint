@@ -330,3 +330,105 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
     });
   });
 });
+
+/**
+ * Carlos (2026-09-02): en el PDF del inventario físico salían vacías las
+ * columnas de teórico y contado, y en el de entradas y salidas la caducidad
+ * del lote decía «Sun Aug 23» — el `toString()` de un Date, en inglés y sin
+ * año, en un papel que se firma en español.
+ */
+describe("el papel dice lo que la pantalla (Carlos, 2026-09-02)", () => {
+  const t = (key: string) => key;
+  const base: PdfDocumentInput = {
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    document: {
+      folio: "INV-000014",
+      type: "physical_count",
+      status: "confirmed",
+      warehouseName: "Central",
+      linkedWarehouseName: null,
+      reasonCode: "physical_count",
+      reference: null,
+      reasonNote: null,
+      createdAt: new Date("2026-09-02T01:50:00Z"),
+      createdByName: "Carlos Cinco",
+      authorizedByName: null,
+    },
+    locale: "es",
+    rows: [],
+  };
+  const fila: PdfRow = {
+    lineNo: 1,
+    sku: "064042603179",
+    name: "Oatmeal Bars",
+    presentationName: null,
+    quantityInput: null,
+    quantityBase: null,
+    baseUnit: "unit",
+    unitCost: null,
+    lotCode: null,
+    expiresAt: null,
+    location: null,
+    theoretical: null,
+    counted: null,
+  };
+  const textos = (def: unknown): string => JSON.stringify(def);
+
+  it("el conteo imprime teórico, contado y diferencia formateados por su unidad", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        { ...base, rows: [{ ...fila, theoretical: "200.0000", counted: "185.0000" }] },
+        t,
+      ),
+    );
+
+    expect(json).toContain('"200","185","-15"');
+    expect(json).not.toContain("200.0000");
+  });
+
+  it("un kilo contado con decimales conserva sus tres decimales", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        {
+          ...base,
+          rows: [{ ...fila, baseUnit: "kg", theoretical: "2.5000", counted: "2.2500" }],
+        },
+        t,
+      ),
+    );
+
+    expect(json).toContain('"2.500","2.250","-0.250"');
+  });
+
+  it("la caducidad del lote sale como «2026 Ago 23» en español", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        {
+          ...base,
+          document: { ...base.document, type: "entry", reasonCode: "adjustment" },
+          rows: [{ ...fila, quantityBase: "5", lotCode: "ST1", expiresAt: new Date("2026-08-23") }],
+        },
+        t,
+      ),
+    );
+
+    expect(json).toContain("ST1 · 2026 Ago 23");
+    expect(json).not.toContain("Sun Aug");
+  });
+
+  it("y como «2026 Aug 23» en inglés, aunque llegue como texto", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        {
+          ...base,
+          locale: "en",
+          document: { ...base.document, type: "exit", reasonCode: "adjustment" },
+          rows: [{ ...fila, quantityBase: "1", lotCode: "ST1", expiresAt: "2026-09-30" }],
+        },
+        t,
+      ),
+    );
+
+    expect(json).toContain("ST1 · 2026 Sep 30");
+  });
+});

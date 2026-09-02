@@ -259,7 +259,10 @@ export class StockLedgerService {
         authorizedBy: input.header.authorizedBy ?? null,
         linkedWarehouseId: input.header.linkedWarehouseId ?? null,
         lotId: line.lotId ?? null,
-        location: line.lotId === undefined ? null : (line.location ?? ""),
+        // La ubicación del momento (Carlos, 2026-09-02): en una línea con lote
+        // es la de la cubeta (y «» si no tiene, porque entra en la llave de
+        // stock_lots); en una sin lote, la que se capturó, si la hubo.
+        location: line.lotId === undefined ? (line.location ?? null) : (line.location ?? ""),
         quantity: line.quantityBase,
         unitCost: line.unitCost,
         createdBy: input.userId,

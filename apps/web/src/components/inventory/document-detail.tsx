@@ -175,7 +175,10 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         </div>
 
         <div className="flex items-start gap-2">
-          <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+          {/* Un borrador no tiene PDF (Carlos, 2026-09-02): el botón ni aparece. */}
+          {document.status !== "draft" && (
+            <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+          )}
           {puedeConfirmar && (
             <>
               <button
@@ -225,6 +228,8 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                 {t("inventory.document.goToTransfers")}
               </Link>
             )}
+            {/* Sin gate por estado: este panel SOLO existe tras confirmar, y el
+                detalle puede tardar un instante en refrescar a «confirmado». */}
             <DownloadDocumentButton documentId={documentId} folio={document.folio} />
           </div>
         </div>
