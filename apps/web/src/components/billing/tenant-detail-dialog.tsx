@@ -2,10 +2,12 @@ import { formatMoney } from "@sellpoint/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenantDetail, voidPayment } from "@/lib/billing/api";
 import { formatDeadline, formatInstant } from "@/lib/billing/dates";
@@ -98,7 +100,7 @@ export function TenantDetailDialog({
             <ScrollableTable>
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b">
+                  <tr className={`border-b ${TABLE_HEAD_ROW}`}>
                     <th className="px-2 py-1">{t("common.billing.admin.paidAt")}</th>
                     <th className="px-2 py-1">{t("common.billing.admin.plan")}</th>
                     <th className="px-2 py-1">{t("common.billing.admin.method")}</th>
@@ -114,7 +116,10 @@ export function TenantDetailDialog({
                   {(data?.payments ?? []).map((pago) => (
                     <tr
                       key={pago.id}
-                      className={`border-b ${pago.status === "voided" ? "text-muted-foreground line-through" : ""}`}
+                      // Un pago real lleva el verde de «pago exitoso»; uno anulado se
+                      // ve TENUE, no tachado (Carlos, 2026-09-02): sigue legible y
+                      // se entiende que ya no cuenta.
+                      className={`border-b ${TABLE_ROW_HOVER} ${pago.status === "voided" ? "opacity-50" : "bg-success-soft"}`}
                     >
                       <td className="px-2 py-1">{fecha(pago.paidAt)}</td>
                       <td className="px-2 py-1">{pago.planCode}</td>
@@ -123,14 +128,20 @@ export function TenantDetailDialog({
                         {fecha(pago.periodStart)} — {vence(pago.periodEnd)}
                       </td>
                       <td className="px-2 py-1 text-right tabular-nums">
-                        {Number(pago.discountAmount) > 0
-                          ? formatMoney(
+                        {Number(pago.discountAmount) > 0 ? (
+                          // En caja amarilla: un descuento es una excepción que
+                          // alguien decidió, y tiene que saltar a la vista.
+                          <Badge variant="warning">
+                            {formatMoney(
                               Number(pago.discountAmount),
                               // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot
                               pago.currency as any,
                               locale,
-                            )
-                          : "—"}
+                            )}
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-2 py-1 text-right font-medium tabular-nums">
                         {formatMoney(

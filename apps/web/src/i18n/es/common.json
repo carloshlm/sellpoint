@@ -36,7 +36,8 @@
     "nav": {
       "dashboard": "Panel",
       "profile": "Mi perfil",
-      "system": "Sistema"
+      "system": "Sistema",
+      "backoffice": "Backoffice"
     },
     "navLabel": "Navegación principal",
     "offline": "Sin conexión. Puedes consultar lo que ya cargaste, pero no cobrar ni cotizar hasta que vuelva la red.",
@@ -206,7 +207,7 @@
       "discountLine": "descuento {{amount}}"
     },
     "admin": {
-      "title": "Backoffice de cobros",
+      "title": "Cobros",
       "noMrr": "Sin pagos vigentes todavía.",
       "tenant": "Negocio",
       "plan": "Plan",

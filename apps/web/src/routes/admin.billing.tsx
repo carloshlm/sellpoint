@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenants, recordPayment } from "@/lib/billing/api";
 import { formatDeadline, formatInstant } from "@/lib/billing/dates";
@@ -168,7 +169,7 @@ function AdminBilling() {
           <ScrollableTable>
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b">
+                <tr className={`border-b ${TABLE_HEAD_ROW}`}>
                   <th className="px-2 py-1">{t("common.billing.admin.tenant")}</th>
                   <th className="px-2 py-1">{t("common.billing.admin.country")}</th>
                   <th className="px-2 py-1">{t("common.billing.admin.currency")}</th>
@@ -183,7 +184,7 @@ function AdminBilling() {
                 {(data?.tenants ?? [])
                   .filter((fila) => moneda === "" || fila.currency === moneda)
                   .map((fila) => (
-                    <tr key={fila.tenantId} className="border-b">
+                    <tr key={fila.tenantId} className={`border-b ${TABLE_ROW_HOVER}`}>
                       <td className="px-2 py-1">
                         <button
                           type="button"

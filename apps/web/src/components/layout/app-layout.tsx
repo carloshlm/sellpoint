@@ -401,15 +401,30 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               {expanded && <span className="truncate">{t("common.billing.me.title")}</span>}
             </Link>
           )}
+          {/* El backoffice es un GRUPO (Carlos, 2026-09-02): va a crecer, y
+              «Cobros» es su primer elemento. */}
           {isPlatformAdmin && (
-            <Link
-              to="/admin/billing"
-              aria-label={t("common.billing.admin.title")}
-              className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+            <fieldset
+              aria-label={t("common.layout.nav.backoffice")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
             >
-              <Wrench className="size-4 shrink-0" aria-hidden="true" />
-              {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
-            </Link>
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("common.layout.nav.backoffice")}
+                </span>
+              )}
+              <Link
+                to="/admin/billing"
+                aria-label={t("common.billing.admin.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <Wrench className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
+              </Link>
+            </fieldset>
           )}
         </nav>
       </aside>

@@ -36,7 +36,8 @@
     "nav": {
       "dashboard": "Dashboard",
       "profile": "My profile",
-      "system": "System"
+      "system": "System",
+      "backoffice": "Backoffice"
     },
     "navLabel": "Main navigation",
     "offline": "You're offline. You can review what's already loaded, but you can't charge or quote until the connection returns.",
@@ -206,7 +207,7 @@
       "discountLine": "discount {{amount}}"
     },
     "admin": {
-      "title": "Billing backoffice",
+      "title": "Billing",
       "noMrr": "No active payments yet.",
       "tenant": "Business",
       "plan": "Plan",

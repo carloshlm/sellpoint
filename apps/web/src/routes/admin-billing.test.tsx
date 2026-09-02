@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -448,5 +448,91 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
       expect(router.state.location.pathname).toBe("/dashboard");
     });
     expect(screen.queryByTestId("admin-billing")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-09-02): el historial de pagos con el estilo de las demás
+ * tablas; un pago anulado se ve TENUE (no tachado), un pago real lleva fondo
+ * verde de «pago exitoso» y el descuento va en una caja amarilla.
+ */
+describe("el historial de pagos se lee de un vistazo", () => {
+  it("anulado tenue, real en verde, descuento en amarillo", async () => {
+    mockedDetail.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-28T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [
+        {
+          id: "p1",
+          paidAt: "2026-08-28T18:00:00.000Z",
+          amount: "399.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "recorded",
+          periodStart: "2026-08-28T06:00:00.000Z",
+          periodEnd: "2026-09-28T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "100.00",
+          notes: null,
+        },
+        {
+          id: "p2",
+          paidAt: "2026-08-10T18:00:00.000Z",
+          amount: "499.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "voided",
+          periodStart: "2026-08-10T06:00:00.000Z",
+          periodEnd: "2026-09-10T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
+          notes: null,
+        },
+      ],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+    });
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Acme" }));
+    await screen.findByTestId("tenant-detail");
+
+    const real = screen.getByText("$399.00").closest("tr") as HTMLElement;
+    const anulado = screen.getByText("Anulado").closest("tr") as HTMLElement;
+    expect(real).toHaveClass("bg-success-soft");
+    expect(anulado.className).toMatch(/opacity-/);
+    expect(anulado.className).not.toMatch(/line-through/);
+    expect(screen.getByText("$100.00")).toHaveClass("bg-warning-soft");
+  });
+});
+
+/**
+ * Carlos (2026-09-02): el backoffice va a crecer. En el menú es un grupo
+ * propio, «Backoffice», al nivel de Catálogo, Movimientos, Punto de venta y
+ * Sistema, y «Cobros» es su primer elemento — también el título de la página.
+ */
+describe("el menú tiene su grupo Backoffice", () => {
+  it("el grupo «Backoffice» contiene «Cobros», y la página se titula así", async () => {
+    await renderAdmin(true);
+
+    const grupo = await screen.findByRole("group", { name: "Backoffice" });
+    expect(within(grupo).getByRole("link", { name: "Cobros" })).toHaveAttribute(
+      "href",
+      "/admin/billing",
+    );
+    expect(
+      await screen.findByText("Cobros", { selector: "[data-slot=card-title]" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Backoffice de cobros")).not.toBeInTheDocument();
   });
 });
