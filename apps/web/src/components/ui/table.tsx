@@ -40,11 +40,24 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   );
 }
 
+/**
+ * El estilo de los listados, en UN lugar (Carlos, 2026-09-02): el encabezado
+ * con un fondo apenas distinto y la fila que se resalta bajo el cursor. Las
+ * tablas crudas de movimientos y del punto de venta toman estas constantes;
+ * así un listado no se ve distinto al de al lado.
+ */
+export const TABLE_HEAD_ROW = "bg-muted/40 text-left text-muted-foreground";
+export const TABLE_ROW_HOVER = "transition-colors hover:bg-muted/50";
+
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b [&_tr]:border-border", className)}
+      // El encabezado no es una fila: con fondo propio y sin resaltado.
+      className={cn(
+        "bg-muted/40 [&_tr]:border-b [&_tr]:border-border [&_tr]:hover:bg-transparent",
+        className,
+      )}
       {...props}
     />
   );

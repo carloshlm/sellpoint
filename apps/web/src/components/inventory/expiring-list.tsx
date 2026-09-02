@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import {
@@ -102,7 +103,7 @@ export function ExpiringList() {
         <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left text-muted-foreground">
+              <tr className={`border-b ${TABLE_HEAD_ROW}`}>
                 <th className="px-2 py-2 font-medium">{t("inventory.expiring.product")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.expiring.lot")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.expiring.expiresAt")}</th>
@@ -156,7 +157,9 @@ function Fila({ row }: { row: ExpiringRow }) {
   });
 
   return (
-    <tr className={`border-b last:border-0 ${row.expired ? "bg-destructive/5" : ""}`}>
+    <tr
+      className={`border-b last:border-0 ${TABLE_ROW_HOVER} ${row.expired ? "bg-destructive/5" : ""}`}
+    >
       <td className="px-2 py-2">
         <span className="font-mono">{row.sku}</span>
         <span className="ml-2 text-muted-foreground">{row.name}</span>

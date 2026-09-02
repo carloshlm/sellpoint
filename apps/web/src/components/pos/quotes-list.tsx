@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { QuoteRow } from "@/lib/pos/api";
 import { useCancelQuote, useQuotes } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -103,7 +104,7 @@ export function QuotesList() {
           <ScrollableTable>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b text-left">
+                <tr className={`border-b ${TABLE_HEAD_ROW}`}>
                   <th className="p-2">{t("pos.quote.folio")}</th>
                   <th className="p-2">{t("pos.history.date")}</th>
                   <th className="p-2">{t("pos.quote.author")}</th>
@@ -152,7 +153,9 @@ function QuoteRowView({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <tr className={`border-b ${cotizacion.status !== "open" ? "text-muted-foreground" : ""}`}>
+    <tr
+      className={`border-b ${TABLE_ROW_HOVER} ${cotizacion.status !== "open" ? "text-muted-foreground" : ""}`}
+    >
       <td className="p-2 font-medium tabular-nums">{cotizacion.folio}</td>
       <td className="p-2 tabular-nums">
         {new Intl.DateTimeFormat(uiLocale, { dateStyle: "short", timeStyle: "short" }).format(

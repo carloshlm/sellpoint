@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { downloadInTransit } from "@/lib/inventory/api";
@@ -199,7 +200,7 @@ export function TransfersList() {
         <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left text-muted-foreground">
+              <tr className={`border-b ${TABLE_HEAD_ROW}`}>
                 <th className="px-2 py-2 font-medium">{t("inventory.list.folio")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.transfers.origin")}</th>
                 <th className="px-2 py-2 font-medium">{t("inventory.transfers.destination")}</th>
@@ -220,7 +221,7 @@ export function TransfersList() {
             </thead>
             <tbody>
               {filas.map((row) => (
-                <tr key={row.id} className="border-b last:border-0">
+                <tr key={row.id} className={`border-b last:border-0 ${TABLE_ROW_HOVER}`}>
                   <td className="px-2 py-2 font-mono">
                     {row.documentId !== null && row.folio !== null ? (
                       <Link

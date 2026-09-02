@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { SaleRow } from "@/lib/pos/api";
 import { useCancelSale, useSales } from "@/lib/pos/hooks";
@@ -136,7 +137,7 @@ export function SalesHistory() {
         <ScrollableTable>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left">
+              <tr className={`border-b ${TABLE_HEAD_ROW}`}>
                 <th className="p-2">{t("pos.history.folioColumn")}</th>
                 <th className="p-2">{t("pos.history.barcode")}</th>
                 <th className="p-2">{t("pos.history.date")}</th>
@@ -196,7 +197,7 @@ function SaleRowView({
 
   return (
     <>
-      <tr className={`border-b ${anulada ? "text-muted-foreground" : ""}`}>
+      <tr className={`border-b ${TABLE_ROW_HOVER} ${anulada ? "text-muted-foreground" : ""}`}>
         <td className="p-2 font-medium tabular-nums">{venta.folio}</td>
         {/* Las ventas anteriores al cambio (2026-08-24) no se backfillearon:
             el guion dice «esta venta no tiene código» en vez de dejar un hueco
