@@ -3583,22 +3583,22 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** `permissions-catalog.spec` verde tras los `@RequirePermissions`; unit de `resolveRolePermissionCodes`: Admin 2, Manager 2, Viewer 1, Seller 0. Gotcha: el perm-epoch no se bumpea desde SQL — cerrar sesión y volver a entrar al probar a mano.
   - **Depende de:** — · **Estimación:** 1 h
 
-- [ ] **F9-RECEP-05** — DTOs e i18n del API
+- [x] **F9-RECEP-05** *(cerrada el 2026-09-02)* — DTOs e i18n del API
   - **Salida:** `apps/api/src/modules/reception/dto/upsert-customer.dto.ts` (`createCustomerSchema`, `updateCustomerSchema` con refine de update vacío, `listCustomersQuerySchema`: `query`, `page`, `pageSize` default 20 tope 100) y `dto/turns.dto.ts` (`createTurnSchema { customerId? }`, `listTurnsQuerySchema { date? YYYY-MM-DD }`). `phone` con `isE164` de `@sellpoint/shared`, `birthDate` ISO date no futura, `email` válido. Namespace `apps/api/src/i18n/{es,en}/reception.json` (`invalid_body`, `invalid_query`, `empty_update`, `customer_not_found`, `turn_not_found`, `invalid_phone`, `invalid_birth_date`).
   - **Verificar:** unit de los schemas; `message-keys.spec` verde en es y en.
   - **Depende de:** F9-RECEP-01 · **Estimación:** 2 h
 
-- [ ] **F9-RECEP-06** — `CustomersService`: el CRUD
+- [x] **F9-RECEP-06** *(cerrada el 2026-09-02)* — `CustomersService`: el CRUD
   - **Salida:** `apps/api/src/modules/reception/customers.service.ts` con `list` (orden `created_at DESC, id DESC`; búsqueda ILIKE sobre los tres nombres + phone + email), `create`, `update`, `remove`; todo en `withTenantContext`, `tenantId` en el WHERE, `auditService.record` en la MISMA tx (`reception.customer.create|update|delete`). El summary trae `age` calculada con `ageFromBirthDate(birthDate, localCalendarDate(tenant.timezone, new Date()))` y `birthDate` como `YYYY-MM-DD`. + spec.
   - **Verificar:** `age` null sin `birthDate`; busca por apellido materno y por teléfono; `remove` de otro tenant → 404 con clave i18n.
   - **Depende de:** F9-RECEP-02, F9-RECEP-05 · **Estimación:** 3.5 h
 
-- [ ] **F9-RECEP-07** — `TurnsService`: el número que reinicia cada día
+- [x] **F9-RECEP-07** *(cerrada el 2026-09-02)* — `TurnsService`: el número que reinicia cada día
   - **Salida:** `apps/api/src/modules/reception/turns.service.ts` con `create(user, {customerId?})`, `list(user, {date?})`, `attend`, `wait`. `create`: UN solo `const instante = new Date()`, `fechaLocal = localCalendarDate(tenant.timezone, instante)`, `nextSequenceValue(tx, tenantId, \`reception_turn:${fechaLocal.replaceAll("-","")}\`)`, `business_date: new Date(fechaLocal)` (date-only ISO = UTC; comentario junto a la línea: con el instante crudo, los turnos de la tarde caerían en el día siguiente), `customer_name` snapshot; tx CORTA (el lock de `tenant_sequences` dura hasta el COMMIT). `attend` idempotente; `wait` limpia `attended_at`. Auditoría en la tx. + spec.
   - **Verificar:** integración con dos tenants en zonas distintas (`America/Mexico_City`, `Europe/Madrid`) y reloj falso un minuto antes y después de la medianoche LOCAL: reinicia con el día del negocio, no con UTC. Mutante: `localCalendarDate` → `toISOString().slice(0,10)` pone el test en rojo. `attend` dos veces devuelve el mismo `attendedAt`.
   - **Depende de:** F9-RECEP-03, F9-RECEP-05 · **Estimación:** 4 h
 
-- [ ] **F9-RECEP-08** — Controllers y registro del módulo
+- [x] **F9-RECEP-08** *(cerrada el 2026-09-02)* — Controllers y registro del módulo
   - **Salida:** `reception-customers.controller.ts` (`@Controller("reception/customers")`) y `reception-turns.controller.ts` (`@Controller("reception/turns")`), ambos con `@RequiresModule("reception")` a nivel de CLASE y `@RequirePermissions("reception:read"|"reception:manage")` por método; `reception.module.ts` (importa `AuditModule`) en `app.module.ts`. Endpoints: `GET/POST /reception/customers`, `PATCH/DELETE /reception/customers/:id`, `GET/POST /reception/turns`, `POST /reception/turns/:id/attend`, `POST /reception/turns/:id/wait`.
   - **Verificar:** `permissions-catalog.spec` verde; la app arranca; Swagger lista las rutas.
   - **Depende de:** F9-RECEP-04, F9-RECEP-06, F9-RECEP-07, F9-MOD-06 · **Estimación:** 2 h

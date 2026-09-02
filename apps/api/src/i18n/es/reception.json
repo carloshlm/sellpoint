@@ -1,0 +1,9 @@
+{
+  "invalid_body": "Revisa los datos del formulario.",
+  "invalid_query": "Los filtros de búsqueda no son válidos.",
+  "empty_update": "No hay cambios que guardar.",
+  "customer_not_found": "El cliente no existe.",
+  "turn_not_found": "El turno no existe.",
+  "invalid_phone": "El teléfono debe llevar el prefijo del país, por ejemplo +52 55 1234 5678.",
+  "invalid_birth_date": "La fecha de nacimiento no es válida o es futura."
+}
