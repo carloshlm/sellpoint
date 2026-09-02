@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import type { PlanFeatures } from "@sellpoint/shared";
 import { EntitlementsService } from "./entitlements.service";
 
@@ -68,6 +69,7 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
   let tx: {
     tenantSubscription: { findUnique: jest.Mock };
     plan: { findUniqueOrThrow: jest.Mock };
+    tenantModule: { findMany: jest.Mock };
   };
   let prisma: { withTenantContext: jest.Mock };
   let service: EntitlementsService;
@@ -88,6 +90,7 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
     tx = {
       tenantSubscription: { findUnique: jest.fn() },
       plan: { findUniqueOrThrow: jest.fn().mockResolvedValue(PLAN_FREE) },
+      tenantModule: { findMany: jest.fn().mockResolvedValue([]) },
     };
     prisma = {
       withTenantContext: jest.fn((_tenantId: string, fn: (t: typeof tx) => unknown) => fn(tx)),
@@ -139,6 +142,57 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
       const e = await service.resolve(TENANT);
       expect(e.trialEndsAt).toBe("2026-09-11T06:00:00.000Z");
       expect(e.dueAt).toBeNull();
+    });
+  });
+
+  /**
+   * F9-MOD-03 — los módulos avanzados del negocio viajan con el plan. Van
+   * ATADOS al plan efectivo: si el negocio cayó a free, sus filas de
+   * `tenant_modules` siguen ahí (los datos no se borran) pero el módulo no
+   * se concede — reactivar el plan lo devuelve.
+   */
+  describe("módulos por tenant (F9-MOD-03)", () => {
+    it("sin filas en tenant_modules, `modules` es una lista vacía", async () => {
+      conSuscripcion("active");
+      const e = await service.resolve(TENANT);
+      expect(e.modules).toEqual([]);
+    });
+
+    it("con Recepción activada, `modules` la trae", async () => {
+      conSuscripcion("active");
+      tx.tenantModule.findMany.mockResolvedValue([{ moduleKey: "reception" }]);
+      const e = await service.resolve(TENANT);
+      expect(e.modules).toEqual(["reception"]);
+    });
+
+    it("una clave que ya no está en el catálogo se descarta con WARN, no revienta", async () => {
+      const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      conSuscripcion("active");
+      tx.tenantModule.findMany.mockResolvedValue([
+        { moduleKey: "foo" },
+        { moduleKey: "reception" },
+      ]);
+      const e = await service.resolve(TENANT);
+      expect(e.modules).toEqual(["reception"]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("foo"));
+      warn.mockRestore();
+    });
+
+    it("un negocio que cayó a free no conserva sus módulos aunque las filas sigan", async () => {
+      conSuscripcion("canceled");
+      tx.tenantModule.findMany.mockResolvedValue([{ moduleKey: "reception" }]);
+      const e = await service.resolve(TENANT);
+      expect(e.planCode).toBe("free");
+      expect(e.modules).toEqual([]);
+    });
+
+    it("el objeto cacheado en Redis conserva los módulos", async () => {
+      conSuscripcion("active");
+      tx.tenantModule.findMany.mockResolvedValue([{ moduleKey: "reception" }]);
+      const primera = await service.resolve(TENANT);
+      redis.get.mockResolvedValue(JSON.stringify(primera));
+      const segunda = await service.resolve(TENANT);
+      expect(segunda.modules).toEqual(["reception"]);
     });
   });
 

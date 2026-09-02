@@ -34,6 +34,7 @@ const base: Entitlements = {
   trialEndsAt: null,
   dueAt: null,
   graceEndsAt: null,
+  modules: ["reception"],
 };
 
 describe("toSubscriptionBlock (F7-WEB-01)", () => {
@@ -153,6 +154,11 @@ describe("toSubscriptionBlock (F7-WEB-01)", () => {
   it("free y canceled no tienen cuenta regresiva", () => {
     const block = toSubscriptionBlock({ ...base, status: "free" }, CDMX, new Date());
     expect(block.daysLeft).toBeNull();
+  });
+
+  it("los módulos del negocio viajan tal cual desde los entitlements (F9-MOD-03)", () => {
+    expect(toSubscriptionBlock(base, CDMX, new Date()).modules).toEqual(["reception"]);
+    expect(toSubscriptionBlock({ ...base, modules: [] }, CDMX, new Date()).modules).toEqual([]);
   });
 
   it("expone lo que el front necesita para pintar y gatear, nada más", () => {

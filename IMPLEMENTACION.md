@@ -3452,7 +3452,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** integración — desde `withTenantContext(A)` no se ve la fila de B; desde `withBillingAdminContext` se ven ambas y `sales` sigue en cero (extender `billing-schema.integration.spec.ts`).
   - **Depende de:** F9-MOD-01 · **Estimación:** 2 h
 
-- [ ] **F9-MOD-03** — `modules` en `Entitlements` y en `toSubscriptionBlock`
+- [x] **F9-MOD-03** *(cerrada el 2026-09-02 — los módulos van atados al plan VIVO: caer a free los apaga sin borrar; el barrel de shared no exportaba `modules` desde MOD-01, el sd multilínea falló en silencio)* — `modules` en `Entitlements` y en `toSubscriptionBlock`
   - **Salida:** `entitlements.service.ts` resuelve `modules: ModuleKey[]` en la misma `withTenantContext` (`tenantModule.findMany`, filtrado contra `MODULE_KEYS`, WARN por claves huérfanas); `subscription.types.ts` lo propaga.
   - **Verificar:** unit — sin filas `[]`; con `reception` `["reception"]`; clave desconocida se descarta sin reventar; el objeto releído de Redis conserva el array.
   - **Depende de:** F9-MOD-02 · **Estimación:** 2 h
