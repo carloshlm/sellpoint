@@ -506,17 +506,17 @@ describe("la cabecera dice las fechas del documento", () => {
     await screen.findByText("PAR-500");
 
     expect(screen.getByText(/Abierto 18\/08\/26/)).toBeInTheDocument();
-    expect(screen.queryByText(/Asentado/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Confirmado/)).not.toBeInTheDocument();
   });
 
-  it("un confirmado dice apertura y asiento", async () => {
+  it("un confirmado dice apertura y confirmación", async () => {
     mocked.getDocument.mockResolvedValue(
       detalle({ status: "confirmed", confirmedAt: "2026-08-20T16:00:00.000Z" }),
     );
     await renderDoc();
     await screen.findByText("PAR-500");
 
-    expect(screen.getByText(/Abierto 18\/08\/26.*Asentado 20\/08\/26/)).toBeInTheDocument();
+    expect(screen.getByText(/Abierto 18\/08\/26.*Confirmado 20\/08\/26/)).toBeInTheDocument();
   });
 
   it("un cancelado dice apertura y cancelación", async () => {
@@ -527,5 +527,35 @@ describe("la cabecera dice las fechas del documento", () => {
     await screen.findByText("PAR-500");
 
     expect(screen.getByText(/Abierto 18\/08\/26.*Cancelado 21\/08\/26/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-09-02): «asentar» es jerga contable de un solo país. El
+ * diálogo dice «registrar», y concuerda en número: una línea o varias.
+ */
+describe("el diálogo de confirmar habla en plural o singular", () => {
+  it("con una línea: «Se registrará 1 línea»", async () => {
+    const user = userEvent.setup();
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    await user.click(screen.getByRole("button", { name: /^confirmar$/i }));
+
+    expect(screen.getByText(/^Se registrará 1 línea y el stock/)).toBeInTheDocument();
+    expect(screen.queryByText(/asentar/i)).not.toBeInTheDocument();
+  });
+
+  it("con dos líneas: «Se registrarán 2 líneas»", async () => {
+    const user = userEvent.setup();
+    const base = detalle();
+    const segunda = { ...(base.rows[0] as (typeof base.rows)[number]), id: "line-2", lineNo: 2 };
+    mocked.getDocument.mockResolvedValue(detalle({ rows: [...base.rows, segunda] }));
+    await renderDoc();
+    await screen.findAllByText("PAR-500");
+
+    await user.click(screen.getByRole("button", { name: /^confirmar$/i }));
+
+    expect(screen.getByText(/^Se registrarán 2 líneas y el stock/)).toBeInTheDocument();
   });
 });

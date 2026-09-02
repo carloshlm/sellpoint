@@ -395,7 +395,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           title={t("inventory.document.confirmTitle", {
             type: t(`inventory.documentType.${document.type}`),
           })}
-          body={t("inventory.document.confirmBody", { lines: document.rows.length })}
+          body={t("inventory.document.confirmBody", { count: document.rows.length })}
           confirmLabel={`${t("inventory.document.confirm")} ${t(
             `inventory.documentType.${document.type}`,
           ).toLowerCase()}`}

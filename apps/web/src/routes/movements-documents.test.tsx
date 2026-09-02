@@ -456,7 +456,7 @@ describe("la columna Fecha es la del estado, en la zona del negocio", () => {
     const celda = within(fila).getByText(/20\/08\/26/);
     expect(celda).toHaveAttribute(
       "title",
-      expect.stringMatching(/Abierto.*18\/08\/26.*Asentado.*20\/08\/26/),
+      expect.stringMatching(/Abierto.*18\/08\/26.*Confirmado.*20\/08\/26/),
     );
   });
 
