@@ -246,6 +246,19 @@ Ejemplos:
   - **Depende de:** F0-DB-02
   - **Estimación:** 10 min
 
+- [ ] **F0-DB-04** *(agregada en revisión el 2026-09-02)* — Base separada para las e2e: `sellpoint_test`
+  - **Salida:** el `docker-compose.dev.yml` crea también `sellpoint_test` (mismo rol `sellpoint_app` con RLS) y `test/setup-env.js` apunta ahí por defecto; `pnpm --filter api test:e2e` corre `prisma migrate deploy` contra esa base antes de arrancar. `sellpoint_dev` queda solo para el servidor de desarrollo y los datos manuales
+  - **Verificar:** una corrida completa de e2e no crea ni una fila en `sellpoint_dev` (contar `tenants` antes y después); la suite sigue en verde; `pnpm dev` no ve los negocios de prueba
+  - **Por qué (2026-09-02):** las e2e registran negocios REALES por el flujo público (a propósito: sin fixtures que se salten la lógica) — ~1 000 por corrida — y conviven con la base del dev server. Tras ~45 corridas había 46 372 negocios y 532 MB; el backoffice de billing (`IN (todos los tenants)`) rebasó los 65 535 parámetros de Postgres y dos e2e fallaban por la base, no por el código. Se purgó a mano ese día (quedaron 2 negocios, 11 MB): alivio, no cura
+  - **Depende de:** F0-DB-01
+  - **Estimación:** 1 h
+
+- [ ] **F0-DB-05** *(agregada en revisión el 2026-09-02)* — Teardown de e2e que borra lo que la corrida creó
+  - **Salida:** `test/e2e/global-teardown.ts` que borra los tenants creados durante la corrida (marcados por el email `owner-<uuid>@example.com`, `cost-<timestamp>@…`, `@test.local` o por `created_at >= inicio de la corrida`), recorriendo las tablas con `tenant_id` y las dos que cuelgan por otra vía (`user_roles`, `role_permissions`) con `session_replication_role = replica`; opción `E2E_KEEP_DATA=1` para depurar un fallo mirando la base
+  - **Verificar:** tras una corrida, `SELECT count(*) FROM tenants` en la base de e2e vuelve al valor previo; con `E2E_KEEP_DATA=1` los negocios quedan; una corrida abortada a mitad no deja la base bloqueada (el teardown corre en `afterAll` global, no por spec)
+  - **Depende de:** F0-DB-04
+  - **Estimación:** 2 h
+
 ---
 
 ### Módulo F0-SHARED — Paquetes Compartidos
@@ -3376,6 +3389,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 - **Impuestos y facturación fiscal por país** — decisión de Carlos (2026-08-27): manual mientras el volumen sea chico; se integra al crecer. Cubre los tres mercados: **México** CFDI 4.0 vía Facturapi (los competidores lo cobran como diferenciador — SICOVI por timbres — y SellPointy compite por precio mientras tanto); **EE.UU.** sales tax por estado (el umbral de *economic nexus* — típicamente $100k o 200 transacciones POR estado — está lejos con pocos clientes; al crecer, Stripe Tax lo resuelve junto con la pasarela); **Canadá** GST/HST federal (registro obligatorio al superar $30,000 CAD en 4 trimestres — antes de eso, small supplier sin obligación). Mientras tanto: los recibos son los registros de `subscription_payments` y cualquier factura que pida un cliente se emite a mano.
 - **Apilar cupones** — un solo descuento activo por tenant (UNIQUE parcial); si algún día hace falta, se dropea el índice y se agrega orden de aplicación sin cambiar el modelo.
 - **Contador exacto del límite diario bajo concurrencia** — el off-by-one del `COUNT` es aceptable para un tier gratuito; el refinamiento exacto (serializar con `nextSequenceValue` del día) queda documentado por si aparece contención.
+- **Paginar la lista del backoffice** (2026-09-02) — `admin-billing.service.listTenants` hace `findMany` con `IN (todos los tenants)`; pasados ~30 000 negocios supera los 65 535 parámetros de Postgres y responde 500. Lo destapó la base local llena de negocios de e2e (ver F0-DB-04), pero es un techo real de producción: la lista debe paginar en el servidor y calcular el MRR con un agregado SQL, no en memoria. Sin prisa mientras haya decenas de clientes; obligatorio antes de miles.
 
 ---
 
