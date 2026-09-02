@@ -2388,7 +2388,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F4-CASHBOX-01, F4-CASHBOX-02
   - **Estimación:** 2.5 h
 
-- [ ] **F4-CASHBOX-04** *(agregada en revisión el 2026-09-02)* — El POS deja de decir «turno»: la caja se abre y se cierra
+- [x] **F4-CASHBOX-04** *(agregada y cerrada el 2026-09-02 — solo copy: 7 textos del web, 4 del API y 6 aserciones; ninguna clave ni tabla cambió)* — El POS deja de decir «turno»: la caja se abre y se cierra
   - **Salida:** solo COPY en `apps/web/src/i18n/{es,en}/pos.json` (`session.openTitle`, `session.open`, `session.openSince`, `session.openFailed`, `session.close`, `session.closeFailed`, `quote.warehouseHint`) y `apps/api/src/i18n/{es,en}/pos.json` (`no_session`, `no_default_warehouse`, `session_already_open`, `session_already_closed`). ES: «Abrir caja», «Caja abierta desde {{time}}», «No pudimos abrir la caja.», «Cerrar caja», «No pudimos cerrar la caja.», «Cotizar no necesita caja abierta.», «Abre la caja antes de vender.», «Ya tienes una caja abierta. Ciérrala antes de abrir otra.». EN: `shift` → `cashbox`. Tests por texto actualizados: `apps/web/src/routes/pos-session.test.tsx`, `pos-quotes.test.tsx`.
   - **Verificar:** `rg -i "turno" apps/*/src/i18n` no devuelve nada; `message-keys.spec` verde; suites web y api verdes. Las claves `pos.session.*`, la tabla `cashbox_sessions` y los endpoints NO cambian.
   - **Por qué (2026-09-02):** Recepción (F9-RECEP) se queda con «Turno»; dos cosas distintas con el mismo nombre en el mismo menú, no.

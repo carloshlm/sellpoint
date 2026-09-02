@@ -6,15 +6,15 @@
     "transfer": "Transferencia"
   },
   "session": {
-    "openTitle": "Abrir turno de caja",
+    "openTitle": "Abrir caja",
     "openHint": "Elige desde qué almacén vas a vender. Si tienes uno asignado, ya viene puesto.",
     "warehouse": "Almacén",
-    "open": "Abrir turno",
-    "openSince": "Turno abierto desde {{time}}",
-    "openFailed": "No pudimos abrir el turno.",
+    "open": "Abrir caja",
+    "openSince": "Caja abierta desde {{time}}",
+    "openFailed": "No pudimos abrir la caja.",
     "closeTitle": "Cierre de caja",
-    "close": "Cerrar turno",
-    "closeFailed": "No pudimos cerrar el turno.",
+    "close": "Cerrar caja",
+    "closeFailed": "No pudimos cerrar la caja.",
     "closeHint": "Si la caja no cuadra, se cierra igual y la diferencia queda registrada.",
     "declaredCash": "Efectivo contado en caja",
     "difference": "Diferencia",
@@ -79,7 +79,7 @@
     },
     "unavailable": "Ya no se vende desde este almacén",
     "warehouse": "Almacén",
-    "warehouseHint": "Los precios y la disponibilidad se calculan desde este almacén. Cotizar no necesita turno de caja."
+    "warehouseHint": "Los precios y la disponibilidad se calculan desde este almacén. Cotizar no necesita caja abierta."
   },
   "checkout": {
     "change": "Cambio",

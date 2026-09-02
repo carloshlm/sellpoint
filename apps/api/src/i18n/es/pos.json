@@ -7,8 +7,8 @@
   "invalid_query": "Revisa los filtros de la búsqueda.",
   "line_product_xor_service": "Una línea es un producto o un servicio, no las dos cosas.",
   "lookup_query_required": "La búsqueda no puede ir vacía.",
-  "no_default_warehouse": "No tienes un almacén asignado. Elige uno para abrir el turno.",
-  "no_session": "Abre un turno de caja antes de vender.",
+  "no_default_warehouse": "No tienes un almacén asignado. Elige uno para abrir la caja.",
+  "no_session": "Abre la caja antes de vender.",
   "payment_method_invalid": "El método de pago no es válido.",
   "presentation_not_sellable": "«{sku}» no tiene una presentación vendible.",
   "presentation_only_for_products": "La presentación es de productos, no de servicios.",
@@ -22,7 +22,7 @@
   "sale_needs_lines": "La venta necesita al menos una línea.",
   "sale_not_found": "No encontramos esa venta.",
   "service_not_sellable": "Ese servicio no está disponible para vender.",
-  "session_already_closed": "Ese turno ya está cerrado.",
-  "session_already_open": "Ya tienes un turno de caja abierto. Ciérralo antes de abrir otro.",
+  "session_already_closed": "Esa caja ya está cerrada.",
+  "session_already_open": "Ya tienes una caja abierta. Ciérrala antes de abrir otra.",
   "warehouse_invalid": "El almacén no es válido."
 }

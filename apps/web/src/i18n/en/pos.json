@@ -6,15 +6,15 @@
     "transfer": "Transfer"
   },
   "session": {
-    "openTitle": "Open cashbox shift",
+    "openTitle": "Open cashbox",
     "openHint": "Pick the warehouse you'll sell from. If you have one assigned, it's already set.",
     "warehouse": "Warehouse",
-    "open": "Open shift",
-    "openSince": "Shift open since {{time}}",
-    "openFailed": "We couldn't open the shift.",
+    "open": "Open cashbox",
+    "openSince": "Cashbox open since {{time}}",
+    "openFailed": "We couldn't open the cashbox.",
     "closeTitle": "Cashbox closing",
-    "close": "Close shift",
-    "closeFailed": "We couldn't close the shift.",
+    "close": "Close cashbox",
+    "closeFailed": "We couldn't close the cashbox.",
     "closeHint": "If the drawer doesn't balance, it closes anyway and the difference is recorded.",
     "declaredCash": "Cash counted in the drawer",
     "difference": "Difference",
@@ -79,7 +79,7 @@
     },
     "unavailable": "No longer sold from this warehouse",
     "warehouse": "Warehouse",
-    "warehouseHint": "Prices and availability are calculated from this warehouse. Quoting needs no open shift."
+    "warehouseHint": "Prices and availability are calculated from this warehouse. Quoting needs no open cashbox."
   },
   "checkout": {
     "change": "Change",
