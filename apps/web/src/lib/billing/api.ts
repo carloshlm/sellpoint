@@ -111,6 +111,35 @@ export async function getAdminTenants(): Promise<AdminTenants> {
  */
 export type AdminTenantDetail = MyBilling;
 
+/** F9-ADMIN-09 — activar/desactivar un módulo avanzado (POST/DELETE /admin/billing/tenants/:id/modules). */
+export interface EnableModuleInput {
+  moduleKey: ModuleKey;
+  /** El precio pactado del Premium. Obligatorio si el negocio no es Premium todavía (422 si falta). */
+  customPrice?: string;
+  notes?: string | null;
+  reason: string;
+}
+
+export async function enableModule(
+  tenantId: string,
+  input: EnableModuleInput,
+): Promise<ModuleKey[]> {
+  const { data } = await api.post<ModuleKey[]>(`/admin/billing/tenants/${tenantId}/modules`, input);
+  return data;
+}
+
+export async function disableModule(
+  tenantId: string,
+  moduleKey: ModuleKey,
+  reason: string,
+): Promise<ModuleKey[]> {
+  const { data } = await api.delete<ModuleKey[]>(
+    `/admin/billing/tenants/${tenantId}/modules/${moduleKey}`,
+    { data: { reason } },
+  );
+  return data;
+}
+
 export async function getAdminTenantDetail(tenantId: string): Promise<AdminTenantDetail> {
   const { data } = await api.get<AdminTenantDetail>(`/admin/billing/tenants/${tenantId}`);
   return data;

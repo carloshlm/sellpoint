@@ -1,9 +1,10 @@
-import { type Currency, formatMoney } from "@sellpoint/shared";
+import { formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { downloadSalesReport, type SalesReportQuery } from "@/lib/reports/api";
 import { useSalesReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -20,7 +21,10 @@ import { useAuthStore } from "@/stores/auth.store";
 export function SalesReport() {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const currency = useScopedCurrency();
+  // F9-ADMIN-11: desde el expediente del backoffice, el archivo y la consulta
+  // van al negocio mirado; el filtro de almacén no aplica (sería el del admin).
+  const { basePath, tenantId: negocioAjeno } = useAdminTenantScope();
 
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [estado, setEstado] = useState<"todas" | "completed" | "canceled">("todas");
@@ -82,15 +86,17 @@ export function SalesReport() {
       <h1 className="font-semibold text-xl">{t("reports.hub.sales.title")}</h1>
 
       <div className="flex flex-wrap items-end gap-3">
-        <label htmlFor="sales-report-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">{t("reports.sales.warehouse")}</span>
-          <WarehouseSelect
-            id="sales-report-warehouse"
-            value={warehouseId}
-            onChange={(valor) => alFiltrar(() => setWarehouseId(valor))}
-            scoped
-          />
-        </label>
+        {negocioAjeno === null && (
+          <label htmlFor="sales-report-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
+            <span className="text-muted-foreground">{t("reports.sales.warehouse")}</span>
+            <WarehouseSelect
+              id="sales-report-warehouse"
+              value={warehouseId}
+              onChange={(valor) => alFiltrar(() => setWarehouseId(valor))}
+              scoped
+            />
+          </label>
+        )}
 
         <label htmlFor="sales-report-status" className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">{t("reports.sales.status")}</span>
@@ -129,7 +135,11 @@ export function SalesReport() {
           setSortBy(query.sortBy);
           setSortDir(query.sortDir);
         }}
-        onExport={() => void downloadSalesReport(filtros)}
+        onExport={() =>
+          void (negocioAjeno === null
+            ? downloadSalesReport(filtros)
+            : downloadSalesReport(filtros, "xlsx", basePath))
+        }
       />
 
       {/* Los totales son del PERÍODO entero, no de la página: un pie que solo

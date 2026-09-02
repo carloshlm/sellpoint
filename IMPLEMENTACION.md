@@ -3519,42 +3519,42 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** e2e — filtros y paginación idénticos a `/reports/*`; totales cuadran con los del cliente; query inválida → `reports.invalid_query`.
   - **Depende de:** F9-ADMIN-04 · **Estimación:** 2 h
 
-- [ ] **F9-ADMIN-06** — Web: «Negocios» en el menú Backoffice y la lista
+- [x] **F9-ADMIN-06** *(cerrada el 2026-09-02)* — Web: «Negocios» en el menú Backoffice y la lista
   - **Salida:** segundo link del grupo Backoffice → `/admin/tenants`; `apps/web/src/routes/admin.tenants.index.tsx` (nombre, país/moneda, plan, estado, módulos como badges, usuarios) sobre `getAdminTenants()`, filtro por nombre y moneda en cliente; redirige si `!isPlatformAdmin`. Claves `common.billing.admin.tenants.*`.
   - **Verificar:** `admin-tenants.test.tsx` con `renderAdmin(true)` — filas y navegación a `/admin/tenants/:id`; `renderAdmin(false)` no ve link ni página.
   - **Depende de:** F9-MOD-09 · **Estimación:** 2.5 h
 
-- [ ] **F9-ADMIN-07** — Web: expediente con pestañas + Resumen
+- [x] **F9-ADMIN-07** *(cerrada el 2026-09-02)* — Web: expediente con pestañas + Resumen
   - **Salida:** `routes/admin.tenants.$tenantId.tsx` con pestañas por search param `?tab=overview|users|plan|dashboard|reports` (el expediente se comparte por link); Resumen con tarjetas de conteos; `apps/web/src/lib/admin/{api,hooks}.ts` (`getTenantOverview`).
   - **Verificar:** test de ruta — conteos mockeados; cambiar pestaña cambia la URL; sin `isPlatformAdmin` redirige.
   - **Depende de:** F9-ADMIN-02, F9-ADMIN-06 · **Estimación:** 3 h
 
-- [ ] **F9-ADMIN-08** — Web: pestaña Usuarios con suspender/reactivar
+- [x] **F9-ADMIN-08** *(cerrada el 2026-09-02)* — Web: pestaña Usuarios con suspender/reactivar
   - **Salida:** `components/admin/tenant-users-tab.tsx` reusando la tabla de `routes/system.users.tsx` en modo backoffice; fetchers/mutaciones en `lib/admin/*` (no en `lib/rbac`, que apunta al tenant propio); 409 de último admin visible.
   - **Verificar:** test — Suspender llama con el `tenantId` de la URL; 409 pinta el mensaje sin cambiar la fila; tras éxito se invalida la lista.
   - **Depende de:** F9-ADMIN-03, F9-ADMIN-07 · **Estimación:** 2.5 h
 
-- [ ] **F9-ADMIN-09** — Web: pestaña Plan y módulos
+- [x] **F9-ADMIN-09** *(cerrada el 2026-09-02)* — Web: pestaña Plan y módulos
   - **Salida:** `components/admin/tenant-plan-tab.tsx`: plan y precio pactado actuales (`getAdminTenantDetail`), campo `customPrice` + `reason`, un toggle por cada `MODULE_KEYS` contra F9-MOD-05. Copy: al activar «este negocio pasa a Premium; si apagas el módulo deja de ver lo que capturó con él»; al desactivar el último «queda en Premium sin módulos, ajusta el plan si corresponde»; sin suscripción → toggle deshabilitado con «primero regístrale un plan o un pago». Aviso: el cliente ve el grupo nuevo en su próxima sincronización de sesión, no al instante.
   - **Verificar:** test — activar sin precio en `plus` muestra el 422 y el toggle vuelve a apagado; con precio manda `{moduleKey, customPrice, reason}` e invalida detalle y lista.
   - **Depende de:** F9-MOD-05, F9-ADMIN-07 · **Estimación:** 3 h
 
-- [ ] **F9-ADMIN-10** — Web: pestaña Dashboard reusando los widgets del cliente
+- [x] **F9-ADMIN-10** *(cerrada el 2026-09-02)* — Web: pestaña Dashboard reusando los widgets del cliente
   - **Salida:** `lib/dashboard/scope.tsx` (`DashboardScopeProvider`/`useDashboardScope` con `{ basePath, tenantId, forcePermission }`, default `{ "/reports", null, false }`); `lib/dashboard/api.ts` acepta `basePath`; `hooks.ts` agrega `tenantId` al `queryKey`; los 5 widgets de `components/dashboard/*` usan `forcePermission || has("reports:read")`. La pestaña envuelve el árbol de `routes/dashboard.tsx` en el provider.
   - **Verificar:** test — la pestaña pide `/admin/tenants/T2/dashboard/kpis`; `/dashboard` del cliente sigue pidiendo `/reports/...`; dos tenants no comparten caché.
   - **Depende de:** F9-ADMIN-04, F9-ADMIN-07 · **Estimación:** 3 h
 
-- [ ] **F9-ADMIN-11** — Web: pestaña Reportes (ventas e inventario)
+- [x] **F9-ADMIN-11** *(cerrada el 2026-09-02)* — Web: pestaña Reportes (ventas e inventario)
   - **Salida:** extraer el cuerpo de `routes/reports.sales.tsx` y `reports.stock.tsx` a `components/reports/sales-report-view.tsx` y `stock-report-view.tsx` con prop `basePath`; `lib/reports/api.ts` acepta `basePath`; la pestaña renderiza ambas con `/admin/tenants/:id`. Sin exportar en esta pasada.
   - **Verificar:** `reports-screens.test.tsx` sigue verde sin cambiar aserciones; test nuevo — la pestaña pide `/admin/tenants/T2/reports/sales` con los mismos filtros.
   - **Depende de:** F9-ADMIN-05, F9-ADMIN-07 · **Estimación:** 3 h
 
-- [ ] **F9-ADMIN-12** — e2e de aislamiento del expediente + barreras
+- [x] **F9-ADMIN-12** *(cerrada el 2026-09-02)* — e2e de aislamiento del expediente + barreras
   - **Salida:** `apps/api/test/e2e/admin-tenants.e2e-spec.ts` + extensión de `billing-admin-isolation.e2e-spec.ts` con `tenant_modules`.
   - **Verificar:** TenantAdmin normal → 403 en las 10 rutas de `admin/tenants`; el admin sobre B ve SOLO B en overview, usuarios, dashboard y reportes; `withBillingAdminContext` sigue sin ver `sales`; `message-keys.spec` y `permissions-catalog.spec` verdes.
   - **Depende de:** F9-ADMIN-03, F9-ADMIN-05, F9-MOD-10 · **Estimación:** 2.5 h
 
-- [ ] **F9-ADMIN-13** *(opcional)* — Exportaciones desde el expediente
+- [x] **F9-ADMIN-13** *(cerrada el 2026-09-02)* *(opcional)* — Exportaciones desde el expediente
   - **Salida:** `GET /admin/tenants/:tenantId/reports/{sales,stock}/export` con `SalesExportService`/`StockExportService` y el nombre del negocio en `Content-Disposition`; botones en la pestaña Reportes.
   - **Verificar:** e2e — xlsx con filas del tenant de la URL y el nombre del negocio en el archivo.
   - **Depende de:** F9-ADMIN-11 · **Estimación:** 2 h

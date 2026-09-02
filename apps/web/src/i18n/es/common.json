@@ -253,7 +253,68 @@
       "country": "País",
       "currency": "Moneda",
       "filterCurrency": "Moneda",
-      "allCurrencies": "Todas"
+      "allCurrencies": "Todas",
+      "tenants": {
+        "title": "Negocios",
+        "search": "Buscar negocio",
+        "loadFailed": "No pudimos cargar el expediente.",
+        "columns": {
+          "tenant": "Negocio",
+          "market": "Mercado",
+          "plan": "Plan",
+          "status": "Estado",
+          "modules": "Módulos",
+          "dueAt": "Vence"
+        },
+        "tabs": {
+          "overview": "Resumen",
+          "users": "Usuarios",
+          "plan": "Plan y módulos",
+          "dashboard": "Panel",
+          "reports": "Reportes"
+        },
+        "overview": {
+          "users": "Usuarios",
+          "active": "Activos",
+          "invited": "Invitados",
+          "suspended": "Suspendidos",
+          "catalog": "Catálogo",
+          "products": "Productos",
+          "services": "Servicios",
+          "subcatalogs": "Subcatálogos",
+          "warehouses": "Almacenes",
+          "plan": "Plan",
+          "dueAt": "Vence",
+          "customPrice": "Precio pactado",
+          "modules": "Módulos activos",
+          "noSubscription": "Sin suscripción"
+        },
+        "users": {
+          "suspend": "Suspender",
+          "reactivate": "Reactivar",
+          "empty": "Este negocio no tiene usuarios."
+        },
+        "plan": {
+          "currentPlan": "Plan actual",
+          "customPriceCurrent": "Precio pactado: {{amount}} {{currency}}",
+          "modules": "Módulos avanzados",
+          "customPrice": "Precio pactado (mensual)",
+          "reason": "Motivo (queda en la bitácora)",
+          "enable": "Activar",
+          "disable": "Desactivar",
+          "enabled": "Activo",
+          "disabled": "Inactivo",
+          "enableHint": "Al activar un módulo, este negocio pasa a Premium con el precio pactado. Si lo apagas después, deja de ver lo que capturó con él (no se borra).",
+          "lastModuleHint": "Queda en Premium sin módulos: ajusta el plan y el precio si corresponde.",
+          "noSubscriptionHint": "Primero regístrale un plan o un pago: sin suscripción no se pueden activar módulos.",
+          "propagationHint": "El negocio ve el módulo en su próxima sesión, no al instante."
+        },
+        "reports": {
+          "title": "Reportes",
+          "sales": "Ventas",
+          "stock": "Inventario"
+        }
+      }
     },
     "payment": {
       "view": "Ver",

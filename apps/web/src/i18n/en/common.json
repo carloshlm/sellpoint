@@ -253,7 +253,68 @@
       "country": "Country",
       "currency": "Currency",
       "filterCurrency": "Currency",
-      "allCurrencies": "All"
+      "allCurrencies": "All",
+      "tenants": {
+        "title": "Businesses",
+        "search": "Search business",
+        "loadFailed": "We could not load the business file.",
+        "columns": {
+          "tenant": "Business",
+          "market": "Market",
+          "plan": "Plan",
+          "status": "Status",
+          "modules": "Modules",
+          "dueAt": "Due"
+        },
+        "tabs": {
+          "overview": "Overview",
+          "users": "Users",
+          "plan": "Plan and modules",
+          "dashboard": "Dashboard",
+          "reports": "Reports"
+        },
+        "overview": {
+          "users": "Users",
+          "active": "Active",
+          "invited": "Invited",
+          "suspended": "Suspended",
+          "catalog": "Catalog",
+          "products": "Products",
+          "services": "Services",
+          "subcatalogs": "Subcatalogs",
+          "warehouses": "Warehouses",
+          "plan": "Plan",
+          "dueAt": "Due",
+          "customPrice": "Agreed price",
+          "modules": "Active modules",
+          "noSubscription": "No subscription"
+        },
+        "users": {
+          "suspend": "Suspend",
+          "reactivate": "Reactivate",
+          "empty": "This business has no users."
+        },
+        "plan": {
+          "currentPlan": "Current plan",
+          "customPriceCurrent": "Agreed price: {{amount}} {{currency}}",
+          "modules": "Advanced modules",
+          "customPrice": "Agreed price (monthly)",
+          "reason": "Reason (kept in the audit log)",
+          "enable": "Enable",
+          "disable": "Disable",
+          "enabled": "Active",
+          "disabled": "Inactive",
+          "enableHint": "Enabling a module moves this business to Premium at the agreed price. If you disable it later, it stops seeing what it captured with it (nothing is deleted).",
+          "lastModuleHint": "It stays on Premium with no modules: adjust the plan and price if needed.",
+          "noSubscriptionHint": "Record a plan or a payment first: modules cannot be enabled without a subscription.",
+          "propagationHint": "The business sees the module on its next session, not instantly."
+        },
+        "reports": {
+          "title": "Reports",
+          "sales": "Sales",
+          "stock": "Inventory"
+        }
+      }
     },
     "payment": {
       "view": "View",

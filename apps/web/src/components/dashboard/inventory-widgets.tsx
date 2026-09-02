@@ -1,8 +1,8 @@
-import type { Currency } from "@sellpoint/shared";
 import { formatMoney } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ScrollableList } from "@/components/ui/scrollable-list";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useDashboardInventory } from "@/lib/dashboard/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -17,9 +17,10 @@ import { useAuthStore } from "@/stores/auth.store";
 function InventoryWidgets() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const currency = useScopedCurrency();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const puedeVer = has("inventory:read");
+  const { forcePermission } = useAdminTenantScope();
+  const puedeVer = forcePermission || has("inventory:read");
   const { data } = useDashboardInventory(puedeVer);
 
   if (!puedeVer || data === undefined) {

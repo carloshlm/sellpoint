@@ -41,6 +41,8 @@ import { Route as ReportsStockRouteImport } from './routes/reports.stock'
 import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
+import { Route as AdminTenantsIndexRouteImport } from './routes/admin.tenants.index'
+import { Route as AdminTenantsTenantIdRouteImport } from './routes/admin.tenants.$tenantId'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
 import { Route as PosQuotesIndexRouteImport } from './routes/pos.quotes.index'
 import { Route as PosQuotesNewRouteImport } from './routes/pos.quotes.new'
@@ -208,6 +210,16 @@ const SystemUsersRoute = SystemUsersRouteImport.update({
   path: '/system/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTenantsIndexRoute = AdminTenantsIndexRouteImport.update({
+  id: '/admin/tenants/',
+  path: '/admin/tenants/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTenantsTenantIdRoute = AdminTenantsTenantIdRouteImport.update({
+  id: '/admin/tenants/$tenantId',
+  path: '/admin/tenants/$tenantId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MovementsDocumentsDocumentIdRoute =
   MovementsDocumentsDocumentIdRouteImport.update({
     id: '/movements/documents/$documentId',
@@ -274,10 +286,12 @@ export interface FileRoutesByFullPath {
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
   '/reports/': typeof ReportsIndexRoute
+  '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
   '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
   '/reception/customers/new': typeof ReceptionCustomersNewRoute
+  '/admin/tenants/': typeof AdminTenantsIndexRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
 }
@@ -314,10 +328,12 @@ export interface FileRoutesByTo {
   '/system/users': typeof SystemUsersRoute
   '/pos': typeof PosIndexRoute
   '/reports': typeof ReportsIndexRoute
+  '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
   '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
   '/reception/customers/new': typeof ReceptionCustomersNewRoute
+  '/admin/tenants': typeof AdminTenantsIndexRoute
   '/pos/quotes': typeof PosQuotesIndexRoute
   '/reception/customers': typeof ReceptionCustomersIndexRoute
 }
@@ -355,10 +371,12 @@ export interface FileRoutesById {
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
   '/reports/': typeof ReportsIndexRoute
+  '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
   '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
   '/reception/customers/new': typeof ReceptionCustomersNewRoute
+  '/admin/tenants/': typeof AdminTenantsIndexRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
 }
@@ -397,10 +415,12 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/pos/'
     | '/reports/'
+    | '/admin/tenants/$tenantId'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
     | '/reception/customers/$customerId'
     | '/reception/customers/new'
+    | '/admin/tenants/'
     | '/pos/quotes/'
     | '/reception/customers/'
   fileRoutesByTo: FileRoutesByTo
@@ -437,10 +457,12 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/pos'
     | '/reports'
+    | '/admin/tenants/$tenantId'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
     | '/reception/customers/$customerId'
     | '/reception/customers/new'
+    | '/admin/tenants'
     | '/pos/quotes'
     | '/reception/customers'
   id:
@@ -477,10 +499,12 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/pos/'
     | '/reports/'
+    | '/admin/tenants/$tenantId'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
     | '/reception/customers/$customerId'
     | '/reception/customers/new'
+    | '/admin/tenants/'
     | '/pos/quotes/'
     | '/reception/customers/'
   fileRoutesById: FileRoutesById
@@ -518,10 +542,12 @@ export interface RootRouteChildren {
   SystemUsersRoute: typeof SystemUsersRoute
   PosIndexRoute: typeof PosIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
+  AdminTenantsTenantIdRoute: typeof AdminTenantsTenantIdRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
   PosQuotesNewRoute: typeof PosQuotesNewRoute
   ReceptionCustomersCustomerIdRoute: typeof ReceptionCustomersCustomerIdRoute
   ReceptionCustomersNewRoute: typeof ReceptionCustomersNewRoute
+  AdminTenantsIndexRoute: typeof AdminTenantsIndexRoute
   PosQuotesIndexRoute: typeof PosQuotesIndexRoute
   ReceptionCustomersIndexRoute: typeof ReceptionCustomersIndexRoute
 }
@@ -752,6 +778,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SystemUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/tenants/': {
+      id: '/admin/tenants/'
+      path: '/admin/tenants'
+      fullPath: '/admin/tenants/'
+      preLoaderRoute: typeof AdminTenantsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/tenants/$tenantId': {
+      id: '/admin/tenants/$tenantId'
+      path: '/admin/tenants/$tenantId'
+      fullPath: '/admin/tenants/$tenantId'
+      preLoaderRoute: typeof AdminTenantsTenantIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/movements/documents/$documentId': {
       id: '/movements/documents/$documentId'
       path: '/movements/documents/$documentId'
@@ -830,10 +870,12 @@ const rootRouteChildren: RootRouteChildren = {
   SystemUsersRoute: SystemUsersRoute,
   PosIndexRoute: PosIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
+  AdminTenantsTenantIdRoute: AdminTenantsTenantIdRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
   PosQuotesNewRoute: PosQuotesNewRoute,
   ReceptionCustomersCustomerIdRoute: ReceptionCustomersCustomerIdRoute,
   ReceptionCustomersNewRoute: ReceptionCustomersNewRoute,
+  AdminTenantsIndexRoute: AdminTenantsIndexRoute,
   PosQuotesIndexRoute: PosQuotesIndexRoute,
   ReceptionCustomersIndexRoute: ReceptionCustomersIndexRoute,
 }

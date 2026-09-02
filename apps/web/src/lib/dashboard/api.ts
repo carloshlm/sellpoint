@@ -1,3 +1,5 @@
+// F9-ADMIN-10: `basePath` apunta el dashboard a otro negocio desde el
+// backoffice (`/admin/tenants/:id`); por defecto, el propio (`/reports`).
 import { api } from "@/lib/api";
 
 /**
@@ -25,8 +27,8 @@ export interface DashboardKpis {
   };
 }
 
-export async function getDashboardKpis(): Promise<DashboardKpis> {
-  const { data } = await api.get<DashboardKpis>("/reports/dashboard/kpis");
+export async function getDashboardKpis(basePath = "/reports"): Promise<DashboardKpis> {
+  const { data } = await api.get<DashboardKpis>(`${basePath}/dashboard/kpis`);
   return data;
 }
 
@@ -76,25 +78,31 @@ export interface DashboardPayments {
   methods: { method: "cash" | "card" | "transfer"; total: string; pct: number }[];
 }
 
-export async function getDashboardSeries(): Promise<DashboardSeries> {
-  const { data } = await api.get<DashboardSeries>("/reports/dashboard/series");
+export async function getDashboardSeries(basePath = "/reports"): Promise<DashboardSeries> {
+  const { data } = await api.get<DashboardSeries>(`${basePath}/dashboard/series`);
   return data;
 }
 
-export async function getDashboardProducts(period: DashboardPeriod): Promise<DashboardProducts> {
-  const { data } = await api.get<DashboardProducts>("/reports/dashboard/products", {
+export async function getDashboardProducts(
+  period: DashboardPeriod,
+  basePath = "/reports",
+): Promise<DashboardProducts> {
+  const { data } = await api.get<DashboardProducts>(`${basePath}/dashboard/products`, {
     params: { period },
   });
   return data;
 }
 
-export async function getDashboardInventory(): Promise<DashboardInventory> {
-  const { data } = await api.get<DashboardInventory>("/reports/dashboard/inventory");
+export async function getDashboardInventory(basePath = "/reports"): Promise<DashboardInventory> {
+  const { data } = await api.get<DashboardInventory>(`${basePath}/dashboard/inventory`);
   return data;
 }
 
-export async function getDashboardPayments(period: DashboardPeriod): Promise<DashboardPayments> {
-  const { data } = await api.get<DashboardPayments>("/reports/dashboard/payment-methods", {
+export async function getDashboardPayments(
+  period: DashboardPeriod,
+  basePath = "/reports",
+): Promise<DashboardPayments> {
+  const { data } = await api.get<DashboardPayments>(`${basePath}/dashboard/payment-methods`, {
     params: { period },
   });
   return data;

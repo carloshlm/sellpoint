@@ -1,7 +1,7 @@
-import type { Currency } from "@sellpoint/shared";
 import { formatMoney } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useDashboardKpis } from "@/lib/dashboard/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -16,10 +16,11 @@ import { useAuthStore } from "@/stores/auth.store";
 function KpiRow() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const currency = useScopedCurrency();
   // El locale de la CUENTA, tipado — mismo criterio que sales-report.
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const puedeVer = has("reports:read");
+  const { forcePermission } = useAdminTenantScope();
+  const puedeVer = forcePermission || has("reports:read");
   const { data } = useDashboardKpis(puedeVer);
 
   if (!puedeVer || data === undefined) {

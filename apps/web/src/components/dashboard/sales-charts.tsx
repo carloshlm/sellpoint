@@ -1,8 +1,8 @@
-import type { Currency } from "@sellpoint/shared";
 import { formatMoney, localeToBcp47 } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
 import { ChartBars } from "@/components/dashboard/chart-bars";
 import { ChartLine } from "@/components/dashboard/chart-line";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import { useDashboardSeries } from "@/lib/dashboard/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -16,9 +16,10 @@ import { useAuthStore } from "@/stores/auth.store";
 function SalesCharts() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const currency = useScopedCurrency();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const puedeVer = has("reports:read");
+  const { forcePermission } = useAdminTenantScope();
+  const puedeVer = forcePermission || has("reports:read");
   const { data } = useDashboardSeries(puedeVer);
 
   if (!puedeVer || data === undefined) {

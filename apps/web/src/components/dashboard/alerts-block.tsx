@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useAdminTenantScope } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import {
   useDashboardInventory,
@@ -19,8 +20,9 @@ import {
 function AlertsBlock() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const puedeVerDinero = has("reports:read");
-  const puedeVerStock = has("inventory:read");
+  const { forcePermission } = useAdminTenantScope();
+  const puedeVerDinero = forcePermission || has("reports:read");
+  const puedeVerStock = forcePermission || has("inventory:read");
 
   const { data: kpis } = useDashboardKpis(puedeVerDinero);
   const { data: productos } = useDashboardProducts("month", puedeVerDinero);

@@ -1,8 +1,9 @@
-import { type Currency, formatMoney } from "@sellpoint/shared";
+import { formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { type ReportQuery, ReportTable } from "@/components/reports/report-table";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { downloadStockReport, type StockReportQuery } from "@/lib/reports/api";
 import { useStockReport } from "@/lib/reports/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -25,7 +26,10 @@ import { useAuthStore } from "@/stores/auth.store";
 export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boolean } = {}) {
   const { t, i18n } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const currency = useScopedCurrency();
+  // F9-ADMIN-11: desde el expediente del backoffice, el archivo y la consulta
+  // van al negocio mirado; el filtro de almacén no aplica (sería el del admin).
+  const { basePath, tenantId: negocioAjeno } = useAdminTenantScope();
 
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [belowMin, setBelowMin] = useState(initialBelowMin);
@@ -106,15 +110,17 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
       <h1 className="font-semibold text-xl">{t("reports.hub.stock.title")}</h1>
 
       <div className="flex flex-wrap items-end gap-3">
-        <label htmlFor="stock-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">{t("reports.stock.warehouse")}</span>
-          <WarehouseSelect
-            id="stock-warehouse"
-            value={warehouseId}
-            onChange={(valor) => alFiltrar(() => setWarehouseId(valor))}
-            scoped
-          />
-        </label>
+        {negocioAjeno === null && (
+          <label htmlFor="stock-warehouse" className="flex min-w-48 flex-col gap-1 text-sm">
+            <span className="text-muted-foreground">{t("reports.stock.warehouse")}</span>
+            <WarehouseSelect
+              id="stock-warehouse"
+              value={warehouseId}
+              onChange={(valor) => alFiltrar(() => setWarehouseId(valor))}
+              scoped
+            />
+          </label>
+        )}
 
         <label className="flex items-center gap-2 pb-2 text-sm">
           <input
@@ -144,7 +150,11 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         isPending={isPending}
         error={error === null ? null : (error?.message ?? null)}
         onQueryChange={cambiarConsulta}
-        onExport={() => void downloadStockReport(filtros)}
+        onExport={() =>
+          void (negocioAjeno === null
+            ? downloadStockReport(filtros)
+            : downloadStockReport(filtros, "xlsx", basePath))
+        }
       />
     </section>
   );

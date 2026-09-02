@@ -1,7 +1,7 @@
-import type { Currency } from "@sellpoint/shared";
 import { formatMoney } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
 import { ScrollableList } from "@/components/ui/scrollable-list";
+import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { DashboardPeriod } from "@/lib/dashboard/api";
 import { useDashboardProducts } from "@/lib/dashboard/hooks";
@@ -15,9 +15,10 @@ import { useAuthStore } from "@/stores/auth.store";
 function TopProducts({ period }: { period: DashboardPeriod }) {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const currency = useScopedCurrency();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const puedeVer = has("reports:read");
+  const { forcePermission } = useAdminTenantScope();
+  const puedeVer = forcePermission || has("reports:read");
   const { data } = useDashboardProducts(period, puedeVer);
 
   if (!puedeVer || data === undefined) {

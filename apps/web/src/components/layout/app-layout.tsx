@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   ArrowUpFromLine,
   BarChart3,
+  Building2,
   Calculator,
   CalendarClock,
   ClipboardList,
@@ -464,6 +465,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <Wrench className="size-4 shrink-0" aria-hidden="true" />
                 {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
+              </Link>
+              <Link
+                to="/admin/tenants"
+                aria-label={t("common.billing.admin.tenants.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <Building2 className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && (
+                  <span className="truncate">{t("common.billing.admin.tenants.title")}</span>
+                )}
               </Link>
             </fieldset>
           )}

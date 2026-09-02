@@ -49,8 +49,11 @@ export interface StockReportPage {
   pageSize: number;
 }
 
-export async function getStockReport(query: StockReportQuery): Promise<StockReportPage> {
-  const { data } = await api.get<StockReportPage>("/reports/stock", { params: query });
+export async function getStockReport(
+  query: StockReportQuery,
+  basePath = "/reports",
+): Promise<StockReportPage> {
+  const { data } = await api.get<StockReportPage>(`${basePath}/stock`, { params: query });
   return data;
 }
 
@@ -86,8 +89,11 @@ export interface SalesReportPage {
   pageSize: number;
 }
 
-export async function getSalesReport(query: SalesReportQuery): Promise<SalesReportPage> {
-  const { data } = await api.get<SalesReportPage>("/reports/sales", { params: query });
+export async function getSalesReport(
+  query: SalesReportQuery,
+  basePath = "/reports",
+): Promise<SalesReportPage> {
+  const { data } = await api.get<SalesReportPage>(`${basePath}/sales`, { params: query });
   return data;
 }
 
@@ -130,14 +136,16 @@ export function downloadCatalogReport(format: ReportFormat = "xlsx"): Promise<vo
 export function downloadStockReport(
   query: StockReportQuery = {},
   format: ReportFormat = "xlsx",
+  basePath = "/reports",
 ): Promise<void> {
   const base = query.detail === "lots" ? "stock-por-lote" : "stock";
-  return bajar("/reports/stock/export", base, format, query);
+  return bajar(`${basePath}/stock/export`, base, format, query);
 }
 
 export function downloadSalesReport(
   query: SalesReportQuery = {},
   format: ReportFormat = "xlsx",
+  basePath = "/reports",
 ): Promise<void> {
-  return bajar("/reports/sales/export", "ventas", format, query);
+  return bajar(`${basePath}/sales/export`, "ventas", format, query);
 }
