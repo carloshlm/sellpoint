@@ -1,4 +1,4 @@
-import { TRANSFER_STALE_DAYS } from "@sellpoint/shared";
+import { localeToBcp47, TRANSFER_STALE_DAYS } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,14 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { downloadInTransit } from "@/lib/inventory/api";
+import { formatBusinessDate } from "@/lib/inventory/format-date";
 import type { TransferRow } from "@/lib/inventory/transfers-api";
 import {
   useCancelTransfer,
   useCreateReceiptDraft,
   useTransfers,
 } from "@/lib/inventory/transfers-hooks";
+import { useAuthStore } from "@/stores/auth.store";
 import { WarehouseSelect } from "./warehouse-select";
 
 type Tab = "incoming" | "outgoing" | "canceled";
@@ -39,6 +42,8 @@ export function TransfersList() {
   const { t, i18n } = useTranslation();
   const { has } = usePermissions();
   const [tab, setTab] = useState<Tab>("incoming");
+  const timeZone = useAuthStore((s) => s.user?.tenant?.timezone);
+  const localeTag = localeToBcp47(resolveUiLocale(i18n));
   const [exportando, setExportando] = useState(false);
   const [errorExport, setErrorExport] = useState<string | null>(null);
   const [destinationWarehouseId, setDestination] = useState<string | null>(null);
@@ -236,11 +241,11 @@ export function TransfersList() {
                   {enCancelados ? (
                     <>
                       <td className="px-2 py-2">
+                        {/* En la zona del NEGOCIO, la misma con la que el API corta el
+                            rango Desde/Hasta (Carlos, 2026-09-02). */}
                         {row.canceledAt === null
                           ? "—"
-                          : new Intl.DateTimeFormat(i18n.language, {
-                              dateStyle: "short",
-                            }).format(new Date(row.canceledAt))}
+                          : formatBusinessDate(row.canceledAt, localeTag, timeZone)}
                       </td>
                       {/* El motivo Y quién lo decidió: es la fila que alguien
                           abre preguntando «¿qué pasó con esa mercancía?». */}

@@ -14,12 +14,9 @@ import { RequiresFeature } from "../billing/decorators/requires-feature.decorato
 import { TransfersService } from "./transfers.service";
 
 /** Una fecha de query string, o `undefined` si vino basura. */
-function fecha(raw?: string): Date | undefined {
-  if (raw === undefined || raw === "") {
-    return undefined;
-  }
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+/** Un día del calendario (`YYYY-MM-DD`); cualquier otra cosa se ignora. */
+function dia(raw?: string): string | undefined {
+  return raw !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : undefined;
 }
 
 function entero(raw?: string): number | undefined {
@@ -68,8 +65,8 @@ export class TransfersController {
       destinationWarehouseId: query.destinationWarehouseId || undefined,
       warehouseId: query.warehouseId || undefined,
       folio: query.folio?.trim() || undefined,
-      from: fecha(query.from),
-      to: fecha(query.to),
+      from: dia(query.from),
+      to: dia(query.to),
       olderThanDays: entero(query.olderThanDays),
       page: entero(query.page),
       pageSize: entero(query.pageSize),

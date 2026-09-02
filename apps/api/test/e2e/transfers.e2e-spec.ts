@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { localCalendarDate, startOfDayUtc } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -408,6 +409,36 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
         expect((porSur.body.rows as { id: string }[]).map((r) => r.id)).toEqual([b.transfer.id]);
       });
 
+      /**
+       * Carlos (2026-09-02): un traspaso cancelado el 1/9 a las 10 de la noche
+       * de CDMX ya es 2/9 en UTC, y «Hasta 02/09» lo dejaba fuera. El mismo
+       * bug que ya se corrigió en Entradas/Salidas/Inventario: el rango son
+       * DÍAS del calendario del negocio, no medianoches UTC. `from`/`to`
+       * llegan como `YYYY-MM-DD` y el servidor los traduce con la zona del
+       * tenant (`America/Mexico_City` por defecto).
+       */
+      it("`from`/`to` son días del calendario del NEGOCIO, no medianoches UTC", async () => {
+        const { token, tenantId, central, norte, despachar } = await escenario();
+        const { transfer } = await despachar(central, norte, 10);
+        await cancelar(token, transfer.id);
+        const zona = "America/Mexico_City";
+        const hoy = localCalendarDate(zona, new Date());
+        const ayer = localCalendarDate(zona, new Date(Date.now() - 24 * 60 * 60 * 1000));
+        // 23:30 de AYER en CDMX: en UTC ya es hoy de madrugada.
+        const anoche = new Date(startOfDayUtc(hoy, zona).getTime() - 30 * 60 * 1000);
+        await prisma.withTenantContext(
+          tenantId,
+          (tx) =>
+            tx.$executeRaw`UPDATE transfers SET canceled_at = ${anoche} WHERE id = ${transfer.id}::uuid`,
+        );
+
+        const deAyer = await listar(token, `?status=canceled&from=${ayer}&to=${ayer}`);
+        const deHoy = await listar(token, `?status=canceled&from=${hoy}&to=${hoy}`);
+
+        expect((deAyer.body.rows as { id: string }[]).map((r) => r.id)).toEqual([transfer.id]);
+        expect((deHoy.body.rows as { id: string }[]).map((r) => r.id)).toEqual([]);
+      });
+
       it("`from` mira la fecha de cancelación, no la del despacho", async () => {
         const { token, tenantId, central, norte, sur, despachar } = await escenario();
         const viejo = await despachar(central, norte, 10);
@@ -424,7 +455,11 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
         const ayer = new Date();
         ayer.setDate(ayer.getDate() - 1);
 
-        const res = await listar(token, `?status=canceled&from=${ayer.toISOString()}`);
+        // Como la pantalla: un DÍA del calendario del negocio, no un instante.
+        const res = await listar(
+          token,
+          `?status=canceled&from=${localCalendarDate("America/Mexico_City", ayer)}`,
+        );
 
         expect((res.body.rows as { id: string }[]).map((r) => r.id)).toEqual([
           reciente.transfer.id,

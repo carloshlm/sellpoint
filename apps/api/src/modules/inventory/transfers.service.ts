@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { FOLIO_PREFIXES, TRANSFER_STALE_DAYS } from "@sellpoint/shared";
+import { endOfDayUtc, FOLIO_PREFIXES, startOfDayUtc, TRANSFER_STALE_DAYS } from "@sellpoint/shared";
 import type { TransferStatus } from "../../generated/prisma/client";
 // `Prisma` va como VALOR y no como `import type`: `Prisma.Decimal` es un
 // constructor que se USA en runtime, no solo un espacio de tipos. Con
@@ -28,8 +28,9 @@ export interface ListTransfersOptions {
   warehouseId?: string;
   /** Por el folio del despacho (SAL-…), sin distinguir mayúsculas. */
   folio?: string;
-  from?: Date;
-  to?: Date;
+  /** Días del calendario del NEGOCIO (`YYYY-MM-DD`), no instantes: el servidor los traduce con la zona del tenant. */
+  from?: string;
+  to?: string;
   olderThanDays?: number;
   page?: number;
   pageSize?: number;
@@ -59,6 +60,9 @@ export class TransfersService {
   async list(user: AuthUser, scope: UserScope, options: ListTransfersOptions = {}) {
     const page = Math.max(1, options.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20));
+    // La zona del negocio, para traducir los días del rango a instantes. Se
+    // consulta por listado, igual que en documentos: es una fila por id.
+    const zona = await this.zonaDelNegocio(user.tenantId);
 
     // La base SIN status ni alcance direccional: los contadores de las
     // pestañas la reusan fijando su propio status y dirección — si heredaran
@@ -90,7 +94,7 @@ export class TransfersService {
             },
           }
         : {}),
-      ...this.rangoDeFechas(options),
+      ...this.rangoDeFechas(options, zona),
     };
     const where: Prisma.TransferWhereInput = {
       ...whereBase,
@@ -691,17 +695,32 @@ export class TransfersService {
    * hace AL MENOS N días) y los otros una ventana. Pedir los dos es raro pero
    * no contradictorio, y resolverlo acá evita que el controller decida.
    */
-  private rangoDeFechas(options: ListTransfersOptions): Prisma.TransferWhereInput {
+  private async zonaDelNegocio(tenantId: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+    return tenant?.timezone ?? "UTC";
+  }
+
+  /**
+   * El rango son DÍAS del calendario del negocio (Carlos, 2026-09-02): un
+   * traspaso cancelado el 1/9 a las 10 de la noche de CDMX ya es 2/9 en UTC,
+   * y «Hasta 02/09» como medianoche UTC lo dejaba fuera. Mismo arreglo que en
+   * documentos: `startOfDayUtc`/`endOfDayUtc` con la zona del tenant, y `lt`
+   * en la cota superior (el fin del día es el arranque del siguiente).
+   */
+  private rangoDeFechas(options: ListTransfersOptions, zona: string): Prisma.TransferWhereInput {
     const createdAt: Prisma.DateTimeFilter = {};
     // En Cancelados el rango mira la fecha de CANCELACIÓN, que es la que la
     // pestaña muestra: filtrar por la del despacho mentiría.
     const campo = options.status === "canceled" ? "canceledAt" : "createdAt";
 
     if (options.from !== undefined) {
-      createdAt.gte = options.from;
+      createdAt.gte = startOfDayUtc(options.from, zona);
     }
     if (options.to !== undefined) {
-      createdAt.lte = options.to;
+      createdAt.lt = endOfDayUtc(options.to, zona);
     }
     if (options.olderThanDays !== undefined) {
       const corte = new Date(Date.now() - options.olderThanDays * MS_POR_DIA);
