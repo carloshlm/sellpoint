@@ -248,6 +248,30 @@
       "filterCurrency": "Currency",
       "allCurrencies": "All"
     },
+    "payment": {
+      "view": "View",
+      "detailTitle": "Payment detail",
+      "close": "Close detail",
+      "recorded": "Recorded",
+      "voided": "Voided",
+      "paidAt": "Payment date",
+      "plan": "Plan",
+      "cycle": "Cycle",
+      "cycles": {
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "method": "Method",
+      "period": "Period",
+      "gross": "Plan charge",
+      "discount": "Discount",
+      "amount": "Amount received",
+      "currency": "Currency",
+      "notes": "Notes",
+      "createdAt": "Recorded on",
+      "voidedAt": "Voided on",
+      "voidReason": "Void reason"
+    },
     "capabilities": {
       "pos": "Point of sale and receipts",
       "stockControl": "Inventory control",

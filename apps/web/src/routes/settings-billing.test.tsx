@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import * as billingApi from "@/lib/billing/api";
@@ -97,6 +98,9 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
           grossAmount: "499.00",
           discountAmount: "0",
           notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
         },
       ],
       activeDiscount: null,
@@ -144,6 +148,9 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
           grossAmount: "499.00",
           discountAmount: "199.00",
           notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
         },
       ],
       activeDiscount: null,
@@ -152,11 +159,85 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
 
     await renderBilling(["tenants:manage"]);
 
-    // El período, con el fin como límite ABIERTO: cubrió hasta el 5-sep.
-    expect(await screen.findByText(/Período: 5\/8\/2026 — 5\/9\/2026/)).toBeInTheDocument();
-    // Lo que entró y lo que se le perdonó, ambos a la vista.
-    expect(screen.getByText(/\$300\.00/)).toBeInTheDocument();
-    expect(screen.getByText(/descuento \$199\.00/)).toBeInTheDocument();
+    // Misma tabla que el backoffice (Carlos, 2026-09-02): el pago real en
+    // verde, el descuento en su caja amarilla, y el período con el fin como
+    // límite ABIERTO: cubrió hasta el 5-sep.
+    const fila = (await screen.findByText("$300.00")).closest("tr") as HTMLElement;
+    expect(fila).toHaveClass("bg-success-soft");
+    expect(within(fila).getByText(/5\/8\/2026 — 5\/9\/2026/)).toBeInTheDocument();
+    expect(screen.getByText("$199.00")).toHaveClass("bg-warning-soft");
+  });
+
+  /**
+   * Carlos (2026-09-02): del lado del cliente, el mismo estilo que en el
+   * backoffice — anulados tenues — y un «Ver» que abre abajo el detalle del
+   * pago, con el motivo de la anulación si la hubo.
+   */
+  it("anulado tenue, y «Ver» abre abajo el detalle de ese pago", async () => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-06T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [
+        {
+          id: "pay-1",
+          paidAt: "2026-08-05T18:00:00.000Z",
+          amount: "499.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "recorded",
+          periodStart: "2026-08-05T18:00:00.000Z",
+          periodEnd: "2026-09-06T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
+          notes: null,
+          createdAt: "2026-08-05T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
+        },
+        {
+          id: "pay-0",
+          paidAt: "2026-07-05T18:00:00.000Z",
+          amount: "499.00",
+          currency: "MXN",
+          method: "cash",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "voided",
+          periodStart: "2026-07-05T18:00:00.000Z",
+          periodEnd: "2026-08-06T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
+          notes: null,
+          createdAt: "2026-07-05T18:05:00.000Z",
+          voidedAt: "2026-07-07T15:00:00.000Z",
+          voidReason: "transferencia rebotada",
+        },
+      ],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+    });
+
+    await renderBilling(["tenants:manage"]);
+    const user = userEvent.setup();
+
+    const anulado = (await screen.findByText("Efectivo")).closest("tr") as HTMLElement;
+    expect(anulado.className).toMatch(/opacity-/);
+    expect(anulado.className).not.toMatch(/line-through/);
+    expect(screen.queryByTestId("payment-detail")).not.toBeInTheDocument();
+
+    await user.click(within(anulado).getByRole("button", { name: "Ver" }));
+    const detalle = screen.getByTestId("payment-detail");
+    expect(detalle).toHaveFocus();
+    expect(within(detalle).getByText("transferencia rebotada")).toBeInTheDocument();
+    expect(within(detalle).getByText(/7\/7\/2026/)).toBeInTheDocument();
   });
 
   /**

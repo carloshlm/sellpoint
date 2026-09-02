@@ -51,6 +51,10 @@ export interface MyBilling {
     grossAmount: string;
     discountAmount: string;
     notes: string | null;
+    /** Cuándo se capturó el pago (no cuándo se pagó): el segundo criterio de orden. */
+    createdAt: string;
+    voidedAt: string | null;
+    voidReason: string | null;
   }[];
   activeDiscount: {
     kind: string;

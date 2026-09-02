@@ -43,7 +43,7 @@ describe("el estilo compartido de los listados", () => {
     "pos/quotes-list.tsx",
     "pos/sales-history.tsx",
     "../routes/admin.billing.tsx",
-    "billing/tenant-detail-dialog.tsx",
+    "billing/payment-history-table.tsx",
   ])("%s toma el encabezado y el resaltado de las constantes compartidas", (ruta) => {
     const codigo = fuente(ruta);
 

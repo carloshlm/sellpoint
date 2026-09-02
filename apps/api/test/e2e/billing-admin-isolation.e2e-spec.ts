@@ -171,6 +171,52 @@ describe("Aislamiento del backoffice (F7-E2E-06)", () => {
       expect(Number(mrr.MXN)).toBeGreaterThanOrEqual(499);
       expect(Number(mrr.CAD)).toBeGreaterThanOrEqual(59);
     });
+
+    /**
+     * Carlos (2026-09-02): «ordénalos por fecha de pago descendente y después
+     * por fecha de creación descendente». Dos pagos del mismo día se leen del
+     * registrado más tarde al más temprano — y el cliente, en /billing/me,
+     * los ve en el MISMO orden que el backoffice.
+     */
+    it("el historial va por fecha de pago y, a igual fecha, por registro más reciente", async () => {
+      const pagar = (paidAt: string, notes: string) =>
+        request(app.getHttpServer())
+          .post(`/admin/billing/tenants/${negocioB.tenantId}/payments`)
+          .set("Authorization", bearer(admin.token))
+          .send({
+            billingCycle: "monthly",
+            method: "transfer",
+            paidAt,
+            amountReceived: "59.00",
+            notes,
+          })
+          .expect(201);
+      // Ningún pago puede ir ANTES del último registrado, así que el «más
+      // viejo» entra primero; los otros dos comparten el MISMO instante y
+      // solo los separa el orden en que se capturaron.
+      const viejo = new Date().toISOString();
+      await pagar(viejo, "más viejo");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const mismoDia = new Date().toISOString();
+      await pagar(mismoDia, "primero");
+      await pagar(mismoDia, "segundo");
+
+      const leerNotas = async (ruta: string, token: string) => {
+        const res = await request(app.getHttpServer())
+          .get(ruta)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        return (res.body as { payments: { notes: string | null }[] }).payments
+          .map((p) => p.notes)
+          .filter((n): n is string => n !== null);
+      };
+
+      const esperado = ["segundo", "primero", "más viejo"];
+      expect(await leerNotas(`/admin/billing/tenants/${negocioB.tenantId}`, admin.token)).toEqual(
+        esperado,
+      );
+      expect(await leerNotas("/billing/me", negocioB.token)).toEqual(esperado);
+    });
   });
 
   describe("las cuatro llaves de la puerta", () => {

@@ -248,6 +248,30 @@
       "filterCurrency": "Moneda",
       "allCurrencies": "Todas"
     },
+    "payment": {
+      "view": "Ver",
+      "detailTitle": "Detalle del pago",
+      "close": "Cerrar detalle",
+      "recorded": "Registrado",
+      "voided": "Anulado",
+      "paidAt": "Fecha de pago",
+      "plan": "Plan",
+      "cycle": "Ciclo",
+      "cycles": {
+        "monthly": "Mensual",
+        "yearly": "Anual"
+      },
+      "method": "Método",
+      "period": "Período",
+      "gross": "Cargo del plan",
+      "discount": "Descuento",
+      "amount": "Monto recibido",
+      "currency": "Moneda",
+      "notes": "Notas",
+      "createdAt": "Registrado el",
+      "voidedAt": "Anulado el",
+      "voidReason": "Motivo de la anulación"
+    },
     "capabilities": {
       "pos": "Punto de venta y tickets",
       "stockControl": "Control de inventario",

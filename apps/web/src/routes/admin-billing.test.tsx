@@ -128,6 +128,9 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           grossAmount: "499.00",
           discountAmount: "0",
           notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
         },
       ],
       activeDiscount: null,
@@ -482,6 +485,9 @@ describe("el historial de pagos se lee de un vistazo", () => {
           grossAmount: "499.00",
           discountAmount: "100.00",
           notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
         },
         {
           id: "p2",
@@ -497,6 +503,9 @@ describe("el historial de pagos se lee de un vistazo", () => {
           grossAmount: "499.00",
           discountAmount: "0",
           notes: null,
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
         },
       ],
       activeDiscount: null,
@@ -513,6 +522,96 @@ describe("el historial de pagos se lee de un vistazo", () => {
     expect(anulado.className).toMatch(/opacity-/);
     expect(anulado.className).not.toMatch(/line-through/);
     expect(screen.getByText("$100.00")).toHaveClass("bg-warning-soft");
+  });
+
+  /**
+   * Carlos (2026-09-02): «No me interesa que salgan todos los detalles de
+   * todos los pagos». Las notas ya no se listan bajo la tabla: cada fila
+   * tiene «Ver», y abajo aparece el detalle de ESE pago — todo el registro
+   * más el motivo de la anulación cuando la hubo. El panel recibe el foco
+   * para que la vista baje sola hasta él.
+   */
+  it("«Ver» abre abajo el detalle de ese pago, con su motivo de anulación", async () => {
+    mockedDetail.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-28T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [
+        {
+          id: "p1",
+          paidAt: "2026-08-28T18:00:00.000Z",
+          amount: "399.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "recorded",
+          periodStart: "2026-08-28T06:00:00.000Z",
+          periodEnd: "2026-09-28T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "100.00",
+          notes: "transfirió 399 por acuerdo con ventas",
+          createdAt: "2026-08-28T18:05:00.000Z",
+          voidedAt: null,
+          voidReason: null,
+        },
+        {
+          id: "p2",
+          paidAt: "2026-08-10T18:00:00.000Z",
+          amount: "499.00",
+          currency: "MXN",
+          method: "transfer",
+          billingCycle: "monthly",
+          planCode: "plus",
+          status: "voided",
+          periodStart: "2026-08-10T06:00:00.000Z",
+          periodEnd: "2026-09-10T06:00:00.000Z",
+          grossAmount: "499.00",
+          discountAmount: "0",
+          notes: null,
+          createdAt: "2026-08-10T18:05:00.000Z",
+          voidedAt: "2026-08-12T15:00:00.000Z",
+          voidReason: "transferencia rebotada",
+        },
+      ],
+      activeDiscount: null,
+      timezone: "America/Mexico_City",
+    });
+    await renderAdmin(true);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Acme" }));
+    await screen.findByTestId("tenant-detail");
+
+    // Sin elegir un pago, ni las notas ni el motivo están a la vista.
+    expect(screen.queryByText(/transfirió 399/)).not.toBeInTheDocument();
+    expect(screen.queryByText("transferencia rebotada")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("payment-detail")).not.toBeInTheDocument();
+
+    const [verReal, verAnulado] = screen.getAllByRole("button", { name: "Ver" }) as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    await user.click(verAnulado);
+    const detalle = screen.getByTestId("payment-detail");
+    expect(detalle).toHaveFocus();
+    expect(within(detalle).getByText("transferencia rebotada")).toBeInTheDocument();
+    // Cuándo se anuló, en el calendario del negocio.
+    expect(within(detalle).getByText(/12\/8\/2026/)).toBeInTheDocument();
+    expect(within(detalle).queryByText(/transfirió 399/)).not.toBeInTheDocument();
+
+    // Elegir otro pago cambia el detalle: solo ESE pago, nunca los dos.
+    await user.click(verReal);
+    const otro = screen.getByTestId("payment-detail");
+    expect(within(otro).getByText(/transfirió 399/)).toBeInTheDocument();
+    expect(within(otro).queryByText("transferencia rebotada")).not.toBeInTheDocument();
+    // El cargo del plan y el descuento, además del monto recibido.
+    expect(within(otro).getByText("$499.00")).toBeInTheDocument();
+    expect(within(otro).getByText("$100.00")).toBeInTheDocument();
   });
 });
 

@@ -1,16 +1,13 @@
-import { formatMoney } from "@sellpoint/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ScrollableTable } from "@/components/ui/scrollable-table";
-import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
 import { getAdminTenantDetail, voidPayment } from "@/lib/billing/api";
-import { formatDeadline, formatInstant } from "@/lib/billing/dates";
+import { formatDeadline } from "@/lib/billing/dates";
+import { PaymentHistoryTable } from "./payment-history-table";
 
 /**
  * El expediente de UN negocio dentro del backoffice: su suscripción, su
@@ -20,8 +17,8 @@ import { formatDeadline, formatInstant } from "@/lib/billing/dates";
  *
  * Un backoffice de cobros sin historial obliga a confiar en la memoria para
  * responder "¿este ya me pagó agosto?". El historial ES la respuesta, y por
- * eso trae también el período que cubrió cada pago y sus notas, que es donde
- * queda dicho cuando el cliente transfirió una cifra distinta.
+ * eso trae también el período que cubrió cada pago; las notas y el motivo de
+ * una anulación se leen en el detalle de cada pago (Carlos, 2026-09-02).
  *
  * Anular vive acá y no en la tabla: es una corrección sobre UN pago
  * concreto, y solo se puede elegir bien teniéndolos todos a la vista.
@@ -60,7 +57,6 @@ export function TenantDetailDialog({
   const locale = i18n.language === "en" ? "en" : "es";
   const timeZone = data?.timezone ?? undefined;
   const vence = (iso: string | null) => formatDeadline(iso, timeZone, locale);
-  const fecha = (iso: string | null) => formatInstant(iso, timeZone, locale);
 
   return (
     <Dialog
@@ -94,95 +90,26 @@ export function TenantDetailDialog({
 
         <div>
           <h3 className="mb-2 font-medium text-sm">{t("common.billing.admin.history")}</h3>
-          {data && data.payments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">{t("common.billing.admin.noPayments")}</p>
-          ) : (
-            <ScrollableTable>
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className={`border-b ${TABLE_HEAD_ROW}`}>
-                    <th className="px-2 py-1">{t("common.billing.admin.paidAt")}</th>
-                    <th className="px-2 py-1">{t("common.billing.admin.plan")}</th>
-                    <th className="px-2 py-1">{t("common.billing.admin.method")}</th>
-                    <th className="px-2 py-1">{t("common.billing.admin.period")}</th>
-                    <th className="px-2 py-1 text-right">
-                      {t("common.billing.admin.discountAmount")}
-                    </th>
-                    <th className="px-2 py-1 text-right">{t("common.billing.admin.amount")}</th>
-                    <th className="px-2 py-1" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data?.payments ?? []).map((pago) => (
-                    <tr
-                      key={pago.id}
-                      // Un pago real lleva el verde de «pago exitoso»; uno anulado se
-                      // ve TENUE, no tachado (Carlos, 2026-09-02): sigue legible y
-                      // se entiende que ya no cuenta.
-                      className={`border-b ${TABLE_ROW_HOVER} ${pago.status === "voided" ? "opacity-50" : "bg-success-soft"}`}
-                    >
-                      <td className="px-2 py-1">{fecha(pago.paidAt)}</td>
-                      <td className="px-2 py-1">{pago.planCode}</td>
-                      <td className="px-2 py-1">{t(`common.billing.me.method.${pago.method}`)}</td>
-                      <td className="px-2 py-1 whitespace-nowrap">
-                        {fecha(pago.periodStart)} — {vence(pago.periodEnd)}
-                      </td>
-                      <td className="px-2 py-1 text-right tabular-nums">
-                        {Number(pago.discountAmount) > 0 ? (
-                          // En caja amarilla: un descuento es una excepción que
-                          // alguien decidió, y tiene que saltar a la vista.
-                          <Badge variant="warning">
-                            {formatMoney(
-                              Number(pago.discountAmount),
-                              // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot
-                              pago.currency as any,
-                              locale,
-                            )}
-                          </Badge>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-right font-medium tabular-nums">
-                        {formatMoney(
-                          Number(pago.amount),
-                          // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot del pago
-                          pago.currency as any,
-                          locale,
-                        )}
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        {pago.status === "voided" ? (
-                          <span className="text-xs">{t("common.billing.admin.voided")}</span>
-                        ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setAnulando(pago.id)}
-                          >
-                            {t("common.billing.admin.void")}
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ScrollableTable>
-          )}
-          {/* Las notas explican los cobros que no cuadran con la tarifa. */}
-          {(data?.payments ?? []).some((p) => p.notes) ? (
-            <ul className="mt-2 space-y-1 text-muted-foreground text-xs">
-              {(data?.payments ?? [])
-                .filter((p) => p.notes)
-                .map((p) => (
-                  <li key={`nota-${p.id}`}>
-                    {fecha(p.paidAt)}: {p.notes}
-                  </li>
-                ))}
-            </ul>
-          ) : null}
+          <PaymentHistoryTable
+            payments={data?.payments}
+            timeZone={timeZone}
+            locale={locale}
+            emptyText={t("common.billing.admin.noPayments")}
+            renderAction={(pago) =>
+              pago.status === "voided" ? (
+                <span className="text-xs">{t("common.billing.admin.voided")}</span>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAnulando(pago.id)}
+                >
+                  {t("common.billing.admin.void")}
+                </Button>
+              )
+            }
+          />
         </div>
 
         {anulando !== null ? (

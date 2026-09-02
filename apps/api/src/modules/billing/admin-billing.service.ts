@@ -242,7 +242,9 @@ export class AdminBillingService {
       }
       const payments = await tx.subscriptionPayment.findMany({
         where: { subscriptionId: subscription.id },
-        orderBy: { paidAt: "desc" },
+        // Por fecha de pago y, a igual fecha, por captura más reciente (Carlos,
+        // 2026-09-02): dos pagos del mismo día se leen del último al primero.
+        orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
         take: 50,
       });
       const activeDiscount = await tx.tenantDiscount.findFirst({
