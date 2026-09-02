@@ -233,12 +233,12 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     expect(anulado.className).not.toMatch(/opacity-/);
     expect(screen.getByText("Efectivo")).toHaveClass("line-through");
     const real = screen.getByText("Transferencia").closest("tr") as HTMLElement;
-    expect(within(anulado).getByRole("button", { name: "Ver" }).className).toBe(
-      within(real).getByRole("button", { name: "Ver" }).className,
+    expect(within(anulado).getByRole("button", { name: /^Ver pago del/ }).className).toBe(
+      within(real).getByRole("button", { name: /^Ver pago del/ }).className,
     );
     expect(screen.queryByTestId("payment-detail")).not.toBeInTheDocument();
 
-    await user.click(within(anulado).getByRole("button", { name: "Ver" }));
+    await user.click(within(anulado).getByRole("button", { name: /^Ver pago del/ }));
     const detalle = screen.getByTestId("payment-detail");
     expect(detalle).toHaveFocus();
     expect(within(detalle).getByText("transferencia rebotada")).toBeInTheDocument();

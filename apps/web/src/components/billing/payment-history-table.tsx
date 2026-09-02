@@ -105,6 +105,9 @@ export function PaymentHistoryTable({
                     size="sm"
                     variant="outline"
                     aria-pressed={pago.id === selectedId}
+                    // El texto visible es «Ver»; el nombre accesible dice CUÁL pago,
+                    // para que un lector de pantalla no oiga diez botones iguales.
+                    aria-label={t("common.billing.payment.viewOf", { date: fecha(pago.paidAt) })}
                     onClick={() => setSelectedId(pago.id)}
                   >
                     {t("common.billing.payment.view")}

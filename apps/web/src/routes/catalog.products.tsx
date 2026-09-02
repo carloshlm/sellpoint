@@ -272,6 +272,7 @@ function ProductsContent() {
                         pantalla no le iba a dar. */}
                     <RowAction
                       intent="view"
+                      aria-label={t("products.viewOf", { name: product.name })}
                       onClick={() => navigate({ search: { open: product.id } })}
                     />
                     {canManage && (

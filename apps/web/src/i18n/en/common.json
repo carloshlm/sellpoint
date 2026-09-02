@@ -224,7 +224,7 @@
       "amountReceived": "Amount received (optional)",
       "notes": "Notes",
       "confirmPayment": "Record",
-      "detail": "View details",
+      "detail": "View",
       "detailTitle": "{{tenant}}",
       "noSubscription": "No subscription",
       "history": "Payment history",
@@ -250,6 +250,7 @@
     },
     "payment": {
       "view": "View",
+      "viewOf": "View payment of {{date}}",
       "detailTitle": "Payment detail",
       "close": "Close detail",
       "recorded": "Recorded",

@@ -235,6 +235,9 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
 
     expect(await screen.findByTestId("tenant-detail")).toBeInTheDocument();
     expect(mockedDetail).toHaveBeenCalledWith("t1");
+    // En una tabla, abrir la ficha se llama «Ver» — igual que en productos y pagos
+    // (Carlos, 2026-09-02). El botón de la lista sigue en el DOM detrás del diálogo.
+    expect(screen.getByRole("button", { name: "Ver" })).toBeInTheDocument();
     expect(screen.getByText("$499.00")).toBeInTheDocument();
     // El período que cubrió el pago: la respuesta a "¿hasta cuándo pagó?".
     expect(screen.getByText(/28\/8\/2026 — 27\/9\/2026/)).toBeInTheDocument();
@@ -524,8 +527,8 @@ describe("el historial de pagos se lee de un vistazo", () => {
     // demás filas, porque en todas tiene acción.
     expect(anulado.className).not.toMatch(/opacity-/);
     expect(within(anulado).getByText("Transferencia")).toHaveClass("line-through");
-    const verReal = within(real).getByRole("button", { name: "Ver" });
-    const verAnulado = within(anulado).getByRole("button", { name: "Ver" });
+    const verReal = within(real).getByRole("button", { name: /^Ver pago del/ });
+    const verAnulado = within(anulado).getByRole("button", { name: /^Ver pago del/ });
     expect(verAnulado.className).toBe(verReal.className);
     // Sin apagarlo: el `disabled:opacity-50` del botón base no cuenta, es su estado deshabilitado.
     expect(verAnulado.className).not.toMatch(/(^|\s)(line-through|opacity-)/);
@@ -600,7 +603,7 @@ describe("el historial de pagos se lee de un vistazo", () => {
     expect(screen.queryByText("transferencia rebotada")).not.toBeInTheDocument();
     expect(screen.queryByTestId("payment-detail")).not.toBeInTheDocument();
 
-    const [verReal, verAnulado] = screen.getAllByRole("button", { name: "Ver" }) as [
+    const [verReal, verAnulado] = screen.getAllByRole("button", { name: /^Ver pago del/ }) as [
       HTMLElement,
       HTMLElement,
     ];
