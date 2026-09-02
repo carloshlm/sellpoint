@@ -1,4 +1,4 @@
-import type { PlanFeatures, SubscriptionBlock } from "@sellpoint/shared";
+import type { ModuleKey, PlanFeatures, SubscriptionBlock } from "@sellpoint/shared";
 import { api } from "@/lib/api";
 
 export type { SubscriptionBlock };
@@ -64,6 +64,8 @@ export interface MyBilling {
   } | null;
   /** La zona del negocio: sus fechas de cobro se leen en SU calendario. */
   timezone: string;
+  /** F9-MOD-05 — los módulos avanzados activos (solo claves del catálogo). */
+  modules: ModuleKey[];
 }
 
 export async function getMyBilling(): Promise<MyBilling> {

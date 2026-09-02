@@ -3462,12 +3462,12 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** unit — `plus` sin `customPrice` → 422 y sin fila; con precio → `premium` + fila + invalidate una vez; activar dos veces es idempotente; desactivar el último deja `premium`; sin suscripción → 404 `billing.subscription_not_found`.
   - **Depende de:** F9-MOD-03 · **Estimación:** 3 h
 
-- [ ] **F9-MOD-05** — `POST` / `DELETE /admin/billing/tenants/:tenantId/modules`
+- [x] **F9-MOD-05** *(cerrada el 2026-09-02 — DELETE con `:moduleKey` en la ruta y `reason` en el body, como los cupones)* — `POST` / `DELETE /admin/billing/tenants/:tenantId/modules`
   - **Salida:** rutas en `admin-billing.controller.ts` (heredan guard y `@AllowedInFreeTier`), DTOs `enableModuleSchema` (`moduleKey`, `customPrice?`, `notes?`, `reason`) y `reasonSchema` en `dto/admin-billing.dto.ts`; `GET /admin/billing/tenants/:id` devuelve `modules`.
   - **Verificar:** e2e con `makePlatformAdmin` — activar → 200 y plan `premium`; TenantAdmin normal → 403; sin `reason` → 400; `moduleKey` inválida → 400.
   - **Depende de:** F9-MOD-04 · **Estimación:** 2 h
 
-- [ ] **F9-MOD-06** — `@RequiresModule` en `SubscriptionGuard` (bloquea también las lecturas)
+- [x] **F9-MOD-06** *(cerrada el 2026-09-02 — mutante cazado: mover el chequeo detrás del escape de GET pone un test en rojo)* — `@RequiresModule` en `SubscriptionGuard` (bloquea también las lecturas)
   - **Salida:** `decorators/requires-module.decorator.ts` + rama en `guards/subscription.guard.ts` ANTES del early-return de GET/HEAD y después de `@Public`/`@AllowedInFreeTier`; resuelve entitlements solo si el decorador está presente; 402 `billing.module_not_enabled` en `i18n/{es,en}/billing.json`.
   - **Verificar:** unit — módulo apagado → 402 en GET y en POST; prendido → pasa; handler sin decorador → cero `resolve()` extra en un GET; `message-keys.spec` verde.
   - **Depende de:** F9-MOD-03 · **Estimación:** 2.5 h
@@ -3487,7 +3487,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** e2e — dos tenants, uno con módulo: `["reception"]` y `[]`, en una sola query.
   - **Depende de:** F9-MOD-02 · **Estimación:** 1.5 h
 
-- [ ] **F9-MOD-10** — e2e del ciclo de vida del módulo
+- [x] **F9-MOD-10** *(cerrada el 2026-09-02 — el 402 sobre una ruta real queda para F9-RECEP-14: hoy ningún controller lleva el decorador)* — e2e del ciclo de vida del módulo
   - **Salida:** `apps/api/test/e2e/tenant-modules.e2e-spec.ts` sobre `support/billing-scenario.ts`.
   - **Verificar:** activar sin precio sobre `plus` → 422 sin fila; con precio → `GET /me` del cliente trae `modules: ["reception"]` y `planCode: "premium"`; desactivar → `[]` y sigue `premium`; ruta con `@RequiresModule` → 402 en GET tras desactivar; `audit_logs` guarda ambas acciones con la razón.
   - **Depende de:** F9-MOD-05, F9-MOD-06 · **Estimación:** 2.5 h

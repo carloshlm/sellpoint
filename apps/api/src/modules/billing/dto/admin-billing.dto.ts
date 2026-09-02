@@ -1,5 +1,6 @@
 import {
   BILLING_CYCLES,
+  moduleKeySchema,
   PLAN_CODES,
   planFeaturesSchema,
   SUBSCRIPTION_PAYMENT_METHODS,
@@ -60,6 +61,19 @@ export const reasonSchema = z.object({
   reason: z.string().trim().min(1).max(500),
 });
 export type ReasonDto = z.infer<typeof reasonSchema>;
+
+/**
+ * F9-MOD-05 — activar un módulo avanzado. `customPrice` es opcional a
+ * propósito: la invariante «Premium exige precio pactado» la impone
+ * `changePlan` (422), no este schema — una sola fuente de verdad.
+ */
+export const enableModuleSchema = z.object({
+  moduleKey: moduleKeySchema,
+  customPrice: money.optional(),
+  notes: z.string().trim().max(500).nullable().optional(),
+  reason: z.string().trim().min(1).max(500),
+});
+export type EnableModuleDto = z.infer<typeof enableModuleSchema>;
 
 export const grantDiscountSchema = z
   .object({

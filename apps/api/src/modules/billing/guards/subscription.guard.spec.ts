@@ -2,6 +2,7 @@ import type { ExecutionContext } from "@nestjs/common";
 import { ALLOWED_IN_FREE_TIER_KEY } from "../decorators/allowed-in-free-tier.decorator";
 import { CHECK_PLAN_LIMIT_KEY } from "../decorators/check-plan-limit.decorator";
 import { REQUIRES_FEATURE_KEY } from "../decorators/requires-feature.decorator";
+import { REQUIRES_MODULE_KEY } from "../decorators/requires-module.decorator";
 import { SubscriptionGuard } from "./subscription.guard";
 
 /**
@@ -132,6 +133,51 @@ describe("SubscriptionGuard (F7-GUARD-03)", () => {
     it("Plus con el flag prendido pasa", async () => {
       metadata[REQUIRES_FEATURE_KEY] = "lots";
       await expect(guard.canActivate(contexto("PATCH"))).resolves.toBe(true);
+    });
+  });
+
+  /**
+   * F9-MOD-06 — un módulo vertical nunca estuvo en un plan público y es 90 %%
+   * lectura: apagado, se apaga ENTERO, también los GET. Los datos no se
+   * borran; reactivar los devuelve. Y el chequeo no cuesta un roundtrip de
+   * más a nadie: solo resuelve entitlements si el decorador está presente.
+   */
+  describe("módulos por tenant (@RequiresModule)", () => {
+    it("módulo apagado → 402 module_not_enabled en POST", async () => {
+      entitlements.resolve.mockResolvedValue({ ...ENTITLEMENTS_PLUS, modules: [] });
+      metadata[REQUIRES_MODULE_KEY] = "reception";
+      await expect(guard.canActivate(contexto("POST"))).rejects.toMatchObject({
+        status: 402,
+        response: { message: "billing.module_not_enabled", args: { module: "reception" } },
+      });
+    });
+
+    it("módulo apagado → 402 TAMBIÉN en GET: se apaga entero, no solo la escritura", async () => {
+      entitlements.resolve.mockResolvedValue({ ...ENTITLEMENTS_PLUS, modules: [] });
+      metadata[REQUIRES_MODULE_KEY] = "reception";
+      await expect(guard.canActivate(contexto("GET"))).rejects.toMatchObject({
+        status: 402,
+        response: { message: "billing.module_not_enabled" },
+      });
+    });
+
+    it("módulo prendido pasa, en GET y en POST", async () => {
+      entitlements.resolve.mockResolvedValue({ ...ENTITLEMENTS_PLUS, modules: ["reception"] });
+      metadata[REQUIRES_MODULE_KEY] = "reception";
+      await expect(guard.canActivate(contexto("GET"))).resolves.toBe(true);
+      await expect(guard.canActivate(contexto("POST"))).resolves.toBe(true);
+    });
+
+    it("sin el decorador, un GET sigue sin resolver entitlements", async () => {
+      await expect(guard.canActivate(contexto("GET"))).resolves.toBe(true);
+      expect(entitlements.resolve).not.toHaveBeenCalled();
+    });
+
+    it("@Public y @AllowedInFreeTier siguen ganando aunque el handler exija módulo", async () => {
+      metadata[REQUIRES_MODULE_KEY] = "reception";
+      metadata[ALLOWED_IN_FREE_TIER_KEY] = true;
+      await expect(guard.canActivate(contexto("GET"))).resolves.toBe(true);
+      expect(entitlements.resolve).not.toHaveBeenCalled();
     });
   });
 

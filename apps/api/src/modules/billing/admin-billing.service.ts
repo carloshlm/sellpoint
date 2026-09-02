@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import {
   computeChargeAmount,
+  MODULE_KEYS,
+  type ModuleKey,
   type PlanFeatures,
   planFeaturesSchema,
   resolveMarket,
@@ -250,7 +252,17 @@ export class AdminBillingService {
       const activeDiscount = await tx.tenantDiscount.findFirst({
         where: { tenantId, isActive: true },
       });
-      return { subscription, payments, activeDiscount };
+      // F9-MOD-05: los módulos avanzados vigentes (solo claves del catálogo).
+      const filasModulos = await tx.tenantModule.findMany({
+        where: { tenantId },
+        select: { moduleKey: true },
+        orderBy: { moduleKey: "asc" },
+      });
+      const conocidas = new Set<string>(MODULE_KEYS);
+      const modules = filasModulos
+        .map((f) => f.moduleKey)
+        .filter((k): k is ModuleKey => conocidas.has(k));
+      return { subscription, payments, activeDiscount, modules };
     });
 
     if (detalle) {
@@ -278,6 +290,7 @@ export class AdminBillingService {
       },
       payments: [],
       activeDiscount: null,
+      modules: [] as ModuleKey[],
       timezone,
     };
   }

@@ -105,6 +105,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
       ],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
 
     await renderBilling(["tenants:manage"]);
@@ -155,6 +156,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
       ],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
 
     await renderBilling(["tenants:manage"]);
@@ -223,6 +225,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
       ],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
 
     await renderBilling(["tenants:manage"]);
@@ -263,6 +266,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
       payments: [],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
 
     await renderBilling(["tenants:manage"], { overdue: true, status: "active" });
@@ -284,6 +288,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
       payments: [],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
     await renderBilling(["products:read"]);
 

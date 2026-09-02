@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { type ModuleKey, moduleKeySchema } from "@sellpoint/shared";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -7,6 +8,8 @@ import { BillingService } from "./billing.service";
 import { BillingDailyJob } from "./billing-daily.job";
 import { AllowedInFreeTier } from "./decorators/allowed-in-free-tier.decorator";
 import {
+  type EnableModuleDto,
+  enableModuleSchema,
   type GrantDiscountDto,
   grantDiscountSchema,
   type PatchSubscriptionDto,
@@ -21,6 +24,7 @@ import {
   voidPaymentSchema,
 } from "./dto/admin-billing.dto";
 import { PlatformAdminGuard } from "./guards/platform-admin.guard";
+import { TenantModulesService } from "./tenant-modules.service";
 
 /**
  * F7-ADMIN — el backoffice del dueño de la plataforma.
@@ -38,6 +42,7 @@ export class AdminBillingController {
     private readonly adminBilling: AdminBillingService,
     private readonly billing: BillingService,
     private readonly dailyJob: BillingDailyJob,
+    private readonly tenantModules: TenantModulesService,
   ) {}
 
   @Get("tenants")
@@ -145,6 +150,36 @@ export class AdminBillingController {
    * mira qué movió") y para los e2e. Idempotente por construcción: correrlo
    * dos veces no degrada ni avisa dos veces.
    */
+  /**
+   * F9-MOD-05 — los módulos avanzados del negocio. Activar uno lo vuelve
+   * Premium con precio pactado (lo hace `changePlan`); desactivar NO degrada
+   * el plan. Ambos responden con la lista de módulos vigente.
+   */
+  @Post("tenants/:tenantId/modules")
+  enableModule(
+    @Param("tenantId") tenantId: string,
+    @Body(new ZodValidationPipe(enableModuleSchema, "billing.invalid_body"))
+    dto: EnableModuleDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tenantModules.enable(tenantId, { ...dto, changedBy: user.userId });
+  }
+
+  @Delete("tenants/:tenantId/modules/:moduleKey")
+  disableModule(
+    @Param("tenantId") tenantId: string,
+    @Param("moduleKey", new ZodValidationPipe(moduleKeySchema, "billing.invalid_body"))
+    moduleKey: ModuleKey,
+    @Body(new ZodValidationPipe(reasonSchema, "billing.invalid_body")) dto: ReasonDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tenantModules.disable(tenantId, {
+      moduleKey,
+      reason: dto.reason,
+      changedBy: user.userId,
+    });
+  }
+
   @Post("jobs/run-daily")
   async runDaily() {
     await this.dailyJob.run(new Date());

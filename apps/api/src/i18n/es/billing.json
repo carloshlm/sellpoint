@@ -5,6 +5,7 @@
   "discount_above_charge": "El descuento ({discount}) no puede ser mayor que el precio del plan ({gross}).",
   "discount_overlap": "Ya hay un descuento activo para este negocio. Revoca el vigente antes de otorgar otro.",
   "feature_not_in_plan": "Tu plan no incluye esta función. Mejora tu plan para activarla.",
+  "module_not_enabled": "Este módulo no está activo en tu negocio. Escríbenos para activarlo.",
   "invalid_amount": "El monto no es válido: usa números con hasta dos decimales.",
   "invalid_body": "Revisa los datos enviados.",
   "not_platform_admin": "Esta sección es solo para la administración de la plataforma.",

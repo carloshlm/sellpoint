@@ -135,6 +135,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
       ],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
   });
 
@@ -513,6 +514,7 @@ describe("el historial de pagos se lee de un vistazo", () => {
       ],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
     await renderAdmin(true);
     const user = userEvent.setup();
@@ -592,6 +594,7 @@ describe("el historial de pagos se lee de un vistazo", () => {
       ],
       activeDiscount: null,
       timezone: "America/Mexico_City",
+      modules: [],
     });
     await renderAdmin(true);
     const user = userEvent.setup();
