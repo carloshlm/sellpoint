@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
@@ -488,5 +488,67 @@ describe("Recepción ya empezada", () => {
 
     expect(await screen.findByRole("button", { name: /^recibir$/i })).toBeInTheDocument();
     expect(screen.queryByTestId("continue-receipt")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-09-01): la pestaña «Cancelados» lleva los mismos filtros que
+ * los otros listados de movimientos —folio, almacén, desde y hasta— y deja
+ * de ofrecer «Destino», que era el filtro de lo pendiente.
+ */
+describe("los filtros de la pestaña Cancelados", () => {
+  async function irACancelados() {
+    const { user } = await renderTransfers();
+    await user.click(await screen.findByRole("tab", { name: /cancelados/i }));
+    await waitFor(() => {
+      expect(mocked.listTransfers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "canceled" }),
+      );
+    });
+    return user;
+  }
+
+  it("ofrece folio, almacén, desde y hasta; «Destino» solo vive en lo pendiente", async () => {
+    await irACancelados();
+
+    expect(screen.getByLabelText(/buscar por folio/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^almacén$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/desde/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/hasta/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^destino$/i)).not.toBeInTheDocument();
+  });
+
+  it("el folio viaja al servidor, desde la página 1", async () => {
+    const user = await irACancelados();
+
+    await user.type(screen.getByLabelText(/buscar por folio/i), "SAL-000008");
+
+    await waitFor(() => {
+      expect(mocked.listTransfers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "canceled", folio: "SAL-000008", page: 1 }),
+      );
+    });
+  });
+
+  it("el almacén y el rango viajan como `warehouseId`, `from` y `to`", async () => {
+    const user = await irACancelados();
+
+    await user.selectOptions(screen.getByLabelText(/^almacén$/i), "w2");
+    fireEvent.change(screen.getByLabelText(/desde/i), { target: { value: "2026-09-01" } });
+    fireEvent.change(screen.getByLabelText(/hasta/i), { target: { value: "2026-09-02" } });
+
+    await waitFor(() => {
+      expect(mocked.listTransfers).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          status: "canceled",
+          warehouseId: "w2",
+          from: "2026-09-01",
+          to: "2026-09-02",
+        }),
+      );
+    });
+    expect(mocked.listTransfers).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ destinationWarehouseId: expect.anything() }),
+    );
   });
 });

@@ -362,6 +362,75 @@ describe("Listado de traspasos (F3-TRANSFER-01)", () => {
       expect(res.body.rows).toHaveLength(1);
       expect((res.body.rows as { destination: { id: string } }[])[0]?.destination.id).toBe(sur);
     });
+
+    /**
+     * Los mismos filtros que Entradas/Salidas/Inventario, en Cancelados
+     * (Carlos, 2026-09-01): folio, almacén, desde y hasta. «Almacén» es
+     * cualquiera de las dos puntas —un cancelado le importa al origen y al
+     * destino— y el rango mira la fecha de CANCELACIÓN, que es lo que la
+     * pestaña muestra.
+     */
+    describe("los filtros de la pestaña Cancelados", () => {
+      const cancelar = (token: string, id: string) =>
+        request(app.getHttpServer())
+          .post(`/transfers/${id}/cancel`)
+          .set("Authorization", bearer(token))
+          .send({ reason: "Se canceló para la prueba" })
+          .expect(200);
+
+      it("`folio` busca por el folio del despacho, sin distinguir mayúsculas", async () => {
+        const { token, central, norte, sur, despachar } = await escenario();
+        const a = await despachar(central, norte, 10);
+        const b = await despachar(central, sur, 5);
+        await cancelar(token, a.transfer.id);
+        await cancelar(token, b.transfer.id);
+        const todos = await listar(token, "?status=canceled");
+        const folioB = (todos.body.rows as { id: string; folio: string }[]).find(
+          (r) => r.id === b.transfer.id,
+        )?.folio as string;
+
+        const res = await listar(token, `?status=canceled&folio=${folioB.toLowerCase()}`);
+
+        expect((res.body.rows as { id: string }[]).map((r) => r.id)).toEqual([b.transfer.id]);
+      });
+
+      it("`warehouseId` acota por origen O destino", async () => {
+        const { token, central, norte, sur, despachar } = await escenario();
+        const a = await despachar(central, norte, 10);
+        const b = await despachar(norte, sur, 5);
+        await cancelar(token, a.transfer.id);
+        await cancelar(token, b.transfer.id);
+
+        const porNorte = await listar(token, `?status=canceled&warehouseId=${norte}`);
+        const porSur = await listar(token, `?status=canceled&warehouseId=${sur}`);
+
+        expect((porNorte.body.rows as unknown[]).length).toBe(2);
+        expect((porSur.body.rows as { id: string }[]).map((r) => r.id)).toEqual([b.transfer.id]);
+      });
+
+      it("`from` mira la fecha de cancelación, no la del despacho", async () => {
+        const { token, tenantId, central, norte, sur, despachar } = await escenario();
+        const viejo = await despachar(central, norte, 10);
+        const reciente = await despachar(central, sur, 5);
+        await cancelar(token, viejo.transfer.id);
+        await cancelar(token, reciente.transfer.id);
+        const hace10 = new Date();
+        hace10.setDate(hace10.getDate() - 10);
+        await prisma.withTenantContext(
+          tenantId,
+          (tx) =>
+            tx.$executeRaw`UPDATE transfers SET canceled_at = ${hace10} WHERE id = ${viejo.transfer.id}::uuid`,
+        );
+        const ayer = new Date();
+        ayer.setDate(ayer.getDate() - 1);
+
+        const res = await listar(token, `?status=canceled&from=${ayer.toISOString()}`);
+
+        expect((res.body.rows as { id: string }[]).map((r) => r.id)).toEqual([
+          reciente.transfer.id,
+        ]);
+      });
+    });
   });
 
   describe("paginación", () => {

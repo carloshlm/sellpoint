@@ -66,6 +66,8 @@ export class TransfersController {
       direction,
       originWarehouseId: query.originWarehouseId || undefined,
       destinationWarehouseId: query.destinationWarehouseId || undefined,
+      warehouseId: query.warehouseId || undefined,
+      folio: query.folio?.trim() || undefined,
       from: fecha(query.from),
       to: fecha(query.to),
       olderThanDays: entero(query.olderThanDays),

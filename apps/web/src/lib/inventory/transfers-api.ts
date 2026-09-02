@@ -76,6 +76,9 @@ export interface ListTransfersParams {
   direction?: "incoming" | "outgoing";
   originWarehouseId?: string;
   destinationWarehouseId?: string;
+  /** Origen O destino: el filtro «Almacén» de la pestaña Cancelados. */
+  warehouseId?: string;
+  folio?: string;
   from?: string;
   to?: string;
   olderThanDays?: number;

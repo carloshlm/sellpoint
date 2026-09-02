@@ -24,6 +24,10 @@ export interface ListTransfersOptions {
   direction?: "incoming" | "outgoing";
   originWarehouseId?: string;
   destinationWarehouseId?: string;
+  /** Cualquiera de las dos puntas: un cancelado le importa al origen y al destino. */
+  warehouseId?: string;
+  /** Por el folio del despacho (SAL-…), sin distinguir mayúsculas. */
+  folio?: string;
   from?: Date;
   to?: Date;
   olderThanDays?: number;
@@ -67,6 +71,24 @@ export class TransfersService {
         : {}),
       ...(options.destinationWarehouseId !== undefined
         ? { destinationWarehouseId: options.destinationWarehouseId }
+        : {}),
+      // Los filtros de la pestaña Cancelados (Carlos, 2026-09-01), los mismos
+      // que Entradas/Salidas/Inventario: «Almacén» es cualquiera de las dos
+      // puntas y el folio es el del despacho.
+      ...(options.warehouseId !== undefined
+        ? {
+            OR: [
+              { originWarehouseId: options.warehouseId },
+              { destinationWarehouseId: options.warehouseId },
+            ],
+          }
+        : {}),
+      ...(options.folio !== undefined
+        ? {
+            documents: {
+              some: { type: "exit", folio: { contains: options.folio, mode: "insensitive" } },
+            },
+          }
         : {}),
       ...this.rangoDeFechas(options),
     };
@@ -671,6 +693,9 @@ export class TransfersService {
    */
   private rangoDeFechas(options: ListTransfersOptions): Prisma.TransferWhereInput {
     const createdAt: Prisma.DateTimeFilter = {};
+    // En Cancelados el rango mira la fecha de CANCELACIÓN, que es la que la
+    // pestaña muestra: filtrar por la del despacho mentiría.
+    const campo = options.status === "canceled" ? "canceledAt" : "createdAt";
 
     if (options.from !== undefined) {
       createdAt.gte = options.from;
@@ -685,6 +710,6 @@ export class TransfersService {
         createdAt.lte === undefined || corte < (createdAt.lte as Date) ? corte : createdAt.lte;
     }
 
-    return Object.keys(createdAt).length > 0 ? { createdAt } : {};
+    return Object.keys(createdAt).length > 0 ? { [campo]: createdAt } : {};
   }
 }

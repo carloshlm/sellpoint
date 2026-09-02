@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
@@ -19,6 +20,9 @@ import {
 import { WarehouseSelect } from "./warehouse-select";
 
 type Tab = "incoming" | "outgoing" | "canceled";
+
+/** Cuánto esperar antes de buscar por folio: suficiente para tipear seis dígitos. */
+const FOLIO_DEBOUNCE_MS = 300;
 
 /**
  * F3-TRANSFER-05/06/07 — traspasos en tránsito.
@@ -39,6 +43,13 @@ export function TransfersList() {
   const [errorExport, setErrorExport] = useState<string | null>(null);
   const [destinationWarehouseId, setDestination] = useState<string | null>(null);
   const [soloDemorados, setSoloDemorados] = useState(false);
+  // Los filtros de la pestaña Cancelados (Carlos, 2026-09-01): los mismos que
+  // Entradas/Salidas/Inventario. Viven aparte de «Destino», que es el filtro
+  // de lo pendiente y no se muestra en Cancelados.
+  const [folioInput, setFolioInput] = useState("");
+  const [folio, setFolio] = useState("");
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
   const [recibiendo, setRecibiendo] = useState<TransferRow | null>(null);
   const [cancelando, setCancelando] = useState<TransferRow | null>(null);
 
@@ -48,14 +59,24 @@ export function TransfersList() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
   useEffect(() => {
     setPagina(1);
-  }, [tab, destinationWarehouseId, soloDemorados]);
+  }, [tab, destinationWarehouseId, soloDemorados, folio, warehouseId, rango.from, rango.to]);
+
+  // Debounce del folio, igual que en el listado de documentos.
+  useEffect(() => {
+    const timer = setTimeout(() => setFolio(folioInput.trim()), FOLIO_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [folioInput]);
 
   // La pestaña «Cancelados» no lleva dirección: un cancelado le importa a
   // quien era origen y a quien esperaba recibirlo (Carlos, 2026-09-01).
   const enCancelados = tab === "canceled";
   const { data, isPending } = useTransfers({
     ...(enCancelados ? { status: "canceled" as const } : { direction: tab }),
-    ...(destinationWarehouseId !== null ? { destinationWarehouseId } : {}),
+    ...(!enCancelados && destinationWarehouseId !== null ? { destinationWarehouseId } : {}),
+    ...(enCancelados && folio !== "" ? { folio } : {}),
+    ...(enCancelados && warehouseId !== null ? { warehouseId } : {}),
+    ...(enCancelados && rango.from !== "" ? { from: rango.from } : {}),
+    ...(enCancelados && rango.to !== "" ? { to: rango.to } : {}),
     ...(soloDemorados && !enCancelados ? { olderThanDays: TRANSFER_STALE_DAYS } : {}),
     page: pagina,
   });
@@ -114,17 +135,44 @@ export function TransfersList() {
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
-        <div className="flex min-w-52 flex-col gap-1">
-          <label htmlFor="transfers-destination" className="font-medium text-sm">
-            {t("inventory.transfers.destination")}
-          </label>
-          <WarehouseSelect
-            id="transfers-destination"
-            value={destinationWarehouseId}
-            onChange={setDestination}
-            scoped={false}
-          />
-        </div>
+        {enCancelados ? (
+          <>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted-foreground">{t("inventory.list.searchFolio")}</span>
+              <input
+                type="search"
+                value={folioInput}
+                onChange={(event) => setFolioInput(event.target.value)}
+                placeholder={t("inventory.list.searchFolio")}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <div className="flex min-w-48 flex-col gap-1 text-sm">
+              <label htmlFor="transfers-warehouse" className="text-muted-foreground">
+                {t("inventory.warehouse.label")}
+              </label>
+              <WarehouseSelect
+                id="transfers-warehouse"
+                value={warehouseId}
+                onChange={setWarehouseId}
+                scoped={false}
+              />
+            </div>
+            <DateRangeFilter id="transfers" from={rango.from} to={rango.to} onChange={setRango} />
+          </>
+        ) : (
+          <div className="flex min-w-52 flex-col gap-1">
+            <label htmlFor="transfers-destination" className="font-medium text-sm">
+              {t("inventory.transfers.destination")}
+            </label>
+            <WarehouseSelect
+              id="transfers-destination"
+              value={destinationWarehouseId}
+              onChange={setDestination}
+              scoped={false}
+            />
+          </div>
+        )}
         {/* «Más de 7 días» habla de días EN TRÁNSITO: en cancelados no aplica. */}
         {!enCancelados && (
           <label className="flex items-center gap-2 text-sm">
