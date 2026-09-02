@@ -431,6 +431,10 @@ function NewCatalogButton({ onCreated }: { onCreated: (id: string) => void }) {
       }}
     >
       <TextField
+        // El foco entra al campo porque el formulario nació de un CLIC: no es
+        // un autofocus al cargar la página —eso sí secuestraría el teclado de
+        // quien navega—, es continuar el gesto que la persona ya empezó.
+        autoFocus
         label={t("catalogs.schema.newCatalogName")}
         value={name}
         hint={t("catalogs.schema.newCatalogHint")}

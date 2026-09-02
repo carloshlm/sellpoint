@@ -531,6 +531,15 @@ describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
 });
 
 describe("nuevo subcatálogo (Carlos, 2026-09-01)", () => {
+  it("al abrirlo, el foco cae en el nombre: se escribe sin buscar el campo con el ratón", async () => {
+    await renderSchema();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /nuevo subcatálogo/i }));
+
+    expect(await screen.findByLabelText(/nombre del subcatálogo/i)).toHaveFocus();
+  });
+
   it("al nombrarlo sugiere el plural, con ejemplos", async () => {
     await renderSchema();
     const user = userEvent.setup();
