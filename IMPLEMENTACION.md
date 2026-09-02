@@ -3638,7 +3638,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** tres turnos seguidos → 1, 2, 3; otro tenant en otra zona lleva su propia serie; turno ligado trae el nombre; borrar el cliente deja el turno con `customerId: null` y el nombre snapshot; `attend` dos veces = mismo `attendedAt`; `wait` lo revierte; `?date=` de ayer no trae los de hoy.
   - **Depende de:** F9-RECEP-08, F9-MOD-05 · **Estimación:** 3 h
 
-- [ ] **F9-RECEP-16** — Verificación visual en navegador
+- [x] **F9-RECEP-16** *(cerrada el 2026-09-02 — local con el módulo activado por SQL: alta, listado, turno con diálogo, atender y turno suelto; móvil a 390 px; el tema oscuro queda por revisar en sandbox)* — Verificación visual en navegador
   - **Salida:** recorrido Playwright de las tres pantallas en claro y oscuro, menú colapsado y expandido, móvil y escritorio; capturas en el reporte. Backoffice en sandbox: activar el módulo a un negocio de prueba y ver aparecer el grupo «Recepción» tras volver a iniciar sesión.
   - **Verificar:** el número del turno se lee de lejos; los badges contrastan en oscuro; la tabla no desborda en móvil; el grupo desaparece al apagar el módulo.
   - **Depende de:** F9-RECEP-10, F9-RECEP-11, F9-RECEP-12, F9-RECEP-13 · **Estimación:** 2 h
