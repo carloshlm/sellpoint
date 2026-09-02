@@ -3472,17 +3472,17 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** unit — módulo apagado → 402 en GET y en POST; prendido → pasa; handler sin decorador → cero `resolve()` extra en un GET; `message-keys.spec` verde.
   - **Depende de:** F9-MOD-03 · **Estimación:** 2.5 h
 
-- [ ] **F9-MOD-07** — `usePlan().hasModule(key)` en el web
+- [x] **F9-MOD-07** *(cerrada el 2026-09-02)* — `usePlan().hasModule(key)` en el web
   - **Salida:** `apps/web/src/lib/billing/use-plan.ts` expone `modules` y `hasModule`, fail-closed sin sesión.
   - **Verificar:** unit — sin sesión `false`; con `modules: ["reception"]` `true`.
   - **Depende de:** F9-MOD-01 · **Estimación:** 1 h
 
-- [ ] **F9-MOD-08** — Grupo extra en el menú por módulo activo (oculto, no con candado)
+- [x] **F9-MOD-08** *(cerrada el 2026-09-02 — `to` de las rutas del módulo tipado como string y casteado a `LinkProps["to"]`: las rutas llegan con F9-RECEP-11/13; mutante «sin gate de permiso» cazado)* — Grupo extra en el menú por módulo activo (oculto, no con candado)
   - **Salida:** `apps/web/src/lib/modules/nav.ts` con `MODULE_NAV: Record<ModuleKey, { labelKey, icon, links: { to, labelKey, permission }[] }>` y en `app-layout.tsx` un `<fieldset aria-label>` por módulo con `hasModule(key)` y al menos un link con permiso, insertado después de Reportes, sin `navLock`. Claves `common.layout.nav.modules.*`.
   - **Verificar:** test de layout — sin el módulo, no hay grupo ni candado; con `modules: ["reception"]` y el permiso, aparece.
   - **Depende de:** F9-MOD-07 · **Estimación:** 2 h
 
-- [ ] **F9-MOD-09** — `modules` en la lista cross-tenant del backoffice
+- [x] **F9-MOD-09** *(cerrada el 2026-09-02 — una sola query dentro del mismo `withBillingAdminContext`, repartida en memoria)* — `modules` en la lista cross-tenant del backoffice
   - **Salida:** `AdminBillingService.listTenants()` suma un `findMany` de `tenant_modules` dentro del `withBillingAdminContext` existente; cada fila gana `modules`; espejo en `apps/web/src/lib/billing/api.ts`.
   - **Verificar:** e2e — dos tenants, uno con módulo: `["reception"]` y `[]`, en una sola query.
   - **Depende de:** F9-MOD-02 · **Estimación:** 1.5 h

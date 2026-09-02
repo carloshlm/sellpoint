@@ -17,6 +17,7 @@ describe("AdminBillingService", () => {
     subscriptionPayment: { findMany: jest.Mock };
     tenant: { findMany: jest.Mock };
     tenantDiscount: { findFirst: jest.Mock; findMany: jest.Mock };
+    tenantModule: { findMany: jest.Mock };
     stockByWarehouse: { findMany: jest.Mock };
     plan: { findUniqueOrThrow: jest.Mock; findMany: jest.Mock; update: jest.Mock };
     planPrice: { upsert: jest.Mock };
@@ -39,6 +40,7 @@ describe("AdminBillingService", () => {
         findFirst: jest.fn().mockResolvedValue(null),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      tenantModule: { findMany: jest.fn().mockResolvedValue([]) },
       stockByWarehouse: { findMany: jest.fn().mockResolvedValue([]) },
       plan: { findUniqueOrThrow: jest.fn(), findMany: jest.fn(), update: jest.fn() },
       planPrice: { upsert: jest.fn() },
@@ -132,6 +134,43 @@ describe("AdminBillingService", () => {
       const lista = await service.listTenants();
 
       expect(lista.mrrByCurrency).toEqual({ MXN: "798.00", USD: "37.50" });
+    });
+  });
+
+  /**
+   * F9-MOD-09 — cada fila trae sus módulos, leídos de `tenant_modules` en UNA
+   * query dentro del mismo contexto de billing admin (nunca una por negocio).
+   */
+  describe("módulos por fila (F9-MOD-09)", () => {
+    it("reparte los módulos por negocio con una sola consulta y descarta claves fuera del catálogo", async () => {
+      prisma.tenant.findMany.mockResolvedValue([
+        {
+          id: TENANT_A,
+          name: "A",
+          country: "MX",
+          currency: "MXN",
+          timezone: "UTC",
+          createdAt: new Date(),
+        },
+        {
+          id: TENANT_B,
+          name: "B",
+          country: "MX",
+          currency: "MXN",
+          timezone: "UTC",
+          createdAt: new Date(),
+        },
+      ]);
+      tx.tenantModule.findMany.mockResolvedValue([
+        { tenantId: TENANT_A, moduleKey: "reception" },
+        { tenantId: TENANT_A, moduleKey: "foo" },
+      ]);
+
+      const lista = await service.listTenants();
+
+      expect(tx.tenantModule.findMany).toHaveBeenCalledTimes(1);
+      expect(lista.tenants.find((t) => t.tenantId === TENANT_A)?.modules).toEqual(["reception"]);
+      expect(lista.tenants.find((t) => t.tenantId === TENANT_B)?.modules).toEqual([]);
     });
   });
 

@@ -40,6 +40,8 @@ export interface AdminTenantRow {
   billingCycle: string | null;
   dueAt: Date | null;
   lastPaymentAt: Date | null;
+  /** F9-MOD-09 — los módulos avanzados activos (solo claves del catálogo). */
+  modules: ModuleKey[];
 }
 
 export interface UpdatePlanInput {
@@ -78,24 +80,43 @@ export class AdminBillingService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listTenants() {
-    const { subs, pagosVigentes } = await this.prisma.withBillingAdminContext(async (tx) => {
-      const subs = await tx.tenantSubscription.findMany({
-        include: {
-          plan: true,
-          payments: {
-            where: { status: "recorded" },
-            orderBy: { paidAt: "desc" },
-            take: 1,
+    const { subs, pagosVigentes, modulos } = await this.prisma.withBillingAdminContext(
+      async (tx) => {
+        const subs = await tx.tenantSubscription.findMany({
+          include: {
+            plan: true,
+            payments: {
+              where: { status: "recorded" },
+              orderBy: { paidAt: "desc" },
+              take: 1,
+            },
           },
-        },
-        orderBy: { createdAt: "asc" },
-      });
-      const pagosVigentes = await tx.subscriptionPayment.findMany({
-        where: { status: "recorded", periodEnd: { gt: new Date() } },
-        select: { amount: true, currency: true, billingCycle: true, periodEnd: true },
-      });
-      return { subs, pagosVigentes };
-    });
+          orderBy: { createdAt: "asc" },
+        });
+        const pagosVigentes = await tx.subscriptionPayment.findMany({
+          where: { status: "recorded", periodEnd: { gt: new Date() } },
+          select: { amount: true, currency: true, billingCycle: true, periodEnd: true },
+        });
+        // F9-MOD-09: los módulos de TODOS los negocios en una query (la quinta
+        // tabla del bypass), repartidos en memoria — nunca una consulta por fila.
+        const modulos = await tx.tenantModule.findMany({
+          select: { tenantId: true, moduleKey: true },
+          orderBy: { moduleKey: "asc" },
+        });
+        return { subs, pagosVigentes, modulos };
+      },
+    );
+    const clavesConocidas = new Set<string>(MODULE_KEYS);
+    const modulosPorTenant = new Map<string, ModuleKey[]>();
+    for (const { tenantId, moduleKey } of modulos) {
+      if (!clavesConocidas.has(moduleKey)) {
+        continue;
+      }
+      modulosPorTenant.set(tenantId, [
+        ...(modulosPorTenant.get(tenantId) ?? []),
+        moduleKey as ModuleKey,
+      ]);
+    }
 
     // La lista parte de los NEGOCIOS y no de las suscripciones (`tenants` no
     // lleva RLS, se lee con el cliente base). Al revés —que era como estaba—
@@ -145,6 +166,7 @@ export class AdminBillingService {
         billingCycle: sub?.billingCycle ?? null,
         dueAt: sub?.dueAt ?? null,
         lastPaymentAt: sub?.payments[0]?.paidAt ?? null,
+        modules: modulosPorTenant.get(tenant.id) ?? [],
       };
     });
 

@@ -37,7 +37,14 @@
       "dashboard": "Dashboard",
       "profile": "My profile",
       "system": "System",
-      "backoffice": "Backoffice"
+      "backoffice": "Backoffice",
+      "modules": {
+        "reception": {
+          "group": "Reception",
+          "customers": "Customer registry",
+          "turns": "Issue a ticket"
+        }
+      }
     },
     "navLabel": "Main navigation",
     "offline": "You're offline. You can review what's already loaded, but you can't charge or quote until the connection returns.",

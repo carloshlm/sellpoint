@@ -92,6 +92,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          modules: [],
           currency: "MXN",
           timezone: "America/Mexico_City",
           charges: [
@@ -280,6 +281,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          modules: [],
           currency: "MXN",
           timezone: "America/Mexico_City",
           charges: [
@@ -351,6 +353,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: "monthly",
           dueAt: null,
           lastPaymentAt: null,
+          modules: [],
           timezone: "America/Mexico_City",
           charges: [{ planCode: "plus", monthly: "499.00", yearly: "4990.00", currency: "MXN" }],
         },
@@ -365,6 +368,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: "monthly",
           dueAt: null,
           lastPaymentAt: null,
+          modules: [],
           timezone: "America/Toronto",
           charges: [{ planCode: "pro", monthly: "39.00", yearly: "390.00", currency: "CAD" }],
         },
@@ -429,6 +433,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
           billingCycle: null,
           dueAt: null,
           lastPaymentAt: null,
+          modules: [],
           currency: "MXN",
           timezone: "America/Mexico_City",
           // Sin suscripción, pero con precios: es a quien hay que cobrarle.

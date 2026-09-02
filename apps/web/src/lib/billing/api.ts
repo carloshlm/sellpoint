@@ -87,6 +87,8 @@ export interface AdminTenants {
     lastPaymentAt: string | null;
     currency: string;
     timezone: string;
+    /** F9-MOD-09 — los módulos avanzados activos (solo claves del catálogo). */
+    modules: ModuleKey[];
     /**
      * Lo que pagaría por CADA plan vendible, con su cupón ya aplicado. Por
      * plan y no solo por el vigente: el formulario deja cambiar de plan, y

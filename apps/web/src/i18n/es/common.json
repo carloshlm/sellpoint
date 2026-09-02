@@ -37,7 +37,14 @@
       "dashboard": "Panel",
       "profile": "Mi perfil",
       "system": "Sistema",
-      "backoffice": "Backoffice"
+      "backoffice": "Backoffice",
+      "modules": {
+        "reception": {
+          "group": "Recepción",
+          "customers": "Registro de cliente",
+          "turns": "Generar turno"
+        }
+      }
     },
     "navLabel": "Navegación principal",
     "offline": "Sin conexión. Puedes consultar lo que ya cargaste, pero no cobrar ni cotizar hasta que vuelva la red.",

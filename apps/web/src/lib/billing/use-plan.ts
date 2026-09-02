@@ -1,4 +1,4 @@
-import type { PlanFeatures } from "@sellpoint/shared";
+import type { ModuleKey, PlanFeatures } from "@sellpoint/shared";
 import { useAuthStore } from "@/stores/auth.store";
 
 /**
@@ -24,5 +24,10 @@ export function usePlan() {
     stockControl: subscription?.stockControl ?? false,
     dailySalesLimit: subscription?.dailySalesLimit ?? null,
     hasFeature: (feature: keyof PlanFeatures): boolean => subscription?.features[feature] === true,
+    // F9-MOD-07: los módulos avanzados activos por encima del plan. El grupo
+    // del menú de un módulo se OCULTA sin él (no lleva candado: el modal de
+    // planes no vende módulos, se pactan uno a uno desde el backoffice).
+    modules: (subscription?.modules ?? []) as ModuleKey[],
+    hasModule: (moduleKey: ModuleKey): boolean => (subscription?.modules ?? []).includes(moduleKey),
   };
 }
