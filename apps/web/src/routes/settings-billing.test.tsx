@@ -173,7 +173,7 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
    * backoffice — anulados tenues — y un «Ver» que abre abajo el detalle del
    * pago, con el motivo de la anulación si la hubo.
    */
-  it("anulado tenue, y «Ver» abre abajo el detalle de ese pago", async () => {
+  it("anulado tachado, y «Ver» abre abajo el detalle de ese pago", async () => {
     mockedMyBilling.mockResolvedValue({
       subscription: {
         status: "active",
@@ -229,8 +229,13 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     const user = userEvent.setup();
 
     const anulado = (await screen.findByText("Efectivo")).closest("tr") as HTMLElement;
-    expect(anulado.className).toMatch(/opacity-/);
-    expect(anulado.className).not.toMatch(/line-through/);
+    // Tachado y en gris, con el «Ver» igual de vivo que en la fila real.
+    expect(anulado.className).not.toMatch(/opacity-/);
+    expect(screen.getByText("Efectivo")).toHaveClass("line-through");
+    const real = screen.getByText("Transferencia").closest("tr") as HTMLElement;
+    expect(within(anulado).getByRole("button", { name: "Ver" }).className).toBe(
+      within(real).getByRole("button", { name: "Ver" }).className,
+    );
     expect(screen.queryByTestId("payment-detail")).not.toBeInTheDocument();
 
     await user.click(within(anulado).getByRole("button", { name: "Ver" }));

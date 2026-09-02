@@ -460,7 +460,7 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
  * verde de «pago exitoso» y el descuento va en una caja amarilla.
  */
 describe("el historial de pagos se lee de un vistazo", () => {
-  it("anulado tenue, real en verde, descuento en amarillo", async () => {
+  it("anulado tachado, real en verde, descuento en amarillo", async () => {
     mockedDetail.mockResolvedValue({
       subscription: {
         status: "active",
@@ -519,8 +519,16 @@ describe("el historial de pagos se lee de un vistazo", () => {
     const real = screen.getByText("$399.00").closest("tr") as HTMLElement;
     const anulado = screen.getByText("Anulado").closest("tr") as HTMLElement;
     expect(real).toHaveClass("bg-success-soft");
-    expect(anulado.className).toMatch(/opacity-/);
-    expect(anulado.className).not.toMatch(/line-through/);
+    // Anulado: TACHADO y en gris (Carlos, 2026-09-02, segunda vuelta) — pero
+    // sin apagar la fila entera: su «Ver» sigue vivo y se ve igual que en las
+    // demás filas, porque en todas tiene acción.
+    expect(anulado.className).not.toMatch(/opacity-/);
+    expect(within(anulado).getByText("Transferencia")).toHaveClass("line-through");
+    const verReal = within(real).getByRole("button", { name: "Ver" });
+    const verAnulado = within(anulado).getByRole("button", { name: "Ver" });
+    expect(verAnulado.className).toBe(verReal.className);
+    // Sin apagarlo: el `disabled:opacity-50` del botón base no cuenta, es su estado deshabilitado.
+    expect(verAnulado.className).not.toMatch(/(^|\s)(line-through|opacity-)/);
     expect(screen.getByText("$100.00")).toHaveClass("bg-warning-soft");
   });
 

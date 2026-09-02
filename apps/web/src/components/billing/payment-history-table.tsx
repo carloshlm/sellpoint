@@ -15,7 +15,7 @@ export type PaymentRow = MyBilling["payments"][number];
  * El historial de pagos, UNA sola tabla para el backoffice y para «Mi plan»
  * del cliente (Carlos, 2026-09-02: «aplica el mismo estilo que en el
  * backoffice»). Un pago real va en verde, un descuento en su caja amarilla y
- * un pago anulado se ve tenue — no tachado — para que siga legible.
+ * un pago anulado va tachado y en gris, con su «Ver» tan vivo como los demás.
  *
  * La tabla no cuenta todo de todos los pagos: cada fila tiene «Ver», y el
  * detalle de ESE pago aparece abajo, con el foco puesto para que la vista
@@ -51,6 +51,12 @@ export function PaymentHistoryTable({
     // biome-ignore lint/suspicious/noExplicitAny: la moneda viene del snapshot del pago
     formatMoney(Number(monto), moneda as any, locale);
 
+  // Un pago anulado va TACHADO y en gris, celda por celda (Carlos, 2026-09-02):
+  // si se apagara la fila entera, su «Ver» parecería deshabilitado — y no lo
+  // está, porque el detalle de un anulado es justo donde vive el motivo.
+  const celda = (pago: PaymentRow) =>
+    `px-2 py-1 ${pago.status === "voided" ? "text-muted-foreground line-through" : ""}`;
+
   if (payments && payments.length === 0) {
     return <p className="text-muted-foreground text-sm">{emptyText}</p>;
   }
@@ -75,22 +81,22 @@ export function PaymentHistoryTable({
             {(payments ?? []).map((pago) => (
               <tr
                 key={pago.id}
-                className={`border-b ${TABLE_ROW_HOVER} ${pago.status === "voided" ? "opacity-50" : "bg-success-soft"}`}
+                className={`border-b ${TABLE_ROW_HOVER} ${pago.status === "voided" ? "" : "bg-success-soft"}`}
               >
-                <td className="px-2 py-1">{fecha(pago.paidAt)}</td>
-                <td className="px-2 py-1">{pago.planCode}</td>
-                <td className="px-2 py-1">{t(`common.billing.me.method.${pago.method}`)}</td>
-                <td className="px-2 py-1 whitespace-nowrap">
+                <td className={celda(pago)}>{fecha(pago.paidAt)}</td>
+                <td className={celda(pago)}>{pago.planCode}</td>
+                <td className={celda(pago)}>{t(`common.billing.me.method.${pago.method}`)}</td>
+                <td className={`${celda(pago)} whitespace-nowrap`}>
                   {fecha(pago.periodStart)} — {vence(pago.periodEnd)}
                 </td>
-                <td className="px-2 py-1 text-right tabular-nums">
+                <td className={`${celda(pago)} text-right tabular-nums`}>
                   {Number(pago.discountAmount) > 0 ? (
                     <Badge variant="warning">{dinero(pago.discountAmount, pago.currency)}</Badge>
                   ) : (
                     "—"
                   )}
                 </td>
-                <td className="px-2 py-1 text-right font-medium tabular-nums">
+                <td className={`${celda(pago)} text-right font-medium tabular-nums`}>
                   {dinero(pago.amount, pago.currency)}
                 </td>
                 <td className="px-2 py-1 text-right">
