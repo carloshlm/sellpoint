@@ -1,3 +1,4 @@
+export * from "./age";
 export * from "./billing";
 export * from "./countries";
 export * from "./day-range";

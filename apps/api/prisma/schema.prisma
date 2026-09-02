@@ -14,29 +14,29 @@ datasource db {
 }
 
 model Tenant {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String
-  legalName      String?  @map("legal_name")
-  taxId          String?  @map("tax_id")
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  legalName        String?  @map("legal_name")
+  taxId            String?  @map("tax_id")
   // F1-WEB-ONBOARD-01 (paso 1 del wizard): aditivos, nullable — un tenant
   // creado antes de esta migración sigue operando con ambos en NULL.
-  address        String?  @map("address")
+  address          String?  @map("address")
   // Teléfono del negocio (2026-08-25): editable desde "Mi perfil", nunca lo
   // pide el wizard. El único campo del tenant borrable vía PATCH (null).
-  phone          String?  @db.VarChar(20)
+  phone            String?  @db.VarChar(20)
   // Tema inicial elegido en el wizard (light|dark|sand|grape). El catálogo
   // cerrado vive en updateTenantSchema, sin CHECK SQL (criterio country).
-  theme          String?  @db.VarChar(16)
-  templateChoice String?  @map("template_choice")
+  theme            String?  @db.VarChar(16)
+  templateChoice   String?  @map("template_choice")
   // F1-WEB-ONBOARD-03: el paso 3 (placeholder de almacén, F2, D2) NO tiene
   // columna propia — W4 (verify-report #357) revirtió `warehouseStepSeen`
   // (Deviation 6): con negocio y plantilla completos el piso del wizard ya
   // deriva 4 sin necesitar una señal server-side extra (ver
   // apps/web/src/lib/tenant/steps.ts).
-  timezone       String   @default("America/Mexico_City")
+  timezone         String   @default("America/Mexico_City")
   // CHAR(3) con CHECK (currency IN ('MXN','USD','CAD','EUR','GBP')) — el CHECK vive en el SQL de
   // la migración porque Prisma no soporta constraints CHECK en el schema.
-  currency       String   @default("MXN") @db.Char(3)
+  currency         String   @default("MXN") @db.Char(3)
   // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): ISO 3166-1 alpha-2,
   // nullable — un tenant preexistente la llena al pasar el paso 1 del
   // wizard de nuevo (ver `apps/web/src/lib/tenant/steps.ts`). Sin CHECK SQL
@@ -44,24 +44,24 @@ model Tenant {
   // `isCountryCode` (`@sellpoint/shared`), la misma fuente que consume el
   // selector de país del front — un país que se agrega ahí queda válido acá
   // sin nueva migración.
-  country        String?  @db.Char(2)
-  onboarded      Boolean  @default(false)
+  country          String?  @db.Char(2)
+  onboarded        Boolean  @default(false)
   // F7-POS-03: el toggle "Vender sin existencias". La regla efectiva de la
   // venta es `!plan.stockControl || sellWithoutStock` — en Free/Basic es
   // implícita; en Pro/Plus/Premium la decide el admin (default estricto).
-  sellWithoutStock Boolean @default(false) @map("sell_without_stock")
+  sellWithoutStock Boolean  @default(false) @map("sell_without_stock")
   /// El interruptor de UBICACIONES: muestra el campo "Ubicación" en los
   /// productos y ordena la hoja del inventario físico por recorrido del
   /// almacén. Apagado por defecto — un negocio que no ordena por pasillos no
   /// necesita un campo más en cada alta. No lleva saldo por ubicación: eso
   /// vive en `stock_lots` y se activa con `tracksLots` del producto.
-  usesLocations    Boolean @default(false) @map("uses_locations")
+  usesLocations    Boolean  @default(false) @map("uses_locations")
   /// F5-DASH-02: la meta mensual de ventas — el número contra el que el
   /// dashboard pinta «85% alcanzado». NULL = el negocio no persigue meta;
   /// borrable como phone.
   monthlySalesGoal Decimal? @map("monthly_sales_goal") @db.Decimal(14, 2)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   users                   User[]
   roles                   Role[]
@@ -102,6 +102,10 @@ model Tenant {
   subscriptionPayments SubscriptionPayment[]
   discounts            TenantDiscount[]
   modules              TenantModule[]
+
+  // Recepción (Fase 9)
+  customers            Customer[]
+  receptionTurns       ReceptionTurn[]
   billingNotifications BillingNotification[]
 
   @@map("tenants")
@@ -546,28 +550,28 @@ model ProductComposition {
 // desglose colonia/alcaldía/estado del diseño original era México-céntrico.
 // Los racks quedaron FUERA de Fase 2 (se deciden con el stock por ubicación).
 model Warehouse {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId  String   @map("tenant_id") @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
   /// El código estándar (Carlos, 2026-09-01), como el sku del producto y el
   /// code del servicio: la llave que la persona ve y por la que casa la
   /// planilla de importación. Único por negocio. Si el alta no lo trae, el
   /// service lo genera (`ALM-001`, `ALM-002`…).
-  code      String   @db.VarChar(64)
-  name      String
-  address   String?
+  code       String   @db.VarChar(64)
+  name       String
+  address    String?
   // Contacto estándar de la sucursal (Carlos, 2026-08-26): el ticket pinta
   // la dirección y el teléfono del ALMACÉN con fallback al tenant. `phone`
   // es E.164 canónico y se valida en el DTO (isE164), mismo criterio que
   // Tenant.phone — sin CHECK SQL de formato.
-  phone     String?  @db.VarChar(20)
-  email     String?
+  phone      String?  @db.VarChar(20)
+  email      String?
   // Campos dinámicos del catálogo de sistema "warehouses" — mismo motor que
   // products (F2-CAT). El GIN se DECLARA acá para que la shadow DB no lo
   // borre (lección de 20260816201608).
-  attributes Json    @default("{}")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attributes Json     @default("{}")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
   scopes          UserWarehouseScope[]
@@ -1774,6 +1778,7 @@ model TenantModule {
   @@unique([tenantId, moduleKey])
   @@map("tenant_modules")
 }
+
 /// El registro de avisos enviados. El UNIQUE (suscripción, kind, ancla) ES la
 /// idempotencia del cron: se inserta ANTES de mandar el correo, y si el job
 /// corre dos veces el segundo INSERT rebota con 23505 y el mail no sale.
@@ -1793,4 +1798,72 @@ model BillingNotification {
 
   @@unique([subscriptionId, kind, anchorAt], map: "billing_notifications_dedup_uq")
   @@map("billing_notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Recepción (Fase 9, primer módulo vertical)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// F9-RECEP-02 — la PERSONA del negocio: el cliente. Se llama `customers` y
+/// no `reception_persons`: la usa Recepción hoy y la usarán cotizaciones,
+/// ventas y lo clínico (`patients` será extensión 1‑1, nunca una segunda
+/// tabla de personas). `birth_date` y no `age`: la edad se CALCULA (Carlos,
+/// 2026-09-02). `attributes` nace sin motor de catálogos (la columna y el GIN
+/// cuestan cero hoy; cablearla exige un catálogo de sistema con backfill) y el
+/// DTO no la acepta todavía. `is_active` existe para el día en que ventas
+/// referencie clientes con FK RESTRICT; hoy la UI no lo expone.
+model Customer {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  firstName        String    @map("first_name")
+  lastNamePaternal String    @map("last_name_paternal")
+  lastNameMaternal String?   @map("last_name_maternal")
+  // CHECK: no futura. Columna DATE: un calendario, sin zona.
+  birthDate        DateTime? @map("birth_date") @db.Date
+  // CHECK: E.164 (misma regla que tenants.phone).
+  phone            String?   @db.VarChar(20)
+  email            String?
+  notes            String?
+  attributes       Json      @default("{}")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdBy        String?   @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  turns  ReceptionTurn[]
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, phone])
+  @@index([attributes(ops: JsonbPathOps)], type: Gin)
+  @@map("customers")
+}
+
+/// F9-RECEP-03 — un turno de Recepción. El número reinicia con el DÍA DEL
+/// NEGOCIO: cada `business_date` es una serie nueva en `tenant_sequences`
+/// (`reception_turn:YYYYMMDD`), y el UNIQUE es el cinturón. «Eliminar» un
+/// cliente deja `customer_id` en NULL y conserva `customer_name`: el
+/// historial del día no pierde a quién se atendió.
+/// CHECKs: status IN ('waiting','attended'); number > 0;
+/// (status = 'attended') = (attended_at IS NOT NULL).
+model ReceptionTurn {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  businessDate DateTime  @map("business_date") @db.Date
+  number       Int
+  customerId   String?   @map("customer_id") @db.Uuid
+  customerName String?   @map("customer_name") @db.VarChar(200)
+  status       String    @default("waiting") @db.VarChar(16)
+  attendedAt   DateTime? @map("attended_at") @db.Timestamptz(6)
+  attendedBy   String?   @map("attended_by") @db.Uuid
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, businessDate, number])
+  @@index([tenantId, businessDate, number(sort: Desc)])
+  @@map("reception_turns")
 }

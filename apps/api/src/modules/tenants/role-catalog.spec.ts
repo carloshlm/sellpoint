@@ -147,6 +147,25 @@ describe("resolveRolePermissionCodes", () => {
    * fantasma que la atomización de F4 detectó y que nace aquí en vez de
    * heredarse el hueco.
    */
+  /**
+   * F9-RECEP-04. Recepción reparte por las reglas que ya existen: Admin y
+   * Manager los dos codes, Viewer el `:read`. Seller NINGUNO — `POS_SELLER_CODES`
+   * es una lista cerrada, y la recepcionista es un rol propio que el negocio
+   * arma con roles personalizados, o un Manager. Este test es lo que impide
+   * que alguien «le agregue Recepción al vendedor» sin decidirlo.
+   */
+  describe("permisos de Recepción (F9-RECEP-04)", () => {
+    const CODES = ["reception:read", "reception:manage"];
+
+    it("Admin y Manager reciben los dos; Viewer solo lee; Seller ninguno", () => {
+      const result = resolveRolePermissionCodes(CODES);
+      expect(result.Admin.sort()).toEqual(["reception:manage", "reception:read"]);
+      expect(result.Manager.sort()).toEqual(["reception:manage", "reception:read"]);
+      expect(result.Viewer).toEqual(["reception:read"]);
+      expect(result.Seller).toEqual([]);
+    });
+  });
+
   describe("permisos del punto de venta (F4-DB-03)", () => {
     const CODES = ["pos:sell", "pos:quote", "pos:view"];
 

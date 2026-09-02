@@ -3563,22 +3563,22 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 > Dos pantallas en el menú del cliente cuando el módulo está activo: **«Registro de cliente»** (personas, más reciente primero, «Nuevo» abre pantalla completa; acciones «Generar turno», «Editar», «Eliminar») y **«Generar turno»** (turnos del día del negocio, número de mayor a menor, «En espera»/«Atendido», reinicia en 1 cada día; turno suelto desde el botón de arriba).
 
-- [ ] **F9-RECEP-01** — La edad se calcula, no se guarda
+- [x] **F9-RECEP-01** *(cerrada el 2026-09-02)* — La edad se calcula, no se guarda
   - **Salida:** `packages/shared/src/age.ts` con `ageFromBirthDate(birthDate: "YYYY-MM-DD", today: "YYYY-MM-DD"): number` (años cumplidos; la zona ya la resolvió el llamador con `localCalendarDate`) + export + `age.test.ts`.
   - **Verificar:** cumpleaños HOY suma el año; un día antes no; nacido 29-feb evaluado un 28-feb no bisiesto no cumple; fecha futura → 0, nunca negativo.
   - **Depende de:** — · **Estimación:** 1.5 h
 
-- [ ] **F9-RECEP-02** — Tabla `customers` con RLS desde el minuto cero
+- [x] **F9-RECEP-02** *(cerrada el 2026-09-02)* — Tabla `customers` con RLS desde el minuto cero
   - **Salida:** migración `<ts>_f9_recep_customers`: `id, tenant_id (FK RESTRICT), first_name TEXT NOT NULL, last_name_paternal TEXT NOT NULL, last_name_maternal TEXT, birth_date DATE, phone VARCHAR(20), email TEXT, notes TEXT, attributes JSONB NOT NULL DEFAULT '{}', is_active BOOLEAN DEFAULT true, created_by UUID (FK users SET NULL), created_at, updated_at`; índices `(tenant_id, created_at DESC)`, `(tenant_id, phone)`, GIN sobre `attributes`; CHECKs `birth_date <= CURRENT_DATE`, `phone ~ '^\+[1-9]\d{1,14}$'`; bloque RLS canónico en la MISMA migración. Modelo `Customer` + `customers Customer[]` en `Tenant`. Docblock: `patients` futuro = extensión 1‑1; `attributes` sin motor de catálogos todavía (el DTO no la acepta); `is_active` sin UI por ahora.
   - **Verificar:** `prisma migrate dev` limpia y sin drift; consulta sin `app.tenant_id` → 0 filas.
   - **Depende de:** — · **Estimación:** 2.5 h
 
-- [ ] **F9-RECEP-03** — Tabla `reception_turns`
+- [x] **F9-RECEP-03** *(cerrada el 2026-09-02)* — Tabla `reception_turns`
   - **Salida:** migración `<ts>_f9_recep_turns`: `id, tenant_id (FK RESTRICT), business_date DATE NOT NULL, number INT NOT NULL, customer_id UUID FK customers ON DELETE SET NULL, customer_name VARCHAR(200) (snapshot), status VARCHAR(16) DEFAULT 'waiting', attended_at TIMESTAMPTZ(6), attended_by UUID, created_by UUID, created_at, updated_at`; `UNIQUE (tenant_id, business_date, number)`; índice `(tenant_id, business_date, number DESC)`; CHECKs `status IN ('waiting','attended')`, `number > 0`, `(status='attended') = (attended_at IS NOT NULL)`; RLS canónica en la misma migración. Modelo `ReceptionTurn` + relaciones.
   - **Verificar:** UNIQUE y CHECK revientan como deben; borrar el cliente deja `customer_id NULL` y `customer_name` intacto.
   - **Depende de:** F9-RECEP-02 · **Estimación:** 2 h
 
-- [ ] **F9-RECEP-04** — Permisos `reception:read` y `reception:manage`
+- [x] **F9-RECEP-04** *(cerrada el 2026-09-02)* — Permisos `reception:read` y `reception:manage`
   - **Salida:** migración `<ts>_f9_recep_permissions` (INSERT permissions + role_permissions: Admin y Manager ambos, Viewer `:read`; molde `20260821230000_f4_pos_cancel_permission`). Comentario en `role-catalog.ts`: Seller queda fuera (lista cerrada; la recepcionista es rol propio vía `custom_roles` o Manager).
   - **Verificar:** `permissions-catalog.spec` verde tras los `@RequirePermissions`; unit de `resolveRolePermissionCodes`: Admin 2, Manager 2, Viewer 1, Seller 0. Gotcha: el perm-epoch no se bumpea desde SQL — cerrar sesión y volver a entrar al probar a mano.
   - **Depende de:** — · **Estimación:** 1 h
