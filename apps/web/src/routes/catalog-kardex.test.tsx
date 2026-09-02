@@ -771,8 +771,8 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
     conMovimiento();
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
-    // Con su unidad (Carlos, 2026-09-02): «+12 piezas», sin decimales.
-    expect(await screen.findByText(/\+12 piezas$/)).toBeInTheDocument();
+    // Sin etiqueta de unidad (Carlos, 2026-09-02, revisado): «+12» a secas.
+    expect(await screen.findByText(/\+12$/)).toBeInTheDocument();
     expect(await screen.findByTestId("balance-after")).toHaveTextContent(/^262$/);
   });
 
@@ -807,25 +807,62 @@ describe("Los decimales los decide la unidad (F3-KARDEX)", () => {
 });
 
 /**
- * Carlos (2026-09-02): en el kardex solo las filas con presentación decían
- * «Pieza»; las demás eran un número pelado. La unidad va en todas.
+ * Carlos (2026-09-02, revisado): la columna Cantidad va SIN etiqueta de
+ * unidad, y la segunda parte —lo que se tecleó en la presentación— solo
+ * cuando la presentación no es de factor 1: «50 Pieza» al lado de «+50» es
+ * decir lo mismo dos veces; «3 Caja ×12» al lado de «+36» sí cuenta algo.
  */
-describe("la cantidad siempre lleva su unidad", () => {
-  it("«+50 piezas» y «−1 pieza», con presentación o sin ella", async () => {
+describe("la cantidad y su presentación", () => {
+  it("con una presentación de factor 1, solo el número", async () => {
     mocked.getInTransit.mockResolvedValue({ rows: [] });
     mocked.getKardex.mockResolvedValue({
       rows: [
-        movimiento({ id: "m1", quantity: "50" }),
-        movimiento({ id: "m2", direction: "exit", quantity: "1", balanceAfter: "49" }),
+        movimiento({
+          id: "m1",
+          quantity: "50",
+          presentation: {
+            id: "pr1",
+            name: "Pieza",
+            factor: "1.0000",
+            quantityInPresentation: "50",
+          },
+        }),
       ],
-      total: 2,
+      total: 1,
       page: 1,
       pageSize: 50,
       isComposite: false,
     });
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
-    expect(await screen.findByText(/\+50 piezas/)).toBeInTheDocument();
-    expect(screen.getByText(/−1 pieza$/)).toBeInTheDocument();
+    const celda = (await screen.findByText(/^\+50$/)).closest("td");
+    expect(celda).toHaveTextContent(/^\+50$/);
+    expect(screen.queryByText(/50 Pieza/)).not.toBeInTheDocument();
+  });
+
+  it("con una presentación de otro factor, el número y lo que se tecleó", async () => {
+    mocked.getInTransit.mockResolvedValue({ rows: [] });
+    mocked.getKardex.mockResolvedValue({
+      rows: [
+        movimiento({
+          id: "m1",
+          quantity: "36",
+          presentation: {
+            id: "pr2",
+            name: "Caja ×12",
+            factor: "12.0000",
+            quantityInPresentation: "3",
+          },
+        }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+      isComposite: false,
+    });
+    renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
+
+    expect(await screen.findByText(/^\+36$/)).toBeInTheDocument();
+    expect(screen.getByText("3 Caja ×12")).toBeInTheDocument();
   });
 });

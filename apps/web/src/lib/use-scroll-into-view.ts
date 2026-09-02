@@ -20,9 +20,21 @@ import { useEffect, useRef } from "react";
 export function useScrollIntoView<T extends HTMLElement>(options?: {
   focusFirstField?: boolean;
   block?: ScrollLogicalPosition;
+  /**
+   * `false` deja el foco pero NO mueve la vista: para un formulario que vive
+   * dentro de un panel que ya se desplaza solo (Carlos, 2026-09-02) — si los
+   * dos se desplazan, gana el del hijo y las pestañas del panel quedan fuera.
+   */
+  scroll?: boolean;
+  /**
+   * Cuándo actuar. Por defecto al montar; pero un panel que primero pinta
+   * «cargando» y después su contenido no tiene nodo al montar: se le pasa
+   * `when: !isPending` y el desplazamiento espera a que exista.
+   */
+  when?: boolean;
 }) {
   const ref = useRef<T>(null);
-  const { focusFirstField = false, block = "center" } = options ?? {};
+  const { focusFirstField = false, block = "center", scroll = true, when = true } = options ?? {};
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: solo al montar — es la reacción al clic que lo montó
   useEffect(() => {
@@ -30,7 +42,9 @@ export function useScrollIntoView<T extends HTMLElement>(options?: {
     if (!node) {
       return;
     }
-    node.scrollIntoView?.({ behavior: "smooth", block });
+    if (scroll) {
+      node.scrollIntoView?.({ behavior: "smooth", block });
+    }
     if (focusFirstField) {
       const field = node.querySelector<HTMLElement>(
         "input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)",
@@ -41,7 +55,7 @@ export function useScrollIntoView<T extends HTMLElement>(options?: {
     } else if (node.tabIndex === -1) {
       node.focus({ preventScroll: true });
     }
-  }, []);
+  }, [when]);
 
   return ref;
 }

@@ -432,3 +432,67 @@ describe("el papel dice lo que la pantalla (Carlos, 2026-09-02)", () => {
     expect(json).toContain("ST1 · 2026 Sep 30");
   });
 });
+
+/**
+ * Carlos (2026-09-02, revisado): «50 = 50 piezas» es decir lo mismo dos
+ * veces. La equivalencia se imprime solo cuando la presentación NO es de
+ * factor 1 — «3 = 36 piezas» sí le sirve a quien recibe.
+ */
+describe("la equivalencia solo cuando aporta", () => {
+  const t = (key: string) => key;
+  const base: PdfDocumentInput = {
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    document: {
+      folio: "ENT-000024",
+      type: "entry",
+      status: "confirmed",
+      warehouseName: "Central",
+      linkedWarehouseName: null,
+      reasonCode: "adjustment",
+      reference: null,
+      reasonNote: null,
+      createdAt: new Date("2026-09-02T02:23:00Z"),
+      createdByName: "Carlos Cinco",
+      authorizedByName: null,
+    },
+    locale: "es",
+    rows: [],
+  };
+  const fila: PdfRow = {
+    lineNo: 1,
+    sku: "064042603179",
+    name: "Oatmeal Bars",
+    presentationName: "Pieza",
+    quantityInput: "50",
+    quantityBase: "50.0000",
+    baseUnit: "unit",
+    unitCost: null,
+    lotCode: null,
+    expiresAt: null,
+    location: null,
+    theoretical: null,
+    counted: null,
+  };
+  const textos = (def: unknown): string => JSON.stringify(def);
+
+  it("con factor 1 la celda dice solo «50 piezas»", () => {
+    const json = textos(buildDocumentDefinition({ ...base, rows: [fila] }, t));
+
+    expect(json).toContain('"50 piezas"');
+    expect(json).not.toContain("50 = 50");
+  });
+
+  it("con otro factor sigue diciendo «3 = 36 piezas»", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        {
+          ...base,
+          rows: [{ ...fila, presentationName: "Caja ×12", quantityInput: "3", quantityBase: "36" }],
+        },
+        t,
+      ),
+    );
+
+    expect(json).toContain("3 = 36 piezas");
+  });
+});

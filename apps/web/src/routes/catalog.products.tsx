@@ -355,6 +355,14 @@ function ProductDetailPanel({
   // `inventory:read` y no `products:read`: ver el catálogo no implica ver
   // cuánto hay ni cómo se movió.
   const canReadInventory = has("inventory:read");
+  // Al abrir, lo que entra a la vista es el PANEL con sus pestañas arriba
+  // (Carlos, 2026-09-02): el formulario de «Información» se desplazaba a su
+  // primer campo y las pestañas quedaban fuera. Antes del return temprano:
+  // un hook detrás de un `if` cambia de cantidad entre renders.
+  const panelRef = useScrollIntoView<HTMLDivElement>({
+    block: "start",
+    when: !isPending && product !== undefined,
+  });
 
   if (isPending || !product) {
     return <p role="status">{t("common.form.loading")}</p>;
@@ -379,7 +387,7 @@ function ProductDetailPanel({
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={panelRef} className="flex flex-col gap-6">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{product.name}</h1>
@@ -415,7 +423,7 @@ function ProductDetailPanel({
       {tab === "info" && (
         <Card>
           <CardContent>
-            <ProductForm product={product} onDone={onBack} />
+            <ProductForm product={product} onDone={onBack} scroll={false} />
           </CardContent>
         </Card>
       )}
@@ -441,11 +449,24 @@ function ProductDetailPanel({
   );
 }
 
-function ProductForm({ product, onDone }: { product?: ProductDetail; onDone: () => void }) {
+function ProductForm({
+  product,
+  onDone,
+  scroll = true,
+}: {
+  product?: ProductDetail;
+  onDone: () => void;
+  /** Dentro del panel del producto es el PANEL el que se desplaza (Carlos, 2026-09-02). */
+  scroll?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   // La respuesta visible al clic que montó el form: entra a la vista con el
   // cursor en el primer campo (ver el docblock del hook).
-  const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
+  const formRef = useScrollIntoView<HTMLFormElement>({
+    focusFirstField: true,
+    block: "start",
+    scroll,
+  });
   const uiLocale = resolveUiLocale(i18n);
   const { has } = usePermissions();
   const { canWrite } = usePlan();

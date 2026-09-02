@@ -34,14 +34,14 @@ type PdfDocumentSource = {
     expiresAt: Date | null;
     location: string | null;
     product: { sku: string; name: string; baseUnit: string };
-    presentation: { name: string } | null;
+    presentation: { name: string; factor: Prisma.Decimal } | null;
   }[];
   movements: {
     quantity: Prisma.Decimal;
     unitCost: Prisma.Decimal | null;
     location: string | null;
     product: { sku: string; name: string; baseUnit: string };
-    presentation: { name: string } | null;
+    presentation: { name: string; factor: Prisma.Decimal } | null;
     lot: { lotCode: string; expiresAt: Date | null } | null;
   }[];
 };
@@ -63,7 +63,12 @@ export function pdfRowsFor(document: PdfDocumentSource): PdfRow[] {
       sku: m.product.sku,
       name: m.product.name,
       presentationName: m.presentation?.name ?? null,
-      quantityInput: m.quantity.toString(),
+      // Lo que se TECLEÓ, reconstruido con el factor (Carlos, 2026-09-02): el
+      // movimiento vive en unidad base, pero quien lee el papel contó cajas.
+      quantityInput:
+        m.presentation === null
+          ? m.quantity.toString()
+          : m.quantity.dividedBy(m.presentation.factor).toString(),
       quantityBase: m.quantity.toString(),
       baseUnit: m.product.baseUnit,
       unitCost: m.unitCost?.toString() ?? null,
@@ -124,14 +129,14 @@ export class DocumentPdfService {
             orderBy: { lineNo: "asc" },
             include: {
               product: { select: { sku: true, name: true, baseUnit: true } },
-              presentation: { select: { name: true } },
+              presentation: { select: { name: true, factor: true } },
             },
           },
           movements: {
             orderBy: { seq: "asc" },
             include: {
               product: { select: { sku: true, name: true, baseUnit: true } },
-              presentation: { select: { name: true } },
+              presentation: { select: { name: true, factor: true } },
               lot: { select: { lotCode: true, expiresAt: true } },
             },
           },

@@ -156,7 +156,15 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
     // CATEGORÍA de la unidad. Sin eso, un producto que se cuenta de a uno salía
     // impreso como `36.0000`.
     const base = formatQuantityWithUnit(row.quantityBase ?? "", row.baseUnit, input.locale);
-    const cantidad = row.presentationName === null ? base : `${row.quantityInput ?? ""} = ${base}`;
+    // La equivalencia solo cuando aporta (Carlos, 2026-09-02, revisado): con
+    // una presentación de factor 1, «50 = 50 piezas» es decir lo mismo dos
+    // veces. Se compara en Decimal: «50» y «50.0000» son el mismo número.
+    const conEquivalencia =
+      row.presentationName !== null &&
+      row.quantityInput !== null &&
+      row.quantityBase !== null &&
+      !new Prisma.Decimal(row.quantityInput).equals(new Prisma.Decimal(row.quantityBase));
+    const cantidad = conEquivalencia ? `${row.quantityInput} = ${base}` : base;
 
     return [
       String(row.lineNo),

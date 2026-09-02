@@ -652,3 +652,40 @@ describe("Solo-lectura del free tier (F7-WEB-08)", () => {
     expect(screen.queryByRole("button", { name: "Nuevo producto" })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Carlos (2026-09-02): al dar «Ver», la página se desplazaba hasta el primer
+ * campo del formulario y las pestañas (Información, Presentaciones, Stock,
+ * Kardex) quedaban fuera de la vista. Lo que entra a la vista es el PANEL,
+ * con las pestañas arriba; el cursor puede caer en el primer campo, pero sin
+ * mover la vista.
+ */
+describe("abrir un producto deja las pestañas a la vista", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      items: [{ ...PRODUCT, price: "0.02" }],
+    });
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("el scroll va al panel (con las pestañas), no al formulario", async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    await openProduct();
+    const pestañas = await screen.findByRole("navigation", { name: /secciones del producto/i });
+
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    // El ÚLTIMO desplazamiento es el que manda, y tiene que envolver a las
+    // pestañas: un scroll al formulario las deja arriba, fuera de la vista.
+    const ultimo = scroll.mock.instances.at(-1) as unknown as Element;
+    expect(ultimo.contains(pestañas)).toBe(true);
+    expect(scroll.mock.calls.at(-1)?.[0]).toMatchObject({ block: "start" });
+  });
+});

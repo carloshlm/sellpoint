@@ -23,13 +23,17 @@ describe("pdfRowsFor", () => {
     product: producto,
     presentation: null,
   };
-  const movimiento = (direction: "entry" | "exit", quantity: string) => ({
+  const movimiento = (
+    direction: "entry" | "exit",
+    quantity: string,
+    presentation: { name: string; factor: Prisma.Decimal } | null = null,
+  ) => ({
     quantity: new Prisma.Decimal(quantity),
     direction,
     unitCost: null,
     location: "O-01-02",
     product: producto,
-    presentation: null,
+    presentation,
     lot: { lotCode: "ST1", expiresAt: new Date("2026-09-30") },
   });
 
@@ -54,5 +58,25 @@ describe("pdfRowsFor", () => {
     });
 
     expect(rows.map((r) => r.quantityBase)).toEqual(["120", "80"]);
+  });
+
+  /**
+   * Carlos (2026-09-02, revisado): el movimiento se guarda en unidad base,
+   * pero quien lee el papel capturó cajas. Con el factor se reconstruye lo
+   * tecleado, igual que en el kardex.
+   */
+  it("un movimiento con presentación reconstruye lo tecleado con el factor", () => {
+    const rows = pdfRowsFor({
+      type: "entry",
+      status: "confirmed",
+      lines: [linea],
+      movements: [movimiento("entry", "36", { name: "Caja ×12", factor: new Prisma.Decimal(12) })],
+    });
+
+    expect(rows[0]).toMatchObject({
+      quantityInput: "3",
+      quantityBase: "36",
+      presentationName: "Caja ×12",
+    });
   });
 });
