@@ -129,6 +129,15 @@ describe("CustomersService (F9-RECEP-06)", () => {
       expect(creado.birthDate).toBe("1990-09-02");
     });
 
+    it("consultar a uno del negocio devuelve la ficha; a uno ajeno, 404", async () => {
+      await expect(service.get(USER, "c-1")).resolves.toMatchObject({
+        id: "c-1",
+        firstName: "Ana",
+      });
+      tx.customer.findFirst.mockResolvedValue(null);
+      await expect(service.get(USER, "c-9")).rejects.toMatchObject({ status: 404 });
+    });
+
     it("editar a alguien que no es del negocio responde 404 con su clave", async () => {
       tx.customer.findFirst.mockResolvedValue(null);
       await expect(service.update(USER, "c-9", { notes: "x" }, META)).rejects.toMatchObject({

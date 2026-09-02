@@ -1,0 +1,67 @@
+{
+  "customers": {
+    "title": "Customer registry",
+    "new": "New",
+    "search": "Search customer",
+    "searchPlaceholder": "Name, phone or email…",
+    "empty": "You have not registered any customers yet.",
+    "columns": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "age": "Age",
+      "createdAt": "Registered"
+    },
+    "issueTurn": "Issue a ticket",
+    "years": "{{count}} years",
+    "years_one": "1 year",
+    "delete": {
+      "title": "Delete «{{name}}»",
+      "body": "The customer is deleted and cannot be recovered. Their past tickets keep the name in the history.",
+      "confirm": "Delete customer"
+    }
+  },
+  "form": {
+    "createTitle": "New customer",
+    "editTitle": "Edit customer",
+    "firstName": "First name",
+    "lastNamePaternal": "Last name",
+    "lastNameMaternal": "Second last name",
+    "birthDate": "Birth date",
+    "ageLive": "Age: {{age}}",
+    "phoneCountry": "Phone country",
+    "phoneCountryPlaceholder": "Pick the country",
+    "phone": "Phone",
+    "email": "Email",
+    "notes": "Notes",
+    "loadFailed": "We could not load the customer.",
+    "errors": {
+      "required": "This field is required.",
+      "phone": "Type only the digits of the number, without the country code.",
+      "email": "Type a valid email.",
+      "birthDate": "The date is not valid or is in the future."
+    }
+  },
+  "turns": {
+    "title": "Issue a ticket",
+    "issue": "Issue a ticket",
+    "date": "Day",
+    "empty": "There are no tickets for this day.",
+    "columns": {
+      "number": "Ticket",
+      "customer": "Customer",
+      "status": "Status",
+      "time": "Time"
+    },
+    "noCustomer": "No customer",
+    "status": {
+      "waiting": "Waiting",
+      "attended": "Attended"
+    },
+    "attend": "Attend",
+    "wait": "Back to waiting",
+    "issued": "Ticket issued",
+    "issuedFor": "For {{name}}",
+    "close": "Close"
+  }
+}

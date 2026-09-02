@@ -53,6 +53,12 @@ export class ReceptionCustomersController {
     return this.customers.list(user, query);
   }
 
+  @Get(":id")
+  @RequirePermissions("reception:read")
+  get(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    return this.customers.get(user, id);
+  }
+
   @Post()
   @RequirePermissions("reception:manage")
   create(

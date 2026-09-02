@@ -34,6 +34,7 @@ import { Route as MovementsTransfersRouteImport } from './routes/movements.trans
 import { Route as PosIndexRouteImport } from './routes/pos.index'
 import { Route as PosCloseRouteImport } from './routes/pos.close'
 import { Route as PosSalesRouteImport } from './routes/pos.sales'
+import { Route as ReceptionTurnsRouteImport } from './routes/reception.turns'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
@@ -43,6 +44,9 @@ import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
 import { Route as PosQuotesIndexRouteImport } from './routes/pos.quotes.index'
 import { Route as PosQuotesNewRouteImport } from './routes/pos.quotes.new'
+import { Route as ReceptionCustomersIndexRouteImport } from './routes/reception.customers.index'
+import { Route as ReceptionCustomersCustomerIdRouteImport } from './routes/reception.customers.$customerId'
+import { Route as ReceptionCustomersNewRouteImport } from './routes/reception.customers.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -169,6 +173,11 @@ const PosSalesRoute = PosSalesRouteImport.update({
   path: '/pos/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReceptionTurnsRoute = ReceptionTurnsRouteImport.update({
+  id: '/reception/turns',
+  path: '/reception/turns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsIndexRoute = ReportsIndexRouteImport.update({
   id: '/reports/',
   path: '/reports/',
@@ -215,6 +224,22 @@ const PosQuotesNewRoute = PosQuotesNewRouteImport.update({
   path: '/pos/quotes/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReceptionCustomersIndexRoute = ReceptionCustomersIndexRouteImport.update({
+  id: '/reception/customers/',
+  path: '/reception/customers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceptionCustomersCustomerIdRoute =
+  ReceptionCustomersCustomerIdRouteImport.update({
+    id: '/reception/customers/$customerId',
+    path: '/reception/customers/$customerId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ReceptionCustomersNewRoute = ReceptionCustomersNewRouteImport.update({
+  id: '/reception/customers/new',
+  path: '/reception/customers/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -241,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/stock': typeof ReportsStockRoute
   '/settings/billing': typeof SettingsBillingRoute
@@ -250,7 +276,10 @@ export interface FileRoutesByFullPath {
   '/reports/': typeof ReportsIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
+  '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
+  '/reception/customers/new': typeof ReceptionCustomersNewRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
+  '/reception/customers/': typeof ReceptionCustomersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -277,6 +306,7 @@ export interface FileRoutesByTo {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/stock': typeof ReportsStockRoute
   '/settings/billing': typeof SettingsBillingRoute
@@ -286,7 +316,10 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
+  '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
+  '/reception/customers/new': typeof ReceptionCustomersNewRoute
   '/pos/quotes': typeof PosQuotesIndexRoute
+  '/reception/customers': typeof ReceptionCustomersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -314,6 +347,7 @@ export interface FileRoutesById {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/stock': typeof ReportsStockRoute
   '/settings/billing': typeof SettingsBillingRoute
@@ -323,7 +357,10 @@ export interface FileRoutesById {
   '/reports/': typeof ReportsIndexRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
+  '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
+  '/reception/customers/new': typeof ReceptionCustomersNewRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
+  '/reception/customers/': typeof ReceptionCustomersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -352,6 +389,7 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/reception/turns'
     | '/reports/sales'
     | '/reports/stock'
     | '/settings/billing'
@@ -361,7 +399,10 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
+    | '/reception/customers/$customerId'
+    | '/reception/customers/new'
     | '/pos/quotes/'
+    | '/reception/customers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -388,6 +429,7 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/reception/turns'
     | '/reports/sales'
     | '/reports/stock'
     | '/settings/billing'
@@ -397,7 +439,10 @@ export interface FileRouteTypes {
     | '/reports'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
+    | '/reception/customers/$customerId'
+    | '/reception/customers/new'
     | '/pos/quotes'
+    | '/reception/customers'
   id:
     | '__root__'
     | '/'
@@ -424,6 +469,7 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/reception/turns'
     | '/reports/sales'
     | '/reports/stock'
     | '/settings/billing'
@@ -433,7 +479,10 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
+    | '/reception/customers/$customerId'
+    | '/reception/customers/new'
     | '/pos/quotes/'
+    | '/reception/customers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -461,6 +510,7 @@ export interface RootRouteChildren {
   MovementsTransfersRoute: typeof MovementsTransfersRoute
   PosCloseRoute: typeof PosCloseRoute
   PosSalesRoute: typeof PosSalesRoute
+  ReceptionTurnsRoute: typeof ReceptionTurnsRoute
   ReportsSalesRoute: typeof ReportsSalesRoute
   ReportsStockRoute: typeof ReportsStockRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
@@ -470,7 +520,10 @@ export interface RootRouteChildren {
   ReportsIndexRoute: typeof ReportsIndexRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
   PosQuotesNewRoute: typeof PosQuotesNewRoute
+  ReceptionCustomersCustomerIdRoute: typeof ReceptionCustomersCustomerIdRoute
+  ReceptionCustomersNewRoute: typeof ReceptionCustomersNewRoute
   PosQuotesIndexRoute: typeof PosQuotesIndexRoute
+  ReceptionCustomersIndexRoute: typeof ReceptionCustomersIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -650,6 +703,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosSalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reception/turns': {
+      id: '/reception/turns'
+      path: '/reception/turns'
+      fullPath: '/reception/turns'
+      preLoaderRoute: typeof ReceptionTurnsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/': {
       id: '/reports/'
       path: '/reports'
@@ -713,6 +773,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosQuotesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reception/customers/': {
+      id: '/reception/customers/'
+      path: '/reception/customers'
+      fullPath: '/reception/customers/'
+      preLoaderRoute: typeof ReceptionCustomersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reception/customers/$customerId': {
+      id: '/reception/customers/$customerId'
+      path: '/reception/customers/$customerId'
+      fullPath: '/reception/customers/$customerId'
+      preLoaderRoute: typeof ReceptionCustomersCustomerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reception/customers/new': {
+      id: '/reception/customers/new'
+      path: '/reception/customers/new'
+      fullPath: '/reception/customers/new'
+      preLoaderRoute: typeof ReceptionCustomersNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -741,6 +822,7 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsTransfersRoute: MovementsTransfersRoute,
   PosCloseRoute: PosCloseRoute,
   PosSalesRoute: PosSalesRoute,
+  ReceptionTurnsRoute: ReceptionTurnsRoute,
   ReportsSalesRoute: ReportsSalesRoute,
   ReportsStockRoute: ReportsStockRoute,
   SettingsBillingRoute: SettingsBillingRoute,
@@ -750,7 +832,10 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsIndexRoute: ReportsIndexRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
   PosQuotesNewRoute: PosQuotesNewRoute,
+  ReceptionCustomersCustomerIdRoute: ReceptionCustomersCustomerIdRoute,
+  ReceptionCustomersNewRoute: ReceptionCustomersNewRoute,
   PosQuotesIndexRoute: PosQuotesIndexRoute,
+  ReceptionCustomersIndexRoute: ReceptionCustomersIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

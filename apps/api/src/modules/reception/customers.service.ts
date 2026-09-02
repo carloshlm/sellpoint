@@ -102,6 +102,17 @@ export class CustomersService {
     });
   }
 
+  async get(user: AuthUser, id: string): Promise<CustomerSummary> {
+    const hoy = await this.diaDelNegocio(user.tenantId);
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const fila = await tx.customer.findFirst({ where: { id, tenantId: user.tenantId } });
+      if (!fila) {
+        throw new NotFoundException({ message: "reception.customer_not_found" });
+      }
+      return toSummary(fila, hoy);
+    });
+  }
+
   async create(
     user: AuthUser,
     input: CreateCustomerDto,

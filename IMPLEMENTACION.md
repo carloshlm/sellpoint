@@ -3603,27 +3603,27 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** `permissions-catalog.spec` verde; la app arranca; Swagger lista las rutas.
   - **Depende de:** F9-RECEP-04, F9-RECEP-06, F9-RECEP-07, F9-MOD-06 · **Estimación:** 2 h
 
-- [ ] **F9-RECEP-09** — Cliente HTTP, hooks e i18n del web
+- [x] **F9-RECEP-09** *(cerrada el 2026-09-02)* — Cliente HTTP, hooks e i18n del web
   - **Salida:** `apps/web/src/lib/reception/api.ts` (`Customer` con `age: number | null`, `Turn`) + `hooks.ts` (`useCustomers` con `placeholderData`, `useCreate/Update/RemoveCustomer`, `useTurns` con `refetchInterval: 15_000` — pantalla de pared con dos personas mirándola —, `useCreateTurn`, `useAttendTurn`, `useWaitTurn`). Namespace `apps/web/src/i18n/{es,en}/reception.json` registrado en `i18n/index.ts`. Fixture de usuario de pruebas con `modules: ["reception"]` y permisos `reception:*`.
   - **Verificar:** unit de los hooks con el cliente mockeado; el fixture compila; cada `t("reception.…")` tiene su clave.
   - **Depende de:** F9-RECEP-08, F9-MOD-01 · **Estimación:** 2.5 h
 
-- [ ] **F9-RECEP-10** — Menú «Recepción» vía `MODULE_NAV`
+- [x] **F9-RECEP-10** *(cerrada el 2026-09-02)* — Menú «Recepción» vía `MODULE_NAV`
   - **Salida:** entrada `reception` en `apps/web/src/lib/modules/nav.ts` (`labelKey: "reception.nav.group"`, dos links: `reception.nav.customers` → `/reception/customers` y `reception.nav.turns` → `/reception/turns`, ambos con `permission: "reception:read"`). No se toca `app-layout.tsx` (F9-MOD-08 ya itera el mapa).
   - **Verificar:** test — con módulo y permiso aparecen los dos items; con permiso SIN módulo no existe el grupo; con módulo sin permiso tampoco.
   - **Depende de:** F9-RECEP-09, F9-MOD-08 · **Estimación:** 1.5 h
 
-- [ ] **F9-RECEP-11** — Pantalla «Registro de cliente» (listado)
+- [x] **F9-RECEP-11** *(cerrada el 2026-09-02)* — Pantalla «Registro de cliente» (listado)
   - **Salida:** `routes/reception.customers.index.tsx` (`ProtectedRoute > OnboardingGate > AppLayout > PermissionGate need="reception:read"`). Tabla con `TABLE_HEAD_ROW`/`TABLE_ROW_HOVER`: nombre completo, teléfono, correo, edad, creado (`formatBusinessDate` con la zona del negocio); más reciente primero; buscador + `Paginator`; botón «Nuevo» → `/reception/customers/new`. Acciones por fila con `RowAction`: «Generar turno» (crea y abre un DIÁLOGO con el número en grande: la recepcionista lo dicta en voz alta; un toast se va solo), «Editar» → `/reception/customers/$customerId`, «Eliminar» con `ConfirmDialog`. Escritura tras `canManage = has("reception:manage") && canWrite`.
   - **Verificar:** `reception-customers.test.tsx` (RED primero) con router real: filas ordenadas; «Generar turno» llama al API y muestra el número; «Eliminar» pide confirmación; sin `reception:manage` no hay «Nuevo» ni acciones. `table-style.test.tsx` verde.
   - **Depende de:** F9-RECEP-09 · **Estimación:** 4 h
 
-- [ ] **F9-RECEP-12** — Pantalla de alta y edición de cliente
+- [x] **F9-RECEP-12** *(cerrada el 2026-09-02)* — Pantalla de alta y edición de cliente
   - **Salida:** `routes/reception.customers.new.tsx` y `reception.customers.$customerId.tsx` (pantalla completa, no modal): nombres, apellido paterno, apellido materno, **«Fecha de nacimiento» con la edad calculada al lado en vivo** (decisión de Carlos, 2026-09-02: la edad no se guarda), teléfono con `PhonePartsField` (molde `warehouses.tsx`), correo, notas; validación zod en `lib/reception/schemas.ts` espejo del DTO; «Guardar» → listado; «Cancelar» → listado sin guardar.
   - **Verificar:** `reception-customer-form.test.tsx` (RED primero): guardar con los mínimos navega al listado; teléfono inválido muestra error y no llama al API; la edad aparece al teclear la fecha; la edición precarga y el PATCH manda solo lo cambiado.
   - **Depende de:** F9-RECEP-11 · **Estimación:** 4 h
 
-- [ ] **F9-RECEP-13** — Pantalla «Generar turno»
+- [x] **F9-RECEP-13** *(cerrada el 2026-09-02)* — Pantalla «Generar turno»
   - **Salida:** `routes/reception.turns.tsx`: listado por número descendente con número en grande, cliente o «Sin cliente», estado como `Badge` (`warning` En espera, `success` Atendido), hora con `formatBusinessDate(…, true)`, acciones «Atender» y «Volver a espera»; filtro de fecha (default hoy: responde «¿cuántos atendimos ayer?»); botón «Generar turno» arriba para el turno suelto con el mismo diálogo del número.
   - **Verificar:** `reception-turns.test.tsx` (RED primero): orden descendente; «Atender» cambia el badge; turno suelto se crea y se muestra; cambiar la fecha refetchea con `?date=`; sin `reception:manage` no hay acciones.
   - **Depende de:** F9-RECEP-09 · **Estimación:** 4 h
