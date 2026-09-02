@@ -17,8 +17,14 @@ import { useAuthStore } from "@/stores/auth.store";
  * la misma línea seis veces cada vez que cambie.
  */
 export interface AdminTenantScope {
-  /** Prefijo de las rutas de dashboard y reportes. */
+  /** Prefijo del dashboard (`${basePath}/dashboard/*`). */
   basePath: string;
+  /**
+   * Prefijo de los reportes: `/reports` en la app propia y
+   * `/admin/tenants/:id/reports` en el expediente — el API espeja `/reports/*`
+   * bajo el negocio, así que NO es `basePath` a secas (bug cazado en sandbox).
+   */
+  reportsPath: string;
   /** El negocio ajeno que se mira, o null en la app del propio negocio. */
   tenantId: string | null;
   /** El backoffice ya pasó su guard: los gates de permiso del cliente no aplican. */
@@ -29,6 +35,7 @@ export interface AdminTenantScope {
 
 const DEFAULT_SCOPE: AdminTenantScope = {
   basePath: "/reports",
+  reportsPath: "/reports",
   tenantId: null,
   forcePermission: false,
   currency: null,
@@ -49,6 +56,7 @@ export function AdminTenantScopeProvider({
     <AdminTenantScopeContext.Provider
       value={{
         basePath: `/admin/tenants/${tenantId}`,
+        reportsPath: `/admin/tenants/${tenantId}/reports`,
         tenantId,
         forcePermission: true,
         currency,

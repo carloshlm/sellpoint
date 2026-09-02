@@ -21,19 +21,19 @@ export const SALES_REPORT_KEY = ["reports", "sales"] as const;
 // F9-ADMIN-11: desde el expediente del backoffice el alcance apunta a OTRO
 // negocio; sin alcance, la llamada es la de siempre.
 export function useStockReport(query: StockReportQuery) {
-  const { basePath, tenantId } = useAdminTenantScope();
+  const { reportsPath, tenantId } = useAdminTenantScope();
   return useQuery<StockReportPage, ApiError>({
     queryKey: [...STOCK_REPORT_KEY, tenantId, query],
-    queryFn: () => (tenantId === null ? getStockReport(query) : getStockReport(query, basePath)),
+    queryFn: () => (tenantId === null ? getStockReport(query) : getStockReport(query, reportsPath)),
     placeholderData: (previous) => previous,
   });
 }
 
 export function useSalesReport(query: SalesReportQuery) {
-  const { basePath, tenantId } = useAdminTenantScope();
+  const { reportsPath, tenantId } = useAdminTenantScope();
   return useQuery<SalesReportPage, ApiError>({
     queryKey: [...SALES_REPORT_KEY, tenantId, query],
-    queryFn: () => (tenantId === null ? getSalesReport(query) : getSalesReport(query, basePath)),
+    queryFn: () => (tenantId === null ? getSalesReport(query) : getSalesReport(query, reportsPath)),
     placeholderData: (previous) => previous,
   });
 }

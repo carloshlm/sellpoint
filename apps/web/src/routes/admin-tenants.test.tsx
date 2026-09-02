@@ -265,7 +265,7 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
     await waitFor(() =>
       expect(mockedSales).toHaveBeenCalledWith(
         expect.objectContaining({ page: 1 }),
-        "/admin/tenants/t1",
+        "/admin/tenants/t1/reports",
       ),
     );
   });

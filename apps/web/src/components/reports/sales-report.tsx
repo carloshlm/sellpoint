@@ -24,7 +24,7 @@ export function SalesReport() {
   const currency = useScopedCurrency();
   // F9-ADMIN-11: desde el expediente del backoffice, el archivo y la consulta
   // van al negocio mirado; el filtro de almacén no aplica (sería el del admin).
-  const { basePath, tenantId: negocioAjeno } = useAdminTenantScope();
+  const { reportsPath, tenantId: negocioAjeno } = useAdminTenantScope();
 
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [estado, setEstado] = useState<"todas" | "completed" | "canceled">("todas");
@@ -138,7 +138,7 @@ export function SalesReport() {
         onExport={() =>
           void (negocioAjeno === null
             ? downloadSalesReport(filtros)
-            : downloadSalesReport(filtros, "xlsx", basePath))
+            : downloadSalesReport(filtros, "xlsx", reportsPath))
         }
       />
 

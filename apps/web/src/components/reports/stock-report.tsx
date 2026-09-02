@@ -29,7 +29,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
   const currency = useScopedCurrency();
   // F9-ADMIN-11: desde el expediente del backoffice, el archivo y la consulta
   // van al negocio mirado; el filtro de almacén no aplica (sería el del admin).
-  const { basePath, tenantId: negocioAjeno } = useAdminTenantScope();
+  const { reportsPath, tenantId: negocioAjeno } = useAdminTenantScope();
 
   const [warehouseId, setWarehouseId] = useState<string | null>(null);
   const [belowMin, setBelowMin] = useState(initialBelowMin);
@@ -153,7 +153,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         onExport={() =>
           void (negocioAjeno === null
             ? downloadStockReport(filtros)
-            : downloadStockReport(filtros, "xlsx", basePath))
+            : downloadStockReport(filtros, "xlsx", reportsPath))
         }
       />
     </section>
