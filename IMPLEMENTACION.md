@@ -3628,12 +3628,12 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** `reception-turns.test.tsx` (RED primero): orden descendente; «Atender» cambia el badge; turno suelto se crea y se muestra; cambiar la fecha refetchea con `?date=`; sin `reception:manage` no hay acciones.
   - **Depende de:** F9-RECEP-09 · **Estimación:** 4 h
 
-- [ ] **F9-RECEP-14** — e2e del API: clientes
+- [x] **F9-RECEP-14** *(cerrada el 2026-09-02)* — e2e del API: clientes
   - **Salida:** `apps/api/test/e2e/reception-customers.e2e-spec.ts` (molde `services.e2e-spec.ts`), con el módulo activado vía F9-MOD-05.
   - **Verificar:** CRUD y orden; RLS: lo de A no se ve ni edita ni borra desde B (404); módulo apagado → 402 en TODAS las rutas, GET incluidos; Viewer lee y recibe 403 al crear; teléfono sin `+` → 400 `reception.invalid_phone`.
   - **Depende de:** F9-RECEP-08, F9-MOD-05 · **Estimación:** 3 h
 
-- [ ] **F9-RECEP-15** — e2e del API: turnos y el reinicio diario
+- [x] **F9-RECEP-15** *(cerrada el 2026-09-02)* — e2e del API: turnos y el reinicio diario
   - **Salida:** `apps/api/test/e2e/reception-turns.e2e-spec.ts`.
   - **Verificar:** tres turnos seguidos → 1, 2, 3; otro tenant en otra zona lleva su propia serie; turno ligado trae el nombre; borrar el cliente deja el turno con `customerId: null` y el nombre snapshot; `attend` dos veces = mismo `attendedAt`; `wait` lo revierte; `?date=` de ayer no trae los de hoy.
   - **Depende de:** F9-RECEP-08, F9-MOD-05 · **Estimación:** 3 h
