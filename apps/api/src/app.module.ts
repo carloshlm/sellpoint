@@ -19,6 +19,7 @@ import { TenantContextMiddleware } from "./infrastructure/tenant-context/tenant-
 import { RedisThrottlerStorage } from "./infrastructure/throttle/redis-throttler.storage";
 import { ThrottleModule } from "./infrastructure/throttle/throttle.module";
 import { WarehouseScopeInterceptor } from "./infrastructure/warehouse-scope/warehouse-scope.interceptor";
+import { AdminModule } from "./modules/admin/admin.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { JwtAuthGuard } from "./modules/auth/guards/jwt-auth.guard";
@@ -123,6 +124,7 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     CatalogsModule,
     ServicesModule,
     ReceptionModule,
+    AdminModule,
     WarehousesModule,
     InventoryModule,
     PosModule,

@@ -19,6 +19,7 @@
   "read_only": "Your account is in free mode: you can view everything and sell up to 10 times a day. Get a plan to create and edit.",
   "subscription_canceled": "The subscription is canceled. Reactivate it before recording a payment.",
   "subscription_not_found": "This business has no subscription on record.",
+  "tenant_not_found": "The business does not exist.",
   "user_limit_reached": "Your plan allows up to {limit} users. Upgrade your plan to invite more.",
   "warehouse_limit_reached": "Your plan allows up to {limit} warehouses. Upgrade your plan to create more."
 }

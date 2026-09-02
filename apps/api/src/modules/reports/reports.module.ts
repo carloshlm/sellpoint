@@ -38,6 +38,19 @@ import { StockReportService } from "./stock-report.service";
     CatalogExportService,
     KardexExportService,
   ],
-  exports: [ReportsService],
+  // F9-ADMIN-01: el expediente del backoffice reusa estos services con un
+  // actor sintético (`admin/platform-actor.ts`).
+  exports: [
+    ReportsService,
+    DashboardKpisService,
+    DashboardSeriesService,
+    DashboardProductsService,
+    DashboardInventoryService,
+    DashboardPaymentsService,
+    SalesReportService,
+    StockReportService,
+    SalesExportService,
+    StockExportService,
+  ],
 })
 export class ReportsModule {}

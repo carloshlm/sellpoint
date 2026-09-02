@@ -3494,27 +3494,27 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ### Módulo F9-ADMIN — el expediente del negocio en el backoffice (atomizado el 2026-09-02)
 
-- [ ] **F9-ADMIN-01** — Módulo `admin` con el controller `admin/tenants` y el actor sintético
+- [x] **F9-ADMIN-01** *(cerrada el 2026-09-02)* — Módulo `admin` con el controller `admin/tenants` y el actor sintético
   - **Salida:** `apps/api/src/modules/admin/{admin.module,admin-tenants.controller,platform-actor}.ts`; `platformAdminActor(tenantId, admin): AuthUser` (`permissions: ["reports:read","inventory:read"]`, locale del admin) y `SCOPE_ALL: UserScope = { warehouseIds: "all" }`; `UsersModule` exporta `UsersAdminService`; `ReportsModule` exporta los 5 dashboard services + `SalesReportService`/`StockReportService`. Guard y `@AllowedInFreeTier` a nivel de clase; ruta stub `GET /admin/tenants/:tenantId/overview`. Comentario visible en `platform-actor.ts`: el actor sintético depende de que los services de reportes solo lean `user.tenantId`.
   - **Verificar:** unit — `platformAdminActor("T2", admin).tenantId === "T2"`; e2e — TenantAdmin normal → 403; la app arranca.
   - **Depende de:** — · **Estimación:** 2 h
 
-- [ ] **F9-ADMIN-02** — `GET /admin/tenants/:tenantId/overview`
+- [x] **F9-ADMIN-02** *(cerrada el 2026-09-02)* — `GET /admin/tenants/:tenantId/overview`
   - **Salida:** `admin-tenants.service.ts` con un único `withTenantContext(tenantId)`: `{ tenant: {name,country,currency,timezone,onboarded}, users: {active,invited,suspended}, counts: {products,services,subcatalogs,warehouses}, subscription: {planCode,planName,status,customPrice,dueAt,billingCycle}, modules }`. Subcatálogos = `catalog.count({ where: { isSystem: false } })`.
   - **Verificar:** integración con dos tenants — nunca mezcla; sin suscripción → `status: "none"` sin reventar.
   - **Depende de:** F9-ADMIN-01, F9-MOD-03 · **Estimación:** 2.5 h
 
-- [ ] **F9-ADMIN-03** — Usuarios del negocio desde el backoffice
+- [x] **F9-ADMIN-03** *(cerrada el 2026-09-02)* — Usuarios del negocio desde el backoffice
   - **Salida:** `GET /admin/tenants/:tenantId/users`, `POST .../users/:userId/suspend` y `.../reactivate`, delegando en `UsersAdminService` con el actor sintético y `metaFrom(request)`.
   - **Verificar:** e2e — el admin lista y suspende un usuario de B; `audit_logs` de B guarda `user.suspended` con el userId del admin; suspender al ÚNICO admin activo → 409 y sigue activo; el perm-epoch del suspendido queda bumpeado.
   - **Depende de:** F9-ADMIN-01 · **Estimación:** 2.5 h
 
-- [ ] **F9-ADMIN-04** — Dashboard del cliente bajo `/admin/tenants/:tenantId/dashboard/*`
+- [x] **F9-ADMIN-04** *(cerrada el 2026-09-02)* — Dashboard del cliente bajo `/admin/tenants/:tenantId/dashboard/*`
   - **Salida:** rutas `kpis`, `series`, `products`, `inventory`, `payment-methods` llamando a los services de `modules/reports` con `platformAdminActor` y `SCOPE_ALL` (sin `@CurrentUserScope()`).
   - **Verificar:** e2e — con ventas en B, `kpis` devuelve las de B; `inventory` trae `inventoryValue`; almacenes fuera del alcance del admin en su propio tenant aparecen igual.
   - **Depende de:** F9-ADMIN-01 · **Estimación:** 2.5 h
 
-- [ ] **F9-ADMIN-05** — Reportes de ventas e inventario bajo `/admin/tenants/:tenantId/reports/*`
+- [x] **F9-ADMIN-05** *(cerrada el 2026-09-02)* — Reportes de ventas e inventario bajo `/admin/tenants/:tenantId/reports/*`
   - **Salida:** `GET .../reports/sales` y `.../reports/stock` con los mismos DTO Zod de `modules/reports/dto`, delegando en `SalesReportService`/`StockReportService` con el actor sintético.
   - **Verificar:** e2e — filtros y paginación idénticos a `/reports/*`; totales cuadran con los del cliente; query inválida → `reports.invalid_query`.
   - **Depende de:** F9-ADMIN-04 · **Estimación:** 2 h

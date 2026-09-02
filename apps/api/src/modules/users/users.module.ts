@@ -23,5 +23,8 @@ import { WarehouseScopeService } from "./warehouse-scope.service";
   imports: [AuditModule, AuthModule, MailModule, BillingModule],
   controllers: [UsersController, UsersAdminController],
   providers: [UsersService, UsersAdminService, UserInvitationService, WarehouseScopeService],
+  // F9-ADMIN-03: el backoffice suspende y reactiva usuarios de OTRO negocio
+  // con las mismas invariantes (último admin, perm-epoch).
+  exports: [UsersAdminService],
 })
 export class UsersModule {}

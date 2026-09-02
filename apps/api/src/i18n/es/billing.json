@@ -19,6 +19,7 @@
   "read_only": "Tu cuenta está en modo gratuito: puedes consultar todo y vender hasta 10 veces al día. Contrata un plan para crear y editar.",
   "subscription_canceled": "La suscripción está cancelada. Reactívala antes de registrar un pago.",
   "subscription_not_found": "Este negocio no tiene una suscripción registrada.",
+  "tenant_not_found": "El negocio no existe.",
   "user_limit_reached": "Tu plan permite hasta {limit} usuarios. Mejora tu plan para invitar más.",
   "warehouse_limit_reached": "Tu plan permite hasta {limit} almacenes. Mejora tu plan para crear más."
 }
