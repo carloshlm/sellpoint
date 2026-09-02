@@ -1,3 +1,4 @@
+import { effectiveDocumentDate, localeToBcp47 } from "@sellpoint/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -5,10 +6,13 @@ import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-ra
 import { Badge } from "@/components/ui/badge";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { formatBusinessDate } from "@/lib/inventory/format-date";
 import { useCreateDocument, useDocuments } from "@/lib/inventory/hooks";
 import type { DocumentStatus, InventoryDocumentType } from "@/lib/inventory/types";
+import { useAuthStore } from "@/stores/auth.store";
 import { WarehouseSelect } from "./warehouse-select";
 
 interface DocumentListProps {
@@ -44,10 +48,13 @@ const CHIPS: { status: DocumentStatus | undefined; label: string }[] = [
  * mira, no mueve.
  */
 export function DocumentList({ type }: DocumentListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { has } = usePermissions();
   const navigate = useNavigate();
   const canCreate = has("inventory:movement");
+  // La zona del NEGOCIO: la misma con la que el API corta el rango.
+  const timeZone = useAuthStore((s) => s.user?.tenant?.timezone);
+  const locale = localeToBcp47(resolveUiLocale(i18n));
 
   const [folioInput, setFolioInput] = useState("");
   const [folio, setFolio] = useState("");
@@ -255,7 +262,35 @@ export function DocumentList({ type }: DocumentListProps) {
                   <td className="px-2 py-2">
                     {row.reasonCode === null ? "—" : t(`inventory.reason.${row.reasonCode}`)}
                   </td>
-                  <td className="px-2 py-2">{new Date(row.createdAt).toLocaleDateString()}</td>
+                  {/* La fecha del ESTADO (Carlos, 2026-09-02): apertura en borrador,
+                      asiento en confirmado, cancelación en cancelado — la misma
+                      que filtra Desde/Hasta. El title cuenta las dos. */}
+                  <td
+                    className="px-2 py-2"
+                    title={
+                      row.status === "draft"
+                        ? undefined
+                        : [
+                            t("inventory.document.openedAt", {
+                              date: formatBusinessDate(row.createdAt, locale, timeZone),
+                            }),
+                            t(
+                              row.status === "canceled"
+                                ? "inventory.document.canceledAt"
+                                : "inventory.document.postedAt",
+                              {
+                                date: formatBusinessDate(
+                                  effectiveDocumentDate(row),
+                                  locale,
+                                  timeZone,
+                                ),
+                              },
+                            ),
+                          ].join(" · ")
+                    }
+                  >
+                    {formatBusinessDate(effectiveDocumentDate(row), locale, timeZone)}
+                  </td>
                   <td className="px-2 py-2">{row.lineCount}</td>
                   <td className="px-2 py-2">
                     {row.createdBy === null

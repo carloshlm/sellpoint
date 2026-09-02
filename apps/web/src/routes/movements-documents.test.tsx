@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
@@ -59,7 +59,11 @@ const demoUser = (permissions: string[]): AuthUser => ({
   },
 });
 
-const documento = (folio: string, status: "draft" | "confirmed" | "canceled" = "confirmed") => ({
+const documento = (
+  folio: string,
+  status: "draft" | "confirmed" | "canceled" = "confirmed",
+  fechas: { createdAt?: string; confirmedAt?: string | null; canceledAt?: string | null } = {},
+) => ({
   id: `id-${folio}`,
   folio,
   type: "entry" as const,
@@ -71,6 +75,8 @@ const documento = (folio: string, status: "draft" | "confirmed" | "canceled" = "
   createdAt: "2026-08-18T19:42:00.000Z",
   createdBy: { id: "u1", firstName: "Ana", lastNamePaternal: "Pérez" },
   confirmedAt: "2026-08-18T19:45:00.000Z",
+  canceledAt: null,
+  ...fechas,
 });
 
 /**
@@ -422,5 +428,65 @@ describe("crear con uno abierto (Carlos, 2026-09-01)", () => {
     expect(alerta).toHaveTextContent("INV-000009");
     expect(router.state.location.pathname).toBe("/movements/counts");
     expect(screen.getByRole("button", { name: /crear/i })).toBeEnabled();
+  });
+});
+
+/**
+ * Carlos (2026-09-02): la columna «Fecha» es la del ESTADO del documento —
+ * apertura en borrador, asiento en confirmado, cancelación en cancelado— y
+ * se lee en la zona del NEGOCIO, la misma con la que el API corta el rango
+ * Desde/Hasta. Antes era siempre la apertura, en la zona del navegador.
+ */
+describe("la columna Fecha es la del estado, en la zona del negocio", () => {
+  it("un confirmado muestra el día del asiento y explica los dos en el title", async () => {
+    mockedList.mockResolvedValue({
+      rows: [
+        documento("ENT-000042", "confirmed", {
+          createdAt: "2026-08-18T19:42:00.000Z",
+          confirmedAt: "2026-08-20T16:00:00.000Z",
+        }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderRuta("/movements/entries");
+    const fila = (await screen.findByText("ENT-000042")).closest("tr") as HTMLElement;
+
+    const celda = within(fila).getByText(/20\/08\/26/);
+    expect(celda).toHaveAttribute(
+      "title",
+      expect.stringMatching(/Abierto.*18\/08\/26.*Asentado.*20\/08\/26/),
+    );
+  });
+
+  it("un borrador muestra la apertura, sin title", async () => {
+    mockedList.mockResolvedValue({
+      rows: [documento("ENT-000043", "draft", { confirmedAt: null })],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderRuta("/movements/entries");
+    const fila = (await screen.findByText("ENT-000043")).closest("tr") as HTMLElement;
+
+    const celda = within(fila).getByText(/18\/08\/26/);
+    expect(celda).not.toHaveAttribute("title");
+  });
+
+  it("un instante de la madrugada UTC es el día ANTERIOR en CDMX", async () => {
+    mockedList.mockResolvedValue({
+      rows: [
+        // 19 de agosto 03:30 UTC = 18 de agosto 21:30 en America/Mexico_City.
+        documento("ENT-000044", "confirmed", { confirmedAt: "2026-08-19T03:30:00.000Z" }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderRuta("/movements/entries");
+    const fila = (await screen.findByText("ENT-000044")).closest("tr") as HTMLElement;
+
+    expect(within(fila).getByText(/18\/08\/26/)).toBeInTheDocument();
   });
 });

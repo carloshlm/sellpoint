@@ -121,6 +121,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   createdAt: "2026-08-18T19:42:00.000Z",
   createdBy: { id: "u1", firstName: "Ana", lastNamePaternal: "Pérez" },
   confirmedAt: null,
+  canceledAt: null,
   rows: [fila()],
   products: [
     {

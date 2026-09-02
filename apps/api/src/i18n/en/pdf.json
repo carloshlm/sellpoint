@@ -21,6 +21,7 @@
   "destination": "Destination warehouse",
   "reasonLabel": "Reason",
   "date": "Date",
+  "openedAt": "Opened",
   "registeredBy": "Registered by",
   "reference": "Reference",
   "authorizedBy": "Authorized by",

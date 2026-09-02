@@ -95,6 +95,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   createdAt: "2026-08-18T19:42:00.000Z",
   createdBy: { id: "u1", firstName: "Ana", lastNamePaternal: "Pérez" },
   confirmedAt: null,
+  canceledAt: null,
   rows: [
     {
       id: "line-1",
@@ -491,5 +492,40 @@ describe("Cabecera de una recepción de traspaso", () => {
 
     expect(await screen.findByLabelText(/motivo/i)).toBeInTheDocument();
     expect(screen.queryByTestId("transfer-reason")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos (2026-09-02): la cabecera del documento dice cuándo se abrió y
+ * cuándo se asentó o canceló, con hora, en la zona del negocio. No decía
+ * ninguna fecha.
+ */
+describe("la cabecera dice las fechas del documento", () => {
+  it("un borrador solo tiene apertura", async () => {
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    expect(screen.getByText(/Abierto 18\/08\/26/)).toBeInTheDocument();
+    expect(screen.queryByText(/Asentado/)).not.toBeInTheDocument();
+  });
+
+  it("un confirmado dice apertura y asiento", async () => {
+    mocked.getDocument.mockResolvedValue(
+      detalle({ status: "confirmed", confirmedAt: "2026-08-20T16:00:00.000Z" }),
+    );
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    expect(screen.getByText(/Abierto 18\/08\/26.*Asentado 20\/08\/26/)).toBeInTheDocument();
+  });
+
+  it("un cancelado dice apertura y cancelación", async () => {
+    mocked.getDocument.mockResolvedValue(
+      detalle({ status: "canceled", canceledAt: "2026-08-21T16:00:00.000Z" }),
+    );
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    expect(screen.getByText(/Abierto 18\/08\/26.*Cancelado 21\/08\/26/)).toBeInTheDocument();
   });
 });

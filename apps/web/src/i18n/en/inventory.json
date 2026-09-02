@@ -66,6 +66,9 @@
   },
   "document": {
     "downloadPdf": "Download PDF",
+    "openedAt": "Opened {{date}}",
+    "postedAt": "Posted {{date}}",
+    "canceledAt": "Canceled {{date}}",
     "pdfFailed": "The PDF couldn't be generated. Please try again.",
     "saved": "Saved",
     "saving": "Saving…",

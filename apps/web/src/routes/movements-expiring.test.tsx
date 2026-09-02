@@ -246,6 +246,7 @@ describe("Próximos a vencer (F3-LOTS-03)", () => {
       createdAt: "2026-08-18T00:00:00.000Z",
       createdBy: null,
       confirmedAt: null,
+      canceledAt: null,
     });
     mocked.updateDocumentHeader.mockResolvedValue({} as never);
     mocked.addDocumentLine.mockResolvedValue({});

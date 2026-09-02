@@ -19,6 +19,7 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       name: "Mi Negocio",
       legalName: "DISTRIBUIDORA DEL NORTE S.A. DE C.V.",
       taxId: "DNO010203AB4",
+      timezone: "America/Mexico_City",
     },
     document: {
       folio: "ENT-000042",
@@ -30,6 +31,8 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       reference: "F-88213",
       reasonNote: null,
       createdAt: new Date("2026-08-18T19:42:00Z"),
+      confirmedAt: new Date("2026-08-18T19:45:00Z"),
+      canceledAt: null,
       createdByName: "Ana Ruiz",
       authorizedByName: null,
     },
@@ -137,7 +140,15 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
 
     it("cae al nombre comercial si no hay razón social", () => {
       const def = buildDocumentDefinition(
-        { ...base, tenant: { name: "Mi Negocio", legalName: null, taxId: null } },
+        {
+          ...base,
+          tenant: {
+            name: "Mi Negocio",
+            legalName: null,
+            taxId: null,
+            timezone: "America/Mexico_City",
+          },
+        },
         t,
       );
 
@@ -340,7 +351,7 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
 describe("el papel dice lo que la pantalla (Carlos, 2026-09-02)", () => {
   const t = (key: string) => key;
   const base: PdfDocumentInput = {
-    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, timezone: "America/Mexico_City" },
     document: {
       folio: "INV-000014",
       type: "physical_count",
@@ -351,6 +362,8 @@ describe("el papel dice lo que la pantalla (Carlos, 2026-09-02)", () => {
       reference: null,
       reasonNote: null,
       createdAt: new Date("2026-09-02T01:50:00Z"),
+      confirmedAt: new Date("2026-09-02T01:55:00Z"),
+      canceledAt: null,
       createdByName: "Carlos Cinco",
       authorizedByName: null,
     },
@@ -441,7 +454,7 @@ describe("el papel dice lo que la pantalla (Carlos, 2026-09-02)", () => {
 describe("la equivalencia solo cuando aporta", () => {
   const t = (key: string) => key;
   const base: PdfDocumentInput = {
-    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, timezone: "America/Mexico_City" },
     document: {
       folio: "ENT-000024",
       type: "entry",
@@ -452,6 +465,8 @@ describe("la equivalencia solo cuando aporta", () => {
       reference: null,
       reasonNote: null,
       createdAt: new Date("2026-09-02T02:23:00Z"),
+      confirmedAt: new Date("2026-09-02T02:30:00Z"),
+      canceledAt: null,
       createdByName: "Carlos Cinco",
       authorizedByName: null,
     },
@@ -494,5 +509,81 @@ describe("la equivalencia solo cuando aporta", () => {
     );
 
     expect(json).toContain("3 = 36 piezas");
+  });
+});
+
+/**
+ * Carlos (2026-09-02): la «Fecha» del papel es la del ESTADO del documento —
+ * el asiento o la cancelación—, en la zona del NEGOCIO y en el idioma de
+ * quien imprime. Salía la apertura, en `es-MX` y en UTC fijos: un conteo
+ * asentado a las 7 de la noche de CDMX decía «mañana».
+ */
+describe("la fecha del papel es la del estado, en la zona del negocio", () => {
+  const t = (key: string) => key;
+  const base: PdfDocumentInput = {
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, timezone: "America/Mexico_City" },
+    document: {
+      folio: "INV-000014",
+      type: "physical_count",
+      status: "confirmed",
+      warehouseName: "Central",
+      linkedWarehouseName: null,
+      reasonCode: "physical_count",
+      reference: null,
+      reasonNote: null,
+      // 1 de septiembre a las 19:50 en CDMX (UTC−6): en UTC ya es día 2.
+      createdAt: new Date("2026-09-02T01:50:00Z"),
+      confirmedAt: new Date("2026-09-03T15:00:00Z"),
+      canceledAt: null,
+      createdByName: "Carlos Cinco",
+      authorizedByName: null,
+    },
+    locale: "es",
+    rows: [],
+  };
+  const textos = (def: unknown): string => JSON.stringify(def);
+
+  it("un confirmado imprime el día del asiento, y la captura aparte si fue otro día", () => {
+    const json = textos(buildDocumentDefinition(base, t));
+
+    expect(json).toMatch(/pdf\.date: ","bold":true\},"03\/09\/26/);
+    expect(json).toMatch(/pdf\.openedAt: ","bold":true\},"01\/09\/26/);
+  });
+
+  it("si se capturó y asentó el mismo día, la captura no se repite", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        { ...base, document: { ...base.document, confirmedAt: new Date("2026-09-02T03:10:00Z") } },
+        t,
+      ),
+    );
+
+    expect(json).toMatch(/pdf\.date: ","bold":true\},"01\/09\/26/);
+    expect(json).not.toContain("pdf.openedAt");
+  });
+
+  it("en inglés la fecha sigue el formato del idioma", () => {
+    const json = textos(buildDocumentDefinition({ ...base, locale: "en" }, t));
+
+    expect(json).toMatch(/pdf\.date: ","bold":true\},"9\/3\/26/);
+  });
+
+  it("un cancelado imprime el día de la cancelación", () => {
+    const json = textos(
+      buildDocumentDefinition(
+        {
+          ...base,
+          document: {
+            ...base.document,
+            status: "canceled",
+            confirmedAt: null,
+            canceledAt: new Date("2026-09-05T20:00:00Z"),
+          },
+        },
+        t,
+      ),
+    );
+
+    expect(json).toMatch(/pdf\.date: ","bold":true\},"05\/09\/26/);
   });
 });

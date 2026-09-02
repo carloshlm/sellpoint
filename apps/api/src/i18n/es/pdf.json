@@ -21,6 +21,7 @@
   "destination": "Almacén destino",
   "reasonLabel": "Motivo",
   "date": "Fecha",
+  "openedAt": "Capturado",
   "registeredBy": "Registró",
   "reference": "Referencia",
   "authorizedBy": "Autorizó",

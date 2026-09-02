@@ -5,8 +5,10 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
+  effectiveDocumentDateField,
   endOfDayUtc,
   FOLIO_PREFIXES,
+  type InventoryDocumentStatus,
   type InventoryDocumentType,
   startOfDayUtc,
 } from "@sellpoint/shared";
@@ -289,39 +291,60 @@ export class DocumentsService {
     // de día en UTC— así que en `America/Mexico_City` (UTC−6) perdía todo lo
     // capturado después de las 18:00 locales.
     const zona = await this.zonaDelNegocio(user.tenantId);
+    // Sin filtro explícito no se muestran los anulados: crear un borrador es
+    // barato y va a haber anulados vacíos que no tienen por qué ensuciar la
+    // vista de todos los días.
+    const statuses: InventoryDocumentStatus[] = query.status
+      ? [query.status]
+      : ["draft", "confirmed"];
+    const rango: Prisma.DateTimeFilter = {
+      ...(query.from !== undefined && { gte: startOfDayUtc(query.from, zona) }),
+      // `lt` y no `lte`: el fin de día es el ARRANQUE del siguiente, así no
+      // se pierde el último milisegundo del día.
+      ...(query.to !== undefined && { lt: endOfDayUtc(query.to, zona) }),
+    };
     const where: Prisma.InventoryDocumentWhereInput = {
       tenantId: user.tenantId,
       type: query.type,
-      // Sin filtro explícito no se muestran los anulados: crear un borrador es
-      // barato y va a haber anulados vacíos que no tienen por qué ensuciar la
-      // vista de todos los días.
-      status: query.status ?? { in: ["draft", "confirmed"] },
+      status: { in: statuses },
       ...(query.warehouseId !== undefined && { warehouseId: query.warehouseId }),
       ...(query.createdBy !== undefined && { createdBy: query.createdBy }),
       ...(query.folio !== undefined && {
         folio: { contains: query.folio, mode: "insensitive" as const },
       }),
-      ...((query.from !== undefined || query.to !== undefined) && {
-        createdAt: {
-          ...(query.from !== undefined && { gte: startOfDayUtc(query.from, zona) }),
-          // `lt` y no `lte`: el fin de día es el ARRANQUE del siguiente, así
-          // no se pierde el último milisegundo del día.
-          ...(query.to !== undefined && { lt: endOfDayUtc(query.to, zona) }),
-        },
+      // La fecha que filtra es la que la pantalla muestra: la del ESTADO del
+      // documento (Carlos, 2026-09-02) — apertura en borrador, asiento en
+      // confirmado, cancelación en cancelado. Un `OR` por estado y no un
+      // COALESCE en SQL crudo: así se conservan el RLS, el alcance y la
+      // paginación de Prisma. Es la misma regla que `effectiveDocumentDate`
+      // del web, dicha como columna.
+      ...(Object.keys(rango).length > 0 && {
+        OR: statuses.map((status) => ({ status, [effectiveDocumentDateField(status)]: rango })),
       }),
       // El alcance del usuario: un Manager no ve documentos de un almacén que
       // no administra.
       ...(scope.warehouseIds !== "all" && { warehouseId: { in: scope.warehouseIds } }),
     };
 
+    const campoOrden = query.status ? effectiveDocumentDateField(query.status) : "createdAt";
+    // `nulls: "last"` solo cabe en columnas nullable: `created_at` no lo es y
+    // Prisma rechaza el objeto ahí.
+    const ordenPorFecha: Prisma.InventoryDocumentOrderByWithRelationInput =
+      campoOrden === "createdAt"
+        ? { createdAt: "desc" }
+        : { [campoOrden]: { sort: "desc", nulls: "last" } };
+
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const [total, rows] = await Promise.all([
         tx.inventoryDocument.count({ where }),
         tx.inventoryDocument.findMany({
           where,
-          // Orden TOTAL: `created_at` solo puede empatar entre dos documentos
-          // creados en el mismo instante, y el folio los desempata.
-          orderBy: [{ createdAt: "desc" }, { folio: "desc" }],
+          // Orden TOTAL, con el folio de desempate. Por la fecha del estado
+          // cuando se pide UN estado (es la columna que se ve); la pestaña
+          // mixta sigue por la apertura, porque Prisma no ordena por COALESCE
+          // y una fila confirmada puede salir «fuera de orden» respecto a la
+          // columna: compromiso explícito.
+          orderBy: [ordenPorFecha, { folio: "desc" }],
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
           include: {
@@ -345,6 +368,7 @@ export class DocumentsService {
           createdAt: d.createdAt,
           createdBy: d.creator,
           confirmedAt: d.confirmedAt,
+          canceledAt: d.canceledAt,
         })),
         total,
         page: query.page,

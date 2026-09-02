@@ -21,3 +21,34 @@ export function formatCalendarDate(iso: string, locale: string): string {
     timeZone: "UTC",
   }).format(new Date(iso));
 }
+
+/**
+ * Un INSTANTE del documento (`createdAt`, `confirmedAt`, `canceledAt`) como
+ * día —o día y hora— del calendario del NEGOCIO.
+ *
+ * Por qué la zona del negocio y no la del navegador (Carlos, 2026-09-02): es
+ * la misma con la que el API corta el rango Desde/Hasta. Si la celda dijera
+ * «19/08» en el navegador de alguien en Madrid y el filtro «Hasta 18/08»
+ * incluyera esa fila, la pantalla se contradiría a sí misma. `timeZone`
+ * ausente (sesión vieja) cae a la del navegador; una zona inválida también,
+ * porque `Intl` lanza y un listado que revienta es peor que uno corrido.
+ */
+export function formatBusinessDate(
+  iso: string,
+  locale: string,
+  timeZone: string | undefined,
+  withTime = false,
+): string {
+  const opciones: Intl.DateTimeFormatOptions = {
+    dateStyle: "short",
+    ...(withTime ? { timeStyle: "short" } : {}),
+  };
+  const instante = new Date(iso);
+  try {
+    return new Intl.DateTimeFormat(locale, { ...opciones, ...(timeZone ? { timeZone } : {}) })
+      .format(instante)
+      .replace(",", "");
+  } catch {
+    return new Intl.DateTimeFormat(locale, opciones).format(instante).replace(",", "");
+  }
+}

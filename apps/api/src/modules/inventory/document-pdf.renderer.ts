@@ -1,8 +1,11 @@
 import {
+  effectiveDocumentDate,
   formatQuantity,
   formatQuantityWithUnit,
   type InventoryDocumentType,
   type Locale,
+  localCalendarDate,
+  localeToBcp47,
 } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 
@@ -26,7 +29,8 @@ export interface PdfRow {
 }
 
 export interface PdfDocumentInput {
-  tenant: { name: string; legalName: string | null; taxId: string | null };
+  /** `timezone` es la del NEGOCIO: las fechas del papel se leen en su calendario. */
+  tenant: { name: string; legalName: string | null; taxId: string | null; timezone: string };
   document: {
     folio: string;
     type: InventoryDocumentType;
@@ -37,6 +41,8 @@ export interface PdfDocumentInput {
     reference: string | null;
     reasonNote: string | null;
     createdAt: Date;
+    confirmedAt: Date | null;
+    canceledAt: Date | null;
     createdByName: string;
     authorizedByName: string | null;
   };
@@ -54,10 +60,31 @@ export interface PdfDocumentInput {
 
 const GRIS = "#666666";
 
-const fecha = (value: Date): string =>
-  new Intl.DateTimeFormat("es-MX", { dateStyle: "short", timeStyle: "short", timeZone: "UTC" })
-    .format(value)
-    .replace(",", "");
+/**
+ * Un instante del documento, en la zona del negocio y en el idioma de quien
+ * imprime (Carlos, 2026-09-02). Salía en `es-MX` y UTC fijos: un conteo
+ * asentado a las 7 de la noche de CDMX decía «mañana».
+ */
+function fecha(value: Date, locale: Locale, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat(localeToBcp47(locale), {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone,
+    })
+      .format(value)
+      .replace(",", "");
+  } catch {
+    // Una zona mal cargada no puede dejar sin PDF a nadie: cae a UTC.
+    return new Intl.DateTimeFormat(localeToBcp47(locale), {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: "UTC",
+    })
+      .format(value)
+      .replace(",", "");
+  }
+}
 
 const MESES: Record<Locale, readonly string[]> = {
   es: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
@@ -102,6 +129,7 @@ const dato = (label: string, value: string | null) =>
 export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
   const { tenant, document, rows } = input;
   const esConteo = document.type === "physical_count";
+  const fechaEstado = effectiveDocumentDate(document);
   const muestraCosto = document.reasonCode === "invoice";
   const conLotes = rows.some((r) => r.lotCode !== null);
 
@@ -259,7 +287,19 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
           {
             width: "*",
             stack: [
-              ...dato(t("pdf.date"), fecha(document.createdAt)),
+              // La «Fecha» del papel es la del ESTADO: el asiento o la cancelación
+              // (un borrador no tiene PDF). La captura se agrega aparte solo si
+              // fue otro día del calendario del negocio: repetir la misma fecha
+              // dos veces en el papel es ruido; un conteo abierto el 1 y asentado
+              // el 3 es un dato de auditoría.
+              ...dato(t("pdf.date"), fecha(fechaEstado, input.locale, input.tenant.timezone)),
+              ...(localCalendarDate(input.tenant.timezone, document.createdAt) !==
+              localCalendarDate(input.tenant.timezone, fechaEstado)
+                ? dato(
+                    t("pdf.openedAt"),
+                    fecha(document.createdAt, input.locale, input.tenant.timezone),
+                  )
+                : []),
               ...dato(t("pdf.registeredBy"), document.createdByName),
               ...dato(t("pdf.reference"), document.reference),
               ...dato(t("pdf.authorizedBy"), document.authorizedByName),

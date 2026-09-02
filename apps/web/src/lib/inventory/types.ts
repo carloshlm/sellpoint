@@ -30,6 +30,7 @@ export interface DocumentSummary {
   createdAt: string;
   createdBy: { id: string; firstName: string; lastNamePaternal: string } | null;
   confirmedAt: string | null;
+  canceledAt: string | null;
 }
 
 /** Un problema de una línea, en la forma que el formulario pinta sobre la fila. */

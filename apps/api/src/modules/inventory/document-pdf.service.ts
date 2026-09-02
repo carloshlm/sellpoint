@@ -154,7 +154,7 @@ export class DocumentPdfService {
 
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
-        select: { name: true, legalName: true, taxId: true },
+        select: { name: true, legalName: true, taxId: true, timezone: true },
       });
 
       const nombre = (p: { firstName: string; lastNamePaternal: string } | null) =>
@@ -176,6 +176,8 @@ export class DocumentPdfService {
             reference: document.reference,
             reasonNote: document.reasonNote,
             createdAt: document.createdAt,
+            confirmedAt: document.confirmedAt,
+            canceledAt: document.canceledAt,
             createdByName: nombre(document.creator) ?? "",
             authorizedByName: nombre(document.authorizer),
           },

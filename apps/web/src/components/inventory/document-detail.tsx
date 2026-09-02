@@ -1,5 +1,7 @@
 import {
+  effectiveDocumentDate,
   formatQuantity,
+  localeToBcp47,
   normalizeLotCode,
   REASON_RULES,
   unitLabelFor,
@@ -16,7 +18,7 @@ import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { removeDocumentLine, updateDocumentLine } from "@/lib/inventory/api";
 import { headerErrors } from "@/lib/inventory/entry-schema";
-import { formatCalendarDate } from "@/lib/inventory/format-date";
+import { formatBusinessDate, formatCalendarDate } from "@/lib/inventory/format-date";
 import {
   DOCUMENTS_QUERY_KEY,
   useCancelDocument,
@@ -57,8 +59,11 @@ interface DocumentDetailProps {
  * distinto de lo que el servidor exige.
  */
 export function DocumentDetail({ documentId }: DocumentDetailProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { has } = usePermissions();
+  // Las fechas de la cabecera se leen en la zona del NEGOCIO, como el listado.
+  const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
+  const localeTag = localeToBcp47(resolveUiLocale(i18n));
   // El interruptor de ubicaciones del NEGOCIO. Hook: va arriba del return
   // temprano de carga, o React ve distinta cantidad entre renders.
   const usaUbicaciones = useAuthStore((state) => state.user?.tenant?.usesLocations === true);
@@ -162,6 +167,27 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
           <p className="text-muted-foreground text-sm">
             {t(`inventory.documentType.${document.type}`)} · {document.warehouse.name} ·{" "}
             {t(`inventory.status.${document.status}`)}
+          </p>
+          {/* Cuándo se abrió y cuándo se asentó o canceló, con hora, en la zona
+              del negocio (Carlos, 2026-09-02). */}
+          <p className="text-muted-foreground text-sm">
+            {t("inventory.document.openedAt", {
+              date: formatBusinessDate(document.createdAt, localeTag, timeZone, true),
+            })}
+            {document.status !== "draft" &&
+              ` · ${t(
+                document.status === "canceled"
+                  ? "inventory.document.canceledAt"
+                  : "inventory.document.postedAt",
+                {
+                  date: formatBusinessDate(
+                    effectiveDocumentDate(document),
+                    localeTag,
+                    timeZone,
+                    true,
+                  ),
+                },
+              )}`}
           </p>
           {!editable && document.reasonCode !== null && (
             <p className="text-muted-foreground text-sm">
