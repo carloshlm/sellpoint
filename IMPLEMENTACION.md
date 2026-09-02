@@ -3447,7 +3447,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** bloque sin `modules` no parsea; `"reception"` sí, `"foo"` no; `pnpm typecheck:full` verde.
   - **Depende de:** — · **Estimación:** 1.5 h
 
-- [ ] **F9-MOD-02** — Migración `tenant_modules` con RLS y bypass de billing admin
+- [x] **F9-MOD-02** *(cerrada el 2026-09-02 — sin drift; contraprueba: sin la policy de bypass el spec de integración cae)* — Migración `tenant_modules` con RLS y bypass de billing admin
   - **Salida:** `apps/api/prisma/migrations/<ts>_f9_tenant_modules/migration.sql`: `id, tenant_id (FK tenants), module_key VARCHAR(32), enabled_at, enabled_by uuid NULL, notes text NULL, created_at`, `UNIQUE (tenant_id, module_key)`; en la MISMA migración el bloque RLS canónico + policy `billing_admin_bypass` (copiada de `20260827234000_f7_billing_admin_bypass`). Modelo `TenantModule` en `schema.prisma`; docblock de `withBillingAdminContext` (`prisma.service.ts`) pasa a 5 tablas.
   - **Verificar:** integración — desde `withTenantContext(A)` no se ve la fila de B; desde `withBillingAdminContext` se ven ambas y `sales` sigue en cero (extender `billing-schema.integration.spec.ts`).
   - **Depende de:** F9-MOD-01 · **Estimación:** 2 h

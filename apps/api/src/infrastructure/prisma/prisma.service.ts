@@ -116,7 +116,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * de billing y el backoffice del dueño (PlatformAdminGuard).
    *
    * NO abre acceso a las tablas de negocio: la policy `billing_admin_bypass`
-   * existe únicamente en las 4 tablas de billing — un SELECT a `sales` o
+   * existe únicamente en las 4 tablas de billing y en `tenant_modules`
+   * (F9-MOD-02, la lista de negocios lee los módulos de todos) — un SELECT a `sales` o
    * `warehouses` desde acá sigue devolviendo cero filas (fijado por test de
    * integración). El GUC es transaction-local por la misma razón que el de
    * tenant: con pooling, una conexión reutilizada jamás lo hereda.

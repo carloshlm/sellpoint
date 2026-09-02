@@ -101,6 +101,7 @@ model Tenant {
   subscription         TenantSubscription?
   subscriptionPayments SubscriptionPayment[]
   discounts            TenantDiscount[]
+  modules              TenantModule[]
   billingNotifications BillingNotification[]
 
   @@map("tenants")
@@ -1753,6 +1754,26 @@ model TenantDiscount {
   @@map("tenant_discounts")
 }
 
+/// F9-MOD-02 — qué módulo avanzado tiene activo cada negocio por encima de su
+/// plan (Recepción es el primero). Tabla y no JSONB: guarda quién y cuándo, y
+/// sobrevive a `changePlan`. El catálogo de claves es CÓDIGO (`MODULE_KEYS`
+/// en packages/shared); por eso `module_key` no lleva CHECK y el resolver
+/// descarta con WARN una clave que ya no exista. Lleva la RLS canónica y es
+/// la quinta tabla del bypass acotado del backoffice.
+model TenantModule {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  moduleKey String   @map("module_key") @db.VarChar(32)
+  enabledAt DateTime @default(now()) @map("enabled_at") @db.Timestamptz(6)
+  enabledBy String?  @map("enabled_by") @db.Uuid
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, moduleKey])
+  @@map("tenant_modules")
+}
 /// El registro de avisos enviados. El UNIQUE (suscripción, kind, ancla) ES la
 /// idempotencia del cron: se inserta ANTES de mandar el correo, y si el job
 /// corre dos veces el segundo INSERT rebota con 23505 y el mail no sale.

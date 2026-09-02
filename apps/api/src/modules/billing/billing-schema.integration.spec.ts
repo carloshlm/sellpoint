@@ -274,6 +274,48 @@ describe("modelo de datos de billing (F7-DB)", () => {
     });
   });
 
+  describe("tenant_modules (F9-MOD-02)", () => {
+    // Un módulo por negocio: el material de las pruebas de aislamiento. Se
+    // crea desde el contexto de CADA tenant, como lo haría el backoffice.
+    beforeAll(async () => {
+      for (const tenantId of [tenantA, tenantB]) {
+        await prisma.withTenantContext(tenantId, (tx) =>
+          tx.tenantModule.create({ data: { tenantId, moduleKey: "reception" } }),
+        );
+      }
+    });
+
+    it("el mismo módulo dos veces en el mismo negocio rebota en el UNIQUE", async () => {
+      await expect(
+        prisma.withTenantContext(tenantA, (tx) =>
+          tx.tenantModule.create({ data: { tenantId: tenantA, moduleKey: "reception" } }),
+        ),
+      ).rejects.toMatchObject({ code: "P2002" });
+    });
+
+    it("RLS: el contexto del tenant A no ve el módulo del tenant B", async () => {
+      const filas = await asAppRole(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantA}::text, true)`;
+        return tx.tenantModule.findMany({ where: { tenantId: { in: [tenantA, tenantB] } } });
+      });
+      expect(filas.map((f) => f.tenantId)).toEqual([tenantA]);
+    });
+
+    it("el bypass del backoffice lee los módulos de VARIOS tenants — y warehouses sigue en cero", async () => {
+      const { modulos, bodegas } = await asAppRole(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.billing_admin', 'on', true)`;
+        return {
+          modulos: await tx.tenantModule.findMany({
+            where: { tenantId: { in: [tenantA, tenantB] } },
+          }),
+          bodegas: await tx.warehouse.count({ where: { tenantId: tenantA } }),
+        };
+      });
+      expect(modulos).toHaveLength(2);
+      expect(bodegas).toBe(0);
+    });
+  });
+
   describe("users.is_platform_admin (F7-DB-06)", () => {
     it("el flag nace en false", async () => {
       const user = await prisma.withTenantContext(tenantA, (tx) =>
