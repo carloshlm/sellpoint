@@ -128,6 +128,9 @@ export class ConfirmService {
       //        DOS movimientos —salida del teórico entero y entrada de lo
       //        contado— y no como un ajuste por el delta: así el kardex cuenta
       //        "había 40, se contó 35" en vez de un "-5" sin origen.
+      if (document.type === "physical_count") {
+        this.assertEveryLineCounted(lines);
+      }
       const conteo =
         document.type === "physical_count"
           ? await this.expandCount(tx, user, document, lines, conLotes)
@@ -316,6 +319,30 @@ export class ConfirmService {
 
     for (const [productId, location] of porProducto) {
       await tx.product.updateMany({ where: { id: productId, tenantId }, data: { location } });
+    }
+  }
+
+  /**
+   * Cada fila trae su contado (Carlos, 2026-09-01, noche): una vacía o
+   * negativa no se asienta. Se nombra la fila para que no haya que buscarla
+   * entre ochenta. El cero sí vale.
+   */
+  private assertEveryLineCounted(
+    lines: { lineNo: number; counted: Prisma.Decimal | null }[],
+  ): void {
+    for (const line of lines) {
+      if (line.counted === null) {
+        throw new UnprocessableEntityException({
+          message: "inventory.count_required",
+          args: { lineNo: line.lineNo, field: "counted" },
+        });
+      }
+      if (line.counted.lessThan(0)) {
+        throw new UnprocessableEntityException({
+          message: "inventory.count_negative",
+          args: { lineNo: line.lineNo, field: "counted" },
+        });
+      }
     }
   }
 

@@ -6,7 +6,7 @@ import {
 } from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../../products/money";
-import { quantityAmount } from "./movement.dto";
+import { countedAmount, quantityAmount } from "./movement.dto";
 
 export const createDocumentSchema = z.object({
   type: z.enum(INVENTORY_DOCUMENT_TYPES),
@@ -33,7 +33,7 @@ export const upsertDocumentLineSchema = z.object({
   lotCode: lotCodeField().nullish(),
   expiresAt: z.iso.date().nullish(),
   location: z.string().trim().max(64).nullish(),
-  counted: quantityAmount().nullish(),
+  counted: countedAmount().nullish(),
 });
 
 export const replaceDocumentLinesSchema = z.object({

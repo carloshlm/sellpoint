@@ -666,7 +666,22 @@ export class DocumentsService {
         // no cometió. Y en un documento que ya no es borrador no hay NADA que
         // corregir: los errores son de la previa, y la previa ya pasó.
         const omitida = esConteo && line.counted === null;
-        const errors = !esBorrador || omitida ? [] : [...(res?.errors ?? [])];
+        const errors = !esBorrador ? [] : [...(res?.errors ?? [])];
+        // Cada fila trae su contado (Carlos, 2026-09-01, noche): una vacía o
+        // negativa no deja asentar, y se dice en la fila. El cero sí vale.
+        if (esBorrador && omitida) {
+          errors.push({
+            field: "counted",
+            code: "inventory.count_required",
+            args: { lineNo: line.lineNo },
+          });
+        } else if (esBorrador && esConteo && line.counted !== null && line.counted.lessThan(0)) {
+          errors.push({
+            field: "counted",
+            code: "inventory.count_negative",
+            args: { lineNo: line.lineNo },
+          });
+        }
         const repite = repetidaDe.get(line.lineNo);
         if (esBorrador && repite !== undefined) {
           errors.push({

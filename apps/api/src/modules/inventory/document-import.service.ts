@@ -128,6 +128,20 @@ export class DocumentImportService {
         const value = (raw ?? "").trim();
         return value === "" ? null : value;
       };
+      // «contado» (Carlos, 2026-09-01): una celda con texto («diez») o un
+      // negativo no es un conteo. Se reporta en la fila para que se vea de
+      // dónde vino, y la previa la vuelve a marcar hasta que se corrija.
+      const contadoInvalido = (raw: string | undefined): string | null => {
+        const value = (raw ?? "").trim();
+        if (value === "") {
+          return null;
+        }
+        const parsed = num(value);
+        if (parsed === null) {
+          return "inventory.count_invalid";
+        }
+        return parsed < 0 ? "inventory.count_negative" : null;
+      };
 
       const parsed: ImportedRow[] = body.map((raw, index) => {
         // +2: la fila 1 es el encabezado y Excel cuenta desde 1 — el número
@@ -167,7 +181,7 @@ export class DocumentImportService {
               ? "inventory.product_not_found"
               : nombrePresentacion !== null && presentationId === null
                 ? "inventory.presentation_invalid"
-                : null,
+                : contadoInvalido(raw[idx("contado")]),
         };
       });
 

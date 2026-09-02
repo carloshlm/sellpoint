@@ -527,3 +527,12 @@ describe("el panel de captura y la cajita de «contado» (Carlos, 2026-09-01, no
     expect(screen.queryByText("Ningún archivo elegido")).not.toBeInTheDocument();
   });
 });
+
+describe("el contado no admite negativos (Carlos, 2026-09-01, noche)", () => {
+  it("la cajita de contado declara mínimo cero", async () => {
+    await renderCount();
+    await screen.findByText("INV-000007");
+
+    expect(screen.getByLabelText(/^contado$/i)).toHaveAttribute("min", "0");
+  });
+});

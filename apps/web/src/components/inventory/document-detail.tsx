@@ -571,8 +571,8 @@ function LineRow({
       return;
     }
     const timer = setTimeout(() => {
-      // Vacío es "no llegué a contar esta fila", que NO es contar cero: el
-      // resumen las separa como omitidas y el asiento no las toca.
+      // Vacío se guarda como null: el resumen lo cuenta como omitido y la
+      // previa lo marca — sin contado no se asienta (Carlos, 2026-09-01).
       const parsed = counted.trim() === "" ? null : Number(counted);
       guardarContado.mutate(parsed !== null && Number.isFinite(parsed) ? parsed : null);
     }, DEBOUNCE_MS);
@@ -683,6 +683,7 @@ function LineRow({
                   id={`line-${row.lineNo}-counted`}
                   ref={quantityRef}
                   type="number"
+                  min={0}
                   step="0.0001"
                   value={counted}
                   onChange={(event) => setCounted(event.target.value)}

@@ -42,6 +42,19 @@ export function quantityAmount() {
     .refine(hasValidQuantityScale, "inventory.quantity_too_many_decimals");
 }
 
+/**
+ * Lo CONTADO en un inventario físico (Carlos, 2026-09-01): el cero vale —es
+ * el estante vacío, el hallazgo más importante de un conteo—; el negativo no
+ * existe en el mundo físico y se rechaza en la puerta.
+ */
+export function countedAmount() {
+  return z
+    .number()
+    .min(0, "inventory.count_negative")
+    .max(QUANTITY_MAX, "inventory.quantity_too_large")
+    .refine(hasValidQuantityScale, "inventory.quantity_too_many_decimals");
+}
+
 const movementLineSchema = z.object({
   productId: z.uuid(),
   presentationId: z.uuid().optional(),

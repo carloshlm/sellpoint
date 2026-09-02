@@ -956,8 +956,8 @@ describe("Inventario físico (F3-COUNT)", () => {
      * (lote, A-03-02) y las viejas (lote, «») quedaron intactas: 246 contadas
      * y el stock decía 254. La regla de Carlos: todo lo que hay se vacía —
      * salidas si es positivo, entradas si es negativo— y después entra lo
-     * que dice el Excel. La única cubeta que se respeta es la de una fila
-     * OMITIDA: omitir no es contar cero.
+     * que dice el Excel. Y cada fila trae su contado: una vacía o negativa no
+     * deja asentar (regla revisada esa misma noche, ver abajo).
      */
     it("un lote que cambió de ubicación en la planilla se mueve, no se duplica", async () => {
       const { token, tenantId, warehouseId, lotesSku, lotesId } = await escenario();
@@ -1031,8 +1031,17 @@ describe("Inventario físico (F3-COUNT)", () => {
       ).toEqual([["exit", 1]]);
     });
 
-    it("una fila OMITIDA conserva su cubeta: omitir no es contar cero", async () => {
-      const { token, warehouseId, lotesSku, lotesId } = await escenario();
+    /**
+     * ── CADA FILA TRAE SU CONTADO (Carlos, 2026-09-01, noche) ────────────
+     *
+     * Se revisa la regla de la mañana («omitir no es contar cero»): un
+     * inventario con filas vacías, negativas o con texto NO se asienta. La
+     * previa marca cada fila con su motivo y el confirm rechaza con la fila
+     * que estorba. El cero sí vale: es el estante vacío, el hallazgo más
+     * importante de un inventario.
+     */
+    it("una fila VACÍA no deja asentar: la previa la marca y el confirm la nombra", async () => {
+      const { token, warehouseId, lotesSku } = await escenario();
       const id = await conteo(
         token,
         warehouseId,
@@ -1044,10 +1053,92 @@ describe("Inventario físico (F3-COUNT)", () => {
         ].join("\n"),
       );
 
-      const res = await aprobar(token, id).expect(201);
-      const body = res.body as { movements: { productId: string }[] };
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (previa.body as { rows: { errors: { code: string }[] }[] }).rows;
+      expect(filas.map((f) => f.errors.map((e) => e.code))).toEqual([
+        [],
+        ["inventory.count_required"],
+        [],
+      ]);
 
-      expect(body.movements.filter((m) => m.productId === lotesId)).toHaveLength(0);
+      const res = await aprobar(token, id).expect(422);
+      expect((res.body as { message: string }).message).toMatch(/fila 2/);
+    });
+
+    it("un contado NEGATIVO no deja asentar", async () => {
+      const { token, warehouseId, simpleSku } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,-10`,
+      );
+
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const filas = (previa.body as { rows: { errors: { code: string }[] }[] }).rows;
+      expect(filas[0]?.errors.map((e) => e.code)).toEqual(["inventory.count_negative"]);
+
+      const res = await aprobar(token, id).expect(422);
+      expect((res.body as { message: string }).message).toMatch(/negativo/);
+    });
+
+    it("un contado que no es número se reporta al subir y deja la fila vacía", async () => {
+      const { token, warehouseId, simpleSku } = await escenario();
+      const creado = await request(app.getHttpServer())
+        .post("/inventory/documents")
+        .set("Authorization", bearer(token))
+        .send({ type: "physical_count", warehouseId })
+        .expect(201);
+      const id = (creado.body as { id: string }).id;
+
+      const subida = await request(app.getHttpServer())
+        .post(`/inventory/documents/${id}/lines/import`)
+        .set("Authorization", bearer(token))
+        .send({
+          file: `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,diez`,
+          format: "csv",
+          mode: "replace",
+        })
+        .expect(200);
+      const body = subida.body as { withErrors: number; rows: { error: string | null }[] };
+      expect(body.withErrors).toBe(1);
+      expect(body.rows[0]?.error).toBe("inventory.count_invalid");
+
+      await aprobar(token, id).expect(422);
+    });
+
+    it("el cero SÍ vale: se edita a 0 por PATCH y se asienta", async () => {
+      const { token, warehouseId, simpleSku, simpleId } = await escenario();
+      const id = await conteo(
+        token,
+        warehouseId,
+        `sku,lote,caducidad,ubicacion,contado\n${simpleSku},,,,5`,
+      );
+      const previa = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const lineId = (previa.body as { rows: { id: string }[] }).rows[0]?.id as string;
+
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${lineId}`)
+        .set("Authorization", bearer(token))
+        .send({ counted: -1 })
+        .expect(400);
+      await request(app.getHttpServer())
+        .patch(`/inventory/documents/${id}/lines/${lineId}`)
+        .set("Authorization", bearer(token))
+        .send({ counted: 0 })
+        .expect(200);
+
+      const res = await aprobar(token, id).expect(201);
+      const stock = (res.body as { stock: { productId: string; quantity: string }[] }).stock;
+      expect(Number(stock.find((s) => s.productId === simpleId)?.quantity)).toBe(0);
     });
 
     it("la previa de un conteo nunca dice «no hay suficiente existencia»", async () => {
