@@ -60,6 +60,7 @@ const ME: MeProfile = {
       reports: true,
       reports_export: true,
     },
+    modules: [],
   },
   tenant: {
     id: "tenant-1",

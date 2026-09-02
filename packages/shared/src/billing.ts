@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { localCalendarDate, startOfDayUtc } from "./day-range";
 import { scaledInteger } from "./decimal-text";
+import { moduleKeySchema } from "./modules";
 import { MONEY_DECIMALS } from "./money";
 
 /**
@@ -108,6 +109,13 @@ export const subscriptionBlockSchema = z.object({
   stockControl: z.boolean(),
   dailySalesLimit: z.number().int().positive().nullable(),
   features: planFeaturesSchema,
+  /**
+   * F9-MOD-01 — los módulos avanzados activos del negocio (por encima del
+   * plan). REQUERIDO, sin default: un emisor que lo olvide rompe en el
+   * parse y no en un menú que nunca aparece. Vacío para todos hasta que el
+   * backoffice active el primero (F9-MOD-03 lo resuelve desde `tenant_modules`).
+   */
+  modules: z.array(moduleKeySchema),
 });
 export type SubscriptionBlock = z.infer<typeof subscriptionBlockSchema>;
 

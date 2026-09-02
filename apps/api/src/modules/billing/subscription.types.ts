@@ -68,5 +68,8 @@ export function toSubscriptionBlock(
     stockControl: entitlements.stockControl,
     dailySalesLimit: entitlements.dailySalesLimit,
     features: entitlements.features,
+    // F9-MOD-01: el bloque ya exige `modules`; F9-MOD-03 los lee de
+    // `tenant_modules` en `Entitlements`. Hasta entonces, nadie tiene ninguno.
+    modules: [],
   };
 }

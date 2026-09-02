@@ -31,4 +31,5 @@ export const SUBSCRIPTION_PLUS: SubscriptionBlock = {
     reports: true,
     reports_export: true,
   },
+  modules: [],
 };

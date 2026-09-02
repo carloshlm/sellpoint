@@ -3442,7 +3442,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ### Módulo F9-MOD — módulos por tenant (atomizado el 2026-09-02)
 
-- [ ] **F9-MOD-01** — Catálogo de módulos en `packages/shared` + `modules` en el bloque de suscripción
+- [x] **F9-MOD-01** *(cerrada el 2026-09-02 — el campo requerido rompió exactamente dos fixtures y un test de claves; el mapper del API devuelve `[]` hasta F9-MOD-03)* — Catálogo de módulos en `packages/shared` + `modules` en el bloque de suscripción
   - **Salida:** `packages/shared/src/modules.ts` (`MODULE_KEYS = ["reception"] as const`, `ModuleKey`, `moduleKeySchema`) exportado desde `index.ts`; `subscriptionBlockSchema` gana `modules: z.array(moduleKeySchema)` REQUERIDO; `apps/web/src/test/subscription-fixture.ts` con `modules: []`. Commit aislado: que el compilador encuentre todos los fixtures.
   - **Verificar:** bloque sin `modules` no parsea; `"reception"` sí, `"foo"` no; `pnpm typecheck:full` verde.
   - **Depende de:** — · **Estimación:** 1.5 h

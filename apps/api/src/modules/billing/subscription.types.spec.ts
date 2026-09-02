@@ -164,6 +164,7 @@ describe("toSubscriptionBlock (F7-WEB-01)", () => {
       "dueAt",
       "features",
       "graceEndsAt",
+      "modules",
       "overdue",
       "planCode",
       "planName",

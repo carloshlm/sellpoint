@@ -81,9 +81,37 @@ describe("contratos de billing (F7-SHARED-01)", () => {
       stockControl: true,
       dailySalesLimit: null,
       features: FEATURES_PLUS,
+      modules: ["reception"],
     };
     expect(subscriptionBlockSchema.parse(bloque)).toEqual(bloque);
     expect(() => subscriptionBlockSchema.parse({ ...bloque, status: "expired" })).toThrow();
+  });
+
+  /**
+   * F9-MOD-01 — los módulos por tenant viajan en el mismo bloque. El campo es
+   * REQUERIDO a propósito: un emisor que lo olvide rompe en el parse, no en
+   * un menú que nunca aparece.
+   */
+  it("subscriptionBlockSchema exige `modules` y solo admite claves del catálogo", () => {
+    const { modules: _sin, ...sinModulos } = {
+      planCode: "plus",
+      planName: "Plus",
+      status: "trialing",
+      billingCycle: null,
+      trialEndsAt: null,
+      dueAt: null,
+      graceEndsAt: null,
+      daysLeft: 14,
+      overdue: false,
+      writeAccess: true,
+      stockControl: true,
+      dailySalesLimit: null,
+      features: FEATURES_PLUS,
+      modules: [],
+    };
+    expect(() => subscriptionBlockSchema.parse(sinModulos)).toThrow();
+    expect(subscriptionBlockSchema.parse({ ...sinModulos, modules: [] }).modules).toEqual([]);
+    expect(() => subscriptionBlockSchema.parse({ ...sinModulos, modules: ["foo"] })).toThrow();
   });
 });
 
