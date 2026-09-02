@@ -18,7 +18,7 @@
 10. [Fase 6 — Hardening de Producción](#fase-6--hardening-de-producción-outline)
 11. [Fase 7 — Planes + Billing + Suscripciones](#fase-7--planes--billing--suscripciones-atomizada-2026-08-27-cobro-manual)
 12. [Fase 8 — Mobile (futuro)](#fase-8--mobile-futuro)
-13. [Fase 9+ — Extensiones Verticales (futuro)](#fase-9--extensiones-verticales-futuro-fuera-de-mvp)
+13. [Fase 9 — Módulos por tenant, Backoffice y Extensiones Verticales (ATOMIZADA parcial 2026-09-02)](#fase-9--módulos-por-tenant-backoffice-y-extensiones-verticales-atomizada-parcial-2026-09-02)
 14. [Bitácora de Decisiones](#13-bitácora-de-decisiones)
 
 ---
@@ -152,7 +152,7 @@ Ejemplos:
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
 | **F8** | Mobile | 🔮 Futuro | — | ⬜ Solo concepto |
-| **F9+** | Extensiones Verticales (consultorio, dental, óptica, etc.) | 🔮 Futuro | — | ⬜ Solo concepto |
+| **F9** | Módulos por tenant + expediente del backoffice + Recepción (y verticales futuras) | ⬜ Pendiente | ~10 semanas (MOD ~20 h · ADMIN ~33 h · RECEP ~40 h) | ✅ Parcial (2026-09-02: F9-MOD, F9-ADMIN, F9-RECEP; verticales clínicas siguen en concepto) |
 
 > Las fases marcadas como "Outline" se atomizarán cuando estemos por empezarlas, con el conocimiento que hayamos acumulado.
 
@@ -2388,6 +2388,12 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F4-CASHBOX-01, F4-CASHBOX-02
   - **Estimación:** 2.5 h
 
+- [ ] **F4-CASHBOX-04** *(agregada en revisión el 2026-09-02)* — El POS deja de decir «turno»: la caja se abre y se cierra
+  - **Salida:** solo COPY en `apps/web/src/i18n/{es,en}/pos.json` (`session.openTitle`, `session.open`, `session.openSince`, `session.openFailed`, `session.close`, `session.closeFailed`, `quote.warehouseHint`) y `apps/api/src/i18n/{es,en}/pos.json` (`no_session`, `no_default_warehouse`, `session_already_open`, `session_already_closed`). ES: «Abrir caja», «Caja abierta desde {{time}}», «No pudimos abrir la caja.», «Cerrar caja», «No pudimos cerrar la caja.», «Cotizar no necesita caja abierta.», «Abre la caja antes de vender.», «Ya tienes una caja abierta. Ciérrala antes de abrir otra.». EN: `shift` → `cashbox`. Tests por texto actualizados: `apps/web/src/routes/pos-session.test.tsx`, `pos-quotes.test.tsx`.
+  - **Verificar:** `rg -i "turno" apps/*/src/i18n` no devuelve nada; `message-keys.spec` verde; suites web y api verdes. Las claves `pos.session.*`, la tabla `cashbox_sessions` y los endpoints NO cambian.
+  - **Por qué (2026-09-02):** Recepción (F9-RECEP) se queda con «Turno»; dos cosas distintas con el mismo nombre en el mismo menú, no.
+  - **Depende de:** — · **Estimación:** 1.5 h
+
 ### Módulo F4-SALE — La venta como llamador del ledger
 
 - [x] **F4-SALE-01** — `SalesService.create`: la transacción del cobro
@@ -3409,7 +3415,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ---
 
-## Fase 9+ — Extensiones Verticales y Módulos Avanzados (futuro, fuera de MVP)
+## Fase 9 — Módulos por tenant, Backoffice y Extensiones Verticales (ATOMIZADA parcial 2026-09-02)
 
 > Módulos opcionales activables por tenant como **add-ons** sobre el plan base. Se construyen sobre el core sin modificarlo. Atomizar cuando aparezca cliente comprometido por cada vertical.
 
@@ -3417,6 +3423,244 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 - 👨‍⚕️ Consultorio médico (prospecto) → **F9-VERT-MEDICAL**
 
 > **Nota:** la cafetería (cliente **comprometido**) NO está en Fase 9 — productos compuestos + composición/BOM + stock decimal son **parte del core desde Fase 2** (ver [ARQUITECTURA.md § 3.5](ARQUITECTURA.md#35-modelo-de-productos-unidades-presentaciones-y-composición-bom)). El add-on F9-GASTRO-PRO de abajo es **gastronomía avanzada** (KDS, modificadores, control por turno) — NO el core.
+
+> **LEY DE LA FASE (atomizada en parte el 2026-09-02, cobro manual, sin Stripe):**
+> 1. Los módulos por tenant viven en la tabla `tenant_modules` (quién, cuándo, notas), con RLS y como quinta tabla del bypass de billing admin. No en un JSONB de la suscripción: sobrevive a `changePlan`.
+> 2. El catálogo de módulos es CÓDIGO: `MODULE_KEYS` en `packages/shared/src/modules.ts`. Un módulo sin código que lo implemente no existe.
+> 3. `modules: ModuleKey[]` viaja en `Entitlements` y en el `SubscriptionBlock` (login y `GET /me`), nunca en el JWT; el web lo lee con `usePlan().hasModule(key)`.
+> 4. Activar un módulo ⇒ el negocio pasa a `premium` con precio pactado (`custom_price`), reusando `changePlan` y su invariante. Desactivar el último módulo NO degrada el plan: eso es una decisión comercial y se hace a mano con el `PATCH subscription`.
+> 5. `@RequiresModule` bloquea también las lecturas (402 `billing.module_not_enabled`): un módulo vertical nunca estuvo en un plan público y es 90 % lectura. Los datos no se borran; reactivar los devuelve.
+> 6. En el menú del cliente, el grupo del módulo se OCULTA, no se muestra con candado: el candado abre el modal de planes, y el modal no vende módulos. Registro por mapa (`MODULE_NAV`), no por `if`.
+> 7. Lo que es dinero (activar/desactivar módulos) va en `admin/billing`; el expediente del negocio (conteos, usuarios, dashboard, reportes) en un controller nuevo `admin/tenants`, espejo estructural de `/reports`.
+> 8. Para leer datos de negocio de OTRO tenant se usa un `AuthUser` sintético (`platformAdminActor`) y `withTenantContext(tenantId de la URL)`; nunca `@CurrentUserScope()`, que resolvería el alcance del admin en SU tenant. Sin refactor de firmas de los services de reportes.
+> 9. El dashboard y los reportes se reusan por contexto (`DashboardScopeProvider`) y por extracción de vistas, no copiando pantallas.
+> 10. La persona del negocio es la tabla `customers` (no `reception_persons`): la usarán cotizaciones, ventas y lo clínico (`patients` será extensión 1‑1). Se guarda `birth_date`; la edad se CALCULA, nunca se guarda.
+> 11. «Eliminar» un cliente borra de verdad; el turno conserva un snapshot `customer_name` y `customer_id` queda en NULL.
+> 12. El número de turno reinicia con el DÍA DEL NEGOCIO (`tenant.timezone`), con `nextSequenceValue` y una serie por fecha (`reception_turn:YYYYMMDD`), igual que el código de ticket del POS. UN solo `new Date()` por operación.
+> 13. Permisos `reception:read` / `reception:manage`: Admin y Manager ambos, Viewer lectura, Seller ninguno (la recepcionista es un rol propio).
+> 14. «Turno» es de Recepción. El POS dice «caja» (F4-CASHBOX-04), solo en el copy.
+
+### Módulo F9-MOD — módulos por tenant (atomizado el 2026-09-02)
+
+- [ ] **F9-MOD-01** — Catálogo de módulos en `packages/shared` + `modules` en el bloque de suscripción
+  - **Salida:** `packages/shared/src/modules.ts` (`MODULE_KEYS = ["reception"] as const`, `ModuleKey`, `moduleKeySchema`) exportado desde `index.ts`; `subscriptionBlockSchema` gana `modules: z.array(moduleKeySchema)` REQUERIDO; `apps/web/src/test/subscription-fixture.ts` con `modules: []`. Commit aislado: que el compilador encuentre todos los fixtures.
+  - **Verificar:** bloque sin `modules` no parsea; `"reception"` sí, `"foo"` no; `pnpm typecheck:full` verde.
+  - **Depende de:** — · **Estimación:** 1.5 h
+
+- [ ] **F9-MOD-02** — Migración `tenant_modules` con RLS y bypass de billing admin
+  - **Salida:** `apps/api/prisma/migrations/<ts>_f9_tenant_modules/migration.sql`: `id, tenant_id (FK tenants), module_key VARCHAR(32), enabled_at, enabled_by uuid NULL, notes text NULL, created_at`, `UNIQUE (tenant_id, module_key)`; en la MISMA migración el bloque RLS canónico + policy `billing_admin_bypass` (copiada de `20260827234000_f7_billing_admin_bypass`). Modelo `TenantModule` en `schema.prisma`; docblock de `withBillingAdminContext` (`prisma.service.ts`) pasa a 5 tablas.
+  - **Verificar:** integración — desde `withTenantContext(A)` no se ve la fila de B; desde `withBillingAdminContext` se ven ambas y `sales` sigue en cero (extender `billing-schema.integration.spec.ts`).
+  - **Depende de:** F9-MOD-01 · **Estimación:** 2 h
+
+- [ ] **F9-MOD-03** — `modules` en `Entitlements` y en `toSubscriptionBlock`
+  - **Salida:** `entitlements.service.ts` resuelve `modules: ModuleKey[]` en la misma `withTenantContext` (`tenantModule.findMany`, filtrado contra `MODULE_KEYS`, WARN por claves huérfanas); `subscription.types.ts` lo propaga.
+  - **Verificar:** unit — sin filas `[]`; con `reception` `["reception"]`; clave desconocida se descarta sin reventar; el objeto releído de Redis conserva el array.
+  - **Depende de:** F9-MOD-02 · **Estimación:** 2 h
+
+- [ ] **F9-MOD-04** — `TenantModulesService`: activar (⇒ Premium + precio pactado), desactivar, listar
+  - **Salida:** `apps/api/src/modules/billing/tenant-modules.service.ts` con `list`, `enable(tenantId, { moduleKey, customPrice?, notes?, reason, changedBy })` y `disable(tenantId, { moduleKey, reason, changedBy })`. `enable` delega en `BillingService.changePlan` a `premium` si el plan vigente no lo es (la invariante del 422 `billing.custom_price_required` no se duplica), upsert de la fila + `auditService.record` (`tenant_module.enabled`, `after.actor = { platformAdmin: true, email }`) dentro de `withTenantContext`, y `entitlements.invalidate`. `disable` NO toca el plan. Registrado en `billing.module.ts`.
+  - **Verificar:** unit — `plus` sin `customPrice` → 422 y sin fila; con precio → `premium` + fila + invalidate una vez; activar dos veces es idempotente; desactivar el último deja `premium`; sin suscripción → 404 `billing.subscription_not_found`.
+  - **Depende de:** F9-MOD-03 · **Estimación:** 3 h
+
+- [ ] **F9-MOD-05** — `POST` / `DELETE /admin/billing/tenants/:tenantId/modules`
+  - **Salida:** rutas en `admin-billing.controller.ts` (heredan guard y `@AllowedInFreeTier`), DTOs `enableModuleSchema` (`moduleKey`, `customPrice?`, `notes?`, `reason`) y `reasonSchema` en `dto/admin-billing.dto.ts`; `GET /admin/billing/tenants/:id` devuelve `modules`.
+  - **Verificar:** e2e con `makePlatformAdmin` — activar → 200 y plan `premium`; TenantAdmin normal → 403; sin `reason` → 400; `moduleKey` inválida → 400.
+  - **Depende de:** F9-MOD-04 · **Estimación:** 2 h
+
+- [ ] **F9-MOD-06** — `@RequiresModule` en `SubscriptionGuard` (bloquea también las lecturas)
+  - **Salida:** `decorators/requires-module.decorator.ts` + rama en `guards/subscription.guard.ts` ANTES del early-return de GET/HEAD y después de `@Public`/`@AllowedInFreeTier`; resuelve entitlements solo si el decorador está presente; 402 `billing.module_not_enabled` en `i18n/{es,en}/billing.json`.
+  - **Verificar:** unit — módulo apagado → 402 en GET y en POST; prendido → pasa; handler sin decorador → cero `resolve()` extra en un GET; `message-keys.spec` verde.
+  - **Depende de:** F9-MOD-03 · **Estimación:** 2.5 h
+
+- [ ] **F9-MOD-07** — `usePlan().hasModule(key)` en el web
+  - **Salida:** `apps/web/src/lib/billing/use-plan.ts` expone `modules` y `hasModule`, fail-closed sin sesión.
+  - **Verificar:** unit — sin sesión `false`; con `modules: ["reception"]` `true`.
+  - **Depende de:** F9-MOD-01 · **Estimación:** 1 h
+
+- [ ] **F9-MOD-08** — Grupo extra en el menú por módulo activo (oculto, no con candado)
+  - **Salida:** `apps/web/src/lib/modules/nav.ts` con `MODULE_NAV: Record<ModuleKey, { labelKey, icon, links: { to, labelKey, permission }[] }>` y en `app-layout.tsx` un `<fieldset aria-label>` por módulo con `hasModule(key)` y al menos un link con permiso, insertado después de Reportes, sin `navLock`. Claves `common.layout.nav.modules.*`.
+  - **Verificar:** test de layout — sin el módulo, no hay grupo ni candado; con `modules: ["reception"]` y el permiso, aparece.
+  - **Depende de:** F9-MOD-07 · **Estimación:** 2 h
+
+- [ ] **F9-MOD-09** — `modules` en la lista cross-tenant del backoffice
+  - **Salida:** `AdminBillingService.listTenants()` suma un `findMany` de `tenant_modules` dentro del `withBillingAdminContext` existente; cada fila gana `modules`; espejo en `apps/web/src/lib/billing/api.ts`.
+  - **Verificar:** e2e — dos tenants, uno con módulo: `["reception"]` y `[]`, en una sola query.
+  - **Depende de:** F9-MOD-02 · **Estimación:** 1.5 h
+
+- [ ] **F9-MOD-10** — e2e del ciclo de vida del módulo
+  - **Salida:** `apps/api/test/e2e/tenant-modules.e2e-spec.ts` sobre `support/billing-scenario.ts`.
+  - **Verificar:** activar sin precio sobre `plus` → 422 sin fila; con precio → `GET /me` del cliente trae `modules: ["reception"]` y `planCode: "premium"`; desactivar → `[]` y sigue `premium`; ruta con `@RequiresModule` → 402 en GET tras desactivar; `audit_logs` guarda ambas acciones con la razón.
+  - **Depende de:** F9-MOD-05, F9-MOD-06 · **Estimación:** 2.5 h
+
+### Módulo F9-ADMIN — el expediente del negocio en el backoffice (atomizado el 2026-09-02)
+
+- [ ] **F9-ADMIN-01** — Módulo `admin` con el controller `admin/tenants` y el actor sintético
+  - **Salida:** `apps/api/src/modules/admin/{admin.module,admin-tenants.controller,platform-actor}.ts`; `platformAdminActor(tenantId, admin): AuthUser` (`permissions: ["reports:read","inventory:read"]`, locale del admin) y `SCOPE_ALL: UserScope = { warehouseIds: "all" }`; `UsersModule` exporta `UsersAdminService`; `ReportsModule` exporta los 5 dashboard services + `SalesReportService`/`StockReportService`. Guard y `@AllowedInFreeTier` a nivel de clase; ruta stub `GET /admin/tenants/:tenantId/overview`. Comentario visible en `platform-actor.ts`: el actor sintético depende de que los services de reportes solo lean `user.tenantId`.
+  - **Verificar:** unit — `platformAdminActor("T2", admin).tenantId === "T2"`; e2e — TenantAdmin normal → 403; la app arranca.
+  - **Depende de:** — · **Estimación:** 2 h
+
+- [ ] **F9-ADMIN-02** — `GET /admin/tenants/:tenantId/overview`
+  - **Salida:** `admin-tenants.service.ts` con un único `withTenantContext(tenantId)`: `{ tenant: {name,country,currency,timezone,onboarded}, users: {active,invited,suspended}, counts: {products,services,subcatalogs,warehouses}, subscription: {planCode,planName,status,customPrice,dueAt,billingCycle}, modules }`. Subcatálogos = `catalog.count({ where: { isSystem: false } })`.
+  - **Verificar:** integración con dos tenants — nunca mezcla; sin suscripción → `status: "none"` sin reventar.
+  - **Depende de:** F9-ADMIN-01, F9-MOD-03 · **Estimación:** 2.5 h
+
+- [ ] **F9-ADMIN-03** — Usuarios del negocio desde el backoffice
+  - **Salida:** `GET /admin/tenants/:tenantId/users`, `POST .../users/:userId/suspend` y `.../reactivate`, delegando en `UsersAdminService` con el actor sintético y `metaFrom(request)`.
+  - **Verificar:** e2e — el admin lista y suspende un usuario de B; `audit_logs` de B guarda `user.suspended` con el userId del admin; suspender al ÚNICO admin activo → 409 y sigue activo; el perm-epoch del suspendido queda bumpeado.
+  - **Depende de:** F9-ADMIN-01 · **Estimación:** 2.5 h
+
+- [ ] **F9-ADMIN-04** — Dashboard del cliente bajo `/admin/tenants/:tenantId/dashboard/*`
+  - **Salida:** rutas `kpis`, `series`, `products`, `inventory`, `payment-methods` llamando a los services de `modules/reports` con `platformAdminActor` y `SCOPE_ALL` (sin `@CurrentUserScope()`).
+  - **Verificar:** e2e — con ventas en B, `kpis` devuelve las de B; `inventory` trae `inventoryValue`; almacenes fuera del alcance del admin en su propio tenant aparecen igual.
+  - **Depende de:** F9-ADMIN-01 · **Estimación:** 2.5 h
+
+- [ ] **F9-ADMIN-05** — Reportes de ventas e inventario bajo `/admin/tenants/:tenantId/reports/*`
+  - **Salida:** `GET .../reports/sales` y `.../reports/stock` con los mismos DTO Zod de `modules/reports/dto`, delegando en `SalesReportService`/`StockReportService` con el actor sintético.
+  - **Verificar:** e2e — filtros y paginación idénticos a `/reports/*`; totales cuadran con los del cliente; query inválida → `reports.invalid_query`.
+  - **Depende de:** F9-ADMIN-04 · **Estimación:** 2 h
+
+- [ ] **F9-ADMIN-06** — Web: «Negocios» en el menú Backoffice y la lista
+  - **Salida:** segundo link del grupo Backoffice → `/admin/tenants`; `apps/web/src/routes/admin.tenants.index.tsx` (nombre, país/moneda, plan, estado, módulos como badges, usuarios) sobre `getAdminTenants()`, filtro por nombre y moneda en cliente; redirige si `!isPlatformAdmin`. Claves `common.billing.admin.tenants.*`.
+  - **Verificar:** `admin-tenants.test.tsx` con `renderAdmin(true)` — filas y navegación a `/admin/tenants/:id`; `renderAdmin(false)` no ve link ni página.
+  - **Depende de:** F9-MOD-09 · **Estimación:** 2.5 h
+
+- [ ] **F9-ADMIN-07** — Web: expediente con pestañas + Resumen
+  - **Salida:** `routes/admin.tenants.$tenantId.tsx` con pestañas por search param `?tab=overview|users|plan|dashboard|reports` (el expediente se comparte por link); Resumen con tarjetas de conteos; `apps/web/src/lib/admin/{api,hooks}.ts` (`getTenantOverview`).
+  - **Verificar:** test de ruta — conteos mockeados; cambiar pestaña cambia la URL; sin `isPlatformAdmin` redirige.
+  - **Depende de:** F9-ADMIN-02, F9-ADMIN-06 · **Estimación:** 3 h
+
+- [ ] **F9-ADMIN-08** — Web: pestaña Usuarios con suspender/reactivar
+  - **Salida:** `components/admin/tenant-users-tab.tsx` reusando la tabla de `routes/system.users.tsx` en modo backoffice; fetchers/mutaciones en `lib/admin/*` (no en `lib/rbac`, que apunta al tenant propio); 409 de último admin visible.
+  - **Verificar:** test — Suspender llama con el `tenantId` de la URL; 409 pinta el mensaje sin cambiar la fila; tras éxito se invalida la lista.
+  - **Depende de:** F9-ADMIN-03, F9-ADMIN-07 · **Estimación:** 2.5 h
+
+- [ ] **F9-ADMIN-09** — Web: pestaña Plan y módulos
+  - **Salida:** `components/admin/tenant-plan-tab.tsx`: plan y precio pactado actuales (`getAdminTenantDetail`), campo `customPrice` + `reason`, un toggle por cada `MODULE_KEYS` contra F9-MOD-05. Copy: al activar «este negocio pasa a Premium; si apagas el módulo deja de ver lo que capturó con él»; al desactivar el último «queda en Premium sin módulos, ajusta el plan si corresponde»; sin suscripción → toggle deshabilitado con «primero regístrale un plan o un pago». Aviso: el cliente ve el grupo nuevo en su próxima sincronización de sesión, no al instante.
+  - **Verificar:** test — activar sin precio en `plus` muestra el 422 y el toggle vuelve a apagado; con precio manda `{moduleKey, customPrice, reason}` e invalida detalle y lista.
+  - **Depende de:** F9-MOD-05, F9-ADMIN-07 · **Estimación:** 3 h
+
+- [ ] **F9-ADMIN-10** — Web: pestaña Dashboard reusando los widgets del cliente
+  - **Salida:** `lib/dashboard/scope.tsx` (`DashboardScopeProvider`/`useDashboardScope` con `{ basePath, tenantId, forcePermission }`, default `{ "/reports", null, false }`); `lib/dashboard/api.ts` acepta `basePath`; `hooks.ts` agrega `tenantId` al `queryKey`; los 5 widgets de `components/dashboard/*` usan `forcePermission || has("reports:read")`. La pestaña envuelve el árbol de `routes/dashboard.tsx` en el provider.
+  - **Verificar:** test — la pestaña pide `/admin/tenants/T2/dashboard/kpis`; `/dashboard` del cliente sigue pidiendo `/reports/...`; dos tenants no comparten caché.
+  - **Depende de:** F9-ADMIN-04, F9-ADMIN-07 · **Estimación:** 3 h
+
+- [ ] **F9-ADMIN-11** — Web: pestaña Reportes (ventas e inventario)
+  - **Salida:** extraer el cuerpo de `routes/reports.sales.tsx` y `reports.stock.tsx` a `components/reports/sales-report-view.tsx` y `stock-report-view.tsx` con prop `basePath`; `lib/reports/api.ts` acepta `basePath`; la pestaña renderiza ambas con `/admin/tenants/:id`. Sin exportar en esta pasada.
+  - **Verificar:** `reports-screens.test.tsx` sigue verde sin cambiar aserciones; test nuevo — la pestaña pide `/admin/tenants/T2/reports/sales` con los mismos filtros.
+  - **Depende de:** F9-ADMIN-05, F9-ADMIN-07 · **Estimación:** 3 h
+
+- [ ] **F9-ADMIN-12** — e2e de aislamiento del expediente + barreras
+  - **Salida:** `apps/api/test/e2e/admin-tenants.e2e-spec.ts` + extensión de `billing-admin-isolation.e2e-spec.ts` con `tenant_modules`.
+  - **Verificar:** TenantAdmin normal → 403 en las 10 rutas de `admin/tenants`; el admin sobre B ve SOLO B en overview, usuarios, dashboard y reportes; `withBillingAdminContext` sigue sin ver `sales`; `message-keys.spec` y `permissions-catalog.spec` verdes.
+  - **Depende de:** F9-ADMIN-03, F9-ADMIN-05, F9-MOD-10 · **Estimación:** 2.5 h
+
+- [ ] **F9-ADMIN-13** *(opcional)* — Exportaciones desde el expediente
+  - **Salida:** `GET /admin/tenants/:tenantId/reports/{sales,stock}/export` con `SalesExportService`/`StockExportService` y el nombre del negocio en `Content-Disposition`; botones en la pestaña Reportes.
+  - **Verificar:** e2e — xlsx con filas del tenant de la URL y el nombre del negocio en el archivo.
+  - **Depende de:** F9-ADMIN-11 · **Estimación:** 2 h
+
+### Módulo F9-RECEP — Recepción, primer módulo vertical (atomizado el 2026-09-02)
+
+> Dos pantallas en el menú del cliente cuando el módulo está activo: **«Registro de cliente»** (personas, más reciente primero, «Nuevo» abre pantalla completa; acciones «Generar turno», «Editar», «Eliminar») y **«Generar turno»** (turnos del día del negocio, número de mayor a menor, «En espera»/«Atendido», reinicia en 1 cada día; turno suelto desde el botón de arriba).
+
+- [ ] **F9-RECEP-01** — La edad se calcula, no se guarda
+  - **Salida:** `packages/shared/src/age.ts` con `ageFromBirthDate(birthDate: "YYYY-MM-DD", today: "YYYY-MM-DD"): number` (años cumplidos; la zona ya la resolvió el llamador con `localCalendarDate`) + export + `age.test.ts`.
+  - **Verificar:** cumpleaños HOY suma el año; un día antes no; nacido 29-feb evaluado un 28-feb no bisiesto no cumple; fecha futura → 0, nunca negativo.
+  - **Depende de:** — · **Estimación:** 1.5 h
+
+- [ ] **F9-RECEP-02** — Tabla `customers` con RLS desde el minuto cero
+  - **Salida:** migración `<ts>_f9_recep_customers`: `id, tenant_id (FK RESTRICT), first_name TEXT NOT NULL, last_name_paternal TEXT NOT NULL, last_name_maternal TEXT, birth_date DATE, phone VARCHAR(20), email TEXT, notes TEXT, attributes JSONB NOT NULL DEFAULT '{}', is_active BOOLEAN DEFAULT true, created_by UUID (FK users SET NULL), created_at, updated_at`; índices `(tenant_id, created_at DESC)`, `(tenant_id, phone)`, GIN sobre `attributes`; CHECKs `birth_date <= CURRENT_DATE`, `phone ~ '^\+[1-9]\d{1,14}$'`; bloque RLS canónico en la MISMA migración. Modelo `Customer` + `customers Customer[]` en `Tenant`. Docblock: `patients` futuro = extensión 1‑1; `attributes` sin motor de catálogos todavía (el DTO no la acepta); `is_active` sin UI por ahora.
+  - **Verificar:** `prisma migrate dev` limpia y sin drift; consulta sin `app.tenant_id` → 0 filas.
+  - **Depende de:** — · **Estimación:** 2.5 h
+
+- [ ] **F9-RECEP-03** — Tabla `reception_turns`
+  - **Salida:** migración `<ts>_f9_recep_turns`: `id, tenant_id (FK RESTRICT), business_date DATE NOT NULL, number INT NOT NULL, customer_id UUID FK customers ON DELETE SET NULL, customer_name VARCHAR(200) (snapshot), status VARCHAR(16) DEFAULT 'waiting', attended_at TIMESTAMPTZ(6), attended_by UUID, created_by UUID, created_at, updated_at`; `UNIQUE (tenant_id, business_date, number)`; índice `(tenant_id, business_date, number DESC)`; CHECKs `status IN ('waiting','attended')`, `number > 0`, `(status='attended') = (attended_at IS NOT NULL)`; RLS canónica en la misma migración. Modelo `ReceptionTurn` + relaciones.
+  - **Verificar:** UNIQUE y CHECK revientan como deben; borrar el cliente deja `customer_id NULL` y `customer_name` intacto.
+  - **Depende de:** F9-RECEP-02 · **Estimación:** 2 h
+
+- [ ] **F9-RECEP-04** — Permisos `reception:read` y `reception:manage`
+  - **Salida:** migración `<ts>_f9_recep_permissions` (INSERT permissions + role_permissions: Admin y Manager ambos, Viewer `:read`; molde `20260821230000_f4_pos_cancel_permission`). Comentario en `role-catalog.ts`: Seller queda fuera (lista cerrada; la recepcionista es rol propio vía `custom_roles` o Manager).
+  - **Verificar:** `permissions-catalog.spec` verde tras los `@RequirePermissions`; unit de `resolveRolePermissionCodes`: Admin 2, Manager 2, Viewer 1, Seller 0. Gotcha: el perm-epoch no se bumpea desde SQL — cerrar sesión y volver a entrar al probar a mano.
+  - **Depende de:** — · **Estimación:** 1 h
+
+- [ ] **F9-RECEP-05** — DTOs e i18n del API
+  - **Salida:** `apps/api/src/modules/reception/dto/upsert-customer.dto.ts` (`createCustomerSchema`, `updateCustomerSchema` con refine de update vacío, `listCustomersQuerySchema`: `query`, `page`, `pageSize` default 20 tope 100) y `dto/turns.dto.ts` (`createTurnSchema { customerId? }`, `listTurnsQuerySchema { date? YYYY-MM-DD }`). `phone` con `isE164` de `@sellpoint/shared`, `birthDate` ISO date no futura, `email` válido. Namespace `apps/api/src/i18n/{es,en}/reception.json` (`invalid_body`, `invalid_query`, `empty_update`, `customer_not_found`, `turn_not_found`, `invalid_phone`, `invalid_birth_date`).
+  - **Verificar:** unit de los schemas; `message-keys.spec` verde en es y en.
+  - **Depende de:** F9-RECEP-01 · **Estimación:** 2 h
+
+- [ ] **F9-RECEP-06** — `CustomersService`: el CRUD
+  - **Salida:** `apps/api/src/modules/reception/customers.service.ts` con `list` (orden `created_at DESC, id DESC`; búsqueda ILIKE sobre los tres nombres + phone + email), `create`, `update`, `remove`; todo en `withTenantContext`, `tenantId` en el WHERE, `auditService.record` en la MISMA tx (`reception.customer.create|update|delete`). El summary trae `age` calculada con `ageFromBirthDate(birthDate, localCalendarDate(tenant.timezone, new Date()))` y `birthDate` como `YYYY-MM-DD`. + spec.
+  - **Verificar:** `age` null sin `birthDate`; busca por apellido materno y por teléfono; `remove` de otro tenant → 404 con clave i18n.
+  - **Depende de:** F9-RECEP-02, F9-RECEP-05 · **Estimación:** 3.5 h
+
+- [ ] **F9-RECEP-07** — `TurnsService`: el número que reinicia cada día
+  - **Salida:** `apps/api/src/modules/reception/turns.service.ts` con `create(user, {customerId?})`, `list(user, {date?})`, `attend`, `wait`. `create`: UN solo `const instante = new Date()`, `fechaLocal = localCalendarDate(tenant.timezone, instante)`, `nextSequenceValue(tx, tenantId, \`reception_turn:${fechaLocal.replaceAll("-","")}\`)`, `business_date: new Date(fechaLocal)` (date-only ISO = UTC; comentario junto a la línea: con el instante crudo, los turnos de la tarde caerían en el día siguiente), `customer_name` snapshot; tx CORTA (el lock de `tenant_sequences` dura hasta el COMMIT). `attend` idempotente; `wait` limpia `attended_at`. Auditoría en la tx. + spec.
+  - **Verificar:** integración con dos tenants en zonas distintas (`America/Mexico_City`, `Europe/Madrid`) y reloj falso un minuto antes y después de la medianoche LOCAL: reinicia con el día del negocio, no con UTC. Mutante: `localCalendarDate` → `toISOString().slice(0,10)` pone el test en rojo. `attend` dos veces devuelve el mismo `attendedAt`.
+  - **Depende de:** F9-RECEP-03, F9-RECEP-05 · **Estimación:** 4 h
+
+- [ ] **F9-RECEP-08** — Controllers y registro del módulo
+  - **Salida:** `reception-customers.controller.ts` (`@Controller("reception/customers")`) y `reception-turns.controller.ts` (`@Controller("reception/turns")`), ambos con `@RequiresModule("reception")` a nivel de CLASE y `@RequirePermissions("reception:read"|"reception:manage")` por método; `reception.module.ts` (importa `AuditModule`) en `app.module.ts`. Endpoints: `GET/POST /reception/customers`, `PATCH/DELETE /reception/customers/:id`, `GET/POST /reception/turns`, `POST /reception/turns/:id/attend`, `POST /reception/turns/:id/wait`.
+  - **Verificar:** `permissions-catalog.spec` verde; la app arranca; Swagger lista las rutas.
+  - **Depende de:** F9-RECEP-04, F9-RECEP-06, F9-RECEP-07, F9-MOD-06 · **Estimación:** 2 h
+
+- [ ] **F9-RECEP-09** — Cliente HTTP, hooks e i18n del web
+  - **Salida:** `apps/web/src/lib/reception/api.ts` (`Customer` con `age: number | null`, `Turn`) + `hooks.ts` (`useCustomers` con `placeholderData`, `useCreate/Update/RemoveCustomer`, `useTurns` con `refetchInterval: 15_000` — pantalla de pared con dos personas mirándola —, `useCreateTurn`, `useAttendTurn`, `useWaitTurn`). Namespace `apps/web/src/i18n/{es,en}/reception.json` registrado en `i18n/index.ts`. Fixture de usuario de pruebas con `modules: ["reception"]` y permisos `reception:*`.
+  - **Verificar:** unit de los hooks con el cliente mockeado; el fixture compila; cada `t("reception.…")` tiene su clave.
+  - **Depende de:** F9-RECEP-08, F9-MOD-01 · **Estimación:** 2.5 h
+
+- [ ] **F9-RECEP-10** — Menú «Recepción» vía `MODULE_NAV`
+  - **Salida:** entrada `reception` en `apps/web/src/lib/modules/nav.ts` (`labelKey: "reception.nav.group"`, dos links: `reception.nav.customers` → `/reception/customers` y `reception.nav.turns` → `/reception/turns`, ambos con `permission: "reception:read"`). No se toca `app-layout.tsx` (F9-MOD-08 ya itera el mapa).
+  - **Verificar:** test — con módulo y permiso aparecen los dos items; con permiso SIN módulo no existe el grupo; con módulo sin permiso tampoco.
+  - **Depende de:** F9-RECEP-09, F9-MOD-08 · **Estimación:** 1.5 h
+
+- [ ] **F9-RECEP-11** — Pantalla «Registro de cliente» (listado)
+  - **Salida:** `routes/reception.customers.index.tsx` (`ProtectedRoute > OnboardingGate > AppLayout > PermissionGate need="reception:read"`). Tabla con `TABLE_HEAD_ROW`/`TABLE_ROW_HOVER`: nombre completo, teléfono, correo, edad, creado (`formatBusinessDate` con la zona del negocio); más reciente primero; buscador + `Paginator`; botón «Nuevo» → `/reception/customers/new`. Acciones por fila con `RowAction`: «Generar turno» (crea y abre un DIÁLOGO con el número en grande: la recepcionista lo dicta en voz alta; un toast se va solo), «Editar» → `/reception/customers/$customerId`, «Eliminar» con `ConfirmDialog`. Escritura tras `canManage = has("reception:manage") && canWrite`.
+  - **Verificar:** `reception-customers.test.tsx` (RED primero) con router real: filas ordenadas; «Generar turno» llama al API y muestra el número; «Eliminar» pide confirmación; sin `reception:manage` no hay «Nuevo» ni acciones. `table-style.test.tsx` verde.
+  - **Depende de:** F9-RECEP-09 · **Estimación:** 4 h
+
+- [ ] **F9-RECEP-12** — Pantalla de alta y edición de cliente
+  - **Salida:** `routes/reception.customers.new.tsx` y `reception.customers.$customerId.tsx` (pantalla completa, no modal): nombres, apellido paterno, apellido materno, **«Fecha de nacimiento» con la edad calculada al lado en vivo** (decisión de Carlos, 2026-09-02: la edad no se guarda), teléfono con `PhonePartsField` (molde `warehouses.tsx`), correo, notas; validación zod en `lib/reception/schemas.ts` espejo del DTO; «Guardar» → listado; «Cancelar» → listado sin guardar.
+  - **Verificar:** `reception-customer-form.test.tsx` (RED primero): guardar con los mínimos navega al listado; teléfono inválido muestra error y no llama al API; la edad aparece al teclear la fecha; la edición precarga y el PATCH manda solo lo cambiado.
+  - **Depende de:** F9-RECEP-11 · **Estimación:** 4 h
+
+- [ ] **F9-RECEP-13** — Pantalla «Generar turno»
+  - **Salida:** `routes/reception.turns.tsx`: listado por número descendente con número en grande, cliente o «Sin cliente», estado como `Badge` (`warning` En espera, `success` Atendido), hora con `formatBusinessDate(…, true)`, acciones «Atender» y «Volver a espera»; filtro de fecha (default hoy: responde «¿cuántos atendimos ayer?»); botón «Generar turno» arriba para el turno suelto con el mismo diálogo del número.
+  - **Verificar:** `reception-turns.test.tsx` (RED primero): orden descendente; «Atender» cambia el badge; turno suelto se crea y se muestra; cambiar la fecha refetchea con `?date=`; sin `reception:manage` no hay acciones.
+  - **Depende de:** F9-RECEP-09 · **Estimación:** 4 h
+
+- [ ] **F9-RECEP-14** — e2e del API: clientes
+  - **Salida:** `apps/api/test/e2e/reception-customers.e2e-spec.ts` (molde `services.e2e-spec.ts`), con el módulo activado vía F9-MOD-05.
+  - **Verificar:** CRUD y orden; RLS: lo de A no se ve ni edita ni borra desde B (404); módulo apagado → 402 en TODAS las rutas, GET incluidos; Viewer lee y recibe 403 al crear; teléfono sin `+` → 400 `reception.invalid_phone`.
+  - **Depende de:** F9-RECEP-08, F9-MOD-05 · **Estimación:** 3 h
+
+- [ ] **F9-RECEP-15** — e2e del API: turnos y el reinicio diario
+  - **Salida:** `apps/api/test/e2e/reception-turns.e2e-spec.ts`.
+  - **Verificar:** tres turnos seguidos → 1, 2, 3; otro tenant en otra zona lleva su propia serie; turno ligado trae el nombre; borrar el cliente deja el turno con `customerId: null` y el nombre snapshot; `attend` dos veces = mismo `attendedAt`; `wait` lo revierte; `?date=` de ayer no trae los de hoy.
+  - **Depende de:** F9-RECEP-08, F9-MOD-05 · **Estimación:** 3 h
+
+- [ ] **F9-RECEP-16** — Verificación visual en navegador
+  - **Salida:** recorrido Playwright de las tres pantallas en claro y oscuro, menú colapsado y expandido, móvil y escritorio; capturas en el reporte. Backoffice en sandbox: activar el módulo a un negocio de prueba y ver aparecer el grupo «Recepción» tras volver a iniciar sesión.
+  - **Verificar:** el número del turno se lee de lejos; los badges contrastan en oscuro; la tabla no desborda en móvil; el grupo desaparece al apagar el módulo.
+  - **Depende de:** F9-RECEP-10, F9-RECEP-11, F9-RECEP-12, F9-RECEP-13 · **Estimación:** 2 h
+
+### Orden de ejecución sugerido
+
+1. `F4-CASHBOX-04` (PR aparte, solo copy).
+2. `F9-MOD-01` (commit aislado) → `F9-MOD-02..06`, en paralelo con `F9-RECEP-01..07` (no dependen de la infraestructura de módulos).
+3. `F9-MOD-07..10` → `F9-RECEP-08..16`.
+4. `F9-ADMIN-01..05` (API) → `F9-ADMIN-06..12` (web + e2e) → `F9-ADMIN-13` opcional.
+
+Total estimado: F9-MOD ~20 h · F9-ADMIN ~33 h · F9-RECEP ~40 h · F4-CASHBOX-04 1.5 h. Cada módulo es candidato a SDD LIGERO (§1.1); F9-ADMIN-10/11 (reuso de dashboard y reportes) a SDD COMPLETO si al abrirlos crecen.
+
+### Pospuestos de la Fase 9 (con nombre y razón)
+
+- **Paginación** de `/admin/billing/tenants`, de «Negocios» y de la lista de usuarios del expediente — deuda ya anotada en F7; el filtro es en cliente.
+- **Toggle self-service de módulos y Stripe** (F9-MODULES-UI, F9-BILLING-ADDONS) — el cobro es manual y los módulos se pactan uno a uno.
+- **Búsqueda de clientes con `pg_trgm`** — ILIKE por tenant basta con miles de filas.
+- **Motor de catálogos sobre `customers.attributes`** — exige catálogo de sistema + backfill; la columna ya está.
+- **Realtime en turnos** — `refetchInterval` 15 s; `attend` idempotente hace inocuo el doble clic. Si duele, SSE.
+- **Atomicidad de `enable`** (`changePlan` + insert son dos tx) — un fallo entre medias deja Premium sin módulo, visible en el expediente y corregible reintentando. Hacerlo atómico exigiría partir `changePlan`, el corazón probado de F7.
+- **Negocios sin fila de suscripción** no pueden recibir módulos hasta registrar plan o pago — no inventar la fila desde el toggle; la UI lo bloquea con un mensaje claro.
 
 ### 9.0 Layouts por rubro (plantillas de campos sugeridas)
 
@@ -3457,8 +3701,8 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 ### 9.4 Integración transversal
 
 - **F9-SALES-LINK** — Activar `Sale.clinical_document_id` y `Sale.quote_id` (ambas FK reservadas en F4-DB). Reporte de ventas con/sin documento de origen para trazabilidad.
-- **F9-MODULES-UI** — Vista `/settings/modules` (TenantAdmin): catálogo de add-ons disponibles con su precio, toggle "Activar". Activación llama a Stripe vía `subscription_item.create`. Desactivación con confirmación (datos del módulo no se borran, solo se ocultan).
-- **F9-BILLING-ADDONS** — Extensión de F7-STRIPE para manejar `subscription_items` (1 base + N add-ons). Webhooks de Stripe actualizan estado de cada add-on individual.
+- **F9-MODULES-UI** *(superada en parte por F9-MOD el 2026-09-02: la activación vive en el backoffice con cobro manual; el toggle self-service queda para cuando exista pasarela)* — Vista `/settings/modules` (TenantAdmin): catálogo de add-ons disponibles con su precio, toggle "Activar". Activación llama a Stripe vía `subscription_item.create`. Desactivación con confirmación (datos del módulo no se borran, solo se ocultan).
+- **F9-BILLING-ADDONS** *(pospuesta el 2026-09-02: sin Stripe, un módulo se cobra como Premium con `custom_price`; ver F9-MOD-04)* — Extensión de F7-STRIPE para manejar `subscription_items` (1 base + N add-ons). Webhooks de Stripe actualizan estado de cada add-on individual.
 
 **No requiere refactor del core** si:
 1. **F4-DB** reserva la FK nullable `Sale.clinical_document_id` (la de `quote_id` ya quedó ACTIVA: la cotización se adelantó a F4)
@@ -3484,6 +3728,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 ### Entradas
 
 <!-- Una línea por decisión. El detalle completo se busca en engram por su topic_key. -->
+- **2026-09-02 (FASE 9 ATOMIZADA EN PARTE — módulos por tenant, expediente del backoffice y Recepción)** — Carlos pidió planear el crecimiento del backoffice y el primer módulo vertical. Decisiones: los módulos por tenant viven en `tenant_modules` (quién y cuándo; sobrevive a `changePlan`) y su catálogo es código (`MODULE_KEYS`); activar uno vuelve al negocio **Premium con precio pactado** reusando `changePlan`, y desactivar el último NO degrada el plan; `@RequiresModule` bloquea **también las lecturas** (un módulo vertical nunca estuvo en un plan público) y el grupo del menú se **oculta** en vez de mostrar candado (el modal de planes no vende módulos). El expediente del negocio va en un controller nuevo `admin/tenants` con un `AuthUser` **sintético** y `scope: all` sobre los services de reportes existentes — sin refactor de firmas —, y el dashboard/reportes se reusan por contexto (`basePath`). Recepción se apoya en `customers` (tabla genérica de personas, reusable por ventas y clínico; `birth_date` y edad **calculada**, decisión de Carlos), `reception_turns` con serie diaria en `tenant_sequences` (`reception_turn:YYYYMMDD`, UN `new Date()`, `business_date` del calendario del negocio) y «Eliminar» real con snapshot del nombre en el turno. «Turno» choca con «turno de caja» del POS: se queda en Recepción y el POS pasa a decir «caja» (F4-CASHBOX-04, solo copy). 40 tareas atómicas (F9-MOD 10, F9-ADMIN 13, F9-RECEP 16, F4-CASHBOX-04), ~95 h. — `topic_key: sellpoint/f9-atomizacion` — afecta: F9-MODULES-UI (mod), F9-BILLING-ADDONS (pospuesta), F4-CASHBOX-04 (nueva)
 
 - **2026-07-16** — TS 7 removió `baseUrl`: paths relativos obligatorios en todo tsconfig — `topic_key: sellpoint/ts7-no-baseurl` — afecta: F0-MONO-05 (hecho), F0-SHARED-01, F0-API-01, F0-WEB-01
 - **2026-07-16** — ICU/Node 22: USD en locale es NO da `US$` sino `USD 1,234.56` (código ISO + NBSP); expected de tests pineados empíricamente — `topic_key: sdd/format-money/apply-progress` — afecta: F0-I18N-02 (hecho), F0-I18N-04, F4 (display de precios)
