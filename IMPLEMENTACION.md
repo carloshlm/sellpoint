@@ -3457,7 +3457,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** unit — sin filas `[]`; con `reception` `["reception"]`; clave desconocida se descarta sin reventar; el objeto releído de Redis conserva el array.
   - **Depende de:** F9-MOD-02 · **Estimación:** 2 h
 
-- [ ] **F9-MOD-04** — `TenantModulesService`: activar (⇒ Premium + precio pactado), desactivar, listar
+- [x] **F9-MOD-04** *(cerrada el 2026-09-02 — el actor del audit queda como `{ platformAdmin: true }` + userId: el controller no trae el email y buscarlo exigiría abrir el tenant del admin)* — `TenantModulesService`: activar (⇒ Premium + precio pactado), desactivar, listar
   - **Salida:** `apps/api/src/modules/billing/tenant-modules.service.ts` con `list`, `enable(tenantId, { moduleKey, customPrice?, notes?, reason, changedBy })` y `disable(tenantId, { moduleKey, reason, changedBy })`. `enable` delega en `BillingService.changePlan` a `premium` si el plan vigente no lo es (la invariante del 422 `billing.custom_price_required` no se duplica), upsert de la fila + `auditService.record` (`tenant_module.enabled`, `after.actor = { platformAdmin: true, email }`) dentro de `withTenantContext`, y `entitlements.invalidate`. `disable` NO toca el plan. Registrado en `billing.module.ts`.
   - **Verificar:** unit — `plus` sin `customPrice` → 422 y sin fila; con precio → `premium` + fila + invalidate una vez; activar dos veces es idempotente; desactivar el último deja `premium`; sin suscripción → 404 `billing.subscription_not_found`.
   - **Depende de:** F9-MOD-03 · **Estimación:** 3 h

@@ -11,6 +11,7 @@ import { BillingCronRegistrar } from "./billing-cron.registrar";
 import { BillingDailyJob } from "./billing-daily.job";
 import { EntitlementsService } from "./entitlements.service";
 import { SalesPlanGate } from "./sales-plan.gate";
+import { TenantModulesService } from "./tenant-modules.service";
 
 /**
  * F7-CORE — el motor de suscripciones y cobro manual.
@@ -28,9 +29,10 @@ import { SalesPlanGate } from "./sales-plan.gate";
     BillingService,
     SalesPlanGate,
     AdminBillingService,
+    TenantModulesService,
     BillingDailyJob,
     BillingCronRegistrar,
   ],
-  exports: [EntitlementsService, BillingService, SalesPlanGate],
+  exports: [EntitlementsService, BillingService, SalesPlanGate, TenantModulesService],
 })
 export class BillingModule {}
