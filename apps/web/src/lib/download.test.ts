@@ -116,7 +116,9 @@ describe("imprimirPdf", () => {
     expect(frame.src).toBe("blob:test-papel");
     expect(frame.getAttribute("aria-hidden")).toBe("true");
     const print = vi.fn();
-    Object.defineProperty(frame, "contentWindow", { value: { focus: vi.fn(), print } });
+    Object.defineProperty(frame, "contentWindow", {
+      value: { focus: vi.fn(), print, location: { href: "blob:test-papel" } },
+    });
     frame.dispatchEvent(new Event("load"));
 
     expect(print).toHaveBeenCalledTimes(1);
@@ -138,6 +140,21 @@ describe("imprimirPdf", () => {
     });
     frame.dispatchEvent(new Event("load"));
 
+    expect(abrir).toHaveBeenCalledWith("blob:test-papel");
+  });
+
+  it("si el navegador bloqueó la carga (CSP) y el iframe quedó en blanco, abre el PDF en una pestaña sin imprimir", () => {
+    const abrir = vi.spyOn(window, "open").mockReturnValue({} as Window);
+    imprimirPdf(new Blob(["%PDF"]), "turno-7.pdf");
+
+    const frame = frameDeImpresion();
+    const print = vi.fn();
+    Object.defineProperty(frame, "contentWindow", {
+      value: { focus: vi.fn(), print, location: { href: "about:blank" } },
+    });
+    frame.dispatchEvent(new Event("load"));
+
+    expect(print).not.toHaveBeenCalled();
     expect(abrir).toHaveBeenCalledWith("blob:test-papel");
   });
 

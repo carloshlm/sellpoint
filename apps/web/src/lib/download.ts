@@ -86,6 +86,12 @@ export function imprimirPdf(blob: Blob, filename: string): void {
   frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
   frame.addEventListener("load", () => {
     try {
+      // Si una CSP sin `frame-src blob:` bloqueó la carga, el iframe «carga»
+      // igual pero en blanco: imprimirlo saca una hoja vacía. Mejor la pestaña.
+      if (frame.contentWindow?.location.href === "about:blank") {
+        abrirPdfParaImprimir(blob, filename);
+        return;
+      }
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
     } catch {
