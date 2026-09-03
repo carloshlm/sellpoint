@@ -23,7 +23,7 @@ import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { formatBusinessDate } from "@/lib/inventory/format-date";
-import type { Turn } from "@/lib/reception/api";
+import { printTurnTicket, type Turn } from "@/lib/reception/api";
 import { useAttendTurn, useCreateTurn, useTurns, useWaitTurn } from "@/lib/reception/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -64,6 +64,12 @@ function TurnsContent() {
   const attendTurn = useAttendTurn();
   const waitTurn = useWaitTurn();
   const onError = (apiError: ApiError) => setError(apiError.message);
+  // Reimprimir es LEER (Carlos, 2026-09-02): cualquiera con reception:read
+  // vuelve a sacar el papel de una fila, se haya atendido o no.
+  const reimprimir = (turn: Turn) => {
+    setError(null);
+    printTurnTicket(turn.id, turn.number).catch(() => setError(t("reception.turns.printFailed")));
+  };
 
   const rows = data ?? [];
 
@@ -122,7 +128,7 @@ function TurnsContent() {
               <TableHead className="px-2">{t("reception.turns.columns.customer")}</TableHead>
               <TableHead className="px-2">{t("reception.turns.columns.status")}</TableHead>
               <TableHead className="px-2">{t("reception.turns.columns.time")}</TableHead>
-              {canManage && <TableHead className="px-2" />}
+              <TableHead className="px-2" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -146,36 +152,45 @@ function TurnsContent() {
                 <TableCell className="px-2 whitespace-nowrap">
                   {formatBusinessDate(turn.createdAt, locale, timeZone, true)}
                 </TableCell>
-                {canManage && (
-                  <TableCell className="px-2 text-right">
-                    {turn.status === "waiting" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={attendTurn.isPending}
-                        onClick={() => {
-                          setError(null);
-                          attendTurn.mutate(turn.id, { onError });
-                        }}
-                      >
-                        {t("reception.turns.attend")}
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={waitTurn.isPending}
-                        onClick={() => {
-                          setError(null);
-                          waitTurn.mutate(turn.id, { onError });
-                        }}
-                      >
-                        {t("reception.turns.wait")}
-                      </Button>
-                    )}
-                  </TableCell>
-                )}
+                <TableCell className="px-2 text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => reimprimir(turn)}
+                    >
+                      {t("reception.turns.reprint")}
+                    </Button>
+                    {canManage &&
+                      (turn.status === "waiting" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={attendTurn.isPending}
+                          onClick={() => {
+                            setError(null);
+                            attendTurn.mutate(turn.id, { onError });
+                          }}
+                        >
+                          {t("reception.turns.attend")}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={waitTurn.isPending}
+                          onClick={() => {
+                            setError(null);
+                            waitTurn.mutate(turn.id, { onError });
+                          }}
+                        >
+                          {t("reception.turns.wait")}
+                        </Button>
+                      ))}
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

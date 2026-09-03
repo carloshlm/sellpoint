@@ -65,6 +65,7 @@
     "close": "Cerrar",
     "ticketLabel": "Turno",
     "print": "Imprimir de nuevo",
+    "reprint": "Reimprimir",
     "printFailed": "No pudimos abrir el papel del turno. Intenta imprimirlo de nuevo."
   }
 }

@@ -5,12 +5,17 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomerForm } from "@/components/reception/customer-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/reception/customers/new")({
   component: NewCustomerPage,
 });
 
-/** F9-RECEP-12 — alta de cliente en pantalla completa; Guardar vuelve al listado. */
+/**
+ * F9-RECEP-12 — alta de cliente en pantalla completa; Guardar vuelve al listado.
+ * En tarjeta, como el formulario de Servicios (Carlos, 2026-09-02): el fondo
+ * gris es del listado, capturar datos se hace sobre blanco.
+ */
 function NewCustomerPage() {
   return (
     <ProtectedRoute>
@@ -30,9 +35,15 @@ function NewCustomerContent() {
   const navigate = useNavigate();
   const volver = () => navigate({ to: "/reception/customers" });
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-semibold text-xl">{t("reception.form.createTitle")}</h1>
-      <CustomerForm onDone={volver} onCancel={volver} />
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h1>{t("reception.form.createTitle")}</h1>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CustomerForm onDone={volver} onCancel={volver} />
+      </CardContent>
+    </Card>
   );
 }

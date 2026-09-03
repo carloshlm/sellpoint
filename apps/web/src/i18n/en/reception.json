@@ -65,6 +65,7 @@
     "close": "Close",
     "ticketLabel": "Ticket",
     "print": "Print again",
+    "reprint": "Reprint",
     "printFailed": "We could not open the ticket. Try printing it again."
   }
 }

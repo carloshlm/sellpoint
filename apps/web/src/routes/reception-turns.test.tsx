@@ -162,6 +162,24 @@ describe("Generar turno (F9-RECEP-13)", () => {
     await waitFor(() => expect(mocked.listTurns).toHaveBeenCalledWith({ date: "2026-08-31" }));
   });
 
+  it("«Reimprimir» en una fila vuelve a pedir el papel de ESE turno, aun sin reception:manage", async () => {
+    await renderTurns(["reception:read"]);
+    const user = userEvent.setup();
+    const fila = await screen.findByTestId("turn-t5");
+    await user.click(within(fila).getByRole("button", { name: "Reimprimir" }));
+    await waitFor(() => expect(mocked.printTurnTicket).toHaveBeenCalledWith("t5", 5));
+    expect(mocked.printTurnTicket).toHaveBeenCalledTimes(1);
+  });
+
+  it("si al reimprimir el papel no sale, la pantalla lo dice", async () => {
+    mocked.printTurnTicket.mockRejectedValueOnce(new Error("bloqueado"));
+    await renderTurns(["reception:read"]);
+    const user = userEvent.setup();
+    const fila = await screen.findByTestId("turn-t5");
+    await user.click(within(fila).getByRole("button", { name: "Reimprimir" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/imprimirlo de nuevo/);
+  });
+
   it("sin reception:manage no hay botones de acción", async () => {
     await renderTurns(["reception:read"]);
     await screen.findByTestId("turn-t5");

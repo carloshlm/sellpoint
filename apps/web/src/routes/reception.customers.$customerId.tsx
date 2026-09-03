@@ -5,6 +5,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomerForm } from "@/components/reception/customer-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCustomer } from "@/lib/reception/hooks";
 
 export const Route = createFileRoute("/reception/customers/$customerId")({
@@ -34,20 +35,26 @@ function EditCustomerContent() {
   const { data, isPending, isError } = useCustomer(customerId);
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-semibold text-xl">{t("reception.form.editTitle")}</h1>
-      {isPending ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          {t("common.form.loading")}
-        </p>
-      ) : isError || !data ? (
-        <p role="alert" className="text-destructive text-sm">
-          {t("reception.form.loadFailed")}
-        </p>
-      ) : (
-        // `key` por cliente: cambiar de ficha monta un formulario nuevo.
-        <CustomerForm key={data.id} customer={data} onDone={volver} onCancel={volver} />
-      )}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <h1>{t("reception.form.editTitle")}</h1>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isPending ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            {t("common.form.loading")}
+          </p>
+        ) : isError || !data ? (
+          <p role="alert" className="text-destructive text-sm">
+            {t("reception.form.loadFailed")}
+          </p>
+        ) : (
+          // `key` por cliente: cambiar de ficha monta un formulario nuevo.
+          <CustomerForm key={data.id} customer={data} onDone={volver} onCancel={volver} />
+        )}
+      </CardContent>
+    </Card>
   );
 }

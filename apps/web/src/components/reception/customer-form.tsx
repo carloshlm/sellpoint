@@ -153,62 +153,69 @@ export function CustomerForm({
   };
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} className="flex max-w-xl flex-col gap-4" noValidate>
+    <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       {errorApi && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {errorApi}
         </p>
       )}
-      <TextField
-        label={t("reception.form.firstName")}
-        value={firstName}
-        onChange={(event) => setFirstName(event.target.value)}
-        error={errores.firstName}
-        required
-      />
-      <TextField
-        label={t("reception.form.lastNamePaternal")}
-        value={lastNamePaternal}
-        onChange={(event) => setLastNamePaternal(event.target.value)}
-        error={errores.lastNamePaternal}
-        required
-      />
-      <TextField
-        label={t("reception.form.lastNameMaternal")}
-        value={lastNameMaternal}
-        onChange={(event) => setLastNameMaternal(event.target.value)}
-      />
-      <TextField
-        type="date"
-        label={t("reception.form.birthDate")}
-        value={birthDate}
-        onChange={(event) => setBirthDate(event.target.value)}
-        error={errores.birthDate}
-        hint={
-          edad !== null
-            ? t("reception.form.ageLive", {
-                age: t("reception.customers.years", { count: edad }),
-              })
-            : undefined
-        }
-      />
-      <PhonePartsField
-        countryLabel={t("reception.form.phoneCountry")}
-        countryPlaceholder={t("reception.form.phoneCountryPlaceholder")}
-        numberLabel={t("reception.form.phone")}
-        country={phoneCountry}
-        number={phoneNumber}
-        onCountryChange={setPhoneCountry}
-        onNumberChange={setPhoneNumber}
-        numberError={errores.phone}
-      />
-      <TextField
-        type="email"
-        label={t("reception.form.email")}
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        error={errores.email}
-      />
+      {/* De a pares, como Servicios: el ancho lo da la tarjeta, no el form. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          label={t("reception.form.firstName")}
+          value={firstName}
+          onChange={(event) => setFirstName(event.target.value)}
+          error={errores.firstName}
+          required
+        />
+        <TextField
+          label={t("reception.form.lastNamePaternal")}
+          value={lastNamePaternal}
+          onChange={(event) => setLastNamePaternal(event.target.value)}
+          error={errores.lastNamePaternal}
+          required
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextField
+          label={t("reception.form.lastNameMaternal")}
+          value={lastNameMaternal}
+          onChange={(event) => setLastNameMaternal(event.target.value)}
+        />
+        <TextField
+          type="date"
+          label={t("reception.form.birthDate")}
+          value={birthDate}
+          onChange={(event) => setBirthDate(event.target.value)}
+          error={errores.birthDate}
+          hint={
+            edad !== null
+              ? t("reception.form.ageLive", {
+                  age: t("reception.customers.years", { count: edad }),
+                })
+              : undefined
+          }
+        />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PhonePartsField
+          countryLabel={t("reception.form.phoneCountry")}
+          countryPlaceholder={t("reception.form.phoneCountryPlaceholder")}
+          numberLabel={t("reception.form.phone")}
+          country={phoneCountry}
+          number={phoneNumber}
+          onCountryChange={setPhoneCountry}
+          onNumberChange={setPhoneNumber}
+          numberError={errores.phone}
+        />
+        <TextField
+          type="email"
+          label={t("reception.form.email")}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          error={errores.email}
+        />
+      </div>
       <TextField
         label={t("reception.form.notes")}
         value={notes}
