@@ -43,6 +43,12 @@
           "group": "Reception",
           "customers": "Customer registry",
           "turns": "Issue a ticket"
+        },
+        "medical_clinic": {
+          "group": "Medical Clinic",
+          "labStudies": "Lab Studies",
+          "diagnosticStudies": "Diagnostic Studies",
+          "attend": "Attend patient"
         }
       }
     },

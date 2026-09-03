@@ -60,6 +60,43 @@ describe("resolveRolePermissionCodes", () => {
     ]);
   });
 
+  /**
+   * F9-CLINIC-05 — tres permisos: `:read` (catálogos), `:manage` (CRUD) y
+   * `:attend` (expedientes). Viewer solo lee; Manager los tres (el médico
+   * suele ser Manager); el vendedor ninguno.
+   */
+  describe("permisos del Consultorio Médico (F9-CLINIC-05)", () => {
+    const clinico = [
+      ...catalog,
+      "medical_clinic:read",
+      "medical_clinic:manage",
+      "medical_clinic:attend",
+    ];
+
+    it("Manager recibe los tres, incluido :attend", () => {
+      const result = resolveRolePermissionCodes(clinico);
+      expect(result.Manager).toEqual(
+        expect.arrayContaining([
+          "medical_clinic:read",
+          "medical_clinic:manage",
+          "medical_clinic:attend",
+        ]),
+      );
+    });
+
+    it("Viewer recibe :read y NO :attend", () => {
+      const result = resolveRolePermissionCodes(clinico);
+      expect(result.Viewer).toContain("medical_clinic:read");
+      expect(result.Viewer).not.toContain("medical_clinic:attend");
+      expect(result.Viewer).not.toContain("medical_clinic:manage");
+    });
+
+    it("Seller no recibe ninguno", () => {
+      const result = resolveRolePermissionCodes(clinico);
+      expect(result.Seller.some((c) => c.startsWith("medical_clinic:"))).toBe(false);
+    });
+  });
+
   it("catálogo vacío → todos los roles nacen sin permisos (degradación aceptada)", () => {
     const result = resolveRolePermissionCodes([]);
     for (const role of TENANT_ROLE_NAMES) {

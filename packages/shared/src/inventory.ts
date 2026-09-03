@@ -48,10 +48,22 @@ export const POS_FOLIO_PREFIXES = {
   quote: "COT",
 } as const satisfies Record<string, string>;
 
+/**
+ * F9-CLINIC-01 — las series del Consultorio Médico. `HCL` es la historia
+ * clínica (un folio por VISITA; el paciente acumula folios). `ORM` es la
+ * orden médica que NO se cobra en caja: cuando sí se cobra, la orden lleva
+ * el folio `COT` de su cotización y no toma número de esta serie.
+ */
+export const MEDICAL_CLINIC_FOLIO_PREFIXES = {
+  record: "HCL",
+  order: "ORM",
+} as const satisfies Record<string, string>;
+
 /** Todas las series del sistema. Ninguna puede repetir prefijo con otra. */
 export const ALL_FOLIO_PREFIXES = [
   ...Object.values(FOLIO_PREFIXES),
   ...Object.values(POS_FOLIO_PREFIXES),
+  ...Object.values(MEDICAL_CLINIC_FOLIO_PREFIXES),
 ] as const;
 
 /**

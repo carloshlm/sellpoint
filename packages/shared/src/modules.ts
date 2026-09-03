@@ -14,6 +14,6 @@ import { z } from "zod";
  * Activar cualquier módulo vuelve al negocio Premium con precio pactado
  * (decisión de Carlos, 2026-09-02).
  */
-export const MODULE_KEYS = ["reception"] as const;
+export const MODULE_KEYS = ["reception", "medical_clinic"] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 export const moduleKeySchema = z.enum(MODULE_KEYS);

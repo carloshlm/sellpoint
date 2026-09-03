@@ -1,0 +1,22 @@
+{
+  "invalid_body": "Check the clinic data.",
+  "invalid_query": "The search filters are not valid.",
+  "empty_update": "There are no changes to save.",
+  "code_taken": "A study with that code already exists.",
+  "lab_study_not_found": "The lab study does not exist.",
+  "diagnostic_study_not_found": "The diagnostic study does not exist.",
+  "study_in_use": "That study is already in an order. Deactivate it instead of deleting it.",
+  "turn_not_found": "There is no ticket with that number today.",
+  "turn_without_patient": "That ticket has no registered patient. Register them first.",
+  "patient_not_found": "The patient does not exist.",
+  "record_not_found": "The medical record does not exist.",
+  "record_closed": "That consultation is already closed.",
+  "section_unknown": "That section does not exist in the medical record.",
+  "section_not_available": "That section cannot be captured yet.",
+  "order_not_found": "The order does not exist.",
+  "order_already_charged": "That order was already charged at the register. What must be voided is the sale.",
+  "order_already_canceled": "That order is already canceled.",
+  "order_needs_lines": "The order needs at least one line.",
+  "no_default_warehouse": "You have no assigned warehouse. Ask an administrator to assign one.",
+  "study_not_available": "One of the studies is no longer available."
+}

@@ -108,6 +108,14 @@ model Tenant {
   receptionTurns       ReceptionTurn[]
   billingNotifications BillingNotification[]
 
+  medicalLabStudies        MedicalClinicLabStudy[]
+  medicalDiagnosticStudies MedicalClinicDiagnosticStudy[]
+  medicalRecords           MedicalClinicRecord[]
+  medicalRecordSections    MedicalClinicRecordSection[]
+  medicalOrders            MedicalClinicOrder[]
+  medicalOrderLines        MedicalClinicOrderLine[]
+  medicalClinicSettings    MedicalClinicSettings?
+
   @@map("tenants")
 }
 
@@ -177,6 +185,15 @@ model User {
   salesCanceled           Sale[]                   @relation("SaleCanceledBy")
   quotesCreated           Quote[]                  @relation("QuoteCreatedBy")
   quotesCanceled          Quote[]                  @relation("QuoteCanceledBy")
+
+  labStudiesCreated        MedicalClinicLabStudy[]        @relation("LabStudyCreatedBy")
+  diagnosticStudiesCreated MedicalClinicDiagnosticStudy[] @relation("DiagnosticStudyCreatedBy")
+  medicalRecordsAsDoctor   MedicalClinicRecord[]          @relation("MedicalRecordDoctor")
+  medicalRecordsClosed     MedicalClinicRecord[]          @relation("MedicalRecordClosedBy")
+  medicalSectionsUpdated   MedicalClinicRecordSection[]   @relation("MedicalSectionUpdatedBy")
+  medicalOrdersCreated     MedicalClinicOrder[]           @relation("MedicalOrderCreatedBy")
+  medicalOrdersCanceled    MedicalClinicOrder[]           @relation("MedicalOrderCanceledBy")
+  medicalSettingsUpdated   MedicalClinicSettings[]        @relation("MedicalSettingsUpdatedBy")
 
   @@index([tenantId])
   @@index([defaultWarehouseId])
@@ -450,6 +467,8 @@ model Product {
   saleItems         SaleItem[]
   quoteLines        QuoteLine[]
 
+  medicalOrderLines MedicalClinicOrderLine[]
+
   @@unique([tenantId, sku])
   @@index([tenantId])
   // Declarados en el schema por el mismo motivo que en `catalog_records`: si
@@ -502,6 +521,8 @@ model ProductPresentation {
   // WHERE barcode IS NOT NULL viven en la migración. El índice tiene que ser
   // parcial: un @@unique normal trataría a los NULL como valores y solo
   // dejaría UN producto sin código de barras en todo el tenant.
+  medicalOrderLines MedicalClinicOrderLine[]
+
   @@unique([productId, name])
   @@index([tenantId])
   @@map("product_presentations")
@@ -1359,10 +1380,12 @@ model Sale {
   cashboxSessionId   String        @map("cashbox_session_id") @db.Uuid
   /// La cotización que originó esta venta, si la hubo (F4-QUOTE-02).
   quoteId            String?       @unique @map("quote_id") @db.Uuid
-  /// Reservada para F9 (receta / documento clínico). **La columna existe, la
-  /// tabla no**: sin FK todavía, igual que `warehouse_id` esperó a F2 en
-  /// `user_warehouse_scopes`. Tenerla desde ahora evita una migración sobre
-  /// una tabla con millones de ventas.
+  /// Reservada en F4 para F9 (receta / documento clínico) y **superada el
+  /// 2026-09-03 sin usarse**: la trazabilidad venta → orden médica ya es
+  /// `sales.quote_id` (UNIQUE) + `medical_clinic_orders.quote_id`, y el origen
+  /// genérico viaja en `source_module/source_ref` de las líneas. Cablearla
+  /// obligaría a que la venta supiera de medicina. Candidata a DROP en una
+  /// limpieza posterior; nadie la escribe.
   clinicalDocumentId String?       @map("clinical_document_id") @db.Uuid
   status             SaleStatus    @default(completed)
   /**
@@ -1506,6 +1529,10 @@ model Quote {
   /// La venta que la cargó, si llegó a cobrarse. Uno a uno: una cotización se
   /// carga UNA vez (`sales.quote_id` es UNIQUE).
   sale      Sale?
+
+  /// F9-CLINIC-04: la orden médica que la emitió, si vino de una (UNIQUE: una
+  /// cotización, una orden). El origen genérico viaja en `source_module/source_ref`.
+  medicalOrder MedicalClinicOrder?
 
   @@unique([tenantId, folio])
   @@index([tenantId, createdAt(sort: Desc)], map: "quotes_tenant_created_idx")
@@ -1852,6 +1879,8 @@ model Customer {
   tenant Tenant          @relation(fields: [tenantId], references: [id])
   turns  ReceptionTurn[]
 
+  medicalRecords MedicalClinicRecord[]
+
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, phone])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
@@ -1882,7 +1911,218 @@ model ReceptionTurn {
   tenant   Tenant    @relation(fields: [tenantId], references: [id])
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
+  medicalRecords MedicalClinicRecord[]
+
   @@unique([tenantId, businessDate, number])
   @@index([tenantId, businessDate, number(sort: Desc)])
   @@map("reception_turns")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// F9-CLINIC — Consultorio Médico (segundo módulo vertical, 2026-09-03)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// F9-CLINIC-02 — catálogo de estudios de laboratorio del negocio. SIN
+/// almacenes: no sale en el buscador del POS, llega a caja por la cotización
+/// de la orden. Dos tablas idénticas con la de gabinete a propósito: divergen
+/// por naturaleza.
+
+model MedicalClinicLabStudy {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  code        String   @db.VarChar(64)
+  name        String
+  description String?
+  cost        Decimal? @db.Decimal(14, 2)
+  price       Decimal? @db.Decimal(14, 2)
+  /// Sin motor de catálogos todavía (mismo criterio que `customers`).
+  attributes  Json     @default("{}")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant                   @relation(fields: [tenantId], references: [id])
+  creator    User?                    @relation("LabStudyCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  orderLines MedicalClinicOrderLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, name])
+  @@map("medical_clinic_lab_studies")
+}
+
+/// F9-CLINIC-02 — catálogo de estudios diagnósticos (gabinete). Ver arriba.
+
+model MedicalClinicDiagnosticStudy {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  code        String   @db.VarChar(64)
+  name        String
+  description String?
+  cost        Decimal? @db.Decimal(14, 2)
+  price       Decimal? @db.Decimal(14, 2)
+  /// Sin motor de catálogos todavía (mismo criterio que `customers`).
+  attributes  Json     @default("{}")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant     Tenant                   @relation(fields: [tenantId], references: [id])
+  creator    User?                    @relation("DiagnosticStudyCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  orderLines MedicalClinicOrderLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, name])
+  @@map("medical_clinic_diagnostic_studies")
+}
+
+/// F9-CLINIC-03 — la historia clínica: UN expediente por VISITA (folio `HCL`).
+/// El paciente es `customers` con SET NULL + snapshots: Recepción borra
+/// clientes de verdad y el expediente no puede perder a quién atendió. La
+/// edad del encabezado se calcula contra `consultation_date` (día del negocio).
+model MedicalClinicRecord {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  folio             String    @db.VarChar(32)
+  patientCustomerId String?   @map("patient_customer_id") @db.Uuid
+  patientName       String    @map("patient_name") @db.VarChar(200)
+  patientBirthDate  DateTime? @map("patient_birth_date") @db.Date
+  // CHECK (patient_sex IN ('F','M','X')); se proyecta desde Datos Generales.
+  patientSex        String?   @map("patient_sex") @db.VarChar(1)
+  turnId            String?   @map("turn_id") @db.Uuid
+  turnNumber        Int?      @map("turn_number")
+  doctorUserId      String    @map("doctor_user_id") @db.Uuid
+  consultationDate  DateTime  @map("consultation_date") @db.Date
+  // CHECK (status IN ('open','closed')); cerrado ⇔ closed_at ⇔ closed_by.
+  status            String    @default("open") @db.VarChar(16)
+  closedAt          DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedBy          String?   @map("closed_by") @db.Uuid
+  createdAt         DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant                       @relation(fields: [tenantId], references: [id])
+  patient  Customer?                    @relation(fields: [patientCustomerId], references: [id], onDelete: SetNull)
+  turn     ReceptionTurn?               @relation(fields: [turnId], references: [id], onDelete: SetNull)
+  doctor   User                         @relation("MedicalRecordDoctor", fields: [doctorUserId], references: [id], onDelete: Restrict)
+  closer   User?                        @relation("MedicalRecordClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
+  sections MedicalClinicRecordSection[]
+  orders   MedicalClinicOrder[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, patientCustomerId, createdAt(sort: Desc)], map: "medical_clinic_records_patient_history_idx")
+  @@index([tenantId, consultationDate(sort: Desc)])
+  @@index([tenantId, doctorUserId, createdAt(sort: Desc)])
+  @@map("medical_clinic_records")
+}
+
+/// F9-CLINIC-03 — una fila por sección capturada. La forma de `data` la fija
+/// el schema zod de `MEDICAL_RECORD_SECTION_SCHEMAS` (shared); existe fila ⇔
+/// Completado. CASCADE: la sección es parte del expediente.
+model MedicalClinicRecordSection {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  recordId   String   @map("record_id") @db.Uuid
+  sectionKey String   @map("section_key") @db.VarChar(48)
+  // CHECK (jsonb_typeof(data) = 'object').
+  data       Json     @default("{}")
+  updatedBy  String?  @map("updated_by") @db.Uuid
+  createdAt  DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant              @relation(fields: [tenantId], references: [id])
+  record  MedicalClinicRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  updater User?               @relation("MedicalSectionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@unique([recordId, sectionKey])
+  @@index([tenantId])
+  @@map("medical_clinic_record_sections")
+}
+
+/// F9-CLINIC-04 — la orden médica. Con venta: `folio` = el de su cotización
+/// (`COT-…`) y `quote_id` UNIQUE. Sin venta: serie `ORM` y `quote_id` NULL
+/// (CHECK «el prefijo no miente» en la migración). `(id, kind)` es UNIQUE
+/// como ancla de la FK compuesta de las líneas.
+model MedicalClinicOrder {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  recordId    String    @map("record_id") @db.Uuid
+  // CHECK (kind IN ('prescription','lab_order','diagnostic_order')).
+  kind        String    @db.VarChar(16)
+  folio       String    @db.VarChar(32)
+  quoteId     String?   @unique @map("quote_id") @db.Uuid
+  indications String?
+  diagnosis   String?
+  // CHECK (status IN ('issued','canceled')); cancelada ⇔ canceled_at ⇔ canceled_by.
+  status      String    @default("issued") @db.VarChar(16)
+  canceledAt  DateTime? @map("canceled_at") @db.Timestamptz(6)
+  canceledBy  String?   @map("canceled_by") @db.Uuid
+  createdBy   String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant                   @relation(fields: [tenantId], references: [id])
+  record   MedicalClinicRecord      @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  quote    Quote?                   @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  canceler User?                    @relation("MedicalOrderCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+  author   User                     @relation("MedicalOrderCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  lines    MedicalClinicOrderLine[]
+
+  @@unique([tenantId, folio])
+  @@unique([id, kind])
+  @@index([tenantId, recordId])
+  @@map("medical_clinic_orders")
+}
+
+/// F9-CLINIC-04 — la línea de una orden: exactamente UNA referencia
+/// (producto | estudio de laboratorio | estudio diagnóstico), coherente con el
+/// tipo de su orden por la FK compuesta `(order_id, order_kind)` + CHECK.
+/// `description` y `unit_price` son snapshots: el papel decía ESTO.
+model MedicalClinicOrderLine {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  orderId           String   @map("order_id") @db.Uuid
+  orderKind         String   @map("order_kind") @db.VarChar(16)
+  lineNo            Int      @map("line_no")
+  productId         String?  @map("product_id") @db.Uuid
+  presentationId    String?  @map("presentation_id") @db.Uuid
+  labStudyId        String?  @map("lab_study_id") @db.Uuid
+  diagnosticStudyId String?  @map("diagnostic_study_id") @db.Uuid
+  description       String
+  quantity          Decimal  @db.Decimal(14, 4)
+  unitPrice         Decimal  @map("unit_price") @db.Decimal(14, 2)
+  /// Indicaciones por medicamento («1 cada 8 h, 7 días»).
+  dosage            String?
+  createdAt         DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  tenant          Tenant                        @relation(fields: [tenantId], references: [id])
+  order           MedicalClinicOrder            @relation(fields: [orderId, orderKind], references: [id, kind], onDelete: Cascade)
+  product         Product?                      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  presentation    ProductPresentation?          @relation(fields: [presentationId], references: [id], onDelete: Restrict)
+  labStudy        MedicalClinicLabStudy?        @relation(fields: [labStudyId], references: [id], onDelete: Restrict)
+  diagnosticStudy MedicalClinicDiagnosticStudy? @relation(fields: [diagnosticStudyId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, lineNo])
+  @@index([tenantId])
+  @@map("medical_clinic_order_lines")
+}
+
+/// F9-CLINIC-21 — qué vende el consultorio. Sin fila = solo medicamentos
+/// (los estudios nacen desmarcados: la mayoría de los consultorios no los
+/// vende, Carlos 2026-09-03). Decide si una orden crea cotización.
+model MedicalClinicSettings {
+  tenantId               String   @id @map("tenant_id") @db.Uuid
+  sellsMedications       Boolean  @default(true) @map("sells_medications")
+  sellsLabStudies        Boolean  @default(false) @map("sells_lab_studies")
+  sellsDiagnosticStudies Boolean  @default(false) @map("sells_diagnostic_studies")
+  updatedBy              String?  @map("updated_by") @db.Uuid
+  createdAt              DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  updater User?  @relation("MedicalSettingsUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("medical_clinic_settings")
 }

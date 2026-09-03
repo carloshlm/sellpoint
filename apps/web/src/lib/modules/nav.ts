@@ -1,5 +1,13 @@
 import { MODULE_KEYS, type ModuleKey } from "@sellpoint/shared";
-import { ClipboardList, ConciergeBell, Ticket } from "lucide-react";
+import {
+  ClipboardList,
+  ConciergeBell,
+  FlaskConical,
+  Microscope,
+  Stethoscope,
+  Ticket,
+  UserRoundSearch,
+} from "lucide-react";
 import type * as React from "react";
 
 type NavIcon = React.ComponentType<{
@@ -45,6 +53,32 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         labelKey: "common.layout.nav.modules.reception.turns",
         permission: "reception:read",
         icon: Ticket,
+      },
+    ],
+  },
+  // F9-CLINIC-17 — los catálogos se leen con `:read`; atender exige
+  // `:attend` (la recepcionista no abre expedientes).
+  medical_clinic: {
+    labelKey: "common.layout.nav.modules.medical_clinic.group",
+    icon: Stethoscope,
+    links: [
+      {
+        to: "/medical-clinic/lab-studies",
+        labelKey: "common.layout.nav.modules.medical_clinic.labStudies",
+        permission: "medical_clinic:read",
+        icon: FlaskConical,
+      },
+      {
+        to: "/medical-clinic/diagnostic-studies",
+        labelKey: "common.layout.nav.modules.medical_clinic.diagnosticStudies",
+        permission: "medical_clinic:read",
+        icon: Microscope,
+      },
+      {
+        to: "/medical-clinic/attend",
+        labelKey: "common.layout.nav.modules.medical_clinic.attend",
+        permission: "medical_clinic:attend",
+        icon: UserRoundSearch,
       },
     ],
   },

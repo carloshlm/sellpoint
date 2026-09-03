@@ -7,12 +7,13 @@ import { MODULE_KEYS, moduleKeySchema } from "./modules";
  * para el API (guard), el backoffice (toggles) y el menú del cliente.
  */
 describe("catálogo de módulos por tenant (F9-MOD-01)", () => {
-  it("Recepción es el primer módulo", () => {
-    expect(MODULE_KEYS).toEqual(["reception"]);
+  it("Recepción y Consultorio Médico son los módulos del catálogo", () => {
+    expect(MODULE_KEYS).toEqual(["reception", "medical_clinic"]);
   });
 
   it("moduleKeySchema acepta solo claves del catálogo", () => {
     expect(moduleKeySchema.parse("reception")).toBe("reception");
+    expect(moduleKeySchema.parse("medical_clinic")).toBe("medical_clinic");
     expect(() => moduleKeySchema.parse("foo")).toThrow();
     expect(() => moduleKeySchema.parse("")).toThrow();
   });

@@ -4,6 +4,7 @@ import {
   FOLIO_PREFIXES,
   hasValidQuantityScale,
   INVENTORY_DOCUMENT_TYPES,
+  MEDICAL_CLINIC_FOLIO_PREFIXES,
   MOVEMENT_REASONS,
   POS_FOLIO_PREFIXES,
   REASON_RULES,
@@ -48,6 +49,13 @@ describe("FOLIO_PREFIXES", () => {
    * la serie es por `key`, así que dos keys distintas llegarían al mismo
    * número con el mismo prefijo.
    */
+  /** F9-CLINIC-01: el expediente (`HCL`) y la orden sin cobro (`ORM`). */
+  it("las del consultorio son dos y entran en el catálogo de series", () => {
+    expect(MEDICAL_CLINIC_FOLIO_PREFIXES).toEqual({ record: "HCL", order: "ORM" });
+    expect(ALL_FOLIO_PREFIXES).toContain("HCL");
+    expect(ALL_FOLIO_PREFIXES).toContain("ORM");
+  });
+
   it("ningún prefijo se repite entre series, ni con las reservadas", () => {
     const todos = [...ALL_FOLIO_PREFIXES, ...RESERVED_FOLIO_PREFIXES];
     expect(new Set(todos).size).toBe(todos.length);

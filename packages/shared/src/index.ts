@@ -7,6 +7,7 @@ export * from "./document-date";
 export * from "./i18n";
 export * from "./inventory";
 export * from "./lot-code";
+export * from "./medical-clinic";
 export * from "./modules";
 export * from "./money";
 export * from "./phone";

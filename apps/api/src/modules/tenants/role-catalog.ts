@@ -73,6 +73,9 @@ export const INITIAL_WAREHOUSE_NAME: Record<"es" | "en", string> = {
 // Ojo con la regla implícita de abajo: todo code que NO esté acá le cae a
 // Manager automáticamente, y todo code terminado en `:read` le cae a Viewer.
 // Agregar un permiso nuevo sin pensar en esta lista lo reparte solo.
+// F9-CLINIC-05: `medical_clinic:attend` NO se excluye a propósito — el médico
+// suele ser Manager. El consultorio que quiera privacidad estricta (la
+// recepcionista sin acceso a expedientes) arma un rol personalizado «Médico».
 const MANAGER_EXCLUDED_CODES = new Set([
   "users:manage",
   "roles:manage",

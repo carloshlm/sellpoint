@@ -43,6 +43,12 @@
           "group": "Recepción",
           "customers": "Registro de cliente",
           "turns": "Generar turno"
+        },
+        "medical_clinic": {
+          "group": "Consultorio Médico",
+          "labStudies": "Estudios de Laboratorio",
+          "diagnosticStudies": "Estudios Diagnósticos",
+          "attend": "Atender paciente"
         }
       }
     },

@@ -1,0 +1,22 @@
+{
+  "invalid_body": "Revisa los datos del consultorio.",
+  "invalid_query": "Los filtros de búsqueda no son válidos.",
+  "empty_update": "No hay cambios que guardar.",
+  "code_taken": "Ya existe un estudio con ese código.",
+  "lab_study_not_found": "El estudio de laboratorio no existe.",
+  "diagnostic_study_not_found": "El estudio diagnóstico no existe.",
+  "study_in_use": "Ese estudio ya está en una orden. Desactívalo en vez de borrarlo.",
+  "turn_not_found": "No hay un turno con ese número hoy.",
+  "turn_without_patient": "Ese turno no tiene paciente registrado. Regístralo primero.",
+  "patient_not_found": "El paciente no existe.",
+  "record_not_found": "La historia clínica no existe.",
+  "record_closed": "Esa consulta ya está cerrada.",
+  "section_unknown": "Esa sección no existe en la historia clínica.",
+  "section_not_available": "Esa sección todavía no se puede capturar.",
+  "order_not_found": "La orden no existe.",
+  "order_already_charged": "Esa orden ya se cobró en caja. Lo que hay que anular es la venta.",
+  "order_already_canceled": "Esa orden ya está cancelada.",
+  "order_needs_lines": "La orden necesita al menos una línea.",
+  "no_default_warehouse": "No tienes un almacén asignado. Pídele a un administrador que te asigne uno.",
+  "study_not_available": "Uno de los estudios ya no está disponible."
+}

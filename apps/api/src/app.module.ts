@@ -29,6 +29,7 @@ import { SubscriptionGuard } from "./modules/billing/guards/subscription.guard";
 import { CatalogsModule } from "./modules/catalogs/catalogs.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { MailModule } from "./modules/mail/mail.module";
+import { MedicalClinicModule } from "./modules/medical-clinic/medical-clinic.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { PosModule } from "./modules/pos/pos.module";
 import { ProductsModule } from "./modules/products/products.module";
@@ -124,6 +125,7 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     CatalogsModule,
     ServicesModule,
     ReceptionModule,
+    MedicalClinicModule,
     AdminModule,
     WarehousesModule,
     InventoryModule,

@@ -68,6 +68,35 @@ afterEach(() => {
 });
 
 describe("grupo de menú de un módulo avanzado (F9-MOD-08)", () => {
+  /** F9-CLINIC-17 — el segundo módulo: dos catálogos con `:read`, atender con `:attend`. */
+  it("con Consultorio Médico y solo :read aparecen los catálogos, no «Atender paciente»", async () => {
+    await renderCon(["medical_clinic"], ["medical_clinic:read"]);
+    expect(await screen.findByRole("group", { name: "Consultorio Médico" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Estudios de Laboratorio" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/lab-studies",
+    );
+    expect(screen.getByRole("link", { name: "Estudios Diagnósticos" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/diagnostic-studies",
+    );
+    expect(screen.queryByRole("link", { name: "Atender paciente" })).not.toBeInTheDocument();
+  });
+
+  it("con :attend aparece «Atender paciente»; sin el módulo no hay grupo", async () => {
+    await renderCon(["medical_clinic"], ["medical_clinic:read", "medical_clinic:attend"]);
+    expect(await screen.findByRole("link", { name: "Atender paciente" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/attend",
+    );
+  });
+
+  it("sin el módulo Consultorio Médico no hay grupo aunque el permiso esté", async () => {
+    await renderCon(["reception"], ["medical_clinic:read"]);
+    await screen.findByRole("navigation");
+    expect(screen.queryByRole("group", { name: "Consultorio Médico" })).not.toBeInTheDocument();
+  });
+
   it("con el módulo y el permiso aparece «Recepción» con sus dos entradas", async () => {
     await renderCon(["reception"], ["reception:read"]);
     const grupo = await screen.findByRole("group", { name: "Recepción" });
