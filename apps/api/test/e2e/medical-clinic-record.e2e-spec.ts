@@ -145,7 +145,9 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(29);
     expect(d.patient.sex).toBe("F");
 
-    // SEGUNDA visita: HCL-000002 con Datos Generales copiado y el sexo ya proyectado.
+    // SEGUNDA visita: hay que cerrar la de hoy antes (F9-CLINIC-27: un
+    // paciente no tiene dos consultas abiertas el mismo día).
+    await post(negocio.token, `${base}/close`).expect(200);
     const segunda = await post(negocio.token, "/medical-clinic/records", { customerId }).expect(
       201,
     );
@@ -167,8 +169,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     ).expect(200);
     expect(otra.body[0].lastRecord).toMatchObject({ folio: "HCL-000002" });
 
-    // Cerrar: idempotente; después no se escribe.
-    await post(negocio.token, `${base}/close`).expect(200);
+    // Cerrar es idempotente; después no se escribe.
     const cerrado = await post(negocio.token, `${base}/close`).expect(200);
     expect((cerrado.body as { status: string }).status).toBe("closed");
     await put(negocio.token, `${base}/sections/chief_complaint`, { complaint: "x" }).expect(409);

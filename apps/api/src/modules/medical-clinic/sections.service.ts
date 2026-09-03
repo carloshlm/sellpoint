@@ -5,12 +5,17 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { MEDICAL_RECORD_SECTION_SCHEMAS, medicalRecordSectionKeySchema } from "@sellpoint/shared";
+import {
+  MEDICAL_RECORD_SECTION_SCHEMAS,
+  medicalRecordLock,
+  medicalRecordSectionKeySchema,
+} from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { diaDelNegocio } from "./business-day";
 import type { SectionStatus } from "./records.service";
 
 export interface SectionView {
@@ -82,8 +87,13 @@ export class SectionsService {
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const expediente = await this.expediente(tx, user.tenantId, recordId);
-      if (expediente.status !== "open") {
-        throw new ConflictException({ message: "medical_clinic.record_closed" });
+      // Cerrada o de otro día: se lee, no se captura (F9-CLINIC-26).
+      const candado = medicalRecordLock(
+        { status: expediente.status, consultationDate: diaDe(expediente.consultationDate) },
+        await diaDelNegocio(tx, user.tenantId),
+      );
+      if (candado !== null) {
+        throw new ConflictException({ message: `medical_clinic.record_${candado}` });
       }
 
       let vista: SectionView;
@@ -138,10 +148,10 @@ export class SectionsService {
     tx: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0],
     tenantId: string,
     id: string,
-  ): Promise<{ id: string; status: string }> {
+  ): Promise<{ id: string; status: string; consultationDate: Date }> {
     const fila = await tx.medicalClinicRecord.findFirst({
       where: { id, tenantId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, consultationDate: true },
     });
     if (fila === null) {
       throw new NotFoundException({ message: "medical_clinic.record_not_found" });
@@ -157,3 +167,6 @@ function claveDelCatalogo(key: string) {
   }
   return r.data;
 }
+
+/** La columna DATE, como el `YYYY-MM-DD` que compara el candado. */
+const diaDe = (d: Date): string => d.toISOString().slice(0, 10);

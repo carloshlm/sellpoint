@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   ageFromBirthDate,
   localCalendarDate,
   MEDICAL_CLINIC_FOLIO_PREFIXES,
   MEDICAL_RECORD_SECTIONS,
+  type MedicalRecordLockReason,
   type MedicalRecordSectionGroup,
+  medicalRecordLock,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -12,7 +14,9 @@ import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
+import { diaDelNegocio } from "./business-day";
 import type { CreateRecordDto, ListRecordsQuery } from "./dto/records.dto";
+import { isUniqueViolation } from "./study-catalog.service";
 
 export type SectionStatus = "pending" | "completed";
 
@@ -39,6 +43,9 @@ export interface RecordDetail {
   id: string;
   folio: string;
   status: "open" | "closed";
+  /** ¿Acepta captura? Lo decide el API con el día del NEGOCIO, nunca el web. */
+  editable: boolean;
+  lockReason: MedicalRecordLockReason | null;
   consultationDate: string;
   closedAt: string | null;
   turnNumber: number | null;
@@ -60,6 +67,8 @@ export interface RecordSummary {
   id: string;
   folio: string;
   status: string;
+  editable: boolean;
+  lockReason: MedicalRecordLockReason | null;
   consultationDate: string;
   patientName: string;
   doctorName: string;
@@ -98,6 +107,40 @@ export class RecordsService {
     // UN solo instante: el día del negocio de la consulta.
     const hoy = localCalendarDate(zona, new Date());
 
+    try {
+      return await this.abrir(user, input, meta, hoy);
+    } catch (error) {
+      // El cinturón: si el UNIQUE parcial ganó la carrera, la transacción ya
+      // está abortada y hay que releer el abierto en una NUEVA para poder
+      // decir a qué folio ir.
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+      const abierta = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+        tx.medicalClinicRecord.findFirst({
+          where: {
+            tenantId: user.tenantId,
+            patientCustomerId: input.customerId,
+            status: "open",
+            consultationDate: new Date(hoy),
+          },
+          select: { id: true, folio: true },
+        }),
+      );
+      throw new ConflictException({
+        message: "medical_clinic.record_open_today",
+        recordId: abierta?.id ?? null,
+        folio: abierta?.folio ?? null,
+      });
+    }
+  }
+
+  private async abrir(
+    user: AuthUser,
+    input: CreateRecordDto,
+    meta: RequestMeta,
+    hoy: string,
+  ): Promise<RecordDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const paciente = await tx.customer.findFirst({
         where: { id: input.customerId, tenantId: user.tenantId },
@@ -124,6 +167,38 @@ export class RecordsService {
         }
       }
 
+      // ── Una consulta abierta por paciente y día (F9-CLINIC-27) ─────────
+      //
+      // El folio se pide ANTES de mirar a propósito: `nextFolio` bloquea la
+      // fila de la serie hasta el COMMIT, así que dos médicos que abren a la
+      // vez se serializan y el segundo ya ve la consulta del primero. Si se
+      // consultara antes, ambos pasarían el chequeo y nacerían dos folios.
+      // El número que gasta el perdedor se deshace con su transacción.
+      const folio = await nextFolio(
+        tx,
+        user.tenantId,
+        "medical_record",
+        MEDICAL_CLINIC_FOLIO_PREFIXES.record,
+      );
+      const abierta = await tx.medicalClinicRecord.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          patientCustomerId: paciente.id,
+          status: "open",
+          consultationDate: new Date(hoy),
+        },
+        select: { id: true, folio: true },
+      });
+      if (abierta !== null) {
+        // El folio viaja en el cuerpo: la pantalla lleva al médico a esa
+        // consulta en vez de dejarlo con un error sin salida.
+        throw new ConflictException({
+          message: "medical_clinic.record_open_today",
+          recordId: abierta.id,
+          folio: abierta.folio,
+        });
+      }
+
       // ── Copy-forward: SOLO Datos Generales del expediente anterior ──────
       const anterior = await tx.medicalClinicRecord.findFirst({
         where: { tenantId: user.tenantId, patientCustomerId: paciente.id },
@@ -137,12 +212,6 @@ export class RecordsService {
           : null;
       const sexo = typeof datosGenerales?.sex === "string" ? datosGenerales.sex : null;
 
-      const folio = await nextFolio(
-        tx,
-        user.tenantId,
-        "medical_record",
-        MEDICAL_CLINIC_FOLIO_PREFIXES.record,
-      );
       const creado = await tx.medicalClinicRecord.create({
         data: {
           tenantId: user.tenantId,
@@ -182,7 +251,7 @@ export class RecordsService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
-      return this.cargar(tx, user.tenantId, creado.id);
+      return this.cargar(tx, user.tenantId, creado.id, hoy);
     });
   }
 
@@ -196,6 +265,7 @@ export class RecordsService {
       ...(query.customerId !== undefined && { patientCustomerId: query.customerId }),
     };
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const hoy = await diaDelNegocio(tx, user.tenantId);
       const [total, rows] = await Promise.all([
         tx.medicalClinicRecord.count({ where }),
         tx.medicalClinicRecord.findMany({
@@ -211,6 +281,15 @@ export class RecordsService {
           id: r.id,
           folio: r.folio,
           status: r.status,
+          editable:
+            medicalRecordLock(
+              { status: r.status, consultationDate: fecha(r.consultationDate) },
+              hoy,
+            ) === null,
+          lockReason: medicalRecordLock(
+            { status: r.status, consultationDate: fecha(r.consultationDate) },
+            hoy,
+          ),
           consultationDate: fecha(r.consultationDate),
           patientName: r.patientName,
           doctorName: `${r.doctor.firstName} ${r.doctor.lastNamePaternal}`.trim(),
@@ -230,6 +309,11 @@ export class RecordsService {
   /** Idempotente: cerrar dos veces es un doble clic, no un error. */
   async close(user: AuthUser, id: string, meta: RequestMeta): Promise<RecordDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const hoy = await diaDelNegocio(tx, user.tenantId);
+      const antes = await tx.medicalClinicRecord.findFirst({
+        where: { id, tenantId: user.tenantId },
+        select: { consultationDate: true },
+      });
       const cerradas = await tx.medicalClinicRecord.updateMany({
         where: { id, tenantId: user.tenantId, status: "open" },
         data: { status: "closed", closedAt: new Date(), closedBy: user.userId },
@@ -241,16 +325,24 @@ export class RecordsService {
           action: "medical_clinic.record.close",
           resourceType: "medical_record",
           resourceId: id,
+          // Un cierre tardío (la consulta era de otro día) se lee en la bitácora.
+          after:
+            antes === null
+              ? undefined
+              : {
+                  consultationDate: fecha(antes.consultationDate),
+                  closedOnConsultationDay: fecha(antes.consultationDate) === hoy,
+                },
           ip: meta.ip,
           userAgent: meta.userAgent,
         });
       }
-      return this.cargar(tx, user.tenantId, id);
+      return this.cargar(tx, user.tenantId, id, hoy);
     });
   }
 
   /** El expediente con sus relaciones, o 404: uno ajeno NO EXISTE para este negocio. */
-  async cargar(tx: Tx, tenantId: string, id: string): Promise<RecordDetail> {
+  async cargar(tx: Tx, tenantId: string, id: string, hoy?: string): Promise<RecordDetail> {
     const fila = await tx.medicalClinicRecord.findFirst({
       where: { id, tenantId },
       include: INCLUDE,
@@ -258,7 +350,7 @@ export class RecordsService {
     if (fila === null) {
       throw new NotFoundException({ message: "medical_clinic.record_not_found" });
     }
-    return toDetail(fila);
+    return toDetail(fila, hoy ?? (await diaDelNegocio(tx, tenantId)));
   }
 
   private async zonaDelNegocio(tenantId: string): Promise<string> {
@@ -270,14 +362,17 @@ export class RecordsService {
   }
 }
 
-export function toDetail(fila: RecordRow): RecordDetail {
+export function toDetail(fila: RecordRow, hoy: string): RecordDetail {
   const porClave = new Map(fila.sections.map((s) => [s.sectionKey, s]));
   const consulta = fecha(fila.consultationDate);
+  const lockReason = medicalRecordLock({ status: fila.status, consultationDate: consulta }, hoy);
   const nacimiento = fila.patientBirthDate === null ? null : fecha(fila.patientBirthDate);
   return {
     id: fila.id,
     folio: fila.folio,
     status: fila.status === "closed" ? "closed" : "open",
+    editable: lockReason === null,
+    lockReason,
     consultationDate: consulta,
     closedAt: fila.closedAt?.toISOString() ?? null,
     turnNumber: fila.turnNumber,

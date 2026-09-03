@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
+import { localCalendarDate } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import type { PrismaService } from "../../../src/infrastructure/prisma/prisma.service";
@@ -20,6 +21,9 @@ import { extractTokenFromLink } from "./extract-token-from-link";
  * que activa módulos por el endpoint REAL del backoffice, y negocios con
  * Recepción y Consultorio Médico encendidos.
  */
+/** La zona del negocio de los escenarios: el default de `tenants.timezone`. */
+export const TZ_CONSULTORIO = "America/Mexico_City";
+
 export async function activarModulo(
   app: INestApplication<App>,
   admin: TenantFixture,
@@ -96,4 +100,26 @@ export async function usuarioConRol(
     .send({ email, password: BILLING_TEST_PASSWORD })
     .expect(200);
   return (login.body as { accessToken: string }).accessToken;
+}
+
+/**
+ * Retrocede la fecha de consulta un día: el expediente sigue ABIERTO pero
+ * queda «vencido» (F9-CLINIC-28).
+ *
+ * Vencer se prueba moviendo el pasado, no esperando al futuro: el candado
+ * compara `consultation_date` contra el día del negocio, así que basta con
+ * que la consulta sea de ayer.
+ */
+export async function vencerExpediente(
+  prisma: PrismaService,
+  tenantId: string,
+  recordId: string,
+): Promise<void> {
+  const ayer = localCalendarDate(TZ_CONSULTORIO, new Date(Date.now() - 24 * 60 * 60 * 1000));
+  await prisma.withTenantContext(tenantId, (tx) =>
+    tx.medicalClinicRecord.update({
+      where: { id: recordId },
+      data: { consultationDate: new Date(ayer) },
+    }),
+  );
 }

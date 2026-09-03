@@ -63,7 +63,9 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
     ultima = null;
     tx = {
       medicalClinicRecord: {
-        findFirst: jest.fn().mockResolvedValue({ id: "r-1", status: "open" }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: "r-1", status: "open", consultationDate: new Date() }),
       },
       medicalClinicLabStudy: {
         findMany: jest.fn().mockResolvedValue([
@@ -99,6 +101,8 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
       },
       medicalClinicOrderLine: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
       user: { findFirst: jest.fn().mockResolvedValue({ defaultWarehouseId: "w-1" }) },
+      // La zona del negocio decide qué día es «hoy»: UTC para no depender del reloj.
+      tenant: { findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: "UTC" }) },
     };
     prisma = { withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)) };
     audit = { record: jest.fn() };
@@ -231,7 +235,11 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
       ),
     ).rejects.toMatchObject({ response: { message: "medical_clinic.study_not_available" } });
 
-    tx.medicalClinicRecord.findFirst.mockResolvedValue({ id: "r-1", status: "closed" });
+    tx.medicalClinicRecord.findFirst.mockResolvedValue({
+      id: "r-1",
+      status: "closed",
+      consultationDate: new Date(),
+    });
     await expect(
       service.create(
         USER,
@@ -312,5 +320,18 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
     const res = await service.list(USER, "r-1");
     expect(res.map((o) => o.chargeStatus)).toEqual(["charged", "pending", "not_for_sale"]);
     expect(res[0]).toMatchObject({ quoteFolio: "COT-000007", saleId: "v-1" });
+  });
+
+  /** F9-CLINIC-26 — una consulta abierta de otro día ya no emite órdenes. */
+  it("un expediente abierto de OTRO DÍA rebota con 409 record_expired", async () => {
+    tx.medicalClinicRecord.findFirst.mockResolvedValue({
+      id: "r-1",
+      status: "open",
+      consultationDate: new Date("2020-01-01"),
+    });
+    await expect(
+      service.create(USER, "r-1", { kind: "lab_order", lines: [{ labStudyId: "ls-1" }] }, META),
+    ).rejects.toMatchObject({ response: { message: "medical_clinic.record_expired" } });
+    expect(tx.medicalClinicOrder.create).not.toHaveBeenCalled();
   });
 });

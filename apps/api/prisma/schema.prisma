@@ -2017,6 +2017,11 @@ model MedicalClinicRecord {
   orders   MedicalClinicOrder[]
 
   @@unique([tenantId, folio])
+  /// F9-CLINIC-27: además existe el UNIQUE PARCIAL
+  /// `medical_clinic_records_one_open_per_day (tenant_id, patient_customer_id,
+  /// consultation_date) WHERE status = 'open'` — un paciente no tiene dos
+  /// consultas abiertas el mismo día. Prisma no modela índices parciales: vive
+  /// en la migración `20260904100000_f9_clinic_open_record_unique`.
   @@index([tenantId, patientCustomerId, createdAt(sort: Desc)], map: "medical_clinic_records_patient_history_idx")
   @@index([tenantId, consultationDate(sort: Desc)])
   @@index([tenantId, doctorUserId, createdAt(sort: Desc)])

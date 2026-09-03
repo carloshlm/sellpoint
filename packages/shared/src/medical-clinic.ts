@@ -168,3 +168,50 @@ export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
 export const MEDICAL_ORDER_KINDS = ["prescription", "lab_order", "diagnostic_order"] as const;
 export type MedicalOrderKind = (typeof MEDICAL_ORDER_KINDS)[number];
 export const medicalOrderKindSchema = z.enum(MEDICAL_ORDER_KINDS);
+
+// ─────────────────────────────────────────────────────────────────────────
+// El candado del expediente (F9-CLINIC-25)
+// ─────────────────────────────────────────────────────────────────────────
+
+export const MEDICAL_RECORD_STATUSES = ["open", "closed"] as const;
+export type MedicalRecordStatus = (typeof MEDICAL_RECORD_STATUSES)[number];
+
+/** Por qué una historia clínica ya no acepta captura. `null` = se puede capturar. */
+export type MedicalRecordLockReason = "closed" | "expired";
+
+/**
+ * ¿Se puede seguir capturando esta consulta?
+ *
+ * Dos motivos la cierran: el médico la CERRÓ, o ya pasó su día. Lo segundo
+ * es lo que Carlos pidió (2026-09-03): una consulta es de un día; si el
+ * expediente quedó abierto y amaneció, se lee pero no se captura, y el
+ * paciente que vuelve estrena folio.
+ *
+ * El vencimiento se DERIVA, no se persiste: marcar `closed` exigiría un
+ * `closed_by` (lo obliga el CHECK `closed_by_coherent`) y no hay ningún
+ * humano detrás de un cambio de día. Así tampoco hace falta un proceso
+ * nocturno: la verdad se calcula al leer.
+ *
+ * `today` lo pone quien llama —`localCalendarDate(tenant.timezone, now)`—
+ * porque el día que importa es el del NEGOCIO, no el del servidor ni el del
+ * navegador. Ambas fechas son `YYYY-MM-DD`, así que se comparan como texto:
+ * el orden lexicográfico del ISO es el cronológico, y así no hay `Date` de
+ * por medio que reinterprete una zona horaria a media noche.
+ *
+ * Una fecha FUTURA no vence (un reloj mal puesto no le quita el trabajo al
+ * médico), y `closed` gana sobre `expired`: al que cerró la consulta hay que
+ * decirle que está cerrada, no que se le hizo tarde.
+ *
+ * Ojo: si el negocio cambia su zona horaria, una consulta al filo de la
+ * medianoche puede pasar de vigente a vencida (o al revés). Es el precio de
+ * derivar el estado y es preferible a un `closed_by` inventado.
+ */
+export function medicalRecordLock(
+  record: { status: string; consultationDate: string },
+  today: string,
+): MedicalRecordLockReason | null {
+  if (record.status === "closed") {
+    return "closed";
+  }
+  return record.consultationDate < today ? "expired" : null;
+}

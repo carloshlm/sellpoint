@@ -42,6 +42,7 @@ describe("PatientsService (F9-CLINIC-09)", () => {
             id: "r-9",
             folio: "HCL-000009",
             consultationDate: new Date("2026-08-01"),
+            status: "open",
           },
         ]),
       },
@@ -84,7 +85,14 @@ describe("PatientsService (F9-CLINIC-09)", () => {
         age: 36,
         birthDate: "1990-09-03",
         turnNumber: null,
-        lastRecord: { id: "r-9", folio: "HCL-000009", consultationDate: "2026-08-01" },
+        // De agosto: se lee, pero ya no se captura (F9-CLINIC-27).
+        lastRecord: {
+          id: "r-9",
+          folio: "HCL-000009",
+          consultationDate: "2026-08-01",
+          status: "open",
+          lockReason: "expired",
+        },
       },
     ]);
   });
@@ -117,5 +125,36 @@ describe("PatientsService (F9-CLINIC-09)", () => {
     tx.customer.findFirst.mockResolvedValue({ ...cliente, birthDate: new Date("1990-09-04") });
     const res = await service.search(USER, { mode: "turn", q: "5" });
     expect(res[0]?.age).toBe(35);
+  });
+
+  /**
+   * F9-CLINIC-27 — la tarjeta del paciente tiene que saber si esa consulta se
+   * continúa o si hay que abrir folio nuevo.
+   */
+  it("el último expediente dice si se puede continuar, está vencido o cerrado", async () => {
+    const conFecha = (extra: Record<string, unknown>) => [
+      {
+        patientCustomerId: "c-1",
+        id: "r-1",
+        folio: "HCL-000001",
+        consultationDate: new Date("2026-09-03"),
+        status: "open",
+        ...extra,
+      },
+    ];
+
+    tx.medicalClinicRecord.findMany.mockResolvedValue(conFecha({}));
+    let [hit] = await service.search(USER, { mode: "name", q: "ana" });
+    expect(hit.lastRecord).toMatchObject({ status: "open", lockReason: null });
+
+    tx.medicalClinicRecord.findMany.mockResolvedValue(
+      conFecha({ consultationDate: new Date("2026-09-02") }),
+    );
+    [hit] = await service.search(USER, { mode: "name", q: "ana" });
+    expect(hit.lastRecord).toMatchObject({ status: "open", lockReason: "expired" });
+
+    tx.medicalClinicRecord.findMany.mockResolvedValue(conFecha({ status: "closed" }));
+    [hit] = await service.search(USER, { mode: "name", q: "ana" });
+    expect(hit.lastRecord).toMatchObject({ status: "closed", lockReason: "closed" });
   });
 });

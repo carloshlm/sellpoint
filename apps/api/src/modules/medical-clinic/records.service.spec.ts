@@ -47,6 +47,10 @@ const expediente = (extra: Record<string, unknown> = {}) => ({
 });
 
 describe("RecordsService (F9-CLINIC-10/12)", () => {
+  /** Lo que devuelve cada consulta del servicio; cada test los ajusta. */
+  let abiertoHoy: { id: string; folio: string } | null;
+  let anterior: ReturnType<typeof expediente> | null;
+  let cargado: ReturnType<typeof expediente>;
   let tx: {
     customer: { findFirst: Mock };
     receptionTurn: { findFirst: Mock };
@@ -58,6 +62,7 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       count: Mock;
     };
     medicalClinicRecordSection: { create: Mock; findMany: Mock };
+    tenant: { findUniqueOrThrow: Mock };
   };
   let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock } };
   let audit: { record: Mock };
@@ -65,13 +70,21 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date("2026-09-03T15:00:00.000Z"));
+    abiertoHoy = null;
+    anterior = null;
+    cargado = expediente();
     tx = {
       customer: { findFirst: jest.fn().mockResolvedValue(cliente) },
       receptionTurn: { findFirst: jest.fn().mockResolvedValue(null) },
       medicalClinicRecord: {
-        // Primera llamada: el expediente ANTERIOR del paciente (ninguno);
-        // después, el recién creado con sus relaciones.
-        findFirst: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(expediente()),
+        // Por FORMA de la consulta, no por orden: `consultationDate` es la del
+        // abierto de hoy (F9-CLINIC-27), `id` la de cargar, y el resto el
+        // expediente anterior del copy-forward.
+        findFirst: jest.fn().mockImplementation(({ where }) => {
+          if (where.consultationDate !== undefined) return Promise.resolve(abiertoHoy);
+          if (where.id !== undefined) return Promise.resolve(cargado);
+          return Promise.resolve(anterior);
+        }),
         create: jest.fn().mockImplementation(({ data }) => Promise.resolve(expediente(data))),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         findMany: jest.fn().mockResolvedValue([expediente()]),
@@ -81,6 +94,9 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
         create: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: "s-1", ...data })),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      // El día del negocio se lee DENTRO de la tx: el candado y la escritura
+      // tienen que ver la misma zona horaria.
+      tenant: { findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: CDMX }) },
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
@@ -117,19 +133,14 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
     });
 
     it("el segundo copia SOLO Datos Generales del anterior y proyecta el sexo", async () => {
-      tx.medicalClinicRecord.findFirst
-        .mockReset()
-        .mockResolvedValueOnce(
-          expediente({
-            id: "r-0",
-            folio: "HCL-000000",
-            sections: [
-              { sectionKey: "general_data", data: { sex: "F", occupation: "Docente" } },
-              { sectionKey: "chief_complaint", data: { complaint: "Dolor" } },
-            ],
-          }),
-        )
-        .mockResolvedValue(expediente());
+      anterior = expediente({
+        id: "r-0",
+        folio: "HCL-000000",
+        sections: [
+          { sectionKey: "general_data", data: { sex: "F", occupation: "Docente" } },
+          { sectionKey: "chief_complaint", data: { complaint: "Dolor" } },
+        ],
+      });
       await service.create(USER, { customerId: "c-1" }, META);
 
       expect(tx.medicalClinicRecord.create.mock.calls[0][0].data.patientSex).toBe("F");
@@ -205,6 +216,93 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
         expediente({ status: "closed", closedAt: new Date() }),
       );
       await expect(service.close(USER, "r-1", META)).resolves.toMatchObject({ status: "closed" });
+    });
+  });
+
+  /**
+   * F9-CLINIC-27 — una consulta abierta HOY se continúa, no se duplica: el
+   * folio se pide antes de mirar (bloquea la serie y serializa la carrera).
+   */
+  describe("no duplicar la consulta del día", () => {
+    it("con una abierta de hoy rebota 409 con el folio a continuar y no crea nada", async () => {
+      abiertoHoy = { id: "r-9", folio: "HCL-000009" };
+      await expect(service.create(USER, { customerId: "c-1" }, META)).rejects.toMatchObject({
+        response: {
+          message: "medical_clinic.record_open_today",
+          recordId: "r-9",
+          folio: "HCL-000009",
+        },
+      });
+      expect(tx.medicalClinicRecord.create).not.toHaveBeenCalled();
+    });
+
+    it("busca el abierto del paciente SOLO del día del negocio", async () => {
+      await service.create(USER, { customerId: "c-1" }, META);
+      const consulta = tx.medicalClinicRecord.findFirst.mock.calls
+        .map((c: [{ where: Record<string, unknown> }]) => c[0].where)
+        .find((w: Record<string, unknown>) => w.consultationDate !== undefined);
+      expect(consulta).toMatchObject({
+        tenantId: TENANT,
+        patientCustomerId: "c-1",
+        status: "open",
+      });
+      const dia = consulta?.consultationDate as Date | undefined;
+      expect(dia?.toISOString().slice(0, 10)).toBe("2026-09-03");
+    });
+
+    it("con una abierta de AYER sí abre folio nuevo y copia Datos Generales", async () => {
+      anterior = expediente({
+        id: "r-0",
+        folio: "HCL-000000",
+        consultationDate: new Date("2026-09-02"),
+        sections: [{ sectionKey: "general_data", data: { sex: "M" } }],
+      });
+      await service.create(USER, { customerId: "c-1" }, META);
+      expect(tx.medicalClinicRecord.create).toHaveBeenCalled();
+      expect(tx.medicalClinicRecordSection.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /** F9-CLINIC-26 — el candado viaja al cliente: `editable` y `lockReason`. */
+  describe("el candado en el detalle", () => {
+    it("abierta de hoy es editable, abierta de ayer está vencida y la cerrada dice cerrada", async () => {
+      await expect(service.detail(USER, "r-1")).resolves.toMatchObject({
+        editable: true,
+        lockReason: null,
+      });
+
+      cargado = expediente({ consultationDate: new Date("2026-09-02") });
+      await expect(service.detail(USER, "r-1")).resolves.toMatchObject({
+        status: "open",
+        editable: false,
+        lockReason: "expired",
+      });
+
+      cargado = expediente({ status: "closed", closedAt: new Date() });
+      await expect(service.detail(USER, "r-1")).resolves.toMatchObject({
+        editable: false,
+        lockReason: "closed",
+      });
+    });
+
+    it("el listado también dice por qué no se puede capturar", async () => {
+      tx.medicalClinicRecord.findMany.mockResolvedValue([
+        expediente({ consultationDate: new Date("2026-09-02") }),
+      ]);
+      const res = await service.list(USER, { page: 1, pageSize: 20 });
+      expect(res.rows[0]).toMatchObject({ editable: false, lockReason: "expired" });
+    });
+
+    it("cerrar una vencida se audita como cierre fuera del día de la consulta", async () => {
+      cargado = expediente({ consultationDate: new Date("2026-09-02") });
+      await service.close(USER, "r-1", META);
+      expect(audit.record).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({
+          action: "medical_clinic.record.close",
+          after: { consultationDate: "2026-09-02", closedOnConsultationDay: false },
+        }),
+      );
     });
   });
 });

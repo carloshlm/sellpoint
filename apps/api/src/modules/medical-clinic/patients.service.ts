@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
-import { ageFromBirthDate, localCalendarDate } from "@sellpoint/shared";
+import {
+  ageFromBirthDate,
+  localCalendarDate,
+  type MedicalRecordLockReason,
+  medicalRecordLock,
+} from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -7,13 +12,22 @@ import { CustomersService } from "../reception/customers.service";
 import type { CreateCustomerDto } from "../reception/dto/upsert-customer.dto";
 import type { SearchPatientsQuery } from "./dto/search-patients.dto";
 
+export interface UltimoExpediente {
+  id: string;
+  folio: string;
+  consultationDate: string;
+  status: string;
+  lockReason: MedicalRecordLockReason | null;
+}
+
 export interface PatientHit {
   customerId: string;
   name: string;
   age: number | null;
   birthDate: string | null;
   turnNumber: number | null;
-  lastRecord: { id: string; folio: string; consultationDate: string } | null;
+  /** El último expediente y por qué NO se puede seguir capturando (null = continúa). */
+  lastRecord: UltimoExpediente | null;
 }
 
 /**
@@ -37,6 +51,8 @@ export class PatientsService {
       const ultimos = await this.ultimosExpedientes(
         user.tenantId,
         rows.map((r) => r.id),
+        undefined,
+        localCalendarDate(await this.zonaDelNegocio(user.tenantId), new Date()),
       );
       return rows.map((r) => ({
         customerId: r.id,
@@ -77,7 +93,7 @@ export class PatientsService {
         throw new NotFoundException({ message: "medical_clinic.patient_not_found" });
       }
       const nacimiento = cliente.birthDate?.toISOString().slice(0, 10) ?? null;
-      const ultimos = await this.ultimosExpedientes(user.tenantId, [cliente.id], tx);
+      const ultimos = await this.ultimosExpedientes(user.tenantId, [cliente.id], tx, hoy);
       return [
         {
           customerId: cliente.id,
@@ -99,8 +115,9 @@ export class PatientsService {
   private async ultimosExpedientes(
     tenantId: string,
     customerIds: string[],
-    tx?: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0],
-  ): Promise<Map<string, { id: string; folio: string; consultationDate: string }>> {
+    tx: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0] | undefined,
+    hoy: string,
+  ): Promise<Map<string, UltimoExpediente>> {
     if (customerIds.length === 0) {
       return new Map();
     }
@@ -108,16 +125,27 @@ export class PatientsService {
       t.medicalClinicRecord.findMany({
         where: { tenantId, patientCustomerId: { in: customerIds } },
         orderBy: [{ createdAt: "desc" }],
-        select: { patientCustomerId: true, id: true, folio: true, consultationDate: true },
+        select: {
+          patientCustomerId: true,
+          id: true,
+          folio: true,
+          consultationDate: true,
+          status: true,
+        },
       });
     const filas = tx ? await leer(tx) : await this.prisma.withTenantContext(tenantId, leer);
-    const mapa = new Map<string, { id: string; folio: string; consultationDate: string }>();
+    const mapa = new Map<string, UltimoExpediente>();
     for (const fila of filas) {
       if (fila.patientCustomerId !== null && !mapa.has(fila.patientCustomerId)) {
+        const consultationDate = fila.consultationDate.toISOString().slice(0, 10);
         mapa.set(fila.patientCustomerId, {
           id: fila.id,
           folio: fila.folio,
-          consultationDate: fila.consultationDate.toISOString().slice(0, 10),
+          consultationDate,
+          status: fila.status,
+          // Con el candado en la mano, la pantalla sabe si ofrece «Continuar
+          // consulta» o «Iniciar consulta» sin volver a preguntar.
+          lockReason: medicalRecordLock({ status: fila.status, consultationDate }, hoy),
         });
       }
     }

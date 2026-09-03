@@ -166,6 +166,37 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
       ).rejects.toThrow();
     });
 
+    /** F9-CLINIC-27 — la regla «una consulta abierta por paciente y día» en la base. */
+    it("dos consultas ABIERTAS del mismo paciente y día rebotan; cerradas o de otro día caben", async () => {
+      const paciente = await prisma.withTenantContext(tenantA, (tx) =>
+        tx.customer.create({
+          data: { tenantId: tenantA, firstName: "Rosa", lastNamePaternal: "Luna" },
+        }),
+      );
+      const abrir = (folio: string, extra = {}) =>
+        prisma.withTenantContext(tenantA, (tx) =>
+          tx.medicalClinicRecord.create({
+            data: expediente(tenantA, doctorA, folio, {
+              patientCustomerId: paciente.id,
+              ...extra,
+            }),
+          }),
+        );
+
+      await abrir("HCL-000910");
+      await expect(abrir("HCL-000911")).rejects.toThrow();
+
+      // Otro día: es otra consulta, cabe.
+      const ayer = new Date(hoy);
+      ayer.setUTCDate(ayer.getUTCDate() - 1);
+      await expect(abrir("HCL-000912", { consultationDate: ayer })).resolves.toBeTruthy();
+
+      // Cerrada: ya no estorba, el paciente puede volver por la tarde.
+      await expect(
+        abrir("HCL-000913", { status: "closed", closedAt: new Date(), closedBy: doctorA }),
+      ).resolves.toBeTruthy();
+    });
+
     it("dos filas de la misma sección rebotan; borrar el expediente arrastra las suyas", async () => {
       const id = await prisma.withTenantContext(tenantA, async (tx) => {
         const rec = await tx.medicalClinicRecord.create({

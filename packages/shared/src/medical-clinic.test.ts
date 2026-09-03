@@ -5,6 +5,8 @@ import {
   MEDICAL_RECORD_SECTION_GROUPS,
   MEDICAL_RECORD_SECTION_SCHEMAS,
   MEDICAL_RECORD_SECTIONS,
+  MEDICAL_RECORD_STATUSES,
+  medicalRecordLock,
   medicalRecordSectionKeySchema,
 } from "./medical-clinic";
 
@@ -68,5 +70,43 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
 
   it("las órdenes son tres tipos", () => {
     expect(MEDICAL_ORDER_KINDS).toEqual(["prescription", "lab_order", "diagnostic_order"]);
+  });
+});
+
+/**
+ * F9-CLINIC-25 — el candado del expediente. Una sola función pura decide si
+ * una historia clínica se puede seguir capturando: el API la usa para
+ * responder 409 y el web solo pinta lo que el API le dice.
+ */
+describe("medicalRecordLock (F9-CLINIC-25)", () => {
+  const HOY = "2026-09-04";
+
+  it("los estados del expediente son abierta y cerrada", () => {
+    expect(MEDICAL_RECORD_STATUSES).toEqual(["open", "closed"]);
+  });
+
+  it("una consulta abierta del día se puede capturar", () => {
+    expect(medicalRecordLock({ status: "open", consultationDate: HOY }, HOY)).toBeNull();
+  });
+
+  it("una consulta abierta de otro día está vencida", () => {
+    expect(medicalRecordLock({ status: "open", consultationDate: "2026-09-03" }, HOY)).toBe(
+      "expired",
+    );
+    // Meses y años distintos: la comparación es de calendario, no de números sueltos.
+    expect(medicalRecordLock({ status: "open", consultationDate: "2025-12-31" }, HOY)).toBe(
+      "expired",
+    );
+  });
+
+  it("cerrada gana sobre vencida: el motivo que se muestra es el cierre", () => {
+    expect(medicalRecordLock({ status: "closed", consultationDate: HOY }, HOY)).toBe("closed");
+    expect(medicalRecordLock({ status: "closed", consultationDate: "2026-09-01" }, HOY)).toBe(
+      "closed",
+    );
+  });
+
+  it("una fecha futura no se castiga: un reloj mal puesto no bloquea al médico", () => {
+    expect(medicalRecordLock({ status: "open", consultationDate: "2026-09-05" }, HOY)).toBeNull();
   });
 });

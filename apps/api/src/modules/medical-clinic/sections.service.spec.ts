@@ -23,7 +23,9 @@ describe("SectionsService (F9-CLINIC-11)", () => {
   beforeEach(() => {
     tx = {
       medicalClinicRecord: {
-        findFirst: jest.fn().mockResolvedValue({ id: "r-1", status: "open" }),
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: "r-1", status: "open", consultationDate: new Date() }),
         update: jest.fn().mockResolvedValue({}),
       },
       medicalClinicRecordSection: {
@@ -37,6 +39,10 @@ describe("SectionsService (F9-CLINIC-11)", () => {
         deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
         findFirst: jest.fn().mockResolvedValue(null),
       },
+    };
+    // La zona del negocio decide qué día es «hoy»: UTC para que el spec no dependa del reloj.
+    (tx as Record<string, unknown>).tenant = {
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: "UTC" }),
     };
     prisma = { withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)) };
     audit = { record: jest.fn() };
@@ -86,7 +92,11 @@ describe("SectionsService (F9-CLINIC-11)", () => {
   });
 
   it("un expediente cerrado no acepta escrituras (409) y uno ajeno es 404", async () => {
-    tx.medicalClinicRecord.findFirst.mockResolvedValue({ id: "r-1", status: "closed" });
+    tx.medicalClinicRecord.findFirst.mockResolvedValue({
+      id: "r-1",
+      status: "closed",
+      consultationDate: new Date(),
+    });
     await expect(
       service.save(USER, "r-1", "general_data", { sex: "F" }, META),
     ).rejects.toMatchObject({
@@ -115,5 +125,20 @@ describe("SectionsService (F9-CLINIC-11)", () => {
       where: { recordId: "r-1", sectionKey: "current_illness" },
     });
     expect(res).toMatchObject({ key: "current_illness", status: "pending", data: {} });
+  });
+
+  /** F9-CLINIC-26 — una consulta abierta de otro día ya no acepta captura. */
+  it("un expediente abierto de OTRO DÍA rebota con 409 record_expired", async () => {
+    tx.medicalClinicRecord.findFirst.mockResolvedValue({
+      id: "r-1",
+      status: "open",
+      consultationDate: new Date("2020-01-01"),
+    });
+    await expect(
+      service.save(USER, "r-1", "general_data", { sex: "F" }, META),
+    ).rejects.toMatchObject({
+      response: { message: "medical_clinic.record_expired" },
+    });
+    expect(tx.medicalClinicRecordSection.upsert).not.toHaveBeenCalled();
   });
 });

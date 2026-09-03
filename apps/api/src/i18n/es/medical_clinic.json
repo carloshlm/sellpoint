@@ -11,6 +11,8 @@
   "patient_not_found": "El paciente no existe.",
   "record_not_found": "La historia clínica no existe.",
   "record_closed": "Esa consulta ya está cerrada.",
+  "record_expired": "Esa consulta es de otro día: ya no se puede capturar. Abre una consulta nueva.",
+  "record_open_today": "Este paciente ya tiene una consulta abierta hoy ({folio}). Continúala en vez de abrir otra.",
   "section_unknown": "Esa sección no existe en la historia clínica.",
   "section_not_available": "Esa sección todavía no se puede capturar.",
   "order_not_found": "La orden no existe.",

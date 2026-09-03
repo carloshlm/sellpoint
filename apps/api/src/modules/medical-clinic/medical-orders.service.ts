@@ -8,6 +8,7 @@ import {
 import {
   MEDICAL_CLINIC_FOLIO_PREFIXES,
   type MedicalOrderKind,
+  medicalRecordLock,
   POS_FOLIO_PREFIXES,
 } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
@@ -17,6 +18,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
 import { QuotesService } from "../pos/quotes.service";
+import { diaDelNegocio } from "./business-day";
 import type { CreateOrderDto, PrescriptionLineDto } from "./dto/orders.dto";
 import { SettingsService } from "./settings.service";
 
@@ -119,13 +121,21 @@ export class MedicalOrdersService {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const expediente = await tx.medicalClinicRecord.findFirst({
         where: { id: recordId, tenantId: user.tenantId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, consultationDate: true },
       });
       if (expediente === null) {
         throw new NotFoundException({ message: "medical_clinic.record_not_found" });
       }
-      if (expediente.status !== "open") {
-        throw new ConflictException({ message: "medical_clinic.record_closed" });
+      // Cerrada o de otro día: tampoco se emiten órdenes (F9-CLINIC-26).
+      const candado = medicalRecordLock(
+        {
+          status: expediente.status,
+          consultationDate: expediente.consultationDate.toISOString().slice(0, 10),
+        },
+        await diaDelNegocio(tx, user.tenantId),
+      );
+      if (candado !== null) {
+        throw new ConflictException({ message: `medical_clinic.record_${candado}` });
       }
 
       const config = await this.settings.leer(tx, user.tenantId);

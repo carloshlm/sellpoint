@@ -11,6 +11,8 @@
   "patient_not_found": "The patient does not exist.",
   "record_not_found": "The medical record does not exist.",
   "record_closed": "That consultation is already closed.",
+  "record_expired": "That consultation is from another day: it can no longer be edited. Open a new one.",
+  "record_open_today": "This patient already has a consultation open today ({folio}). Continue it instead of opening another.",
   "section_unknown": "That section does not exist in the medical record.",
   "section_not_available": "That section cannot be captured yet.",
   "order_not_found": "The order does not exist.",
