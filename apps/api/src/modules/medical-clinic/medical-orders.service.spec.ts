@@ -31,6 +31,7 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
     medicalClinicOrder: { create: Mock; findFirst: Mock; findMany: Mock; updateMany: Mock };
     medicalClinicOrderLine: { createMany: Mock };
     user: { findFirst: Mock };
+    tenant: { findUniqueOrThrow: Mock };
   };
   let prisma: { withTenantContext: Mock };
   let audit: { record: Mock };
@@ -330,7 +331,12 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
       consultationDate: new Date("2020-01-01"),
     });
     await expect(
-      service.create(USER, "r-1", { kind: "lab_order", lines: [{ labStudyId: "ls-1" }] }, META),
+      service.create(
+        USER,
+        "r-1",
+        { kind: "lab_order", lines: [{ labStudyId: "ls-1", quantity: 1 }] },
+        META,
+      ),
     ).rejects.toMatchObject({ response: { message: "medical_clinic.record_expired" } });
     expect(tx.medicalClinicOrder.create).not.toHaveBeenCalled();
   });

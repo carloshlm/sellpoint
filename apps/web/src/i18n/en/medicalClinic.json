@@ -50,6 +50,8 @@
     "empty": "We found nobody with that name.",
     "emptyByTurn": "There is no patient with ticket {{number}}.",
     "start": "Start consultation",
+    "continue": "Resume consultation {{folio}}",
+    "openToday": "Consultation open today · {{folio}}",
     "lastRecord": "Last consultation {{folio}}",
     "noRecords": "No previous consultations",
     "turnBadge": "Ticket {{number}}",
@@ -77,6 +79,9 @@
     "closeBody": "A closed consultation no longer accepts changes to its sections or new orders.",
     "closeConfirm": "Close consultation",
     "closed": "This consultation is closed: it can be read, not captured.",
+    "expired": "This consultation is from another day: read only, no editing.",
+    "newVisit": "New consultation",
+    "newVisitFailed": "We could not open the new consultation.",
     "loadFailed": "We could not load the medical record.",
     "groupCount": "{{done}} of {{total}}",
     "sexValues": {
@@ -89,7 +94,8 @@
   },
   "consultationStatus": {
     "open": "Open",
-    "closed": "Closed"
+    "closed": "Closed",
+    "expired": "Expired"
   },
   "status": {
     "pending": "Pending",
@@ -217,6 +223,7 @@
   "forms": {
     "saveFailed": "We could not save the section.",
     "readOnly": "The consultation is closed: this section is read-only.",
+    "readOnlyExpired": "This consultation is from another day: this section is read only.",
     "generalData": {
       "sex": "Sex",
       "sexHint": "Shown in the medical record header.",

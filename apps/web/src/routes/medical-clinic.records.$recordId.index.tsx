@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
@@ -10,7 +10,7 @@ import { RecordHeader } from "@/components/medical-clinic/record-header";
 import { SectionCard } from "@/components/medical-clinic/section-card";
 import { StatusPill } from "@/components/medical-clinic/status-pill";
 import { Button } from "@/components/ui/button";
-import { useCloseRecord, useRecord } from "@/lib/medical-clinic/hooks";
+import { useCloseRecord, useCreateRecord, useRecord } from "@/lib/medical-clinic/hooks";
 import {
   groupProgress,
   groupStatus,
@@ -49,6 +49,8 @@ function RecordDashboard({ recordId }: { recordId: string }) {
   const { t } = useTranslation();
   const record = useRecord(recordId);
   const cerrar = useCloseRecord(recordId);
+  const nueva = useCreateRecord();
+  const navigate = useNavigate();
   const [confirmando, setConfirmando] = useState(false);
 
   if (record.isPending) {
@@ -62,8 +64,39 @@ function RecordDashboard({ recordId }: { recordId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <RecordHeader record={expediente} />
-      {expediente.status === "closed" ? (
-        <p className="rounded-md border bg-muted p-3 text-sm">{t("medicalClinic.record.closed")}</p>
+      {expediente.lockReason !== null ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted p-3">
+          <p className="text-sm">
+            {t(
+              `medicalClinic.record.${expediente.lockReason === "expired" ? "expired" : "closed"}`,
+            )}
+          </p>
+          {/* Sin cliente (lo borraron de Recepción) no hay a quién abrirle otra. */}
+          {expediente.lockReason === "expired" && expediente.patient.customerId !== null ? (
+            <Button
+              onClick={() =>
+                nueva.mutate(
+                  { customerId: expediente.patient.customerId as string },
+                  {
+                    onSuccess: (creado) =>
+                      navigate({
+                        to: "/medical-clinic/records/$recordId",
+                        params: { recordId: creado.id },
+                      }),
+                  },
+                )
+              }
+              disabled={nueva.isPending}
+            >
+              {t("medicalClinic.record.newVisit")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {nueva.isError ? (
+        <p role="alert" className="text-destructive text-sm">
+          {t("medicalClinic.record.newVisitFailed")}
+        </p>
       ) : null}
       <div data-testid="record-groups" className="flex flex-col gap-8">
         {RECORD_GROUPS.map((group) => (

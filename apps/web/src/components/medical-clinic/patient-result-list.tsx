@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,19 +52,36 @@ export function PatientResultList({
                   : formatBusinessDate(`${hit.birthDate}T12:00:00Z`, locale, timeZone),
                 hit.lastRecord === null
                   ? t("medicalClinic.attend.noRecords")
-                  : t("medicalClinic.attend.lastRecord", { folio: hit.lastRecord.folio }),
+                  : hit.lastRecord.lockReason === null
+                    ? t("medicalClinic.attend.openToday", { folio: hit.lastRecord.folio })
+                    : t("medicalClinic.attend.lastRecord", { folio: hit.lastRecord.folio }),
               ]
                 .filter(Boolean)
                 .join(" · ")}
             </span>
           </div>
-          {canStart && (
-            <Button type="button" disabled={starting !== null} onClick={() => onStart(hit)}>
-              {t("medicalClinic.attend.start")}
-            </Button>
-          )}
+          {canStart &&
+            // Con una consulta abierta HOY se CONTINÚA: un link al expediente,
+            // sin alta de por medio. Vencida o cerrada, se abre folio nuevo.
+            (hit.lastRecord !== null && hit.lastRecord.lockReason === null ? (
+              <Link
+                to="/medical-clinic/records/$recordId"
+                params={{ recordId: hit.lastRecord.id }}
+                className={BOTON_CONTINUAR}
+              >
+                {t("medicalClinic.attend.continue", { folio: hit.lastRecord.folio })}
+              </Link>
+            ) : (
+              <Button type="button" disabled={starting !== null} onClick={() => onStart(hit)}>
+                {t("medicalClinic.attend.start")}
+              </Button>
+            ))}
         </li>
       ))}
     </ul>
   );
 }
+
+/** Mismo peso visual que «Iniciar consulta»: es la acción principal de la tarjeta. */
+const BOTON_CONTINUAR =
+  "inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";

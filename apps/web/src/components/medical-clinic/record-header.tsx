@@ -36,8 +36,11 @@ export function RecordHeader({ record }: { record: MedicalRecord }) {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-semibold text-2xl">{record.patient.name}</h1>
           <span className="font-mono text-muted-foreground text-sm">{record.folio}</span>
-          <Badge variant={record.status === "open" ? "success" : "default"}>
-            {t(`medicalClinic.consultationStatus.${record.status}`)}
+          {/* Abierta, Vencida o Cerrada: el motivo del candado manda sobre el status. */}
+          <Badge variant={record.editable ? "success" : "default"}>
+            {t(
+              `medicalClinic.consultationStatus.${record.lockReason === "expired" ? "expired" : record.status}`,
+            )}
           </Badge>
         </div>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

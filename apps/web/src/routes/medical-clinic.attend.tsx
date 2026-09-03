@@ -57,13 +57,21 @@ function AttendContent() {
   const iniciar = (hit: PatientHit) => {
     setError(null);
     setAbriendo(hit.customerId);
+    const abrir = (recordId: string) =>
+      navigate({ to: "/medical-clinic/records/$recordId", params: { recordId } });
     createRecord.mutate(
-      { customerId: hit.customerId },
+      // El turno viaja al expediente: así el encabezado dice de qué turno vino.
+      { customerId: hit.customerId, ...(hit.turnId !== null && { turnId: hit.turnId }) },
       {
-        onSuccess: (record) =>
-          navigate({ to: "/medical-clinic/records/$recordId", params: { recordId: record.id } }),
+        onSuccess: (record) => abrir(record.id),
         onError: (apiError: ApiError) => {
           setAbriendo(null);
+          // Otro médico ganó la carrera: en vez de un error sin salida, se
+          // lleva al usuario a la consulta que ya está abierta.
+          if (apiError.code === "medical_clinic.record_open_today" && apiError.recordId) {
+            void abrir(apiError.recordId);
+            return;
+          }
           setError(apiError.message);
         },
       },

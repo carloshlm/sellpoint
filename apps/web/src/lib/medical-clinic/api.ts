@@ -103,13 +103,23 @@ export async function updateSettings(
 }
 
 // ── Pacientes ─────────────────────────────────────────────────────────
+/** Por qué una consulta ya no acepta captura; `null` = se puede continuar. */
+export type RecordLockReason = "closed" | "expired";
+
 export interface PatientHit {
   customerId: string;
   name: string;
   age: number | null;
   birthDate: string | null;
   turnNumber: number | null;
-  lastRecord: { id: string; folio: string; consultationDate: string } | null;
+  turnId: string | null;
+  lastRecord: {
+    id: string;
+    folio: string;
+    consultationDate: string;
+    status: "open" | "closed";
+    lockReason: RecordLockReason | null;
+  } | null;
 }
 
 export async function searchPatients(params: {
@@ -152,6 +162,9 @@ export interface MedicalRecord {
   id: string;
   folio: string;
   status: "open" | "closed";
+  /** Lo decide el API con el día del NEGOCIO: el web solo lo pinta. */
+  editable: boolean;
+  lockReason: RecordLockReason | null;
   consultationDate: string;
   closedAt: string | null;
   turnNumber: number | null;

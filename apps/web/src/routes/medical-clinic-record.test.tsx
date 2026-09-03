@@ -19,6 +19,7 @@ vi.mock("@/lib/medical-clinic/api", () => ({
   getRecord: vi.fn(),
   closeRecord: vi.fn(),
   saveSection: vi.fn(),
+  createRecord: vi.fn(),
 }));
 const mocked = vi.mocked(clinicApi);
 
@@ -114,5 +115,49 @@ describe("Historia clínica — tablero", () => {
     expect(
       screen.getByText("Esta consulta está cerrada: se puede leer, no capturar."),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * F9-CLINIC-WEB-24 — una consulta de otro día se lee, no se captura, y desde
+ * ella se abre la siguiente.
+ */
+describe("Historia clínica — consulta vencida", () => {
+  const vencida = () =>
+    expediente({ status: "open", editable: false, lockReason: "expired" as const });
+
+  it("el encabezado la marca Vencida y el tablero lo dice con el aviso", async () => {
+    await renderRecord(vencida());
+    await screen.findByRole("heading", { level: 1, name: "Rosa Luna Ríos" });
+    expect(screen.getByTestId("record-header")).toHaveTextContent("Vencida");
+    expect(
+      screen.getByText("Esta consulta es de otro día: se puede leer, no capturar."),
+    ).toBeInTheDocument();
+    // Se puede leer: las tarjetas funcionales siguen siendo enlaces.
+    expect(screen.getByTestId("record-card-general_data").tagName).toBe("A");
+  });
+
+  it("«Nueva consulta» abre el folio siguiente del mismo paciente y navega a él", async () => {
+    mocked.createRecord.mockResolvedValue(expediente({ id: "r2", folio: "HCL-000011" }));
+    const router = await renderRecord(vencida());
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Nueva consulta" }));
+    await waitFor(() => expect(mocked.createRecord).toHaveBeenCalledWith({ customerId: "c1" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r2"));
+  });
+
+  it("sigue permitiendo cerrarla: vencida no es cerrada", async () => {
+    await renderRecord(vencida());
+    expect(await screen.findByRole("button", { name: "Cerrar consulta" })).toBeInTheDocument();
+  });
+
+  it("sin paciente (lo borraron de Recepción) no ofrece la consulta nueva", async () => {
+    const sinCliente = vencida();
+    sinCliente.patient = { ...sinCliente.patient, customerId: null };
+    await renderRecord(sinCliente);
+    expect(
+      await screen.findByText("Esta consulta es de otro día: se puede leer, no capturar."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nueva consulta" })).not.toBeInTheDocument();
   });
 });

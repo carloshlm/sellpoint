@@ -61,7 +61,14 @@ const hit = (over: Partial<clinicApi.PatientHit> = {}): clinicApi.PatientHit => 
   age: 36,
   birthDate: "1990-09-02",
   turnNumber: null,
-  lastRecord: { id: "r0", folio: "HCL-000009", consultationDate: "2026-08-01" },
+  turnId: null,
+  lastRecord: {
+    id: "r0",
+    folio: "HCL-000009",
+    consultationDate: "2026-08-01",
+    status: "closed",
+    lockReason: "closed" as const,
+  },
   ...over,
 });
 
@@ -69,6 +76,8 @@ const expediente = (): clinicApi.MedicalRecord => ({
   id: "r1",
   folio: "HCL-000010",
   status: "open",
+  editable: true,
+  lockReason: null,
   consultationDate: "2026-09-03",
   closedAt: null,
   turnNumber: null,
@@ -217,5 +226,86 @@ describe("Paciente nuevo (F9-CLINIC-WEB-08)", () => {
     );
     await waitFor(() => expect(mocked.createRecord).toHaveBeenCalledWith({ customerId: "c9" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r1"));
+  });
+});
+
+/**
+ * F9-CLINIC-WEB-23 — una consulta abierta HOY se continúa: la tarjeta lleva
+ * directo al expediente y no se abre otro folio.
+ */
+describe("Atender paciente — continuar la consulta abierta", () => {
+  it("con una consulta abierta de hoy ofrece continuar, sin llamar al alta", async () => {
+    mocked.searchPatients.mockResolvedValue([
+      hit({
+        lastRecord: {
+          id: "r7",
+          folio: "HCL-000007",
+          consultationDate: "2026-09-03",
+          status: "open",
+          lockReason: null,
+        },
+      }),
+    ]);
+    await renderRuta("/medical-clinic/attend", ["medical_clinic:read", "medical_clinic:attend"]);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Nombre del paciente"), "rosa");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    const continuar = await screen.findByRole("link", { name: "Continuar consulta HCL-000007" });
+    expect(continuar).toHaveAttribute("href", "/medical-clinic/records/r7");
+    expect(screen.queryByRole("button", { name: "Iniciar consulta" })).not.toBeInTheDocument();
+    expect(mocked.createRecord).not.toHaveBeenCalled();
+  });
+
+  it("con una consulta vencida vuelve a ofrecer iniciar", async () => {
+    mocked.searchPatients.mockResolvedValue([
+      hit({
+        lastRecord: {
+          id: "r7",
+          folio: "HCL-000007",
+          consultationDate: "2026-09-02",
+          status: "open",
+          lockReason: "expired",
+        },
+      }),
+    ]);
+    await renderRuta("/medical-clinic/attend", ["medical_clinic:read", "medical_clinic:attend"]);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Nombre del paciente"), "rosa");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(await screen.findByRole("button", { name: "Iniciar consulta" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Continuar consulta/ })).not.toBeInTheDocument();
+  });
+
+  it("si el API dice que ya hay una abierta hoy, lleva a ESA consulta", async () => {
+    mocked.searchPatients.mockResolvedValue([hit()]);
+    mocked.createRecord.mockRejectedValue({
+      statusCode: 409,
+      code: "medical_clinic.record_open_today",
+      message: "Este paciente ya tiene una consulta abierta hoy (HCL-000007).",
+      recordId: "r7",
+      folio: "HCL-000007",
+    });
+    const router = await renderRuta("/medical-clinic/attend", [
+      "medical_clinic:read",
+      "medical_clinic:attend",
+    ]);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Nombre del paciente"), "rosa");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    await user.click(await screen.findByRole("button", { name: "Iniciar consulta" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r7"));
+  });
+
+  it("desde un turno, el expediente nace enlazado a ese turno", async () => {
+    mocked.searchPatients.mockResolvedValue([hit({ turnNumber: 7, turnId: "t7" })]);
+    await renderRuta("/medical-clinic/attend", ["medical_clinic:read", "medical_clinic:attend"]);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Nombre del paciente"), "rosa");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    await user.click(await screen.findByRole("button", { name: "Iniciar consulta" }));
+    await waitFor(() =>
+      expect(mocked.createRecord).toHaveBeenCalledWith({ customerId: "c1", turnId: "t7" }),
+    );
   });
 });

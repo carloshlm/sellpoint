@@ -10,6 +10,12 @@ export interface ApiError {
   error: string;
   /** Clave i18n cruda (`auth.email_not_verified`, etc.) — para LÓGICA, no para mostrar. */
   code?: string;
+  /**
+   * Campos extra que el error trae para poder ACTUAR, no solo avisar: hoy el
+   * 409 de «ya hay una consulta abierta» dice a cuál ir (F9-CLINIC-WEB-23).
+   */
+  recordId?: string | null;
+  folio?: string | null;
 }
 
 export const api = axios.create({

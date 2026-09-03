@@ -40,6 +40,8 @@ export function expediente(
     id: "r1",
     folio: "HCL-000010",
     status: "open",
+    editable: true,
+    lockReason: null,
     consultationDate: "2026-09-03",
     closedAt: null,
     turnNumber: 7,
@@ -56,6 +58,13 @@ export function expediente(
     createdAt: "2026-09-03T18:00:00.000Z",
     ...over,
   };
+  // El API nunca manda un candado incoherente con el estado: una cerrada llega
+  // siempre con su motivo. El fixture lo deriva salvo que el test lo fije
+  // (así se pide una «vencida», que por status sigue abierta).
+  if (over.editable === undefined && over.lockReason === undefined) {
+    base.lockReason = base.status === "closed" ? "closed" : null;
+    base.editable = base.lockReason === null;
+  }
   const guardadas: RecordSection[] = Object.entries(secciones).map(([key, data]) => ({
     key,
     group: "interrogation",

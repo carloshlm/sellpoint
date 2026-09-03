@@ -85,6 +85,7 @@ describe("PatientsService (F9-CLINIC-09)", () => {
         age: 36,
         birthDate: "1990-09-03",
         turnNumber: null,
+        turnId: null,
         // De agosto: se lee, pero ya no se captura (F9-CLINIC-27).
         lastRecord: {
           id: "r-9",
@@ -143,18 +144,20 @@ describe("PatientsService (F9-CLINIC-09)", () => {
       },
     ];
 
+    const buscar = async () => (await service.search(USER, { mode: "name", q: "ana" }))[0];
+
     tx.medicalClinicRecord.findMany.mockResolvedValue(conFecha({}));
-    let [hit] = await service.search(USER, { mode: "name", q: "ana" });
-    expect(hit.lastRecord).toMatchObject({ status: "open", lockReason: null });
+    expect((await buscar())?.lastRecord).toMatchObject({ status: "open", lockReason: null });
 
     tx.medicalClinicRecord.findMany.mockResolvedValue(
       conFecha({ consultationDate: new Date("2026-09-02") }),
     );
-    [hit] = await service.search(USER, { mode: "name", q: "ana" });
-    expect(hit.lastRecord).toMatchObject({ status: "open", lockReason: "expired" });
+    expect((await buscar())?.lastRecord).toMatchObject({ status: "open", lockReason: "expired" });
 
     tx.medicalClinicRecord.findMany.mockResolvedValue(conFecha({ status: "closed" }));
-    [hit] = await service.search(USER, { mode: "name", q: "ana" });
-    expect(hit.lastRecord).toMatchObject({ status: "closed", lockReason: "closed" });
+    expect((await buscar())?.lastRecord).toMatchObject({
+      status: "closed",
+      lockReason: "closed",
+    });
   });
 });

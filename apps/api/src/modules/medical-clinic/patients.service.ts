@@ -26,6 +26,8 @@ export interface PatientHit {
   age: number | null;
   birthDate: string | null;
   turnNumber: number | null;
+  /** El turno que trajo al paciente: el expediente nace enlazado a él. */
+  turnId: string | null;
   /** El último expediente y por qué NO se puede seguir capturando (null = continúa). */
   lastRecord: UltimoExpediente | null;
 }
@@ -60,6 +62,7 @@ export class PatientsService {
         age: r.age,
         birthDate: r.birthDate,
         turnNumber: null,
+        turnId: null,
         lastRecord: ultimos.get(r.id) ?? null,
       }));
     }
@@ -101,6 +104,7 @@ export class PatientsService {
           age: nacimiento === null ? null : ageFromBirthDate(nacimiento, hoy),
           birthDate: nacimiento,
           turnNumber: turno.number,
+          turnId: turno.id,
           lastRecord: ultimos.get(cliente.id) ?? null,
         },
       ];

@@ -50,6 +50,8 @@
     "empty": "No encontramos a nadie con ese nombre.",
     "emptyByTurn": "No hay ningún paciente con el turno {{number}}.",
     "start": "Iniciar consulta",
+    "continue": "Continuar consulta {{folio}}",
+    "openToday": "Consulta abierta hoy · {{folio}}",
     "lastRecord": "Última consulta {{folio}}",
     "noRecords": "Sin consultas previas",
     "turnBadge": "Turno {{number}}",
@@ -77,6 +79,9 @@
     "closeBody": "Una consulta cerrada ya no acepta cambios en sus secciones ni nuevas órdenes.",
     "closeConfirm": "Cerrar consulta",
     "closed": "Esta consulta está cerrada: se puede leer, no capturar.",
+    "expired": "Esta consulta es de otro día: se puede leer, no capturar.",
+    "newVisit": "Nueva consulta",
+    "newVisitFailed": "No pudimos abrir la consulta nueva.",
     "loadFailed": "No pudimos cargar la historia clínica.",
     "groupCount": "{{done}} de {{total}}",
     "sexValues": {
@@ -89,7 +94,8 @@
   },
   "consultationStatus": {
     "open": "Abierta",
-    "closed": "Cerrada"
+    "closed": "Cerrada",
+    "expired": "Vencida"
   },
   "status": {
     "pending": "Pendiente",
@@ -217,6 +223,7 @@
   "forms": {
     "saveFailed": "No pudimos guardar la sección.",
     "readOnly": "La consulta está cerrada: esta sección es de solo lectura.",
+    "readOnlyExpired": "Esta consulta es de otro día: esta sección es de solo lectura.",
     "generalData": {
       "sex": "Sexo",
       "sexHint": "Se muestra en el encabezado de la historia clínica.",

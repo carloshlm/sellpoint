@@ -163,3 +163,34 @@ describe("Motivo y Padecimiento (F9-CLINIC-WEB-15)", () => {
     );
   });
 });
+
+/** F9-CLINIC-WEB-24 — la sección de una consulta vencida es de solo lectura. */
+describe("sección de una consulta vencida", () => {
+  it("avisa que es de otro día y no ofrece Guardar", async () => {
+    await renderSection(
+      "general_data",
+      expediente({ status: "open", editable: false, lockReason: "expired" }),
+    );
+    expect(
+      await screen.findByText("Esta consulta es de otro día: esta sección es de solo lectura."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
+  });
+
+  it("si el día cambia mientras se captura, el error no borra lo tecleado", async () => {
+    mocked.saveSection.mockRejectedValue({
+      statusCode: 409,
+      code: "medical_clinic.record_expired",
+      message: "Esa consulta es de otro día: ya no se puede capturar. Abre una consulta nueva.",
+    });
+    await renderSection("chief_complaint");
+    const user = userEvent.setup();
+    const motivo = await screen.findByLabelText("Motivo de consulta");
+    await user.type(motivo, "Dolor de garganta");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Esa consulta es de otro día: ya no se puede capturar. Abre una consulta nueva.",
+    );
+    expect(motivo).toHaveValue("Dolor de garganta");
+  });
+});

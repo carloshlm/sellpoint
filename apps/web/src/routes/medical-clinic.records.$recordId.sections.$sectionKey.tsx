@@ -50,7 +50,7 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
     return <p role="alert">{t("medicalClinic.record.loadFailed")}</p>;
   }
   const expediente = record.data;
-  const readOnly = expediente.status === "closed";
+  const readOnly = !expediente.editable;
   const seccion = expediente.sections.find((s) => s.key === sectionKey);
   const volver = () =>
     void navigate({ to: "/medical-clinic/records/$recordId", params: { recordId }, replace: true });
@@ -76,7 +76,11 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
         <CardContent className="flex flex-col gap-4">
           {readOnly ? (
             <p className="rounded-md border bg-muted p-3 text-sm">
-              {t("medicalClinic.forms.readOnly")}
+              {t(
+                expediente.lockReason === "expired"
+                  ? "medicalClinic.forms.readOnlyExpired"
+                  : "medicalClinic.forms.readOnly",
+              )}
             </p>
           ) : null}
           <Form
@@ -85,7 +89,14 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
             initialData={seccion?.data && typeof seccion.data === "object" ? seccion.data : {}}
             readOnly={readOnly}
             busy={guardar.isPending}
-            error={guardar.isError ? t("medicalClinic.forms.saveFailed") : null}
+            error={
+              guardar.isError
+                ? (guardar.error.statusCode >= 400 &&
+                    guardar.error.statusCode < 500 &&
+                    guardar.error.message) ||
+                  t("medicalClinic.forms.saveFailed")
+                : null
+            }
             onSubmit={(data) => guardar.mutate({ key: sectionKey, data }, { onSuccess: volver })}
             onCancel={volver}
           />

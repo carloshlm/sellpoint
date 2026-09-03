@@ -101,9 +101,11 @@ function OrderScreen({ recordId, orderKind }: { recordId: string; orderKind: str
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {expediente.status === "closed" ? (
+          {!expediente.editable ? (
             <p className="rounded-md border bg-muted p-3 text-sm">
-              {t("medicalClinic.record.closed")}
+              {t(
+                `medicalClinic.record.${expediente.lockReason === "expired" ? "expired" : "closed"}`,
+              )}
             </p>
           ) : (
             <OrderFormShell
