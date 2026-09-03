@@ -7,6 +7,7 @@ import { ActiveSessions } from "@/components/profile/active-sessions";
 import { BusinessDetails } from "@/components/profile/business-details";
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
 import { LanguagePreference } from "@/components/profile/language-preference";
+import { MedicalClinicSettings } from "@/components/profile/medical-clinic-settings";
 import { ProfileDetails } from "@/components/profile/profile-details";
 import { ThemePreference } from "@/components/profile/theme-preference";
 import { useAuthStore } from "@/stores/auth.store";
@@ -52,6 +53,7 @@ function ProfileContent() {
       <LanguagePreference />
       {/* Las tarjetas deciden solas si existen: sin tenants:manage devuelven null. */}
       {user && <BusinessDetails user={user} />}
+      {user && <MedicalClinicSettings user={user} />}
       {user && <ThemePreference user={user} />}
       <ChangePasswordForm />
       <ActiveSessions />

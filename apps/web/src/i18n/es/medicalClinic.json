@@ -1,0 +1,352 @@
+{
+  "studies": {
+    "lab": {
+      "title": "Estudios de Laboratorio"
+    },
+    "diagnostic": {
+      "title": "Estudios Diagnósticos"
+    },
+    "add": "Agregar",
+    "search": "Buscar estudio",
+    "searchPlaceholder": "Código o nombre…",
+    "empty": "Todavía no hay estudios.",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "columns": {
+      "code": "Código",
+      "name": "Nombre",
+      "cost": "Costo",
+      "price": "Precio de venta",
+      "status": "Estado"
+    },
+    "form": {
+      "createTitle": "Nuevo estudio",
+      "editTitle": "Editar estudio",
+      "code": "Código",
+      "codeHint": "La clave corta con la que lo buscas.",
+      "name": "Nombre",
+      "description": "Descripción",
+      "cost": "Costo",
+      "price": "Precio de venta",
+      "priceHint": "Lo que cobras por este estudio.",
+      "saveFailed": "No pudimos guardar el estudio."
+    },
+    "delete": {
+      "title": "Eliminar «{{name}}»",
+      "body": "El estudio se borra. Si ya está en una orden, desactívalo en vez de borrarlo.",
+      "confirm": "Eliminar estudio"
+    }
+  },
+  "attend": {
+    "title": "Atender paciente",
+    "newPatient": "Paciente nuevo",
+    "searchBy": "Buscar por",
+    "byName": "Por nombre",
+    "byTurn": "Por turno",
+    "nameLabel": "Nombre del paciente",
+    "turnLabel": "Número de turno",
+    "turnHint": "Solo los turnos de hoy.",
+    "search": "Buscar",
+    "empty": "No encontramos a nadie con ese nombre.",
+    "emptyByTurn": "No hay ningún paciente con el turno {{number}}.",
+    "start": "Iniciar consulta",
+    "lastRecord": "Última consulta {{folio}}",
+    "noRecords": "Sin consultas previas",
+    "turnBadge": "Turno {{number}}",
+    "years": "{{count}} años",
+    "years_one": "1 año",
+    "startFailed": "No pudimos abrir la historia clínica.",
+    "searchFailed": "No pudimos buscar. Intenta de nuevo."
+  },
+  "patient": {
+    "newTitle": "Paciente nuevo"
+  },
+  "record": {
+    "title": "Historia clínica",
+    "back": "Historia clínica {{folio}}",
+    "age": "Edad",
+    "sex": "Sexo",
+    "birthDate": "Fecha de nacimiento",
+    "consultationDate": "Fecha de consulta",
+    "doctor": "Médico",
+    "recordNumber": "Expediente",
+    "progress": "{{done}} de {{total}} secciones capturadas",
+    "missingSex": "Completa Datos Generales",
+    "close": "Cerrar consulta",
+    "closeTitle": "Cerrar la consulta {{folio}}",
+    "closeBody": "Una consulta cerrada ya no acepta cambios en sus secciones ni nuevas órdenes.",
+    "closeConfirm": "Cerrar consulta",
+    "closed": "Esta consulta está cerrada: se puede leer, no capturar.",
+    "loadFailed": "No pudimos cargar la historia clínica.",
+    "groupCount": "{{done}} de {{total}}",
+    "sexValues": {
+      "F": "Femenino",
+      "M": "Masculino",
+      "X": "Otro"
+    },
+    "orders": "{{count}} órdenes",
+    "orders_one": "1 orden"
+  },
+  "consultationStatus": {
+    "open": "Abierta",
+    "closed": "Cerrada"
+  },
+  "status": {
+    "pending": "Pendiente",
+    "inProgress": "En progreso",
+    "completed": "Completado"
+  },
+  "groups": {
+    "interrogation": "Interrogatorio",
+    "examination": "Exploración",
+    "assessment_plan": "Evaluación y plan",
+    "orders": "Órdenes médicas",
+    "documents": "Documentos y seguimiento"
+  },
+  "sections": {
+    "general_data": {
+      "title": "Datos Generales"
+    },
+    "chief_complaint": {
+      "title": "Motivo de Consulta"
+    },
+    "current_illness": {
+      "title": "Padecimiento Actual"
+    },
+    "family_history": {
+      "title": "Antecedentes Heredofamiliares"
+    },
+    "pathological_history": {
+      "title": "Antecedentes Personales Patológicos"
+    },
+    "non_pathological_history": {
+      "title": "Antecedentes Personales No Patológicos"
+    },
+    "gyneco_obstetric_history": {
+      "title": "Antecedentes Gineco-Obstétricos"
+    },
+    "allergies": {
+      "title": "Alergias"
+    },
+    "current_medications": {
+      "title": "Medicamentos Actuales"
+    },
+    "systems_review": {
+      "title": "Interrogatorio por Aparatos y Sistemas"
+    },
+    "vital_signs": {
+      "title": "Signos Vitales"
+    },
+    "anthropometry": {
+      "title": "Somatometría"
+    },
+    "physical_exam": {
+      "title": "Exploración Física"
+    },
+    "systems_exam": {
+      "title": "Exploración por Aparatos y Sistemas"
+    },
+    "lab_studies": {
+      "title": "Estudios de Laboratorio"
+    },
+    "imaging_studies": {
+      "title": "Estudios de Gabinete"
+    },
+    "study_results": {
+      "title": "Resultados de Estudios"
+    },
+    "diagnostic_impression": {
+      "title": "Impresión Diagnóstica"
+    },
+    "primary_diagnosis": {
+      "title": "Diagnóstico Principal"
+    },
+    "secondary_diagnoses": {
+      "title": "Diagnósticos Secundarios"
+    },
+    "differential_diagnosis": {
+      "title": "Diagnóstico Diferencial"
+    },
+    "treatment": {
+      "title": "Tratamiento"
+    },
+    "management_plan": {
+      "title": "Plan de Manejo"
+    },
+    "recommendations": {
+      "title": "Recomendaciones"
+    },
+    "follow_up": {
+      "title": "Seguimiento"
+    },
+    "prescriptions_doc": {
+      "title": "Recetas"
+    },
+    "studies_doc": {
+      "title": "Estudios"
+    },
+    "attachments": {
+      "title": "Archivos Adjuntos"
+    },
+    "medical_notes": {
+      "title": "Notas Médicas"
+    },
+    "referrals": {
+      "title": "Referencias"
+    },
+    "interconsultations": {
+      "title": "Interconsultas"
+    },
+    "follow_up_appointments": {
+      "title": "Citas de Seguimiento"
+    },
+    "prescription": {
+      "title": "Receta de Medicamentos"
+    },
+    "lab_order": {
+      "title": "Orden de Laboratorio"
+    },
+    "diagnostic_order": {
+      "title": "Estudios Diagnósticos"
+    },
+    "orders_list": {
+      "title": "Órdenes Emitidas"
+    },
+    "comingSoon": "Próximamente"
+  },
+  "forms": {
+    "saveFailed": "No pudimos guardar la sección.",
+    "readOnly": "La consulta está cerrada: esta sección es de solo lectura.",
+    "generalData": {
+      "sex": "Sexo",
+      "sexHint": "Se muestra en el encabezado de la historia clínica.",
+      "sexOptions": {
+        "F": "Femenino",
+        "M": "Masculino",
+        "X": "Otro"
+      },
+      "maritalStatus": "Estado civil",
+      "maritalStatusOptions": {
+        "single": "Soltero/a",
+        "married": "Casado/a",
+        "free_union": "Unión libre",
+        "divorced": "Divorciado/a",
+        "widowed": "Viudo/a",
+        "other": "Otro"
+      },
+      "occupation": "Ocupación",
+      "education": "Escolaridad",
+      "educationOptions": {
+        "none": "Sin estudios",
+        "primary": "Primaria",
+        "secondary": "Secundaria",
+        "high_school": "Preparatoria",
+        "university": "Universidad",
+        "postgraduate": "Posgrado"
+      },
+      "address": "Domicilio",
+      "emergencyContactName": "Contacto de emergencia",
+      "emergencyContactPhone": "Teléfono del contacto",
+      "emergencyContactPhoneCountry": "País del teléfono",
+      "copiedFrom": "Copiado de la consulta {{folio}}. Revisa y guarda."
+    },
+    "chiefComplaint": {
+      "complaint": "Motivo de consulta",
+      "complaintPlaceholder": "En las palabras del paciente.",
+      "onsetValue": "Tiempo de evolución",
+      "onsetUnit": "Unidad",
+      "onsetUnitOptions": {
+        "hours": "Horas",
+        "days": "Días",
+        "weeks": "Semanas",
+        "months": "Meses",
+        "years": "Años"
+      }
+    },
+    "currentIllness": {
+      "startDate": "Fecha de inicio",
+      "narrative": "Padecimiento actual",
+      "narrativePlaceholder": "Inicio, evolución, síntomas acompañantes, tratamientos previos…"
+    },
+    "chooseOption": "Elige una opción"
+  },
+  "orders": {
+    "prescription": {
+      "title": "Receta de medicamentos",
+      "pickerLabel": "Buscar medicamento",
+      "pickerPlaceholder": "Nombre o código…",
+      "empty": "Agrega al menos un medicamento."
+    },
+    "lab_order": {
+      "title": "Orden de laboratorio",
+      "pickerLabel": "Buscar estudio de laboratorio",
+      "pickerPlaceholder": "Código o nombre…",
+      "empty": "Agrega al menos un estudio."
+    },
+    "diagnostic_order": {
+      "title": "Orden de estudios diagnósticos",
+      "pickerLabel": "Buscar estudio diagnóstico",
+      "pickerPlaceholder": "Código o nombre…",
+      "empty": "Agrega al menos un estudio."
+    },
+    "indications": "Indicaciones",
+    "diagnosis": "Diagnóstico relacionado",
+    "total": "Total",
+    "noStock": "Sin existencia",
+    "available": "{{quantity}} disponibles",
+    "save": "Emitir orden",
+    "chargeNotice": "Cotización lista para cobrar en caja con el folio {{folio}}.",
+    "noChargeNotice": "Orden {{folio}} registrada. No se cobra en caja.",
+    "print": "Imprimir orden",
+    "printFailed": "No pudimos abrir el documento. Intenta imprimirlo de nuevo.",
+    "backToRecord": "Volver a la historia clínica",
+    "saveFailed": "No pudimos emitir la orden.",
+    "noResults": "Sin resultados.",
+    "selected": "Seleccionados",
+    "lines": {
+      "concept": "Concepto",
+      "quantity": "Cantidad",
+      "dosage": "Indicación",
+      "price": "Precio",
+      "remove": "Quitar"
+    },
+    "kinds": {
+      "prescription": "Receta",
+      "lab_order": "Laboratorio",
+      "diagnostic_order": "Diagnóstico"
+    },
+    "list": {
+      "title": "Órdenes emitidas",
+      "empty": "Todavía no hay órdenes en esta consulta.",
+      "columns": {
+        "folio": "Folio",
+        "kind": "Tipo",
+        "items": "Conceptos",
+        "total": "Total",
+        "charge": "Cobro"
+      },
+      "charge": {
+        "charged": "Cobrada",
+        "pending": "Pendiente de cobro",
+        "not_for_sale": "Sin cobro"
+      },
+      "canceled": "Cancelada",
+      "cancel": "Cancelar",
+      "cancelTitle": "Cancelar la orden {{folio}}",
+      "cancelBody": "Si tiene cotización abierta, también se cancela. Una orden cobrada no se puede cancelar.",
+      "cancelConfirm": "Cancelar orden",
+      "cancelFailed": "No pudimos cancelar la orden."
+    }
+  },
+  "settings": {
+    "title": "Configuración Consultorio Médico",
+    "subtitle": "Qué vende tu consultorio. Si no vendes un tipo, la orden se registra e imprime sin cotización.",
+    "sellsMedications": "Vende medicamentos",
+    "sellsLabStudies": "Vende estudios de laboratorio",
+    "sellsDiagnosticStudies": "Vende estudios diagnósticos",
+    "save": "Guardar",
+    "saved": "Configuración guardada.",
+    "saveFailed": "No pudimos guardar la configuración.",
+    "loadFailed": "No pudimos cargar la configuración."
+  }
+}

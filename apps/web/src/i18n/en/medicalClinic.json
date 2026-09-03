@@ -1,0 +1,352 @@
+{
+  "studies": {
+    "lab": {
+      "title": "Lab Studies"
+    },
+    "diagnostic": {
+      "title": "Diagnostic Studies"
+    },
+    "add": "Add",
+    "search": "Search study",
+    "searchPlaceholder": "Code or name…",
+    "empty": "There are no studies yet.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "columns": {
+      "code": "Code",
+      "name": "Name",
+      "cost": "Cost",
+      "price": "Sale price",
+      "status": "Status"
+    },
+    "form": {
+      "createTitle": "New study",
+      "editTitle": "Edit study",
+      "code": "Code",
+      "codeHint": "The short key you search it by.",
+      "name": "Name",
+      "description": "Description",
+      "cost": "Cost",
+      "price": "Sale price",
+      "priceHint": "What you charge for this study.",
+      "saveFailed": "We could not save the study."
+    },
+    "delete": {
+      "title": "Delete «{{name}}»",
+      "body": "The study is deleted. If it is already in an order, deactivate it instead.",
+      "confirm": "Delete study"
+    }
+  },
+  "attend": {
+    "title": "Attend patient",
+    "newPatient": "New patient",
+    "searchBy": "Search by",
+    "byName": "By name",
+    "byTurn": "By ticket",
+    "nameLabel": "Patient name",
+    "turnLabel": "Ticket number",
+    "turnHint": "Only today's tickets.",
+    "search": "Search",
+    "empty": "We found nobody with that name.",
+    "emptyByTurn": "There is no patient with ticket {{number}}.",
+    "start": "Start consultation",
+    "lastRecord": "Last consultation {{folio}}",
+    "noRecords": "No previous consultations",
+    "turnBadge": "Ticket {{number}}",
+    "years": "{{count}} years",
+    "years_one": "1 year",
+    "startFailed": "We could not open the medical record.",
+    "searchFailed": "We could not search. Try again."
+  },
+  "patient": {
+    "newTitle": "New patient"
+  },
+  "record": {
+    "title": "Medical record",
+    "back": "Medical record {{folio}}",
+    "age": "Age",
+    "sex": "Sex",
+    "birthDate": "Birth date",
+    "consultationDate": "Consultation date",
+    "doctor": "Doctor",
+    "recordNumber": "Record",
+    "progress": "{{done}} of {{total}} sections captured",
+    "missingSex": "Complete General Data",
+    "close": "Close consultation",
+    "closeTitle": "Close consultation {{folio}}",
+    "closeBody": "A closed consultation no longer accepts changes to its sections or new orders.",
+    "closeConfirm": "Close consultation",
+    "closed": "This consultation is closed: it can be read, not captured.",
+    "loadFailed": "We could not load the medical record.",
+    "groupCount": "{{done}} of {{total}}",
+    "sexValues": {
+      "F": "Female",
+      "M": "Male",
+      "X": "Other"
+    },
+    "orders": "{{count}} orders",
+    "orders_one": "1 order"
+  },
+  "consultationStatus": {
+    "open": "Open",
+    "closed": "Closed"
+  },
+  "status": {
+    "pending": "Pending",
+    "inProgress": "In progress",
+    "completed": "Completed"
+  },
+  "groups": {
+    "interrogation": "Interrogation",
+    "examination": "Examination",
+    "assessment_plan": "Assessment and plan",
+    "orders": "Medical orders",
+    "documents": "Documents and follow-up"
+  },
+  "sections": {
+    "general_data": {
+      "title": "General Data"
+    },
+    "chief_complaint": {
+      "title": "Chief Complaint"
+    },
+    "current_illness": {
+      "title": "Present Illness"
+    },
+    "family_history": {
+      "title": "Family History"
+    },
+    "pathological_history": {
+      "title": "Personal Pathological History"
+    },
+    "non_pathological_history": {
+      "title": "Personal Non-Pathological History"
+    },
+    "gyneco_obstetric_history": {
+      "title": "Gyneco-Obstetric History"
+    },
+    "allergies": {
+      "title": "Allergies"
+    },
+    "current_medications": {
+      "title": "Current Medications"
+    },
+    "systems_review": {
+      "title": "Review of Systems"
+    },
+    "vital_signs": {
+      "title": "Vital Signs"
+    },
+    "anthropometry": {
+      "title": "Anthropometry"
+    },
+    "physical_exam": {
+      "title": "Physical Exam"
+    },
+    "systems_exam": {
+      "title": "Exam by Systems"
+    },
+    "lab_studies": {
+      "title": "Lab Studies"
+    },
+    "imaging_studies": {
+      "title": "Imaging Studies"
+    },
+    "study_results": {
+      "title": "Study Results"
+    },
+    "diagnostic_impression": {
+      "title": "Diagnostic Impression"
+    },
+    "primary_diagnosis": {
+      "title": "Primary Diagnosis"
+    },
+    "secondary_diagnoses": {
+      "title": "Secondary Diagnoses"
+    },
+    "differential_diagnosis": {
+      "title": "Differential Diagnosis"
+    },
+    "treatment": {
+      "title": "Treatment"
+    },
+    "management_plan": {
+      "title": "Management Plan"
+    },
+    "recommendations": {
+      "title": "Recommendations"
+    },
+    "follow_up": {
+      "title": "Follow-up"
+    },
+    "prescriptions_doc": {
+      "title": "Prescriptions"
+    },
+    "studies_doc": {
+      "title": "Studies"
+    },
+    "attachments": {
+      "title": "Attachments"
+    },
+    "medical_notes": {
+      "title": "Medical Notes"
+    },
+    "referrals": {
+      "title": "Referrals"
+    },
+    "interconsultations": {
+      "title": "Interconsultations"
+    },
+    "follow_up_appointments": {
+      "title": "Follow-up Appointments"
+    },
+    "prescription": {
+      "title": "Medication Prescription"
+    },
+    "lab_order": {
+      "title": "Lab Order"
+    },
+    "diagnostic_order": {
+      "title": "Diagnostic Studies"
+    },
+    "orders_list": {
+      "title": "Issued Orders"
+    },
+    "comingSoon": "Coming soon"
+  },
+  "forms": {
+    "saveFailed": "We could not save the section.",
+    "readOnly": "The consultation is closed: this section is read-only.",
+    "generalData": {
+      "sex": "Sex",
+      "sexHint": "Shown in the medical record header.",
+      "sexOptions": {
+        "F": "Female",
+        "M": "Male",
+        "X": "Other"
+      },
+      "maritalStatus": "Marital status",
+      "maritalStatusOptions": {
+        "single": "Single",
+        "married": "Married",
+        "free_union": "Common-law",
+        "divorced": "Divorced",
+        "widowed": "Widowed",
+        "other": "Other"
+      },
+      "occupation": "Occupation",
+      "education": "Education",
+      "educationOptions": {
+        "none": "None",
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "high_school": "High school",
+        "university": "University",
+        "postgraduate": "Postgraduate"
+      },
+      "address": "Address",
+      "emergencyContactName": "Emergency contact",
+      "emergencyContactPhone": "Contact phone",
+      "emergencyContactPhoneCountry": "Phone country",
+      "copiedFrom": "Copied from consultation {{folio}}. Review and save."
+    },
+    "chiefComplaint": {
+      "complaint": "Chief complaint",
+      "complaintPlaceholder": "In the patient's words.",
+      "onsetValue": "Time since onset",
+      "onsetUnit": "Unit",
+      "onsetUnitOptions": {
+        "hours": "Hours",
+        "days": "Days",
+        "weeks": "Weeks",
+        "months": "Months",
+        "years": "Years"
+      }
+    },
+    "currentIllness": {
+      "startDate": "Start date",
+      "narrative": "Present illness",
+      "narrativePlaceholder": "Onset, course, accompanying symptoms, previous treatments…"
+    },
+    "chooseOption": "Pick an option"
+  },
+  "orders": {
+    "prescription": {
+      "title": "Medication prescription",
+      "pickerLabel": "Search medication",
+      "pickerPlaceholder": "Name or code…",
+      "empty": "Add at least one medication."
+    },
+    "lab_order": {
+      "title": "Lab order",
+      "pickerLabel": "Search lab study",
+      "pickerPlaceholder": "Code or name…",
+      "empty": "Add at least one study."
+    },
+    "diagnostic_order": {
+      "title": "Diagnostic studies order",
+      "pickerLabel": "Search diagnostic study",
+      "pickerPlaceholder": "Code or name…",
+      "empty": "Add at least one study."
+    },
+    "indications": "Indications",
+    "diagnosis": "Related diagnosis",
+    "total": "Total",
+    "noStock": "Out of stock",
+    "available": "{{quantity}} available",
+    "save": "Issue order",
+    "chargeNotice": "Quote ready to be paid at the register with folio {{folio}}.",
+    "noChargeNotice": "Order {{folio}} registered. Not charged at the register.",
+    "print": "Print order",
+    "printFailed": "We could not open the document. Try printing again.",
+    "backToRecord": "Back to the medical record",
+    "saveFailed": "We could not issue the order.",
+    "noResults": "No results.",
+    "selected": "Selected",
+    "lines": {
+      "concept": "Item",
+      "quantity": "Quantity",
+      "dosage": "Directions",
+      "price": "Price",
+      "remove": "Remove"
+    },
+    "kinds": {
+      "prescription": "Prescription",
+      "lab_order": "Lab",
+      "diagnostic_order": "Diagnostic"
+    },
+    "list": {
+      "title": "Issued orders",
+      "empty": "There are no orders in this consultation yet.",
+      "columns": {
+        "folio": "Folio",
+        "kind": "Type",
+        "items": "Items",
+        "total": "Total",
+        "charge": "Payment"
+      },
+      "charge": {
+        "charged": "Paid",
+        "pending": "Pending payment",
+        "not_for_sale": "No charge"
+      },
+      "canceled": "Canceled",
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel order {{folio}}",
+      "cancelBody": "If it has an open quote, it is canceled too. A paid order cannot be canceled.",
+      "cancelConfirm": "Cancel order",
+      "cancelFailed": "We could not cancel the order."
+    }
+  },
+  "settings": {
+    "title": "Medical Clinic Settings",
+    "subtitle": "What your clinic sells. If you do not sell a type, the order is registered and printed without a quote.",
+    "sellsMedications": "Sells medications",
+    "sellsLabStudies": "Sells lab studies",
+    "sellsDiagnosticStudies": "Sells diagnostic studies",
+    "save": "Save",
+    "saved": "Settings saved.",
+    "saveFailed": "We could not save the settings.",
+    "loadFailed": "We could not load the settings."
+  }
+}

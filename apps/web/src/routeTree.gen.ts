@@ -26,6 +26,8 @@ import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as CatalogServicesRouteImport } from './routes/catalog.services'
+import { Route as MedicalClinicDiagnosticStudiesRouteImport } from './routes/medical-clinic.diagnostic-studies'
+import { Route as MedicalClinicLabStudiesRouteImport } from './routes/medical-clinic.lab-studies'
 import { Route as MovementsCountsRouteImport } from './routes/movements.counts'
 import { Route as MovementsEntriesRouteImport } from './routes/movements.entries'
 import { Route as MovementsExitsRouteImport } from './routes/movements.exits'
@@ -133,6 +135,17 @@ const CatalogSchemaRoute = CatalogSchemaRouteImport.update({
 const CatalogServicesRoute = CatalogServicesRouteImport.update({
   id: '/catalog/services',
   path: '/catalog/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MedicalClinicDiagnosticStudiesRoute =
+  MedicalClinicDiagnosticStudiesRouteImport.update({
+    id: '/medical-clinic/diagnostic-studies',
+    path: '/medical-clinic/diagnostic-studies',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const MedicalClinicLabStudiesRoute = MedicalClinicLabStudiesRouteImport.update({
+  id: '/medical-clinic/lab-studies',
+  path: '/medical-clinic/lab-studies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MovementsCountsRoute = MovementsCountsRouteImport.update({
@@ -271,6 +284,8 @@ export interface FileRoutesByFullPath {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
+  '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
@@ -313,6 +328,8 @@ export interface FileRoutesByTo {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
+  '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
@@ -356,6 +373,8 @@ export interface FileRoutesById {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
+  '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
   '/movements/counts': typeof MovementsCountsRoute
   '/movements/entries': typeof MovementsEntriesRoute
   '/movements/exits': typeof MovementsExitsRoute
@@ -400,6 +419,8 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/medical-clinic/diagnostic-studies'
+    | '/medical-clinic/lab-studies'
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
@@ -442,6 +463,8 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/medical-clinic/diagnostic-studies'
+    | '/medical-clinic/lab-studies'
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
@@ -484,6 +507,8 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/medical-clinic/diagnostic-studies'
+    | '/medical-clinic/lab-studies'
     | '/movements/counts'
     | '/movements/entries'
     | '/movements/exits'
@@ -527,6 +552,8 @@ export interface RootRouteChildren {
   CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
   CatalogServicesRoute: typeof CatalogServicesRoute
+  MedicalClinicDiagnosticStudiesRoute: typeof MedicalClinicDiagnosticStudiesRoute
+  MedicalClinicLabStudiesRoute: typeof MedicalClinicLabStudiesRoute
   MovementsCountsRoute: typeof MovementsCountsRoute
   MovementsEntriesRoute: typeof MovementsEntriesRoute
   MovementsExitsRoute: typeof MovementsExitsRoute
@@ -671,6 +698,20 @@ declare module '@tanstack/react-router' {
       path: '/catalog/services'
       fullPath: '/catalog/services'
       preLoaderRoute: typeof CatalogServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/medical-clinic/diagnostic-studies': {
+      id: '/medical-clinic/diagnostic-studies'
+      path: '/medical-clinic/diagnostic-studies'
+      fullPath: '/medical-clinic/diagnostic-studies'
+      preLoaderRoute: typeof MedicalClinicDiagnosticStudiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/medical-clinic/lab-studies': {
+      id: '/medical-clinic/lab-studies'
+      path: '/medical-clinic/lab-studies'
+      fullPath: '/medical-clinic/lab-studies'
+      preLoaderRoute: typeof MedicalClinicLabStudiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/movements/counts': {
@@ -855,6 +896,8 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
   CatalogServicesRoute: CatalogServicesRoute,
+  MedicalClinicDiagnosticStudiesRoute: MedicalClinicDiagnosticStudiesRoute,
+  MedicalClinicLabStudiesRoute: MedicalClinicLabStudiesRoute,
   MovementsCountsRoute: MovementsCountsRoute,
   MovementsEntriesRoute: MovementsEntriesRoute,
   MovementsExitsRoute: MovementsExitsRoute,
