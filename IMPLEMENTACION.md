@@ -2452,22 +2452,22 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 > Lo que no es producto ni servicio —un flete, un anticipo, un estudio de laboratorio de F9— se cotiza como **concepto** (descripción + precio) y se cobra SOLO cargando esa cotización por folio: la venta nunca acepta un precio del cliente. El POS guarda `source_module`/`source_ref` como dos strings opacos y no sabe qué módulo los emitió.
 
-- [ ] **F4-CONCEPT-01** — El kind de línea como fuente única en `shared`
+- [x] **F4-CONCEPT-01** *(cerrada el 2026-09-03)* — El kind de línea como fuente única en `shared`
   - **Salida:** `packages/shared/src/pos-lines.ts` con `POS_LINE_KINDS = ["product","service","concept"] as const`, `PosLineKind`, `posLineKindSchema` y `conceptLineSchema` (`{description: trim min 1 max 200, unitPrice: number ≥ 0}`); export en `index.ts`.
   - **Verificar:** `pos-lines.test.ts` RED→GREEN: la lista es exactamente esas tres; `"medicine"` y `""` rebotan; descripción vacía y precio negativo rebotan. Mutante: `min(1)` → `min(0)` rompe el test.
   - **Depende de:** — · **Estimación:** 1 h
 
-- [ ] **F4-CONCEPT-02** — Migración `20260903120000_f4_concept_lines` + modelos Prisma
+- [x] **F4-CONCEPT-02** *(cerrada el 2026-09-03 — el DEFAULT 'product' obliga a que todo insert de servicio ponga su kind: los specs y los dos services lo escriben explícito)* — Migración `20260903120000_f4_concept_lines` + modelos Prisma
   - **Salida:** `quote_lines` y `sale_items` ganan `kind VARCHAR(16) NOT NULL DEFAULT 'product'` (backfill `service` donde `service_id IS NOT NULL`), `source_module VARCHAR(32)`, `source_ref UUID`; `sale_items` además `concept_description TEXT`; se DROPEA `*_product_xor_service` y entra `*_kind_shape` (`product` ⇒ solo `product_id`; `service` ⇒ solo `service_id`; `concept` ⇒ sin `product_id`, `service_id` ni `presentation_id`, y en `sale_items` con `concept_description NOT NULL`), `*_source_pair` (`(source_module IS NULL) = (source_ref IS NULL)`) e índice parcial `(tenant_id, source_module, source_ref) WHERE source_module IS NOT NULL`. `schema.prisma`: `QuoteLine.kind/sourceModule/sourceRef`, `SaleItem.kind/conceptDescription/sourceModule/sourceRef` con docblock en español (por qué `concept_description` solo vive en `sale_items`).
   - **Verificar:** ampliar `f4-quotes-rls.integration.spec.ts` y `f4-pos-rls.integration.spec.ts` (RED): `kind='concept'` con `product_id` rebota; `kind='product'` sin `product_id` rebota (el caso viejo «sin ninguna referencia» se REESCRIBE, no se borra); `concept` sin `concept_description` en `sale_items` rebota; `source_module` sin `source_ref` rebota; las filas previas quedaron en `product`/`service`. `prisma migrate diff` sin deriva.
   - **Depende de:** F4-CONCEPT-01 · **Estimación:** 3 h
 
-- [ ] **F4-CONCEPT-03** — DTOs: concepto en la cotización, `quoteLineId` en la venta
+- [x] **F4-CONCEPT-03** *(cerrada el 2026-09-03 — solo la cotización; la variante quoteLineId de la venta llega con F4-CONCEPT-06 para no dejar un camino a medias)* — DTOs: concepto en la cotización, `quoteLineId` en la venta
   - **Salida:** `dto/quote.dto.ts`: `quoteLineSchema` pasa a unión discriminada `{productId, presentationId?, quantity}` | `{serviceId, quantity}` | `{concept: {description, unitPrice}, quantity}` (clave `pos.line_kind_invalid` reemplaza a `pos.line_product_xor_service`). `dto/create-sale.dto.ts`: `saleLineSchema` gana `{quoteLineId, quantity, discount?}` y sigue `.strict()` sin precios. Claves nuevas en `pos.json` es/en: `concept_requires_quote`, `concept_line_not_in_quote`, `concept_quantity_exceeds_quote`, `concept_description_required`, `concept_price_invalid`, `line_kind_invalid`.
   - **Verificar:** specs de DTO RED→GREEN: las tres formas válidas pasan; `{productId, concept}` juntos rebota; `unitPrice: -1` rebota; una línea de venta con `unitPrice` rebota. `message-keys.spec` verde.
   - **Depende de:** F4-CONCEPT-01 · **Estimación:** 2 h
 
-- [ ] **F4-CONCEPT-04** — `QuotesService.resolverLineas`: rama de concepto y firma reusable
+- [x] **F4-CONCEPT-04** *(cerrada el 2026-09-03 — la prueba es e2e sobre Postgres real, no unit con Prisma mockeado: no existe ese molde en pos y la regla vive en la base)* — `QuotesService.resolverLineas`: rama de concepto y firma reusable
   - **Salida:** rama `concept` que arma `{kind:'concept', description, unitPrice, productId:null, serviceId:null, presentationId:null}` sin consultar stock; `create` escribe `kind`, `sourceModule`, `sourceRef` (nulos por la ruta pública); el total suma conceptos. El método se expone como `resolverLineasParaModulo(tx, user, warehouseId, lines)` para que F9 lo reuse.
   - **Verificar:** unit spec de `QuotesService` (RED): cotización mixta producto+servicio+concepto suma bien y el concepto no toca stock. Mutante: `unitPrice: 0` en la rama concepto rompe el test del total.
   - **Depende de:** F4-CONCEPT-02, F4-CONCEPT-03 · **Estimación:** 2 h

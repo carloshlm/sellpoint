@@ -5,6 +5,7 @@
   "integer_only_presentation": "«{presentationName}» is sold in whole units only.",
   "invalid_body": "Check the point of sale details.",
   "invalid_query": "Check the search filters.",
+  "line_kind_invalid": "A line is a product, a service or a concept: exactly one.",
   "line_product_xor_service": "A line is either a product or a service, not both.",
   "lookup_query_required": "The search cannot be empty.",
   "no_default_warehouse": "You have no assigned warehouse. Pick one to open the cashbox.",

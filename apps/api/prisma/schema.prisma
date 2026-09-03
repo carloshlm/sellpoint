@@ -1416,10 +1416,21 @@ model SaleItem {
   tenantId       String   @map("tenant_id") @db.Uuid
   saleId         String   @map("sale_id") @db.Uuid
   lineNo         Int      @map("line_no")
+  /// F4-CONCEPT-02: `product` | `service` | `concept` (`POS_LINE_KINDS` en shared).
+  /// La base cierra la forma de cada tipo con `sale_items_kind_shape`.
+  kind           String   @default("product") @db.VarChar(16)
   productId      String?  @map("product_id") @db.Uuid
   serviceId      String?  @map("service_id") @db.Uuid
   /// Solo para producto: en qué presentación se vendió (Caja ×12, Pieza…).
   presentationId String?  @map("presentation_id") @db.Uuid
+  /// SOLO en un concepto: la venta nunca tuvo texto porque el ticket lo lee
+  /// del catálogo, y un concepto no tiene catálogo. Se copia de la
+  /// cotización al cobrar; un producto con este campo rebota en el CHECK.
+  conceptDescription String? @map("concept_description")
+  /// De dónde salió la línea (módulo + id), como dos strings OPACOS que el
+  /// POS guarda y devuelve sin entenderlos. Van en par o no van.
+  sourceModule   String?  @map("source_module") @db.VarChar(32)
+  sourceRef      String?  @map("source_ref") @db.Uuid
   /// Lo que el cajero tecleó, en la presentación elegida.
   quantity       Decimal  @db.Decimal(14, 4)
   unitPrice      Decimal  @map("unit_price") @db.Decimal(14, 2)
@@ -1444,6 +1455,7 @@ model SaleItem {
   @@index([tenantId])
   @@index([productId])
   @@index([serviceId])
+  @@index([tenantId, sourceModule, sourceRef], map: "sale_items_source_idx")
   @@map("sale_items")
 }
 
@@ -1520,9 +1532,15 @@ model QuoteLine {
   tenantId       String   @map("tenant_id") @db.Uuid
   quoteId        String   @map("quote_id") @db.Uuid
   lineNo         Int      @map("line_no")
+  /// F4-CONCEPT-02: `product` | `service` | `concept`. Un concepto no lleva
+  /// producto, servicio ni presentación: es `description` + `unitPrice`.
+  kind           String   @default("product") @db.VarChar(16)
   productId      String?  @map("product_id") @db.Uuid
   serviceId      String?  @map("service_id") @db.Uuid
   presentationId String?  @map("presentation_id") @db.Uuid
+  /// Origen opaco (módulo + id) de la línea, en par o nada. Ver `SaleItem`.
+  sourceModule   String?  @map("source_module") @db.VarChar(32)
+  sourceRef      String?  @map("source_ref") @db.Uuid
   /// Lo que se cotizó, en texto. Sobrevive a que el producto se borre o cambie
   /// de nombre: el papel que el cliente se llevó decía ESTO.
   description    String
@@ -1540,6 +1558,7 @@ model QuoteLine {
 
   @@unique([quoteId, lineNo])
   @@index([tenantId])
+  @@index([tenantId, sourceModule, sourceRef], map: "quote_lines_source_idx")
   @@map("quote_lines")
 }
 

@@ -129,6 +129,8 @@ describe("Los widgets del dashboard (integration)", () => {
               {
                 tenantId: ctx.tenantId,
                 lineNo: 1,
+                // F4-CONCEPT-02: la forma de la línea la cierra el CHECK por kind.
+                kind: v.servicioId !== undefined ? "service" : "product",
                 ...(v.productoId !== undefined && { productId: v.productoId }),
                 ...(v.servicioId !== undefined && { serviceId: v.servicioId }),
                 quantity: v.quantity,

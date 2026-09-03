@@ -5,6 +5,7 @@
   "integer_only_presentation": "La presentación «{presentationName}» se vende en piezas enteras.",
   "invalid_body": "Revisa los datos del punto de venta.",
   "invalid_query": "Revisa los filtros de la búsqueda.",
+  "line_kind_invalid": "Una línea es un producto, un servicio o un concepto: exactamente uno.",
   "line_product_xor_service": "Una línea es un producto o un servicio, no las dos cosas.",
   "lookup_query_required": "La búsqueda no puede ir vacía.",
   "no_default_warehouse": "No tienes un almacén asignado. Elige uno para abrir la caja.",

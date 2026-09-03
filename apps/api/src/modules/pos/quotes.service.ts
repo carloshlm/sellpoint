@@ -4,7 +4,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { endOfDayUtc, POS_FOLIO_PREFIXES, startOfDayUtc } from "@sellpoint/shared";
+import {
+  endOfDayUtc,
+  POS_FOLIO_PREFIXES,
+  type PosLineKind,
+  startOfDayUtc,
+} from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -26,8 +31,13 @@ import { conDisponibilidad, type LookupItem, SELECT_PRODUCTO } from "./lookup.st
 import { allowNegativeStock } from "./stock-policy";
 import { sellableStock } from "./warehouse-availability";
 
-/** Lo que el catálogo dice de una línea. NUNCA lo que mandó el POST. */
-interface LineaResuelta {
+/**
+ * Lo que el catálogo dice de una línea. NUNCA lo que mandó el POST — con una
+ * excepción a la vista: el CONCEPTO no tiene catálogo, así que su precio es
+ * el que se cotizó (F4-CONCEPT-04). Es la única línea con precio congelado.
+ */
+export interface LineaResuelta {
+  kind: PosLineKind;
   unitPrice: Prisma.Decimal;
   presentationId: string | null;
   /** Lo que se cotizó, en texto: sobrevive a que el producto cambie de nombre. */
@@ -106,6 +116,7 @@ export class QuotesService {
               return {
                 tenantId: user.tenantId,
                 lineNo: i + 1,
+                kind: l.kind,
                 ...(l.productId !== null && { productId: l.productId }),
                 ...(l.serviceId !== null && { serviceId: l.serviceId }),
                 presentationId: l.presentationId,
@@ -472,7 +483,23 @@ export class QuotesService {
    * descuenta lo caducado, así que la misma consulta que alimenta al buscador
    * cierra la regla acá sin duplicar el criterio.
    */
-  private async resolverLineas(
+  private resolverLineas(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    warehouseId: string,
+    lines: QuoteLineDto[],
+  ): Promise<LineaResuelta[]> {
+    return this.resolverLineasParaModulo(tx, user, warehouseId, lines);
+  }
+
+  /**
+   * La MISMA resolución, expuesta para los módulos que cotizan por dentro
+   * (la orden médica de F9-CLINIC crea su cotización dentro de su propia
+   * transacción). Duplicarla significaría que el día que el POS bloquee
+   * algo —un lote vencido, una presentación no vendible— la receta seguiría
+   * cotizando lo que la caja va a rechazar.
+   */
+  async resolverLineasParaModulo(
     tx: Prisma.TransactionClient,
     user: AuthUser,
     warehouseId: string,
@@ -484,6 +511,22 @@ export class QuotesService {
     const resueltas: LineaResuelta[] = [];
 
     for (const [i, line] of lines.entries()) {
+      if (line.concept !== undefined) {
+        // El concepto no consulta stock ni catálogo: su precio es el que se
+        // cotizó, y eso es justamente lo que permite que la venta lo copie
+        // de acá y nunca del cliente (F4-CONCEPT-06).
+        resueltas.push({
+          kind: "concept",
+          unitPrice: new Prisma.Decimal(line.concept.unitPrice),
+          presentationId: null,
+          description: line.concept.description,
+          productId: null,
+          serviceId: null,
+          quantityBase: new Prisma.Decimal(line.quantity),
+        });
+        continue;
+      }
+
       if (line.serviceId !== undefined) {
         const servicio = await tx.service.findFirst({
           where: {
@@ -503,6 +546,7 @@ export class QuotesService {
           });
         }
         resueltas.push({
+          kind: "service",
           unitPrice: servicio.price ?? new Prisma.Decimal(0),
           presentationId: null,
           description: servicio.name,
@@ -558,6 +602,7 @@ export class QuotesService {
       }
 
       resueltas.push({
+        kind: "product",
         unitPrice: presentacion.price ?? new Prisma.Decimal(0),
         presentationId: presentacion.id,
         // El texto sobrevive a que el producto cambie de nombre: el papel que

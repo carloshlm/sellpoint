@@ -267,6 +267,43 @@ describe("Cotización (F4-QUOTE)", () => {
       expect((res.body as { sku: string }).sku).toBe(e.sku);
     });
 
+    /**
+     * F4-CONCEPT-04 — el concepto: descripción + precio, sin catálogo ni
+     * stock. Se suma al total con el precio que trae, y el producto de al
+     * lado sigue pasando por la regla de siempre.
+     */
+    it("una cotización mixta producto + concepto suma bien y el concepto no toca stock", async () => {
+      const { token, productoId } = await escenario(10);
+
+      const res = await cotizar(token, {
+        lines: [
+          { productId: productoId, quantity: 2 },
+          { concept: { description: "Flete a domicilio", unitPrice: 150 }, quantity: 1 },
+        ],
+      }).expect(201);
+
+      const body = res.body as {
+        total: string;
+        lines: { kind: string; description: string; unitPrice: string; productId: string | null }[];
+      };
+      // 2 × 15.00 del catálogo + 150.00 del concepto.
+      expect(body.total).toBe("180");
+      expect(body.lines[1]).toMatchObject({
+        kind: "concept",
+        description: "Flete a domicilio",
+        unitPrice: "150",
+        productId: null,
+      });
+      expect(body.lines[0]?.kind).toBe("product");
+    });
+
+    it("un concepto se cotiza aunque el almacén esté vacío: no depende del stock", async () => {
+      const { token } = await escenario(0);
+      await cotizar(token, {
+        lines: [{ concept: { description: "Anticipo", unitPrice: 200 }, quantity: 1 }],
+      }).expect(201);
+    });
+
     it("un producto SIN stock en ese almacén tampoco se cotiza", async () => {
       const e = await escenario(0);
 

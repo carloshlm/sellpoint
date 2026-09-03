@@ -1,3 +1,4 @@
+import { conceptLineSchema } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -6,19 +7,29 @@ import { z } from "zod";
  * Que se parezcan tanto no es duplicación por descuido: es lo que hace que
  * volcar una cotización al carrito sea un mapeo directo y no una traducción.
  * Lo que NO viaja, igual que en la venta, es el precio — lo pone el servidor
- * leyendo el catálogo.
+ * leyendo el catálogo. La excepción es el CONCEPTO (ver abajo).
  */
 const quoteLineSchema = z
   .object({
     productId: z.string().uuid().optional(),
     serviceId: z.string().uuid().optional(),
+    /**
+     * F4-CONCEPT-03: la tercera forma. Lo que no está en ningún catálogo
+     * —un flete, un anticipo, un estudio que emite un módulo— viaja con su
+     * descripción y su precio, porque no hay catálogo que lo diga. Es la
+     * ÚNICA línea que trae precio, y solo acá: la venta jamás lo acepta
+     * (se cobra cargando la cotización por folio).
+     */
+    concept: conceptLineSchema.optional(),
     presentationId: z.string().uuid().optional(),
     quantity: z.coerce.number().positive({ message: "pos.quantity_positive" }),
   })
   .strict()
-  .refine((line) => (line.productId === undefined) !== (line.serviceId === undefined), {
-    message: "pos.line_product_xor_service",
-  })
+  .refine(
+    (line) =>
+      [line.productId, line.serviceId, line.concept].filter((v) => v !== undefined).length === 1,
+    { message: "pos.line_kind_invalid" },
+  )
   .refine((line) => line.presentationId === undefined || line.productId !== undefined, {
     message: "pos.presentation_only_for_products",
   });

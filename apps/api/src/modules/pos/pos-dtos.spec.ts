@@ -1,0 +1,56 @@
+import { createQuoteSchema } from "./dto/quote.dto";
+
+/**
+ * F4-CONCEPT-03 — la línea de cotización tiene TRES formas: producto,
+ * servicio o concepto (descripción + precio). Nunca dos a la vez, y el
+ * concepto es el único que trae precio porque no hay catálogo que lo diga.
+ */
+describe("DTOs del POS con línea de concepto (F4-CONCEPT-03)", () => {
+  const cotizar = (line: Record<string, unknown>) => createQuoteSchema.safeParse({ lines: [line] });
+  const uuid = "6b2a2d5e-1c1f-4a4e-9a7c-6a1c2f3d4e5f";
+
+  it("acepta las tres formas de línea", () => {
+    expect(cotizar({ productId: uuid, quantity: 2 }).success).toBe(true);
+    expect(cotizar({ serviceId: uuid, quantity: 1 }).success).toBe(true);
+    const concepto = cotizar({
+      concept: { description: " Flete a domicilio ", unitPrice: 150 },
+      quantity: 1,
+    });
+    expect(concepto.success).toBe(true);
+    expect(JSON.stringify(concepto.data)).toContain('"description":"Flete a domicilio"');
+  });
+
+  it("producto y concepto juntos rebotan con su clave", () => {
+    const res = cotizar({
+      productId: uuid,
+      concept: { description: "Flete", unitPrice: 1 },
+      quantity: 1,
+    });
+    expect(res.success).toBe(false);
+    expect(JSON.stringify(res.error?.issues)).toContain("pos.line_kind_invalid");
+  });
+
+  it("un concepto sin descripción o con precio negativo rebota", () => {
+    expect(cotizar({ concept: { description: "  ", unitPrice: 1 }, quantity: 1 }).success).toBe(
+      false,
+    );
+    expect(cotizar({ concept: { description: "Flete", unitPrice: -1 }, quantity: 1 }).success).toBe(
+      false,
+    );
+  });
+
+  it("una línea sin nada sigue rebotando", () => {
+    const res = cotizar({ quantity: 1 });
+    expect(res.success).toBe(false);
+    expect(JSON.stringify(res.error?.issues)).toContain("pos.line_kind_invalid");
+  });
+
+  it("la presentación sigue siendo cosa de productos", () => {
+    const res = cotizar({
+      concept: { description: "Flete", unitPrice: 1 },
+      presentationId: uuid,
+      quantity: 1,
+    });
+    expect(res.success).toBe(false);
+  });
+});

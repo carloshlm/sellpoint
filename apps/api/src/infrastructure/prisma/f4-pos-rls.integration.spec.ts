@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { PrismaService } from "./prisma.service";
@@ -196,10 +197,59 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
       ...extra,
     });
 
-    it("con NINGUNA referencia se rechaza", async () => {
+    /** F4-CONCEPT-02: ver el comentario gemelo en f4-quotes-rls. */
+    it("un `product` sin producto se rechaza (la línea «vacía» de siempre)", async () => {
       await expect(
         prisma.withTenantContext(tenantAId, (tx) =>
           tx.saleItem.create({ data: linea({ lineNo: 90 }) as never }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("un concepto SIN descripción se rechaza: en la venta el texto es la única identidad", async () => {
+      await expect(
+        prisma.withTenantContext(tenantAId, (tx) =>
+          tx.saleItem.create({ data: linea({ lineNo: 93, kind: "concept" }) as never }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("un concepto con descripción pasa, sin producto ni servicio", async () => {
+      const creada = await prisma.withTenantContext(tenantAId, (tx) =>
+        tx.saleItem.create({
+          data: linea({
+            lineNo: 94,
+            kind: "concept",
+            conceptDescription: "Flete a domicilio",
+          }) as never,
+        }),
+      );
+      expect(creada.kind).toBe("concept");
+      expect(creada.conceptDescription).toBe("Flete a domicilio");
+      expect(creada.productId).toBeNull();
+    });
+
+    it("un producto con descripción de concepto se rechaza: el texto es solo del concepto", async () => {
+      await expect(
+        prisma.withTenantContext(tenantAId, (tx) =>
+          tx.saleItem.create({
+            data: linea({ lineNo: 95, productId: productoAId, conceptDescription: "x" }) as never,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("el origen va en par: `source_ref` sin `source_module` se rechaza", async () => {
+      await expect(
+        prisma.withTenantContext(tenantAId, (tx) =>
+          tx.saleItem.create({
+            data: linea({
+              lineNo: 96,
+              kind: "service",
+              serviceId: servicioAId,
+              sourceRef: randomUUID(),
+            }) as never,
+          }),
         ),
       ).rejects.toThrow();
     });
@@ -216,7 +266,9 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
 
     it("con una sola pasa: un servicio también es una línea válida", async () => {
       const creada = await prisma.withTenantContext(tenantAId, (tx) =>
-        tx.saleItem.create({ data: linea({ lineNo: 92, serviceId: servicioAId }) as never }),
+        tx.saleItem.create({
+          data: linea({ lineNo: 92, kind: "service", serviceId: servicioAId }) as never,
+        }),
       );
 
       expect(creada.serviceId).toBe(servicioAId);
@@ -241,6 +293,7 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
           tx.saleItem.create({
             data: linea({
               lineNo: 93,
+              kind: "service",
               serviceId: servicioAId,
               presentationId: presentacion.id,
             }) as never,

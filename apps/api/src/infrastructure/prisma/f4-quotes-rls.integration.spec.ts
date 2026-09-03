@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import type { Env } from "../../config/env.schema";
 import { PrismaService } from "./prisma.service";
@@ -212,12 +213,68 @@ describe("RLS y guardas de la cotización (F4-DB-02)", () => {
       ...extra,
     });
 
-    it("con NINGUNA referencia se rechaza", async () => {
+    /**
+     * F4-CONCEPT-02: el XOR se volvió un CHECK de FORMA por `kind`. La forma
+     * prohibida ya no es «sin ninguna referencia» a secas: es un `product`
+     * sin producto (y el `kind` por defecto ES `product`, así que la fila
+     * vieja «vacía» sigue rebotando por el mismo camino).
+     */
+    it("un `product` sin producto se rechaza (la línea «vacía» de siempre)", async () => {
       await expect(
         prisma.withTenantContext(tenantAId, (tx) =>
           tx.quoteLine.create({ data: linea({ lineNo: 80 }) as never }),
         ),
       ).rejects.toThrow();
+    });
+
+    it("un concepto con producto se rechaza: el concepto no tiene catálogo", async () => {
+      await expect(
+        prisma.withTenantContext(tenantAId, (tx) =>
+          tx.quoteLine.create({
+            data: linea({ lineNo: 82, kind: "concept", productId: productoAId }) as never,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("un concepto sin referencias pasa, y guarda su origen opaco", async () => {
+      const ref = randomUUID();
+      const creada = await prisma.withTenantContext(tenantAId, (tx) =>
+        tx.quoteLine.create({
+          data: linea({
+            lineNo: 83,
+            kind: "concept",
+            description: "Flete a domicilio",
+            sourceModule: "medical_clinic",
+            sourceRef: ref,
+          }) as never,
+        }),
+      );
+      expect(creada.kind).toBe("concept");
+      expect(creada.productId).toBeNull();
+      expect(creada.sourceRef).toBe(ref);
+    });
+
+    it("el origen va en par: `source_module` sin `source_ref` se rechaza", async () => {
+      await expect(
+        prisma.withTenantContext(tenantAId, (tx) =>
+          tx.quoteLine.create({
+            data: linea({ lineNo: 84, kind: "concept", sourceModule: "medical_clinic" }) as never,
+          }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("las líneas anteriores quedaron con su `kind` real (backfill)", async () => {
+      const filas = await prisma.withTenantContext(tenantAId, (tx) =>
+        tx.quoteLine.findMany({
+          where: { quoteId: cotizacionAId },
+          select: { kind: true, serviceId: true },
+        }),
+      );
+      for (const fila of filas.filter((f) => f.kind !== "concept")) {
+        expect(fila.kind).toBe(fila.serviceId === null ? "product" : "service");
+      }
     });
 
     it("con LAS DOS se rechaza", async () => {
@@ -255,6 +312,7 @@ describe("RLS y guardas de la cotización (F4-DB-02)", () => {
           tenantId: tenantAId,
           quoteId: cotizacionAId,
           lineNo: 82,
+          kind: "service",
           serviceId: creado.id,
           description: "Servicio temporal",
           quantity: "1",

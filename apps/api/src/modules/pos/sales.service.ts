@@ -257,6 +257,8 @@ export class SalesService {
                 return {
                   tenantId: user.tenantId,
                   lineNo: i + 1,
+                  // F4-CONCEPT-02: la forma de la línea la cierra el CHECK por kind.
+                  kind: line.serviceId !== undefined ? "service" : "product",
                   ...(line.productId !== undefined && { productId: line.productId }),
                   ...(line.serviceId !== undefined && { serviceId: line.serviceId }),
                   presentationId: precio.presentationId,
