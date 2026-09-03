@@ -3828,112 +3828,112 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ### Módulo F9-CLINIC-WEB — Consultorio Médico, pantallas (atomizado el 2026-09-03)
 
-- [ ] **F9-CLINIC-WEB-01** — Namespace i18n del módulo y rutas base
+- [x] **F9-CLINIC-WEB-01** *(cerrada el 2026-09-03)* — Namespace i18n del módulo y rutas base
   - **Salida:** `apps/web/src/i18n/{es,en}/medicalClinic.json` registrados en `i18n/index.ts` bajo `medicalClinic` (el archivo se llama como el namespace para que la barrera `i18n.test.tsx` lo cubra sin cambios); claves iniciales `studies.*`, `attend.*`, `record.*`, `status.*`, `groups.*`, `sections.<key>.title` (las 32 en el orden de Carlos), `sections.comingSoon`, `forms.*`, `orders.*`; `lib/medical-clinic/api.ts` vacío con los tipos base.
   - **Verificar:** `i18n.test.tsx` verde con el namespace nuevo (es y en con las mismas claves); test en `lib/medical-clinic/sections.test.ts` (tarea 09) exigirá `title` para las 32 claves en ambos idiomas.
   - **Depende de:** F9-CLINIC-01, F9-CLINIC-17 · **Estimación:** 1.5 h
 
-- [ ] **F9-CLINIC-WEB-02** — `TextAreaField`, el gemelo de `TextField`
+- [x] **F9-CLINIC-WEB-02** *(cerrada el 2026-09-03)* — `TextAreaField`, el gemelo de `TextField`
   - **Salida:** `apps/web/src/components/form/text-area-field.tsx` con `label/hint/error/rows` + `ComponentProps<"textarea">`; `useId`, `Label htmlFor`, `aria-invalid`, `aria-describedby`, error con `role="alert"`; estilo del textarea inline de `components/inventory/transfers-list.tsx:452`, solo tokens.
   - **Verificar:** RED en `components/form/text-area-field.test.tsx`: el label enfoca el textarea; el hint se anuncia; con `error` queda `aria-invalid` y el mensaje sale por `role="alert"`.
   - **Depende de:** — · **Estimación:** 1 h
 
-- [ ] **F9-CLINIC-WEB-03** — Cliente HTTP y hooks de los catálogos de estudios
+- [x] **F9-CLINIC-WEB-03** *(cerrada el 2026-09-03)* — Cliente HTTP y hooks de los catálogos de estudios
   - **Salida:** `lib/medical-clinic/api.ts`: `Study {id, code, name, description, cost, price, isActive}`, `StudiesPage`, `listStudies(kind, params)`, `createStudy`, `updateStudy`, `removeStudy` contra `/medical-clinic/{lab,diagnostic}-studies`; `hooks.ts`: `useStudies(kind, {query, page})`, `useCreateStudy(kind)`, `useUpdateStudy(kind)`, `useRemoveStudy(kind)` con invalidación por `["medical-clinic","studies",kind]` (molde `lib/services/hooks.ts`).
   - **Verificar:** typecheck; cubierto por el test de ruta de la tarea 04.
   - **Depende de:** F9-CLINIC-WEB-01 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-WEB-04** — Pantalla «Catálogo de Estudios de Laboratorio»
+- [x] **F9-CLINIC-WEB-04** *(cerrada el 2026-09-03)* — Pantalla «Catálogo de Estudios de Laboratorio»
   - **Salida:** `components/medical-clinic/studies-screen.tsx` con prop `kind` (clon de `catalog.services.tsx` SIN fieldset de almacenes, sin `DynamicForm` ni importación): título + «Agregar», buscador, `<Table>` (código, nombre, costo, precio de venta, estado), `RowAction` edit/delete, `ConfirmDialog`, `Paginator`, form inline en `<Card>` (`study-form.tsx`, skill `sellpoint-forms`: «Código» y «Nombre» de a par, «Descripción» a lo ancho, «Costo» y «Precio de venta» de a par con `type="number" step="0.01"` y el hint «Lo que cobras por este estudio», como el de Servicios); escritura gateada por `has("medical_clinic:manage") && canWrite`; ruta `medical-clinic.lab-studies.tsx` (`ProtectedRoute > OnboardingGate > AppLayout > PermissionGate need="medical_clinic:read"`).
   - **Verificar:** RED en `routes/medical-clinic-studies.test.tsx`: pinta las filas; filtra; «Agregar» abre el form dentro de `[data-slot="card"]`; Guardar llama a `createStudy("lab", {code, name, cost, price, …})` con costo y precio; borrar pide confirmación; NO existe ningún `service-warehouse-*`; sin `:manage` no hay «Agregar».
   - **Depende de:** F9-CLINIC-WEB-03 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-05** — Pantalla «Catálogo de Estudios Diagnósticos»
+- [x] **F9-CLINIC-WEB-05** *(cerrada el 2026-09-03)* — Pantalla «Catálogo de Estudios Diagnósticos»
   - **Salida:** ruta `medical-clinic.diagnostic-studies.tsx` como cáscara de `StudiesScreen kind="diagnostic"`.
   - **Verificar:** el mismo test en `describe.each(["lab","diagnostic"])` contra su propio endpoint mockeado.
   - **Depende de:** F9-CLINIC-WEB-04 · **Estimación:** 1 h
 
-- [ ] **F9-CLINIC-WEB-06** — Cliente HTTP y hooks de pacientes y expedientes
+- [x] **F9-CLINIC-WEB-06** *(cerrada el 2026-09-03)* — Cliente HTTP y hooks de pacientes y expedientes
   - **Salida:** en `api.ts`: `PatientHit {customerId, name, age, birthDate, turnNumber?, lastRecord?}`, `searchPatients({mode, q})`, `createPatient(input)` (`POST /medical-clinic/patients`), `MedicalRecord {id, folio, patient, doctor, consultationDate, status, sections: Record<key,{status,data,updatedAt}>, orders[]}`, `createRecord({customerId, turnId?})`, `getRecord(id)`, `saveSection(id, key, data)`, `closeRecord(id)`; en `hooks.ts`: `usePatientSearch`, `useCreatePatient`, `useCreateRecord`, `useRecord(id)`, `useSaveSection(recordId)` invalidando `["medical-clinic","records",recordId]`.
   - **Verificar:** typecheck; cubierto por los tests de las tareas 07, 08 y 12.
   - **Depende de:** F9-CLINIC-WEB-01 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-WEB-07** — Pantalla «Atender paciente»: búsqueda y resultados
+- [x] **F9-CLINIC-WEB-07** *(cerrada el 2026-09-03)* — Pantalla «Atender paciente»: búsqueda y resultados
   - **Salida:** `components/medical-clinic/patient-search-form.tsx` (`<fieldset><legend>Buscar por</legend>` con dos `<input type="radio">` nativos nombre/turno; UN `TextField` que cambia de etiqueta y tipo — turno: `type="number" inputMode="numeric"` con `replace(/\D/g,"")`; cambiar de modo limpia el campo; «Buscar» deshabilitado en blanco); `patient-result-list.tsx` (`<ul>` de tarjetas: nombre, edad, fecha de nacimiento, `Badge` «Turno N», «Última consulta HCL-…», botón «Iniciar consulta» solo con `:attend && canWrite`); ruta `medical-clinic.attend.tsx` (`h1`, link primario «Paciente nuevo», query con `enabled: submitted`, navegación a `/medical-clinic/records/$recordId` tras `createRecord`). Por turno con un solo acierto NO se abre solo: el médico confirma con un clic (un turno mal tecleado abriría un expediente al paciente equivocado).
   - **Verificar:** RED en `routes/medical-clinic-attend.test.tsx`: no consulta al montar; por nombre lista los aciertos; cambiar a turno vacía el campo y «a12b» deja «12»; por turno con un acierto no navega solo; «Iniciar consulta» llama a `createRecord` y la URL pasa a `/medical-clinic/records/r1`; sin resultados sale el vacío con link «Paciente nuevo»; sin `:attend` no hay botón.
   - **Depende de:** F9-CLINIC-WEB-06 · **Estimación:** 4 h
 
-- [ ] **F9-CLINIC-WEB-08** — «Paciente nuevo» dentro del módulo
+- [x] **F9-CLINIC-WEB-08** *(cerrada el 2026-09-03)* — «Paciente nuevo» dentro del módulo
   - **Salida:** `CustomerForm` gana la prop opcional `submitCreate?: (input) => Promise<Customer>` (default: `createCustomer` de Recepción) y `onDone` pasa a `(customer?: Customer) => void` (react-query ya entrega el creado; solo cambia el tipo); ruta `medical-clinic.patients.new.tsx` con `PermissionGate need="medical_clinic:attend"`, `<Card>` + `<CardTitle><h1>`, `CustomerForm submitCreate={createPatient}` que al guardar crea el expediente y navega a él; Cancelar vuelve a `/medical-clinic/attend`.
   - **Verificar:** RED en `routes/medical-clinic-patient-new.test.tsx`: el `h1` está en `[data-slot="card"]`; Guardar llama a `createPatient` (NO a `createCustomer` de Recepción) y luego a `createRecord` con el `customerId`; la URL termina en `/medical-clinic/records/r1`. `reception-customer-form.test.tsx` sigue verde sin tocarlo.
   - **Depende de:** F9-CLINIC-WEB-07 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-WEB-09** — El catálogo de tarjetas y el modelo de estado
+- [x] **F9-CLINIC-WEB-09** *(cerrada el 2026-09-03)* — El catálogo de tarjetas y el modelo de estado
   - **Salida:** `lib/medical-clinic/sections.ts`: `RECORD_GROUPS` (los 5 grupos en el orden de Carlos, incluido `orders`), `RECORD_CARDS` (32 secciones desde `MEDICAL_RECORD_SECTIONS` de shared + 4 tarjetas de órdenes `{key, group, icon, kind: "section" | "order" | "orders_list", functional}`), `SectionStatus`, `sectionStatus(record, key)` (ausente → pending; `status` del server manda; con datos → completed; guardada vacía → pending) y `groupStatus(record, group)` (todas las funcionales completas → completed; algunas → inProgress; ninguna → pending).
   - **Verificar:** RED en `lib/medical-clinic/sections.test.ts`: orden de grupos y tarjetas; los cuatro casos de `sectionStatus`; `groupStatus`; toda clave del catálogo tiene `title` en `es` y en `en`.
   - **Depende de:** F9-CLINIC-WEB-01 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-10** — `StatusPill` y `SectionCard`
+- [x] **F9-CLINIC-WEB-10** *(cerrada el 2026-09-03)* — `StatusPill` y `SectionCard`
   - **Salida:** `components/medical-clinic/status-pill.tsx` (`Badge` default/warning/success + `Circle`/`Clock`/`CheckCircle2` + etiqueta `medicalClinic.status.*`); `section-card.tsx`: funcional = `<Link>` a su ruta con `aria-label` «título — estado», icono, título, pill, chevron, `border-success/40` al completar, resumen en `text-muted-foreground text-xs line-clamp-2` solo si completed; placeholder = `<div aria-disabled="true">` con `opacity-60`, sin chevron, fuera del tab order y micro-etiqueta «Próximamente». Solo tokens.
   - **Verificar:** RED en `components/medical-clinic/section-card.test.tsx`: la funcional es link con `href` correcto y enfocable; la placeholder no es link, no es enfocable, dice «Próximamente» y «Pendiente»; los tres estados pintan su etiqueta.
   - **Depende de:** F9-CLINIC-WEB-09 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-11** — `RecordHeader`
+- [x] **F9-CLINIC-WEB-11** *(cerrada el 2026-09-03)* — `RecordHeader`
   - **Salida:** `components/medical-clinic/record-header.tsx`: `<Card lg:sticky lg:top-0>` con `<h1>` del paciente, folio en `font-mono`, pill del estado de consulta, `<dl>` responsiva (edad, sexo, fecha de nacimiento, fecha de consulta, médico, número de expediente) con `formatBusinessDate` + zona del negocio; barra `role="progressbar"` que cuenta SOLO las secciones funcionales; link «Completa Datos Generales» cuando falta el sexo.
   - **Verificar:** RED en `routes/medical-clinic-record.test.tsx`: nombre, folio, edad, sexo y médico; sin sexo sale «—» y el link a `/medical-clinic/records/r1/sections/general_data`; el progressbar dice «1 de 3».
   - **Depende de:** F9-CLINIC-WEB-09 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-WEB-12** — Tablero de la historia clínica
+- [x] **F9-CLINIC-WEB-12** *(cerrada el 2026-09-03)* — Tablero de la historia clínica
   - **Salida:** ruta `medical-clinic.records.$recordId.index.tsx` (`PermissionGate need="medical_clinic:attend"`), `useRecord`, `RecordHeader`, 5 `<section aria-labelledby>` con `<h2>`, pill de grupo, conteo «2 de 3» y `<ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">` de `SectionCard` en el orden del catálogo (molde `reports-hub.tsx`); estados de carga (`role="status"`) y error (`role="alert"`); botón «Cerrar consulta» con `ConfirmDialog`.
   - **Verificar:** RED en `medical-clinic-record.test.tsx`: los cinco encabezados en orden; 36 tarjetas; exactamente 3 links funcionales (más las de órdenes cuando existan); «Datos Generales» dice «Completado» con datos y «Pendiente» sin ellos; el pill de INTERROGATORIO dice «En progreso» con una de tres; cerrar pide confirmación y llama a `closeRecord`.
   - **Depende de:** F9-CLINIC-WEB-10, F9-CLINIC-WEB-11 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-13** — Ruta genérica de sección y registro de formularios
+- [x] **F9-CLINIC-WEB-13** *(cerrada el 2026-09-03)* — Ruta genérica de sección y registro de formularios
   - **Salida:** `components/medical-clinic/sections/registry.ts` (`Partial<Record<SectionKey, ComponentType<SectionFormProps>>>`, `SectionFormProps {recordId, initialData, onDone, onCancel}`); ruta `medical-clinic.records.$recordId.sections.$sectionKey.tsx` (`:attend`): link «← Historia clínica {{folio}}», `<Card><CardHeader><CardTitle><h1>`, form del registro con `key={sectionKey}`, guardado con `useSaveSection` + `navigate(..., {replace: true})` al tablero, `<Navigate replace>` al tablero si la clave no existe o no es funcional; expediente cerrado → form en solo lectura con aviso.
   - **Verificar:** RED en `routes/medical-clinic-sections.test.tsx`: `/sections/allergies` y `/sections/no_existe` redirigen al tablero; `/sections/general_data` pinta el `h1` en la tarjeta; Cancelar vuelve sin llamar a `saveSection`.
   - **Depende de:** F9-CLINIC-WEB-12 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-14** — Formulario «Datos Generales»
+- [x] **F9-CLINIC-WEB-14** *(cerrada el 2026-09-03)* — Formulario «Datos Generales»
   - **Salida:** `sections/general-data-form.tsx`: sexo (`SelectField` F/M/X con hint «Se muestra en el encabezado»), estado civil, ocupación, escolaridad, domicilio (fila completa), contacto de emergencia nombre + `PhonePartsField` con `composePhone`; rejilla `grid gap-4 sm:grid-cols-2`; error del API con `role="alert"`; Guardar/Cancelar; los vacíos se omiten del `data`; línea «Copiado de la consulta {{folio}}» cuando el API manda `copiedFromFolio`.
   - **Verificar:** RED en `medical-clinic-sections.test.tsx`: elegir «Femenino» + ocupación y Guardar llama a `saveSection("r1","general_data",{sex:"F",occupation:"Docente"})` sin claves vacías; al volver, la tarjeta dice «Completado»; guardar todo vacío no manda claves y sigue «Pendiente»; teléfono inválido muestra el error y no envía.
   - **Depende de:** F9-CLINIC-WEB-13, F9-CLINIC-WEB-02 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-15** — Formularios «Motivo de Consulta» y «Padecimiento Actual»
+- [x] **F9-CLINIC-WEB-15** *(cerrada el 2026-09-03)* — Formularios «Motivo de Consulta» y «Padecimiento Actual»
   - **Salida:** `chief-complaint-form.tsx` (motivo en `TextAreaField rows={4}` a fila completa + par tiempo de evolución `number` y unidad `SelectField`) y `current-illness-form.tsx` (fecha de inicio `type="date"` con `max` = día del negocio; narrativa en `TextAreaField rows={10}` con placeholder de semiología); registrados en el registry.
   - **Verificar:** RED: guardar el motivo llama a `saveSection` con `{complaint, onsetValue, onsetUnit}` y vuelve con la tarjeta en «Completado»; la fecha no acepta un día futuro; guardar solo la narrativa no manda `startDate`.
   - **Depende de:** F9-CLINIC-WEB-14 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-16** — Resumen de lo capturado en las tarjetas completadas
+- [x] **F9-CLINIC-WEB-16** *(cerrada el 2026-09-03)* — Resumen de lo capturado en las tarjetas completadas
   - **Salida:** `lib/medical-clinic/summary.ts` con `summaryOf(key, data): string | null` (Datos Generales → sexo + ocupación; Motivo → primeros 80 caracteres; Padecimiento → primeros 80, corte por palabra y «…»); `SectionCard` lo pinta solo en `completed`.
   - **Verificar:** RED en `lib/medical-clinic/summary.test.ts` (los tres casos, corte por palabra, `null` sin datos o sin resumen) + aserción en `medical-clinic-record.test.tsx` de que la pendiente no muestra resumen.
   - **Depende de:** F9-CLINIC-WEB-15 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-WEB-17** — `StudyPicker`, `OrderFormShell` y las órdenes de laboratorio y diagnóstico
+- [x] **F9-CLINIC-WEB-17** *(cerrada el 2026-09-03)* — `StudyPicker`, `OrderFormShell` y las órdenes de laboratorio y diagnóstico
   - **Salida:** `components/medical-clinic/study-picker.tsx` (prop `kind`, buscador con debounce sobre `useStudies`, resultados con `Checkbox`, chips de lo elegido); `order-form-shell.tsx` (picker + `<Table>` de líneas con `RowAction intent="delete"` + «Indicaciones» en `TextAreaField` + «Diagnóstico relacionado» (texto libre mientras las secciones de diagnóstico son placeholders) + total con `formatMoney` + Guardar/Cancelar); ruta `medical-clinic.records.$recordId.orders.$orderKind.tsx` (`:attend`) resolviendo `lab_order` y `diagnostic_order`; al guardar (`POST /records/:id/orders {kind, lines, indications, diagnosis}` → `{id, folio, quoteId}`), `SuccessNotice` con el folio en `font-mono text-lg` y el aviso según la respuesta (con `quoteId`: «Cotización lista para cobrar en caja con el folio {{folio}}.»; sin él: «Orden {{folio}} registrada. No se cobra en caja.», ver F9-CLINIC-WEB-22) + «Volver a la historia clínica»; `$orderKind` desconocido → tablero.
   - **Verificar:** RED en `routes/medical-clinic-orders.test.tsx`: marcar dos estudios los agrega como líneas; quitar una la borra; Guardar manda `{kind:"lab_order", lines:[{labStudyId}], indications, diagnosis}`; el `role="status"` trae el folio; kind desconocido redirige.
   - **Depende de:** F9-CLINIC-WEB-16, F9-CLINIC-WEB-03, F9-CLINIC-14 · **Estimación:** 4 h
 
-- [ ] **F9-CLINIC-WEB-18** — `MedicationPicker` y la receta de medicamentos
+- [x] **F9-CLINIC-WEB-18** *(cerrada el 2026-09-03)* — `MedicationPicker` y la receta de medicamentos
   - **Salida:** `components/medical-clinic/medication-picker.tsx` contra `GET /medical-clinic/stock-search?q=` (tipo `MedicationItem` re-exportado desde `lib/medical-clinic/api.ts`; el módulo NO importa de `@/lib/pos`); filas con nombre, SKU, existencia (`formatQuantity`/`unitLabelFor`) y precio de la presentación de venta; al agregar: presentación por defecto, cantidad 1 (fraccional solo con `allowFractionalInput`), indicación por renglón (`dosage`); sin existencia se lista con `Badge variant="warning"` «Sin existencia» y SÍ se puede recetar; la ruta `orders/prescription` reusa `OrderFormShell`.
   - **Verificar:** RED en `medical-clinic-orders.test.tsx`: buscar «parac» lista el producto con existencia; agregarlo crea la línea con la presentación de venta; con `allowFractionalInput:false` no acepta decimales; un producto en cero se lista con «Sin existencia»; Guardar manda `{kind:"prescription", lines:[{productId, presentationId, quantity, dosage}], indications, diagnosis}`.
   - **Depende de:** F9-CLINIC-WEB-17, F9-CLINIC-13 · **Estimación:** 4 h
 
-- [ ] **F9-CLINIC-WEB-19** — «Órdenes emitidas» e impresión
+- [x] **F9-CLINIC-WEB-19** *(cerrada el 2026-09-03)* — «Órdenes emitidas» e impresión
   - **Salida:** ruta `medical-clinic.records.$recordId.orders.index.tsx` con `<Table>` (folio, tipo, conceptos, total, estado de cobro con `Badge` success «Cobrada» / warning «Pendiente de cobro» / default «Sin cobro», «Cancelar» con `ConfirmDialog`, «Imprimir» = el documento carta de la orden (F9-CLINIC-24) vía `imprimirPdf`); la tarjeta «Órdenes Emitidas» del tablero enlaza aquí y muestra el conteo como resumen; las tres tarjetas de órdenes enlazan a su ruta.
   - **Verificar:** RED en `medical-clinic-orders.test.tsx`: pinta las órdenes con folio y estado; sin órdenes sale el vacío; la tarjeta dice «3 órdenes» y apunta a `/medical-clinic/records/r1/orders`; «Cancelar» llama a `cancelOrder` tras confirmar.
   - **Depende de:** F9-CLINIC-WEB-18, F9-CLINIC-15 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-WEB-20** — QA visual y cierre
+- [x] **F9-CLINIC-WEB-20** *(cerrada el 2026-09-03)* — QA visual y cierre
   - **Salida:** recorrido con Playwright de las siete pantallas (dos catálogos, atender, paciente nuevo, tablero, un formulario de sección, una orden) en 1440, 1024 y 390 px, claro y oscuro; capturas; ajustes de rejilla, del `sticky` y del `line-clamp`. Backoffice en sandbox: activar `medical_clinic` a un negocio de prueba y ver el grupo «Consultorio Médico» tras volver a entrar.
   - **Verificar:** `pnpm typecheck:full && pnpm test` verdes desde la raíz; `rg -n "bg-white|#[0-9a-f]{3,6}|text-\[#" apps/web/src/components/medical-clinic apps/web/src/routes/medical-clinic*` vacío; las 36 tarjetas legibles en 390 px sin scroll horizontal; el cobro de una orden en la caja del sandbox sale con el ticket.
   - **Depende de:** F9-CLINIC-WEB-19, F9-CLINIC-20 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-WEB-21** — «Configuración Consultorio Médico» en Mi perfil
+- [x] **F9-CLINIC-WEB-21** *(cerrada el 2026-09-03)* — «Configuración Consultorio Médico» en Mi perfil
   - **Salida:** `lib/medical-clinic/api.ts` (`getSettings`, `updateSettings`) + hooks (`useMedicalClinicSettings`, `useUpdateMedicalClinicSettings` invalidando `["medical-clinic","settings"]`); `components/profile/medical-clinic-settings.tsx`: `Card` con título «Configuración Consultorio Médico», tres `Checkbox` con `Label` («Vende medicamentos», «Vende estudios de laboratorio», «Vende estudios diagnósticos») y hint «Si no vendes un tipo, la orden se registra e imprime sin cotización»; Guardar manda solo lo cambiado; devuelve `null` si `!hasModule("medical_clinic") || !has("tenants:manage")`; montada en `routes/profile.tsx` después de `BusinessDetails`.
   - **Verificar:** RED en `components/profile/medical-clinic-settings.test.tsx`: sin el módulo no se pinta; con módulo y sin `tenants:manage` no se pinta; con ambos pinta las tres casillas con lo que trae el API; desmarcar «Vende estudios de laboratorio» y Guardar llama a `updateSettings({sellsLabStudies:false})` y solo eso. `profile.test.tsx` (si existe) verde.
   - **Depende de:** F9-CLINIC-22, F9-CLINIC-WEB-01 · **Estimación:** 2.5 h
 
-- [ ] **F9-CLINIC-WEB-22** — Orden con o sin cobro en pantalla, y su impresión en carta
+- [x] **F9-CLINIC-WEB-22** *(cerrada el 2026-09-03)* — Orden con o sin cobro en pantalla, y su impresión en carta
   - **Salida:** `OrderFormShell` (F9-CLINIC-WEB-17) muestra el aviso según `quoteId` de la respuesta (con: «Cotización lista para cobrar en caja con el folio {{folio}}.»; sin: «Orden {{folio}} registrada. No se cobra en caja.») y el botón «Imprimir orden» → `GET /medical-clinic/orders/:id/document` con `imprimirPdf`; el picker de receta, cuando `sellsMedications` es `false`, no muestra la existencia (no aplica); «Órdenes emitidas» (F9-CLINIC-WEB-19) pinta `chargeStatus` con tres badges y su «Imprimir» usa el documento carta; `printMedicalOrder(id, folio)` en `lib/medical-clinic/api.ts`.
   - **Verificar:** RED en `medical-clinic-orders.test.tsx`: respuesta con `quoteId: null` muestra «No se cobra en caja» y NO el texto de cotización; con `quoteId` al revés; «Imprimir orden» llama a `printMedicalOrder("o1","ORM-000001")`; la lista pinta «Sin cobro» para `not_for_sale`.
   - **Depende de:** F9-CLINIC-WEB-19, F9-CLINIC-WEB-21, F9-CLINIC-24 · **Estimación:** 2 h
@@ -4034,6 +4034,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-03 (CONSULTORIO MÉDICO: PANTALLAS, F9-CLINIC-WEB-01..22)** — el módulo completo en el web: catálogos de estudios (costo y precio), «Atender paciente» (nombre o turno) y «Paciente nuevo», tablero de la historia clínica con 36 tarjetas y estado derivado, ruta de sección con Datos Generales / Motivo de Consulta / Padecimiento Actual, órdenes (receta desde el stock del médico, laboratorio y diagnóstico por casilla) con aviso de cobro según la configuración, impresión en carta y listado con estado de cobro; «Configuración Consultorio Médico» en Mi perfil. Los 4xx del API se muestran con su motivo. QA con Playwright en local (1440/390, claro/oscuro) — `topic_key: sellpoint/f9-clinic-web` — afecta: F9-CLINIC-WEB (cerrado)
 <!-- Una línea por decisión. El detalle completo se busca en engram por su topic_key. -->
 - **2026-09-03 (CONSULTORIO: VENTA POR TIPO CONFIGURABLE Y DOCUMENTO CARTA)** — Carlos pidió costo y precio de venta en los catálogos de estudios (ya estaban en tabla y DTO; se detalla en la pantalla), un apartado «Configuración Consultorio Médico» en Mi perfil —solo con el módulo activo— con casillas «vende medicamentos / estudios de laboratorio / estudios diagnósticos», y que la orden cree cotización solo cuando el negocio vende ese tipo; si no, se registra e imprime en carta. Decisiones: tabla `medical_clinic_settings` (sin fila = solo medicamentos marcado; los estudios nacen desmarcados porque la mayoría de los consultorios solo vende medicamento), `GET/PUT /medical-clinic/settings` con `tenants:manage`, serie propia `ORM-` para lo que no se cobra (`quote_id` nullable con CHECK «el prefijo no miente»), documento carta para toda orden (`GET /medical-clinic/orders/:id/document`, molde de `document-pdf.renderer.ts`), estado de cobro `charged|pending|not_for_sale`. 6 tareas nuevas (F9-CLINIC-21..24, F9-CLINIC-WEB-21..22), ~15 h; se retocan F9-CLINIC-01/04/14/15 y F9-CLINIC-WEB-04/17/19. — `topic_key: sellpoint/f9-clinic-settings` — afecta: F9-CLINIC-14 (mod), F9-CLINIC-WEB-19 (mod), pospuesto «receta impresa» (retirado)
 - **2026-09-03 (CONSULTORIO MÉDICO ATOMIZADO + LÍNEA DE CONCEPTO EN EL POS)** — Carlos pidió el segundo módulo vertical: dos catálogos de estudios (laboratorio y diagnóstico) sin almacén, «Atender paciente» (búsqueda por nombre o por turno de Recepción) y la Historia Clínica como tablero de tarjetas con estado, donde por ahora solo funcionan Datos Generales, Motivo de Consulta y Padecimiento Actual. Decisiones (con Carlos): **un expediente por visita** (`HCL-`, serie `medical_record`) con los Datos Generales copiados de la visita anterior; 32 secciones en UNA tabla JSONB con estado derivado (existe fila ⇔ Completado); permiso propio `medical_clinic:attend` para que la recepcionista no lea expedientes; las órdenes (receta, laboratorio, diagnóstico) **crean una cotización con el mismo folio** en una transacción. Para vender lo que no es producto ni servicio, el POS gana la **línea de concepto** (`kind` + `concept_description`, `source_module/source_ref` opacos) y la regla dura de que **la venta nunca acepta un precio del cliente**: un concepto se cobra solo por `quoteLineId` de su cotización. 49 tareas (F4-CONCEPT 9, F9-CLINIC 20, F9-CLINIC-WEB 20), ~117 h. — `topic_key: sellpoint/f9-clinic-atomizacion` — afecta: F9-CLINICAL-DB (superada), F9-VERT-MEDICAL (atomizada), F9-CLINICAL-POS (superada), F9-QUOTE-POS (cubierta), F9-SALES-LINK (mod)
