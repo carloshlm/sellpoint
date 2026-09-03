@@ -3706,122 +3706,122 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 ### Módulo F9-CLINIC — Consultorio Médico, API y datos (atomizado el 2026-09-03)
 
-- [ ] **F9-CLINIC-01** — El módulo, la serie y el catálogo de secciones en `shared`
+- [x] **F9-CLINIC-01** *(cerrada el 2026-09-03 — `ORM` entró desde aquí (no en 21): la serie sin cobro se decidió antes de codificar)* — El módulo, la serie y el catálogo de secciones en `shared`
   - **Salida:** `MODULE_KEYS = ["reception","medical_clinic"]`; `packages/shared/src/inventory.ts` → `MEDICAL_CLINIC_FOLIO_PREFIXES = { record: "HCL", order: "ORM" }` sumado a `ALL_FOLIO_PREFIXES`; `packages/shared/src/medical-clinic.ts` con `MEDICAL_RECORD_SECTION_GROUPS` (`interrogation`, `examination`, `assessment_plan`, `documents`) y las 32 claves en el orden de Carlos (`general_data`, `chief_complaint`, `current_illness`, `family_history`, `pathological_history`, `non_pathological_history`, `gyneco_obstetric_history`, `allergies`, `current_medications`, `systems_review`, `vital_signs`, `anthropometry`, `physical_exam`, `systems_exam`, `lab_studies`, `imaging_studies`, `study_results`, `diagnostic_impression`, `primary_diagnosis`, `secondary_diagnoses`, `differential_diagnosis`, `treatment`, `management_plan`, `recommendations`, `follow_up`, `prescriptions_doc`, `studies_doc`, `attachments`, `medical_notes`, `referrals`, `interconsultations`, `follow_up_appointments`) con `{key, group, order, functional}`; schemas zod `generalDataSchema` (`sex F|M|X`, `maritalStatus`, `occupation`, `education`, `address`, `emergencyContactName`, `emergencyContactPhone` E.164; todo opcional), `chiefComplaintSchema` (`complaint`, `onsetValue`, `onsetUnit hours|days|weeks|months|years`), `currentIllnessSchema` (`startDate` ISO no futura, `narrative`); `MEDICAL_RECORD_SECTION_SCHEMAS: Partial<Record<…>>`; `MEDICAL_ORDER_KINDS = ["prescription","lab_order","diagnostic_order"]`.
   - **Verificar:** `modules.test.ts` actualizado (RED: hoy afirma `["reception"]`); `inventory.test.ts` verde (`HCL` y `ORM` tres letras sin colisión); `medical-clinic.test.ts`: 32 claves únicas en orden, exactamente 3 `functional:true`, schema ⇔ funcional, `sex:"Q"` rebota.
   - **Depende de:** — · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-02** — Migración de los dos catálogos + RLS
+- [x] **F9-CLINIC-02** *(cerrada el 2026-09-03)* — Migración de los dos catálogos + RLS
   - **Salida:** `20260903140000_f9_clinic_catalogs/migration.sql`: `medical_clinic_lab_studies` y `medical_clinic_diagnostic_studies` idénticas (`id, tenant_id FK RESTRICT, code VARCHAR(64), name, description, cost DECIMAL(14,2), price DECIMAL(14,2), attributes JSONB '{}', is_active, created_by FK users SET NULL, created_at, updated_at`; CHECKs `cost/price ≥ 0`, `btrim(code) <> ''`; UNIQUE `(tenant_id, code)`; índices `(tenant_id)`, `(tenant_id, name)`) + bloque RLS canónico con `ARRAY['medical_clinic_lab_studies','medical_clinic_diagnostic_studies']` en la MISMA migración.
   - **Verificar:** `apps/api/src/modules/medical-clinic/medical-clinic-schema.integration.spec.ts` (molde `reception-schema.integration.spec.ts`): policy `tenant_isolation` con ENABLE+FORCE en las dos; cero filas desde otro tenant; `WITH CHECK` rebota el insert cruzado; el mismo `code` cabe en dos negocios.
   - **Depende de:** F9-CLINIC-01 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-03** — Migración de expediente y secciones + RLS
+- [x] **F9-CLINIC-03** *(cerrada el 2026-09-03 — un índice generado superó los 63 caracteres de Postgres: nombre corto explícito con `map:`)* — Migración de expediente y secciones + RLS
   - **Salida:** `20260903150000_f9_clinic_records/migration.sql`: `medical_clinic_records` (`folio VARCHAR(32)`, `patient_customer_id` FK customers SET NULL, `patient_name VARCHAR(200) NOT NULL`, `patient_birth_date DATE`, `patient_sex VARCHAR(1)` CHECK `F|M|X`, `turn_id` FK reception_turns SET NULL, `turn_number INT`, `doctor_user_id` FK users RESTRICT, `consultation_date DATE`, `status` CHECK `open|closed`, `closed_at`, `closed_by`; CHECKs `(status='closed') = (closed_at IS NOT NULL)`, `(closed_by IS NULL) = (closed_at IS NULL)`; UNIQUE `(tenant_id, folio)`; índices `(tenant_id, patient_customer_id, created_at DESC)`, `(tenant_id, consultation_date DESC)`, `(tenant_id, doctor_user_id, created_at DESC)`) y `medical_clinic_record_sections` (`record_id` FK CASCADE, `section_key VARCHAR(48)`, `data JSONB '{}'` CHECK `jsonb_typeof = 'object'`, `updated_by` SET NULL; UNIQUE `(record_id, section_key)`) + RLS de ambas.
   - **Verificar:** integración (RED): `closed` sin `closed_at` rebota; `patient_sex='Q'` rebota; dos filas de la misma sección rebotan; borrar el `customer` deja `patient_customer_id` NULL y conserva `patient_name`; borrar el expediente arrastra sus secciones; RLS en las dos.
   - **Depende de:** F9-CLINIC-02 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-04** — Migración de órdenes y líneas + RLS
+- [x] **F9-CLINIC-04** *(cerrada el 2026-09-03 — `UNIQUE (quote_id)` plano basta: Postgres trata los NULL como distintos)* — Migración de órdenes y líneas + RLS
   - **Salida:** `20260903160000_f9_clinic_orders/migration.sql`: `medical_clinic_orders` (`record_id` FK RESTRICT, `kind` CHECK `prescription|lab_order|diagnostic_order`, `folio VARCHAR(32)` = el de la cotización o de la serie `ORM` si no se cobra, `quote_id UUID NULL` FK quotes RESTRICT con UNIQUE parcial `WHERE quote_id IS NOT NULL` y CHECK `(folio LIKE 'COT-%') = (quote_id IS NOT NULL)` (el prefijo no miente), `indications`, `diagnosis`, `status` CHECK `issued|canceled` + `canceled_at/by` coherentes, `created_by`; UNIQUE `(tenant_id, folio)`, UNIQUE `(id, kind)` como ancla) y `medical_clinic_order_lines` (`order_id` FK CASCADE, `order_kind` con FK COMPUESTA `(order_id, order_kind) → orders(id, kind)`, `line_no`, `product_id`/`presentation_id`/`lab_study_id`/`diagnostic_study_id` FK RESTRICT, `description NOT NULL`, `quantity > 0`, `unit_price ≥ 0`, `dosage`; CHECK `num_nonnulls(product_id, lab_study_id, diagnostic_study_id) = 1`; CHECK `presentation_id ⇒ product_id`; CHECK kind-línea coherente con `order_kind`; UNIQUE `(order_id, line_no)`) + RLS de ambas.
   - **Verificar:** integración (RED): línea con `lab_study_id` en una orden `prescription` rebota; dos referencias rebotan; `quantity = 0` rebota; borrar un estudio referenciado rebota (RESTRICT); el UNIQUE parcial impide dos órdenes sobre la misma cotización y admite varias sin ella; un folio `COT-` sin `quote_id` rebota; RLS.
   - **Depende de:** F9-CLINIC-03 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-05** — Permisos del módulo
+- [x] **F9-CLINIC-05** *(cerrada el 2026-09-03)* — Permisos del módulo
   - **Salida:** `20260903170000_f9_clinic_permissions/migration.sql`: `medical_clinic:read` / `:manage` / `:attend` (module `medical_clinic`); `role_permissions` para TenantAdmin/Admin/Manager (los tres) y Viewer (solo `:read`). Comentario en `MANAGER_EXCLUDED_CODES` (`role-catalog.ts`): `:attend` NO se excluye a propósito (el médico suele ser Manager); privacidad estricta = rol personalizado «Médico».
   - **Verificar:** `permissions-catalog.spec` verde; `role-catalog.spec` (RED): Viewer recibe `:read` y NO `:attend`; Seller ninguno; Manager los tres. Gotcha: el perm-epoch no se bumpea desde SQL (cerrar sesión al probar a mano).
   - **Depende de:** F9-CLINIC-04 · **Estimación:** 1 h
 
-- [ ] **F9-CLINIC-06** — Modelos Prisma, i18n y esqueleto del módulo Nest
+- [x] **F9-CLINIC-06** *(cerrada el 2026-09-03)* — Modelos Prisma, i18n y esqueleto del módulo Nest
   - **Salida:** 6 modelos en `schema.prisma` (`MedicalClinicLabStudy`, `MedicalClinicDiagnosticStudy`, `MedicalClinicRecord`, `MedicalClinicRecordSection`, `MedicalClinicOrder`, `MedicalClinicOrderLine`) con `@@map` e inversas en `Tenant`, `Customer`, `User`, `ReceptionTurn`, `Quote`; docblock en `Sale.clinicalDocumentId`: superada por `quote_id` + `source_ref`, DROP pendiente; `apps/api/src/i18n/{es,en}/medical_clinic.json` (`invalid_body`, `invalid_query`, `empty_update`, `code_taken`, `lab_study_not_found`, `diagnostic_study_not_found`, `study_in_use`, `turn_not_found`, `turn_without_patient`, `patient_not_found`, `record_not_found`, `record_closed`, `section_unknown`, `section_not_available`, `order_not_found`, `order_already_charged`, `order_needs_lines`, `no_default_warehouse`, `study_not_available`); `medical-clinic.module.ts` (`imports: [AuditModule, ReceptionModule, PosModule]`) en `app.module.ts`.
   - **Verificar:** `prisma generate` limpio; `prisma migrate diff` sin deriva; `message-keys.spec` verde; la app arranca.
   - **Depende de:** F9-CLINIC-05 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-07** — Catálogo de Estudios de Laboratorio (CRUD)
+- [x] **F9-CLINIC-07** *(cerrada el 2026-09-03 — clase base con interfaz estructural mínima del delegate: los delegates de Prisma no caben en una unión)* — Catálogo de Estudios de Laboratorio (CRUD)
   - **Salida:** `dto/upsert-study.dto.ts` (`createStudySchema`: code, name, description?, cost?, price?; `updateStudySchema` con refine de update vacío; `listStudiesQuerySchema`: query, isActive?, page, pageSize ≤ 100), `study-catalog.service.ts` (clase base con `withTenantContext` + `auditService.record` en la misma tx, parametrizada por delegate y por prefijo de acción/clave), `lab-studies.service.ts`, `medical-clinic-lab-studies.controller.ts` (`@RequiresModule("medical_clinic")` a nivel de clase; GET lista/detalle con `:read`, POST/PATCH/DELETE con `:manage`).
   - **Verificar:** unit spec (RED): code duplicado → 409 `code_taken`; update vacío → 422; delete en uso → 409 `study_in_use` (P2003 traducido); listado pagina y ordena `name asc, id asc`; búsqueda ILIKE por code y name.
   - **Depende de:** F9-CLINIC-06 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-08** — Catálogo de Estudios Diagnósticos (CRUD)
+- [x] **F9-CLINIC-08** *(cerrada el 2026-09-03)* — Catálogo de Estudios Diagnósticos (CRUD)
   - **Salida:** `diagnostic-studies.service.ts` + `medical-clinic-diagnostic-studies.controller.ts` sobre la misma base; claves `diagnostic_study_*`.
   - **Verificar:** el mismo set de specs parametrizado sobre los dos servicios (una tabla de casos, dos delegates).
   - **Depende de:** F9-CLINIC-07 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-09** — Búsqueda de pacientes (nombre / turno) y alta de paciente
+- [x] **F9-CLINIC-09** *(cerrada el 2026-09-03)* — Búsqueda de pacientes (nombre / turno) y alta de paciente
   - **Salida:** `patients.service.ts` + `medical-clinic-patients.controller.ts` (`:attend`): `GET /medical-clinic/patients/search?mode=name|turn&q=` (`dto/search-patients.dto.ts`: turno = entero > 0) — nombre → `CustomersService.list`; turno → `reception_turns` del `business_date` de HOY (`localCalendarDate(tenant.timezone, now)`) con join al customer; respuesta `{customerId, name, age, birthDate, turnNumber, lastRecord: {id, folio, consultationDate} | null}`. `POST /medical-clinic/patients` delega en `CustomersService.create` (mismo DTO de Recepción).
   - **Verificar:** unit spec (RED): el turno de AYER con el mismo número no aparece; turno sin cliente → 422 `turn_without_patient`; inexistente → 404; `mode=turn` con `q="abc"` rebota en el DTO; la edad usa la zona del negocio; el alta audita como `reception.customer.create` (es el mismo servicio).
   - **Depende de:** F9-CLINIC-06 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-10** — Alta de expediente con folio `HCL` y copy-forward
+- [x] **F9-CLINIC-10** *(cerrada el 2026-09-03 — el mutante que mata es «copiar TODAS las secciones»; filtrar el `include` no cambia comportamiento porque `.find` sigue eligiendo `general_data`)* — Alta de expediente con folio `HCL` y copy-forward
   - **Salida:** `records.service.ts#create` en una tx: `nextFolio(tx, tenantId, "medical_record", "HCL")`, snapshots del customer, `doctor_user_id = user.userId`, `consultation_date` = día del negocio, `turn_id`/`turn_number` si vino; busca el expediente ANTERIOR del mismo paciente (`createdAt desc`) y COPIA su fila `general_data` proyectando `patient_sex`; auditoría `medical_clinic.record.create`. `#get`, `#list ?customerId&page`.
   - **Verificar:** unit spec (RED): primer expediente sin `general_data` y `patient_sex` null; segundo con `general_data` idéntico y sexo proyectado; folios `HCL-000001`, `HCL-000002` por tenant; paciente de otro negocio → 404. Mutante: copiar TODAS las secciones rompe el test.
   - **Depende de:** F9-CLINIC-09 · **Estimación:** 4 h
 
-- [ ] **F9-CLINIC-11** — Secciones: GET/PUT con zod por clave y proyección al encabezado
+- [x] **F9-CLINIC-11** *(cerrada el 2026-09-03 — guardar `{}` BORRA la fila (el estado se deriva de que exista); los datos se validan con el schema de la clave, no con un pipe fijo)* — Secciones: GET/PUT con zod por clave y proyección al encabezado
   - **Salida:** `sections.service.ts` + rutas en `medical-clinic-records.controller.ts` (`:attend`): `PUT /records/:id/sections/:key` valida contra `MEDICAL_RECORD_SECTION_SCHEMAS[key]`; clave fuera del catálogo → 400 `section_unknown`; sin schema → 422 `section_not_available`; expediente `closed` → 409 `record_closed`; upsert por `(record_id, section_key)` con `updated_by`; al guardar `general_data` proyecta `sex` a `patient_sex` en la MISMA tx; `GET` de una sección.
   - **Verificar:** unit spec (RED): las 3 claves guardan y devuelven; `family_history` → 422; `no_existe` → 400; guardar dos veces no duplica y actualiza `updated_at`; `sex:"F"` cambia el encabezado. Mutante: aceptar `{}` en una clave no funcional rompe el test.
   - **Depende de:** F9-CLINIC-10 · **Estimación:** 4 h
 
-- [ ] **F9-CLINIC-12** — Detalle con estados y cierre de consulta
+- [x] **F9-CLINIC-12** *(cerrada el 2026-09-03)* — Detalle con estados y cierre de consulta
   - **Salida:** `#detail` devuelve encabezado (nombre, edad contra `consultation_date`, sexo, fecha de nacimiento, folio, fecha de consulta, médico `{id, name}`, estado) + las 32 claves con `status: "pending" | "completed"` (existe fila ⇔ completed) agrupadas por `group`/`order` + `orders[]`; `#close` idempotente (`updateMany … WHERE status='open'`) con auditoría; `POST /records/:id/close`.
   - **Verificar:** unit spec (RED): recién creado → 32 `pending`; tras Motivo de Consulta → 31 + 1; cerrar dos veces devuelve el mismo estado; tras cerrar, un PUT → 409.
   - **Depende de:** F9-CLINIC-11 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-13** — Búsqueda de medicamentos en el stock del médico
+- [x] **F9-CLINIC-13** *(cerrada el 2026-09-03)* — Búsqueda de medicamentos en el stock del médico
   - **Salida:** `GET /medical-clinic/stock-search?q=&limit=` (`:attend`) delegando en `LookupService.search(user, scope, {q, limit, warehouseId: defaultWarehouseId})` y filtrando `type === "product"`; 404 `no_default_warehouse` si el médico no tiene almacén asignado.
   - **Verificar:** e2e (RED): el médico SIN `pos:sell` y SIN caja abierta obtiene resultados; un producto sin existencias no sale (salvo «Vender sin existencias»); un servicio no sale nunca; sin almacén → 404.
   - **Depende de:** F9-CLINIC-06 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-14** — La orden médica crea su cotización con el MISMO folio cuando el negocio vende ese tipo
+- [x] **F9-CLINIC-14** *(cerrada el 2026-09-03 — los ids de la orden y de sus líneas se generan con `randomUUID()` ANTES de insertar: la cotización se inserta primero y ya los nombra en `source_ref`)* — La orden médica crea su cotización con el MISMO folio cuando el negocio vende ese tipo
   - **Salida:** `medical-orders.service.ts#create` (`POST /records/:id/orders {kind, lines[], indications?, diagnosis?}`), una sola tx: lee `medical_clinic_settings` (sin fila: medicamentos `true`, estudios `false`) y decide por `kind` si hay cotización (el camino sin venta lo cierra F9-CLINIC-23); resuelve TODAS las líneas antes de pedir el folio; `warehouseId` = `defaultWarehouseId` del médico; receta → `QuotesService.resolverLineasParaModulo` (hereda vencidos y presentaciones no vendibles); `lab_order`/`diagnostic_order` → líneas `concept` con `description` = nombre del estudio, `unitPrice = study.price ?? 0`, `sourceModule='medical_clinic'`, `sourceRef` = id de la línea de orden (se insertan primero las líneas de orden, luego la cotización; documentado); `quotes.source_module/source_ref` = módulo + id de la orden; `folio = nextFolio(tx, tenantId, "quote", "COT")`; la orden nace con ESE folio y `quote_id`; `created_by` de ambas = el médico; auditoría `medical_clinic.order.create`; sin `pos:quote` ni `@RequiresFeature("quotes")` (Premium ya lo incluye).
   - **Verificar:** unit spec (RED): `order.folio === quote.folio`; total = suma de líneas; receta con producto sin stock → 422 `pos.product_not_available`; estudio inactivo → 422 `study_not_available`; sin líneas → 422 `order_needs_lines`; médico sin almacén → 404; expediente cerrado → 409. Integración: la tx aborta entera si falla la última línea (ni folio gastado ni cotización huérfana).
   - **Depende de:** F9-CLINIC-12, F9-CLINIC-16, F9-CLINIC-21, F4-CONCEPT-04 · **Estimación:** 4 h
 
-- [ ] **F9-CLINIC-15** — Listar y cancelar órdenes
+- [x] **F9-CLINIC-15** *(cerrada el 2026-09-03)* — Listar y cancelar órdenes
   - **Salida:** `GET /records/:id/orders` (incluye `quoteFolio`, `chargeStatus: charged|pending|not_for_sale` según `sales.quote_id` y la cotización, `saleId`, líneas con snapshot); `POST /medical-clinic/orders/:id/cancel`: lock lógico `updateMany … WHERE status='issued'`, cancela la cotización si existe y sigue `open`, 409 `order_already_charged` si está `loaded`; sin cotización solo cancela la orden; auditoría.
   - **Verificar:** unit spec (RED): cancelar con cotización cobrada → 409 y la orden sigue `issued`; con cotización `open` deja las dos canceladas en la misma tx; cancelar dos veces → 409.
   - **Depende de:** F9-CLINIC-14 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-16** — Origen de la cotización en el core
+- [x] **F9-CLINIC-16** *(cerrada el 2026-09-03 — la parte web (etiqueta del origen en la lista de cotizaciones) va en la ola de pantallas)* — Origen de la cotización en el core
   - **Salida:** migración `20260903130000_f4_quote_source`: `quotes.source_module VARCHAR(32)`, `source_ref UUID`, CHECK par, índice parcial; `Quote.sourceModule/sourceRef` en Prisma; `QuotesService.list`/`detail` los exponen; web `quotes-list.tsx` pinta `t("pos.quote.source." + sourceModule)` con fallback al string crudo.
   - **Verificar:** integración: `source_module` sin `source_ref` rebota; e2e `pos-quotes`: una cotización normal sale con `sourceModule: null`. (Puede shipear junto con F4-CONCEPT.)
   - **Depende de:** F4-CONCEPT-02 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-17** — Cableado del módulo en el menú y el backoffice
+- [x] **F9-CLINIC-17** *(cerrada el 2026-09-03)* — Cableado del módulo en el menú y el backoffice
   - **Salida:** `apps/web/src/lib/modules/nav.ts` → entrada `medical_clinic` (ícono `Stethoscope`; links `/medical-clinic/lab-studies` y `/medical-clinic/diagnostic-studies` con `medical_clinic:read`, `/medical-clinic/attend` con `medical_clinic:attend`); `common.json` es/en → `layout.nav.modules.medical_clinic.{group,labStudies,diagnosticStudies,attend}` («Consultorio Médico», «Estudios de Laboratorio», «Estudios Diagnósticos», «Atender paciente»). Va PEGADA a F9-CLINIC-01: sin ella el web no compila (`Record<ModuleKey, …>`).
   - **Verificar:** `module-nav.test.tsx` (RED): con el módulo y `:read` aparece el grupo con sus dos catálogos; sin `:attend` no aparece «Atender paciente»; sin el módulo no hay grupo ni candado. La pestaña «Plan y módulos» muestra la etiqueta traducida.
   - **Depende de:** F9-CLINIC-01 · **Estimación:** 1 h
 
-- [ ] **F9-CLINIC-18** — e2e de catálogos y del guard de módulo
+- [x] **F9-CLINIC-18** *(cerrada el 2026-09-03)* — e2e de catálogos y del guard de módulo
   - **Salida:** `apps/api/test/e2e/medical-clinic-catalogs.e2e-spec.ts`.
   - **Verificar:** sin el módulo, `GET /medical-clinic/lab-studies` → 402 `billing.module_not_enabled`; se activa con `POST /admin/billing/tenants/:id/modules {moduleKey:"medical_clinic", customPrice:"1250.00", reason:"e2e"}` (`makePlatformAdmin`); CRUD de los dos catálogos; code duplicado → 409; estudio de otro negocio → 404; usuario con solo `:read` → 403 al crear.
   - **Depende de:** F9-CLINIC-08, F9-CLINIC-17 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-19** — e2e del ciclo del expediente
+- [x] **F9-CLINIC-19** *(cerrada el 2026-09-03)* — e2e del ciclo del expediente
   - **Salida:** `apps/api/test/e2e/medical-clinic-record.e2e-spec.ts`.
   - **Verificar:** turno de Recepción → búsqueda por número → alta de expediente `HCL-000001` con encabezado completo (edad contra la fecha de consulta); las 3 secciones guardan; el detalle pasa de 32 `pending` a 29 + 3; SEGUNDA visita → `HCL-000002` con Datos Generales copiado; cerrar → PUT → 409; una recepcionista con `reception:*` y sin `:attend` recibe 403 en todo `/records` y `/patients`.
   - **Depende de:** F9-CLINIC-12, F9-CLINIC-18 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-20** — e2e de orden → cotización → cobro en el POS
+- [x] **F9-CLINIC-20** *(cerrada el 2026-09-03)* — e2e de orden → cotización → cobro en el POS
   - **Salida:** `apps/api/test/e2e/medical-clinic-orders-pos.e2e-spec.ts`.
   - **Verificar:** receta con un medicamento del stock + orden de laboratorio con dos estudios → dos órdenes, dos cotizaciones, `order.folio === quote.folio`; el cajero (otro usuario, caja abierta) encuentra `COT-…` en `GET /pos/lookup`; `for-sale` trae el producto con precio de HOY y los conceptos con el precio de la orden; cobra; `sale_items` trae `kind='concept'` con `source_module='medical_clinic'` y `source_ref` = línea de orden; `stock_movements` solo tiene el medicamento; el dashboard de productos lista los tres renglones; cancelar la orden cobrada → 409.
   - **Depende de:** F9-CLINIC-15, F4-CONCEPT-09 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-21** — Tabla `medical_clinic_settings` + RLS
+- [x] **F9-CLINIC-21** *(cerrada el 2026-09-03)* — Tabla `medical_clinic_settings` + RLS
   - **Salida:** `20260903180000_f9_clinic_settings/migration.sql`: `medical_clinic_settings` (`tenant_id UUID PK` FK tenants RESTRICT, `sells_medications BOOLEAN NOT NULL DEFAULT true`, `sells_lab_studies` y `sells_diagnostic_studies` BOOLEAN NOT NULL DEFAULT false (la mayoría de los consultorios solo vende medicamento), `updated_by` FK users SET NULL, `created_at`, `updated_at`) + bloque RLS canónico; modelo Prisma `MedicalClinicSettings` con inversa en `Tenant`; serie `medical_order` / prefijo `ORM` en `MEDICAL_CLINIC_FOLIO_PREFIXES` (si no quedó en F9-CLINIC-01).
   - **Verificar:** integración (RED): RLS con ENABLE+FORCE; un tenant no ve la fila del otro; dos filas del mismo tenant rebotan (PK); `inventory.test.ts` verde con `ORM`.
   - **Depende de:** F9-CLINIC-06 · **Estimación:** 1.5 h
 
-- [ ] **F9-CLINIC-22** — `GET/PUT /medical-clinic/settings`
+- [x] **F9-CLINIC-22** *(cerrada el 2026-09-03)* — `GET/PUT /medical-clinic/settings`
   - **Salida:** `settings.service.ts` (`get` devuelve la fila o los defaults `{sellsMedications: true, sellsLabStudies: false, sellsDiagnosticStudies: false}` sin crearla; `update` hace upsert con `updated_by` + auditoría `medical_clinic.settings.update` con before/after) y `medical-clinic-settings.controller.ts` (`@RequiresModule("medical_clinic")`, `@RequirePermissions("tenants:manage")`); `dto/settings.dto.ts` (tres booleanos, al menos uno presente; 422 `medical_clinic.empty_update`).
   - **Verificar:** unit spec (RED): sin fila → medicamentos `true` y los dos estudios `false`; `PUT {sellsLabStudies:true}` crea la fila con medicamentos `true` y diagnósticos `false`; segundo PUT actualiza sin duplicar; un Manager sin `tenants:manage` → 403; con el módulo apagado → 402.
   - **Depende de:** F9-CLINIC-21 · **Estimación:** 2 h
 
-- [ ] **F9-CLINIC-23** — La orden respeta la configuración: cotización solo si se vende
+- [x] **F9-CLINIC-23** *(cerrada el 2026-09-03 — mutante «siempre cotizar» cazado)* — La orden respeta la configuración: cotización solo si se vende
   - **Salida:** en `medical-orders.service.ts#create`: lee `medical_clinic_settings` dentro de la tx (sin fila: medicamentos `true`, estudios `false`) y decide por `kind`; con venta → camino de F9-CLINIC-14 (folio `COT-`, `quote_id`); sin venta → `nextFolio(tx, tenantId, "medical_order", "ORM")`, `quote_id: null`, las líneas de receta se resuelven igual (producto, presentación, descripción, precio de referencia) pero SIN tocar la cotización ni exigir stock (una receta que no se surte aquí no depende del almacén); respuesta `{id, folio, quoteId: string|null, chargeStatus}`; `#list` y `#cancel` según la decisión 30.
   - **Verificar:** unit spec (RED): sin fila, una orden de laboratorio → `ORM-000001` sin cotización y `chargeStatus:"not_for_sale"` y una receta → `COT-…` con cotización; con `sells_lab_studies=true` la de laboratorio pasa a `COT-…`; receta sin `sells_medications` y producto sin stock → 201 (no exige stock); cancelar la `ORM-` solo cancela la orden. Mutante: ignorar la configuración (siempre cotizar) rompe el test. e2e en `medical-clinic-orders-pos.e2e-spec.ts`: la caja NO encuentra `ORM-…` en el buscador.
   - **Depende de:** F9-CLINIC-14, F9-CLINIC-22 · **Estimación:** 3 h
 
-- [ ] **F9-CLINIC-24** — El documento carta de la orden
+- [x] **F9-CLINIC-24** *(cerrada el 2026-09-03)* — El documento carta de la orden
   - **Salida:** `medical-order-pdf.renderer.ts` (función pura `buildMedicalOrderDefinition(input, t)` con el molde de `document-pdf.renderer.ts`: `LETTER`, márgenes 40, encabezado del negocio con `legalName ?? name`, `address`, `phone`; título por tipo `medical_clinic.pdf.title_prescription|title_lab_order|title_diagnostic_order`; folio, fecha de consulta, médico, paciente con edad y sexo, expediente `HCL-`; diagnóstico; tabla `headerRows: 1` — receta: medicamento y presentación, cantidad, indicación; estudios: nombre; indicaciones generales; línea de firma del médico); `medical-order-pdf.service.ts` (`PdfPrinter(FONTS)` Helvetica, filename `${folio}.pdf`); `GET /medical-clinic/orders/:id/document` (`:attend`, `application/pdf`); claves `medical_clinic.pdf.*` en es/en.
   - **Verificar:** `medical-order-pdf.renderer.spec.ts` (RED): `pageSize === "LETTER"`; el título cambia por tipo; la receta lista cada medicamento con su indicación; el diagnóstico y las indicaciones aparecen; una orden `ORM-` no menciona la caja y una `COT-` sí («Cobrar en caja con este folio»). e2e: 200 `application/pdf` con `Content-Disposition` del folio; otro negocio → 404. `message-keys.spec` verde.
   - **Depende de:** F9-CLINIC-23 · **Estimación:** 4 h

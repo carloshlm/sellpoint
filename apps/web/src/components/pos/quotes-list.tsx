@@ -156,7 +156,18 @@ function QuoteRowView({
     <tr
       className={`border-b ${TABLE_ROW_HOVER} ${cotizacion.status !== "open" ? "text-muted-foreground" : ""}`}
     >
-      <td className="p-2 font-medium tabular-nums">{cotizacion.folio}</td>
+      <td className="p-2 font-medium tabular-nums">
+        {cotizacion.folio}
+        {cotizacion.sourceModule !== null && (
+          // Emitida por un módulo: se dice de dónde vino. La clave se traduce
+          // si existe; si no, se muestra tal cual (el POS no sabe de módulos).
+          <Badge variant="default" className="ml-2 font-normal">
+            {t(`pos.quote.source.${cotizacion.sourceModule}`, {
+              defaultValue: cotizacion.sourceModule,
+            })}
+          </Badge>
+        )}
+      </td>
       <td className="p-2 tabular-nums">
         {new Intl.DateTimeFormat(uiLocale, { dateStyle: "short", timeStyle: "short" }).format(
           new Date(cotizacion.createdAt),

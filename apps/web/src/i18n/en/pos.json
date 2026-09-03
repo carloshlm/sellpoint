@@ -54,6 +54,9 @@
     "torch": "Flashlight"
   },
   "quote": {
+    "source": {
+      "medical_clinic": "Clinic"
+    },
     "author": "Quoted by",
     "cancel": "Cancel",
     "cancelFailed": "We couldn't cancel the quote.",

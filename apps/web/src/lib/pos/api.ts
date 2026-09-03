@@ -281,6 +281,8 @@ export interface Quote {
   note: string | null;
   createdAt: string;
   lines: QuoteLine[];
+  /** F9-CLINIC-16: el módulo que la emitió, si vino de uno. Clave opaca. */
+  sourceModule: string | null;
 }
 
 export interface QuoteRow extends Quote {

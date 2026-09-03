@@ -125,6 +125,7 @@ const cotizacion = (overrides: Partial<posApi.QuoteRow> = {}): posApi.QuoteRow =
   lines: [],
   warehouse: { id: "w1", name: "Almacén Centro" },
   author: { id: "u1", name: "Ana Pérez" },
+  sourceModule: null,
   ...overrides,
 });
 
@@ -174,6 +175,26 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
    * La paginación de VERDAD (Carlos, 2026-08-25): el server siempre recortó a
    * 20 y la pantalla no lo decía — la cotización 21 desaparecía en silencio.
    */
+  /**
+   * F9-CLINIC-16 — una cotización emitida por un módulo dice de dónde vino.
+   * El POS no sabe qué es «medical_clinic»: traduce la clave si existe.
+   */
+  it("la lista dice de dónde vino una cotización emitida por un módulo", async () => {
+    mocked.listQuotes.mockResolvedValue({
+      rows: [
+        cotizacion({ sourceModule: "medical_clinic" }),
+        cotizacion({ id: "q2", folio: "COT-000002" }),
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderRuta("/pos/quotes", ["pos:quote"]);
+    await screen.findByText("COT-000002");
+    expect(screen.getByText("Consultorio")).toBeInTheDocument();
+    expect(screen.getAllByText("Consultorio")).toHaveLength(1);
+  });
+
   describe("la paginación (2026-08-25)", () => {
     it("con más de una página, pasar de página consulta al servidor", async () => {
       mocked.listQuotes.mockResolvedValue({
@@ -274,6 +295,7 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
         note: null,
         createdAt: "2026-08-21T16:00:00.000Z",
         lines: [],
+        sourceModule: null,
       });
       await renderRuta("/pos/quotes/new", ["pos:quote"]);
       await screen.findByTestId("quote-builder");
@@ -302,6 +324,7 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
         note: null,
         createdAt: "2026-08-21T16:00:00.000Z",
         lines: [],
+        sourceModule: null,
       });
       await renderRuta("/pos/quotes/new", ["pos:quote"]);
       await screen.findByTestId("quote-builder");

@@ -54,6 +54,9 @@
     "torch": "Linterna"
   },
   "quote": {
+    "source": {
+      "medical_clinic": "Consultorio"
+    },
     "author": "Cotizó",
     "cancel": "Cancelar",
     "cancelFailed": "No pudimos cancelar la cotización.",
