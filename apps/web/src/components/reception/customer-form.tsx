@@ -52,10 +52,18 @@ export function CustomerForm({
   customer,
   onDone,
   onCancel,
+  submitCreate,
 }: {
   customer?: Customer;
-  onDone: () => void;
+  /** Recibe el cliente creado (react-query ya lo entregaba; solo faltaba el tipo). */
+  onDone: (customer?: Customer) => void;
   onCancel: () => void;
+  /**
+   * F9-CLINIC-WEB-08: el consultorio da de alta por SU endpoint
+   * (`POST /medical-clinic/patients`, llave `:attend`). Sin esta prop, el alta
+   * de Recepción de siempre.
+   */
+  submitCreate?: (input: CreateCustomerInput) => Promise<Customer>;
 }) {
   const { t } = useTranslation();
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
@@ -125,6 +133,10 @@ export function CustomerForm({
         ...(valores.email ? { email: valores.email } : {}),
         ...(valores.notes ? { notes: valores.notes } : {}),
       };
+      if (submitCreate !== undefined) {
+        submitCreate(input).then(onDone).catch(onError);
+        return;
+      }
       createCustomer.mutate(input, { onSuccess: onDone, onError });
       return;
     }
