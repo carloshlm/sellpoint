@@ -1,6 +1,6 @@
 import type { PaymentMethod } from "@sellpoint/shared";
 import { api } from "@/lib/api";
-import { abrirPdfParaImprimir } from "@/lib/download";
+import { abrirPdfParaImprimir, imprimirPdf } from "@/lib/download";
 
 export interface CashboxSession {
   id: string;
@@ -394,7 +394,12 @@ export async function printTicket(
     },
   );
 
-  // La secuencia ventana-o-descarga vive en `abrirPdfParaImprimir`: el papel
-  // del turno de Recepción la comparte.
-  abrirPdfParaImprimir(data, `${folio}.pdf`);
+  // La VENTA va directo al cuadro de impresión (Carlos, 2026-09-02), como el
+  // papel del turno: el cliente está enfrente esperando su ticket. La
+  // COTIZACIÓN se abre en pestaña: es un documento que se mira y se manda.
+  if (kind === "sale") {
+    imprimirPdf(data, `${folio}.pdf`);
+  } else {
+    abrirPdfParaImprimir(data, `${folio}.pdf`);
+  }
 }

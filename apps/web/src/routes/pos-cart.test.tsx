@@ -26,6 +26,8 @@ vi.mock("../lib/pos/api", () => ({
   closeSession: vi.fn(),
   lookup: vi.fn(),
   createSale: vi.fn(),
+  // Con promesa: al cobrar, el ticket sale solo y la pantalla espera un `.catch`.
+  printTicket: vi.fn().mockResolvedValue(undefined),
 }));
 // `listScopedWarehouses` NO existe: el alcance se pide con
 // `listWarehouses({ scoped: true })`. El mock la declaraba y nadie lo notaba
@@ -581,6 +583,25 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
       const aviso = await screen.findByTestId("sale-done");
       expect(aviso.className).toContain("success");
       expect(aviso.className).not.toContain("bg-primary");
+    });
+
+    /**
+     * Carlos (2026-09-02): el ticket sale SOLO al cobrar, como el papel del
+     * turno. El botón «Imprimir ticket» se queda para repetirlo.
+     */
+    it("cobrada la venta, el ticket se imprime solo, una vez, y el botón queda para repetirlo", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      mocked.printTicket.mockResolvedValue(undefined);
+      await conCarrito();
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await screen.findByTestId("sale-done");
+      await waitFor(() =>
+        expect(mocked.printTicket).toHaveBeenCalledWith("sale", "sale-1", "VTA-000007", undefined),
+      );
+      expect(mocked.printTicket).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("button", { name: "Imprimir ticket" })).toBeInTheDocument();
     });
 
     it("cobrada la venta, el carrito queda vacío para el siguiente cliente", async () => {

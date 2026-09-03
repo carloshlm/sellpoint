@@ -58,10 +58,18 @@ export function SaleScreen({ session }: SaleScreenProps) {
           <p role="status" className="font-medium text-sm">
             {t("pos.checkout.done", { folio: ultima.folio })}
           </p>
-          {/* El ticket se ofrece acá, con la venta recién cerrada, porque es el
-              momento en que el cliente lo está esperando. Y si falla, no se
-              pierde nada: se reimprime del historial. */}
-          <PrintTicketButton kind="sale" id={ultima.id} folio={ultima.folio} />
+          {/* El ticket SALE SOLO acá, con la venta recién cerrada, porque es el
+              momento en que el cliente lo está esperando (Carlos, 2026-09-02);
+              el botón queda para repetirlo. `key` por venta: cada cobro es un
+              papel nuevo. Y si falla, no se pierde nada: se reimprime del
+              historial. */}
+          <PrintTicketButton
+            key={ultima.id}
+            kind="sale"
+            id={ultima.id}
+            folio={ultima.folio}
+            autoPrint
+          />
         </div>
       )}
 
