@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { imprimirPdf } from "@/lib/download";
 
 /** Espejo del `CustomerSummary` del API (F9-RECEP-06). La edad viene CALCULADA. */
 export interface Customer {
@@ -113,4 +114,21 @@ export async function attendTurn(id: string): Promise<Turn> {
 export async function waitTurn(id: string): Promise<Turn> {
   const { data } = await api.post<Turn>(`/reception/turns/${id}/wait`, {});
   return data;
+}
+
+/**
+ * El papel del turno: PDF térmico del servidor (58 mm por defecto) que va
+ * directo al cuadro de impresión, sin pestaña nueva. Fallar no pierde nada:
+ * el turno ya existe y se vuelve a pedir con un clic.
+ */
+export async function printTurnTicket(
+  id: string,
+  number: number,
+  width: "58mm" | "80mm" = "58mm",
+): Promise<void> {
+  const { data } = await api.get<Blob>(`/reception/turns/${id}/ticket`, {
+    responseType: "blob",
+    params: { width },
+  });
+  imprimirPdf(data, `turno-${number}.pdf`);
 }

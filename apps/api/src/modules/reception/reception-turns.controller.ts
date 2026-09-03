@@ -1,17 +1,21 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
+import { I18nService } from "nestjs-i18n";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RequiresModule } from "../billing/decorators/requires-module.decorator";
+import type { TicketWidth } from "../pos/ticket.renderer";
 import {
   type CreateTurnDto,
   createTurnSchema,
   type ListTurnsQuery,
   listTurnsQuerySchema,
 } from "./dto/turns.dto";
+import { TurnTicketService } from "./turn-ticket.service";
 import { TurnsService } from "./turns.service";
 
 function metaFrom(request: Request) {
@@ -26,7 +30,16 @@ function metaFrom(request: Request) {
 @RequiresModule("reception")
 @Controller("reception/turns")
 export class ReceptionTurnsController {
-  constructor(private readonly turns: TurnsService) {}
+  constructor(
+    private readonly turns: TurnsService,
+    private readonly tickets: TurnTicketService,
+    private readonly i18n: I18nService,
+  ) {}
+
+  /** 58 mm es la térmica de mostrador; cualquier otra cosa cae a 58 en vez de reventar. */
+  private static ancho(value: string | undefined): TicketWidth {
+    return value === "80mm" ? "80mm" : "58mm";
+  }
 
   @Get()
   @RequirePermissions("reception:read")
@@ -47,6 +60,32 @@ export class ReceptionTurnsController {
     @Req() request: Request,
   ) {
     return this.turns.create(user, dto, metaFrom(request));
+  }
+
+  /**
+   * El papel del turno (Carlos, 2026-09-02): PDF térmico como el ticket de
+   * venta. `reception:read`: reimprimir es leer.
+   */
+  @Get(":id/ticket")
+  @RequirePermissions("reception:read")
+  async ticket(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthUser,
+    @Query("width") width: string | undefined,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const locale = getLocale(request);
+    const file = await this.tickets.turnTicket(
+      user,
+      id,
+      ReceptionTurnsController.ancho(width),
+      (key) => this.i18n.translate(key, { lang: locale }),
+    );
+    response
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   @Post(":id/attend")

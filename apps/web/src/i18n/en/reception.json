@@ -62,6 +62,9 @@
     "wait": "Back to waiting",
     "issued": "Ticket issued",
     "issuedFor": "For {{name}}",
-    "close": "Close"
+    "close": "Close",
+    "ticketLabel": "Ticket",
+    "print": "Print again",
+    "printFailed": "We could not open the ticket. Try printing it again."
   }
 }

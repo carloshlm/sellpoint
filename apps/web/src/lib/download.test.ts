@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { descargarBlob, dispararDescarga } from "./download";
+import { descargarBlob, dispararDescarga, imprimirPdf } from "./download";
 
 /**
  * F5-HUB-01 — la secuencia de descarga, en UN solo lugar.
@@ -80,5 +80,72 @@ describe("helper de descarga", () => {
       expect(click).toHaveBeenCalledTimes(1);
       expect(revocados).toEqual([]);
     });
+  });
+});
+
+/**
+ * El papel del turno (Carlos, 2026-09-02): «directamente el cuadro de
+ * impresión». El PDF se carga en un iframe oculto y se imprime desde ahí, sin
+ * pestaña nueva ni Cmd+P: la recepcionista solo confirma en el cuadro.
+ */
+describe("imprimirPdf", () => {
+  beforeEach(() => {
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:test-papel"),
+      revokeObjectURL: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    for (const frame of document.querySelectorAll("iframe")) frame.remove();
+  });
+
+  function frameDeImpresion(): HTMLIFrameElement {
+    const frame = document.querySelector("iframe");
+    if (!frame) throw new Error("no hay iframe de impresión");
+    return frame;
+  }
+
+  it("carga el PDF en un iframe oculto y abre el cuadro de impresión al terminar de cargar", () => {
+    const abrir = vi.spyOn(window, "open").mockReturnValue(null);
+    imprimirPdf(new Blob(["%PDF"]), "turno-7.pdf");
+
+    const frame = frameDeImpresion();
+    expect(frame.src).toBe("blob:test-papel");
+    expect(frame.getAttribute("aria-hidden")).toBe("true");
+    const print = vi.fn();
+    Object.defineProperty(frame, "contentWindow", { value: { focus: vi.fn(), print } });
+    frame.dispatchEvent(new Event("load"));
+
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(abrir).not.toHaveBeenCalled();
+  });
+
+  it("si el navegador no deja imprimir el iframe, abre el PDF en una pestaña", () => {
+    const abrir = vi.spyOn(window, "open").mockReturnValue({} as Window);
+    imprimirPdf(new Blob(["%PDF"]), "turno-7.pdf");
+
+    const frame = frameDeImpresion();
+    Object.defineProperty(frame, "contentWindow", {
+      value: {
+        focus: vi.fn(),
+        print: () => {
+          throw new Error("bloqueado");
+        },
+      },
+    });
+    frame.dispatchEvent(new Event("load"));
+
+    expect(abrir).toHaveBeenCalledWith("blob:test-papel");
+  });
+
+  it("un papel nuevo reemplaza al anterior: un solo iframe y la URL vieja liberada", () => {
+    imprimirPdf(new Blob(["1"]), "turno-1.pdf");
+    imprimirPdf(new Blob(["2"]), "turno-2.pdf");
+
+    expect(document.querySelectorAll("iframe")).toHaveLength(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
   });
 });

@@ -26,6 +26,7 @@ vi.mock("@/lib/reception/api", () => ({
   createTurn: vi.fn(),
   attendTurn: vi.fn(),
   waitTurn: vi.fn(),
+  printTurnTicket: vi.fn().mockResolvedValue(undefined),
 }));
 const mocked = vi.mocked(receptionApi);
 

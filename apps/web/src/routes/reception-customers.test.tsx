@@ -26,6 +26,7 @@ vi.mock("@/lib/reception/api", () => ({
   createTurn: vi.fn(),
   attendTurn: vi.fn(),
   waitTurn: vi.fn(),
+  printTurnTicket: vi.fn().mockResolvedValue(undefined),
 }));
 const mocked = vi.mocked(receptionApi);
 
@@ -148,6 +149,10 @@ describe("Registro de cliente (F9-RECEP-11)", () => {
     const dialogo = await screen.findByRole("dialog", { name: "Turno generado" });
     expect(within(dialogo).getByTestId("turn-number")).toHaveTextContent("7");
     expect(within(dialogo).getByText(/Rosa Luna/)).toBeInTheDocument();
+    // El papel sale solo al abrir el diálogo (Carlos, 2026-09-02): la misma
+    // térmica del ticket de venta, sin un clic más por cada persona.
+    await waitFor(() => expect(mocked.printTurnTicket).toHaveBeenCalledWith("t1", 7));
+    expect(within(dialogo).getByTestId("turn-ticket")).toHaveTextContent("Turno");
   });
 
   it("«Eliminar» pide confirmación y solo entonces llama al API", async () => {

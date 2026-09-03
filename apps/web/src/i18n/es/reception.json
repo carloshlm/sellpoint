@@ -62,6 +62,9 @@
     "wait": "Volver a espera",
     "issued": "Turno generado",
     "issuedFor": "Para {{name}}",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "ticketLabel": "Turno",
+    "print": "Imprimir de nuevo",
+    "printFailed": "No pudimos abrir el papel del turno. Intenta imprimirlo de nuevo."
   }
 }

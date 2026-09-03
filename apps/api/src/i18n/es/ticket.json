@@ -15,5 +15,7 @@
   "subtotal": "Subtotal",
   "thanks": "¡Gracias por tu compra!",
   "total": "Total",
-  "phone": "Tel"
+  "phone": "Tel",
+  "turn": "TURNO",
+  "turnFooter": "Espera a que llamen tu número."
 }

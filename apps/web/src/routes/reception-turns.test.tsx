@@ -25,6 +25,7 @@ vi.mock("@/lib/reception/api", () => ({
   createTurn: vi.fn(),
   attendTurn: vi.fn(),
   waitTurn: vi.fn(),
+  printTurnTicket: vi.fn().mockResolvedValue(undefined),
 }));
 const mocked = vi.mocked(receptionApi);
 
@@ -138,6 +139,19 @@ describe("Generar turno (F9-RECEP-13)", () => {
     expect(mocked.createTurn).toHaveBeenCalledWith({});
     const dialogo = await screen.findByRole("dialog", { name: "Turno generado" });
     expect(within(dialogo).getByTestId("turn-number")).toHaveTextContent("6");
+    await waitFor(() => expect(mocked.printTurnTicket).toHaveBeenCalledWith("t6", 6));
+  });
+
+  it("si el papel no sale, el diálogo lo dice y ofrece imprimir de nuevo", async () => {
+    mocked.printTurnTicket.mockRejectedValueOnce(new Error("popup bloqueado"));
+    await renderTurns(["reception:read", "reception:manage"]);
+    const user = userEvent.setup();
+    await screen.findByTestId("turn-t5");
+    await user.click(screen.getByRole("button", { name: "Generar turno" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Turno generado" });
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent(/imprimirlo de nuevo/);
+    await user.click(within(dialogo).getByRole("button", { name: "Imprimir de nuevo" }));
+    await waitFor(() => expect(mocked.printTurnTicket).toHaveBeenCalledTimes(2));
   });
 
   it("cambiar el día vuelve a pedir la lista con esa fecha", async () => {

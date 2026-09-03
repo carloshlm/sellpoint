@@ -158,6 +158,22 @@ describe("Recepción — turnos (F9-RECEP-15)", () => {
       .expect(404);
   });
 
+  it("el papel del turno baja como PDF térmico; el de otro negocio, 404", async () => {
+    const turno = await generar(negocio.token, {}).expect(201);
+    const id = (turno.body as { id: string }).id;
+    const papel = await request(app.getHttpServer())
+      .get(`/reception/turns/${id}/ticket`)
+      .query({ width: "58mm" })
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    expect(papel.headers["content-type"]).toContain("application/pdf");
+    expect(papel.headers["content-disposition"]).toContain("turno-");
+    await request(app.getHttpServer())
+      .get(`/reception/turns/${id}/ticket`)
+      .set("Authorization", bearer(otro.token))
+      .expect(404);
+  });
+
   it("el filtro de fecha separa los días: otro día no trae los de hoy", async () => {
     const otroDia = await request(app.getHttpServer())
       .get("/reception/turns")

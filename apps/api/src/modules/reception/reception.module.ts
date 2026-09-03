@@ -3,6 +3,7 @@ import { AuditModule } from "../audit/audit.module";
 import { CustomersService } from "./customers.service";
 import { ReceptionCustomersController } from "./reception-customers.controller";
 import { ReceptionTurnsController } from "./reception-turns.controller";
+import { TurnTicketService } from "./turn-ticket.service";
 import { TurnsService } from "./turns.service";
 
 /**
@@ -13,7 +14,7 @@ import { TurnsService } from "./turns.service";
 @Module({
   imports: [AuditModule],
   controllers: [ReceptionCustomersController, ReceptionTurnsController],
-  providers: [CustomersService, TurnsService],
+  providers: [CustomersService, TurnsService, TurnTicketService],
   exports: [CustomersService, TurnsService],
 })
 export class ReceptionModule {}
