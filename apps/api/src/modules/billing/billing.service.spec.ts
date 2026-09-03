@@ -169,6 +169,40 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       amountReceived: "499.00",
     };
 
+    /**
+     * El backoffice captura un DÍA, no un instante (Carlos, 2026-09-04: un
+     * negocio en Toronto rechazaba el pago de hoy). El día llega como
+     * `YYYY-MM-DD` y se ancla al mediodía de la zona del NEGOCIO, así
+     * ninguna de las tres zonas en juego —navegador, servidor y negocio— lo
+     * corre de día.
+     */
+    it("acepta el día del negocio como YYYY-MM-DD y lo ancla a su mediodía", async () => {
+      await service.recordPayment({ ...pagoBase, paidAt: "2026-08-05" });
+
+      const creado = tx.subscriptionPayment.create.mock.calls[0][0].data;
+      // Mediodía de CDMX = 18:00Z: el mismo día en UTC y en el negocio.
+      expect(creado.paidAt.toISOString()).toBe("2026-08-05T18:00:00.000Z");
+      const update = tx.tenantSubscription.update.mock.calls[0][0].data;
+      expect(update.anchorDay).toBe(5);
+    });
+
+    it("el día de HOY del negocio no es futuro aunque en UTC ya sea mañana", async () => {
+      // 3-sep 22:00 CDMX = 4-sep 04:00 UTC. El negocio todavía está en el 3.
+      jest.useFakeTimers().setSystemTime(new Date("2026-09-04T04:00:00.000Z"));
+      await expect(
+        service.recordPayment({ ...pagoBase, paidAt: "2026-09-03" }),
+      ).resolves.toBeDefined();
+      jest.useRealTimers();
+    });
+
+    it("un día realmente futuro sigue rebotando", async () => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-09-04T04:00:00.000Z"));
+      await expect(
+        service.recordPayment({ ...pagoBase, paidAt: "2026-09-05" }),
+      ).rejects.toMatchObject({ response: { message: "billing.paid_at_in_future" } });
+      jest.useRealTimers();
+    });
+
     it("trial→active: fija el ancla al día LOCAL del pago y el vencimiento un mes después", async () => {
       await service.recordPayment(pagoBase);
 

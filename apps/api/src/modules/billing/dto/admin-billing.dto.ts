@@ -16,7 +16,13 @@ const money = z.string().regex(/^\d+(\.\d{1,2})?$/, "billing.invalid_amount");
 export const recordPaymentSchema = z.object({
   billingCycle: z.enum(BILLING_CYCLES),
   method: z.enum(SUBSCRIPTION_PAYMENT_METHODS),
-  paidAt: z.coerce.date(),
+  /**
+   * El DÍA del negocio (`YYYY-MM-DD`). Se acepta también un instante ISO por
+   * compatibilidad, pero el backoffice manda el día: un pago se captura
+   * mirando un calendario, y convertirlo a instante en el navegador lo corría
+   * de día cuando el negocio estaba en otra zona (Carlos, 2026-09-04).
+   */
+  paidAt: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.coerce.date()]),
   /** Cambia el plan en el mismo acto (fin de trial Plus → paga Basic). */
   planCode: z.enum(PLAN_CODES).optional(),
   /**

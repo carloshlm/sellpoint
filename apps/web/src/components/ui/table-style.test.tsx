@@ -44,12 +44,17 @@ describe("el estilo compartido de los listados", () => {
     "pos/sales-history.tsx",
     "../routes/admin.billing.tsx",
     "billing/payment-history-table.tsx",
+    // Reportes: la MISMA tabla sirve a Ventas e Inventario, y al backoffice
+    // (Carlos, 2026-09-04: se veían distintas a los demás listados).
+    "reports/report-table.tsx",
   ])("%s toma el encabezado y el resaltado de las constantes compartidas", (ruta) => {
     const codigo = fuente(ruta);
 
     // USADAS en una clase, no solo importadas: un import huérfano no pinta nada.
-    expect(codigo).toContain("${TABLE_HEAD_ROW}");
-    expect(codigo).toContain("${TABLE_ROW_HOVER}");
+    // Se busca el texto literal `${…}` dentro del CÓDIGO FUENTE, así que la
+    // llave es el dato, no una interpolación olvidada.
+    expect(codigo).toContain(`\${TABLE_HEAD_ROW}`);
+    expect(codigo).toContain(`\${TABLE_ROW_HOVER}`);
     // Ninguna clase de encabezado ni de resaltado escrita a mano.
     expect(codigo).not.toMatch(/className="border-b text-left/);
   });

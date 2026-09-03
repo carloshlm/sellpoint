@@ -11,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 
 /**
  * F5-HUB-03 — la tabla común de los reportes.
@@ -136,7 +137,7 @@ export function ReportTable({
           <table className="w-full text-sm">
             <thead>
               {table.getHeaderGroups().map((grupo) => (
-                <tr key={grupo.id} className="border-b text-left">
+                <tr key={grupo.id} className={`border-b ${TABLE_HEAD_ROW}`}>
                   {grupo.headers.map((header) => {
                     const columna = columns.find((c) => c.key === header.column.id);
                     const activa = sortBy === header.column.id;
@@ -178,7 +179,7 @@ export function ReportTable({
             </thead>
             <tbody>
               {table.getRowModel().rows.map((fila) => (
-                <tr key={fila.id} className="border-b">
+                <tr key={fila.id} className={`border-b last:border-0 ${TABLE_ROW_HOVER}`}>
                   {fila.getAllCells().map((celda) => {
                     const columna = columns.find((c) => c.key === celda.column.id);
                     return (

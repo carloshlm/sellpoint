@@ -156,6 +156,19 @@ describe("Backoffice /admin/billing (F7-WEB-10)", () => {
         expect.objectContaining({ billingCycle: "monthly", method: "transfer" }),
       );
     });
+
+    // El DÍA del negocio, no un instante: convertirlo en el navegador lo
+    // corría de día cuando el negocio estaba en otra zona (2026-09-04).
+    const enviado = mockedRecord.mock.calls[0]?.[1] as { paidAt: string };
+    expect(enviado.paidAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(enviado.paidAt).toBe(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Mexico_City",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date()),
+    );
   });
 
   /**

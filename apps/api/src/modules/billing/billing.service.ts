@@ -20,6 +20,7 @@ import {
   resolveMarket,
   type SubscriptionPaymentMethod,
   scaledInteger,
+  startOfDayUtc,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -31,7 +32,12 @@ export interface RecordPaymentInput {
   tenantId: string;
   billingCycle: BillingCycle;
   method: SubscriptionPaymentMethod;
-  paidAt: Date;
+  /**
+   * El DÍA del negocio en que entró el dinero (`YYYY-MM-DD`), o el instante
+   * exacto si quien llama ya lo resolvió. Un pago se registra por día: quien
+   * captura mira un calendario, no un reloj (Carlos, 2026-09-04).
+   */
+  paidAt: Date | string;
   /** Cambia el plan en el mismo acto (caso típico: fin de trial Plus → paga Basic). */
   planCode?: PlanCode;
   /** Lo que el cliente transfirió de verdad. Obligatorio: la cuenta cuadra o no se registra. */
@@ -87,6 +93,19 @@ export class BillingService {
 
     const resultado = await this.prisma.withTenantContext(tenantId, async (tx) => {
       const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
+
+      // ── El DÍA del pago, no un instante ───────────────────────────────
+      //
+      // Un `YYYY-MM-DD` se ancla al MEDIODÍA de la zona del negocio. El
+      // mediodía y no la medianoche porque así el mismo día sobrevive a
+      // cualquier desfase: la medianoche local cae en el día anterior en UTC
+      // y en el siguiente en otra zona, y entonces «hoy» se vuelve «mañana»
+      // y el pago se rechaza por futuro. Pasó con un negocio en Toronto
+      // capturado desde México (Carlos, 2026-09-04).
+      const paidAt =
+        typeof input.paidAt === "string"
+          ? new Date(startOfDayUtc(input.paidAt, tenant.timezone).getTime() + 12 * 60 * 60 * 1000)
+          : input.paidAt;
       // El negocio ANTERIOR a la Fase 7 no tiene fila: registrarle un pago
       // es darlo de alta. Nace sin trial —ya pagó, no está probando— y con
       // el plan que el pago declare, porque no hay ninguno del que heredar.
@@ -112,7 +131,7 @@ export class BillingService {
         // shared es para quien programa, no para quien cobra.
         throw new UnprocessableEntityException({ message: "billing.custom_price_required" });
       }
-      const discount = await this.resolveActiveDiscount(tx, tenantId, input.paidAt);
+      const discount = await this.resolveActiveDiscount(tx, tenantId, paidAt);
       const cargo = computeChargeAmount({
         price: price
           ? { monthly: String(price.priceMonthly), yearly: String(price.priceYearly) }
@@ -136,7 +155,7 @@ export class BillingService {
       // Se compara el DÍA del negocio y no el instante: el formulario captura
       // "hoy" como mediodía local, que en UTC ya puede ser mañana. Rechazar
       // eso sería rechazar la operación más común del backoffice.
-      if (localCalendarDate(tz, input.paidAt) > localCalendarDate(tz, new Date())) {
+      if (localCalendarDate(tz, paidAt) > localCalendarDate(tz, new Date())) {
         throw new UnprocessableEntityException({ message: "billing.paid_at_in_future" });
       }
 
@@ -156,7 +175,7 @@ export class BillingService {
         orderBy: { paidAt: "desc" },
         select: { paidAt: true },
       });
-      if (ultimo && input.paidAt < ultimo.paidAt) {
+      if (ultimo && paidAt < ultimo.paidAt) {
         throw new UnprocessableEntityException({
           message: "billing.paid_at_before_last",
           args: { last: localCalendarDate(tz, ultimo.paidAt) },
@@ -167,9 +186,9 @@ export class BillingService {
       // días) salvo override explícito del backoffice.
       const desdeFree = sub.status === "free";
       const periodStart =
-        input.periodStart ?? (desdeFree ? input.paidAt : (sub.servicePeriodEnd ?? input.paidAt));
+        input.periodStart ?? (desdeFree ? paidAt : (sub.servicePeriodEnd ?? paidAt));
       const anchorDay =
-        desdeFree || sub.anchorDay === null ? resolveAnchorDay(input.paidAt, tz) : sub.anchorDay;
+        desdeFree || sub.anchorDay === null ? resolveAnchorDay(paidAt, tz) : sub.anchorDay;
 
       // La fecha desde la que avanza el ancla: si el período encadena con un
       // vencimiento anterior, es LA FECHA de ese vencimiento (el instante
@@ -237,7 +256,7 @@ export class BillingService {
           discountId: discount?.id ?? null,
           method: input.method,
           gatewayReference: input.gatewayReference,
-          paidAt: input.paidAt,
+          paidAt: paidAt,
           periodStart,
           periodEnd: dueAt,
           recordedBy: input.recordedBy,

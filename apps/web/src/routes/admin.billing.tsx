@@ -1,4 +1,4 @@
-import { scaledInteger } from "@sellpoint/shared";
+import { localCalendarDate, scaledInteger } from "@sellpoint/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -48,6 +48,8 @@ function AdminBilling() {
     tenantId: string;
     tenantName: string;
     planCode: string | null;
+    /** La zona del NEGOCIO: es su calendario el que decide qué día es hoy. */
+    timezone: string;
     charges: { planCode: string; monthly: string; yearly: string; currency: string }[];
   } | null>(null);
   const [viendo, setViendo] = useState<{ tenantId: string; tenantName: string } | null>(null);
@@ -80,6 +82,16 @@ function AdminBilling() {
 
   const monedaVigente = (): string | undefined =>
     pagando?.charges.find((c) => c.planCode === planPago)?.currency;
+
+  /**
+   * Qué día es «hoy» para el NEGOCIO que se está cobrando.
+   *
+   * Con el día UTC, después de las 18:00 de México el formulario proponía
+   * MAÑANA y el server lo rechazaba por futuro; con el del navegador fallaba
+   * al revés si el negocio estaba en una zona más atrasada. El calendario que
+   * manda es el del negocio (Carlos, 2026-09-04).
+   */
+  const hoyDelNegocio = localCalendarDate(pagando?.timezone ?? "UTC", new Date());
 
   /**
    * El otro lado de la cuenta. `recibido + descuento = cargo`, así que
@@ -229,6 +241,7 @@ function AdminBilling() {
                                 tenantId: fila.tenantId,
                                 tenantName: fila.tenantName,
                                 planCode: fila.status === "none" ? null : fila.planCode,
+                                timezone: fila.timezone,
                                 charges: fila.charges,
                               });
                               setCiclo("monthly");
@@ -275,7 +288,9 @@ function AdminBilling() {
               input: {
                 billingCycle: form.get("cycle") as "monthly" | "yearly",
                 method: form.get("method") as "transfer" | "cash" | "card" | "other" | "courtesy",
-                paidAt: new Date(`${form.get("paidAt")}T12:00:00`).toISOString(),
+                // El DÍA tal cual: el server lo ancla al mediodía de la zona
+                // del negocio. Armar un instante aquí lo corría de día.
+                paidAt: String(form.get("paidAt")),
                 // Igual al vigente = "mantener": no se manda nada.
                 planCode: planPago === pagando.planCode ? undefined : planPago || undefined,
                 amountReceived: recibido || "0",
@@ -331,8 +346,8 @@ function AdminBilling() {
                 name="paidAt"
                 type="date"
                 required
-                max={new Date().toISOString().slice(0, 10)}
-                defaultValue={new Date().toISOString().slice(0, 10)}
+                max={hoyDelNegocio}
+                defaultValue={hoyDelNegocio}
                 className="w-full rounded-md border p-2 text-sm"
               />
               <span className="text-muted-foreground text-xs">
