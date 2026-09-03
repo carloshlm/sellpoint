@@ -18,5 +18,27 @@
   "order_already_canceled": "Esa orden ya está cancelada.",
   "order_needs_lines": "La orden necesita al menos una línea.",
   "no_default_warehouse": "No tienes un almacén asignado. Pídele a un administrador que te asigne uno.",
-  "study_not_available": "Uno de los estudios ya no está disponible."
+  "study_not_available": "Uno de los estudios ya no está disponible.",
+  "pdf": {
+    "title_prescription": "RECETA MÉDICA",
+    "title_lab_order": "ORDEN DE LABORATORIO",
+    "title_diagnostic_order": "ORDEN DE ESTUDIOS DIAGNÓSTICOS",
+    "phone": "Tel",
+    "patient": "Paciente",
+    "age_sex": "Edad / sexo",
+    "years": "años",
+    "sex_F": "Femenino",
+    "sex_M": "Masculino",
+    "sex_X": "Otro",
+    "record": "Expediente",
+    "doctor": "Médico",
+    "consultation_date": "Fecha de consulta",
+    "diagnosis": "Diagnóstico",
+    "item": "Concepto",
+    "quantity": "Cantidad",
+    "dosage": "Indicación",
+    "indications": "Indicaciones generales",
+    "charge_at_register": "Cobrar en caja con este folio.",
+    "signature": "Firma del médico"
+  }
 }

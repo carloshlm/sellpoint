@@ -6,9 +6,12 @@ import { DiagnosticStudiesService } from "./diagnostic-studies.service";
 import { LabStudiesService } from "./lab-studies.service";
 import { MedicalClinicDiagnosticStudiesController } from "./medical-clinic-diagnostic-studies.controller";
 import { MedicalClinicLabStudiesController } from "./medical-clinic-lab-studies.controller";
+import { MedicalClinicOrdersController } from "./medical-clinic-orders.controller";
 import { MedicalClinicPatientsController } from "./medical-clinic-patients.controller";
 import { MedicalClinicRecordsController } from "./medical-clinic-records.controller";
 import { MedicalClinicSettingsController } from "./medical-clinic-settings.controller";
+import { MedicalOrderPdfService } from "./medical-order-pdf.service";
+import { MedicalOrdersService } from "./medical-orders.service";
 import { PatientsService } from "./patients.service";
 import { RecordsService } from "./records.service";
 import { SectionsService } from "./sections.service";
@@ -33,6 +36,7 @@ import { StockSearchService } from "./stock-search.service";
     MedicalClinicSettingsController,
     MedicalClinicPatientsController,
     MedicalClinicRecordsController,
+    MedicalClinicOrdersController,
   ],
   providers: [
     LabStudiesService,
@@ -42,6 +46,8 @@ import { StockSearchService } from "./stock-search.service";
     StockSearchService,
     RecordsService,
     SectionsService,
+    MedicalOrdersService,
+    MedicalOrderPdfService,
   ],
   exports: [SettingsService],
 })

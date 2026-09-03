@@ -18,5 +18,27 @@
   "order_already_canceled": "That order is already canceled.",
   "order_needs_lines": "The order needs at least one line.",
   "no_default_warehouse": "You have no assigned warehouse. Ask an administrator to assign one.",
-  "study_not_available": "One of the studies is no longer available."
+  "study_not_available": "One of the studies is no longer available.",
+  "pdf": {
+    "title_prescription": "MEDICAL PRESCRIPTION",
+    "title_lab_order": "LAB ORDER",
+    "title_diagnostic_order": "DIAGNOSTIC STUDIES ORDER",
+    "phone": "Phone",
+    "patient": "Patient",
+    "age_sex": "Age / sex",
+    "years": "years",
+    "sex_F": "Female",
+    "sex_M": "Male",
+    "sex_X": "Other",
+    "record": "Record",
+    "doctor": "Doctor",
+    "consultation_date": "Consultation date",
+    "diagnosis": "Diagnosis",
+    "item": "Item",
+    "quantity": "Quantity",
+    "dosage": "Directions",
+    "indications": "General indications",
+    "charge_at_register": "Pay at the register with this folio.",
+    "signature": "Doctor's signature"
+  }
 }
