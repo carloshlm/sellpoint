@@ -41,7 +41,9 @@ jobs:
       # CLI de migraciones (superuser). El runtime de los tests conecta como
       # sellpoint_app SIN privilegios (default de test/setup-env.js) —
       # exactamente como en prod (R1 del design de f1-auth).
-      DATABASE_URL_ADMIN: postgresql://sellpoint:sellpoint@localhost:5432/sellpoint_dev
+      # F0-DB-04: la base de PRUEBAS, la misma que usa el desarrollo local;
+      # la crea y migra apps/api/scripts/ensure-test-db.mjs.
+      DATABASE_URL_ADMIN: postgresql://sellpoint:sellpoint@localhost:5432/sellpoint_test
       REDIS_URL: redis://localhost:6379
     steps:
       - name: checkout
@@ -68,8 +70,8 @@ jobs:
       # app_db_user nunca setea secretos) y aplica todas las migraciones,
       # incluida _auth_login_gateway (RLS, SECURITY DEFINER, email único
       # global).
-      - name: aplicar migraciones (rol runtime + RLS + f1-auth)
-        run: pnpm --filter api exec prisma migrate deploy
+      - name: crear y migrar la base de pruebas (rol runtime + RLS + f1-auth)
+        run: pnpm --filter api exec node scripts/ensure-test-db.mjs
 
       # A diferencia del Postgres local de dev (pg_hba permisivo), el
       # service container oficial de este runner exige auth real incluso
@@ -78,7 +80,7 @@ jobs:
       # entorno de test descartable, no es un secreto real.
       - name: setear password de sellpoint_app (solo CI — dev/prod fuera del repo)
         run: |
-          PGPASSWORD=sellpoint psql -h localhost -U sellpoint -d sellpoint_dev \
+          PGPASSWORD=sellpoint psql -h localhost -U sellpoint -d postgres \
             -c "ALTER ROLE sellpoint_app PASSWORD 'sellpoint_app';"
 
       - name: lint (biome)

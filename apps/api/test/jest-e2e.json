@@ -12,5 +12,7 @@
   "setupFiles": ["<rootDir>/setup-env.js"],
   "maxWorkers": 1,
   "testTimeout": 30000,
-  "workerIdleMemoryLimit": "1GB"
+  "workerIdleMemoryLimit": "1GB",
+  "globalSetup": "<rootDir>/e2e/global-setup.ts",
+  "globalTeardown": "<rootDir>/e2e/global-teardown.ts"
 }
