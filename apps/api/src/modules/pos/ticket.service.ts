@@ -33,6 +33,22 @@ const FONTS = {
  * función PURA que se testea leyendo qué dice el papel, y acá vive lo que no
  * se puede testear así — el printer, los bytes y la consulta.
  */
+/**
+ * Qué dice el renglón (F4-CONCEPT-07).
+ *
+ * La `description` de la cotización gana: es lo que decía el papel que el
+ * cliente se llevó, aunque el producto haya cambiado de nombre después. La
+ * venta no la tiene y cae al nombre vigente del catálogo… salvo el concepto,
+ * que no tiene catálogo: su texto vive en la fila (`concept_description`).
+ */
+export function descripcionDeFila(
+  line: { description?: string; conceptDescription?: string | null },
+  producto: { name: string } | undefined,
+  servicio: { name: string } | undefined,
+): string {
+  return line.description ?? line.conceptDescription ?? producto?.name ?? servicio?.name ?? "";
+}
+
 @Injectable()
 export class TicketService {
   private readonly printer = new PdfPrinter(FONTS);
@@ -202,6 +218,8 @@ export class TicketService {
       unitPrice: { toString(): string };
       lineTotal: { toString(): string };
       description?: string;
+      /** F4-CONCEPT-07: el texto del concepto vive en la fila de la venta. */
+      conceptDescription?: string | null;
     }[],
     lotePorProducto: Map<string, string | null>,
   ): Promise<TicketRow[]> {
@@ -233,7 +251,7 @@ export class TicketService {
         // La `description` de la cotización gana: es lo que decía el papel que
         // el cliente se llevó, aunque el producto haya cambiado de nombre
         // después. La venta no la tiene y cae al nombre vigente.
-        description: line.description ?? producto?.name ?? servicio?.name ?? "",
+        description: descripcionDeFila(line, producto, servicio),
         quantity: line.quantity.toString(),
         // Un servicio no sale del anaquel: sin unidad base.
         baseUnit: producto?.baseUnit ?? null,

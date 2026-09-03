@@ -389,6 +389,52 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
       );
     });
 
+    /**
+     * F4-CONCEPT-08 — un concepto cotizado («Flete a domicilio») se vuelca al
+     * carrito como un renglón más, sin unidad ni existencia, y se cobra por
+     * el id de su línea. `QuoteLoadPanel` no cambió: solo el carrito aprendió.
+     */
+    it("una cotización con concepto se vuelca con su renglón y se cobra por quoteLineId", async () => {
+      const quote = paraVender({ quotedTotal: "180.00" });
+      quote.lines.push({
+        lineNo: 2,
+        productId: null,
+        serviceId: null,
+        presentationId: null,
+        description: "Flete a domicilio",
+        quantity: "1",
+        quotedUnitPrice: "150",
+        unitPrice: "150",
+        unavailable: false,
+        shortfall: null,
+        item: {
+          type: "concept",
+          matchedBy: "quote",
+          id: "ql-flete",
+          description: "Flete a domicilio",
+          unitPrice: "150",
+          sourceModule: null,
+        },
+      });
+      await abrirPanel(quote);
+      expect(
+        within(screen.getByTestId("quote-line-2")).getByText("Flete a domicilio"),
+      ).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cargar al carrito" }));
+
+      await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(2));
+      expect(useCartStore.getState().lines[1]).toMatchObject({
+        type: "concept",
+        quoteLineId: "ql-flete",
+      });
+      // El renglón se ve en el carrito con su descripción y su importe.
+      expect(screen.getByTestId("cart-line-concept:ql-flete")).toHaveTextContent(
+        "Flete a domicilio",
+      );
+      expect(screen.getByTestId("cart-total-concept:ql-flete")).toHaveTextContent("$150.00");
+    });
+
     it("confirmar vuelca al carrito Y recuerda el folio para el vínculo", async () => {
       await abrirPanel();
 

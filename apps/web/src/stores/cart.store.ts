@@ -59,13 +59,29 @@ export interface CartServiceLine {
   quantity: string;
 }
 
-export type CartLine = CartProductLine | CartServiceLine;
+/**
+ * La línea de un concepto (F4-CONCEPT-08): descripción + precio, sin catálogo
+ * ni stock. Llega SOLO desde una cotización cargada, y se cobra por la línea
+ * de esa cotización (`quoteLineId`): el precio que guarda es para pintar, el
+ * que se cobra lo copia el servidor del papel.
+ */
+export interface CartConceptLine {
+  key: string;
+  type: "concept";
+  quoteLineId: string;
+  description: string;
+  unitPrice: string;
+  quantity: string;
+}
+
+export type CartLine = CartProductLine | CartServiceLine | CartConceptLine;
 
 /** Lo que se manda a `POST /pos/sales`: ids y cantidades. */
 export interface SaleLinePayload {
   productId?: string;
   serviceId?: string;
   presentationId?: string;
+  quoteLineId?: string;
   quantity: number;
 }
 
@@ -102,9 +118,12 @@ interface CartState {
  * es lo que hace cualquiera atrás de un mostrador.
  */
 function claveDe(line: Pick<CartLine, "type"> & { id: string; presentationId?: string }): string {
-  return line.type === "product"
-    ? `product:${line.id}:${line.presentationId}`
-    : `service:${line.id}`;
+  if (line.type === "product") {
+    return `product:${line.id}:${line.presentationId}`;
+  }
+  // El concepto se identifica por la línea de su cotización: dos cotizaciones
+  // con «Flete» son dos renglones, porque son dos precios autorizados.
+  return line.type === "concept" ? `concept:${line.id}` : `service:${line.id}`;
 }
 
 /** La presentación con la que nace una línea: la marcada por defecto. */
@@ -137,6 +156,27 @@ export const useCartStore = create<CartState>((set) => ({
         // agrega SUS líneas una por una. Ignorarla acá es más honesto que
         // inventar un renglón que el ticket no sabría imprimir.
         return state;
+      }
+
+      if (item.type === "concept") {
+        const key = claveDe({ type: "concept", id: item.id });
+        const existente = state.lines.find((l) => l.key === key);
+        if (existente !== undefined) {
+          return {
+            lines: state.lines.map((l) =>
+              l.key === key ? { ...l, quantity: addQuantities(l.quantity, cantidad) } : l,
+            ),
+          };
+        }
+        const nueva: CartConceptLine = {
+          key,
+          type: "concept",
+          quoteLineId: item.id,
+          description: item.description,
+          unitPrice: item.unitPrice,
+          quantity: cantidad,
+        };
+        return { lines: [...state.lines, nueva] };
       }
 
       if (item.type === "service") {
@@ -273,6 +313,9 @@ export function precioDeLinea(line: CartLine): string | null {
   if (line.type === "service") {
     return line.price;
   }
+  if (line.type === "concept") {
+    return line.unitPrice;
+  }
   return line.presentations.find((p) => p.id === line.presentationId)?.price ?? null;
 }
 
@@ -301,8 +344,8 @@ export function subtotalDelCarrito(lines: CartLine[]): number {
  * hace un minuto impide ventas que sí se podían hacer.
  */
 export function excedeElStock(line: CartLine): boolean {
-  if (line.type === "service") {
-    // Un servicio no sale del anaquel: nunca falta.
+  if (line.type === "service" || line.type === "concept") {
+    // Ni el servicio ni el concepto salen del anaquel: nunca faltan.
     return false;
   }
   const factor = line.presentations.find((p) => p.id === line.presentationId)?.factor ?? "1";
@@ -319,13 +362,19 @@ export function excedeElStock(line: CartLine): boolean {
 
 /** El carrito → el cuerpo de `POST /pos/sales`. Acá y solo acá, texto → número. */
 export function aLineasDeVenta(lines: CartLine[]): SaleLinePayload[] {
-  return lines.map((l) =>
-    l.type === "product"
-      ? {
-          productId: l.productId,
-          presentationId: l.presentationId,
-          quantity: parseQuantity(l.quantity),
-        }
-      : { serviceId: l.serviceId, quantity: parseQuantity(l.quantity) },
-  );
+  return lines.map((l) => {
+    if (l.type === "product") {
+      return {
+        productId: l.productId,
+        presentationId: l.presentationId,
+        quantity: parseQuantity(l.quantity),
+      };
+    }
+    if (l.type === "concept") {
+      // Solo el id de la línea cotizada: el precio y el texto los copia el
+      // servidor de la cotización, nunca de acá.
+      return { quoteLineId: l.quoteLineId, quantity: parseQuantity(l.quantity) };
+    }
+    return { serviceId: l.serviceId, quantity: parseQuantity(l.quantity) };
+  });
 }

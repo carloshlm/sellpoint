@@ -14,13 +14,22 @@ const saleLineSchema = z
     productId: z.string().uuid().optional(),
     serviceId: z.string().uuid().optional(),
     presentationId: z.string().uuid().optional(),
+    /**
+     * F4-CONCEPT-06 — un CONCEPTO se identifica por la línea de la cotización
+     * que lo autorizó. Ni descripción ni precio viajan: el servidor los copia
+     * de esa línea. Sin cotización no hay concepto que cobrar.
+     */
+    quoteLineId: z.string().uuid().optional(),
     quantity: z.coerce.number().positive({ message: "pos.quantity_positive" }),
     discount: z.coerce.number().min(0).optional(),
   })
   .strict()
-  .refine((line) => (line.productId === undefined) !== (line.serviceId === undefined), {
-    message: "pos.line_product_xor_service",
-  })
+  .refine(
+    (line) =>
+      [line.productId, line.serviceId, line.quoteLineId].filter((v) => v !== undefined).length ===
+      1,
+    { message: "pos.line_kind_invalid" },
+  )
   .refine((line) => line.presentationId === undefined || line.productId !== undefined, {
     message: "pos.presentation_only_for_products",
   });

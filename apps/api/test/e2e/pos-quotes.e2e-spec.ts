@@ -483,6 +483,45 @@ describe("Cotización (F4-QUOTE)", () => {
       expect(linea?.shortfall).toBe("2");
     });
 
+    /**
+     * F4-CONCEPT-05 — el concepto es la única línea con precio CONGELADO: no
+     * hay catálogo que releer. Vuelve como `LookupConceptItem` con el id de
+     * la línea de la cotización, que es lo que la venta va a mandar.
+     */
+    it("un concepto vuelve disponible, con el precio del papel y el id de su línea", async () => {
+      const e = await escenario();
+      const creada = await cotizar(e.token, {
+        lines: [
+          { productId: e.productoId, quantity: 1 },
+          { concept: { description: "Flete a domicilio", unitPrice: 150 }, quantity: 1 },
+        ],
+      }).expect(201);
+      const lineaConcepto = (creada.body as { lines: { id: string }[] }).lines[1];
+      await abrirTurno(e.token).expect(201);
+
+      const res = await paraVender(e.token, "COT-000001").expect(200);
+      const linea = (
+        res.body as {
+          lines: {
+            unavailable: boolean;
+            unitPrice: string | null;
+            shortfall: string | null;
+            item: { type: string; id: string; description?: string; unitPrice?: string } | null;
+          }[];
+        }
+      ).lines[1];
+
+      expect(linea?.unavailable).toBe(false);
+      expect(linea?.unitPrice).toBe("150");
+      expect(linea?.shortfall).toBeNull();
+      expect(linea?.item).toMatchObject({
+        type: "concept",
+        id: lineaConcepto?.id,
+        description: "Flete a domicilio",
+        unitPrice: "150",
+      });
+    });
+
     it("al cobrarla, la venta queda vinculada y la cotización pasa a `loaded`", async () => {
       const e = await escenario();
       const creada = await cotizar(e.token, {

@@ -62,9 +62,9 @@ export class DashboardProductsService {
           tx.$queryRaw<
             { item_id: string; sku: string; name: string; units: string; revenue: string }[]
           >`
-          SELECT COALESCE(i.product_id, i.service_id) AS item_id,
-                 COALESCE(p.sku, sv.code) AS sku,
-                 COALESCE(p.name, sv.name) AS name,
+          SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
+                 COALESCE(p.sku, sv.code, '') AS sku,
+                 COALESCE(p.name, sv.name, i.concept_description) AS name,
                  SUM(i.quantity)::text AS units,
                  SUM(i.line_total)::text AS revenue
             FROM sale_items i
@@ -75,7 +75,7 @@ export class DashboardProductsService {
              AND s.status = 'completed'
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${desde} AND s.created_at < ${hasta}
-           GROUP BY COALESCE(i.product_id, i.service_id), COALESCE(p.sku, sv.code), COALESCE(p.name, sv.name)
+           GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description)
            ORDER BY SUM(i.quantity) DESC
            LIMIT 10`,
       );
@@ -96,9 +96,9 @@ export class DashboardProductsService {
               profit: string;
             }[]
           >`
-          SELECT COALESCE(i.product_id, i.service_id) AS item_id,
-                 COALESCE(p.sku, sv.code) AS sku,
-                 COALESCE(p.name, sv.name) AS name,
+          SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
+                 COALESCE(p.sku, sv.code, '') AS sku,
+                 COALESCE(p.name, sv.name, i.concept_description) AS name,
                  SUM(i.line_total)::text AS revenue,
                  SUM(i.unit_cost * i.quantity)::numeric(14,2)::text AS cost,
                  SUM(i.line_total - i.unit_cost * i.quantity)::numeric(14,2)::text AS profit
@@ -111,7 +111,7 @@ export class DashboardProductsService {
              AND i.unit_cost IS NOT NULL
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${ventana.desde} AND s.created_at < ${ventana.hasta}
-           GROUP BY COALESCE(i.product_id, i.service_id), COALESCE(p.sku, sv.code), COALESCE(p.name, sv.name)
+           GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description)
            ORDER BY SUM(i.line_total - i.unit_cost * i.quantity) DESC
            LIMIT 5`,
       ),

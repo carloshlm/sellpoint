@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { localCalendarDate, POS_FOLIO_PREFIXES } from "@sellpoint/shared";
+import { localCalendarDate, POS_FOLIO_PREFIXES, type PosLineKind } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -44,6 +44,12 @@ interface PrecioResuelto {
    * preguntarlo de nuevo más abajo sería una consulta por línea.
    */
   isComposite: boolean;
+  /** F4-CONCEPT-06: la forma de la línea; el CHECK por kind la cierra en la base. */
+  kind: PosLineKind;
+  /** Solo en conceptos: el texto que la fila guarda, porque no hay catálogo que leer. */
+  conceptDescription: string | null;
+  sourceModule: string | null;
+  sourceRef: string | null;
 }
 
 /**
@@ -147,7 +153,7 @@ export class SalesService {
 
     return this.prisma
       .withTenantContext(user.tenantId, async (tx) => {
-        const precios = await this.resolverPrecios(tx, user, dto.lines);
+        const precios = await this.resolverPrecios(tx, user, dto.lines, dto.quoteId);
 
         const subtotal = dto.lines.reduce(
           (acc, line, i) =>
@@ -258,9 +264,14 @@ export class SalesService {
                   tenantId: user.tenantId,
                   lineNo: i + 1,
                   // F4-CONCEPT-02: la forma de la línea la cierra el CHECK por kind.
-                  kind: line.serviceId !== undefined ? "service" : "product",
+                  kind: precio.kind,
                   ...(line.productId !== undefined && { productId: line.productId }),
                   ...(line.serviceId !== undefined && { serviceId: line.serviceId }),
+                  ...(precio.kind === "concept" && {
+                    conceptDescription: precio.conceptDescription,
+                    sourceModule: precio.sourceModule,
+                    sourceRef: precio.sourceRef,
+                  }),
                   presentationId: precio.presentationId,
                   quantity: cantidad,
                   unitPrice: precio.unitPrice,
@@ -536,10 +547,83 @@ export class SalesService {
     tx: Prisma.TransactionClient,
     user: AuthUser,
     lines: SaleLineDto[],
+    quoteId?: string,
   ): Promise<PrecioResuelto[]> {
     const resueltos: PrecioResuelto[] = [];
+    const sinConcepto = { conceptDescription: null, sourceModule: null, sourceRef: null };
+
+    // ── F4-CONCEPT-06: el concepto se cobra SOLO desde su cotización ──────
+    //
+    // Se leen las líneas de concepto de ESA cotización una vez, antes del
+    // flip a `loaded` (que viene después en `crearVenta`). La pertenencia se
+    // valida por (id, quoteId, tenantId): una línea de otra cotización o de
+    // otro negocio da el MISMO 422, sin revelar que existe. Y la cantidad no
+    // puede superar la cotizada: se puede cobrar parcial, nunca de más.
+    const conceptosCotizados =
+      quoteId === undefined || !lines.some((l) => l.quoteLineId !== undefined)
+        ? new Map<
+            string,
+            {
+              description: string;
+              unitPrice: Prisma.Decimal;
+              quantity: Prisma.Decimal;
+              sourceModule: string | null;
+              sourceRef: string | null;
+            }
+          >()
+        : new Map(
+            (
+              await tx.quoteLine.findMany({
+                where: { quoteId, tenantId: user.tenantId, kind: "concept" },
+                select: {
+                  id: true,
+                  description: true,
+                  unitPrice: true,
+                  quantity: true,
+                  sourceModule: true,
+                  sourceRef: true,
+                },
+              })
+            ).map((l) => [l.id, l]),
+          );
 
     for (const [i, line] of lines.entries()) {
+      if (line.quoteLineId !== undefined) {
+        if (quoteId === undefined) {
+          throw new UnprocessableEntityException({
+            message: "pos.concept_requires_quote",
+            args: { lineIndex: i },
+          });
+        }
+        const cotizada = conceptosCotizados.get(line.quoteLineId);
+        if (cotizada === undefined) {
+          throw new UnprocessableEntityException({
+            message: "pos.concept_line_not_in_quote",
+            args: { lineIndex: i },
+          });
+        }
+        if (new Prisma.Decimal(line.quantity).greaterThan(cotizada.quantity)) {
+          throw new UnprocessableEntityException({
+            message: "pos.concept_quantity_exceeds_quote",
+            args: { lineIndex: i },
+          });
+        }
+        resueltos.push({
+          kind: "concept",
+          unitPrice: cotizada.unitPrice,
+          // Un concepto no tiene costo de catálogo: la utilidad de F5 lo ignora.
+          catalogCost: null,
+          quantityBase: new Prisma.Decimal(line.quantity),
+          presentationId: null,
+          isComposite: false,
+          sku: "",
+          conceptDescription: cotizada.description,
+          sourceModule: cotizada.sourceModule,
+          sourceRef: cotizada.sourceRef,
+        });
+        continue;
+      }
+
       if (line.serviceId !== undefined) {
         const servicio = await tx.service.findFirst({
           where: { id: line.serviceId, tenantId: user.tenantId, isActive: true },
@@ -552,6 +636,8 @@ export class SalesService {
           });
         }
         resueltos.push({
+          kind: "service",
+          ...sinConcepto,
           unitPrice: servicio.price ?? new Prisma.Decimal(0),
           catalogCost: servicio.cost,
           quantityBase: new Prisma.Decimal(line.quantity),
@@ -618,6 +704,8 @@ export class SalesService {
       }
 
       resueltos.push({
+        kind: "product",
+        ...sinConcepto,
         unitPrice: presentacion.price ?? new Prisma.Decimal(0),
         catalogCost: presentacion.cost,
         quantityBase: new Prisma.Decimal(line.quantity).times(presentacion.factor),

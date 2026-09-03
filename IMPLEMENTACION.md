@@ -2472,27 +2472,27 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Verificar:** unit spec de `QuotesService` (RED): cotización mixta producto+servicio+concepto suma bien y el concepto no toca stock. Mutante: `unitPrice: 0` en la rama concepto rompe el test del total.
   - **Depende de:** F4-CONCEPT-02, F4-CONCEPT-03 · **Estimación:** 2 h
 
-- [ ] **F4-CONCEPT-05** — `forSale` devuelve `LookupConceptItem`
+- [x] **F4-CONCEPT-05** *(cerrada el 2026-09-03 — la cotización se lee con `include`, así `kind`, `sourceModule` y el `id` de la línea ya viajan sin tocar el select)* — `forSale` devuelve `LookupConceptItem`
   - **Salida:** `lookup.strategies.ts`: `LookupConceptItem {type:"concept", matchedBy:"quote", id = quoteLineId, description, unitPrice, sourceModule: string|null}` en la unión `LookupItem` (nota: ninguna strategy lo produce; solo `forSale`). `quotes.service.ts#forSale`: rama concepto → `unavailable:false`, `unitPrice` = el cotizado (la única línea con precio congelado: no hay catálogo que releer), `shortfall:null`.
   - **Verificar:** e2e `pos-quotes.e2e-spec.ts` (RED): cotización con concepto; `for-sale` lo devuelve con `unavailable:false`, `item.type==="concept"` e `id` = `quoteLineId`. Mutante: marcarlo `unavailable:true` rompe el test.
   - **Depende de:** F4-CONCEPT-04 · **Estimación:** 2 h
 
-- [ ] **F4-CONCEPT-06** — `SalesService`: cobrar un concepto SOLO desde su cotización
+- [x] **F4-CONCEPT-06** *(cerrada el 2026-09-03 — la prueba es e2e sobre Postgres real, como en 04: sin `sales.service.spec` con Prisma mockeado; las líneas de concepto se leen UNA vez antes del flip a `loaded`)* — `SalesService`: cobrar un concepto SOLO desde su cotización
   - **Salida:** `resolverPrecios` gana la rama `quoteLineId`: exige `dto.quoteId` (422 `pos.concept_requires_quote`); carga las líneas de esa cotización dentro de la tx ANTES del flip a `loaded`; valida pertenencia + `kind='concept'` (422 `pos.concept_line_not_in_quote`) y `quantity ≤ cotizada` (422 `pos.concept_quantity_exceeds_quote`); copia `unitPrice`/`description`/`sourceModule`/`sourceRef`; `catalogCost: null`; el ítem se escribe con `kind:'concept'` y NO entra en `deProducto` (ledger).
   - **Verificar:** unit spec (RED): sin `quoteId` → 422; `quoteLineId` de OTRA cotización → 422; cantidad mayor → 422; menor → cobra proporcional; `unitCost` null. El DTO `.strict()` fija que el precio no puede venir del cliente.
   - **Depende de:** F4-CONCEPT-03, F4-CONCEPT-05 · **Estimación:** 3 h
 
-- [ ] **F4-CONCEPT-07** — Ticket y reportes con el tercer brazo
+- [x] **F4-CONCEPT-07** *(cerrada el 2026-09-03 — `descripcionDeFila` se extrajo como función pura para poder probarla; los agregados del dashboard salen con la escala de la columna (`3.0000`), el test compara números)* — Ticket y reportes con el tercer brazo
   - **Salida:** `ticket.service.ts#filasDe`: descripción = `line.description ?? line.conceptDescription ?? producto?.name ?? servicio?.name`. `dashboard-products.service.ts`: `COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description))` en SELECT y GROUP BY de las dos consultas, `name` con fallback a `concept_description`, `sku` a `''`.
   - **Verificar:** `ticket.renderer.spec.ts` con una fila de concepto (RED: hoy imprime vacío); spec del dashboard con venta mixta: el concepto aparece en `topSold` agrupado por descripción y NO en `topProfit` (`unit_cost IS NULL`). Verificado que el web no usa `itemId` para navegar.
   - **Depende de:** F4-CONCEPT-06 · **Estimación:** 2 h
 
-- [ ] **F4-CONCEPT-08** — El carrito del web aprende la tercera línea
+- [x] **F4-CONCEPT-08** *(cerrada el 2026-09-03 — `CartConceptLine` guarda `description` (no `name`); `cart-search.tsx` y su test de escaneo tuvieron que aprender el tipo aunque ninguna búsqueda lo produzca)* — El carrito del web aprende la tercera línea
   - **Salida:** `apps/web/src/stores/cart.store.ts`: `CartConceptLine {key, type:"concept", quoteLineId, description, unitPrice, quantity}`; `claveDe` → `concept:${quoteLineId}`; rama en `add()`; `precioDeLinea`; `excedeElStock` → `false`; `aLineasDeVenta` → `{quoteLineId, quantity}`; `SaleLinePayload.quoteLineId?`. `lib/pos/api.ts`: `LookupConceptItem` en la unión. `CartPanel` pinta la línea sin unidad ni stock.
   - **Verificar:** `cart.store.test.ts` (RED): agregar dos veces el mismo `quoteLineId` funde cantidades; `excedeElStock` nunca marca un concepto; el payload lleva `quoteLineId` y NO precio. `QuoteLoadPanel` sin cambios: un test de render con una cotización con concepto lo fija.
   - **Depende de:** F4-CONCEPT-05 · **Estimación:** 3 h
 
-- [ ] **F4-CONCEPT-09** — e2e de punta a punta de la línea de concepto
+- [x] **F4-CONCEPT-09** *(cerrada el 2026-09-03 — verificado además en el POS local: cotización solo-concepto cargada por folio, cobrada con tarjeta, ticket impreso, cotización `loaded`)* — e2e de punta a punta de la línea de concepto
   - **Salida:** `apps/api/test/e2e/pos-concept-lines.e2e-spec.ts`.
   - **Verificar:** cotización con producto + concepto («Flete a domicilio», 150.00) → `for-sale` → cobro: `sale_items` trae la línea `concept` con su descripción; `stock_movements` de esa venta trae SOLO el producto; el total cuadra; `quoteLineId` sin `quoteId` → 422; `quoteLineId` de otro tenant → 422 sin filtrar existencia; reintentar el mismo folio → 409.
   - **Depende de:** F4-CONCEPT-06, F4-CONCEPT-07 · **Estimación:** 2 h

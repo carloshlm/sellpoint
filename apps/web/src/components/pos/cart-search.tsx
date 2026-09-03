@@ -181,7 +181,11 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
             >
               <span className="flex flex-col">
                 <span className="font-medium">
-                  {item.type === "quote" ? item.folio : item.name}
+                  {item.type === "quote"
+                    ? item.folio
+                    : item.type === "concept"
+                      ? item.description
+                      : item.name}
                 </span>
                 <span className="text-muted-foreground text-xs">
                   {item.type === "product" && (

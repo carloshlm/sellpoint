@@ -27,7 +27,12 @@ import type {
   ListQuotesQuery,
   QuoteLineDto,
 } from "./dto/quote.dto";
-import { conDisponibilidad, type LookupItem, SELECT_PRODUCTO } from "./lookup.strategies";
+import {
+  conDisponibilidad,
+  type LookupConceptItem,
+  type LookupItem,
+  SELECT_PRODUCTO,
+} from "./lookup.strategies";
 import { allowNegativeStock } from "./stock-policy";
 import { sellableStock } from "./warehouse-availability";
 
@@ -355,6 +360,36 @@ export class QuotesService {
 
       const lineas = await Promise.all(
         cotizacion.lines.map(async (linea) => {
+          // ── El concepto: precio CONGELADO ─────────────────────────────
+          //
+          // Es la única línea que no se relee, porque no hay catálogo que
+          // releer: su precio es el del papel, y esa congelación es lo que
+          // permite que la venta lo copie de acá (F4-CONCEPT-06) y jamás del
+          // cliente. Tampoco hay stock: nunca falta.
+          if (linea.kind === "concept") {
+            const item: LookupConceptItem = {
+              type: "concept",
+              matchedBy: "quote",
+              id: linea.id,
+              description: linea.description,
+              unitPrice: linea.unitPrice.toString(),
+              sourceModule: linea.sourceModule,
+            };
+            return {
+              lineNo: linea.lineNo,
+              productId: null,
+              serviceId: null,
+              presentationId: null,
+              description: linea.description,
+              quantity: linea.quantity.toString(),
+              quotedUnitPrice: linea.unitPrice.toString(),
+              unitPrice: linea.unitPrice.toString(),
+              unavailable: false,
+              item: item as LookupItem,
+              shortfall: null,
+            };
+          }
+
           const vigente = await this.precioVigente(tx, user, linea);
           const disponible = linea.productId === null ? null : stock.get(linea.productId);
 

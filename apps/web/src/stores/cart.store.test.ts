@@ -1,4 +1,9 @@
-import type { LookupProductItem, LookupQuoteItem, LookupServiceItem } from "@/lib/pos/api";
+import type {
+  LookupConceptItem,
+  LookupProductItem,
+  LookupQuoteItem,
+  LookupServiceItem,
+} from "@/lib/pos/api";
 import {
   aLineasDeVenta,
   type CartProductLine,
@@ -72,11 +77,56 @@ const COTIZACION: LookupQuoteItem = {
   lineCount: 2,
 };
 
+/** F4-CONCEPT-08: la línea de concepto llega SOLO desde una cotización cargada. */
+const FLETE: LookupConceptItem = {
+  type: "concept",
+  matchedBy: "quote",
+  id: "ql-flete",
+  description: "Flete a domicilio",
+  unitPrice: "150.00",
+  sourceModule: null,
+};
+
 const carrito = () => useCartStore.getState();
 
 describe("useCartStore (F4-CART-02)", () => {
   beforeEach(() => {
     useCartStore.getState().clear();
+  });
+
+  /**
+   * F4-CONCEPT-08 — la tercera línea. Se identifica por la línea de la
+   * cotización (`quoteLineId`): es lo que la venta manda, y lo único que
+   * manda — el precio lo copia el servidor de la cotización.
+   */
+  describe("concepto", () => {
+    it("agregar dos veces el mismo quoteLineId funde cantidades en un renglón", () => {
+      carrito().add(FLETE, { quantity: "1" });
+      carrito().add(FLETE, { quantity: "1" });
+
+      expect(carrito().lines).toHaveLength(1);
+      expect(carrito().lines[0]).toMatchObject({
+        type: "concept",
+        quoteLineId: "ql-flete",
+        description: "Flete a domicilio",
+        quantity: "2",
+      });
+    });
+
+    it("pinta el precio del papel y nunca marca faltante", () => {
+      carrito().add(FLETE);
+      const linea = carrito().lines[0]!;
+
+      expect(precioDeLinea(linea)).toBe("150.00");
+      expect(totalDeLinea(linea)).toBe(150);
+      expect(excedeElStock(linea)).toBe(false);
+    });
+
+    it("el payload lleva quoteLineId y cantidad, NUNCA precio ni descripción", () => {
+      carrito().add(FLETE, { quantity: "2" });
+
+      expect(aLineasDeVenta(carrito().lines)).toEqual([{ quoteLineId: "ql-flete", quantity: 2 }]);
+    });
   });
 
   describe("agregar", () => {

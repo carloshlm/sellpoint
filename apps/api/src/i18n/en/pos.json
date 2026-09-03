@@ -1,4 +1,7 @@
 {
+  "concept_line_not_in_quote": "That concept does not belong to the quote you are charging.",
+  "concept_quantity_exceeds_quote": "You cannot charge more than the quote says.",
+  "concept_requires_quote": "A concept can only be charged by loading its quote by folio.",
   "cancel_reason_required": "Explain why the sale is being canceled.",
   "declared_cash_invalid": "Counted cash cannot be negative.",
   "discount_exceeds_subtotal": "The discount cannot exceed the subtotal.",

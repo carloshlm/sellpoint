@@ -91,7 +91,26 @@ export interface LookupQuoteItem {
   lineCount: number;
 }
 
-export type LookupItem = LookupProductItem | LookupServiceItem | LookupQuoteItem;
+/**
+ * F4-CONCEPT-05 — la línea de concepto de una cotización, lista para el
+ * carrito. NINGUNA strategy la produce: solo `QuotesService.forSale`, porque
+ * un concepto no existe en el catálogo — existe en el papel. `id` es el de la
+ * línea de la cotización, y es lo que la venta manda como `quoteLineId`.
+ */
+export interface LookupConceptItem {
+  type: "concept";
+  matchedBy: "quote";
+  id: string;
+  description: string;
+  unitPrice: string;
+  sourceModule: string | null;
+}
+
+export type LookupItem =
+  | LookupProductItem
+  | LookupServiceItem
+  | LookupQuoteItem
+  | LookupConceptItem;
 
 export interface LookupContext {
   tx: Prisma.TransactionClient;

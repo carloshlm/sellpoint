@@ -105,7 +105,26 @@ export interface LookupQuoteItem {
   lineCount: number;
 }
 
-export type LookupItem = LookupProductItem | LookupServiceItem | LookupQuoteItem;
+/**
+ * F4-CONCEPT-08 — la línea de concepto de una cotización. Solo la produce
+ * `GET /pos/quotes/folio/:folio/for-sale`: un concepto no existe en el
+ * catálogo, existe en el papel. `id` es el de la línea de la cotización, y
+ * es lo que la venta manda como `quoteLineId`.
+ */
+export interface LookupConceptItem {
+  type: "concept";
+  matchedBy: "quote";
+  id: string;
+  description: string;
+  unitPrice: string;
+  sourceModule: string | null;
+}
+
+export type LookupItem =
+  | LookupProductItem
+  | LookupServiceItem
+  | LookupQuoteItem
+  | LookupConceptItem;
 
 export interface LookupResult {
   warehouseId: string;
@@ -162,7 +181,14 @@ export interface Sale {
 
 export interface CreateSaleInput {
   paymentMethod: PaymentMethod;
-  lines: { productId?: string; serviceId?: string; presentationId?: string; quantity: number }[];
+  lines: {
+    productId?: string;
+    serviceId?: string;
+    presentationId?: string;
+    /** F4-CONCEPT-08: el concepto se cobra por la línea de su cotización. */
+    quoteLineId?: string;
+    quantity: number;
+  }[];
   quoteId?: string;
 }
 

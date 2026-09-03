@@ -102,6 +102,8 @@ describe("Los widgets del dashboard (integration)", () => {
     creadaEn: string;
     productoId?: string;
     servicioId?: string;
+    /** F4-CONCEPT-07: una línea de concepto (sin producto ni servicio). */
+    concepto?: string;
     quantity: number;
     unitPrice: number;
     unitCost?: number;
@@ -130,9 +132,15 @@ describe("Los widgets del dashboard (integration)", () => {
                 tenantId: ctx.tenantId,
                 lineNo: 1,
                 // F4-CONCEPT-02: la forma de la línea la cierra el CHECK por kind.
-                kind: v.servicioId !== undefined ? "service" : "product",
+                kind:
+                  v.concepto !== undefined
+                    ? "concept"
+                    : v.servicioId !== undefined
+                      ? "service"
+                      : "product",
                 ...(v.productoId !== undefined && { productId: v.productoId }),
                 ...(v.servicioId !== undefined && { serviceId: v.servicioId }),
+                ...(v.concepto !== undefined && { conceptDescription: v.concepto }),
                 quantity: v.quantity,
                 unitPrice: v.unitPrice,
                 discount: 0,
@@ -283,6 +291,37 @@ describe("Los widgets del dashboard (integration)", () => {
     expect(r.topProfit[0]?.name).toBe("Consulta Médica");
     expect(r.topProfit[0]?.profit).toBe("320.00");
     expect(r.topProfit[0]?.marginPct).toBe(80);
+  });
+
+  /**
+   * F4-CONCEPT-07 — un concepto no tiene id de catálogo: su identidad en el
+   * reporte es su descripción. Cuenta en «más vendidos» y NUNCA en utilidad
+   * (no tiene costo: `unit_cost IS NULL`).
+   */
+  it("un CONCEPTO cuenta en más vendidos por su descripción y no en utilidad", async () => {
+    const ctx = await escenario();
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      concepto: "Flete a domicilio",
+      quantity: 3,
+      unitPrice: 150,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T19:00:00Z",
+      productoId: ctx.productoA,
+      quantity: 2,
+      unitPrice: 30,
+      unitCost: 28,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    const flete = r.topSold.find((f) => f.name === "Flete a domicilio");
+    // Los agregados salen con la escala de la columna; lo que importa es el número.
+    expect(Number(flete?.units)).toBe(3);
+    expect(Number(flete?.revenue)).toBe(450);
+    expect(r.topProfit.map((f) => f.name)).not.toContain("Flete a domicilio");
+    expect(r.topProfit[0]?.name).toBe("Agua 1L");
   });
 
   it("inventario: cuenta agotados y bajos, predice días y el valor solo viaja con reports:read", async () => {

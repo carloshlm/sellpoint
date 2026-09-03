@@ -135,7 +135,9 @@ describe("escaneo → carrito (cola imperativa)", () => {
     resolverAvena(exacto(AVENA));
 
     await waitFor(() => expect(useCartStore.getState().lines).toHaveLength(2));
-    const nombres = useCartStore.getState().lines.map((l) => l.name);
+    const nombres = useCartStore
+      .getState()
+      .lines.map((l) => (l.type === "concept" ? l.description : l.name));
     expect(nombres).toEqual(["Oatmeal Bars", "Granola"]);
   });
 

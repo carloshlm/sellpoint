@@ -1,3 +1,4 @@
+import { createSaleSchema } from "./dto/create-sale.dto";
 import { createQuoteSchema } from "./dto/quote.dto";
 
 /**
@@ -43,6 +44,28 @@ describe("DTOs del POS con línea de concepto (F4-CONCEPT-03)", () => {
     const res = cotizar({ quantity: 1 });
     expect(res.success).toBe(false);
     expect(JSON.stringify(res.error?.issues)).toContain("pos.line_kind_invalid");
+  });
+
+  /**
+   * F4-CONCEPT-06 — la venta identifica el concepto por `quoteLineId`, nunca
+   * por descripción ni precio: eso se copia de la cotización en el servidor.
+   */
+  it("la línea de venta acepta quoteLineId como tercera forma, sola", () => {
+    const linea = { quoteLineId: "5b3e7d6e-3c4a-4c9c-9d1a-2b3c4d5e6f70", quantity: 1 };
+    expect(createSaleSchema.safeParse({ paymentMethod: "cash", lines: [linea] }).success).toBe(
+      true,
+    );
+    expect(
+      createSaleSchema.safeParse({
+        paymentMethod: "cash",
+        lines: [{ ...linea, productId: "5b3e7d6e-3c4a-4c9c-9d1a-2b3c4d5e6f71" }],
+      }).success,
+    ).toBe(false);
+    // El precio sigue sin poder viajar, también en esta forma.
+    expect(
+      createSaleSchema.safeParse({ paymentMethod: "cash", lines: [{ ...linea, unitPrice: 1 }] })
+        .success,
+    ).toBe(false);
   });
 
   it("la presentación sigue siendo cosa de productos", () => {

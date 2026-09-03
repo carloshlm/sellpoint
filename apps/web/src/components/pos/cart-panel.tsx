@@ -106,7 +106,7 @@ export function CartPanel() {
  * `allowFractionalInput` en las presentaciones— y no un permiso general.
  */
 function admiteDecimales(line: CartLine): boolean {
-  if (line.type === "service") {
+  if (line.type === "service" || line.type === "concept") {
     return false;
   }
   return (
@@ -150,8 +150,10 @@ function CartLineRow({
   // El rechazo del servidor cae SOBRE su renglón (F4-UI-02). En un carrito de
   // ocho líneas, un «no hay suficiente existencia» que no señala cuál obliga a
   // revisarlas una por una con el cliente enfrente.
-  const rechazada =
-    errorSku !== null && errorSku === (line.type === "product" ? line.sku : line.code);
+  // Un concepto no tiene SKU ni código: el servidor no lo rechaza por renglón.
+  const codigoDeLinea =
+    line.type === "product" ? line.sku : line.type === "service" ? line.code : null;
+  const rechazada = errorSku !== null && errorSku === codigoDeLinea;
 
   return (
     <li
@@ -167,10 +169,11 @@ function CartLineRow({
     >
       <div className="flex items-center justify-between gap-2">
         <button type="button" className="flex-1 text-left" onClick={onSelect}>
-          <span className="font-medium">{line.name}</span>
+          <span className="font-medium">
+            {line.type === "concept" ? line.description : line.name}
+          </span>
           <span className="block text-muted-foreground text-xs">
-            {line.type === "product" ? line.sku : line.code}
-            {" · "}
+            {codigoDeLinea !== null && `${codigoDeLinea} · `}
             {formatMoney(Number(precioDeLinea(line) ?? 0), currency, locale)}
           </span>
         </button>
