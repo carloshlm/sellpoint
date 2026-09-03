@@ -54,6 +54,9 @@ import { Route as ReceptionCustomersIndexRouteImport } from './routes/reception.
 import { Route as ReceptionCustomersCustomerIdRouteImport } from './routes/reception.customers.$customerId'
 import { Route as ReceptionCustomersNewRouteImport } from './routes/reception.customers.new'
 import { Route as MedicalClinicRecordsRecordIdIndexRouteImport } from './routes/medical-clinic.records.$recordId.index'
+import { Route as MedicalClinicRecordsRecordIdOrdersIndexRouteImport } from './routes/medical-clinic.records.$recordId.orders.index'
+import { Route as MedicalClinicRecordsRecordIdOrdersOrderKindRouteImport } from './routes/medical-clinic.records.$recordId.orders.$orderKind'
+import { Route as MedicalClinicRecordsRecordIdSectionsSectionKeyRouteImport } from './routes/medical-clinic.records.$recordId.sections.$sectionKey'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -285,6 +288,24 @@ const MedicalClinicRecordsRecordIdIndexRoute =
     path: '/medical-clinic/records/$recordId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const MedicalClinicRecordsRecordIdOrdersIndexRoute =
+  MedicalClinicRecordsRecordIdOrdersIndexRouteImport.update({
+    id: '/medical-clinic/records/$recordId/orders/',
+    path: '/medical-clinic/records/$recordId/orders/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const MedicalClinicRecordsRecordIdOrdersOrderKindRoute =
+  MedicalClinicRecordsRecordIdOrdersOrderKindRouteImport.update({
+    id: '/medical-clinic/records/$recordId/orders/$orderKind',
+    path: '/medical-clinic/records/$recordId/orders/$orderKind',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const MedicalClinicRecordsRecordIdSectionsSectionKeyRoute =
+  MedicalClinicRecordsRecordIdSectionsSectionKeyRouteImport.update({
+    id: '/medical-clinic/records/$recordId/sections/$sectionKey',
+    path: '/medical-clinic/records/$recordId/sections/$sectionKey',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -332,6 +353,9 @@ export interface FileRoutesByFullPath {
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
   '/medical-clinic/records/$recordId/': typeof MedicalClinicRecordsRecordIdIndexRoute
+  '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
+  '/medical-clinic/records/$recordId/sections/$sectionKey': typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
+  '/medical-clinic/records/$recordId/orders/': typeof MedicalClinicRecordsRecordIdOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -379,6 +403,9 @@ export interface FileRoutesByTo {
   '/pos/quotes': typeof PosQuotesIndexRoute
   '/reception/customers': typeof ReceptionCustomersIndexRoute
   '/medical-clinic/records/$recordId': typeof MedicalClinicRecordsRecordIdIndexRoute
+  '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
+  '/medical-clinic/records/$recordId/sections/$sectionKey': typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
+  '/medical-clinic/records/$recordId/orders': typeof MedicalClinicRecordsRecordIdOrdersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -427,6 +454,9 @@ export interface FileRoutesById {
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
   '/medical-clinic/records/$recordId/': typeof MedicalClinicRecordsRecordIdIndexRoute
+  '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
+  '/medical-clinic/records/$recordId/sections/$sectionKey': typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
+  '/medical-clinic/records/$recordId/orders/': typeof MedicalClinicRecordsRecordIdOrdersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -476,6 +506,9 @@ export interface FileRouteTypes {
     | '/pos/quotes/'
     | '/reception/customers/'
     | '/medical-clinic/records/$recordId/'
+    | '/medical-clinic/records/$recordId/orders/$orderKind'
+    | '/medical-clinic/records/$recordId/sections/$sectionKey'
+    | '/medical-clinic/records/$recordId/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -523,6 +556,9 @@ export interface FileRouteTypes {
     | '/pos/quotes'
     | '/reception/customers'
     | '/medical-clinic/records/$recordId'
+    | '/medical-clinic/records/$recordId/orders/$orderKind'
+    | '/medical-clinic/records/$recordId/sections/$sectionKey'
+    | '/medical-clinic/records/$recordId/orders'
   id:
     | '__root__'
     | '/'
@@ -570,6 +606,9 @@ export interface FileRouteTypes {
     | '/pos/quotes/'
     | '/reception/customers/'
     | '/medical-clinic/records/$recordId/'
+    | '/medical-clinic/records/$recordId/orders/$orderKind'
+    | '/medical-clinic/records/$recordId/sections/$sectionKey'
+    | '/medical-clinic/records/$recordId/orders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -618,6 +657,9 @@ export interface RootRouteChildren {
   PosQuotesIndexRoute: typeof PosQuotesIndexRoute
   ReceptionCustomersIndexRoute: typeof ReceptionCustomersIndexRoute
   MedicalClinicRecordsRecordIdIndexRoute: typeof MedicalClinicRecordsRecordIdIndexRoute
+  MedicalClinicRecordsRecordIdOrdersOrderKindRoute: typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
+  MedicalClinicRecordsRecordIdSectionsSectionKeyRoute: typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
+  MedicalClinicRecordsRecordIdOrdersIndexRoute: typeof MedicalClinicRecordsRecordIdOrdersIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -937,6 +979,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MedicalClinicRecordsRecordIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/medical-clinic/records/$recordId/orders/': {
+      id: '/medical-clinic/records/$recordId/orders/'
+      path: '/medical-clinic/records/$recordId/orders'
+      fullPath: '/medical-clinic/records/$recordId/orders/'
+      preLoaderRoute: typeof MedicalClinicRecordsRecordIdOrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/medical-clinic/records/$recordId/orders/$orderKind': {
+      id: '/medical-clinic/records/$recordId/orders/$orderKind'
+      path: '/medical-clinic/records/$recordId/orders/$orderKind'
+      fullPath: '/medical-clinic/records/$recordId/orders/$orderKind'
+      preLoaderRoute: typeof MedicalClinicRecordsRecordIdOrdersOrderKindRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/medical-clinic/records/$recordId/sections/$sectionKey': {
+      id: '/medical-clinic/records/$recordId/sections/$sectionKey'
+      path: '/medical-clinic/records/$recordId/sections/$sectionKey'
+      fullPath: '/medical-clinic/records/$recordId/sections/$sectionKey'
+      preLoaderRoute: typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -987,6 +1050,12 @@ const rootRouteChildren: RootRouteChildren = {
   ReceptionCustomersIndexRoute: ReceptionCustomersIndexRoute,
   MedicalClinicRecordsRecordIdIndexRoute:
     MedicalClinicRecordsRecordIdIndexRoute,
+  MedicalClinicRecordsRecordIdOrdersOrderKindRoute:
+    MedicalClinicRecordsRecordIdOrdersOrderKindRoute,
+  MedicalClinicRecordsRecordIdSectionsSectionKeyRoute:
+    MedicalClinicRecordsRecordIdSectionsSectionKeyRoute,
+  MedicalClinicRecordsRecordIdOrdersIndexRoute:
+    MedicalClinicRecordsRecordIdOrdersIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
