@@ -218,10 +218,18 @@ function OnboardingContent() {
   );
 }
 
+/**
+ * Red caída → el mensaje de red; 402 → el motivo que ya manda el API (es el
+ * plan, no el formulario: un negocio sin suscripción viva no puede guardar,
+ * y el genérico lo escondía — visto en producción el 2026-09-02); el resto →
+ * el genérico del paso.
+ */
 function formErrorMessage(
   t: (key: string) => string,
   fallbackKey: string,
   error: ApiError,
 ): string {
-  return error.statusCode === 0 ? t("common.errors.network") : t(fallbackKey);
+  if (error.statusCode === 0) return t("common.errors.network");
+  if (error.statusCode === 402 && error.message) return error.message;
+  return t(fallbackKey);
 }

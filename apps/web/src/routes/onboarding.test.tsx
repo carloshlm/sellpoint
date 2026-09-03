@@ -276,6 +276,33 @@ describe("/onboarding", () => {
     expect(screen.getByLabelText("Nombre legal")).toBeInTheDocument();
   });
 
+  /**
+   * Producción, 2026-09-02: un negocio anterior a la fase de cobros (sin
+   * suscripción) recibía 402 al guardar el paso 1 y veía el genérico «No
+   * pudimos guardar…». El API ya explica el motivo: hay que mostrarlo.
+   */
+  it("si el API responde 402 (plan de solo lectura), el paso 1 muestra ESE motivo, no el genérico", async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantFixture()));
+    mockedTenantApi.updateMyTenant.mockRejectedValue({
+      statusCode: 402,
+      message: "Tu plan actual es de solo lectura.",
+      error: "Payment Required",
+    });
+
+    await renderRoute("/onboarding");
+    await screen.findByLabelText("Nombre legal");
+
+    await user.selectOptions(screen.getByLabelText("País"), "MX");
+    await user.type(screen.getByLabelText("Nombre legal"), "Acme SA de CV");
+    await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
+    await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(await screen.findByText("Tu plan actual es de solo lectura.")).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos guardar los datos del negocio.")).not.toBeInTheDocument();
+  });
+
   it("sin sesión (accessToken && !user, ventana de bootstrap): muestra loading, no el form", async () => {
     useAuthStore.getState().setToken("jwt-en-vuelo");
 
