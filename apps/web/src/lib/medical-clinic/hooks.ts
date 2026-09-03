@@ -158,6 +158,7 @@ export function useCreateOrder(recordId: string) {
     mutationFn: (input) => createOrder(recordId, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recordKey(recordId) });
+      void queryClient.invalidateQueries({ queryKey: ordersKey(recordId) });
     },
   });
 }
@@ -168,6 +169,7 @@ export function useCancelOrder(recordId: string) {
     mutationFn: (id) => cancelOrder(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: recordKey(recordId) });
+      void queryClient.invalidateQueries({ queryKey: ordersKey(recordId) });
     },
   });
 }

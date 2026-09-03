@@ -73,7 +73,7 @@ export interface RecordCard {
   functional: boolean;
 }
 
-const SECTION_ICONS: Record<MedicalRecordSectionKey, LucideIcon> = {
+const SECTION_ICONS = {
   general_data: ClipboardList,
   chief_complaint: MessageSquareText,
   current_illness: Activity,
@@ -106,7 +106,7 @@ const SECTION_ICONS: Record<MedicalRecordSectionKey, LucideIcon> = {
   referrals: ArrowRightLeft,
   interconsultations: UsersRound,
   follow_up_appointments: CalendarPlus,
-};
+} satisfies Record<MedicalRecordSectionKey, LucideIcon>;
 
 const ORDER_CARDS: readonly RecordCard[] = [
   { key: "prescription", group: "orders", icon: Pill, kind: "order", functional: true },
@@ -120,7 +120,7 @@ export const RECORD_CARDS: readonly RecordCard[] = [
     (section): RecordCard => ({
       key: section.key,
       group: section.group,
-      icon: SECTION_ICONS[section.key],
+      icon: (SECTION_ICONS as Record<string, LucideIcon>)[section.key] ?? ClipboardList,
       kind: "section",
       functional: section.functional,
     }),

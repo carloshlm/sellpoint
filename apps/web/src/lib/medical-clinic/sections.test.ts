@@ -40,8 +40,12 @@ describe("catálogo de tarjetas de la historia clínica", () => {
 
   it("toda tarjeta tiene título en es y en en", () => {
     for (const card of RECORD_CARDS) {
-      expect((es.sections as Record<string, { title: string }>)[card.key]?.title).toBeTruthy();
-      expect((en.sections as Record<string, { title: string }>)[card.key]?.title).toBeTruthy();
+      expect(
+        (es.sections as unknown as Record<string, { title?: string }>)[card.key]?.title,
+      ).toBeTruthy();
+      expect(
+        (en.sections as unknown as Record<string, { title?: string }>)[card.key]?.title,
+      ).toBeTruthy();
     }
   });
 
