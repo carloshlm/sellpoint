@@ -10,7 +10,10 @@
     "clear": "Limpiar fechas"
   },
   "errors": {
-    "network": "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo."
+    "network": "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.",
+    "sessionExpired": "Tu sesión venció. Vuelve a iniciar sesión.",
+    "forbidden": "No tienes permiso para ver esto. Pídeselo a quien administra el negocio.",
+    "server": "Algo falló de nuestro lado. Intenta de nuevo en un momento."
   },
   "form": {
     "submitting": "Enviando…",

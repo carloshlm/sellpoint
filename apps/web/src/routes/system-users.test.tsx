@@ -951,4 +951,43 @@ describe("/system/users", () => {
       expect(screen.getByTestId("warehouse-scope-w1")).toBeDisabled();
     });
   });
+
+  /**
+   * F1-RBAC: cuando el listado no carga, el aviso dice POR QUÉ. El texto
+   * único —«No pudimos cargar los usuarios»— no distinguía una sesión
+   * vencida de un permiso que falta ni de un servidor caído (Carlos,
+   * 2026-09-04, con el negocio seis en producción).
+   */
+  describe("el listado que falla dice por qué", () => {
+    it.each([
+      [401, "Tu sesión venció. Vuelve a iniciar sesión."],
+      [403, "No tienes permiso para ver esto. Pídeselo a quien administra el negocio."],
+      [500, "Algo falló de nuestro lado. Intenta de nuevo en un momento."],
+      [0, "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo."],
+    ])("un %i lo explica en sus términos", async (statusCode, esperado) => {
+      mockedApi.listUsers.mockRejectedValue({
+        statusCode,
+        message: "",
+        error: "Error",
+      });
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read"]));
+      await renderRoute("/system/users");
+      // Red y 5xx se reintentan una vez (ver `shouldRetryQuery`): el aviso
+      // tarda más que un 4xx, que no se reintenta.
+      expect(await screen.findByRole("alert", {}, { timeout: 5000 })).toHaveTextContent(esperado);
+    });
+
+    it("un 402 muestra el motivo que el backend ya tradujo", async () => {
+      mockedApi.listUsers.mockRejectedValue({
+        statusCode: 402,
+        message: "Tu plan no incluye esta función.",
+        error: "Payment Required",
+      });
+      useAuthStore.getState().setAuth("jwt-demo", demoUser(["users:read"]));
+      await renderRoute("/system/users");
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Tu plan no incluye esta función.",
+      );
+    });
+  });
 });

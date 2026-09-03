@@ -10,7 +10,10 @@
     "clear": "Clear dates"
   },
   "errors": {
-    "network": "We couldn't reach the server. Check your connection and try again."
+    "network": "We couldn't reach the server. Check your connection and try again.",
+    "sessionExpired": "Your session expired. Sign in again.",
+    "forbidden": "You do not have permission to see this. Ask whoever manages the business.",
+    "server": "Something failed on our side. Try again in a moment."
   },
   "form": {
     "submitting": "Sending…",

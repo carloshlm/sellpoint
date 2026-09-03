@@ -9,6 +9,7 @@ import { UserForm } from "@/components/system/user-form";
 import { fullName, UsersTable } from "@/components/system/users-table";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/api-error-message";
 import { useForgotPassword } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
 import type { UserDetail } from "@/lib/rbac/api";
@@ -76,7 +77,7 @@ function SystemUsersContent() {
   const canListRoles = has("roles:read");
   const actorPermissionCodes = useAuthStore((state) => state.user?.permissions ?? []);
 
-  const { data, isPending, isError } = useUsers();
+  const { data, isPending, isError, error: usersError } = useUsers();
   const { data: roles, isError: rolesError } = useRoles({ enabled: canManage && canListRoles });
   const rolesUnavailable = !canListRoles || rolesError;
   const createUserMutation = useCreateUser();
@@ -303,7 +304,8 @@ function SystemUsersContent() {
       )}
       {isError && (
         <p role="alert" className="text-sm text-destructive">
-          {t("users.table.error")}
+          {/* El motivo, no solo el síntoma: sesión, permiso, red o servidor. */}
+          {apiErrorMessage(t, usersError, "users.table.error")}
         </p>
       )}
       {formState && canManage && (formState.mode === "create" || warehouseScopeQuery.isSuccess) && (
