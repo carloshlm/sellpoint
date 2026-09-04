@@ -164,8 +164,8 @@ describe("orden de laboratorio (F9-CLINIC-WEB-17)", () => {
       await screen.findByRole("heading", { level: 1, name: "Orden de laboratorio" }),
     ).toBeInTheDocument();
     await user.type(screen.getByLabelText("Buscar estudio de laboratorio"), "b");
-    await user.click(await screen.findByRole("checkbox", { name: "Biometría hemática" }));
-    await user.click(screen.getByRole("checkbox", { name: "Química sanguínea" }));
+    await user.click(await screen.findByRole("button", { name: /Biometría hemática/ }));
+    await user.click(screen.getByRole("button", { name: /Química sanguínea/ }));
     const lineas = screen.getByTestId("order-lines");
     expect(within(lineas).getAllByRole("row")).toHaveLength(3); // encabezado + 2
     expect(lineas).toHaveTextContent("$770.00");
@@ -195,6 +195,29 @@ describe("orden de laboratorio (F9-CLINIC-WEB-17)", () => {
     );
   });
 
+  it("no lista el catálogo sin buscar: se escribe y aparecen los aciertos", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/lab_order");
+    await screen.findByRole("heading", { level: 1, name: "Orden de laboratorio" });
+    // Igual que el buscador del punto de venta: en blanco no propone nada.
+    expect(mocked.listStudies).not.toHaveBeenCalled();
+    expect(screen.queryByText("Biometría hemática")).not.toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Buscar estudio de laboratorio"), "b");
+    expect(await screen.findByRole("button", { name: /Biometría hemática/ })).toBeInTheDocument();
+  });
+
+  it("el buscador de estudios no habla de dinero: la orden es clínica", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/lab_order");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Buscar estudio de laboratorio"), "b");
+    const acierto = await screen.findByRole("button", { name: /Biometría hemática/ });
+    expect(acierto).toHaveTextContent("BH");
+    expect(acierto).not.toHaveTextContent("$");
+    // El total de la orden sí, que es lo que se va a cobrar.
+    await user.click(acierto);
+    expect(screen.getByTestId("order-lines")).toHaveTextContent("$350.00");
+  });
+
   it("sin líneas no emite y avisa", async () => {
     await renderRuta("/medical-clinic/records/r1/orders/diagnostic_order");
     const user = userEvent.setup();
@@ -216,7 +239,7 @@ describe("orden de laboratorio (F9-CLINIC-WEB-17)", () => {
     await renderRuta("/medical-clinic/records/r1/orders/lab_order");
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("Buscar estudio de laboratorio"), "b");
-    await user.click(await screen.findByRole("checkbox", { name: "Biometría hemática" }));
+    await user.click(await screen.findByRole("button", { name: /Biometría hemática/ }));
     await user.click(screen.getByRole("button", { name: "Emitir orden" }));
     const aviso = await screen.findByRole("status");
     expect(aviso).toHaveTextContent("Orden ORM-000001 registrada. No se cobra en caja.");
@@ -235,7 +258,7 @@ describe("receta de medicamentos (F9-CLINIC-WEB-18)", () => {
     const paracetamol = await screen.findByTestId("medication-prod1");
     expect(paracetamol).toHaveTextContent("12 disponibles");
     expect(screen.getByTestId("medication-prod2")).toHaveTextContent("Sin existencia");
-    await user.click(within(paracetamol).getByRole("button", { name: "Agregar" }));
+    await user.click(within(paracetamol).getByRole("button", { name: /Paracetamol/ }));
     const lineas = screen.getByTestId("order-lines");
     expect(lineas).toHaveTextContent("Paracetamol 500 mg");
     expect(lineas).toHaveTextContent("Caja");
@@ -245,7 +268,7 @@ describe("receta de medicamentos (F9-CLINIC-WEB-18)", () => {
     await user.type(within(lineas).getByLabelText("Indicación"), "1 cada 8 h");
     // Un producto en cero también se puede recetar.
     await user.click(
-      within(screen.getByTestId("medication-prod2")).getByRole("button", { name: "Agregar" }),
+      within(screen.getByTestId("medication-prod2")).getByRole("button", { name: /Ibuprofeno/ }),
     );
     expect(within(lineas).getAllByRole("row")).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: "Emitir orden" }));
@@ -271,7 +294,7 @@ describe("receta de medicamentos (F9-CLINIC-WEB-18)", () => {
     await user.type(await screen.findByLabelText("Buscar medicamento"), "parac");
     await user.click(
       within(await screen.findByTestId("medication-prod1")).getByRole("button", {
-        name: "Agregar",
+        name: /Paracetamol/,
       }),
     );
     await user.click(screen.getByRole("button", { name: "Emitir orden" }));
@@ -292,6 +315,14 @@ describe("receta de medicamentos (F9-CLINIC-WEB-18)", () => {
       "No pudimos buscar. Intenta de nuevo.",
     );
     expect(screen.queryByText("Sin resultados.")).not.toBeInTheDocument();
+  });
+
+  it("el buscador de medicamentos tampoco muestra precios", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/prescription");
+    await userEvent.type(await screen.findByLabelText("Buscar medicamento"), "parac");
+    const fila = await screen.findByTestId("medication-prod1");
+    expect(fila).toHaveTextContent("SKU-prod1");
+    expect(fila).not.toHaveTextContent("$");
   });
 
   it("si el negocio no vende medicamentos, el buscador no muestra existencia (F9-CLINIC-WEB-22)", async () => {

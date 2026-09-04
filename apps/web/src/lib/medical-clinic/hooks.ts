@@ -37,11 +37,21 @@ export const recordKey = (recordId: string) => [...RAIZ, "records", recordId] as
 export const SETTINGS_KEY = [...RAIZ, "settings"] as const;
 
 // ── Catálogos ─────────────────────────────────────────────────────────
-export function useStudies(kind: StudyKind, params: { query?: string; page?: number } = {}) {
+/**
+ * El catálogo de estudios. `enabled` en falso deja la consulta quieta: el
+ * buscador de una orden no pide el catálogo entero mientras nadie escribe
+ * (Carlos, 2026-09-04), pero la pantalla del catálogo sí lo lista de entrada.
+ */
+export function useStudies(
+  kind: StudyKind,
+  params: { query?: string; page?: number } = {},
+  enabled = true,
+) {
   return useQuery<StudiesPage, ApiError>({
     queryKey: [...studiesKey(kind), params],
     queryFn: () => listStudies(kind, params),
     placeholderData: (previous) => previous,
+    enabled,
   });
 }
 

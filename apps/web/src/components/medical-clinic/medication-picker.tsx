@@ -1,5 +1,4 @@
-import type { Currency } from "@sellpoint/shared";
-import { formatMoney, formatQuantity } from "@sellpoint/shared";
+import { formatQuantity } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TextField } from "@/components/form/text-field";
@@ -8,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import type { MedicationItem } from "@/lib/medical-clinic/api";
 import { useStockSearch } from "@/lib/medical-clinic/hooks";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { useAuthStore } from "@/stores/auth.store";
 
 export type MedicationPresentation = MedicationItem["presentations"][number];
 
@@ -29,11 +27,12 @@ export function salePresentationOf(item: MedicationItem): MedicationPresentation
  * F9-CLINIC-WEB-18 — el buscador de medicamentos en el stock del médico.
  * Un producto en cero se lista con «Sin existencia» y SÍ se puede recetar:
  * la receta es del paciente, no del anaquel.
+ *
+ * Un CLIC en el renglón lo baja a la receta, como en el punto de venta, y no
+ * se muestran precios: el médico receta, no cotiza (Carlos, 2026-09-04).
  */
 export function MedicationPicker({ label, placeholder, showStock, onAdd }: MedicationPickerProps) {
   const { t } = useTranslation();
-  const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const [query, setQuery] = useState("");
   const termino = useDebouncedValue(query.trim());
   const stock = useStockSearch(termino);
@@ -57,46 +56,38 @@ export function MedicationPicker({ label, placeholder, showStock, onAdd }: Medic
       ) : items.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("medicalClinic.orders.noResults")}</p>
       ) : (
-        <ul className="flex max-h-64 flex-col divide-y overflow-y-auto rounded-md border">
+        <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
           {items.map((item) => {
             const presentacion = salePresentationOf(item);
             const disponible = Number(item.available);
             return (
-              <li
-                key={item.id}
-                data-testid={`medication-${item.id}`}
-                className="flex items-center gap-3 px-3 py-2"
-              >
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm">{item.name}</span>
-                  <span className="flex flex-wrap items-center gap-2 text-muted-foreground text-xs">
-                    <span className="font-mono">{item.sku}</span>
-                    {showStock ? (
-                      disponible > 0 ? (
-                        <span>
-                          {t("medicalClinic.orders.available", {
-                            quantity: formatQuantity(item.available, item.baseUnit),
-                          })}
-                        </span>
-                      ) : (
-                        <Badge variant="warning">{t("medicalClinic.orders.noStock")}</Badge>
-                      )
-                    ) : null}
-                  </span>
-                </span>
-                <span className="text-sm tabular-nums">
-                  {presentacion?.price
-                    ? formatMoney(Number(presentacion.price), currency, locale)
-                    : "—"}
-                </span>
+              <li key={item.id} data-testid={`medication-${item.id}`}>
+                {/* El renglón ENTERO agrega, como en el punto de venta: sin un
+                    botón aparte que obligue a apuntar (Carlos, 2026-09-04). */}
                 <Button
                   type="button"
-                  size="sm"
                   variant="outline"
+                  className="h-auto w-full justify-between py-2 text-left"
                   disabled={!presentacion}
                   onClick={() => presentacion && onAdd(item, presentacion)}
                 >
-                  {t("common.form.add")}
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{item.name}</span>
+                    <span className="flex flex-wrap items-center gap-2 text-muted-foreground text-xs">
+                      <span className="font-mono">{item.sku}</span>
+                      {showStock ? (
+                        disponible > 0 ? (
+                          <span>
+                            {t("medicalClinic.orders.available", {
+                              quantity: formatQuantity(item.available, item.baseUnit),
+                            })}
+                          </span>
+                        ) : (
+                          <Badge variant="warning">{t("medicalClinic.orders.noStock")}</Badge>
+                        )
+                      ) : null}
+                    </span>
+                  </span>
                 </Button>
               </li>
             );
