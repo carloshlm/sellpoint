@@ -319,7 +319,7 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       tx.receptionTurn.findFirst.mockResolvedValue({ id: "t-1", number: 5, status: "waiting" });
       await service.create(USER, { customerId: "c-1", turnId: "t-1" }, META);
       expect(tx.receptionTurn.updateMany).toHaveBeenCalledWith({
-        where: { id: "t-1", tenantId: TENANT, status: "waiting" },
+        where: { id: "t-1", tenantId: TENANT },
         data: expect.objectContaining({ status: "attended", attendedBy: "dr-1" }),
       });
     });
@@ -336,6 +336,22 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
         status: "attended",
         customerId: "c-1",
       });
+    });
+
+    it("un turno YA atendido desde Recepción igual queda ligado al paciente", async () => {
+      // La recepcionista lo marcó al pasarlo al consultorio; el cliente se
+      // liga igual, o la lista de turnos se queda diciendo «Sin cliente»
+      // para alguien que ya está adentro (Carlos, 2026-09-04).
+      tx.receptionTurn.findFirst.mockResolvedValue({
+        id: "t-8",
+        number: 5,
+        status: "attended",
+        customerId: null,
+      });
+      await service.create(USER, { customerId: "c-1", turnId: "t-8" }, META);
+      const [{ where, data }] = tx.receptionTurn.updateMany.mock.calls[0];
+      expect(where).not.toHaveProperty("status");
+      expect(data).toMatchObject({ customerId: "c-1" });
     });
 
     it("un turno que YA tenía cliente no se le cambia", async () => {
