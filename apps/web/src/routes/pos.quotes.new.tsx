@@ -32,8 +32,17 @@ function NewQuoteContent() {
             {t("pos.quote.done", { folio: generada.folio })}
           </p>
           {/* El papel con el que el cliente vuelve. Lleva la marca COTIZACIÓN y
-              la leyenda de que el precio final se calcula en caja. */}
-          <PrintTicketButton kind="quote" id={generada.id} folio={generada.folio} />
+              la leyenda de que el precio final se calcula en caja. Sale SOLO
+              al generarla, como el ticket de la venta (Carlos, 2026-09-04):
+              el cliente está enfrente esperándolo. `key` por cotización —cada
+              una es un papel nuevo— y el botón queda para repetirlo. */}
+          <PrintTicketButton
+            key={generada.id}
+            kind="quote"
+            id={generada.id}
+            folio={generada.folio}
+            autoPrint
+          />
         </div>
       )}
 

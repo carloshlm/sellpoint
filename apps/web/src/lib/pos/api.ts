@@ -1,6 +1,6 @@
 import type { PaymentMethod } from "@sellpoint/shared";
 import { api } from "@/lib/api";
-import { abrirPdfParaImprimir, imprimirPdf } from "@/lib/download";
+import { imprimirPdf } from "@/lib/download";
 
 export interface CashboxSession {
   id: string;
@@ -426,12 +426,11 @@ export async function printTicket(
     },
   );
 
-  // La VENTA va directo al cuadro de impresión (Carlos, 2026-09-02), como el
-  // papel del turno: el cliente está enfrente esperando su ticket. La
-  // COTIZACIÓN se abre en pestaña: es un documento que se mira y se manda.
-  if (kind === "sale") {
-    imprimirPdf(data, `${folio}.pdf`);
-  } else {
-    abrirPdfParaImprimir(data, `${folio}.pdf`);
-  }
+  // Venta o cotización, el papel sale AL VUELO: directo al cuadro de
+  // impresión, como el del turno. La cotización se abría en pestaña porque se
+  // pensó como documento que se mira y se manda (2026-09-02), pero en el
+  // mostrador el cliente está enfrente esperándola igual que un ticket, y la
+  // pestaña le cuesta un clic más (Carlos, 2026-09-04). `imprimirPdf` cae
+  // sola a la pestaña si el navegador no deja imprimir el iframe.
+  imprimirPdf(data, `${folio}.pdf`);
 }

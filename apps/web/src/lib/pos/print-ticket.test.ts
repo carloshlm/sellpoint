@@ -11,9 +11,12 @@ const download = vi.mocked(await import("@/lib/download"));
 const { printTicket } = await import("./api");
 
 /**
- * Carlos (2026-09-02): el ticket de VENTA va directo al cuadro de impresión,
- * como el papel del turno. La cotización se sigue abriendo en pestaña: es un
- * documento que se mira y se manda, no un papel que sale de la térmica.
+ * Carlos (2026-09-04): el papel sale SIEMPRE al vuelo, venta o cotización.
+ * La cotización se abría en pestaña porque se pensó como documento que se
+ * mira y se manda (2026-09-02); en el mostrador es lo mismo que un ticket —
+ * el cliente está enfrente esperándolo, y una pestaña obliga a un clic más.
+ * `abrirPdfParaImprimir` queda solo como respaldo dentro de `imprimirPdf`
+ * cuando el navegador no deja imprimir el iframe.
  */
 describe("printTicket", () => {
   const blob = new Blob(["%PDF"]);
@@ -32,13 +35,13 @@ describe("printTicket", () => {
     expect(download.abrirPdfParaImprimir).not.toHaveBeenCalled();
   });
 
-  it("la cotización se abre en pestaña, sin cuadro de impresión", async () => {
+  it("la cotización también sale al vuelo: cuadro de impresión, no pestaña", async () => {
     await printTicket("quote", "q-1", "COT-000001", "80mm");
     expect(api.get).toHaveBeenCalledWith("/pos/quotes/q-1/ticket", {
       responseType: "blob",
       params: { width: "80mm" },
     });
-    expect(download.abrirPdfParaImprimir).toHaveBeenCalledWith(blob, "COT-000001.pdf");
-    expect(download.imprimirPdf).not.toHaveBeenCalled();
+    expect(download.imprimirPdf).toHaveBeenCalledWith(blob, "COT-000001.pdf");
+    expect(download.abrirPdfParaImprimir).not.toHaveBeenCalled();
   });
 });

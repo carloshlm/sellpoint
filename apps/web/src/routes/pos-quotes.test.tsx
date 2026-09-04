@@ -237,6 +237,9 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useCartStore.getState().clear();
+    // Devuelve promesa: el papel sale solo al generar la cotización y el
+    // componente encadena un `.catch()` sobre lo que esto devuelva.
+    mocked.printTicket.mockResolvedValue(undefined);
     mocked.getSession.mockResolvedValue({ session: null });
     mocked.getSessionTotals.mockResolvedValue({ totals: [] });
     mocked.listQuotes.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
@@ -308,6 +311,17 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
         { productId: "prod-agua", presentationId: PIEZA.id, quantity: 2 },
       ]);
       expect(await screen.findByTestId("quote-done")).toHaveTextContent("COT-000007");
+      // Carlos, 2026-09-04: el papel de la cotización sale SOLO al generarla,
+      // igual que el ticket de la venta. El botón queda para repetirlo.
+      await waitFor(() =>
+        expect(mocked.printTicket).toHaveBeenCalledWith(
+          "quote",
+          "quote-1",
+          "COT-000007",
+          undefined,
+        ),
+      );
+      expect(mocked.printTicket).toHaveBeenCalledTimes(1);
     });
 
     /**
