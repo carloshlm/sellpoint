@@ -129,6 +129,48 @@ describe("useCartStore (F4-CART-02)", () => {
     });
   });
 
+  /**
+   * F4-CONCEPT-10 — una línea cargada desde una cotización recuerda de qué
+   * renglón salió. El servidor usa ese id para guardar el origen (qué módulo
+   * lo emitió) sin cambiar de dónde sale el precio: del catálogo.
+   */
+  describe("el renglón que vino de una cotización", () => {
+    it("manda su quoteLineId junto al producto, y una línea de búsqueda no", () => {
+      const carrito = useCartStore.getState;
+      carrito().add({ ...AGUA, matchedBy: "quote", quoteLineId: "ql-agua" });
+      expect(aLineasDeVenta(carrito().lines)).toEqual([
+        {
+          productId: "prod-agua",
+          presentationId: "pres-pieza",
+          quoteLineId: "ql-agua",
+          quantity: 1,
+        },
+      ]);
+
+      carrito().clear();
+      carrito().add(AGUA);
+      expect(aLineasDeVenta(carrito().lines)).toEqual([
+        { productId: "prod-agua", presentationId: "pres-pieza", quantity: 1 },
+      ]);
+    });
+
+    it("no se funde con el mismo producto agregado por búsqueda: son renglones distintos", () => {
+      const carrito = useCartStore.getState;
+      carrito().add({ ...AGUA, matchedBy: "quote", quoteLineId: "ql-agua" });
+      carrito().add(AGUA);
+      expect(carrito().lines).toHaveLength(2);
+      expect(aLineasDeVenta(carrito().lines)).toEqual([
+        {
+          productId: "prod-agua",
+          presentationId: "pres-pieza",
+          quoteLineId: "ql-agua",
+          quantity: 1,
+        },
+        { productId: "prod-agua", presentationId: "pres-pieza", quantity: 1 },
+      ]);
+    });
+  });
+
   describe("agregar", () => {
     it("una línea de producto nace con la presentación PREDETERMINADA", () => {
       carrito().add(AGUA);

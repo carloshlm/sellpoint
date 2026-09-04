@@ -70,6 +70,8 @@ export interface LookupPresentation {
 }
 
 export interface LookupProductItem {
+  /** El renglón de la cotización del que salió; solo llega desde `for-sale`. */
+  quoteLineId?: string;
   type: "product";
   matchedBy: LookupKind;
   id: string;
@@ -87,6 +89,8 @@ export interface LookupProductItem {
 }
 
 export interface LookupServiceItem {
+  /** El renglón de la cotización del que salió; solo llega desde `for-sale`. */
+  quoteLineId?: string;
   type: "service";
   matchedBy: LookupKind;
   id: string;

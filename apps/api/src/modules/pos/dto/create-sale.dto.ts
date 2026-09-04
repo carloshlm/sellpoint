@@ -15,9 +15,16 @@ const saleLineSchema = z
     serviceId: z.string().uuid().optional(),
     presentationId: z.string().uuid().optional(),
     /**
-     * F4-CONCEPT-06 — un CONCEPTO se identifica por la línea de la cotización
-     * que lo autorizó. Ni descripción ni precio viajan: el servidor los copia
-     * de esa línea. Sin cotización no hay concepto que cobrar.
+     * La línea de la cotización de la que salió este renglón.
+     *
+     * F4-CONCEPT-06: en un CONCEPTO es la identidad — sin catálogo que releer,
+     * el servidor copia de ahí descripción y precio, y sin cotización no hay
+     * concepto que cobrar.
+     *
+     * F4-CONCEPT-10: en un producto o un servicio es el RASTRO — acompaña al
+     * id del catálogo para que la venta recuerde qué módulo emitió la línea
+     * (una receta, una orden de trabajo). El precio lo sigue poniendo el
+     * catálogo: el rastro no decide cuánto se cobra.
      */
     quoteLineId: z.string().uuid().optional(),
     quantity: z.coerce.number().positive({ message: "pos.quantity_positive" }),
@@ -25,9 +32,12 @@ const saleLineSchema = z
   })
   .strict()
   .refine(
-    (line) =>
-      [line.productId, line.serviceId, line.quoteLineId].filter((v) => v !== undefined).length ===
-      1,
+    (line) => {
+      const delCatalogo = [line.productId, line.serviceId].filter((v) => v !== undefined).length;
+      // Producto o servicio: exactamente uno, con el rastro como opcional.
+      // Concepto: ninguno de los dos y su línea de cotización como identidad.
+      return delCatalogo === 1 || (delCatalogo === 0 && line.quoteLineId !== undefined);
+    },
     { message: "pos.line_kind_invalid" },
   )
   .refine((line) => line.presentationId === undefined || line.productId !== undefined, {

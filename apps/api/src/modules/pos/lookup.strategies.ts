@@ -52,6 +52,12 @@ export interface LookupPresentation {
 }
 
 export interface LookupProductItem {
+  /**
+   * El renglón de la cotización del que salió (F4-CONCEPT-10). Solo lo trae
+   * `forSale`: es el rastro que la venta guarda para saber qué módulo lo
+   * emitió. Ninguna strategy de búsqueda lo pone.
+   */
+  quoteLineId?: string;
   type: "product";
   matchedBy: LookupKind;
   id: string;
@@ -73,6 +79,12 @@ export interface LookupProductItem {
 }
 
 export interface LookupServiceItem {
+  /**
+   * El renglón de la cotización del que salió (F4-CONCEPT-10). Solo lo trae
+   * `forSale`: es el rastro que la venta guarda para saber qué módulo lo
+   * emitió. Ninguna strategy de búsqueda lo pone.
+   */
+  quoteLineId?: string;
   type: "service";
   matchedBy: LookupKind;
   id: string;

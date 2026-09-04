@@ -406,7 +406,11 @@ export class QuotesService {
           const pedidoBase = linea.quantity.times(factor);
 
           const servicio = linea.serviceId === null ? null : servicioPorId.get(linea.serviceId);
-          const item: LookupItem | null =
+          // F4-CONCEPT-10: el ítem lleva de qué RENGLÓN salió, para que la
+          // venta pueda guardar el origen. Se copia el objeto porque dos
+          // líneas del mismo producto comparten el del mapa y cada una tiene
+          // su propio renglón.
+          const base: LookupItem | null =
             linea.productId !== null
               ? (itemPorProducto.get(linea.productId) ?? null)
               : servicio === undefined || servicio === null
@@ -419,6 +423,7 @@ export class QuotesService {
                     name: servicio.name,
                     price: servicio.price?.toString() ?? null,
                   };
+          const item: LookupItem | null = base === null ? null : { ...base, quoteLineId: linea.id };
 
           return {
             lineNo: linea.lineNo,

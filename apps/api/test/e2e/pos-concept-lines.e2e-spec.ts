@@ -195,6 +195,108 @@ describe("Línea de concepto (F4-CONCEPT)", () => {
     expect(ticket.headers["content-type"]).toContain("application/pdf");
   });
 
+  /**
+   * F4-CONCEPT-10 — el origen es de la LÍNEA, no del tipo de línea. Un
+   * medicamento recetado y un estudio salen de la misma orden: si solo el
+   * concepto conserva el rastro, el medicamento se pierde al cobrarse y no
+   * hay «top de lo recetado» posible.
+   */
+  it("una línea de producto cobrada desde su cotización conserva el origen", async () => {
+    const e = await escenario();
+    // Una cotización con origen, como la que emite un módulo vertical.
+    const creada = await prisma.withTenantContext(e.tenantId, async (tx) => {
+      const quote = await tx.quote.findFirst({
+        where: { tenantId: e.tenantId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      return quote;
+    });
+    expect(creada).toBeNull();
+
+    const q = await cotizacionMixta(e.token, e.productoId);
+    const origen = randomUUID();
+    await prisma.withTenantContext(e.tenantId, (tx) =>
+      tx.quoteLine.updateMany({
+        where: { quoteId: q.quoteId, tenantId: e.tenantId },
+        data: { sourceModule: "medical_clinic", sourceRef: origen },
+      }),
+    );
+    const lineaProducto = await prisma.withTenantContext(e.tenantId, (tx) =>
+      tx.quoteLine.findFirst({
+        where: { quoteId: q.quoteId, kind: "product" },
+        select: { id: true },
+      }),
+    );
+
+    const venta = await vender(e.token, {
+      paymentMethod: "cash",
+      quoteId: q.quoteId,
+      lines: [
+        { productId: e.productoId, quoteLineId: lineaProducto?.id, quantity: 2 },
+        { quoteLineId: q.conceptLineId, quantity: 1 },
+      ],
+    }).expect(201);
+    const saleId = (venta.body as { id: string }).id;
+
+    const items = await prisma.withTenantContext(e.tenantId, (tx) =>
+      tx.saleItem.findMany({
+        where: { saleId },
+        orderBy: { lineNo: "asc" },
+        select: {
+          kind: true,
+          productId: true,
+          unitPrice: true,
+          sourceModule: true,
+          sourceRef: true,
+        },
+      }),
+    );
+    // El producto conserva el origen Y el precio del catálogo (15.00), no el
+    // del papel: el rastro no cambia quién pone el precio.
+    expect(items[0]).toMatchObject({
+      kind: "product",
+      productId: e.productoId,
+      sourceModule: "medical_clinic",
+      sourceRef: origen,
+    });
+    expect(items[0]?.unitPrice.toString()).toBe("15");
+    expect(items[1]).toMatchObject({ kind: "concept", sourceModule: "medical_clinic" });
+  });
+
+  it("el quoteLineId de un producto tiene que ser de ESA cotización y de ESE producto", async () => {
+    const e = await escenario();
+    const q = await cotizacionMixta(e.token, e.productoId);
+    const otra = await cotizacionMixta(e.token, e.productoId);
+    const ajena = await prisma.withTenantContext(e.tenantId, (tx) =>
+      tx.quoteLine.findFirst({
+        where: { quoteId: otra.quoteId, kind: "product" },
+        select: { id: true },
+      }),
+    );
+
+    // De otra cotización.
+    await vender(e.token, {
+      paymentMethod: "cash",
+      quoteId: q.quoteId,
+      lines: [{ productId: e.productoId, quoteLineId: ajena?.id, quantity: 1 }],
+    }).expect(422);
+
+    // Sin cotización cargada.
+    await vender(e.token, {
+      paymentMethod: "cash",
+      lines: [{ productId: e.productoId, quoteLineId: ajena?.id, quantity: 1 }],
+    }).expect(422);
+
+    // De la MISMA cotización, pero de otro renglón: el rastro quedaría mal
+    // atribuido, que es peor que no tenerlo.
+    await vender(e.token, {
+      paymentMethod: "cash",
+      quoteId: q.quoteId,
+      lines: [{ productId: e.productoId, quoteLineId: q.conceptLineId, quantity: 1 }],
+    }).expect(422);
+  });
+
   it("cobrar menos de lo cotizado se permite; más, no", async () => {
     const e = await escenario();
     const q = await cotizacionMixta(e.token, e.productoId, 2);

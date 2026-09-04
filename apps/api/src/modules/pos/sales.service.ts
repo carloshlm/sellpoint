@@ -267,8 +267,14 @@ export class SalesService {
                   kind: precio.kind,
                   ...(line.productId !== undefined && { productId: line.productId }),
                   ...(line.serviceId !== undefined && { serviceId: line.serviceId }),
+                  // El texto es del concepto (no hay catálogo del que leerlo);
+                  // el ORIGEN es de cualquier línea que venga de una cotización
+                  // con módulo detrás (F4-CONCEPT-10). El CHECK de la base pide
+                  // los dos campos o ninguno.
                   ...(precio.kind === "concept" && {
                     conceptDescription: precio.conceptDescription,
+                  }),
+                  ...(precio.sourceModule !== null && {
                     sourceModule: precio.sourceModule,
                     sourceRef: precio.sourceRef,
                   }),
@@ -552,18 +558,29 @@ export class SalesService {
     const resueltos: PrecioResuelto[] = [];
     const sinConcepto = { conceptDescription: null, sourceModule: null, sourceRef: null };
 
-    // ── F4-CONCEPT-06: el concepto se cobra SOLO desde su cotización ──────
+    // ── Las líneas de la cotización que se está cobrando ─────────────────
     //
-    // Se leen las líneas de concepto de ESA cotización una vez, antes del
-    // flip a `loaded` (que viene después en `crearVenta`). La pertenencia se
-    // valida por (id, quoteId, tenantId): una línea de otra cotización o de
-    // otro negocio da el MISMO 422, sin revelar que existe. Y la cantidad no
-    // puede superar la cotizada: se puede cobrar parcial, nunca de más.
-    const conceptosCotizados =
+    // Se leen una vez, antes del flip a `loaded` (que viene después en
+    // `crearVenta`). La pertenencia se valida por (id, quoteId, tenantId):
+    // una línea de otra cotización o de otro negocio da el MISMO 422, sin
+    // revelar que existe.
+    //
+    // F4-CONCEPT-06: para un CONCEPTO esta línea es la identidad — de acá
+    // salen su descripción y su precio, y la cantidad no puede superar la
+    // cotizada (cobrar parcial se puede, de más no).
+    //
+    // F4-CONCEPT-10: para un producto o un servicio es solo el RASTRO
+    // (`source_module`/`source_ref`). Por eso ya no se filtra por
+    // `kind: "concept"`: si se filtrara, un medicamento recetado perdería al
+    // cobrarse de qué orden vino, y no habría «top de lo recetado» posible.
+    const lineasCotizadas =
       quoteId === undefined || !lines.some((l) => l.quoteLineId !== undefined)
         ? new Map<
             string,
             {
+              kind: string;
+              productId: string | null;
+              serviceId: string | null;
               description: string;
               unitPrice: Prisma.Decimal;
               quantity: Prisma.Decimal;
@@ -574,9 +591,12 @@ export class SalesService {
         : new Map(
             (
               await tx.quoteLine.findMany({
-                where: { quoteId, tenantId: user.tenantId, kind: "concept" },
+                where: { quoteId, tenantId: user.tenantId },
                 select: {
                   id: true,
+                  kind: true,
+                  productId: true,
+                  serviceId: true,
                   description: true,
                   unitPrice: true,
                   quantity: true,
@@ -587,16 +607,55 @@ export class SalesService {
             ).map((l) => [l.id, l]),
           );
 
+    /**
+     * El origen de una línea de catálogo (F4-CONCEPT-10).
+     *
+     * Devuelve el par `source_module`/`source_ref` de la línea cotizada, tras
+     * comprobar que es de ESTA cotización y del MISMO ítem. Sin `quoteLineId`
+     * no hay rastro y la venta queda como una de mostrador.
+     */
+    const origenDe = (line: SaleLineDto, i: number) => {
+      if (line.quoteLineId === undefined) {
+        return { sourceModule: null, sourceRef: null };
+      }
+      if (quoteId === undefined) {
+        throw new UnprocessableEntityException({
+          message: "pos.quote_line_requires_quote",
+          args: { lineIndex: i },
+        });
+      }
+      const cotizada = lineasCotizadas.get(line.quoteLineId);
+      const mismoItem =
+        cotizada !== undefined &&
+        (line.productId !== undefined
+          ? cotizada.productId === line.productId
+          : cotizada.serviceId === line.serviceId);
+      if (!mismoItem) {
+        throw new UnprocessableEntityException({
+          message: "pos.quote_line_mismatch",
+          args: { lineIndex: i },
+        });
+      }
+      return { sourceModule: cotizada.sourceModule, sourceRef: cotizada.sourceRef };
+    };
+
     for (const [i, line] of lines.entries()) {
-      if (line.quoteLineId !== undefined) {
+      // Un CONCEPTO es la línea que NO nombra catálogo: su `quoteLineId` es
+      // su identidad. En un producto o un servicio ese mismo campo es solo el
+      // rastro, y la línea se resuelve por su catálogo como siempre.
+      const esConcepto =
+        line.quoteLineId !== undefined &&
+        line.productId === undefined &&
+        line.serviceId === undefined;
+      if (esConcepto) {
         if (quoteId === undefined) {
           throw new UnprocessableEntityException({
             message: "pos.concept_requires_quote",
             args: { lineIndex: i },
           });
         }
-        const cotizada = conceptosCotizados.get(line.quoteLineId);
-        if (cotizada === undefined) {
+        const cotizada = lineasCotizadas.get(line.quoteLineId as string);
+        if (cotizada === undefined || cotizada.kind !== "concept") {
           throw new UnprocessableEntityException({
             message: "pos.concept_line_not_in_quote",
             args: { lineIndex: i },
@@ -638,6 +697,7 @@ export class SalesService {
         resueltos.push({
           kind: "service",
           ...sinConcepto,
+          ...origenDe(line, i),
           unitPrice: servicio.price ?? new Prisma.Decimal(0),
           catalogCost: servicio.cost,
           quantityBase: new Prisma.Decimal(line.quantity),
@@ -706,6 +766,7 @@ export class SalesService {
       resueltos.push({
         kind: "product",
         ...sinConcepto,
+        ...origenDe(line, i),
         unitPrice: presentacion.price ?? new Prisma.Decimal(0),
         catalogCost: presentacion.cost,
         quantityBase: new Prisma.Decimal(line.quantity).times(presentacion.factor),

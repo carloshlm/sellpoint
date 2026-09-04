@@ -32,6 +32,8 @@ import type { LookupItem, LookupPresentation } from "@/lib/pos/api";
 export interface CartProductLine {
   key: string;
   type: "product";
+  /** El renglón de la cotización del que salió, si vino de una (F4-CONCEPT-10). */
+  quoteLineId?: string;
   productId: string;
   sku: string;
   name: string;
@@ -53,6 +55,8 @@ export interface CartServiceLine {
   key: string;
   type: "service";
   serviceId: string;
+  /** El renglón de la cotización del que salió, si vino de una (F4-CONCEPT-10). */
+  quoteLineId?: string;
   code: string;
   name: string;
   price: string | null;
@@ -81,6 +85,10 @@ export interface SaleLinePayload {
   productId?: string;
   serviceId?: string;
   presentationId?: string;
+  /**
+   * En un concepto es su identidad; en un producto o servicio, el rastro del
+   * renglón de la cotización del que salió (F4-CONCEPT-10).
+   */
   quoteLineId?: string;
   quantity: number;
 }
@@ -117,13 +125,19 @@ interface CartState {
  * dos veces la misma caja, en cambio, es un solo renglón con cantidad 2 — que
  * es lo que hace cualquiera atrás de un mostrador.
  */
-function claveDe(line: Pick<CartLine, "type"> & { id: string; presentationId?: string }): string {
+function claveDe(
+  line: Pick<CartLine, "type"> & { id: string; presentationId?: string; quoteLineId?: string },
+): string {
+  // Lo cargado de una cotización NO se funde con lo escaneado del mismo
+  // producto: son dos renglones con procedencia distinta, y fundirlos haría
+  // que la venta atribuyera al módulo una cantidad que no autorizó.
+  const origen = line.quoteLineId === undefined ? "" : `:${line.quoteLineId}`;
   if (line.type === "product") {
-    return `product:${line.id}:${line.presentationId}`;
+    return `product:${line.id}:${line.presentationId}${origen}`;
   }
   // El concepto se identifica por la línea de su cotización: dos cotizaciones
   // con «Flete» son dos renglones, porque son dos precios autorizados.
-  return line.type === "concept" ? `concept:${line.id}` : `service:${line.id}`;
+  return line.type === "concept" ? `concept:${line.id}` : `service:${line.id}${origen}`;
 }
 
 /** La presentación con la que nace una línea: la marcada por defecto. */
@@ -180,7 +194,7 @@ export const useCartStore = create<CartState>((set) => ({
       }
 
       if (item.type === "service") {
-        const key = claveDe({ type: "service", id: item.id });
+        const key = claveDe({ type: "service", id: item.id, quoteLineId: item.quoteLineId });
         const existente = state.lines.find((l) => l.key === key);
         if (existente !== undefined) {
           return {
@@ -193,6 +207,7 @@ export const useCartStore = create<CartState>((set) => ({
           key,
           type: "service",
           serviceId: item.id,
+          ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
           code: item.code,
           name: item.name,
           price: item.price,
@@ -215,7 +230,12 @@ export const useCartStore = create<CartState>((set) => ({
         return state;
       }
 
-      const key = claveDe({ type: "product", id: item.id, presentationId });
+      const key = claveDe({
+        type: "product",
+        id: item.id,
+        presentationId,
+        quoteLineId: item.quoteLineId,
+      });
       const existente = state.lines.find((l) => l.key === key);
       if (existente !== undefined) {
         return {
@@ -228,6 +248,7 @@ export const useCartStore = create<CartState>((set) => ({
       const nueva: CartProductLine = {
         key,
         type: "product",
+        ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
         productId: item.id,
         sku: item.sku,
         name: item.name,
@@ -367,6 +388,7 @@ export function aLineasDeVenta(lines: CartLine[]): SaleLinePayload[] {
       return {
         productId: l.productId,
         presentationId: l.presentationId,
+        ...(l.quoteLineId !== undefined && { quoteLineId: l.quoteLineId }),
         quantity: parseQuantity(l.quantity),
       };
     }
@@ -375,6 +397,10 @@ export function aLineasDeVenta(lines: CartLine[]): SaleLinePayload[] {
       // servidor de la cotización, nunca de acá.
       return { quoteLineId: l.quoteLineId, quantity: parseQuantity(l.quantity) };
     }
-    return { serviceId: l.serviceId, quantity: parseQuantity(l.quantity) };
+    return {
+      serviceId: l.serviceId,
+      ...(l.quoteLineId !== undefined && { quoteLineId: l.quoteLineId }),
+      quantity: parseQuantity(l.quantity),
+    };
   });
 }

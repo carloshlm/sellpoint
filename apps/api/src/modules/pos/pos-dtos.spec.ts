@@ -55,10 +55,32 @@ describe("DTOs del POS con línea de concepto (F4-CONCEPT-03)", () => {
     expect(createSaleSchema.safeParse({ paymentMethod: "cash", lines: [linea] }).success).toBe(
       true,
     );
+    // F4-CONCEPT-10: junto a un producto YA NO rebota — es el rastro de la
+    // línea de la cotización de la que salió, y el precio lo sigue poniendo
+    // el catálogo.
     expect(
       createSaleSchema.safeParse({
         paymentMethod: "cash",
         lines: [{ ...linea, productId: "5b3e7d6e-3c4a-4c9c-9d1a-2b3c4d5e6f71" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      createSaleSchema.safeParse({
+        paymentMethod: "cash",
+        lines: [{ ...linea, serviceId: "5b3e7d6e-3c4a-4c9c-9d1a-2b3c4d5e6f72" }],
+      }).success,
+    ).toBe(true);
+    // Producto Y servicio a la vez sigue sin tener forma.
+    expect(
+      createSaleSchema.safeParse({
+        paymentMethod: "cash",
+        lines: [
+          {
+            ...linea,
+            productId: "5b3e7d6e-3c4a-4c9c-9d1a-2b3c4d5e6f71",
+            serviceId: "5b3e7d6e-3c4a-4c9c-9d1a-2b3c4d5e6f72",
+          },
+        ],
       }).success,
     ).toBe(false);
     // El precio sigue sin poder viajar, también en esta forma.

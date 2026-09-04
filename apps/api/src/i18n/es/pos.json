@@ -3,6 +3,8 @@
   "concept_line_not_in_quote": "Ese concepto no pertenece a la cotización que estás cobrando.",
   "concept_quantity_exceeds_quote": "No puedes cobrar más de lo que dice la cotización.",
   "concept_requires_quote": "Un concepto solo se cobra cargando su cotización por folio.",
+  "quote_line_mismatch": "Esa línea no corresponde a la cotización que estás cobrando.",
+  "quote_line_requires_quote": "Esa línea dice venir de una cotización, pero no se cargó ninguna.",
   "declared_cash_invalid": "El efectivo contado no puede ser negativo.",
   "discount_exceeds_subtotal": "El descuento no puede superar el subtotal.",
   "integer_only_presentation": "La presentación «{presentationName}» se vende en piezas enteras.",
