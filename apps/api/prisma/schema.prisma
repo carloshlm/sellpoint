@@ -2116,6 +2116,11 @@ model MedicalClinicOrderLine {
 
   @@unique([orderId, lineNo])
   @@index([tenantId])
+  /// F9-CLINIC-29: sobre esta tabla vive la VISTA
+  /// `medical_clinic_sold_items` (sale_items ⋈ estas líneas ⋈ los catálogos,
+  /// `security_invoker`), que es lo vendido desde el consultorio por ítem.
+  /// Prisma no modela vistas: está en la migración
+  /// `20260905100000_f9_clinic_sold_items_view` y se consulta con `$queryRaw`.
   @@map("medical_clinic_order_lines")
 }
 

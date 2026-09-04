@@ -4,6 +4,8 @@ import { PosModule } from "../pos/pos.module";
 import { ReceptionModule } from "../reception/reception.module";
 import { DiagnosticStudiesService } from "./diagnostic-studies.service";
 import { LabStudiesService } from "./lab-studies.service";
+import { MedicalClinicDashboardController } from "./medical-clinic-dashboard.controller";
+import { MedicalClinicDashboardService } from "./medical-clinic-dashboard.service";
 import { MedicalClinicDiagnosticStudiesController } from "./medical-clinic-diagnostic-studies.controller";
 import { MedicalClinicLabStudiesController } from "./medical-clinic-lab-studies.controller";
 import { MedicalClinicOrdersController } from "./medical-clinic-orders.controller";
@@ -37,8 +39,10 @@ import { StockSearchService } from "./stock-search.service";
     MedicalClinicPatientsController,
     MedicalClinicRecordsController,
     MedicalClinicOrdersController,
+    MedicalClinicDashboardController,
   ],
   providers: [
+    MedicalClinicDashboardService,
     LabStudiesService,
     DiagnosticStudiesService,
     SettingsService,

@@ -7,7 +7,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { bearer, cargarStock, crearProducto, type TenantFixture } from "./support/billing-scenario";
-import { adminDePlataforma, consultorio } from "./support/medical-clinic-scenario";
+import { adminDePlataforma, consultorio, usuarioConRol } from "./support/medical-clinic-scenario";
 import { startTestApp } from "./support/start-test-app";
 
 /**
@@ -27,6 +27,7 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
   let negocio: TenantFixture & { warehouseId: string };
   let productoId: string;
   let recordId: string;
+  let viewerToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({ imports: [AppModule] })
@@ -38,6 +39,8 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     prisma = app.get(PrismaService);
     admin = await adminDePlataforma(app, prisma, "orders-admin");
     negocio = await consultorio(app, prisma, "orders", admin);
+
+    viewerToken = await usuarioConRol(app, negocio, "Seller", "orders-seller");
 
     const producto = await crearProducto(app, negocio.token, 45);
     productoId = producto.id;
@@ -99,15 +102,21 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     const paraVender = await get(negocio.token, `/pos/quotes/folio/${orden.folio}/for-sale`).expect(
       200,
     );
-    const lineas = (paraVender.body as { lines: { unitPrice: string; item: { type: string } }[] })
-      .lines;
+    const lineas = (
+      paraVender.body as {
+        lines: { unitPrice: string; item: { type: string; quoteLineId?: string } }[];
+      }
+    ).lines;
     expect(lineas[0]?.item.type).toBe("product");
     expect(lineas[0]?.unitPrice).toBe("45");
+    // El renglón de la cotización viaja con el ítem: es lo que el carrito
+    // manda para que la venta recuerde de qué receta salió (F4-CONCEPT-10).
+    expect(lineas[0]?.item.quoteLineId).toEqual(expect.any(String));
 
     const venta = await post(negocio.token, "/pos/sales", {
       paymentMethod: "cash",
       quoteId: orden.quoteId,
-      lines: [{ productId: productoId, quantity: 2 }],
+      lines: [{ productId: productoId, quoteLineId: lineas[0]?.item.quoteLineId, quantity: 2 }],
     }).expect(201);
     const saleId = (venta.body as { id: string }).id;
     const movimientos = await prisma.withTenantContext(negocio.tenantId, (tx) =>
@@ -215,6 +224,66 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     );
     expect((cancelada.body as { status: string }).status).toBe("canceled");
     await post(negocio.token, `/medical-clinic/orders/${orden.id}/cancel`).expect(409);
+  });
+
+  /**
+   * F9-CLINIC-31 — del cobro en caja al top del consultorio.
+   *
+   * Es la prueba de que la VISTA no inventa nada: lo que el cajero cobró es
+   * lo que el top cuenta, un estudio renombrado sigue siendo el mismo, y
+   * anular la venta lo saca sin que nadie sincronice una segunda tabla.
+   */
+  it("lo cobrado aparece en el top; renombrar no lo parte y anular lo saca", async () => {
+    const top = async (period = "today") => {
+      const res = await get(negocio.token, `/medical-clinic/dashboard/top?period=${period}`).expect(
+        200,
+      );
+      return res.body as {
+        medications: { id: string; code: string; name: string; units: string }[];
+        labStudies: { id: string; code: string; name: string; units: string }[];
+        diagnosticStudies: unknown[];
+      };
+    };
+
+    // El medicamento de la receta y los estudios de laboratorio ya se
+    // cobraron en los casos anteriores.
+    const inicial = await top();
+    expect(inicial.medications).toHaveLength(1);
+    expect(inicial.medications[0]).toMatchObject({ id: productoId, units: "2.0000" });
+    expect(inicial.labStudies.map((e) => e.code).sort()).toEqual(["BH", "GLU"]);
+    expect(inicial.diagnosticStudies).toEqual([]);
+
+    // Renombrar el estudio NO parte su historia: la fila es la misma y el
+    // nombre que se muestra es el vigente.
+    const bh = inicial.labStudies.find((e) => e.code === "BH");
+    await request(app.getHttpServer())
+      .patch(`/medical-clinic/lab-studies/${bh?.id}`)
+      .set("Authorization", bearer(negocio.token))
+      .send({ name: "Biometría hemática completa" })
+      .expect(200);
+    const renombrado = await top();
+    expect(renombrado.labStudies.filter((e) => e.code === "BH")).toHaveLength(1);
+    expect(renombrado.labStudies.find((e) => e.code === "BH")?.name).toBe(
+      "Biometría hemática completa",
+    );
+
+    // Anular la venta de laboratorio la saca del top; el medicamento sigue.
+    const ventaLab = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+      tx.saleItem.findFirst({
+        where: { tenantId: negocio.tenantId, sourceModule: "medical_clinic", kind: "concept" },
+        select: { saleId: true },
+      }),
+    );
+    await post(negocio.token, `/pos/sales/${ventaLab?.saleId}/cancel`, {
+      reason: "prueba del top",
+    }).expect(200);
+    const trasAnular = await top();
+    expect(trasAnular.labStudies).toEqual([]);
+    expect(trasAnular.medications).toHaveLength(1);
+  });
+
+  it("sin permiso de consultorio no se ve el top", async () => {
+    await get(viewerToken, "/medical-clinic/dashboard/top").expect(403);
   });
 
   it("un expediente cerrado no emite órdenes; una orden sin líneas ni se intenta", async () => {

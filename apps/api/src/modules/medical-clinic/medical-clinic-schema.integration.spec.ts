@@ -384,4 +384,223 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
       ).rejects.toMatchObject({ code: "P2002" });
     });
   });
+
+  /**
+   * F9-CLINIC-29 — lo vendido por ítem desde el consultorio, como VISTA sobre
+   * la venta real: sin segunda copia que sincronizar. Anular una venta la saca
+   * sola, y renombrar un estudio no parte su historial porque se une por id.
+   */
+  describe("la vista medical_clinic_sold_items (F9-CLINIC-29)", () => {
+    let ventaId: string;
+    let estudioId: string;
+    let productoId: string;
+
+    beforeAll(async () => {
+      await prisma.withTenantContext(tenantA, async (tx) => {
+        const almacen = await tx.warehouse.create({
+          data: { tenantId: tenantA, code: `WV-${stamp}`, name: "Central vista" },
+        });
+        const expedienteId = (
+          await tx.medicalClinicRecord.create({
+            data: expediente(tenantA, doctorA, `HCL-00095${stamp % 10}`),
+          })
+        ).id;
+        const estudio = await tx.medicalClinicLabStudy.create({
+          data: { tenantId: tenantA, code: `BHV-${stamp}`, name: "Biometría", price: 350 },
+        });
+        estudioId = estudio.id;
+        const producto = await tx.product.create({
+          data: { tenantId: tenantA, sku: `MED-${stamp}`, name: "Paracetamol" },
+        });
+        productoId = producto.id;
+
+        // Una orden con las DOS formas: el estudio del catálogo propio y un
+        // medicamento del almacén.
+        const cotLab = await tx.quote.create({
+          data: {
+            tenantId: tenantA,
+            folio: "COT-000950",
+            warehouseId: almacen.id,
+            total: 350,
+            createdBy: doctorA,
+          },
+        });
+        const orden = await tx.medicalClinicOrder.create({
+          data: {
+            tenantId: tenantA,
+            recordId: expedienteId,
+            kind: "lab_order",
+            folio: "COT-000950",
+            quoteId: cotLab.id,
+            createdBy: doctorA,
+          },
+        });
+        const lineaEstudio = await tx.medicalClinicOrderLine.create({
+          data: {
+            tenantId: tenantA,
+            orderId: orden.id,
+            orderKind: "lab_order",
+            lineNo: 1,
+            labStudyId: estudio.id,
+            description: "Biometría",
+            quantity: 1,
+            unitPrice: 350,
+          },
+        });
+        const cotReceta = await tx.quote.create({
+          data: {
+            tenantId: tenantA,
+            folio: "COT-000951",
+            warehouseId: almacen.id,
+            total: 90,
+            createdBy: doctorA,
+          },
+        });
+        const receta = await tx.medicalClinicOrder.create({
+          data: {
+            tenantId: tenantA,
+            recordId: expedienteId,
+            kind: "prescription",
+            folio: "COT-000951",
+            quoteId: cotReceta.id,
+            createdBy: doctorA,
+          },
+        });
+        const lineaMedicamento = await tx.medicalClinicOrderLine.create({
+          data: {
+            tenantId: tenantA,
+            orderId: receta.id,
+            orderKind: "prescription",
+            lineNo: 1,
+            productId: producto.id,
+            description: "Paracetamol",
+            quantity: 2,
+            unitPrice: 45,
+          },
+        });
+
+        const sesion = await tx.cashboxSession.create({
+          data: { tenantId: tenantA, warehouseId: almacen.id, openedBy: doctorA },
+        });
+        const venta = await tx.sale.create({
+          data: {
+            tenantId: tenantA,
+            cashboxSessionId: sesion.id,
+            folio: "VTA-000950",
+            warehouseId: almacen.id,
+            subtotal: 440,
+            discount: 0,
+            total: 440,
+            paymentMethod: "cash",
+            createdBy: doctorA,
+            items: {
+              create: [
+                {
+                  tenantId: tenantA,
+                  lineNo: 1,
+                  kind: "concept",
+                  conceptDescription: "Biometría",
+                  sourceModule: "medical_clinic",
+                  sourceRef: lineaEstudio.id,
+                  quantity: 1,
+                  unitPrice: 350,
+                  discount: 0,
+                  lineTotal: 350,
+                },
+                {
+                  tenantId: tenantA,
+                  lineNo: 2,
+                  kind: "product",
+                  productId: producto.id,
+                  sourceModule: "medical_clinic",
+                  sourceRef: lineaMedicamento.id,
+                  quantity: 2,
+                  unitPrice: 45,
+                  discount: 0,
+                  lineTotal: 90,
+                },
+                // Una venta de mostrador en la MISMA venta: sin origen.
+                {
+                  tenantId: tenantA,
+                  lineNo: 3,
+                  kind: "product",
+                  productId: producto.id,
+                  quantity: 1,
+                  unitPrice: 45,
+                  discount: 0,
+                  lineTotal: 45,
+                },
+              ],
+            },
+          },
+        });
+        ventaId = venta.id;
+      });
+    });
+
+    const filas = (tenantId: string) =>
+      prisma.withTenantContext(
+        tenantId,
+        (tx) =>
+          tx.$queryRaw<
+            {
+              item_kind: string;
+              lab_study_id: string | null;
+              product_id: string | null;
+              sale_status: string;
+              quantity: string;
+              line_total: string;
+            }[]
+          >`SELECT item_kind, lab_study_id, product_id, sale_status,
+                  quantity::text, line_total::text
+             FROM medical_clinic_sold_items
+            WHERE sale_id = ${ventaId}::uuid
+            ORDER BY item_kind`,
+      );
+
+    it("lista lo vendido desde el consultorio y deja fuera lo de mostrador", async () => {
+      const vendido = await filas(tenantA);
+      expect(vendido).toHaveLength(2);
+      expect(vendido.find((f) => f.item_kind === "lab_study")).toMatchObject({
+        lab_study_id: estudioId,
+        sale_status: "completed",
+        line_total: "350.00",
+      });
+      expect(vendido.find((f) => f.item_kind === "medication")).toMatchObject({
+        product_id: productoId,
+        quantity: "2.0000",
+        line_total: "90.00",
+      });
+    });
+
+    it("una venta anulada sigue en la vista, marcada: el top la filtra por status", async () => {
+      await prisma.withTenantContext(tenantA, (tx) =>
+        tx.sale.update({
+          where: { id: ventaId },
+          data: { status: "canceled", canceledAt: new Date(), canceledBy: doctorA },
+        }),
+      );
+      const vendido = await filas(tenantA);
+      expect(vendido.every((f) => f.sale_status === "canceled")).toBe(true);
+      await prisma.withTenantContext(tenantA, (tx) =>
+        tx.sale.update({
+          where: { id: ventaId },
+          data: { status: "completed", canceledAt: null, canceledBy: null },
+        }),
+      );
+    });
+
+    it("la vista respeta la RLS: el negocio B no ve nada del A", async () => {
+      const desdeB = await filas(tenantB);
+      expect(desdeB).toHaveLength(0);
+      // Y con el rol REAL de la app, sin bypass.
+      const conRolApp = await asAppRole(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantB}::text, true)`;
+        return tx.$queryRaw<
+          { n: bigint }[]
+        >`SELECT count(*)::bigint AS n FROM medical_clinic_sold_items`;
+      });
+      expect(Number(conRolApp[0]?.n ?? 0)).toBe(0);
+    });
+  });
 });
