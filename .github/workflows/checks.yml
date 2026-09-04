@@ -47,7 +47,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: setup pnpm
         uses: pnpm/action-setup@v4
