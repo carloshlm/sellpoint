@@ -152,7 +152,7 @@ Ejemplos:
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
 | **F8** | Mobile | 🔮 Futuro | — | ⬜ Solo concepto |
-| **F9** | Módulos por tenant + expediente del backoffice + Recepción + Consultorio Médico (y verticales futuras) | ⬜ Pendiente | ~10 semanas + ~149 h (MOD ~20 h · ADMIN ~33 h · RECEP ~40 h · F4-CONCEPT ~20 h · CLINIC ~64 h · CLINIC-WEB ~65 h) | ✅ Parcial (2026-09-02: F9-MOD, F9-ADMIN, F9-RECEP · 2026-09-03: F4-CONCEPT, F9-CLINIC, F9-CLINIC-WEB; dental, óptica y taller siguen en concepto) |
+| **F9** | Módulos por tenant + expediente del backoffice + Recepción + Consultorio Médico (y verticales futuras) | ⬜ Pendiente | ~10 semanas + ~164 h (MOD ~20 h · ADMIN ~33 h · RECEP ~40 h · F4-CONCEPT ~23 h · CLINIC ~71 h · CLINIC-WEB ~70 h) | ✅ Parcial (2026-09-02: F9-MOD, F9-ADMIN, F9-RECEP · 2026-09-03: F4-CONCEPT, F9-CLINIC, F9-CLINIC-WEB; dental, óptica y taller siguen en concepto) |
 
 > Las fases marcadas como "Outline" se atomizarán cuando estemos por empezarlas, con el conocimiento que hayamos acumulado.
 
@@ -2497,6 +2497,11 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Verificar:** cotización con producto + concepto («Flete a domicilio», 150.00) → `for-sale` → cobro: `sale_items` trae la línea `concept` con su descripción; `stock_movements` de esa venta trae SOLO el producto; el total cuadra; `quoteLineId` sin `quoteId` → 422; `quoteLineId` de otro tenant → 422 sin filtrar existencia; reintentar el mismo folio → 409.
   - **Depende de:** F4-CONCEPT-06, F4-CONCEPT-07 · **Estimación:** 2 h
 
+- [ ] **F4-CONCEPT-10** *(agregada el 2026-09-04: lo vendido por ítem desde un módulo)* — Toda línea de venta que nace de una cotización conserva su origen
+  - **Salida:** `dto/create-sale.dto.ts`: `quoteLineId` puede acompañar a `productId`/`serviceId` (el refine pasa a «concepto ⇒ solo `quoteLineId`; producto/servicio ⇒ `quoteLineId` opcional»). `sales.service.ts#resolverPrecios`: la consulta de `quote_lines` deja de filtrar `kind: "concept"`; para una línea de producto/servicio con `quoteLineId` exige `dto.quoteId` (clave `pos.quote_line_requires_quote`), valida pertenencia y que `productId`/`serviceId` coincidan (422 `pos.quote_line_mismatch`), y copia `sourceModule/sourceRef` al ítem; el precio sigue saliendo del catálogo (LEY: la venta nunca acepta un precio del cliente). `crearVenta` escribe `sourceModule/sourceRef` en todo `kind`. `quotes.service.ts#forSale`: cada ítem (producto, servicio y concepto) lleva `quoteLineId`. Web: `LookupProductItem`/`LookupServiceItem` ganan `quoteLineId?`; `cart.store.ts` lo conserva en `add()` y `aLineasDeVenta` lo manda junto al `productId`/`presentationId` (`SaleLinePayload.quoteLineId?`).
+  - **Verificar:** unit spec (RED): producto con `quoteLineId` de su cotización → el ítem lleva el source de la línea y el precio del catálogo; `quoteLineId` de OTRA cotización o de otro producto → 422; cotización sin origen → source NULL. e2e `pos-concept-lines`: una receta cobrada deja `sale_items` de producto con `source_module='medical_clinic'` y `source_ref` = línea de orden. `cart.store.test.ts`: la línea de producto cargada desde cotización manda `quoteLineId`; una agregada por búsqueda no. Mutante: no copiar el source en la rama producto rompe el e2e.
+  - **Depende de:** F4-CONCEPT-06, F4-CONCEPT-08 · **Estimación:** 3 h
+
 ### Módulo F4-CART — El carrito y sus lookups
 
 - [x] **F4-CART-01** — El strategy de lookups, filtrado por el almacén del turno
@@ -3501,6 +3506,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 > 25. *(2026-09-03)* En el web, los formularios de sección son RUTAS (`/records/$recordId/sections/$sectionKey`), no modales; las tarjetas sin formulario son placeholders inertes con «Próximamente». `sales.clinical_document_id` queda sin cablear (la trazabilidad es `quote_id` + `source_ref`).
 > 26. *(2026-09-03)* Configuración por negocio en `medical_clinic_settings` (vende medicamentos / estudios de laboratorio / estudios diagnósticos; sin fila = solo medicamentos marcado: la mayoría de los consultorios solo vende medicamento, decisión de Carlos), editable en «Mi perfil» solo con el módulo activo y `tenants:manage`. La orden crea cotización SOLO si el negocio vende ese tipo; si no, se registra con folio propio `ORM-` (serie `medical_order`) sin cotización. Toda orden tiene su documento carta (receta / orden de laboratorio / orden de estudios); el ticket térmico sigue siendo de la caja.
 > 27. *(2026-09-03)* El candado del expediente es UNA función pura en `shared` (`medicalRecordLock`): cerrada gana; una abierta de otro día del negocio (`consultation_date < hoy` en `tenant.timezone`) es «vencida», solo lectura DERIVADA (sin job ni migración: los CHECK exigen `closed_by`); `hoy` lo calcula siempre el API y el web solo pinta `editable`/`lockReason`. Un paciente no tiene dos abiertas el mismo día (409 `record_open_today` con el folio a continuar; `nextFolio` antes del `findFirst` serializa la carrera y un UNIQUE parcial la blinda), pero una cerrada hoy sí permite otro folio hoy. Nada de panel de «abiertas hoy»: todo desde la búsqueda (Carlos, 2026-09-03).
+> 28. *(2026-09-04)* Lo vendido desde un módulo se registra por ítem SIN tablas paralelas: el core guarda `source_module/source_ref` en TODA línea de venta nacida de una cotización (F4-CONCEPT-10; hoy solo en conceptos), y cada vertical expone su detalle como VISTA `<módulo>_sold_items` (sale_items ⋈ sus líneas de orden ⋈ sus catálogos, `security_invoker`): una sola verdad, anular y renombrar no desincronizan nada. Los tops por módulo agrupan por id de catálogo —nunca por nombre— y excluyen ventas anuladas por `sales.status`. El POS no importa nada del módulo (Carlos, 2026-09-04).
 
 ### Módulo F9-MOD — módulos por tenant (atomizado el 2026-09-02)
 
@@ -3847,6 +3853,21 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** alta A `HCL-000001` → segundo POST → 409 `record_open_today` con `recordId === A.id` y `folio === A.folio` → búsqueda por nombre trae `lastRecord {status:"open", lockReason:null}` → PUT `chief_complaint` 200 → `vencerExpediente(A)` → `GET /records/A` `editable:false, lockReason:"expired"` → PUT sección 409 `record_expired` → POST orden 409 `record_expired` → búsqueda: `lockReason:"expired"` → POST records → 201 B `HCL-000002` con `general_data` copiado y `editable:true` → otro POST → 409 apuntando a B → `close` de A → 200 `lockReason:"closed"` → `close` de B → POST → 201 C (cerrada hoy permite otro folio hoy). Dos POST concurrentes (`Promise.all`) del mismo paciente → exactamente un 201 y un 409. Una recepcionista sin `:attend` sigue recibiendo 403.
   - **Depende de:** F9-CLINIC-27 · **Estimación:** 2 h
 
+- [ ] **F9-CLINIC-29** *(agregada el 2026-09-04: lo vendido por ítem desde el consultorio)* — La vista `medical_clinic_sold_items`
+  - **Salida:** migración `20260905100000_f9_clinic_sold_items_view`: `CREATE VIEW medical_clinic_sold_items WITH (security_invoker = true) AS SELECT` `sale_items` con `source_module = 'medical_clinic'` ⋈ `sales` (`sold_at = s.created_at`, `sale_status`, `warehouse_id`) ⋈ `medical_clinic_order_lines` (`ol.id = si.source_ref`) ⋈ `medical_clinic_orders`; columnas `tenant_id, sale_id, sale_item_id, sold_at, sale_status, warehouse_id, order_id, order_kind, item_kind` (`CASE` sobre la referencia no nula: `medication|lab_study|diagnostic_study`), `product_id, lab_study_id, diagnostic_study_id, description, quantity, unit_price, line_total`. `GRANT SELECT` al rol de runtime. Comentario en `schema.prisma` junto a `MedicalClinicOrderLine` (Prisma no modela vistas). Docblock: por qué vista y no tabla (una sola verdad; anular y renombrar no desincronizan).
+  - **Verificar:** `medical-clinic-schema.integration.spec.ts` (RED): con `SET LOCAL ROLE sellpoint_app` y el contexto del tenant A la vista no muestra filas del tenant B; una venta anulada aparece con `sale_status='canceled'`; una receta cobrada aparece como `medication` con `product_id`, una orden de laboratorio como `lab_study` con `lab_study_id`; una venta de mostrador (sin origen) NO aparece. `prisma migrate diff` sin deriva (documentar la excepción si el diff reporta la vista).
+  - **Depende de:** F4-CONCEPT-10, F9-CLINIC-15 · **Estimación:** 2 h
+
+- [ ] **F9-CLINIC-30** — `GET /medical-clinic/dashboard/top`: lo más vendido del consultorio
+  - **Salida:** `medical-clinic-dashboard.service.ts` + ruta en un controller del módulo (`@RequiresModule("medical_clinic")`, `@RequirePermissions("medical_clinic:read")`), query `period` con `dashboardPeriodSchema` y rango en la zona del negocio (reusar los helpers de `dashboard-products.service.ts`); SQL sobre `medical_clinic_sold_items` con `sale_status = 'completed'`, agrupando por `product_id` / `lab_study_id` / `diagnostic_study_id` (nunca por nombre) y tomando el nombre y el código VIGENTES del catálogo; respuesta `{ medications: Top[], labStudies: Top[], diagnosticStudies: Top[] }` con `Top = { id, code, name, units, revenue }`, 5 por lista, ordenadas por unidades.
+  - **Verificar:** unit spec (RED) con SQL capturado: excluye `canceled`; agrupa por id aunque el nombre cambie; período `prev_month` usa la zona del negocio; sin ventas → tres listas vacías (200, no 404). `permissions-catalog.spec` verde (permiso existente).
+  - **Depende de:** F9-CLINIC-29 · **Estimación:** 3 h
+
+- [ ] **F9-CLINIC-31** — e2e: del cobro en caja al top del consultorio
+  - **Salida:** ampliar `medical-clinic-orders-pos.e2e-spec.ts`.
+  - **Verificar:** receta (medicamento del stock) + orden de laboratorio (dos estudios, `sells_lab_studies=true`) → el cajero cobra las dos cotizaciones → `GET /medical-clinic/dashboard/top?period=today` lista el medicamento en `medications` y los dos estudios en `labStudies` con unidades e ingreso correctos; renombrar un estudio → sigue en la misma fila con el nombre nuevo; anular la venta de laboratorio (`POST /pos/sales/:id/cancel`) → desaparece del top y el medicamento sigue; un usuario sin `medical_clinic:read` → 403; el módulo apagado → 402.
+  - **Depende de:** F9-CLINIC-30 · **Estimación:** 2 h
+
 ### Módulo F9-CLINIC-WEB — Consultorio Médico, pantallas (atomizado el 2026-09-03)
 
 - [x] **F9-CLINIC-WEB-01** *(cerrada el 2026-09-03)* — Namespace i18n del módulo y rutas base
@@ -3974,6 +3995,16 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; IMPLEMENTACION.md con las tareas cerradas y bitácora; sandbox: el tenant f035924f con el módulo activo repite el ciclo con un paciente de prueba.
   - **Depende de:** F9-CLINIC-WEB-24, F9-CLINIC-28 · **Estimación:** 2 h
 
+- [ ] **F9-CLINIC-WEB-26** *(agregada el 2026-09-04: lo vendido por ítem desde el consultorio)* — Tarjeta «Lo más vendido del consultorio» en el Panel
+  - **Salida:** `lib/medical-clinic/api.ts` `getClinicTop(period)` + hook `useClinicTop(period, enabled)`; `components/medical-clinic/clinic-top.tsx` con el molde de `components/dashboard/top-products.tsx` (tres `<section>`: Medicamentos, Laboratorio, Diagnóstico; `<ol>` con nombre, código y unidades; vacío por lista); montada en `routes/dashboard.tsx` debajo de `TopProducts`, con el MISMO `PeriodFilter`, solo si `hasModule("medical_clinic") && has("medical_clinic:read")`. Claves `medicalClinic.dashboard.*`.
+  - **Verificar:** RED en `routes/dashboard.test.tsx` (o `clinic-top.test.tsx`): sin el módulo no se pinta y no se llama al API; con módulo y permiso pinta las tres listas con lo que trae el API; cambiar el período vuelve a pedir con el nuevo; error → `role="alert"` con `apiErrorMessage`. `i18n.test.tsx` verde.
+  - **Depende de:** F9-CLINIC-30, F9-CLINIC-WEB-01 · **Estimación:** 3 h
+
+- [ ] **F9-CLINIC-WEB-27** — QA y cierre
+  - **Salida:** Playwright en local: receta + orden de laboratorio cobradas en caja → el Panel muestra la tarjeta con las tres listas; anular la venta en Historial → el estudio sale del top. Capturas 1440 y 390 px, claro y oscuro.
+  - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; IMPLEMENTACION.md con las tareas cerradas y bitácora; sandbox: el tenant f035924f repite el ciclo.
+  - **Depende de:** F9-CLINIC-WEB-26, F9-CLINIC-31 · **Estimación:** 2 h
+
 ### Orden de ejecución sugerido
 
 1. `F4-CASHBOX-04` (PR aparte, solo copy).
@@ -3986,8 +4017,9 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 8. **Expediente:** `F9-CLINIC-09..12` → `F9-CLINIC-19` · `F9-CLINIC-WEB-06..16`.
 9. **Órdenes y caja:** `F9-CLINIC-13..15` → `F9-CLINIC-21..24` → `F9-CLINIC-20` · `F9-CLINIC-WEB-17..22`.
 10. *(2026-09-03)* **Continuar la consulta abierta y vencimiento por día:** `F9-CLINIC-25 → 26 → 27 → 28` · `F9-CLINIC-WEB-23 → 24 → 25` (~17 h; un solo PR chico por frente).
+11. *(2026-09-04)* **Lo vendido por ítem desde el consultorio:** `F4-CONCEPT-10` (core, shipea solo) → `F9-CLINIC-29 → 30 → 31` · `F9-CLINIC-WEB-26 → 27` (~15 h).
 
-Total estimado: F9-MOD ~20 h · F9-ADMIN ~33 h · F9-RECEP ~40 h · F4-CASHBOX-04 1.5 h · *(2026-09-03)* F4-CONCEPT ~20 h · F9-CLINIC ~64 h · F9-CLINIC-WEB ~65 h (cortes de PR por ola y por bloques de ≤ 400 líneas). Cada módulo es candidato a SDD LIGERO (§1.1); F9-ADMIN-10/11 (reuso de dashboard y reportes) a SDD COMPLETO si al abrirlos crecen.
+Total estimado: F9-MOD ~20 h · F9-ADMIN ~33 h · F9-RECEP ~40 h · F4-CASHBOX-04 1.5 h · *(2026-09-03)* F4-CONCEPT ~23 h · F9-CLINIC ~71 h · F9-CLINIC-WEB ~70 h (cortes de PR por ola y por bloques de ≤ 400 líneas). Cada módulo es candidato a SDD LIGERO (§1.1); F9-ADMIN-10/11 (reuso de dashboard y reportes) a SDD COMPLETO si al abrirlos crecen.
 
 ### Pospuestos de la Fase 9 (con nombre y razón)
 
@@ -4007,6 +4039,10 @@ Total estimado: F9-MOD ~20 h · F9-ADMIN ~33 h · F9-RECEP ~40 h · F4-CASHBOX-0
 - *(2026-09-03)* **Importación de estudios por archivo** — cuando haya un consultorio con cientos de estudios.
 - *(2026-09-03)* **Panel «consultas abiertas hoy» en Atender paciente** — Carlos decidió que retomar una consulta sea solo desde la búsqueda del paciente («Continuar consulta HCL-…»).
 - *(2026-09-03)* **Cierre automático persistido de las vencidas** (job + `closed_by` de sistema, migración de los CHECK) — hoy la vencida es derivada a propósito (`medicalRecordLock`); si algún reporte necesita `status = 'closed'` real, se agrega el job.
+- *(2026-09-04)* **`chargeStatus` de la orden ciego a una venta anulada** — hoy mira `quotes.status`; con la vista `medical_clinic_sold_items` se puede derivar de `sale_status`.
+- *(2026-09-04)* **El top general del POS agrupa conceptos por `lower(concept_description)`** — dos estudios homónimos se funden; el top del módulo agrupa por id de catálogo y no lo padece.
+- *(2026-09-04)* **«Ventas por módulo» en el backoffice** — `GROUP BY source_module` sobre `sale_items` (ya indexado); cuando haya dos verticales.
+- *(2026-09-04)* **Generalizar `<módulo>_sold_items`** — la vertical siguiente repite el patrón (líneas de orden con FK a sus catálogos + `source_ref` por línea + su vista + su top); no se abstrae antes de tener dos.
 
 ### 9.0 Layouts por rubro (plantillas de campos sugeridas)
 
@@ -4073,6 +4109,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-04 (LO VENDIDO POR ÍTEM DESDE UN MÓDULO VERTICAL)** — Carlos pidió registro por ítem enlazado al catálogo para tops de laboratorio, diagnóstico y medicamentos, reutilizable por verticales futuras. Decisión: vista sobre la venta real, no tabla paralela (una sola verdad; anular y renombrar no desincronizan): el core conserva el origen en toda línea nacida de cotización (hoy solo en conceptos) y cada vertical expone `<módulo>_sold_items` + su top por id de catálogo. 6 tareas (F4-CONCEPT-10, F9-CLINIC-29..31, F9-CLINIC-WEB-26..27), ~15 h — `topic_key: sellpoint/module-sold-items` — afecta: F4-CONCEPT (mod), F9-CLINIC-14/15 (rastro por línea)
 - **2026-09-04 (LAS PRUEBAS TIENEN SU BASE: `sellpoint_test` + TEARDOWN)** — F0-DB-04 y F0-DB-05 cerradas. `sellpoint_dev` había vuelto a acumular 8 463 negocios de prueba desde la purga del día 2. Ahora `test/setup-env.js` apunta a `sellpoint_test`; `apps/api/scripts/ensure-test-db.mjs` la crea y migra antes de cada `pnpm test` / `test:e2e` (local y CI, vía `prisma db execute` y `migrate deploy`: no hay `psql` ni `pg` en el host); `infrastructure/postgres-init/01-test-db.sql` la crea al nacer el volumen. `global-setup.ts` marca la hora de inicio y `global-teardown.ts` borra en una transacción lo que la corrida creó (44 tablas con `tenant_id` con las FK apagadas + `user_roles`/`role_permissions`), `E2E_KEEP_DATA=1` lo apaga, y ni el garante ni el teardown tocan una base sin «test» en el nombre. Verificado: una corrida completa deja `sellpoint_dev` intacta y `sellpoint_test` vuelve a su conteo previo — `topic_key: sellpoint/f0-db-test-base` — afecta: F0-DB-04, F0-DB-05, CI (`checks.yml`)
 - **2026-09-04 (CONSULTORIO: LA CONSULTA ABIERTA SE CONTINÚA Y LA DE OTRO DÍA SE VENCE)** — implementada la ola 10 (F9-CLINIC-25..28 y F9-CLINIC-WEB-23..25). El candado del expediente es una función pura en shared (`medicalRecordLock`): cerrada gana y una abierta de otro día del negocio queda «Vencida», solo lectura DERIVADA —sin job ni migración, porque los CHECK exigen `closed_by`—; el API devuelve `editable`/`lockReason` y responde 409 `record_expired` en secciones y órdenes. El alta pide el folio ANTES de buscar (el lock de la serie serializa a dos médicos) y responde 409 `record_open_today` con el folio a continuar, blindado por el UNIQUE parcial `(tenant_id, patient_customer_id, consultation_date) WHERE status='open'`. La búsqueda de pacientes dice el estado del último expediente y la pantalla ofrece «Continuar consulta HCL-…» o «Iniciar consulta»; el tablero pinta «Vencida» con «Nueva consulta» y un 409 a medianoche no borra lo tecleado. El acierto por turno ahora trae `turnId` y el expediente nace enlazado. — `topic_key: sellpoint/f9-clinic-resume` — afecta: F9-CLINIC-10 (alta), F9-CLINIC-11/14 (candado), F9-CLINIC-WEB-07/12/13 (pantallas)
 - **2026-09-03 (CONSULTORIO: CONTINUAR LA CONSULTA ABIERTA Y VENCIMIENTO POR DÍA)** — Carlos vio dos pacientes con historia clínica de hoy sin terminar y «Iniciar consulta» abría otro folio. Decisiones: «Continuar consulta HCL-…» desde la búsqueda cuando hay una abierta de hoy (409 `record_open_today` con el folio si se intenta duplicar; `nextFolio` antes del `findFirst` + UNIQUE parcial por día contra la carrera de dos médicos); una abierta de otro día queda «Vencida», solo lectura DERIVADA por `medicalRecordLock` en shared (sin job ni migración; `hoy` siempre del API), con «Nueva consulta» para el folio siguiente; una cerrada hoy sí permite otro folio hoy; sin panel de «abiertas hoy». 7 tareas nuevas (F9-CLINIC-25..28, F9-CLINIC-WEB-23..25), ~17 h — `topic_key: sellpoint/f9-clinic-resume` — afecta: F9-CLINIC-10 (alta sin duplicar), F9-CLINIC-11/14 (409 nuevo), F9-CLINIC-WEB-07/12/13 (continuar, vencida)
