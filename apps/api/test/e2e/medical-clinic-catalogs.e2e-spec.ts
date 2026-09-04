@@ -121,4 +121,59 @@ describe("Consultorio Médico — catálogos (F9-CLINIC-18)", () => {
       .send({ sellsLabStudies: false })
       .expect(403);
   });
+
+  /**
+   * Importar el catálogo desde Excel. Va por e2e y no solo por unit porque lo
+   * que se rompió al escribirlo fue el CABLEADO —una subclase decorada sin
+   * constructor propio deja las dependencias en `undefined`— y eso solo se ve
+   * levantando la app de verdad (Carlos, 2026-09-04).
+   */
+  it("la plantilla trae lo dado de alta y el archivo se importa", async () => {
+    await request(app.getHttpServer())
+      .post("/medical-clinic/lab-studies")
+      .set("Authorization", bearer(negocio.token))
+      .send({ code: "BH", name: "Biometría hemática", price: "350.00" })
+      .expect(201);
+
+    const plantilla = await request(app.getHttpServer())
+      .get("/medical-clinic/lab-studies/import/template")
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    expect(plantilla.headers["content-disposition"]).toContain("estudios-laboratorio");
+    // Un 200 con el content-type del Excel ya prueba que el servicio corrió:
+    // con las dependencias sin inyectar esto sería un 500.
+    expect(plantilla.headers["content-type"]).toContain("spreadsheet");
+
+    // Se resube con un estudio nuevo y el existente cambiado de nombre.
+    const { serializeSpreadsheet } = await import("../../src/common/spreadsheet/spreadsheet.js");
+    const { body } = await serializeSpreadsheet(
+      [
+        ["codigo", "nombre", "descripcion", "costo", "precio"],
+        ["BH", "Biometría hemática completa", "", "120", "350"],
+        ["QS", "Química sanguínea", "6 elementos", "150", "420"],
+      ],
+      "xlsx",
+      { sheetName: "Estudios", filenameBase: "estudios" },
+    );
+    const reporte = await request(app.getHttpServer())
+      .post("/medical-clinic/lab-studies/import")
+      .set("Authorization", bearer(negocio.token))
+      .send({ content: body.toString("base64") })
+      .expect(200);
+    expect(reporte.body).toMatchObject({ valid: 2, created: 1, updated: 1, applied: true });
+
+    const lista = await request(app.getHttpServer())
+      .get("/medical-clinic/lab-studies")
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    const filas = (lista.body as { rows: { code: string; name: string }[] }).rows;
+    expect(filas.find((r) => r.code === "BH")?.name).toBe("Biometría hemática completa");
+    expect(filas.find((r) => r.code === "QS")).toBeDefined();
+
+    // Solo quien administra el catálogo importa.
+    await request(app.getHttpServer())
+      .get("/medical-clinic/lab-studies/import/template")
+      .set("Authorization", bearer(viewerToken))
+      .expect(403);
+  });
 });

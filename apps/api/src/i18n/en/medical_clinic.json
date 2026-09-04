@@ -21,6 +21,12 @@
   "order_needs_lines": "The order needs at least one line.",
   "no_default_warehouse": "You have no assigned warehouse. Ask an administrator to assign one.",
   "study_not_available": "One of the studies is no longer available.",
+  "import_too_large": "The file is larger than the 2 MB limit",
+  "import_unreadable": "We could not read the file. Is it a valid Excel?",
+  "import_empty": "The file has no data rows",
+  "import_missing_required": "Code or name is missing",
+  "import_duplicate_code": "The code is repeated inside the file",
+  "import_invalid_money": "The amount is not valid (positive, up to 2 decimals)",
   "pdf": {
     "title_prescription": "MEDICAL PRESCRIPTION",
     "title_lab_order": "LAB ORDER",

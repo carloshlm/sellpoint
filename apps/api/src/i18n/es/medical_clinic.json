@@ -21,6 +21,12 @@
   "order_needs_lines": "La orden necesita al menos una línea.",
   "no_default_warehouse": "No tienes un almacén asignado. Pídele a un administrador que te asigne uno.",
   "study_not_available": "Uno de los estudios ya no está disponible.",
+  "import_too_large": "El archivo supera el límite de 2 MB",
+  "import_unreadable": "No se pudo leer el archivo. ¿Es un Excel válido?",
+  "import_empty": "El archivo no trae filas de datos",
+  "import_missing_required": "Faltan el código o el nombre",
+  "import_duplicate_code": "El código se repite dentro del archivo",
+  "import_invalid_money": "El monto no es válido (positivo, hasta 2 decimales)",
   "pdf": {
     "title_prescription": "RECETA MÉDICA",
     "title_lab_order": "ORDEN DE LABORATORIO",

@@ -22,6 +22,7 @@ import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import type { Study, StudyKind } from "@/lib/medical-clinic/api";
 import { useRemoveStudy, useStudies, useUpdateStudy } from "@/lib/medical-clinic/hooks";
+import { StudyImportDialog } from "./study-import-dialog";
 
 /**
  * F9-CLINIC-WEB-04/05 — la pantalla de un catálogo de estudios. Una sola
@@ -46,6 +47,7 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Study | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
   const updateStudy = useUpdateStudy(kind);
   const removeStudy = useRemoveStudy(kind);
 
@@ -60,16 +62,24 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t(`medicalClinic.studies.${kind}.title`)}</h1>
         {canManage && !creating && !editing && (
-          <Button
-            onClick={() => {
-              setError(null);
-              setCreating(true);
-            }}
-          >
-            {t("medicalClinic.studies.add")}
-          </Button>
+          <div className="flex gap-2">
+            {/* Mismo par de botones que Servicios: importar al lado de agregar. */}
+            <Button variant="outline" onClick={() => setImportando(true)}>
+              {t(`medicalClinic.studies.${kind}.import.title`)}
+            </Button>
+            <Button
+              onClick={() => {
+                setError(null);
+                setCreating(true);
+              }}
+            >
+              {t("medicalClinic.studies.add")}
+            </Button>
+          </div>
         )}
       </div>
+
+      {importando && <StudyImportDialog kind={kind} onClose={() => setImportando(false)} />}
 
       {error && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">

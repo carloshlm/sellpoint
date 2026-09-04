@@ -169,3 +169,28 @@ describe.each([
     expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Importar el catálogo desde Excel, con el MISMO diálogo que Servicios
+ * (Carlos, 2026-09-04): plantilla, archivo y reporte.
+ */
+describe.each([
+  ["lab", "/medical-clinic/lab-studies", "Importar estudios de laboratorio"],
+  ["diagnostic", "/medical-clinic/diagnostic-studies", "Importar estudios diagnósticos"],
+])("importar %s", (kind, ruta, titulo) => {
+  it("con :manage ofrece importar y abre el diálogo de la casa", async () => {
+    await renderRuta(ruta, ["medical_clinic:read", "medical_clinic:manage"]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: titulo }));
+    // El MISMO diálogo genérico que servicios: plantilla, archivo y reporte.
+    const dialogo = await screen.findByTestId(`${kind}-study-import-dialog`);
+    expect(dialogo).toHaveTextContent(titulo);
+    expect(within(dialogo).getByRole("button", { name: "Plantilla Excel" })).toBeInTheDocument();
+  });
+
+  it("sin :manage no se ofrece", async () => {
+    await renderRuta(ruta, ["medical_clinic:read"]);
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByRole("button", { name: titulo })).not.toBeInTheDocument();
+  });
+});

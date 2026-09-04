@@ -19,6 +19,7 @@ import { RecordsService } from "./records.service";
 import { SectionsService } from "./sections.service";
 import { SettingsService } from "./settings.service";
 import { StockSearchService } from "./stock-search.service";
+import { DiagnosticStudyImportService, LabStudyImportService } from "./study-import.service";
 
 /**
  * F9-CLINIC — Consultorio Médico, el segundo módulo vertical: catálogos de
@@ -45,6 +46,8 @@ import { StockSearchService } from "./stock-search.service";
     MedicalClinicDashboardService,
     LabStudiesService,
     DiagnosticStudiesService,
+    LabStudyImportService,
+    DiagnosticStudyImportService,
     SettingsService,
     PatientsService,
     StockSearchService,

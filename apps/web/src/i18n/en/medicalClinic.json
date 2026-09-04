@@ -1,10 +1,38 @@
 {
   "studies": {
     "lab": {
-      "title": "Lab Studies"
+      "title": "Lab Studies",
+      "import": {
+        "title": "Import lab studies",
+        "step1": "1. Download the template: it brings the studies you already created.",
+        "step2": "2. Edit it and upload it (Excel).",
+        "downloadXlsx": "Excel template",
+        "chooseFile": "Choose file",
+        "noFile": "No file chosen",
+        "confirm": "Import",
+        "report": "{{valid}} valid rows ({{created}} created, {{updated}} updated) · {{failed}} with errors",
+        "rowError": "Row {{row}}: {{message}}",
+        "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
+        "skipErrors": "Import the valid ones and skip the rows with errors",
+        "done": "{{count}} studies imported."
+      }
     },
     "diagnostic": {
-      "title": "Diagnostic Studies"
+      "title": "Diagnostic Studies",
+      "import": {
+        "title": "Import diagnostic studies",
+        "step1": "1. Download the template: it brings the studies you already created.",
+        "step2": "2. Edit it and upload it (Excel).",
+        "downloadXlsx": "Excel template",
+        "chooseFile": "Choose file",
+        "noFile": "No file chosen",
+        "confirm": "Import",
+        "report": "{{valid}} valid rows ({{created}} created, {{updated}} updated) · {{failed}} with errors",
+        "rowError": "Row {{row}}: {{message}}",
+        "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
+        "skipErrors": "Import the valid ones and skip the rows with errors",
+        "done": "{{count}} studies imported."
+      }
     },
     "add": "Add",
     "search": "Search study",
