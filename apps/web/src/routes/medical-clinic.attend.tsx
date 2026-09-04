@@ -56,12 +56,21 @@ function AttendContent() {
 
   const iniciar = (hit: PatientHit) => {
     setError(null);
+    // Un turno sin cliente: no hay expediente que abrir todavía. Se va al
+    // alta llevando el turno, y el paciente nace ligado a él.
+    if (hit.customerId === null) {
+      void navigate({
+        to: "/medical-clinic/patients/new",
+        search: hit.turnId === null ? {} : { turnId: hit.turnId },
+      });
+      return;
+    }
     setAbriendo(hit.customerId);
     const abrir = (recordId: string) =>
       navigate({ to: "/medical-clinic/records/$recordId", params: { recordId } });
     createRecord.mutate(
       // El turno viaja al expediente: así el encabezado dice de qué turno vino.
-      { customerId: hit.customerId, ...(hit.turnId !== null && { turnId: hit.turnId }) },
+      { customerId: hit.customerId as string, ...(hit.turnId !== null && { turnId: hit.turnId }) },
       {
         onSuccess: (record) => abrir(record.id),
         onError: (apiError: ApiError) => {

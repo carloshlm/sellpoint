@@ -309,3 +309,68 @@ describe("Atender paciente — continuar la consulta abierta", () => {
     );
   });
 });
+
+/**
+ * Un turno que se generó sin cliente no es un callejón sin salida: se ve en
+ * la búsqueda y «Iniciar consulta» lleva al alta del paciente, ligada a ESE
+ * turno (Carlos, 2026-09-04).
+ */
+describe("Atender paciente — turno sin paciente", () => {
+  const sinCliente = () =>
+    hit({
+      customerId: null,
+      name: "",
+      age: null,
+      birthDate: null,
+      turnNumber: 3,
+      turnId: "t3",
+      lastRecord: null,
+    });
+
+  it("se lista con su número y ofrece darlo de alta", async () => {
+    mocked.searchPatients.mockResolvedValue([sinCliente()]);
+    await renderRuta("/medical-clinic/attend", ATTEND);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "Por turno" }));
+    await user.type(screen.getByLabelText("Número de turno"), "3");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    const fila = await screen.findByTestId("patient-turn-t3");
+    expect(fila).toHaveTextContent("Turno 3");
+    expect(fila).toHaveTextContent("Sin paciente registrado");
+    expect(within(fila).getByRole("button", { name: "Iniciar consulta" })).toBeInTheDocument();
+  });
+
+  it("«Iniciar consulta» lleva al alta del paciente con el turno a cuestas", async () => {
+    mocked.searchPatients.mockResolvedValue([sinCliente()]);
+    const router = await renderRuta("/medical-clinic/attend", ATTEND);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "Por turno" }));
+    await user.type(screen.getByLabelText("Número de turno"), "3");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    await user.click(
+      within(await screen.findByTestId("patient-turn-t3")).getByRole("button", {
+        name: "Iniciar consulta",
+      }),
+    );
+
+    // Ni se intenta abrir expediente: primero hay que saber a quién.
+    expect(mocked.createRecord).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/medical-clinic/patients/new"),
+    );
+    expect(router.state.location.search).toMatchObject({ turnId: "t3" });
+  });
+
+  it("el paciente nuevo nace ligado al turno que lo trajo", async () => {
+    const router = await renderRuta("/medical-clinic/patients/new?turnId=t3", ATTEND);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Nombres"), "Luis");
+    await user.type(screen.getByLabelText("Apellido paterno"), "Gómez");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.createRecord).toHaveBeenCalledWith({ customerId: "c9", turnId: "t3" }),
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r1"));
+  });
+});

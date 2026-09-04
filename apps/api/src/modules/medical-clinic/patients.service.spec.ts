@@ -109,13 +109,9 @@ describe("PatientsService (F9-CLINIC-09)", () => {
     expect(res[0]).toMatchObject({ customerId: "c-1", turnNumber: 5, age: 36 });
   });
 
-  it("un turno inexistente hoy es 404; uno sin paciente es 422", async () => {
+  it("un turno inexistente hoy es 404", async () => {
     await expect(service.search(USER, { mode: "turn", q: "9" })).rejects.toMatchObject({
       response: { message: "medical_clinic.turn_not_found" },
-    });
-    tx.receptionTurn.findFirst.mockResolvedValue({ id: "t-2", number: 9, customerId: null });
-    await expect(service.search(USER, { mode: "turn", q: "9" })).rejects.toMatchObject({
-      response: { message: "medical_clinic.turn_without_patient" },
     });
   });
 
@@ -159,5 +155,23 @@ describe("PatientsService (F9-CLINIC-09)", () => {
       status: "closed",
       lockReason: "closed",
     });
+  });
+
+  /**
+   * Un turno que se generó sin cliente (la recepcionista solo dio el número)
+   * NO es un callejón sin salida: el médico lo ve, y al iniciar la consulta
+   * el sistema lo manda a dar de alta al paciente ligado a ESE turno
+   * (Carlos, 2026-09-04).
+   */
+  it("un turno sin paciente aparece en la búsqueda, sin cliente y con su número", async () => {
+    tx.receptionTurn.findFirst.mockResolvedValue({ id: "t-9", number: 3, customerId: null });
+    const [hit] = await service.search(USER, { mode: "turn", q: "3" });
+    expect(hit).toMatchObject({
+      customerId: null,
+      turnId: "t-9",
+      turnNumber: 3,
+      lastRecord: null,
+    });
+    expect(hit?.name).toBe("");
   });
 });

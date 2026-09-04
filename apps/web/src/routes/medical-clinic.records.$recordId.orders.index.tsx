@@ -1,5 +1,3 @@
-import type { Currency } from "@sellpoint/shared";
-import { formatMoney } from "@sellpoint/shared";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,7 +19,6 @@ import {
 import type { MedicalOrder } from "@/lib/medical-clinic/api";
 import { printMedicalOrder } from "@/lib/medical-clinic/api";
 import { useCancelOrder, useOrders, useRecord } from "@/lib/medical-clinic/hooks";
-import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/medical-clinic/records/$recordId/orders/")({
   component: OrdersPage,
@@ -42,7 +39,18 @@ function OrdersPage() {
   );
 }
 
-const CHARGE_VARIANT = { charged: "success", pending: "warning", not_for_sale: "default" } as const;
+/**
+ * Lo que el consultorio quiere saber de una orden es si el paciente RECIBIÓ
+ * lo que se le ordenó, no cuánto costó (Carlos, 2026-09-04). Hoy eso se
+ * deduce del cobro: lo que pasó por caja se proporcionó; lo demás, todavía
+ * no. El importe vive en la cotización y en el ticket, no acá.
+ */
+const PROVIDED_VARIANT = {
+  charged: "success",
+  pending: "default",
+  not_for_sale: "default",
+} as const;
+const proporcionado = (chargeStatus: keyof typeof PROVIDED_VARIANT) => chargeStatus === "charged";
 
 /**
  * F9-CLINIC-WEB-19/22 — las órdenes de la consulta con su estado de cobro.
@@ -51,8 +59,6 @@ const CHARGE_VARIANT = { charged: "success", pending: "warning", not_for_sale: "
  */
 function OrdersScreen({ recordId }: { recordId: string }) {
   const { t } = useTranslation();
-  const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const record = useRecord(recordId);
   const ordenes = useOrders(recordId);
   const cancelar = useCancelOrder(recordId);
@@ -93,10 +99,7 @@ function OrdersScreen({ recordId }: { recordId: string }) {
               <TableHead>{t("medicalClinic.orders.list.columns.folio")}</TableHead>
               <TableHead>{t("medicalClinic.orders.list.columns.kind")}</TableHead>
               <TableHead>{t("medicalClinic.orders.list.columns.items")}</TableHead>
-              <TableHead className="text-right">
-                {t("medicalClinic.orders.list.columns.total")}
-              </TableHead>
-              <TableHead>{t("medicalClinic.orders.list.columns.charge")}</TableHead>
+              <TableHead>{t("medicalClinic.orders.list.columns.status")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -108,15 +111,16 @@ function OrdersScreen({ recordId }: { recordId: string }) {
                 <TableCell className="max-w-xs truncate">
                   {orden.lines.map((l) => l.description).join(", ")}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(Number(orden.total), currency, locale)}
-                </TableCell>
                 <TableCell>
                   {orden.status === "canceled" ? (
                     <Badge variant="destructive">{t("medicalClinic.orders.list.canceled")}</Badge>
                   ) : (
-                    <Badge variant={CHARGE_VARIANT[orden.chargeStatus]}>
-                      {t(`medicalClinic.orders.list.charge.${orden.chargeStatus}`)}
+                    <Badge variant={PROVIDED_VARIANT[orden.chargeStatus]}>
+                      {t(
+                        `medicalClinic.orders.list.provided.${
+                          proporcionado(orden.chargeStatus) ? "yes" : "no"
+                        }`,
+                      )}
                     </Badge>
                   )}
                 </TableCell>

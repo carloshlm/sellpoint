@@ -54,6 +54,7 @@
     "openToday": "Consulta abierta hoy · {{folio}}",
     "lastRecord": "Última consulta {{folio}}",
     "noRecords": "Sin consultas previas",
+    "noPatientYet": "Sin paciente registrado",
     "turnBadge": "Turno {{number}}",
     "years": "{{count}} años",
     "years_one": "1 año",
@@ -329,13 +330,11 @@
         "folio": "Folio",
         "kind": "Tipo",
         "items": "Conceptos",
-        "total": "Total",
-        "charge": "Cobro"
+        "status": "Estado"
       },
-      "charge": {
-        "charged": "Cobrada",
-        "pending": "Pendiente de cobro",
-        "not_for_sale": "Sin cobro"
+      "provided": {
+        "yes": "Proporcionado",
+        "no": "No proporcionado"
       },
       "canceled": "Cancelada",
       "cancel": "Cancelar",

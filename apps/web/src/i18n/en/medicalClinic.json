@@ -54,6 +54,7 @@
     "openToday": "Consultation open today · {{folio}}",
     "lastRecord": "Last consultation {{folio}}",
     "noRecords": "No previous consultations",
+    "noPatientYet": "No patient registered yet",
     "turnBadge": "Ticket {{number}}",
     "years": "{{count}} years",
     "years_one": "1 year",
@@ -329,13 +330,11 @@
         "folio": "Folio",
         "kind": "Type",
         "items": "Items",
-        "total": "Total",
-        "charge": "Payment"
+        "status": "Status"
       },
-      "charge": {
-        "charged": "Paid",
-        "pending": "Pending payment",
-        "not_for_sale": "No charge"
+      "provided": {
+        "yes": "Provided",
+        "no": "Not provided"
       },
       "canceled": "Canceled",
       "cancel": "Cancel",

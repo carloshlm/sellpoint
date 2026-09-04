@@ -57,7 +57,12 @@ export function StudyPicker({ kind, label, placeholder, selectedIds, onToggle }:
                 // Ya en la orden: el renglón sigue visible pero no se agrega
                 // dos veces (la cantidad de un estudio es una).
                 disabled={selectedIds.has(study.id)}
-                onClick={() => onToggle(study)}
+                onClick={() => {
+                  onToggle(study);
+                  // La lista se va con el término: el renglón ya está abajo y
+                  // el buscador queda listo para el siguiente.
+                  setQuery("");
+                }}
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{study.name}</span>

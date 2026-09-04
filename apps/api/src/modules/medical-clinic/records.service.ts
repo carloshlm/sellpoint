@@ -156,11 +156,11 @@ export class RecordsService {
         throw new NotFoundException({ message: "medical_clinic.patient_not_found" });
       }
 
-      let turno: { id: string; number: number } | null = null;
+      let turno: { id: string; number: number; customerId: string | null } | null = null;
       if (input.turnId !== undefined) {
         turno = await tx.receptionTurn.findFirst({
           where: { id: input.turnId, tenantId: user.tenantId },
-          select: { id: true, number: true },
+          select: { id: true, number: true, customerId: true },
         });
         if (turno === null) {
           throw new NotFoundException({ message: "medical_clinic.turn_not_found" });
@@ -237,6 +237,25 @@ export class RecordsService {
           },
         });
       }
+      // Iniciar la consulta ES atender el turno: dejarlo «En espera» con el
+      // paciente adentro obliga a marcarlo a mano y la pantalla de turnos
+      // miente (Carlos, 2026-09-04). `updateMany` con el estado en el where
+      // lo hace idempotente: un turno ya atendido no se vuelve a marcar.
+      if (turno !== null) {
+        await tx.receptionTurn.updateMany({
+          where: { id: turno.id, tenantId: user.tenantId, status: "waiting" },
+          data: {
+            status: "attended",
+            attendedAt: new Date(),
+            attendedBy: user.userId,
+            // Un turno que se generó SIN cliente queda ligado al paciente que
+            // se acaba de atender: si no, la lista de turnos seguiría diciendo
+            // «Sin cliente» para alguien que ya pasó al consultorio.
+            ...(turno.customerId === null && { customerId: paciente.id }),
+          },
+        });
+      }
+
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
         userId: user.userId,

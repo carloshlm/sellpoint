@@ -1,5 +1,4 @@
-import type { Currency, MedicalOrderKind } from "@sellpoint/shared";
-import { formatMoney } from "@sellpoint/shared";
+import type { MedicalOrderKind } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,14 +20,7 @@ import type { ApiError } from "@/lib/api";
 import type { MedicalOrder } from "@/lib/medical-clinic/api";
 import { printMedicalOrder } from "@/lib/medical-clinic/api";
 import { useCreateOrder } from "@/lib/medical-clinic/hooks";
-import {
-  lineTotal,
-  normalizeQuantity,
-  type OrderFormLine,
-  orderTotal,
-  toPayload,
-} from "@/lib/medical-clinic/order-lines";
-import { useAuthStore } from "@/stores/auth.store";
+import { normalizeQuantity, type OrderFormLine, toPayload } from "@/lib/medical-clinic/order-lines";
 
 interface OrderFormShellProps {
   recordId: string;
@@ -52,8 +44,6 @@ export function OrderFormShell({
   children,
 }: OrderFormShellProps) {
   const { t } = useTranslation();
-  const locale = useAuthStore((s) => s.user?.locale ?? "es");
-  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const emitir = useCreateOrder(recordId);
   const [indications, setIndications] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
@@ -208,9 +198,6 @@ export function OrderFormShell({
                     ) : null}
                   </TableCell>
                 ) : null}
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(lineTotal(line), currency, locale)}
-                </TableCell>
                 <TableCell className="text-right">
                   <RowAction
                     type="button"
@@ -224,12 +211,6 @@ export function OrderFormShell({
             ))}
           </TableBody>
         </Table>
-        <p className="text-right text-sm">
-          <span className="text-muted-foreground">{t("medicalClinic.orders.total")}: </span>
-          <span className="font-semibold tabular-nums">
-            {formatMoney(orderTotal(lines), currency, locale)}
-          </span>
-        </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextAreaField

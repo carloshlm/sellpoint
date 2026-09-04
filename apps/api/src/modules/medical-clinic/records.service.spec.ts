@@ -53,7 +53,7 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
   let cargado: ReturnType<typeof expediente>;
   let tx: {
     customer: { findFirst: Mock };
-    receptionTurn: { findFirst: Mock };
+    receptionTurn: { findFirst: Mock; updateMany: Mock };
     medicalClinicRecord: {
       findFirst: Mock;
       create: Mock;
@@ -75,7 +75,10 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
     cargado = expediente();
     tx = {
       customer: { findFirst: jest.fn().mockResolvedValue(cliente) },
-      receptionTurn: { findFirst: jest.fn().mockResolvedValue(null) },
+      receptionTurn: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       medicalClinicRecord: {
         // Por FORMA de la consulta, no por orden: `consultationDate` es la del
         // abierto de hoy (F9-CLINIC-27), `id` la de cargar, y el resto el
@@ -303,6 +306,52 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
           after: { consultationDate: "2026-09-02", closedOnConsultationDay: false },
         }),
       );
+    });
+  });
+
+  /**
+   * F9-CLINIC: iniciar la consulta ES atender el turno. Dejarlo «En espera»
+   * mientras el paciente está adentro obliga a la recepcionista a marcarlo a
+   * mano y la pantalla de turnos miente (Carlos, 2026-09-04).
+   */
+  describe("el turno del que salió la consulta", () => {
+    it("queda atendido en la misma transacción", async () => {
+      tx.receptionTurn.findFirst.mockResolvedValue({ id: "t-1", number: 5, status: "waiting" });
+      await service.create(USER, { customerId: "c-1", turnId: "t-1" }, META);
+      expect(tx.receptionTurn.updateMany).toHaveBeenCalledWith({
+        where: { id: "t-1", tenantId: TENANT, status: "waiting" },
+        data: expect.objectContaining({ status: "attended", attendedBy: "dr-1" }),
+      });
+    });
+
+    it("un turno que se generó sin cliente queda ligado al paciente de la consulta", async () => {
+      tx.receptionTurn.findFirst.mockResolvedValue({
+        id: "t-9",
+        number: 3,
+        status: "waiting",
+        customerId: null,
+      });
+      await service.create(USER, { customerId: "c-1", turnId: "t-9" }, META);
+      expect(tx.receptionTurn.updateMany.mock.calls[0][0].data).toMatchObject({
+        status: "attended",
+        customerId: "c-1",
+      });
+    });
+
+    it("un turno que YA tenía cliente no se le cambia", async () => {
+      tx.receptionTurn.findFirst.mockResolvedValue({
+        id: "t-1",
+        number: 5,
+        status: "waiting",
+        customerId: "otro",
+      });
+      await service.create(USER, { customerId: "c-1", turnId: "t-1" }, META);
+      expect(tx.receptionTurn.updateMany.mock.calls[0][0].data.customerId).toBeUndefined();
+    });
+
+    it("sin turno no se toca ninguno", async () => {
+      await service.create(USER, { customerId: "c-1" }, META);
+      expect(tx.receptionTurn.updateMany).not.toHaveBeenCalled();
     });
   });
 });

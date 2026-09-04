@@ -69,7 +69,13 @@ export function MedicationPicker({ label, placeholder, showStock, onAdd }: Medic
                   variant="outline"
                   className="h-auto w-full justify-between py-2 text-left"
                   disabled={!presentacion}
-                  onClick={() => presentacion && onAdd(item, presentacion)}
+                  onClick={() => {
+                    if (!presentacion) return;
+                    onAdd(item, presentacion);
+                    // Igual que en la caja: agregado el renglón, el buscador
+                    // se limpia para el siguiente.
+                    setQuery("");
+                  }}
                 >
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{item.name}</span>

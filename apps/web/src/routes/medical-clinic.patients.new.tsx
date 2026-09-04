@@ -13,6 +13,9 @@ import { useCreateRecord } from "@/lib/medical-clinic/hooks";
 
 export const Route = createFileRoute("/medical-clinic/patients/new")({
   component: NewPatientPage,
+  // El turno que trajo al paciente, cuando se llega desde uno sin cliente.
+  validateSearch: (search: Record<string, unknown>): { turnId?: string } =>
+    typeof search.turnId === "string" ? { turnId: search.turnId } : {},
 });
 
 /**
@@ -37,6 +40,7 @@ function NewPatientPage() {
 function NewPatientContent() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { turnId } = Route.useSearch();
   const createRecord = useCreateRecord();
   const [error, setError] = useState<string | null>(null);
   const volver = () => navigate({ to: "/medical-clinic/attend" });
@@ -65,7 +69,9 @@ function NewPatientContent() {
               return;
             }
             createRecord.mutate(
-              { customerId: customer.id },
+              // El expediente nace ligado al turno que trajo al paciente: así
+              // ese turno queda atendido y el encabezado dice de cuál vino.
+              { customerId: customer.id, ...(turnId !== undefined && { turnId }) },
               {
                 onSuccess: (record) =>
                   navigate({

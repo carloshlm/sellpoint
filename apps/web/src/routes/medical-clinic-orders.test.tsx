@@ -168,7 +168,6 @@ describe("orden de laboratorio (F9-CLINIC-WEB-17)", () => {
     await user.click(screen.getByRole("button", { name: /Química sanguínea/ }));
     const lineas = screen.getByTestId("order-lines");
     expect(within(lineas).getAllByRole("row")).toHaveLength(3); // encabezado + 2
-    expect(lineas).toHaveTextContent("$770.00");
     await user.click(within(lineas).getAllByRole("button", { name: "Quitar" })[1] as HTMLElement);
     expect(within(lineas).getAllByRole("row")).toHaveLength(2);
     await user.type(screen.getByLabelText("Indicaciones"), "Ayuno de 8 horas");
@@ -213,9 +212,29 @@ describe("orden de laboratorio (F9-CLINIC-WEB-17)", () => {
     const acierto = await screen.findByRole("button", { name: /Biometría hemática/ });
     expect(acierto).toHaveTextContent("BH");
     expect(acierto).not.toHaveTextContent("$");
-    // El total de la orden sí, que es lo que se va a cobrar.
-    await user.click(acierto);
-    expect(screen.getByTestId("order-lines")).toHaveTextContent("$350.00");
+  });
+
+  it("al agregar, la lista de resultados se va: el buscador queda listo para el siguiente", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/lab_order");
+    const user = userEvent.setup();
+    const campo = await screen.findByLabelText("Buscar estudio de laboratorio");
+    await user.type(campo, "b");
+    await user.click(await screen.findByRole("button", { name: /Biometría hemática/ }));
+    expect(campo).toHaveValue("");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Biometría hemática/ })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("order-lines")).toHaveTextContent("Biometría hemática");
+  });
+
+  it("una orden de estudios no habla de dinero en ningún lado", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/lab_order");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Buscar estudio de laboratorio"), "b");
+    await user.click(await screen.findByRole("button", { name: /Biometría hemática/ }));
+    // Ni columna de precio, ni total: el médico ordena, la caja cobra.
+    expect(screen.getByTestId("order-lines")).not.toHaveTextContent("$");
+    expect(screen.queryByText(/Total/)).not.toBeInTheDocument();
   });
 
   it("sin líneas no emite y avisa", async () => {
@@ -325,6 +344,21 @@ describe("receta de medicamentos (F9-CLINIC-WEB-18)", () => {
     expect(fila).not.toHaveTextContent("$");
   });
 
+  it("la receta no habla de dinero en ningún lado", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/prescription");
+    const user = userEvent.setup();
+    const campo = await screen.findByLabelText("Buscar medicamento");
+    await user.type(campo, "parac");
+    await user.click(
+      within(await screen.findByTestId("medication-prod1")).getByRole("button", {
+        name: /Paracetamol/,
+      }),
+    );
+    expect(campo).toHaveValue("");
+    expect(screen.getByTestId("order-lines")).not.toHaveTextContent("$");
+    expect(screen.queryByText(/Total/)).not.toBeInTheDocument();
+  });
+
   it("si el negocio no vende medicamentos, el buscador no muestra existencia (F9-CLINIC-WEB-22)", async () => {
     mocked.getSettings.mockResolvedValue({
       sellsMedications: false,
@@ -373,13 +407,17 @@ describe("órdenes emitidas (F9-CLINIC-WEB-19)", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Órdenes emitidas" }),
     ).toBeInTheDocument();
+    // Sin columna de Total: en el consultorio importa si se proporcionó.
+    expect(screen.queryByRole("columnheader", { name: "Total" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
     const o1 = screen.getByTestId("order-o1");
     expect(o1).toHaveTextContent("COT-000005");
     expect(o1).toHaveTextContent("Laboratorio");
-    expect(o1).toHaveTextContent("Cobrada");
+    expect(o1).toHaveTextContent("Proporcionado");
+    expect(o1).not.toHaveTextContent("$770.00");
     expect(within(o1).queryByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
-    expect(screen.getByTestId("order-o2")).toHaveTextContent("Pendiente de cobro");
-    expect(screen.getByTestId("order-o3")).toHaveTextContent("Sin cobro");
+    expect(screen.getByTestId("order-o2")).toHaveTextContent("No proporcionado");
+    expect(screen.getByTestId("order-o3")).toHaveTextContent("No proporcionado");
     expect(screen.getByTestId("order-o4")).toHaveTextContent("Cancelada");
     await user.click(
       within(screen.getByTestId("order-o2")).getByRole("button", { name: "Cancelar" }),

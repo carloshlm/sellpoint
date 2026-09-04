@@ -31,13 +31,16 @@ export function PatientResultList({
     <ul className="flex flex-col gap-2">
       {hits.map((hit) => (
         <li
-          key={hit.customerId}
-          data-testid={`patient-${hit.customerId}`}
+          key={hit.customerId ?? `turn-${hit.turnId}`}
+          data-testid={`patient-${hit.customerId ?? `turn-${hit.turnId}`}`}
           className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4"
         >
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium">{hit.name}</span>
+              <span className="font-medium">
+                {/* Un turno sin cliente todavía no tiene a quién nombrar. */}
+                {hit.customerId === null ? t("medicalClinic.attend.noPatientYet") : hit.name}
+              </span>
               {hit.turnNumber !== null && (
                 <Badge variant="warning">
                   {t("medicalClinic.attend.turnBadge", { number: hit.turnNumber })}
@@ -50,11 +53,13 @@ export function PatientResultList({
                 hit.birthDate === null
                   ? null
                   : formatBusinessDate(`${hit.birthDate}T12:00:00Z`, locale, timeZone),
-                hit.lastRecord === null
-                  ? t("medicalClinic.attend.noRecords")
-                  : hit.lastRecord.lockReason === null
-                    ? t("medicalClinic.attend.openToday", { folio: hit.lastRecord.folio })
-                    : t("medicalClinic.attend.lastRecord", { folio: hit.lastRecord.folio }),
+                hit.customerId === null
+                  ? null
+                  : hit.lastRecord === null
+                    ? t("medicalClinic.attend.noRecords")
+                    : hit.lastRecord.lockReason === null
+                      ? t("medicalClinic.attend.openToday", { folio: hit.lastRecord.folio })
+                      : t("medicalClinic.attend.lastRecord", { folio: hit.lastRecord.folio }),
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -63,7 +68,9 @@ export function PatientResultList({
           {canStart &&
             // Con una consulta abierta HOY se CONTINÚA: un link al expediente,
             // sin alta de por medio. Vencida o cerrada, se abre folio nuevo.
-            (hit.lastRecord !== null && hit.lastRecord.lockReason === null ? (
+            (hit.customerId !== null &&
+            hit.lastRecord !== null &&
+            hit.lastRecord.lockReason === null ? (
               <Link
                 to="/medical-clinic/records/$recordId"
                 params={{ recordId: hit.lastRecord.id }}

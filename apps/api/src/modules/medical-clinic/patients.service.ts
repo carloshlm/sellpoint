@@ -21,7 +21,8 @@ export interface UltimoExpediente {
 }
 
 export interface PatientHit {
-  customerId: string;
+  /** `null` en un turno todavía sin paciente: se da de alta al atenderlo. */
+  customerId: string | null;
   name: string;
   age: number | null;
   birthDate: string | null;
@@ -79,8 +80,21 @@ export class PatientsService {
       if (turno === null) {
         throw new NotFoundException({ message: "medical_clinic.turn_not_found" });
       }
+      // Un turno SIN cliente se devuelve igual: la recepcionista solo dio el
+      // número y el paciente se da de alta al iniciar la consulta, ligado a
+      // este turno (Carlos, 2026-09-04). Antes era un 422 sin salida.
       if (turno.customerId === null) {
-        throw new UnprocessableEntityException({ message: "medical_clinic.turn_without_patient" });
+        return [
+          {
+            customerId: null,
+            name: "",
+            age: null,
+            birthDate: null,
+            turnNumber: turno.number,
+            turnId: turno.id,
+            lastRecord: null,
+          },
+        ];
       }
       const cliente = await tx.customer.findFirst({
         where: { id: turno.customerId, tenantId: user.tenantId },

@@ -107,7 +107,8 @@ export async function updateSettings(
 export type RecordLockReason = "closed" | "expired";
 
 export interface PatientHit {
-  customerId: string;
+  /** `null` en un turno todavía sin paciente: se da de alta al atenderlo. */
+  customerId: string | null;
   name: string;
   age: number | null;
   birthDate: string | null;
