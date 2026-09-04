@@ -17,6 +17,14 @@ name: Deploy Sandbox
 on:
   push:
     branches: [develop]
+    # Solo documentación no despliega (Carlos, 2026-09-04): un .md no lo lee
+    # ninguna prueba ni ningún build, y correr 7 minutos de suites para
+    # validarlo es tiempo de runner tirado. Si el push mezcla docs con código,
+    # GitHub evalúa el conjunto y corre completo. `workflow_dispatch` sigue
+    # disponible para forzar un deploy a mano.
+    paths-ignore:
+      - "**.md"
+      - ".claude/**"
   workflow_dispatch:
 
 concurrency:
