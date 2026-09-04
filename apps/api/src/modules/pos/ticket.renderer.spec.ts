@@ -1,3 +1,4 @@
+import { DEFAULT_TICKET_SETTINGS, TICKET_LOGO_SVG } from "@sellpoint/shared";
 import { buildTicketDefinition, type TicketInput, type TicketRow } from "./ticket.renderer";
 
 /**
@@ -43,6 +44,8 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
     currency: "MXN",
     locale: "es",
     width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
   };
 
   const textos = (def: unknown): string => JSON.stringify(def);
@@ -238,6 +241,101 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       expect(json).toContain("2 pieces");
     });
   });
+  /**
+   * F4-TICKETCFG-05 — el papel obedece la configuración del negocio: cada
+   * línea del encabezado sale solo con su toggle, el pie es el mensaje propio
+   * si lo hay, y el logotipo va arriba de todo. La leyenda de la cotización no
+   * se apaga con nada.
+   */
+  describe("la configuración del ticket (F4-TICKETCFG-05)", () => {
+    const apagado = {
+      ...DEFAULT_TICKET_SETTINGS,
+      showBusinessName: false,
+      showTaxId: false,
+      showAddress: false,
+      showPhone: false,
+      showWarehouse: false,
+    };
+
+    it("con todo apagado el encabezado no dice negocio, RFC, dirección ni teléfono, y la fecha va sin almacén", () => {
+      const json = textos(buildTicketDefinition({ ...base, settings: apagado }, t));
+      expect(json).not.toContain("DISTRIBUIDORA DEL NORTE");
+      expect(json).not.toContain("DNO010203AB4");
+      expect(json).not.toContain("Av. Siempre Viva 742");
+      expect(json).not.toContain("+525512345678");
+      expect(json).not.toContain("Central");
+      // Lo que no es del encabezado sigue: folio y vendedor.
+      expect(json).toContain("VTA-000042");
+      expect(json).toContain("Ana Ruiz");
+    });
+
+    it("con todo prendido (defaults) el encabezado sigue completo", () => {
+      const json = textos(buildTicketDefinition(base, t));
+      expect(json).toContain("DISTRIBUIDORA DEL NORTE");
+      expect(json).toContain("DNO010203AB4");
+      expect(json).toContain("Central");
+    });
+
+    it("el pie es el mensaje propio si lo hay; si no, el de fábrica", () => {
+      const propio = textos(
+        buildTicketDefinition(
+          { ...base, settings: { ...DEFAULT_TICKET_SETTINGS, footerMessage: "Vuelva pronto" } },
+          t,
+        ),
+      );
+      expect(propio).toContain("Vuelva pronto");
+      expect(propio).not.toContain("ticket.thanks");
+      expect(textos(buildTicketDefinition(base, t))).toContain("ticket.thanks");
+    });
+
+    it("en la cotización la leyenda del precio sigue aunque haya mensaje propio", () => {
+      const json = textos(
+        buildTicketDefinition(
+          {
+            ...base,
+            kind: "quote",
+            settings: { ...DEFAULT_TICKET_SETTINGS, footerMessage: "Vuelva pronto" },
+          },
+          t,
+        ),
+      );
+      expect(json).toContain("ticket.quoteDisclaimer");
+      expect(json).toContain("Vuelva pronto");
+    });
+
+    it("el logotipo va ARRIBA: un preset como nodo svg, una imagen propia como nodo image, y sin logotipo nada", () => {
+      const conSvg = buildTicketDefinition({ ...base, logo: { svg: TICKET_LOGO_SVG.pharmacy } }, t);
+      const primero = (conSvg.content as Record<string, unknown>[])[0];
+      expect(primero).toMatchObject({ svg: TICKET_LOGO_SVG.pharmacy, alignment: "center" });
+      expect(typeof primero?.width).toBe("number");
+
+      const conPng = buildTicketDefinition(
+        { ...base, logo: { dataUrl: "data:image/png;base64,AAAA" } },
+        t,
+      );
+      const primeroPng = (conPng.content as Record<string, unknown>[])[0];
+      expect(primeroPng).toMatchObject({
+        image: "data:image/png;base64,AAAA",
+        alignment: "center",
+      });
+
+      // Sin logotipo el papel EMPIEZA por el encabezado; el código de barras
+      // del pie también es un nodo svg, así que se mira el primer nodo.
+      const sinLogo = (buildTicketDefinition(base, t).content as Record<string, unknown>[])[0];
+      expect(sinLogo).toHaveProperty("text");
+      expect(sinLogo).not.toHaveProperty("svg");
+      expect(sinLogo).not.toHaveProperty("image");
+    });
+
+    it("el logotipo escala con el papel: más ancho en 80 mm que en 58 mm", () => {
+      const ancho = (w: "58mm" | "80mm") =>
+        (
+          buildTicketDefinition({ ...base, width: w, logo: { svg: TICKET_LOGO_SVG.cafe } }, t)
+            .content as { width: number }[]
+        )[0]?.width ?? 0;
+      expect(ancho("80mm")).toBeGreaterThan(ancho("58mm"));
+    });
+  });
 });
 
 /**
@@ -278,6 +376,8 @@ describe("el código de barras del folio", () => {
     currency: "MXN",
     locale: "es",
     width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
   };
 
   /**

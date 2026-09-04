@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import sharp from "sharp";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -8,6 +9,7 @@ import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
+import { textoDelPdf, tieneImagen } from "./support/pdf-text";
 import { startTestApp } from "./support/start-test-app";
 
 /**
@@ -628,6 +630,59 @@ describe("Cotización (F4-QUOTE)", () => {
       // Un PDF real empieza con `%PDF`. Sin esto, un cuerpo vacío con el header
       // correcto pasaría el test.
       expect(res.body.subarray(0, 4).toString()).toBe("%PDF");
+    });
+
+    it("obedece la configuración: logotipo incrustado, RFC apagado y mensaje propio (F4-TICKETCFG-05)", async () => {
+      const e = await escenario();
+      await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(e.token))
+        .send({ taxId: "XAXX010101000" })
+        .expect(200);
+      await request(app.getHttpServer())
+        .put("/tenants/me/ticket-settings")
+        .set("Authorization", bearer(e.token))
+        .send({ showTaxId: false, footerMessage: "Vuelva pronto" })
+        .expect(200);
+      const png = await sharp({
+        create: { width: 300, height: 120, channels: 3, background: "#444" },
+      })
+        .png()
+        .toBuffer();
+      await request(app.getHttpServer())
+        .put("/tenants/me/ticket-settings/logo")
+        .set("Authorization", bearer(e.token))
+        .send({ content: png.toString("base64") })
+        .expect(200);
+      await abrirTurno(e.token).expect(201);
+      const venta = await request(app.getHttpServer())
+        .post("/pos/sales")
+        .set("Authorization", bearer(e.token))
+        .send({ paymentMethod: "cash", lines: [{ productId: e.productoId, quantity: 1 }] })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/pos/sales/${(venta.body as { id: string }).id}/ticket`)
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+      const pdf = res.body as Buffer;
+      // El papel, no sus cabeceras: lleva la imagen, dice el mensaje propio y
+      // NO dice el RFC que el negocio apagó.
+      expect(tieneImagen(pdf)).toBe(true);
+      const texto = textoDelPdf(pdf);
+      expect(texto).toContain("Vuelva pronto");
+      expect(texto).not.toContain("XAXX010101000");
+
+      // La cotización también lleva el logotipo, y su leyenda no se apaga.
+      const creada = await cotizar(e.token, {
+        lines: [{ productId: e.productoId, quantity: 1 }],
+      }).expect(201);
+      const cot = await request(app.getHttpServer())
+        .get(`/pos/quotes/${(creada.body as { id: string }).id}/ticket`)
+        .set("Authorization", bearer(e.token))
+        .expect(200);
+      expect(tieneImagen(cot.body as Buffer)).toBe(true);
+      expect(textoDelPdf(cot.body as Buffer)).toContain("Vuelva pronto");
     });
 
     it("la venta también, y en el ancho pedido", async () => {

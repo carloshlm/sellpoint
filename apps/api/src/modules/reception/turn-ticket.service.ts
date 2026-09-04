@@ -4,6 +4,7 @@ import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { TicketWidth, Translate } from "../pos/ticket.renderer";
+import { TicketSettingsService } from "../tenants/ticket-settings.service";
 import { buildTurnTicketDefinition, type TurnTicketInput } from "./turn-ticket.renderer";
 
 /** Las Type1 de pdfkit, igual que el ticket del POS: nada que empaquetar. */
@@ -21,7 +22,10 @@ const FONTS = {
 export class TurnTicketService {
   private readonly printer = new PdfPrinter(FONTS);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ticketSettings: TicketSettingsService,
+  ) {}
 
   async turnTicket(
     user: AuthUser,
@@ -41,7 +45,10 @@ export class TurnTicketService {
         where: { id: user.tenantId },
         select: { name: true, legalName: true, timezone: true },
       });
+      const { settings, logo } = await this.ticketSettings.leer(tx, user.tenantId);
       return {
+        logo,
+        showBusinessName: settings.showBusinessName,
         tenant: { name: tenant.name, legalName: tenant.legalName },
         number: turno.number,
         customerName: turno.customerName,

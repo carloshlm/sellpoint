@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { PosModule } from "../pos/pos.module";
 import { ReceptionModule } from "../reception/reception.module";
+import { TenantsModule } from "../tenants/tenants.module";
 import { DiagnosticStudiesService } from "./diagnostic-studies.service";
 import { LabStudiesService } from "./lab-studies.service";
 import { MedicalClinicDashboardController } from "./medical-clinic-dashboard.controller";
@@ -32,7 +33,7 @@ import { DiagnosticStudyImportService, LabStudyImportService } from "./study-imp
  * busca medicamentos con el MISMO buscador): no duplica nada de los dos.
  */
 @Module({
-  imports: [AuditModule, ReceptionModule, PosModule],
+  imports: [AuditModule, ReceptionModule, PosModule, TenantsModule],
   controllers: [
     MedicalClinicLabStudiesController,
     MedicalClinicDiagnosticStudiesController,

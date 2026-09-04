@@ -1,7 +1,12 @@
 import type { Locale } from "@sellpoint/shared";
 import { TICKET_WIDTHS, type TicketWidth, type Translate } from "../pos/ticket.renderer";
+import { ticketLogoNodes } from "../pos/ticket-logo";
+import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 
 export interface TurnTicketInput {
+  /** F4-TICKETCFG-06 — el logotipo ya resuelto y si la razón social se imprime. */
+  logo: TicketLogoRender;
+  showBusinessName: boolean;
   tenant: { name: string; legalName: string | null };
   number: number;
   customerName: string | null;
@@ -31,7 +36,10 @@ export function buildTurnTicketDefinition(input: TurnTicketInput, t: Translate) 
     pageMargins: [margen, margen, margen, margen],
     defaultStyle: { font: "Helvetica", fontSize: 8, lineHeight: 1.1 },
     content: [
-      { text: input.tenant.legalName ?? input.tenant.name, bold: true, ...centrado },
+      ...ticketLogoNodes(input.logo, anchoPt - margen * 2),
+      ...(input.showBusinessName
+        ? [{ text: input.tenant.legalName ?? input.tenant.name, bold: true, ...centrado }]
+        : []),
       linea(anchoPt - margen * 2),
       { text: t("ticket.turn"), fontSize: 10, ...centrado, margin: [0, 6, 0, 0] },
       // El número: el cliente lo lee desde la fila. Cabe en 48 mm hasta con

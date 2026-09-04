@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { TenantsModule } from "../tenants/tenants.module";
 import { CustomersService } from "./customers.service";
 import { ReceptionCustomersController } from "./reception-customers.controller";
 import { ReceptionSettingsController } from "./reception-settings.controller";
@@ -14,7 +15,7 @@ import { TurnsService } from "./turns.service";
  * el módulo, sus dos controllers responden 402.
  */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, TenantsModule],
   controllers: [
     ReceptionCustomersController,
     ReceptionTurnsController,

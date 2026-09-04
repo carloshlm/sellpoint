@@ -1,3 +1,4 @@
+import { TICKET_LOGO_SVG } from "@sellpoint/shared";
 import { buildTurnTicketDefinition, type TurnTicketInput } from "./turn-ticket.renderer";
 
 /**
@@ -9,6 +10,8 @@ import { buildTurnTicketDefinition, type TurnTicketInput } from "./turn-ticket.r
 describe("buildTurnTicketDefinition", () => {
   const t = (key: string) => key;
   const base: TurnTicketInput = {
+    logo: null,
+    showBusinessName: true,
     tenant: { name: "Mi Negocio", legalName: "CLÍNICA DEL NORTE S.A. DE C.V." },
     number: 5,
     customerName: "Rosa Luna Ríos",
@@ -65,5 +68,39 @@ describe("buildTurnTicketDefinition", () => {
   it("en inglés la fecha se lee en su formato", () => {
     const json = textos(buildTurnTicketDefinition({ ...base, locale: "en" }, t));
     expect(json).toMatch(/9\/2\/26|9\/2\/2026/);
+  });
+
+  /** F4-TICKETCFG-06 — el papel del turno lleva el logotipo y respeta el nombre. */
+  describe("la configuración del ticket (F4-TICKETCFG-06)", () => {
+    it("con logotipo y el nombre apagado: la imagen arriba y ninguna razón social", () => {
+      const def = buildTurnTicketDefinition(
+        { ...base, logo: { dataUrl: "data:image/png;base64,AAAA" }, showBusinessName: false },
+        t,
+      );
+      const contenido = def.content as Record<string, unknown>[];
+      expect(contenido[0]).toMatchObject({
+        image: "data:image/png;base64,AAAA",
+        alignment: "center",
+      });
+      const json = JSON.stringify(def);
+      expect(json).not.toContain(base.tenant.legalName as string);
+      expect(json).not.toContain(base.tenant.name);
+      // El número sigue siendo lo más grande del papel.
+      expect(json).toContain('"fontSize":56');
+    });
+
+    it("un preset sale como svg, y sin logotipo el papel empieza por el nombre", () => {
+      const conSvg = buildTurnTicketDefinition(
+        { ...base, logo: { svg: TICKET_LOGO_SVG.clinic } },
+        t,
+      );
+      expect((conSvg.content as Record<string, unknown>[])[0]).toMatchObject({
+        svg: TICKET_LOGO_SVG.clinic,
+      });
+      const sinLogo = buildTurnTicketDefinition(base, t);
+      expect((sinLogo.content as Record<string, unknown>[])[0]).toMatchObject({
+        text: base.tenant.legalName ?? base.tenant.name,
+      });
+    });
   });
 });

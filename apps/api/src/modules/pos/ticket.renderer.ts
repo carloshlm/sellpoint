@@ -1,6 +1,14 @@
-import { type Currency, formatMoney, formatQuantityWithUnit, type Locale } from "@sellpoint/shared";
+import {
+  type Currency,
+  formatMoney,
+  formatQuantityWithUnit,
+  type Locale,
+  type TicketSettings,
+} from "@sellpoint/shared";
+import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 import { ticketBarcodeSvg } from "./barcode-svg";
 import type { TicketHeaderContact } from "./ticket-header";
+import { ticketLogoNodes } from "./ticket-logo";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -61,6 +69,13 @@ export interface TicketInput {
   currency: Currency;
   locale: Locale;
   width: TicketWidth;
+  /**
+   * F4-TICKETCFG-05 — qué del negocio se imprime y el pie. Los toggles solo
+   * deciden si SALE lo que ya se resolvió arriba; el renderer no lee nada.
+   */
+  settings: TicketSettings;
+  /** El logotipo ya resuelto por el service (SVG del preset o data URL). */
+  logo: TicketLogoRender;
 }
 
 /**
@@ -107,15 +122,20 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
     pageMargins: [margen, margen, margen, margen],
     defaultStyle: { font: "Helvetica", fontSize: 8, lineHeight: 1.1 },
     content: [
-      // ── Quién cobra ───────────────────────────────────────────────────
-      { text: input.tenant.legalName ?? input.tenant.name, bold: true, alignment: "center" },
-      ...(noVacio(input.tenant.taxId)
+      // ── El logotipo, arriba de todo (F4-TICKETCFG-05) ─────────────────
+      ...ticketLogoNodes(input.logo, anchoPt - margen * 2),
+
+      // ── Quién cobra: cada línea solo con su toggle ────────────────────
+      ...(input.settings.showBusinessName
+        ? [{ text: input.tenant.legalName ?? input.tenant.name, bold: true, alignment: "center" }]
+        : []),
+      ...(input.settings.showTaxId && noVacio(input.tenant.taxId)
         ? [{ text: input.tenant.taxId, alignment: "center", fontSize: 7 }]
         : []),
-      ...(noVacio(input.header.address)
+      ...(input.settings.showAddress && noVacio(input.header.address)
         ? [{ text: input.header.address, alignment: "center", fontSize: 7 }]
         : []),
-      ...(noVacio(input.header.phone)
+      ...(input.settings.showPhone && noVacio(input.header.phone)
         ? [
             {
               text: `${t("ticket.phone")}: ${input.header.phone}`,
@@ -143,7 +163,10 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
 
       { text: input.folio, bold: true, alignment: "center", margin: [0, 4, 0, 2] },
       {
-        text: `${fechaCorta(input.createdAt, input.locale)}  ·  ${input.warehouseName}`,
+        // El almacén va en la línea de la fecha solo si el negocio lo quiere.
+        text: input.settings.showWarehouse
+          ? `${fechaCorta(input.createdAt, input.locale)}  ·  ${input.warehouseName}`
+          : fechaCorta(input.createdAt, input.locale),
         alignment: "center",
         fontSize: 7,
       },
@@ -213,12 +236,37 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
       // los precios no se congelan (F4-QUOTE-02), así que el papel tiene que
       // decir que el final se calcula en caja. Sin eso, el cliente vuelve en un
       // mes reclamando un número que el sistema ya no reconoce.
-      {
-        text: esCotizacion ? t("ticket.quoteDisclaimer") : t("ticket.thanks"),
-        alignment: "center",
-        fontSize: 7,
-        margin: [0, 6, 0, 0],
-      },
+      //
+      // El mensaje propio del negocio (F4-TICKETCFG-05) reemplaza al de
+      // fábrica en la venta; en la cotización se SUMA a la leyenda, que no se
+      // apaga con nada.
+      ...(esCotizacion
+        ? [
+            {
+              text: t("ticket.quoteDisclaimer"),
+              alignment: "center",
+              fontSize: 7,
+              margin: [0, 6, 0, 0],
+            },
+            ...(input.settings.footerMessage === null
+              ? []
+              : [
+                  {
+                    text: input.settings.footerMessage,
+                    alignment: "center",
+                    fontSize: 7,
+                    margin: [0, 2, 0, 0],
+                  },
+                ]),
+          ]
+        : [
+            {
+              text: input.settings.footerMessage ?? t("ticket.thanks"),
+              alignment: "center",
+              fontSize: 7,
+              margin: [0, 6, 0, 0],
+            },
+          ]),
 
       // ── El código de barras del papel (Carlos, 2026-08-24) ────────────
       // La venta nueva trae su código DIARIO de 12 dígitos y lo pinta con el

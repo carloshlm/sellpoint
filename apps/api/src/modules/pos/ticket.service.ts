@@ -4,6 +4,7 @@ import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { TicketSettingsService } from "../tenants/ticket-settings.service";
 import {
   buildTicketDefinition,
   type TicketInput,
@@ -53,7 +54,10 @@ export function descripcionDeFila(
 export class TicketService {
   private readonly printer = new PdfPrinter(FONTS);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ticketSettings: TicketSettingsService,
+  ) {}
 
   async saleTicket(
     user: AuthUser,
@@ -100,6 +104,8 @@ export class TicketService {
       );
 
       const rows = await this.filasDe(tx, user.tenantId, venta.items, lotePorProducto);
+      // Qué se imprime y el logotipo, en la MISMA transacción (F4-TICKETCFG-05).
+      const { settings, logo } = await this.ticketSettings.leer(tx, user.tenantId);
 
       return {
         tenant: {
@@ -130,6 +136,8 @@ export class TicketService {
         currency: tenant.currency as Currency,
         locale: user.locale,
         width,
+        settings,
+        logo,
       } satisfies TicketInput;
     });
 
@@ -170,6 +178,7 @@ export class TicketService {
       // Una cotización NO tiene lotes: no movió stock, así que no hay reparto
       // FEFO que contar.
       const rows = await this.filasDe(tx, user.tenantId, cotizacion.lines, new Map());
+      const { settings, logo } = await this.ticketSettings.leer(tx, user.tenantId);
 
       return {
         tenant: {
@@ -194,6 +203,8 @@ export class TicketService {
         currency: tenant.currency as Currency,
         locale: user.locale,
         width,
+        settings,
+        logo,
       } satisfies TicketInput;
     });
 

@@ -18,6 +18,9 @@ describe("buildMedicalOrderDefinition (F9-CLINIC-24)", () => {
       address: "Av. Siempre Viva 742",
       phone: "+525512345678",
       timezone: "America/Mexico_City",
+      showBusinessName: true,
+      showAddress: true,
+      showPhone: true,
     },
     record: {
       folio: "HCL-000012",
@@ -104,5 +107,22 @@ describe("buildMedicalOrderDefinition (F9-CLINIC-24)", () => {
       t,
     );
     expect(textos(sinCobro)).toContain("ORM-000003");
+  });
+
+  /** F4-TICKETCFG-07 — la carta respeta nombre, dirección y teléfono. */
+  it("con los tres apagados el encabezado del negocio queda vacío y el resto sigue", () => {
+    const def = buildMedicalOrderDefinition(
+      {
+        ...base,
+        tenant: { ...base.tenant, showBusinessName: false, showAddress: false, showPhone: false },
+      },
+      t,
+    );
+    const json = textos(def);
+    expect(json).not.toContain(base.tenant.legalName as string);
+    expect(json).not.toContain(base.tenant.address as string);
+    expect(json).not.toContain(base.tenant.phone as string);
+    expect(json).toContain("HCL-000012");
+    expect(json).toContain("Ana Pérez Luna");
   });
 });

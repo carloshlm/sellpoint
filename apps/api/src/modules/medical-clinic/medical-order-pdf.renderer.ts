@@ -11,6 +11,10 @@ export interface MedicalOrderPdfInput {
     phone: string | null;
     /** La del NEGOCIO: las fechas del papel se leen en su calendario. */
     timezone: string;
+    /** F4-TICKETCFG-07 — qué del negocio se imprime; lo decide su configuración del ticket. */
+    showBusinessName: boolean;
+    showAddress: boolean;
+    showPhone: boolean;
   };
   record: {
     folio: string;
@@ -95,11 +99,13 @@ export function buildMedicalOrderDefinition(input: MedicalOrderPdfInput, t: Tran
           {
             width: "*",
             stack: [
-              { text: tenant.legalName ?? tenant.name, bold: true, fontSize: 13 },
-              ...(tenant.address === null
+              ...(tenant.showBusinessName
+                ? [{ text: tenant.legalName ?? tenant.name, bold: true, fontSize: 13 }]
+                : []),
+              ...(tenant.address === null || !tenant.showAddress
                 ? []
                 : [{ text: tenant.address, fontSize: 9, color: GRIS }]),
-              ...(tenant.phone === null
+              ...(tenant.phone === null || !tenant.showPhone
                 ? []
                 : [
                     {

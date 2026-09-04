@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import sharp from "sharp";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -13,6 +14,7 @@ import {
   setTenantMarket,
   type TenantFixture,
 } from "./support/billing-scenario";
+import { tieneImagen } from "./support/pdf-text";
 import { startTestApp } from "./support/start-test-app";
 
 /**
@@ -172,6 +174,36 @@ describe("Recepción — turnos (F9-RECEP-15)", () => {
       .get(`/reception/turns/${id}/ticket`)
       .set("Authorization", bearer(otro.token))
       .expect(404);
+  });
+
+  it("el papel del turno lleva el logotipo del negocio y respeta el nombre (F4-TICKETCFG-06)", async () => {
+    const png = await sharp({
+      create: { width: 200, height: 80, channels: 3, background: "#222" },
+    })
+      .png()
+      .toBuffer();
+    await request(app.getHttpServer())
+      .put("/tenants/me/ticket-settings/logo")
+      .set("Authorization", bearer(negocio.token))
+      .send({ content: png.toString("base64") })
+      .expect(200);
+    await request(app.getHttpServer())
+      .put("/tenants/me/ticket-settings")
+      .set("Authorization", bearer(negocio.token))
+      .send({ showBusinessName: false })
+      .expect(200);
+    const turno = await generar(negocio.token, {}).expect(201);
+    const papel = await request(app.getHttpServer())
+      .get(`/reception/turns/${(turno.body as { id: string }).id}/ticket`)
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    expect(tieneImagen(papel.body as Buffer)).toBe(true);
+    // Vuelve a dejar el nombre: los demás tests del archivo no esperan este cambio.
+    await request(app.getHttpServer())
+      .put("/tenants/me/ticket-settings")
+      .set("Authorization", bearer(negocio.token))
+      .send({ showBusinessName: true, logo: { kind: "none" } })
+      .expect(200);
   });
 
   it("el filtro de fecha separa los días: otro día no trae los de hoy", async () => {

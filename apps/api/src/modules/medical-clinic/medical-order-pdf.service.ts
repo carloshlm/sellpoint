@@ -4,6 +4,7 @@ import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { TicketSettingsService } from "../tenants/ticket-settings.service";
 import { buildMedicalOrderDefinition, type Translate } from "./medical-order-pdf.renderer";
 
 /** Las fuentes estándar del visor, como en el PDF de inventario. */
@@ -21,7 +22,10 @@ const FONTS = {
 export class MedicalOrderPdfService {
   private readonly printer = new PdfPrinter(FONTS);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ticketSettings: TicketSettingsService,
+  ) {}
 
   async render(
     user: AuthUser,
@@ -45,8 +49,14 @@ export class MedicalOrderPdfService {
       });
       const consulta = orden.record.consultationDate.toISOString().slice(0, 10);
       const nacimiento = orden.record.patientBirthDate?.toISOString().slice(0, 10) ?? null;
+      const { settings } = await this.ticketSettings.leer(tx, user.tenantId);
       return {
-        tenant,
+        tenant: {
+          ...tenant,
+          showBusinessName: settings.showBusinessName,
+          showAddress: settings.showAddress,
+          showPhone: settings.showPhone,
+        },
         record: {
           folio: orden.record.folio,
           consultationDate: consulta,
