@@ -148,7 +148,7 @@ Ejemplos:
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
 | **F3** | Movimientos de Inventario | ✅ Completada | 5-6 semanas | ✅ Sí |
 | **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas | ✅ Sí (2026-08-20) |
-| **F5** | Reportes | ⬜ Pendiente | ~2 semanas | ✅ Atomizada (2026-08-21, 24 tareas) |
+| **F5** | Reportes | ✅ Completada | ~2 semanas | ✅ Atomizada (2026-08-21, 24 tareas) |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
 | **F8** | Mobile | 🔮 Futuro | — | ⬜ Solo concepto |
@@ -2879,9 +2879,11 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
   - **Depende de:** —
   - **Estimación:** 1 h
 
-- [ ] **F5-DASH-08** — Las gráficas entran al proyecto (recharts + envoltorios temáticos)
+- [x] **F5-DASH-08** *(cerrada el 2026-09-04)* — Las gráficas entran al proyecto (recharts + envoltorios temáticos)
   - **Salida:** `recharts` instalado y TRES envoltorios propios (`ChartLine`, `ChartBars`, `ChartDonut` en `components/dashboard/`) que toman colores de los TOKENS del tema — los 4 temas del wizard repintan las gráficas sin tocarlas — con estado vacío propio («Sin datos del período»). Nadie importa recharts directo fuera de los envoltorios
   - **Verificar:** test: cada envoltorio renderiza con datos y muestra su vacío sin datos; contraprueba: grep de `from "recharts"` solo aparece en los 3 envoltorios
+  - **La casilla estaba sin marcar, el trabajo no** (2026-09-04): los tres envoltorios entraron con F5-DASH-11..15 y nadie cerró la tarea. Auditada contra su propio criterio: `chart-line/bars/donut.tsx` + `chart-empty.tsx` («Sin datos del período») + `chart-tokens.ts` (`CHART_COLOR` con `var(--primary)`, `--success`…), el guardián de `charts.test.tsx` que recorre el árbol buscando `from "recharts"`, y `sales-charts.tsx` / `payment-donut.tsx` como únicos consumidores
+  - **La promesa de los tokens, verificada en el navegador** (2026-09-04): lo que nadie había comprobado a ojo es que los temas repintaran de verdad. El trazo declarado es SIEMPRE `var(--primary)` y el token resuelto cambia solo — azul, `#a9714b` en Arena, `#5d5468` en Uva, `#2e7d5b` en Esmeralda. Un color literal en una gráfica habría pasado los tests igual y roto los 4 temas en silencio
   - **Depende de:** —
   - **Estimación:** 2 h
 
@@ -4109,6 +4111,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-04 (F5-DASH-08 AUDITADA Y CERRADA: LAS GRÁFICAS YA VIVÍAN AQUÍ)** — la tarea seguía abierta pero el trabajo estaba hecho desde F5-DASH-11..15: `ChartLine`, `ChartBars` y `ChartDonut` con `chart-empty.tsx`, `chart-tokens.ts` y el guardián que impide importar recharts fuera de los tres. En vez de reimplementarla se auditó contra su propio criterio y se verificó en el navegador lo único que los tests no pueden ver: que el trazo declarado sea `var(--primary)` y que el color RESUELTO cambie con cada tema (Arena `#a9714b`, Uva `#5d5468`, Esmeralda `#2e7d5b`). Un literal habría pasado la suite y roto los cuatro temas en silencio — `topic_key: sellpoint/f5-dash-charts` — afecta: F5-DASH-08 (cerrada) y con ella **la fase 5 completa** (41/41), que pasa a ✅ en el roadmap
 - **2026-09-04 (EL PANEL YA DICE QUÉ SE VENDE EN EL CONSULTORIO)** — F9-CLINIC-WEB-26/27, con las que cierra la ola 11. `ClinicTop` pinta tres listas —Medicamentos, Laboratorio, Diagnóstico— bajo el mismo `PeriodFilter` del Panel, y solo si el negocio tiene el módulo Y el usuario `medical_clinic:read`: sin eso ni se pinta ni se llama al API, que pedir un 402 para después esconder la tarjeta es gastar una llamada en confirmar lo que ya dice el token. Un fallo se muestra con su motivo (`apiErrorMessage`), no como «sin ventas». Dos cosas salieron de mirarlo en el navegador y no en jsdom: con TRES columnas la fila de cuatro celdas obliga a scroll horizontal y corta justo los números (ahora el nombre manda y el dato va debajo), y «1 unidades» necesitaba el plural de la casa (`units` + `units_one`). QA de punta a punta en local: receta, laboratorio y diagnóstico cobrados en caja aparecen en su lista, y al anular la venta el estudio desaparece —que es exactamente lo que la vista prometía— en 1440 y 390 px, claro y oscuro — `topic_key: sellpoint/module-sold-items` — afecta: F9-CLINIC-WEB (cerrado), ola 11 (cerrada)
 - **2026-09-04 (LO VENDIDO POR ÍTEM: LA VISTA Y EL TOP DEL CONSULTORIO)** — F9-CLINIC-29/30/31. `medical_clinic_sold_items` es una VISTA con `security_invoker` sobre `sale_items` ⋈ líneas de orden ⋈ catálogos: sin segunda copia, anular saca del top y renombrar no parte el historial. `GET /medical-clinic/dashboard/top?period=` (permiso `medical_clinic:read`) devuelve medicamentos, laboratorio y diagnóstico agrupados por ID de catálogo, con el nombre VIGENTE y sin ventas anuladas; el período usa la zona del negocio. Descubierto: las cuatro tablas base ya llevan FORCE RLS, así que `security_invoker` es la segunda barrera (queda documentado en la migración) — `topic_key: sellpoint/module-sold-items` — afecta: F9-CLINIC-20 (el e2e ahora cobra la receta con su `quoteLineId`)
 - **2026-09-04 (LA VENTA RECUERDA DE QUÉ RENGLÓN SALIÓ CADA LÍNEA)** — F4-CONCEPT-10: hasta ahora solo el concepto conservaba `source_module`/`source_ref` al cobrarse y un medicamento recetado perdía su orden. Ahora `quoteLineId` puede acompañar a `productId`/`serviceId` como RASTRO (el precio lo sigue poniendo el catálogo), validado contra la cotización cargada y el mismo ítem (422 `quote_line_mismatch` / `quote_line_requires_quote`); `forSale` lo devuelve por ítem y el carrito no funde lo cargado del papel con lo escaneado. Habilita la vista `<módulo>_sold_items` de F9-CLINIC-29 — `topic_key: sellpoint/module-sold-items` — afecta: F4-CONCEPT-03/06/08 (mod)
