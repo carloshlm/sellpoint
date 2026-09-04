@@ -65,8 +65,14 @@ BEGIN
     RETURN;
   END IF;
   FOR tabla IN
-    SELECT DISTINCT table_name FROM information_schema.columns
-    WHERE table_schema = 'public' AND column_name = 'tenant_id' AND table_name <> 'tenants'
+    SELECT DISTINCT c.table_name FROM information_schema.columns c
+    JOIN information_schema.tables t
+      ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+    -- Solo tablas BASE: una VISTA con tenant_id (medical_clinic_sold_items)
+    -- también sale en information_schema.columns, y un DELETE sobre ella aborta el bloque
+    -- entero — el teardown dejaba de limpiar sin que nadie lo viera.
+    WHERE c.table_schema = 'public' AND c.column_name = 'tenant_id'
+      AND c.table_name <> 'tenants' AND t.table_type = 'BASE TABLE'
   LOOP
     EXECUTE format('DELETE FROM %I WHERE tenant_id = ANY($1)', tabla) USING ids;
   END LOOP;

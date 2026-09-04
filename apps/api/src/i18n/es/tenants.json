@@ -3,5 +3,9 @@
   "invalid_body": "Los datos enviados no son válidos",
   "invalid_country": "El país no es válido",
   "invalid_phone": "El teléfono debe venir en formato internacional, por ejemplo +525512345678",
-  "invalid_goal": "La meta mensual debe ser un monto positivo con hasta 2 decimales"
+  "invalid_goal": "La meta mensual debe ser un monto positivo con hasta 2 decimales",
+  "empty_update": "No hay cambios que guardar",
+  "ticket_logo_not_image": "El archivo no es una imagen",
+  "ticket_logo_too_large": "La imagen pesa demasiado: sube una de menos de 2 MB",
+  "ticket_logo_too_small": "La imagen es demasiado pequeña para imprimirse"
 }

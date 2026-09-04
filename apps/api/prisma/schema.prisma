@@ -116,6 +116,7 @@ model Tenant {
   medicalOrderLines        MedicalClinicOrderLine[]
   medicalClinicSettings    MedicalClinicSettings?
   receptionSettings        ReceptionSettings?
+  ticketSettings           TicketSettings?
 
   @@map("tenants")
 }
@@ -196,6 +197,7 @@ model User {
   medicalOrdersCanceled    MedicalClinicOrder[]           @relation("MedicalOrderCanceledBy")
   medicalSettingsUpdated   MedicalClinicSettings[]        @relation("MedicalSettingsUpdatedBy")
   receptionSettingsUpdated ReceptionSettings[]            @relation("ReceptionSettingsUpdatedBy")
+  ticketSettingsUpdated    TicketSettings[]               @relation("TicketSettingsUpdatedBy")
 
   @@index([tenantId])
   @@index([defaultWarehouseId])
@@ -1943,6 +1945,34 @@ model ReceptionSettings {
   updater User?  @relation("ReceptionSettingsUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 
   @@map("reception_settings")
+}
+
+/// F4-TICKETCFG-02 — qué del negocio se IMPRIME en el ticket y con qué
+/// logotipo. Los toggles no editan datos: `tenants`/`warehouses` siguen siendo
+/// la verdad. El logotipo propio vive aquí como `bytea` ya procesado (gris,
+/// ≤ 384×160, PNG ≤ 64 KB): reemplazarlo es un UPDATE y no queda copia vieja.
+/// Los CHECK de forma (`logo_shape`) y tamaño (`logo_size`) viven en SQL.
+model TicketSettings {
+  tenantId         String   @id @map("tenant_id") @db.Uuid
+  showBusinessName Boolean  @default(true) @map("show_business_name")
+  showTaxId        Boolean  @default(true) @map("show_tax_id")
+  showAddress      Boolean  @default(true) @map("show_address")
+  showPhone        Boolean  @default(true) @map("show_phone")
+  showWarehouse    Boolean  @default(true) @map("show_warehouse")
+  footerMessage    String?  @map("footer_message") @db.VarChar(160)
+  logoKind         String   @default("none") @map("logo_kind") @db.VarChar(8)
+  logoPreset       String?  @map("logo_preset") @db.VarChar(32)
+  logoPng          Bytes?   @map("logo_png")
+  logoWidth        Int?     @map("logo_width")
+  logoHeight       Int?     @map("logo_height")
+  updatedBy        String?  @map("updated_by") @db.Uuid
+  createdAt        DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  updater User?  @relation("TicketSettingsUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("ticket_settings")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

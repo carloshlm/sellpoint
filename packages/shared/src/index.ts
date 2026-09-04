@@ -15,4 +15,5 @@ export * from "./pos-lines";
 export * from "./quantity";
 export * from "./reception";
 export * from "./schemas/health";
+export * from "./ticket-settings";
 export * from "./units";

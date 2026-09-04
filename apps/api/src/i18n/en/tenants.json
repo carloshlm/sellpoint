@@ -3,5 +3,9 @@
   "invalid_body": "The submitted data is not valid",
   "invalid_country": "The country is not valid",
   "invalid_phone": "The phone must be in international format, for example +525512345678",
-  "invalid_goal": "The monthly goal must be a positive amount with up to 2 decimals"
+  "invalid_goal": "The monthly goal must be a positive amount with up to 2 decimals",
+  "empty_update": "There are no changes to save",
+  "ticket_logo_not_image": "The file is not an image",
+  "ticket_logo_too_large": "The image is too heavy: upload one under 2 MB",
+  "ticket_logo_too_small": "The image is too small to print"
 }

@@ -30,6 +30,7 @@ updates:
           - "class-variance-authority"
           - "pdfmake"
           - "reflect-metadata"
+          - "sharp"
           - "source-map-support"
     commit-message:
       prefix: "chore"

@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
+import { JSON_BODY_LIMIT } from "./common/http/body-limits";
 import { Env } from "./config/env.schema";
 
 async function bootstrap() {
@@ -42,7 +43,7 @@ async function bootstrap() {
   //
   // El costo de subirlo es acotado: el throttler global (100 req/min por IP)
   // y el `client_max_body_size` de nginx siguen siendo el techo real.
-  app.useBodyParser("json", { limit: "6mb" });
+  app.useBodyParser("json", { limit: JSON_BODY_LIMIT });
   app.enableCors({
     origin: configService.get("CORS_ORIGINS", { infer: true }),
     // credentials: la SPA (f1-web-auth) necesita mandar/recibir la cookie

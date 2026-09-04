@@ -1,4 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import { JSON_BODY_LIMIT } from "../../../src/common/http/body-limits";
 
 /**
  * Arranca la app de un e2e: `init()` **y `listen(0)`**.
@@ -49,6 +51,11 @@ import type { INestApplication } from "@nestjs/common";
  * que ya tienen todos los specs no cambia.
  */
 export async function startTestApp(app: INestApplication): Promise<void> {
+  // El MISMO tope de body que producción: un e2e que sube una imagen o un
+  // CSV grande tiene que pasar por el mismo parser que el usuario.
+  // Toda app de e2e es Express (`createNestApplication()` sin adaptador):
+  // `useBodyParser` vive en el tipo de la plataforma, no en la interfaz.
+  (app as NestExpressApplication).useBodyParser("json", { limit: JSON_BODY_LIMIT });
   await app.init();
   // El puerto 0 se lo pide al sistema operativo: dos suites que corrieran a la
   // vez no pelearían por un número fijo.
