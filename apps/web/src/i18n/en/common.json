@@ -124,6 +124,38 @@
         "es": "Spanish",
         "en": "English"
       }
+    },
+    "ticket": {
+      "title": "Receipt settings",
+      "subtitle": "What from your business goes on the paper and which logo. The data is edited in Business details; here you only decide whether it prints. Applies to the sales receipt, the quote, the ticket number and the clinic orders.",
+      "logoTitle": "Logo",
+      "none": "No logo",
+      "presets": {
+        "food": "Food",
+        "cafe": "Coffee shop",
+        "pharmacy": "Pharmacy",
+        "store": "Store",
+        "clinic": "Clinic",
+        "workshop": "Workshop"
+      },
+      "upload": "Upload image",
+      "uploadHint": "PNG, JPG or WebP up to 2 MB. It is stored in grayscale at receipt size; what you see below is what prints.",
+      "previewAlt": "Current receipt logo",
+      "remove": "Remove logo",
+      "tooLarge": "The image is too heavy: upload one under 2 MB.",
+      "uploadFailed": "We could not upload the image.",
+      "printTitle": "What gets printed",
+      "showBusinessName": "Business name",
+      "showTaxId": "Tax ID",
+      "showAddress": "Address",
+      "showPhone": "Phone",
+      "showWarehouse": "Warehouse name",
+      "footer": "Footer message",
+      "footerPlaceholder": "Thank you for your purchase!",
+      "footerHint": "Empty = the default. One line, up to 160 characters.",
+      "save": "Save",
+      "saved": "Settings saved.",
+      "loadFailed": "We could not load the receipt settings."
     }
   },
   "dialog": {

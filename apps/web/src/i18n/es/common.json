@@ -124,6 +124,38 @@
         "es": "Español",
         "en": "Inglés"
       }
+    },
+    "ticket": {
+      "title": "Configuración del ticket",
+      "subtitle": "Qué de tu negocio sale en el papel y con qué logotipo. Los datos se editan en Datos del negocio; aquí solo decides si se imprimen. Aplica al ticket de venta, a la cotización, al turno y a las órdenes del consultorio.",
+      "logoTitle": "Logotipo",
+      "none": "Sin logotipo",
+      "presets": {
+        "food": "Comida",
+        "cafe": "Cafetería",
+        "pharmacy": "Farmacia",
+        "store": "Tienda",
+        "clinic": "Consultorio",
+        "workshop": "Taller"
+      },
+      "upload": "Subir imagen",
+      "uploadHint": "PNG, JPG o WebP de hasta 2 MB. Se guarda en escala de grises y a tamaño de ticket; lo que ves abajo es lo que se imprime.",
+      "previewAlt": "Logotipo actual del ticket",
+      "remove": "Quitar logotipo",
+      "tooLarge": "La imagen pesa demasiado: sube una de menos de 2 MB.",
+      "uploadFailed": "No pudimos subir la imagen.",
+      "printTitle": "Qué se imprime",
+      "showBusinessName": "Nombre del negocio",
+      "showTaxId": "RFC",
+      "showAddress": "Dirección",
+      "showPhone": "Teléfono",
+      "showWarehouse": "Nombre del almacén",
+      "footer": "Mensaje del pie",
+      "footerPlaceholder": "¡Gracias por tu compra!",
+      "footerHint": "Vacío = el de fábrica. Una sola línea, hasta 160 caracteres.",
+      "save": "Guardar",
+      "saved": "Configuración guardada.",
+      "loadFailed": "No pudimos cargar la configuración del ticket."
     }
   },
   "dialog": {

@@ -11,6 +11,7 @@ import { MedicalClinicSettings } from "@/components/profile/medical-clinic-setti
 import { ProfileDetails } from "@/components/profile/profile-details";
 import { ReceptionSettings } from "@/components/profile/reception-settings";
 import { ThemePreference } from "@/components/profile/theme-preference";
+import { TicketSettings } from "@/components/profile/ticket-settings";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/profile")({
@@ -54,6 +55,7 @@ function ProfileContent() {
       <LanguagePreference />
       {/* Las tarjetas deciden solas si existen: sin tenants:manage devuelven null. */}
       {user && <BusinessDetails user={user} />}
+      {user && <TicketSettings user={user} />}
       {user && <ReceptionSettings user={user} />}
       {user && <MedicalClinicSettings user={user} />}
       {user && <ThemePreference user={user} />}
