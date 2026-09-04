@@ -13,5 +13,6 @@ export * from "./money";
 export * from "./phone";
 export * from "./pos-lines";
 export * from "./quantity";
+export * from "./reception";
 export * from "./schemas/health";
 export * from "./units";

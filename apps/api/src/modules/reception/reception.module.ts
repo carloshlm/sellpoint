@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { CustomersService } from "./customers.service";
 import { ReceptionCustomersController } from "./reception-customers.controller";
+import { ReceptionSettingsController } from "./reception-settings.controller";
+import { ReceptionSettingsService } from "./reception-settings.service";
 import { ReceptionTurnsController } from "./reception-turns.controller";
 import { TurnTicketService } from "./turn-ticket.service";
 import { TurnsService } from "./turns.service";
@@ -13,8 +15,12 @@ import { TurnsService } from "./turns.service";
  */
 @Module({
   imports: [AuditModule],
-  controllers: [ReceptionCustomersController, ReceptionTurnsController],
-  providers: [CustomersService, TurnsService, TurnTicketService],
+  controllers: [
+    ReceptionCustomersController,
+    ReceptionTurnsController,
+    ReceptionSettingsController,
+  ],
+  providers: [CustomersService, TurnsService, TurnTicketService, ReceptionSettingsService],
   exports: [CustomersService, TurnsService],
 })
 export class ReceptionModule {}

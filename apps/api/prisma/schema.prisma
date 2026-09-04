@@ -115,6 +115,7 @@ model Tenant {
   medicalOrders            MedicalClinicOrder[]
   medicalOrderLines        MedicalClinicOrderLine[]
   medicalClinicSettings    MedicalClinicSettings?
+  receptionSettings        ReceptionSettings?
 
   @@map("tenants")
 }
@@ -194,6 +195,7 @@ model User {
   medicalOrdersCreated     MedicalClinicOrder[]           @relation("MedicalOrderCreatedBy")
   medicalOrdersCanceled    MedicalClinicOrder[]           @relation("MedicalOrderCanceledBy")
   medicalSettingsUpdated   MedicalClinicSettings[]        @relation("MedicalSettingsUpdatedBy")
+  receptionSettingsUpdated ReceptionSettings[]            @relation("ReceptionSettingsUpdatedBy")
 
   @@index([tenantId])
   @@index([defaultWarehouseId])
@@ -1921,6 +1923,26 @@ model ReceptionTurn {
   @@unique([tenantId, businessDate, number])
   @@index([tenantId, businessDate, number(sort: Desc)])
   @@map("reception_turns")
+}
+
+/// F9-RECEP-17 — la configuración de Recepción por negocio: cómo llama a su
+/// «cliente» (una palabra Capitalizada; NULL = la de fábrica del idioma) y qué
+/// entradas del menú muestra. Sin fila, todo visible y sin palabra propia.
+/// El CHECK `customer_label_one_word` (sin espacios, no vacía) vive en SQL:
+/// Prisma no modela CHECKs.
+model ReceptionSettings {
+  tenantId      String   @id @map("tenant_id") @db.Uuid
+  customerLabel String?  @map("customer_label") @db.VarChar(40)
+  showCustomers Boolean  @default(true) @map("show_customers")
+  showTurns     Boolean  @default(true) @map("show_turns")
+  updatedBy     String?  @map("updated_by") @db.Uuid
+  createdAt     DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  updater User?  @relation("ReceptionSettingsUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("reception_settings")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
