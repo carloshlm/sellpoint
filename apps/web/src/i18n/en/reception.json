@@ -1,10 +1,10 @@
 {
   "customers": {
-    "title": "Customer registry",
+    "title": "{{entity}} registry",
     "new": "New",
-    "search": "Search customer",
+    "search": "Search {{entityLower}}",
     "searchPlaceholder": "Name, phone or email…",
-    "empty": "You have not registered any customers yet.",
+    "empty": "You have not registered any {{entitiesLower}} yet.",
     "columns": {
       "name": "Name",
       "phone": "Phone",
@@ -17,13 +17,13 @@
     "years_one": "1 year",
     "delete": {
       "title": "Delete «{{name}}»",
-      "body": "The customer is deleted and cannot be recovered. Their past tickets keep the name in the history.",
-      "confirm": "Delete customer"
+      "body": "This {{entityLower}} record is deleted and cannot be recovered. Their past tickets keep the name in the history.",
+      "confirm": "Delete {{entityLower}}"
     }
   },
   "form": {
-    "createTitle": "New customer",
-    "editTitle": "Edit customer",
+    "createTitle": "Register {{entityLower}}",
+    "editTitle": "Edit {{entityLower}}",
     "firstName": "First name",
     "lastNamePaternal": "Last name",
     "lastNameMaternal": "Second last name",
@@ -34,7 +34,7 @@
     "phone": "Phone",
     "email": "Email",
     "notes": "Notes",
-    "loadFailed": "We could not load the customer.",
+    "loadFailed": "We could not load the {{entityLower}} record.",
     "errors": {
       "required": "This field is required.",
       "phone": "Type only the digits of the number, without the country code.",
@@ -49,11 +49,11 @@
     "empty": "There are no tickets for this day.",
     "columns": {
       "number": "Ticket",
-      "customer": "Customer",
+      "customer": "{{entity}}",
       "status": "Status",
       "time": "Time"
     },
-    "noCustomer": "No customer",
+    "noCustomer": "No {{entityLower}}",
     "status": {
       "waiting": "Waiting",
       "attended": "Attended"
@@ -67,5 +67,28 @@
     "print": "Print again",
     "reprint": "Reprint",
     "printFailed": "We could not open the ticket. Try printing it again."
+  },
+  "entity": {
+    "singular": "Customer",
+    "plural": "Customers"
+  },
+  "settings": {
+    "title": "Reception settings",
+    "subtitle": "What your business calls its customers and which menu entries are shown. It only changes inside Reception.",
+    "customizeLabel": "Customize the word “Customer”",
+    "labelField": "Word",
+    "labelHint": "A single word, no spaces. It is saved as “{{preview}}”.",
+    "labelInvalid": "Type a single word, without spaces.",
+    "menuTitle": "Menu entries",
+    "showCustomers": "{{entity}} registry",
+    "showTurns": "Issue a ticket",
+    "save": "Save",
+    "saved": "Settings saved.",
+    "saveFailed": "We could not save the settings.",
+    "loadFailed": "We could not load the settings.",
+    "itemHidden": {
+      "title": "This section is turned off",
+      "description": "Whoever manages the business turned it off in My profile › Reception settings."
+    }
   }
 }

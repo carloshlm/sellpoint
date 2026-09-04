@@ -4,9 +4,16 @@ import { render, screen } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
+import * as settingsApi from "@/lib/reception/settings-api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+
+vi.mock("@/lib/reception/settings-api", () => ({
+  getReceptionSettings: vi.fn(),
+  updateReceptionSettings: vi.fn(),
+}));
+const settings = vi.mocked(settingsApi);
 
 /**
  * F9-MOD-08 — el grupo de menú de un módulo avanzado.
@@ -122,6 +129,34 @@ describe("grupo de menú de un módulo avanzado (F9-MOD-08)", () => {
   it("con el módulo pero sin permiso, tampoco", async () => {
     await renderCon(["reception"], []);
     await screen.findByRole("navigation");
+    expect(screen.queryByRole("group", { name: "Recepción" })).not.toBeInTheDocument();
+  });
+  /**
+   * F9-RECEP-18 — Recepción es el único módulo con palabra propia y entradas
+   * que el negocio apaga: el menú habla con la palabra y omite lo apagado.
+   */
+  it("con Recepción configurada, el menú dice «Registro de paciente» y omite «Generar turno»", async () => {
+    settings.getReceptionSettings.mockResolvedValue({
+      customerLabel: "Paciente",
+      showCustomers: true,
+      showTurns: false,
+    });
+    await renderCon(["reception"], ["reception:read"]);
+    expect(await screen.findByRole("link", { name: "Registro de paciente" })).toHaveAttribute(
+      "href",
+      "/reception/customers",
+    );
+    expect(screen.queryByRole("link", { name: /turno/i })).not.toBeInTheDocument();
+  });
+
+  it("con las dos entradas apagadas el grupo entero desaparece", async () => {
+    settings.getReceptionSettings.mockResolvedValue({
+      customerLabel: null,
+      showCustomers: false,
+      showTurns: false,
+    });
+    await renderCon(["reception"], ["reception:read", "reception:manage"]);
+    await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByRole("group", { name: "Recepción" })).not.toBeInTheDocument();
   });
 });

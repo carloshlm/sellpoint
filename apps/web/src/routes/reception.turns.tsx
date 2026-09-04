@@ -6,6 +6,7 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
+import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { TurnNumberDialog } from "@/components/reception/turn-number-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { usePlan } from "@/lib/billing/use-plan";
 import { formatBusinessDate } from "@/lib/inventory/format-date";
 import { printTurnTicket, type Turn } from "@/lib/reception/api";
 import { useAttendTurn, useCreateTurn, useTurns, useWaitTurn } from "@/lib/reception/hooks";
+import { useReceptionEntity } from "@/lib/reception/settings";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/reception/turns")({
@@ -38,7 +40,9 @@ function TurnsPage() {
       <OnboardingGate>
         <AppLayout>
           <PermissionGate need="reception:read">
-            <TurnsContent />
+            <ReceptionItemGate item="turns">
+              <TurnsContent />
+            </ReceptionItemGate>
           </PermissionGate>
         </AppLayout>
       </OnboardingGate>
@@ -48,6 +52,7 @@ function TurnsPage() {
 
 function TurnsContent() {
   const { t, i18n } = useTranslation();
+  const entidad = useReceptionEntity();
   const { has } = usePermissions();
   const { canWrite } = usePlan();
   const canManage = has("reception:manage") && canWrite;
@@ -125,7 +130,9 @@ function TurnsContent() {
           <TableHeader>
             <TableRow>
               <TableHead className="px-2">{t("reception.turns.columns.number")}</TableHead>
-              <TableHead className="px-2">{t("reception.turns.columns.customer")}</TableHead>
+              <TableHead className="px-2">
+                {t("reception.turns.columns.customer", entidad.vars)}
+              </TableHead>
               <TableHead className="px-2">{t("reception.turns.columns.status")}</TableHead>
               <TableHead className="px-2">{t("reception.turns.columns.time")}</TableHead>
               <TableHead className="px-2" />
@@ -142,7 +149,7 @@ function TurnsContent() {
                   {turn.number}
                 </TableCell>
                 <TableCell className="px-2">
-                  {turn.customerName ?? t("reception.turns.noCustomer")}
+                  {turn.customerName ?? t("reception.turns.noCustomer", entidad.vars)}
                 </TableCell>
                 <TableCell className="px-2">
                   <Badge variant={turn.status === "attended" ? "success" : "warning"}>

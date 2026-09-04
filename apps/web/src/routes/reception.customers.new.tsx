@@ -5,7 +5,9 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomerForm } from "@/components/reception/customer-form";
+import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useReceptionEntity } from "@/lib/reception/settings";
 
 export const Route = createFileRoute("/reception/customers/new")({
   component: NewCustomerPage,
@@ -22,7 +24,9 @@ function NewCustomerPage() {
       <OnboardingGate>
         <AppLayout>
           <PermissionGate need="reception:manage">
-            <NewCustomerContent />
+            <ReceptionItemGate item="customers">
+              <NewCustomerContent />
+            </ReceptionItemGate>
           </PermissionGate>
         </AppLayout>
       </OnboardingGate>
@@ -32,13 +36,14 @@ function NewCustomerPage() {
 
 function NewCustomerContent() {
   const { t } = useTranslation();
+  const entidad = useReceptionEntity();
   const navigate = useNavigate();
   const volver = () => navigate({ to: "/reception/customers" });
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          <h1>{t("reception.form.createTitle")}</h1>
+          <h1>{t("reception.form.createTitle", entidad.vars)}</h1>
         </CardTitle>
       </CardHeader>
       <CardContent>

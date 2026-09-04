@@ -105,7 +105,7 @@ afterEach(() => {
 describe("alta y edición de cliente (F9-RECEP-12)", () => {
   it("el formulario vive en una tarjeta con su título, como el de Servicios", async () => {
     await renderEn("/reception/customers/new");
-    const titulo = await screen.findByRole("heading", { name: "Nuevo cliente" });
+    const titulo = await screen.findByRole("heading", { name: "Registrar cliente" });
     expect(titulo.closest('[data-slot="card"]')).not.toBeNull();
     expect(screen.getByLabelText("Nombres").closest('[data-slot="card"]')).toBe(
       titulo.closest('[data-slot="card"]'),

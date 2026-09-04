@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { AppLayout } from "@/components/layout/app-layout";
+import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { TurnNumberDialog } from "@/components/reception/turn-number-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ import { usePlan } from "@/lib/billing/use-plan";
 import { formatBusinessDate } from "@/lib/inventory/format-date";
 import type { Customer, Turn } from "@/lib/reception/api";
 import { useCreateTurn, useCustomers, useRemoveCustomer } from "@/lib/reception/hooks";
+import { useReceptionEntity } from "@/lib/reception/settings";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/reception/customers/")({
@@ -38,7 +40,9 @@ function CustomersPage() {
       <OnboardingGate>
         <AppLayout>
           <PermissionGate need="reception:read">
-            <CustomersContent />
+            <ReceptionItemGate item="customers">
+              <CustomersContent />
+            </ReceptionItemGate>
           </PermissionGate>
         </AppLayout>
       </OnboardingGate>
@@ -55,6 +59,7 @@ const BOTON_PRIMARIO =
 
 function CustomersContent() {
   const { t, i18n } = useTranslation();
+  const entidad = useReceptionEntity();
   const { has } = usePermissions();
   const { canWrite } = usePlan();
   const canManage = has("reception:manage") && canWrite;
@@ -79,7 +84,7 @@ function CustomersContent() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="font-semibold text-xl">{t("reception.customers.title")}</h1>
+        <h1 className="font-semibold text-xl">{t("reception.customers.title", entidad.vars)}</h1>
         {canManage && (
           <Link to="/reception/customers/new" className={BOTON_PRIMARIO}>
             {t("reception.customers.new")}
@@ -94,7 +99,7 @@ function CustomersContent() {
       )}
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="customer-search">{t("reception.customers.search")}</Label>
+        <Label htmlFor="customer-search">{t("reception.customers.search", entidad.vars)}</Label>
         <Input
           id="customer-search"
           value={query}
@@ -110,7 +115,7 @@ function CustomersContent() {
         </p>
       ) : rows.length === 0 ? (
         <p data-testid="customers-empty" className="text-muted-foreground text-sm">
-          {t("reception.customers.empty")}
+          {t("reception.customers.empty", entidad.vars)}
         </p>
       ) : (
         <Table>
@@ -140,22 +145,26 @@ function CustomersContent() {
                 </TableCell>
                 {canManage && (
                   <TableCell className="px-2 text-right whitespace-nowrap">
-                    <RowAction
-                      intent="view"
-                      disabled={createTurn.isPending}
-                      onClick={() => {
-                        setError(null);
-                        createTurn.mutate(
-                          { customerId: customer.id },
-                          {
-                            onSuccess: setTurno,
-                            onError: (apiError: ApiError) => setError(apiError.message),
-                          },
-                        );
-                      }}
-                    >
-                      {t("reception.customers.issueTurn")}
-                    </RowAction>
+                    {/* Si el negocio apagó los turnos en su configuración, no
+                        se generan desde ningún lado: tampoco desde la fila. */}
+                    {entidad.settings.showTurns && (
+                      <RowAction
+                        intent="view"
+                        disabled={createTurn.isPending}
+                        onClick={() => {
+                          setError(null);
+                          createTurn.mutate(
+                            { customerId: customer.id },
+                            {
+                              onSuccess: setTurno,
+                              onError: (apiError: ApiError) => setError(apiError.message),
+                            },
+                          );
+                        }}
+                      >
+                        {t("reception.customers.issueTurn")}
+                      </RowAction>
+                    )}
                     <Link
                       to="/reception/customers/$customerId"
                       params={{ customerId: customer.id }}
@@ -182,8 +191,8 @@ function CustomersContent() {
       {deleting && (
         <ConfirmDialog
           title={t("reception.customers.delete.title", { name: nombreCompleto(deleting) })}
-          body={t("reception.customers.delete.body")}
-          confirmLabel={t("reception.customers.delete.confirm")}
+          body={t("reception.customers.delete.body", entidad.vars)}
+          confirmLabel={t("reception.customers.delete.confirm", entidad.vars)}
           cancelLabel={t("common.form.cancel")}
           busy={removeCustomer.isPending}
           onCancel={() => setDeleting(null)}

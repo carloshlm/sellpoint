@@ -5,8 +5,10 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { CustomerForm } from "@/components/reception/customer-form";
+import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCustomer } from "@/lib/reception/hooks";
+import { useReceptionEntity } from "@/lib/reception/settings";
 
 export const Route = createFileRoute("/reception/customers/$customerId")({
   component: EditCustomerPage,
@@ -19,7 +21,9 @@ function EditCustomerPage() {
       <OnboardingGate>
         <AppLayout>
           <PermissionGate need="reception:manage">
-            <EditCustomerContent />
+            <ReceptionItemGate item="customers">
+              <EditCustomerContent />
+            </ReceptionItemGate>
           </PermissionGate>
         </AppLayout>
       </OnboardingGate>
@@ -29,6 +33,7 @@ function EditCustomerPage() {
 
 function EditCustomerContent() {
   const { t } = useTranslation();
+  const entidad = useReceptionEntity();
   const { customerId } = Route.useParams();
   const navigate = useNavigate();
   const volver = () => navigate({ to: "/reception/customers" });
@@ -38,7 +43,7 @@ function EditCustomerContent() {
     <Card>
       <CardHeader>
         <CardTitle>
-          <h1>{t("reception.form.editTitle")}</h1>
+          <h1>{t("reception.form.editTitle", entidad.vars)}</h1>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -48,7 +53,7 @@ function EditCustomerContent() {
           </p>
         ) : isError || !data ? (
           <p role="alert" className="text-destructive text-sm">
-            {t("reception.form.loadFailed")}
+            {t("reception.form.loadFailed", entidad.vars)}
           </p>
         ) : (
           // `key` por cliente: cambiar de ficha monta un formulario nuevo.

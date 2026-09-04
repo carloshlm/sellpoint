@@ -1,10 +1,10 @@
 {
   "customers": {
-    "title": "Registro de cliente",
+    "title": "Registro de {{entityLower}}",
     "new": "Nuevo",
-    "search": "Buscar cliente",
+    "search": "Buscar {{entityLower}}",
     "searchPlaceholder": "Nombre, teléfono o correo…",
-    "empty": "Todavía no registraste clientes.",
+    "empty": "Todavía no registraste {{entitiesLower}}.",
     "columns": {
       "name": "Nombre",
       "phone": "Teléfono",
@@ -17,13 +17,13 @@
     "years_one": "1 año",
     "delete": {
       "title": "Eliminar a «{{name}}»",
-      "body": "El cliente se borra y no se puede recuperar. Los turnos que ya tuvo conservan su nombre en el historial.",
-      "confirm": "Eliminar cliente"
+      "body": "Este registro de {{entityLower}} se borra y no se puede recuperar. Los turnos que ya tuvo conservan su nombre en el historial.",
+      "confirm": "Eliminar {{entityLower}}"
     }
   },
   "form": {
-    "createTitle": "Nuevo cliente",
-    "editTitle": "Editar cliente",
+    "createTitle": "Registrar {{entityLower}}",
+    "editTitle": "Editar {{entityLower}}",
     "firstName": "Nombres",
     "lastNamePaternal": "Apellido paterno",
     "lastNameMaternal": "Apellido materno",
@@ -34,7 +34,7 @@
     "phone": "Teléfono",
     "email": "Correo",
     "notes": "Notas",
-    "loadFailed": "No pudimos cargar al cliente.",
+    "loadFailed": "No pudimos cargar el registro de {{entityLower}}.",
     "errors": {
       "required": "Este campo es obligatorio.",
       "phone": "Escribe solo los dígitos del número, sin el prefijo del país.",
@@ -49,11 +49,11 @@
     "empty": "No hay turnos para este día.",
     "columns": {
       "number": "Turno",
-      "customer": "Cliente",
+      "customer": "{{entity}}",
       "status": "Estado",
       "time": "Hora"
     },
-    "noCustomer": "Sin cliente",
+    "noCustomer": "Sin {{entityLower}}",
     "status": {
       "waiting": "En espera",
       "attended": "Atendido"
@@ -67,5 +67,28 @@
     "print": "Imprimir de nuevo",
     "reprint": "Reimprimir",
     "printFailed": "No pudimos abrir el papel del turno. Intenta imprimirlo de nuevo."
+  },
+  "entity": {
+    "singular": "Cliente",
+    "plural": "Clientes"
+  },
+  "settings": {
+    "title": "Configuración Recepción",
+    "subtitle": "Cómo llama tu negocio a sus clientes y qué entradas del menú se muestran. Solo cambia dentro de Recepción.",
+    "customizeLabel": "Personalizar la palabra «Cliente»",
+    "labelField": "Palabra",
+    "labelHint": "Una sola palabra, sin espacios. Se guarda como «{{preview}}».",
+    "labelInvalid": "Escribe una sola palabra, sin espacios.",
+    "menuTitle": "Entradas del menú",
+    "showCustomers": "Registro de {{entityLower}}",
+    "showTurns": "Generar turno",
+    "save": "Guardar",
+    "saved": "Configuración guardada.",
+    "saveFailed": "No pudimos guardar la configuración.",
+    "loadFailed": "No pudimos cargar la configuración.",
+    "itemHidden": {
+      "title": "Esta sección está desactivada",
+      "description": "Quien administra el negocio la apagó en Mi perfil › Configuración Recepción."
+    }
   }
 }

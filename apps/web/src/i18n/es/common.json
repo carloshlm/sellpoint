@@ -44,7 +44,7 @@
       "modules": {
         "reception": {
           "group": "Recepción",
-          "customers": "Registro de cliente",
+          "customers": "Registro de {{entityLower}}",
           "turns": "Generar turno"
         },
         "medical_clinic": {
