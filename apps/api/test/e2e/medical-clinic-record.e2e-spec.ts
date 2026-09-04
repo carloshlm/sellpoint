@@ -175,6 +175,42 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     await put(negocio.token, `${base}/sections/chief_complaint`, { complaint: "x" }).expect(409);
   });
 
+  it("el turno sin cliente queda ligado Y con nombre en la lista de Recepción", async () => {
+    // El caso que Carlos vio roto (2026-09-04): la recepcionista solo da el
+    // número y el paciente se registra al iniciar la consulta. La lista de
+    // turnos NO lee el cliente vinculado, pinta el snapshot `customer_name`;
+    // ligar solo el id la dejaba diciendo «Sin cliente» con el paciente ya
+    // adentro. Por eso se asevera contra el LISTADO, no contra la columna.
+    const turno = await post(negocio.token, "/reception/turns", {}).expect(201);
+    const { id: turnId, number } = turno.body as { id: string; number: number };
+
+    const hallazgo = await get(
+      negocio.token,
+      `/medical-clinic/patients/search?mode=turn&q=${number}`,
+    ).expect(200);
+    expect((hallazgo.body as { customerId: string | null }[])[0]).toMatchObject({
+      customerId: null,
+      turnId,
+    });
+
+    const paciente = await post(negocio.token, "/medical-clinic/patients", {
+      firstName: "Sin",
+      lastNamePaternal: "Turno",
+      lastNameMaternal: "Previo",
+    }).expect(201);
+    await post(negocio.token, "/medical-clinic/records", {
+      customerId: (paciente.body as { id: string }).id,
+      turnId,
+    }).expect(201);
+
+    const hoy = localCalendarDate("America/Mexico_City", new Date());
+    const lista = await get(negocio.token, `/reception/turns?date=${hoy}`).expect(200);
+    const fila = (lista.body as { id: string; customerName: string | null; status: string }[]).find(
+      (t) => t.id === turnId,
+    );
+    expect(fila).toMatchObject({ customerName: "Sin Turno Previo", status: "attended" });
+  });
+
   it("sin :attend no se lee ni se busca nada del consultorio", async () => {
     await get(viewerToken, "/medical-clinic/records").expect(403);
     await get(viewerToken, "/medical-clinic/patients/search?mode=name&q=ana").expect(403);

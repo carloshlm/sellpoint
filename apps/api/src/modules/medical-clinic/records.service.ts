@@ -251,6 +251,12 @@ export class RecordsService {
       // hora de quien ya lo atendió), pero LIGAR al paciente aplica siempre
       // que falte — un turno que la recepcionista ya marcó al pasarlo al
       // consultorio se quedaba para siempre diciendo «Sin cliente».
+      //
+      // Y ligar son DOS columnas, no una: la lista de Recepción pinta el
+      // snapshot `customerName` (el que sobrevive a un borrado del cliente),
+      // no el cliente vinculado. Escribir solo el id deja la pantalla
+      // diciendo «Sin cliente» con el paciente ya adentro — se ve igual de
+      // roto que antes, y por eso van juntas como en `TurnsService.create`.
       if (turno !== null) {
         await tx.receptionTurn.updateMany({
           where: { id: turno.id, tenantId: user.tenantId },
@@ -260,7 +266,10 @@ export class RecordsService {
               attendedAt: new Date(),
               attendedBy: user.userId,
             }),
-            ...(turno.customerId === null && { customerId: paciente.id }),
+            ...(turno.customerId === null && {
+              customerId: paciente.id,
+              customerName: nombreCompleto(paciente).slice(0, 200),
+            }),
           },
         });
       }

@@ -354,7 +354,25 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       expect(data).toMatchObject({ customerId: "c-1" });
     });
 
-    it("un turno que YA tenía cliente no se le cambia", async () => {
+    it("ligar al paciente escribe también el nombre que la lista de turnos pinta", async () => {
+      // La lista de Recepción NO lee el cliente vinculado: pinta la columna
+      // snapshot `customerName`, que es la que sobrevive a un borrado. Ligar
+      // solo el id deja el turno diciendo «Sin cliente» para siempre, con el
+      // paciente ya adentro del consultorio (Carlos, 2026-09-04).
+      tx.receptionTurn.findFirst.mockResolvedValue({
+        id: "t-9",
+        number: 3,
+        status: "waiting",
+        customerId: null,
+      });
+      await service.create(USER, { customerId: "c-1", turnId: "t-9" }, META);
+      expect(tx.receptionTurn.updateMany.mock.calls[0][0].data).toMatchObject({
+        customerId: "c-1",
+        customerName: "Ana Pérez Luna",
+      });
+    });
+
+    it("un turno que YA tenía cliente no se le cambia el nombre ni el id", async () => {
       tx.receptionTurn.findFirst.mockResolvedValue({
         id: "t-1",
         number: 5,
@@ -362,7 +380,9 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
         customerId: "otro",
       });
       await service.create(USER, { customerId: "c-1", turnId: "t-1" }, META);
-      expect(tx.receptionTurn.updateMany.mock.calls[0][0].data.customerId).toBeUndefined();
+      const { data } = tx.receptionTurn.updateMany.mock.calls[0][0];
+      expect(data.customerId).toBeUndefined();
+      expect(data.customerName).toBeUndefined();
     });
 
     it("sin turno no se toca ninguno", async () => {
