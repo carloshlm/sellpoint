@@ -45,12 +45,20 @@ export const updateCustomerSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "reception.empty_update" });
 
-export const listCustomersQuerySchema = z.object({
-  query: z.string().trim().min(1).max(120).optional(),
-  // Molde de productos y servicios: default 20, tope 100.
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+export const listCustomersQuerySchema = z
+  .object({
+    query: z.string().trim().min(1).max(120).optional(),
+    /** `YYYY-MM-DD` de ALTA, en el calendario del negocio (F9-RECEP-20). */
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+    // Molde de productos y servicios: default 20, tope 100.
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+  })
+  .refine((q) => q.from === undefined || q.to === undefined || q.from <= q.to, {
+    message: "reception.invalid_query",
+    path: ["to"],
+  });
 
 export type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerDto = z.infer<typeof updateCustomerSchema>;

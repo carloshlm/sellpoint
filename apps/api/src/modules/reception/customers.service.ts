@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { ageFromBirthDate, localCalendarDate } from "@sellpoint/shared";
+import { ageFromBirthDate, endOfDayUtc, localCalendarDate, startOfDayUtc } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -69,6 +69,11 @@ export class CustomersService {
   ): Promise<{ rows: CustomerSummary[]; total: number; page: number; pageSize: number }> {
     const { page, pageSize } = query;
     const texto = query.query?.trim();
+    const zona = await this.zonaDelNegocio(user.tenantId);
+    // F9-RECEP-20: la fecha de alta se acota por el DÍA del negocio, en su
+    // zona. «Hoy» en CDMX no son las 00:00Z: un cliente dado de alta a las
+    // 11 de la noche cae en el día correcto solo si el corte se calcula con
+    // la zona del tenant. Fin ABIERTO (`lt`): `created_at` lleva microsegundos.
     const where: Prisma.CustomerWhereInput = {
       tenantId: user.tenantId,
       ...(texto
@@ -82,8 +87,14 @@ export class CustomersService {
             ],
           }
         : {}),
+      ...((query.from !== undefined || query.to !== undefined) && {
+        createdAt: {
+          ...(query.from !== undefined && { gte: startOfDayUtc(query.from, zona) }),
+          ...(query.to !== undefined && { lt: endOfDayUtc(query.to, zona) }),
+        },
+      }),
     };
-    const hoy = await this.diaDelNegocio(user.tenantId);
+    const hoy = localCalendarDate(zona, new Date());
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const [total, rows] = await Promise.all([
@@ -219,11 +230,15 @@ export class CustomersService {
 
   /** El día de HOY en el calendario del negocio: la única base válida para una edad. */
   private async diaDelNegocio(tenantId: string): Promise<string> {
+    return localCalendarDate(await this.zonaDelNegocio(tenantId), new Date());
+  }
+
+  private async zonaDelNegocio(tenantId: string): Promise<string> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       select: { timezone: true },
     });
-    return localCalendarDate(tenant?.timezone ?? "UTC", new Date());
+    return tenant?.timezone ?? "UTC";
   }
 }
 

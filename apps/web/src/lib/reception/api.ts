@@ -62,12 +62,21 @@ export interface Turn {
   createdAt: string;
 }
 
-export async function listCustomers(
-  params: { query?: string; page?: number; pageSize?: number } = {},
-): Promise<CustomersPage> {
+export interface ListCustomersParams {
+  query?: string;
+  /** `YYYY-MM-DD` de alta, en el calendario del negocio (F9-RECEP-20). */
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function listCustomers(params: ListCustomersParams = {}): Promise<CustomersPage> {
   const { data } = await api.get<CustomersPage>("/reception/customers", {
     params: {
       ...(params.query ? { query: params.query } : {}),
+      ...(params.from ? { from: params.from } : {}),
+      ...(params.to ? { to: params.to } : {}),
       ...(params.page ? { page: params.page } : {}),
       ...(params.pageSize ? { pageSize: params.pageSize } : {}),
     },

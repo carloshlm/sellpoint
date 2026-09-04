@@ -1,3 +1,4 @@
+import { localCalendarDate } from "@sellpoint/shared";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -5,6 +6,7 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { DateRangeFilter, type RangoDeFechas } from "@/components/common/date-range-filter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { TurnNumberDialog } from "@/components/reception/turn-number-dialog";
@@ -67,12 +69,22 @@ function CustomersContent() {
   const locale = i18n.language === "en" ? "en-US" : "es-MX";
 
   const [query, setQuery] = useState("");
+  // F9-RECEP-20: abre con los dados de alta HOY, en el calendario del negocio.
+  // Es solo el valor inicial del filtro (se puede vaciar); el corte exacto por
+  // zona lo hace el API.
+  const [hoy] = useState(() => localCalendarDate(timeZone ?? "UTC", new Date()));
+  const [rango, setRango] = useState<RangoDeFechas>({ from: hoy, to: hoy });
   const [pagina, setPagina] = useState(1);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: la dep ES el filtro
+  // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
   useEffect(() => {
     setPagina(1);
-  }, [query]);
-  const { data, isPending } = useCustomers({ query: query.trim() || undefined, page: pagina });
+  }, [query, rango.from, rango.to]);
+  const { data, isPending } = useCustomers({
+    query: query.trim() || undefined,
+    from: rango.from || undefined,
+    to: rango.to || undefined,
+    page: pagina,
+  });
   const [deleting, setDeleting] = useState<Customer | null>(null);
   const [turno, setTurno] = useState<Turn | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,15 +110,18 @@ function CustomersContent() {
         </p>
       )}
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="customer-search">{t("reception.customers.search", entidad.vars)}</Label>
-        <Input
-          id="customer-search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={t("reception.customers.searchPlaceholder")}
-          className="max-w-sm"
-        />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="customer-search">{t("reception.customers.search", entidad.vars)}</Label>
+          <Input
+            id="customer-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("reception.customers.searchPlaceholder")}
+            className="max-w-sm"
+          />
+        </div>
+        <DateRangeFilter id="customers" from={rango.from} to={rango.to} onChange={setRango} />
       </div>
 
       {isPending ? (

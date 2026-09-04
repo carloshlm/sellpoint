@@ -8,6 +8,7 @@ import {
   createCustomer,
   createTurn,
   getCustomer,
+  type ListCustomersParams,
   listCustomers,
   listTurns,
   removeCustomer,
@@ -28,7 +29,7 @@ export const TURNS_QUERY_KEY = ["reception", "turns"] as const;
  */
 export const TURNS_REFETCH_MS = 15_000;
 
-export function useCustomers(params: { query?: string; page?: number } = {}) {
+export function useCustomers(params: ListCustomersParams = {}) {
   return useQuery<CustomersPage, ApiError>({
     queryKey: [...CUSTOMERS_QUERY_KEY, params],
     queryFn: () => listCustomers(params),

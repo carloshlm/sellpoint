@@ -102,6 +102,29 @@ describe("CustomersService (F9-RECEP-06)", () => {
     });
   });
 
+  describe("filtro por fecha de alta (F9-RECEP-20)", () => {
+    it("acota created_at por el DÍA del negocio, en su zona: inicio inclusivo, fin abierto", async () => {
+      // 2026-09-04 en CDMX (UTC-6) va de las 06:00Z del 4 a las 06:00Z del 5.
+      await service.list(USER, { from: "2026-09-04", to: "2026-09-04", page: 1, pageSize: 20 });
+      const where = tx.customer.findMany.mock.calls[0][0].where;
+      expect(where.createdAt).toEqual({
+        gte: new Date("2026-09-04T06:00:00.000Z"),
+        lt: new Date("2026-09-05T06:00:00.000Z"),
+      });
+      // El conteo usa el MISMO where.
+      expect(tx.customer.count.mock.calls[0][0].where).toEqual(where);
+    });
+
+    it("solo «desde» o solo «hasta» acotan por un lado; sin fechas no acotan", async () => {
+      await service.list(USER, { from: "2026-09-01", page: 1, pageSize: 20 });
+      expect(tx.customer.findMany.mock.calls[0][0].where.createdAt).toEqual({
+        gte: new Date("2026-09-01T06:00:00.000Z"),
+      });
+      await service.list(USER, { page: 1, pageSize: 20 });
+      expect(tx.customer.findMany.mock.calls[1][0].where.createdAt).toBeUndefined();
+    });
+  });
+
   describe("alta, edición y baja", () => {
     it("crear guarda la fecha como DATE y audita en la misma tx", async () => {
       const creado = await service.create(

@@ -123,6 +123,23 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
       lista.body as { rows: { id: string; age: number | null; birthDate: string | null }[] }
     ).rows;
     expect(filas.map((f) => f.id)).toEqual([idSegundo, idPrimero]);
+    // F9-RECEP-20: por fecha de alta en el calendario del negocio. Hoy trae a
+    // los dos; un rango pasado no trae a nadie; un rango al revés rebota.
+    const hoy = new Date().toISOString().slice(0, 10);
+    const deHoy = await request(app.getHttpServer())
+      .get(`/reception/customers?from=${hoy}&to=${hoy}`)
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    expect((deHoy.body as { total: number }).total).toBeGreaterThanOrEqual(2);
+    const pasado = await request(app.getHttpServer())
+      .get("/reception/customers?from=2020-01-01&to=2020-01-31")
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    expect((pasado.body as { total: number }).total).toBe(0);
+    await request(app.getHttpServer())
+      .get(`/reception/customers?from=${hoy}&to=2020-01-01`)
+      .set("Authorization", bearer(negocio.token))
+      .expect(400);
     expect(filas[1]?.birthDate).toBe("1990-09-02");
     expect(filas[1]?.age).toBeGreaterThanOrEqual(35);
     expect(filas[0]?.age).toBeNull();
