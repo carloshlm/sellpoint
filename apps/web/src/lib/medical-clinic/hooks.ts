@@ -13,14 +13,19 @@ import {
   createRecord,
   createStudy,
   getClinicTop,
+  getPatient,
   getRecord,
   getSettings,
+  type ListRecordsParams,
   listOrders,
+  listRecords,
   listStudies,
   type MedicalClinicSettings,
   type MedicalOrder,
   type MedicalRecord,
   type PatientHit,
+  type PatientSummary,
+  type RecordsPage,
   removeStudy,
   type SectionView,
   type StudiesPage,
@@ -208,5 +213,27 @@ export function useClinicTop(period: DashboardPeriod, enabled: boolean) {
     queryKey: [...RAIZ, "dashboard", "top", period],
     queryFn: () => getClinicTop(period),
     enabled,
+  });
+}
+
+// ── Historias clínicas ────────────────────────────────────────────────
+export const RECORDS_LIST_KEY = [...RAIZ, "records", "list"] as const;
+
+/** El buscador de historias clínicas: por nombre, fechas o paciente. */
+export function useRecords(params: ListRecordsParams, enabled = true) {
+  return useQuery<RecordsPage, ApiError>({
+    queryKey: [...RECORDS_LIST_KEY, params],
+    queryFn: () => listRecords(params),
+    enabled,
+  });
+}
+
+export const patientKey = (customerId: string) => [...RAIZ, "patients", customerId] as const;
+
+/** El resumen del paciente (F9-CLINIC-32). */
+export function usePatient(customerId: string) {
+  return useQuery<PatientSummary, ApiError>({
+    queryKey: patientKey(customerId),
+    queryFn: () => getPatient(customerId),
   });
 }

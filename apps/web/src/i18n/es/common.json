@@ -51,7 +51,8 @@
           "group": "Consultorio Médico",
           "labStudies": "Estudios de Laboratorio",
           "diagnosticStudies": "Estudios Diagnósticos",
-          "attend": "Atender paciente"
+          "attend": "Atender paciente",
+          "records": "Historias clínicas"
         }
       }
     },

@@ -4,6 +4,7 @@ import {
   ConciergeBell,
   FlaskConical,
   Microscope,
+  NotebookText,
   Stethoscope,
   Ticket,
   UserRoundSearch,
@@ -79,6 +80,13 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         labelKey: "common.layout.nav.modules.medical_clinic.attend",
         permission: "medical_clinic:attend",
         icon: UserRoundSearch,
+      },
+      // F9-CLINIC-WEB-28: leer expedientes exige `:attend`, igual que abrirlos.
+      {
+        to: "/medical-clinic/records",
+        labelKey: "common.layout.nav.modules.medical_clinic.records",
+        permission: "medical_clinic:attend",
+        icon: NotebookText,
       },
     ],
   },

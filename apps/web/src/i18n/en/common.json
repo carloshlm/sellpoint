@@ -51,7 +51,8 @@
           "group": "Medical Clinic",
           "labStudies": "Lab Studies",
           "diagnosticStudies": "Diagnostic Studies",
-          "attend": "Attend patient"
+          "attend": "Attend patient",
+          "records": "Medical records"
         }
       }
     },

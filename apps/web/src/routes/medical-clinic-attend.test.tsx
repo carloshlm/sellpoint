@@ -374,3 +374,46 @@ describe("Atender paciente — turno sin paciente", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r1"));
   });
 });
+
+/**
+ * F9-CLINIC-WEB-29 — «Resumen del paciente»: todo el que ya tiene registro de
+ * cliente lo ofrece, además de iniciar o continuar; un turno todavía sin
+ * paciente no tiene nada que resumir.
+ */
+describe("«Resumen del paciente» desde la búsqueda (F9-CLINIC-WEB-29)", () => {
+  it("un paciente registrado ofrece el resumen junto a «Iniciar consulta»", async () => {
+    await renderRuta("/medical-clinic/attend", ["medical_clinic:read", "medical_clinic:attend"]);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Nombre del paciente"), "rosa");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    const tarjeta = await screen.findByTestId("patient-c1");
+    expect(within(tarjeta).getByRole("link", { name: "Resumen del paciente" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/patients/c1",
+    );
+    expect(within(tarjeta).getByRole("button", { name: "Iniciar consulta" })).toBeInTheDocument();
+  });
+
+  it("un turno sin paciente no tiene resumen que ofrecer", async () => {
+    mocked.searchPatients.mockResolvedValue([
+      hit({
+        customerId: null,
+        name: "",
+        age: null,
+        birthDate: null,
+        turnNumber: 4,
+        turnId: "t4",
+        lastRecord: null,
+      }),
+    ]);
+    await renderRuta("/medical-clinic/attend", ["medical_clinic:read", "medical_clinic:attend"]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByLabelText("Por turno"));
+    await user.type(screen.getByLabelText("Número de turno"), "4");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    const tarjeta = await screen.findByTestId("patient-turn-t4");
+    expect(
+      within(tarjeta).queryByRole("link", { name: "Resumen del paciente" }),
+    ).not.toBeInTheDocument();
+  });
+});

@@ -87,10 +87,31 @@
     "years": "{{count}} años",
     "years_one": "1 año",
     "startFailed": "No pudimos abrir la historia clínica.",
-    "searchFailed": "No pudimos buscar. Intenta de nuevo."
+    "searchFailed": "No pudimos buscar. Intenta de nuevo.",
+    "summary": "Resumen del paciente"
   },
   "patient": {
-    "newTitle": "Paciente nuevo"
+    "newTitle": "Paciente nuevo",
+    "summary": {
+      "title": "Resumen del paciente",
+      "birthDate": "Fecha de nacimiento",
+      "age": "Edad",
+      "sex": "Sexo",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "occupation": "Ocupación",
+      "emergencyContact": "Contacto de emergencia",
+      "notes": "Notas",
+      "none": "—",
+      "records": "Historias clínicas",
+      "recordsCount": "{{count}} historias clínicas",
+      "recordsCount_one": "1 historia clínica",
+      "noRecords": "Este paciente todavía no tiene historias clínicas.",
+      "start": "Iniciar consulta",
+      "continue": "Continuar consulta {{folio}}",
+      "loadFailed": "No pudimos cargar el resumen del paciente.",
+      "back": "← Atender paciente"
+    }
   },
   "record": {
     "title": "Historia clínica",
@@ -390,5 +411,21 @@
     "units_one": "1 unidad",
     "empty": "Sin ventas en el período",
     "error": "No pudimos cargar lo más vendido del consultorio."
+  },
+  "history": {
+    "title": "Historias clínicas",
+    "search": "Nombre del paciente",
+    "searchPlaceholder": "Escribe un nombre…",
+    "empty": "No hay historias clínicas con esos filtros.",
+    "columns": {
+      "folio": "Folio",
+      "patient": "Paciente",
+      "date": "Fecha de consulta",
+      "doctor": "Médico",
+      "status": "Estado"
+    },
+    "open": "Abrir",
+    "continue": "Continuar",
+    "loadFailed": "No pudimos cargar las historias clínicas."
   }
 }

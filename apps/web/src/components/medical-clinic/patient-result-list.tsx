@@ -65,24 +65,39 @@ export function PatientResultList({
                 .join(" · ")}
             </span>
           </div>
-          {canStart &&
-            // Con una consulta abierta HOY se CONTINÚA: un link al expediente,
-            // sin alta de por medio. Vencida o cerrada, se abre folio nuevo.
-            (hit.customerId !== null &&
-            hit.lastRecord !== null &&
-            hit.lastRecord.lockReason === null ? (
-              <Link
-                to="/medical-clinic/records/$recordId"
-                params={{ recordId: hit.lastRecord.id }}
-                className={BOTON_CONTINUAR}
-              >
-                {t("medicalClinic.attend.continue", { folio: hit.lastRecord.folio })}
-              </Link>
-            ) : (
-              <Button type="button" disabled={starting !== null} onClick={() => onStart(hit)}>
-                {t("medicalClinic.attend.start")}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* F9-CLINIC-WEB-29: quien ya tiene registro tiene algo que
+                resumir; un turno sin paciente todavía no. Es LEER, así que
+                no depende de poder escribir. */}
+            {hit.customerId !== null && (
+              <Button asChild variant="outline">
+                <Link
+                  to="/medical-clinic/patients/$customerId"
+                  params={{ customerId: hit.customerId }}
+                >
+                  {t("medicalClinic.attend.summary")}
+                </Link>
               </Button>
-            ))}
+            )}
+            {canStart &&
+              // Con una consulta abierta HOY se CONTINÚA: un link al expediente,
+              // sin alta de por medio. Vencida o cerrada, se abre folio nuevo.
+              (hit.customerId !== null &&
+              hit.lastRecord !== null &&
+              hit.lastRecord.lockReason === null ? (
+                <Link
+                  to="/medical-clinic/records/$recordId"
+                  params={{ recordId: hit.lastRecord.id }}
+                  className={BOTON_CONTINUAR}
+                >
+                  {t("medicalClinic.attend.continue", { folio: hit.lastRecord.folio })}
+                </Link>
+              ) : (
+                <Button type="button" disabled={starting !== null} onClick={() => onStart(hit)}>
+                  {t("medicalClinic.attend.start")}
+                </Button>
+              ))}
+          </div>
         </li>
       ))}
     </ul>

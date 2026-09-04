@@ -87,10 +87,31 @@
     "years": "{{count}} years",
     "years_one": "1 year",
     "startFailed": "We could not open the medical record.",
-    "searchFailed": "We could not search. Try again."
+    "searchFailed": "We could not search. Try again.",
+    "summary": "Patient information"
   },
   "patient": {
-    "newTitle": "New patient"
+    "newTitle": "New patient",
+    "summary": {
+      "title": "Patient information",
+      "birthDate": "Birth date",
+      "age": "Age",
+      "sex": "Sex",
+      "phone": "Phone",
+      "email": "Email",
+      "occupation": "Occupation",
+      "emergencyContact": "Emergency contact",
+      "notes": "Notes",
+      "none": "—",
+      "records": "Medical records",
+      "recordsCount": "{{count}} medical records",
+      "recordsCount_one": "1 medical record",
+      "noRecords": "This patient has no medical records yet.",
+      "start": "Start visit",
+      "continue": "Continue visit {{folio}}",
+      "loadFailed": "We could not load the patient information.",
+      "back": "← Attend patient"
+    }
   },
   "record": {
     "title": "Medical record",
@@ -390,5 +411,21 @@
     "units_one": "1 unit",
     "empty": "No sales in this period",
     "error": "We couldn't load the clinic's top sellers."
+  },
+  "history": {
+    "title": "Medical records",
+    "search": "Patient name",
+    "searchPlaceholder": "Type a name…",
+    "empty": "No medical records match those filters.",
+    "columns": {
+      "folio": "Folio",
+      "patient": "Patient",
+      "date": "Visit date",
+      "doctor": "Doctor",
+      "status": "Status"
+    },
+    "open": "Open",
+    "continue": "Continue",
+    "loadFailed": "We could not load the medical records."
   }
 }

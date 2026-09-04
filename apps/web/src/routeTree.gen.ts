@@ -47,12 +47,14 @@ import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as AdminTenantsIndexRouteImport } from './routes/admin.tenants.index'
 import { Route as AdminTenantsTenantIdRouteImport } from './routes/admin.tenants.$tenantId'
 import { Route as MedicalClinicPatientsNewRouteImport } from './routes/medical-clinic.patients.new'
+import { Route as MedicalClinicRecordsIndexRouteImport } from './routes/medical-clinic.records.index'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
 import { Route as PosQuotesIndexRouteImport } from './routes/pos.quotes.index'
 import { Route as PosQuotesNewRouteImport } from './routes/pos.quotes.new'
 import { Route as ReceptionCustomersIndexRouteImport } from './routes/reception.customers.index'
 import { Route as ReceptionCustomersCustomerIdRouteImport } from './routes/reception.customers.$customerId'
 import { Route as ReceptionCustomersNewRouteImport } from './routes/reception.customers.new'
+import { Route as MedicalClinicPatientsCustomerIdIndexRouteImport } from './routes/medical-clinic.patients.$customerId.index'
 import { Route as MedicalClinicRecordsRecordIdIndexRouteImport } from './routes/medical-clinic.records.$recordId.index'
 import { Route as MedicalClinicRecordsRecordIdOrdersIndexRouteImport } from './routes/medical-clinic.records.$recordId.orders.index'
 import { Route as MedicalClinicRecordsRecordIdOrdersOrderKindRouteImport } from './routes/medical-clinic.records.$recordId.orders.$orderKind'
@@ -250,6 +252,12 @@ const MedicalClinicPatientsNewRoute =
     path: '/medical-clinic/patients/new',
     getParentRoute: () => rootRouteImport,
   } as any)
+const MedicalClinicRecordsIndexRoute =
+  MedicalClinicRecordsIndexRouteImport.update({
+    id: '/medical-clinic/records/',
+    path: '/medical-clinic/records/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MovementsDocumentsDocumentIdRoute =
   MovementsDocumentsDocumentIdRouteImport.update({
     id: '/movements/documents/$documentId',
@@ -282,6 +290,12 @@ const ReceptionCustomersNewRoute = ReceptionCustomersNewRouteImport.update({
   path: '/reception/customers/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MedicalClinicPatientsCustomerIdIndexRoute =
+  MedicalClinicPatientsCustomerIdIndexRouteImport.update({
+    id: '/medical-clinic/patients/$customerId/',
+    path: '/medical-clinic/patients/$customerId/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MedicalClinicRecordsRecordIdIndexRoute =
   MedicalClinicRecordsRecordIdIndexRouteImport.update({
     id: '/medical-clinic/records/$recordId/',
@@ -350,8 +364,10 @@ export interface FileRoutesByFullPath {
   '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
   '/reception/customers/new': typeof ReceptionCustomersNewRoute
   '/admin/tenants/': typeof AdminTenantsIndexRoute
+  '/medical-clinic/records/': typeof MedicalClinicRecordsIndexRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
+  '/medical-clinic/patients/$customerId/': typeof MedicalClinicPatientsCustomerIdIndexRoute
   '/medical-clinic/records/$recordId/': typeof MedicalClinicRecordsRecordIdIndexRoute
   '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
   '/medical-clinic/records/$recordId/sections/$sectionKey': typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
@@ -400,8 +416,10 @@ export interface FileRoutesByTo {
   '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
   '/reception/customers/new': typeof ReceptionCustomersNewRoute
   '/admin/tenants': typeof AdminTenantsIndexRoute
+  '/medical-clinic/records': typeof MedicalClinicRecordsIndexRoute
   '/pos/quotes': typeof PosQuotesIndexRoute
   '/reception/customers': typeof ReceptionCustomersIndexRoute
+  '/medical-clinic/patients/$customerId': typeof MedicalClinicPatientsCustomerIdIndexRoute
   '/medical-clinic/records/$recordId': typeof MedicalClinicRecordsRecordIdIndexRoute
   '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
   '/medical-clinic/records/$recordId/sections/$sectionKey': typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
@@ -451,8 +469,10 @@ export interface FileRoutesById {
   '/reception/customers/$customerId': typeof ReceptionCustomersCustomerIdRoute
   '/reception/customers/new': typeof ReceptionCustomersNewRoute
   '/admin/tenants/': typeof AdminTenantsIndexRoute
+  '/medical-clinic/records/': typeof MedicalClinicRecordsIndexRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
+  '/medical-clinic/patients/$customerId/': typeof MedicalClinicPatientsCustomerIdIndexRoute
   '/medical-clinic/records/$recordId/': typeof MedicalClinicRecordsRecordIdIndexRoute
   '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
   '/medical-clinic/records/$recordId/sections/$sectionKey': typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
@@ -503,8 +523,10 @@ export interface FileRouteTypes {
     | '/reception/customers/$customerId'
     | '/reception/customers/new'
     | '/admin/tenants/'
+    | '/medical-clinic/records/'
     | '/pos/quotes/'
     | '/reception/customers/'
+    | '/medical-clinic/patients/$customerId/'
     | '/medical-clinic/records/$recordId/'
     | '/medical-clinic/records/$recordId/orders/$orderKind'
     | '/medical-clinic/records/$recordId/sections/$sectionKey'
@@ -553,8 +575,10 @@ export interface FileRouteTypes {
     | '/reception/customers/$customerId'
     | '/reception/customers/new'
     | '/admin/tenants'
+    | '/medical-clinic/records'
     | '/pos/quotes'
     | '/reception/customers'
+    | '/medical-clinic/patients/$customerId'
     | '/medical-clinic/records/$recordId'
     | '/medical-clinic/records/$recordId/orders/$orderKind'
     | '/medical-clinic/records/$recordId/sections/$sectionKey'
@@ -603,8 +627,10 @@ export interface FileRouteTypes {
     | '/reception/customers/$customerId'
     | '/reception/customers/new'
     | '/admin/tenants/'
+    | '/medical-clinic/records/'
     | '/pos/quotes/'
     | '/reception/customers/'
+    | '/medical-clinic/patients/$customerId/'
     | '/medical-clinic/records/$recordId/'
     | '/medical-clinic/records/$recordId/orders/$orderKind'
     | '/medical-clinic/records/$recordId/sections/$sectionKey'
@@ -654,8 +680,10 @@ export interface RootRouteChildren {
   ReceptionCustomersCustomerIdRoute: typeof ReceptionCustomersCustomerIdRoute
   ReceptionCustomersNewRoute: typeof ReceptionCustomersNewRoute
   AdminTenantsIndexRoute: typeof AdminTenantsIndexRoute
+  MedicalClinicRecordsIndexRoute: typeof MedicalClinicRecordsIndexRoute
   PosQuotesIndexRoute: typeof PosQuotesIndexRoute
   ReceptionCustomersIndexRoute: typeof ReceptionCustomersIndexRoute
+  MedicalClinicPatientsCustomerIdIndexRoute: typeof MedicalClinicPatientsCustomerIdIndexRoute
   MedicalClinicRecordsRecordIdIndexRoute: typeof MedicalClinicRecordsRecordIdIndexRoute
   MedicalClinicRecordsRecordIdOrdersOrderKindRoute: typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
   MedicalClinicRecordsRecordIdSectionsSectionKeyRoute: typeof MedicalClinicRecordsRecordIdSectionsSectionKeyRoute
@@ -930,6 +958,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MedicalClinicPatientsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/medical-clinic/records/': {
+      id: '/medical-clinic/records/'
+      path: '/medical-clinic/records'
+      fullPath: '/medical-clinic/records/'
+      preLoaderRoute: typeof MedicalClinicRecordsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/movements/documents/$documentId': {
       id: '/movements/documents/$documentId'
       path: '/movements/documents/$documentId'
@@ -970,6 +1005,13 @@ declare module '@tanstack/react-router' {
       path: '/reception/customers/new'
       fullPath: '/reception/customers/new'
       preLoaderRoute: typeof ReceptionCustomersNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/medical-clinic/patients/$customerId/': {
+      id: '/medical-clinic/patients/$customerId/'
+      path: '/medical-clinic/patients/$customerId'
+      fullPath: '/medical-clinic/patients/$customerId/'
+      preLoaderRoute: typeof MedicalClinicPatientsCustomerIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/medical-clinic/records/$recordId/': {
@@ -1046,8 +1088,11 @@ const rootRouteChildren: RootRouteChildren = {
   ReceptionCustomersCustomerIdRoute: ReceptionCustomersCustomerIdRoute,
   ReceptionCustomersNewRoute: ReceptionCustomersNewRoute,
   AdminTenantsIndexRoute: AdminTenantsIndexRoute,
+  MedicalClinicRecordsIndexRoute: MedicalClinicRecordsIndexRoute,
   PosQuotesIndexRoute: PosQuotesIndexRoute,
   ReceptionCustomersIndexRoute: ReceptionCustomersIndexRoute,
+  MedicalClinicPatientsCustomerIdIndexRoute:
+    MedicalClinicPatientsCustomerIdIndexRoute,
   MedicalClinicRecordsRecordIdIndexRoute:
     MedicalClinicRecordsRecordIdIndexRoute,
   MedicalClinicRecordsRecordIdOrdersOrderKindRoute:

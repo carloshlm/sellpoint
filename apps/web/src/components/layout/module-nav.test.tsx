@@ -96,6 +96,11 @@ describe("grupo de menú de un módulo avanzado (F9-MOD-08)", () => {
       "href",
       "/medical-clinic/attend",
     );
+    // F9-CLINIC-WEB-28: el buscador de historias clínicas, con la misma llave.
+    expect(screen.getByRole("link", { name: "Historias clínicas" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/records",
+    );
   });
 
   it("sin el módulo Consultorio Médico no hay grupo aunque el permiso esté", async () => {

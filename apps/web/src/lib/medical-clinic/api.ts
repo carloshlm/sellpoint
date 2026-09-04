@@ -330,3 +330,63 @@ export async function getClinicTop(period: DashboardPeriod): Promise<ClinicTop> 
   });
   return data;
 }
+
+// ── Historias clínicas: el buscador y el resumen del paciente ─────────
+/** Espejo de `RecordSummary` del API: una fila del listado. */
+export interface RecordSummary {
+  id: string;
+  folio: string;
+  status: "open" | "closed";
+  editable: boolean;
+  lockReason: RecordLockReason | null;
+  consultationDate: string;
+  patientName: string;
+  doctorName: string;
+  createdAt: string;
+}
+
+export interface RecordsPage {
+  rows: RecordSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ListRecordsParams {
+  customerId?: string;
+  query?: string;
+  /** `YYYY-MM-DD`, fecha de consulta en el calendario del negocio. */
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function listRecords(params: ListRecordsParams = {}): Promise<RecordsPage> {
+  const { data } = await api.get<RecordsPage>("/medical-clinic/records", {
+    params: Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== ""),
+    ),
+  });
+  return data;
+}
+
+/** Espejo de `PatientSummary` del API (F9-CLINIC-32). */
+export interface PatientSummary {
+  customerId: string;
+  name: string;
+  birthDate: string | null;
+  age: number | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  /** La sección Datos Generales de la última visita, si la hubo. */
+  generalData: Record<string, unknown> | null;
+  recordCount: number;
+  lastRecord: PatientHit["lastRecord"];
+}
+
+export async function getPatient(customerId: string): Promise<PatientSummary> {
+  const { data } = await api.get<PatientSummary>(`/medical-clinic/patients/${customerId}`);
+  return data;
+}
