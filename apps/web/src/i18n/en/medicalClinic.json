@@ -140,7 +140,8 @@
       "X": "Other"
     },
     "orders": "{{count}} orders",
-    "orders_one": "1 order"
+    "orders_one": "1 order",
+    "backToPatient": "← Patient information"
   },
   "consultationStatus": {
     "open": "Open",

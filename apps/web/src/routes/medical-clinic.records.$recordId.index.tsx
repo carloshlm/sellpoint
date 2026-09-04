@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
@@ -63,6 +63,21 @@ function RecordDashboard({ recordId }: { recordId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        {/* Carlos, 2026-09-04: el título es la pantalla, y desde aquí se
+            vuelve al resumen del paciente (si el cliente fue borrado no hay
+            resumen al que volver). */}
+        {expediente.patient.customerId !== null && (
+          <Link
+            to="/medical-clinic/patients/$customerId"
+            params={{ customerId: expediente.patient.customerId }}
+            className="text-primary text-sm hover:underline"
+          >
+            {t("medicalClinic.record.backToPatient")}
+          </Link>
+        )}
+        <h1 className="font-semibold text-xl">{t("medicalClinic.record.title")}</h1>
+      </div>
       <RecordHeader record={expediente} />
       {expediente.lockReason !== null ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted p-3">

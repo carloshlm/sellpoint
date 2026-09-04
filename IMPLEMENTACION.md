@@ -153,7 +153,7 @@ Ejemplos:
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas | ✅ Sí |
 | **F8** | Mobile | 🔮 Futuro | — | ⬜ Solo concepto |
-| **F9** | Módulos por tenant + expediente del backoffice + Recepción + Consultorio Médico (y verticales futuras) | ⬜ Pendiente | ~10 semanas + ~185 h (MOD ~20 h · ADMIN ~33 h · RECEP ~49 h · F4-CONCEPT ~23 h · CLINIC ~74 h · CLINIC-WEB ~79 h) | ✅ Parcial (2026-09-02: F9-MOD, F9-ADMIN, F9-RECEP · 2026-09-03: F4-CONCEPT, F9-CLINIC, F9-CLINIC-WEB; dental, óptica y taller siguen en concepto) |
+| **F9** | Módulos por tenant + expediente del backoffice + Recepción + Consultorio Médico (y verticales futuras) | ⬜ Pendiente | ~10 semanas + ~189 h (MOD ~20 h · ADMIN ~33 h · RECEP ~51 h · F4-CONCEPT ~23 h · CLINIC ~74 h · CLINIC-WEB ~81 h) | ✅ Parcial (2026-09-02: F9-MOD, F9-ADMIN, F9-RECEP · 2026-09-03: F4-CONCEPT, F9-CLINIC, F9-CLINIC-WEB; dental, óptica y taller siguen en concepto) |
 
 > Las fases marcadas como "Outline" se atomizarán cuando estemos por empezarlas, con el conocimiento que hayamos acumulado.
 
@@ -3731,6 +3731,11 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; capturas en el reporte
   - **Depende de:** F9-RECEP-18 · **Estimación:** 1 h
 
+- [x] **F9-RECEP-20** *(agregada y cerrada el 2026-09-04)* — El registro de clientes filtra por fecha de alta, en la zona del negocio, y abre con los de hoy
+  - **Salida:** `listCustomersQuerySchema` gana `from`/`to` (`YYYY-MM-DD`, `from ≤ to` o 400); `CustomersService.list` acota `created_at` con `startOfDayUtc(from, zona)` inclusivo y `endOfDayUtc(to, zona)` ABIERTO (`lt`: `created_at` lleva microsegundos), zona del tenant. Web: `listCustomers`/`useCustomers` con `from`/`to`; la ruta monta `DateRangeFilter` junto al buscador, prellenado con el día del negocio (`localCalendarDate(tenant.timezone, now)`, solo valor inicial: se puede vaciar para ver todo)
+  - **Verificar:** `customers.service.spec` (+2: el `where` de un día en CDMX es 06:00Z→06:00Z del siguiente, `count` con el mismo `where`; solo un lado y sin fechas), e2e `reception-customers` (+: hoy trae a los dos, 2020 a nadie, rango invertido 400), `reception-customers.test.tsx` (+2: abre con `from = to = hoy`; cambiar «Desde» re-pide y «Limpiar fechas» pide todo). Mutantes cazados: sin «hoy» prellenado; `lte` en el fin del día
+  - **Depende de:** F9-RECEP-06, F9-RECEP-11 · **Estimación:** 2 h
+
 ### Módulo F9-CLINIC — Consultorio Médico, API y datos (atomizado el 2026-09-03)
 
 - [x] **F9-CLINIC-01** *(cerrada el 2026-09-03 — `ORM` entró desde aquí (no en 21): la serie sin cobro se decidió antes de codificar)* — El módulo, la serie y el catálogo de secciones en `shared`
@@ -4045,6 +4050,11 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
   - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; capturas en el reporte
   - **Depende de:** F9-CLINIC-WEB-29 · **Estimación:** 1 h
 
+- [x] **F9-CLINIC-WEB-31** *(agregada y cerrada el 2026-09-04)* — El tablero se titula «Historia clínica» y vuelve al resumen; los aciertos de Atender alineados y en celular
+  - **Salida:** la ruta del tablero pinta `h1` «Historia clínica» y el enlace «← Resumen del paciente» (solo si el cliente sigue existiendo); en `RecordHeader` el nombre del paciente pasa de `h1` a `<p>` para que los cinco grupos sigan siendo los únicos `h2`. En `patient-result-list.tsx` las tarjetas se apilan en celular (`flex-col` → `sm:flex-row`) y las acciones llevan ancho FIJO en escritorio (`sm:w-52` el resumen, `sm:w-64` la principal) para quedar en la misma columna en todas las tarjetas, sea «Iniciar consulta» o «Continuar consulta HCL-…»
+  - **Verificar:** `medical-clinic-record.test.tsx` (h1 «Historia clínica», nombre en el encabezado, link con `href` al resumen; los h2 siguen siendo los grupos). Mutante cazado: sin enlace. QA en navegador: en 1440 los botones caen en 935–1143 y 1151–1407 en las tres tarjetas; en 390 sin scroll horizontal y botones a ancho completo
+  - **Depende de:** F9-CLINIC-WEB-29 · **Estimación:** 1.5 h
+
 ### Orden de ejecución sugerido
 
 1. `F4-CASHBOX-04` (PR aparte, solo copy).
@@ -4060,6 +4070,7 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 11. *(2026-09-04)* **Lo vendido por ítem desde el consultorio:** `F4-CONCEPT-10` (core, shipea solo) → `F9-CLINIC-29 → 30 → 31` · `F9-CLINIC-WEB-26 → 27` (~15 h).
 12. *(2026-09-04)* **Configuración de Recepción:** `F9-RECEP-17 → 18 → 19` (~9 h; palabra propia y entradas del menú).
 13. *(2026-09-04)* **Buscador de historias clínicas y resumen del paciente:** `F9-CLINIC-32` → `F9-CLINIC-WEB-28 → 29 → 30` (~12 h).
+14. *(2026-09-04)* **Ajustes del día:** `F9-RECEP-20` (fecha de alta por zona) · `F9-CLINIC-WEB-31` (título del tablero, enlace al resumen, tarjetas alineadas) (~3.5 h).
 
 Total estimado: F9-MOD ~20 h · F9-ADMIN ~33 h · F9-RECEP ~40 h · F4-CASHBOX-04 1.5 h · *(2026-09-03)* F4-CONCEPT ~23 h · F9-CLINIC ~71 h · F9-CLINIC-WEB ~70 h (cortes de PR por ola y por bloques de ≤ 400 líneas). Cada módulo es candidato a SDD LIGERO (§1.1); F9-ADMIN-10/11 (reuso de dashboard y reportes) a SDD COMPLETO si al abrirlos crecen.
 
@@ -4151,6 +4162,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-04 (AJUSTES: FECHA DE ALTA POR ZONA EN CLIENTES, TÍTULO DEL TABLERO, TARJETAS ALINEADAS)** — F9-RECEP-20: el registro de clientes abre con los dados de alta HOY en el calendario del negocio y filtra por rango; el corte lo hace el API con `startOfDayUtc`/`endOfDayUtc` en la zona del tenant (fin abierto: `created_at` lleva microsegundos). F9-CLINIC-WEB-31: el tablero se titula «Historia clínica» con enlace «← Resumen del paciente» (el nombre deja de ser heading para que los grupos sigan siendo los únicos h2); los aciertos de Atender se apilan en celular y llevan ancho fijo en escritorio para alinearse entre tarjetas — `topic_key: sellpoint/f9-clinic-records-finder` — afecta: F9-RECEP (+1), F9-CLINIC-WEB (+1)
 - **2026-09-04 (CONSULTORIO: BUSCADOR DE HISTORIAS CLÍNICAS Y RESUMEN DEL PACIENTE)** — Carlos pidió una entrada «Historias clínicas» que abra con las consultas del día y busque por nombre y fechas, y un «Resumen del paciente» desde «Atender paciente». F9-CLINIC-32 (API: `query`/`from`/`to` en el listado, `GET /patients/:customerId`), F9-CLINIC-WEB-28/29/30 (la tabla de la casa reutilizada en las dos pantallas, el filtro de fechas prellenado con el día del negocio, la ficha con Datos Generales de la última visita, continuar o iniciar desde la ficha). El botón del resumen es LECTURA: se ofrece aunque el plan no permita escribir — `topic_key: sellpoint/f9-clinic-records-finder` — afecta: F9-CLINIC (+1), F9-CLINIC-WEB (+3), LEY 30
 - **2026-09-04 (RECEPCIÓN: LA PALABRA PROPIA Y LAS ENTRADAS DEL MENÚ, DESDE MI PERFIL)** — Carlos pidió una «Configuración Recepción» por módulo vertical: personalizar la palabra «Cliente» (una sola, sin espacios, Capitalizada automáticamente, aplicada en TODO el módulo y solo ahí) y encender o apagar «Registro de cliente» y «Generar turno». Implementado como F9-RECEP-17/18/19: `reception_settings` + `GET` con `reception:read` / `PUT` con `tenants:manage`; la palabra vive en `shared` (`normalizeCustomerLabel`, `pluralizeLabel`) para que el API guarde lo que el web previsualiza; los 12 textos con «cliente» pasan a `{{entity}}` con la palabra de fábrica en `reception.entity.*`; el menú de módulos llega resuelto al layout (`useModuleNav`); `ReceptionItemGate` en las rutas y la fila del registro sin «Generar turno» cuando los turnos están apagados. Decisión de copy: «Nuevo cliente» → «Registrar cliente», porque «Nuevo alumna» no se puede salvar con una sola palabra. Verificado en el navegador: el menú repinta sin recargar y no queda ningún «cliente» en pantalla — `topic_key: sellpoint/reception-settings` — afecta: F9-RECEP (+3 tareas), LEY 29, `app-layout.tsx` (ya no conoce módulos)
 - **2026-09-04 (EL DEPLOY YA NO CORRE POR UN .md)** — Carlos preguntó por qué un deploy de solo documentación tardó 10 minutos. Medido: el 72 % son las suites (unit+integración 3 min, e2e 4.5 min) corriendo completas para validar un Markdown que ninguna prueba lee; build e imágenes ya van con caché (33 s). Los dos deploys ganan `paths-ignore` para `**.md` y `.claude/**`: solo docs no despliega, docs+código corre completo, `workflow_dispatch` sigue para forzar. Se descartó paralelizar unit y e2e (bajaría ~3 min por deploy de código) porque duplica minutos de runner y el repo podría volverse privado. F0-MONO-01 cerrada: estaba hecha desde el primer commit — `topic_key: sellpoint/ci-deploy-docs-skip` — afecta: `deploy.yml`, `deploy-sandbox.yml`, F0-MONO-01 (cerrada)

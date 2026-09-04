@@ -34,7 +34,10 @@ export function RecordHeader({ record }: { record: MedicalRecord }) {
     <Card data-testid="record-header" className="lg:sticky lg:top-0 lg:z-10">
       <CardContent className="flex flex-col gap-4 pt-6">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-semibold text-2xl">{record.patient.name}</h1>
+          {/* La pantalla es «Historia clínica» (h1 de la ruta) y los h2 son los
+              grupos del tablero: el paciente es un dato del encabezado, no
+              una sección. */}
+          <p className="font-semibold text-2xl">{record.patient.name}</p>
           <span className="font-mono text-muted-foreground text-sm">{record.folio}</span>
           {/* Abierta, Vencida o Cerrada: el motivo del candado manda sobre el status. */}
           <Badge variant={record.editable ? "success" : "default"}>

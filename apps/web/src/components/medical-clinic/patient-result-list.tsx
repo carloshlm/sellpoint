@@ -33,7 +33,9 @@ export function PatientResultList({
         <li
           key={hit.customerId ?? `turn-${hit.turnId}`}
           data-testid={`patient-${hit.customerId ?? `turn-${hit.turnId}`}`}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4"
+          // Apilado en el celular, en fila en escritorio; las acciones van a la
+          // derecha con ancho FIJO para que queden alineadas entre tarjetas.
+          className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
@@ -65,12 +67,12 @@ export function PatientResultList({
                 .join(" · ")}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             {/* F9-CLINIC-WEB-29: quien ya tiene registro tiene algo que
                 resumir; un turno sin paciente todavía no. Es LEER, así que
                 no depende de poder escribir. */}
             {hit.customerId !== null && (
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="w-full sm:w-52">
                 <Link
                   to="/medical-clinic/patients/$customerId"
                   params={{ customerId: hit.customerId }}
@@ -93,7 +95,12 @@ export function PatientResultList({
                   {t("medicalClinic.attend.continue", { folio: hit.lastRecord.folio })}
                 </Link>
               ) : (
-                <Button type="button" disabled={starting !== null} onClick={() => onStart(hit)}>
+                <Button
+                  type="button"
+                  className="w-full sm:w-64"
+                  disabled={starting !== null}
+                  onClick={() => onStart(hit)}
+                >
                   {t("medicalClinic.attend.start")}
                 </Button>
               ))}
@@ -106,4 +113,4 @@ export function PatientResultList({
 
 /** Mismo peso visual que «Iniciar consulta»: es la acción principal de la tarjeta. */
 const BOTON_CONTINUAR =
-  "inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
+  "inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring sm:w-64";

@@ -51,9 +51,16 @@ afterEach(() => {
 describe("Historia clínica — tablero", () => {
   it("el encabezado trae nombre, folio, edad, médico; sin sexo ofrece completar Datos Generales; 1 de 3", async () => {
     await renderRecord(expediente({}, { chief_complaint: { complaint: "Dolor" } }));
+    // Carlos, 2026-09-04: la pantalla se llama «Historia clínica»; el paciente
+    // es el subtítulo, y desde aquí se vuelve a su resumen.
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Rosa Luna Ríos" }),
+      await screen.findByRole("heading", { level: 1, name: "Historia clínica" }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("record-header")).toHaveTextContent("Rosa Luna Ríos");
+    expect(screen.getByRole("link", { name: "← Resumen del paciente" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/patients/c1",
+    );
     const header = screen.getByTestId("record-header");
     expect(header).toHaveTextContent("HCL-000010");
     expect(header).toHaveTextContent("36 años");
@@ -68,7 +75,7 @@ describe("Historia clínica — tablero", () => {
 
   it("cinco grupos en orden, 36 tarjetas, links solo en las funcionales y en órdenes", async () => {
     await renderRecord();
-    await screen.findByRole("heading", { level: 1, name: "Rosa Luna Ríos" });
+    await screen.findByRole("heading", { level: 1, name: "Historia clínica" });
     const grupos = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(grupos).toEqual([
       "Interrogatorio",
@@ -128,7 +135,7 @@ describe("Historia clínica — consulta vencida", () => {
 
   it("el encabezado la marca Vencida y el tablero lo dice con el aviso", async () => {
     await renderRecord(vencida());
-    await screen.findByRole("heading", { level: 1, name: "Rosa Luna Ríos" });
+    await screen.findByRole("heading", { level: 1, name: "Historia clínica" });
     expect(screen.getByTestId("record-header")).toHaveTextContent("Vencida");
     expect(
       screen.getByText("Esta consulta es de otro día: se puede leer, no capturar."),
