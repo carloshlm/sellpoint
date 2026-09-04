@@ -1,3 +1,4 @@
+import { inflateSync } from "node:zlib";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
@@ -20,6 +21,29 @@ import { startTestApp } from "./support/start-test-app";
  * solo se mueve por el medicamento; cancelar una cobrada es 409. Y lo que el
  * negocio no vende toma folio ORM y la caja no lo encuentra.
  */
+/**
+ * El texto de un PDF de pdfmake: los flujos van comprimidos con zlib y el
+ * texto vive en HEXADECIMAL dentro de los operadores TJ (`<436f6e…> TJ`),
+ * partido en trozos para ajustar el kerning — así que se concatenan en orden.
+ * Alcanza para aseverar qué dice el papel que recibe el paciente.
+ */
+function textoDelPdf(pdf: Buffer): string {
+  const crudo = pdf.toString("latin1");
+  let texto = "";
+  for (const bloque of crudo.matchAll(/stream\r?\n([\s\S]*?)endstream/g)) {
+    let flujo: string;
+    try {
+      flujo = inflateSync(Buffer.from(bloque[1] ?? "", "latin1")).toString("latin1");
+    } catch {
+      continue; // Un flujo que no es zlib (una fuente incrustada, por ejemplo).
+    }
+    for (const trozo of flujo.matchAll(/<([0-9a-fA-F]+)>/g)) {
+      texto += Buffer.from(trozo[1] ?? "", "hex").toString("latin1");
+    }
+  }
+  return texto;
+}
+
 describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -192,12 +216,27 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     );
     expect(movimientos).toBe(0);
 
-    const documento = await get(
-      negocio.token,
-      `/medical-clinic/orders/${orden.id}/document`,
-    ).expect(200);
+    const documento = await get(negocio.token, `/medical-clinic/orders/${orden.id}/document`)
+      .buffer(true)
+      .parse((res, callback) => {
+        const trozos: Buffer[] = [];
+        res.on("data", (trozo: Buffer) => trozos.push(trozo));
+        res.on("end", () => callback(null, Buffer.concat(trozos)));
+      })
+      .expect(200);
     expect(documento.headers["content-type"]).toContain("application/pdf");
     expect(documento.headers["content-disposition"]).toContain(`${orden.folio}.pdf`);
+
+    // El CONTENIDO del papel, no solo sus cabeceras: un 200 con el PDF entero
+    // en claves de i18n crudas pasaría el test de arriba y llegaría impreso a
+    // las manos del paciente (2026-09-04).
+    const impreso = textoDelPdf(documento.body as Buffer);
+    expect(impreso).toContain("ORDEN DE LABORATORIO");
+    expect(impreso).toContain("Paciente");
+    expect(impreso).not.toContain("medical_clinic.pdf");
+    // Carlos, 2026-09-04: NINGUNA orden le habla de la caja al paciente,
+    // tampoco una de estudios con cotización como esta.
+    expect(impreso).not.toContain("Cobrar en caja");
   });
 
   it("lo que el negocio no vende toma folio ORM, no crea cotización y la caja no lo encuentra", async () => {

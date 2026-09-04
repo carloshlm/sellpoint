@@ -30,7 +30,6 @@ describe("buildMedicalOrderDefinition (F9-CLINIC-24)", () => {
     order: {
       kind: "prescription",
       folio: "COT-000007",
-      chargeable: true,
       createdAt: new Date("2026-09-03T15:00:00.000Z"),
       diagnosis: "Faringitis",
       indications: "Reposo 3 días",
@@ -83,26 +82,27 @@ describe("buildMedicalOrderDefinition (F9-CLINIC-24)", () => {
     expect(json).toContain("medical_clinic.pdf.signature");
   });
 
-  it("una RECETA nunca menciona la caja: es el papel que el paciente se lleva", () => {
-    // Carlos, 2026-09-04: la receta va a la farmacia o a su casa; hablarle de
-    // cobrar en caja ahí sobra, aunque el negocio venda el medicamento.
-    expect(textos(buildMedicalOrderDefinition(base, t))).not.toContain("charge_at_register");
+  it("NINGUNA orden menciona la caja, se cobre o no", () => {
+    // Carlos, 2026-09-04: la receta va a la farmacia y la orden de estudios,
+    // al laboratorio; el papel clínico no le habla al paciente de dinero. El
+    // folio ya está impreso, y con él la caja encuentra la cotización.
+    for (const kind of ["prescription", "lab_order", "diagnostic_order"] as const) {
+      const definicion = buildMedicalOrderDefinition(
+        { ...base, order: { ...base.order, kind } },
+        t,
+      );
+      expect(textos(definicion)).not.toContain("charge_at_register");
+    }
   });
 
-  it("una orden de estudios que se cobra dice «cobrar en caja»; una ORM no menciona la caja", () => {
-    const laboratorio = buildMedicalOrderDefinition(
-      { ...base, order: { ...base.order, kind: "lab_order" } },
-      t,
-    );
-    expect(textos(laboratorio)).toContain("medical_clinic.pdf.charge_at_register");
+  it("una orden sin cobro imprime su folio propio igual", () => {
     const sinCobro = buildMedicalOrderDefinition(
       {
         ...base,
-        order: { ...base.order, kind: "lab_order", folio: "ORM-000003", chargeable: false },
+        order: { ...base.order, kind: "lab_order", folio: "ORM-000003" },
       },
       t,
     );
-    expect(textos(sinCobro)).not.toContain("charge_at_register");
     expect(textos(sinCobro)).toContain("ORM-000003");
   });
 });

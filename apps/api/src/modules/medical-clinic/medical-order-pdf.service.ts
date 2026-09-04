@@ -59,7 +59,6 @@ export class MedicalOrderPdfService {
         order: {
           kind: orden.kind as "prescription" | "lab_order" | "diagnostic_order",
           folio: orden.folio,
-          chargeable: orden.quoteId !== null,
           createdAt: orden.createdAt,
           diagnosis: orden.diagnosis,
           indications: orden.indications,

@@ -24,8 +24,6 @@ export interface MedicalOrderPdfInput {
   order: {
     kind: "prescription" | "lab_order" | "diagnostic_order";
     folio: string;
-    /** Con cotización: el papel dice «cobrar en caja con este folio». */
-    chargeable: boolean;
     createdAt: Date;
     diagnosis: string | null;
     indications: string | null;
@@ -181,19 +179,6 @@ export function buildMedicalOrderDefinition(input: MedicalOrderPdfInput, t: Tran
               ],
             },
           ]),
-      // La RECETA no habla de la caja: es el papel que el paciente se lleva a
-      // la farmacia o a su casa (Carlos, 2026-09-04). Una orden de estudios sí,
-      // porque con ese folio se paga antes de que se los hagan.
-      ...(order.chargeable && order.kind !== "prescription"
-        ? [
-            {
-              text: t("medical_clinic.pdf.charge_at_register"),
-              margin: [0, 14, 0, 0],
-              color: GRIS,
-              fontSize: 9,
-            },
-          ]
-        : []),
       {
         margin: [0, 48, 0, 0],
         columns: [

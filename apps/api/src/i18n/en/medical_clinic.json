@@ -46,7 +46,6 @@
     "quantity": "Quantity",
     "dosage": "Directions",
     "indications": "General indications",
-    "charge_at_register": "Pay at the register with this folio.",
     "signature": "Doctor's signature"
   }
 }

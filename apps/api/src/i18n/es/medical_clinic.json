@@ -46,7 +46,6 @@
     "quantity": "Cantidad",
     "dosage": "Indicación",
     "indications": "Indicaciones generales",
-    "charge_at_register": "Cobrar en caja con este folio.",
     "signature": "Firma del médico"
   }
 }
