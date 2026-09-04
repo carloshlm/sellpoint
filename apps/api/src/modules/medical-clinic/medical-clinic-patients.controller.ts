@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
@@ -36,6 +36,14 @@ export class MedicalClinicPatientsController {
     query: SearchPatientsQuery,
   ) {
     return this.patients.search(user, query);
+  }
+
+  // Después de `patients/search` a propósito: Nest resuelve en orden de
+  // declaración y «search» no es un id de paciente.
+  @Get("patients/:customerId")
+  @RequirePermissions("medical_clinic:attend")
+  get(@CurrentUser() user: AuthUser, @Param("customerId") customerId: string) {
+    return this.patients.get(user, customerId);
   }
 
   @Post("patients")

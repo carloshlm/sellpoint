@@ -211,6 +211,81 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     expect(fila).toMatchObject({ customerName: "Sin Turno Previo", status: "attended" });
   });
 
+  it("el buscador de historias filtra por nombre y por fechas, y el resumen del paciente cuenta y resume (F9-CLINIC-32)", async () => {
+    const zona = "America/Mexico_City";
+    const hoy = localCalendarDate(zona, new Date());
+    // La paciente del test anterior, por su nombre: cada `it` tiene su alcance.
+    const ana = await get(negocio.token, "/medical-clinic/patients/search?mode=name&q=luna").expect(
+      200,
+    );
+    const customerId = (ana.body as { customerId: string }[])[0]?.customerId as string;
+    // Un segundo paciente con su consulta, para que el filtro tenga a quién dejar fuera.
+    const otro = await post(negocio.token, "/medical-clinic/patients", {
+      firstName: "Bruno",
+      lastNamePaternal: "Sosa",
+    }).expect(201);
+    const otroId = (otro.body as { id: string }).id;
+    await post(negocio.token, "/medical-clinic/records", { customerId: otroId }).expect(201);
+
+    // Sin filtros: todo, de la más reciente a la más antigua.
+    const todas = await get(negocio.token, "/medical-clinic/records").expect(200);
+    const filas = (todas.body as { rows: { patientName: string; createdAt: string }[] }).rows;
+    expect(filas.length).toBeGreaterThanOrEqual(3);
+    expect(filas[0]?.patientName).toBe("Bruno Sosa");
+    for (let i = 1; i < filas.length; i += 1) {
+      expect((filas[i - 1]?.createdAt ?? "") >= (filas[i]?.createdAt ?? "")).toBe(true);
+    }
+
+    // Por nombre: parcial y sin distinguir mayúsculas.
+    const porNombre = await get(negocio.token, "/medical-clinic/records?query=LUNA").expect(200);
+    const nombres = (porNombre.body as { rows: { patientName: string }[] }).rows.map(
+      (r) => r.patientName,
+    );
+    expect(nombres.length).toBeGreaterThan(0);
+    expect(nombres.every((n) => n === "Ana Pérez Luna")).toBe(true);
+
+    // Por fechas: hoy trae las de hoy; un rango pasado no trae nada.
+    const deHoy = await get(negocio.token, `/medical-clinic/records?from=${hoy}&to=${hoy}`).expect(
+      200,
+    );
+    expect((deHoy.body as { total: number }).total).toBeGreaterThanOrEqual(3);
+    const pasado = await get(
+      negocio.token,
+      "/medical-clinic/records?from=2020-01-01&to=2020-01-31",
+    ).expect(200);
+    expect((pasado.body as { total: number }).total).toBe(0);
+    // Un rango al revés rebota.
+    await get(negocio.token, `/medical-clinic/records?from=${hoy}&to=2020-01-01`).expect(400);
+
+    // El resumen del paciente: persona + Datos Generales de la última visita + conteo.
+    const resumen = await get(negocio.token, `/medical-clinic/patients/${customerId}`).expect(200);
+    expect(resumen.body).toMatchObject({
+      customerId,
+      name: "Ana Pérez Luna",
+      birthDate: "1990-09-03",
+      generalData: { sex: "F", occupation: "Docente" },
+      recordCount: 2,
+      // La segunda visita sigue abierta (el `it` anterior cerró la primera).
+      lastRecord: { folio: "HCL-000002", status: "open", lockReason: null },
+    });
+    // Uno sin consultas: conteo cero y sin Datos Generales.
+    const sinNada = await post(negocio.token, "/medical-clinic/patients", {
+      firstName: "Nadie",
+      lastNamePaternal: "Aún",
+    }).expect(201);
+    const vacio = await get(
+      negocio.token,
+      `/medical-clinic/patients/${(sinNada.body as { id: string }).id}`,
+    ).expect(200);
+    expect(vacio.body).toMatchObject({ recordCount: 0, generalData: null, lastRecord: null });
+    // Un paciente ajeno no existe, y `search` sigue siendo la búsqueda.
+    await get(
+      negocio.token,
+      "/medical-clinic/patients/00000000-0000-0000-0000-000000000000",
+    ).expect(404);
+    await get(viewerToken, `/medical-clinic/patients/${customerId}`).expect(403);
+  });
+
   it("sin :attend no se lee ni se busca nada del consultorio", async () => {
     await get(viewerToken, "/medical-clinic/records").expect(403);
     await get(viewerToken, "/medical-clinic/patients/search?mode=name&q=ana").expect(403);

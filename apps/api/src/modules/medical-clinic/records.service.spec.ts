@@ -288,6 +288,35 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       });
     });
 
+    it("el buscador filtra por nombre del paciente y por rango de fechas de consulta", async () => {
+      // F9-CLINIC-32: el nombre se busca sobre el SNAPSHOT del expediente
+      // (así se llamaba cuando vino) sin distinguir mayúsculas, y las fechas
+      // acotan la de consulta por los dos lados, en el calendario del negocio.
+      await service.list(USER, {
+        query: "luna",
+        from: "2026-09-01",
+        to: "2026-09-04",
+        page: 1,
+        pageSize: 20,
+      });
+      const { where } = tx.medicalClinicRecord.findMany.mock.calls[0][0];
+      expect(where).toMatchObject({
+        tenantId: TENANT,
+        patientName: { contains: "luna", mode: "insensitive" },
+        consultationDate: { gte: new Date("2026-09-01"), lte: new Date("2026-09-04") },
+      });
+      expect(where.patientCustomerId).toBeUndefined();
+      // El conteo usa el MISMO where: la paginación no puede contar otra cosa.
+      expect(tx.medicalClinicRecord.count.mock.calls[0][0].where).toEqual(where);
+    });
+
+    it("sin filtros el listado no acota nada y va de la más reciente a la más antigua", async () => {
+      await service.list(USER, { page: 1, pageSize: 20 });
+      const args = tx.medicalClinicRecord.findMany.mock.calls[0][0];
+      expect(args.where).toEqual({ tenantId: TENANT });
+      expect(args.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    });
+
     it("el listado también dice por qué no se puede capturar", async () => {
       tx.medicalClinicRecord.findMany.mockResolvedValue([
         expediente({ consultationDate: new Date("2026-09-02") }),

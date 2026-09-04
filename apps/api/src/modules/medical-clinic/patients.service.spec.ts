@@ -175,3 +175,95 @@ describe("PatientsService (F9-CLINIC-09)", () => {
     expect(hit?.name).toBe("");
   });
 });
+
+/**
+ * F9-CLINIC-32 — «Resumen del paciente»: lo que Recepción sabe de la persona
+ * más lo que el consultorio capturó en Datos Generales la última vez, y
+ * cuántas historias clínicas tiene. Un paciente ajeno no existe (404 del
+ * consultorio, no de Recepción: el médico no tiene por qué saber de dónde
+ * sale la persona).
+ */
+describe("PatientsService.get (F9-CLINIC-32)", () => {
+  let tx: {
+    customer: { findFirst: jest.Mock };
+    medicalClinicRecord: { findFirst: jest.Mock; count: jest.Mock };
+  };
+  let prisma: { withTenantContext: jest.Mock; tenant: { findUnique: jest.Mock } };
+  let service: PatientsService;
+
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-09-04T15:00:00.000Z"));
+    tx = {
+      customer: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "c-1",
+          firstName: "Ana",
+          lastNamePaternal: "Pérez",
+          lastNameMaternal: "Luna",
+          birthDate: new Date("1990-09-03"),
+          phone: "+525512345678",
+          email: "ana@example.com",
+          notes: "Alérgica a la penicilina",
+        }),
+      },
+      medicalClinicRecord: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "r-2",
+          folio: "HCL-000002",
+          consultationDate: new Date("2026-08-20"),
+          status: "closed",
+          sections: [{ sectionKey: "general_data", data: { sex: "F", occupation: "Docente" } }],
+        }),
+        count: jest.fn().mockResolvedValue(2),
+      },
+    };
+    prisma = {
+      withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
+      tenant: { findUnique: jest.fn().mockResolvedValue({ timezone: CDMX }) },
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
+    service = new PatientsService(prisma as any, {} as any);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("arma el resumen: persona, edad en el calendario del negocio, Datos Generales y conteo", async () => {
+    await expect(service.get(USER, "c-1")).resolves.toEqual({
+      customerId: "c-1",
+      name: "Ana Pérez Luna",
+      birthDate: "1990-09-03",
+      age: 36,
+      phone: "+525512345678",
+      email: "ana@example.com",
+      notes: "Alérgica a la penicilina",
+      generalData: { sex: "F", occupation: "Docente" },
+      recordCount: 2,
+      lastRecord: {
+        id: "r-2",
+        folio: "HCL-000002",
+        consultationDate: "2026-08-20",
+        status: "closed",
+        lockReason: "closed",
+      },
+    });
+  });
+
+  it("sin expedientes: generalData null, conteo 0 y lastRecord null", async () => {
+    tx.medicalClinicRecord.findFirst.mockResolvedValue(null);
+    tx.medicalClinicRecord.count.mockResolvedValue(0);
+    await expect(service.get(USER, "c-1")).resolves.toMatchObject({
+      generalData: null,
+      recordCount: 0,
+      lastRecord: null,
+    });
+  });
+
+  it("un paciente que no es de este negocio no existe (404 del consultorio)", async () => {
+    tx.customer.findFirst.mockResolvedValue(null);
+    await expect(service.get(USER, "ajeno")).rejects.toMatchObject({
+      response: { message: "medical_clinic.patient_not_found" },
+    });
+  });
+});

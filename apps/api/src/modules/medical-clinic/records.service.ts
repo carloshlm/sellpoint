@@ -297,9 +297,22 @@ export class RecordsService {
     query: ListRecordsQuery,
   ): Promise<{ rows: RecordSummary[]; total: number; page: number; pageSize: number }> {
     const { page, pageSize } = query;
+    // F9-CLINIC-32: el nombre se busca sobre el SNAPSHOT del expediente —así
+    // se llamaba el paciente cuando vino— y las fechas acotan la de consulta
+    // por los dos lados. `YYYY-MM-DD` parseado en UTC es justo lo que la
+    // columna DATE compara.
     const where = {
       tenantId: user.tenantId,
       ...(query.customerId !== undefined && { patientCustomerId: query.customerId }),
+      ...(query.query !== undefined && {
+        patientName: { contains: query.query, mode: "insensitive" as const },
+      }),
+      ...((query.from !== undefined || query.to !== undefined) && {
+        consultationDate: {
+          ...(query.from !== undefined && { gte: new Date(query.from) }),
+          ...(query.to !== undefined && { lte: new Date(query.to) }),
+        },
+      }),
     };
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const hoy = await diaDelNegocio(tx, user.tenantId);

@@ -34,6 +34,25 @@ export interface PatientHit {
 }
 
 /**
+ * F9-CLINIC-32 — «Resumen del paciente»: la persona (lo que Recepción sabe),
+ * los Datos Generales que el consultorio capturó la última vez y cuántas
+ * historias clínicas tiene.
+ */
+export interface PatientSummary {
+  customerId: string;
+  name: string;
+  birthDate: string | null;
+  age: number | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  /** La sección `general_data` del expediente más reciente que la tenga. */
+  generalData: Record<string, unknown> | null;
+  recordCount: number;
+  lastRecord: UltimoExpediente | null;
+}
+
+/**
  * F9-CLINIC-09 — el paciente ES el cliente de Recepción (`customers`): no hay
  * una segunda tabla de personas. Por nombre se reusa `CustomersService.list`
  * (una sola verdad de búsqueda); por turno se mira `reception_turns` del DÍA
@@ -127,6 +146,82 @@ export class PatientsService {
 
   async create(user: AuthUser, input: CreateCustomerDto, meta: RequestMeta) {
     return this.customers.create(user, input, meta);
+  }
+
+  /**
+   * El resumen se arma con Prisma y no con `CustomersService.get` a
+   * propósito: ese lanza `reception.customer_not_found`, y al médico un
+   * paciente ajeno le «no existe» desde el consultorio, no desde Recepción.
+   */
+  async get(user: AuthUser, customerId: string): Promise<PatientSummary> {
+    const hoy = localCalendarDate(await this.zonaDelNegocio(user.tenantId), new Date());
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const cliente = await tx.customer.findFirst({
+        where: { id: customerId, tenantId: user.tenantId },
+        select: {
+          id: true,
+          firstName: true,
+          lastNamePaternal: true,
+          lastNameMaternal: true,
+          birthDate: true,
+          phone: true,
+          email: true,
+          notes: true,
+        },
+      });
+      if (cliente === null) {
+        throw new NotFoundException({ message: "medical_clinic.patient_not_found" });
+      }
+      // El expediente más reciente trae los Datos Generales que se copian de
+      // visita en visita (F9-CLINIC-10): lo último que el médico supo de la
+      // persona.
+      const [ultimo, recordCount] = await Promise.all([
+        tx.medicalClinicRecord.findFirst({
+          where: { tenantId: user.tenantId, patientCustomerId: cliente.id },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            folio: true,
+            consultationDate: true,
+            status: true,
+            sections: {
+              where: { sectionKey: "general_data" },
+              select: { sectionKey: true, data: true },
+            },
+          },
+        }),
+        tx.medicalClinicRecord.count({
+          where: { tenantId: user.tenantId, patientCustomerId: cliente.id },
+        }),
+      ]);
+      const generales = ultimo?.sections.find((s) => s.sectionKey === "general_data")?.data;
+      const nacimiento = cliente.birthDate?.toISOString().slice(0, 10) ?? null;
+      const consultationDate = ultimo?.consultationDate.toISOString().slice(0, 10);
+      return {
+        customerId: cliente.id,
+        name: nombreCompleto(cliente),
+        birthDate: nacimiento,
+        age: nacimiento === null ? null : ageFromBirthDate(nacimiento, hoy),
+        phone: cliente.phone,
+        email: cliente.email,
+        notes: cliente.notes,
+        generalData:
+          typeof generales === "object" && generales !== null
+            ? (generales as Record<string, unknown>)
+            : null,
+        recordCount,
+        lastRecord:
+          ultimo === null || consultationDate === undefined
+            ? null
+            : {
+                id: ultimo.id,
+                folio: ultimo.folio,
+                consultationDate,
+                status: ultimo.status,
+                lockReason: medicalRecordLock({ status: ultimo.status, consultationDate }, hoy),
+              },
+      };
+    });
   }
 
   /** El último expediente de cada paciente, en una consulta. */
