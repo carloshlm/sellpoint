@@ -181,7 +181,10 @@ export function buildMedicalOrderDefinition(input: MedicalOrderPdfInput, t: Tran
               ],
             },
           ]),
-      ...(order.chargeable
+      // La RECETA no habla de la caja: es el papel que el paciente se lleva a
+      // la farmacia o a su casa (Carlos, 2026-09-04). Una orden de estudios sí,
+      // porque con ese folio se paga antes de que se los hagan.
+      ...(order.chargeable && order.kind !== "prescription"
         ? [
             {
               text: t("medical_clinic.pdf.charge_at_register"),

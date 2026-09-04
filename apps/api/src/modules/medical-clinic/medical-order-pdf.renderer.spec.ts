@@ -83,12 +83,23 @@ describe("buildMedicalOrderDefinition (F9-CLINIC-24)", () => {
     expect(json).toContain("medical_clinic.pdf.signature");
   });
 
-  it("una orden que se cobra dice «cobrar en caja»; una ORM no menciona la caja", () => {
-    expect(textos(buildMedicalOrderDefinition(base, t))).toContain(
-      "medical_clinic.pdf.charge_at_register",
+  it("una RECETA nunca menciona la caja: es el papel que el paciente se lleva", () => {
+    // Carlos, 2026-09-04: la receta va a la farmacia o a su casa; hablarle de
+    // cobrar en caja ahí sobra, aunque el negocio venda el medicamento.
+    expect(textos(buildMedicalOrderDefinition(base, t))).not.toContain("charge_at_register");
+  });
+
+  it("una orden de estudios que se cobra dice «cobrar en caja»; una ORM no menciona la caja", () => {
+    const laboratorio = buildMedicalOrderDefinition(
+      { ...base, order: { ...base.order, kind: "lab_order" } },
+      t,
     );
+    expect(textos(laboratorio)).toContain("medical_clinic.pdf.charge_at_register");
     const sinCobro = buildMedicalOrderDefinition(
-      { ...base, order: { ...base.order, folio: "ORM-000003", chargeable: false } },
+      {
+        ...base,
+        order: { ...base.order, kind: "lab_order", folio: "ORM-000003", chargeable: false },
+      },
       t,
     );
     expect(textos(sinCobro)).not.toContain("charge_at_register");
