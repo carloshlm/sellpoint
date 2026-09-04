@@ -51,11 +51,25 @@ api.interceptors.response.use(
         useBillingStore.getState().openPlansModal();
       });
     }
-    const fallback: ApiError = {
-      statusCode: 0,
+    const respuesta = error.response;
+    // Sin respuesta no hubo servidor: red caída, CORS, timeout.
+    if (respuesta === undefined) {
+      const sinRed: ApiError = { statusCode: 0, message: error.message, error: "Network Error" };
+      return Promise.reject(sinRed);
+    }
+    // El API siempre contesta con este shape. Lo que NO lo trae vino del
+    // borde —nginx rebotando un cuerpo grande con un 413 en HTML— y sin esta
+    // normalización llegaba a las pantallas como un string pelado, sin
+    // status ni mensaje, imposible de explicar.
+    const cuerpo = respuesta.data;
+    if (typeof cuerpo === "object" && cuerpo !== null && "statusCode" in cuerpo) {
+      return Promise.reject(cuerpo);
+    }
+    const delBorde: ApiError = {
+      statusCode: respuesta.status,
       message: error.message,
-      error: "Network Error",
+      error: respuesta.statusText || "Error",
     };
-    return Promise.reject(error.response?.data ?? fallback);
+    return Promise.reject(delBorde);
   },
 );

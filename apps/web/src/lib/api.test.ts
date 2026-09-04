@@ -1,4 +1,4 @@
-import type { AxiosResponse } from "axios";
+import { AxiosError, type AxiosResponse } from "axios";
 import { i18n } from "@/i18n";
 import { api } from "./api";
 
@@ -45,6 +45,47 @@ describe("api — declara el idioma de la UI (W2)", () => {
     await i18n.changeLanguage("en");
 
     expect(await pedirYCapturarIdioma()).toBe("en");
+  });
+});
+
+/**
+ * Un error que NO viene del API —nginx rebotando un cuerpo grande con su
+ * 413 en HTML— llegaba a las pantallas como un string pelado: sin
+ * `statusCode` ni `message`, imposible de explicar. El interceptor tiene que
+ * normalizarlo al shape de `ApiError` con el status HTTP real.
+ */
+describe("api — un error del borde sin JSON conserva su status", () => {
+  it("un 413 en HTML de nginx se rechaza como ApiError con statusCode 413", async () => {
+    const rechazo = api
+      .put(
+        "/probe",
+        {},
+        {
+          // El transporte real (xhr/http) hace `settle` y rechaza con un
+          // AxiosError que lleva la respuesta; un adaptador a medida tiene
+          // que hacerlo a mano o axios resuelve aunque el status sea 413.
+          adapter: async (config) => {
+            const response = {
+              data: "<html><body><h1>413 Request Entity Too Large</h1></body></html>",
+              status: 413,
+              statusText: "Request Entity Too Large",
+              headers: { "content-type": "text/html" },
+              config,
+            } as AxiosResponse;
+            throw new AxiosError(
+              "Request failed with status code 413",
+              AxiosError.ERR_BAD_REQUEST,
+              config,
+              undefined,
+              response,
+            );
+          },
+        },
+      )
+      .then(() => "resolvió");
+
+    await expect(rechazo).rejects.toMatchObject({ statusCode: 413 });
+    await expect(rechazo).rejects.toHaveProperty("message", expect.any(String));
   });
 });
 

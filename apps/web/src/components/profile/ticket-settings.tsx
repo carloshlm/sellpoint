@@ -122,8 +122,14 @@ export function TicketSettings({ user }: { user: AuthUser }) {
     try {
       const base64 = await fileToBase64(file);
       upload.mutate(base64, {
+        // Un 413 viene del borde (nginx), no del API: no trae mensaje en el
+        // idioma de la persona, pero sí se sabe qué pasó.
         onError: (apiError: ApiError) =>
-          setError(apiError.message || t("common.profile.ticket.uploadFailed")),
+          setError(
+            apiError.statusCode === 413
+              ? t("common.profile.ticket.tooLarge")
+              : apiError.message || t("common.profile.ticket.uploadFailed"),
+          ),
       });
     } catch {
       setError(t("common.profile.ticket.uploadFailed"));

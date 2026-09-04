@@ -212,6 +212,26 @@ describe("«Configuración del ticket» en Mi perfil (F4-TICKETCFG-08)", () => {
     expect(mocked.uploadTicketLogo).not.toHaveBeenCalled();
   });
 
+  it("un 413 del borde (nginx) se explica como peso, no como falla genérica", async () => {
+    mocked.uploadTicketLogo.mockRejectedValue({
+      statusCode: 413,
+      message: "Request failed with status code 413",
+      error: "Request Entity Too Large",
+    });
+    renderCard(user(["tenants:manage"]));
+    const usuario = userEvent.setup();
+    const archivo = new File([new Uint8Array([137, 80, 78, 71])], "logo.png", {
+      type: "image/png",
+    });
+    await usuario.upload(
+      (await screen.findByLabelText("Subir imagen")) as HTMLInputElement,
+      archivo,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "La imagen pesa demasiado: sube una de menos de 2 MB.",
+    );
+  });
+
   it("«Quitar logotipo» llama al API y deja «Sin logotipo»", async () => {
     mocked.getTicketSettings.mockResolvedValue({
       ...defaults(),
