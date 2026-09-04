@@ -475,3 +475,40 @@ describe("órdenes emitidas (F9-CLINIC-WEB-19)", () => {
     expect(screen.getByTestId("record-group-orders")).toHaveTextContent("3 órdenes");
   });
 });
+
+/**
+ * Al quitar los precios de las órdenes (2026-09-04) el encabezado se quedó con
+ * la columna «Precio» Y con la vacía de la acción: una columna de más que la
+ * fila, así que el título caía sobre «Quitar» y sobraba un hueco a la derecha.
+ * Contar columnas es lo que caza la desalineación; mirar solo el texto no la ve.
+ */
+describe("la tabla de líneas no titula la columna de la acción (2026-09-04)", () => {
+  const columnasCuadran = () => {
+    const lineas = screen.getByTestId("order-lines");
+    const [encabezado, primera] = within(lineas).getAllByRole("row") as HTMLElement[];
+    expect(encabezado).not.toHaveTextContent("Precio");
+    expect(within(encabezado as HTMLElement).getAllByRole("columnheader")).toHaveLength(
+      within(primera as HTMLElement).getAllByRole("cell").length,
+    );
+  };
+
+  it.each([
+    ["lab_order", "Buscar estudio de laboratorio"],
+    ["diagnostic_order", "Buscar estudio diagnóstico"],
+  ])("orden de estudios (%s)", async (kind, etiqueta) => {
+    await renderRuta(`/medical-clinic/records/r1/orders/${kind}`);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText(etiqueta), "b");
+    await user.click(await screen.findByRole("button", { name: /Biometría hemática/ }));
+    columnasCuadran();
+  });
+
+  it("receta de medicamentos", async () => {
+    await renderRuta("/medical-clinic/records/r1/orders/prescription");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Buscar medicamento"), "parac");
+    const paracetamol = await screen.findByTestId("medication-prod1");
+    await user.click(within(paracetamol).getByRole("button", { name: /Paracetamol/ }));
+    columnasCuadran();
+  });
+});

@@ -141,9 +141,8 @@ export function OrderFormShell({
               <TableHead>{t("medicalClinic.orders.lines.concept")}</TableHead>
               <TableHead className="w-28">{t("medicalClinic.orders.lines.quantity")}</TableHead>
               {esReceta ? <TableHead>{t("medicalClinic.orders.lines.dosage")}</TableHead> : null}
-              <TableHead className="w-28 text-right">
-                {t("medicalClinic.orders.lines.price")}
-              </TableHead>
+              {/* La columna de la acción no se titula: «Quitar» no es un dato
+                  de la orden, y un encabezado ahí desalinea la fila. */}
               <TableHead className="w-24" />
             </TableRow>
           </TableHeader>

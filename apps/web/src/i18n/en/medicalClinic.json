@@ -343,7 +343,6 @@
       "concept": "Item",
       "quantity": "Quantity",
       "dosage": "Directions",
-      "price": "Price",
       "remove": "Remove"
     },
     "kinds": {
