@@ -381,5 +381,14 @@
     "saved": "Configuración guardada.",
     "saveFailed": "No pudimos guardar la configuración.",
     "loadFailed": "No pudimos cargar la configuración."
+  },
+  "dashboard": {
+    "medications": "Medicamentos",
+    "labStudies": "Laboratorio",
+    "diagnosticStudies": "Diagnóstico",
+    "units": "{{count}} unidades",
+    "units_one": "1 unidad",
+    "empty": "Sin ventas en el período",
+    "error": "No pudimos cargar lo más vendido del consultorio."
   }
 }

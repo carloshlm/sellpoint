@@ -8,6 +8,7 @@ import { InventoryWidgets } from "@/components/dashboard/inventory-widgets";
 import { KpiRow } from "@/components/dashboard/kpi-row";
 import { PeriodFilter } from "@/components/dashboard/period-filter";
 import { TopProducts } from "@/components/dashboard/top-products";
+import { ClinicTop } from "@/components/medical-clinic/clinic-top";
 import type { DashboardPeriod } from "@/lib/dashboard/api";
 
 /**
@@ -68,6 +69,7 @@ function DashboardContent() {
       </Suspense>
       <PeriodFilter value={period} onChange={setPeriod} />
       <TopProducts period={period} />
+      <ClinicTop period={period} />
       <div className="grid gap-3 lg:grid-cols-2">
         <InventoryWidgets />
         <Suspense fallback={null}>

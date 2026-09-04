@@ -381,5 +381,14 @@
     "saved": "Settings saved.",
     "saveFailed": "We could not save the settings.",
     "loadFailed": "We could not load the settings."
+  },
+  "dashboard": {
+    "medications": "Medications",
+    "labStudies": "Lab studies",
+    "diagnosticStudies": "Imaging",
+    "units": "{{count}} units",
+    "units_one": "1 unit",
+    "empty": "No sales in this period",
+    "error": "We couldn't load the clinic's top sellers."
   }
 }

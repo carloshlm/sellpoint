@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
+import type { DashboardPeriod } from "@/lib/dashboard/api";
 import type { CreateCustomerInput, Customer } from "@/lib/reception/api";
 import {
+  type ClinicTop,
   type CreateOrderInput,
   type CreateStudyInput,
   cancelOrder,
@@ -10,6 +12,7 @@ import {
   createPatient,
   createRecord,
   createStudy,
+  getClinicTop,
   getRecord,
   getSettings,
   listOrders,
@@ -191,5 +194,19 @@ export function useStockSearch(q: string, enabled = true) {
     queryFn: () => searchStock(termino),
     enabled: enabled && termino.length > 0,
     staleTime: 10_000,
+  });
+}
+
+/**
+ * Lo más vendido del consultorio. `enabled` en falso —sin el módulo o sin
+ * permiso de lectura— deja la consulta quieta: pedir un 402 o un 403 para
+ * después esconder la tarjeta es gastar una llamada en confirmar lo que ya
+ * sabemos desde el token.
+ */
+export function useClinicTop(period: DashboardPeriod, enabled: boolean) {
+  return useQuery<ClinicTop, ApiError>({
+    queryKey: [...RAIZ, "dashboard", "top", period],
+    queryFn: () => getClinicTop(period),
+    enabled,
   });
 }

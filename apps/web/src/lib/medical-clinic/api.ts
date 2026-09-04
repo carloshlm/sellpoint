@@ -1,5 +1,6 @@
 import type { MedicalOrderKind, MedicalRecordSectionGroup } from "@sellpoint/shared";
 import { api } from "@/lib/api";
+import type { DashboardPeriod } from "@/lib/dashboard/api";
 import { imprimirPdf } from "@/lib/download";
 import type { LookupProductItem } from "@/lib/pos/api";
 import type { CreateCustomerInput, Customer } from "@/lib/reception/api";
@@ -305,5 +306,27 @@ export async function searchStock(
     "/medical-clinic/stock-search",
     { params: { q } },
   );
+  return data;
+}
+
+// ── Lo más vendido del consultorio ────────────────────────────────────
+export interface ClinicTopItem {
+  id: string;
+  code: string;
+  name: string;
+  units: string;
+  revenue: string;
+}
+
+export interface ClinicTop {
+  medications: ClinicTopItem[];
+  labStudies: ClinicTopItem[];
+  diagnosticStudies: ClinicTopItem[];
+}
+
+export async function getClinicTop(period: DashboardPeriod): Promise<ClinicTop> {
+  const { data } = await api.get<ClinicTop>("/medical-clinic/dashboard/top", {
+    params: { period },
+  });
   return data;
 }
