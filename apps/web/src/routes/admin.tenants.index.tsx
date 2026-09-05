@@ -105,7 +105,7 @@ function TenantsContent() {
                     {fila.country ?? "—"} · {fila.currency}
                   </td>
                   <td className="px-2 py-1">{fila.planName}</td>
-                  <td className="px-2 py-1">
+                  <td className="whitespace-nowrap px-2 py-1">
                     {fila.suspendedAt === null
                       ? t(`common.billing.me.status.${fila.status}`)
                       : `${k("suspended")} · ${formatBusinessDate(fila.suspendedAt, locale, fila.timezone)}`}
