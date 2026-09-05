@@ -14,29 +14,29 @@ datasource db {
 }
 
 model Tenant {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name             String
-  legalName        String?  @map("legal_name")
-  taxId            String?  @map("tax_id")
+  legalName        String?   @map("legal_name")
+  taxId            String?   @map("tax_id")
   // F1-WEB-ONBOARD-01 (paso 1 del wizard): aditivos, nullable — un tenant
   // creado antes de esta migración sigue operando con ambos en NULL.
-  address          String?  @map("address")
+  address          String?   @map("address")
   // Teléfono del negocio (2026-08-25): editable desde "Mi perfil", nunca lo
   // pide el wizard. El único campo del tenant borrable vía PATCH (null).
-  phone            String?  @db.VarChar(20)
+  phone            String?   @db.VarChar(20)
   // Tema inicial elegido en el wizard (light|dark|sand|grape). El catálogo
   // cerrado vive en updateTenantSchema, sin CHECK SQL (criterio country).
-  theme            String?  @db.VarChar(16)
-  templateChoice   String?  @map("template_choice")
+  theme            String?   @db.VarChar(16)
+  templateChoice   String?   @map("template_choice")
   // F1-WEB-ONBOARD-03: el paso 3 (placeholder de almacén, F2, D2) NO tiene
   // columna propia — W4 (verify-report #357) revirtió `warehouseStepSeen`
   // (Deviation 6): con negocio y plantilla completos el piso del wizard ya
   // deriva 4 sin necesitar una señal server-side extra (ver
   // apps/web/src/lib/tenant/steps.ts).
-  timezone         String   @default("America/Mexico_City")
+  timezone         String    @default("America/Mexico_City")
   // CHAR(3) con CHECK (currency IN ('MXN','USD','CAD','EUR','GBP')) — el CHECK vive en el SQL de
   // la migración porque Prisma no soporta constraints CHECK en el schema.
-  currency         String   @default("MXN") @db.Char(3)
+  currency         String    @default("MXN") @db.Char(3)
   // Ad-hoc post-Fase 1 (2026-08-16, MERCADOS.md §2): ISO 3166-1 alpha-2,
   // nullable — un tenant preexistente la llena al pasar el paso 1 del
   // wizard de nuevo (ver `apps/web/src/lib/tenant/steps.ts`). Sin CHECK SQL
@@ -44,24 +44,34 @@ model Tenant {
   // `isCountryCode` (`@sellpoint/shared`), la misma fuente que consume el
   // selector de país del front — un país que se agrega ahí queda válido acá
   // sin nueva migración.
-  country          String?  @db.Char(2)
-  onboarded        Boolean  @default(false)
+  country          String?   @db.Char(2)
+  onboarded        Boolean   @default(false)
+  /// F7-LIFECYCLE-02 — desactivado desde cuándo, por quién y por qué. Los
+  /// tres van juntos (CHECK `tenants_suspended_coherent`: fecha ⇔ motivo).
+  /// Un negocio desactivado no entra (login y refresh en 403) y solo se puede
+  /// eliminar tras 30 días (`tenantLifecycle` en shared). La purga la hace la
+  /// función `purge_tenant(uuid)` de la misma migración: Prisma no modela
+  /// funciones; vive en `20260909100000_f7_tenant_lifecycle`.
+  suspendedAt      DateTime? @map("suspended_at") @db.Timestamptz(6)
+  suspendedById    String?   @map("suspended_by") @db.Uuid
+  suspendedReason  String?   @map("suspended_reason") @db.VarChar(300)
+  suspendedBy      User?     @relation("TenantSuspendedBy", fields: [suspendedById], references: [id], onDelete: SetNull)
   // F7-POS-03: el toggle "Vender sin existencias". La regla efectiva de la
   // venta es `!plan.stockControl || sellWithoutStock` — en Free/Basic es
   // implícita; en Pro/Plus/Premium la decide el admin (default estricto).
-  sellWithoutStock Boolean  @default(false) @map("sell_without_stock")
+  sellWithoutStock Boolean   @default(false) @map("sell_without_stock")
   /// El interruptor de UBICACIONES: muestra el campo "Ubicación" en los
   /// productos y ordena la hoja del inventario físico por recorrido del
   /// almacén. Apagado por defecto — un negocio que no ordena por pasillos no
   /// necesita un campo más en cada alta. No lleva saldo por ubicación: eso
   /// vive en `stock_lots` y se activa con `tracksLots` del producto.
-  usesLocations    Boolean  @default(false) @map("uses_locations")
+  usesLocations    Boolean   @default(false) @map("uses_locations")
   /// F5-DASH-02: la meta mensual de ventas — el número contra el que el
   /// dashboard pinta «85% alcanzado». NULL = el negocio no persigue meta;
   /// borrable como phone.
-  monthlySalesGoal Decimal? @map("monthly_sales_goal") @db.Decimal(14, 2)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  monthlySalesGoal Decimal?  @map("monthly_sales_goal") @db.Decimal(14, 2)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   users                   User[]
   roles                   Role[]
@@ -177,6 +187,7 @@ model User {
   transfersCreated        Transfer[]               @relation("TransferCreatedBy")
   transfersReceived       Transfer[]               @relation("TransferReceivedBy")
   transfersCanceled       Transfer[]               @relation("TransferCanceledBy")
+  tenantsSuspended        Tenant[]                 @relation("TenantSuspendedBy")
   documentsCreated        InventoryDocument[]      @relation("DocumentCreatedBy")
   documentsAuthorized     InventoryDocument[]      @relation("DocumentAuthorizedBy")
   documentsConfirmed      InventoryDocument[]      @relation("DocumentConfirmedBy")
@@ -1439,38 +1450,38 @@ model Sale {
 /// un ticket de hace tres meses tiene que seguir diciendo lo que cobró, aunque
 /// el producto haya cambiado de precio diez veces.
 model SaleItem {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
-  saleId         String   @map("sale_id") @db.Uuid
-  lineNo         Int      @map("line_no")
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  saleId             String   @map("sale_id") @db.Uuid
+  lineNo             Int      @map("line_no")
   /// F4-CONCEPT-02: `product` | `service` | `concept` (`POS_LINE_KINDS` en shared).
   /// La base cierra la forma de cada tipo con `sale_items_kind_shape`.
-  kind           String   @default("product") @db.VarChar(16)
-  productId      String?  @map("product_id") @db.Uuid
-  serviceId      String?  @map("service_id") @db.Uuid
+  kind               String   @default("product") @db.VarChar(16)
+  productId          String?  @map("product_id") @db.Uuid
+  serviceId          String?  @map("service_id") @db.Uuid
   /// Solo para producto: en qué presentación se vendió (Caja ×12, Pieza…).
-  presentationId String?  @map("presentation_id") @db.Uuid
+  presentationId     String?  @map("presentation_id") @db.Uuid
   /// SOLO en un concepto: la venta nunca tuvo texto porque el ticket lo lee
   /// del catálogo, y un concepto no tiene catálogo. Se copia de la
   /// cotización al cobrar; un producto con este campo rebota en el CHECK.
-  conceptDescription String? @map("concept_description")
+  conceptDescription String?  @map("concept_description")
   /// De dónde salió la línea (módulo + id), como dos strings OPACOS que el
   /// POS guarda y devuelve sin entenderlos. Van en par o no van.
-  sourceModule   String?  @map("source_module") @db.VarChar(32)
-  sourceRef      String?  @map("source_ref") @db.Uuid
+  sourceModule       String?  @map("source_module") @db.VarChar(32)
+  sourceRef          String?  @map("source_ref") @db.Uuid
   /// Lo que el cajero tecleó, en la presentación elegida.
-  quantity       Decimal  @db.Decimal(14, 4)
-  unitPrice      Decimal  @map("unit_price") @db.Decimal(14, 2)
+  quantity           Decimal  @db.Decimal(14, 4)
+  unitPrice          Decimal  @map("unit_price") @db.Decimal(14, 2)
   /// F5-DASH-01: el costo promedio ponderado CONGELADO al cobrar, en la misma
   /// unidad que unitPrice (la presentación vendida) — así la utilidad es
   /// `(unitPrice − unitCost) × quantity` sin saber de factores. NULL cuando el
   /// producto nunca se compró con costo (nunca 0 fingido) y en servicios. Las
   /// ventas anteriores a la columna quedan NULL a propósito: la utilidad se
   /// calcula solo desde acá (Carlos, 2026-08-31 — exactitud sobre historia).
-  unitCost       Decimal? @map("unit_cost") @db.Decimal(14, 4)
-  discount       Decimal  @default(0) @db.Decimal(14, 2)
-  lineTotal      Decimal  @map("line_total") @db.Decimal(14, 2)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  unitCost           Decimal? @map("unit_cost") @db.Decimal(14, 4)
+  discount           Decimal  @default(0) @db.Decimal(14, 2)
+  lineTotal          Decimal  @map("line_total") @db.Decimal(14, 2)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
   sale         Sale                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -1510,24 +1521,24 @@ enum QuoteStatus {
 /// dinero). Sirve para filtrar sus lookups y para el reporte; el almacén que
 /// manda al cobrar es el del TURNO, que puede ser otro.
 model Quote {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId    String      @map("tenant_id") @db.Uuid
-  folio       String      @db.VarChar(32)
-  warehouseId String      @map("warehouse_id") @db.Uuid
-  status      QuoteStatus @default(open)
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String      @map("tenant_id") @db.Uuid
+  folio        String      @db.VarChar(32)
+  warehouseId  String      @map("warehouse_id") @db.Uuid
+  status       QuoteStatus @default(open)
   /// Suma de las líneas a precio de REFERENCIA. No es lo que se va a cobrar.
-  total       Decimal     @db.Decimal(14, 2)
-  note        String?
-  createdBy   String      @map("created_by") @db.Uuid
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  total        Decimal     @db.Decimal(14, 2)
+  note         String?
+  createdBy    String      @map("created_by") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Cuándo se volcó al carrito de una venta (F4-QUOTE-02).
-  loadedAt    DateTime?   @map("loaded_at") @db.Timestamptz(6)
-  canceledBy  String?     @map("canceled_by") @db.Uuid
-  canceledAt  DateTime?   @map("canceled_at") @db.Timestamptz(6)
+  loadedAt     DateTime?   @map("loaded_at") @db.Timestamptz(6)
+  canceledBy   String?     @map("canceled_by") @db.Uuid
+  canceledAt   DateTime?   @map("canceled_at") @db.Timestamptz(6)
   /// F9-CLINIC-16: quién la emitió, si vino de un módulo (par o nada; CHECK
   /// en la migración). El POS no sabe qué es `medical_clinic`: lo pinta.
-  sourceModule String?    @map("source_module") @db.VarChar(32)
-  sourceRef    String?    @map("source_ref") @db.Uuid
+  sourceModule String?     @map("source_module") @db.VarChar(32)
+  sourceRef    String?     @map("source_ref") @db.Uuid
 
   tenant    Tenant      @relation(fields: [tenantId], references: [id])
   warehouse Warehouse   @relation(fields: [warehouseId], references: [id])

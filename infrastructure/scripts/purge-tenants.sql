@@ -6,10 +6,12 @@
 --
 -- Nació el 2026-09-04 para limpiar los negocios de prueba de producción
 -- (Carlos: solo se usan «Negocio Cinco», «BACKOFFICE» y «Siete SA de CV»).
--- Es el mismo mecanismo del teardown de los e2e (`apps/api/test/e2e/
--- global-teardown.ts`): con `session_replication_role = replica` los triggers
--- de FK callan y no hace falta conocer el orden de las tablas; todo va en UNA
--- transacción, o se borra todo o nada.
+-- Desde F7-LIFECYCLE-02 el borrado en sí lo hace la función `purge_tenant(uuid)`
+-- de la base (migración `20260909100000_f7_tenant_lifecycle`): es la ÚNICA
+-- definición de «eliminar un negocio», la misma que usa el backoffice. Este
+-- guion solo decide QUÉ negocios (por exclusión de KEEP), los desactiva si
+-- hacía falta (la función exige `suspended_at`) y la llama uno por uno. Todo
+-- va en UNA transacción, o se borra todo o nada.
 --
 -- CINTURONES:
 --  1. RESPALDO antes: /opt/sellpoint/scripts/backup-postgres.sh (el nocturno,
@@ -20,8 +22,8 @@
 --     al revés).
 --  3. Primero en modo `ensayo`: lista lo que se borraría, con usuarios y
 --     ventas de cada uno, y NO toca nada. Solo `modo=borrar` borra.
---  4. Requiere superusuario (por el `replica`): con un rol menor falla ANTES
---     de tocar nada, con un error claro.
+--  4. Requiere el rol admin de la base (dueño de `purge_tenant`); con un rol
+--     menor falla ANTES de tocar nada, con un error claro.
 --
 -- USO (en el servidor, como admin de la base):
 --
@@ -49,12 +51,11 @@ SELECT btrim(n) FROM unnest(string_to_array(:'keep', '|')) AS n WHERE btrim(n) <
 -- interpolación de variables de psql.
 SELECT set_config('purge.modo', :'modo', true);
 
-SET LOCAL session_replication_role = replica;
-
 DO $$
 DECLARE
-  tabla text;
   ids uuid[];
+  id_negocio uuid;
+  resumen jsonb;
   fila record;
   pedidos int;
   encontrados int;
@@ -108,22 +109,14 @@ BEGIN
     RETURN;
   END IF;
 
-  FOR tabla IN
-    SELECT DISTINCT c.table_name FROM information_schema.columns c
-    JOIN information_schema.tables t
-      ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-    -- Solo tablas BASE: una VISTA con tenant_id (medical_clinic_sold_items)
-    -- también sale acá y un DELETE sobre ella abortaría el bloque entero.
-    WHERE c.table_schema = 'public' AND c.column_name = 'tenant_id'
-      AND c.table_name <> 'tenants' AND t.table_type = 'BASE TABLE'
-  LOOP
-    EXECUTE format('DELETE FROM %I WHERE tenant_id = ANY($1)', tabla) USING ids;
+  FOREACH id_negocio IN ARRAY ids LOOP
+    -- La función exige un negocio DESACTIVADO: se marca con el motivo del guion.
+    UPDATE tenants SET suspended_at = now(), suspended_reason = 'purge-tenants.sql'
+      WHERE id = id_negocio AND suspended_at IS NULL;
+    resumen := purge_tenant(id_negocio);
+    RAISE NOTICE '  borrado: % — % usuario(s), % venta(s), % tablas',
+      resumen->>'name', resumen->>'users', resumen->>'sales', resumen->>'tables';
   END LOOP;
-  -- Las que no llevan tenant_id y cuelgan de usuarios o roles ya borrados
-  -- (con `replica` el CASCADE no corre).
-  DELETE FROM user_roles WHERE user_id NOT IN (SELECT id FROM users);
-  DELETE FROM role_permissions WHERE role_id NOT IN (SELECT id FROM roles);
-  DELETE FROM tenants WHERE id = ANY(ids);
 
   RAISE NOTICE 'BORRADOS % negocio(s). Quedan en la base: %',
     array_length(ids, 1), (SELECT string_agg(name, ', ' ORDER BY created_at) FROM tenants);
