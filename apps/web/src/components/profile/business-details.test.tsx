@@ -51,6 +51,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
   },
 });
@@ -120,6 +121,28 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
 
       expect(screen.getByLabelText("Código de país")).toHaveValue("CA");
       expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("5551234567");
+    });
+
+    /**
+     * F4-POSVIS (Carlos, 2026-09-04): «¿el vendedor ve cuánto hay?» es otra
+     * pregunta que «¿se puede cobrar de más?». Un interruptor propio, encendido
+     * por defecto, que se guarda al vuelo como el de ubicaciones.
+     */
+    it("«Mostrar existencias en el punto de venta» se apaga al vuelo y manda posShowsStock:false", async () => {
+      const user = userEvent.setup();
+      const actor = demoUser(["tenants:manage"]);
+      mockedUpdate.mockResolvedValue({ ...actor.tenant, posShowsStock: false });
+      renderCard(actor);
+
+      const casilla = screen.getByRole("checkbox", {
+        name: "Mostrar existencias en el punto de venta",
+      });
+      expect(casilla).toBeChecked();
+      await user.click(casilla);
+
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ posShowsStock: false });
+      });
     });
 
     it("la meta mensual se guarda como número (F5-DASH-02)", async () => {

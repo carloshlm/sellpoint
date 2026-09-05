@@ -190,15 +190,18 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
                 <span className="text-muted-foreground text-xs">
                   {item.type === "product" && (
                     <>
-                      {item.sku} ·{" "}
-                      {t("pos.cart.available", {
-                        quantity: formatQuantity(item.available, item.baseUnit),
-                        // El plural lo decide la CANTIDAD: «1 pieza disponible»,
-                        // no «1 piezas». Con `{ plural: true }` fijo decía lo
-                        // segundo — lo destapó la prueba de punta a punta.
-                        unit: unitLabelFor(item.available, item.baseUnit, locale),
-                      })}
-                      {Number(item.expired) > 0 && (
+                      {item.sku}
+                      {/* F4-POSVIS: sin el dato (null) no se dice cuántas hay. */}
+                      {item.available !== null && " · "}
+                      {item.available !== null &&
+                        t("pos.cart.available", {
+                          quantity: formatQuantity(item.available, item.baseUnit),
+                          // El plural lo decide la CANTIDAD: «1 pieza disponible»,
+                          // no «1 piezas». Con `{ plural: true }` fijo decía lo
+                          // segundo — lo destapó la prueba de punta a punta.
+                          unit: unitLabelFor(item.available, item.baseUnit, locale),
+                        })}
+                      {item.expired !== null && Number(item.expired) > 0 && (
                         // El dato de vencido evita que "no hay" mienta frente a
                         // un anaquel con mercancía a la vista.
                         <>

@@ -39,6 +39,7 @@ function tenant(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["tenant"]
     onboarded: false,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
     ...overrides,
   };

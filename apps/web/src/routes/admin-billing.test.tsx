@@ -56,6 +56,7 @@ const demoUser = (
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
   },
 });

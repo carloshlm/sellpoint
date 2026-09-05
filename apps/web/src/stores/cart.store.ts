@@ -44,7 +44,8 @@ export interface CartProductLine {
    * `sellableStock`. Para un compuesto es cuántos se pueden ARMAR con lo que
    * hay de sus componentes — no un saldo propio, que no tiene.
    */
-  available: string;
+  /** `null` con «Mostrar existencias» apagado (F4-POSVIS): sin dato no hay aviso. */
+  available: string | null;
   presentationId: string;
   presentations: LookupPresentation[];
   quantity: string;
@@ -367,6 +368,11 @@ export function subtotalDelCarrito(lines: CartLine[]): number {
 export function excedeElStock(line: CartLine): boolean {
   if (line.type === "service" || line.type === "concept") {
     // Ni el servicio ni el concepto salen del anaquel: nunca faltan.
+    return false;
+  }
+  if (line.available === null) {
+    // F4-POSVIS: el API no mandó la existencia. Decir «hay menos de N» ya
+    // sería enseñarla por la puerta de atrás.
     return false;
   }
   const factor = line.presentations.find((p) => p.id === line.presentationId)?.factor ?? "1";

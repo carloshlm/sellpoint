@@ -31,6 +31,7 @@ const userWithTheme = (theme: string | null): AuthUser => ({
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
   },
 });

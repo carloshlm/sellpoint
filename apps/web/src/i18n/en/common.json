@@ -113,7 +113,9 @@
       "usesLocations": "Use warehouse locations",
       "usesLocationsHint": "Adds a «Location» field to products and sorts the stock count sheet by walking route instead of by code. It does not track stock per location.",
       "monthlySalesGoal": "Monthly sales goal",
-      "monthlySalesGoalHint": "The number your dashboard measures the month against. Leave it empty if you don't want to chase a goal."
+      "monthlySalesGoalHint": "The number your dashboard measures the month against. Leave it empty if you don't want to chase a goal.",
+      "posShowsStock": "Show stock in the point of sale",
+      "posShowsStockHint": "With this off, the seller does not see how much there is: no “N available” when searching, no “more than in stock” warning in the cart. The rule for selling without stock does not change."
     },
     "preferences": {
       "title": "Preferences",

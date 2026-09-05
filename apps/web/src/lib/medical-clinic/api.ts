@@ -297,7 +297,15 @@ export async function printMedicalOrder(id: string, folio: string): Promise<void
 
 // ── Medicamentos del stock del médico ─────────────────────────────────
 /** El mismo ítem del buscador del POS, re-exportado: el módulo no importa de `@/lib/pos` en pantallas. */
-export type MedicationItem = LookupProductItem;
+/**
+ * El buscador del médico SIEMPRE trae la existencia: «Mostrar existencias en
+ * el punto de venta» (F4-POSVIS) es del POS y no pasa por aquí. El tipo lo
+ * dice: `available`/`expired` no admiten null en este contrato.
+ */
+export type MedicationItem = Omit<LookupProductItem, "available" | "expired"> & {
+  available: string;
+  expired: string;
+};
 
 export async function searchStock(
   q: string,

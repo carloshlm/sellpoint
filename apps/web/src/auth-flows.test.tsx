@@ -69,6 +69,7 @@ const DEMO_TENANT = {
   onboarded: true,
   sellWithoutStock: false,
   usesLocations: false,
+  posShowsStock: true,
   monthlySalesGoal: null,
 } as const;
 

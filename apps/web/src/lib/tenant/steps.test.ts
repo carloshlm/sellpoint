@@ -22,6 +22,7 @@ function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
     onboarded: false,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
     country: null,
     ...overrides,

@@ -32,6 +32,8 @@ export interface TenantBlock {
    * No lleva saldo por ubicación — eso vive en los lotes.
    */
   usesLocations: boolean;
+  /** F4-POSVIS: si el vendedor ve existencias en el punto de venta (por defecto sí). */
+  posShowsStock: boolean;
   /**
    * F5-DASH-02: la meta mensual de ventas — string decimal («800000») o null.
    * El dashboard pinta contra ella la barra de «% alcanzado».
@@ -55,6 +57,7 @@ export type UpdateTenantInput = Partial<
     | "country"
     | "sellWithoutStock"
     | "usesLocations"
+    | "posShowsStock"
   >
 > & {
   // En el PATCH la meta viaja como NÚMERO (el DTO del API valida positivo y

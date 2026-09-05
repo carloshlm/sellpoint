@@ -43,6 +43,7 @@ const user = (modules: AuthUser["subscription"]["modules"], permissions: string[
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
   },
 });

@@ -113,7 +113,9 @@
       "usesLocations": "Usar ubicaciones de almacén",
       "usesLocationsHint": "Agrega el campo «Ubicación» a los productos y ordena la hoja del inventario físico por recorrido del almacén en vez de por código. No lleva existencias por ubicación.",
       "monthlySalesGoal": "Meta mensual de ventas",
-      "monthlySalesGoalHint": "El número contra el que el panel mide tu avance del mes. Déjala vacía si no quieres perseguir una meta."
+      "monthlySalesGoalHint": "El número contra el que el panel mide tu avance del mes. Déjala vacía si no quieres perseguir una meta.",
+      "posShowsStock": "Mostrar existencias en el punto de venta",
+      "posShowsStockHint": "Con esto apagado, el vendedor no ve cuánto hay: ni «N disponibles» al buscar, ni el aviso de «más de lo que hay» en el carrito. La regla para cobrar sin existencias no cambia."
     },
     "preferences": {
       "title": "Preferencias",

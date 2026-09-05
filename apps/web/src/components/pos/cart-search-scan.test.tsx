@@ -173,6 +173,24 @@ describe("escaneo → carrito (cola imperativa)", () => {
     expect(useCartStore.getState().lines).toHaveLength(0);
   });
 
+  it("con «Mostrar existencias» apagado (available null) la lista no dice cuántas hay (F4-POSVIS)", async () => {
+    lookupMock.mockResolvedValue({
+      warehouseId: "w1",
+      exact: false,
+      items: [
+        { ...AVENA, available: null, expired: null },
+        { ...GRANOLA, available: null, expired: null },
+      ],
+    });
+    renderBuscador();
+
+    await escanear("0640");
+
+    expect(await screen.findByText("Granola")).toBeInTheDocument();
+    expect(screen.queryByText(/disponibles/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vencidas/)).not.toBeInTheDocument();
+  });
+
   it("un folio COT escaneado abre la confirmación, no una línea", async () => {
     lookupMock.mockResolvedValue(
       exacto({

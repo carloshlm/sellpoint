@@ -378,6 +378,20 @@ describe("useCartStore (F4-CART-02)", () => {
       expect(excedeElStock(carrito().lines[0] as CartProductLine)).toBe(false);
     });
 
+    /**
+     * F4-POSVIS: con «Mostrar existencias» apagado el API manda `available`
+     * en null. Sin dato no hay aviso: decir «hay menos de N» ya sería
+     * enseñar la existencia por la puerta de atrás.
+     */
+    it("sin el dato de existencia (available null) nunca marca", () => {
+      carrito().add(
+        { ...AGUA, available: null, expired: null, matchedPresentationId: CAJA.id },
+        { quantity: "999" },
+      );
+
+      expect(excedeElStock(carrito().lines[0] as CartProductLine)).toBe(false);
+    });
+
     it("un servicio nunca falta: no sale del anaquel", () => {
       carrito().add(MASAJE, { quantity: "99" });
 

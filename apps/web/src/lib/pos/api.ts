@@ -80,9 +80,13 @@ export interface LookupProductItem {
   baseUnit: string;
   isComposite: boolean;
   /** Vendible en el almacén del turno, en unidad BASE. */
-  available: string;
+  /**
+   * F4-POSVIS: `null` cuando el negocio apagó «Mostrar existencias en el
+   * punto de venta»: el API no manda el dato y la pantalla no lo inventa.
+   */
+  available: string | null;
   /** Lo que hay pero está vencido: sin este dato, "no hay" mentiría. */
-  expired: string;
+  expired: string | null;
   presentations: LookupPresentation[];
   /** Cuál presentación llevaba el código escaneado. El carrito la preselecciona. */
   matchedPresentationId: string | null;

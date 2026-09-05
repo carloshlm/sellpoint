@@ -48,6 +48,7 @@ const demoUser = (permissions: string[], theme: string | null = null): AuthUser 
     onboarded: true,
     sellWithoutStock: false,
     usesLocations: false,
+    posShowsStock: true,
     monthlySalesGoal: null,
   },
 });

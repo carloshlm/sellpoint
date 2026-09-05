@@ -36,6 +36,7 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
       onboarded: true,
       sellWithoutStock: false,
       usesLocations: false,
+      posShowsStock: true,
       monthlySalesGoal: null,
     },
     ...overrides,
