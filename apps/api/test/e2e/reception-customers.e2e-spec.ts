@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { localCalendarDate } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
@@ -125,7 +126,10 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
     expect(filas.map((f) => f.id)).toEqual([idSegundo, idPrimero]);
     // F9-RECEP-20: por fecha de alta en el calendario del negocio. Hoy trae a
     // los dos; un rango pasado no trae a nadie; un rango al revés rebota.
-    const hoy = new Date().toISOString().slice(0, 10);
+    // «Hoy» es el del NEGOCIO (zona por defecto de `tenants.timezone`), no el
+    // de `toISOString()`: ese es UTC, y de 6 de la tarde a medianoche en CDMX
+    // ya va en mañana. Así reventó el CI el 2026-09-05 a las 00:03 UTC.
+    const hoy = localCalendarDate("America/Mexico_City", new Date());
     const deHoy = await request(app.getHttpServer())
       .get(`/reception/customers?from=${hoy}&to=${hoy}`)
       .set("Authorization", bearer(negocio.token))
