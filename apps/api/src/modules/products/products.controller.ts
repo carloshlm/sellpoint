@@ -73,10 +73,15 @@ export class ProductsController {
   async template(
     @Query("format") rawFormat: string | undefined,
     @CurrentUser() user: AuthUser,
+    @Req() request: Request,
     @Res() response: Response,
   ) {
     const format = rawFormat === "xlsx" ? "xlsx" : "csv";
-    const { body, contentType, filename } = await this.importService.template(user, format);
+    const { body, contentType, filename } = await this.importService.template(
+      user,
+      format,
+      getLocale(request as Request & RequestWithLocale),
+    );
     response
       .setHeader("Content-Type", contentType)
       .setHeader("Content-Disposition", `attachment; filename="${filename}"`)

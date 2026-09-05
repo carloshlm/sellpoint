@@ -58,9 +58,14 @@ export class CatalogRecordsController {
   async importTemplate(
     @Param("catalogId") catalogId: string,
     @CurrentUser() user: AuthUser,
+    @Req() request: Request,
     @Res() response: Response,
   ) {
-    const { body, contentType, filename } = await this.importService.template(user, catalogId);
+    const { body, contentType, filename } = await this.importService.template(
+      user,
+      catalogId,
+      getLocale(request as Request & RequestWithLocale),
+    );
     response
       .setHeader("Content-Type", contentType)
       .setHeader("Content-Disposition", `attachment; filename="${filename}"`)

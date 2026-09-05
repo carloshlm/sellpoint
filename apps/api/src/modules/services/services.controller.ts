@@ -52,8 +52,15 @@ export class ServicesController {
   /** La plantilla trae los servicios ya dados de alta — editar y resubir. */
   @Get("import/template")
   @RequirePermissions("services:manage")
-  async importTemplate(@CurrentUser() user: AuthUser, @Res() response: Response) {
-    const { body, contentType, filename } = await this.importService.template(user);
+  async importTemplate(
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const { body, contentType, filename } = await this.importService.template(
+      user,
+      getLocale(request as Request & RequestWithLocale),
+    );
     response
       .setHeader("Content-Type", contentType)
       .setHeader("Content-Disposition", `attachment; filename="${filename}"`)

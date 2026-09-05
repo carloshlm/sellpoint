@@ -1,6 +1,7 @@
 import { BadRequestException, PayloadTooLargeException } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import type { I18nService } from "nestjs-i18n";
+import { canonicalHeader } from "../../common/spreadsheet/import-headers";
 import { parseSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import type { Prisma } from "../../generated/prisma/client";
 import type { FieldDefinition } from "./validate-attributes";
@@ -83,7 +84,7 @@ export async function readImportWorkbook(
     throw new BadRequestException({ message: options.messages.empty });
   }
   return {
-    header: rows[0]?.map((cell) => cell.trim()) ?? [],
+    header: rows[0]?.map((cell) => canonicalHeader(cell)) ?? [],
     rows: rows.slice(1),
   };
 }

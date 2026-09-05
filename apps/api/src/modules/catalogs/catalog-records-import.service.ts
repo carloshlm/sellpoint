@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -66,10 +67,11 @@ export class CatalogRecordsImportService {
   async template(
     user: AuthUser,
     catalogId: string,
+    locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     const { header, rows, catalogName } = await this.catalogRows(user, catalogId);
     const body = rows.length > 0 ? rows : [["EJEMPLO-01", ...header.slice(1).map(() => "")]];
-    return serializeSpreadsheet([header, ...body], "xlsx", {
+    return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: catalogName.slice(0, 31),
       filenameBase: "registros",
     });

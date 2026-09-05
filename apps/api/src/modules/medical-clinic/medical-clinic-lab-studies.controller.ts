@@ -52,8 +52,15 @@ export class MedicalClinicLabStudiesController {
   /** La plantilla trae los estudios ya dados de alta — editar y resubir. */
   @Get("import/template")
   @RequirePermissions("medical_clinic:manage")
-  async importTemplate(@CurrentUser() user: AuthUser, @Res() response: Response) {
-    const { body, contentType, filename } = await this.importService.template(user);
+  async importTemplate(
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const { body, contentType, filename } = await this.importService.template(
+      user,
+      getLocale(request as Request & RequestWithLocale),
+    );
     response
       .setHeader("Content-Type", contentType)
       .setHeader("Content-Disposition", `attachment; filename="${filename}"`)

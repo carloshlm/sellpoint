@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
-import { type InventoryDocumentType, normalizeLotCode } from "@sellpoint/shared";
+import { type InventoryDocumentType, type Locale, normalizeLotCode } from "@sellpoint/shared";
+import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
 import {
   parseSpreadsheet,
   type SpreadsheetFormat,
@@ -67,8 +68,12 @@ export class DocumentImportService {
   async template(
     type: InventoryDocumentType,
     format: SpreadsheetFormat,
+    locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const file = await serializeSpreadsheet([COLUMNS[type], EXAMPLE[type]], format);
+    const file = await serializeSpreadsheet(
+      [localizeHeaders(COLUMNS[type], locale), EXAMPLE[type]],
+      format,
+    );
     return { ...file, filename: `plantilla-${type}.${format}` };
   }
 
@@ -97,7 +102,7 @@ export class DocumentImportService {
       throw new BadRequestException({ message: "inventory.import_empty" });
     }
 
-    const header = (rows[0] ?? []).map((c) => c.trim().toLowerCase());
+    const header = (rows[0] ?? []).map((c) => canonicalHeader(c).toLowerCase());
     const idx = (name: string) => header.indexOf(name);
     const body = rows.slice(1).filter((r) => r.some((c) => c.trim() !== ""));
 

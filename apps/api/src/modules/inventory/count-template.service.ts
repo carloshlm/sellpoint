@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import type { Locale } from "@sellpoint/shared";
+import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { type SpreadsheetFormat, serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -47,6 +49,7 @@ export class CountTemplateService {
     scope: UserScope,
     warehouseId: string,
     format: SpreadsheetFormat,
+    locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     assertWarehouseInScope(scope, warehouseId);
 
@@ -157,7 +160,7 @@ export class CountTemplateService {
       return cuerpo;
     });
 
-    const file = await serializeSpreadsheet([[...COLUMNAS], ...filas], format);
+    const file = await serializeSpreadsheet([localizeHeaders(COLUMNAS, locale), ...filas], format);
     return { ...file, filename: `conteo-fisico.${format}` };
   }
 }

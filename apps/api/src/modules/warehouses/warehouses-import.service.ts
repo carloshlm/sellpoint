@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { isE164, type Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -70,7 +71,10 @@ export class WarehousesImportService {
     private readonly i18n: I18nService,
   ) {}
 
-  async template(user: AuthUser): Promise<{ body: Buffer; contentType: string; filename: string }> {
+  async template(
+    user: AuthUser,
+    locale: Locale = "es",
+  ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     const { header, rows } = await this.catalogRows(user);
     const body =
       rows.length > 0
@@ -85,7 +89,7 @@ export class WarehousesImportService {
               ...header.slice(5).map(() => ""),
             ],
           ];
-    return serializeSpreadsheet([header, ...body], "xlsx", {
+    return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: "Almacenes",
       filenameBase: "almacenes",
     });

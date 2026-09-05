@@ -13,7 +13,7 @@ import {
   Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { I18nService } from "nestjs-i18n";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
@@ -81,15 +81,17 @@ export class DocumentsController {
     @CurrentUserScope() scope: UserScope,
     @Query(new ZodValidationPipe(documentTemplateQuerySchema, "inventory.invalid_body"))
     query: DocumentTemplateQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
+    const locale = getLocale(request);
     // Con `warehouseId` y tipo conteo, la plantilla sale POBLADA con el
     // teórico de ese almacén. Sin él —o para los otros tipos— es la vacía con
     // su fila de ejemplo.
     const file =
       query.type === "physical_count" && query.warehouseId !== undefined
-        ? await this.countTemplate.build(user, scope, query.warehouseId, query.format)
-        : await this.imports.template(query.type, query.format);
+        ? await this.countTemplate.build(user, scope, query.warehouseId, query.format, locale)
+        : await this.imports.template(query.type, query.format, locale);
     response
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)

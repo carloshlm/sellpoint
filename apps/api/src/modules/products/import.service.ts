@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
 import { getUnit, type Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
 import {
   parseSpreadsheet,
   type SpreadsheetFormat,
@@ -140,6 +141,7 @@ export class ImportService {
   async template(
     user: AuthUser,
     format: SpreadsheetFormat,
+    locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     const { header, rows, custom } = await this.catalogRows(user);
 
@@ -169,7 +171,7 @@ export class ImportService {
             ],
           ];
 
-    return serializeSpreadsheet([header, ...body], format);
+    return serializeSpreadsheet([localizeHeaders(header, locale), ...body], format);
   }
 
   /**
@@ -273,7 +275,7 @@ export class ImportService {
       throw new BadRequestException({ message: "products.import_empty" });
     }
 
-    const header = rows[0]?.map((cell) => cell.trim()) ?? [];
+    const header = rows[0]?.map((cell) => canonicalHeader(cell)) ?? [];
     const fields = await this.loadFields(user);
     const active = fields.filter((field) => !field.isArchived);
     const knownKeys = new Set(active.map((f) => f.key));

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -91,7 +92,10 @@ export abstract class StudyImportService {
     protected readonly i18n: I18nService,
   ) {}
 
-  async template(user: AuthUser): Promise<{ body: Buffer; contentType: string; filename: string }> {
+  async template(
+    user: AuthUser,
+    locale: Locale = "es",
+  ): Promise<{ body: Buffer; contentType: string; filename: string }> {
     const estudios = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       this.config.delegate(tx).findMany({ orderBy: { code: "asc" } }),
     );
@@ -103,7 +107,7 @@ export abstract class StudyImportService {
       e.price?.toString() ?? "",
     ]);
     return await serializeSpreadsheet(
-      [[...COLUMNAS], ...(filas.length > 0 ? filas : [this.config.ejemplo])],
+      [localizeHeaders(COLUMNAS, locale), ...(filas.length > 0 ? filas : [this.config.ejemplo])],
       "xlsx",
       { sheetName: this.config.sheetName, filenameBase: this.config.filenameBase },
     );
