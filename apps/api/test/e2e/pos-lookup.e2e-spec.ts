@@ -294,6 +294,30 @@ describe("Buscador del POS (F4-CART-01)", () => {
       expect(enCero?.type === "product" && enCero.available).toBe("0");
     });
 
+    /**
+     * F4-POSVIS (Carlos, 2026-09-04): con «Mostrar existencias» apagado, el
+     * API no manda el dato al punto de venta. No basta esconderlo en
+     * pantalla: lo que viaja por la red se ve con la pestaña abierta.
+     */
+    it("con «Mostrar existencias» apagado, available y expired viajan en null", async () => {
+      const e = await escenario();
+      await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(e.token))
+        .send({ posShowsStock: false })
+        .expect(200);
+      await abrirTurno(e.token, e.central).expect(201);
+
+      const res = await buscar(e.token, "Agua").expect(200);
+      const productos = items(res).filter((i) => i.type === "product");
+      expect(productos.length).toBeGreaterThan(0);
+      for (const p of productos) {
+        expect(p.type === "product" && p.available).toBeNull();
+        expect(p.type === "product" && p.expired).toBeNull();
+        expect(p.type === "product" && p.sku).toEqual(expect.any(String));
+      }
+    });
+
     it("la respuesta dice contra qué almacén se resolvió", async () => {
       const e = await escenario();
       await abrirTurno(e.token, e.central).expect(201);

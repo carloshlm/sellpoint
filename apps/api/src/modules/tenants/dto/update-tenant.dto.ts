@@ -44,6 +44,8 @@ export const updateTenantSchema = z
     // plan y este valor no cambia nada (la regla efectiva es un OR).
     sellWithoutStock: z.boolean().optional(),
     usesLocations: z.boolean().optional(),
+    // F4-POSVIS: «Mostrar existencias en el punto de venta».
+    posShowsStock: z.boolean().optional(),
     // F5-DASH-02: la meta mensual de ventas. Positiva y con 2 decimales — es
     // dinero, y la misma regla que valida precios (hasValidMoneyScale) valida
     // la meta: dos fuentes de verdad para "cuántos decimales tiene el dinero"

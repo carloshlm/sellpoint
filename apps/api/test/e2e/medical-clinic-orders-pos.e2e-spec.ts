@@ -95,6 +95,19 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     expect((stock.body as { items: { type: string; id: string }[] }).items).toEqual([
       expect.objectContaining({ type: "product", id: productoId }),
     ]);
+    // F4-POSVIS: «Mostrar existencias en el punto de venta» es del POS; el
+    // buscador del MÉDICO sigue diciendo cuánto hay aunque esté apagado.
+    await request(app.getHttpServer())
+      .patch("/tenants/me")
+      .set("Authorization", bearer(negocio.token))
+      .send({ posShowsStock: false })
+      .expect(200);
+    const stockMedico = await get(negocio.token, "/medical-clinic/stock-search?q=parac").expect(
+      200,
+    );
+    expect(
+      (stockMedico.body as { items: { available: string | null }[] }).items[0]?.available,
+    ).toEqual(expect.any(String));
 
     // La caja: abre turno, encuentra el folio, carga y cobra.
     await post(negocio.token, "/pos/session").expect(201);

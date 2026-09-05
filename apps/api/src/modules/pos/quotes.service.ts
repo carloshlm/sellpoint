@@ -34,6 +34,7 @@ import {
   SELECT_PRODUCTO,
 } from "./lookup.strategies";
 import { allowNegativeStock } from "./stock-policy";
+import { hideStockFromItem } from "./stock-visibility";
 import { sellableStock } from "./warehouse-availability";
 
 /**
@@ -337,6 +338,15 @@ export class QuotesService {
         "quote",
       );
       const itemPorProducto = new Map(items.map((i) => [i.id, i]));
+      // F4-POSVIS: con «Mostrar existencias» apagado, ni el faltante ni el
+      // disponible viajan a la caja. La línea sigue marcada como vendible o no.
+      const ocultarExistencias =
+        (
+          await tx.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { posShowsStock: true },
+          })
+        )?.posShowsStock === false;
 
       const servicios =
         cotizacion.lines.filter((l) => l.serviceId !== null).length === 0
@@ -466,7 +476,13 @@ export class QuotesService {
         note: cotizacion.note,
         /** El total del PAPEL. El de hoy lo arma el carrito con los precios nuevos. */
         quotedTotal: cotizacion.total.toString(),
-        lines: lineas,
+        lines: ocultarExistencias
+          ? lineas.map((l) => ({
+              ...l,
+              shortfall: null,
+              item: l.item === null ? null : hideStockFromItem(l.item),
+            }))
+          : lineas,
       };
     });
   }

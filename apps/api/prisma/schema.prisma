@@ -66,6 +66,9 @@ model Tenant {
   /// necesita un campo más en cada alta. No lleva saldo por ubicación: eso
   /// vive en `stock_lots` y se activa con `tracksLots` del producto.
   usesLocations    Boolean   @default(false) @map("uses_locations")
+  /// F4-POSVIS — ¿el vendedor VE cuánto hay? Apagado, el API no manda la
+  /// existencia al punto de venta. No toca la regla del cobro (`sellWithoutStock`).
+  posShowsStock    Boolean   @default(true) @map("pos_shows_stock")
   /// F5-DASH-02: la meta mensual de ventas — el número contra el que el
   /// dashboard pinta «85% alcanzado». NULL = el negocio no persigue meta;
   /// borrable como phone.

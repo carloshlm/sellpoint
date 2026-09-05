@@ -31,6 +31,8 @@ export interface TenantBlock {
   // El interruptor de UBICACIONES: la ficha del producto muestra "Ubicación"
   // y la hoja del inventario se ordena por recorrido del almacén.
   usesLocations: boolean;
+  /** F4-POSVIS: si el vendedor ve existencias en el punto de venta. */
+  posShowsStock: boolean;
   // F5-DASH-02: la meta mensual de ventas, como string decimal («800000») o
   // null. String y no number: es un Decimal de Prisma y el JSON del resto del
   // sistema ya serializa el dinero así.
@@ -53,6 +55,7 @@ export const TENANT_SELECT = {
   country: true,
   sellWithoutStock: true,
   usesLocations: true,
+  posShowsStock: true,
   monthlySalesGoal: true,
 } as const;
 
@@ -71,6 +74,8 @@ export type TenantRow = {
   country: string | null;
   sellWithoutStock: boolean;
   usesLocations: boolean;
+  /** F4-POSVIS: si el vendedor ve existencias en el punto de venta. */
+  posShowsStock: boolean;
   monthlySalesGoal: { toString(): string } | null;
 };
 
@@ -91,6 +96,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     country: row.country,
     sellWithoutStock: row.sellWithoutStock,
     usesLocations: row.usesLocations,
+    posShowsStock: row.posShowsStock,
     monthlySalesGoal: row.monthlySalesGoal?.toString() ?? null,
   };
 }

@@ -485,6 +485,38 @@ describe("Cotización (F4-QUOTE)", () => {
       expect(linea?.shortfall).toBe("2");
     });
 
+    it("con «Mostrar existencias» apagado, ni el faltante ni el disponible viajan a la caja (F4-POSVIS)", async () => {
+      const e = await escenario(5);
+      await cotizar(e.token, { lines: [{ productId: e.productoId, quantity: 3 }] }).expect(201);
+      await abrirTurno(e.token).expect(201);
+      await request(app.getHttpServer())
+        .post("/pos/sales")
+        .set("Authorization", bearer(e.token))
+        .send({ paymentMethod: "cash", lines: [{ productId: e.productoId, quantity: 4 }] })
+        .expect(201);
+      await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(e.token))
+        .send({ posShowsStock: false })
+        .expect(200);
+
+      const res = await paraVender(e.token, "COT-000001").expect(200);
+      const linea = (
+        res.body as {
+          lines: {
+            unavailable: boolean;
+            shortfall: string | null;
+            item: { type: string; available: string | null; expired: string | null } | null;
+          }[];
+        }
+      ).lines[0];
+
+      // La línea sigue vendible y sigue ahí: lo que no viaja es la cantidad.
+      expect(linea?.unavailable).toBe(false);
+      expect(linea?.shortfall).toBeNull();
+      expect(linea?.item).toMatchObject({ type: "product", available: null, expired: null });
+    });
+
     /**
      * F4-CONCEPT-05 — el concepto es la única línea con precio CONGELADO: no
      * hay catálogo que releer. Vuelve como `LookupConceptItem` con el id de

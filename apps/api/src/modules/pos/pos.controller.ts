@@ -141,7 +141,7 @@ export class PosController {
     @Query(new ZodValidationPipe(lookupQuerySchema, "pos.invalid_query"))
     query: LookupQuery,
   ) {
-    return this.lookup.search(user, scope, query);
+    return this.lookup.searchForPos(user, scope, query);
   }
 
   /**

@@ -11,6 +11,7 @@ import { CashboxService } from "./cashbox.service";
 import type { LookupQuery } from "./dto/lookup.dto";
 import { LOOKUP_STRATEGIES, type LookupItem } from "./lookup.strategies";
 import { allowNegativeStock } from "./stock-policy";
+import { hideStock, type PosLookupItem } from "./stock-visibility";
 
 /** Lo que el POS recibe de una búsqueda. */
 export interface LookupResult {
@@ -40,6 +41,27 @@ export class LookupService {
     private readonly cashbox: CashboxService,
     private readonly entitlements: EntitlementsService,
   ) {}
+
+  /**
+   * F4-POSVIS — la búsqueda del PUNTO DE VENTA: la misma que `search`, pero
+   * respeta «Mostrar existencias»: apagado, `available` y `expired` viajan
+   * en `null`. El buscador del médico usa `search` a secas.
+   */
+  async searchForPos(
+    user: AuthUser,
+    scope: UserScope,
+    query: LookupQuery,
+  ): Promise<Omit<LookupResult, "items"> & { items: PosLookupItem[] }> {
+    const resultado = await this.search(user, scope, query);
+    // `tenants` no lleva RLS: una lectura por clave, fuera de transacción.
+    const negocio = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { posShowsStock: true },
+    });
+    return negocio?.posShowsStock === false
+      ? { ...resultado, items: hideStock(resultado.items) }
+      : resultado;
+  }
 
   async search(user: AuthUser, scope: UserScope, query: LookupQuery): Promise<LookupResult> {
     // ── De qué almacén se pregunta ─────────────────────────────────────────

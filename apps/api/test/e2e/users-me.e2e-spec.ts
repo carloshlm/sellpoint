@@ -120,6 +120,7 @@ describe("/me (e2e)", () => {
         country: null,
         sellWithoutStock: false,
         usesLocations: false,
+        posShowsStock: true,
         monthlySalesGoal: null,
       },
       // F7-WEB-01 (A1): el plan efectivo — el tenant nace en trial Plus.
