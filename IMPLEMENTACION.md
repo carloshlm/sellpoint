@@ -148,7 +148,7 @@ Ejemplos:
 | **F1** | Multi-Tenant + Auth | ✅ Completada | 2-3 semanas | ✅ Sí |
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
 | **F3** | Movimientos de Inventario | ✅ Completada | 5-6 semanas | ✅ Sí |
-| **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas + TICKETCFG ~21 h | ✅ Sí (2026-08-20 · 2026-09-04: F4-TICKETCFG) |
+| **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas + TICKETCFG ~21 h + POSVIS ~6 h | ✅ Sí (2026-08-20 · 2026-09-04: F4-TICKETCFG) |
 | **F5** | Reportes | ✅ Completada | ~2 semanas | ✅ Atomizada (2026-08-21, 24 tareas) |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas + LIFECYCLE ~22 h | ✅ Sí (2026-08-27 · 2026-09-04: F7-LIFECYCLE) |
@@ -2637,6 +2637,31 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
 
 **Pospuestos con nombre:** texto alternativo por campo (imprimir «Farmacia San José» en vez de la razón social sin cambiarla en `tenants`); logotipo en la orden médica en carta; vista previa del ticket completo dentro de la tarjeta (hoy se abre el PDF de la última venta); conversión a 1 bit con umbral si algún modelo de térmica imprime mal el gris (hoy el driver hace el dithering).
 
+### Módulo F4-POSVIS — «Mostrar existencias en el punto de venta» (agregado en revisión el 2026-09-05)
+
+> Dos preguntas, dos interruptores (Carlos, 2026-09-04). «Vender sin existencias» decide si se PUEDE cobrar de más y la aplica el cobro; «Mostrar existencias en el punto de venta» decide si el vendedor VE cuánto hay. Apagado, **el API no manda el dato** (no basta esconderlo en pantalla: lo que viaja por la red se lee con la pestaña abierta): la búsqueda del POS y la carga de cotización devuelven `available`, `expired` y `shortfall` en `null`, y la pantalla no pinta «N disponibles», ni «más de lo que hay», ni «faltan N». Solo el camino del POS: el buscador de medicamentos del consultorio sigue diciendo cuánto hay, porque quien mira es el médico. La regla del cobro no cambia. Encendido por defecto.
+
+- [x] **F4-POSVIS-01** — La columna y el contrato
+  - **Salida:** `20260909110000_f4_pos_shows_stock`: `tenants.pos_shows_stock BOOLEAN NOT NULL DEFAULT true`; `TenantBlock.posShowsStock` en `tenant.types.ts` (select + vista), `updateTenantSchema.posShowsStock`, contratos e2e de `/me` y del login, `TenantBlock` del web y sus fixtures.
+  - **Verificar:** `prisma migrate deploy` limpio; e2e `users-me`, `auth-login-refresh-logout`, `tenants-me` verdes con el campo nuevo; typecheck:full.
+  - **Depende de:** — · **Estimación:** 1.5 h
+
+- [x] **F4-POSVIS-02** — El API no manda el dato
+  - **Salida:** `apps/api/src/modules/pos/stock-visibility.ts` (`hideStockFromItem`, `hideStock`: solo productos; `PosLookupItem` con `available`/`expired` nulables); `LookupService.searchForPos` (lee `tenants.posShowsStock`, sin RLS) usada por `GET /pos/lookup`; `QuotesService.forSale` lee el interruptor en su tx y con él apagado manda `shortfall: null` y el ítem enmascarado. `search` a secas queda para el consultorio.
+  - **Verificar:** `stock-visibility.spec.ts` 3/3; e2e `pos-lookup` (con el interruptor apagado, `available` y `expired` en null y el `sku` intacto), `pos-quotes` (línea vendible con `shortfall` null e ítem sin existencia), `medical-clinic-orders-pos` (el médico sigue viendo `available` como string).
+  - **Depende de:** F4-POSVIS-01 · **Estimación:** 2 h
+
+- [x] **F4-POSVIS-03** — El interruptor en el perfil y un POS que no inventa
+  - **Salida:** `business-details.tsx`: casilla «Mostrar existencias en el punto de venta» junto a «Vender sin existencias», guardada al vuelo; `lib/pos/api.ts` `available`/`expired: string | null`; `cart.store.ts` `excedeElStock` devuelve `false` sin dato; `cart-search.tsx` no pinta «N disponibles» ni «N vencidas» con null; `quote-load-panel` ya callaba con `shortfall` null. `MedicationItem` del consultorio se tipa con `Omit` para no heredar el null.
+  - **Verificar:** RED→GREEN en `business-details.test.tsx` (manda `{ posShowsStock: false }`), `cart.store.test.ts` (sin dato nunca marca), `cart-search-scan.test.tsx` (sin «disponibles»), `cart-panel-flash.test.tsx` (con dato avisa, sin dato no). Mutante: quitar la guarda de null rompe dos tests.
+  - **Depende de:** F4-POSVIS-02 · **Estimación:** 2 h
+
+- [x] **F4-POSVIS-04** — QA en sandbox
+  - **Salida:** con la cuenta admin de sandbox: apagar el interruptor en Mi perfil, abrir caja y buscar en el POS → la fila no dice cuántas hay; volver a encenderlo. Capturas.
+  - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; bitácora; memoria (`sellpoint/pos-shows-stock`).
+  - **Depende de:** F4-POSVIS-03 · **Estimación:** 0.5 h
+  - **Cerrado (2026-09-05):** en sandbox con la cuenta admin y un producto de prueba con 12 piezas: interruptor apagado → la fila del buscador dice solo nombre, código y precio, y con 999 piezas en el carrito no hay aviso rojo; por el API `available`/`expired` viajan en null. Encendido → «12 piezas disponibles» vuelve. Producto de prueba desactivado al terminar; el interruptor quedó encendido.
+
 ### Módulo F4-PWA — La app instalable
 
 - [x] **F4-PWA-01** — Manifest + service worker + offline básico
@@ -4272,6 +4297,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-05 («MOSTRAR EXISTENCIAS EN EL PUNTO DE VENTA»: F4-POSVIS-01..04)** — Carlos pidió que el administrador decida si el vendedor ve el stock; eligió que el API no mande el dato. Interruptor `tenants.pos_shows_stock` (encendido por defecto) en Datos del negocio; apagado, `GET /pos/lookup` y `for-sale` devuelven `available`, `expired` y `shortfall` en null y el POS no pinta «N disponibles», «más de lo que hay» ni «faltan N». Solo el camino del POS: el buscador del médico sigue viendo. La regla del cobro (`sellWithoutStock`) no cambia — `topic_key: sellpoint/pos-shows-stock` — afecta: F4-CART (búsqueda y carrito), F4-QUOTE (carga de cotización), perfil del negocio
 - **2026-09-04 (CICLO DE VIDA DEL NEGOCIO ENTREGADO: F7-LIFECYCLE-01..09)** — `tenants.suspended_at/by/reason`, `purge_tenant()` SECURITY DEFINER como única definición de «borrar un negocio» (el guion de purga la llama), suspender/reactivar/eliminar por API con los cuatro candados y auditoría en el tenant del actor, login y refresh en 403 para el negocio desactivado, y la «Zona de peligro» en el expediente con la lista tenue. QA en sandbox sobre «Negocio ONE», restaurado al final — `topic_key: sellpoint/tenant-lifecycle` — afecta: F7-LIFECYCLE (cerrado), purge-tenants.sql (delegado a la función)
 - **2026-09-04 (CICLO DE VIDA DEL NEGOCIO ATOMIZADO: DESACTIVAR Y ELIMINAR DESDE EL BACKOFFICE)** — Carlos pidió desactivar un negocio guardando desde cuándo, y eliminar uno desactivado «con una contraseña o algo». Decisión: dos estados separados de la suscripción (cancelar = ya no paga; desactivar = ya no entra), `suspended_at/by/reason` en `tenants`, login y refresh en 403; eliminar solo tras 30 días desactivado, reconfirmando la contraseña del propio administrador y escribiendo el nombre exacto; la purga es una función `purge_tenant()` `SECURITY DEFINER` en Postgres que comparte lógica con `infrastructure/scripts/purge-tenants.sql` (el guion usado hoy para limpiar 7 negocios de prueba en producción). 9 tareas F7-LIFECYCLE-01..09, ~22 h — `topic_key: sellpoint/tenant-lifecycle` — afecta: F7-ADMIN (extiende), guion de purga (pasa a llamar la función)
 - **2026-09-04 (EL BORDE REBOTABA EL LOGOTIPO: 413 DE NGINX)** — En producción «Subir imagen» fallaba con el mensaje genérico mientras en local funcionaba: nginx aplica 1 MB de cuerpo por defecto y una imagen de 2 MB en base64 pesa ~2.7 MB; su 413 llega en HTML y el interceptor del web rechazaba con un string pelado. Tres arreglos: `client_max_body_size 8m` en todo `location /api/` (por encima del `JSON_BODY_LIMIT` del API, para que el «no» lo diga el API en JSON), el interceptor normaliza cualquier respuesta sin JSON a `ApiError` con el status real, y la tarjeta explica un 413 como peso. Barrera `nginx-body-size.test.ts`: todo bloque `/api/` declara un tope ≥ el del API — `topic_key: sellpoint/nginx-body-size-413` — afecta: F4-TICKETCFG-09 (QA en prod)
