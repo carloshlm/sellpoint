@@ -28,14 +28,17 @@ const mockedVoid = vi.mocked(billingApi.voidPayment);
  * (registrar un pago). El flag del front solo pinta la pantalla; la verdad
  * vive en el guard del server.
  */
-const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
+const demoUser = (
+  isPlatformAdmin: boolean,
+  permissions: string[] = ["tenants:manage"],
+): AuthUser => ({
   id: "u1",
   email: "carls.hlm@gmail.com",
   firstName: "Carlos",
   lastNamePaternal: "H",
   lastNameMaternal: null,
   locale: "es",
-  permissions: ["tenants:manage"],
+  permissions,
   isPlatformAdmin,
   subscription: SUBSCRIPTION_PLUS,
   tenant: {
@@ -57,8 +60,8 @@ const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
   },
 });
 
-async function renderAdmin(isPlatformAdmin: boolean) {
-  useAuthStore.getState().setAuth("jwt", demoUser(isPlatformAdmin));
+async function renderAdmin(isPlatformAdmin: boolean, permissions?: string[]) {
+  useAuthStore.getState().setAuth("jwt", demoUser(isPlatformAdmin, permissions));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/admin/billing"] }),
@@ -665,5 +668,26 @@ describe("el menú tiene su grupo Backoffice", () => {
       await screen.findByText("Cobros", { selector: "[data-slot=card-title]" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Backoffice de cobros")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Carlos (2026-09-04): quien administra la plataforma entra a ver
+   * negocios, no a vender. El grupo va ANTES de «Catálogo» y «Negocios» es
+   * su primer enlace; «Cobros» va debajo.
+   */
+  it("va antes de «Catálogo», con «Negocios» arriba y «Cobros» abajo", async () => {
+    await renderAdmin(true, ["tenants:manage", "products:read"]);
+
+    const backoffice = await screen.findByRole("group", { name: "Backoffice" });
+    const catalogo = screen.getByRole("group", { name: "Catálogo" });
+    expect(
+      backoffice.compareDocumentPosition(catalogo) & Node.DOCUMENT_POSITION_FOLLOWING,
+      "el grupo Backoffice debe ir antes que Catálogo",
+    ).toBeTruthy();
+    expect(
+      within(backoffice)
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("aria-label")),
+    ).toEqual(["Negocios", "Cobros"]);
   });
 });

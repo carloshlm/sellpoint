@@ -169,6 +169,43 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <User className="size-4 shrink-0" aria-hidden="true" />
             {expanded && <span className="truncate">{t("common.layout.nav.profile")}</span>}
           </Link>
+          {/* El backoffice es un GRUPO (Carlos, 2026-09-02): va a crecer. Va
+              ANTES de Catálogo y con «Negocios» arriba (Carlos, 2026-09-04):
+              quien administra la plataforma entra a ver negocios, no a
+              vender; lo suyo va primero. */}
+          {isPlatformAdmin && (
+            <fieldset
+              aria-label={t("common.layout.nav.backoffice")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
+            >
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("common.layout.nav.backoffice")}
+                </span>
+              )}
+              <Link
+                to="/admin/tenants"
+                aria-label={t("common.billing.admin.tenants.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <Building2 className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && (
+                  <span className="truncate">{t("common.billing.admin.tenants.title")}</span>
+                )}
+              </Link>
+              <Link
+                to="/admin/billing"
+                aria-label={t("common.billing.admin.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <Wrench className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
+              </Link>
+            </fieldset>
+          )}
           {canSeeCatalogNav && (
             <fieldset
               aria-label={t("catalogs.nav.group")}
@@ -439,41 +476,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               <CreditCard className="size-4 shrink-0" aria-hidden="true" />
               {expanded && <span className="truncate">{t("common.billing.me.title")}</span>}
             </Link>
-          )}
-          {/* El backoffice es un GRUPO (Carlos, 2026-09-02): va a crecer, y
-              «Cobros» es su primer elemento. */}
-          {isPlatformAdmin && (
-            <fieldset
-              aria-label={t("common.layout.nav.backoffice")}
-              className="m-0 flex flex-col gap-1 border-0 p-0"
-            >
-              {expanded && (
-                <span
-                  aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
-                >
-                  {t("common.layout.nav.backoffice")}
-                </span>
-              )}
-              <Link
-                to="/admin/billing"
-                aria-label={t("common.billing.admin.title")}
-                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-              >
-                <Wrench className="size-4 shrink-0" aria-hidden="true" />
-                {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
-              </Link>
-              <Link
-                to="/admin/tenants"
-                aria-label={t("common.billing.admin.tenants.title")}
-                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-              >
-                <Building2 className="size-4 shrink-0" aria-hidden="true" />
-                {expanded && (
-                  <span className="truncate">{t("common.billing.admin.tenants.title")}</span>
-                )}
-              </Link>
-            </fieldset>
           )}
         </nav>
       </aside>
