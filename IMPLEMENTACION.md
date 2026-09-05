@@ -2660,7 +2660,7 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Salida:** con la cuenta admin de sandbox: apagar el interruptor en Mi perfil, abrir caja y buscar en el POS → la fila no dice cuántas hay; volver a encenderlo. Capturas.
   - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; bitácora; memoria (`sellpoint/pos-shows-stock`).
   - **Depende de:** F4-POSVIS-03 · **Estimación:** 0.5 h
-  - **Cerrado (2026-09-05):** en sandbox con la cuenta admin y un producto de prueba con 12 piezas: interruptor apagado → la fila del buscador dice solo nombre, código y precio, y con 999 piezas en el carrito no hay aviso rojo; por el API `available`/`expired` viajan en null. Encendido → «12 piezas disponibles» vuelve. Producto de prueba desactivado al terminar; el interruptor quedó encendido.
+  - **Cerrado (2026-09-05):** en sandbox con la cuenta admin y un producto de prueba con 12 piezas: interruptor apagado → la fila del buscador dice solo nombre, código y precio, y con 999 piezas en el carrito no hay aviso rojo; por el API `available`/`expired` viajan en null. Encendido → «12 piezas disponibles» vuelve. El producto de prueba «QA Existencias» (QA-POSVIS, 12 piezas) queda ACTIVO en el negocio admin de sandbox: el catálogo no deja desactivar un producto con existencias (409). El interruptor quedó encendido.
 
 ### Módulo F4-PWA — La app instalable
 
