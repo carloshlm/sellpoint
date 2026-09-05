@@ -246,6 +246,18 @@ export class AuthService implements OnModuleInit {
       throw new ForbiddenException({ message: "auth.account_suspended" });
     }
 
+    // F7-LIFECYCLE-04: un negocio DESACTIVADO no entra, con password buena o
+    // mala. Va después de verificar el hash (mismo camino que la cuenta
+    // suspendida): un 403 aquí no revela nada a quien no tenga la password.
+    // `tenants` no lleva RLS: se lee fuera de la transacción.
+    const negocio = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { suspendedAt: true },
+    });
+    if (negocio?.suspendedAt) {
+      throw new ForbiddenException({ message: "auth.tenant_suspended" });
+    }
+
     if (user.emailVerifiedAt === null) {
       throw new ForbiddenException({ message: "auth.email_not_verified" });
     }
@@ -394,6 +406,17 @@ export class AuthService implements OnModuleInit {
           return { kind: "suspended" };
         }
 
+        // F7-LIFECYCLE-04: el NEGOCIO desactivado corta el refresh igual que
+        // el usuario suspendido, y por la misma razón revoca la familia.
+        const negocio = await tx.tenant.findUnique({
+          where: { id: row.tenantId },
+          select: { suspendedAt: true },
+        });
+        if (negocio?.suspendedAt) {
+          await this.refreshTokenService.revokeFamily(tx, row.familyId);
+          return { kind: "tenant_suspended" };
+        }
+
         const rotated = await this.refreshTokenService.markUsedOrRevokeFamily(
           tx,
           row.id,
@@ -450,6 +473,9 @@ export class AuthService implements OnModuleInit {
 
     if (outcome.kind === "suspended") {
       throw new ForbiddenException({ message: "auth.account_suspended" });
+    }
+    if (outcome.kind === "tenant_suspended") {
+      throw new ForbiddenException({ message: "auth.tenant_suspended" });
     }
     if (outcome.kind === "reused") {
       throw new UnauthorizedException({ message: "auth.token_reused" });
@@ -864,5 +890,6 @@ export interface ChangePasswordResult {
 // en `refresh()` NUNCA throwee — ver el comentario en `refresh()`.
 type RefreshOutcome =
   | { kind: "suspended" }
+  | { kind: "tenant_suspended" }
   | { kind: "reused" }
   | { kind: "ok"; result: RefreshResult };

@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit/audit.module";
 import { BillingModule } from "../billing/billing.module";
 import { ReportsModule } from "../reports/reports.module";
 import { UsersModule } from "../users/users.module";
@@ -12,7 +13,7 @@ import { AdminTenantsService } from "./admin-tenants.service";
  * los services de esos módulos con un actor sintético.
  */
 @Module({
-  imports: [BillingModule, UsersModule, ReportsModule],
+  imports: [AuditModule, BillingModule, UsersModule, ReportsModule],
   controllers: [AdminTenantsController],
   providers: [AdminTenantsService],
 })

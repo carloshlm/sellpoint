@@ -44,6 +44,8 @@ function buildService(overrides?: {
   passwordResetTokenRow?: Record<string, unknown> | null;
   activeRefreshTokens?: Record<string, unknown>[];
   tenantRow?: Record<string, unknown>;
+  /** F7-LIFECYCLE-04: el negocio del usuario está desactivado desde… */
+  tenantSuspendedAt?: Date | null;
 }) {
   const tenantsService = {
     provision: overrides?.provisionError
@@ -122,13 +124,19 @@ function buildService(overrides?: {
     onboarded: false,
     monthlySalesGoal: null,
   };
+  const negocioDesactivado = jest
+    .fn()
+    .mockResolvedValue({ suspendedAt: overrides?.tenantSuspendedAt ?? null });
   const tx = {
     tenant: {
       findUniqueOrThrow: jest.fn().mockResolvedValue(tenantRow),
+      findUnique: negocioDesactivado,
     },
   };
   const prisma = {
     withTenantContext: jest.fn((_tenantId: string, fn: (tx: unknown) => unknown) => fn(tx)),
+    // `tenants` no tiene RLS: el login lo lee fuera de la transacción.
+    tenant: { findUnique: negocioDesactivado },
   } as unknown as PrismaService;
 
   const tokenService = {
@@ -428,6 +436,19 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
     });
   });
 
+  it("negocio DESACTIVADO con password correcto → 403 auth.tenant_suspended, sin sesión (F7-LIFECYCLE-04)", async () => {
+    const { service, authRepository } = await initService({
+      userRow: activeUser(),
+      tenantSuspendedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    await expect(service.login(loginInput, {})).rejects.toMatchObject({
+      status: 403,
+      response: { message: "auth.tenant_suspended" },
+    });
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
+  });
+
   it("email no verificado con password correcto → 403 auth.email_not_verified", async () => {
     const { service } = await initService({
       userRow: activeUser({ emailVerifiedAt: null }),
@@ -650,6 +671,30 @@ describe("AuthService.refresh (AUTH-REQ-05/06/11)", () => {
     // W7 (verify #271): sin esto el refresh token de un usuario suspendido
     // queda vivo (usedAt=null, revokedAt=null) — si se levanta la
     // suspensión, una sesión robada previa revive.
+    expect(refreshTokenService.revokeFamily).toHaveBeenCalledWith(tx, "family-1");
+  });
+
+  it("negocio DESACTIVADO mid-session → 403 auth.tenant_suspended, revoca la familia y no emite tokens (F7-LIFECYCLE-04)", async () => {
+    const refreshRow = {
+      id: "rt-1",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      familyId: "family-1",
+      usedAt: null,
+      revokedAt: null,
+      expiresAt: new Date(NOW.getTime() + 1000),
+    };
+    const { service, authRepository, refreshTokenService, tx } = buildService({
+      refreshRow,
+      userRow: activeUser(),
+      tenantSuspendedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    await expect(service.refresh("raw-cookie", {})).rejects.toMatchObject({
+      status: 403,
+      response: { message: "auth.tenant_suspended" },
+    });
+    expect(authRepository.createRefreshToken).not.toHaveBeenCalled();
     expect(refreshTokenService.revokeFamily).toHaveBeenCalledWith(tx, "family-1");
   });
 

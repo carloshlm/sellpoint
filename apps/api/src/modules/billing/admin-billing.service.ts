@@ -13,6 +13,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 export interface AdminTenantRow {
   tenantId: string;
   tenantName: string;
+  /** F7-LIFECYCLE-07: desde cuándo está desactivado; `null` = activo. */
+  suspendedAt: Date | null;
   country: string | null;
   /** La moneda del negocio: por la que se filtra y en la que se le cobra. */
   currency: string;
@@ -131,6 +133,7 @@ export class AdminBillingService {
         currency: true,
         timezone: true,
         createdAt: true,
+        suspendedAt: true,
       },
       orderBy: { createdAt: "asc" },
     });
@@ -154,6 +157,7 @@ export class AdminBillingService {
       return {
         tenantId: tenant.id,
         tenantName: tenant.name,
+        suspendedAt: tenant.suspendedAt,
         charges: this.chargesDe(tenant, planes, cuponPorTenant.get(tenant.id) ?? null, sub ?? null),
         country: tenant.country,
         currency: tenant.currency,

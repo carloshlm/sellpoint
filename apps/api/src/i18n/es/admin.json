@@ -1,0 +1,10 @@
+{
+  "invalid_body": "Los datos enviados no son válidos",
+  "cannot_touch_own_tenant": "No puedes desactivar ni eliminar tu propio negocio.",
+  "tenant_already_suspended": "Este negocio ya está desactivado.",
+  "tenant_not_suspended": "Este negocio no está desactivado.",
+  "tenant_not_deletable": "Un negocio solo se puede eliminar cuando lleva 30 días desactivado.",
+  "confirm_name_mismatch": "El nombre no coincide con el del negocio.",
+  "password_mismatch": "La contraseña no es correcta.",
+  "too_many_attempts": "Demasiados intentos. Espera 15 minutos."
+}

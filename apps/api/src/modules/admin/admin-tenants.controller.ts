@@ -1,5 +1,23 @@
-import { Controller, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import {
+  type DeleteTenantInput,
+  deleteTenantSchema,
+  type SuspendTenantInput,
+  suspendTenantSchema,
+} from "@sellpoint/shared";
 import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -68,8 +86,46 @@ export class AdminTenantsController {
   ) {}
 
   @Get(":tenantId/overview")
-  overview(@Param("tenantId") tenantId: string) {
-    return this.tenants.overview(tenantId);
+  overview(@Param("tenantId") tenantId: string, @CurrentUser() admin: AuthUser) {
+    return this.tenants.overview(tenantId, admin);
+  }
+
+  /** F7-LIFECYCLE-03 — desactivar: el negocio deja de entrar; reversible. */
+  @Post(":tenantId/suspend")
+  @HttpCode(200)
+  suspend(
+    @Param("tenantId") tenantId: string,
+    @Body(new ZodValidationPipe(suspendTenantSchema, "admin.invalid_body"))
+    body: SuspendTenantInput,
+    @CurrentUser() admin: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.tenants.suspend(admin, tenantId, body, metaFrom(request));
+  }
+
+  @Post(":tenantId/reactivate")
+  @HttpCode(200)
+  reactivate(
+    @Param("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.tenants.reactivate(admin, tenantId, metaFrom(request));
+  }
+
+  /**
+   * F7-LIFECYCLE-05 — eliminar un negocio desactivado hace ≥ 30 días. El
+   * cuerpo lleva el nombre exacto y la contraseña del PROPIO administrador.
+   */
+  @Delete(":tenantId")
+  @HttpCode(200)
+  purge(
+    @Param("tenantId") tenantId: string,
+    @Body(new ZodValidationPipe(deleteTenantSchema, "admin.invalid_body")) body: DeleteTenantInput,
+    @CurrentUser() admin: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.tenants.purge(admin, tenantId, body, metaFrom(request));
   }
 
   // ── Usuarios (F9-ADMIN-03) ──────────────────────────────────────────────

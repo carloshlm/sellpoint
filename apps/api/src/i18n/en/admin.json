@@ -1,0 +1,10 @@
+{
+  "invalid_body": "The submitted data is not valid",
+  "cannot_touch_own_tenant": "You cannot deactivate or delete your own business.",
+  "tenant_already_suspended": "This business is already deactivated.",
+  "tenant_not_suspended": "This business is not deactivated.",
+  "tenant_not_deletable": "A business can only be deleted after 30 days deactivated.",
+  "confirm_name_mismatch": "The name does not match the business name.",
+  "password_mismatch": "The password is not correct.",
+  "too_many_attempts": "Too many attempts. Wait 15 minutes."
+}
