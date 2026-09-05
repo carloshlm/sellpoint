@@ -355,6 +355,27 @@
           "title": "Reports",
           "sales": "Sales",
           "stock": "Inventory"
+        },
+        "suspended": "Deactivated",
+        "danger": {
+          "title": "Danger zone",
+          "intro": "Deactivating closes access for every user of the business; it can be reverted. Deleting erases the business with all its data and cannot be undone.",
+          "suspend": "Deactivate business",
+          "suspendTitle": "Deactivate {{name}}",
+          "suspendBody": "Nobody from this business will be able to sign in until you reactivate it. Its data is untouched.",
+          "reasonLabel": "Reason",
+          "reasonHint": "Between 5 and 300 characters. A month from now nobody remembers why.",
+          "suspendedSince": "Deactivated on {{date}} by {{name}} · {{days}} days so far",
+          "suspendedSinceAnon": "Deactivated on {{date}} · {{days}} days so far",
+          "reason": "Reason: {{reason}}",
+          "reactivate": "Reactivate",
+          "delete": "Delete business",
+          "deleteAfter": "It can be deleted starting {{date}}.",
+          "deleteTitle": "Delete {{name}}",
+          "deleteBody": "Users, catalogs, stock, sales, quotes, turns and records are erased. There is no way back.",
+          "confirmNameLabel": "Type the exact name: {{name}}",
+          "passwordLabel": "Your password",
+          "confirm": "Delete permanently"
         }
       }
     },

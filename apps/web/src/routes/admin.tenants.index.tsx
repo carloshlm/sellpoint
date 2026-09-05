@@ -13,6 +13,7 @@ import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { TABLE_HEAD_ROW, TABLE_ROW_HOVER } from "@/components/ui/table";
 import { getAdminTenants } from "@/lib/billing/api";
 import { formatDeadline } from "@/lib/billing/dates";
+import { formatBusinessDate } from "@/lib/inventory/format-date";
 import { MODULE_NAV } from "@/lib/modules/nav";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -85,7 +86,9 @@ function TenantsContent() {
               {filas.map((fila) => (
                 <tr
                   key={fila.tenantId}
-                  className={`border-b ${TABLE_ROW_HOVER}`}
+                  className={`border-b ${TABLE_ROW_HOVER} ${
+                    fila.suspendedAt === null ? "" : "text-muted-foreground"
+                  }`}
                   data-testid={`tenant-row-${fila.tenantId}`}
                 >
                   <td className="px-2 py-1">
@@ -102,7 +105,11 @@ function TenantsContent() {
                     {fila.country ?? "—"} · {fila.currency}
                   </td>
                   <td className="px-2 py-1">{fila.planName}</td>
-                  <td className="px-2 py-1">{t(`common.billing.me.status.${fila.status}`)}</td>
+                  <td className="px-2 py-1">
+                    {fila.suspendedAt === null
+                      ? t(`common.billing.me.status.${fila.status}`)
+                      : `${k("suspended")} · ${formatBusinessDate(fila.suspendedAt, locale, fila.timezone)}`}
+                  </td>
                   <td className="px-2 py-1">
                     {fila.modules.length === 0 ? (
                       "—"

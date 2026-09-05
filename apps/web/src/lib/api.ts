@@ -16,6 +16,8 @@ export interface ApiError {
    */
   recordId?: string | null;
   folio?: string | null;
+  /** F7-LIFECYCLE: el 409 de «todavía no se puede eliminar» dice desde cuándo sí. */
+  deletableAt?: string | null;
 }
 
 export const api = axios.create({

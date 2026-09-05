@@ -355,6 +355,27 @@
           "title": "Reportes",
           "sales": "Ventas",
           "stock": "Inventario"
+        },
+        "suspended": "Desactivado",
+        "danger": {
+          "title": "Zona de peligro",
+          "intro": "Desactivar cierra la entrada a todos los usuarios del negocio; se puede revertir. Eliminar borra el negocio con todos sus datos y no se puede deshacer.",
+          "suspend": "Desactivar negocio",
+          "suspendTitle": "Desactivar {{name}}",
+          "suspendBody": "Nadie de este negocio podrá entrar hasta que lo reactives. Sus datos no se tocan.",
+          "reasonLabel": "Motivo",
+          "reasonHint": "Entre 5 y 300 caracteres. Dentro de un mes nadie recuerda por qué.",
+          "suspendedSince": "Desactivado el {{date}} por {{name}} · lleva {{days}} días",
+          "suspendedSinceAnon": "Desactivado el {{date}} · lleva {{days}} días",
+          "reason": "Motivo: {{reason}}",
+          "reactivate": "Reactivar",
+          "delete": "Eliminar negocio",
+          "deleteAfter": "Se podrá eliminar a partir del {{date}}.",
+          "deleteTitle": "Eliminar {{name}}",
+          "deleteBody": "Se borran usuarios, catálogos, existencias, ventas, cotizaciones, turnos y expedientes. No hay vuelta atrás.",
+          "confirmNameLabel": "Escribe el nombre exacto: {{name}}",
+          "passwordLabel": "Tu contraseña",
+          "confirm": "Eliminar definitivamente"
         }
       }
     },

@@ -78,6 +78,8 @@ export interface AdminTenants {
   tenants: {
     tenantId: string;
     tenantName: string;
+    /** F7-LIFECYCLE-07 — desde cuándo está desactivado; `null` = activo. */
+    suspendedAt: string | null;
     country: string | null;
     planCode: string;
     planName: string;

@@ -122,6 +122,14 @@ const overview: adminApi.TenantOverview = {
     customPrice: null,
   },
   modules: [],
+  lifecycle: {
+    suspendedAt: null,
+    suspendedBy: null,
+    reason: null,
+    suspendedDays: 0,
+    deletableAt: null,
+    deletable: false,
+  },
 };
 
 beforeEach(() => {
@@ -141,6 +149,24 @@ beforeEach(() => {
         timezone: "America/Mexico_City",
         modules: ["reception"],
         charges: [],
+        suspendedAt: null,
+      },
+      {
+        tenantId: "t2",
+        tenantName: "Bodega Sur",
+        country: "MX",
+        currency: "MXN",
+        planCode: "basic",
+        planName: "Basic",
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-10-02T06:00:00.000Z",
+        lastPaymentAt: null,
+        timezone: "America/Mexico_City",
+        modules: [],
+        charges: [],
+        // Desactivado el 1 de agosto a las 10:00 en CDMX (15:00 UTC).
+        suspendedAt: "2026-08-01T15:00:00.000Z",
       },
     ],
     mrrByCurrency: {},
@@ -197,6 +223,21 @@ describe("«Negocios» (F9-ADMIN-06)", () => {
       "/admin/tenants/t1",
     );
     expect(within(fila).getByText("Recepción")).toBeInTheDocument();
+  });
+
+  /**
+   * F7-LIFECYCLE-07 — un negocio desactivado se ve tenue y su Estado dice
+   * desde cuándo, en el calendario del negocio; el activo, como siempre.
+   */
+  it("un negocio desactivado va tenue y dice «Desactivado · fecha»; el activo no", async () => {
+    await renderEn("/admin/tenants");
+    const desactivado = await screen.findByTestId("tenant-row-t2");
+    expect(desactivado).toHaveClass("text-muted-foreground");
+    expect(within(desactivado).getByText(/Desactivado · 1\/8\/26/)).toBeInTheDocument();
+    const activo = screen.getByTestId("tenant-row-t1");
+    expect(activo).not.toHaveClass("text-muted-foreground");
+    expect(within(activo).queryByText(/Desactivado/)).not.toBeInTheDocument();
+    expect(within(activo).getByText("Activo")).toBeInTheDocument();
   });
 
   it("sin el flag, ni el link ni la página", async () => {

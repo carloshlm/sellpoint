@@ -4,10 +4,14 @@ import type { ApiError } from "@/lib/api";
 import { disableModule, type EnableModuleInput, enableModule } from "@/lib/billing/api";
 import type { UserDetail } from "@/lib/rbac/api";
 import {
+  deleteTenant,
   getTenantOverview,
   listTenantUsers,
+  reactivateTenant,
   reactivateTenantUser,
+  suspendTenant,
   suspendTenantUser,
+  type TenantLifecycleView,
   type TenantOverview,
 } from "./api";
 
@@ -64,6 +68,35 @@ export function useDisableModule(tenantId: string) {
   const invalidar = useInvalidateTenant(tenantId);
   return useMutation<ModuleKey[], ApiError, { moduleKey: ModuleKey; reason: string }>({
     mutationFn: ({ moduleKey, reason }) => disableModule(tenantId, moduleKey, reason),
+    onSuccess: invalidar,
+  });
+}
+
+/** F7-LIFECYCLE-07 — desactivar, reactivar y eliminar el negocio entero. */
+export function useSuspendTenant(tenantId: string) {
+  const invalidar = useInvalidateTenant(tenantId);
+  return useMutation<TenantLifecycleView, ApiError, string>({
+    mutationFn: (reason) => suspendTenant(tenantId, reason),
+    onSuccess: invalidar,
+  });
+}
+
+export function useReactivateTenant(tenantId: string) {
+  const invalidar = useInvalidateTenant(tenantId);
+  return useMutation<TenantLifecycleView, ApiError, void>({
+    mutationFn: () => reactivateTenant(tenantId),
+    onSuccess: invalidar,
+  });
+}
+
+export function useDeleteTenant(tenantId: string) {
+  const invalidar = useInvalidateTenant(tenantId);
+  return useMutation<
+    { purged: true; name: string },
+    ApiError,
+    { password: string; confirmName: string }
+  >({
+    mutationFn: (input) => deleteTenant(tenantId, input),
     onSuccess: invalidar,
   });
 }

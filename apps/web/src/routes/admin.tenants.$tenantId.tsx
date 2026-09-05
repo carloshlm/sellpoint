@@ -2,6 +2,7 @@ import type { Currency } from "@sellpoint/shared";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
+import { TenantDangerZone } from "@/components/admin/tenant-danger-zone";
 import { TenantDashboardTab } from "@/components/admin/tenant-dashboard-tab";
 import { TenantOverviewTab } from "@/components/admin/tenant-overview-tab";
 import { TenantPlanTab } from "@/components/admin/tenant-plan-tab";
@@ -84,7 +85,18 @@ function TenantDetailContent() {
           tenantId={tenantId}
           currency={overview.tenant.currency as Currency}
         >
-          {tab === "overview" && <TenantOverviewTab overview={overview} />}
+          {tab === "overview" && (
+            <>
+              <TenantOverviewTab overview={overview} />
+              <TenantDangerZone
+                tenantId={tenantId}
+                tenantName={overview.tenant.name}
+                timezone={overview.tenant.timezone}
+                lifecycle={overview.lifecycle}
+                onDeleted={() => navigate({ to: "/admin/tenants" })}
+              />
+            </>
+          )}
           {tab === "users" && <TenantUsersTab tenantId={tenantId} />}
           {tab === "plan" && <TenantPlanTab overview={overview} tenantId={tenantId} />}
           {tab === "dashboard" && <TenantDashboardTab />}
