@@ -302,6 +302,19 @@ describe("Control por lote de un producto (F3-LOTS-01)", () => {
     mockedCatalogs.listFields.mockResolvedValue([]);
   });
 
+  it("los dos interruptores explican qué pasa al encenderlos (Carlos, 2026-09-05)", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    await openProduct();
+    expect(await screen.findByText(/Las entradas te pedirán lote y caducidad/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/se descuentan las existencias de sus componentes/),
+    ).toBeInTheDocument();
+  });
+
   it("sin saldo por lote el checkbox se puede tocar y viaja en el PATCH", async () => {
     mockedProducts.getProduct.mockResolvedValue({
       ...PRODUCT,

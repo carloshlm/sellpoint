@@ -292,6 +292,9 @@ export function TicketSettings({ user }: { user: AuthUser }) {
   );
 }
 
+/** El trazo negro del papel pasa a `currentColor` para verse en cualquier tema. */
+const enPantalla = (svg: string) => svg.replace('stroke="#000000"', 'stroke="currentColor"');
+
 /** Un logotipo de la rejilla: el SVG de shared inline y `aria-pressed` con la elección. */
 function LogoOpcion({
   etiqueta,
@@ -306,6 +309,7 @@ function LogoOpcion({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const html = svg === undefined ? null : enPantalla(svg);
   return (
     <button
       type="button"
@@ -317,12 +321,14 @@ function LogoOpcion({
         activo ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent"
       }`}
     >
-      {svg === undefined ? (
+      {html === null ? (
         <span className="text-muted-foreground">—</span>
       ) : (
-        // Es NUESTRO SVG, de shared, no entrada de usuario.
+        // Es NUESTRO SVG, de shared, no entrada de usuario. En PANTALLA el
+        // trazo toma el color del texto (tema oscuro incluido); en el papel
+        // sigue negro: el reemplazo es solo de esta vista (Carlos, 2026-09-05).
         // biome-ignore lint/security/noDangerouslySetInnerHtml: contenido propio y estático
-        <span className="size-8" aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />
+        <span className="size-8" aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
       )}
       <span>{etiqueta}</span>
     </button>

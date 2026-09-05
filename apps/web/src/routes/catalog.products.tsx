@@ -717,9 +717,10 @@ function ProductForm({
           justo los dos que más consecuencias tienen. Primero el de lotes,
           que es el que condiciona entradas, salidas y FEFO. */}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <Checkbox
           id="tracks-lots"
+          className="mt-0.5"
           checked={tracksLots}
           // Solo se bloquea para APAGARLO con saldo asignado a lotes: eso
           // dejaría las filas de `stock_lots` huérfanas. Encenderlo siempre se
@@ -732,17 +733,26 @@ function ProductForm({
           title={lotesBloqueados ? t("products.form.tracksLotsLocked") : undefined}
           onCheckedChange={(checked) => setTracksLots(checked === true)}
         />
-        <Label htmlFor="tracks-lots">{t("products.form.tracksLots")}</Label>
+        <div className="space-y-1">
+          <Label htmlFor="tracks-lots">{t("products.form.tracksLots")}</Label>
+          {/* Carlos (2026-09-05): un interruptor con consecuencias en todo el
+              sistema no puede ser una frase suelta; el texto dice qué pasa. */}
+          <p className="text-muted-foreground text-xs">{t("products.form.tracksLotsHint")}</p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <Checkbox
           id="is-composite"
+          className="mt-0.5"
           checked={isComposite}
           disabled={!canManage}
           onCheckedChange={(checked) => setIsComposite(checked === true)}
         />
-        <Label htmlFor="is-composite">{t("products.form.isComposite")}</Label>
+        <div className="space-y-1">
+          <Label htmlFor="is-composite">{t("products.form.isComposite")}</Label>
+          <p className="text-muted-foreground text-xs">{t("products.form.isCompositeHint")}</p>
+        </div>
       </div>
 
       {canManage && (

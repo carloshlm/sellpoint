@@ -42,7 +42,9 @@
     "tracksLots": "Este producto se controla por lote y caducidad",
     "tracksLotsLocked": "No se puede quitar: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",
     "location": "Ubicación en el almacén",
-    "locationHint": "Dónde suele estar: pasillo, estante o rack. Sirve para encontrarlo y para que la hoja del inventario físico se ordene por recorrido en vez de por nombre. Se actualiza sola con cada entrada e inventario. No lleva existencias por ubicación."
+    "locationHint": "Dónde suele estar: pasillo, estante o rack. Sirve para encontrarlo y para que la hoja del inventario físico se ordene por recorrido en vez de por nombre. Se actualiza sola con cada entrada e inventario. No lleva existencias por ubicación.",
+    "tracksLotsHint": "Enciéndelo si el producto trae número de lote y fecha de caducidad (medicamentos, alimentos). Las entradas te pedirán lote y caducidad, y las salidas irán primero por lo que caduca antes. Si no aplica, déjalo apagado.",
+    "isCompositeHint": "Enciéndelo si este producto se prepara con otros de tu catálogo (un paquete, una receta, un combo). Al venderlo se descuentan las existencias de sus componentes. Si lo compras ya hecho, déjalo apagado."
   },
   "presentations": {
     "add": "Agregar presentación",

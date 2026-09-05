@@ -123,6 +123,15 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
       expect(screen.getByLabelText(/Teléfono móvil/)).toHaveValue("5551234567");
     });
 
+    it("los interruptores van en este orden: vender sin existencias, mostrar existencias, ubicaciones", () => {
+      renderCard(demoUser(["tenants:manage"]));
+      expect(screen.getAllByRole("checkbox").map((c) => c.getAttribute("aria-label"))).toEqual([
+        "Vender sin existencias",
+        "Mostrar existencias en el punto de venta",
+        "Usar ubicaciones de almacén",
+      ]);
+    });
+
     /**
      * F4-POSVIS (Carlos, 2026-09-04): «¿el vendedor ve cuánto hay?» es otra
      * pregunta que «¿se puede cobrar de más?». Un interruptor propio, encendido

@@ -328,6 +328,35 @@ function BusinessDetails({ user }: { user: AuthUser }) {
           </div>
 
           {/*
+            F4-POSVIS (Carlos, 2026-09-04): «¿el vendedor ve cuánto hay?» es
+            otra pregunta que «¿se puede cobrar de más?» (arriba). Apagado, el
+            API no manda la existencia al punto de venta: ni «N disponibles»,
+            ni «más de lo que hay», ni «faltan N». La regla del cobro no cambia.
+          */}
+          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="pos-shows-stock">{t("common.profile.business.posShowsStock")}</Label>
+              <p className="text-muted-foreground text-xs">
+                {t("common.profile.business.posShowsStockHint")}
+              </p>
+            </div>
+            <Checkbox
+              id="pos-shows-stock"
+              aria-label={t("common.profile.business.posShowsStock")}
+              checked={posShowsStock}
+              disabled={updateTenant.isPending}
+              onCheckedChange={(checked) => {
+                const next = checked === true;
+                setPosShowsStock(next);
+                updateTenant.mutate(
+                  { posShowsStock: next },
+                  { onError: () => setPosShowsStock(!next) },
+                );
+              }}
+            />
+          </div>
+
+          {/*
             Las UBICACIONES son de NEGOCIO y no de plan: cobrar por un campo
             de texto sería débil, y quien contrata el plan más chico para su
             mostrador es justo quien más necesita acordarse de dónde dejó las
@@ -352,35 +381,6 @@ function BusinessDetails({ user }: { user: AuthUser }) {
                 updateTenant.mutate(
                   { usesLocations: next },
                   { onError: () => setUsesLocations(!next) },
-                );
-              }}
-            />
-          </div>
-
-          {/*
-            F4-POSVIS (Carlos, 2026-09-04): «¿el vendedor ve cuánto hay?» es
-            otra pregunta que «¿se puede cobrar de más?» (arriba). Apagado, el
-            API no manda la existencia al punto de venta: ni «N disponibles»,
-            ni «más de lo que hay», ni «faltan N». La regla del cobro no cambia.
-          */}
-          <div className="flex items-start justify-between gap-4 rounded-md border p-3">
-            <div className="space-y-1">
-              <Label htmlFor="pos-shows-stock">{t("common.profile.business.posShowsStock")}</Label>
-              <p className="text-muted-foreground text-xs">
-                {t("common.profile.business.posShowsStockHint")}
-              </p>
-            </div>
-            <Checkbox
-              id="pos-shows-stock"
-              aria-label={t("common.profile.business.posShowsStock")}
-              checked={posShowsStock}
-              disabled={updateTenant.isPending}
-              onCheckedChange={(checked) => {
-                const next = checked === true;
-                setPosShowsStock(next);
-                updateTenant.mutate(
-                  { posShowsStock: next },
-                  { onError: () => setPosShowsStock(!next) },
                 );
               }}
             />
