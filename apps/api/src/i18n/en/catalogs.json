@@ -32,5 +32,6 @@
   "record_code_taken": "A record with that code already exists in this catalog.",
   "record_referenced": "Can't archive it: other records are using it.",
   "invalid_body": "The submitted data isn't valid.",
-  "invalid_query": "The search filters aren't valid."
+  "invalid_query": "The search filters aren't valid.",
+  "tax_group_unknown": "That tax group does not exist in your business."
 }

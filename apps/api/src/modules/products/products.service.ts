@@ -14,6 +14,7 @@ import type { AuthUser } from "../auth/types/auth-user";
 import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
+import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
 import type {
   CreateProductDto,
   ListProductsQuery,
@@ -118,6 +119,7 @@ export class ProductsService {
           baseUnit: product.baseUnit,
           isComposite: product.isComposite,
           isActive: product.isActive,
+          taxGroupId: product.taxGroupId,
           attributes: product.attributes,
           // El precio que se lista es el de la presentación PREDETERMINADA:
           // es la que el POS preselecciona al vender.
@@ -164,6 +166,7 @@ export class ProductsService {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       await this.assertAttributesValid(tx, user, input.attributes);
       assertKnownUnit(input.baseUnit);
+      await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
 
       try {
         const product = await tx.product.create({
@@ -176,6 +179,7 @@ export class ProductsService {
             location: input.location ?? null,
             isComposite: input.isComposite,
             tracksLots: input.tracksLots,
+            taxGroupId: input.taxGroupId ?? null,
             attributes: input.attributes as Prisma.InputJsonValue,
           },
         });
@@ -228,6 +232,9 @@ export class ProductsService {
       if (input.attributes !== undefined) {
         await this.assertAttributesValid(tx, user, input.attributes);
       }
+      if (input.taxGroupId !== undefined) {
+        await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
+      }
 
       if (input.baseUnit !== undefined && input.baseUnit !== current.baseUnit) {
         assertKnownUnit(input.baseUnit);
@@ -258,6 +265,7 @@ export class ProductsService {
             ...(input.isComposite !== undefined ? { isComposite: input.isComposite } : {}),
             ...(input.tracksLots !== undefined ? { tracksLots: input.tracksLots } : {}),
             ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+            ...(input.taxGroupId !== undefined ? { taxGroupId: input.taxGroupId } : {}),
             ...(input.attributes !== undefined
               ? { attributes: input.attributes as Prisma.InputJsonValue }
               : {}),

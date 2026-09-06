@@ -6,6 +6,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
 import { SERVICES_CATALOG_KEY } from "../tenants/role-catalog";
+import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
 import type {
   CreateServiceDto,
   ListServicesQuery,
@@ -25,6 +26,8 @@ export interface ServiceSummary {
   isActive: boolean;
   /** F3-SVC-07. En qué almacenes se ofrece. Vacío = no se vende en ninguno. */
   warehouseIds: string[];
+  /** F4-TAX-10: el impuesto del servicio; null = el default del negocio. */
+  taxGroupId: string | null;
 }
 
 /**
@@ -96,6 +99,7 @@ export class ServicesService {
         });
       }
 
+      await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
       let service: Awaited<ReturnType<typeof tx.service.create>>;
       try {
         service = await tx.service.create({
@@ -106,6 +110,7 @@ export class ServicesService {
             description: input.description ?? null,
             cost: input.cost ?? null,
             price: input.price ?? null,
+            taxGroupId: input.taxGroupId ?? null,
             ...(input.attributes !== undefined
               ? { attributes: input.attributes as Prisma.InputJsonValue }
               : {}),
@@ -162,11 +167,15 @@ export class ServicesService {
         });
       }
 
+      if (input.taxGroupId !== undefined) {
+        await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
+      }
       let updated: Awaited<ReturnType<typeof tx.service.update>>;
       try {
         updated = await tx.service.update({
           where: { id },
           data: {
+            ...(input.taxGroupId !== undefined ? { taxGroupId: input.taxGroupId } : {}),
             ...(input.code !== undefined ? { code: input.code } : {}),
             ...(input.name !== undefined ? { name: input.name } : {}),
             ...(input.description !== undefined ? { description: input.description ?? null } : {}),
@@ -305,6 +314,7 @@ function toSummary(row: {
   price: Prisma.Decimal | null;
   attributes: unknown;
   isActive: boolean;
+  taxGroupId: string | null;
   warehouses?: { warehouseId: string }[];
 }): ServiceSummary {
   return {
@@ -317,6 +327,7 @@ function toSummary(row: {
     price: row.price?.toString() ?? null,
     attributes: row.attributes,
     isActive: row.isActive,
+    taxGroupId: row.taxGroupId,
     warehouseIds: (row.warehouses ?? []).map((fila) => fila.warehouseId),
   };
 }

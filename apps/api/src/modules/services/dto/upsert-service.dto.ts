@@ -15,6 +15,8 @@ export const createServiceSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   cost: moneyAmount().optional(),
   price: moneyAmount().optional(),
+  /** F4-TAX-10: el impuesto del servicio; null o ausente = el default del negocio. */
+  taxGroupId: z.string().uuid().nullable().optional(),
   /**
    * F3-SVC-07. En qué almacenes se ofrece. Semántica EXPLÍCITA: `[]` es válido
    * y significa que el servicio **no se vende en ningún lado** todavía — al
@@ -33,6 +35,7 @@ export const updateServiceSchema = z
     description: z.string().trim().max(2000).nullable().optional(),
     cost: moneyAmount().nullable().optional(),
     price: moneyAmount().nullable().optional(),
+    taxGroupId: z.string().uuid().nullable().optional(),
     isActive: z.boolean().optional(),
     /** Presente = REEMPLAZO completo del set. Ausente = no tocar. */
     warehouseIds: z.array(z.uuid()).max(200).optional(),

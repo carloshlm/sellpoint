@@ -32,5 +32,6 @@
   "record_code_taken": "Ya existe un registro con ese código en este catálogo.",
   "record_referenced": "No se puede archivar: hay registros que lo usan.",
   "invalid_body": "Los datos enviados no son válidos.",
-  "invalid_query": "Los filtros de búsqueda no son válidos."
+  "invalid_query": "Los filtros de búsqueda no son válidos.",
+  "tax_group_unknown": "Ese grupo de impuesto no existe en tu negocio."
 }

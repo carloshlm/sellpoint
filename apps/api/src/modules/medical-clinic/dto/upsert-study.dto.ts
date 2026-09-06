@@ -22,6 +22,8 @@ export const createStudySchema = z.object({
   description: descripcion.optional(),
   cost: dinero.optional(),
   price: dinero.optional(),
+  /** F4-TAX-10: el impuesto del estudio; null o ausente = el default del negocio. */
+  taxGroupId: z.string().uuid().nullable().optional(),
 });
 
 export const updateStudySchema = z
@@ -31,6 +33,7 @@ export const updateStudySchema = z
     description: descripcion.nullable().optional(),
     cost: dinero.nullable().optional(),
     price: dinero.nullable().optional(),
+    taxGroupId: z.string().uuid().nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "medical_clinic.empty_update" });

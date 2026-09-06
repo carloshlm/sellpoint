@@ -27,6 +27,8 @@ export const createProductSchema = z.object({
   attributes: z.record(z.string(), z.unknown()).default({}),
   price: moneyAmount().optional(),
   cost: moneyAmount().optional(),
+  /** F4-TAX-10: el impuesto del artículo; null o ausente = el default del negocio. */
+  taxGroupId: z.string().uuid().nullable().optional(),
   barcode: z.string().trim().min(1).max(64).optional(),
 });
 
@@ -44,6 +46,7 @@ export const updateProductSchema = z
     attributes: z.record(z.string(), z.unknown()).optional(),
     price: moneyAmount().nullable().optional(),
     cost: moneyAmount().nullable().optional(),
+    taxGroupId: z.string().uuid().nullable().optional(),
     // `null` BORRA el código; `undefined` es «no lo toques». La distinción
     // importa: un producto puede perder su código de barras a propósito.
     barcode: z.string().trim().min(1).max(64).nullable().optional(),

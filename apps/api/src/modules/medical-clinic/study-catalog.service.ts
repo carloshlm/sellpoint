@@ -4,6 +4,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertTaxGroupOfTenant } from "../tenants/tax-group-lookup";
 import type { CreateStudyDto, ListStudiesQuery, UpdateStudyDto } from "./dto/upsert-study.dto";
 
 /** Lo que sale al cliente. El dinero viaja como texto decimal, como en todo el API. */
@@ -14,6 +15,8 @@ export interface StudySummary {
   description: string | null;
   cost: string | null;
   price: string | null;
+  /** F4-TAX-10: el impuesto del estudio; null = el default del negocio. */
+  taxGroupId: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -26,6 +29,7 @@ export interface StudyRow {
   description: string | null;
   cost: Prisma.Decimal | null;
   price: Prisma.Decimal | null;
+  taxGroupId: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -133,6 +137,7 @@ export abstract class StudyCatalogService {
 
   async create(user: AuthUser, input: CreateStudyDto, meta: RequestMeta): Promise<StudySummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
       let creado: StudyRow;
       try {
         creado = await this.config.delegate(tx).create({
@@ -143,6 +148,7 @@ export abstract class StudyCatalogService {
             description: input.description ?? null,
             cost: input.cost === undefined ? null : new Prisma.Decimal(input.cost),
             price: input.price === undefined ? null : new Prisma.Decimal(input.price),
+            taxGroupId: input.taxGroupId ?? null,
             createdBy: user.userId,
           },
         });
@@ -188,6 +194,10 @@ export abstract class StudyCatalogService {
       if (input.price !== undefined)
         data.price = input.price === null ? null : new Prisma.Decimal(input.price);
       if (input.isActive !== undefined) data.isActive = input.isActive;
+      if (input.taxGroupId !== undefined) {
+        await assertTaxGroupOfTenant(tx, user.tenantId, input.taxGroupId);
+        data.taxGroupId = input.taxGroupId;
+      }
 
       let despues: StudyRow;
       try {
@@ -252,6 +262,7 @@ export function toSummary(row: StudyRow): StudySummary {
     description: row.description,
     cost: row.cost === null ? null : row.cost.toString(),
     price: row.price === null ? null : row.price.toString(),
+    taxGroupId: row.taxGroupId,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
