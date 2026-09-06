@@ -158,6 +158,38 @@
       "save": "Guardar",
       "saved": "Configuración guardada.",
       "loadFailed": "No pudimos cargar la configuración del ticket."
+    },
+    "tax": {
+      "title": "Impuestos",
+      "subtitle": "Cómo se calcula el impuesto de lo que vendes y con qué tasas. Cada artículo usa el grupo predeterminado salvo que le asignes otro; el ticket y la cotización lo desglosan.",
+      "modeTitle": "¿El precio de tus artículos ya incluye el impuesto?",
+      "modeIncluded": "Sí: el precio que capturo es el precio final al público (México, Europa, Latinoamérica). El ticket desglosa cuánto va incluido.",
+      "modeExcluded": "No: el impuesto se agrega al cobrar (Canadá, Estados Unidos). El ticket suma cada componente al final.",
+      "modeWarning": "Ya tienes ventas registradas. Cambiar el modo no toca lo ya cobrado, pero desde ahora el cálculo será distinto.",
+      "region": "Provincia o estado",
+      "regionHint": "Sirve para proponerte las tasas correctas de tu zona.",
+      "regionChoose": "Elige…",
+      "groupsTitle": "Grupos de impuesto",
+      "groupsHint": "Un grupo sin componentes es exento. El código es lo que viaja en la plantilla de Excel (columna «impuesto»).",
+      "code": "Código",
+      "name": "Nombre",
+      "default": "Predeterminado",
+      "active": "Activo",
+      "usage": "Lo usan {{count}} artículos",
+      "rates": "Componentes",
+      "rateCode": "Código",
+      "rateName": "Nombre en el ticket",
+      "rate": "Tasa (%)",
+      "addRate": "Agregar componente",
+      "removeRate": "Quitar",
+      "addGroup": "Agregar grupo",
+      "remove": "Borrar grupo",
+      "save": "Guardar impuestos",
+      "saved": "Impuestos guardados.",
+      "loadFailed": "No se pudo cargar la configuración de impuestos.",
+      "rateInvalid": "La tasa va de 0 a 100 con hasta cuatro decimales.",
+      "defaultRequired": "Marca un grupo activo como predeterminado.",
+      "codeInvalid": "El código solo admite mayúsculas, números y guion bajo."
     }
   },
   "dialog": {
@@ -436,5 +468,10 @@
       "reports": "Reportes",
       "reports_export": "Exportar reportes"
     }
+  },
+  "tax": {
+    "selectLabel": "Impuesto",
+    "selectDefault": "Predeterminado del negocio ({{name}})",
+    "selectDefaultUnknown": "Predeterminado del negocio"
   }
 }

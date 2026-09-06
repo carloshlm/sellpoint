@@ -39,6 +39,39 @@ vi.mock("../lib/catalogs/api", () => ({
   listFields: vi.fn(),
   listLookupOptions: vi.fn(),
 }));
+vi.mock("@/lib/tenant/tax-api", () => ({
+  getTaxSettings: vi.fn().mockResolvedValue({
+    mode: "included",
+    country: "MX",
+    region: null,
+    needsRegion: false,
+    hasSales: false,
+    groups: [
+      {
+        id: "tg-vat",
+        code: "VAT16",
+        name: "IVA 16%",
+        isDefault: true,
+        isActive: true,
+        sortOrder: 0,
+        usageCount: 0,
+        rates: [{ code: "VAT", name: "IVA 16%", rate: "16" }],
+      },
+      {
+        id: "tg-ex",
+        code: "EXEMPT",
+        name: "Exento",
+        isDefault: false,
+        isActive: true,
+        sortOrder: 1,
+        usageCount: 0,
+        rates: [],
+      },
+    ],
+  }),
+  updateTaxSettings: vi.fn(),
+  deleteTaxGroup: vi.fn(),
+}));
 
 const mockedProducts = vi.mocked(productsApi);
 const mockedCatalogs = vi.mocked(catalogsApi);
@@ -734,5 +767,86 @@ describe("el nombre del producto abre la ficha", () => {
     expect(
       await screen.findByRole("navigation", { name: /secciones del producto/i }),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * F4-TAX-15 — el selector «Impuesto» del alta de producto: se llena del API
+ * y ofrece el predeterminado con su nombre; guardar sin tocarlo manda
+ * `taxGroupId: null` (el default del negocio); elegir «Exento» manda su id.
+ */
+describe("el selector «Impuesto» del producto (F4-TAX-15)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });
+    mockedProducts.createProduct.mockResolvedValue(PRODUCT);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  it("sin tocarlo manda null; con «Exento» manda su id", async () => {
+    useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+    const select = await screen.findByLabelText("Impuesto");
+    await waitFor(() =>
+      expect(Array.from(select.querySelectorAll("option")).map((o) => o.textContent)).toEqual([
+        "Predeterminado del negocio (IVA 16%)",
+        "IVA 16%",
+        "Exento",
+      ]),
+    );
+    await user.type(screen.getByLabelText(/Nombre/), "Paracetamol");
+    await user.type(screen.getByLabelText(/Código interno|SKU/i), "PAR-1");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mockedProducts.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ taxGroupId: null }),
+        expect.anything(),
+      ),
+    );
+
+    mockedProducts.createProduct.mockClear();
+    await user.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+    await user.selectOptions(await screen.findByLabelText("Impuesto"), "tg-ex");
+    await user.type(screen.getByLabelText(/Nombre/), "Medicina");
+    await user.type(screen.getByLabelText(/Código interno|SKU/i), "MED-1");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mockedProducts.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ taxGroupId: "tg-ex" }),
+        expect.anything(),
+      ),
+    );
+
+    // Volver a «Predeterminado» pasa por el selector y tiene que mandar null,
+    // no el id del default: el artículo hereda, no se congela.
+    mockedProducts.createProduct.mockClear();
+    await user.click(await screen.findByRole("button", { name: "Nuevo producto" }));
+    const otroSelect = await screen.findByLabelText("Impuesto");
+    await user.selectOptions(otroSelect, "tg-ex");
+    await user.selectOptions(otroSelect, "");
+    await user.type(screen.getByLabelText(/Nombre/), "Jarabe");
+    await user.type(screen.getByLabelText(/Código interno|SKU/i), "JAR-1");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mockedProducts.createProduct).toHaveBeenCalledWith(
+        expect.objectContaining({ taxGroupId: null }),
+        expect.anything(),
+      ),
+    );
   });
 });

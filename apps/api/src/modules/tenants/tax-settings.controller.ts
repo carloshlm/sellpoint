@@ -18,8 +18,12 @@ function metaFrom(request: Request) {
 export class TaxSettingsController {
   constructor(private readonly settings: TaxSettingsService) {}
 
+  /**
+   * Leer no exige `tenants:manage`: el selector «Impuesto» del alta de
+   * productos, servicios y estudios lo necesita cualquiera que edite el
+   * catálogo, y la lista de tasas no es un secreto del negocio.
+   */
   @Get()
-  @RequirePermissions("tenants:manage")
   get(@CurrentUser() user: AuthUser) {
     return this.settings.get(user);
   }

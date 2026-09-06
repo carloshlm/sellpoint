@@ -43,6 +43,39 @@ vi.mock("../lib/catalogs/api", async (importOriginal) => ({
   listCatalogs: vi.fn(),
   listFields: vi.fn(),
 }));
+vi.mock("@/lib/tenant/tax-api", () => ({
+  getTaxSettings: vi.fn().mockResolvedValue({
+    mode: "included",
+    country: "MX",
+    region: null,
+    needsRegion: false,
+    hasSales: false,
+    groups: [
+      {
+        id: "tg-vat",
+        code: "VAT16",
+        name: "IVA 16%",
+        isDefault: true,
+        isActive: true,
+        sortOrder: 0,
+        usageCount: 0,
+        rates: [{ code: "VAT", name: "IVA 16%", rate: "16" }],
+      },
+      {
+        id: "tg-ex",
+        code: "EXEMPT",
+        name: "Exento",
+        isDefault: false,
+        isActive: true,
+        sortOrder: 1,
+        usageCount: 0,
+        rates: [],
+      },
+    ],
+  }),
+  updateTaxSettings: vi.fn(),
+  deleteTaxGroup: vi.fn(),
+}));
 
 const mockedApi = vi.mocked(servicesApi);
 const mockedCatalogs = vi.mocked(catalogsApi);
@@ -92,6 +125,7 @@ const servicio = (over: Partial<servicesApi.Service> = {}): servicesApi.Service 
   description: null,
   cost: "40",
   price: "150",
+  taxGroupId: null,
   isActive: true,
   warehouseIds: ["w1", "w2"],
   attributes: {},
@@ -481,6 +515,57 @@ describe("campos dinámicos del servicio (2026-08-26)", () => {
 
     expect(await screen.findByTestId("service-import-report")).toHaveTextContent(
       "Fila 2: DUP-01 - Ese código se repite en el archivo.",
+    );
+  });
+});
+
+/** F4-TAX-15 — el selector «Impuesto» del servicio: null sin tocarlo, el id al elegir «Exento». */
+describe("el selector «Impuesto» del servicio (F4-TAX-15)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedApi.listServices.mockResolvedValue({
+      rows: [servicio()],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    mockedApi.createService.mockResolvedValue(servicio());
+  });
+
+  it("sin tocarlo manda null; con «Exento» manda su id", async () => {
+    const user = userEvent.setup();
+    await renderServices();
+    await screen.findByText("Corte de cabello");
+    await user.click(screen.getByRole("button", { name: "Nuevo servicio" }));
+    const select = await screen.findByLabelText("Impuesto");
+    await waitFor(() =>
+      expect(Array.from(select.querySelectorAll("option")).map((o) => o.textContent)).toEqual([
+        "Predeterminado del negocio (IVA 16%)",
+        "IVA 16%",
+        "Exento",
+      ]),
+    );
+    await user.type(screen.getByLabelText("Código"), "TINTE");
+    await user.type(screen.getByLabelText("Nombre"), "Tinte");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mockedApi.createService).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "TINTE", taxGroupId: null }),
+        expect.anything(),
+      ),
+    );
+
+    mockedApi.createService.mockClear();
+    await user.click(await screen.findByRole("button", { name: "Nuevo servicio" }));
+    await user.selectOptions(await screen.findByLabelText("Impuesto"), "tg-ex");
+    await user.type(screen.getByLabelText("Código"), "CONS");
+    await user.type(screen.getByLabelText("Nombre"), "Consulta");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mockedApi.createService).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "CONS", taxGroupId: "tg-ex" }),
+        expect.anything(),
+      ),
     );
   });
 });

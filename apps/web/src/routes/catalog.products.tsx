@@ -11,6 +11,7 @@ import { PresentationsTab } from "@/components/catalog/presentations-tab";
 import { ProductImportDialog } from "@/components/catalog/product-import-dialog";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { SelectField } from "@/components/form/select-field";
+import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
@@ -500,6 +501,7 @@ function ProductForm({
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(basePresentation?.price ?? "");
+  const [taxGroupId, setTaxGroupId] = useState<string | null>(product?.taxGroupId ?? null);
   const [cost, setCost] = useState(basePresentation?.cost ?? "");
   // Sale de la presentación base, igual que el precio: `barcode` no es columna
   // de `products` —la caja de 12 y la pieza suelta llevan códigos distintos—
@@ -575,6 +577,9 @@ function ProductForm({
           ...(price !== "" ? { price: Number(price) } : {}),
           ...(cost !== "" ? { cost: Number(cost) } : {}),
           ...(barcode !== "" ? { barcode } : {}),
+          // F4-TAX-15: null = el default del negocio; se manda SIEMPRE para
+          // que quitar un override también viaje.
+          taxGroupId,
         };
 
         if (product) {
@@ -678,6 +683,7 @@ function ProductForm({
         disabled={!canManage}
         onChange={(event) => setPrice(event.target.value)}
       />
+      <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} disabled={!canManage} />
       <TextField
         label={t("products.form.stockMin")}
         type="number"

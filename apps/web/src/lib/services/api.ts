@@ -12,6 +12,8 @@ export interface Service {
   isActive: boolean;
   /** F3-SVC-07. En qué almacenes se ofrece. Vacío = no se vende en ninguno. */
   warehouseIds: string[];
+  /** F4-TAX-15: el impuesto del servicio; null = el default del negocio. */
+  taxGroupId: string | null;
   /** Campos dinámicos del catálogo de sistema "services" (2026-08-26). */
   attributes: Record<string, unknown>;
 }
@@ -22,6 +24,7 @@ export interface CreateServiceInput {
   description?: string;
   cost?: number;
   price?: number;
+  taxGroupId?: string | null;
   /** Requerido: olvidarlo crearía un servicio invendible en silencio. */
   warehouseIds: string[];
   attributes?: Record<string, unknown>;
@@ -33,6 +36,7 @@ export interface UpdateServiceInput {
   description?: string | null;
   cost?: number | null;
   price?: number | null;
+  taxGroupId?: string | null;
   isActive?: boolean;
   /** Presente = reemplazo completo del set. Ausente = no tocar. */
   warehouseIds?: string[];

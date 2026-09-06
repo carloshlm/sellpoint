@@ -22,6 +22,39 @@ vi.mock("@/lib/medical-clinic/api", () => ({
   updateStudy: vi.fn(),
   removeStudy: vi.fn(),
 }));
+vi.mock("@/lib/tenant/tax-api", () => ({
+  getTaxSettings: vi.fn().mockResolvedValue({
+    mode: "included",
+    country: "MX",
+    region: null,
+    needsRegion: false,
+    hasSales: false,
+    groups: [
+      {
+        id: "tg-vat",
+        code: "VAT16",
+        name: "IVA 16%",
+        isDefault: true,
+        isActive: true,
+        sortOrder: 0,
+        usageCount: 0,
+        rates: [{ code: "VAT", name: "IVA 16%", rate: "16" }],
+      },
+      {
+        id: "tg-ex",
+        code: "EXEMPT",
+        name: "Exento",
+        isDefault: false,
+        isActive: true,
+        sortOrder: 1,
+        usageCount: 0,
+        rates: [],
+      },
+    ],
+  }),
+  updateTaxSettings: vi.fn(),
+  deleteTaxGroup: vi.fn(),
+}));
 const mocked = vi.mocked(clinicApi);
 
 const demoUser = (permissions: string[]): AuthUser => ({
@@ -43,6 +76,7 @@ const estudio = (over: Partial<clinicApi.Study> = {}): clinicApi.Study => ({
   description: null,
   cost: "40",
   price: "180",
+  taxGroupId: null,
   isActive: true,
   createdAt: "2026-09-03T18:00:00.000Z",
   updatedAt: "2026-09-03T18:00:00.000Z",
@@ -132,6 +166,8 @@ describe.each([
         name: "Rayos X de tórax",
         cost: 120,
         price: 350,
+        // F4-TAX-15: sin tocar el selector, el default del negocio (null).
+        taxGroupId: null,
       }),
     );
   });
@@ -177,5 +213,29 @@ describe.each([
     await renderRuta(ruta, ["medical_clinic:read"]);
     await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByRole("button", { name: titulo })).not.toBeInTheDocument();
+  });
+});
+
+/** F4-TAX-15 — el selector «Impuesto» del estudio: elegir «Exento» manda su id. */
+describe("el selector «Impuesto» del estudio (F4-TAX-15)", () => {
+  it("elegir «Exento» manda taxGroupId con su id", async () => {
+    await renderRuta("/medical-clinic/lab-studies", [
+      "medical_clinic:read",
+      "medical_clinic:manage",
+    ]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Agregar" }));
+    const select = await screen.findByLabelText("Impuesto");
+    await waitFor(() => expect(select.querySelectorAll("option")).toHaveLength(3));
+    await user.selectOptions(select, "tg-ex");
+    await user.type(screen.getByLabelText("Código"), "BH");
+    await user.type(screen.getByLabelText("Nombre"), "Biometría hemática");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.createStudy).toHaveBeenCalledWith(
+        "lab",
+        expect.objectContaining({ code: "BH", taxGroupId: "tg-ex" }),
+      ),
+    );
   });
 });

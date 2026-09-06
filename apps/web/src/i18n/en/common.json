@@ -158,6 +158,38 @@
       "save": "Save",
       "saved": "Settings saved.",
       "loadFailed": "We could not load the receipt settings."
+    },
+    "tax": {
+      "title": "Taxes",
+      "subtitle": "How the tax on what you sell is calculated and at which rates. Every item uses the default group unless you assign another one; the receipt and the quote break it down.",
+      "modeTitle": "Do your item prices already include the tax?",
+      "modeIncluded": "Yes: the price I enter is the final price to the public (Mexico, Europe, Latin America). The receipt shows how much is included.",
+      "modeExcluded": "No: the tax is added at checkout (Canada, United States). The receipt adds each component at the end.",
+      "modeWarning": "You already have sales. Changing the mode does not touch what was charged, but from now on the calculation will differ.",
+      "region": "Province or state",
+      "regionHint": "Used to propose the right rates for your area.",
+      "regionChoose": "Choose…",
+      "groupsTitle": "Tax groups",
+      "groupsHint": "A group with no components is exempt. The code is what travels in the Excel template (column “tax”).",
+      "code": "Code",
+      "name": "Name",
+      "default": "Default",
+      "active": "Active",
+      "usage": "Used by {{count}} items",
+      "rates": "Components",
+      "rateCode": "Code",
+      "rateName": "Name on the receipt",
+      "rate": "Rate (%)",
+      "addRate": "Add component",
+      "removeRate": "Remove",
+      "addGroup": "Add group",
+      "remove": "Delete group",
+      "save": "Save taxes",
+      "saved": "Taxes saved.",
+      "loadFailed": "The tax settings could not be loaded.",
+      "rateInvalid": "The rate goes from 0 to 100 with up to four decimals.",
+      "defaultRequired": "Mark one active group as the default.",
+      "codeInvalid": "The code only allows uppercase letters, numbers and underscores."
     }
   },
   "dialog": {
@@ -436,5 +468,10 @@
       "reports": "Reports",
       "reports_export": "Export reports"
     }
+  },
+  "tax": {
+    "selectLabel": "Tax",
+    "selectDefault": "Business default ({{name}})",
+    "selectDefaultUnknown": "Business default"
   }
 }

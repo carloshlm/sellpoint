@@ -77,6 +77,7 @@ describe("Configuración de impuestos (F4-TAX-09)", () => {
       mode: "included",
       region: null,
       needsRegion: true,
+      hasSales: false,
       groups: [],
     });
   });
@@ -186,8 +187,8 @@ describe("Configuración de impuestos (F4-TAX-09)", () => {
     await borrar(negocio.token, "NADA").expect(422);
   });
 
-  it("sin tenants:manage no se lee ni se cambia", async () => {
-    await get(viewerToken).expect(403);
+  it("sin tenants:manage se lee (el selector del catálogo lo necesita) pero no se cambia", async () => {
+    await get(viewerToken).expect(200);
     await put(viewerToken, { mode: "included" }).expect(403);
     await borrar(viewerToken, "GST_PST").expect(403);
   });

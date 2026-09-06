@@ -20,6 +20,8 @@ export interface Study {
   description: string | null;
   cost: string | null;
   price: string | null;
+  /** F4-TAX-15: el impuesto del estudio; null = el default del negocio. */
+  taxGroupId: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +40,7 @@ export interface CreateStudyInput {
   description?: string;
   cost?: number;
   price?: number;
+  taxGroupId?: string | null;
 }
 
 export interface UpdateStudyInput {
@@ -46,6 +49,7 @@ export interface UpdateStudyInput {
   description?: string | null;
   cost?: number | null;
   price?: number | null;
+  taxGroupId?: string | null;
   isActive?: boolean;
 }
 

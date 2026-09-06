@@ -8,6 +8,8 @@ export interface ProductListItem {
   baseUnit: string;
   isComposite: boolean;
   isActive: boolean;
+  /** F4-TAX-15: el impuesto del artículo; null = el default del negocio. */
+  taxGroupId: string | null;
   attributes: Record<string, unknown>;
   /** Precio de la presentación predeterminada, ya como string decimal. */
   price: string | null;
@@ -104,6 +106,8 @@ export interface UpsertProductInput {
   attributes?: Record<string, unknown>;
   price?: number | null;
   cost?: number | null;
+  /** F4-TAX-15: null = el default del negocio. */
+  taxGroupId?: string | null;
   isActive?: boolean;
 }
 

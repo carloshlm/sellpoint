@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
@@ -28,6 +29,7 @@ export function StudyForm({
   const [description, setDescription] = useState(study?.description ?? "");
   const [cost, setCost] = useState(study?.cost ?? "");
   const [price, setPrice] = useState(study?.price ?? "");
+  const [taxGroupId, setTaxGroupId] = useState<string | null>(study?.taxGroupId ?? null);
   const createStudy = useCreateStudy(kind);
   const updateStudy = useUpdateStudy(kind);
   const busy = createStudy.isPending || updateStudy.isPending;
@@ -45,6 +47,7 @@ export function StudyForm({
           ...(description.trim() !== "" && { description: description.trim() }),
           ...(numero(cost) !== undefined && { cost: numero(cost) }),
           ...(numero(price) !== undefined && { price: numero(price) }),
+          taxGroupId,
         },
         { onSuccess: onDone, onError: onErr },
       );
@@ -59,6 +62,7 @@ export function StudyForm({
           description: description.trim() === "" ? null : description.trim(),
           cost: numero(cost) ?? null,
           price: numero(price) ?? null,
+          taxGroupId,
         },
       },
       { onSuccess: onDone, onError: onErr },
@@ -106,6 +110,7 @@ export function StudyForm({
           onChange={(event) => setPrice(event.target.value)}
         />
       </div>
+      <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} />
       <div className="flex gap-2">
         <Button type="submit" disabled={busy || !code.trim() || !name.trim()}>
           {busy ? t("common.form.submitting") : t("common.form.save")}

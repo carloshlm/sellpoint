@@ -26,6 +26,8 @@ export interface TaxSettingsView {
   region: string | null;
   /** Solo Canadá y EE. UU.: sin región no se puede sembrar la tasa correcta. */
   needsRegion: boolean;
+  /** Con ventas hechas, cambiar el modo merece una advertencia en la tarjeta (los snapshots protegen lo cobrado). */
+  hasSales: boolean;
   groups: TaxGroupView[];
 }
 
@@ -69,11 +71,13 @@ export class TaxSettingsService {
       include: INCLUDE_TASAS,
     });
     const usos = await this.usosPorGrupo(tx, tenantId);
+    const ventas = await tx.sale.count({ where: { tenantId }, take: 1 });
     return {
       mode: tenant.taxMode as TaxMode,
       country: tenant.country,
       region: tenant.region,
       needsRegion: needsRegion(tenant.country),
+      hasSales: ventas > 0,
       groups: grupos.map((g) => ({
         id: g.id,
         code: g.code,

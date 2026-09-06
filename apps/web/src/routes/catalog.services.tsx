@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ServiceImportDialog } from "@/components/services/service-import-dialog";
@@ -278,6 +279,7 @@ function ServiceForm({
   const [description, setDescription] = useState(service?.description ?? "");
   const [cost, setCost] = useState(service?.cost ?? "");
   const [price, setPrice] = useState(service?.price ?? "");
+  const [taxGroupId, setTaxGroupId] = useState<string | null>(service?.taxGroupId ?? null);
   // F3-SVC-08. En el ALTA nacen todos marcados: sin almacenes el servicio no
   // se vende en ningún lado (semántica explícita), así que el caso común —un
   // negocio chico con un servicio general— no tiene que gestionar nada.
@@ -326,6 +328,7 @@ function ServiceForm({
             description: description.trim() === "" ? null : description,
             cost: importe(cost) ?? null,
             price: importe(price) ?? null,
+            taxGroupId,
             warehouseIds,
             attributes,
           },
@@ -343,6 +346,7 @@ function ServiceForm({
         ...(description.trim() === "" ? {} : { description }),
         ...(importe(cost) === undefined ? {} : { cost: importe(cost) }),
         ...(importe(price) === undefined ? {} : { price: importe(price) }),
+        taxGroupId,
         attributes,
       },
       handlers,
@@ -390,6 +394,7 @@ function ServiceForm({
           value={price}
           onChange={(event) => setPrice(event.target.value)}
         />
+        <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} />
       </div>
       <fieldset className="flex flex-col gap-2" data-testid="service-warehouses">
         <div className="flex items-center justify-between gap-2">

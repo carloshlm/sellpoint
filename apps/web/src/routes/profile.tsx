@@ -10,6 +10,7 @@ import { LanguagePreference } from "@/components/profile/language-preference";
 import { MedicalClinicSettings } from "@/components/profile/medical-clinic-settings";
 import { ProfileDetails } from "@/components/profile/profile-details";
 import { ReceptionSettings } from "@/components/profile/reception-settings";
+import { TaxSettings } from "@/components/profile/tax-settings";
 import { ThemePreference } from "@/components/profile/theme-preference";
 import { TicketSettings } from "@/components/profile/ticket-settings";
 import { useAuthStore } from "@/stores/auth.store";
@@ -55,6 +56,7 @@ function ProfileContent() {
       <LanguagePreference />
       {/* Las tarjetas deciden solas si existen: sin tenants:manage devuelven null. */}
       {user && <BusinessDetails user={user} />}
+      {user && <TaxSettings user={user} />}
       {user && <TicketSettings user={user} />}
       {user && <ReceptionSettings user={user} />}
       {user && <MedicalClinicSettings user={user} />}
