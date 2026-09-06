@@ -1,5 +1,15 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { I18nextProvider } from "react-i18next";
+import { createI18n } from "@/i18n";
+import { createQueryClient } from "@/lib/query-client";
+import { routeTree } from "@/routeTree.gen";
+import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
  * BARRERA de layout: el contenedor del contenido puede ENCOGER.
@@ -71,5 +81,105 @@ describe("layout que encoge (LEY de responsive)", () => {
     const main = contenido.split("\n").find((linea) => /<main\s/.test(linea));
 
     expect(main).toContain("overflow-x-hidden");
+  });
+});
+
+/**
+ * El logotipo del sidebar (Carlos, 2026-09-06).
+ *
+ * Dos archivos, uno por familia de tema, porque el logotipo es un círculo
+ * MACIZO: el negro desaparece sobre un sidebar oscuro y el blanco sobre uno
+ * claro. Se resuelve con las dos variantes en el DOM y `dark:` decidiendo
+ * cuál se ve — el tema se aplica con la clase `.dark` en <html>
+ * (`lib/theme/apply-theme.ts`), no con `prefers-color-scheme`, así que
+ * `<picture media>` no serviría.
+ *
+ * jsdom no calcula layout: acá se fija QUÉ está en el DOM y con qué nombre
+ * accesible. Que se VEA bien se verifica en el navegador.
+ */
+const usuarioDemo = (): AuthUser => ({
+  id: "u1",
+  email: "ana@acme.mx",
+  firstName: "Ana",
+  lastNamePaternal: "Pérez",
+  lastNameMaternal: null,
+  locale: "es",
+  permissions: [],
+  subscription: SUBSCRIPTION_PLUS,
+  tenant: {
+    id: "t1",
+    name: "Acme",
+    legalName: null,
+    taxId: null,
+    phone: null,
+    theme: null,
+    address: null,
+    timezone: "America/Mexico_City",
+    currency: "MXN",
+    templateChoice: null,
+    country: "MX",
+    onboarded: true,
+    sellWithoutStock: false,
+    usesLocations: false,
+    posShowsStock: true,
+    monthlySalesGoal: null,
+  },
+});
+
+async function renderLayout() {
+  useAuthStore.getState().setAuth("jwt-demo", usuarioDemo());
+  const router = createRouter({
+    routeTree,
+    history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
+  });
+  await router.load();
+  render(
+    <I18nextProvider i18n={createI18n()}>
+      <QueryClientProvider client={createQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </I18nextProvider>,
+  );
+  return await screen.findByRole("complementary");
+}
+
+afterEach(() => {
+  useAuthStore.getState().clearAuth();
+});
+
+describe("el logotipo del sidebar", () => {
+  it("expandido: la palabra «SellPointy» y el logotipo a la derecha del recuadro", async () => {
+    const sidebar = await renderLayout();
+    const encabezado = within(sidebar).getByTestId("sidebar-brand");
+
+    expect(within(encabezado).getByText("SellPointy")).toBeVisible();
+    // `justify-between` es lo que manda el logotipo al extremo derecho.
+    expect(encabezado.className).toContain("justify-between");
+    expect(within(encabezado).getAllByRole("presentation", { hidden: true }).length).toBe(2);
+  });
+
+  it("contraído: el logotipo REEMPLAZA a «SP», y con nombre accesible", async () => {
+    const sidebar = await renderLayout();
+    const usuario = userEvent.setup();
+
+    await usuario.click(screen.getByRole("button", { name: "Abrir o cerrar el menú" }));
+
+    const encabezado = within(sidebar).getByTestId("sidebar-brand");
+    expect(within(encabezado).queryByText("SP")).not.toBeInTheDocument();
+    expect(within(encabezado).queryByText("SellPointy")).not.toBeInTheDocument();
+    // Sin texto al lado, el logotipo deja de ser decorativo y NOMBRA la marca.
+    expect(within(encabezado).getAllByAltText("SellPointy")).toHaveLength(2);
+  });
+
+  it("cada tema tiene su archivo: el claro se esconde en oscuro y al revés", async () => {
+    const sidebar = await renderLayout();
+    const encabezado = within(sidebar).getByTestId("sidebar-brand");
+    const logos = within(encabezado).getAllByRole("presentation", { hidden: true });
+
+    const claro = logos.find((l) => l.getAttribute("src")?.includes("logo-light"));
+    const oscuro = logos.find((l) => l.getAttribute("src")?.includes("logo-dark"));
+    expect(claro?.className).toContain("dark:hidden");
+    expect(oscuro?.className).toContain("hidden");
+    expect(oscuro?.className).toContain("dark:block");
   });
 });

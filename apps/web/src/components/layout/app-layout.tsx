@@ -47,6 +47,42 @@ import { useBillingStore } from "@/stores/billing.store";
  * El valor inicial sigue el viewport (matchMedia); en jsdom (sin matchMedia)
  * cae a expandido.
  */
+/**
+ * El logotipo de la marca en el sidebar.
+ *
+ * Son DOS archivos y no uno con filtros: el logotipo es un círculo macizo, y
+ * el negro se pierde sobre un sidebar oscuro igual que el blanco sobre uno
+ * claro. Las dos variantes viven en el DOM y `dark:` decide cuál se ve —
+ * `applyTheme` enciende la clase `.dark` en <html>, así que un
+ * `<picture media="(prefers-color-scheme: dark)">` miraría la preferencia del
+ * SISTEMA y no el tema que la persona eligió en su perfil.
+ *
+ * `nombra` distingue los dos usos: con la palabra «SellPointy» al lado el
+ * logotipo es decoración (`alt=""`, que además lo saca del árbol de
+ * accesibilidad); contraído es lo único que queda, y ahí SÍ nombra la marca.
+ */
+function BrandLogo({ nombra }: { nombra: boolean }) {
+  const alt = nombra ? "SellPointy" : "";
+  return (
+    <>
+      <img
+        src="/logo-light.png"
+        alt={alt}
+        width={32}
+        height={32}
+        className="size-8 shrink-0 dark:hidden"
+      />
+      <img
+        src="/logo-dark.png"
+        alt={alt}
+        width={32}
+        height={32}
+        className="hidden size-8 shrink-0 dark:block"
+      />
+    </>
+  );
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const { has } = usePermissions();
@@ -139,8 +175,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             : "hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex md:w-16 md:flex-col"
         }
       >
-        <div className="flex h-14 shrink-0 items-center justify-center border-b border-sidebar-border px-4 md:justify-start">
-          <span className="truncate text-lg font-semibold">{expanded ? "SellPointy" : "SP"}</span>
+        <div
+          data-testid="sidebar-brand"
+          className={
+            expanded
+              ? "flex h-14 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-4"
+              : "flex h-14 shrink-0 items-center justify-center border-b border-sidebar-border px-4"
+          }
+        >
+          {expanded && <span className="truncate text-lg font-semibold">SellPointy</span>}
+          <BrandLogo nombra={!expanded} />
         </div>
         {/* ── El menú se DESPLAZA cuando no cabe (2026-08-22) ──────────────
             En un celular de 700 px, este menú mide 844: «Roles» terminaba en el
