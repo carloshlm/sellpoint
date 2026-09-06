@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileSpreadsheet,
   Package,
+  Percent,
   ScrollText,
   Timer,
   Truck,
@@ -56,6 +57,8 @@ const TARJETAS: readonly TarjetaDeReporte[] = [
   { key: "sales", icon: FileSpreadsheet, to: "/reports/sales", permiso: "reports:read" },
   // F5-SHIFT-04: cada turno con su arqueo; quien lee ventas lee cierres.
   { key: "shifts", icon: ClipboardCheck, to: "/reports/shifts", permiso: "reports:read" },
+  // F4-TAX-21: lo cobrado por impuesto y tasa; quien lee ventas lo declara.
+  { key: "taxes", icon: Percent, to: "/reports/taxes", permiso: "reports:read" },
   // El kardex necesita un producto ELEGIDO, así que la tarjeta lleva al
   // catálogo: desde ahí se abre la ficha y su pestaña de Kardex, donde está el
   // botón de exportar (F5-KDX-02). Una pantalla nueva acá pediría el mismo

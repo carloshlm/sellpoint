@@ -77,6 +77,7 @@ const filaVenta = (
   status: "completed",
   paymentMethod: "cash",
   total: "100.00",
+  taxTotal: "0.00",
   warehouseId: "w1",
   warehouse: { id: "w1", name: "Central" },
   seller: { id: "u1", name: "Ana Pérez" },
@@ -170,6 +171,14 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       ],
     });
     mocked.downloadShiftsReport.mockResolvedValue(undefined);
+    mocked.getTaxReport.mockResolvedValue({
+      rows: [
+        { code: "GST", name: "GST 5%", rate: "5", base: "200.00", amount: "10.00", tickets: 2 },
+        { code: "PST", name: "PST 7%", rate: "7", base: "200.00", amount: "14.00", tickets: 2 },
+      ],
+      totals: { gross: "224.00", net: "200.00", tax: "24.00", tickets: 2 },
+    });
+    mocked.downloadTaxReport.mockResolvedValue(undefined);
     vi.mocked(rbacApi.listUsers).mockResolvedValue([
       {
         id: "u2",
@@ -503,6 +512,52 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await waitFor(() =>
         expect(screen.queryByText("Faltaron diez pesos")).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  /**
+   * F4-TAX-21 — los impuestos cobrados: un renglón por componente y tasa, con
+   * el pie que el contador necesita (bruto, neto, impuesto). Abre con el mes
+   * en curso del negocio: es lo que se declara.
+   */
+  describe("impuestos cobrados (F4-TAX-21)", () => {
+    it("lista un renglón por componente y tasa, y el pie con bruto, neto e impuesto", async () => {
+      await renderRuta("/reports/taxes");
+
+      expect(await screen.findByRole("cell", { name: "GST 5%" })).toBeInTheDocument();
+      expect(screen.getByRole("cell", { name: "PST 7%" })).toBeInTheDocument();
+      expect(screen.getByRole("cell", { name: "$10.00" })).toBeInTheDocument();
+      expect(screen.getAllByRole("cell", { name: "$200.00" })).toHaveLength(2);
+      const pie = screen.getByTestId("tax-report-totals");
+      expect(pie).toHaveTextContent("$224.00");
+      expect(pie).toHaveTextContent("$200.00");
+      expect(pie).toHaveTextContent("$24.00");
+    });
+
+    it("abre con el mes en curso del negocio y exporta con los filtros puestos", async () => {
+      const user = userEvent.setup();
+      await renderRuta("/reports/taxes");
+      await screen.findByRole("cell", { name: "GST 5%" });
+
+      expect(mocked.getTaxReport).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          from: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+          to: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        }),
+      );
+
+      await user.click(screen.getByRole("button", { name: "Exportar Excel" }));
+      await waitFor(() =>
+        expect(mocked.downloadTaxReport).toHaveBeenCalledWith(
+          expect.objectContaining({ from: expect.stringMatching(/^\d{4}-\d{2}-01$/) }),
+        ),
+      );
+    });
+
+    it("sin `reports:read` no se entra", async () => {
+      await renderRuta("/reports/taxes", ["pos:view"]);
+
+      await waitFor(() => expect(screen.queryByTestId("tax-report")).not.toBeInTheDocument());
     });
   });
 

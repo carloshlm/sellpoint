@@ -65,6 +65,8 @@ export interface SalesReportRow {
   status: string;
   paymentMethod: string;
   total: string;
+  /** F4-TAX-21: el impuesto que viaja dentro del total (0 en ventas de antes del módulo). */
+  taxTotal: string;
   warehouseId: string;
   warehouse: { id: string; name: string };
   seller: { id: string; name: string };
@@ -223,4 +225,47 @@ export function downloadSalesReport(
   basePath = "/reports",
 ): Promise<void> {
   return bajar(`${basePath}/sales/export`, "ventas", format, query);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Impuestos cobrados (F4-TAX-21)
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Un componente (GST, PST, IVA…) con lo que juntó en el período. */
+export interface TaxReportRow {
+  code: string;
+  name: string;
+  /** Tasa en %, sin ceros de relleno («5», «9.975»). */
+  rate: string;
+  base: string;
+  amount: string;
+  tickets: number;
+}
+
+export interface TaxReport {
+  rows: TaxReportRow[];
+  /** Las ventas cobradas del período: brutas, netas y su impuesto. */
+  totals: { gross: string; net: string; tax: string; tickets: number };
+}
+
+export interface TaxReportQuery {
+  warehouseId?: string;
+  from?: string;
+  to?: string;
+}
+
+export async function getTaxReport(
+  query: TaxReportQuery,
+  basePath = "/reports",
+): Promise<TaxReport> {
+  const { data } = await api.get<TaxReport>(`${basePath}/taxes`, { params: query });
+  return data;
+}
+
+export function downloadTaxReport(
+  query: TaxReportQuery = {},
+  format: ReportFormat = "xlsx",
+  basePath = "/reports",
+): Promise<void> {
+  return bajar(`${basePath}/taxes/export`, "impuestos", format, query);
 }

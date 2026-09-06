@@ -405,7 +405,8 @@
           "title": "Reportes",
           "sales": "Ventas",
           "stock": "Inventario",
-          "shifts": "Cierres de turno"
+          "shifts": "Cierres de turno",
+          "taxes": "Impuestos"
         },
         "suspended": "Desactivado",
         "danger": {

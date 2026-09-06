@@ -36,6 +36,12 @@ import {
   stockExportQuerySchema,
   stockReportQuerySchema,
 } from "./dto/stock-report.dto";
+import {
+  type TaxExportQueryDto,
+  type TaxReportQueryDto,
+  taxExportQuerySchema,
+  taxReportQuerySchema,
+} from "./dto/tax-report.dto";
 import { KardexExportService } from "./kardex-export.service";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
@@ -44,6 +50,8 @@ import { ShiftsExportService } from "./shifts-export.service";
 import { ShiftsReportService } from "./shifts-report.service";
 import { StockExportService } from "./stock-export.service";
 import { StockReportService } from "./stock-report.service";
+import { TaxExportService } from "./tax-export.service";
+import { TaxReportService } from "./tax-report.service";
 
 /**
  * F5-CORE-03 — la puerta de `reports:read`.
@@ -69,6 +77,8 @@ export class ReportsController {
     private readonly salesReport: SalesReportService,
     private readonly shiftsReport: ShiftsReportService,
     private readonly shiftsExport: ShiftsExportService,
+    private readonly taxReport: TaxReportService,
+    private readonly taxExport: TaxExportService,
     private readonly salesExport: SalesExportService,
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
@@ -200,6 +210,35 @@ export class ReportsController {
     @Param("id") id: string,
   ) {
     return this.shiftsReport.detail(user, scope, id);
+  }
+
+  /** F4-TAX-21 — lo cobrado por componente y tasa: lo que el negocio declara. */
+  @Get("taxes")
+  @RequirePermissions("reports:read")
+  taxes(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(taxReportQuerySchema, "reports.invalid_query"))
+    query: TaxReportQueryDto,
+  ) {
+    return this.taxReport.report(user, scope, query);
+  }
+
+  @Get("taxes/export")
+  @RequirePermissions("reports:read")
+  async taxesExportFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(taxExportQuerySchema, "reports.invalid_query"))
+    query: TaxExportQueryDto,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const file = await this.taxExport.build(user, scope, query, getLocale(request));
+    response
+      .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   @Get("sales")

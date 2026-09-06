@@ -115,6 +115,8 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       "reports/shifts",
       "reports/shifts/export?format=csv",
       "reports/shifts/00000000-0000-0000-0000-000000000000",
+      "reports/taxes",
+      "reports/taxes/export?format=csv",
     ]) {
       await request(app.getHttpServer())
         .get(ruta(sufijo))
@@ -206,6 +208,10 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     expect((stock.body as { rows: unknown[] }).rows.length).toBeGreaterThanOrEqual(1);
 
     await comoAdmin("reports/sales?page=0").expect(400);
+
+    // F4-TAX-21: el reporte de impuestos también se lee desde el expediente.
+    const impuestos = await comoAdmin("reports/taxes").expect(200);
+    expect((impuestos.body as { totals: { tickets: number } }).totals.tickets).toBe(1);
   });
 
   it("los cierres de turno del negocio se leen y se bajan desde el expediente (F5-SHIFT-05)", async () => {

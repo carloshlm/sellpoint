@@ -405,7 +405,8 @@
           "title": "Reports",
           "sales": "Sales",
           "stock": "Inventory",
-          "shifts": "Shift closes"
+          "shifts": "Shift closes",
+          "taxes": "Taxes"
         },
         "suspended": "Deactivated",
         "danger": {

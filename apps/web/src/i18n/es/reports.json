@@ -37,6 +37,10 @@
     "shifts": {
       "title": "Cierres de turno",
       "detail": "Cada turno con su arqueo: lo calculado, lo contado, la diferencia y la nota."
+    },
+    "taxes": {
+      "title": "Impuestos cobrados",
+      "detail": "Lo cobrado por cada impuesto y tasa en el período: lo que se declara."
     }
   },
   "sales": {
@@ -97,5 +101,18 @@
     "method": "Pago",
     "total": "Total",
     "close": "Cerrar detalle"
+  },
+  "taxes": {
+    "title": "Impuestos cobrados",
+    "warehouse": "Almacén",
+    "tax": "Impuesto",
+    "rate": "Tasa",
+    "base": "Base",
+    "amount": "Cobrado",
+    "tickets": "Tickets",
+    "gross": "Ventas brutas",
+    "net": "Neto",
+    "taxTotal": "Impuesto",
+    "totalsLabel": "Totales del período"
   }
 }

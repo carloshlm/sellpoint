@@ -15,6 +15,8 @@ export interface SalesReportRow {
   status: string;
   paymentMethod: string;
   total: string;
+  /** F4-TAX-21: el impuesto que viaja dentro del total (0 en ventas de antes del módulo). */
+  taxTotal: string;
   warehouseId: string;
   warehouse: { id: string; name: string };
   seller: { id: string; name: string };
@@ -79,6 +81,7 @@ export class SalesReportService {
           status: venta.status,
           paymentMethod: venta.paymentMethod,
           total: venta.total.toString(),
+          taxTotal: venta.taxTotal.toString(),
           warehouseId: venta.warehouseId,
           warehouse: venta.warehouse,
           seller: {

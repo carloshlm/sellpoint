@@ -37,6 +37,10 @@
     "shifts": {
       "title": "Shift closes",
       "detail": "Every shift with its cash count: expected, counted, the difference and the note."
+    },
+    "taxes": {
+      "title": "Taxes collected",
+      "detail": "What each tax and rate collected in the period: what gets filed."
     }
   },
   "sales": {
@@ -97,5 +101,18 @@
     "method": "Payment",
     "total": "Total",
     "close": "Close detail"
+  },
+  "taxes": {
+    "title": "Taxes collected",
+    "warehouse": "Warehouse",
+    "tax": "Tax",
+    "rate": "Rate",
+    "base": "Base",
+    "amount": "Collected",
+    "tickets": "Tickets",
+    "gross": "Gross sales",
+    "net": "Net",
+    "taxTotal": "Tax",
+    "totalsLabel": "Period totals"
   }
 }

@@ -6,6 +6,7 @@ import {
   getShiftDetail,
   getShiftsReport,
   getStockReport,
+  getTaxReport,
   type SalesReportPage,
   type SalesReportQuery,
   type ShiftDetail,
@@ -13,6 +14,8 @@ import {
   type ShiftsReportQuery,
   type StockReportPage,
   type StockReportQuery,
+  type TaxReport,
+  type TaxReportQuery,
 } from "./api";
 
 export const STOCK_REPORT_KEY = ["reports", "stock"] as const;
@@ -63,5 +66,17 @@ export function useShiftDetail(id: string | null) {
     queryFn: () =>
       tenantId === null ? getShiftDetail(id as string) : getShiftDetail(id as string, reportsPath),
     enabled: id !== null,
+  });
+}
+
+export const TAX_REPORT_KEY = ["reports", "taxes"] as const;
+
+/** F4-TAX-21 — lo cobrado por componente y tasa; desde el backoffice, del negocio mirado. */
+export function useTaxReport(query: TaxReportQuery) {
+  const { reportsPath, tenantId } = useAdminTenantScope();
+  return useQuery<TaxReport, ApiError>({
+    queryKey: [...TAX_REPORT_KEY, tenantId, query],
+    queryFn: () => (tenantId === null ? getTaxReport(query) : getTaxReport(query, reportsPath)),
+    placeholderData: (previous) => previous,
   });
 }

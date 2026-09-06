@@ -49,12 +49,20 @@ import {
   stockExportQuerySchema,
   stockReportQuerySchema,
 } from "../reports/dto/stock-report.dto";
+import {
+  type TaxExportQueryDto,
+  type TaxReportQueryDto,
+  taxExportQuerySchema,
+  taxReportQuerySchema,
+} from "../reports/dto/tax-report.dto";
 import { SalesExportService } from "../reports/sales-export.service";
 import { SalesReportService } from "../reports/sales-report.service";
 import { ShiftsExportService } from "../reports/shifts-export.service";
 import { ShiftsReportService } from "../reports/shifts-report.service";
 import { StockExportService } from "../reports/stock-export.service";
 import { StockReportService } from "../reports/stock-report.service";
+import { TaxExportService } from "../reports/tax-export.service";
+import { TaxReportService } from "../reports/tax-report.service";
 import { UsersAdminService } from "../users/users-admin.service";
 import { AdminTenantsService } from "./admin-tenants.service";
 import { platformAdminActor, SCOPE_ALL } from "./platform-actor";
@@ -94,6 +102,8 @@ export class AdminTenantsController {
     private readonly stockExport: StockExportService,
     private readonly shiftsReport: ShiftsReportService,
     private readonly shiftsExport: ShiftsExportService,
+    private readonly taxReport: TaxReportService,
+    private readonly taxExport: TaxExportService,
   ) {}
 
   @Get(":tenantId/overview")
@@ -281,6 +291,36 @@ export class AdminTenantsController {
     @CurrentUser() admin: AuthUser,
   ) {
     return this.shiftsReport.detail(platformAdminActor(tenantId, admin), SCOPE_ALL, shiftId);
+  }
+
+  // ── Impuestos cobrados (F4-TAX-21) ───────────────────────────────────────
+
+  @Get(":tenantId/reports/taxes")
+  taxes(
+    @Param("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(taxReportQuerySchema, "reports.invalid_query"))
+    query: TaxReportQueryDto,
+  ) {
+    return this.taxReport.report(platformAdminActor(tenantId, admin), SCOPE_ALL, query);
+  }
+
+  @Get(":tenantId/reports/taxes/export")
+  async taxesExportFile(
+    @Param("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(taxExportQuerySchema, "reports.invalid_query"))
+    query: TaxExportQueryDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const file = await this.taxExport.build(
+      platformAdminActor(tenantId, admin),
+      SCOPE_ALL,
+      query,
+      getLocale(request as Request & RequestWithLocale),
+    );
+    await this.descargar(response, tenantId, file);
   }
 
   // ── Exportaciones (F9-ADMIN-13) ─────────────────────────────────────────

@@ -42,6 +42,7 @@ import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
 import { Route as ReportsShiftsRouteImport } from './routes/reports.shifts'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
+import { Route as ReportsTaxesRouteImport } from './routes/reports.taxes'
 import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
@@ -227,6 +228,11 @@ const ReportsStockRoute = ReportsStockRouteImport.update({
   path: '/reports/stock',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsTaxesRoute = ReportsTaxesRouteImport.update({
+  id: '/reports/taxes',
+  path: '/reports/taxes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsBillingRoute = SettingsBillingRouteImport.update({
   id: '/settings/billing',
   path: '/settings/billing',
@@ -359,6 +365,7 @@ export interface FileRoutesByFullPath {
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
+  '/reports/taxes': typeof ReportsTaxesRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -412,6 +419,7 @@ export interface FileRoutesByTo {
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
+  '/reports/taxes': typeof ReportsTaxesRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -466,6 +474,7 @@ export interface FileRoutesById {
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
+  '/reports/taxes': typeof ReportsTaxesRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
@@ -521,6 +530,7 @@ export interface FileRouteTypes {
     | '/reports/sales'
     | '/reports/shifts'
     | '/reports/stock'
+    | '/reports/taxes'
     | '/settings/billing'
     | '/system/roles'
     | '/system/users'
@@ -574,6 +584,7 @@ export interface FileRouteTypes {
     | '/reports/sales'
     | '/reports/shifts'
     | '/reports/stock'
+    | '/reports/taxes'
     | '/settings/billing'
     | '/system/roles'
     | '/system/users'
@@ -627,6 +638,7 @@ export interface FileRouteTypes {
     | '/reports/sales'
     | '/reports/shifts'
     | '/reports/stock'
+    | '/reports/taxes'
     | '/settings/billing'
     | '/system/roles'
     | '/system/users'
@@ -681,6 +693,7 @@ export interface RootRouteChildren {
   ReportsSalesRoute: typeof ReportsSalesRoute
   ReportsShiftsRoute: typeof ReportsShiftsRoute
   ReportsStockRoute: typeof ReportsStockRoute
+  ReportsTaxesRoute: typeof ReportsTaxesRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
@@ -936,6 +949,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsStockRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/taxes': {
+      id: '/reports/taxes'
+      path: '/reports/taxes'
+      fullPath: '/reports/taxes'
+      preLoaderRoute: typeof ReportsTaxesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/billing': {
       id: '/settings/billing'
       path: '/settings/billing'
@@ -1097,6 +1117,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsSalesRoute: ReportsSalesRoute,
   ReportsShiftsRoute: ReportsShiftsRoute,
   ReportsStockRoute: ReportsStockRoute,
+  ReportsTaxesRoute: ReportsTaxesRoute,
   SettingsBillingRoute: SettingsBillingRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,

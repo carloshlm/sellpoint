@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { Prisma } from "../../generated/prisma/client";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { SalesExportQueryDto } from "./dto/sales-report.dto";
@@ -43,6 +44,10 @@ export class SalesExportService {
         "Almacén",
         "Estado",
         "Pago",
+        // F4-TAX-21: neto e impuesto al lado del total, para que el archivo
+        // cuadre contra el reporte de impuestos sin restar a mano.
+        "Neto",
+        "Impuesto",
         "Total",
       ],
       format: query.format,
@@ -72,6 +77,8 @@ export class SalesExportService {
           venta.warehouse.name,
           venta.status === "canceled" ? "Anulada" : "Cobrada",
           METODOS[venta.paymentMethod] ?? venta.paymentMethod,
+          new Prisma.Decimal(venta.total).minus(venta.taxTotal).toString(),
+          venta.taxTotal,
           venta.total,
         ]),
       );

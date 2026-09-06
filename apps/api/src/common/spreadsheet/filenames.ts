@@ -24,6 +24,7 @@ const ENGLISH: Record<string, string> = {
   vencimientos: "expiring",
   "en-transito": "in-transit",
   "cierres-de-turno": "shift-closes",
+  impuestos: "taxes",
 };
 
 export function spreadsheetFilenameBase(key: string, locale: Locale): string {

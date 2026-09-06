@@ -17,6 +17,8 @@ import { ShiftsExportService } from "./shifts-export.service";
 import { ShiftsReportService } from "./shifts-report.service";
 import { StockExportService } from "./stock-export.service";
 import { StockReportService } from "./stock-report.service";
+import { TaxExportService } from "./tax-export.service";
+import { TaxReportService } from "./tax-report.service";
 
 /**
  * El módulo de reportes de la Fase 5. Nace con el catálogo del hub y va
@@ -39,6 +41,8 @@ import { StockReportService } from "./stock-report.service";
     SalesExportService,
     ShiftsReportService,
     ShiftsExportService,
+    TaxReportService,
+    TaxExportService,
     CatalogExportService,
     KardexExportService,
   ],
@@ -57,6 +61,8 @@ import { StockReportService } from "./stock-report.service";
     StockExportService,
     ShiftsReportService,
     ShiftsExportService,
+    TaxReportService,
+    TaxExportService,
   ],
 })
 export class ReportsModule {}
