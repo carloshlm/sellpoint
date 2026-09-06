@@ -107,7 +107,7 @@ describe("DashboardKpisService (integration)", () => {
     warehouseId: string;
     canceled?: boolean;
     /** Ítems con costo congelado (o sin él) para la utilidad. */
-    items?: { lineTotal: number; quantity: number; unitCost: number | null }[];
+    items?: { lineTotal: number; quantity: number; unitCost: number | null; taxAmount?: number }[];
   }
 
   async function venta(tenantId: string, semilla: VentaSemilla): Promise<void> {
@@ -146,6 +146,7 @@ describe("DashboardKpisService (integration)", () => {
                 discount: 0,
                 lineTotal: item.lineTotal,
                 ...(item.unitCost !== null && { unitCost: item.unitCost }),
+                ...(item.taxAmount !== undefined && { taxAmount: item.taxAmount }),
               })),
             },
           }),
@@ -257,6 +258,34 @@ describe("DashboardKpisService (integration)", () => {
     // La MISMA ley del corrido que ventas — la utilidad no compara un mes
     // parcial contra uno completo.
     expect(kpis.profit.deltaVsPrevMonthPct).toBe(250);
+  });
+
+  it("F4-TAX-20: la utilidad resta el impuesto de la línea; el bruto del mes no lo toca", async () => {
+    const esc = await escenario();
+    // Una venta en excluido: 100 neto + 12 de impuesto, costo 40…
+    await venta(esc.tenantId, {
+      creadaEn: "2026-03-10T18:00:00Z",
+      total: 112,
+      warehouseId: esc.warehouseId,
+      items: [{ lineTotal: 112, quantity: 1, unitCost: 40, taxAmount: 12 }],
+    });
+    // …y una en incluido: 116 con 16 adentro, costo 50.
+    await venta(esc.tenantId, {
+      creadaEn: "2026-03-11T18:00:00Z",
+      total: 116,
+      warehouseId: esc.warehouseId,
+      items: [{ lineTotal: 116, quantity: 1, unitCost: 50, taxAmount: 16 }],
+    });
+
+    const kpis = await service.kpis(
+      { tenantId: esc.tenantId } as never,
+      { warehouseIds: "all" } as never,
+    );
+
+    // El KPI de ventas es lo que entró a la caja (decisión de Carlos,
+    // 2026-09-06); la utilidad, sobre la base: (112−12−40) + (116−16−50).
+    expect(kpis.month.total).toBe("228");
+    expect(kpis.profit.month).toBe("110");
   });
 
   it("el alcance por almacén acota TODOS los números", async () => {

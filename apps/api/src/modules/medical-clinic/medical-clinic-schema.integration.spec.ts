@@ -558,6 +558,17 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
             ORDER BY item_kind`,
       );
 
+    it("F4-TAX-20: la vista expone el impuesto de cada línea, para que el top reste lo que no es ingreso", async () => {
+      const filasConImpuesto = await prisma.withTenantContext(
+        tenantA,
+        (tx) =>
+          tx.$queryRaw<{ tax_amount: string }[]>`SELECT tax_amount::text
+             FROM medical_clinic_sold_items
+            WHERE sale_id = ${ventaId}::uuid`,
+      );
+      expect(filasConImpuesto.map((f) => f.tax_amount)).toEqual(["0.00", "0.00"]);
+    });
+
     it("lista lo vendido desde el consultorio y deja fuera lo de mostrador", async () => {
       const vendido = await filas(tenantA);
       expect(vendido).toHaveLength(2);

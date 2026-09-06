@@ -107,6 +107,8 @@ describe("Los widgets del dashboard (integration)", () => {
     quantity: number;
     unitPrice: number;
     unitCost?: number;
+    /** F4-TAX-20: el impuesto que viaja dentro del line_total. */
+    taxAmount?: number;
     method?: "cash" | "card" | "transfer";
   }
 
@@ -146,6 +148,7 @@ describe("Los widgets del dashboard (integration)", () => {
                 discount: 0,
                 lineTotal: total,
                 ...(v.unitCost !== undefined && { unitCost: v.unitCost }),
+                ...(v.taxAmount !== undefined && { taxAmount: v.taxAmount }),
               },
             ],
           },
@@ -250,6 +253,25 @@ describe("Los widgets del dashboard (integration)", () => {
     expect(r.topSold.find((p) => p.name === "Botana")?.deltaPct).toBe(100);
     // A no tiene historia previa: null, no un +∞ disfrazado.
     expect(r.topSold[1]?.deltaPct).toBeNull();
+  });
+
+  it("F4-TAX-20: el impuesto no es ingreso — el revenue y la utilidad del top van sobre la base", async () => {
+    const ctx = await escenario();
+    // 5 × 112 con 60 de impuesto adentro (base 500), costo 20 × 5 = 100.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: ctx.productoB,
+      quantity: 5,
+      unitPrice: 112,
+      unitCost: 20,
+      taxAmount: 60,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    expect(r.topSold[0]?.revenue).toBe("500.00");
+    expect(r.topProfit[0]?.profit).toBe("400.00");
+    expect(r.topProfit[0]?.marginPct).toBe(80);
   });
 
   it("los SERVICIOS compiten en los dos tops: también son ventas y también dejan (Carlos, 2026-09-01)", async () => {

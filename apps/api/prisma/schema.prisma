@@ -2338,7 +2338,8 @@ model MedicalClinicOrderLine {
   /// `medical_clinic_sold_items` (sale_items ⋈ estas líneas ⋈ los catálogos,
   /// `security_invoker`), que es lo vendido desde el consultorio por ítem.
   /// Prisma no modela vistas: está en la migración
-  /// `20260905100000_f9_clinic_sold_items_view` y se consulta con `$queryRaw`.
+  /// `20260905100000_f9_clinic_sold_items_view` (y gana `tax_amount` en
+  /// `20260910120000_f4_clinic_sold_items_tax`) y se consulta con `$queryRaw`.
   @@map("medical_clinic_order_lines")
 }
 

@@ -66,7 +66,7 @@ export class MedicalClinicDashboardService {
                  p.sku              AS code,
                  p.name             AS name,
                  SUM(v.quantity)::text   AS units,
-                 SUM(v.line_total)::text AS revenue
+                 SUM(v.line_total - v.tax_amount)::text AS revenue
             FROM medical_clinic_sold_items v
             JOIN products p ON p.id = v.product_id
            WHERE v.sale_status = 'completed'
@@ -79,7 +79,7 @@ export class MedicalClinicDashboardService {
                  e.code               AS code,
                  e.name               AS name,
                  SUM(v.quantity)::text   AS units,
-                 SUM(v.line_total)::text AS revenue
+                 SUM(v.line_total - v.tax_amount)::text AS revenue
             FROM medical_clinic_sold_items v
             JOIN medical_clinic_lab_studies e ON e.id = v.lab_study_id
            WHERE v.sale_status = 'completed'
@@ -92,7 +92,7 @@ export class MedicalClinicDashboardService {
                  e.code                      AS code,
                  e.name                      AS name,
                  SUM(v.quantity)::text   AS units,
-                 SUM(v.line_total)::text AS revenue
+                 SUM(v.line_total - v.tax_amount)::text AS revenue
             FROM medical_clinic_sold_items v
             JOIN medical_clinic_diagnostic_studies e ON e.id = v.diagnostic_study_id
            WHERE v.sale_status = 'completed'

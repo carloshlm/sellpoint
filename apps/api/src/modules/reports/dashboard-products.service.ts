@@ -55,6 +55,9 @@ export class DashboardProductsService {
     const ventana = resolvePeriodWindow(period, tenant?.timezone ?? "UTC", this.clock.now());
     const almacenes = scope.warehouseIds === "all" ? null : [...scope.warehouseIds];
 
+    // F4-TAX-20: el revenue y la utilidad del top van sobre la BASE (line_total
+    // menos el impuesto que viaja adentro): lo que el fisco se lleva no es
+    // ingreso del artículo.
     const vendidos = (desde: Date, hasta: Date) =>
       this.prisma.withTenantContext(
         user.tenantId,
@@ -66,7 +69,7 @@ export class DashboardProductsService {
                  COALESCE(p.sku, sv.code, '') AS sku,
                  COALESCE(p.name, sv.name, i.concept_description) AS name,
                  SUM(i.quantity)::text AS units,
-                 SUM(i.line_total)::text AS revenue
+                 SUM(i.line_total - i.tax_amount)::text AS revenue
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
             LEFT JOIN products p ON p.id = i.product_id
@@ -99,9 +102,9 @@ export class DashboardProductsService {
           SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
                  COALESCE(p.sku, sv.code, '') AS sku,
                  COALESCE(p.name, sv.name, i.concept_description) AS name,
-                 SUM(i.line_total)::text AS revenue,
+                 SUM(i.line_total - i.tax_amount)::text AS revenue,
                  SUM(i.unit_cost * i.quantity)::numeric(14,2)::text AS cost,
-                 SUM(i.line_total - i.unit_cost * i.quantity)::numeric(14,2)::text AS profit
+                 SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::numeric(14,2)::text AS profit
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
             LEFT JOIN products p ON p.id = i.product_id
@@ -112,7 +115,7 @@ export class DashboardProductsService {
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${ventana.desde} AND s.created_at < ${ventana.hasta}
            GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description)
-           ORDER BY SUM(i.line_total - i.unit_cost * i.quantity) DESC
+           ORDER BY SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity) DESC
            LIMIT 5`,
       ),
     ]);

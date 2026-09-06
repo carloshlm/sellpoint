@@ -144,6 +144,12 @@ export class DashboardKpisService {
    * datos de costo» no es «utilidad cero». La resta usa lineTotal (que ya
    * netea el descuento de línea), así el descuento no infla el margen.
    */
+  /**
+   * F4-TAX-20: la utilidad va sobre la BASE — el impuesto que viaja dentro
+   * del `line_total` no es ingreso del negocio, se lo lleva el fisco. Los KPIs
+   * de venta, la meta y la caja siguen en bruto (Carlos, 2026-09-06): son lo
+   * que entró a la caja.
+   */
   private async utilidadDelMes(
     tenantId: string,
     alcance: { warehouseId?: { in: string[] } },
@@ -154,7 +160,7 @@ export class DashboardKpisService {
     const filas = await this.prisma.withTenantContext(tenantId, (tx) =>
       almacenes === undefined
         ? tx.$queryRaw<{ profit: string | null }[]>`
-            SELECT SUM(i.line_total - i.unit_cost * i.quantity)::text AS profit
+            SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit
               FROM sale_items i
               JOIN sales s ON s.id = i.sale_id
              WHERE s.tenant_id = ${tenantId}::uuid
@@ -162,7 +168,7 @@ export class DashboardKpisService {
                AND s.created_at >= ${desde} AND s.created_at < ${hasta}
                AND i.unit_cost IS NOT NULL`
         : tx.$queryRaw<{ profit: string | null }[]>`
-            SELECT SUM(i.line_total - i.unit_cost * i.quantity)::text AS profit
+            SELECT SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)::text AS profit
               FROM sale_items i
               JOIN sales s ON s.id = i.sale_id
              WHERE s.tenant_id = ${tenantId}::uuid

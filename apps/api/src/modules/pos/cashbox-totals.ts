@@ -15,6 +15,10 @@ type Tx = Pick<Prisma.TransactionClient, "sale">;
  * (`CashboxService.totals`) y para el reporte de cierres: si el reporte
  * dijera otra cosa que el papel, alguien tendría que decidir a quién creerle.
  *
+ * F4-TAX-20: la caja cuenta el `total` BRUTO, con el impuesto adentro — es lo
+ * que entró al cajón (decisión de Carlos, 2026-09-06). La base sin impuesto
+ * vive en la utilidad y en el reporte de impuestos, no acá.
+ *
  * Solo ventas `completed`: una anulada es plata que no entró. Cada turno
  * vuelve con los tres métodos, en el orden del catálogo y en cero cuando no
  * vendió con ese: la tabla siempre tiene las mismas columnas.

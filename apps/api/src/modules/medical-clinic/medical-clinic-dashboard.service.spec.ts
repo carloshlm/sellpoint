@@ -56,6 +56,8 @@ describe("MedicalClinicDashboardService (F9-CLINIC-30)", () => {
       const sql = sqlDe(i);
       expect(sql).toContain("medical_clinic_sold_items");
       expect(sql).toContain("sale_status = 'completed'");
+      // F4-TAX-20: el ingreso es la base, sin el impuesto que viaja adentro.
+      expect(sql).toContain("line_total - v.tax_amount");
     }
   });
 
