@@ -499,6 +499,73 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       expect(second.body).toMatchObject({ onboarded: true });
     });
 
+    it("F4-TAX-19: terminar el wizard siembra el catálogo fiscal del país y la región, una sola vez", async () => {
+      type Vista = {
+        mode: string;
+        groups: { code: string; isDefault: boolean; rates: { code: string }[] }[];
+      };
+      const terminar = async (pais?: Record<string, unknown>) => {
+        const owner = await registerActiveOwner();
+        const auth = bearer(owner.accessToken);
+        if (pais) {
+          await request(app.getHttpServer())
+            .patch("/tenants/me")
+            .set("Authorization", auth)
+            .send(pais)
+            .expect(200);
+        }
+        const hecho = await request(app.getHttpServer())
+          .post("/tenants/me/complete-onboarding")
+          .set("Authorization", auth)
+          .expect(200);
+        const vista = await request(app.getHttpServer())
+          .get("/tenants/me/taxes")
+          .set("Authorization", auth)
+          .expect(200);
+        return { auth, bloque: hecho.body as { taxMode: string }, vista: vista.body as Vista };
+      };
+      const porDefecto = (v: Vista) => v.groups.find((g) => g.isDefault);
+
+      // México: IVA 16% incluido, y el bloque que vuelve ya trae el modo.
+      const mx = await terminar({ country: "MX" });
+      expect(mx.bloque.taxMode).toBe("included");
+      expect(mx.vista.mode).toBe("included");
+      expect(porDefecto(mx.vista)?.code).toBe("VAT16");
+      expect(mx.vista.groups.map((g) => g.code).sort()).toEqual([
+        "EXEMPT",
+        "VAT0",
+        "VAT16",
+        "VAT8",
+      ]);
+
+      // Segunda vez: idempotente, ni un grupo más.
+      await request(app.getHttpServer())
+        .post("/tenants/me/complete-onboarding")
+        .set("Authorization", mx.auth)
+        .expect(200);
+      const otraVez = await request(app.getHttpServer())
+        .get("/tenants/me/taxes")
+        .set("Authorization", mx.auth)
+        .expect(200);
+      expect((otraVez.body as Vista).groups).toHaveLength(4);
+
+      // Columbia Británica: GST + PST excluidos, dos componentes.
+      const bc = await terminar({ country: "CA", region: "BC" });
+      expect(bc.vista.mode).toBe("excluded");
+      expect(porDefecto(bc.vista)?.code).toBe("GST_PST");
+      expect(porDefecto(bc.vista)?.rates.map((r) => r.code)).toEqual(["GST", "PST"]);
+
+      // Oregón: sin impuesto estatal.
+      const orRegion = await terminar({ country: "US", region: "OR" });
+      expect(orRegion.vista.mode).toBe("excluded");
+      expect(porDefecto(orRegion.vista)?.code).toBe("NO_TAX");
+
+      // Sin país: sin impuesto, con precio final.
+      const sinPais = await terminar();
+      expect(sinPais.vista.mode).toBe("included");
+      expect(porDefecto(sinPais.vista)?.code).toBe("NO_TAX");
+    });
+
     it("sin tenants:manage -> 403", async () => {
       const owner = await registerActiveOwner();
       const noPermToken = tokenService.signAccessToken({

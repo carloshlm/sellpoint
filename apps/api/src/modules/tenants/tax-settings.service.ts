@@ -213,16 +213,17 @@ export class TaxSettingsService {
 
   /**
    * Siembra el catálogo del país (y la región) si el negocio no tiene ninguno.
-   * Idempotente: con grupos, no hace nada y devuelve `false`. Se llama dentro
-   * de la transacción de quien termina el onboarding (F4-TAX-19).
+   * Idempotente: con grupos, no hace nada y devuelve `null`; si siembra,
+   * devuelve el modo y los códigos para que quien llama lo audite. Se llama
+   * dentro de la transacción de quien termina el onboarding (F4-TAX-19).
    */
   async sembrar(
     tx: Tx,
     tenantId: string,
     country: string | null,
     region: string | null,
-  ): Promise<boolean> {
-    if ((await tx.taxGroup.count({ where: { tenantId } })) > 0) return false;
+  ): Promise<{ mode: TaxMode; codes: string[] } | null> {
+    if ((await tx.taxGroup.count({ where: { tenantId } })) > 0) return null;
     const defaults = resolveTaxDefaults(country, region);
     await tx.tenant.update({ where: { id: tenantId }, data: { taxMode: defaults.mode } });
     for (const [i, g] of defaults.groups.entries()) {
@@ -245,7 +246,7 @@ export class TaxSettingsService {
         },
       });
     }
-    return true;
+    return { mode: defaults.mode, codes: defaults.groups.map((g) => g.code) };
   }
 
   /** Un solo viaje: cuántos artículos de cada catálogo nombran cada grupo. */

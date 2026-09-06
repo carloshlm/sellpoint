@@ -6,6 +6,7 @@ import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { UpdateTenantDto } from "./dto/update-tenant.dto";
+import { TaxSettingsService } from "./tax-settings.service";
 import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "./tenant.types";
 
 /**
@@ -24,6 +25,7 @@ export class TenantProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly taxSettings: TaxSettingsService,
   ) {}
 
   async getProfile(actor: AuthUser): Promise<TenantBlock> {
@@ -92,6 +94,16 @@ export class TenantProfileService {
    */
   async completeOnboarding(actor: AuthUser, meta: RequestMeta): Promise<TenantBlock> {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
+      // F4-TAX-19: el catálogo fiscal nace ANTES de marcar el onboarding y en
+      // la misma tx — si algo falla no quedan grupos huérfanos ni un negocio
+      // «incorporado» sin impuestos — y el bloque que vuelve ya trae el modo
+      // sembrado. La siembra es idempotente: la segunda vez devuelve null.
+      const { country, region } = await tx.tenant.findUniqueOrThrow({
+        where: { id: actor.tenantId },
+        select: { country: true, region: true },
+      });
+      const siembra = await this.taxSettings.sembrar(tx, actor.tenantId, country, region);
+
       const updated = await tx.tenant.update({
         where: { id: actor.tenantId },
         data: { onboarded: true },
@@ -107,6 +119,18 @@ export class TenantProfileService {
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
+      if (siembra) {
+        await this.auditService.record(tx, {
+          tenantId: actor.tenantId,
+          userId: actor.userId,
+          action: "tenant.taxes.seeded",
+          resourceType: "tenant",
+          resourceId: actor.tenantId,
+          after: { country, region, ...siembra },
+          ip: meta.ip,
+          userAgent: meta.userAgent,
+        });
+      }
 
       return toTenantBlock(updated);
     });

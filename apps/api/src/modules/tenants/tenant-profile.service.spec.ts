@@ -45,8 +45,12 @@ function buildService(overrides?: {
     record: jest.fn().mockResolvedValue(undefined),
   } as unknown as AuditService;
 
-  const service = new TenantProfileService(prisma as never, auditService);
-  return { service, prisma, auditService, tx };
+  // F4-TAX-19: la siembra del catálogo fiscal vive en TaxSettingsService; acá
+  // solo importa que se llame con la MISMA tx y que se audite lo sembrado.
+  const taxSettings = { sembrar: jest.fn().mockResolvedValue(null) };
+
+  const service = new TenantProfileService(prisma as never, auditService, taxSettings as never);
+  return { service, prisma, auditService, tx, taxSettings };
 }
 
 describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
@@ -269,5 +273,48 @@ describe("TenantProfileService.update — la provincia o el estado (F4-TAX-18)",
     expect(updateTenantSchema.safeParse({ region: null }).success).toBe(true);
     expect(updateTenantSchema.safeParse({ region: "" }).success).toBe(false);
     expect(updateTenantSchema.safeParse({ region: "BC" }).success).toBe(true);
+  });
+});
+
+describe("TenantProfileService.completeOnboarding — la siembra fiscal (F4-TAX-19)", () => {
+  const meta = { ip: "1.2.3.4", userAgent: "jest" };
+
+  it("siembra el catálogo del país y la región DENTRO de la misma tx, y audita los códigos", async () => {
+    const { service, tx, taxSettings, auditService } = buildService({
+      tenantRow: { id: "tenant-1", country: "CA", region: "BC", onboarded: false },
+    });
+    taxSettings.sembrar.mockResolvedValue({ mode: "excluded", codes: ["GST_PST", "GST_ONLY"] });
+
+    await service.completeOnboarding(ACTOR, meta);
+
+    expect(taxSettings.sembrar).toHaveBeenCalledWith(tx, "tenant-1", "CA", "BC");
+    expect(auditService.record).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        action: "tenant.taxes.seeded",
+        resourceType: "tenant",
+        resourceId: "tenant-1",
+        after: { country: "CA", region: "BC", mode: "excluded", codes: ["GST_PST", "GST_ONLY"] },
+      }),
+    );
+    // La siembra va ANTES de marcar el onboarding: el bloque que vuelve ya
+    // trae el modo sembrado.
+    const ordenSiembra = taxSettings.sembrar.mock.invocationCallOrder[0] ?? 0;
+    const ordenUpdate = tx.tenant.update.mock.invocationCallOrder[0] ?? 0;
+    expect(ordenSiembra).toBeLessThan(ordenUpdate);
+  });
+
+  it("con el catálogo ya sembrado (segunda vez) no audita ninguna siembra", async () => {
+    const { service, taxSettings, auditService } = buildService({
+      tenantRow: { id: "tenant-1", country: "MX", region: null, onboarded: true },
+    });
+    taxSettings.sembrar.mockResolvedValue(null);
+
+    await service.completeOnboarding(ACTOR, meta);
+
+    const acciones = (auditService.record as jest.Mock).mock.calls.map(
+      (c: unknown[]) => (c[1] as { action: string }).action,
+    );
+    expect(acciones).toEqual(["tenant.onboarded"]);
   });
 });
