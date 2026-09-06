@@ -59,7 +59,10 @@ export class ShiftsExportService {
     const consulta = { ...query, page: 1, pageSize: 100 };
     return exportWithLimit({
       count: () => this.shifts.count(user, scope, consulta),
-      rows: async () => (await this.shifts.all(user, scope, consulta)).map(fila),
+      rows: async () => {
+        const zona = await this.shifts.timeZone(user);
+        return (await this.shifts.all(user, scope, consulta)).map((turno) => fila(turno, zona));
+      },
       header: ENCABEZADOS[locale],
       format: query.format,
       sheetName: HOJA[locale],
@@ -68,11 +71,27 @@ export class ShiftsExportService {
   }
 }
 
-function fila(turno: ShiftRow): string[] {
+/**
+ * «2026-09-06 17:30» en la zona del negocio: lo que se lee en una hoja. El
+ * locale sueco da ese formato ISO sin tener que armarlo a mano.
+ */
+function fechaHoraLocal(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+function fila(turno: ShiftRow, timeZone: string): string[] {
   const porMetodo = (metodo: string) => turno.totals.find((t) => t.method === metodo)?.total ?? "0";
   return [
-    turno.openedAt,
-    turno.closedAt ?? "",
+    fechaHoraLocal(turno.openedAt, timeZone),
+    turno.closedAt === null ? "" : fechaHoraLocal(turno.closedAt, timeZone),
     turno.warehouse.name,
     turno.openedBy.name,
     turno.closedBy?.name ?? "",

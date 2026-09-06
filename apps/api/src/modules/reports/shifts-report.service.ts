@@ -214,6 +214,15 @@ export class ShiftsReportService {
     };
   }
 
+  /** La zona del negocio: el rango de fechas y el export la necesitan. */
+  async timeZone(user: AuthUser): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { timezone: true },
+    });
+    return tenant?.timezone ?? "UTC";
+  }
+
   private async where(
     user: AuthUser,
     scope: UserScope,
@@ -222,11 +231,7 @@ export class ShiftsReportService {
     if (query.warehouseId !== undefined) {
       assertWarehouseInScope(scope, query.warehouseId);
     }
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { timezone: true },
-    });
-    const timeZone = tenant?.timezone ?? "UTC";
+    const timeZone = await this.timeZone(user);
     // El rango va sobre el CIERRE (sobre la apertura en los abiertos), en días
     // del calendario del negocio: un cierre a las 23:30 en CDMX es de ese día.
     const rango =

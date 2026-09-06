@@ -238,6 +238,9 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
     );
     // Central tiene DOS cierres: el del arqueo y el que abrió y cerró el caso de `status=open`.
     expect(lineas).toHaveLength(3);
+    // Apertura y cierre van como fecha y hora del NEGOCIO («2026-09-06 17:30»),
+    // no como la marca ISO en UTC que nadie lee en una hoja de cálculo.
+    expect(lineas[1]).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2},\d{4}-\d{2}-\d{2} \d{2}:\d{2},/);
     expect(
       lineas.some((l) =>
         l.includes(",Ana Pérez,Ana Pérez,100,50,0,2,100,90,-10,Faltó un billete de 10"),
