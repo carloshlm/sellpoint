@@ -32,6 +32,7 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
     medicalClinicOrderLine: { createMany: Mock };
     user: { findFirst: Mock };
     tenant: { findUniqueOrThrow: Mock };
+    taxGroup: { findFirst: Mock; findMany: Mock };
   };
   let prisma: { withTenantContext: Mock };
   let audit: { record: Mock };
@@ -103,7 +104,14 @@ describe("MedicalOrdersService (F9-CLINIC-14/15/23)", () => {
       medicalClinicOrderLine: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
       user: { findFirst: jest.fn().mockResolvedValue({ defaultWarehouseId: "w-1" }) },
       // La zona del negocio decide qué día es «hoy»: UTC para no depender del reloj.
-      tenant: { findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: "UTC" }) },
+      tenant: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: "UTC", taxMode: "included" }),
+      },
+      // F4-TAX-08: el contexto fiscal; sin grupos, la orden cotiza sin impuesto.
+      taxGroup: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
     prisma = { withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)) };
     audit = { record: jest.fn() };

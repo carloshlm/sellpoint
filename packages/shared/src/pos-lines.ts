@@ -23,5 +23,7 @@ export const posLineKindSchema = z.enum(POS_LINE_KINDS);
 export const conceptLineSchema = z.object({
   description: z.string().trim().min(1).max(200),
   unitPrice: z.number().min(0),
+  /** F4-TAX-08: el grupo de impuesto del concepto; null o ausente = el default del negocio. */
+  taxGroupId: z.string().uuid().nullable().optional(),
 });
 export type ConceptLine = z.infer<typeof conceptLineSchema>;

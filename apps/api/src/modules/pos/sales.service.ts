@@ -22,7 +22,8 @@ import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
 import { buildSalesWhere } from "./sales-where";
 import { allowNegativeStock } from "./stock-policy";
-import { armarTotales, type LineaTotalizada } from "./totals";
+import { contextoFiscal, grupoCongelado, grupoDe } from "./tax-resolver";
+import { armarTotales, type GrupoResuelto, type LineaTotalizada } from "./totals";
 
 /** Lo que el catálogo dice que cuesta una línea. NUNCA lo que mandó el POST. */
 interface PrecioResuelto {
@@ -51,6 +52,10 @@ interface PrecioResuelto {
   conceptDescription: string | null;
   sourceModule: string | null;
   sourceRef: string | null;
+  /** F4-TAX-07: el grupo del CATÁLOGO (producto o servicio); null = el default del negocio. */
+  taxGroupId: string | null;
+  /** F4-TAX-07: el impuesto CONGELADO de un concepto, reconstruido de la línea cotizada. */
+  taxFrozen: GrupoResuelto | null;
 }
 
 /**
@@ -113,7 +118,10 @@ export class SalesService {
     return this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.sale.findFirst({
         where: { tenantId: user.tenantId, idempotencyKey },
-        include: { items: { orderBy: { lineNo: "asc" } } },
+        include: {
+          items: { orderBy: { lineNo: "asc" } },
+          taxes: { orderBy: { sortOrder: "asc" } },
+        },
       }),
     );
   }
@@ -159,13 +167,26 @@ export class SalesService {
         // F4-TAX-06: UN motor suma el documento (venta, cotización y la orden
         // médica llaman al mismo). Redondea cada línea a centavos ANTES del
         // descuento y reclama por línea si el descuento la deja en negativo.
+        // F4-TAX-07: producto y servicio cobran el impuesto VIGENTE de su
+        // grupo (o el default del negocio), igual que releen el precio; el
+        // concepto cobra el CONGELADO en la cotización, jamás el default.
+        const fiscal = await contextoFiscal(
+          tx,
+          user.tenantId,
+          precios.map((p) => p.taxGroupId),
+        );
         const totales = armarTotales(
-          dto.lines.map((line, i) => ({
-            unitPrice: (precios[i] as PrecioResuelto).unitPrice,
-            quantity: new Prisma.Decimal(line.quantity),
-            discount: new Prisma.Decimal(line.discount ?? 0),
-            grupo: null,
-          })),
+          dto.lines.map((line, i) => {
+            const precio = precios[i] as PrecioResuelto;
+            return {
+              unitPrice: precio.unitPrice,
+              quantity: new Prisma.Decimal(line.quantity),
+              discount: new Prisma.Decimal(line.discount ?? 0),
+              grupo:
+                precio.kind === "concept" ? precio.taxFrozen : grupoDe(fiscal, precio.taxGroupId),
+            };
+          }),
+          fiscal.mode,
         );
         const { subtotal, discount: descuento } = totales;
 
@@ -239,6 +260,19 @@ export class SalesService {
             subtotal,
             discount: descuento,
             total: totales.total,
+            taxMode: fiscal.mode,
+            taxTotal: totales.taxTotal,
+            taxes: {
+              create: totales.byComponent.map((c) => ({
+                tenantId: user.tenantId,
+                code: c.code,
+                name: c.name,
+                rate: new Prisma.Decimal(c.rate),
+                base: c.base,
+                amount: c.amount,
+                sortOrder: c.sortOrder,
+              })),
+            },
             createdBy: user.userId,
             items: {
               create: dto.lines.map((line, i) => {
@@ -283,6 +317,8 @@ export class SalesService {
                   ...(costoBase !== undefined && costoBase !== null && { unitCost: costoBase }),
                   discount: desc,
                   lineTotal: (totales.lines[i] as LineaTotalizada).lineTotal,
+                  taxAmount: (totales.lines[i] as LineaTotalizada).taxAmount,
+                  taxGroupCode: (totales.lines[i] as LineaTotalizada).taxGroupCode,
                 };
               }),
             },
@@ -346,7 +382,10 @@ export class SalesService {
 
         return tx.sale.findUniqueOrThrow({
           where: { id: venta.id },
-          include: { items: { orderBy: { lineNo: "asc" } } },
+          include: {
+            items: { orderBy: { lineNo: "asc" } },
+            taxes: { orderBy: { sortOrder: "asc" } },
+          },
         });
       })
       .catch(async (error) => {
@@ -536,7 +575,10 @@ export class SalesService {
 
       return tx.sale.findUniqueOrThrow({
         where: { id },
-        include: { items: { orderBy: { lineNo: "asc" } } },
+        include: {
+          items: { orderBy: { lineNo: "asc" } },
+          taxes: { orderBy: { sortOrder: "asc" } },
+        },
       });
     });
   }
@@ -585,6 +627,8 @@ export class SalesService {
               quantity: Prisma.Decimal;
               sourceModule: string | null;
               sourceRef: string | null;
+              taxGroupCode: string | null;
+              taxRates: unknown;
             }
           >()
         : new Map(
@@ -601,6 +645,8 @@ export class SalesService {
                   quantity: true,
                   sourceModule: true,
                   sourceRef: true,
+                  taxGroupCode: true,
+                  taxRates: true,
                 },
               })
             ).map((l) => [l.id, l]),
@@ -678,6 +724,8 @@ export class SalesService {
           conceptDescription: cotizada.description,
           sourceModule: cotizada.sourceModule,
           sourceRef: cotizada.sourceRef,
+          taxGroupId: null,
+          taxFrozen: grupoCongelado(cotizada.taxGroupCode, cotizada.taxRates),
         });
         continue;
       }
@@ -685,7 +733,7 @@ export class SalesService {
       if (line.serviceId !== undefined) {
         const servicio = await tx.service.findFirst({
           where: { id: line.serviceId, tenantId: user.tenantId, isActive: true },
-          select: { code: true, price: true, cost: true },
+          select: { code: true, price: true, cost: true, taxGroupId: true },
         });
         if (servicio === null) {
           throw new UnprocessableEntityException({
@@ -704,6 +752,8 @@ export class SalesService {
           // Un servicio no se compone de nada: no tiene existencias que armar.
           isComposite: false,
           sku: servicio.code,
+          taxGroupId: servicio.taxGroupId,
+          taxFrozen: null,
         });
         continue;
       }
@@ -713,6 +763,7 @@ export class SalesService {
         select: {
           sku: true,
           isComposite: true,
+          taxGroupId: true,
           presentations: {
             where: { isActive: true, isSellable: true },
             select: {
@@ -772,6 +823,8 @@ export class SalesService {
         presentationId: presentacion.id,
         sku: producto.sku,
         isComposite: producto.isComposite,
+        taxGroupId: producto.taxGroupId,
+        taxFrozen: null,
       });
     }
 

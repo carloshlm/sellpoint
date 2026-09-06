@@ -35,6 +35,7 @@ import {
 } from "./lookup.strategies";
 import { allowNegativeStock } from "./stock-policy";
 import { hideStockFromItem } from "./stock-visibility";
+import { contextoFiscal, grupoDe, snapshotDeTasas, taxRatesJson } from "./tax-resolver";
 import { armarTotales, type LineaTotalizada } from "./totals";
 import { sellableStock } from "./warehouse-availability";
 
@@ -53,6 +54,8 @@ export interface LineaResuelta {
   serviceId: string | null;
   /** En unidad BASE, para chequear disponibilidad. */
   quantityBase: Prisma.Decimal;
+  /** F4-TAX-08: el grupo del catálogo (o el que nombró el concepto); null = el default del negocio. */
+  taxGroupId: string | null;
 }
 
 /**
@@ -100,13 +103,22 @@ export class QuotesService {
       const lineas = await this.resolverLineas(tx, user, warehouseId, dto.lines);
 
       // F4-TAX-06: el mismo motor que la venta suma la cotización.
+      // F4-TAX-08: el mismo contexto fiscal que la venta; lo que se cotiza se
+      // guarda con sus componentes para que el concepto se cobre congelado.
+      const fiscal = await contextoFiscal(
+        tx,
+        user.tenantId,
+        lineas.map((l) => l.taxGroupId),
+      );
+      const grupos = lineas.map((l) => grupoDe(fiscal, l.taxGroupId));
       const totales = armarTotales(
         lineas.map((l, i) => ({
           unitPrice: l.unitPrice,
           quantity: new Prisma.Decimal(dto.lines[i]?.quantity ?? 0),
           discount: new Prisma.Decimal(0),
-          grupo: null,
+          grupo: grupos[i] ?? null,
         })),
+        fiscal.mode,
       );
       const total = totales.total;
 
@@ -121,6 +133,19 @@ export class QuotesService {
           folio,
           warehouseId,
           total,
+          taxMode: fiscal.mode,
+          taxTotal: totales.taxTotal,
+          taxes: {
+            create: totales.byComponent.map((c) => ({
+              tenantId: user.tenantId,
+              code: c.code,
+              name: c.name,
+              rate: new Prisma.Decimal(c.rate),
+              base: c.base,
+              amount: c.amount,
+              sortOrder: c.sortOrder,
+            })),
+          },
           ...(dto.note !== undefined && { note: dto.note }),
           createdBy: user.userId,
           lines: {
@@ -137,6 +162,9 @@ export class QuotesService {
                 quantity: cantidad,
                 unitPrice: l.unitPrice,
                 lineTotal: (totales.lines[i] as LineaTotalizada).lineTotal,
+                taxAmount: (totales.lines[i] as LineaTotalizada).taxAmount,
+                taxGroupCode: (totales.lines[i] as LineaTotalizada).taxGroupCode,
+                taxRates: taxRatesJson(grupos[i] ?? null),
               };
             }),
           },
@@ -145,7 +173,10 @@ export class QuotesService {
 
       return tx.quote.findUniqueOrThrow({
         where: { id: cotizacion.id },
-        include: { lines: { orderBy: { lineNo: "asc" } } },
+        include: {
+          lines: { orderBy: { lineNo: "asc" } },
+          taxes: { orderBy: { sortOrder: "asc" } },
+        },
       });
     });
   }
@@ -371,9 +402,28 @@ export class QuotesService {
                 // cotizado en la sucursal puede no existir en la central.
                 warehouses: { some: { warehouseId: sesion.warehouseId } },
               },
-              select: { id: true, code: true, name: true, price: true },
+              select: { id: true, code: true, name: true, price: true, taxGroupId: true },
             });
       const servicioPorId = new Map(servicios.map((s) => [s.id, s]));
+
+      // F4-TAX-08: producto y servicio traen el impuesto VIGENTE (se relee al
+      // cobrar, como el precio); el concepto trae el CONGELADO en su línea.
+      const grupoDeProducto = new Map(
+        (
+          await tx.product.findMany({
+            where: { id: { in: productIds }, tenantId: user.tenantId },
+            select: { id: true, taxGroupId: true },
+          })
+        ).map((p) => [p.id, p.taxGroupId]),
+      );
+      const fiscal = await contextoFiscal(tx, user.tenantId, [
+        ...grupoDeProducto.values(),
+        ...servicios.map((s) => s.taxGroupId),
+      ]);
+      const impuestoVigente = (taxGroupId: string | null | undefined) => {
+        const grupo = grupoDe(fiscal, taxGroupId);
+        return { groupCode: grupo?.code ?? null, components: snapshotDeTasas(grupo) };
+      };
 
       const lineas = await Promise.all(
         cotizacion.lines.map(async (linea) => {
@@ -391,6 +441,12 @@ export class QuotesService {
               description: linea.description,
               unitPrice: linea.unitPrice.toString(),
               sourceModule: linea.sourceModule,
+              tax: {
+                groupCode: linea.taxGroupCode,
+                components: Array.isArray(linea.taxRates)
+                  ? (linea.taxRates as { code: string; name: string; rate: string }[])
+                  : [],
+              },
             };
             return {
               lineNo: linea.lineNo,
@@ -440,7 +496,18 @@ export class QuotesService {
                     name: servicio.name,
                     price: servicio.price?.toString() ?? null,
                   };
-          const item: LookupItem | null = base === null ? null : { ...base, quoteLineId: linea.id };
+          const item: LookupItem | null =
+            base === null
+              ? null
+              : {
+                  ...base,
+                  quoteLineId: linea.id,
+                  tax: impuestoVigente(
+                    linea.productId !== null
+                      ? grupoDeProducto.get(linea.productId)
+                      : servicio?.taxGroupId,
+                  ),
+                };
 
           return {
             lineNo: linea.lineNo,
@@ -483,6 +550,8 @@ export class QuotesService {
         note: cotizacion.note,
         /** El total del PAPEL. El de hoy lo arma el carrito con los precios nuevos. */
         quotedTotal: cotizacion.total.toString(),
+        quotedTaxTotal: cotizacion.taxTotal.toString(),
+        taxMode: fiscal.mode,
         lines: ocultarExistencias
           ? lineas.map((l) => ({
               ...l,
@@ -586,6 +655,7 @@ export class QuotesService {
           productId: null,
           serviceId: null,
           quantityBase: new Prisma.Decimal(line.quantity),
+          taxGroupId: line.concept.taxGroupId ?? null,
         });
         continue;
       }
@@ -600,7 +670,7 @@ export class QuotesService {
             // ahí no existe es prometer algo que no se puede cumplir.
             warehouses: { some: { warehouseId } },
           },
-          select: { code: true, name: true, price: true },
+          select: { code: true, name: true, price: true, taxGroupId: true },
         });
         if (servicio === null) {
           throw new UnprocessableEntityException({
@@ -616,6 +686,7 @@ export class QuotesService {
           productId: null,
           serviceId: line.serviceId,
           quantityBase: new Prisma.Decimal(line.quantity),
+          taxGroupId: servicio.taxGroupId,
         });
         continue;
       }
@@ -626,6 +697,7 @@ export class QuotesService {
           id: true,
           sku: true,
           name: true,
+          taxGroupId: true,
           presentations: {
             where: { isActive: true, isSellable: true },
             select: { id: true, name: true, factor: true, price: true, isDefaultSale: true },
@@ -674,6 +746,7 @@ export class QuotesService {
         productId: producto.id,
         serviceId: null,
         quantityBase: new Prisma.Decimal(line.quantity).times(presentacion.factor),
+        taxGroupId: producto.taxGroupId,
       });
     }
 

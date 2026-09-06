@@ -18,6 +18,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
 import { QuotesService } from "../pos/quotes.service";
+import { contextoFiscal, grupoDe, taxRatesJson } from "../pos/tax-resolver";
 import { armarTotales, type LineaTotalizada } from "../pos/totals";
 import { diaDelNegocio } from "./business-day";
 import type { CreateOrderDto, PrescriptionLineDto } from "./dto/orders.dto";
@@ -69,6 +70,8 @@ interface LineaLista {
   quantity: Prisma.Decimal;
   unitPrice: Prisma.Decimal;
   dosage: string | null;
+  /** F4-TAX-08: el grupo del artículo (producto o estudio); null = el default del negocio. */
+  taxGroupId: string | null;
 }
 
 const INCLUDE = {
@@ -157,13 +160,23 @@ export class MedicalOrdersService {
         folio = await nextFolio(tx, user.tenantId, "quote", POS_FOLIO_PREFIXES.quote);
         // F4-TAX-06: la cotización de la orden se suma con el mismo motor que
         // el POS; sin esto los tres cálculos podían divergir un centavo.
+        // F4-TAX-08: el estudio y el medicamento cotizan con SU grupo (o el
+        // default del negocio). Un estudio exento queda exento aunque el
+        // default sea IVA 16%: el impuesto viaja congelado en la línea.
+        const fiscal = await contextoFiscal(
+          tx,
+          user.tenantId,
+          lineas.map((l) => l.taxGroupId),
+        );
+        const grupos = lineas.map((l) => grupoDe(fiscal, l.taxGroupId));
         const totales = armarTotales(
-          lineas.map((l) => ({
+          lineas.map((l, i) => ({
             unitPrice: l.unitPrice,
             quantity: l.quantity,
             discount: new Prisma.Decimal(0),
-            grupo: null,
+            grupo: grupos[i] ?? null,
           })),
+          fiscal.mode,
         );
         const total = totales.total;
         const cotizacion = await tx.quote.create({
@@ -172,6 +185,19 @@ export class MedicalOrdersService {
             folio,
             warehouseId,
             total,
+            taxMode: fiscal.mode,
+            taxTotal: totales.taxTotal,
+            taxes: {
+              create: totales.byComponent.map((c) => ({
+                tenantId: user.tenantId,
+                code: c.code,
+                name: c.name,
+                rate: new Prisma.Decimal(c.rate),
+                base: c.base,
+                amount: c.amount,
+                sortOrder: c.sortOrder,
+              })),
+            },
             createdBy: user.userId,
             sourceModule: SOURCE_MODULE,
             sourceRef: orderId,
@@ -186,6 +212,9 @@ export class MedicalOrdersService {
                 quantity: l.quantity,
                 unitPrice: l.unitPrice,
                 lineTotal: (totales.lines[i] as LineaTotalizada).lineTotal,
+                taxAmount: (totales.lines[i] as LineaTotalizada).taxAmount,
+                taxGroupCode: (totales.lines[i] as LineaTotalizada).taxGroupCode,
+                taxRates: taxRatesJson(grupos[i] ?? null),
                 sourceModule: SOURCE_MODULE,
                 sourceRef: l.id,
               })),
@@ -351,6 +380,7 @@ export class MedicalOrdersService {
           quantity: new Prisma.Decimal(recetadas[i]?.quantity ?? 0),
           unitPrice: r.unitPrice,
           dosage: recetadas[i]?.dosage ?? null,
+          taxGroupId: r.taxGroupId,
         }));
       }
       // Sin venta: descripción y precio de REFERENCIA, sin exigir stock.
@@ -360,6 +390,7 @@ export class MedicalOrdersService {
           where: { id: l.productId, tenantId: user.tenantId, isActive: true },
           select: {
             name: true,
+            taxGroupId: true,
             presentations: {
               where: { isActive: true },
               select: { id: true, name: true, price: true, isDefaultSale: true },
@@ -387,6 +418,7 @@ export class MedicalOrdersService {
           quantity: new Prisma.Decimal(l.quantity),
           unitPrice: presentacion.price ?? new Prisma.Decimal(0),
           dosage: l.dosage ?? null,
+          taxGroupId: producto.taxGroupId,
         });
       }
       return lineas;
@@ -421,6 +453,7 @@ export class MedicalOrdersService {
         quantity: new Prisma.Decimal((l as { quantity?: number }).quantity ?? 1),
         unitPrice: estudio.price ?? new Prisma.Decimal(0),
         dosage: null,
+        taxGroupId: estudio.taxGroupId,
       };
     });
   }

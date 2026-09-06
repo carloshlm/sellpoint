@@ -1641,6 +1641,8 @@ model QuoteLine {
   lineTotal      Decimal  @map("line_total") @db.Decimal(14, 2)
   taxAmount      Decimal  @default(0) @map("tax_amount") @db.Decimal(14, 2)
   taxGroupCode   String?  @map("tax_group_code") @db.VarChar(32)
+  /** F4-TAX-08 — los componentes con los que se cotizó (`[{code,name,rate}]`): el concepto los cobra congelados. */
+  taxRates       Json     @default("[]") @map("tax_rates")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
