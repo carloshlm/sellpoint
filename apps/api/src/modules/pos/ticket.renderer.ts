@@ -3,6 +3,7 @@ import {
   formatMoney,
   formatQuantityWithUnit,
   type Locale,
+  type TaxMode,
   type TicketSettings,
 } from "@sellpoint/shared";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
@@ -55,6 +56,17 @@ export interface TicketInput {
   subtotal: string;
   discount: string;
   total: string;
+  /**
+   * F4-TAX-12 — el modo del documento (snapshot) y su desglose. Con
+   * componentes, el pie va Descuento → Subtotal (la base) → una fila por
+   * componente → Total; sin componentes, el papel de siempre, byte a byte.
+   * El nombre del componente ya trae la tasa («IVA 16%», «GST 5%»): viene
+   * del catálogo del negocio, en su vocabulario fiscal.
+   */
+  taxMode: TaxMode;
+  /** El neto tras descuento: `total − Σ taxes.amount`. */
+  taxBase: string;
+  taxes: { name: string; rate: string; amount: string }[];
   /**
    * El código de barras diario del ticket (`202608240045`). Solo en ventas
    * nuevas: `null` en las anteriores a la migración y en cotizaciones — esos
@@ -201,12 +213,24 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
       linea(anchoPt - margen * 2),
 
       // ── Los totales ───────────────────────────────────────────────────
-      ...(Number(input.discount) > 0
+      //
+      // F4-TAX-12: con impuestos, Descuento (si hay) → Subtotal = la BASE →
+      // una fila por componente (CRA exige GST/HST separado del PST) → Total.
+      // Sin impuestos, exactamente lo de siempre.
+      ...(input.taxes.length > 0
         ? [
-            fila(t("ticket.subtotal"), dinero(input.subtotal)),
-            fila(t("ticket.discount"), `-${dinero(input.discount)}`),
+            ...(Number(input.discount) > 0
+              ? [fila(t("ticket.discount"), `-${dinero(input.discount)}`)]
+              : []),
+            fila(t("ticket.taxBase"), dinero(input.taxBase)),
+            ...input.taxes.map((tax) => fila(tax.name, dinero(tax.amount))),
           ]
-        : []),
+        : Number(input.discount) > 0
+          ? [
+              fila(t("ticket.subtotal"), dinero(input.subtotal)),
+              fila(t("ticket.discount"), `-${dinero(input.discount)}`),
+            ]
+          : []),
       {
         columns: [
           { text: t("ticket.total"), bold: true },

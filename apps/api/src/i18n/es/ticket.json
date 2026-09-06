@@ -17,5 +17,6 @@
   "total": "Total",
   "phone": "Tel",
   "turn": "TURNO",
-  "turnFooter": "Espera a que llamen tu número."
+  "turnFooter": "Espera a que llamen tu número.",
+  "taxBase": "Subtotal"
 }

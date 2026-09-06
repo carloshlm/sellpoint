@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type { Currency } from "@sellpoint/shared";
+import type { Currency, TaxMode } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
+import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { TicketSettingsService } from "../tenants/ticket-settings.service";
@@ -70,6 +71,7 @@ export class TicketService {
         where: { id: saleId, tenantId: user.tenantId },
         include: {
           items: { orderBy: { lineNo: "asc" } },
+          taxes: { orderBy: { sortOrder: "asc" } },
           warehouse: { select: { name: true, address: true, phone: true } },
           seller: { select: { firstName: true, lastNamePaternal: true } },
         },
@@ -103,7 +105,13 @@ export class TicketService {
         movimientos.filter((m) => m.lot !== null).map((m) => [m.productId, m.lot?.lotCode ?? null]),
       );
 
-      const rows = await this.filasDe(tx, user.tenantId, venta.items, lotePorProducto);
+      const rows = await this.filasDe(
+        tx,
+        user.tenantId,
+        venta.items,
+        lotePorProducto,
+        venta.taxMode as TaxMode,
+      );
       // Qué se imprime y el logotipo, en la MISMA transacción (F4-TICKETCFG-05).
       const { settings, logo } = await this.ticketSettings.leer(tx, user.tenantId);
 
@@ -126,6 +134,15 @@ export class TicketService {
         subtotal: venta.subtotal.toString(),
         discount: venta.discount.toString(),
         total: venta.total.toString(),
+        // F4-TAX-13: el desglose viene del snapshot de la venta, nunca del
+        // catálogo de hoy: el papel reimpreso dice lo que dijo aquel día.
+        taxMode: venta.taxMode as TaxMode,
+        taxBase: venta.total.minus(venta.taxTotal).toString(),
+        taxes: venta.taxes.map((x) => ({
+          name: x.name,
+          rate: x.rate.toString(),
+          amount: x.amount.toString(),
+        })),
         paymentMethod: venta.paymentMethod,
         // El recibido y el vuelto los sabe la PANTALLA, no la base: el sistema
         // registra qué se cobró, no con qué billete se pagó. Se dejan en null
@@ -155,6 +172,7 @@ export class TicketService {
         where: { id: quoteId, tenantId: user.tenantId },
         include: {
           lines: { orderBy: { lineNo: "asc" } },
+          taxes: { orderBy: { sortOrder: "asc" } },
           warehouse: { select: { name: true, address: true, phone: true } },
           author: { select: { firstName: true, lastNamePaternal: true } },
         },
@@ -177,7 +195,13 @@ export class TicketService {
 
       // Una cotización NO tiene lotes: no movió stock, así que no hay reparto
       // FEFO que contar.
-      const rows = await this.filasDe(tx, user.tenantId, cotizacion.lines, new Map());
+      const rows = await this.filasDe(
+        tx,
+        user.tenantId,
+        cotizacion.lines,
+        new Map(),
+        cotizacion.taxMode as TaxMode,
+      );
       const { settings, logo } = await this.ticketSettings.leer(tx, user.tenantId);
 
       return {
@@ -196,6 +220,13 @@ export class TicketService {
         subtotal: cotizacion.total.toString(),
         discount: "0",
         total: cotizacion.total.toString(),
+        taxMode: cotizacion.taxMode as TaxMode,
+        taxBase: cotizacion.total.minus(cotizacion.taxTotal).toString(),
+        taxes: cotizacion.taxes.map((x) => ({
+          name: x.name,
+          rate: x.rate.toString(),
+          amount: x.amount.toString(),
+        })),
         paymentMethod: null,
         received: null,
         change: null,
@@ -228,11 +259,14 @@ export class TicketService {
       quantity: { toString(): string };
       unitPrice: { toString(): string };
       lineTotal: { toString(): string };
+      /** F4-TAX-13: en `excluded` la fila se imprime SIN el impuesto (CRA). */
+      taxAmount: { toString(): string };
       description?: string;
       /** F4-CONCEPT-07: el texto del concepto vive en la fila de la venta. */
       conceptDescription?: string | null;
     }[],
     lotePorProducto: Map<string, string | null>,
+    mode: TaxMode,
   ): Promise<TicketRow[]> {
     const productIds = lines.map((l) => l.productId).filter((id): id is string => id !== null);
     const productos =
@@ -267,7 +301,15 @@ export class TicketService {
         // Un servicio no sale del anaquel: sin unidad base.
         baseUnit: producto?.baseUnit ?? null,
         unitPrice: line.unitPrice.toString(),
-        lineTotal: line.lineTotal.toString(),
+        // El recibo canadiense muestra las líneas a precio NETO; el mexicano
+        // a precio final (LFPC). `line_total` siempre es lo que se paga, así
+        // que en `excluded` se le quita el impuesto para pintar la fila.
+        lineTotal:
+          mode === "excluded"
+            ? new Prisma.Decimal(line.lineTotal.toString())
+                .minus(new Prisma.Decimal(line.taxAmount.toString()))
+                .toString()
+            : line.lineTotal.toString(),
         lotCode: line.productId === null ? null : (lotePorProducto.get(line.productId) ?? null),
       };
     });

@@ -37,6 +37,9 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
     subtotal: "30.00",
     discount: "0.00",
     total: "30.00",
+    taxMode: "included",
+    taxBase: "30.00",
+    taxes: [],
     paymentMethod: "cash",
     received: "50.00",
     change: "20.00",
@@ -369,6 +372,9 @@ describe("el código de barras del folio", () => {
     subtotal: "15.00",
     discount: "0.00",
     total: "15.00",
+    taxMode: "included",
+    taxBase: "0.00",
+    taxes: [],
     paymentMethod: "cash",
     received: null,
     change: null,
@@ -435,3 +441,105 @@ describe("el código de barras del folio", () => {
     expect(nodo?.width).toBeLessThanOrEqual(58 * 2.83 - 2 * 5 * 2.83);
   });
 });
+
+/**
+ * F4-TAX-12 — el desglose del impuesto en el pie.
+ *
+ * Sin componentes, el papel es el de siempre (la migración de México no
+ * cambia lo que ya se imprimía donde no hay impuesto). Con componentes:
+ * México incluido cuadra base + IVA = total; Columbia Británica imprime GST
+ * y PST en filas SEPARADAS (CRA), y también cuadra.
+ */
+describe("el desglose del impuesto (F4-TAX-12)", () => {
+  const t = (key: string) => key;
+  const conDescuento = (input: TicketInput): TicketInput => ({
+    ...input,
+    subtotal: "116.00",
+    discount: "16.00",
+    total: "100.00",
+  });
+  const baseSinImpuesto = (): TicketInput => ({
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    header: { address: null, phone: null },
+    kind: "sale",
+    folio: "VTA-000001",
+    createdAt: new Date("2026-09-06T18:00:00Z"),
+    sellerName: "Ana",
+    warehouseName: "Central",
+    rows: [],
+    subtotal: "116.00",
+    discount: "0.00",
+    total: "116.00",
+    taxMode: "included",
+    taxBase: "116.00",
+    taxes: [],
+    paymentMethod: "cash",
+    received: null,
+    change: null,
+    note: null,
+    currency: "MXN",
+    locale: "es",
+    width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
+  });
+  const filasDelPie = (def: unknown): string[] => {
+    const content = (def as { content: unknown[] }).content;
+    return content
+      .map((n) => JSON.stringify(n))
+      .filter((s) => s.includes("ticket.") || s.includes("%"));
+  };
+
+  it("sin componentes, el pie es EXACTAMENTE el de siempre, con y sin descuento", () => {
+    const sin = baseSinImpuesto();
+    expect(textosDe(buildTicketDefinition(sin, t))).not.toContain("ticket.taxBase");
+    expect(textosDe(buildTicketDefinition(sin, t))).not.toContain("ticket.subtotal");
+    const con = buildTicketDefinition(conDescuento(sin), t);
+    expect(textosDe(con)).toContain("ticket.subtotal");
+    expect(textosDe(con)).toContain("ticket.discount");
+    expect(textosDe(con)).not.toContain("ticket.taxBase");
+  });
+
+  it("México incluido con descuento: Descuento → Subtotal 86.21 → IVA 16% 13.79 → Total 100.00, y cuadra", () => {
+    const mx = conDescuento({
+      ...baseSinImpuesto(),
+      taxBase: "86.21",
+      taxes: [{ name: "IVA 16%", rate: "16", amount: "13.79" }],
+    });
+    const texto = textosDe(buildTicketDefinition(mx, t));
+    expect(texto).toContain("ticket.discount");
+    expect(texto).toContain("ticket.taxBase");
+    expect(texto).toContain("IVA 16%");
+    expect(texto).not.toContain("ticket.subtotal");
+    const pie = filasDelPie(buildTicketDefinition(mx, t)).join(" ");
+    expect(pie.indexOf("ticket.discount")).toBeLessThan(pie.indexOf("ticket.taxBase"));
+    expect(pie.indexOf("ticket.taxBase")).toBeLessThan(pie.indexOf("IVA 16%"));
+    expect(pie.indexOf("IVA 16%")).toBeLessThan(pie.indexOf("ticket.total"));
+    expect((86.21 + 13.79).toFixed(2)).toBe("100.00");
+  });
+
+  it("Columbia Británica: GST y PST salen en filas SEPARADAS y suman el total", () => {
+    const bc: TicketInput = {
+      ...baseSinImpuesto(),
+      taxMode: "excluded",
+      subtotal: "80.00",
+      discount: "10.00",
+      total: "78.40",
+      taxBase: "70.00",
+      taxes: [
+        { name: "GST 5%", rate: "5", amount: "3.50" },
+        { name: "PST 7%", rate: "7", amount: "4.90" },
+      ],
+    };
+    const def = buildTicketDefinition(bc, t);
+    const filas = filasDelPie(def);
+    expect(filas.some((f) => f.includes("GST 5%") && f.includes("3.50"))).toBe(true);
+    expect(filas.some((f) => f.includes("PST 7%") && f.includes("4.90"))).toBe(true);
+    expect(filas.some((f) => f.includes("GST 5%") && f.includes("PST 7%"))).toBe(false);
+    expect((70 + 3.5 + 4.9).toFixed(2)).toBe("78.40");
+  });
+});
+
+function textosDe(def: unknown): string {
+  return JSON.stringify(def);
+}

@@ -17,5 +17,6 @@
   "total": "Total",
   "phone": "Phone",
   "turn": "TICKET",
-  "turnFooter": "Please wait until your number is called."
+  "turnFooter": "Please wait until your number is called.",
+  "taxBase": "Subtotal"
 }

@@ -15,6 +15,7 @@ import {
   setTenantMarket,
   type TenantFixture,
 } from "./support/billing-scenario";
+import { textoDelPdf } from "./support/pdf-text";
 import { startTestApp } from "./support/start-test-app";
 
 /**
@@ -34,8 +35,22 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
   let almacenMx: string;
   let almacenBc: string;
   let exentoMx: string;
+  let ventaMxId = "";
+  let ventaBcId = "";
+  const mx_token = () => mx.token;
+  const bc_token = () => bc.token;
 
   const http = () => request(app.getHttpServer());
+  const pdf = (ruta: string, token: string) =>
+    http()
+      .get(ruta)
+      .set("Authorization", bearer(token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
 
   /** Siembra el catálogo fiscal a mano (los endpoints llegan en F4-TAX-09). */
   async function sembrar(
@@ -144,6 +159,7 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
         ],
       })
       .expect(201);
+    ventaMxId = (venta.body as { id: string }).id;
     const body = venta.body as {
       total: string;
       subtotal: string;
@@ -182,6 +198,7 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
       .set("Authorization", bearer(bc.token))
       .send({ paymentMethod: "card", lines: [{ productId: producto.id, quantity: 1 }] })
       .expect(201);
+    ventaBcId = (venta.body as { id: string }).id;
     const body = venta.body as {
       total: string;
       subtotal: string;
@@ -303,5 +320,27 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
     expect(v.taxTotal).toBe("24.59");
     // Un solo componente `VAT` en el papel, con la suma de los dos.
     expect(v.taxes.map((t) => [t.code, t.amount])).toEqual([["VAT", "24.59"]]);
+  });
+
+  it("el papel: México dice «Subtotal / IVA 16% / Total»; Columbia Británica lista la línea NETA y GST y PST aparte (F4-TAX-13)", async () => {
+    const mx = await pdf(`/pos/sales/${ventaMxId}/ticket?width=58mm`, mx_token()).expect(200);
+    const textoMx = textoDelPdf(mx.body as Buffer);
+    expect(textoMx).toContain("IVA 16%");
+    expect(textoMx).toContain("Subtotal");
+    // Las líneas van a precio FINAL: 116.00 y 100.00; la base es 200.00.
+    expect(textoMx).toContain("116.00");
+    expect(textoMx).toContain("200.00");
+    expect(textoMx).toContain("216.00");
+
+    const bc = await pdf(`/pos/sales/${ventaBcId}/ticket?width=58mm`, bc_token()).expect(200);
+    const textoBc = textoDelPdf(bc.body as Buffer);
+    expect(textoBc).toContain("GST 5%");
+    expect(textoBc).toContain("PST 7%");
+    // La línea se imprime SIN el impuesto (80.00), el total con él (89.60).
+    expect(textoBc).toContain("80.00");
+    // Una sola vez: el total. Si la línea también dijera 89.60, se estaría
+    // imprimiendo con el impuesto adentro.
+    expect(textoBc.split("89.60").length - 1).toBe(1);
+    expect(textoBc).not.toContain("IVA");
   });
 });
