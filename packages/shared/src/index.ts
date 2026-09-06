@@ -15,6 +15,8 @@ export * from "./pos-lines";
 export * from "./quantity";
 export * from "./reception";
 export * from "./schemas/health";
+export * from "./tax";
+export * from "./tax-defaults";
 export * from "./tenant-lifecycle";
 export * from "./ticket-settings";
 export * from "./units";
