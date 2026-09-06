@@ -297,10 +297,10 @@ describe("Negocios anteriores a la Fase 7 (sin suscripción)", () => {
 
       const pago = await pagar(negocio.tenantId, {
         planCode: "basic",
-        amountReceived: "19.00",
+        amountReceived: "29.00",
       }).expect(201);
 
-      expect(pago.body).toMatchObject({ currency: "CAD", amount: "19" });
+      expect(pago.body).toMatchObject({ currency: "CAD", amount: "29" });
     });
 
     it("y a partir de ahí el negocio escribe de nuevo", async () => {

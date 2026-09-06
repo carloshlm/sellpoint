@@ -197,7 +197,7 @@ describe("Ciclo de vida de la suscripción (F7-E2E-01)", () => {
       );
     });
 
-    it("Canadá tiene su propia tarifa: 59 CAD", async () => {
+    it("Canadá tiene su propia tarifa: 89 CAD", async () => {
       const negocio = await registerTenant(app, "lifecycle-ca");
       await setTenantMarket(prisma, negocio.tenantId, "CA");
 
@@ -205,10 +205,10 @@ describe("Ciclo de vida de la suscripción (F7-E2E-01)", () => {
         billingCycle: "monthly",
         method: "transfer",
         paidAt: "2026-05-10T18:00:00.000Z",
-        amountReceived: "59.00",
+        amountReceived: "89.00",
       }).expect(201);
 
-      expect(pago.body).toMatchObject({ amount: "59", currency: "CAD" });
+      expect(pago.body).toMatchObject({ amount: "89", currency: "CAD" });
     });
   });
 

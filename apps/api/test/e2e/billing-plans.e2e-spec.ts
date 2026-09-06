@@ -79,6 +79,38 @@ describe("Catálogo público de planes (GET /billing/plans)", () => {
     });
 
     /**
+     * La tarifa de Canadá (Carlos, 2026-09-06). El mercado canadiense arranca
+     * en $49 CAD (Erply) y Square Retail Plus cobra $60: 29/49/89 deja los
+     * tres escalones por debajo de su rival directo. Los $19/$39/$59 que
+     * había regalaban margen sin comprar ninguna ventaja que el cliente note.
+     */
+    it("el mercado canadiense tiene su propia tarifa: 29 / 49 / 89 CAD", async () => {
+      const negocio = await registerTenant(app, "plans-ca-tarifa");
+      await setTenantMarket(prisma, negocio.tenantId, "CA");
+
+      const res = await request(app.getHttpServer())
+        .get("/billing/plans")
+        .set("Authorization", bearer(negocio.token))
+        .expect(200);
+
+      expect(precioDe(res.body, "basic")).toEqual({
+        currency: "CAD",
+        monthly: "29",
+        yearly: "290",
+      });
+      expect(precioDe(res.body, "pro")).toEqual({
+        currency: "CAD",
+        monthly: "49",
+        yearly: "490",
+      });
+      expect(precioDe(res.body, "plus")).toEqual({
+        currency: "CAD",
+        monthly: "89",
+        yearly: "890",
+      });
+    });
+
+    /**
      * El caso REAL de los tenants viejos: `country` en NULL porque nacieron
      * antes de que el onboarding lo pidiera. La moneda del negocio es el
      * segundo mejor dato disponible — mucho mejor que asumir Estados Unidos
@@ -143,6 +175,13 @@ describe("Catálogo público de planes (GET /billing/plans)", () => {
       expect(pro?.stockControl).toBe(true);
       expect(basic?.features.quotes).toBe(false);
       expect(pro?.features.quotes).toBe(true);
+      // El Básico SÍ lee y exporta sus ventas (Carlos, 2026-09-06): Square y
+      // Loyverse lo dan gratis, y el `ReportsController` nunca lo restringió
+      // — la vitrina mostraba un ❌ sobre algo que el producto ya hacía.
+      expect(basic?.features.reports).toBe(true);
+      expect(basic?.features.reports_export).toBe(true);
+      // Lo que sigue marcando la frontera con Pro es el inventario.
+      expect(basic?.features.movements).toBe(false);
       // Los planes de pago no tienen tope de ventas: NULL es "sin límite".
       expect(basic?.dailySalesLimit).toBeNull();
     });

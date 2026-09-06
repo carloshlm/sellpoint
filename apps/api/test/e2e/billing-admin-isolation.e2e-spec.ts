@@ -156,7 +156,7 @@ describe("Aislamiento del backoffice (F7-E2E-06)", () => {
           billingCycle: "monthly",
           method: "transfer",
           paidAt: new Date().toISOString(),
-          amountReceived: "59.00",
+          amountReceived: "89.00",
         })
         .expect(201);
 
@@ -187,7 +187,7 @@ describe("Aislamiento del backoffice (F7-E2E-06)", () => {
             billingCycle: "monthly",
             method: "transfer",
             paidAt,
-            amountReceived: "59.00",
+            amountReceived: "89.00",
             notes,
           })
           .expect(201);
