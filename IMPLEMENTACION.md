@@ -148,7 +148,7 @@ Ejemplos:
 | **F1** | Multi-Tenant + Auth | ✅ Completada | 2-3 semanas | ✅ Sí |
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
 | **F3** | Movimientos de Inventario | ✅ Completada | 5-6 semanas | ✅ Sí |
-| **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas + TICKETCFG ~21 h + POSVIS ~6 h | ✅ Sí (2026-08-20 · 2026-09-04: F4-TICKETCFG) |
+| **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas + TICKETCFG ~21 h + POSVIS ~6 h + TAX ~84 h | ✅ Sí (2026-08-20 · 2026-09-04: F4-TICKETCFG · 2026-09-06: F4-TAX, 24 tareas) |
 | **F5** | Reportes | ✅ Completada (SHIFT cerrado el 2026-09-06) | ~2 semanas + SHIFT ~10 h | ✅ Atomizada (2026-08-21, 24 tareas · 2026-09-06: F5-SHIFT, 6 tareas) |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas + LIFECYCLE ~22 h | ✅ Sí (2026-08-27 · 2026-09-04: F7-LIFECYCLE) |
@@ -2662,6 +2662,162 @@ La lista, la dirección válida de cada motivo y las reglas de campos viven en `
   - **Depende de:** F4-POSVIS-03 · **Estimación:** 0.5 h
   - **Cerrado (2026-09-05):** en sandbox con la cuenta admin y un producto de prueba con 12 piezas: interruptor apagado → la fila del buscador dice solo nombre, código y precio, y con 999 piezas en el carrito no hay aviso rojo; por el API `available`/`expired` viajan en null. Encendido → «12 piezas disponibles» vuelve. El producto de prueba «QA Existencias» (QA-POSVIS, 12 piezas) queda ACTIVO en el negocio admin de sandbox: el catálogo no deja desactivar un producto con existencias (409). El interruptor quedó encendido.
 
+### Módulo F4-TAX — Impuestos de venta por país (agregado en revisión el 2026-09-06)
+
+> Dos preguntas y una lista (Carlos, 2026-09-06). **¿El precio de catálogo ya trae el impuesto?** (México y la UE sí, por ley de consumidor; Canadá y EE. UU. no) y **¿cuál impuesto lleva cada artículo?** (el default del negocio, o el suyo). Todo lo demás sale de ahí: el ticket desglosa, la cotización desglosa, la planilla importa el código y el reporte fiscal suma por componente. **En modo `included` el dinero no cambia**: un negocio mexicano que ya vendía a $116 sigue vendiendo a $116 y el papel empieza a decir «Subtotal 100.00 / IVA 16% 16.00 / Total 116.00». Sin impuestos compuestos: ningún mercado objetivo los usa. Hechos fiscales verificados el 2026-09-06: MX 16% (8% frontera hasta el 31/12/2026, 0% y exento); CA GST 5% + HST (ON 13, NS 14, NB/NL/PE 15) o provincial (BC 7, MB 7, SK 6, QC 9.975, no compuesto); US sin federal, estatal + local (AK/DE/MT/NH/OR sin estatal).
+>
+> **Invariantes:** `sales.total = Σ sale_items.line_total = neto + tax_total` en los dos modos; `sales.subtotal` sigue siendo Σ precio de catálogo; `Σ sale_items.tax_amount ≡ Σ sale_taxes.amount`; la aritmética vive UNA vez (`packages/shared/src/tax.ts`) y la usan API y web; el modo del día del cobro viaja en `sales.tax_mode`/`quotes.tax_mode`; producto y servicio RELEEN impuesto al cobrar (como el precio), el concepto lo CONGELA en la cotización (como el precio). KPIs, meta y caja en BRUTO; utilidad y reporte fiscal en base sin impuesto.
+
+#### Bloque 0 — Preparación (independiente)
+
+- [ ] **F4-TAX-01** — Factory `buildTenantBlock` para los tests del web
+  - **Salida:** `apps/web/src/test/tenant-fixture.ts` con `buildTenantBlock(overrides?: Partial<TenantBlock>): TenantBlock` (molde `medical-clinic-fixture.ts`/`subscription-fixture.ts`); los **63** literales `tenant: { … monthlySalesGoal … }` de `apps/web/src` reemplazados por `tenant: buildTenantBlock({ … })` conservando cada override real (`country`, `onboarded`, `posShowsStock`…). CERO cambios en producción.
+  - **Verificar:** `pnpm --filter web test` y `typecheck:full` verdes SIN tocar ningún assert. Mutante: cambiar un default de la factory (p. ej. `onboarded: false`) rompe `onboarding-gate.test.tsx` — prueba que los defaults son los que los tests asumían.
+  - **Depende de:** — · **Estimación:** 2 h
+
+#### Bloque 1 — Shared
+
+- [ ] **F4-TAX-02** — La aritmética del impuesto, pura y en enteros
+  - **Salida:** `packages/shared/src/tax.ts`: `TAX_MODES`, `TaxMode`, `taxModeSchema`, `TAX_RATE_SCALE=4`, `TAX_RATE_MAX=100`, `MAX_TAX_COMPONENTS=4`, `TaxComponent {code,name,rate}`, `TaxSplit {netCents, taxCents, byComponent[{code, taxCents}]}`, `rateToScaled(rate: string): bigint`, `splitLineTax({amountCents, mode, components})`. Todo en `bigint` internamente (`amountCents × 10⁶` supera `MAX_SAFE_INTEGER` con `MONEY_MAX`); devuelve `number` de centavos. `excluded`: `net = L`, `tax_i = halfUp(net × r_i / 10⁶)`; `included`: `net = halfUp(L × 10⁶ / (10⁶ + Σ r_i))`, `tax = L − net`, reparto proporcional y el ÚLTIMO componente absorbe el residuo. Sin componentes o tasa 0 → `tax 0`. Export en `packages/shared/src/index.ts`.
+  - **Verificar:** `tax.test.ts` (RED): MX included 11600 @16% → net 10000, tax 1600; excluded 8000 @ [GST 5, PST 7] → 350+490=840; QC excluded 10000 @ [GST 5, QST 9.975] → 500+998 (half-up de 9.975); included con dos componentes → `Σ byComponent === taxCents` exacto; exento (`components: []`) → 0; `amountCents 0` → todo 0; `MONEY_MAX` en centavos no pierde precisión. **Mutantes:** `Math.floor` por half-up rompe QST; quitar el absorbe-residuo rompe la suma exacta; `number` en vez de `bigint` rompe `MONEY_MAX`.
+  - **Depende de:** — · **Estimación:** 3 h
+
+- [ ] **F4-TAX-03** — El catálogo fiscal por país y región
+  - **Salida:** `packages/shared/src/tax-defaults.ts`: `SeedTaxGroup {code, name, isDefault, rates[]}`, `TAX_DEFAULTS_BY_COUNTRY` (26 curados + fallback), `CA_REGIONS` (13), `US_REGIONS` (51), `US_STATE_BASE_RATE`, `needsRegion(country)` (solo `CA`/`US`), `isRegionCode(country, region)`, `resolveTaxDefaults(country, region?) → {mode, groups}`. Grupos: MX `VAT16` (def, «IVA 16%») / `VAT8` («IVA 8% frontera») / `VAT0` / `EXEMPT`; CA por provincia (`HST`, `GST_PST` [GST, PST|RST|QST], `GST_ONLY`, `ZERO`, `EXEMPT`; sin región → `GST_ONLY` default); US `SALES_TAX` (def, tasa estatal base; `NO_TAX` default en AK/DE/MT/NH/OR o sin región) + `NO_TAX`; UE/LATAM su VAT estándar + `VAT0` + `EXEMPT` (BR sembrado en 0); no curado → `included` + `NO_TAX`. **Nombres en el vocabulario fiscal del país** («TVA 20 %», «MwSt 19 %», «VAT 20%»), no traducidos por locale.
+  - **Verificar:** `tax-defaults.test.ts` (RED): los 26 países devuelven modo y grupos; `CA`+`ON` → un componente HST 13; `CA`+`BC` → dos (GST 5, PST 7); `CA`+`QC` → QST `9.9750`; `CA` sin región → `GST_ONLY`; `US`+`OR` → default `NO_TAX`; `JP` → `included` + `NO_TAX`; **exactamente un default por combinación**; toda tasa `0 ≤ rate ≤ 100` con ≤4 decimales. Mutante: dos defaults en un país rompe la unicidad.
+  - **Depende de:** F4-TAX-02 · **Estimación:** 3 h
+
+#### Bloque 2 — Base de datos
+
+- [ ] **F4-TAX-04** — Las tablas, las columnas y la RLS
+  - **Salida:** migración `20260910100000_f4_taxes`: `tenants.tax_mode VARCHAR(8) NOT NULL DEFAULT 'included'` (CHECK `included|excluded`) y `tenants.region VARCHAR(8)` (CHECK formato `^[A-Z0-9]{1,3}$`; sin RLS: `tenants` no la tiene); `tax_groups (id, tenant_id, code VARCHAR(32), name VARCHAR(60), is_default, is_active, sort_order, timestamps; UNIQUE(tenant_id, code); índice único parcial `tax_groups_one_default ON (tenant_id) WHERE is_default AND is_active`)`; `tax_rates (id, tenant_id, tax_group_id FK CASCADE, code VARCHAR(16), name VARCHAR(40), rate DECIMAL(7,4) CHECK 0..100, sort_order; UNIQUE(tax_group_id, code))`; `tax_group_id UUID NULL FK RESTRICT` en `products`, `services`, `medical_clinic_lab_studies`, `medical_clinic_diagnostic_studies`; `sales.tax_mode` (CHECK) + `sales.tax_total DECIMAL(14,2) NOT NULL DEFAULT 0`; `sale_items.tax_amount DEFAULT 0` + `sale_items.tax_group_code VARCHAR(32)`; `sale_taxes (id, tenant_id, sale_id FK CASCADE, code, name, rate DECIMAL(7,4), base, amount, sort_order; UNIQUE(sale_id, code))`; espejo exacto en `quotes`, `quote_lines`, `quote_taxes`. RLS canónica + `FORCE` en las 4 tablas nuevas (bloque `DO $$ FOREACH`, molde `20260908100000_f4_ticket_settings`). Modelos Prisma con docblocks en español (por qué el modo viaja en el documento; por qué no hay `net_amount`).
+  - **Verificar:** `prisma migrate deploy` limpio y `migrate diff` vacío. `taxes-schema.integration.spec.ts`: el índice parcial rechaza dos defaults activos del mismo tenant y ACEPTA uno activo + uno inactivo; `rate = 100.0001` → CHECK; `tax_mode = 'gross'` → CHECK; borrar un grupo con un producto → RESTRICT. `taxes-rls.integration.spec.ts`: 4 canarios de comportamiento (SELECT/INSERT/UPDATE/DELETE cruzado devuelve 0 con `sellpoint_app`) + el estructural (`relforcerowsecurity` en las 4). Mutante: quitar `FORCE` rompe el estructural.
+  - **Depende de:** — · **Estimación:** 4 h
+
+- [ ] **F4-TAX-05** — Backfill de los negocios existentes
+  - **Salida:** migración `20260910110000_f4_taxes_backfill`: por cada tenant, según `country`, inserta grupos y tasas y fija `tenants.tax_mode` (MX → `included` + `VAT16` default + `VAT8`/`VAT0`/`EXEMPT`; CA → `excluded` + `GST_ONLY` default + `EXEMPT` (la provincia la pedirá la tarjeta); US → `excluded` + `NO_TAX`; curados → su VAT; sin país o no curado → `included` + `NO_TAX`). Idempotente (`WHERE NOT EXISTS`). Los `VALUES` del SQL se generan desde `tax-defaults.ts` con un script (`apps/api/scripts/tax-backfill-sql.mjs`) y NO a mano. Los documentos históricos quedan con `tax_mode='included'`, `tax_total=0`, `tax_amount=0` por DEFAULT: se leen correctos sin tocarlos.
+  - **Verificar:** integración: un tenant MX sembrado antes queda con 4 grupos y `VAT16` default; correr dos veces no duplica; una venta anterior sigue con `total = Σ line_total` y `tax_total = 0`. Spec que lee el SQL de la migración y lo compara con `resolveTaxDefaults` país por país (la deriva entre shared y el backfill se detecta en tests). Mutante: quitar el `WHERE NOT EXISTS` rompe la idempotencia.
+  - **Depende de:** F4-TAX-03, F4-TAX-04 · **Estimación:** 2 h
+
+#### Bloque 3 — Motor de totales
+
+- [ ] **F4-TAX-06** — Un solo lugar donde se suma un documento (refactor PURO, sin impuesto)
+  - **Salida:** `apps/api/src/modules/pos/totals.ts` con `LineaFacturable {unitPrice, quantity, discount, grupo: GrupoResuelto | null}`, `TotalesDocumento {lines[{lineTotal, taxAmount, taxGroupCode}], subtotal, discount, taxTotal, total, byComponent[{code,name,rate,base,amount}]}`, `armarTotales(lineas, mode)`; **redondeo half-up a 2 de `unitPrice × quantity` ANTES de restar el descuento** (hoy se delega a Postgres, `sales.service.ts:286`); nueva guarda 422 `pos.line_discount_exceeds_line` con `lineIndex`; i18n es/en. `quotes.service.ts:99-104,132`, `sales.service.ts:156-171,230-291` y `medical-orders.service.ts:157-186` pasan a llamarla. **Sin impuestos todavía**: los números son idénticos a los de hoy.
+  - **Verificar:** `totals.spec.ts` (RED): 3 líneas con descuento dan el mismo `subtotal/discount/total` que la aritmética anterior; `qty 0.333 × 15.50` da `5.16` (half-up), no `5.1615`; descuento 20 sobre una línea de 15 → 422 con el índice. e2e `pos-sales`, `pos-quotes`, `pos-concept-lines`, `medical-clinic-orders-pos` verdes SIN cambiar un assert. **Mutante:** quitar el `toDecimalPlaces` previo rompe la cantidad fraccionaria; truncar en vez de half-up, lo mismo.
+  - **Depende de:** — · **Estimación:** 5 h
+
+- [ ] **F4-TAX-07** — El impuesto entra al motor y a la venta
+  - **Salida:** `apps/api/src/modules/pos/tax-resolver.ts` (`GrupoResuelto {id, code, name, rates[]}`, `resolverGrupos(tx, tenantId, ids)` — **no filtra por `is_active`** — y `grupoPorDefecto(tx, tenantId)`); `armarTotales` gana el modo y los componentes vía `splitLineTax` (Decimal ⇄ centavos); `PrecioResuelto` (`sales.service.ts`) gana `taxGroupId`; `SalesService.crearVenta` escribe `sales.tax_mode/tax_total`, `sale_items.tax_amount/tax_group_code` y `sale_taxes` (agregadas por componente desde las líneas). El CONCEPTO copia el grupo de `quote_lines.tax_group_code`, jamás el default. Sin grupo default → impuesto 0.
+  - **Verificar:** `totals.spec.ts` extendido y `sales.service.spec.ts`: en `included` el `total` es IDÉNTICO al de antes del impuesto (**la propiedad que hace segura la migración de México**) y `tax_total` es 16 de 116; en `excluded` el `total` crece y `Σ sale_taxes.amount === Σ sale_items.tax_amount`; grupo sin tasas → `tax_amount 0` y `tax_group_code 'EXEMPT'`; grupo desactivado sigue cobrando lo suyo. Mutante: el concepto tomando el default rompe el test del estudio exento; recalcular `sale_taxes` sobre el total rompe la igualdad de sumas.
+  - **Depende de:** F4-TAX-04, F4-TAX-06 · **Estimación:** 5 h
+
+- [ ] **F4-TAX-08** — La cotización y la orden médica desglosan igual
+  - **Salida:** `LineaResuelta` (`quotes.service.ts:44`) gana `taxGroupId`; `QuotesService.create` escribe `quotes.tax_mode/tax_total`, `quote_lines.tax_amount/tax_group_code` y `quote_taxes`; `resolverLineasParaModulo` acepta el grupo por línea de concepto; `MedicalOrdersService.create` pasa el `tax_group_id` del estudio y deja de sumar a mano; `QuotesService.forSale` devuelve por ítem `tax: {groupCode, components}` **releído** para producto/servicio y **congelado** para concepto.
+  - **Verificar:** e2e `pos-quotes`: una cotización MX devuelve `taxTotal` y `taxes[]`; e2e `medical-clinic-orders-pos`: una orden de laboratorio con estudio `EXEMPT` cotiza con `taxTotal 0` y al cobrarla la venta también, **aunque el default del negocio sea IVA 16%**; cambiar la tasa entre cotizar y cobrar cambia lo cobrado en un producto y NO en un concepto. Mutante: releer el grupo del concepto rompe el segundo test.
+  - **Depende de:** F4-TAX-07 · **Estimación:** 4 h
+
+#### Bloque 4 — Configuración del negocio (API)
+
+- [ ] **F4-TAX-09** — `TaxSettingsService` y sus endpoints
+  - **Salida:** `apps/api/src/modules/tenants/dto/tax-settings.dto.ts` (`updateTaxSettingsSchema`: `mode` + `groups[{code, name, isDefault, isActive, sortOrder, rates[{code, name, rate}]}]`, `rate` string decimal validado contra `TAX_RATE_SCALE`/`TAX_RATE_MAX`, `MAX_TAX_COMPONENTS`, exactamente un `isDefault`); `tax-settings.service.ts` con `leer(tx, tenantId)`, `get(user)` (con `usageCount` por grupo), `save(user, dto, meta)` (**upsert por `code`, ids estables; grupo ausente se DESACTIVA, nunca se borra**; el default se cambia en DOS sentencias por el índice parcial), `removeGroup(user, code, meta)` (→ 409 `tenants.tax_group_in_use`), `sembrar(tx, tenantId, country, region)` idempotente; auditoría `tenant.tax_settings.update` before/after (molde `TicketSettingsService.guardar`); `tax-settings.controller.ts` (`GET/PUT /tenants/me/taxes`, `DELETE /tenants/me/taxes/groups/:code`, `tenants:manage`); `TenantsModule` exporta el service. i18n api `tenants.tax_*`.
+  - **Verificar:** unit spec: sin filas → `{mode: tenant.taxMode, groups: []}`; `save` con dos `isDefault` → 422; cambiar el default deja exactamente uno activo; un grupo ausente queda `isActive:false` con su id intacto; `removeGroup` de uno usado → 409. e2e `tax-settings.e2e-spec.ts`: sin `tenants:manage` → 403; `PUT` + `GET` viaje redondo; `rate: "9.97500"` → 422. Mutante: cambiar el default en UNA sentencia rompe el test del índice parcial.
+  - **Depende de:** F4-TAX-03, F4-TAX-04 · **Estimación:** 5 h
+
+#### Bloque 5 — El artículo y la planilla
+
+- [ ] **F4-TAX-10** — `taxGroupId` en los cuatro catálogos
+  - **Salida:** `taxGroupId: z.string().uuid().nullable().optional()` en `products/dto/upsert-product.dto.ts` (create + update), `services/dto/upsert-service.dto.ts`, `medical-clinic/dto/upsert-study.dto.ts`; los services lo persisten y lo devuelven (`taxGroup: {id, code, name} | null`); 422 `catalogs.tax_group_unknown` si el id no es un grupo del tenant.
+  - **Verificar:** e2e `products`, `catalogs`, `medical-clinic-catalogs`: crear con `taxGroupId` de otro tenant → 422; `null` explícito limpia el override; el GET lo devuelve. Mutante: no validar la pertenencia rompe el test cross-tenant.
+  - **Depende de:** F4-TAX-04, F4-TAX-09 · **Estimación:** 3 h
+
+- [ ] **F4-TAX-11** — La columna `impuesto` en las cuatro plantillas y en el export
+  - **Salida:** `impuesto`→`tax` en `ENGLISH_LABELS` (`common/spreadsheet/import-headers.ts`); columna al final de `STANDARD_COLUMNS` en `products/import.service.ts` (`catalogRows` la escribe: **vacío = hereda el default, código = override**), `services/services-import.service.ts` y `medical-clinic/study-import.service.ts` (los dos delegates); helper compartido en `catalogs/import-engine.ts`: `loadTaxGroupIndex(tx, tenantId)` + `resolveTaxGroupCode(index, raw)`; error de fila `catalogs.tax_group_unknown` con `itemCode`; la fila de EJEMPLO de cada plantilla trae el código del default; `reports/catalog-export.service.ts#products()` la hereda por reuso.
+  - **Verificar:** e2e `product-import`, `import-templates-i18n`: bajar la plantilla → un producto con override trae su código y uno heredado la celda vacía; subirla sin tocar nada deja el catálogo **idéntico** (viaje redondo sin pérdida); `impuesto: "IVA99"` → error de fila con `code` e `itemCode`; el encabezado en inglés `tax` se reconoce. Mutante: escribir el código del default en las filas heredadas rompe el viaje redondo.
+  - **Depende de:** F4-TAX-10 · **Estimación:** 4 h
+
+#### Bloque 6 — El papel
+
+- [ ] **F4-TAX-12** — El renderer desglosa
+  - **Salida:** `pos/ticket.renderer.ts`: `TicketInput` gana `taxMode: TaxMode`, `taxBase: string`, `taxes: {name, rate, amount}[]`; el bloque de totales (líneas 203-227) pasa a dos disposiciones: con impuestos → Descuento (si >0) / Subtotal (base) / una fila por componente / TOTAL; sin impuestos → exactamente lo de hoy. i18n api `ticket.taxBase` es/en.
+  - **Verificar:** `ticket.renderer.spec.ts` (RED): con `taxes: []` el `docDefinition` es idéntico al de hoy en los dos escenarios de descuento; MX included con descuento imprime «Subtotal 86.21», «IVA 16% 13.79», «Total 100.00» y base + impuestos = total; BC excluded imprime GST y PST en filas separadas (CRA) y `70 + 3.50 + 4.90 = 78.40`. Mutante: fusionar componentes en una sola fila rompe el test de Canadá.
+  - **Depende de:** F4-TAX-02 · **Estimación:** 3 h
+
+- [ ] **F4-TAX-13** — El service arma las filas y el desglose
+  - **Salida:** `pos/ticket.service.ts`: `saleTicket` y `quoteTicket` leen `tax_mode`, `tax_total` y `sale_taxes`/`quote_taxes` en la misma tx (junto a `TicketSettingsService.leer`); `filasDe` gana el modo y devuelve **`lineTotal − taxAmount` en `excluded`** y `lineTotal` en `included` (el recibo canadiense va a precio neto; el mexicano a precio final, LFPC); `taxBase = total − taxTotal`.
+  - **Verificar:** `ticket.service.spec.ts` + e2e `pos-sales`/`pos-quotes` con `pdf-text.ts`: el PDF de una venta MX dice «IVA 16%» y su total no cambió; el de una venta BC lista la línea a $50.00 (neto) y el total a $56.00. Mutante: pasar `lineTotal` crudo en `excluded` rompe el $50.00.
+  - **Depende de:** F4-TAX-07, F4-TAX-08, F4-TAX-12 · **Estimación:** 3 h
+
+#### Bloque 7 — Configuración en el web
+
+- [ ] **F4-TAX-14** — La tarjeta «Impuestos» en Mi perfil
+  - **Salida:** `apps/web/src/lib/tenant/tax-api.ts` (`getTaxSettings`, `updateTaxSettings`, `deleteTaxGroup` + hooks con `setQueryData`); `apps/web/src/components/profile/tax-settings.tsx` (molde `ticket-settings.tsx`, solo `tenants:manage`, entre `BusinessDetails` y `TicketSettings` en `routes/profile.tsx`): radio de modo («El precio ya incluye el impuesto» / «El impuesto se agrega al cobrar») **con advertencia si el negocio ya tiene ventas**, select de provincia/estado si `needsRegion(country)` y no hay región, lista de grupos con sus tasas, marcar default, alta/edición, desactivar, borrar (409 → «lo usan N artículos»); i18n `tenant.tax.*` en `common.json` es/en.
+  - **Verificar:** RED en `tax-settings.test.tsx`: sin `tenants:manage` no se pinta; pinta lo del API; cambiar el modo manda `{mode:"excluded"}` y solo eso; marcar otro default manda un solo `isDefault`; una tasa de 3 decimales se acepta y una de 5 se rechaza en el cliente; el 409 se explica. `i18n.test.tsx` verde.
+  - **Depende de:** F4-TAX-09 · **Estimación:** 5 h
+
+- [ ] **F4-TAX-15** — El selector «Impuesto» en los formularios de artículo
+  - **Salida:** select en alta/edición de producto (`routes/catalog.products.tsx`), servicio (`routes/catalog.services.tsx`) y estudios (`routes/medical-clinic.lab-studies.tsx`, `.diagnostic-studies.tsx`), con opción «Predeterminado del negocio (IVA 16%)» = `null`, siguiendo el skill `sellpoint-forms`; hint sobre la columna `impuesto` en `components/catalog/product-import-dialog.tsx` y `components/common/import-dialog.tsx`.
+  - **Verificar:** RED en `catalog-products.test.tsx`, `catalog-services.test.tsx`, `medical-clinic-studies.test.tsx`: el select se llena del API; guardar sin tocarlo manda `taxGroupId: null`; elegir «Exento» manda su id. Mutante: mandar el id del default en vez de `null` rompe el primero.
+  - **Depende de:** F4-TAX-10, F4-TAX-14 · **Estimación:** 3 h
+
+#### Bloque 8 — El POS en pantalla
+
+- [ ] **F4-TAX-16** — `taxMode` en el contrato y el impuesto en el carrito
+  - **Salida:** `TenantBlock.taxMode` y `TenantBlock.region` en `apps/api/src/modules/tenants/tenant.types.ts` (interfaz, `TENANT_SELECT`, `TenantRow`, `toTenantBlock`) y su espejo `apps/web/src/lib/tenant/api.ts` + defaults en `buildTenantBlock`; `Lookup{Product,Service,Concept}Item` (`pos/lookup.strategies.ts` y `web/src/lib/pos/api.ts`) ganan `tax: {groupCode, components} | null`, servido por las strategies y por `forSale`; `cart.store.ts` gana `impuestosDelCarrito(lines, mode)` y `totalDelCarrito(lines, mode)` **usando `splitLineTax` de shared**.
+  - **Verificar:** `cart.store.test.ts` (RED): included 116 @16% → total 116 e impuesto 16; excluded 2 líneas @ [GST 5, PST 7] → dos componentes y el total sumado; **el mismo caso da el mismo centavo que `armarTotales` del API** (test de paridad con las mismas entradas); sin `tax` → 0. e2e `pos-lookup`: el ítem trae `tax`. Mutante: reimplementar la división en el store en vez de llamar a shared rompe la paridad.
+  - **Depende de:** F4-TAX-01, F4-TAX-02, F4-TAX-08 · **Estimación:** 4 h
+
+- [ ] **F4-TAX-17** — Lo que el cajero ve y lo que cobra
+  - **Salida:** `components/pos/cart-panel.tsx#Totals` con dos disposiciones (included: TOTAL grande + «IVA 16% incluido» secundario, sin fila Subtotal; excluded: Subtotal + una fila por componente + TOTAL); `components/pos/checkout-panel.tsx` usa `totalDelCarrito(lines, mode)` (vuelto y `faltaEfectivo` salen de ahí, `data-testid="checkout-total"` conservado); `quote-builder.tsx` lo hereda por reuso de `CartPanel`. i18n `pos.cart.tax*`, `pos.cart.taxIncluded` es/en.
+  - **Verificar:** RED en `routes/pos-cart.test.tsx` y `pos-sales.test.tsx`: en included el `checkout-total` es el bruto y aparece la nota «incluido»; en excluded aparecen «GST 5%» y «PST 7%» y el total es mayor que el subtotal; pagar con efectivo justo el total no marca faltante. Mutante: cobrar el neto en `excluded` rompe el assert del vuelto.
+  - **Depende de:** F4-TAX-16 · **Estimación:** 4 h
+
+#### Bloque 9 — Onboarding y siembra
+
+- [ ] **F4-TAX-18** — La provincia / el estado en el wizard
+  - **Salida:** `region` en `updateTenantSchema` (validado con `isRegionCode` de shared contra el país); `apps/web/src/lib/tenant/markets.ts` reexporta `CA_REGIONS`/`US_REGIONS`/`needsRegion`; `components/onboarding/step-business.tsx` muestra el select **solo si `needsRegion(country)`**, obligatorio ahí; `lib/tenant/steps.ts#primerPasoIncompleto` lo exige para CA/US. i18n `onboarding.step1.region*`.
+  - **Verificar:** RED en `step-business.test.tsx` y `lib/tenant/steps.test.ts`: elegir MX no pide región; elegir CA la pide y sin ella el paso queda incompleto; elegir BC manda `{country:"CA", region:"BC"}`. Mutante: pedir región para MX rompe el primero.
+  - **Depende de:** F4-TAX-03, F4-TAX-16 · **Estimación:** 3 h
+
+- [ ] **F4-TAX-19** — La siembra al terminar el onboarding
+  - **Salida:** `TenantProfileService.completeOnboarding` llama a `TaxSettingsService.sembrar(tx, tenantId, country, region)` **dentro de su tx**, idempotente (no hace nada si ya hay grupos), y fija `tenants.tax_mode`; auditoría `tenant.taxes.seeded` con país, región y códigos sembrados.
+  - **Verificar:** e2e `tenants-me`: completar onboarding con `MX` deja 4 grupos, `VAT16` default y `tax_mode='included'`; con `CA`+`BC` deja `GST_PST` default con dos componentes y `excluded`; con `US`+`OR` deja `NO_TAX` default; dos veces no duplica; sin país queda `NO_TAX`. Mutante: sembrar fuera de la tx rompe «si falla la auditoría no quedan grupos huérfanos».
+  - **Depende de:** F4-TAX-09, F4-TAX-18 · **Estimación:** 3 h
+
+#### Bloque 10 — Reportes
+
+- [ ] **F4-TAX-20** — Utilidad, revenue y el top del consultorio, sobre la base
+  - **Salida:** `reports/dashboard-kpis.service.ts#utilidadDelMes` → `SUM(i.line_total - i.tax_amount - i.unit_cost * i.quantity)`; `reports/dashboard-products.service.ts` (líneas 69, 102-104, 115) → `SUM(i.line_total - i.tax_amount)` en `revenue` y `profit`; migración `20260910120000_f4_clinic_sold_items_tax` con `CREATE OR REPLACE VIEW medical_clinic_sold_items` que agrega `si.tax_amount` **al final** (limitación de `OR REPLACE`) y **repite el `GRANT SELECT … TO sellpoint_app`**. KPIs de venta, meta y cierre de turno **sin tocar** (bruto, decisión de Carlos): comentario explícito en `cashbox-totals.ts`.
+  - **Verificar:** `dashboard-kpis.service.integration.spec.ts` y `dashboard-widgets.integration.spec.ts` (RED): una venta CA excluded de $100 neto + $12 da `month.total = 112` y `profit` sobre 100; la misma MX included de $116 da `month.total = 116` y `profit` sobre 100. Mutante: olvidar `- i.tax_amount` en `profit` rompe los dos.
+  - **Depende de:** F4-TAX-07 · **Estimación:** 3 h
+
+- [ ] **F4-TAX-21** — El reporte de impuestos cobrados
+  - **Salida:** `reports/tax-report.service.ts` (`list(user, scope, query)`: por período del calendario del NEGOCIO —molde `dashboard-period.ts`— agrupa `sale_taxes` por `code`+`rate` con base, monto y número de tickets, **filtrando `sales.status='completed'`**), `reports/tax-export.service.ts` (es/en, `spreadsheetFilenameBase("impuestos", locale)`), `GET /reports/taxes` y `/reports/taxes/export` (`reports:read`) en `reports.controller.ts` + espejo admin en `admin-tenants.controller.ts`; `reports/sales-export.service.ts` gana «Neto» e «Impuesto»; pantalla `routes/reports.taxes.tsx` + tarjeta en el hub (skill `sellpoint-tables`). i18n `reports.taxes.*`.
+  - **Verificar:** e2e `reports-taxes.e2e-spec.ts`: dos ventas BC dan dos renglones (GST y PST) con sus bases; anular una la saca del reporte y **no** del bruto de caja; el export trae las mismas cifras y su nombre por idioma. Mutante: no filtrar `canceled` rompe el primero.
+  - **Depende de:** F4-TAX-07 · **Estimación:** 4 h
+
+#### Bloque 11 — Verificación y cierre
+
+- [ ] **F4-TAX-22** — e2e de punta a punta, los cuatro mercados
+  - **Salida:** `apps/api/test/e2e/pos-taxes.e2e-spec.ts` con cuatro tenants: **MX included** (16%), **CA-BC excluded** (GST 5 + PST 7), **CA-ON excluded** (HST 13), **US-TX excluded** (6.25%). Cada uno: sembrar por onboarding → catálogo (un artículo al default, uno exento) → cotización con desglose → cargarla → cobrar → ticket 58 y 80 mm → reporte de impuestos → anular → el reporte la excluye y el bruto de caja también.
+  - **Verificar:** las cuatro suites verdes; **el tenant MX arroja el mismo `total` que la misma venta sin el módulo** (regresión cero de dinero); BC imprime dos componentes; el artículo exento no suma impuesto en ninguno; cambiar la tasa de US y volver a vender no toca la venta anterior.
+  - **Depende de:** F4-TAX-13, F4-TAX-19, F4-TAX-21 · **Estimación:** 5 h
+
+- [ ] **F4-TAX-23** — QA en el navegador, local y sandbox
+  - **Salida:** con Playwright en local: alta de negocio CA/BC (el wizard pide provincia), producto exento, venta con desglose en pantalla y en papel, tarjeta «Impuestos» (cambiar tasa, marcar default, borrar un grupo en uso → 409), plantilla de productos con la columna `impuesto` (viaje redondo), reporte de impuestos y export. En **sandbox** (tenant `f035924f`, MX): anotar los totales de las últimas 3 ventas ANTES, correr las migraciones, confirmar que **no cambiaron**, imprimir un ticket nuevo con «IVA 16%», marcar un producto a 0% y comprobarlo en el papel. Capturas de los dos tickets y de las dos disposiciones del carrito, 1440 y 390 px.
+  - **Verificar:** `pnpm typecheck:full && pnpm test && pnpm --filter api build` desde la raíz + e2e completo del api; capturas en el reporte.
+  - **Depende de:** F4-TAX-17, F4-TAX-22 · **Estimación:** 3 h
+
+- [ ] **F4-TAX-24** — Sincronía de las fuentes de verdad y bitácora
+  - **Salida:** `ARQUITECTURA.md` (las 4 tablas y el invariante `total = Σ line_total = neto + impuesto` con el snapshot de `tax_mode`), `MERCADOS.md` §4 (cerrar «Nombre del impuesto de venta», abierto desde 2026-08-16), `VISTAS.md` (tarjeta Impuestos, selector del artículo, dos disposiciones del carrito y del ticket), `CASOS_DE_USO.md` + `FLUJOS.md` (cobro con impuesto), `.claude/skills/sellpoint-vertical-catalog/SKILL.md` (**el catálogo vertical lleva su propio `tax_group_id` y su impuesto viaja CONGELADO en la línea de concepto**); tareas `[x]` con notas y bitácora; memoria (`topic_key: sellpoint/f4-tax`).
+  - **Verificar:** los docs cuentan el mismo diseño que el código; `rg -n "bg-white|#[0-9a-f]{3,6}" apps/web/src/components/profile/tax-settings.tsx` vacío.
+  - **Depende de:** F4-TAX-23 · **Estimación:** 3 h
+
+**Orden sugerido:** 01 · 02 · 04 · 06 (en paralelo, sin dependencias) → 03 · 05 → 07 → 08 · 09 → 10 · 12 · 16 → 11 · 13 · 14 · 18 · 20 → 15 · 17 · 19 · 21 → 22 → 23 → 24. **Total ~84 h.** Un PR por bloque (≤400 líneas); los bloques 0, 1 y 6 (renderer) no tocan producción y pueden ir primero.
+
+**Riesgos con nombre:** (1) la migración de México cambia lo que el cliente VE en el papel aunque no lo que paga — fijado por la propiedad «en `included` el total es idéntico» (F4-TAX-07, F4-TAX-22); (2) un negocio de la franja fronteriza que no cambia a `VAT8` desglosa de más — se siembra `VAT8` activo y el copy de la tarjeta lo dice; el estímulo vence el 31/12/2026; (3) la tasa combinada de EE. UU. depende del domicilio, no del estado — se siembra la estatal y el negocio ajusta (lo mismo hacen Square y Clover en su tier básico); (4) `GST 5%` duplicado en varios grupos canadienses por el FK — un cambio federal son 2-3 filas; (5) `CREATE OR REPLACE VIEW` no reordena columnas: `tax_amount` al final o `DROP + CREATE` con su `GRANT`; (6) 63 archivos de test en F4-TAX-01 — mecánico, sin producción, pero va PRIMERO.
+
+**Pospuestos con nombre:** CFDI 4.0 / facturación electrónica (Facturapi; este módulo deja el desglose que el timbrado necesita); impuesto por PRESENTACIÓN; retenciones (IVA/ISR de servicios profesionales); IEPS y especiales; impuesto compuesto (a propósito fuera del modelo); «cambiar una tasa en todos los grupos» de un negocio; precios/tasas por almacén o sucursal (franquicia con local fronterizo); nexus económico y tasas por código postal en EE. UU. (Stripe Tax / Avalara); redondeo suizo y monedas sin decimales; letra de tasa por línea (`A`/`E` de tickets mexicanos); DROP de `templateChoice` junto con `sales.clinical_document_id`.
+
 ### Módulo F4-PWA — La app instalable
 
 - [x] **F4-PWA-01** — Manifest + service worker + offline básico
@@ -4266,7 +4422,7 @@ Total estimado: F9-MOD ~20 h · F9-ADMIN ~33 h · F9-RECEP ~40 h · F4-CASHBOX-0
 - *(2026-09-03)* **Bloquear el borrado de un cliente con expediente** (409 en Recepción) — hoy `SET NULL` + snapshot del nombre.
 - *(2026-09-03)* **Cédula profesional y especialidad del médico** (`medical_clinic_practitioners (user_id, license_number, specialty)`) — el documento carta (F9-CLINIC-24) las imprimirá cuando existan; hoy `users` no las tiene.
 - *(2026-09-03)* **DROP de `sales.clinical_document_id`** — superada por `quote_id` + `source_ref`; se retira en una limpieza posterior.
-- *(2026-09-03)* **Importación de estudios por archivo** — cuando haya un consultorio con cientos de estudios.
+- *(2026-09-03)* **Importación de estudios por archivo** — cuando haya un consultorio con cientos de estudios. *(HECHO el 2026-09-04, commit 3a05746: `study-import.service.ts` + plantillas de los dos catálogos; se detectó la deriva al atomizar F4-TAX el 2026-09-06 y se deja aquí como registro.)*
 - *(2026-09-03)* **Panel «consultas abiertas hoy» en Atender paciente** — Carlos decidió que retomar una consulta sea solo desde la búsqueda del paciente («Continuar consulta HCL-…»).
 - *(2026-09-03)* **Cierre automático persistido de las vencidas** (job + `closed_by` de sistema, migración de los CHECK) — hoy la vencida es derivada a propósito (`medicalRecordLock`); si algún reporte necesita `status = 'closed'` real, se agrega el job.
 - *(2026-09-04)* **`chargeStatus` de la orden ciego a una venta anulada** — hoy mira `quotes.status`; con la vista `medical_clinic_sold_items` se puede derivar de `sale_status`.
@@ -4339,6 +4495,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-06 (IMPUESTOS DE VENTA POR PAÍS ATOMIZADOS: F4-TAX-01..24)** — Carlos pidió impuestos configurables por negocio y por artículo, importables por Excel y desglosados en ticket y cotización, con foco en MX/CA/US y diseño genérico para los 26 países curados. Decisiones: modo `included`/`excluded` por negocio (en `included` el dinero NO cambia, solo aparece el desglose); catálogo `tax_groups`+`tax_rates` con nombres en el vocabulario fiscal del país; snapshot del modo y del impuesto en venta y cotización (`sale_taxes` por componente); aritmética única en shared con `bigint`; el concepto congela su impuesto (los estudios médicos son exentos en MX); provincia/estado en el onboarding para CA/US; KPIs en bruto, utilidad y fiscal en base; MX existentes reciben IVA 16% incluido; sin impuestos compuestos. Hechos fiscales verificados (MX 16/8/0, CA por provincia con NS 14% desde 2025, US estatal + local). Corrección de paso: la importación de estudios ya está hecha desde el 2026-09-04 — `topic_key: sellpoint/f4-tax` — afecta: F4 (módulo nuevo, ~84 h), F4-SALE/F4-QUOTE (motor de totales único), F5 (reporte fiscal), F9-CLINIC (impuesto congelado en la línea de concepto)
 - **2026-09-06 (TARIFA DE CANADÁ Y REPORTES EN EL PLAN BÁSICO)** — Carlos pidió precios canadienses ~50% por debajo del mercado. Verificado con fuentes de 2026: Erply $49 CAD, Square Retail Plus $60, TouchBistro $69, Shopify POS Pro $89 **por local**, Lightspeed $89/$149/$289. Los $19/$39/$59 sembrados quedaban ~65% abajo (regalaban margen sin ventaja visible), así que la tarifa pasa a **29 / 49 / 89 CAD** (anual ×10): cada escalón por debajo de su rival directo y el Pro a $49 gana la comparación contra Square, que es la que el prospecto sí hace. Además el plan `basic` gana `reports` y `reports_export`: Square y Loyverse los regalan en su plan GRATUITO y un plan de entrada de pago sin ellos no compite. Ojo: esos flags nunca restringieron nada (`ReportsController` no lleva `@RequiresFeature`), así que el cambio alinea la vitrina con lo que el producto ya hacía en lugar de abrir una puerta nueva; la frontera con Pro sigue siendo el INVENTARIO. `plans.features` es global, así que México y Estados Unidos también reciben los reportes en Básico (aditivo: nadie pierde acceso) — migración `20260906180000_f7_ca_prices_basic_reports` — **pendiente de producto: SellPointy no calcula GST/HST por provincia (`schema.prisma` solo tiene `tax_id`), y sin eso no se vende legalmente en Canadá a ningún precio** — afecta: F7 (tarifa y matriz de planes)
 - **2026-09-06 (CIERRES DE TURNO EN PRODUCCIÓN: F5-SHIFT-01..06 cerradas)** — `GET /reports/shifts` (+ detalle y export es/en), pantalla «Cierres de turno» en Reportes con la diferencia en color y «Ver» con las ventas del turno, pestaña en el backoffice; QA en sandbox. Compuerta nueva para el API: `pnpm build` antes de pushear, porque `nest build` emite declaraciones y rechaza tipos de retorno anónimos (TS4053) que `typecheck:full` no ve — `topic_key: sellpoint/shift-close-report` — afecta: F5 (módulo cerrado), F4-CASHBOX (`cashbox-totals.ts` compartido)
 - **2026-09-06 (CIERRES DE TURNO ATOMIZADOS: F5-SHIFT-01..06)** — Carlos preguntó dónde ver el reporte de cierres por empleado con el efectivo contado y la nota; no existe la pantalla aunque `cashbox_sessions` guarda todo. Plan: `GET /reports/shifts` (+ detalle y export) sobre los mismos moldes que Ventas, con el mismo alcance por almacén y el calendario del negocio; los totales por forma de pago con la misma función que usa el cierre; pantalla en Reportes con la diferencia en rojo/verde, «Ver» con las ventas del turno, y la pestaña del backoffice — `topic_key: sellpoint/shift-close-report` — afecta: F5 (nuevo módulo), F4-CASHBOX (helper de totales compartido)
