@@ -51,7 +51,10 @@
     "searchPlaceholder": "Escanea, teclea el código, el nombre o un folio COT-…",
     "stopScan": "Dejar de escanear",
     "subtotal": "Subtotal",
-    "torch": "Linterna"
+    "torch": "Linterna",
+    "total": "Total",
+    "taxIncluded": "{{name}} incluido",
+    "taxBase": "Subtotal"
   },
   "quote": {
     "source": {

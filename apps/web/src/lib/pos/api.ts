@@ -69,7 +69,18 @@ export interface LookupPresentation {
   allowFractionalInput: boolean;
 }
 
+/**
+ * F4-TAX-16 — el impuesto del ítem: el grupo VIGENTE en producto y servicio
+ * (se relee al cobrar, como el precio), el CONGELADO en el concepto. Con esto
+ * el carrito calcula con la misma aritmética entera que el servidor.
+ */
+export interface LookupItemTax {
+  groupCode: string | null;
+  components: { code: string; name: string; rate: string }[];
+}
+
 export interface LookupProductItem {
+  tax?: LookupItemTax | null;
   /** El renglón de la cotización del que salió; solo llega desde `for-sale`. */
   quoteLineId?: string;
   type: "product";
@@ -93,6 +104,7 @@ export interface LookupProductItem {
 }
 
 export interface LookupServiceItem {
+  tax?: LookupItemTax | null;
   /** El renglón de la cotización del que salió; solo llega desde `for-sale`. */
   quoteLineId?: string;
   type: "service";
@@ -120,6 +132,7 @@ export interface LookupQuoteItem {
  * es lo que la venta manda como `quoteLineId`.
  */
 export interface LookupConceptItem {
+  tax?: LookupItemTax | null;
   type: "concept";
   matchedBy: "quote";
   id: string;

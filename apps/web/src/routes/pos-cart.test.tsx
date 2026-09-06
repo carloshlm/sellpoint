@@ -117,8 +117,8 @@ const sesion = (): posApi.CashboxSession => ({
   warehouse: { id: "w1", name: "Almacén Centro" },
 });
 
-async function renderPos() {
-  useAuthStore.getState().setAuth("jwt", demoUser(["pos:sell"]));
+async function renderPos(usuario: AuthUser = demoUser(["pos:sell"])) {
+  useAuthStore.getState().setAuth("jwt", usuario);
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/pos"] }),
@@ -214,12 +214,12 @@ describe("El carrito del POS (F4-CART)", () => {
       await renderPos();
       useCartStore.getState().add(AGUA, { quantity: "2" });
 
-      expect(await screen.findByTestId("cart-subtotal")).toHaveTextContent("25.00");
+      expect(await screen.findByTestId("cart-total")).toHaveTextContent("25.00");
 
       const key = useCartStore.getState().lines[0]?.key as string;
       useCartStore.getState().setQuantity(key, "4");
 
-      await waitFor(() => expect(screen.getByTestId("cart-subtotal")).toHaveTextContent("50.00"));
+      await waitFor(() => expect(screen.getByTestId("cart-total")).toHaveTextContent("50.00"));
     });
 
     it("el selector de presentación cambia el renglón sin borrarlo", async () => {
@@ -740,5 +740,67 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
       await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
       expect(useCartStore.getState().lines).toHaveLength(1);
     });
+  });
+});
+
+/**
+ * F4-TAX-17 — lo que el cajero ve y lo que cobra. En `included` el total es
+ * el bruto y abajo dice cuánto va incluido; en `excluded` aparecen Subtotal,
+ * una fila por componente y el TOTAL con el impuesto sumado, y el vuelto sale
+ * de ESE total.
+ */
+describe("el impuesto en el carrito y en el cobro (F4-TAX-17)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useCartStore.getState().clear();
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+  });
+
+  const IVA: posApi.LookupItemTax = {
+    groupCode: "VAT16",
+    components: [{ code: "VAT", name: "IVA 16%", rate: "16" }],
+  };
+  const GST_PST: posApi.LookupItemTax = {
+    groupCode: "GST_PST",
+    components: [
+      { code: "GST", name: "GST 5%", rate: "5" },
+      { code: "PST", name: "PST 7%", rate: "7" },
+    ],
+  };
+
+  it("incluido: el total es el bruto y la nota dice cuánto IVA va incluido", async () => {
+    await renderPos();
+    useCartStore.getState().add({ ...AGUA, tax: IVA }, { quantity: "8" });
+
+    expect(await screen.findByTestId("cart-total")).toHaveTextContent("100.00");
+    expect(screen.getByTestId("cart-tax-included")).toHaveTextContent("IVA 16% incluido");
+    expect(screen.getByTestId("cart-tax-included")).toHaveTextContent("13.79");
+    expect(screen.queryByTestId("cart-subtotal")).not.toBeInTheDocument();
+  });
+
+  it("excluido: Subtotal, GST y PST aparte, y el total con el impuesto sumado; pagar justo no marca faltante", async () => {
+    const usuario = demoUser(["pos:sell", "pos:view"]);
+    await renderPos({
+      ...usuario,
+      tenant: { ...usuario.tenant, taxMode: "excluded", currency: "CAD" },
+    });
+    useCartStore.getState().add({ ...AGUA, tax: GST_PST }, { quantity: "8" });
+
+    expect(await screen.findByTestId("cart-subtotal")).toHaveTextContent("100.00");
+    const filas = screen.getAllByTestId("cart-tax").map((f) => f.textContent);
+    expect(filas[0]).toContain("GST 5%");
+    expect(filas[0]).toContain("5.00");
+    expect(filas[1]).toContain("PST 7%");
+    expect(filas[1]).toContain("7.00");
+    expect(screen.getByTestId("cart-total")).toHaveTextContent("112.00");
+
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    expect(await screen.findByTestId("checkout-total")).toHaveTextContent("112.00");
+    expect(screen.getAllByTestId("checkout-tax")).toHaveLength(2);
+    await userEvent.type(screen.getByLabelText("Con cuánto paga"), "112");
+    expect(screen.queryByTestId("checkout-missing")).not.toBeInTheDocument();
+    expect(screen.getByTestId("checkout-change")).toHaveTextContent("0.00");
+    expect(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
   });
 });

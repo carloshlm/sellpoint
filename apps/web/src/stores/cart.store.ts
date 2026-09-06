@@ -1,6 +1,12 @@
-import { addQuantities, multiplyMoney, parseQuantity } from "@sellpoint/shared";
+import {
+  addQuantities,
+  multiplyMoney,
+  parseQuantity,
+  splitLineTax,
+  type TaxMode,
+} from "@sellpoint/shared";
 import { create } from "zustand";
-import type { LookupItem, LookupPresentation } from "@/lib/pos/api";
+import type { LookupItem, LookupItemTax, LookupPresentation } from "@/lib/pos/api";
 
 /**
  * F4-CART-02 — el carrito.
@@ -32,6 +38,8 @@ import type { LookupItem, LookupPresentation } from "@/lib/pos/api";
 export interface CartProductLine {
   key: string;
   type: "product";
+  /** F4-TAX-16: el impuesto que traía el ítem al agregarse; null = sin impuesto. */
+  tax?: LookupItemTax | null;
   /** El renglón de la cotización del que salió, si vino de una (F4-CONCEPT-10). */
   quoteLineId?: string;
   productId: string;
@@ -55,6 +63,7 @@ export interface CartProductLine {
 export interface CartServiceLine {
   key: string;
   type: "service";
+  tax?: LookupItemTax | null;
   serviceId: string;
   /** El renglón de la cotización del que salió, si vino de una (F4-CONCEPT-10). */
   quoteLineId?: string;
@@ -73,6 +82,7 @@ export interface CartServiceLine {
 export interface CartConceptLine {
   key: string;
   type: "concept";
+  tax?: LookupItemTax | null;
   quoteLineId: string;
   description: string;
   unitPrice: string;
@@ -186,6 +196,7 @@ export const useCartStore = create<CartState>((set) => ({
         const nueva: CartConceptLine = {
           key,
           type: "concept",
+          tax: item.tax ?? null,
           quoteLineId: item.id,
           description: item.description,
           unitPrice: item.unitPrice,
@@ -207,6 +218,7 @@ export const useCartStore = create<CartState>((set) => ({
         const nueva: CartServiceLine = {
           key,
           type: "service",
+          tax: item.tax ?? null,
           serviceId: item.id,
           ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
           code: item.code,
@@ -249,6 +261,7 @@ export const useCartStore = create<CartState>((set) => ({
       const nueva: CartProductLine = {
         key,
         type: "product",
+        tax: item.tax ?? null,
         ...(item.quoteLineId !== undefined && { quoteLineId: item.quoteLineId }),
         productId: item.id,
         sku: item.sku,
@@ -409,4 +422,65 @@ export function aLineasDeVenta(lines: CartLine[]): SaleLinePayload[] {
       quantity: parseQuantity(l.quantity),
     };
   });
+}
+
+/** El desglose del impuesto del carrito, por componente. */
+export interface ImpuestosDelCarrito {
+  /** Σ impuesto de todas las líneas, en pesos. */
+  total: number;
+  /** El neto tras el impuesto (la base): `total del carrito − impuesto`. */
+  base: number;
+  byComponent: { code: string; name: string; rate: string; amount: number }[];
+}
+
+/**
+ * F4-TAX-16 — el impuesto del carrito, con la MISMA función que usa el
+ * servidor (`splitLineTax`, shared): línea por línea, en centavos, con el
+ * mismo redondeo. Si el carrito dividiera por su cuenta, el cajero vería un
+ * total y el papel imprimiría otro.
+ */
+export function impuestosDelCarrito(lines: CartLine[], mode: TaxMode): ImpuestosDelCarrito {
+  const componentes = new Map<
+    string,
+    { code: string; name: string; rate: string; cents: number }
+  >();
+  let taxCents = 0;
+  let baseCents = 0;
+  for (const line of lines) {
+    const amountCents = Math.round(totalDeLinea(line) * 100);
+    const components = line.tax?.components ?? [];
+    const split = splitLineTax({ amountCents, mode, components });
+    taxCents += split.taxCents;
+    baseCents += split.netCents;
+    components.forEach((c, i) => {
+      const acumulado = componentes.get(c.code) ?? {
+        code: c.code,
+        name: c.name,
+        rate: c.rate,
+        cents: 0,
+      };
+      acumulado.cents += split.byComponent[i]?.taxCents ?? 0;
+      componentes.set(c.code, acumulado);
+    });
+  }
+  return {
+    total: taxCents / 100,
+    base: baseCents / 100,
+    byComponent: [...componentes.values()].map((c) => ({
+      code: c.code,
+      name: c.name,
+      rate: c.rate,
+      amount: c.cents / 100,
+    })),
+  };
+}
+
+/**
+ * Lo que se COBRA: en `included` es el subtotal tal cual (el impuesto va
+ * adentro); en `excluded` es el subtotal más el impuesto.
+ */
+export function totalDelCarrito(lines: CartLine[], mode: TaxMode): number {
+  const subtotal = subtotalDelCarrito(lines);
+  if (mode !== "excluded") return subtotal;
+  return Math.round(subtotal * 100 + impuestosDelCarrito(lines, mode).total * 100) / 100;
 }

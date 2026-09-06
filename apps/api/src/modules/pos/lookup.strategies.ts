@@ -1,5 +1,6 @@
 import { POS_FOLIO_PREFIXES } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
+import { contextoFiscal, impuestoDeItem } from "./tax-resolver";
 import { sellableStock } from "./warehouse-availability";
 
 /**
@@ -235,6 +236,7 @@ export const SELECT_PRODUCTO = {
   name: true,
   baseUnit: true,
   isComposite: true,
+  taxGroupId: true,
   presentations: {
     where: { isActive: true, isSellable: true },
     select: SELECT_PRESENTACION,
@@ -248,6 +250,7 @@ type ProductoCrudo = {
   name: string;
   baseUnit: string;
   isComposite: boolean;
+  taxGroupId: string | null;
   presentations: {
     id: string;
     name: string;
@@ -288,6 +291,13 @@ export async function conDisponibilidad(
     ctx.warehouseId,
     vendibles.map((p) => p.id),
   );
+  // F4-TAX-16: el impuesto VIGENTE de cada producto (o el default), para que
+  // el carrito calcule con la misma aritmética que el servidor.
+  const fiscal = await contextoFiscal(
+    ctx.tx,
+    ctx.tenantId,
+    vendibles.map((p) => p.taxGroupId),
+  );
 
   return (
     vendibles
@@ -297,6 +307,7 @@ export async function conDisponibilidad(
           type: "product" as const,
           matchedBy,
           id: p.id,
+          tax: impuestoDeItem(fiscal, p.taxGroupId),
           sku: p.sku,
           name: p.name,
           baseUnit: p.baseUnit,
@@ -442,15 +453,21 @@ const serviceLookup: LookupStrategy = {
           { name: { contains: aguja, mode: "insensitive" } },
         ],
       },
-      select: { id: true, code: true, name: true, price: true },
+      select: { id: true, code: true, name: true, price: true, taxGroupId: true },
       orderBy: { name: "asc" },
       take: ctx.limit,
     });
+    const fiscal = await contextoFiscal(
+      ctx.tx,
+      ctx.tenantId,
+      servicios.map((s) => s.taxGroupId),
+    );
 
     return servicios.map((s) => ({
       type: "service" as const,
       matchedBy: "service" as const,
       id: s.id,
+      tax: impuestoDeItem(fiscal, s.taxGroupId),
       code: s.code,
       name: s.name,
       price: s.price?.toString() ?? null,

@@ -25,6 +25,8 @@ export const TENANT_DEMO: TenantBlock = {
   usesLocations: false,
   posShowsStock: true,
   monthlySalesGoal: null,
+  taxMode: "included",
+  region: null,
 };
 
 export function buildTenantBlock(overrides: Partial<TenantBlock> = {}): TenantBlock {

@@ -1,17 +1,21 @@
 import type {
   LookupConceptItem,
+  LookupItemTax,
   LookupProductItem,
   LookupQuoteItem,
   LookupServiceItem,
 } from "@/lib/pos/api";
 import {
   aLineasDeVenta,
+  type CartLine,
   type CartProductLine,
   type CartServiceLine,
   excedeElStock,
+  impuestosDelCarrito,
   precioDeLinea,
   subtotalDelCarrito,
   totalDeLinea,
+  totalDelCarrito,
   useCartStore,
 } from "./cart.store";
 
@@ -428,5 +432,82 @@ describe("useCartStore (F4-CART-02)", () => {
       // un campo faltante que nadie podría explicar mirando la pantalla.
       expect(aLineasDeVenta(carrito().lines)[0]?.quantity).toBe(12);
     });
+  });
+});
+
+/**
+ * F4-TAX-16 — el impuesto del carrito con la MISMA función que el servidor
+ * (`splitLineTax`). Los casos son los del e2e del API: en incluido 116 al 16%
+ * es 16 y el total no cambia; en excluido 80 y 20 con GST 5 y PST 7 suman 12
+ * en dos componentes; sin impuesto, cero.
+ */
+describe("el impuesto del carrito (F4-TAX-16)", () => {
+  const IVA: LookupItemTax = {
+    groupCode: "VAT16",
+    components: [{ code: "VAT", name: "IVA 16%", rate: "16" }],
+  };
+  const GST_PST: LookupItemTax = {
+    groupCode: "GST_PST",
+    components: [
+      { code: "GST", name: "GST 5%", rate: "5" },
+      { code: "PST", name: "PST 7%", rate: "7" },
+    ],
+  };
+  const servicio = (price: string, tax: LookupItemTax | null): CartLine => ({
+    key: `svc-${price}-${tax?.groupCode ?? "none"}`,
+    type: "service",
+    serviceId: "s1",
+    code: "SRV",
+    name: "Servicio",
+    price,
+    quantity: "1",
+    tax,
+  });
+
+  it("incluido: 116 al 16% desglosa 16 y el total sigue siendo 116", () => {
+    const lineas = [servicio("116", IVA)];
+    const impuestos = impuestosDelCarrito(lineas, "included");
+    expect(impuestos.total).toBe(16);
+    expect(impuestos.base).toBe(100);
+    expect(impuestos.byComponent).toEqual([
+      { code: "VAT", name: "IVA 16%", rate: "16", amount: 16 },
+    ]);
+    expect(totalDelCarrito(lineas, "included")).toBe(116);
+  });
+
+  it("excluido: dos líneas con GST y PST suman por componente y el total lleva el impuesto", () => {
+    const lineas = [servicio("80", GST_PST), servicio("20", GST_PST)];
+    const impuestos = impuestosDelCarrito(lineas, "excluded");
+    expect(impuestos.byComponent.map((c) => [c.code, c.amount])).toEqual([
+      ["GST", 5],
+      ["PST", 7],
+    ]);
+    expect(impuestos.total).toBe(12);
+    expect(totalDelCarrito(lineas, "excluded")).toBe(112);
+  });
+
+  it("sin impuesto (null o exento) no suma nada en ningún modo", () => {
+    for (const mode of ["included", "excluded"] as const) {
+      const lineas = [
+        servicio("50", null),
+        servicio("50", { groupCode: "EXEMPT", components: [] }),
+      ];
+      expect(impuestosDelCarrito(lineas, mode).total).toBe(0);
+      expect(totalDelCarrito(lineas, mode)).toBe(100);
+    }
+  });
+
+  it("el ítem del buscador deja su impuesto en la línea al agregarse", () => {
+    useCartStore.getState().clear();
+    useCartStore.getState().add({
+      type: "service",
+      matchedBy: "service",
+      id: "s9",
+      code: "CONS",
+      name: "Consulta",
+      price: "300",
+      tax: IVA,
+    });
+    expect(useCartStore.getState().lines[0]?.tax).toEqual(IVA);
   });
 });

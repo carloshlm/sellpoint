@@ -343,4 +343,35 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
     expect(textoBc.split("89.60").length - 1).toBe(1);
     expect(textoBc).not.toContain("IVA");
   });
+
+  it("el buscador trae el impuesto vigente de cada ítem, y /me el modo del negocio (F4-TAX-16)", async () => {
+    const producto = await crearProducto(app, bc.token, 10);
+    await cargarStock(app, bc.token, almacenBc, producto.id, 5);
+    const res = await http()
+      .get("/pos/lookup")
+      .query({ q: producto.sku })
+      .set("Authorization", bearer(bc.token))
+      .expect(200);
+    const items = (
+      res.body as {
+        items: {
+          type: string;
+          id: string;
+          tax: { groupCode: string; components: { code: string; rate: string }[] };
+        }[];
+      }
+    ).items;
+    const item = items.find((i) => i.id === producto.id);
+    expect(item?.tax).toEqual({
+      groupCode: "GST_PST",
+      components: [
+        { code: "GST", name: "GST 5%", rate: "5" },
+        { code: "PST", name: "PST 7%", rate: "7" },
+      ],
+    });
+    const me = await http().get("/me").set("Authorization", bearer(bc.token)).expect(200);
+    expect(
+      (me.body as { tenant: { taxMode: string; region: string | null } }).tenant,
+    ).toMatchObject({ taxMode: "excluded", region: null });
+  });
 });

@@ -1,3 +1,4 @@
+import type { TaxMode } from "@sellpoint/shared";
 /**
  * F1-WEB-ONBOARD (design A1): shape de tenant compartido entre `GET /me`
  * (users.service.ts), `POST /auth/login` (auth.service.ts) y `GET/PATCH
@@ -37,6 +38,13 @@ export interface TenantBlock {
   // null. String y no number: es un Decimal de Prisma y el JSON del resto del
   // sistema ya serializa el dinero así.
   monthlySalesGoal: string | null;
+  /**
+   * F4-TAX-16: ¿el precio de catálogo ya incluye el impuesto? El carrito lo
+   * consulta para calcular con la MISMA aritmética que el servidor.
+   */
+  taxMode: TaxMode;
+  /** F4-TAX-16: provincia o estado (ISO 3166-2 sin prefijo), solo CA y US. */
+  region: string | null;
 }
 
 /** Select de Prisma que alimenta `toTenantBlock` — un solo lugar para los 3 consumidores. */
@@ -57,6 +65,8 @@ export const TENANT_SELECT = {
   usesLocations: true,
   posShowsStock: true,
   monthlySalesGoal: true,
+  taxMode: true,
+  region: true,
 } as const;
 
 export type TenantRow = {
@@ -77,6 +87,8 @@ export type TenantRow = {
   /** F4-POSVIS: si el vendedor ve existencias en el punto de venta. */
   posShowsStock: boolean;
   monthlySalesGoal: { toString(): string } | null;
+  taxMode: string;
+  region: string | null;
 };
 
 /** Función pura: fila de Prisma → `TenantBlock`. Testeable sin DB. */
@@ -98,5 +110,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     usesLocations: row.usesLocations,
     posShowsStock: row.posShowsStock,
     monthlySalesGoal: row.monthlySalesGoal?.toString() ?? null,
+    taxMode: row.taxMode as TaxMode,
+    region: row.region,
   };
 }

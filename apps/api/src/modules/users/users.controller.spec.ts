@@ -77,6 +77,8 @@ const ME: MeProfile = {
     sellWithoutStock: false,
     usesLocations: false,
     posShowsStock: true,
+    taxMode: "included",
+    region: null,
     monthlySalesGoal: null,
     country: "MX",
   },

@@ -11,7 +11,13 @@ import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { useCreateSale } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
-import { aLineasDeVenta, subtotalDelCarrito, useCartStore } from "@/stores/cart.store";
+import {
+  aLineasDeVenta,
+  impuestosDelCarrito,
+  subtotalDelCarrito,
+  totalDelCarrito,
+  useCartStore,
+} from "@/stores/cart.store";
 
 /**
  * F4-UI-02 — el cobro.
@@ -65,7 +71,11 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
    */
   const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
 
-  const total = subtotalDelCarrito(lines);
+  // F4-TAX-17: se cobra el total CON impuesto (en `included` es el mismo
+  // subtotal); el vuelto sale de ahí.
+  const mode = useAuthStore((s) => s.user?.tenant.taxMode ?? "included");
+  const impuestos = impuestosDelCarrito(lines, mode);
+  const total = totalDelCarrito(lines, mode);
   // El cambio se calcula con la misma aritmética entera que los totales: un
   // vuelto con `0.30000000000000004` es dinero que alguien tiene que contar.
   const recibidoNum = multiplyMoney("1.00", recibido.replace(/[^\d.]/g, ""));
@@ -112,12 +122,39 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
     >
       <h2 className="font-semibold text-lg">{t("pos.checkout.title")}</h2>
 
+      {mode === "excluded" && impuestos.byComponent.length > 0 && (
+        <div className="flex flex-col gap-1 text-sm">
+          <p className="flex justify-between">
+            <span>{t("pos.cart.subtotal")}</span>
+            <span className="tabular-nums">{formatMoney(impuestos.base, currency, locale)}</span>
+          </p>
+          {impuestos.byComponent.map((c) => (
+            <p key={c.code} className="flex justify-between" data-testid="checkout-tax">
+              <span>{c.name}</span>
+              <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
+            </p>
+          ))}
+        </div>
+      )}
       <p className="flex justify-between font-semibold text-xl">
         <span>{t("pos.checkout.total")}</span>
         <span className="tabular-nums" data-testid="checkout-total">
           {formatMoney(total, currency, locale)}
         </span>
       </p>
+      {mode === "included" &&
+        impuestos.byComponent
+          .filter((c) => c.amount > 0)
+          .map((c) => (
+            <p
+              key={c.code}
+              className="-mt-3 flex justify-between text-muted-foreground text-xs"
+              data-testid="checkout-tax-included"
+            >
+              <span>{t("pos.cart.taxIncluded", { name: c.name })}</span>
+              <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
+            </p>
+          ))}
 
       <fieldset className="flex flex-col gap-2">
         <legend className="font-medium text-sm">{t("pos.checkout.method")}</legend>

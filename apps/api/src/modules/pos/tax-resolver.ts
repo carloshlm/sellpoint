@@ -109,6 +109,15 @@ export function grupoCongelado(
   return { id: "", code: taxGroupCode, name: taxGroupCode, rates };
 }
 
+/** El impuesto VIGENTE de un ítem de catálogo, en el contrato del buscador (F4-TAX-16). */
+export function impuestoDeItem(
+  ctx: ContextoFiscal,
+  taxGroupId: string | null | undefined,
+): { groupCode: string | null; components: TaxComponent[] } {
+  const grupo = grupoDe(ctx, taxGroupId);
+  return { groupCode: grupo?.code ?? null, components: snapshotDeTasas(grupo) };
+}
+
 /** Lo que se guarda en `quote_lines.tax_rates`: los componentes tal cual se cotizaron. */
 export function snapshotDeTasas(grupo: GrupoResuelto | null): TaxComponent[] {
   return grupo === null

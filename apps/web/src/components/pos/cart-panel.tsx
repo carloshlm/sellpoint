@@ -7,9 +7,11 @@ import { useAuthStore } from "@/stores/auth.store";
 import {
   type CartLine,
   excedeElStock,
+  impuestosDelCarrito,
   precioDeLinea,
   subtotalDelCarrito,
   totalDeLinea,
+  totalDelCarrito,
   useCartStore,
 } from "@/stores/cart.store";
 
@@ -244,17 +246,65 @@ function CartLineRow({
   );
 }
 
+/**
+ * F4-TAX-17 — dos disposiciones, la misma del ticket. `included`: el número
+ * que se cobra en grande y, debajo, cuánto va incluido (un «Subtotal» de
+ * 0.86× lo que suman los renglones confundiría en el mostrador). `excluded`:
+ * Subtotal, una fila por componente y el TOTAL con el impuesto sumado.
+ */
 function Totals({ lines }: { lines: CartLine[] }) {
   const { t } = useTranslation();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const mode = useAuthStore((s) => s.user?.tenant.taxMode ?? "included");
+  const impuestos = impuestosDelCarrito(lines, mode);
+  const total = totalDelCarrito(lines, mode);
+
+  if (mode === "excluded") {
+    return (
+      <div className="flex flex-col gap-1 border-t pt-2">
+        <p className="flex justify-between text-sm">
+          <span>{t("pos.cart.subtotal")}</span>
+          <span className="tabular-nums" data-testid="cart-subtotal">
+            {formatMoney(subtotalDelCarrito(lines), currency, locale)}
+          </span>
+        </p>
+        {impuestos.byComponent.map((c) => (
+          <p key={c.code} className="flex justify-between text-sm" data-testid="cart-tax">
+            <span>{c.name}</span>
+            <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
+          </p>
+        ))}
+        <p className="flex justify-between font-semibold text-lg">
+          <span>{t("pos.cart.total")}</span>
+          <span className="tabular-nums" data-testid="cart-total">
+            {formatMoney(total, currency, locale)}
+          </span>
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <p className="flex justify-between border-t pt-2 font-semibold text-lg">
-      <span>{t("pos.cart.subtotal")}</span>
-      <span className="tabular-nums" data-testid="cart-subtotal">
-        {formatMoney(subtotalDelCarrito(lines), currency, locale)}
-      </span>
-    </p>
+    <div className="flex flex-col gap-1 border-t pt-2">
+      <p className="flex justify-between font-semibold text-lg">
+        <span>{t("pos.cart.total")}</span>
+        <span className="tabular-nums" data-testid="cart-total">
+          {formatMoney(total, currency, locale)}
+        </span>
+      </p>
+      {impuestos.byComponent
+        .filter((c) => c.amount > 0)
+        .map((c) => (
+          <p
+            key={c.code}
+            className="flex justify-between text-muted-foreground text-xs"
+            data-testid="cart-tax-included"
+          >
+            <span>{t("pos.cart.taxIncluded", { name: c.name })}</span>
+            <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
+          </p>
+        ))}
+    </div>
   );
 }
