@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { descargarBlob, dispararDescarga, imprimirPdf } from "./download";
+import { descargarBlob, dispararDescarga, imprimirPdf, nombreDeDescarga } from "./download";
 
 /**
  * F5-HUB-01 — la secuencia de descarga, en UN solo lugar.
@@ -164,5 +164,35 @@ describe("imprimirPdf", () => {
 
     expect(document.querySelectorAll("iframe")).toHaveLength(1);
     expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * El nombre lo decide el API en el idioma del usuario y viaja en
+ * `Content-Disposition`; el web lo lee de ahí y solo cae al de siempre si
+ * no viene.
+ */
+describe("nombreDeDescarga", () => {
+  it('lee filename="…" del encabezado', () => {
+    expect(
+      nombreDeDescarga({ "content-disposition": 'attachment; filename="products.csv"' }, "x.csv"),
+    ).toBe("products.csv");
+  });
+
+  it("entiende la forma extendida con UTF-8 y la decodifica", () => {
+    expect(
+      nombreDeDescarga(
+        { "content-disposition": "attachment; filename*=UTF-8''conteo%20f%C3%ADsico.xlsx" },
+        "x.xlsx",
+      ),
+    ).toBe("conteo físico.xlsx");
+  });
+
+  it("sin encabezado, o sin nombre en él, usa el respaldo", () => {
+    expect(nombreDeDescarga(undefined, "productos.csv")).toBe("productos.csv");
+    expect(nombreDeDescarga({}, "productos.csv")).toBe("productos.csv");
+    expect(nombreDeDescarga({ "content-disposition": "attachment" }, "productos.csv")).toBe(
+      "productos.csv",
+    );
   });
 });

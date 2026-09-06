@@ -1,11 +1,13 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 import type { ImportReport, ImportRunInput } from "@/lib/import/types";
 
 /** Importación de ALMACENES por Excel (Carlos, 2026-09-01), match por código. */
 export async function downloadWarehouseImportTemplate(): Promise<void> {
-  const { data } = await api.get<Blob>("/warehouses/import/template", { responseType: "blob" });
-  await descargarBlob(data, "almacenes.xlsx");
+  const { data, headers } = await api.get<Blob>("/warehouses/import/template", {
+    responseType: "blob",
+  });
+  await descargarBlob(data, nombreDeDescarga(headers, "almacenes.xlsx"));
 }
 
 export async function runWarehouseImport(input: ImportRunInput): Promise<ImportReport> {

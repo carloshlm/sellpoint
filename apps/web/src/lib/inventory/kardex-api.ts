@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 
 /** Espejo de `KardexService`. Los decimales viajan como string. */
 export interface KardexRow {
@@ -137,9 +137,9 @@ export async function downloadKardex(
   filtros: Omit<KardexParams, "page" | "pageSize"> = {},
   format: "csv" | "xlsx" = "xlsx",
 ): Promise<void> {
-  const { data } = await api.get<Blob>(`/reports/kardex/${productId}/export`, {
+  const { data, headers } = await api.get<Blob>(`/reports/kardex/${productId}/export`, {
     params: { ...filtros, format },
     responseType: "blob",
   });
-  await descargarBlob(data, `kardex.${format}`);
+  await descargarBlob(data, nombreDeDescarga(headers, `kardex.${format}`));
 }

@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 import type { ImportReport, ImportRunInput } from "@/lib/import/types";
 
 /**
@@ -8,10 +8,10 @@ import type { ImportReport, ImportRunInput } from "@/lib/import/types";
  * laboratorios, proveedores o lo que el negocio haya definido.
  */
 export async function downloadRecordsImportTemplate(catalogId: string): Promise<void> {
-  const { data } = await api.get<Blob>(`/catalogs/${catalogId}/records/import/template`, {
+  const { data, headers } = await api.get<Blob>(`/catalogs/${catalogId}/records/import/template`, {
     responseType: "blob",
   });
-  await descargarBlob(data, "registros.xlsx");
+  await descargarBlob(data, nombreDeDescarga(headers, "registros.xlsx"));
 }
 
 export async function runRecordsImport(

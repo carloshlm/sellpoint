@@ -101,3 +101,30 @@ export function imprimirPdf(blob: Blob, filename: string): void {
   frame.src = url;
   document.body.appendChild(frame);
 }
+
+/**
+ * El nombre con el que baja un archivo lo decide el API, en el idioma del
+ * usuario, y viaja en `Content-Disposition` (Carlos, 2026-09-05). Aquí se
+ * lee de los encabezados de la respuesta; si no viene —un proxy que lo
+ * recortó, una respuesta vieja— se usa el nombre de respaldo de siempre.
+ * Entiende las dos formas: `filename="x"` y `filename*=UTF-8''x`.
+ */
+export function nombreDeDescarga(
+  headers: Record<string, unknown> | undefined,
+  respaldo: string,
+): string {
+  const crudo = headers?.["content-disposition"] ?? headers?.["Content-Disposition"];
+  if (typeof crudo !== "string") {
+    return respaldo;
+  }
+  const extendido = /filename\*=(?:UTF-8|utf-8)''([^;]+)/.exec(crudo);
+  if (extendido?.[1]) {
+    try {
+      return decodeURIComponent(extendido[1].trim());
+    } catch {
+      return respaldo;
+    }
+  }
+  const simple = /filename="?([^";]+)"?/.exec(crudo);
+  return simple?.[1]?.trim() || respaldo;
+}

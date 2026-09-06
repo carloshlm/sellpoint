@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 
 /**
  * Los exports DIRECTOS del hub (F5-CAT): bajan el archivo sin abrir pantalla.
@@ -107,11 +107,11 @@ async function bajar(
   // sin filtrar y en silencio—.
   filtros: object = {},
 ): Promise<void> {
-  const { data } = await api.get<Blob>(ruta, {
+  const { data, headers } = await api.get<Blob>(ruta, {
     params: { ...filtros, format },
     responseType: "blob",
   });
-  await descargarBlob(data, `${base}.${format}`);
+  await descargarBlob(data, nombreDeDescarga(headers, `${base}.${format}`));
 }
 
 export function downloadUsersReport(format: ReportFormat = "xlsx"): Promise<void> {

@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 import { readFileAsBase64 } from "@/lib/import/read-file";
 import type { ImportReport, ImportRunInput } from "@/lib/import/types";
 
@@ -15,8 +15,10 @@ export async function readServiceImportFile(file: File): Promise<string> {
 }
 
 export async function downloadServiceImportTemplate(): Promise<void> {
-  const { data } = await api.get<Blob>("/services/import/template", { responseType: "blob" });
-  await descargarBlob(data, "servicios.xlsx");
+  const { data, headers } = await api.get<Blob>("/services/import/template", {
+    responseType: "blob",
+  });
+  await descargarBlob(data, nombreDeDescarga(headers, "servicios.xlsx"));
 }
 
 export async function runServiceImport(input: ImportRunInput): Promise<ServiceImportReport> {

@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 
 export type ImportFormat = "csv" | "xlsx";
 
@@ -74,10 +74,10 @@ export async function readImportFile(
  * Siempre como `blob`: el XLSX es binario y pedirlo como texto lo corrompe.
  */
 export async function downloadImportTemplate(format: ImportFormat = "csv"): Promise<void> {
-  const { data } = await api.get<Blob>("/products/import/template", {
+  const { data, headers } = await api.get<Blob>("/products/import/template", {
     params: { format },
     responseType: "blob",
   });
 
-  await descargarBlob(data, `productos.${format}`);
+  await descargarBlob(data, nombreDeDescarga(headers, `productos.${format}`));
 }

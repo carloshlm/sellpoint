@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob } from "@/lib/download";
+import { descargarBlob, nombreDeDescarga } from "@/lib/download";
 import type {
   DocumentDetail,
   DocumentPage,
@@ -93,12 +93,12 @@ export async function downloadCountTemplate(
   warehouseId: string,
   format: "csv" | "xlsx" = "xlsx",
 ): Promise<void> {
-  const { data } = await api.get<Blob>("/inventory/documents/template", {
+  const { data, headers } = await api.get<Blob>("/inventory/documents/template", {
     params: { type: "physical_count", warehouseId, format },
     responseType: "blob",
   });
 
-  await descargarBlob(data, `conteo-fisico.${format}`);
+  await descargarBlob(data, nombreDeDescarga(headers, `conteo-fisico.${format}`));
 }
 
 export async function importDocumentLines(
@@ -132,11 +132,11 @@ export async function downloadExpiring(
   filtros: { days: number; warehouseId?: string },
   format: "csv" | "xlsx" = "xlsx",
 ): Promise<void> {
-  const { data } = await api.get<Blob>("/inventory/expiring/export", {
+  const { data, headers } = await api.get<Blob>("/inventory/expiring/export", {
     params: { ...filtros, format },
     responseType: "blob",
   });
-  await descargarBlob(data, `vencimientos.${format}`);
+  await descargarBlob(data, nombreDeDescarga(headers, `vencimientos.${format}`));
 }
 
 /** F5-EXP-02 — lo que salió y todavía no llegó, partida por partida. */
@@ -144,9 +144,9 @@ export async function downloadInTransit(
   filtros: { productId?: string; originWarehouseId?: string } = {},
   format: "csv" | "xlsx" = "xlsx",
 ): Promise<void> {
-  const { data } = await api.get<Blob>("/inventory/in-transit/export", {
+  const { data, headers } = await api.get<Blob>("/inventory/in-transit/export", {
     params: { ...filtros, format },
     responseType: "blob",
   });
-  await descargarBlob(data, `en-transito.${format}`);
+  await descargarBlob(data, nombreDeDescarga(headers, `en-transito.${format}`));
 }
