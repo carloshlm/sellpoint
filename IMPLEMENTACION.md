@@ -149,7 +149,7 @@ Ejemplos:
 | **F2** | Catálogos Dinámicos | ✅ Completada | 4-5 semanas | ✅ Sí |
 | **F3** | Movimientos de Inventario | ✅ Completada | 5-6 semanas | ✅ Sí |
 | **F4** | POS PWA + Cotización | ⬜ Pendiente | 3.5 semanas + TICKETCFG ~21 h + POSVIS ~6 h | ✅ Sí (2026-08-20 · 2026-09-04: F4-TICKETCFG) |
-| **F5** | Reportes | ✅ Completada (+ SHIFT pendiente) | ~2 semanas + SHIFT ~10 h | ✅ Atomizada (2026-08-21, 24 tareas · 2026-09-06: F5-SHIFT, 6 tareas) |
+| **F5** | Reportes | ✅ Completada (SHIFT cerrado el 2026-09-06) | ~2 semanas + SHIFT ~10 h | ✅ Atomizada (2026-08-21, 24 tareas · 2026-09-06: F5-SHIFT, 6 tareas) |
 | **F6** | Hardening de Producción | ⬜ Pendiente | 1 semana | ⬜ Outline |
 | **F7** | Planes + Billing + Suscripciones | ⬜ Pendiente | 3-4 semanas + LIFECYCLE ~22 h | ✅ Sí (2026-08-27 · 2026-09-04: F7-LIFECYCLE) |
 | **F8** | Mobile | 🔮 Futuro | — | ⬜ Solo concepto |
@@ -3023,35 +3023,41 @@ Reglas del módulo: todo cálculo de día/mes usa la **timezone del negocio** (`
 
 > **Contexto (Carlos, 2026-09-06):** «¿Dónde veo el reporte de cierre de turno, de los turnos de cada empleado, y qué registró en Efectivo contado en caja y Nota?» Hoy no existe la pantalla: `cashbox_sessions` guarda quién abrió y cerró, cuándo, el almacén, el efectivo **declarado**, el **calculado**, la **diferencia** y la **nota** (F4-CASHBOX), pero ningún endpoint lo lista y Reportes solo tiene Ventas y Existencias. **LEY del módulo:** el dato ya existe y no se duplica; el reporte es una LECTURA de `cashbox_sessions` ⋈ `sales`, con el mismo alcance por almacén (`UserScope`), el mismo calendario del negocio y los mismos moldes que Ventas (`sales-report.service`, `sales-export.service`, `SalesReport`, `ReportTable`). Los totales por forma de pago se calculan con la MISMA función que usa el cierre (`CashboxService.totals`), extraída a un helper compartido para que el reporte nunca diga otra cosa que el papel del cierre.
 
-- [ ] **F5-SHIFT-01** — `GET /reports/shifts`: los turnos con su arqueo
+- [x] **F5-SHIFT-01** — `GET /reports/shifts`: los turnos con su arqueo
   - **Salida:** `reports/dto/shifts-report.dto.ts` (`from`/`to` ISO date, `warehouseId`, `userId` —quien lo cerró—, `status` `open|closed` default `closed`, `page`, `pageSize ≤ 100`); `pos/cashbox-totals.ts` con `totalesPorSesion(tx, tenantId, sessionIds)` (UN `groupBy` por `cashboxSessionId, paymentMethod` sobre ventas `completed`) que `CashboxService.totals` pasa a usar; `reports/shifts-report.service.ts` con `list`/`count`: `assertWarehouseInScope` + intersección con `scope.warehouseIds`, rango sobre `closed_at` (sobre `opened_at` para los abiertos) con `startOfDayUtc`/`endOfDayUtc` en la zona del negocio; fila: `id, status, warehouse {id, name}, openedBy {id, name}, openedAt, closedBy {id, name} | null, closedAt, salesCount, totals[{method, total, count}], calculatedCash, declaredCash, cashDifference, closingNote`. Ruta en `reports.controller.ts` con `reports:read`.
   - **Verificar:** unit spec del helper (dos sesiones, tres métodos, ventas anuladas fuera); e2e `reports-shifts.e2e-spec.ts` (RED): dos cajeros cierran su turno en almacenes distintos con efectivo contado y nota; el listado trae los dos con `cashDifference` = declarado − calculado y la nota; un usuario acotado a un almacén NO ve el otro (contraprueba de scope); `from`/`to` corta por el día del negocio (un cierre a las 23:30 CDMX cae en ese día, no en el siguiente UTC); `status=open` lista el abierto sin arqueo. Mutante: quitar el filtro `status: "completed"` del helper rompe el spec.
   - **Depende de:** F5-CORE-03, F4-CASHBOX-01 · **Estimación:** 3 h
+  - **Hecho (2026-09-06):** `cashbox-totals.ts` (`totalesPorSesion` + `totalesEnCero`, spec 3/3) y `CashboxService.totals` lo reusa; `shifts-report.service.ts` con `list`/`all`/`count`; e2e `reports-shifts` 8/8. Nota: `POST /pos/session/close` responde 200, no 201.
 
-- [ ] **F5-SHIFT-02** — `GET /reports/shifts/:id`: el detalle de un turno
+- [x] **F5-SHIFT-02** — `GET /reports/shifts/:id`: el detalle de un turno
   - **Salida:** la fila de arriba más `sales[]` del turno (`folio, createdAt, seller {id, name}, paymentMethod, status, total`), ordenadas por hora; 404 `reports.shift_not_found` fuera del alcance (misma clave que "no existe": no filtra existencia).
   - **Verificar:** e2e: el detalle trae las ventas del turno y no las de otro; una anulada viene marcada, no omitida (criterio F4); fuera de alcance → 404.
   - **Depende de:** F5-SHIFT-01 · **Estimación:** 1 h
+  - **Hecho (2026-09-06):** `detail(user, scope, id)` con `sales[]` en orden ascendente; 404 `reports.shift_not_found` también fuera de alcance.
 
-- [ ] **F5-SHIFT-03** — Export de cierres
+- [x] **F5-SHIFT-03** — Export de cierres
   - **Salida:** `GET /reports/shifts/export` (mismos filtros, `format`), `reports/shifts-export.service.ts` vía helper de tope; hoja «Cierres de turno»; columnas: apertura, cierre, almacén, abrió, cerró, efectivo, tarjeta, transferencia, ventas (n), calculado, contado, diferencia, nota — encabezados por i18n y nombre de archivo por idioma (`cierres-de-turno` / `shift-closes` en `spreadsheet/filenames.ts`).
   - **Verificar:** e2e: filas = consulta filtrada; la diferencia negativa sale con signo; `Content-Disposition` en inglés con el JWT en `en`; sobre el tope → 400.
   - **Depende de:** F5-SHIFT-01 · **Estimación:** 1 h
+  - **Hecho (2026-09-06):** `shifts-export.service.ts` es/en, hoja «Cierres de turno»/«Shift closes», archivo `cierres-de-turno`/`shift-closes`; la ruta `shifts/export` va declarada ANTES de `shifts/:id`.
 
-- [ ] **F5-SHIFT-04** — Pantalla `/reports/shifts` y tarjeta en el hub
+- [x] **F5-SHIFT-04** — Pantalla `/reports/shifts` y tarjeta en el hub
   - **Salida:** `lib/reports/api.ts` (`getShiftsReport`, `getShiftDetail`, `exportShifts` con `nombreDeDescarga`); `components/reports/shifts-report.tsx` sobre `ReportTable` con `DateRangeFilter` (abre con el día actual del negocio, como Clientes), `WarehouseSelect` y selector de empleado; columnas: cierre, almacén, cerró, ventas, calculado, contado, **diferencia** (rojo `text-destructive` cuando falta, verde `text-success` cuando sobra, «—» cuando cuadra), nota truncada con `title`; «Ver» abre abajo el detalle con las ventas (molde `payment-history-table`); botón Exportar; ruta `reports.shifts.tsx` (`PermissionGate need="reports:read"`); tarjeta `shifts` en `reports-hub.tsx` (icono `ClipboardCheck`); `reports.json` es/en `shifts.*`.
   - **Verificar:** RED en `routes/reports-shifts.test.tsx`: pinta las filas con la diferencia coloreada según signo; cambiar el rango vuelve a pedir con `from`/`to`; «Ver» pide el detalle y lo pinta abajo; Exportar llama al helper con los filtros puestos; sin `reports:read` la ruta no existe. `reports-hub.test.tsx`: la tarjeta aparece con el permiso. `i18n.test.tsx` verde.
   - **Depende de:** F5-SHIFT-02, F5-SHIFT-03, F5-HUB-03 · **Estimación:** 3 h
+  - **Hecho (2026-09-06):** `ReportTable` acepta celdas que son elementos (`isValidElement`) para la diferencia en color y el botón «Ver»; selector de empleado solo con `users:read` y fuera del backoffice; tests en `reports-screens.test.tsx` (8) y `report-table.test.tsx`; el hub pasa a nueve tarjetas.
 
-- [ ] **F5-SHIFT-05** — El backoffice ve los cierres del negocio
+- [x] **F5-SHIFT-05** — El backoffice ve los cierres del negocio
   - **Salida:** `GET /admin/tenants/:id/reports/shifts`, `/:shiftId` y `/export` con `platformAdminActor` + `SCOPE_ALL` (molde de `reports/sales` en `admin-tenants.controller.ts`); `tenant-reports-tab.tsx` gana la vista `shifts` con el mismo `ShiftsReport` bajo `useAdminTenantScope`.
   - **Verificar:** e2e `admin-tenants`: el admin lista los turnos del negocio mirado; un TenantAdmin normal → 403. `admin-tenants.test.tsx`: la pestaña pide `/admin/tenants/t1/reports/shifts`.
   - **Depende de:** F5-SHIFT-04 · **Estimación:** 1 h
+  - **Hecho (2026-09-06):** tres rutas admin con `platformAdminActor` + `SCOPE_ALL`, export por `descargar()` con el slug del negocio; pestaña «Cierres de turno» en `tenant-reports-tab.tsx` sin asumir «hoy»; e2e `admin-tenants` cierra el turno de B en el seed y cubre 403/200/404/export.
 
-- [ ] **F5-SHIFT-06** — QA en sandbox y cierre
+- [x] **F5-SHIFT-06** — QA en sandbox y cierre
   - **Salida:** con la cuenta admin de sandbox: abrir turno, vender en efectivo y tarjeta, cerrar con un efectivo contado que NO cuadre y una nota → Reportes › Cierres de turno lo lista con la diferencia en rojo y la nota; «Ver» muestra las ventas; exportar en español e inglés; la pestaña del backoffice lo repite. Capturas 1440 y 390 px.
   - **Verificar:** `pnpm typecheck:full && pnpm test` desde la raíz + e2e del api; IMPLEMENTACION.md con las tareas cerradas y bitácora; memoria (`sellpoint/shift-close-report`).
   - **Depende de:** F5-SHIFT-05 · **Estimación:** 1 h
+  - **Hecho (2026-09-06):** QA en sandbox con la cuenta admin: dos ventas (efectivo y tarjeta), cierre con $7 contados sobre $10 calculados y nota → la pantalla lista el turno con `-$3.00` en rojo y la nota; «Ver» muestra VTA-000001/000002; la pestaña del backoffice lo repite; capturas 1440 y 390 px (la tabla desliza dentro de su contenedor). Dos hallazgos corregidos: `nest build` (declaraciones) exige tipos de retorno exportados en los controllers, cosa que `typecheck:full` no ve; y el export traía apertura/cierre como ISO UTC, ahora van como fecha y hora del negocio.
 
 **Orden sugerido:** 01 → 02 · 03 (en paralelo) → 04 → 05 → 06. Total ~10 h. Un solo PR por bloque API (01–03) y otro por el web (04–06).
 
@@ -4333,6 +4339,7 @@ Las 3 previsiones son baratas si se anticipan; caras si se omiten. La primera ya
 
 ### Entradas
 
+- **2026-09-06 (CIERRES DE TURNO EN PRODUCCIÓN: F5-SHIFT-01..06 cerradas)** — `GET /reports/shifts` (+ detalle y export es/en), pantalla «Cierres de turno» en Reportes con la diferencia en color y «Ver» con las ventas del turno, pestaña en el backoffice; QA en sandbox. Compuerta nueva para el API: `pnpm build` antes de pushear, porque `nest build` emite declaraciones y rechaza tipos de retorno anónimos (TS4053) que `typecheck:full` no ve — `topic_key: sellpoint/shift-close-report` — afecta: F5 (módulo cerrado), F4-CASHBOX (`cashbox-totals.ts` compartido)
 - **2026-09-06 (CIERRES DE TURNO ATOMIZADOS: F5-SHIFT-01..06)** — Carlos preguntó dónde ver el reporte de cierres por empleado con el efectivo contado y la nota; no existe la pantalla aunque `cashbox_sessions` guarda todo. Plan: `GET /reports/shifts` (+ detalle y export) sobre los mismos moldes que Ventas, con el mismo alcance por almacén y el calendario del negocio; los totales por forma de pago con la misma función que usa el cierre; pantalla en Reportes con la diferencia en rojo/verde, «Ver» con las ventas del turno, y la pestaña del backoffice — `topic_key: sellpoint/shift-close-report` — afecta: F5 (nuevo módulo), F4-CASHBOX (helper de totales compartido)
 - **2026-09-05 («MOSTRAR EXISTENCIAS AL RECETAR» EN EL CONSULTORIO + «TURNO» EN EL POS)** — (1) `medical_clinic_settings.shows_stock` (default true), cuarta casilla en «Configuración Consultorio Médico»; apagado, `GET /medical-clinic/stock-search` devuelve `available`/`expired` en null (misma máscara `hideStock` del POS) y el picker de la receta no dice cantidad ni «sin existencia»; recetar no depende del stock. Es la configuración del consultorio, independiente de `tenants.pos_shows_stock`. (2) Copy del POS: «Abrir turno», «Cerrar turno», «Turno abierto desde», menú «Cierre de turno»; en inglés Open/Close shift, Shift close. «Cierre» es neutro en España y Latinoamérica; «corte» es regional — `topic_key: sellpoint/pos-copy-turno` — afecta: F9-CLINIC-WEB-18 (picker), F9-CLINIC-WEB-21 (tarjeta), F4-CASHBOX (copy)
 - **2026-09-05 («ESCRÍBENOS PARA ACTIVAR TU PLAN» + DESCRIPCIONES DE PLANES POR IDIOMA)** — Al final de Mi plan, un área de texto (10–1000 caracteres) que llega a los administradores de la plataforma (`BILLING_ADMIN_EMAILS`) con negocio, nombre y correo del remitente; se audita antes de enviar (`billing.plan_requested`) y el negocio recibe un acuse en su idioma; si el aviso al backoffice falla → 503 para reintentar. Las descripciones de los planes en el modal salen del catálogo del web en el idioma del usuario (en inglés aparecían en español porque venían de la base). e2e `billing-plan-request` — `topic_key: sellpoint/plan-request-contact` — afecta: F7-WEB-09 (Mi plan), F7-WEB-04 (modal de planes), correos
