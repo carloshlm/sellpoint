@@ -217,7 +217,14 @@
       "warehouses": "{{count}} warehouses",
       "warehouses_one": "1 warehouse",
       "unlimited": "Unlimited",
-      "sellWithoutStock": "Sell even without stock loaded"
+      "sellWithoutStock": "Sell even without stock loaded",
+      "descriptions": {
+        "free": "Free mode: read-only and up to 10 sales a day",
+        "basic": "Full POS without inventory control",
+        "pro": "Full inventory, quotes and transfers",
+        "plus": "Everything: lots and expiry dates, deep customization",
+        "premium": "Plus without limits plus custom development"
+      }
     },
     "banner": {
       "trial": "You have {{count}} trial days left with the full Plus plan — choose your plan",
@@ -255,7 +262,16 @@
       "dueWas": "Was due on {{date}}",
       "period": "Period",
       "received": "Received",
-      "discountLine": "discount {{amount}}"
+      "discountLine": "discount {{amount}}",
+      "contact": {
+        "title": "Write to us to activate your plan",
+        "intro": "Tell us which plan you are interested in or what you need, and we will contact you to activate it.",
+        "message": "Your message",
+        "hint": "Between 10 and 1000 characters. We receive your name, your email and your business name along with the message.",
+        "send": "Send",
+        "sent": "Thanks for writing to us! We will contact you soon to activate the plan of your choice.",
+        "failed": "We could not send your message. Please try again in a moment."
+      }
     },
     "admin": {
       "title": "Billing",

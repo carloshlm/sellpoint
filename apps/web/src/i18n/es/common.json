@@ -217,7 +217,14 @@
       "warehouses": "{{count}} almacenes",
       "warehouses_one": "1 almacén",
       "unlimited": "Sin límite",
-      "sellWithoutStock": "Vende aunque no tengas existencias cargadas"
+      "sellWithoutStock": "Vende aunque no tengas existencias cargadas",
+      "descriptions": {
+        "free": "Modo gratuito: consulta y hasta 10 ventas al día",
+        "basic": "POS completo sin control de inventario",
+        "pro": "Inventario completo, cotizaciones y traspasos",
+        "plus": "Todo: lotes y caducidades, personalización profunda",
+        "premium": "Plus sin límites más desarrollo a la medida"
+      }
     },
     "banner": {
       "trial": "Te quedan {{count}} días de prueba con el plan Plus completo — elige tu plan",
@@ -255,7 +262,16 @@
       "dueWas": "Venció el {{date}}",
       "period": "Período",
       "received": "Recibido",
-      "discountLine": "descuento {{amount}}"
+      "discountLine": "descuento {{amount}}",
+      "contact": {
+        "title": "Escríbenos para activar tu plan",
+        "intro": "Cuéntanos qué plan te interesa o qué necesitas y te contactamos para activarlo.",
+        "message": "Tu mensaje",
+        "hint": "Entre 10 y 1000 caracteres. Recibimos tu nombre, tu correo y el nombre de tu negocio junto con el mensaje.",
+        "send": "Enviar",
+        "sent": "¡Gracias por escribirnos! Pronto nos comunicaremos contigo para activar el plan de tu preferencia.",
+        "failed": "No pudimos enviar tu mensaje. Inténtalo de nuevo en un momento."
+      }
     },
     "admin": {
       "title": "Cobros",

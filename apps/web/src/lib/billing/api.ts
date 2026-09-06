@@ -68,6 +68,12 @@ export interface MyBilling {
   modules: ModuleKey[];
 }
 
+/** F7-CONTACT — «Escríbenos para activar tu plan»: el mensaje va a los administradores de la plataforma. */
+export async function requestPlan(message: string): Promise<{ sent: true }> {
+  const { data } = await api.post<{ sent: true }>("/billing/me/plan-request", { message });
+  return data;
+}
+
 export async function getMyBilling(): Promise<MyBilling> {
   const { data } = await api.get<MyBilling>("/billing/me");
   return data;

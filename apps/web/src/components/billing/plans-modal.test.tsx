@@ -67,10 +67,12 @@ const PLANES = [
   },
 ];
 
-function renderModal() {
+function renderModal(lang: "es" | "en" = "es") {
   useBillingStore.setState({ plansModalOpen: true });
+  const i18n = createI18n();
+  void i18n.changeLanguage(lang);
   return render(
-    <I18nextProvider i18n={createI18n()}>
+    <I18nextProvider i18n={i18n}>
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
@@ -182,5 +184,21 @@ describe("el listado de lo que incluye cada plan", () => {
     expect(premium).toHaveTextContent("Usuarios ilimitados");
     expect(premium).toHaveTextContent("Almacenes ilimitados");
     expect(premium).not.toHaveTextContent("2 usuarios");
+  });
+
+  /**
+   * Carlos (2026-09-05): la descripción del plan se guarda en la base en
+   * español; en pantalla manda el idioma del usuario. Lo de la base queda
+   * de respaldo para un plan que el web no conozca.
+   */
+  it("la descripción del plan habla el idioma del usuario, no el de la base", async () => {
+    renderModal("en");
+    expect(await screen.findByText("Full POS without inventory control")).toBeInTheDocument();
+    expect(screen.queryByText("POS sin control de inventario")).not.toBeInTheDocument();
+  });
+
+  it("en español, la descripción también sale del catálogo del web", async () => {
+    renderModal("es");
+    expect(await screen.findByText("POS completo sin control de inventario")).toBeInTheDocument();
   });
 });

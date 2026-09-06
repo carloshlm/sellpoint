@@ -1,14 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { PaymentHistoryTable } from "@/components/billing/payment-history-table";
+import { TextAreaField } from "@/components/form/text-area-field";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SuccessNotice } from "@/components/ui/success-notice";
+import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
-import { getMyBilling } from "@/lib/billing/api";
+import { getMyBilling, requestPlan } from "@/lib/billing/api";
 import { formatDeadline } from "@/lib/billing/dates";
 import { usePlan } from "@/lib/billing/use-plan";
 import { useAuthStore } from "@/stores/auth.store";
@@ -117,6 +121,79 @@ function BillingSettings() {
           />
         </CardContent>
       </Card>
+
+      <PlanContactCard />
     </div>
+  );
+}
+
+const MENSAJE_MIN = 10;
+const MENSAJE_MAX = 1000;
+
+/**
+ * F7-CONTACT (Carlos, 2026-09-05) — «Escríbenos para activar tu plan». El
+ * mensaje llega a los administradores de la plataforma con el negocio, el
+ * nombre y el correo de quien escribe; al terminar, el agradecimiento y la
+ * promesa de contacto quedan en pantalla (y en el correo del negocio).
+ */
+function PlanContactCard() {
+  const { t } = useTranslation();
+  const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [enviado, setEnviado] = useState(false);
+  const enviar = useMutation<{ sent: true }, ApiError, string>({
+    mutationFn: (texto) => requestPlan(texto),
+  });
+  const k = (sufijo: string) => t(`common.billing.me.contact.${sufijo}`);
+  const valido = mensaje.trim().length >= MENSAJE_MIN && mensaje.trim().length <= MENSAJE_MAX;
+
+  return (
+    <Card data-testid="plan-contact">
+      <CardHeader>
+        <CardTitle>{k("title")}</CardTitle>
+        <CardDescription>{k("intro")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex max-w-2xl flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setError(null);
+            setEnviado(false);
+            enviar.mutate(mensaje.trim(), {
+              onSuccess: () => {
+                setEnviado(true);
+                setMensaje("");
+              },
+              onError: (apiError) => setError(apiError.message || k("failed")),
+            });
+          }}
+        >
+          <TextAreaField
+            label={k("message")}
+            hint={k("hint")}
+            rows={4}
+            maxLength={MENSAJE_MAX}
+            value={mensaje}
+            disabled={enviar.isPending}
+            onChange={(event) => setMensaje(event.target.value)}
+          />
+          {error && (
+            <p
+              role="alert"
+              className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
+            >
+              {error}
+            </p>
+          )}
+          {enviado && <SuccessNotice>{k("sent")}</SuccessNotice>}
+          <div>
+            <Button type="submit" disabled={!valido || enviar.isPending}>
+              {enviar.isPending ? t("common.form.submitting") : k("send")}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

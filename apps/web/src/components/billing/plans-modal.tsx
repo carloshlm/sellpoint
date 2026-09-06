@@ -104,8 +104,15 @@ export function PlansModal() {
             }`}
           >
             <h3 className="font-semibold text-base">{plan.name}</h3>
-            {plan.description ? (
-              <p className="mt-1 text-muted-foreground text-sm">{plan.description}</p>
+            {/* La descripción se guarda en la base en español; en pantalla
+                manda el idioma del usuario, con lo de la base como respaldo
+                para un plan que el catálogo del web no conozca. */}
+            {plan.description || plan.code ? (
+              <p className="mt-1 text-muted-foreground text-sm">
+                {t(`common.billing.plans.descriptions.${plan.code}`, {
+                  defaultValue: plan.description ?? "",
+                })}
+              </p>
             ) : null}
 
             <div className="my-3">

@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -14,8 +14,10 @@ vi.mock("@/lib/billing/api", async (importOriginal) => ({
   ...(await importOriginal<typeof billingApi>()),
   getMyBilling: vi.fn(),
   getPlans: vi.fn().mockResolvedValue([]),
+  requestPlan: vi.fn(),
 }));
 const mockedMyBilling = vi.mocked(billingApi.getMyBilling);
+const mockedRequestPlan = vi.mocked(billingApi.requestPlan);
 
 /** F7-WEB-09 — "Mi plan": estado del ciclo + historial, solo tenants:manage. */
 const demoUser = (
@@ -274,6 +276,46 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
 
     expect(await screen.findByText(/Venció el 26\/8\/2026/)).toBeInTheDocument();
     expect(screen.queryByText(/Próximo pago/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * F7-CONTACT (Carlos, 2026-09-05): al final de «Mi plan», «Escríbenos para
+   * activar tu plan». Menos de 10 caracteres no se manda; al enviar, el
+   * agradecimiento queda en pantalla y el campo se vacía.
+   */
+  it("«Escríbenos para activar tu plan» manda el mensaje y agradece", async () => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: {
+        status: "active",
+        billingCycle: "monthly",
+        dueAt: "2026-09-06T06:00:00.000Z",
+        trialEndsAt: null,
+        customPrice: null,
+        plan: { code: "plus", name: "Plus" },
+      },
+      payments: [],
+      activeDiscount: null,
+    } as unknown as billingApi.MyBilling);
+    mockedRequestPlan.mockResolvedValue({ sent: true });
+    await renderBilling(["tenants:manage"]);
+    const user = userEvent.setup();
+
+    const tarjeta = await screen.findByTestId("plan-contact");
+    expect(within(tarjeta).getByText("Escríbenos para activar tu plan")).toBeInTheDocument();
+    const boton = within(tarjeta).getByRole("button", { name: "Enviar" });
+    expect(boton).toBeDisabled();
+    const campo = within(tarjeta).getByLabelText("Tu mensaje");
+    await user.type(campo, "corto");
+    expect(boton).toBeDisabled();
+    await user.type(campo, " pero ya no tanto");
+    expect(boton).toBeEnabled();
+    await user.click(boton);
+
+    await waitFor(() => expect(mockedRequestPlan).toHaveBeenCalledWith("corto pero ya no tanto"));
+    expect(
+      await within(tarjeta).findByText(/Gracias por escribirnos! Pronto nos comunicaremos/),
+    ).toBeInTheDocument();
+    expect(campo).toHaveValue("");
   });
 
   it("sin tenants:manage la pantalla NO existe", async () => {
