@@ -18,6 +18,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
 import { QuotesService } from "../pos/quotes.service";
+import { armarTotales, type LineaTotalizada } from "../pos/totals";
 import { diaDelNegocio } from "./business-day";
 import type { CreateOrderDto, PrescriptionLineDto } from "./dto/orders.dto";
 import { SettingsService } from "./settings.service";
@@ -154,10 +155,17 @@ export class MedicalOrdersService {
       if (seVende) {
         const warehouseId = await this.almacenDelMedico(tx, user);
         folio = await nextFolio(tx, user.tenantId, "quote", POS_FOLIO_PREFIXES.quote);
-        const total = lineas.reduce(
-          (acc, l) => acc.plus(l.unitPrice.times(l.quantity)),
-          new Prisma.Decimal(0),
+        // F4-TAX-06: la cotización de la orden se suma con el mismo motor que
+        // el POS; sin esto los tres cálculos podían divergir un centavo.
+        const totales = armarTotales(
+          lineas.map((l) => ({
+            unitPrice: l.unitPrice,
+            quantity: l.quantity,
+            discount: new Prisma.Decimal(0),
+            grupo: null,
+          })),
         );
+        const total = totales.total;
         const cotizacion = await tx.quote.create({
           data: {
             tenantId: user.tenantId,
@@ -177,7 +185,7 @@ export class MedicalOrdersService {
                 description: l.description,
                 quantity: l.quantity,
                 unitPrice: l.unitPrice,
-                lineTotal: l.unitPrice.times(l.quantity),
+                lineTotal: (totales.lines[i] as LineaTotalizada).lineTotal,
                 sourceModule: SOURCE_MODULE,
                 sourceRef: l.id,
               })),

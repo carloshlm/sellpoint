@@ -22,6 +22,7 @@ import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
 import { buildSalesWhere } from "./sales-where";
 import { allowNegativeStock } from "./stock-policy";
+import { armarTotales, type LineaTotalizada } from "./totals";
 
 /** Lo que el catálogo dice que cuesta una línea. NUNCA lo que mandó el POST. */
 interface PrecioResuelto {
@@ -155,20 +156,18 @@ export class SalesService {
       .withTenantContext(user.tenantId, async (tx) => {
         const precios = await this.resolverPrecios(tx, user, dto.lines, dto.quoteId);
 
-        const subtotal = dto.lines.reduce(
-          (acc, line, i) =>
-            acc.plus(
-              (precios[i] as PrecioResuelto).unitPrice.times(new Prisma.Decimal(line.quantity)),
-            ),
-          new Prisma.Decimal(0),
+        // F4-TAX-06: UN motor suma el documento (venta, cotización y la orden
+        // médica llaman al mismo). Redondea cada línea a centavos ANTES del
+        // descuento y reclama por línea si el descuento la deja en negativo.
+        const totales = armarTotales(
+          dto.lines.map((line, i) => ({
+            unitPrice: (precios[i] as PrecioResuelto).unitPrice,
+            quantity: new Prisma.Decimal(line.quantity),
+            discount: new Prisma.Decimal(line.discount ?? 0),
+            grupo: null,
+          })),
         );
-        const descuento = dto.lines.reduce(
-          (acc, line) => acc.plus(new Prisma.Decimal(line.discount ?? 0)),
-          new Prisma.Decimal(0),
-        );
-        if (descuento.greaterThan(subtotal)) {
-          throw new UnprocessableEntityException({ message: "pos.discount_exceeds_subtotal" });
-        }
+        const { subtotal, discount: descuento } = totales;
 
         // ── F4-QUOTE-02: la cotización se marca CARGADA ────────────────────
         //
@@ -239,7 +238,7 @@ export class SalesService {
             paymentMethod: dto.paymentMethod,
             subtotal,
             discount: descuento,
-            total: subtotal.minus(descuento),
+            total: totales.total,
             createdBy: user.userId,
             items: {
               create: dto.lines.map((line, i) => {
@@ -283,7 +282,7 @@ export class SalesService {
                   unitPrice: precio.unitPrice,
                   ...(costoBase !== undefined && costoBase !== null && { unitCost: costoBase }),
                   discount: desc,
-                  lineTotal: precio.unitPrice.times(cantidad).minus(desc),
+                  lineTotal: (totales.lines[i] as LineaTotalizada).lineTotal,
                 };
               }),
             },

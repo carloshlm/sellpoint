@@ -35,6 +35,7 @@ import {
 } from "./lookup.strategies";
 import { allowNegativeStock } from "./stock-policy";
 import { hideStockFromItem } from "./stock-visibility";
+import { armarTotales, type LineaTotalizada } from "./totals";
 import { sellableStock } from "./warehouse-availability";
 
 /**
@@ -98,10 +99,16 @@ export class QuotesService {
 
       const lineas = await this.resolverLineas(tx, user, warehouseId, dto.lines);
 
-      const total = lineas.reduce(
-        (acc, l, i) => acc.plus(l.unitPrice.times(new Prisma.Decimal(dto.lines[i]?.quantity ?? 0))),
-        new Prisma.Decimal(0),
+      // F4-TAX-06: el mismo motor que la venta suma la cotización.
+      const totales = armarTotales(
+        lineas.map((l, i) => ({
+          unitPrice: l.unitPrice,
+          quantity: new Prisma.Decimal(dto.lines[i]?.quantity ?? 0),
+          discount: new Prisma.Decimal(0),
+          grupo: null,
+        })),
       );
+      const total = totales.total;
 
       // El folio se toma DENTRO de la transacción, igual que en la venta. Es
       // corta —no hay ledger que asentar— así que el lock de la serie dura
@@ -129,7 +136,7 @@ export class QuotesService {
                 description: l.description,
                 quantity: cantidad,
                 unitPrice: l.unitPrice,
-                lineTotal: l.unitPrice.times(cantidad),
+                lineTotal: (totales.lines[i] as LineaTotalizada).lineTotal,
               };
             }),
           },
