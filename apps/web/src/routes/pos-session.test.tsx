@@ -138,7 +138,7 @@ describe("/pos — la puerta del punto de venta", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
 
     const user = await renderRuta("/pos");
-    await user.click(await screen.findByRole("button", { name: /abrir caja/i }));
+    await user.click(await screen.findByRole("button", { name: /abrir turno/i }));
 
     await waitFor(() => expect(mocked.openSession).toHaveBeenCalled());
     expect(await screen.findByTestId("session-bar")).toBeInTheDocument();
@@ -148,13 +148,13 @@ describe("/pos — la puerta del punto de venta", () => {
   it("si el API rechaza la apertura, el motivo se ve", async () => {
     mocked.getSession.mockResolvedValue({ session: null });
     mocked.openSession.mockRejectedValue(
-      Object.assign(new Error("Ya tienes una caja abierta."), { status: 409 }),
+      Object.assign(new Error("Ya tienes un turno abierto."), { status: 409 }),
     );
 
     const user = await renderRuta("/pos");
-    await user.click(await screen.findByRole("button", { name: /abrir caja/i }));
+    await user.click(await screen.findByRole("button", { name: /abrir turno/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/caja abierta/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/turno abierto/i);
   });
 
   it("sin `pos:sell` la pantalla no se abre", async () => {
@@ -200,7 +200,7 @@ describe("/pos/close — el arqueo", () => {
 
     // El formato es el del tenant (MXN): lo que el cajero LEE, no el número crudo.
     expect(screen.getByTestId("cash-difference")).toHaveTextContent("-$20.00");
-    expect(screen.getByRole("button", { name: /cerrar caja/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /cerrar turno/i })).toBeEnabled();
   });
 
   it("sin escribir lo contado, el botón espera", async () => {
@@ -208,7 +208,7 @@ describe("/pos/close — el arqueo", () => {
 
     await renderRuta("/pos/close");
 
-    expect(await screen.findByRole("button", { name: /cerrar caja/i })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /cerrar turno/i })).toBeDisabled();
   });
 
   it("sin turno abierto no hay nada que cuadrar: ofrece abrirlo", async () => {

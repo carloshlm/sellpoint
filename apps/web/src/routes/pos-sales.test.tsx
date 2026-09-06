@@ -124,7 +124,7 @@ describe("Historial de ventas (F4-UI-03)", () => {
       const nav = await screen.findByRole("group", { name: "Punto de venta" });
       expect(within(nav).getByLabelText("Historial")).toBeInTheDocument();
       expect(within(nav).queryByLabelText("Venta")).not.toBeInTheDocument();
-      expect(within(nav).queryByLabelText("Cierre de caja")).not.toBeInTheDocument();
+      expect(within(nav).queryByLabelText("Cierre de turno")).not.toBeInTheDocument();
     });
 
     it("con solo `pos:sell` muestra vender y cerrar, NO el historial", async () => {
@@ -132,7 +132,7 @@ describe("Historial de ventas (F4-UI-03)", () => {
 
       const nav = await screen.findByRole("group", { name: "Punto de venta" });
       expect(within(nav).getByLabelText("Venta")).toBeInTheDocument();
-      expect(within(nav).getByLabelText("Cierre de caja")).toBeInTheDocument();
+      expect(within(nav).getByLabelText("Cierre de turno")).toBeInTheDocument();
       expect(within(nav).queryByLabelText("Historial")).not.toBeInTheDocument();
     });
 

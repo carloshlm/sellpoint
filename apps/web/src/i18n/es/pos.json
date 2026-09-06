@@ -6,16 +6,16 @@
     "transfer": "Transferencia"
   },
   "session": {
-    "openTitle": "Abrir caja",
+    "openTitle": "Abrir turno",
     "openHint": "Elige desde qué almacén vas a vender. Si tienes uno asignado, ya viene puesto.",
     "warehouse": "Almacén",
-    "open": "Abrir caja",
-    "openSince": "Caja abierta desde {{time}}",
-    "openFailed": "No pudimos abrir la caja.",
-    "closeTitle": "Cierre de caja",
-    "close": "Cerrar caja",
-    "closeFailed": "No pudimos cerrar la caja.",
-    "closeHint": "Si la caja no cuadra, se cierra igual y la diferencia queda registrada.",
+    "open": "Abrir turno",
+    "openSince": "Turno abierto desde {{time}}",
+    "openFailed": "No pudimos abrir el turno.",
+    "closeTitle": "Cierre de turno",
+    "close": "Cerrar turno",
+    "closeFailed": "No pudimos cerrar el turno.",
+    "closeHint": "Si el efectivo no cuadra, el turno se cierra igual y la diferencia queda registrada.",
     "declaredCash": "Efectivo contado en caja",
     "difference": "Diferencia",
     "note": "Nota (opcional)",
@@ -24,7 +24,7 @@
     "saleCount_one": "{{count}} venta"
   },
   "nav": {
-    "close": "Cierre de caja",
+    "close": "Cierre de turno",
     "history": "Historial",
     "quote": "Cotización",
     "sell": "Venta"
@@ -82,7 +82,7 @@
     },
     "unavailable": "Ya no se vende desde este almacén",
     "warehouse": "Almacén",
-    "warehouseHint": "Los precios y la disponibilidad se calculan desde este almacén. Cotizar no necesita caja abierta."
+    "warehouseHint": "Los precios y la disponibilidad se calculan desde este almacén. Cotizar no necesita un turno abierto."
   },
   "checkout": {
     "change": "Cambio",
