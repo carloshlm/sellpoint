@@ -59,7 +59,11 @@ del módulo. La dirección de dependencia es siempre módulo → core.
 5. **El cobro no es del módulo.** La caja encuentra el `COT-…` en `GET /pos/lookup`,
    `for-sale` relee precios de catálogo para productos y congela el precio de los conceptos,
    y la venta identifica cada concepto por `quoteLineId` (la venta NUNCA acepta un precio del
-   cliente). El módulo no necesita `pos:quote`: la cotización es interna. Estado de cobro
+   cliente). **El catálogo vertical lleva su propio `tax_group_id`** (F4-TAX, 2026-09-06):
+   `resolverLineasParaModulo` recibe el grupo por línea, la cotización congela `tax_group_code`
+   + `tax_rates` en la línea de concepto, y la caja cobra ESE impuesto aunque el default del
+   negocio sea otro (un estudio de laboratorio mexicano es EXENTO). Nunca el default de la
+   caja para un concepto. El módulo no necesita `pos:quote`: la cotización es interna. Estado de cobro
    derivado: `quote_id NULL` → `not_for_sale`; `quotes.status = 'loaded'` → `charged`; si no
    → `pending`. Cancelar el documento cancela la cotización si sigue `open`; cobrado → 409.
 6. **Lo vendido por ítem es una VISTA, no una tabla.** `<module>_sold_items` =
@@ -90,6 +94,10 @@ del módulo. La dirección de dependencia es siempre módulo → core.
    muestran con su `message` (ya viene traducido).
 
 ## Checklist de pruebas (lo que fija el patrón)
+
+- Impuesto: el ítem del módulo con grupo EXENTO cotiza y se cobra con `taxTotal 0` aunque el
+  negocio tenga IVA 16% por defecto; cambiar la tasa entre cotizar y cobrar NO cambia lo que
+  cobra el concepto (sí lo que cobra un producto de la misma cotización).
 
 - Integración de esquema: RLS en cada tabla nueva (contexto A no ve B; WITH CHECK rebota);
   CHECKs de referencia única y de forma por tipo; borrar un ítem de catálogo en uso → RESTRICT.

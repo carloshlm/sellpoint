@@ -250,10 +250,15 @@ profundidad todavía:
 
 - **Dirección** — hoy es un campo de texto libre. Los formatos postales difieren
   (código postal antes o después de la ciudad, condado/provincia/estado…).
-- **Nombre del impuesto de venta** — IVA (México, España, Portugal, Italia),
-  TVA (Francia), MwSt (Alemania), VAT (Reino Unido), Sales Tax/GST/HST
-  (EE. UU. y Canadá, además variable por estado o provincia). Relevante desde
-  que el POS emita tickets (Fase 4).
+- **Nombre del impuesto de venta** — RESUELTO (2026-09-06, F4-TAX). El
+  nombre no se traduce por locale: es un dato del negocio, sembrado por país
+  en el vocabulario fiscal local («IVA 16%», «TVA 20%», «MwSt 19%»,
+  «VAT 20%», «GST 5% + PST 7%», «HST 13%», «Sales tax 6.25%») y editable en
+  Mi perfil → Impuestos. Canadá y Estados Unidos piden además la provincia o
+  el estado (`tenants.region`, ISO 3166-2) en el paso 1 del wizard, porque de
+  ahí sale la tasa; México y la UE trabajan con precio final al público
+  (`tax_mode = included`), Norteamérica anglófona con el impuesto agregado al
+  cobrar (`excluded`). Catálogo completo en `packages/shared/src/tax-defaults.ts`.
 - **Formato de fecha y de número** — ya resuelto vía `Intl` con el locale del
   usuario, pero conviene verificarlo cuando haya reportes impresos.
 

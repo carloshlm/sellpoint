@@ -304,6 +304,11 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ---
 
+> **Provincia o estado (F4-TAX-18, 2026-09-06):** al elegir Canadá o Estados Unidos el
+> paso 1 muestra un select «Provincia o territorio» / «Estado» con el nombre oficial,
+> obligatorio ahí y ausente para el resto del mundo; cambiar de país lo vacía. Con él, al
+> Terminar se siembra el catálogo fiscal del negocio (F4-TAX-19).
+
 ## 5. Dashboard
 
 **Ruta:** `/dashboard` · **Acceso:** todos los roles autenticados (contenido varía)
@@ -436,6 +441,12 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 *(la pestaña "Composición" aparece solo si el producto es compuesto)*
 
 ---
+
+> **Impuesto (F4-TAX-15, 2026-09-06):** el alta y la edición de producto, servicio y
+> estudio llevan un select «Impuesto» con la opción «Predeterminado del negocio (IVA 16%)»
+> (= NULL) y los grupos activos del negocio; guardar sin tocarlo manda `null`. La misma
+> columna `impuesto` (EN `tax`) viaja en las plantillas de Excel: vacío hereda el default,
+> un código lo fija, uno desconocido es error de fila.
 
 #### Tab "Presentaciones" — tabla inline simple
 
@@ -1232,11 +1243,23 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 - Si algún componente no tiene stock suficiente en el almacén del POS → la venta falla con mensaje claro indicando qué componente falta y cuántas unidades son posibles con el stock actual.
 - El stock visible del compuesto en el POS es el **calculado en vivo**: `min(stock_componente_i / qty_i)`.
 
+> **Impuestos en el carrito (F4-TAX-17, 2026-09-06), dos disposiciones:** con precio final
+> (`included`, México y la UE) el carrito muestra el **TOTAL** grande y debajo «IVA 16%
+> incluido $6.21»; con impuesto agregado (`excluded`, Canadá y EE. UU.) muestra Subtotal,
+> una fila por componente («GST 5%», «PST 7%») y el TOTAL con el impuesto sumado. El
+> desglose sale de `splitLineTax` de shared, la misma aritmética que el servidor.
+
 **Casos de uso relacionados:** [CU-POS-01](CASOS_DE_USO.md#cu-pos-01--realizar-una-venta) · [CU-POS-05](CASOS_DE_USO.md#cu-pos-05--cargar-una-cotización-en-la-venta)
 
 ---
 
 ### 9.2 Modal de cobro
+
+> **F4-TAX-17 (2026-09-06):** el modal repite el desglose del carrito (Subtotal +
+> componentes + Total en `excluded`; Total + «IVA 16% incluido» en `included`) y cobra el
+> TOTAL con impuesto: el vuelto y el faltante salen de ahí. El ticket (F4-TAX-12/13) imprime
+> Descuento / Subtotal (base) / una fila por componente / Total; en `excluded` las líneas
+> van a precio neto (CRA) y en `included` a precio final (LFPC).
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -1674,6 +1697,14 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 ### 11.3 Mi perfil
 
 **Ruta:** `/profile` · **Permiso:** todos los autenticados
+
+> **Tarjeta «Impuestos» (F4-TAX-14, 2026-09-06; solo `tenants:manage`, entre «Datos del
+> negocio» y «Ticket»):** el modo («¿El precio de tus artículos ya incluye el impuesto?»,
+> con advertencia si el negocio ya tiene ventas), la provincia o el estado si el país los
+> usa, y la lista de grupos con sus componentes (código, nombre en el ticket, tasa con
+> hasta 4 decimales), marcar el predeterminado, activar/desactivar, agregar y borrar (un
+> grupo con artículos responde 409 «lo usan N artículos»). Modo y región se guardan al
+> elegir; los grupos con «Guardar impuestos».
 
 ```
 ┌────────────────────────────────────────────────────────────────┐

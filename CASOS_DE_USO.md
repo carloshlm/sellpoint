@@ -122,6 +122,8 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 
 #### **CU-AUTH-02 — Wizard de onboarding inicial**
 
+> **F4-TAX-18/19 (2026-09-06):** el paso 1 pide la provincia (Canadá) o el estado (EE. UU.); al Terminar, `completeOnboarding` siembra dentro de su transacción el catálogo fiscal del país y la región (`resolveTaxDefaults`) y fija el modo; idempotente, y auditado como `tenant.taxes.seeded`.
+
 - **Actor:** TenantAdmin recién registrado
 - **Precondición:** CU-AUTH-01 completado.
 - **Flujo principal:**
@@ -304,6 +306,18 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Nota:** la moneda de **facturación de la suscripción** (Stripe) es independiente y se gestiona en CU-BILL-XX (Fase 7).
 
 ---
+
+#### **CU-SYS-08 — Configurar los impuestos de venta del negocio**
+
+- **Actor:** TenantAdmin (`tenants:manage`)
+- **Precondición:** el negocio terminó el onboarding (el catálogo fiscal de su país y región ya está sembrado — F4-TAX-19).
+- **Flujo principal:**
+  1. Entra a Mi perfil → tarjeta «Impuestos».
+  2. Decide el modo: «el precio ya incluye el impuesto» (`included`, México y la UE) o «se agrega al cobrar» (`excluded`, Canadá y EE. UU.). Si ya hay ventas, la tarjeta advierte que los tickets siguientes cambian de disposición.
+  3. Ajusta los grupos: nombre en el ticket, componentes (hasta 4, tasa 0..100 con hasta 4 decimales), cuál es el predeterminado, cuáles están activos; agrega uno nuevo o borra uno sin artículos.
+  4. Asigna el grupo de un artículo desde su formulario (select «Impuesto») o por la columna `impuesto` de la plantilla de Excel (CU-CAT-03).
+- **Reglas:** un solo predeterminado activo; un grupo sin componentes es exento; borrar un grupo con artículos → 409 con cuántos lo usan; desactivar uno con artículos no lo saca de sus ventas (siguen cobrando lo suyo); las ventas ya hechas conservan su desglose (snapshot por documento).
+- **Postcondición:** las ventas y cotizaciones nuevas desglosan con la configuración vigente; el reporte «Impuestos cobrados» (CU-REP) agrupa por componente y tasa.
 
 ### 3.3 Catálogo
 
@@ -692,6 +706,8 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 ---
 
 #### **CU-POS-01 — Realizar una venta**
+
+> **F4-TAX (2026-09-06):** el servidor arma los totales con `armarTotales`: por línea, `unitPrice × qty` redondeado a 2 half-up, menos descuento (una línea negativa → 422 `pos.line_discount_exceeds_line`), y el impuesto del grupo del artículo (o el predeterminado). Producto y servicio RELEEN su impuesto al cobrar; el concepto de una cotización lo cobra CONGELADO. En `included` el total es idéntico al de antes del módulo; en `excluded` el total es neto + impuesto y el vuelto sale de ahí.
 
 > **Revisado en la sincronía pre-F4 (2026-08-21):** turno de caja obligatorio, folio
 > `VTA`, precios server-side, servicios en el carrito e `Idempotency-Key`.

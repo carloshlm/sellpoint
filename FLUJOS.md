@@ -452,6 +452,7 @@ sequenceDiagram
     end
 
     API->>DB: INSERT sale + sale_items
+    Note over API,DB: F4-TAX: armarTotales(líneas, tax_mode) — un solo motor para<br/>venta, cotización y orden médica; escribe sales.tax_mode/tax_total,<br/>sale_items.tax_amount/tax_group_code y sale_taxes por componente.<br/>Producto/servicio releen su impuesto; el concepto cobra el CONGELADO
     Note over API,DB: F4 NO escribe stock propio: llama a<br/>StockLedgerService.apply(tx, reason='sale')<br/>que hace FOR UPDATE ordenado, INSERT<br/>stock_movements y UPDATE stock_by_warehouse
     API->>DB: INSERT audit_log
     API->>DB: COMMIT
@@ -459,6 +460,7 @@ sequenceDiagram
 
     F->>API: GET /pos/sales/:id/ticket?width=58mm
     API-->>F: application/pdf (pdfmake 0.2.x, alto automático)
+    Note over API,F: Con impuestos: Descuento / Subtotal (base) / una fila<br/>por componente / Total. Líneas a precio final en included (LFPC)<br/>y a precio neto en excluded (CRA). Sin impuestos: byte a byte lo de siempre
     F->>F: window.open(blob) → diálogo de impresión del navegador
     Note over F,API: NO se imprime la PANTALLA con CSS @page: el PDF<br/>ya viene del server con su tamaño de papel. Hacerlo<br/>con CSS obligaba a mantener DOS plantillas del mismo<br/>ticket, que un día dirían cosas distintas
     F-->>P: Impresión vía diálogo del navegador (USB/Red)
