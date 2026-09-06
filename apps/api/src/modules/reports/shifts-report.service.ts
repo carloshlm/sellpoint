@@ -39,6 +39,19 @@ export interface ShiftSaleRow {
   total: string;
 }
 
+/** El turno con sus ventas: lo que devuelve `GET /reports/shifts/:id`. */
+export interface ShiftDetail extends ShiftRow {
+  sales: ShiftSaleRow[];
+}
+
+/** Una página del listado. */
+export interface ShiftsReportPage {
+  rows: ShiftRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 const nombre = (u: { id: string; firstName: string; lastNamePaternal: string }): Persona => ({
   id: u.id,
   name: `${u.firstName} ${u.lastNamePaternal}`.trim(),
@@ -59,7 +72,11 @@ const PERSONA = { select: { id: true, firstName: true, lastNamePaternal: true } 
 export class ShiftsReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(user: AuthUser, scope: UserScope, query: ShiftsReportQueryDto) {
+  async list(
+    user: AuthUser,
+    scope: UserScope,
+    query: ShiftsReportQueryDto,
+  ): Promise<ShiftsReportPage> {
     const where = await this.where(user, scope, query);
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const [total, filas] = await Promise.all([
@@ -127,7 +144,7 @@ export class ShiftsReportService {
   }
 
   /** F5-SHIFT-02 — un turno con sus ventas. Fuera del alcance es 404, igual que inexistente. */
-  async detail(user: AuthUser, scope: UserScope, id: string) {
+  async detail(user: AuthUser, scope: UserScope, id: string): Promise<ShiftDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const fila = await tx.cashboxSession.findFirst({
         where: {
