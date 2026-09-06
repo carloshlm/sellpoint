@@ -4,6 +4,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import type { AuthUser } from "../auth/types/auth-user";
 import { LookupService } from "../pos/lookup.service";
 import type { LookupProductItem } from "../pos/lookup.strategies";
+import { hideStock } from "../pos/stock-visibility";
 import type { StockSearchQuery } from "./dto/stock-search.dto";
 
 /**
@@ -27,9 +28,19 @@ export class StockSearchService {
       limit: query.limit,
       warehouseId,
     });
+    const productos = resultado.items.filter((i): i is LookupProductItem => i.type === "product");
+    // «Mostrar existencias al recetar» (Carlos, 2026-09-05): apagado, el dato
+    // no viaja —misma regla que el punto de venta—. Es la configuración del
+    // CONSULTORIO, no la del POS: un negocio puede querer una y no la otra.
+    const ajustes = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      tx.medicalClinicSettings.findUnique({
+        where: { tenantId: user.tenantId },
+        select: { showsStock: true },
+      }),
+    );
     return {
       warehouseId,
-      items: resultado.items.filter((i): i is LookupProductItem => i.type === "product"),
+      items: ajustes?.showsStock === false ? hideStock(productos) : productos,
     };
   }
 

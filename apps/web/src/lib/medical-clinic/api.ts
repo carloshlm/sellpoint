@@ -87,6 +87,8 @@ export async function removeStudy(kind: StudyKind, id: string): Promise<void> {
 // ── Configuración ─────────────────────────────────────────────────────
 export interface MedicalClinicSettings {
   sellsMedications: boolean;
+  /** «Mostrar existencias al recetar» (por defecto sí). */
+  showsStock: boolean;
   sellsLabStudies: boolean;
   sellsDiagnosticStudies: boolean;
 }
@@ -298,14 +300,11 @@ export async function printMedicalOrder(id: string, folio: string): Promise<void
 // ── Medicamentos del stock del médico ─────────────────────────────────
 /** El mismo ítem del buscador del POS, re-exportado: el módulo no importa de `@/lib/pos` en pantallas. */
 /**
- * El buscador del médico SIEMPRE trae la existencia: «Mostrar existencias en
- * el punto de venta» (F4-POSVIS) es del POS y no pasa por aquí. El tipo lo
- * dice: `available`/`expired` no admiten null en este contrato.
+ * Mismo contrato que la búsqueda del POS. `available` viaja en null cuando el
+ * consultorio apagó «Mostrar existencias al recetar»: el API no manda el dato
+ * y el picker no lo inventa.
  */
-export type MedicationItem = Omit<LookupProductItem, "available" | "expired"> & {
-  available: string;
-  expired: string;
-};
+export type MedicationItem = LookupProductItem;
 
 export async function searchStock(
   q: string,

@@ -140,6 +140,7 @@ beforeEach(() => {
     sellsMedications: true,
     sellsLabStudies: false,
     sellsDiagnosticStudies: false,
+    showsStock: true,
   });
   mocked.listOrders.mockResolvedValue([]);
   mocked.createOrder.mockResolvedValue(orden({}));
@@ -359,11 +360,33 @@ describe("receta de medicamentos (F9-CLINIC-WEB-18)", () => {
     expect(screen.queryByText(/Total/)).not.toBeInTheDocument();
   });
 
+  it("con «Mostrar existencias al recetar» apagado, el API manda null y el buscador calla", async () => {
+    mocked.searchStock.mockResolvedValue({
+      warehouseId: "w1",
+      items: [
+        { ...medicamento("prod1", "Paracetamol 500 mg", "12"), available: null, expired: null },
+        { ...medicamento("prod2", "Ibuprofeno 400 mg", "0"), available: null, expired: null },
+      ],
+    });
+    await renderRuta("/medical-clinic/records/r1/orders/prescription", [
+      "medical_clinic:read",
+      "medical_clinic:attend",
+      "tenants:manage",
+    ]);
+    await userEvent.type(await screen.findByLabelText("Buscar medicamento"), "parac");
+    const paracetamol = await screen.findByTestId("medication-prod1");
+    expect(paracetamol).not.toHaveTextContent("disponibles");
+    expect(screen.getByTestId("medication-prod2")).not.toHaveTextContent("Sin existencia");
+    // Y se sigue pudiendo recetar: la existencia no condiciona la receta.
+    expect(paracetamol.querySelector("button")).toBeEnabled();
+  });
+
   it("si el negocio no vende medicamentos, el buscador no muestra existencia (F9-CLINIC-WEB-22)", async () => {
     mocked.getSettings.mockResolvedValue({
       sellsMedications: false,
       sellsLabStudies: false,
       sellsDiagnosticStudies: false,
+      showsStock: true,
     });
     await renderRuta("/medical-clinic/records/r1/orders/prescription", [
       "medical_clinic:read",

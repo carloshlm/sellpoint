@@ -59,7 +59,8 @@ export function MedicationPicker({ label, placeholder, showStock, onAdd }: Medic
         <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
           {items.map((item) => {
             const presentacion = salePresentationOf(item);
-            const disponible = Number(item.available);
+            // null = el consultorio no muestra existencias al recetar: ni cantidad ni «sin existencia».
+            const disponible = item.available === null ? null : Number(item.available);
             return (
               <li key={item.id} data-testid={`medication-${item.id}`}>
                 {/* El renglón ENTERO agrega, como en el punto de venta: sin un
@@ -81,11 +82,11 @@ export function MedicationPicker({ label, placeholder, showStock, onAdd }: Medic
                     <span className="truncate font-medium">{item.name}</span>
                     <span className="flex flex-wrap items-center gap-2 text-muted-foreground text-xs">
                       <span className="font-mono">{item.sku}</span>
-                      {showStock ? (
+                      {showStock && disponible !== null ? (
                         disponible > 0 ? (
                           <span>
                             {t("medicalClinic.orders.available", {
-                              quantity: formatQuantity(item.available, item.baseUnit),
+                              quantity: formatQuantity(item.available ?? "0", item.baseUnit),
                             })}
                           </span>
                         ) : (

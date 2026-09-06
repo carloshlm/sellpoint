@@ -17,6 +17,7 @@ const CASILLAS: (keyof Settings)[] = [
   "sellsMedications",
   "sellsLabStudies",
   "sellsDiagnosticStudies",
+  "showsStock",
 ];
 
 /**

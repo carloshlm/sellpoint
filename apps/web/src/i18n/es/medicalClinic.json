@@ -402,7 +402,8 @@
     "save": "Guardar",
     "saved": "Configuración guardada.",
     "saveFailed": "No pudimos guardar la configuración.",
-    "loadFailed": "No pudimos cargar la configuración."
+    "loadFailed": "No pudimos cargar la configuración.",
+    "showsStock": "Mostrar existencias al recetar"
   },
   "dashboard": {
     "medications": "Medicamentos",

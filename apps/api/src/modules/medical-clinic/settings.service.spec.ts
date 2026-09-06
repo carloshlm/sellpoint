@@ -28,6 +28,7 @@ describe("SettingsService (F9-CLINIC-22)", () => {
             sellsMedications: true,
             sellsLabStudies: false,
             sellsDiagnosticStudies: false,
+            showsStock: true,
             ...create,
             ...update,
           }),
@@ -45,6 +46,7 @@ describe("SettingsService (F9-CLINIC-22)", () => {
       sellsMedications: true,
       sellsLabStudies: false,
       sellsDiagnosticStudies: false,
+      showsStock: true,
     });
     expect(tx.medicalClinicSettings.upsert).not.toHaveBeenCalled();
   });
@@ -63,13 +65,24 @@ describe("SettingsService (F9-CLINIC-22)", () => {
       sellsMedications: true,
       sellsLabStudies: true,
       sellsDiagnosticStudies: false,
+      showsStock: true,
     });
     expect(audit.record).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         action: "medical_clinic.settings.update",
-        before: { sellsMedications: true, sellsLabStudies: false, sellsDiagnosticStudies: false },
-        after: { sellsMedications: true, sellsLabStudies: true, sellsDiagnosticStudies: false },
+        before: {
+          sellsMedications: true,
+          sellsLabStudies: false,
+          sellsDiagnosticStudies: false,
+          showsStock: true,
+        },
+        after: {
+          sellsMedications: true,
+          sellsLabStudies: true,
+          sellsDiagnosticStudies: false,
+          showsStock: true,
+        },
       }),
     );
   });
@@ -80,11 +93,13 @@ describe("SettingsService (F9-CLINIC-22)", () => {
       sellsMedications: false,
       sellsLabStudies: true,
       sellsDiagnosticStudies: true,
+      showsStock: true,
     });
     await expect(service.get(USER)).resolves.toEqual({
       sellsMedications: false,
       sellsLabStudies: true,
       sellsDiagnosticStudies: true,
+      showsStock: true,
     });
   });
 });

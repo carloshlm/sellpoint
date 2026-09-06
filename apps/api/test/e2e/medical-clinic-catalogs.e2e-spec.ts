@@ -108,6 +108,7 @@ describe("Consultorio Médico — catálogos (F9-CLINIC-18)", () => {
       sellsMedications: true,
       sellsLabStudies: false,
       sellsDiagnosticStudies: false,
+      showsStock: true,
     });
     const cambiada = await request(app.getHttpServer())
       .put("/medical-clinic/settings")

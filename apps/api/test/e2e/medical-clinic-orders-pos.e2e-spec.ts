@@ -108,6 +108,14 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
     expect(
       (stockMedico.body as { items: { available: string | null }[] }).items[0]?.available,
     ).toEqual(expect.any(String));
+    // Y la del CONSULTORIO es otra: «Mostrar existencias al recetar» apagado →
+    // el buscador del médico tampoco recibe el dato.
+    await put(negocio.token, "/medical-clinic/settings", { showsStock: false }).expect(200);
+    const sinDato = await get(negocio.token, "/medical-clinic/stock-search?q=parac").expect(200);
+    expect(
+      (sinDato.body as { items: { available: string | null; sku: string }[] }).items[0],
+    ).toMatchObject({ available: null, expired: null, sku: expect.any(String) });
+    await put(negocio.token, "/medical-clinic/settings", { showsStock: true }).expect(200);
 
     // La caja: abre turno, encuentra el folio, carga y cobra.
     await post(negocio.token, "/pos/session").expect(201);

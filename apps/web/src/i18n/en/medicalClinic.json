@@ -402,7 +402,8 @@
     "save": "Save",
     "saved": "Settings saved.",
     "saveFailed": "We could not save the settings.",
-    "loadFailed": "We could not load the settings."
+    "loadFailed": "We could not load the settings.",
+    "showsStock": "Show stock when prescribing"
   },
   "dashboard": {
     "medications": "Medications",

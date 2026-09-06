@@ -9,6 +9,8 @@ export interface MedicalClinicSettingsView {
   sellsMedications: boolean;
   sellsLabStudies: boolean;
   sellsDiagnosticStudies: boolean;
+  /** «Mostrar existencias al recetar» (Carlos, 2026-09-05). Apagado, el API no manda el dato. */
+  showsStock: boolean;
 }
 
 /**
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: MedicalClinicSettingsView = {
   sellsMedications: true,
   sellsLabStudies: false,
   sellsDiagnosticStudies: false,
+  showsStock: true,
 };
 
 /**
@@ -80,5 +83,6 @@ function toView(fila: MedicalClinicSettingsView): MedicalClinicSettingsView {
     sellsMedications: fila.sellsMedications,
     sellsLabStudies: fila.sellsLabStudies,
     sellsDiagnosticStudies: fila.sellsDiagnosticStudies,
+    showsStock: fila.showsStock,
   };
 }

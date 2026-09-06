@@ -6,6 +6,8 @@ export const updateSettingsSchema = z
     sellsMedications: z.boolean().optional(),
     sellsLabStudies: z.boolean().optional(),
     sellsDiagnosticStudies: z.boolean().optional(),
+    /** «Mostrar existencias al recetar»: el médico ve o no cuánto hay. */
+    showsStock: z.boolean().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, { message: "medical_clinic.empty_update" });

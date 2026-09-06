@@ -63,12 +63,14 @@ beforeEach(() => {
     sellsMedications: true,
     sellsLabStudies: true,
     sellsDiagnosticStudies: false,
+    showsStock: true,
   });
   mocked.updateSettings.mockImplementation((input) =>
     Promise.resolve({
       sellsMedications: true,
       sellsLabStudies: true,
       sellsDiagnosticStudies: false,
+      showsStock: true,
       ...input,
     }),
   );
@@ -96,5 +98,16 @@ describe("MedicalClinicSettings", () => {
       expect(mocked.updateSettings).toHaveBeenCalledWith({ sellsLabStudies: false }),
     );
     expect(await screen.findByRole("status")).toHaveTextContent("Configuración guardada.");
+  });
+
+  /** Carlos (2026-09-05): el médico ve o no la existencia al recetar; es del consultorio, no del POS. */
+  it("«Mostrar existencias al recetar» se apaga y manda solo showsStock:false", async () => {
+    renderCard(user(["medical_clinic"], ["tenants:manage"]));
+    const usuario = userEvent.setup();
+    const casilla = await screen.findByRole("checkbox", { name: "Mostrar existencias al recetar" });
+    await waitFor(() => expect(casilla).toBeChecked());
+    await usuario.click(casilla);
+    await usuario.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(mocked.updateSettings).toHaveBeenCalledWith({ showsStock: false }));
   });
 });
