@@ -30,5 +30,5 @@
   "session_already_closed": "Ese turno ya está cerrado.",
   "session_already_open": "Ya tienes un turno abierto. Ciérralo antes de abrir otro.",
   "warehouse_invalid": "El almacén no es válido.",
-  "line_discount_exceeds_line": "El descuento de la línea {{lineIndex}} supera su importe."
+  "line_discount_exceeds_line": "El descuento de la línea {lineIndex} supera su importe."
 }

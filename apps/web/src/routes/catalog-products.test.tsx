@@ -96,6 +96,7 @@ const PRODUCT: productsApi.ProductDetail = {
   isComposite: false,
   isActive: true,
   attributes: {},
+  taxGroupId: null,
   stockMin: "0",
   location: null,
   presentations: [],

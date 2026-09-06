@@ -39,6 +39,7 @@ export interface TenantBlock {
    * F5-DASH-02: la meta mensual de ventas — string decimal («800000») o null.
    * El dashboard pinta contra ella la barra de «% alcanzado».
    */
+  monthlySalesGoal: string | null;
   /** F4-TAX-16: ¿el precio de catálogo ya incluye el impuesto? Lo consulta el carrito. */
   taxMode: TaxMode;
   /** F4-TAX-16: provincia o estado (ISO 3166-2 sin prefijo), solo CA y US. */

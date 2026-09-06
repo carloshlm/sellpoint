@@ -14,6 +14,6 @@
   "tax_default_required": "Mark exactly one active group as the default.",
   "tax_invalid_region": "That province or state does not belong to the business's country.",
   "tax_group_unknown": "That tax group does not exist.",
-  "tax_group_in_use": "It cannot be deleted: {{count}} items use it. Deactivate it or change their tax.",
+  "tax_group_in_use": "It cannot be deleted: {count} items use it. Deactivate it or change their tax.",
   "tax_group_is_default": "It is the default tax: pick another one before deleting it."
 }

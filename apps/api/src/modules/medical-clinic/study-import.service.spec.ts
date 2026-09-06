@@ -37,7 +37,11 @@ describe("StudyImportService (F9-CLINIC)", () => {
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (tx: unknown) => unknown) =>
-        fn({ medicalClinicLabStudy: delegate }),
+        // F4-TAX-11: la importación resuelve la columna «impuesto» contra los grupos del negocio.
+        fn({
+          medicalClinicLabStudy: delegate,
+          taxGroup: { findMany: jest.fn().mockResolvedValue([]) },
+        }),
       ),
     };
     audit = { record: jest.fn() };

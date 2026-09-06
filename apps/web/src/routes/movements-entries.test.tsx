@@ -560,6 +560,7 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
             isActive: true,
             attributes: {},
             price: null,
+            taxGroupId: null,
           },
         ],
       });
@@ -737,6 +738,7 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
             isActive: true,
             attributes: {},
             price: null,
+            taxGroupId: null,
           },
         ],
       });

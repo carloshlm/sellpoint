@@ -14,7 +14,6 @@ import { useAuthStore } from "@/stores/auth.store";
 import {
   aLineasDeVenta,
   impuestosDelCarrito,
-  subtotalDelCarrito,
   totalDelCarrito,
   useCartStore,
 } from "@/stores/cart.store";

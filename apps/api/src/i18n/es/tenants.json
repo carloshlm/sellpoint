@@ -14,6 +14,6 @@
   "tax_default_required": "Marca exactamente un grupo activo como predeterminado.",
   "tax_invalid_region": "Esa provincia o estado no corresponde al país del negocio.",
   "tax_group_unknown": "Ese grupo de impuesto no existe.",
-  "tax_group_in_use": "No se puede borrar: lo usan {{count}} artículos. Desactívalo o cámbiales el impuesto.",
+  "tax_group_in_use": "No se puede borrar: lo usan {count} artículos. Desactívalo o cámbiales el impuesto.",
   "tax_group_is_default": "Es el impuesto predeterminado: elige otro antes de borrarlo."
 }

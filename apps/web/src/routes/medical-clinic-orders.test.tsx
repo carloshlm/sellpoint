@@ -37,6 +37,7 @@ const estudio = (id: string, code: string, name: string, price: string): Study =
   description: null,
   cost: null,
   price,
+  taxGroupId: null,
   isActive: true,
   createdAt: "2026-09-03T10:00:00.000Z",
   updatedAt: "2026-09-03T10:00:00.000Z",

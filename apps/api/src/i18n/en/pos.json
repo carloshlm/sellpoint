@@ -30,5 +30,5 @@
   "session_already_closed": "That shift is already closed.",
   "session_already_open": "You already have an open shift. Close it before opening another.",
   "warehouse_invalid": "The warehouse is not valid.",
-  "line_discount_exceeds_line": "The discount on line {{lineIndex}} exceeds its amount."
+  "line_discount_exceeds_line": "The discount on line {lineIndex} exceeds its amount."
 }
