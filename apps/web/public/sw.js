@@ -28,13 +28,18 @@
  * versiones viejas: sin eso, cada despliegue dejaría un caché huérfano
  * ocupando espacio en el dispositivo para siempre.
  *
+ * **v3 (2026-09-06): el favicon cambió de dibujo sin cambiar de nombre.**
+ * `/favicon-32.png` vive en el SHELL, así que un equipo con la caché v2 seguiría
+ * pintando el icono viejo en su pestaña para siempre. Subir la versión es lo
+ * único que la purga.
+ *
  * **v2 (2026-08-23) no es cosmética: PURGA las cachés envenenadas.** La v1
  * guardó respuestas de `/api/pos/lookup`, `/api/pos/session` y `/api/me` en
  * los dispositivos que ya abrieron la app. Sin subir la versión, esos equipos
  * seguirían sirviendo stock viejo aunque el código nuevo ya no cachee nada
  * del API.
  */
-const CACHE = "sellpoint-shell-v2";
+const CACHE = "sellpoint-shell-v3";
 
 /** El cascarón mínimo: sin esto la app no arranca. */
 const SHELL = ["/", "/manifest.webmanifest", "/favicon-32.png"];
