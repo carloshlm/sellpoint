@@ -138,6 +138,9 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
           sellWithoutStock: false,
           usesLocations: false,
           posShowsStock: true,
+          // F4-TAX-16: el modo del impuesto y la región viajan en el bloque del negocio.
+          taxMode: "included",
+          region: null,
           monthlySalesGoal: null,
         },
         // F7-WEB-01 (A1): el plan efectivo — el tenant nace en trial Plus.
