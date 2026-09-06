@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { type SpreadsheetFormat, serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -161,6 +162,6 @@ export class CountTemplateService {
     });
 
     const file = await serializeSpreadsheet([localizeHeaders(COLUMNAS, locale), ...filas], format);
-    return { ...file, filename: `conteo-fisico.${format}` };
+    return { ...file, filename: `${spreadsheetFilenameBase("conteo-fisico", locale)}.${format}` };
   }
 }

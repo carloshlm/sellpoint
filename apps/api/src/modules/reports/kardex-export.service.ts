@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { type Locale, quantityDecimals, unitName } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -158,7 +159,7 @@ export class KardexExportService {
       ],
       format,
       sheetName: "Kardex",
-      filenameBase: "kardex",
+      filenameBase: spreadsheetFilenameBase("kardex", locale),
     });
   }
 }

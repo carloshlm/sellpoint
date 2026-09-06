@@ -171,9 +171,10 @@ export class ReportsController {
     @CurrentUserScope() scope: UserScope,
     @Query(new ZodValidationPipe(salesExportQuerySchema, "reports.invalid_query"))
     query: SalesExportQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
-    const file = await this.salesExport.build(user, scope, query);
+    const file = await this.salesExport.build(user, scope, query, getLocale(request));
     response
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)
@@ -193,9 +194,13 @@ export class ReportsController {
     @CurrentUser() user: AuthUser,
     @Query(new ZodValidationPipe(directExportQuerySchema, "reports.invalid_query"))
     query: DirectExportQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
-    this.descargar(response, await this.catalogExport.users(user, query.format));
+    this.descargar(
+      response,
+      await this.catalogExport.users(user, query.format, getLocale(request)),
+    );
   }
 
   @Get("warehouses/export")
@@ -205,9 +210,13 @@ export class ReportsController {
     @CurrentUserScope() scope: UserScope,
     @Query(new ZodValidationPipe(directExportQuerySchema, "reports.invalid_query"))
     query: DirectExportQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
-    this.descargar(response, await this.catalogExport.warehouses(user, scope, query.format));
+    this.descargar(
+      response,
+      await this.catalogExport.warehouses(user, scope, query.format, getLocale(request)),
+    );
   }
 
   @Get("products/export")
@@ -216,9 +225,13 @@ export class ReportsController {
     @CurrentUser() user: AuthUser,
     @Query(new ZodValidationPipe(directExportQuerySchema, "reports.invalid_query"))
     query: DirectExportQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
-    this.descargar(response, await this.catalogExport.products(user, query.format));
+    this.descargar(
+      response,
+      await this.catalogExport.products(user, query.format, getLocale(request)),
+    );
   }
 
   /**
@@ -268,9 +281,10 @@ export class ReportsController {
     @CurrentUserScope() scope: UserScope,
     @Query(new ZodValidationPipe(stockExportQuerySchema, "reports.invalid_query"))
     query: StockExportQueryDto,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
-    const file = await this.stockExport.build(user, scope, query);
+    const file = await this.stockExport.build(user, scope, query, getLocale(request));
     response
       .header("Content-Type", file.contentType)
       .header("Content-Disposition", `attachment; filename="${file.filename}"`)

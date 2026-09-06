@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { StockExportQueryDto } from "./dto/stock-report.dto";
@@ -21,7 +23,7 @@ const SIN_PAGINAR = { page: 1, pageSize: 100 } as const;
 export class StockExportService {
   constructor(private readonly stock: StockReportService) {}
 
-  async build(user: AuthUser, scope: UserScope, query: StockExportQueryDto) {
+  async build(user: AuthUser, scope: UserScope, query: StockExportQueryDto, locale: Locale = "es") {
     const esDetalle = query.detail === "lots";
 
     return exportWithLimit({
@@ -43,7 +45,7 @@ export class StockExportService {
           ],
       format: query.format,
       sheetName: esDetalle ? "Stock por lote" : "Stock",
-      filenameBase: esDetalle ? "stock-por-lote" : "stock",
+      filenameBase: spreadsheetFilenameBase(esDetalle ? "stock-por-lote" : "stock", locale),
     });
   }
 

@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import type { SalesExportQueryDto } from "./dto/sales-report.dto";
@@ -29,7 +31,7 @@ const METODOS: Record<string, string> = {
 export class SalesExportService {
   constructor(private readonly sales: SalesReportService) {}
 
-  async build(user: AuthUser, scope: UserScope, query: SalesExportQueryDto) {
+  async build(user: AuthUser, scope: UserScope, query: SalesExportQueryDto, locale: Locale = "es") {
     return exportWithLimit({
       count: () => this.sales.count(user, scope, { ...query, ...SIN_PAGINAR }),
       rows: () => this.filas(user, scope, query),
@@ -45,7 +47,7 @@ export class SalesExportService {
       ],
       format: query.format,
       sheetName: "Ventas",
-      filenameBase: "ventas",
+      filenameBase: spreadsheetFilenameBase("ventas", locale),
     });
   }
 

@@ -4,6 +4,7 @@ import { normalizeLotCode } from "@sellpoint/shared";
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -84,6 +85,7 @@ export class LotsController {
   async expiringExport(
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
     @Query("days") days?: string,
     @Query("warehouseId") warehouseId?: string,
@@ -98,6 +100,7 @@ export class LotsController {
         ...(warehouseId !== undefined && warehouseId !== "" ? { warehouseId } : {}),
       },
       format === "csv" ? "csv" : "xlsx",
+      getLocale(request),
     );
     response
       .header("Content-Type", file.contentType)

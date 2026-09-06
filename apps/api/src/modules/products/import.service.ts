@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
 import { getUnit, type Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
 import {
   parseSpreadsheet,
@@ -171,7 +172,9 @@ export class ImportService {
             ],
           ];
 
-    return serializeSpreadsheet([localizeHeaders(header, locale), ...body], format);
+    return serializeSpreadsheet([localizeHeaders(header, locale), ...body], format, {
+      filenameBase: spreadsheetFilenameBase("productos", locale),
+    });
   }
 
   /**

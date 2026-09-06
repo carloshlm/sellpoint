@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -40,6 +42,7 @@ export class InventoryExportService {
     scope: UserScope,
     options: { days: number; warehouseId?: string },
     format: SpreadsheetFormat,
+    locale: Locale = "es",
   ) {
     const filas = await this.lots.listExpiring(user, scope, options);
 
@@ -68,7 +71,7 @@ export class InventoryExportService {
       ],
       format,
       sheetName: "Vencimientos",
-      filenameBase: "vencimientos",
+      filenameBase: spreadsheetFilenameBase("vencimientos", locale),
     });
   }
 
@@ -89,6 +92,7 @@ export class InventoryExportService {
     scope: UserScope,
     options: { productId?: string; originWarehouseId?: string },
     format: SpreadsheetFormat,
+    locale: Locale = "es",
   ) {
     const filas = await this.kardex.inTransitDetail(user, scope, options);
 
@@ -108,7 +112,7 @@ export class InventoryExportService {
       header: ["Producto", "SKU", "Lote", "Origen", "Destino", "Cantidad", "Folio", "Salió"],
       format,
       sheetName: "En tránsito",
-      filenameBase: "en-transito",
+      filenameBase: spreadsheetFilenameBase("en-transito", locale),
     });
   }
 }

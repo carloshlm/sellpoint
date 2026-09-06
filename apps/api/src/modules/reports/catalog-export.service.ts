@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import type { Locale } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -48,7 +50,7 @@ export class CatalogExportService {
    * fila entera justamente para que agregar un campo sensible al modelo no lo
    * filtre acá sin que nadie lo note.
    */
-  async users(user: AuthUser, format: SpreadsheetFormat) {
+  async users(user: AuthUser, format: SpreadsheetFormat, locale: Locale = "es") {
     return exportWithLimit({
       count: () =>
         this.prisma.withTenantContext(user.tenantId, (tx) =>
@@ -86,7 +88,7 @@ export class CatalogExportService {
       header: ["Nombre", "Correo", "Roles", "Almacenes", "Estado"],
       format,
       sheetName: "Usuarios",
-      filenameBase: "usuarios",
+      filenameBase: spreadsheetFilenameBase("usuarios", locale),
     });
   }
 
@@ -97,7 +99,12 @@ export class CatalogExportService {
    * con stock adentro es justo lo que alguien necesita encontrar cuando algo
    * no cuadra.
    */
-  async warehouses(user: AuthUser, scope: UserScope, format: SpreadsheetFormat) {
+  async warehouses(
+    user: AuthUser,
+    scope: UserScope,
+    format: SpreadsheetFormat,
+    locale: Locale = "es",
+  ) {
     const where = {
       tenantId: user.tenantId,
       // Lista vacía → `in: []`, que no devuelve nada. Omitir la clave sería
@@ -135,7 +142,7 @@ export class CatalogExportService {
       header: ["Nombre", "Dirección", "Estado", "Productos con stock"],
       format,
       sheetName: "Almacenes",
-      filenameBase: "almacenes",
+      filenameBase: spreadsheetFilenameBase("almacenes", locale),
     });
   }
 
@@ -151,7 +158,7 @@ export class CatalogExportService {
    * formato, el reporte informa lo que hay. Un «Paracetamol 500mg» en un
    * reporte diría que existe un producto que nadie dio de alta.
    */
-  async products(user: AuthUser, format: SpreadsheetFormat) {
+  async products(user: AuthUser, format: SpreadsheetFormat, locale: Locale = "es") {
     const catalogo = await this.imports.catalogRows(user);
 
     return exportWithLimit({
@@ -160,7 +167,7 @@ export class CatalogExportService {
       header: catalogo.header,
       format,
       sheetName: "Catálogo",
-      filenameBase: "catalogo",
+      filenameBase: spreadsheetFilenameBase("catalogo", locale),
     });
   }
 }

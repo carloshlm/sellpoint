@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
 import { type InventoryDocumentType, type Locale, normalizeLotCode } from "@sellpoint/shared";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
 import {
   parseSpreadsheet,
@@ -74,7 +75,10 @@ export class DocumentImportService {
       [localizeHeaders(COLUMNS[type], locale), EXAMPLE[type]],
       format,
     );
-    return { ...file, filename: `plantilla-${type}.${format}` };
+    return {
+      ...file,
+      filename: `${spreadsheetFilenameBase("plantilla", locale)}-${type}.${format}`,
+    };
   }
 
   async importLines(

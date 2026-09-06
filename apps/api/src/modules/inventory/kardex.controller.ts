@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query, Res } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req, Res } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { MovementDirection, MovementReason } from "@sellpoint/shared";
 import { MOVEMENT_DIRECTIONS, MOVEMENT_REASONS } from "@sellpoint/shared";
 import type { Response } from "express";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUserScope } from "../../infrastructure/warehouse-scope/current-user-scope.decorator";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -97,6 +98,7 @@ export class KardexController {
     @CurrentUser() user: AuthUser,
     @CurrentUserScope() scope: UserScope,
     @Query() query: Record<string, string>,
+    @Req() request: RequestWithLocale,
     @Res() response: Response,
   ) {
     const file = await this.exports.inTransit(
@@ -107,6 +109,7 @@ export class KardexController {
         ...(query.originWarehouseId ? { originWarehouseId: query.originWarehouseId } : {}),
       },
       query.format === "csv" ? "csv" : "xlsx",
+      getLocale(request),
     );
     response
       .header("Content-Type", file.contentType)

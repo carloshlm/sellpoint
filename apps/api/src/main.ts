@@ -49,6 +49,10 @@ async function bootstrap() {
     // credentials: la SPA (f1-web-auth) necesita mandar/recibir la cookie
     // sp_refresh en requests same-site a /api/auth/* (design AD-5).
     credentials: true,
+    // El nombre del archivo que se descarga lo decide el API (en el idioma
+    // del usuario); el web lo lee de este encabezado. Same-origin no lo
+    // necesita; el dev server cross-origin sí.
+    exposedHeaders: ["Content-Disposition"],
   });
 
   const openApiConfig = new DocumentBuilder()

@@ -192,4 +192,35 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
       expect.objectContaining({ sku: "EN-1", name: "Imported in English" }),
     ]);
   });
+
+  /**
+   * El NOMBRE del archivo también habla el idioma del usuario, en plantillas
+   * y en reportes. El web lo lee del Content-Disposition: es el contrato.
+   */
+  it("el archivo se llama en el idioma del usuario: plantillas y reportes", async () => {
+    const nombre = async (ruta: string, lang: "es" | "en") => {
+      const res = await descargar(ruta, lang).expect(200);
+      return /filename="([^"]+)"/.exec(String(res.headers["content-disposition"]))?.[1];
+    };
+    expect(await nombre("/products/import/template", "en")).toBe("products.csv");
+    expect(await nombre("/products/import/template", "es")).toBe("productos.csv");
+    expect(await nombre("/services/import/template", "en")).toBe("services.xlsx");
+    expect(await nombre("/medical-clinic/lab-studies/import/template", "en")).toBe(
+      "lab-studies.xlsx",
+    );
+    expect(
+      await nombre(
+        `/inventory/documents/template?type=physical_count&format=xlsx&warehouseId=${almacenId}`,
+        "en",
+      ),
+    ).toBe("physical-count.xlsx");
+    expect(await nombre("/inventory/documents/template?type=entry&format=csv", "en")).toBe(
+      "template-entry.csv",
+    );
+    expect(await nombre("/reports/products/export?format=xlsx", "en")).toBe("catalog.xlsx");
+    expect(await nombre("/reports/products/export?format=xlsx", "es")).toBe("catalogo.xlsx");
+    expect(await nombre("/inventory/expiring/export?days=30&format=csv", "en")).toBe(
+      "expiring.csv",
+    );
+  });
 });

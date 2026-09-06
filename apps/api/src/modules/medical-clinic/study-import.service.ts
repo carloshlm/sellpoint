@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import type { Prisma } from "../../generated/prisma/client";
@@ -109,7 +110,10 @@ export abstract class StudyImportService {
     return await serializeSpreadsheet(
       [localizeHeaders(COLUMNAS, locale), ...(filas.length > 0 ? filas : [this.config.ejemplo])],
       "xlsx",
-      { sheetName: this.config.sheetName, filenameBase: this.config.filenameBase },
+      {
+        sheetName: this.config.sheetName,
+        filenameBase: spreadsheetFilenameBase(this.config.filenameBase, locale),
+      },
     );
   }
 

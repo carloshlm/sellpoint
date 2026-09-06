@@ -20,6 +20,7 @@ import {
 } from "@sellpoint/shared";
 import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
@@ -240,12 +241,14 @@ export class AdminTenantsController {
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(salesExportQuerySchema, "reports.invalid_query"))
     query: SalesExportQueryDto,
+    @Req() request: Request,
     @Res() response: Response,
   ) {
     const file = await this.salesExport.build(
       platformAdminActor(tenantId, admin),
       SCOPE_ALL,
       query,
+      getLocale(request as Request & RequestWithLocale),
     );
     await this.descargar(response, tenantId, file);
   }
@@ -256,12 +259,14 @@ export class AdminTenantsController {
     @CurrentUser() admin: AuthUser,
     @Query(new ZodValidationPipe(stockExportQuerySchema, "reports.invalid_query"))
     query: StockExportQueryDto,
+    @Req() request: Request,
     @Res() response: Response,
   ) {
     const file = await this.stockExport.build(
       platformAdminActor(tenantId, admin),
       SCOPE_ALL,
       query,
+      getLocale(request as Request & RequestWithLocale),
     );
     await this.descargar(response, tenantId, file);
   }

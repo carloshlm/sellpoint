@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
+import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
@@ -73,7 +74,7 @@ export class CatalogRecordsImportService {
     const body = rows.length > 0 ? rows : [["EJEMPLO-01", ...header.slice(1).map(() => "")]];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: catalogName.slice(0, 31),
-      filenameBase: "registros",
+      filenameBase: spreadsheetFilenameBase("registros", locale),
     });
   }
 
