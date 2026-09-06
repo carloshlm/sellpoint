@@ -21,5 +21,7 @@
   "subscription_not_found": "This business has no subscription on record.",
   "tenant_not_found": "The business does not exist.",
   "user_limit_reached": "Your plan allows up to {limit} users. Upgrade your plan to invite more.",
-  "warehouse_limit_reached": "Your plan allows up to {limit} warehouses. Upgrade your plan to create more."
+  "warehouse_limit_reached": "Your plan allows up to {limit} warehouses. Upgrade your plan to create more.",
+  "plan_request_invalid": "The message must be between 10 and 1000 characters.",
+  "plan_request_failed": "We could not send your message. Please try again in a moment."
 }

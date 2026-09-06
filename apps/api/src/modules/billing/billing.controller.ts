@@ -1,5 +1,7 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Post, Query, Req } from "@nestjs/common";
 import { resolveMarket } from "@sellpoint/shared";
+import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { Public } from "../auth/decorators/public.decorator";
@@ -8,6 +10,7 @@ import type { AuthUser } from "../auth/types/auth-user";
 import { AdminBillingService } from "./admin-billing.service";
 import { BillingService } from "./billing.service";
 import { AllowedInFreeTier } from "./decorators/allowed-in-free-tier.decorator";
+import { type PlanRequestDto, planRequestSchema } from "./dto/plan-request.dto";
 
 /**
  * F7-WEB-02 — la cara del billing hacia el TENANT (el backoffice del dueño
@@ -56,5 +59,19 @@ export class BillingController {
   @Get("me")
   getMyBilling(@CurrentUser() user: AuthUser) {
     return this.adminBilling.getTenantDetail(user.tenantId);
+  }
+
+  /** F7-CONTACT — «Escríbenos para activar tu plan», desde Mi plan. */
+  @AllowedInFreeTier()
+  @RequirePermissions("tenants:manage")
+  @Post("me/plan-request")
+  @HttpCode(200)
+  requestPlan(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(planRequestSchema, "billing.plan_request_invalid"))
+    body: PlanRequestDto,
+    @Req() request: RequestWithLocale,
+  ) {
+    return this.billing.requestPlan(user, body.message, getLocale(request));
   }
 }

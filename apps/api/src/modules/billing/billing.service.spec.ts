@@ -155,7 +155,13 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
     entitlements = { invalidate: jest.fn().mockResolvedValue(undefined) };
     mailer = { send: jest.fn().mockResolvedValue(undefined) };
     // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
-    service = new BillingService(prisma as any, audit as any, entitlements as any, mailer as any);
+    service = new BillingService(
+      prisma as any,
+      audit as any,
+      entitlements as any,
+      mailer as any,
+      { get: () => "carlos@backoffice.mx, ana@backoffice.mx" } as any,
+    );
   });
 
   describe("recordPayment (F7-CORE-04)", () => {
@@ -644,6 +650,79 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
     it("un país sin precio propio cae a la tarifa US", async () => {
       const planes = await service.listPublicPlans("CO");
       expect(planes[0]?.price).toMatchObject({ currency: "USD", monthly: "15" });
+    });
+  });
+
+  /**
+   * F7-CONTACT — «Escríbenos para activar tu plan»: se audita primero, se
+   * avisa a cada administrador de la plataforma en español, y se le agradece
+   * al negocio en SU idioma. Si el aviso al backoffice no sale, 503.
+   */
+  describe("requestPlan (F7-CONTACT)", () => {
+    const USER = { userId: "u1", tenantId: TENANT, permissions: [], locale: "en" as const };
+    beforeEach(() => {
+      Object.assign(tx.tenant, {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ name: "Acme" }),
+      });
+      Object.assign(tx.user, {
+        findUniqueOrThrow: jest
+          .fn()
+          .mockResolvedValue({ firstName: "Ana", lastNamePaternal: "Pérez", email: "ana@acme.mx" }),
+      });
+      mailer.send.mockResolvedValue(undefined);
+    });
+
+    it("audita el mensaje, avisa a cada admin en español y agradece al negocio en su idioma", async () => {
+      await expect(
+        service.requestPlan(USER, "Quiero el plan Pro, por favor", "en"),
+      ).resolves.toEqual({ sent: true });
+      expect(audit.record).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({
+          action: "billing.plan_requested",
+          resourceId: TENANT,
+          after: { message: "Quiero el plan Pro, por favor" },
+        }),
+      );
+      const vars = {
+        tenantName: "Acme",
+        userName: "Ana Pérez",
+        userEmail: "ana@acme.mx",
+        message: "Quiero el plan Pro, por favor",
+      };
+      expect(mailer.send).toHaveBeenCalledWith({
+        to: "carlos@backoffice.mx",
+        template: "plan-request",
+        locale: "es",
+        vars,
+      });
+      expect(mailer.send).toHaveBeenCalledWith({
+        to: "ana@backoffice.mx",
+        template: "plan-request",
+        locale: "es",
+        vars,
+      });
+      expect(mailer.send).toHaveBeenCalledWith({
+        to: "ana@acme.mx",
+        template: "plan-request-received",
+        locale: "en",
+        vars: { firstName: "Ana", tenantName: "Acme" },
+      });
+    });
+
+    it("si el aviso al backoffice falla → 503 y no se manda el acuse", async () => {
+      mailer.send.mockRejectedValueOnce(new Error("smtp caído"));
+      await expect(
+        service.requestPlan(USER, "Quiero el plan Pro, por favor", "es"),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: { message: "billing.plan_request_failed" },
+      });
+      expect(mailer.send).not.toHaveBeenCalledWith(
+        expect.objectContaining({ template: "plan-request-received" }),
+      );
+      // La auditoría ya quedó: el mensaje no se pierde aunque el correo falle.
+      expect(audit.record).toHaveBeenCalled();
     });
   });
 });

@@ -63,5 +63,19 @@
     "body": "El período de gracia de {tenantName} terminó y tu cuenta pasó al modo gratuito: puedes consultar todo y hacer hasta 10 ventas al día. Nada se borró — al registrar tu pago, tu plan vuelve al instante.",
     "cta": "",
     "expiry": ""
+  },
+  "planRequest": {
+    "subject": "Solicitud de plan: {tenantName}",
+    "greeting": "Hola,",
+    "body": "{userName} ({userEmail}), del negocio «{tenantName}», escribió desde Mi plan para activar su plan:\n\n{message}",
+    "cta": "",
+    "expiry": ""
+  },
+  "planRequestReceived": {
+    "subject": "Recibimos tu mensaje",
+    "greeting": "Hola {firstName},",
+    "body": "Gracias por escribirnos. Pronto nos comunicaremos contigo para activar el plan de tu preferencia para {tenantName}.",
+    "cta": "",
+    "expiry": ""
   }
 }

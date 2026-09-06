@@ -21,5 +21,7 @@
   "subscription_not_found": "Este negocio no tiene una suscripción registrada.",
   "tenant_not_found": "El negocio no existe.",
   "user_limit_reached": "Tu plan permite hasta {limit} usuarios. Mejora tu plan para invitar más.",
-  "warehouse_limit_reached": "Tu plan permite hasta {limit} almacenes. Mejora tu plan para crear más."
+  "warehouse_limit_reached": "Tu plan permite hasta {limit} almacenes. Mejora tu plan para crear más.",
+  "plan_request_invalid": "El mensaje debe tener entre 10 y 1000 caracteres.",
+  "plan_request_failed": "No pudimos enviar tu mensaje. Inténtalo de nuevo en un momento."
 }

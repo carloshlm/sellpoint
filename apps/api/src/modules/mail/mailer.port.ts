@@ -16,7 +16,10 @@ export type MailTemplate =
   | "trial-ended"
   | "payment-due-soon"
   | "payment-past-due"
-  | "plan-downgraded";
+  | "plan-downgraded"
+  // F7-CONTACT: «escríbenos para activar tu plan» — al backoffice y el acuse al negocio.
+  | "plan-request"
+  | "plan-request-received";
 
 export interface MailMessage {
   to: string;

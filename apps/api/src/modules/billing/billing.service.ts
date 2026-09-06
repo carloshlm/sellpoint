@@ -4,8 +4,10 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   addBillingPeriod,
   type BillingCycle,
@@ -22,9 +24,11 @@ import {
   scaledInteger,
   startOfDayUtc,
 } from "@sellpoint/shared";
+import type { Env } from "../../config/env.schema";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import type { AuthUser } from "../auth/types/auth-user";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { EntitlementsService } from "./entitlements.service";
 
@@ -86,7 +90,81 @@ export class BillingService {
     private readonly auditService: AuditService,
     private readonly entitlements: EntitlementsService,
     @Inject(MAILER) private readonly mailer: MailerPort,
+    private readonly configService: ConfigService<Env, true>,
   ) {}
+
+  /**
+   * F7-CONTACT (Carlos, 2026-09-05) — «Escríbenos para activar tu plan».
+   *
+   * Primero se AUDITA (el mensaje queda en la base aunque el correo falle),
+   * luego se avisa a los administradores de la plataforma —los de
+   * `BILLING_ADMIN_EMAILS`, que son quienes activan planes— y por último se
+   * le agradece al negocio en su idioma. El aviso al backoffice no es
+   * best-effort: si no sale, se responde 503 para que la persona reintente;
+   * el acuse sí lo es.
+   */
+  async requestPlan(user: AuthUser, message: string, locale: "es" | "en"): Promise<{ sent: true }> {
+    const { tenant, autor } = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const [tenant, autor] = await Promise.all([
+        tx.tenant.findUniqueOrThrow({ where: { id: user.tenantId }, select: { name: true } }),
+        tx.user.findUniqueOrThrow({
+          where: { id: user.userId },
+          select: { firstName: true, lastNamePaternal: true, email: true },
+        }),
+      ]);
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "billing.plan_requested",
+        resourceType: "tenant",
+        resourceId: user.tenantId,
+        after: { message },
+      });
+      return { tenant, autor };
+    });
+
+    const admins = (this.configService.get("BILLING_ADMIN_EMAILS", { infer: true }) ?? "")
+      .split(",")
+      .map((email: string) => email.trim().toLowerCase())
+      .filter((email: string) => email.length > 0);
+    if (admins.length === 0) {
+      this.logger.warn("Solicitud de plan sin destinatario: BILLING_ADMIN_EMAILS está vacío");
+    }
+    const vars = {
+      tenantName: tenant.name,
+      userName: `${autor.firstName} ${autor.lastNamePaternal}`.trim(),
+      userEmail: autor.email,
+      message,
+    };
+    try {
+      // El backoffice habla español: es su idioma, no el del negocio.
+      await Promise.all(
+        admins.map((to) => this.mailer.send({ to, template: "plan-request", locale: "es", vars })),
+      );
+    } catch (error) {
+      this.logger.error(
+        `Fallo al avisar la solicitud de plan de ${tenant.name}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw new ServiceUnavailableException({ message: "billing.plan_request_failed" });
+    }
+    this.mailer
+      .send({
+        to: autor.email,
+        template: "plan-request-received",
+        locale,
+        vars: { firstName: autor.firstName, tenantName: tenant.name },
+      })
+      .catch((error: unknown) => {
+        this.logger.warn(
+          `Fallo al enviar el acuse de la solicitud de plan: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+    return { sent: true };
+  }
 
   async recordPayment(input: RecordPaymentInput) {
     const { tenantId } = input;

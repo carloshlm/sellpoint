@@ -63,5 +63,19 @@
     "body": "The grace period of {tenantName} ended and your account switched to free mode: you can view everything and make up to 10 sales a day. Nothing was deleted — once your payment is recorded, your plan comes back instantly.",
     "cta": "",
     "expiry": ""
+  },
+  "planRequest": {
+    "subject": "Plan request: {tenantName}",
+    "greeting": "Hello,",
+    "body": "{userName} ({userEmail}), from the business “{tenantName}”, wrote from My plan to activate their plan:\n\n{message}",
+    "cta": "",
+    "expiry": ""
+  },
+  "planRequestReceived": {
+    "subject": "We received your message",
+    "greeting": "Hi {firstName},",
+    "body": "Thanks for writing to us. We will contact you soon to activate the plan of your choice for {tenantName}.",
+    "cta": "",
+    "expiry": ""
   }
 }

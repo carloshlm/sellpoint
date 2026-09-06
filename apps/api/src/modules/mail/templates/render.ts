@@ -27,6 +27,8 @@ const TEMPLATE_KEYS: Record<MailTemplate, string> = {
   "payment-due-soon": "emails.paymentDueSoon",
   "payment-past-due": "emails.paymentPastDue",
   "plan-downgraded": "emails.planDowngraded",
+  "plan-request": "emails.planRequest",
+  "plan-request-received": "emails.planRequestReceived",
 };
 
 // El azul primario de la marca, FIJO en hex a propósito: un correo se lee en
