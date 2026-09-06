@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, within } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { ExpiringRow } from "../lib/inventory/types";
@@ -45,24 +46,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   locale: "es",
   permissions,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 const fila = (overrides: Partial<ExpiringRow> = {}): ExpiringRow => ({

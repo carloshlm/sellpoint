@@ -1,5 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { useAuthStore } from "./auth.store";
 
 const demoUser = {
@@ -11,24 +12,7 @@ const demoUser = {
   locale: "es" as const,
   permissions: ["products:read"],
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 };
 
 function TokenReader() {

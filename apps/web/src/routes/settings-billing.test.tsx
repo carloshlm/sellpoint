@@ -9,6 +9,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 vi.mock("@/lib/billing/api", async (importOriginal) => ({
   ...(await importOriginal<typeof billingApi>()),
@@ -32,24 +33,7 @@ const demoUser = (
   locale: "es",
   permissions,
   subscription: { ...SUBSCRIPTION_PLUS, status: "active", planName: "Plus", ...subscription },
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    address: null,
-    phone: null,
-    theme: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 async function renderBilling(

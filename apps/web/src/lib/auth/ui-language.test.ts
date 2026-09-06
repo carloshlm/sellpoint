@@ -1,6 +1,7 @@
 import { createI18n } from "@/i18n";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { installAccountLanguageSync } from "./ui-language";
 
 /**
@@ -10,24 +11,7 @@ import { installAccountLanguageSync } from "./ui-language";
  * navegador nuevo entraría a un dashboard en inglés — que es exactamente la
  * regresión que el inglés-first introduce si nadie la compensa.
  */
-const TENANT: AuthUser["tenant"] = {
-  id: "t1",
-  name: "Tienda",
-  legalName: null,
-  taxId: null,
-  phone: null,
-  theme: null,
-  address: null,
-  timezone: "America/Mexico_City",
-  currency: "MXN",
-  templateChoice: null,
-  onboarded: true,
-  sellWithoutStock: false,
-  usesLocations: false,
-  posShowsStock: true,
-  monthlySalesGoal: null,
-  country: "MX",
-};
+const TENANT: AuthUser["tenant"] = buildTenantBlock({ id: "t1", name: "Tienda" });
 
 function makeUser(locale: AuthUser["locale"]): AuthUser {
   return {

@@ -1,5 +1,6 @@
 import type { MedicalRecord, RecordSection } from "@/lib/medical-clinic/api";
 import type { AuthUser } from "@/stores/auth.store";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { SUBSCRIPTION_PLUS } from "./subscription-fixture";
 
 /** El usuario de pruebas del consultorio: módulo activo y los permisos que se pidan. */
@@ -12,24 +13,7 @@ export const clinicUser = (permissions: string[]): AuthUser => ({
   locale: "es",
   permissions,
   subscription: { ...SUBSCRIPTION_PLUS, modules: ["medical_clinic"] },
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 /** Un expediente con TODAS las secciones pendientes; `secciones` sobreescribe las que se pidan. */

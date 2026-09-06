@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
@@ -50,26 +51,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   locale: "es",
   permissions,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    // Tests de F1-WEB-USERS: fuera del alcance de onboarding — el tenant ya
-    // está onboarded para que OnboardingGate nunca intercepte estas rutas.
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 const ROLES: rbacApi.RoleSummary[] = [

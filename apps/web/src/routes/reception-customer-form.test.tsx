@@ -10,6 +10,7 @@ import * as receptionApi from "@/lib/reception/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-RECEP-12 — la pantalla de alta y edición de cliente (pantalla completa,
@@ -39,24 +40,7 @@ const demoUser = (): AuthUser => ({
   locale: "es",
   permissions: ["reception:read", "reception:manage"],
   subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 const guardado: receptionApi.Customer = {

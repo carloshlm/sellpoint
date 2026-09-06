@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "./i18n";
 import {
   changePassword,
@@ -54,24 +55,7 @@ const forgotPasswordMock = vi.mocked(forgotPassword);
 
 // F1-WEB-ONBOARD-01: tenant ya onboarded — estos flujos son de auth/perfil,
 // fuera del alcance del wizard; OnboardingGate no debe interceptarlos.
-const DEMO_TENANT = {
-  id: "tenant-1",
-  name: "Acme",
-  legalName: null,
-  taxId: null,
-  phone: null,
-  theme: null,
-  address: null,
-  timezone: "America/Mexico_City",
-  currency: "MXN",
-  templateChoice: null,
-  country: "MX",
-  onboarded: true,
-  sellWithoutStock: false,
-  usesLocations: false,
-  posShowsStock: true,
-  monthlySalesGoal: null,
-} as const;
+const DEMO_TENANT = buildTenantBlock();
 
 const demoUser = {
   id: "u1",

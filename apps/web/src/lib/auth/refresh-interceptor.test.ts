@@ -6,6 +6,7 @@ import axios, {
 } from "axios";
 import { useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { __resetRefreshStateForTests, installRefreshInterceptor } from "./refresh-interceptor";
 
 /** Respuesta con el shape que axios espera de un adaptador. */
@@ -89,24 +90,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
       locale: "es",
       permissions: [],
       subscription: SUBSCRIPTION_PLUS,
-      tenant: {
-        id: "tenant-1",
-        name: "Acme",
-        legalName: null,
-        taxId: null,
-        phone: null,
-        theme: null,
-        address: null,
-        timezone: "America/Mexico_City",
-        currency: "MXN",
-        templateChoice: null,
-        country: "MX",
-        onboarded: true,
-        sellWithoutStock: false,
-        usesLocations: false,
-        posShowsStock: true,
-        monthlySalesGoal: null,
-      },
+      tenant: buildTenantBlock(),
     });
   });
 
@@ -241,24 +225,7 @@ describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () 
       locale: "es",
       permissions: [],
       subscription: SUBSCRIPTION_PLUS,
-      tenant: {
-        id: "tenant-1",
-        name: "Acme",
-        legalName: null,
-        taxId: null,
-        phone: null,
-        theme: null,
-        address: null,
-        timezone: "America/Mexico_City",
-        currency: "MXN",
-        templateChoice: null,
-        country: "MX",
-        onboarded: true,
-        sellWithoutStock: false,
-        usesLocations: false,
-        posShowsStock: true,
-        monthlySalesGoal: null,
-      },
+      tenant: buildTenantBlock(),
     });
   });
 

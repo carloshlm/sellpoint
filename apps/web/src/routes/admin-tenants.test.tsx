@@ -12,6 +12,7 @@ import * as reportsApi from "@/lib/reports/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-ADMIN-06..11 — «Negocios» y el expediente de un negocio: la lista, las
@@ -69,24 +70,7 @@ const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
   permissions: ["tenants:manage"],
   isPlatformAdmin,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "SellPointy HQ",
-    legalName: null,
-    taxId: null,
-    address: null,
-    phone: null,
-    theme: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ name: "SellPointy HQ" }),
 });
 
 async function renderEn(path: string, isPlatformAdmin = true) {

@@ -1,3 +1,4 @@
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import type { TenantBlock } from "./api";
 import { primerPasoIncompleto } from "./steps";
 
@@ -8,25 +9,7 @@ import { primerPasoIncompleto } from "./steps";
  * vive en el container (`routes/onboarding.tsx`), acá solo la derivación.
  */
 function tenant(overrides: Partial<TenantBlock> = {}): TenantBlock {
-  return {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    onboarded: false,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-    country: null,
-    ...overrides,
-  };
+  return buildTenantBlock({ onboarded: false, country: null, ...overrides });
 }
 
 describe("primerPasoIncompleto (matriz de tenants)", () => {

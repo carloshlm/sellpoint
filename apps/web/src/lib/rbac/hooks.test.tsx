@@ -5,6 +5,7 @@ import { resyncSession } from "@/lib/auth/session-resync";
 import { createQueryClient } from "@/lib/query-client";
 import { useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import type { PermissionGroup, RoleSummary, UserDetail } from "./api";
 import * as rbacApi from "./api";
 import {
@@ -69,24 +70,7 @@ const USER: UserDetail = {
 
 const ROLE: RoleSummary = { id: "r1", name: "Cajero", permissionCodes: [], userCount: 0 };
 
-const DEMO_TENANT = {
-  id: "tenant-1",
-  name: "Acme",
-  legalName: null,
-  taxId: null,
-  phone: null,
-  theme: null,
-  address: null,
-  timezone: "America/Mexico_City",
-  currency: "MXN",
-  templateChoice: null,
-  country: "MX",
-  onboarded: true,
-  sellWithoutStock: false,
-  usesLocations: false,
-  posShowsStock: true,
-  monthlySalesGoal: null,
-} as const;
+const DEMO_TENANT = buildTenantBlock();
 
 const PERMISSION_GROUPS: PermissionGroup[] = [
   { module: "users", permissions: [{ code: "users:read", description: null }] },

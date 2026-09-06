@@ -7,6 +7,7 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useCartStore } from "@/stores/cart.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
 import { createQueryClient } from "../lib/query-client";
@@ -82,24 +83,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   defaultWarehouseId: "w1",
   permissions,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "t1",
-    name: "Demo",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
 });
 
 const sesion = (): posApi.CashboxSession => ({

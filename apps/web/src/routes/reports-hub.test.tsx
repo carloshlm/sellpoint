@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
 import * as reportsApi from "../lib/reports/api";
@@ -40,24 +41,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   locale: "es",
   permissions,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "t1",
-    name: "Demo",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
 });
 
 async function renderRuta(path: string, permissions: string[]) {

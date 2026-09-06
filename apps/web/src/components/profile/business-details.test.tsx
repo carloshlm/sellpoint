@@ -7,6 +7,7 @@ import { createQueryClient } from "@/lib/query-client";
 import * as tenantApi from "@/lib/tenant/api";
 import type { AuthUser } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { BusinessDetails } from "./business-details";
 
 /**
@@ -36,24 +37,12 @@ const demoUser = (permissions: string[]): AuthUser => ({
   locale: "es",
   permissions,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
+  tenant: buildTenantBlock({
     legalName: "Acme SA de CV",
     taxId: "ACM010101AAA",
     address: "Av. Siempre Viva 123",
     phone: "+525512345678",
-    theme: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  }),
 });
 
 function renderCard(user: AuthUser) {

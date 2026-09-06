@@ -7,6 +7,7 @@ import * as adminApi from "@/lib/admin/api";
 import { createQueryClient } from "@/lib/query-client";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { TenantDangerZone } from "./tenant-danger-zone";
 
 vi.mock("@/lib/admin/api", async (importOriginal) => ({
@@ -33,24 +34,7 @@ const admin = (): AuthUser => ({
   permissions: ["tenants:manage"],
   isPlatformAdmin: true,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "backoffice",
-    name: "BACKOFFICE",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ id: "backoffice", name: "BACKOFFICE" }),
 });
 
 const activo: adminApi.TenantLifecycleView = {

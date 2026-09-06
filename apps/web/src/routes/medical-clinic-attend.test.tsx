@@ -9,6 +9,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-CLINIC-WEB-07/08 — «Atender paciente»: buscar por nombre o por turno,
@@ -36,24 +37,7 @@ const demoUser = (permissions: string[]): AuthUser => ({
   locale: "es",
   permissions,
   subscription: { ...SUBSCRIPTION_PLUS, modules: ["medical_clinic"] },
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 const hit = (over: Partial<clinicApi.PatientHit> = {}): clinicApi.PatientHit => ({

@@ -43,24 +43,7 @@ const demoUser = (): AuthUser => ({
   locale: "es",
   permissions: ["reception:read", "reception:manage"],
   subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 async function renderRuta(path: string) {
@@ -80,6 +63,7 @@ async function renderRuta(path: string) {
 }
 
 import { routeTree } from "@/routeTree.gen";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 beforeEach(() => {
   api.listCustomers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });

@@ -1,5 +1,6 @@
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { applyTheme } from "./apply-theme";
 import { installTenantThemeSync } from "./tenant-theme-sync";
 
@@ -16,24 +17,7 @@ const userWithTheme = (theme: string | null): AuthUser => ({
   locale: "es",
   permissions: [],
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ theme: theme }),
 });
 
 describe("installTenantThemeSync", () => {

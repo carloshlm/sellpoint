@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { TenantBlock } from "@/lib/tenant/api";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { StepBusiness } from "./step-business";
 
 /**
@@ -15,25 +16,13 @@ import { StepBusiness } from "./step-business";
  * `defaultValues` nunca se pisan solos).
  */
 function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
-  return {
-    id: "tenant-1",
-    name: "Acme",
+  return buildTenantBlock({
     legalName: "Acme SA de CV",
     taxId: "ACM010101AAA",
     address: "Av. Siempre Viva 123",
-    phone: null,
-    theme: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
     onboarded: false,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-    country: "MX",
     ...overrides,
-  };
+  });
 }
 
 function renderStep(overrides: Partial<TenantBlock> = {}) {

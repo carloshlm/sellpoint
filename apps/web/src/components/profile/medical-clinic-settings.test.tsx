@@ -7,6 +7,7 @@ import * as clinicApi from "@/lib/medical-clinic/api";
 import { createQueryClient } from "@/lib/query-client";
 import type { AuthUser } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { MedicalClinicSettings } from "./medical-clinic-settings";
 
 vi.mock("@/lib/medical-clinic/api", () => ({
@@ -28,24 +29,7 @@ const user = (modules: AuthUser["subscription"]["modules"], permissions: string[
   locale: "es",
   permissions,
   subscription: { ...SUBSCRIPTION_PLUS, modules },
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock(),
 });
 
 function renderCard(u: AuthUser) {

@@ -10,6 +10,7 @@ import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * BARRERA de layout: el contenedor del contenido puede ENCOGER.
@@ -106,24 +107,7 @@ const usuarioDemo = (): AuthUser => ({
   locale: "es",
   permissions: [],
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "t1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme: null,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ id: "t1" }),
 });
 
 async function renderLayout() {

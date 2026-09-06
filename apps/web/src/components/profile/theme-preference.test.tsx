@@ -8,6 +8,7 @@ import * as tenantApi from "@/lib/tenant/api";
 import { applyTheme } from "@/lib/theme/apply-theme";
 import type { AuthUser } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { ThemePreference } from "./theme-preference";
 
 /**
@@ -33,24 +34,7 @@ const demoUser = (permissions: string[], theme: string | null = null): AuthUser 
   locale: "es",
   permissions,
   subscription: SUBSCRIPTION_PLUS,
-  tenant: {
-    id: "tenant-1",
-    name: "Acme",
-    legalName: null,
-    taxId: null,
-    phone: null,
-    theme,
-    address: null,
-    timezone: "America/Mexico_City",
-    currency: "MXN",
-    templateChoice: null,
-    country: "MX",
-    onboarded: true,
-    sellWithoutStock: false,
-    usesLocations: false,
-    posShowsStock: true,
-    monthlySalesGoal: null,
-  },
+  tenant: buildTenantBlock({ theme: theme }),
 });
 
 function renderCard(user: AuthUser) {
