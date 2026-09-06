@@ -23,6 +23,7 @@ const ENGLISH: Record<string, string> = {
   "stock-por-lote": "stock-by-lot",
   vencimientos: "expiring",
   "en-transito": "in-transit",
+  "cierres-de-turno": "shift-closes",
 };
 
 export function spreadsheetFilenameBase(key: string, locale: Locale): string {

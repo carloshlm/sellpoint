@@ -25,6 +25,12 @@ import {
   salesReportQuerySchema,
 } from "./dto/sales-report.dto";
 import {
+  type ShiftsExportQueryDto,
+  type ShiftsReportQueryDto,
+  shiftsExportQuerySchema,
+  shiftsReportQuerySchema,
+} from "./dto/shifts-report.dto";
+import {
   type StockExportQueryDto,
   type StockReportQueryDto,
   stockExportQuerySchema,
@@ -34,6 +40,8 @@ import { KardexExportService } from "./kardex-export.service";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
 import { SalesReportService } from "./sales-report.service";
+import { ShiftsExportService } from "./shifts-export.service";
+import { ShiftsReportService } from "./shifts-report.service";
 import { StockExportService } from "./stock-export.service";
 import { StockReportService } from "./stock-report.service";
 
@@ -59,6 +67,8 @@ export class ReportsController {
     private readonly stockReport: StockReportService,
     private readonly stockExport: StockExportService,
     private readonly salesReport: SalesReportService,
+    private readonly shiftsReport: ShiftsReportService,
+    private readonly shiftsExport: ShiftsExportService,
     private readonly salesExport: SalesExportService,
     private readonly catalogExport: CatalogExportService,
     private readonly kardexExport: KardexExportService,
@@ -150,6 +160,46 @@ export class ReportsController {
     period: DashboardPeriod,
   ) {
     return this.dashboardPayments.paymentMethods(user, scope, period);
+  }
+
+  /** F5-SHIFT-01 — los turnos con su arqueo; F5-SHIFT-02 — uno con sus ventas. */
+  @Get("shifts")
+  @RequirePermissions("reports:read")
+  shifts(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(shiftsReportQuerySchema, "reports.invalid_query"))
+    query: ShiftsReportQueryDto,
+  ) {
+    return this.shiftsReport.list(user, scope, query);
+  }
+
+  /** F5-SHIFT-03 — los cierres en Excel. Va ANTES de `shifts/:id`: «export» no es un id. */
+  @Get("shifts/export")
+  @RequirePermissions("reports:read")
+  async shiftsExportFile(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Query(new ZodValidationPipe(shiftsExportQuerySchema, "reports.invalid_query"))
+    query: ShiftsExportQueryDto,
+    @Req() request: RequestWithLocale,
+    @Res() response: Response,
+  ) {
+    const file = await this.shiftsExport.build(user, scope, query, getLocale(request));
+    response
+      .header("Content-Type", file.contentType)
+      .header("Content-Disposition", `attachment; filename="${file.filename}"`)
+      .send(file.body);
+  }
+
+  @Get("shifts/:id")
+  @RequirePermissions("reports:read")
+  shift(
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Param("id") id: string,
+  ) {
+    return this.shiftsReport.detail(user, scope, id);
   }
 
   @Get("sales")

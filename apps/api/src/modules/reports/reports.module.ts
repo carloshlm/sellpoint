@@ -13,6 +13,8 @@ import { ReportsController } from "./reports.controller";
 import { ReportsService } from "./reports.service";
 import { SalesExportService } from "./sales-export.service";
 import { SalesReportService } from "./sales-report.service";
+import { ShiftsExportService } from "./shifts-export.service";
+import { ShiftsReportService } from "./shifts-report.service";
 import { StockExportService } from "./stock-export.service";
 import { StockReportService } from "./stock-report.service";
 
@@ -35,6 +37,8 @@ import { StockReportService } from "./stock-report.service";
     StockExportService,
     SalesReportService,
     SalesExportService,
+    ShiftsReportService,
+    ShiftsExportService,
     CatalogExportService,
     KardexExportService,
   ],
@@ -51,6 +55,8 @@ import { StockReportService } from "./stock-report.service";
     StockReportService,
     SalesExportService,
     StockExportService,
+    ShiftsReportService,
+    ShiftsExportService,
   ],
 })
 export class ReportsModule {}

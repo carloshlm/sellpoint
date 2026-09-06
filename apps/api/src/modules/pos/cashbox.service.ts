@@ -8,6 +8,7 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
+import { totalesEnCero, totalesPorSesion } from "./cashbox-totals";
 import type { CloseSessionDto, OpenSessionDto } from "./dto/open-session.dto";
 
 /**
@@ -93,23 +94,13 @@ export class CashboxService {
    * recordaba.
    */
   async totals(user: AuthUser, sessionId: string) {
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const filas = await tx.sale.groupBy({
-        by: ["paymentMethod"],
-        where: { tenantId: user.tenantId, cashboxSessionId: sessionId, status: "completed" },
-        _sum: { total: true },
-        _count: { _all: true },
-      });
-
-      return PAYMENT_METHODS.map((method) => {
-        const fila = filas.find((f) => f.paymentMethod === method);
-        return {
-          method,
-          total: (fila?._sum.total ?? new Prisma.Decimal(0)).toString(),
-          count: fila?._count._all ?? 0,
-        };
-      });
-    });
+    // La MISMA función que el reporte de cierres (F5-SHIFT-01): el papel del
+    // cierre y el reporte no pueden decir cosas distintas.
+    return this.prisma.withTenantContext(
+      user.tenantId,
+      async (tx) =>
+        (await totalesPorSesion(tx, user.tenantId, [sessionId])).get(sessionId) ?? totalesEnCero(),
+    );
   }
 
   /**

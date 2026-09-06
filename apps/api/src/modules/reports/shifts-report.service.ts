@@ -1,0 +1,236 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { endOfDayUtc, startOfDayUtc } from "@sellpoint/shared";
+import type { Prisma } from "../../generated/prisma/client";
+import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
+import type { AuthUser } from "../auth/types/auth-user";
+import { assertWarehouseInScope } from "../inventory/warehouse-scope.helpers";
+import { type SessionTotal, totalesEnCero, totalesPorSesion } from "../pos/cashbox-totals";
+import type { ShiftsReportQueryDto } from "./dto/shifts-report.dto";
+
+interface Persona {
+  id: string;
+  name: string;
+}
+
+export interface ShiftRow {
+  id: string;
+  status: string;
+  warehouse: Persona;
+  openedBy: Persona;
+  openedAt: string;
+  closedBy: Persona | null;
+  closedAt: string | null;
+  salesCount: number;
+  totals: SessionTotal[];
+  calculatedCash: string | null;
+  declaredCash: string | null;
+  cashDifference: string | null;
+  closingNote: string | null;
+}
+
+export interface ShiftSaleRow {
+  id: string;
+  folio: string;
+  createdAt: string;
+  seller: Persona;
+  paymentMethod: string;
+  status: string;
+  total: string;
+}
+
+const nombre = (u: { id: string; firstName: string; lastNamePaternal: string }): Persona => ({
+  id: u.id,
+  name: `${u.firstName} ${u.lastNamePaternal}`.trim(),
+});
+
+const PERSONA = { select: { id: true, firstName: true, lastNamePaternal: true } } as const;
+
+/**
+ * F5-SHIFT — el reporte de cierres de turno: una LECTURA de
+ * `cashbox_sessions` ⋈ `sales`. El dato lo escribió el cierre (F4-CASHBOX:
+ * declarado, calculado, diferencia y nota); aquí no se recalcula nada, y los
+ * totales por forma de pago salen de la misma función que el papel.
+ *
+ * Mismo alcance que Ventas: `UserScope` SIEMPRE viaja, y pedir un almacén
+ * fuera de él es 403, no una lista vacía.
+ */
+@Injectable()
+export class ShiftsReportService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(user: AuthUser, scope: UserScope, query: ShiftsReportQueryDto) {
+    const where = await this.where(user, scope, query);
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const [total, filas] = await Promise.all([
+        tx.cashboxSession.count({ where }),
+        tx.cashboxSession.findMany({
+          where,
+          // El cierre manda el orden; los abiertos, su apertura. Desempate por id.
+          orderBy:
+            query.status === "open"
+              ? [{ openedAt: "desc" }, { id: "desc" }]
+              : [{ closedAt: "desc" }, { id: "desc" }],
+          skip: (query.page - 1) * query.pageSize,
+          take: query.pageSize,
+          include: {
+            warehouse: { select: { id: true, name: true } },
+            opener: PERSONA,
+            closer: PERSONA,
+            _count: { select: { sales: true } },
+          },
+        }),
+      ]);
+      const totales = await totalesPorSesion(
+        tx,
+        user.tenantId,
+        filas.map((f) => f.id),
+      );
+      return {
+        rows: filas.map((f) => this.fila(f, totales.get(f.id) ?? totalesEnCero())),
+        total,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
+    });
+  }
+
+  /** Todas las filas del filtro, para el export (el tope lo pone quien llama). */
+  async all(user: AuthUser, scope: UserScope, query: ShiftsReportQueryDto): Promise<ShiftRow[]> {
+    const where = await this.where(user, scope, query);
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const filas = await tx.cashboxSession.findMany({
+        where,
+        orderBy:
+          query.status === "open"
+            ? [{ openedAt: "desc" }, { id: "desc" }]
+            : [{ closedAt: "desc" }, { id: "desc" }],
+        include: {
+          warehouse: { select: { id: true, name: true } },
+          opener: PERSONA,
+          closer: PERSONA,
+          _count: { select: { sales: true } },
+        },
+      });
+      const totales = await totalesPorSesion(
+        tx,
+        user.tenantId,
+        filas.map((f) => f.id),
+      );
+      return filas.map((f) => this.fila(f, totales.get(f.id) ?? totalesEnCero()));
+    });
+  }
+
+  async count(user: AuthUser, scope: UserScope, query: ShiftsReportQueryDto): Promise<number> {
+    const where = await this.where(user, scope, query);
+    return this.prisma.withTenantContext(user.tenantId, (tx) => tx.cashboxSession.count({ where }));
+  }
+
+  /** F5-SHIFT-02 — un turno con sus ventas. Fuera del alcance es 404, igual que inexistente. */
+  async detail(user: AuthUser, scope: UserScope, id: string) {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const fila = await tx.cashboxSession.findFirst({
+        where: {
+          id,
+          tenantId: user.tenantId,
+          ...(scope.warehouseIds !== "all" && { warehouseId: { in: [...scope.warehouseIds] } }),
+        },
+        include: {
+          warehouse: { select: { id: true, name: true } },
+          opener: PERSONA,
+          closer: PERSONA,
+          _count: { select: { sales: true } },
+          sales: {
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            include: { seller: PERSONA },
+          },
+        },
+      });
+      if (fila === null) {
+        throw new NotFoundException({ message: "reports.shift_not_found" });
+      }
+      const totales = (await totalesPorSesion(tx, user.tenantId, [id])).get(id) ?? totalesEnCero();
+      const sales: ShiftSaleRow[] = fila.sales.map((v) => ({
+        id: v.id,
+        folio: v.folio,
+        createdAt: v.createdAt.toISOString(),
+        seller: nombre(v.seller),
+        paymentMethod: v.paymentMethod,
+        status: v.status,
+        total: v.total.toString(),
+      }));
+      return { ...this.fila(fila, totales), sales };
+    });
+  }
+
+  private fila(
+    f: {
+      id: string;
+      status: string;
+      openedAt: Date;
+      closedAt: Date | null;
+      declaredCash: Prisma.Decimal | null;
+      calculatedCash: Prisma.Decimal | null;
+      cashDifference: Prisma.Decimal | null;
+      closingNote: string | null;
+      warehouse: Persona;
+      opener: { id: string; firstName: string; lastNamePaternal: string };
+      closer: { id: string; firstName: string; lastNamePaternal: string } | null;
+      _count: { sales: number };
+    },
+    totals: SessionTotal[],
+  ): ShiftRow {
+    return {
+      id: f.id,
+      status: f.status,
+      warehouse: f.warehouse,
+      openedBy: nombre(f.opener),
+      openedAt: f.openedAt.toISOString(),
+      closedBy: f.closer === null ? null : nombre(f.closer),
+      closedAt: f.closedAt?.toISOString() ?? null,
+      salesCount: f._count.sales,
+      totals,
+      calculatedCash: f.calculatedCash?.toString() ?? null,
+      declaredCash: f.declaredCash?.toString() ?? null,
+      cashDifference: f.cashDifference?.toString() ?? null,
+      closingNote: f.closingNote,
+    };
+  }
+
+  private async where(
+    user: AuthUser,
+    scope: UserScope,
+    query: ShiftsReportQueryDto,
+  ): Promise<Prisma.CashboxSessionWhereInput> {
+    if (query.warehouseId !== undefined) {
+      assertWarehouseInScope(scope, query.warehouseId);
+    }
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { timezone: true },
+    });
+    const timeZone = tenant?.timezone ?? "UTC";
+    // El rango va sobre el CIERRE (sobre la apertura en los abiertos), en días
+    // del calendario del negocio: un cierre a las 23:30 en CDMX es de ese día.
+    const rango =
+      query.from !== undefined || query.to !== undefined
+        ? {
+            ...(query.from !== undefined && { gte: startOfDayUtc(query.from, timeZone) }),
+            ...(query.to !== undefined && { lt: endOfDayUtc(query.to, timeZone) }),
+          }
+        : undefined;
+    const abiertos = query.status === "open";
+    return {
+      tenantId: user.tenantId,
+      status: query.status,
+      ...(query.warehouseId !== undefined
+        ? { warehouseId: query.warehouseId }
+        : scope.warehouseIds !== "all"
+          ? { warehouseId: { in: [...scope.warehouseIds] } }
+          : {}),
+      ...(query.userId !== undefined &&
+        (abiertos ? { openedBy: query.userId } : { closedBy: query.userId })),
+      ...(rango !== undefined && (abiertos ? { openedAt: rango } : { closedAt: rango })),
+    };
+  }
+}

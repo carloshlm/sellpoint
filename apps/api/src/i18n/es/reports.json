@@ -1,4 +1,5 @@
 {
   "export_too_large": "El reporte tiene {total} filas y el máximo para descargar es {max}. Acota los filtros —por ejemplo, un rango de fechas más corto o un solo almacén— y vuelve a intentar.",
-  "invalid_query": "Los filtros del reporte no son válidos."
+  "invalid_query": "Los filtros del reporte no son válidos.",
+  "shift_not_found": "Ese turno no existe o no está en tu alcance."
 }
