@@ -12,7 +12,9 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import {
   type ImportRowError,
+  loadTaxGroupIndex,
   readImportWorkbook,
+  resolveTaxGroupCode,
   translateImportErrors,
 } from "../catalogs/import-engine";
 
@@ -21,7 +23,8 @@ import {
  * personalizados: el catálogo de estudios no pasa por el motor de catálogos
  * —es del módulo, no del negocio genérico—, así que la plantilla es fija.
  */
-const COLUMNAS = ["codigo", "nombre", "descripcion", "costo", "precio"] as const;
+// F4-TAX-11: `impuesto` lleva el CÓDIGO del grupo; vacío = el default del negocio.
+const COLUMNAS = ["codigo", "nombre", "descripcion", "costo", "precio", "impuesto"] as const;
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 
 export interface StudyImportReport {
@@ -40,6 +43,8 @@ interface FilaLeida {
   description: string | null;
   cost: number | null;
   price: number | null;
+  /** F4-TAX-11: null = hereda el default (la celda vino vacía). */
+  taxGroupId: string | null;
   existingId: string | null;
 }
 
@@ -57,6 +62,7 @@ interface ImportDelegate {
       description?: string | null;
       cost?: { toString(): string } | null;
       price?: { toString(): string } | null;
+      taxGroupId?: string | null;
     }[]
   >;
   create(args: { data: Record<string, unknown> }): Promise<{ id: string }>;
@@ -97,8 +103,12 @@ export abstract class StudyImportService {
     user: AuthUser,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const estudios = await this.prisma.withTenantContext(user.tenantId, (tx) =>
-      this.config.delegate(tx).findMany({ orderBy: { code: "asc" } }),
+    const { estudios, impuestos } = await this.prisma.withTenantContext(
+      user.tenantId,
+      async (tx) => ({
+        estudios: await this.config.delegate(tx).findMany({ orderBy: { code: "asc" } }),
+        impuestos: await loadTaxGroupIndex(tx, user.tenantId),
+      }),
     );
     const filas = estudios.map((e) => [
       e.code,
@@ -106,9 +116,14 @@ export abstract class StudyImportService {
       e.description ?? "",
       e.cost?.toString() ?? "",
       e.price?.toString() ?? "",
+      // Vacío = hereda el default; el código solo cuando hay override.
+      (e.taxGroupId === null || e.taxGroupId === undefined
+        ? undefined
+        : impuestos.codeById.get(e.taxGroupId)) ?? "",
     ]);
+    const ejemplo = [...this.config.ejemplo, impuestos.defaultCode ?? ""];
     return await serializeSpreadsheet(
-      [localizeHeaders(COLUMNAS, locale), ...(filas.length > 0 ? filas : [this.config.ejemplo])],
+      [localizeHeaders(COLUMNAS, locale), ...(filas.length > 0 ? filas : [ejemplo])],
       "xlsx",
       {
         sheetName: this.config.sheetName,
@@ -132,6 +147,9 @@ export abstract class StudyImportService {
       },
     });
 
+    const impuestos = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      loadTaxGroupIndex(tx, user.tenantId),
+    );
     const errors: ImportRowError[] = [];
     const leidas: Omit<FilaLeida, "existingId">[] = [];
     const vistos = new Set<string>();
@@ -190,6 +208,14 @@ export abstract class StudyImportService {
         dinero[column] = monto;
       }
 
+      const impuesto = resolveTaxGroupCode(impuestos, value("impuesto"));
+      if (impuesto.kind === "unknown") {
+        errors.push(
+          conCodigo({ row: rowNumber, field: "impuesto", message: "catalogs.tax_group_unknown" }),
+        );
+        return;
+      }
+
       leidas.push({
         row: rowNumber,
         code,
@@ -197,6 +223,7 @@ export abstract class StudyImportService {
         description: value("descripcion") || null,
         cost: dinero.costo,
         price: dinero.precio,
+        taxGroupId: impuesto.kind === "group" ? impuesto.id : null,
       });
     });
 
@@ -236,6 +263,8 @@ export abstract class StudyImportService {
           description: fila.description,
           ...(fila.cost !== null ? { cost: fila.cost } : {}),
           ...(fila.price !== null ? { price: fila.price } : {}),
+          // Vacío = hereda: se escribe NULL a propósito (ver resolveTaxGroupCode).
+          taxGroupId: fila.taxGroupId,
         };
         if (fila.existingId) {
           await modelo.update({ where: { id: fila.existingId }, data: datos });

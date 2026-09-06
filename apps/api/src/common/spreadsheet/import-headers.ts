@@ -38,6 +38,7 @@ const ENGLISH_LABELS: Record<string, string> = {
   presentacion: "presentation",
   cantidad: "quantity",
   costo_unitario: "unit_cost",
+  impuesto: "tax",
 };
 
 const CANONICAL_BY_ENGLISH = new Map(

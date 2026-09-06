@@ -235,3 +235,49 @@ export function translateImportErrors(
     return { ...error, translated: typeof translated === "string" ? translated : error.message };
   });
 }
+
+/**
+ * F4-TAX-11 — el índice `código ↔ id` de los grupos de impuesto del negocio,
+ * para la columna `impuesto` de las cuatro plantillas. Incluye los grupos
+ * INACTIVOS: un artículo que sigue apuntando a uno exporta su código y tiene
+ * que poder volver a subirse sin pérdida.
+ */
+export interface TaxGroupIndex {
+  idByCode: Map<string, string>;
+  codeById: Map<string, string>;
+  /** El código del default activo, para la fila de ejemplo de la plantilla. */
+  defaultCode: string | null;
+}
+
+export async function loadTaxGroupIndex(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+): Promise<TaxGroupIndex> {
+  const grupos = await tx.taxGroup.findMany({
+    where: { tenantId },
+    select: { id: true, code: true, isDefault: true, isActive: true },
+  });
+  return {
+    idByCode: new Map(grupos.map((g) => [g.code, g.id])),
+    codeById: new Map(grupos.map((g) => [g.id, g.code])),
+    defaultCode: grupos.find((g) => g.isDefault && g.isActive)?.code ?? null,
+  };
+}
+
+/**
+ * La celda `impuesto`: vacía = hereda el default (escribe NULL); un código =
+ * ese grupo; desconocido = error de fila. Vacío significa «heredar» y NO «no
+ * tocar» a propósito: es la única semántica con la que bajar → editar →
+ * subir es un viaje sin pérdida (si el vacío no tocara, la plantilla tendría
+ * que escribir el default en cada fila heredada y un round-trip congelaría a
+ * todos los artículos fuera del default).
+ */
+export function resolveTaxGroupCode(
+  index: TaxGroupIndex,
+  raw: string,
+): { kind: "inherit" } | { kind: "group"; id: string } | { kind: "unknown" } {
+  const code = raw.trim().toUpperCase();
+  if (code === "") return { kind: "inherit" };
+  const id = index.idByCode.get(code);
+  return id === undefined ? { kind: "unknown" } : { kind: "group", id };
+}

@@ -111,6 +111,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
       "location",
       "tracks_lots",
       "is_composite",
+      "tax",
     ]);
     expect(await encabezado("/products/import/template", "es", "csv")).toEqual([
       "codigo_de_barras",
@@ -123,6 +124,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
       "ubicacion",
       "controla_lotes",
       "es_compuesto",
+      "impuesto",
     ]);
   });
 
@@ -132,6 +134,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
       "name",
       "cost",
       "price",
+      "tax",
     ]);
     expect(await encabezado("/warehouses/import/template", "en", "xlsx")).toEqual([
       "code",
@@ -153,6 +156,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
         "description",
         "cost",
         "price",
+        "tax",
       ]);
     }
     // Y en español nada se movió.
@@ -161,6 +165,7 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
       "nombre",
       "costo",
       "precio",
+      "impuesto",
     ]);
   });
 

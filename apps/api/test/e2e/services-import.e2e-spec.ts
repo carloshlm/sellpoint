@@ -95,7 +95,7 @@ describe("Importar servicios por Excel", () => {
       .expect(200);
 
     const rows = await celdas(res.body as Buffer);
-    expect(rows[0]).toEqual(["codigo", "nombre", "costo", "precio"]);
+    expect(rows[0]).toEqual(["codigo", "nombre", "costo", "precio", "impuesto"]);
   });
 
   it("crea por código nuevo (ofrecido en todos los almacenes) y actualiza por código existente", async () => {
@@ -103,7 +103,7 @@ describe("Importar servicios por Excel", () => {
 
     // Dry-run primero: reporta sin escribir.
     const contenido = await xlsxBase64([
-      ["codigo", "nombre", "costo", "precio"],
+      ["codigo", "nombre", "costo", "precio", "impuesto"],
       ["CONS-01", "Consulta general", "50", "250"],
       ["LIMP-01", "Limpieza dental", "80", "400"],
     ]);
@@ -129,7 +129,7 @@ describe("Importar servicios por Excel", () => {
 
     // Segunda pasada: el MISMO código actualiza — el match es por código.
     const actualizacion = await xlsxBase64([
-      ["codigo", "nombre", "costo", "precio"],
+      ["codigo", "nombre", "costo", "precio", "impuesto"],
       ["CONS-01", "Consulta general renovada", "60", "300"],
     ]);
     const segunda = await request(app.getHttpServer())
@@ -152,7 +152,7 @@ describe("Importar servicios por Excel", () => {
   it("un código repetido en el archivo es error por fila, no una intención", async () => {
     const token = await ownerToken();
     const contenido = await xlsxBase64([
-      ["codigo", "nombre", "costo", "precio"],
+      ["codigo", "nombre", "costo", "precio", "impuesto"],
       ["DUP-01", "Uno", "10", "20"],
       ["DUP-01", "Dos", "10", "20"],
     ]);

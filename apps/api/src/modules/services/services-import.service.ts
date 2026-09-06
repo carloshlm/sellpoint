@@ -16,15 +16,19 @@ import {
   type LookupIndex,
   loadImportFields,
   loadLookupIndexes,
+  loadTaxGroupIndex,
   parseCustomAttributes,
   readImportWorkbook,
+  resolveTaxGroupCode,
+  type TaxGroupIndex,
   translateImportErrors,
 } from "../catalogs/import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 
 // El orden lo dictó Carlos (2026-09-01): código, nombre, costo, precio de
 // venta y al final los campos personalizados del catálogo de servicios.
-const STANDARD_COLUMNS = ["codigo", "nombre", "costo", "precio"] as const;
+// F4-TAX-11: `impuesto` lleva el CÓDIGO del grupo; vacío = el default del negocio.
+const STANDARD_COLUMNS = ["codigo", "nombre", "costo", "precio", "impuesto"] as const;
 
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 const SERVICES_CATALOG_KEY = "services";
@@ -46,6 +50,8 @@ interface ParsedRow {
   name: string;
   cost: number | null;
   price: number | null;
+  /** F4-TAX-11: null = hereda el default (la celda vino vacía). */
+  taxGroupId: string | null;
   attributes: Record<string, unknown>;
   existingId: string | null;
 }
@@ -75,11 +81,20 @@ export class ServicesImportService {
     user: AuthUser,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const { header, rows } = await this.catalogRows(user);
+    const { header, rows, impuestos } = await this.catalogRows(user);
     const body =
       rows.length > 0
         ? rows
-        : [["CONS-01", "Consulta general", "50", "250", ...header.slice(4).map(() => "")]];
+        : [
+            [
+              "CONS-01",
+              "Consulta general",
+              "50",
+              "250",
+              impuestos.defaultCode ?? "",
+              ...header.slice(5).map(() => ""),
+            ],
+          ];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
       sheetName: "Servicios",
       filenameBase: spreadsheetFilenameBase("servicios", locale),
@@ -101,7 +116,7 @@ export class ServicesImportService {
       },
     });
 
-    const { fields, lookups } = await this.contexto(user);
+    const { fields, lookups, impuestos } = await this.contexto(user);
 
     const errors: ServiceImportRowError[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
@@ -175,12 +190,21 @@ export class ServicesImportService {
         return;
       }
 
+      const impuesto = resolveTaxGroupCode(impuestos, value("impuesto"));
+      if (impuesto.kind === "unknown") {
+        errors.push(
+          conCodigo({ row: rowNumber, field: "impuesto", message: "catalogs.tax_group_unknown" }),
+        );
+        return;
+      }
+
       parsed.push({
         row: rowNumber,
         code,
         name,
         cost: money.costo,
         price: money.precio,
+        taxGroupId: impuesto.kind === "group" ? impuesto.id : null,
         attributes,
       });
     });
@@ -227,6 +251,8 @@ export class ServicesImportService {
               name: item.name,
               ...(item.cost !== null ? { cost: item.cost } : {}),
               ...(item.price !== null ? { price: item.price } : {}),
+              // Vacío = hereda: se escribe NULL a propósito (ver resolveTaxGroupCode).
+              taxGroupId: item.taxGroupId,
               attributes: item.attributes as Prisma.InputJsonValue,
             },
           });
@@ -239,6 +265,7 @@ export class ServicesImportService {
             name: item.name,
             cost: item.cost,
             price: item.price,
+            taxGroupId: item.taxGroupId,
             attributes: item.attributes as Prisma.InputJsonValue,
           },
         });
@@ -268,8 +295,10 @@ export class ServicesImportService {
   }
 
   /** El catálogo completo como filas — plantilla y export comparten columnas. */
-  private async catalogRows(user: AuthUser): Promise<{ header: string[]; rows: string[][] }> {
-    const { fields, lookups } = await this.contexto(user);
+  private async catalogRows(
+    user: AuthUser,
+  ): Promise<{ header: string[]; rows: string[][]; impuestos: TaxGroupIndex }> {
+    const { fields, lookups, impuestos } = await this.contexto(user);
     const custom = fields.map((field) => field.key);
     const header = [...STANDARD_COLUMNS, ...custom];
 
@@ -282,23 +311,31 @@ export class ServicesImportService {
       service.name,
       service.cost?.toString() ?? "",
       service.price?.toString() ?? "",
+      // Vacío = hereda el default; el código solo cuando hay override.
+      (service.taxGroupId === null ? undefined : impuestos.codeById.get(service.taxGroupId)) ?? "",
       ...customCells((service.attributes ?? {}) as Record<string, unknown>, custom, lookups),
     ]);
 
-    return { header, rows };
+    return { header, rows, impuestos };
   }
 
   /** Los campos vigentes del catálogo de servicios y sus índices de lookup. */
-  private async contexto(
-    user: AuthUser,
-  ): Promise<{ fields: FieldDefinition[]; lookups: Map<string, LookupIndex> }> {
+  private async contexto(user: AuthUser): Promise<{
+    fields: FieldDefinition[];
+    lookups: Map<string, LookupIndex>;
+    impuestos: TaxGroupIndex;
+  }> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const catalog = await tx.catalog.findFirst({
         where: { tenantId: user.tenantId, systemKey: SERVICES_CATALOG_KEY },
         select: { id: true },
       });
       const fields = catalog ? await loadImportFields(tx, catalog.id) : [];
-      return { fields, lookups: await loadLookupIndexes(tx, fields) };
+      return {
+        fields,
+        lookups: await loadLookupIndexes(tx, fields),
+        impuestos: await loadTaxGroupIndex(tx, user.tenantId),
+      };
     });
   }
 }

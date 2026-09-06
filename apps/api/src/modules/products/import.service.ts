@@ -13,6 +13,11 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import {
+  loadTaxGroupIndex,
+  resolveTaxGroupCode,
+  type TaxGroupIndex,
+} from "../catalogs/import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { PRODUCTS_CATALOG_KEY } from "../tenants/role-catalog";
 import { hasValidMoneyScale, MONEY_MAX } from "./money";
@@ -35,6 +40,8 @@ const STANDARD_COLUMNS = [
   "ubicacion",
   "controla_lotes",
   "es_compuesto",
+  // F4-TAX-11: el CÓDIGO del grupo; vacío = el default del negocio.
+  "impuesto",
 ] as const;
 
 export interface ImportRowError {
@@ -109,6 +116,8 @@ interface ParsedRow {
   isComposite: boolean | null;
   barcode: string | null;
   location: string | null;
+  /** F4-TAX-11: null = hereda el default (la celda vino vacía). */
+  taxGroupId: string | null;
   attributes: Record<string, unknown>;
   existingId: string | null;
 }
@@ -168,6 +177,7 @@ export class ImportService {
               "A-01-01",
               "NO",
               "NO",
+              (await this.taxIndex(user)).defaultCode ?? "",
               ...custom.map(() => ""),
             ],
           ];
@@ -204,6 +214,7 @@ export class ImportService {
             select: { price: true, cost: true, barcode: true },
             take: 1,
           },
+          taxGroup: { select: { code: true } },
         },
       }),
     );
@@ -222,6 +233,8 @@ export class ImportService {
         product.location ?? "",
         product.tracksLots ? "SI" : "NO",
         product.isComposite ? "SI" : "NO",
+        // Vacío = hereda el default; el código solo cuando hay override.
+        product.taxGroup?.code ?? "",
         ...custom.map((key) => {
           const value = attributes[key];
           if (value === undefined || value === null) {
@@ -283,6 +296,7 @@ export class ImportService {
     const active = fields.filter((field) => !field.isArchived);
     const knownKeys = new Set(active.map((f) => f.key));
     const lookups = await this.loadLookupIndexes(user, active);
+    const impuestos = await this.taxIndex(user);
 
     const errors: ImportRowError[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
@@ -409,6 +423,14 @@ export class ImportService {
         continue;
       }
 
+      const impuesto = resolveTaxGroupCode(impuestos, value("impuesto"));
+      if (impuesto.kind === "unknown") {
+        errors.push(
+          conCodigo({ row: rowNumber, field: "impuesto", message: "catalogs.tax_group_unknown" }),
+        );
+        continue;
+      }
+
       parsed.push({
         row: rowNumber,
         sku,
@@ -421,6 +443,7 @@ export class ImportService {
         isComposite: parseBooleanCell(value("es_compuesto")),
         barcode: value("codigo_de_barras") || null,
         location: value("ubicacion") || null,
+        taxGroupId: impuesto.kind === "group" ? impuesto.id : null,
         attributes,
       });
     }
@@ -518,6 +541,8 @@ export class ImportService {
               ...(item.tracksLots !== null ? { tracksLots: item.tracksLots } : {}),
               ...(item.isComposite !== null ? { isComposite: item.isComposite } : {}),
               ...(item.location !== null ? { location: item.location } : {}),
+              // Vacío = hereda: se escribe NULL a propósito (ver resolveTaxGroupCode).
+              taxGroupId: item.taxGroupId,
               attributes: item.attributes as Prisma.InputJsonValue,
             },
           });
@@ -551,6 +576,7 @@ export class ImportService {
             tracksLots: item.tracksLots ?? false,
             isComposite: item.isComposite ?? false,
             ...(item.location !== null && { location: item.location }),
+            taxGroupId: item.taxGroupId,
             attributes: item.attributes as Prisma.InputJsonValue,
           },
         });
@@ -598,6 +624,13 @@ export class ImportService {
    * Solo registros ACTIVOS, igual que el alta por formulario: un archivado no
    * se puede elegir en la UI y tampoco por planilla.
    */
+  /** F4-TAX-11: los grupos de impuesto del negocio, código ↔ id. */
+  private taxIndex(user: AuthUser): Promise<TaxGroupIndex> {
+    return this.prisma.withTenantContext(user.tenantId, (tx) =>
+      loadTaxGroupIndex(tx, user.tenantId),
+    );
+  }
+
   private async loadLookupIndexes(
     user: AuthUser,
     fields: readonly FieldDefinition[],
