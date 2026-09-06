@@ -70,6 +70,12 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       .set("Authorization", bearer(negocioB.token))
       .send({ paymentMethod: "cash", lines: [{ productId: producto.id, quantity: 1 }] })
       .expect(201);
+    // El turno se cierra descuadrado: el material del reporte de cierres.
+    await request(app.getHttpServer())
+      .post("/pos/session/close")
+      .set("Authorization", bearer(negocioB.token))
+      .send({ declaredCash: "20.00", note: "e2e" })
+      .expect(200);
 
     // Y un usuario invitado, para suspenderlo desde el backoffice.
     const roles = await request(app.getHttpServer())
@@ -106,6 +112,9 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       "reports/sales",
       "reports/stock",
       "reports/sales/export?format=xlsx",
+      "reports/shifts",
+      "reports/shifts/export?format=csv",
+      "reports/shifts/00000000-0000-0000-0000-000000000000",
     ]) {
       await request(app.getHttpServer())
         .get(ruta(sufijo))
@@ -197,6 +206,22 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
     expect((stock.body as { rows: unknown[] }).rows.length).toBeGreaterThanOrEqual(1);
 
     await comoAdmin("reports/sales?page=0").expect(400);
+  });
+
+  it("los cierres de turno del negocio se leen y se bajan desde el expediente (F5-SHIFT-05)", async () => {
+    // Sin filtro de fecha: el turno de B cerró «hoy», pero el día lo calcula el
+    // negocio y este test no quiere depender de la hora en que corre.
+    const cierres = await comoAdmin("reports/shifts?status=closed").expect(200);
+    const filas = (cierres.body as { rows: { id: string; declaredCash: string | null }[] }).rows;
+    expect(filas.length).toBeGreaterThanOrEqual(1);
+
+    const detalle = await comoAdmin(`reports/shifts/${filas[0]?.id}`).expect(200);
+    expect((detalle.body as { sales: unknown[] }).sales.length).toBeGreaterThanOrEqual(1);
+
+    await comoAdmin("reports/shifts/00000000-0000-0000-0000-000000000000").expect(404);
+
+    const archivo = await comoAdmin("reports/shifts/export?format=csv").expect(200);
+    expect(archivo.headers["content-disposition"]).toContain("cierres-de-turno");
   });
 
   it("las exportaciones bajan un archivo del negocio de la URL (F9-ADMIN-13)", async () => {

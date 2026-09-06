@@ -44,6 +44,7 @@ vi.mock("@/lib/reports/api", async (importOriginal) => ({
   ...(await importOriginal<typeof reportsApi>()),
   getSalesReport: vi.fn(),
   getStockReport: vi.fn(),
+  getShiftsReport: vi.fn(),
 }));
 vi.mock("@/lib/warehouses/api", () => ({
   listWarehouses: vi.fn().mockResolvedValue([]),
@@ -56,6 +57,7 @@ const mockedSuspend = vi.mocked(adminApi.suspendTenantUser);
 const mockedEnable = vi.mocked(billingApi.enableModule);
 const mockedKpis = vi.mocked(dashboardApi.getDashboardKpis);
 const mockedSales = vi.mocked(reportsApi.getSalesReport);
+const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
 
 const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
   id: "u1",
@@ -310,6 +312,29 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
         "/admin/tenants/t1/reports",
       ),
     );
+  });
+});
+
+describe("los cierres de turno del negocio mirado (F5-SHIFT-05)", () => {
+  it("la pestaña «Cierres de turno» pide los turnos con el prefijo del expediente", async () => {
+    mockedShifts.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+    await renderEn("/admin/tenants/t1?tab=reports");
+    await screen.findByTestId("tenant-reports");
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("tab", { name: "Cierres de turno" }));
+
+    await screen.findByTestId("shifts-report");
+    await waitFor(() =>
+      expect(mockedShifts).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "closed", page: 1 }),
+        "/admin/tenants/t1/reports",
+      ),
+    );
+    // Desde el backoffice no se asume «hoy»: el negocio mirado es otro.
+    const enviado = mockedShifts.mock.calls[0]?.[0] ?? {};
+    expect(enviado).not.toHaveProperty("from");
+    expect(enviado).not.toHaveProperty("to");
   });
 });
 

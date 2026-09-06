@@ -372,7 +372,8 @@
         "reports": {
           "title": "Reportes",
           "sales": "Ventas",
-          "stock": "Inventario"
+          "stock": "Inventario",
+          "shifts": "Cierres de turno"
         },
         "suspended": "Desactivado",
         "danger": {

@@ -38,6 +38,12 @@ import {
   salesReportQuerySchema,
 } from "../reports/dto/sales-report.dto";
 import {
+  type ShiftsExportQueryDto,
+  type ShiftsReportQueryDto,
+  shiftsExportQuerySchema,
+  shiftsReportQuerySchema,
+} from "../reports/dto/shifts-report.dto";
+import {
   type StockExportQueryDto,
   type StockReportQueryDto,
   stockExportQuerySchema,
@@ -45,6 +51,8 @@ import {
 } from "../reports/dto/stock-report.dto";
 import { SalesExportService } from "../reports/sales-export.service";
 import { SalesReportService } from "../reports/sales-report.service";
+import { ShiftsExportService } from "../reports/shifts-export.service";
+import { ShiftsReportService } from "../reports/shifts-report.service";
 import { StockExportService } from "../reports/stock-export.service";
 import { StockReportService } from "../reports/stock-report.service";
 import { UsersAdminService } from "../users/users-admin.service";
@@ -84,6 +92,8 @@ export class AdminTenantsController {
     private readonly stockReport: StockReportService,
     private readonly salesExport: SalesExportService,
     private readonly stockExport: StockExportService,
+    private readonly shiftsReport: ShiftsReportService,
+    private readonly shiftsExport: ShiftsExportService,
   ) {}
 
   @Get(":tenantId/overview")
@@ -231,6 +241,46 @@ export class AdminTenantsController {
     return query.detail === "lots"
       ? this.stockReport.listLots(actor, SCOPE_ALL, query)
       : this.stockReport.list(actor, SCOPE_ALL, query);
+  }
+
+  // ── Cierres de turno (F5-SHIFT-05) ──────────────────────────────────────
+  // El export va ANTES de `shifts/:shiftId`: si no, «export» sería un id.
+
+  @Get(":tenantId/reports/shifts")
+  shifts(
+    @Param("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(shiftsReportQuerySchema, "reports.invalid_query"))
+    query: ShiftsReportQueryDto,
+  ) {
+    return this.shiftsReport.list(platformAdminActor(tenantId, admin), SCOPE_ALL, query);
+  }
+
+  @Get(":tenantId/reports/shifts/export")
+  async shiftsExportFile(
+    @Param("tenantId") tenantId: string,
+    @CurrentUser() admin: AuthUser,
+    @Query(new ZodValidationPipe(shiftsExportQuerySchema, "reports.invalid_query"))
+    query: ShiftsExportQueryDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const file = await this.shiftsExport.build(
+      platformAdminActor(tenantId, admin),
+      SCOPE_ALL,
+      query,
+      getLocale(request as Request & RequestWithLocale),
+    );
+    await this.descargar(response, tenantId, file);
+  }
+
+  @Get(":tenantId/reports/shifts/:shiftId")
+  shiftDetail(
+    @Param("tenantId") tenantId: string,
+    @Param("shiftId") shiftId: string,
+    @CurrentUser() admin: AuthUser,
+  ) {
+    return this.shiftsReport.detail(platformAdminActor(tenantId, admin), SCOPE_ALL, shiftId);
   }
 
   // ── Exportaciones (F9-ADMIN-13) ─────────────────────────────────────────
