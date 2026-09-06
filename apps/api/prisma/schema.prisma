@@ -73,6 +73,18 @@ model Tenant {
   /// dashboard pinta «85% alcanzado». NULL = el negocio no persigue meta;
   /// borrable como phone.
   monthlySalesGoal Decimal?  @map("monthly_sales_goal") @db.Decimal(14, 2)
+  /**
+   * F4-TAX — ¿el precio de catálogo YA incluye el impuesto? `included`
+   * (México, la UE: precio final por ley de consumidor) o `excluded` (Canadá,
+   * EE. UU.: se suma al cobrar). CHECK en SQL; el catálogo vive en
+   * `packages/shared/src/tax.ts`.
+   */
+  taxMode          String    @default("included") @map("tax_mode") @db.VarChar(8)
+  /**
+   * F4-TAX — provincia o estado (ISO 3166-2 sin el prefijo del país: `ON`,
+   * `BC`, `TX`). Solo Canadá y EE. UU. la necesitan para sembrar sus tasas.
+   */
+  region           String?   @db.VarChar(8)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -130,6 +142,10 @@ model Tenant {
   medicalClinicSettings    MedicalClinicSettings?
   receptionSettings        ReceptionSettings?
   ticketSettings           TicketSettings?
+  taxGroups                TaxGroup[]
+  taxRates                 TaxRate[]
+  saleTaxes                SaleTax[]
+  quoteTaxes               QuoteTax[]
 
   @@map("tenants")
 }
@@ -466,6 +482,8 @@ model Product {
   stockMin    Decimal  @default(0) @map("stock_min") @db.Decimal(14, 4)
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
+  /** F4-TAX — el impuesto del artículo; NULL = el default del negocio. */
+  taxGroupId  String?  @map("tax_group_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -486,6 +504,7 @@ model Product {
   quoteLines        QuoteLine[]
 
   medicalOrderLines MedicalClinicOrderLine[]
+  taxGroup TaxGroup? @relation("TaxGroupProducts", fields: [taxGroupId], references: [id], onDelete: Restrict)
 
   @@unique([tenantId, sku])
   @@index([tenantId])
@@ -496,6 +515,7 @@ model Product {
   @@index([sku(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
+  @@index([taxGroupId])
   @@map("products")
 }
 
@@ -657,6 +677,8 @@ model Service {
   // cada rubro (duración, comisión…) vive acá, nunca como columna.
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
+  /** F4-TAX — el impuesto del artículo; NULL = el default del negocio. */
+  taxGroupId  String?  @map("tax_group_id") @db.Uuid
   createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -664,10 +686,12 @@ model Service {
   warehouses ServiceWarehouse[]
   saleItems  SaleItem[]
   quoteLines QuoteLine[]
+  taxGroup TaxGroup? @relation("TaxGroupServices", fields: [taxGroupId], references: [id], onDelete: Restrict)
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
+  @@index([taxGroupId])
   @@map("services")
 }
 
@@ -1416,6 +1440,14 @@ model Sale {
   subtotal           Decimal       @db.Decimal(14, 2)
   discount           Decimal       @default(0) @db.Decimal(14, 2)
   total              Decimal       @db.Decimal(14, 2)
+  /**
+   * F4-TAX — el modo del día del cobro. En `included` el impuesto va DENTRO
+   * de `line_total`; en `excluded`, fuera. Sin esto un ticket reimpreso tras
+   * cambiar el modo saldría en la unidad equivocada. Invariante:
+   * `total = Σ line_total = neto + tax_total`; el neto no se guarda (derivable).
+   */
+  taxMode            String        @default("included") @map("tax_mode") @db.VarChar(8)
+  taxTotal           Decimal       @default(0) @map("tax_total") @db.Decimal(14, 2)
   createdBy          String        @map("created_by") @db.Uuid
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   canceledBy         String?       @map("canceled_by") @db.Uuid
@@ -1430,6 +1462,7 @@ model Sale {
   items     SaleItem[]
   movements StockMovement[]
   quote     Quote?          @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  taxes     SaleTax[]
 
   @@unique([tenantId, folio])
   @@index([tenantId, createdAt(sort: Desc)], map: "sales_tenant_created_idx")
@@ -1484,6 +1517,10 @@ model SaleItem {
   unitCost           Decimal? @map("unit_cost") @db.Decimal(14, 4)
   discount           Decimal  @default(0) @db.Decimal(14, 2)
   lineTotal          Decimal  @map("line_total") @db.Decimal(14, 2)
+  /** F4-TAX — impuesto de la línea; `Σ tax_amount ≡ Σ sale_taxes.amount`. */
+  taxAmount          Decimal  @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  /** F4-TAX — el grupo que se aplicó (snapshot del código): contesta «¿por qué esta línea no pagó?». */
+  taxGroupCode       String?  @map("tax_group_code") @db.VarChar(32)
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
@@ -1531,6 +1568,9 @@ model Quote {
   status       QuoteStatus @default(open)
   /// Suma de las líneas a precio de REFERENCIA. No es lo que se va a cobrar.
   total        Decimal     @db.Decimal(14, 2)
+  /** F4-TAX — espejo exacto de la venta; ver `Sale.taxMode`. */
+  taxMode      String      @default("included") @map("tax_mode") @db.VarChar(8)
+  taxTotal     Decimal     @default(0) @map("tax_total") @db.Decimal(14, 2)
   note         String?
   createdBy    String      @map("created_by") @db.Uuid
   createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1555,6 +1595,7 @@ model Quote {
   /// F9-CLINIC-04: la orden médica que la emitió, si vino de una (UNIQUE: una
   /// cotización, una orden). El origen genérico viaja en `source_module/source_ref`.
   medicalOrder MedicalClinicOrder?
+  taxes     QuoteTax[]
 
   @@unique([tenantId, folio])
   @@index([tenantId, createdAt(sort: Desc)], map: "quotes_tenant_created_idx")
@@ -1598,6 +1639,8 @@ model QuoteLine {
   /// De REFERENCIA. Al cargarla en el POS se recalcula del catálogo vigente.
   unitPrice      Decimal  @map("unit_price") @db.Decimal(14, 2)
   lineTotal      Decimal  @map("line_total") @db.Decimal(14, 2)
+  taxAmount      Decimal  @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  taxGroupCode   String?  @map("tax_group_code") @db.VarChar(32)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant       Tenant               @relation(fields: [tenantId], references: [id])
@@ -1989,6 +2032,105 @@ model TicketSettings {
   @@map("ticket_settings")
 }
 
+/**
+ * F4-TAX — un grupo de impuesto del negocio: lo que se asigna a un artículo
+ * («IVA 16%», «GST 5% + PST 7%», «Exento»). Sus componentes son `TaxRate`.
+ * Sin tasas = exento; con tasa 0 = tasa cero (se distinguen por el nombre).
+ *
+ * Un solo default ACTIVO por negocio, por el índice único parcial
+ * `tax_groups_one_default ON (tenant_id) WHERE is_default AND is_active`
+ * (SQL manual en la migración: Prisma no modela índices parciales). Cambiar
+ * el default son dos sentencias en la misma tx: apagar el viejo, prender el
+ * nuevo. Un grupo con artículos no se borra (FK RESTRICT): se desactiva.
+ */
+model TaxGroup {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  /** Identificador estable en inglés: es lo que viaja en la planilla (`VAT16`, `GST_PST`, `EXEMPT`). */
+  code      String   @db.VarChar(32)
+  /** En el vocabulario fiscal del país: es lo que el recibo imprime. */
+  name      String   @db.VarChar(60)
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant            Tenant                         @relation(fields: [tenantId], references: [id])
+  rates             TaxRate[]
+  products          Product[]                      @relation("TaxGroupProducts")
+  services          Service[]                      @relation("TaxGroupServices")
+  labStudies        MedicalClinicLabStudy[]        @relation("TaxGroupLabStudies")
+  diagnosticStudies MedicalClinicDiagnosticStudy[] @relation("TaxGroupDiagnosticStudies")
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("tax_groups")
+}
+
+/** F4-TAX — un componente de un grupo: «GST 5%», «PST 7%», «IVA 16%». `tenantId` denormalizado para la RLS. */
+model TaxRate {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  taxGroupId String  @map("tax_group_id") @db.Uuid
+  code       String  @db.VarChar(16)
+  name       String  @db.VarChar(40)
+  /** Porcentaje con hasta cuatro decimales (el QST es 9.975). CHECK 0..100 en SQL. */
+  rate       Decimal @db.Decimal(7, 4)
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id])
+  group  TaxGroup @relation(fields: [taxGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([taxGroupId, code])
+  @@index([tenantId])
+  @@map("tax_rates")
+}
+
+/**
+ * F4-TAX — el impuesto de una venta agregado por componente: lo que imprime
+ * el ticket (CRA exige GST/HST separado del PST) y lo que suma el reporte
+ * fiscal. Se arma desde las líneas, nunca se recalcula sobre el total.
+ */
+model SaleTax {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String  @map("tenant_id") @db.Uuid
+  saleId    String  @map("sale_id") @db.Uuid
+  code      String  @db.VarChar(16)
+  name      String  @db.VarChar(40)
+  rate      Decimal @db.Decimal(7, 4)
+  base      Decimal @db.Decimal(14, 2)
+  amount    Decimal @db.Decimal(14, 2)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@unique([saleId, code])
+  @@index([tenantId])
+  @@map("sale_taxes")
+}
+
+/** F4-TAX — espejo exacto de `SaleTax` para la cotización. */
+model QuoteTax {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String  @map("tenant_id") @db.Uuid
+  quoteId   String  @map("quote_id") @db.Uuid
+  code      String  @db.VarChar(16)
+  name      String  @db.VarChar(40)
+  rate      Decimal @db.Decimal(7, 4)
+  base      Decimal @db.Decimal(14, 2)
+  amount    Decimal @db.Decimal(14, 2)
+  sortOrder Int     @default(0) @map("sort_order")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  quote  Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteId, code])
+  @@index([tenantId])
+  @@map("quote_taxes")
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // F9-CLINIC — Consultorio Médico (segundo módulo vertical, 2026-09-03)
 // ─────────────────────────────────────────────────────────────────────────
@@ -2009,6 +2151,8 @@ model MedicalClinicLabStudy {
   /// Sin motor de catálogos todavía (mismo criterio que `customers`).
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
+  /** F4-TAX — el impuesto del artículo; NULL = el default del negocio. */
+  taxGroupId  String?  @map("tax_group_id") @db.Uuid
   createdBy   String?  @map("created_by") @db.Uuid
   createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -2016,10 +2160,12 @@ model MedicalClinicLabStudy {
   tenant     Tenant                   @relation(fields: [tenantId], references: [id])
   creator    User?                    @relation("LabStudyCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   orderLines MedicalClinicOrderLine[]
+  taxGroup TaxGroup? @relation("TaxGroupLabStudies", fields: [taxGroupId], references: [id], onDelete: Restrict)
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([tenantId, name])
+  @@index([taxGroupId])
   @@map("medical_clinic_lab_studies")
 }
 
@@ -2036,6 +2182,8 @@ model MedicalClinicDiagnosticStudy {
   /// Sin motor de catálogos todavía (mismo criterio que `customers`).
   attributes  Json     @default("{}")
   isActive    Boolean  @default(true) @map("is_active")
+  /** F4-TAX — el impuesto del artículo; NULL = el default del negocio. */
+  taxGroupId  String?  @map("tax_group_id") @db.Uuid
   createdBy   String?  @map("created_by") @db.Uuid
   createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -2043,10 +2191,12 @@ model MedicalClinicDiagnosticStudy {
   tenant     Tenant                   @relation(fields: [tenantId], references: [id])
   creator    User?                    @relation("DiagnosticStudyCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   orderLines MedicalClinicOrderLine[]
+  taxGroup TaxGroup? @relation("TaxGroupDiagnosticStudies", fields: [taxGroupId], references: [id], onDelete: Restrict)
 
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([tenantId, name])
+  @@index([taxGroupId])
   @@map("medical_clinic_diagnostic_studies")
 }
 
