@@ -416,6 +416,36 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       });
     });
 
+    it("F4-TAX-18: la provincia viaja con el país; ajena al país rebota con 422; otro país la limpia", async () => {
+      const owner = await registerActiveOwner();
+      const patch = (body: Record<string, unknown>) =>
+        request(app.getHttpServer())
+          .patch("/tenants/me")
+          .set("Authorization", bearer(owner.accessToken))
+          .send(body);
+
+      const conProvincia = await patch({ country: "CA", region: "BC" }).expect(200);
+      expect(conProvincia.body).toMatchObject({ country: "CA", region: "BC" });
+
+      const ajena = await patch({ country: "CA", region: "TX" }).expect(422);
+      expect(ajena.body).toMatchObject({ code: "tenants.tax_invalid_region" });
+      await patch({ region: "TX" }).expect(422);
+      await patch({ country: "MX", region: "BC" }).expect(422);
+
+      // La región sola se valida contra el país guardado (CA).
+      const sola = await patch({ region: "ON" }).expect(200);
+      expect(sola.body).toMatchObject({ country: "CA", region: "ON" });
+
+      const otroPais = await patch({ country: "MX" }).expect(200);
+      expect(otroPais.body).toMatchObject({ country: "MX", region: null });
+
+      const me = await request(app.getHttpServer())
+        .get("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect(me.body).toMatchObject({ country: "MX", region: null, taxMode: "included" });
+    });
+
     it("body vacío -> 400 tenants.invalid_body", async () => {
       const owner = await registerActiveOwner();
 

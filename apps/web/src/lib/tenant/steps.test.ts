@@ -92,3 +92,36 @@ describe("primerPasoIncompleto (matriz de tenants)", () => {
     ).toBe(3);
   });
 });
+
+/**
+ * F4-TAX-18 — solo Canadá y Estados Unidos piden la provincia o el estado:
+ * sin ella el paso 1 no está completo, porque de ahí salen las tasas que se
+ * siembran al terminar el wizard. México no la pide.
+ */
+describe("primerPasoIncompleto — la provincia o el estado (F4-TAX-18)", () => {
+  const completo = {
+    legalName: "Acme",
+    taxId: "X",
+    address: "Calle 1",
+  };
+
+  it("Canadá sin región: sigue en el paso 1", () => {
+    expect(primerPasoIncompleto(tenant({ ...completo, country: "CA", region: null }))).toBe(1);
+  });
+
+  it("Estados Unidos con estado: avanza al paso 2 sin almacén", () => {
+    expect(
+      primerPasoIncompleto(tenant({ ...completo, country: "US", region: "TX" }), {
+        hasWarehouse: false,
+      }),
+    ).toBe(2);
+  });
+
+  it("México no pide región: sin ella avanza igual", () => {
+    expect(
+      primerPasoIncompleto(tenant({ ...completo, country: "MX", region: null }), {
+        hasWarehouse: false,
+      }),
+    ).toBe(2);
+  });
+});

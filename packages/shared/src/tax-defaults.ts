@@ -120,6 +120,81 @@ export const US_REGIONS = [
 ] as const;
 export type UsRegion = (typeof US_REGIONS)[number];
 
+/**
+ * F4-TAX-18 — el nombre oficial de cada provincia y estado, en inglés: son
+ * nombres propios y así los conoce quien vende ahí. El wizard y la tarjeta
+ * de impuestos los muestran en vez del código.
+ */
+export const CA_REGION_NAMES: Record<CaRegion, string> = {
+  AB: "Alberta",
+  BC: "British Columbia",
+  MB: "Manitoba",
+  NB: "New Brunswick",
+  NL: "Newfoundland and Labrador",
+  NS: "Nova Scotia",
+  NT: "Northwest Territories",
+  NU: "Nunavut",
+  ON: "Ontario",
+  PE: "Prince Edward Island",
+  QC: "Quebec",
+  SK: "Saskatchewan",
+  YT: "Yukon",
+};
+
+export const US_REGION_NAMES: Record<UsRegion, string> = {
+  AL: "Alabama",
+  AK: "Alaska",
+  AZ: "Arizona",
+  AR: "Arkansas",
+  CA: "California",
+  CO: "Colorado",
+  CT: "Connecticut",
+  DE: "Delaware",
+  DC: "District of Columbia",
+  FL: "Florida",
+  GA: "Georgia",
+  HI: "Hawaii",
+  ID: "Idaho",
+  IL: "Illinois",
+  IN: "Indiana",
+  IA: "Iowa",
+  KS: "Kansas",
+  KY: "Kentucky",
+  LA: "Louisiana",
+  ME: "Maine",
+  MD: "Maryland",
+  MA: "Massachusetts",
+  MI: "Michigan",
+  MN: "Minnesota",
+  MS: "Mississippi",
+  MO: "Missouri",
+  MT: "Montana",
+  NE: "Nebraska",
+  NV: "Nevada",
+  NH: "New Hampshire",
+  NJ: "New Jersey",
+  NM: "New Mexico",
+  NY: "New York",
+  NC: "North Carolina",
+  ND: "North Dakota",
+  OH: "Ohio",
+  OK: "Oklahoma",
+  OR: "Oregon",
+  PA: "Pennsylvania",
+  RI: "Rhode Island",
+  SC: "South Carolina",
+  SD: "South Dakota",
+  TN: "Tennessee",
+  TX: "Texas",
+  UT: "Utah",
+  VT: "Vermont",
+  VA: "Virginia",
+  WA: "Washington",
+  WV: "West Virginia",
+  WI: "Wisconsin",
+  WY: "Wyoming",
+};
+
 /** La tasa ESTATAL de venta (2026), sin la local: el punto de partida. */
 export const US_STATE_BASE_RATE: Record<UsRegion, string> = {
   AL: "4",
@@ -343,6 +418,13 @@ export function isRegionCode(country: string | null | undefined, region: string)
   if (country === "CA") return (CA_REGIONS as readonly string[]).includes(region);
   if (country === "US") return (US_REGIONS as readonly string[]).includes(region);
   return false;
+}
+
+/** El nombre de una región de CA/US; `undefined` si el país no las usa o el código es ajeno. */
+export function regionName(country: string | null | undefined, region: string): string | undefined {
+  if (country === "CA") return (CA_REGION_NAMES as Record<string, string>)[region];
+  if (country === "US") return (US_REGION_NAMES as Record<string, string>)[region];
+  return undefined;
 }
 
 export function resolveTaxDefaults(

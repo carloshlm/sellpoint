@@ -1,4 +1,4 @@
-import { CA_REGIONS, type TaxMode, US_REGIONS } from "@sellpoint/shared";
+import type { TaxMode } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectField } from "@/components/form/select-field";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
+import { getRegionOptions } from "@/lib/tenant/markets";
 import type { TaxGroupView, UpdateTaxGroupInput } from "@/lib/tenant/tax-api";
 import { useDeleteTaxGroup, useTaxSettings, useUpdateTaxSettings } from "@/lib/tenant/tax-hooks";
 import type { AuthUser } from "@/stores/auth.store";
@@ -143,7 +144,7 @@ export function TaxSettings({ user }: { user: AuthUser }) {
     );
   };
 
-  const regiones = data?.country === "CA" ? CA_REGIONS : data?.country === "US" ? US_REGIONS : [];
+  const regiones = getRegionOptions(data?.country ?? "");
 
   return (
     <Card data-testid="tax-settings">
@@ -186,10 +187,7 @@ export function TaxSettings({ user }: { user: AuthUser }) {
                 hint={k("regionHint")}
                 value={data.region ?? ""}
                 disabled={ocupado}
-                options={[
-                  { value: "", label: k("regionChoose") },
-                  ...regiones.map((r) => ({ value: r, label: r })),
-                ]}
+                options={[{ value: "", label: k("regionChoose") }, ...regiones]}
                 onChange={(event) => cambiarRegion(event.target.value)}
               />
             )}

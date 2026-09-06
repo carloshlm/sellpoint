@@ -59,6 +59,7 @@ export type UpdateTenantInput = Partial<
     | "currency"
     | "templateChoice"
     | "country"
+    | "region"
     | "sellWithoutStock"
     | "usesLocations"
     | "posShowsStock"

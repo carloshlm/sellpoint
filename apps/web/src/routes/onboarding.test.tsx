@@ -215,6 +215,7 @@ describe("/onboarding", () => {
         {
           name: "Acme SA de CV",
           country: "MX",
+          region: null,
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",

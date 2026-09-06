@@ -1,4 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnprocessableEntityException } from "@nestjs/common";
+import { isRegionCode, needsRegion } from "@sellpoint/shared";
+import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
@@ -37,9 +39,10 @@ export class TenantProfileService {
 
   async update(actor: AuthUser, dto: UpdateTenantDto, meta: RequestMeta): Promise<TenantBlock> {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
+      const data = await this.conRegionValidada(tx, actor.tenantId, dto);
       const updated = await tx.tenant.update({
         where: { id: actor.tenantId },
-        data: dto,
+        data,
         select: TENANT_SELECT,
       });
 
@@ -56,6 +59,30 @@ export class TenantProfileService {
 
       return toTenantBlock(updated);
     });
+  }
+
+  /**
+   * F4-TAX-18: la provincia o el estado viajan CON el país. Si el body trae
+   * país, la región es la que el body diga (o null: cambiar de país nunca
+   * arrastra la región del anterior). Si trae solo región, se valida contra
+   * el país guardado. Una región ajena al país, o para un país que no las
+   * usa, rebota con 422 — el DTO no puede decidirlo porque no ve el país
+   * guardado.
+   */
+  private async conRegionValidada(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    dto: UpdateTenantDto,
+  ): Promise<UpdateTenantDto> {
+    if (dto.country === undefined && dto.region === undefined) return dto;
+    const country =
+      dto.country ??
+      (await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { country: true } }))
+        .country;
+    if (dto.region != null && !(needsRegion(country) && isRegionCode(country, dto.region))) {
+      throw new UnprocessableEntityException({ message: "tenants.tax_invalid_region" });
+    }
+    return dto.country === undefined ? dto : { ...dto, region: dto.region ?? null };
   }
 
   /**

@@ -33,6 +33,10 @@ export const updateTenantSchema = z
     currency: z.enum(SUPPORTED_CURRENCIES).optional(),
     templateChoice: z.string().trim().min(1).optional(),
     country: z.string().refine(isCountryCode, { message: "tenants.invalid_country" }).optional(),
+    // F4-TAX-18: la provincia (CA) o el estado (US), ISO 3166-2 sin el país.
+    // Acá solo la forma; que pertenezca al país lo decide el service, porque
+    // el país puede venir en el mismo body o estar ya guardado.
+    region: z.string().trim().min(1).max(8).nullable().optional(),
     // El tema del negocio (2026-08-25/26): catálogo cerrado, sin CHECK SQL —
     // mismo criterio que currency/country. Los primeros 4 se ofrecen en el
     // wizard; los 8 completos, desde Mi perfil.

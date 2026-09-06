@@ -141,8 +141,10 @@ function OnboardingContent() {
     // `name: legalName` — el registro ya no pide "Nombre del negocio"
     // (Carlos, 2026-08-25): este paso lo nombra, reemplazando el provisional
     // con el que nació el tenant.
+    // F4-TAX-18: la región viaja con el país — vacía es null (México no la
+    // usa), y el API la valida contra el país del mismo body.
     updateTenantMutation.mutate(
-      { ...values, name: values.legalName },
+      { ...values, region: values.region || null, name: values.legalName },
       {
         // A4 del design: navega SOLO en onSuccess. El hook ya esperó el
         // resync (ver lib/tenant/hooks.ts) — para cuando este callback corre,

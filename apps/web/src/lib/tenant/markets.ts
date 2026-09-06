@@ -1,4 +1,11 @@
-import type { CountryCode, Currency } from "@sellpoint/shared";
+import {
+  CA_REGIONS,
+  type CountryCode,
+  type Currency,
+  needsRegion,
+  regionName,
+  US_REGIONS,
+} from "@sellpoint/shared";
 import { getCountryTimezones } from "./country-timezones";
 
 /**
@@ -208,4 +215,17 @@ export function getDefaultCurrency(country: string): Currency {
 /** `undefined` para un país no curado — el caller arma la etiqueta genérica sin sigla. */
 export function getTaxIdAbbreviation(country: string): string | undefined {
   return isCuratedCountry(country) ? TAX_ID_ABBREVIATION_BY_COUNTRY[country] : undefined;
+}
+
+/**
+ * F4-TAX-18 — la provincia (CA) o el estado (US) para el wizard y la tarjeta
+ * de impuestos: código + nombre oficial, desde shared. Vacío para el resto
+ * del mundo: `needsRegion` decide si el campo existe siquiera.
+ */
+export { needsRegion };
+
+export function getRegionOptions(country: string): { value: string; label: string }[] {
+  if (!needsRegion(country)) return [];
+  const codes: readonly string[] = country === "CA" ? CA_REGIONS : US_REGIONS;
+  return codes.map((value) => ({ value, label: regionName(country, value) ?? value }));
 }

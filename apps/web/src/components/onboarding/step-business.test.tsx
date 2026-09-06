@@ -359,3 +359,58 @@ describe("StepBusiness — moneda: preselección editable por país (decisión 5
     expect((screen.getByLabelText("Moneda operacional") as HTMLSelectElement).value).toBe("GBP");
   });
 });
+
+/**
+ * F4-TAX-18 — la provincia o el estado aparece SOLO para Canadá y Estados
+ * Unidos, con su nombre (no el código), es obligatoria ahí y viaja en el
+ * submit; cambiar de país la vacía para no arrastrar una región ajena.
+ */
+describe("StepBusiness — provincia / estado (F4-TAX-18)", () => {
+  function regionSelect(label: string) {
+    return screen.getByLabelText(label) as HTMLSelectElement;
+  }
+
+  it("México no la pide", () => {
+    renderStep();
+    expect(screen.queryByLabelText("Provincia o territorio")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Estado")).not.toBeInTheDocument();
+  });
+
+  it("Canadá pide la provincia por su nombre y sin ella no deja continuar; con ella viaja en el submit", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep();
+    await selectCountry(user, "CA");
+
+    const provincia = regionSelect("Provincia o territorio");
+    expect(within(provincia).getByRole("option", { name: "British Columbia" })).toBeInTheDocument();
+    await user.selectOptions(timezoneSelect(), "America/Vancouver");
+
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(await screen.findByText("Este campo es obligatorio")).toBeInTheDocument();
+
+    await user.selectOptions(provincia, "BC");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "CA", region: "BC", currency: "CAD" }),
+    );
+  });
+
+  it("Estados Unidos pide el estado; cambiar de país vacía la región elegida", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "CA");
+    await user.selectOptions(regionSelect("Provincia o territorio"), "BC");
+
+    await selectCountry(user, "US");
+    const estado = regionSelect("Estado");
+    expect(estado.value).toBe("");
+    expect(within(estado).getByRole("option", { name: "Texas" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Provincia o territorio")).not.toBeInTheDocument();
+  });
+
+  it("un negocio canadiense que ya tiene provincia la ve preseleccionada", () => {
+    renderStep({ country: "CA", region: "ON", timezone: "America/Toronto", currency: "CAD" });
+    expect(regionSelect("Provincia o territorio").value).toBe("ON");
+  });
+});

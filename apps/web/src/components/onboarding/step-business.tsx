@@ -10,7 +10,9 @@ import type { TenantBlock } from "@/lib/tenant/api";
 import {
   getCuratedTimezones,
   getDefaultCurrency,
+  getRegionOptions,
   getTaxIdAbbreviation,
+  needsRegion,
   resolveCountryTimezones,
 } from "@/lib/tenant/markets";
 import { type BusinessStepValues, businessStepSchema } from "@/lib/tenant/schemas";
@@ -64,6 +66,7 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
   const defaultValues = React.useMemo<BusinessStepValues>(
     () => ({
       country: tenant.country ?? "",
+      region: tenant.region ?? "",
       legalName: tenant.legalName ?? "",
       taxId: tenant.taxId ?? "",
       address: tenant.address ?? "",
@@ -102,6 +105,9 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
       return;
     }
     previousCountryRef.current = country;
+
+    // F4-TAX-18: la región es del país; otro país arranca sin ella.
+    setValue("region", "", { shouldValidate: false });
 
     const countryZones = country ? resolveCountryTimezones(country) : undefined;
     if (countryZones) {
@@ -176,6 +182,18 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
         ]}
         {...register("country")}
       />
+      {needsRegion(country) && (
+        <SelectField
+          label={t(country === "CA" ? "onboarding.step1.regionCA" : "onboarding.step1.regionUS")}
+          hint={t("onboarding.step1.regionHint")}
+          error={errors.region?.message ? t(errors.region.message) : undefined}
+          options={[
+            { value: "", label: t("onboarding.step1.regionPlaceholder") },
+            ...getRegionOptions(country),
+          ]}
+          {...register("region")}
+        />
+      )}
       <TextField
         label={t("onboarding.step1.legalName")}
         // El registro ya no pide "Nombre del negocio" (Carlos, 2026-08-25):

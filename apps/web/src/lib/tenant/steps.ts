@@ -1,3 +1,4 @@
+import { needsRegion } from "@sellpoint/shared";
 import type { TenantBlock } from "./api";
 
 /**
@@ -30,6 +31,11 @@ export function primerPasoIncompleto(
   options: { hasWarehouse?: boolean } = {},
 ): 1 | 2 | 3 {
   if (!tenant.country || !tenant.legalName || !tenant.taxId || !tenant.address) {
+    return 1;
+  }
+  // F4-TAX-18: en Canadá y Estados Unidos la provincia o el estado también
+  // es parte del paso 1 — de ahí salen las tasas que se siembran al terminar.
+  if (needsRegion(tenant.country) && !tenant.region) {
     return 1;
   }
   // `hasWarehouse` llega del container, que ya tiene la lista cargada. Se pasa

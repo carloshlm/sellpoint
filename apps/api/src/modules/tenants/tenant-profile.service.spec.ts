@@ -1,3 +1,4 @@
+import { UnprocessableEntityException } from "@nestjs/common";
 import type { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { updateTenantSchema } from "./dto/update-tenant.dto";
@@ -215,5 +216,58 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
       onboarded: true,
       monthlySalesGoal: null,
     });
+  });
+});
+
+/**
+ * F4-TAX-18 — la provincia o el estado viajan CON el país: un país que no la
+ * usa la deja en null, y una región se valida contra el país del body o, si
+ * no viene, contra el guardado. La semántica (422) vive acá y no en el DTO
+ * porque el DTO no ve el país guardado.
+ */
+describe("TenantProfileService.update — la provincia o el estado (F4-TAX-18)", () => {
+  const meta = { ip: "1.2.3.4", userAgent: "jest" };
+
+  it("país y región válidos van juntos al update", async () => {
+    const { service, tx } = buildService();
+    await service.update(ACTOR, { country: "CA", region: "BC" }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { country: "CA", region: "BC" } }),
+    );
+  });
+
+  it("cambiar de país sin región la limpia: la región vieja no sobrevive a otro país", async () => {
+    const { service, tx } = buildService();
+    await service.update(ACTOR, { country: "MX" }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { country: "MX", region: null } }),
+    );
+  });
+
+  it("una región para un país que no la usa, o ajena al país, rebota con 422", async () => {
+    const { service } = buildService();
+    await expect(service.update(ACTOR, { country: "MX", region: "BC" }, meta)).rejects.toThrow(
+      UnprocessableEntityException,
+    );
+    await expect(service.update(ACTOR, { country: "CA", region: "TX" }, meta)).rejects.toThrow(
+      UnprocessableEntityException,
+    );
+  });
+
+  it("la región sola se valida contra el país GUARDADO", async () => {
+    const { service, tx } = buildService({ tenantRow: { id: "tenant-1", country: "CA" } });
+    await expect(service.update(ACTOR, { region: "TX" }, meta)).rejects.toThrow(
+      UnprocessableEntityException,
+    );
+    await service.update(ACTOR, { region: "ON" }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { region: "ON" } }),
+    );
+  });
+
+  it("el DTO acepta region en null y rechaza la cadena vacía", () => {
+    expect(updateTenantSchema.safeParse({ region: null }).success).toBe(true);
+    expect(updateTenantSchema.safeParse({ region: "" }).success).toBe(false);
+    expect(updateTenantSchema.safeParse({ region: "BC" }).success).toBe(true);
   });
 });

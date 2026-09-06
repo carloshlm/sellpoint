@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { rateToScaled, TAX_RATE_SCALE } from "./tax";
 import {
+  CA_REGION_NAMES,
   CA_REGIONS,
   isRegionCode,
   needsRegion,
+  regionName,
   resolveTaxDefaults,
   TAX_CURATED_COUNTRIES,
+  US_REGION_NAMES,
   US_REGIONS,
   US_STATE_BASE_RATE,
 } from "./tax-defaults";
@@ -148,5 +151,27 @@ describe("las propiedades que sostienen la base", () => {
     expect(CA_REGIONS).toHaveLength(13);
     expect(US_REGIONS).toHaveLength(51);
     expect(Object.keys(US_STATE_BASE_RATE)).toHaveLength(51);
+  });
+});
+
+/**
+ * F4-TAX-18 — el wizard y la tarjeta muestran la provincia o el estado por su
+ * nombre, no por el código. Nombres oficiales en inglés: son nombres propios
+ * y así los conoce quien vende ahí.
+ */
+describe("el nombre de la provincia o del estado (F4-TAX-18)", () => {
+  it("toda región de Canadá y de Estados Unidos tiene nombre", () => {
+    for (const r of CA_REGIONS) expect(CA_REGION_NAMES[r].length).toBeGreaterThan(2);
+    for (const r of US_REGIONS) expect(US_REGION_NAMES[r].length).toBeGreaterThan(2);
+    expect(Object.keys(CA_REGION_NAMES)).toHaveLength(CA_REGIONS.length);
+    expect(Object.keys(US_REGION_NAMES)).toHaveLength(US_REGIONS.length);
+  });
+
+  it("regionName resuelve por país y devuelve undefined fuera de CA/US o con un código ajeno", () => {
+    expect(regionName("CA", "BC")).toBe("British Columbia");
+    expect(regionName("US", "TX")).toBe("Texas");
+    expect(regionName("US", "DC")).toBe("District of Columbia");
+    expect(regionName("CA", "TX")).toBeUndefined();
+    expect(regionName("MX", "BC")).toBeUndefined();
   });
 });

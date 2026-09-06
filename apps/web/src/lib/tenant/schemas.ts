@@ -1,4 +1,9 @@
-import { COUNTRY_DIAL_CODES, isCountryCode, SUPPORTED_CURRENCIES } from "@sellpoint/shared";
+import {
+  COUNTRY_DIAL_CODES,
+  isCountryCode,
+  needsRegion,
+  SUPPORTED_CURRENCIES,
+} from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -13,14 +18,24 @@ const requiredString = z.string().trim().min(1, "validation.required");
 // `roleId` en `inviteRowSchema`: el select solo ofrece valores del catálogo
 // compartido (`ISO_COUNTRY_CODES`), la validación estricta contra el
 // catálogo vive en el DTO del backend (`updateTenantSchema`, `isCountryCode`).
-export const businessStepSchema = z.object({
-  country: requiredString,
-  legalName: requiredString,
-  taxId: requiredString,
-  address: requiredString,
-  timezone: requiredString,
-  currency: z.enum(SUPPORTED_CURRENCIES),
-});
+export const businessStepSchema = z
+  .object({
+    country: requiredString,
+    // F4-TAX-18: la provincia o el estado. Obligatoria SOLO donde la tasa
+    // depende de ella (CA/US, `needsRegion`); para el resto viaja vacía y el
+    // container la manda en null.
+    region: z.string(),
+    legalName: requiredString,
+    taxId: requiredString,
+    address: requiredString,
+    timezone: requiredString,
+    currency: z.enum(SUPPORTED_CURRENCIES),
+  })
+  .superRefine((values, ctx) => {
+    if (needsRegion(values.country) && values.region.trim() === "") {
+      ctx.addIssue({ code: "custom", path: ["region"], message: "validation.required" });
+    }
+  });
 
 export type BusinessStepValues = z.infer<typeof businessStepSchema>;
 
