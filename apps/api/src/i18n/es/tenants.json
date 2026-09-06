@@ -7,5 +7,13 @@
   "empty_update": "No hay cambios que guardar",
   "ticket_logo_not_image": "El archivo no es una imagen",
   "ticket_logo_too_large": "La imagen pesa demasiado: sube una de menos de 2 MB",
-  "ticket_logo_too_small": "La imagen es demasiado pequeña para imprimirse"
+  "ticket_logo_too_small": "La imagen es demasiado pequeña para imprimirse",
+  "tax_code_invalid": "El código del impuesto solo admite mayúsculas, números y guion bajo.",
+  "tax_rate_invalid": "La tasa debe ser un porcentaje entre 0 y 100 con hasta cuatro decimales.",
+  "tax_codes_duplicated": "Hay códigos de impuesto repetidos.",
+  "tax_default_required": "Marca exactamente un grupo activo como predeterminado.",
+  "tax_invalid_region": "Esa provincia o estado no corresponde al país del negocio.",
+  "tax_group_unknown": "Ese grupo de impuesto no existe.",
+  "tax_group_in_use": "No se puede borrar: lo usan {{count}} artículos. Desactívalo o cámbiales el impuesto.",
+  "tax_group_is_default": "Es el impuesto predeterminado: elige otro antes de borrarlo."
 }
