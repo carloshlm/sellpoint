@@ -25,6 +25,7 @@ const RUTAS_EXISTENTES = [
   "/movements/transfers",
   "/reports",
   "/reports/sales",
+  "/reports/shifts",
   "/reports/stock",
 ];
 
@@ -93,11 +94,11 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     mocked.downloadCatalogReport.mockResolvedValue(undefined);
   });
 
-  it("con `reports:read` se ven las ocho tarjetas", async () => {
+  it("con `reports:read` se ven las nueve tarjetas", async () => {
     await renderRuta("/reports", ["reports:read", "inventory:read"]);
 
     const hub = await screen.findByTestId("reports-hub");
-    expect(within(hub).getAllByRole("listitem")).toHaveLength(8);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(9);
   });
 
   /**
@@ -188,7 +189,7 @@ describe("Hub de reportes (F5-HUB-02)", () => {
 
     const hub = await screen.findByTestId("reports-hub");
     expect(within(hub).queryByRole("link", { name: /vencimientos/i })).not.toBeInTheDocument();
-    expect(within(hub).getAllByRole("listitem")).toHaveLength(6);
+    expect(within(hub).getAllByRole("listitem")).toHaveLength(7);
   });
 
   it("sin `reports:read` la ruta rebota", async () => {

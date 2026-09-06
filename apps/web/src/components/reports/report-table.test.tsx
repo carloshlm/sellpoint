@@ -173,6 +173,20 @@ describe("ReportTable (F5-HUB-03)", () => {
     expect(onExport).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * F5-SHIFT-04: una celda puede ser un elemento (una diferencia en color, un
+   * botón «Ver»). Antes todo pasaba por `String(valor)` y un elemento salía
+   * como «[object Object]».
+   */
+  it("una celda que es un elemento se pinta tal cual", () => {
+    renderTabla({
+      rows: [{ id: "1", name: <strong data-testid="fuerte">Zapallo</strong>, quantity: "3" }],
+    });
+
+    expect(screen.getByTestId("fuerte")).toHaveTextContent("Zapallo");
+    expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
+  });
+
   it("sin `onExport` no se pinta el botón: no todo reporte se baja", () => {
     renderTabla();
 

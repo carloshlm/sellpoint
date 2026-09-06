@@ -9,12 +9,14 @@ import { useAuthStore } from "@/stores/auth.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
+import * as rbacApi from "../lib/rbac/api";
 import * as reportsApi from "../lib/reports/api";
 import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
 vi.mock("../lib/reports/api");
 vi.mock("../lib/warehouses/api");
+vi.mock("../lib/rbac/api");
 
 const mocked = vi.mocked(reportsApi);
 
@@ -97,6 +99,27 @@ const filaVenta = (
   ...overrides,
 });
 
+const turno = (overrides: Partial<reportsApi.ShiftRow> = {}): reportsApi.ShiftRow => ({
+  id: "cs1",
+  status: "closed",
+  warehouse: { id: "w1", name: "Central" },
+  openedBy: { id: "u2", name: "Luis Cajero" },
+  openedAt: "2026-09-06T14:00:00.000Z",
+  closedBy: { id: "u2", name: "Luis Cajero" },
+  closedAt: "2026-09-06T22:00:00.000Z",
+  salesCount: 2,
+  totals: [
+    { method: "cash", total: "100.00", count: 1 },
+    { method: "card", total: "50.00", count: 1 },
+    { method: "transfer", total: "0.00", count: 0 },
+  ],
+  calculatedCash: "100.00",
+  declaredCash: "90.00",
+  cashDifference: "-10.00",
+  closingNote: "Faltaron diez pesos",
+  ...overrides,
+});
+
 /**
  * F5-STK-04 y F5-SALES-03 — las dos pantallas de reporte.
  *
@@ -147,6 +170,35 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     });
     mocked.downloadStockReport.mockResolvedValue(undefined);
     mocked.downloadSalesReport.mockResolvedValue(undefined);
+    mocked.getShiftsReport.mockResolvedValue({ rows: [turno()], total: 1, page: 1, pageSize: 20 });
+    mocked.getShiftDetail.mockResolvedValue({
+      ...turno(),
+      sales: [
+        {
+          id: "s1",
+          folio: "VTA-000001",
+          createdAt: "2026-09-06T15:00:00.000Z",
+          seller: { id: "u2", name: "Luis Cajero" },
+          paymentMethod: "cash",
+          status: "completed",
+          total: "100.00",
+        },
+      ],
+    });
+    mocked.downloadShiftsReport.mockResolvedValue(undefined);
+    vi.mocked(rbacApi.listUsers).mockResolvedValue([
+      {
+        id: "u2",
+        email: "luis@demo.test",
+        firstName: "Luis",
+        lastNamePaternal: "Cajero",
+        lastNameMaternal: null,
+        status: "active",
+        locale: "es",
+        defaultWarehouseId: "w1",
+        roles: [],
+      } as unknown as rbacApi.UserDetail,
+    ]);
   });
 
   describe("stock por almacén (F5-STK-04)", () => {
@@ -355,6 +407,118 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await renderRuta("/reports/sales", ["pos:view"]);
 
       await waitFor(() => expect(screen.queryByText("VTA-000001")).not.toBeInTheDocument());
+    });
+  });
+
+  /**
+   * F5-SHIFT-04 — los cierres de turno: lo que cada cajero registró al cerrar
+   * («Efectivo contado en caja» y la nota) junto a lo que el sistema calculó.
+   * La diferencia se pinta en color y «Ver» despliega las ventas del turno.
+   */
+  describe("cierres de turno (F5-SHIFT-04)", () => {
+    it("lista cada turno con su almacén, quién cerró, lo contado, la diferencia y la nota", async () => {
+      await renderRuta("/reports/shifts");
+
+      expect(await screen.findByText("Faltaron diez pesos")).toBeInTheDocument();
+      expect(screen.getByText("Luis Cajero")).toBeInTheDocument();
+      // «Central» también es opción del selector de almacén: se mira la celda.
+      expect(screen.getByRole("cell", { name: "Central" })).toBeInTheDocument();
+      expect(screen.getByText(/\$90\.00/)).toBeInTheDocument();
+    });
+
+    it("una diferencia negativa se marca como faltante; cuadrar se dice con palabras", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [
+          turno(),
+          turno({ id: "cs2", declaredCash: "100.00", cashDifference: "0.00", closingNote: null }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/shifts");
+
+      const faltante = await screen.findByText(/-\$10\.00/);
+      expect(faltante).toHaveClass("text-destructive");
+      expect(screen.getByText("Cuadró")).toBeInTheDocument();
+    });
+
+    it("abre con el día actual del negocio y solo los cerrados", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+
+      expect(mocked.getShiftsReport).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          status: "closed",
+          from: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+          to: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        }),
+      );
+    });
+
+    it("el empleado y el estado viajan al API", async () => {
+      await renderRuta("/reports/shifts", ["reports:read", "users:read"]);
+      await screen.findByText("Faltaron diez pesos");
+      const user = userEvent.setup();
+
+      await user.selectOptions(await screen.findByLabelText(/empleado/i), "u2");
+      await waitFor(() =>
+        expect(mocked.getShiftsReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ userId: "u2" }),
+        ),
+      );
+
+      await user.selectOptions(screen.getByLabelText(/turnos/i), "open");
+      await waitFor(() =>
+        expect(mocked.getShiftsReport).toHaveBeenLastCalledWith(
+          expect.objectContaining({ status: "open" }),
+        ),
+      );
+    });
+
+    it("sin `users:read` no se ofrece filtrar por empleado ni se pide la lista", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+
+      expect(screen.queryByLabelText(/empleado/i)).not.toBeInTheDocument();
+      expect(rbacApi.listUsers).not.toHaveBeenCalled();
+    });
+
+    it("«Ver» despliega las ventas del turno debajo", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /ver turno/i }));
+
+      const detalle = await screen.findByTestId("shift-detail");
+      expect(await within(detalle).findByText("VTA-000001")).toBeInTheDocument();
+      expect(mocked.getShiftDetail).toHaveBeenCalledWith("cs1");
+    });
+
+    it("exportar usa los filtros vigentes, pero NO la paginación", async () => {
+      await renderRuta("/reports/shifts");
+      await screen.findByText("Faltaron diez pesos");
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: /exportar/i }));
+
+      await waitFor(() =>
+        expect(mocked.downloadShiftsReport).toHaveBeenCalledWith(
+          expect.objectContaining({ status: "closed" }),
+        ),
+      );
+      const enviado = mocked.downloadShiftsReport.mock.calls[0]?.[0] ?? {};
+      expect(enviado).not.toHaveProperty("page");
+      expect(enviado).not.toHaveProperty("pageSize");
+    });
+
+    it("sin `reports:read` no se entra", async () => {
+      await renderRuta("/reports/shifts", ["pos:view"]);
+
+      await waitFor(() =>
+        expect(screen.queryByText("Faltaron diez pesos")).not.toBeInTheDocument(),
+      );
     });
   });
 

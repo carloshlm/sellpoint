@@ -33,6 +33,10 @@
     "inTransit": {
       "title": "En tránsito",
       "detail": "Mercancía que salió de un almacén y todavía no llega."
+    },
+    "shifts": {
+      "title": "Cierres de turno",
+      "detail": "Cada turno con su arqueo: lo calculado, lo contado, la diferencia y la nota."
     }
   },
   "sales": {
@@ -64,5 +68,34 @@
     "next": "Siguiente",
     "page": "Página {{page}} de {{pages}}",
     "previous": "Anterior"
+  },
+  "shifts": {
+    "title": "Cierres de turno",
+    "closedAt": "Cierre",
+    "openedAt": "Apertura",
+    "warehouse": "Almacén",
+    "closedBy": "Cerró",
+    "openedBy": "Abrió",
+    "employee": "Empleado",
+    "allEmployees": "Todos",
+    "sales": "Ventas",
+    "calculated": "Calculado",
+    "declared": "Contado",
+    "difference": "Diferencia",
+    "note": "Nota",
+    "view": "Ver",
+    "viewShift": "Ver turno cerrado el {{when}}",
+    "balanced": "Cuadró",
+    "status": "Turnos",
+    "closed": "Cerrados",
+    "open": "Abiertos",
+    "detailTitle": "Ventas del turno",
+    "noSales": "Este turno no tuvo ventas.",
+    "folio": "Folio",
+    "time": "Hora",
+    "seller": "Vendió",
+    "method": "Pago",
+    "total": "Total",
+    "close": "Cerrar detalle"
   }
 }

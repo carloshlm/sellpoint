@@ -6,7 +6,7 @@ import {
   useTable,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, Download } from "lucide-react";
-import { useMemo } from "react";
+import { isValidElement, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Paginator } from "@/components/ui/paginator";
@@ -85,6 +85,11 @@ export function ReportTable({
         accessorFn: (fila: Fila) => fila[columna.key],
         cell: (info: { getValue: () => unknown }) => {
           const valor = info.getValue();
+          // Un elemento (un botón «Ver», una diferencia en color) se pinta tal
+          // cual; lo demás, como texto. F5-SHIFT-04.
+          if (isValidElement(valor)) {
+            return valor;
+          }
           return valor === null || valor === undefined ? "" : String(valor);
         },
       })),

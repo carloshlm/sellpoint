@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   Boxes,
+  ClipboardCheck,
   ClipboardList,
   FileSpreadsheet,
   Package,
@@ -53,6 +54,8 @@ const TARJETAS: readonly TarjetaDeReporte[] = [
   // que es más útil que bajar el universo entero desde el hub.
   { key: "stock", icon: Package, to: "/reports/stock", permiso: "reports:read" },
   { key: "sales", icon: FileSpreadsheet, to: "/reports/sales", permiso: "reports:read" },
+  // F5-SHIFT-04: cada turno con su arqueo; quien lee ventas lee cierres.
+  { key: "shifts", icon: ClipboardCheck, to: "/reports/shifts", permiso: "reports:read" },
   // El kardex necesita un producto ELEGIDO, así que la tarjeta lleva al
   // catálogo: desde ahí se abre la ficha y su pestaña de Kardex, donde está el
   // botón de exportar (F5-KDX-02). Una pantalla nueva acá pediría el mismo

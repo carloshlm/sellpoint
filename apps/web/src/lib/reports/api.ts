@@ -142,6 +142,81 @@ export function downloadStockReport(
   return bajar(`${basePath}/stock/export`, base, format, query);
 }
 
+/** F5-SHIFT — los cierres de turno: lo que el cierre guardó, con sus ventas. */
+export interface ShiftTotal {
+  method: string;
+  total: string;
+  count: number;
+}
+
+export interface ShiftRow {
+  id: string;
+  status: "open" | "closed";
+  warehouse: { id: string; name: string };
+  openedBy: { id: string; name: string };
+  openedAt: string;
+  closedBy: { id: string; name: string } | null;
+  closedAt: string | null;
+  salesCount: number;
+  totals: ShiftTotal[];
+  calculatedCash: string | null;
+  declaredCash: string | null;
+  cashDifference: string | null;
+  closingNote: string | null;
+}
+
+export interface ShiftSaleRow {
+  id: string;
+  folio: string;
+  createdAt: string;
+  seller: { id: string; name: string };
+  paymentMethod: string;
+  status: string;
+  total: string;
+}
+
+export interface ShiftDetail extends ShiftRow {
+  sales: ShiftSaleRow[];
+}
+
+export interface ShiftsReportQuery {
+  warehouseId?: string;
+  userId?: string;
+  status?: "open" | "closed";
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ShiftsReportPage {
+  rows: ShiftRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function getShiftsReport(
+  query: ShiftsReportQuery,
+  basePath = "/reports",
+): Promise<ShiftsReportPage> {
+  const { data } = await api.get<ShiftsReportPage>(`${basePath}/shifts`, { params: query });
+  return data;
+}
+
+export async function getShiftDetail(id: string, basePath = "/reports"): Promise<ShiftDetail> {
+  const { data } = await api.get<ShiftDetail>(`${basePath}/shifts/${id}`);
+  return data;
+}
+
+export function downloadShiftsReport(
+  query: ShiftsReportQuery = {},
+  format: ReportFormat = "xlsx",
+  basePath = "/reports",
+): Promise<void> {
+  return bajar(`${basePath}/shifts/export`, "cierres-de-turno", format, query);
+}
+
 export function downloadSalesReport(
   query: SalesReportQuery = {},
   format: ReportFormat = "xlsx",

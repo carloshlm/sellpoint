@@ -3,9 +3,14 @@ import { useAdminTenantScope } from "@/lib/admin/scope";
 import type { ApiError } from "@/lib/api";
 import {
   getSalesReport,
+  getShiftDetail,
+  getShiftsReport,
   getStockReport,
   type SalesReportPage,
   type SalesReportQuery,
+  type ShiftDetail,
+  type ShiftsReportPage,
+  type ShiftsReportQuery,
   type StockReportPage,
   type StockReportQuery,
 } from "./api";
@@ -35,5 +40,28 @@ export function useSalesReport(query: SalesReportQuery) {
     queryKey: [...SALES_REPORT_KEY, tenantId, query],
     queryFn: () => (tenantId === null ? getSalesReport(query) : getSalesReport(query, reportsPath)),
     placeholderData: (previous) => previous,
+  });
+}
+
+export const SHIFTS_REPORT_KEY = ["reports", "shifts"] as const;
+
+export function useShiftsReport(query: ShiftsReportQuery) {
+  const { reportsPath, tenantId } = useAdminTenantScope();
+  return useQuery<ShiftsReportPage, ApiError>({
+    queryKey: [...SHIFTS_REPORT_KEY, tenantId, query],
+    queryFn: () =>
+      tenantId === null ? getShiftsReport(query) : getShiftsReport(query, reportsPath),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** El detalle de UN turno; sin id no pregunta (nadie pulsó «Ver»). */
+export function useShiftDetail(id: string | null) {
+  const { reportsPath, tenantId } = useAdminTenantScope();
+  return useQuery<ShiftDetail, ApiError>({
+    queryKey: [...SHIFTS_REPORT_KEY, tenantId, "detail", id],
+    queryFn: () =>
+      tenantId === null ? getShiftDetail(id as string) : getShiftDetail(id as string, reportsPath),
+    enabled: id !== null,
   });
 }

@@ -40,6 +40,7 @@ import { Route as PosSalesRouteImport } from './routes/pos.sales'
 import { Route as ReceptionTurnsRouteImport } from './routes/reception.turns'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
+import { Route as ReportsShiftsRouteImport } from './routes/reports.shifts'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
 import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
@@ -216,6 +217,11 @@ const ReportsSalesRoute = ReportsSalesRouteImport.update({
   path: '/reports/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsShiftsRoute = ReportsShiftsRouteImport.update({
+  id: '/reports/shifts',
+  path: '/reports/shifts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsStockRoute = ReportsStockRouteImport.update({
   id: '/reports/stock',
   path: '/reports/stock',
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/pos/sales': typeof PosSalesRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
+  '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
@@ -403,6 +410,7 @@ export interface FileRoutesByTo {
   '/pos/sales': typeof PosSalesRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
+  '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
@@ -456,6 +464,7 @@ export interface FileRoutesById {
   '/pos/sales': typeof PosSalesRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
+  '/reports/shifts': typeof ReportsShiftsRoute
   '/reports/stock': typeof ReportsStockRoute
   '/settings/billing': typeof SettingsBillingRoute
   '/system/roles': typeof SystemRolesRoute
@@ -510,6 +519,7 @@ export interface FileRouteTypes {
     | '/pos/sales'
     | '/reception/turns'
     | '/reports/sales'
+    | '/reports/shifts'
     | '/reports/stock'
     | '/settings/billing'
     | '/system/roles'
@@ -562,6 +572,7 @@ export interface FileRouteTypes {
     | '/pos/sales'
     | '/reception/turns'
     | '/reports/sales'
+    | '/reports/shifts'
     | '/reports/stock'
     | '/settings/billing'
     | '/system/roles'
@@ -614,6 +625,7 @@ export interface FileRouteTypes {
     | '/pos/sales'
     | '/reception/turns'
     | '/reports/sales'
+    | '/reports/shifts'
     | '/reports/stock'
     | '/settings/billing'
     | '/system/roles'
@@ -667,6 +679,7 @@ export interface RootRouteChildren {
   PosSalesRoute: typeof PosSalesRoute
   ReceptionTurnsRoute: typeof ReceptionTurnsRoute
   ReportsSalesRoute: typeof ReportsSalesRoute
+  ReportsShiftsRoute: typeof ReportsShiftsRoute
   ReportsStockRoute: typeof ReportsStockRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
   SystemRolesRoute: typeof SystemRolesRoute
@@ -909,6 +922,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsSalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/shifts': {
+      id: '/reports/shifts'
+      path: '/reports/shifts'
+      fullPath: '/reports/shifts'
+      preLoaderRoute: typeof ReportsShiftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports/stock': {
       id: '/reports/stock'
       path: '/reports/stock'
@@ -1075,6 +1095,7 @@ const rootRouteChildren: RootRouteChildren = {
   PosSalesRoute: PosSalesRoute,
   ReceptionTurnsRoute: ReceptionTurnsRoute,
   ReportsSalesRoute: ReportsSalesRoute,
+  ReportsShiftsRoute: ReportsShiftsRoute,
   ReportsStockRoute: ReportsStockRoute,
   SettingsBillingRoute: SettingsBillingRoute,
   SystemRolesRoute: SystemRolesRoute,

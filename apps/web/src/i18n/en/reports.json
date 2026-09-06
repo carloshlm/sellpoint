@@ -33,6 +33,10 @@
     "inTransit": {
       "title": "In transit",
       "detail": "Goods that left a warehouse and haven't arrived yet."
+    },
+    "shifts": {
+      "title": "Shift closes",
+      "detail": "Every shift with its cash count: expected, counted, the difference and the note."
     }
   },
   "sales": {
@@ -64,5 +68,34 @@
     "next": "Next",
     "page": "Page {{page}} of {{pages}}",
     "previous": "Previous"
+  },
+  "shifts": {
+    "title": "Shift closes",
+    "closedAt": "Closed",
+    "openedAt": "Opened",
+    "warehouse": "Warehouse",
+    "closedBy": "Closed by",
+    "openedBy": "Opened by",
+    "employee": "Employee",
+    "allEmployees": "All",
+    "sales": "Sales",
+    "calculated": "Expected",
+    "declared": "Counted",
+    "difference": "Difference",
+    "note": "Note",
+    "view": "View",
+    "viewShift": "View shift closed on {{when}}",
+    "balanced": "Balanced",
+    "status": "Shifts",
+    "closed": "Closed",
+    "open": "Open",
+    "detailTitle": "Sales in this shift",
+    "noSales": "This shift had no sales.",
+    "folio": "Folio",
+    "time": "Time",
+    "seller": "Sold by",
+    "method": "Payment",
+    "total": "Total",
+    "close": "Close detail"
   }
 }
