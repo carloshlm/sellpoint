@@ -37,7 +37,7 @@
 const CACHE = "sellpoint-shell-v2";
 
 /** El cascarón mínimo: sin esto la app no arranca. */
-const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg"];
+const SHELL = ["/", "/manifest.webmanifest", "/favicon-32.png"];
 
 self.addEventListener("install", (event) => {
   // `skipWaiting` para que una versión nueva tome control sin esperar a que se
