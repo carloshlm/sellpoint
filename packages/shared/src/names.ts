@@ -14,14 +14,15 @@
  * apellido sobra. Fusionarlas cambiaría lo que hoy sale impreso en cada
  * ticket.
  *
- * El shape todavía habla de apellido paterno y materno: el rename a
- * `lastName`/`secondLastName` llega en F1-NAME-06 y arrastra a los llamadores
- * desde acá, sin tocarlos uno por uno.
+ * Los campos se llaman universal (`lastName`, `secondLastName`) y no
+ * `lastNamePaternal`/`lastNameMaternal`: para un negocio de Toronto el
+ * «apellido paterno» es simplemente el apellido. La ETIQUETA que ve cada
+ * persona sí habla su vocabulario — eso lo decide `resolveNameFormat`.
  */
 export interface PersonName {
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal?: string | null;
+  lastName: string;
+  secondLastName?: string | null;
 }
 
 /**
@@ -35,14 +36,12 @@ export interface PersonName {
  * viviera acá, un día truncaría también el encabezado de un PDF.
  */
 export function fullName(person: PersonName): string {
-  return [person.firstName, person.lastNamePaternal, person.lastNameMaternal]
-    .filter(Boolean)
-    .join(" ");
+  return [person.firstName, person.lastName, person.secondLastName].filter(Boolean).join(" ");
 }
 
 /** Nombre y PRIMER apellido: quien vendió, quien autorizó, quien firma. */
-export function shortName(person: Pick<PersonName, "firstName" | "lastNamePaternal">): string {
-  return [person.firstName, person.lastNamePaternal].filter(Boolean).join(" ");
+export function shortName(person: Pick<PersonName, "firstName" | "lastName">): string {
+  return [person.firstName, person.lastName].filter(Boolean).join(" ");
 }
 
 /**

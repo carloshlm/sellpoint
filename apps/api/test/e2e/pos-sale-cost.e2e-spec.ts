@@ -54,7 +54,7 @@ describe("El snapshot de costo en la venta (F5-DASH-01)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

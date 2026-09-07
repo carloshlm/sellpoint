@@ -23,7 +23,7 @@ describe("auth_resolve_tenant_by_email() — SECURITY DEFINER", () => {
 
     await prisma.withTenantContext(tenantId, (tx) =>
       tx.user.create({
-        data: { tenantId, email, firstName: "Def", lastNamePaternal: "Sec" },
+        data: { tenantId, email, firstName: "Def", lastName: "Sec" },
       }),
     );
   });
@@ -90,7 +90,7 @@ describe("auth_resolve_tenant_by_email() — SECURITY DEFINER", () => {
             tenantId: otherTenant.id,
             email: email.toUpperCase(),
             firstName: "Duplicado",
-            lastNamePaternal: "Test",
+            lastName: "Test",
           },
         }),
       ),

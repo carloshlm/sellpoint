@@ -58,7 +58,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -102,7 +102,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
     const created = await request(app.getHttpServer())
       .post("/users")
       .set("Authorization", bearer(owner.accessToken))
-      .send({ email, firstName: "Bruno", lastNamePaternal: "Díaz", roleIds: [roleId] })
+      .send({ email, firstName: "Bruno", lastName: "Díaz", roleIds: [roleId] })
       .expect(201);
 
     expect(created.body).toMatchObject({
@@ -129,7 +129,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: `x-${randomUUID()}@example.com`,
         firstName: "Bruno",
-        lastNamePaternal: "Díaz",
+        lastName: "Díaz",
         roleIds: [roleId],
       })
       .expect(201);
@@ -156,7 +156,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: owner.email,
         firstName: "Otro",
-        lastNamePaternal: "Nombre",
+        lastName: "Nombre",
         roleIds: [roleId],
       })
       .expect(409);
@@ -174,7 +174,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: `cross-${randomUUID()}@example.com`,
         firstName: "X",
-        lastNamePaternal: "Y",
+        lastName: "Y",
         roleIds: [otherRoleId],
       })
       .expect(400);
@@ -190,7 +190,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: `patch-${randomUUID()}@example.com`,
         firstName: "Bruno",
-        lastNamePaternal: "Díaz",
+        lastName: "Díaz",
         roleIds: [viewerId],
       })
       .expect(201);
@@ -220,7 +220,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: `reroles-${randomUUID()}@example.com`,
         firstName: "Bruno",
-        lastNamePaternal: "Díaz",
+        lastName: "Díaz",
         roleIds: [viewerId],
       })
       .expect(201);
@@ -249,7 +249,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: `suspend-${randomUUID()}@example.com`,
         firstName: "Bruno",
-        lastNamePaternal: "Díaz",
+        lastName: "Díaz",
         roleIds: [viewerId],
       })
       .expect(201);
@@ -284,7 +284,7 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
       .send({
         email: `notsuspended-${randomUUID()}@example.com`,
         firstName: "Bruno",
-        lastNamePaternal: "Díaz",
+        lastName: "Díaz",
         roleIds: [viewerId],
       })
       .expect(201);

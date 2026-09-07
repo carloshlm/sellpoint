@@ -82,8 +82,8 @@
     "details": {
       "title": "Your details",
       "firstName": "First name",
-      "lastNamePaternal": "Paternal last name",
-      "lastNameMaternal": "Maternal last name (optional)",
+      "lastName": "Paternal last name",
+      "secondLastName": "Maternal last name (optional)",
       "email": "Email",
       "language": "Language",
       "emailHint": "Your email is your sign-in identity and cannot be changed.",

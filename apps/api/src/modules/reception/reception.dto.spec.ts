@@ -10,7 +10,7 @@ import {
  * que `tenants.phone`), nadie nace mañana, y un update vacío no es un update.
  */
 describe("DTOs de Recepción (F9-RECEP-05)", () => {
-  const minimo = { firstName: "Ana", lastNamePaternal: "Pérez" };
+  const minimo = { firstName: "Ana", lastName: "Pérez" };
 
   it("un cliente nace con nombres y apellido paterno; lo demás es opcional", () => {
     const parsed = createCustomerSchema.parse(minimo);

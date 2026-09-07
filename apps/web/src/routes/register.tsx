@@ -102,19 +102,17 @@ function RegisterPage() {
             {...register("firstName")}
           />
           <TextField
-            label={t("auth.register.lastNamePaternal")}
+            label={t("auth.register.lastName")}
             autoComplete="family-name"
-            error={
-              errors.lastNamePaternal?.message ? t(errors.lastNamePaternal.message) : undefined
-            }
-            {...register("lastNamePaternal")}
+            error={errors.lastName?.message ? t(errors.lastName.message) : undefined}
+            {...register("lastName")}
           />
         </div>
         <TextField
-          label={t("auth.register.lastNameMaternal")}
+          label={t("auth.register.secondLastName")}
           autoComplete="family-name"
-          error={errors.lastNameMaternal?.message ? t(errors.lastNameMaternal.message) : undefined}
-          {...register("lastNameMaternal")}
+          error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
+          {...register("secondLastName")}
         />
         <TextField
           label={t("auth.register.email")}

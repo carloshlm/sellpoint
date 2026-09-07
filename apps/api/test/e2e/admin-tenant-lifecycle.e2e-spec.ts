@@ -113,7 +113,7 @@ describe("Ciclo de vida del negocio desde el backoffice (F7-LIFECYCLE-06)", () =
     await request(app.getHttpServer())
       .post("/reception/customers")
       .set("Authorization", bearer(negocioB.token))
-      .send({ firstName: "Luis", lastNamePaternal: "Lara" })
+      .send({ firstName: "Luis", lastName: "Lara" })
       .expect(201);
   });
 

@@ -94,7 +94,7 @@ describe("Exports directos (F5-CAT)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -204,7 +204,7 @@ describe("Exports directos (F5-CAT)", () => {
             tenantId,
             email: `invitado-${randomUUID()}@example.com`,
             firstName: "Sin",
-            lastNamePaternal: "Aceptar",
+            lastName: "Aceptar",
             status: "invited",
           },
         }),
@@ -364,7 +364,7 @@ describe("Exports directos (F5-CAT)", () => {
           email: otroEmail,
           password: PASSWORD,
           firstName: "Sin",
-          lastNamePaternal: "Productos",
+          lastName: "Productos",
           locale: "es",
         })
         .expect(201);

@@ -6,8 +6,8 @@ import { z } from "zod";
 export const updateUserSchema = z
   .object({
     firstName: z.string().trim().min(1).optional(),
-    lastNamePaternal: z.string().trim().min(1).optional(),
-    lastNameMaternal: z.string().trim().min(1).optional(),
+    lastName: z.string().trim().min(1).optional(),
+    secondLastName: z.string().trim().min(1).optional(),
     locale: z.enum(["es", "en"]).optional(),
     roleIds: z.array(z.uuid()).min(1).optional(),
     /** F3-HOME-01. `null` explícito lo quita. */

@@ -89,7 +89,7 @@ describe("Expediente del negocio (F9-ADMIN-12)", () => {
       .send({
         email: `expediente-viewer-${randomUUID()}@example.com`,
         firstName: "Vera",
-        lastNamePaternal: "Vista",
+        lastName: "Vista",
         roleIds: [viewer?.id],
       })
       .expect(201);

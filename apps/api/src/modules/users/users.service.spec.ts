@@ -18,8 +18,8 @@ function buildService(overrides?: {
     id: "user-1",
     email: "owner@example.com",
     firstName: "Ana",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
+    lastName: "Pérez",
+    secondLastName: null,
     status: "active",
     locale: "es",
   };
@@ -107,8 +107,8 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         id: true,
         email: true,
         firstName: true,
-        lastNamePaternal: true,
-        lastNameMaternal: true,
+        lastName: true,
+        secondLastName: true,
         locale: true,
         defaultWarehouseId: true,
         isPlatformAdmin: true,
@@ -118,8 +118,8 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
       id: "user-1",
       email: "owner@example.com",
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
+      lastName: "Pérez",
+      secondLastName: null,
       locale: "es",
       permissions: ["products:read"],
       tenant: {
@@ -154,8 +154,8 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         id: "user-1",
         email: "owner@example.com",
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
-        lastNameMaternal: null,
+        lastName: "Pérez",
+        secondLastName: null,
         status: "active",
         locale: "en",
       },
@@ -177,22 +177,22 @@ describe("UsersService.updateMe (perfil propio, 2026-08-26)", () => {
   it("actualiza SOLO los campos presentes en el dto", async () => {
     const { service, tx } = buildService();
 
-    await service.updateMe(CURRENT_USER, { firstName: "Ana María", lastNameMaternal: "Luna" }, {});
+    await service.updateMe(CURRENT_USER, { firstName: "Ana María", secondLastName: "Luna" }, {});
 
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: CURRENT_USER.userId },
-      data: { firstName: "Ana María", lastNameMaternal: "Luna" },
+      data: { firstName: "Ana María", secondLastName: "Luna" },
     });
   });
 
-  it("lastNameMaternal null lo BORRA (es opcional desde el registro)", async () => {
+  it("secondLastName null lo BORRA (es opcional desde el registro)", async () => {
     const { service, tx } = buildService();
 
-    await service.updateMe(CURRENT_USER, { lastNameMaternal: null }, {});
+    await service.updateMe(CURRENT_USER, { secondLastName: null }, {});
 
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: CURRENT_USER.userId },
-      data: { lastNameMaternal: null },
+      data: { secondLastName: null },
     });
   });
 
@@ -256,8 +256,8 @@ describe("UsersService.updateLocale (F1-LOCALE-05)", () => {
       id: "user-1",
       email: "owner@example.com",
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
+      lastName: "Pérez",
+      secondLastName: null,
       status: "active",
       locale: "en",
     });
@@ -288,8 +288,8 @@ describe("UsersService.updateLocale (F1-LOCALE-05)", () => {
         id: "user-1",
         email: "owner@example.com",
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
-        lastNameMaternal: null,
+        lastName: "Pérez",
+        secondLastName: null,
         status: "active",
         locale: "es",
       },
@@ -297,8 +297,8 @@ describe("UsersService.updateLocale (F1-LOCALE-05)", () => {
         id: "user-1",
         email: "owner@example.com",
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
-        lastNameMaternal: null,
+        lastName: "Pérez",
+        secondLastName: null,
         status: "active",
         locale: "es",
       },

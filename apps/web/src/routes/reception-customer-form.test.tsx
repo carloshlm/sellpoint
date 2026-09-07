@@ -40,8 +40,8 @@ const demoUser = (): AuthUser =>
 const guardado: receptionApi.Customer = {
   id: "c1",
   firstName: "Rosa",
-  lastNamePaternal: "Luna",
-  lastNameMaternal: null,
+  lastName: "Luna",
+  secondLastName: null,
   birthDate: "1990-09-02",
   age: 36,
   phone: "+525512345678",
@@ -101,7 +101,7 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
     await waitFor(() =>
       expect(mocked.createCustomer).toHaveBeenCalledWith({
         firstName: "Rosa",
-        lastNamePaternal: "Luna",
+        lastName: "Luna",
       }),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe("/reception/customers"));

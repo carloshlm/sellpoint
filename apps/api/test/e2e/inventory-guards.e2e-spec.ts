@@ -50,7 +50,7 @@ describe("Guardas de integridad (F3-GUARDS)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

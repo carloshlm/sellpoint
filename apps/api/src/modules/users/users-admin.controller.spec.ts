@@ -14,8 +14,8 @@ const DETAIL: UserDetail = {
   id: "user-2",
   email: "x@example.com",
   firstName: "Bruno",
-  lastNamePaternal: "Díaz",
-  lastNameMaternal: null,
+  lastName: "Díaz",
+  secondLastName: null,
   status: "invited",
   locale: "es",
   defaultWarehouseId: null,
@@ -56,7 +56,7 @@ describe("UsersAdminController (F1-RBAC-03)", () => {
     const dto = {
       email: "x@example.com",
       firstName: "Bruno",
-      lastNamePaternal: "Díaz",
+      lastName: "Díaz",
       roleIds: ["role-1"],
     };
 

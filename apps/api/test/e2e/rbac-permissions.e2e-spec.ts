@@ -110,7 +110,7 @@ describe("RBAC: PermissionsGuard (e2e)", () => {
         email,
         password: "twelve-characters",
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

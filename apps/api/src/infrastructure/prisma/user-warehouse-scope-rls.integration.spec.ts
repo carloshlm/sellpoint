@@ -39,7 +39,7 @@ describe("user_warehouse_scopes — RLS (F1-SCOPE-01/02)", () => {
           tenantId: tenantAId,
           email: `scope-user-a-${Date.now()}@example.com`,
           firstName: "Ana",
-          lastNamePaternal: "Scope",
+          lastName: "Scope",
         },
       }),
     );

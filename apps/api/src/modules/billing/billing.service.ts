@@ -110,7 +110,7 @@ export class BillingService {
         tx.tenant.findUniqueOrThrow({ where: { id: user.tenantId }, select: { name: true } }),
         tx.user.findUniqueOrThrow({
           where: { id: user.userId },
-          select: { firstName: true, lastNamePaternal: true, email: true },
+          select: { firstName: true, lastName: true, email: true },
         }),
       ]);
       await this.auditService.record(tx, {

@@ -47,8 +47,8 @@
     "editTitle": "Editar usuario",
     "email": "Email",
     "firstName": "Nombre",
-    "lastNamePaternal": "Apellido paterno",
-    "lastNameMaternal": "Apellido materno",
+    "lastName": "Apellido paterno",
+    "secondLastName": "Apellido materno",
     "locale": "Idioma",
     "localeOptions": {
       "es": "Español",

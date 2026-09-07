@@ -85,7 +85,7 @@ describe("Reuso CONCURRENTE de refresh (e2e, Postgres real) — verify #271 C1",
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

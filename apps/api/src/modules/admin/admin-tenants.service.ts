@@ -178,7 +178,7 @@ export class AdminTenantsService {
         : await this.prisma.withTenantContext(viewer.tenantId, (tx) =>
             tx.user.findUnique({
               where: { id: fila.suspendedById as string },
-              select: { id: true, firstName: true, lastNamePaternal: true },
+              select: { id: true, firstName: true, lastName: true },
             }),
           );
     return {

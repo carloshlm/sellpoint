@@ -93,7 +93,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   transferId: null,
   lineCount: 1,
   createdAt: "2026-08-18T19:42:00.000Z",
-  createdBy: { id: "u1", firstName: "Ana", lastNamePaternal: "Pérez" },
+  createdBy: { id: "u1", firstName: "Ana", lastName: "Pérez" },
   confirmedAt: null,
   canceledAt: null,
   rows: [fila()],

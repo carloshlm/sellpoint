@@ -53,8 +53,8 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     // Paciente nuevo desde el consultorio (delega en Recepción).
     const paciente = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: "Luna",
+      lastName: "Pérez",
+      secondLastName: "Luna",
       birthDate: "1990-09-03",
     }).expect(201);
     const customerId = (paciente.body as { id: string }).id;
@@ -195,8 +195,8 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
 
     const paciente = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Sin",
-      lastNamePaternal: "Turno",
-      lastNameMaternal: "Previo",
+      lastName: "Turno",
+      secondLastName: "Previo",
     }).expect(201);
     await post(negocio.token, "/medical-clinic/records", {
       customerId: (paciente.body as { id: string }).id,
@@ -222,7 +222,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     // Un segundo paciente con su consulta, para que el filtro tenga a quién dejar fuera.
     const otro = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Bruno",
-      lastNamePaternal: "Sosa",
+      lastName: "Sosa",
     }).expect(201);
     const otroId = (otro.body as { id: string }).id;
     await post(negocio.token, "/medical-clinic/records", { customerId: otroId }).expect(201);
@@ -271,7 +271,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     // Uno sin consultas: conteo cero y sin Datos Generales.
     const sinNada = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Nadie",
-      lastNamePaternal: "Aún",
+      lastName: "Aún",
     }).expect(201);
     const vacio = await get(
       negocio.token,
@@ -292,8 +292,8 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     // vive en quien guarda, nunca dentro de `fullName`.
     const largo = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "A".repeat(100),
-      lastNamePaternal: "B".repeat(100),
-      lastNameMaternal: "C".repeat(100),
+      lastName: "B".repeat(100),
+      secondLastName: "C".repeat(100),
       birthDate: "1990-09-03",
     }).expect(201);
     const creado = await post(negocio.token, "/medical-clinic/records", {

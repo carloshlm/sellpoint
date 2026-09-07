@@ -323,8 +323,8 @@ describe("F1-WEB-AUTH-04 — /register", () => {
     expect(registerTenantMock).toHaveBeenCalledWith(
       {
         firstName: "Ana",
-        lastNamePaternal: "García",
-        lastNameMaternal: undefined,
+        lastName: "García",
+        secondLastName: undefined,
         email: "ana@acme.mx",
         password: "una-password-de-doce",
         locale: "es",

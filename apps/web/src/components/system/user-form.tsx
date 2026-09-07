@@ -73,8 +73,8 @@ function UserForm({
     () => ({
       email: user?.email ?? "",
       firstName: user?.firstName ?? "",
-      lastNamePaternal: user?.lastNamePaternal ?? "",
-      lastNameMaternal: user?.lastNameMaternal ?? undefined,
+      lastName: user?.lastName ?? "",
+      secondLastName: user?.secondLastName ?? undefined,
       locale:
         (user?.locale as "es" | "en" | undefined) ?? (i18n.language.startsWith("en") ? "en" : "es"),
       roleIds: user?.roles.map((role) => role.id) ?? [],
@@ -170,21 +170,17 @@ function UserForm({
               {...register("firstName")}
             />
             <TextField
-              label={t("users.form.lastNamePaternal")}
+              label={t("users.form.lastName")}
               autoComplete="family-name"
-              error={
-                errors.lastNamePaternal?.message ? t(errors.lastNamePaternal.message) : undefined
-              }
-              {...register("lastNamePaternal")}
+              error={errors.lastName?.message ? t(errors.lastName.message) : undefined}
+              {...register("lastName")}
             />
           </div>
           <TextField
-            label={t("users.form.lastNameMaternal")}
+            label={t("users.form.secondLastName")}
             autoComplete="family-name"
-            error={
-              errors.lastNameMaternal?.message ? t(errors.lastNameMaternal.message) : undefined
-            }
-            {...register("lastNameMaternal")}
+            error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
+            {...register("secondLastName")}
           />
           <SelectField
             label={t("users.form.locale")}

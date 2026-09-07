@@ -52,12 +52,12 @@ export interface ShiftsReportPage {
   pageSize: number;
 }
 
-const nombre = (u: { id: string; firstName: string; lastNamePaternal: string }): Persona => ({
+const nombre = (u: { id: string; firstName: string; lastName: string }): Persona => ({
   id: u.id,
   name: shortName(u),
 });
 
-const PERSONA = { select: { id: true, firstName: true, lastNamePaternal: true } } as const;
+const PERSONA = { select: { id: true, firstName: true, lastName: true } } as const;
 
 /**
  * F5-SHIFT — el reporte de cierres de turno: una LECTURA de
@@ -191,8 +191,8 @@ export class ShiftsReportService {
       cashDifference: Prisma.Decimal | null;
       closingNote: string | null;
       warehouse: Persona;
-      opener: { id: string; firstName: string; lastNamePaternal: string };
-      closer: { id: string; firstName: string; lastNamePaternal: string } | null;
+      opener: { id: string; firstName: string; lastName: string };
+      closer: { id: string; firstName: string; lastName: string } | null;
       _count: { sales: number };
     },
     totals: SessionTotal[],

@@ -121,8 +121,8 @@ export class PatientsService {
         select: {
           id: true,
           firstName: true,
-          lastNamePaternal: true,
-          lastNameMaternal: true,
+          lastName: true,
+          secondLastName: true,
           birthDate: true,
         },
       });
@@ -162,8 +162,8 @@ export class PatientsService {
         select: {
           id: true,
           firstName: true,
-          lastNamePaternal: true,
-          lastNameMaternal: true,
+          lastName: true,
+          secondLastName: true,
           birthDate: true,
           phone: true,
           email: true,

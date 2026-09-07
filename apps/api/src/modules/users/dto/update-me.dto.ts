@@ -10,9 +10,9 @@ export const updateMeSchema = z
   .object({
     locale: z.enum(SUPPORTED_LOCALES).optional(),
     firstName: z.string().trim().min(1).optional(),
-    lastNamePaternal: z.string().trim().min(1).optional(),
+    lastName: z.string().trim().min(1).optional(),
     // `null` BORRA el apellido materno: es opcional desde el registro.
-    lastNameMaternal: z.string().trim().min(1).nullable().optional(),
+    secondLastName: z.string().trim().min(1).nullable().optional(),
   })
   .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: "users.invalid_body",

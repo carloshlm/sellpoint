@@ -42,7 +42,7 @@ describe("Líneas del borrador (F3-DOC-04)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

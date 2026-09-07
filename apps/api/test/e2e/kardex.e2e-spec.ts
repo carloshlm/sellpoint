@@ -55,7 +55,7 @@ describe("Kardex (F3-KARDEX-01)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

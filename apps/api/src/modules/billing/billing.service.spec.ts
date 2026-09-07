@@ -667,7 +667,7 @@ describe("BillingService (F7-CORE-04/05/06)", () => {
       Object.assign(tx.user, {
         findUniqueOrThrow: jest
           .fn()
-          .mockResolvedValue({ firstName: "Ana", lastNamePaternal: "Pérez", email: "ana@acme.mx" }),
+          .mockResolvedValue({ firstName: "Ana", lastName: "Pérez", email: "ana@acme.mx" }),
       });
       mailer.send.mockResolvedValue(undefined);
     });

@@ -61,7 +61,7 @@ describe("DashboardKpisService (integration)", () => {
           tenantId: tenant.id,
           email: `kpi-${randomUUID()}@example.com`,
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
         },
       });
       const almacen = await tx.warehouse.create({

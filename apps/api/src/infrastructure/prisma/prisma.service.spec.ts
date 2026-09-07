@@ -28,7 +28,7 @@ describe("PrismaService — withTenantContext (integration)", () => {
           tenantId: tenantAId,
           email: `user-a-${Date.now()}@example.com`,
           firstName: "Ana",
-          lastNamePaternal: "Test",
+          lastName: "Test",
         },
       }),
     );
@@ -82,7 +82,7 @@ describe("PrismaService — withTenantContext (integration)", () => {
             tenantId: tenant.id,
             email: `owner-${Date.now()}@example.com`,
             firstName: "Owner",
-            lastNamePaternal: "Test",
+            lastName: "Test",
           },
         });
 

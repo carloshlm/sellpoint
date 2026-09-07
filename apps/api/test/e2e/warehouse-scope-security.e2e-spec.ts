@@ -94,7 +94,7 @@ describe("WarehouseScope — regresión de seguridad (remediación CRITICAL, ver
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

@@ -12,8 +12,8 @@ describe("buildAuthUser (F1-NAME-01)", () => {
     const user = buildAuthUser();
     expect(user).toMatchObject({
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
+      lastName: "Pérez",
+      secondLastName: null,
       locale: "es",
       permissions: [],
     });

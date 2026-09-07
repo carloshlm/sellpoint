@@ -52,7 +52,7 @@ describe("/me (e2e)", () => {
         email,
         password: "twelve-characters",
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -94,8 +94,8 @@ describe("/me (e2e)", () => {
       id: user.userId,
       email: user.email,
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
+      lastName: "Pérez",
+      secondLastName: null,
       locale: "es",
       // F3-HOME-01: el almacén ASIGNADO viaja en el bootstrap porque el front
       // lo usa para preseleccionar en movimientos, y F4 para abrir el turno.
@@ -185,20 +185,20 @@ describe("/me (e2e)", () => {
       const updated = await request(app.getHttpServer())
         .patch("/me")
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ firstName: "Ana María", lastNamePaternal: "Gómez", lastNameMaternal: "Luna" })
+        .send({ firstName: "Ana María", lastName: "Gómez", secondLastName: "Luna" })
         .expect(200);
       expect(updated.body).toMatchObject({
         firstName: "Ana María",
-        lastNamePaternal: "Gómez",
-        lastNameMaternal: "Luna",
+        lastName: "Gómez",
+        secondLastName: "Luna",
       });
 
       const cleared = await request(app.getHttpServer())
         .patch("/me")
         .set("Authorization", `Bearer ${accessToken}`)
-        .send({ lastNameMaternal: null })
+        .send({ secondLastName: null })
         .expect(200);
-      expect(cleared.body).toMatchObject({ lastNameMaternal: null });
+      expect(cleared.body).toMatchObject({ secondLastName: null });
 
       // GET /me refleja lo persistido: no fue solo eco de la respuesta.
       const me = await request(app.getHttpServer())
@@ -207,8 +207,8 @@ describe("/me (e2e)", () => {
         .expect(200);
       expect(me.body).toMatchObject({
         firstName: "Ana María",
-        lastNamePaternal: "Gómez",
-        lastNameMaternal: null,
+        lastName: "Gómez",
+        secondLastName: null,
       });
     });
 

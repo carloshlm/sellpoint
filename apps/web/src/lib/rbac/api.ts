@@ -14,8 +14,8 @@ export interface UserDetail {
   id: string;
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   status: "invited" | "active" | "suspended";
   locale: string;
   /** F3-HOME-01. El almacén desde el que opera por defecto (uno solo). */
@@ -26,8 +26,8 @@ export interface UserDetail {
 export interface CreateUserInput {
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal?: string;
+  lastName: string;
+  secondLastName?: string;
   locale?: "es" | "en";
   roleIds: string[];
   defaultWarehouseId?: string | null;
@@ -38,8 +38,8 @@ export interface CreateUserInput {
  * estos campos (D7 del design). `roleIds`, cuando viene, reemplaza el set
  * completo — no es un delta.
  */
-export type UpdateUserInput = Partial<Pick<UserDetail, "firstName" | "lastNamePaternal">> & {
-  lastNameMaternal?: string;
+export type UpdateUserInput = Partial<Pick<UserDetail, "firstName" | "lastName">> & {
+  secondLastName?: string;
   locale?: "es" | "en";
   roleIds?: string[];
   /** `null` explícito lo quita. */

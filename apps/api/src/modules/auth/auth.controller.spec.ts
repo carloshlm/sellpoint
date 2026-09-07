@@ -10,7 +10,7 @@ function baseDto() {
     email: "owner@example.com",
     password: "twelve-characters",
     firstName: "Ana",
-    lastNamePaternal: "Pérez",
+    lastName: "Pérez",
   };
 }
 

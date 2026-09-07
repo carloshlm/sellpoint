@@ -51,7 +51,7 @@ describe("RLS y guardas del punto de venta (F4-DB-01)", () => {
           email: `pos-${stamp}@example.com`,
           passwordHash: "x",
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
         },
       });
       const almacen = await tx.warehouse.create({

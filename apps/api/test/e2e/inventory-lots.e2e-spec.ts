@@ -51,7 +51,7 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

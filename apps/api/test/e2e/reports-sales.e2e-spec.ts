@@ -62,7 +62,7 @@ describe("Reporte de ventas (F5-SALES)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

@@ -25,8 +25,8 @@ const notas = z.string().trim().max(2000);
 
 export const createCustomerSchema = z.object({
   firstName: nombre,
-  lastNamePaternal: nombre,
-  lastNameMaternal: nombre.optional(),
+  lastName: nombre,
+  secondLastName: nombre.optional(),
   birthDate: fechaDeNacimiento.optional(),
   phone: telefono.optional(),
   email: correo.optional(),
@@ -36,8 +36,8 @@ export const createCustomerSchema = z.object({
 export const updateCustomerSchema = z
   .object({
     firstName: nombre.optional(),
-    lastNamePaternal: nombre.optional(),
-    lastNameMaternal: nombre.nullable().optional(),
+    lastName: nombre.optional(),
+    secondLastName: nombre.nullable().optional(),
     birthDate: fechaDeNacimiento.nullable().optional(),
     phone: telefono.nullable().optional(),
     email: correo.nullable().optional(),

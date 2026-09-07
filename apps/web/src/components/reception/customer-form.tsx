@@ -36,9 +36,7 @@ function phonePartsOf(
   return { country: tenantCountry ?? "", number: "" };
 }
 
-type Errores = Partial<
-  Record<"firstName" | "lastNamePaternal" | "birthDate" | "phone" | "email", string>
->;
+type Errores = Partial<Record<"firstName" | "lastName" | "birthDate" | "phone" | "email", string>>;
 
 /**
  * F9-RECEP-12 — alta y edición de cliente en el MISMO formulario, discriminado
@@ -70,8 +68,8 @@ export function CustomerForm({
   const tenantCountry = useAuthStore((state) => state.user?.tenant.country ?? null);
   const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
   const [firstName, setFirstName] = useState(customer?.firstName ?? "");
-  const [lastNamePaternal, setLastNamePaternal] = useState(customer?.lastNamePaternal ?? "");
-  const [lastNameMaternal, setLastNameMaternal] = useState(customer?.lastNameMaternal ?? "");
+  const [lastName, setLastNamePaternal] = useState(customer?.lastName ?? "");
+  const [secondLastName, setLastNameMaternal] = useState(customer?.secondLastName ?? "");
   const [birthDate, setBirthDate] = useState(customer?.birthDate ?? "");
   const initialPhone = phonePartsOf(customer?.phone, tenantCountry);
   const [phoneCountry, setPhoneCountry] = useState(initialPhone.country);
@@ -96,8 +94,8 @@ export function CustomerForm({
     setErrorApi(null);
     const parsed = customerFormSchema.safeParse({
       firstName,
-      lastNamePaternal,
-      lastNameMaternal,
+      lastName,
+      secondLastName,
       birthDate,
       email,
       notes,
@@ -126,8 +124,8 @@ export function CustomerForm({
     if (!customer) {
       const input: CreateCustomerInput = {
         firstName: valores.firstName,
-        lastNamePaternal: valores.lastNamePaternal,
-        ...(valores.lastNameMaternal ? { lastNameMaternal: valores.lastNameMaternal } : {}),
+        lastName: valores.lastName,
+        ...(valores.secondLastName ? { secondLastName: valores.secondLastName } : {}),
         ...(valores.birthDate ? { birthDate: valores.birthDate } : {}),
         ...(telefono.phone ? { phone: telefono.phone } : {}),
         ...(valores.email ? { email: valores.email } : {}),
@@ -144,11 +142,11 @@ export function CustomerForm({
     // Solo lo que cambió: vacío pasa a null (se limpia), igual no viaja.
     const cambios: UpdateCustomerInput = {};
     if (valores.firstName !== customer.firstName) cambios.firstName = valores.firstName;
-    if (valores.lastNamePaternal !== customer.lastNamePaternal) {
-      cambios.lastNamePaternal = valores.lastNamePaternal;
+    if (valores.lastName !== customer.lastName) {
+      cambios.lastName = valores.lastName;
     }
-    const maternal = valores.lastNameMaternal || null;
-    if (maternal !== customer.lastNameMaternal) cambios.lastNameMaternal = maternal;
+    const maternal = valores.secondLastName || null;
+    if (maternal !== customer.secondLastName) cambios.secondLastName = maternal;
     const nacimiento = valores.birthDate || null;
     if (nacimiento !== customer.birthDate) cambios.birthDate = nacimiento;
     if (telefono.phone !== customer.phone) cambios.phone = telefono.phone;
@@ -181,17 +179,17 @@ export function CustomerForm({
           required
         />
         <TextField
-          label={t("reception.form.lastNamePaternal")}
-          value={lastNamePaternal}
+          label={t("reception.form.lastName")}
+          value={lastName}
           onChange={(event) => setLastNamePaternal(event.target.value)}
-          error={errores.lastNamePaternal}
+          error={errores.lastName}
           required
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
-          label={t("reception.form.lastNameMaternal")}
-          value={lastNameMaternal}
+          label={t("reception.form.secondLastName")}
+          value={secondLastName}
           onChange={(event) => setLastNameMaternal(event.target.value)}
         />
         <TextField

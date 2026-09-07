@@ -162,7 +162,7 @@ export class KardexService {
           pp.sku AS parent_sku,
           pp.name AS parent_name,
           f.created_by,
-          TRIM(u.first_name || ' ' || u.last_name_paternal) AS created_by_name,
+          TRIM(u.first_name || ' ' || u.last_name) AS created_by_name,
           COUNT(*) OVER () AS total
         FROM filtrado f
         -- LEFT y no INNER: desde F4-SALE-01 un movimiento cuelga de un

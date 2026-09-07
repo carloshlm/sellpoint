@@ -55,7 +55,7 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
               tenantId,
               email: `dr-${stamp}-${tenantId.slice(0, 6)}@example.com`,
               firstName: "Gregorio",
-              lastNamePaternal: "House",
+              lastName: "House",
             },
           }),
         )
@@ -170,7 +170,7 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
     it("dos consultas ABIERTAS del mismo paciente y día rebotan; cerradas o de otro día caben", async () => {
       const paciente = await prisma.withTenantContext(tenantA, (tx) =>
         tx.customer.create({
-          data: { tenantId: tenantA, firstName: "Rosa", lastNamePaternal: "Luna" },
+          data: { tenantId: tenantA, firstName: "Rosa", lastName: "Luna" },
         }),
       );
       const abrir = (folio: string, extra = {}) =>
@@ -230,7 +230,7 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
     it("borrar al cliente deja el expediente vivo: patient_customer_id NULL y el nombre en el snapshot", async () => {
       const rec = await prisma.withTenantContext(tenantA, async (tx) => {
         const cliente = await tx.customer.create({
-          data: { tenantId: tenantA, firstName: "Rosa", lastNamePaternal: "Luna" },
+          data: { tenantId: tenantA, firstName: "Rosa", lastName: "Luna" },
         });
         const creado = await tx.medicalClinicRecord.create({
           data: expediente(tenantA, doctorA, "HCL-000904", {

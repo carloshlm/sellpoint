@@ -8,8 +8,8 @@ import { z } from "zod";
  */
 export const customerFormSchema = z.object({
   firstName: z.string().trim().min(1, "reception.form.errors.required").max(120),
-  lastNamePaternal: z.string().trim().min(1, "reception.form.errors.required").max(120),
-  lastNameMaternal: z.string().trim().max(120),
+  lastName: z.string().trim().min(1, "reception.form.errors.required").max(120),
+  secondLastName: z.string().trim().max(120),
   birthDate: z
     .string()
     .trim()

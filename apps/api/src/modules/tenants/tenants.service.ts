@@ -23,8 +23,8 @@ export interface ProvisionTenantInput {
   // argon2 (~80-150ms) nunca corre dentro de un $transaction (AD-1).
   ownerPasswordHash: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal?: string;
+  lastName: string;
+  secondLastName?: string;
   locale?: "es" | "en";
   ip?: string;
   userAgent?: string;
@@ -66,8 +66,8 @@ export class TenantsService {
           email: input.ownerEmail,
           passwordHash: input.ownerPasswordHash,
           firstName: input.firstName,
-          lastNamePaternal: input.lastNamePaternal,
-          lastNameMaternal: input.lastNameMaternal,
+          lastName: input.lastName,
+          secondLastName: input.secondLastName,
           locale: input.locale ?? "es",
           status: "invited",
         },

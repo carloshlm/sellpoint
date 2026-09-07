@@ -49,7 +49,7 @@ export async function registerTenant(
       email,
       password: BILLING_TEST_PASSWORD,
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
+      lastName: "Pérez",
       locale: "es",
     })
     .expect(201);

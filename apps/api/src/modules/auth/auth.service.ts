@@ -51,8 +51,8 @@ export interface RegisterTenantInput {
   email: string;
   password: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal?: string;
+  lastName: string;
+  secondLastName?: string;
   locale?: "es" | "en";
 }
 
@@ -115,8 +115,8 @@ export class AuthService implements OnModuleInit {
         ownerEmail: input.email,
         ownerPasswordHash: passwordHash,
         firstName: input.firstName,
-        lastNamePaternal: input.lastNamePaternal,
-        lastNameMaternal: input.lastNameMaternal,
+        lastName: input.lastName,
+        secondLastName: input.secondLastName,
         locale: input.locale,
         ip: meta.ip,
         userAgent: meta.userAgent,
@@ -317,8 +317,8 @@ export class AuthService implements OnModuleInit {
           id: user.id,
           email: user.email,
           firstName: user.firstName,
-          lastNamePaternal: user.lastNamePaternal,
-          lastNameMaternal: user.lastNameMaternal,
+          lastName: user.lastName,
+          secondLastName: user.secondLastName,
           locale,
           permissions,
           // F7-WEB-10: solo para MOSTRAR el link del backoffice — el guard
@@ -856,8 +856,8 @@ export interface LoginResult {
     id: string;
     email: string;
     firstName: string;
-    lastNamePaternal: string;
-    lastNameMaternal: string | null;
+    lastName: string;
+    secondLastName: string | null;
     locale: "es" | "en";
     permissions: string[];
     isPlatformAdmin: boolean;

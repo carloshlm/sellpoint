@@ -75,7 +75,7 @@ export class TurnsService {
       if (input.customerId) {
         const cliente = await tx.customer.findFirst({
           where: { id: input.customerId, tenantId: user.tenantId },
-          select: { id: true, firstName: true, lastNamePaternal: true, lastNameMaternal: true },
+          select: { id: true, firstName: true, lastName: true, secondLastName: true },
         });
         if (!cliente) {
           throw new NotFoundException({ message: "reception.customer_not_found" });

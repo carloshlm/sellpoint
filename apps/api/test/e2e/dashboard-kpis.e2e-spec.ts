@@ -45,7 +45,7 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

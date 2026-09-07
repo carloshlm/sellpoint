@@ -46,7 +46,7 @@ describe("Confirmar una salida (F3-EXIT-01)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

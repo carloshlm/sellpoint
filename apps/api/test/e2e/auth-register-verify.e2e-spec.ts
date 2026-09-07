@@ -48,7 +48,7 @@ describe("POST /auth/register-tenant + POST /auth/verify-email (e2e)", () => {
       email: uniqueEmail(),
       password: "twelve-characters",
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
+      lastName: "Pérez",
       ...overrides,
     };
   }

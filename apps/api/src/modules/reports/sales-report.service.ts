@@ -59,7 +59,7 @@ export class SalesReportService {
           take: query.pageSize,
           include: {
             warehouse: { select: { id: true, name: true } },
-            seller: { select: { id: true, firstName: true, lastNamePaternal: true } },
+            seller: { select: { id: true, firstName: true, lastName: true } },
           },
         }),
         // Los totales son del PERÍODO entero, no de la página: es el pie de la

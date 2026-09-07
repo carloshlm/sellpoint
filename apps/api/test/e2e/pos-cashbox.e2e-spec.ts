@@ -49,7 +49,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

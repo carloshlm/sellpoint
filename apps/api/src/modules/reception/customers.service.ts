@@ -15,8 +15,8 @@ import type {
 export interface CustomerSummary {
   id: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   birthDate: string | null;
   /** Años cumplidos HOY en el calendario del negocio; null sin fecha. */
   age: number | null;
@@ -31,8 +31,8 @@ export interface CustomerSummary {
 type CustomerRow = {
   id: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   birthDate: Date | null;
   phone: string | null;
   email: string | null;
@@ -80,8 +80,8 @@ export class CustomersService {
         ? {
             OR: [
               { firstName: { contains: texto, mode: "insensitive" as const } },
-              { lastNamePaternal: { contains: texto, mode: "insensitive" as const } },
-              { lastNameMaternal: { contains: texto, mode: "insensitive" as const } },
+              { lastName: { contains: texto, mode: "insensitive" as const } },
+              { secondLastName: { contains: texto, mode: "insensitive" as const } },
               { phone: { contains: texto, mode: "insensitive" as const } },
               { email: { contains: texto, mode: "insensitive" as const } },
             ],
@@ -135,8 +135,8 @@ export class CustomersService {
         data: {
           tenantId: user.tenantId,
           firstName: input.firstName,
-          lastNamePaternal: input.lastNamePaternal,
-          lastNameMaternal: input.lastNameMaternal ?? null,
+          lastName: input.lastName,
+          secondLastName: input.secondLastName ?? null,
           // Un `YYYY-MM-DD` se parsea en UTC: justo lo que una columna DATE
           // necesita para guardar ese día y no el anterior.
           birthDate: input.birthDate ? new Date(input.birthDate) : null,
@@ -152,7 +152,7 @@ export class CustomersService {
         action: "reception.customer.create",
         resourceType: "customer",
         resourceId: creado.id,
-        after: { firstName: creado.firstName, lastNamePaternal: creado.lastNamePaternal },
+        after: { firstName: creado.firstName, lastName: creado.lastName },
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
@@ -174,12 +174,8 @@ export class CustomersService {
       }
       const data: Prisma.CustomerUpdateInput = {
         ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
-        ...(input.lastNamePaternal !== undefined
-          ? { lastNamePaternal: input.lastNamePaternal }
-          : {}),
-        ...(input.lastNameMaternal !== undefined
-          ? { lastNameMaternal: input.lastNameMaternal }
-          : {}),
+        ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
+        ...(input.secondLastName !== undefined ? { secondLastName: input.secondLastName } : {}),
         ...(input.birthDate !== undefined
           ? { birthDate: input.birthDate === null ? null : new Date(input.birthDate) }
           : {}),
@@ -194,7 +190,7 @@ export class CustomersService {
         action: "reception.customer.update",
         resourceType: "customer",
         resourceId: id,
-        before: { firstName: actual.firstName, lastNamePaternal: actual.lastNamePaternal },
+        before: { firstName: actual.firstName, lastName: actual.lastName },
         after: data as Prisma.InputJsonValue,
         ip: meta.ip,
         userAgent: meta.userAgent,
@@ -218,8 +214,8 @@ export class CustomersService {
         resourceId: id,
         before: {
           firstName: actual.firstName,
-          lastNamePaternal: actual.lastNamePaternal,
-          lastNameMaternal: actual.lastNameMaternal,
+          lastName: actual.lastName,
+          secondLastName: actual.secondLastName,
           phone: actual.phone,
         },
         ip: meta.ip,
@@ -247,8 +243,8 @@ function toSummary(row: CustomerRow, hoy: string): CustomerSummary {
   return {
     id: row.id,
     firstName: row.firstName,
-    lastNamePaternal: row.lastNamePaternal,
-    lastNameMaternal: row.lastNameMaternal,
+    lastName: row.lastName,
+    secondLastName: row.secondLastName,
     birthDate,
     age: birthDate ? ageFromBirthDate(birthDate, hoy) : null,
     phone: row.phone,

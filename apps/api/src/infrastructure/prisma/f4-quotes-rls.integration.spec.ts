@@ -42,7 +42,7 @@ describe("RLS y guardas de la cotización (F4-DB-02)", () => {
           email: `cot-${stamp}@example.com`,
           passwordHash: "x",
           firstName: "Recep",
-          lastNamePaternal: "Ción",
+          lastName: "Ción",
         },
       });
       const almacen = await tx.warehouse.create({

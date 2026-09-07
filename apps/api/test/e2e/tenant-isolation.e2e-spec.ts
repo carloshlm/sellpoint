@@ -57,7 +57,7 @@ describe("Aislamiento RLS entre tenants (e2e, F1-TENANT-03)", () => {
         email,
         password: "twelve-characters",
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -97,7 +97,7 @@ describe("Aislamiento RLS entre tenants (e2e, F1-TENANT-03)", () => {
             tenantId: tenantB.tenantId,
             email: `intruso-${randomUUID()}@example.com`,
             firstName: "Intruso",
-            lastNamePaternal: "Cross-Tenant",
+            lastName: "Cross-Tenant",
           },
         }),
       ),

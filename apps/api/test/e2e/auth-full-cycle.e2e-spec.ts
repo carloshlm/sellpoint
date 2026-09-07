@@ -83,7 +83,7 @@ describe("Ciclo completo de auth: register→verify→login→me→refresh→reu
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

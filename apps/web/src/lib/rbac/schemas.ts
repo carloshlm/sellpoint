@@ -23,8 +23,8 @@ const emailSchema = z
 export const userFormSchema = z.object({
   email: emailSchema,
   firstName: requiredString,
-  lastNamePaternal: requiredString,
-  lastNameMaternal: z
+  lastName: requiredString,
+  secondLastName: z
     .string()
     .trim()
     .transform((value) => (value === "" ? undefined : value))

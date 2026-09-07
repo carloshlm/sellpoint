@@ -29,7 +29,7 @@ const admin = (): AuthUser =>
     id: "admin-1",
     email: "carlos@backoffice.mx",
     firstName: "Carlos",
-    lastNamePaternal: "H",
+    lastName: "H",
     permissions: ["tenants:manage"],
     isPlatformAdmin: true,
     tenant: buildTenantBlock({ id: "backoffice", name: "BACKOFFICE" }),

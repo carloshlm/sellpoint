@@ -69,7 +69,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -594,7 +594,7 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
           email,
           password: PASSWORD,
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
           locale: "es",
         })
         .expect(201);

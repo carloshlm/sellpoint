@@ -66,8 +66,8 @@ const USERS: rbacApi.UserDetail[] = [
     id: "u1",
     email: "ana@acme.mx",
     firstName: "Ana",
-    lastNamePaternal: "García",
-    lastNameMaternal: null,
+    lastName: "García",
+    secondLastName: null,
     status: "active",
     locale: "es",
     defaultWarehouseId: null,
@@ -77,8 +77,8 @@ const USERS: rbacApi.UserDetail[] = [
     id: "u2",
     email: "beto@acme.mx",
     firstName: "Beto",
-    lastNamePaternal: "López",
-    lastNameMaternal: null,
+    lastName: "López",
+    secondLastName: null,
     status: "invited",
     locale: "es",
     defaultWarehouseId: null,
@@ -88,8 +88,8 @@ const USERS: rbacApi.UserDetail[] = [
     id: "u3",
     email: "carla@acme.mx",
     firstName: "Carla",
-    lastNamePaternal: "Ruiz",
-    lastNameMaternal: null,
+    lastName: "Ruiz",
+    secondLastName: null,
     status: "active",
     locale: "es",
     defaultWarehouseId: null,
@@ -99,8 +99,8 @@ const USERS: rbacApi.UserDetail[] = [
     id: "u4",
     email: "dana@acme.mx",
     firstName: "Dana",
-    lastNamePaternal: "Soto",
-    lastNameMaternal: null,
+    lastName: "Soto",
+    secondLastName: null,
     status: "suspended",
     locale: "es",
     defaultWarehouseId: null,
@@ -279,8 +279,8 @@ describe("/system/users", () => {
         id: "u3",
         email: "nueva@acme.mx",
         firstName: "Nueva",
-        lastNamePaternal: "Persona",
-        lastNameMaternal: null,
+        lastName: "Persona",
+        secondLastName: null,
         status: "invited",
         locale: "es",
         defaultWarehouseId: null,
@@ -304,7 +304,7 @@ describe("/system/users", () => {
           {
             email: "nueva@acme.mx",
             firstName: "Nueva",
-            lastNamePaternal: "Persona",
+            lastName: "Persona",
             locale: "es",
             roleIds: ["r1"],
           },
@@ -350,7 +350,7 @@ describe("/system/users", () => {
         .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [ana, beto] = USERS;
       if (!ana || !beto) throw new Error("fixture USERS debe tener 2 elementos");
-      const updatedAna: rbacApi.UserDetail = { ...ana, lastNamePaternal: "García Nueva" };
+      const updatedAna: rbacApi.UserDetail = { ...ana, lastName: "García Nueva" };
       mockedApi.listUsers.mockResolvedValueOnce(USERS).mockResolvedValueOnce([updatedAna, beto]);
       mockedApi.updateUser.mockResolvedValue(updatedAna);
 
@@ -370,7 +370,7 @@ describe("/system/users", () => {
       await waitFor(() =>
         expect(mockedApi.updateUser).toHaveBeenCalledWith("u1", {
           firstName: "Ana",
-          lastNamePaternal: "García Nueva",
+          lastName: "García Nueva",
           locale: "es",
           roleIds: ["r1"],
         }),
@@ -394,7 +394,7 @@ describe("/system/users", () => {
         .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [, beto] = USERS;
       if (!beto) throw new Error("fixture USERS debe tener al menos 2 elementos");
-      const updatedBeto: rbacApi.UserDetail = { ...beto, lastNamePaternal: "López Nuevo" };
+      const updatedBeto: rbacApi.UserDetail = { ...beto, lastName: "López Nuevo" };
       mockedApi.updateUser.mockResolvedValue(updatedBeto);
 
       await renderRoute("/system/users");
@@ -420,7 +420,7 @@ describe("/system/users", () => {
       await waitFor(() =>
         expect(mockedApi.updateUser).toHaveBeenCalledWith("u2", {
           firstName: "Beto",
-          lastNamePaternal: "López Nuevo",
+          lastName: "López Nuevo",
           locale: "es",
           roleIds: ["r2"],
         }),
@@ -437,7 +437,7 @@ describe("/system/users", () => {
         .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
       const [ana, beto] = USERS;
       if (!ana || !beto) throw new Error("fixture USERS debe tener 2 elementos");
-      const updatedAna: rbacApi.UserDetail = { ...ana, lastNamePaternal: "García Nueva" };
+      const updatedAna: rbacApi.UserDetail = { ...ana, lastName: "García Nueva" };
       mockedApi.listUsers.mockResolvedValueOnce(USERS).mockResolvedValueOnce([updatedAna, beto]);
       mockedApi.updateUser.mockResolvedValue(updatedAna);
       mockedGetMe.mockResolvedValue(demoUser(["users:read", "users:manage", "roles:manage"]));
@@ -525,7 +525,7 @@ describe("/system/users", () => {
       await waitFor(() =>
         expect(mockedApi.updateUser).toHaveBeenCalledWith("u2", {
           firstName: "Beto",
-          lastNamePaternal: "López",
+          lastName: "López",
           locale: "es",
           roleIds: ["r1"],
         }),

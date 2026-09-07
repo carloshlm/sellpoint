@@ -73,7 +73,7 @@ describe("Roles CRUD (e2e, F1-RBAC-04)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

@@ -54,7 +54,7 @@ describe("Listado de documentos — la fecha del estado (2026-09-02)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

@@ -54,7 +54,7 @@ describe("Reportes: la puerta de reports:read (F5-CORE-03)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

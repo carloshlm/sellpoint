@@ -39,7 +39,7 @@ describe("modelo de datos de Recepción (F9-RECEP-02/03)", () => {
     for (const tenantId of [tenantA, tenantB]) {
       await prisma.withTenantContext(tenantId, (tx) =>
         tx.customer.create({
-          data: { tenantId, firstName: "Ana", lastNamePaternal: "Pérez", phone: "+525512345678" },
+          data: { tenantId, firstName: "Ana", lastName: "Pérez", phone: "+525512345678" },
         }),
       );
     }
@@ -70,7 +70,7 @@ describe("modelo de datos de Recepción (F9-RECEP-02/03)", () => {
             data: {
               tenantId: tenantA,
               firstName: "Luis",
-              lastNamePaternal: "Gómez",
+              lastName: "Gómez",
               phone: "5512345678",
             },
           }),
@@ -85,7 +85,7 @@ describe("modelo de datos de Recepción (F9-RECEP-02/03)", () => {
             data: {
               tenantId: tenantA,
               firstName: "Luis",
-              lastNamePaternal: "Gómez",
+              lastName: "Gómez",
               birthDate: new Date("2099-01-01"),
             },
           }),
@@ -137,7 +137,7 @@ describe("modelo de datos de Recepción (F9-RECEP-02/03)", () => {
     it("borrar al cliente deja el turno vivo: customer_id NULL y el nombre en el snapshot", async () => {
       const turno = await prisma.withTenantContext(tenantA, async (tx) => {
         const cliente = await tx.customer.create({
-          data: { tenantId: tenantA, firstName: "Rosa", lastNamePaternal: "Luna" },
+          data: { tenantId: tenantA, firstName: "Rosa", lastName: "Luna" },
         });
         const creado = await tx.receptionTurn.create({
           data: {

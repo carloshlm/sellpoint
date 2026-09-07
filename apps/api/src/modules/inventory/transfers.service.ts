@@ -131,10 +131,10 @@ export class TransfersService {
               // qué pasó, cuándo y quién lo decidió.
               canceledAt: true,
               cancelReason: true,
-              canceller: { select: { id: true, firstName: true, lastNamePaternal: true } },
+              canceller: { select: { id: true, firstName: true, lastName: true } },
               origin: { select: { id: true, name: true } },
               destination: { select: { id: true, name: true } },
-              creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
+              creator: { select: { id: true, firstName: true, lastName: true } },
               _count: { select: { lines: true } },
               // Los DOS documentos del traspaso: la salida que lo despacha y,
               // si ya alguien empezó a recibir, la entrada en borrador. Un
@@ -582,9 +582,9 @@ export class TransfersService {
           destinationWarehouseId: true,
           origin: { select: { id: true, name: true } },
           destination: { select: { id: true, name: true } },
-          creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
-          receiver: { select: { id: true, firstName: true, lastNamePaternal: true } },
-          canceller: { select: { id: true, firstName: true, lastNamePaternal: true } },
+          creator: { select: { id: true, firstName: true, lastName: true } },
+          receiver: { select: { id: true, firstName: true, lastName: true } },
+          canceller: { select: { id: true, firstName: true, lastName: true } },
           documents: {
             where: { type: "exit" },
             select: { id: true, folio: true },
@@ -660,7 +660,7 @@ export class TransfersService {
 
   /** `null` cuando todavía no hay nadie: sin recibir, sin cancelar. */
   private persona(
-    row: { id: string; firstName: string; lastNamePaternal: string } | null,
+    row: { id: string; firstName: string; lastName: string } | null,
   ): { id: string; name: string } | null {
     return row === null ? null : { id: row.id, name: shortName(row) };
   }

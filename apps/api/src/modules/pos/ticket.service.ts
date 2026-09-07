@@ -74,7 +74,7 @@ export class TicketService {
           items: { orderBy: { lineNo: "asc" } },
           taxes: { orderBy: { sortOrder: "asc" } },
           warehouse: { select: { name: true, address: true, phone: true } },
-          seller: { select: { firstName: true, lastNamePaternal: true } },
+          seller: { select: { firstName: true, lastName: true } },
         },
       });
       if (venta === null) {
@@ -175,7 +175,7 @@ export class TicketService {
           lines: { orderBy: { lineNo: "asc" } },
           taxes: { orderBy: { sortOrder: "asc" } },
           warehouse: { select: { name: true, address: true, phone: true } },
-          author: { select: { firstName: true, lastNamePaternal: true } },
+          author: { select: { firstName: true, lastName: true } },
         },
       });
       if (cotizacion === null) {

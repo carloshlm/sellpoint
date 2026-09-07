@@ -37,7 +37,7 @@ export class MedicalOrderPdfService {
         where: { id: orderId, tenantId: user.tenantId },
         include: {
           lines: { orderBy: { lineNo: "asc" } },
-          record: { include: { doctor: { select: { firstName: true, lastNamePaternal: true } } } },
+          record: { include: { doctor: { select: { firstName: true, lastName: true } } } },
         },
       });
       if (orden === null) {

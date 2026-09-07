@@ -63,8 +63,8 @@ export class CatalogExportService {
             where: { tenantId: user.tenantId },
             select: {
               firstName: true,
-              lastNamePaternal: true,
-              lastNameMaternal: true,
+              lastName: true,
+              secondLastName: true,
               email: true,
               status: true,
               roles: { select: { role: { select: { name: true } } } },

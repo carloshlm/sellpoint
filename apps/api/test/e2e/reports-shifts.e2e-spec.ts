@@ -78,7 +78,7 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
           tenantId: negocio.tenantId,
           email: `cajero-${randomUUID()}@example.com`,
           firstName: "Beto",
-          lastNamePaternal: "Caja",
+          lastName: "Caja",
           status: "active",
           emailVerifiedAt: new Date(),
         },

@@ -97,7 +97,7 @@ describe("Recepción — turnos (F9-RECEP-15)", () => {
     const cliente = await request(app.getHttpServer())
       .post("/reception/customers")
       .set("Authorization", bearer(negocio.token))
-      .send({ firstName: "Rosa", lastNamePaternal: "Luna", lastNameMaternal: "Ríos" })
+      .send({ firstName: "Rosa", lastName: "Luna", secondLastName: "Ríos" })
       .expect(201);
     const customerId = (cliente.body as { id: string }).id;
 
@@ -123,7 +123,7 @@ describe("Recepción — turnos (F9-RECEP-15)", () => {
     const ajeno = await request(app.getHttpServer())
       .post("/reception/customers")
       .set("Authorization", bearer(otro.token))
-      .send({ firstName: "Ajena", lastNamePaternal: "Ajena" })
+      .send({ firstName: "Ajena", lastName: "Ajena" })
       .expect(201);
     await generar(negocio.token, { customerId: (ajeno.body as { id: string }).id }).expect(404);
   });

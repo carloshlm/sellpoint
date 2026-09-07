@@ -18,8 +18,8 @@ type Mock = jest.Mock;
 const cliente = {
   id: "c-1",
   firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: "Luna",
+  lastName: "Pérez",
+  secondLastName: "Luna",
   birthDate: new Date("1990-09-03"),
 };
 
@@ -40,7 +40,7 @@ const expediente = (extra: Record<string, unknown> = {}) => ({
   closedBy: null,
   createdAt: new Date("2026-09-03T15:00:00.000Z"),
   updatedAt: new Date("2026-09-03T15:00:00.000Z"),
-  doctor: { id: "dr-1", firstName: "Gregorio", lastNamePaternal: "House" },
+  doctor: { id: "dr-1", firstName: "Gregorio", lastName: "House" },
   sections: [],
   orders: [],
   ...extra,

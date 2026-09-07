@@ -57,8 +57,8 @@ describe("TurnsService (F9-RECEP-07)", () => {
         findFirst: jest.fn().mockResolvedValue({
           id: "c-1",
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
-          lastNameMaternal: "López",
+          lastName: "Pérez",
+          secondLastName: "López",
         }),
       },
     };

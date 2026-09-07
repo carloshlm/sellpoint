@@ -172,8 +172,8 @@ model User {
   passwordHash       String?    @map("password_hash")
   employeeNumber     String?    @map("employee_number")
   firstName          String     @map("first_name")
-  lastNamePaternal   String     @map("last_name_paternal")
-  lastNameMaternal   String?    @map("last_name_maternal")
+  lastName           String     @map("last_name")
+  secondLastName     String?    @map("second_last_name")
   status             UserStatus @default(invited)
   // CHAR(2) con CHECK (locale IN ('es','en')) — CHECK en el SQL de la migración
   locale             String     @default("es") @db.Char(2)
@@ -1930,8 +1930,8 @@ model Customer {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId         String    @map("tenant_id") @db.Uuid
   firstName        String    @map("first_name")
-  lastNamePaternal String    @map("last_name_paternal")
-  lastNameMaternal String?   @map("last_name_maternal")
+  lastName         String    @map("last_name")
+  secondLastName   String?   @map("second_last_name")
   // CHECK: no futura. Columna DATE: un calendario, sin zona.
   birthDate        DateTime? @map("birth_date") @db.Date
   // CHECK: E.164 (misma regla que tenants.phone).

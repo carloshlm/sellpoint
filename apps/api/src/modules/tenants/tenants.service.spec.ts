@@ -79,7 +79,7 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
     ownerEmail: "owner@acme.test",
     ownerPasswordHash: "hash",
     firstName: "Ana",
-    lastNamePaternal: "Pérez",
+    lastName: "Pérez",
     ip: "127.0.0.1",
     userAgent: "jest",
   };

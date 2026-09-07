@@ -44,7 +44,7 @@ describe("Importación de registros de subcatálogo (2026-09-01)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

@@ -31,8 +31,8 @@ describe("auth schemas", () => {
     // paso 1 del wizard, no en el registro.
     const base = {
       firstName: "Ana",
-      lastNamePaternal: "García",
-      lastNameMaternal: "",
+      lastName: "García",
+      secondLastName: "",
       email: "ana@acme.mx",
       password: "solo minusculas larga",
     };
@@ -47,11 +47,11 @@ describe("auth schemas", () => {
       expect(result.error?.issues[0]?.message).toBe("validation.passwordMin");
     });
 
-    it("lastNameMaternal vacío se normaliza a undefined", () => {
+    it("secondLastName vacío se normaliza a undefined", () => {
       const result = registerSchema.safeParse(base);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.lastNameMaternal).toBeUndefined();
+        expect(result.data.secondLastName).toBeUndefined();
       }
     });
 

@@ -46,7 +46,7 @@ describe("DocumentsService — ciclo de vida (F3-DOC-03)", () => {
             tenantId: tenant.id,
             email: `docs-${stamp}@example.com`,
             firstName: "Quien",
-            lastNamePaternal: "Carga",
+            lastName: "Carga",
           },
         }),
         tx.warehouse.create({

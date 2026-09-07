@@ -49,7 +49,7 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
 
     const paciente = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Rosa",
-      lastNamePaternal: "Luna",
+      lastName: "Luna",
     }).expect(201);
     const expediente = await post(negocio.token, "/medical-clinic/records", {
       customerId: (paciente.body as { id: string }).id,

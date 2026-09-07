@@ -203,7 +203,7 @@ describe("lotes: product_lots y stock_lots (F3-DB-06)", () => {
             tenantId,
             email: `lot-mov-${Date.now()}@example.com`,
             firstName: "L",
-            lastNamePaternal: "M",
+            lastName: "M",
           },
         });
         const d = await tx.inventoryDocument.create({
@@ -276,7 +276,7 @@ describe("lotes: product_lots y stock_lots (F3-DB-06)", () => {
             tenantId,
             email: `lot-tra-${Date.now()}@example.com`,
             firstName: "L",
-            lastNamePaternal: "T",
+            lastName: "T",
           },
         });
         return tx.transfer.create({

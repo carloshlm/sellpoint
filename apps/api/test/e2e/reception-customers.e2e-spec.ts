@@ -77,7 +77,7 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
     await request(app.getHttpServer())
       .post("/users")
       .set("Authorization", bearer(negocio.token))
-      .send({ email, firstName: "Vera", lastNamePaternal: "Vista", roleIds: [viewer?.id] })
+      .send({ email, firstName: "Vera", lastName: "Vista", roleIds: [viewer?.id] })
       .expect(201);
     const mailer = app.get<NoopMailer>(MAILER);
     const token = extractTokenFromLink(mailer.sent.filter((m) => m.to === email).at(-1)?.vars.link);
@@ -105,13 +105,13 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
   it("alta, listado del más reciente al más viejo, edición y baja", async () => {
     const primero = await crear(negocio.token, {
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
+      lastName: "Pérez",
       birthDate: "1990-09-02",
       phone: "+525512345678",
     }).expect(201);
     const segundo = await crear(negocio.token, {
       firstName: "Luis",
-      lastNamePaternal: "Gómez",
+      lastName: "Gómez",
     }).expect(201);
     const idPrimero = (primero.body as { id: string }).id;
     const idSegundo = (segundo.body as { id: string }).id;
@@ -168,7 +168,7 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
   it("RLS: el cliente de un negocio no se ve, ni se edita, ni se borra desde otro — 404, no 403", async () => {
     const creado = await crear(negocio.token, {
       firstName: "Rosa",
-      lastNamePaternal: "Luna",
+      lastName: "Luna",
     }).expect(201);
     const id = (creado.body as { id: string }).id;
     await request(app.getHttpServer())
@@ -197,7 +197,7 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
       .set("Authorization", bearer(sinModulo.token))
       .expect(402);
     expect((lectura.body as { message: string }).message).toMatch(/módulo/i);
-    await crear(sinModulo.token, { firstName: "Ana", lastNamePaternal: "Pérez" }).expect(402);
+    await crear(sinModulo.token, { firstName: "Ana", lastName: "Pérez" }).expect(402);
     await request(app.getHttpServer())
       .get("/reception/turns")
       .set("Authorization", bearer(sinModulo.token))
@@ -209,13 +209,13 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
       .get("/reception/customers")
       .set("Authorization", bearer(viewerToken))
       .expect(200);
-    await crear(viewerToken, { firstName: "Ana", lastNamePaternal: "Pérez" }).expect(403);
+    await crear(viewerToken, { firstName: "Ana", lastName: "Pérez" }).expect(403);
   });
 
   it("un teléfono sin prefijo internacional rebota con 400", async () => {
     await crear(negocio.token, {
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
+      lastName: "Pérez",
       phone: "5512345678",
     }).expect(400);
   });

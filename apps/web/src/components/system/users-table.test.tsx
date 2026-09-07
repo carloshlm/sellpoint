@@ -17,8 +17,8 @@ function makeUser(overrides: Partial<UserDetail>): UserDetail {
     id: overrides.id ?? "u",
     email: overrides.email ?? "user@acme.mx",
     firstName: overrides.firstName ?? "Nombre",
-    lastNamePaternal: overrides.lastNamePaternal ?? "Apellido",
-    lastNameMaternal: overrides.lastNameMaternal ?? null,
+    lastName: overrides.lastName ?? "Apellido",
+    secondLastName: overrides.secondLastName ?? null,
     status: overrides.status ?? "active",
     locale: overrides.locale ?? "es",
     defaultWarehouseId: null,
@@ -58,8 +58,8 @@ describe("UsersTable", () => {
   it("busca por nombre o email y filtra sin pedir datos nuevos", async () => {
     const user = userEvent.setup();
     renderTable([
-      makeUser({ id: "1", firstName: "Ana", lastNamePaternal: "García", email: "ana@acme.mx" }),
-      makeUser({ id: "2", firstName: "Beto", lastNamePaternal: "López", email: "beto@acme.mx" }),
+      makeUser({ id: "1", firstName: "Ana", lastName: "García", email: "ana@acme.mx" }),
+      makeUser({ id: "2", firstName: "Beto", lastName: "López", email: "beto@acme.mx" }),
     ]);
 
     expect(screen.getByText("Ana García")).toBeInTheDocument();
@@ -74,8 +74,8 @@ describe("UsersTable", () => {
   it("filtra también por email, no solo por nombre", async () => {
     const user = userEvent.setup();
     renderTable([
-      makeUser({ id: "1", firstName: "Ana", lastNamePaternal: "García", email: "ana@acme.mx" }),
-      makeUser({ id: "2", firstName: "Beto", lastNamePaternal: "López", email: "beto@acme.mx" }),
+      makeUser({ id: "1", firstName: "Ana", lastName: "García", email: "ana@acme.mx" }),
+      makeUser({ id: "2", firstName: "Beto", lastName: "López", email: "beto@acme.mx" }),
     ]);
 
     await user.type(screen.getByLabelText("Buscar por nombre o correo"), "beto@acme.mx");
@@ -127,7 +127,7 @@ describe("UsersTable", () => {
   it("con canManage, el menú ⋮ de cada fila tiene 'Editar' y llama onEdit con ese usuario (F1-WEB-USERS-04)", async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
-    const ana = makeUser({ id: "1", firstName: "Ana", lastNamePaternal: "García" });
+    const ana = makeUser({ id: "1", firstName: "Ana", lastName: "García" });
     renderTable([ana], true, { onEdit });
 
     await user.click(screen.getByRole("button", { name: "Acciones" }));

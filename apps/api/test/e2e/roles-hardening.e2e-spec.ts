@@ -79,7 +79,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -226,7 +226,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .send({
           email: `hr-${randomUUID()}@example.com`,
           firstName: "HR",
-          lastNamePaternal: "Manager",
+          lastName: "Manager",
           roleIds: [hrManagerRole.body.id],
         })
         .expect(201);
@@ -274,7 +274,7 @@ describe("Hardening W1/W2 de F1-RBAC (e2e, post-verify #274)", () => {
         .send({
           email: `nuevo-${randomUUID()}@example.com`,
           firstName: "Nuevo",
-          lastNamePaternal: "Usuario",
+          lastName: "Usuario",
           roleIds: [tenantAdminId],
         })
         .expect(403);

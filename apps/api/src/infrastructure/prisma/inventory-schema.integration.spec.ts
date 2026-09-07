@@ -43,7 +43,7 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
           tenantId,
           email: `movimientos-${stamp}@example.com`,
           firstName: "Quien",
-          lastNamePaternal: "Movió",
+          lastName: "Movió",
         },
       });
       const product = await tx.product.create({
@@ -111,7 +111,7 @@ describe("Fase 3 — invariantes de schema del inventario", () => {
             tenantId: otherTenantId,
             email: `vecino-${stamp}@example.com`,
             firstName: "Del",
-            lastNamePaternal: "Vecino",
+            lastName: "Vecino",
           },
         }),
         tx.warehouse.create({

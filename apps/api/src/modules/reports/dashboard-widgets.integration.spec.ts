@@ -58,7 +58,7 @@ describe("Los widgets del dashboard (integration)", () => {
           tenantId: tenant.id,
           email: `w-${randomUUID()}@example.com`,
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
         },
       });
       const almacen = await tx.warehouse.create({

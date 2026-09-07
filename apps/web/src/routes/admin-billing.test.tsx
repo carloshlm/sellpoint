@@ -33,7 +33,7 @@ const demoUser = (isPlatformAdmin: boolean, permissions: string[] = ["tenants:ma
   buildAuthUser({
     email: "carls.hlm@gmail.com",
     firstName: "Carlos",
-    lastNamePaternal: "H",
+    lastName: "H",
     permissions,
     isPlatformAdmin,
     tenant: buildTenantBlock({ name: "SellPointy HQ" }),

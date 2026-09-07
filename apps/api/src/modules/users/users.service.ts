@@ -13,8 +13,8 @@ export interface UserSummary {
   id: string;
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   status: string;
   locale: string;
 }
@@ -28,8 +28,8 @@ export interface MeProfile {
   id: string;
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   locale: string;
   /** F3-HOME-01. El almacén desde el que opera por defecto. */
   defaultWarehouseId: string | null;
@@ -75,8 +75,8 @@ export class UsersService {
           id: true,
           email: true,
           firstName: true,
-          lastNamePaternal: true,
-          lastNameMaternal: true,
+          lastName: true,
+          secondLastName: true,
           locale: true,
           // F3-HOME-01: el front lo necesita para preseleccionar el almacén en
           // los movimientos, y el POS de F4 para abrir el turno.
@@ -95,8 +95,8 @@ export class UsersService {
       id: row.id,
       email: row.email,
       firstName: row.firstName,
-      lastNamePaternal: row.lastNamePaternal,
-      lastNameMaternal: row.lastNameMaternal,
+      lastName: row.lastName,
+      secondLastName: row.secondLastName,
       locale: row.locale,
       defaultWarehouseId: row.defaultWarehouseId,
       permissions: user.permissions,
@@ -137,8 +137,8 @@ export class UsersService {
         where: { id: user.userId },
         select: {
           firstName: true,
-          lastNamePaternal: true,
-          lastNameMaternal: true,
+          lastName: true,
+          secondLastName: true,
           locale: true,
         },
       });
@@ -169,8 +169,8 @@ function toUserSummary(user: {
   id: string;
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   status: string;
   locale: string;
 }): UserSummary {
@@ -178,8 +178,8 @@ function toUserSummary(user: {
     id: user.id,
     email: user.email,
     firstName: user.firstName,
-    lastNamePaternal: user.lastNamePaternal,
-    lastNameMaternal: user.lastNameMaternal,
+    lastName: user.lastName,
+    secondLastName: user.secondLastName,
     status: user.status,
     locale: user.locale,
   };

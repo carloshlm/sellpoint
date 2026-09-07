@@ -59,7 +59,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -81,7 +81,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -115,8 +115,8 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
         id: user.userId,
         email: user.email,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
-        lastNameMaternal: null,
+        lastName: "Pérez",
+        secondLastName: null,
         locale: "es",
         permissions: expect.any(Array),
         isPlatformAdmin: false,

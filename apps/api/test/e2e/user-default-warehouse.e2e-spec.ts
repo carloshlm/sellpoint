@@ -48,7 +48,7 @@ describe("Almacén asignado del usuario (F3-HOME-01)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -95,7 +95,7 @@ describe("Almacén asignado del usuario (F3-HOME-01)", () => {
       .send({
         email: `user-${randomUUID()}@example.com`,
         firstName: "Beto",
-        lastNamePaternal: "López",
+        lastName: "López",
         roleIds: [await viewerRoleId(token)],
         ...extra,
       });
@@ -297,7 +297,7 @@ describe("El tenant nace con su almacén (F3-HOME-03)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale,
       })
       .expect(201);

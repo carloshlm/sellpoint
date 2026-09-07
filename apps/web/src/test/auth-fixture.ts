@@ -9,7 +9,7 @@ import { buildTenantBlock } from "./tenant-fixture";
  * Antes cada test armaba el literal completo a mano (62 archivos), casi
  * siempre dentro de un `demoUser(permissions)` local idéntico al de al lado.
  * Cada campo nuevo de `AuthUser` costaba decenas de ediciones iguales — y el
- * rename de `lastNamePaternal` a `lastName` (F1-NAME-06) habría costado 42.
+ * rename de `lastName` a `lastName` (F1-NAME-06) habría costado 42.
  * Ahora un campo nuevo es una línea acá, y cada test escribe solo lo que le
  * importa.
  *
@@ -20,8 +20,8 @@ export const AUTH_USER_DEMO: AuthUser = {
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
+  lastName: "Pérez",
+  secondLastName: null,
   locale: "es",
   permissions: [],
   subscription: SUBSCRIPTION_PLUS,

@@ -141,7 +141,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         email: `owner-${randomUUID()}@example.com`,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -159,7 +159,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -472,7 +472,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
     await request(app.getHttpServer())
       .post("/users")
       .set("Authorization", bearer(owner.token))
-      .send({ email, firstName: "Bruno", lastNamePaternal: "Díaz", roleIds: [viewerRoleId] })
+      .send({ email, firstName: "Bruno", lastName: "Díaz", roleIds: [viewerRoleId] })
       .expect(201);
 
     const mailer = app.get<NoopMailer>(MAILER);

@@ -244,7 +244,7 @@ const registerInput = {
   email: "owner@acme.test",
   password: "twelve-characters",
   firstName: "Ana",
-  lastNamePaternal: "Pérez",
+  lastName: "Pérez",
 };
 
 describe("AuthService.registerTenant (AUTH-REQ-01)", () => {

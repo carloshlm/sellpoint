@@ -28,7 +28,7 @@ export interface DocumentSummary {
   reference: string | null;
   lineCount: number;
   createdAt: string;
-  createdBy: { id: string; firstName: string; lastNamePaternal: string } | null;
+  createdBy: { id: string; firstName: string; lastName: string } | null;
   confirmedAt: string | null;
   canceledAt: string | null;
 }

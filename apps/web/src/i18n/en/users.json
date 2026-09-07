@@ -47,8 +47,8 @@
     "editTitle": "Edit user",
     "email": "Email",
     "firstName": "First name",
-    "lastNamePaternal": "Last name",
-    "lastNameMaternal": "Second last name",
+    "lastName": "Last name",
+    "secondLastName": "Second last name",
     "locale": "Language",
     "localeOptions": {
       "es": "Spanish",

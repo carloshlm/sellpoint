@@ -19,8 +19,8 @@ const fila = (extra: Record<string, unknown> = {}) => ({
   id: "c-1",
   tenantId: TENANT,
   firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
+  lastName: "Pérez",
+  secondLastName: null,
   birthDate: null,
   phone: null,
   email: null,
@@ -79,13 +79,7 @@ describe("CustomersService (F9-RECEP-06)", () => {
       await service.list(USER, { query: "lópez", page: 1, pageSize: 20 });
       const where = tx.customer.findMany.mock.calls[0][0].where;
       const campos = where.OR.map((c: Record<string, unknown>) => Object.keys(c)[0]);
-      expect(campos.sort()).toEqual([
-        "email",
-        "firstName",
-        "lastNameMaternal",
-        "lastNamePaternal",
-        "phone",
-      ]);
+      expect(campos.sort()).toEqual(["email", "firstName", "lastName", "phone", "secondLastName"]);
     });
 
     it("la edad sale calculada con el día del negocio; sin fecha, null", async () => {
@@ -131,7 +125,7 @@ describe("CustomersService (F9-RECEP-06)", () => {
         USER,
         {
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
           birthDate: "1990-09-02",
           phone: "+525512345678",
         },

@@ -462,7 +462,7 @@ export class SalesService {
           include: {
             items: { orderBy: { lineNo: "asc" } },
             warehouse: { select: { id: true, name: true } },
-            seller: { select: { id: true, firstName: true, lastNamePaternal: true } },
+            seller: { select: { id: true, firstName: true, lastName: true } },
           },
         }),
       ]);

@@ -43,7 +43,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         email,
         password: OWNER_PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

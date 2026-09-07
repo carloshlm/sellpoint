@@ -82,7 +82,7 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -126,7 +126,7 @@ describe("Aceptación de invitación (e2e, gap S1)", () => {
       .send({
         email,
         firstName: "Bruno",
-        lastNamePaternal: "Díaz",
+        lastName: "Díaz",
         locale: overrides?.locale ?? "es",
         roleIds: [roleId],
       })

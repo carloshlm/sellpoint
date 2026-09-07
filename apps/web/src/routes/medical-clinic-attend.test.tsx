@@ -97,8 +97,8 @@ beforeEach(() => {
   mocked.createPatient.mockResolvedValue({
     id: "c9",
     firstName: "Luis",
-    lastNamePaternal: "Gómez",
-    lastNameMaternal: null,
+    lastName: "Gómez",
+    secondLastName: null,
     birthDate: null,
     age: null,
     phone: null,
@@ -200,7 +200,7 @@ describe("Paciente nuevo (F9-CLINIC-WEB-08)", () => {
     await waitFor(() =>
       expect(mocked.createPatient).toHaveBeenCalledWith({
         firstName: "Luis",
-        lastNamePaternal: "Gómez",
+        lastName: "Gómez",
       }),
     );
     await waitFor(() => expect(mocked.createRecord).toHaveBeenCalledWith({ customerId: "c9" }));

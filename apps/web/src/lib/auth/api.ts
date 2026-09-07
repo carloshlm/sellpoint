@@ -18,8 +18,8 @@ export interface RegisterTenantInput {
   email: string;
   password: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal?: string;
+  lastName: string;
+  secondLastName?: string;
   locale?: "es" | "en";
 }
 
@@ -120,20 +120,20 @@ export async function updateMyLocale(locale: "es" | "en"): Promise<{ locale: str
 /**
  * "Tus datos" editable (2026-08-26): nombre y apellidos por el mismo
  * `PATCH /me`. El email NO viaja — es la identidad de acceso y el backend
- * lo rechaza. `lastNameMaternal: null` lo borra (es opcional del registro).
+ * lo rechaza. `secondLastName: null` lo borra (es opcional del registro).
  */
 export interface UpdateMyProfileInput {
   firstName?: string;
-  lastNamePaternal?: string;
-  lastNameMaternal?: string | null;
+  lastName?: string;
+  secondLastName?: string | null;
 }
 
 export interface MyProfileSummary {
   id: string;
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   status: string;
   locale: string;
 }

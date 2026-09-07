@@ -19,8 +19,8 @@ export const registerTenantSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   password: passwordSchema,
   firstName: z.string().trim().min(1),
-  lastNamePaternal: z.string().trim().min(1),
-  lastNameMaternal: z.string().trim().min(1).optional(),
+  lastName: z.string().trim().min(1),
+  secondLastName: z.string().trim().min(1).optional(),
   locale: z.enum(["es", "en"]).optional(),
 });
 

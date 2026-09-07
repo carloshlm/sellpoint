@@ -49,7 +49,7 @@ describe("StockLedgerService.apply (F3-CORE-05)", () => {
           tenantId,
           email: `ledger-${stamp}@example.com`,
           firstName: "L",
-          lastNamePaternal: "G",
+          lastName: "G",
         },
       });
       const [a, b, loteado] = await Promise.all([

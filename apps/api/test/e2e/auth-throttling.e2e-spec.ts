@@ -151,7 +151,7 @@ describe("Throttling de /auth/* (e2e)", () => {
           email: uniqueEmail(),
           password: PASSWORD,
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
           locale: "es",
         });
 

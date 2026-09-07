@@ -87,7 +87,7 @@ export async function usuarioConRol(
   await request(app.getHttpServer())
     .post("/users")
     .set("Authorization", bearer(owner.token))
-    .send({ email, firstName: "Vera", lastNamePaternal: "Vista", roleIds: [elegido?.id] })
+    .send({ email, firstName: "Vera", lastName: "Vista", roleIds: [elegido?.id] })
     .expect(201);
   const mailer = app.get<NoopMailer>(MAILER);
   const token = extractTokenFromLink(mailer.sent.filter((m) => m.to === email).at(-1)?.vars.link);

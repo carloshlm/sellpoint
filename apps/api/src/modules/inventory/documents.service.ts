@@ -349,7 +349,7 @@ export class DocumentsService {
           take: query.pageSize,
           include: {
             warehouse: { select: { id: true, name: true } },
-            creator: { select: { id: true, firstName: true, lastNamePaternal: true } },
+            creator: { select: { id: true, firstName: true, lastName: true } },
             _count: { select: { lines: true } },
           },
         }),

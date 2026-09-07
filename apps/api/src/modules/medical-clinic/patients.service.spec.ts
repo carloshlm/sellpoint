@@ -25,8 +25,8 @@ describe("PatientsService (F9-CLINIC-09)", () => {
   const cliente = {
     id: "c-1",
     firstName: "Ana",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
+    lastName: "Pérez",
+    secondLastName: null,
     birthDate: new Date("1990-09-03"),
   };
 
@@ -57,8 +57,8 @@ describe("PatientsService (F9-CLINIC-09)", () => {
           {
             id: "c-1",
             firstName: "Ana",
-            lastNamePaternal: "Pérez",
-            lastNameMaternal: null,
+            lastName: "Pérez",
+            secondLastName: null,
             birthDate: "1990-09-03",
             age: 36,
           },
@@ -198,8 +198,8 @@ describe("PatientsService.get (F9-CLINIC-32)", () => {
         findFirst: jest.fn().mockResolvedValue({
           id: "c-1",
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
-          lastNameMaternal: "Luna",
+          lastName: "Pérez",
+          secondLastName: "Luna",
           birthDate: new Date("1990-09-03"),
           phone: "+525512345678",
           email: "ana@example.com",

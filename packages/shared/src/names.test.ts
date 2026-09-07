@@ -18,27 +18,25 @@ import { TAX_CURATED_COUNTRIES } from "./tax-defaults";
  */
 describe("fullName (F1-NAME-02)", () => {
   it("une nombre y los dos apellidos con un espacio", () => {
-    expect(
-      fullName({ firstName: "Ana", lastNamePaternal: "Pérez", lastNameMaternal: "Luna" }),
-    ).toBe("Ana Pérez Luna");
+    expect(fullName({ firstName: "Ana", lastName: "Pérez", secondLastName: "Luna" })).toBe(
+      "Ana Pérez Luna",
+    );
   });
 
   it("sin segundo apellido no deja espacio de más: da igual null que cadena vacía", () => {
-    expect(fullName({ firstName: "Ana", lastNamePaternal: "Pérez", lastNameMaternal: null })).toBe(
+    expect(fullName({ firstName: "Ana", lastName: "Pérez", secondLastName: null })).toBe(
       "Ana Pérez",
     );
-    expect(fullName({ firstName: "Ana", lastNamePaternal: "Pérez", lastNameMaternal: "" })).toBe(
-      "Ana Pérez",
-    );
+    expect(fullName({ firstName: "Ana", lastName: "Pérez", secondLastName: "" })).toBe("Ana Pérez");
     // El campo puede no venir en el objeto (los `select` de dos campos).
-    expect(fullName({ firstName: "Ana", lastNamePaternal: "Pérez" })).toBe("Ana Pérez");
+    expect(fullName({ firstName: "Ana", lastName: "Pérez" })).toBe("Ana Pérez");
   });
 
   it("NUNCA trunca: el límite de la columna es del que guarda, no del nombre", () => {
     const largo = fullName({
       firstName: "A".repeat(150),
-      lastNamePaternal: "B".repeat(150),
-      lastNameMaternal: null,
+      lastName: "B".repeat(150),
+      secondLastName: null,
     });
     expect(largo).toHaveLength(301);
   });
@@ -46,20 +44,20 @@ describe("fullName (F1-NAME-02)", () => {
 
 describe("shortName (F1-NAME-02)", () => {
   it("es nombre y PRIMER apellido: lo que cabe en un ticket o una firma", () => {
-    expect(
-      shortName({ firstName: "Ana", lastNamePaternal: "Pérez", lastNameMaternal: "Luna" }),
-    ).toBe("Ana Pérez");
+    expect(shortName({ firstName: "Ana", lastName: "Pérez", secondLastName: "Luna" })).toBe(
+      "Ana Pérez",
+    );
   });
 
   it("ignora el segundo apellido aunque exista — esa es toda su razón de ser", () => {
-    const persona = { firstName: "Ana", lastNamePaternal: "Pérez", lastNameMaternal: "Luna" };
+    const persona = { firstName: "Ana", lastName: "Pérez", secondLastName: "Luna" };
     expect(shortName(persona)).not.toContain("Luna");
     expect(shortName(persona)).not.toBe(fullName(persona));
   });
 
   it("un campo vacío no deja espacios sueltos (lo que hacía el `.trim()` de antes)", () => {
-    expect(shortName({ firstName: "Ana", lastNamePaternal: "" })).toBe("Ana");
-    expect(shortName({ firstName: "", lastNamePaternal: "Pérez" })).toBe("Pérez");
+    expect(shortName({ firstName: "Ana", lastName: "" })).toBe("Ana");
+    expect(shortName({ firstName: "", lastName: "Pérez" })).toBe("Pérez");
   });
 });
 

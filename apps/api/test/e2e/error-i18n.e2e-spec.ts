@@ -104,7 +104,7 @@ describe("i18n de errores en AllExceptionsFilter (e2e) — verify #271 C2", () =
       email: "ana@example.com",
       password: "twelve-characters",
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
+      lastName: "Pérez",
     };
 
     const es = await request(app.getHttpServer())

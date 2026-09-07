@@ -82,8 +82,8 @@
     "details": {
       "title": "Tus datos",
       "firstName": "Nombre",
-      "lastNamePaternal": "Apellido paterno",
-      "lastNameMaternal": "Apellido materno (opcional)",
+      "lastName": "Apellido paterno",
+      "secondLastName": "Apellido materno (opcional)",
       "email": "Email",
       "language": "Idioma",
       "emailHint": "El correo es tu identidad de acceso y no puede cambiarse.",

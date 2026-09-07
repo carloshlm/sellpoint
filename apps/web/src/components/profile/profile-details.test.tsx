@@ -63,8 +63,8 @@ describe("Tus datos editable (2026-08-26)", () => {
       id: "u1",
       email: "ana@acme.mx",
       firstName: "Ana María",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
+      lastName: "Pérez",
+      secondLastName: null,
       status: "active",
       locale: "es",
     });
@@ -84,13 +84,13 @@ describe("Tus datos editable (2026-08-26)", () => {
   it("vaciar el apellido materno lo borra con null (es opcional)", async () => {
     const user = userEvent.setup();
     const actor = demoUser();
-    actor.lastNameMaternal = "Luna";
+    actor.secondLastName = "Luna";
     mockedUpdate.mockResolvedValue({
       id: "u1",
       email: "ana@acme.mx",
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
+      lastName: "Pérez",
+      secondLastName: null,
       status: "active",
       locale: "es",
     });
@@ -100,7 +100,7 @@ describe("Tus datos editable (2026-08-26)", () => {
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     await waitFor(() => {
-      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ lastNameMaternal: null });
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ secondLastName: null });
     });
   });
 

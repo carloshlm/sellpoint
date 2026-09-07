@@ -66,7 +66,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);
@@ -124,7 +124,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
       .send({
         email: `matrix-target-${randomUUID()}@example.com`,
         firstName: "Target",
-        lastNamePaternal: "User",
+        lastName: "User",
         roleIds: [viewerRoleId],
       })
       .expect(201);
@@ -204,7 +204,7 @@ describe("Matriz RBAC: rol × endpoint (e2e, F1-RBAC-06)", () => {
       .send({
         email: `matrix-${roleName}-${randomUUID()}@example.com`,
         firstName: "Matrix",
-        lastNamePaternal: roleName,
+        lastName: roleName,
         roleIds: [viewerRoleId],
       });
 

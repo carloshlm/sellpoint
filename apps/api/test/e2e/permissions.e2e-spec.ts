@@ -46,7 +46,7 @@ describe("GET /permissions (e2e, F1-RBAC-05)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

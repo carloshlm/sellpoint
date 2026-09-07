@@ -65,7 +65,7 @@ describe("POST /auth/forgot-password + POST /auth/reset-password (e2e)", () => {
         email,
         password: PASSWORD,
         firstName: "Ana",
-        lastNamePaternal: "Pérez",
+        lastName: "Pérez",
         locale: "es",
       })
       .expect(201);

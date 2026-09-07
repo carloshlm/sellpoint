@@ -22,8 +22,8 @@ const requiredString = z.string().trim().min(1, "validation.required");
  */
 export const profileDetailsSchema = z.object({
   firstName: requiredString,
-  lastNamePaternal: requiredString,
-  lastNameMaternal: z.string(),
+  lastName: requiredString,
+  secondLastName: z.string(),
 });
 
 export type ProfileDetailsValues = z.infer<typeof profileDetailsSchema>;
@@ -46,9 +46,9 @@ export const loginSchema = z.object({
 // paso 1 del wizard (Nombre legal), no en el registro.
 export const registerSchema = z.object({
   firstName: requiredString,
-  lastNamePaternal: requiredString,
+  lastName: requiredString,
   // Opcional: vacío se normaliza a undefined para no mandar "" al API.
-  lastNameMaternal: z
+  secondLastName: z
     .string()
     .trim()
     .transform((value) => (value === "" ? undefined : value))

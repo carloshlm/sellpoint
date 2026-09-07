@@ -51,7 +51,7 @@ describe("ciclo de vida del negocio: tenants.suspended_* y purge_tenant() (F7-LI
             tenantId,
             email: `lc-${stamp}-${sufijo}@example.com`,
             firstName: "Ana",
-            lastNamePaternal: "Pérez",
+            lastName: "Pérez",
           },
         }),
       )
@@ -74,7 +74,7 @@ describe("ciclo de vida del negocio: tenants.suspended_* y purge_tenant() (F7-LI
       await tx.warehouse.create({ data: { tenantId: tenantB, code: "CEN", name: "Central" } });
       await tx.product.create({ data: { tenantId: tenantB, sku: "SKU-1", name: "Cosa" } });
       await tx.customer.create({
-        data: { tenantId: tenantB, firstName: "Luis", lastNamePaternal: "Lara" },
+        data: { tenantId: tenantB, firstName: "Luis", lastName: "Lara" },
       });
       await tx.receptionTurn.create({
         data: { tenantId: tenantB, businessDate: new Date("2026-09-04"), number: 1 },

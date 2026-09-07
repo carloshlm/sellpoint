@@ -31,8 +31,8 @@ export interface UserDetail {
   id: string;
   email: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   status: string;
   locale: string;
   /** F3-HOME-01. El almacén desde el que opera por defecto. */
@@ -80,8 +80,8 @@ export class UsersAdminService {
         id: string;
         email: string;
         firstName: string;
-        lastNamePaternal: string;
-        lastNameMaternal: string | null;
+        lastName: string;
+        secondLastName: string | null;
         status: string;
         locale: string;
       };
@@ -98,8 +98,8 @@ export class UsersAdminService {
             tenantId: actor.tenantId,
             email: input.email,
             firstName: input.firstName,
-            lastNamePaternal: input.lastNamePaternal,
-            lastNameMaternal: input.lastNameMaternal,
+            lastName: input.lastName,
+            secondLastName: input.secondLastName,
             locale: input.locale ?? "es",
             defaultWarehouseId: input.defaultWarehouseId ?? null,
             status: "invited",
@@ -255,14 +255,14 @@ export class UsersAdminService {
 
         const data: {
           firstName?: string;
-          lastNamePaternal?: string;
-          lastNameMaternal?: string;
+          lastName?: string;
+          secondLastName?: string;
           locale?: "es" | "en";
           defaultWarehouseId?: string | null;
         } = {};
         if (input.firstName !== undefined) data.firstName = input.firstName;
-        if (input.lastNamePaternal !== undefined) data.lastNamePaternal = input.lastNamePaternal;
-        if (input.lastNameMaternal !== undefined) data.lastNameMaternal = input.lastNameMaternal;
+        if (input.lastName !== undefined) data.lastName = input.lastName;
+        if (input.secondLastName !== undefined) data.secondLastName = input.secondLastName;
         if (input.locale !== undefined) data.locale = input.locale;
 
         // F3-HOME-01: acá SÍ hay alcance que consultar — el usuario ya existe.
@@ -504,8 +504,8 @@ export class UsersAdminService {
       id: string;
       email: string;
       firstName: string;
-      lastNamePaternal: string;
-      lastNameMaternal: string | null;
+      lastName: string;
+      secondLastName: string | null;
       status: string;
       locale: string;
       defaultWarehouseId?: string | null;
@@ -516,8 +516,8 @@ export class UsersAdminService {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
-      lastNamePaternal: user.lastNamePaternal,
-      lastNameMaternal: user.lastNameMaternal,
+      lastName: user.lastName,
+      secondLastName: user.secondLastName,
       defaultWarehouseId: user.defaultWarehouseId ?? null,
       status: user.status,
       locale: user.locale,

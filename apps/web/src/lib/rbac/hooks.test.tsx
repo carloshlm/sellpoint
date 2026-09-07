@@ -60,8 +60,8 @@ const USER: UserDetail = {
   id: "u1",
   email: "ana@acme.mx",
   firstName: "Ana",
-  lastNamePaternal: "García",
-  lastNameMaternal: null,
+  lastName: "García",
+  secondLastName: null,
   status: "invited",
   locale: "es",
   defaultWarehouseId: null,
@@ -153,7 +153,7 @@ describe("mutaciones de usuarios invalidan USERS_QUERY_KEY", () => {
     mutation.current.mutate({
       email: "b@acme.mx",
       firstName: "B",
-      lastNamePaternal: "B",
+      lastName: "B",
       roleIds: ["r1"],
     });
 

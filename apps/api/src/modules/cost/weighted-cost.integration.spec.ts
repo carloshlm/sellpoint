@@ -55,7 +55,7 @@ describe("WeightedCostService (F5-COST-01)", () => {
           email: `cost-${stamp}@example.com`,
           passwordHash: "x",
           firstName: "Ana",
-          lastNamePaternal: "Pérez",
+          lastName: "Pérez",
         },
       });
       userId = user.id;

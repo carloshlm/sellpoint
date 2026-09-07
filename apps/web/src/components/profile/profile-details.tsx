@@ -43,8 +43,8 @@ function ProfileDetails({ user }: { user: AuthUser }) {
     resolver: zodResolver(profileDetailsSchema),
     defaultValues: {
       firstName: user.firstName,
-      lastNamePaternal: user.lastNamePaternal,
-      lastNameMaternal: user.lastNameMaternal ?? "",
+      lastName: user.lastName,
+      secondLastName: user.secondLastName ?? "",
     },
   });
 
@@ -54,11 +54,11 @@ function ProfileDetails({ user }: { user: AuthUser }) {
 
     const patch: UpdateMyProfileInput = {};
     if (dirtyFields.firstName) patch.firstName = values.firstName.trim();
-    if (dirtyFields.lastNamePaternal) patch.lastNamePaternal = values.lastNamePaternal.trim();
-    if (dirtyFields.lastNameMaternal) {
+    if (dirtyFields.lastName) patch.lastName = values.lastName.trim();
+    if (dirtyFields.secondLastName) {
       // Vacío BORRA (null): el materno es opcional desde el registro.
-      const trimmed = values.lastNameMaternal.trim();
-      patch.lastNameMaternal = trimmed === "" ? null : trimmed;
+      const trimmed = values.secondLastName.trim();
+      patch.secondLastName = trimmed === "" ? null : trimmed;
     }
 
     if (Object.keys(patch).length === 0) {
@@ -72,13 +72,13 @@ function ProfileDetails({ user }: { user: AuthUser }) {
         setUser({
           ...user,
           firstName: summary.firstName,
-          lastNamePaternal: summary.lastNamePaternal,
-          lastNameMaternal: summary.lastNameMaternal,
+          lastName: summary.lastName,
+          secondLastName: summary.secondLastName,
         });
         reset({
           firstName: summary.firstName,
-          lastNamePaternal: summary.lastNamePaternal,
-          lastNameMaternal: summary.lastNameMaternal ?? "",
+          lastName: summary.lastName,
+          secondLastName: summary.secondLastName ?? "",
         });
       },
       onError: (error: ApiError) => {
@@ -124,19 +124,15 @@ function ProfileDetails({ user }: { user: AuthUser }) {
             {...register("firstName")}
           />
           <TextField
-            label={t("common.profile.details.lastNamePaternal")}
+            label={t("common.profile.details.lastName")}
             autoComplete="family-name"
-            error={
-              errors.lastNamePaternal?.message ? t(errors.lastNamePaternal.message) : undefined
-            }
-            {...register("lastNamePaternal")}
+            error={errors.lastName?.message ? t(errors.lastName.message) : undefined}
+            {...register("lastName")}
           />
           <TextField
-            label={t("common.profile.details.lastNameMaternal")}
-            error={
-              errors.lastNameMaternal?.message ? t(errors.lastNameMaternal.message) : undefined
-            }
-            {...register("lastNameMaternal")}
+            label={t("common.profile.details.secondLastName")}
+            error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
+            {...register("secondLastName")}
           />
           <div className="flex flex-col gap-2">
             <Label>{t("common.profile.details.email")}</Label>

@@ -41,7 +41,7 @@ describe("POST /auth/register-tenant — fallback de Accept-Language (F1-LOCALE-
       email: `owner-${randomUUID()}@example.com`,
       password: "twelve-characters",
       firstName: "Ana",
-      lastNamePaternal: "Pérez",
+      lastName: "Pérez",
       ...overrides,
     };
   }

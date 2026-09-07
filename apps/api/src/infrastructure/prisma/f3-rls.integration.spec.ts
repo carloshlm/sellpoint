@@ -67,7 +67,7 @@ describe("RLS y append-only de Fase 3 (F3-DB-04)", () => {
           tenantId: tenantAId,
           email: `rls-f3-${stamp}@example.com`,
           firstName: "RLS",
-          lastNamePaternal: "F3",
+          lastName: "F3",
         },
       });
       const product = await tx.product.create({

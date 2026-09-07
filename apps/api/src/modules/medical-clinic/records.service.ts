@@ -78,7 +78,7 @@ export interface RecordSummary {
 }
 
 const INCLUDE = {
-  doctor: { select: { id: true, firstName: true, lastNamePaternal: true } },
+  doctor: { select: { id: true, firstName: true, lastName: true } },
   sections: true,
   orders: { orderBy: { createdAt: "asc" as const } },
 } as const;
@@ -149,8 +149,8 @@ export class RecordsService {
         select: {
           id: true,
           firstName: true,
-          lastNamePaternal: true,
-          lastNameMaternal: true,
+          lastName: true,
+          secondLastName: true,
           birthDate: true,
         },
       });

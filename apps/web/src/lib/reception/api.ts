@@ -5,8 +5,8 @@ import { imprimirPdf } from "@/lib/download";
 export interface Customer {
   id: string;
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
+  lastName: string;
+  secondLastName: string | null;
   /** `YYYY-MM-DD` o null. */
   birthDate: string | null;
   /** Años cumplidos hoy en el calendario del negocio; null sin fecha. */
@@ -21,8 +21,8 @@ export interface Customer {
 
 export interface CreateCustomerInput {
   firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal?: string;
+  lastName: string;
+  secondLastName?: string;
   birthDate?: string;
   phone?: string;
   email?: string;
@@ -32,8 +32,8 @@ export interface CreateCustomerInput {
 /** Presente = cambia; `null` = se limpia; ausente = no se toca. */
 export interface UpdateCustomerInput {
   firstName?: string;
-  lastNamePaternal?: string;
-  lastNameMaternal?: string | null;
+  lastName?: string;
+  secondLastName?: string | null;
   birthDate?: string | null;
   phone?: string | null;
   email?: string | null;

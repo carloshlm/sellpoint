@@ -37,8 +37,8 @@ const demoUser = (permissions: string[]): AuthUser =>
 const cliente = (over: Partial<receptionApi.Customer> = {}): receptionApi.Customer => ({
   id: "c1",
   firstName: "Rosa",
-  lastNamePaternal: "Luna",
-  lastNameMaternal: null,
+  lastName: "Luna",
+  secondLastName: null,
   birthDate: "1990-09-02",
   age: 36,
   phone: "+525512345678",
@@ -70,11 +70,11 @@ async function renderCustomers(permissions: string[]) {
 beforeEach(() => {
   mocked.listCustomers.mockResolvedValue({
     rows: [
-      cliente({ id: "c1", firstName: "Rosa", lastNamePaternal: "Luna" }),
+      cliente({ id: "c1", firstName: "Rosa", lastName: "Luna" }),
       cliente({
         id: "c2",
         firstName: "Luis",
-        lastNamePaternal: "Gómez",
+        lastName: "Gómez",
         age: null,
         birthDate: null,
         createdAt: "2026-09-01T18:00:00.000Z",

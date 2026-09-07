@@ -5,7 +5,7 @@ describe("rbac schemas", () => {
     const base = {
       email: "ana@acme.mx",
       firstName: "Ana",
-      lastNamePaternal: "García",
+      lastName: "García",
       roleIds: ["11111111-1111-1111-1111-111111111111"],
     };
 
@@ -31,11 +31,11 @@ describe("rbac schemas", () => {
       expect(result.error?.issues[0]?.message).toBe("validation.rolesRequired");
     });
 
-    it("lastNameMaternal vacío se normaliza a undefined (igual que en auth/register)", () => {
-      const result = userFormSchema.safeParse({ ...base, lastNameMaternal: "" });
+    it("secondLastName vacío se normaliza a undefined (igual que en auth/register)", () => {
+      const result = userFormSchema.safeParse({ ...base, secondLastName: "" });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.lastNameMaternal).toBeUndefined();
+        expect(result.data.secondLastName).toBeUndefined();
       }
     });
   });

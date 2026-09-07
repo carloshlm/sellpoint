@@ -154,12 +154,12 @@ describe("AdminTenantsService (F9-ADMIN-02)", () => {
     // se lee dentro de ese contexto, no con un include sin contexto.
     tx.user.findUnique = jest
       .fn()
-      .mockResolvedValue({ id: "admin-1", firstName: "Carlos", lastNamePaternal: "H" });
+      .mockResolvedValue({ id: "admin-1", firstName: "Carlos", lastName: "H" });
     const resumen = await service.overview(TENANT, VIEWER);
     expect(prisma.withTenantContext).toHaveBeenCalledWith(VIEWER.tenantId, expect.any(Function));
     expect(tx.user.findUnique).toHaveBeenCalledWith({
       where: { id: "admin-1" },
-      select: { id: true, firstName: true, lastNamePaternal: true },
+      select: { id: true, firstName: true, lastName: true },
     });
     expect(resumen.lifecycle).toEqual({
       suspendedAt: "2026-07-26T18:00:00.000Z",
@@ -220,7 +220,7 @@ describe("AdminTenantsService — ciclo de vida (F7-LIFECYCLE-03)", () => {
       user: {
         findUnique: jest
           .fn()
-          .mockResolvedValue({ id: "admin-1", firstName: "Carlos", lastNamePaternal: "H" }),
+          .mockResolvedValue({ id: "admin-1", firstName: "Carlos", lastName: "H" }),
       },
       $executeRaw: jest.fn().mockResolvedValue(1),
     };

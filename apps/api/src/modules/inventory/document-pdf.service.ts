@@ -124,8 +124,8 @@ export class DocumentPdfService {
         include: {
           warehouse: { select: { name: true } },
           linkedWarehouse: { select: { name: true } },
-          creator: { select: { firstName: true, lastNamePaternal: true } },
-          authorizer: { select: { firstName: true, lastNamePaternal: true } },
+          creator: { select: { firstName: true, lastName: true } },
+          authorizer: { select: { firstName: true, lastName: true } },
           lines: {
             orderBy: { lineNo: "asc" },
             include: {
@@ -158,7 +158,7 @@ export class DocumentPdfService {
         select: { name: true, legalName: true, taxId: true, timezone: true },
       });
 
-      const nombre = (p: { firstName: string; lastNamePaternal: string } | null) =>
+      const nombre = (p: { firstName: string; lastName: string } | null) =>
         p === null ? null : shortName(p);
 
       const rows = pdfRowsFor(document);

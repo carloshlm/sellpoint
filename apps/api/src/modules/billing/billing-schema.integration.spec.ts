@@ -324,7 +324,7 @@ describe("modelo de datos de billing (F7-DB)", () => {
             tenantId: tenantA,
             email: `billing-${stamp}@test.local`,
             firstName: "Billing",
-            lastNamePaternal: "Test",
+            lastName: "Test",
           },
         }),
       );

@@ -231,7 +231,7 @@ export class QuotesService {
           include: {
             lines: { orderBy: { lineNo: "asc" } },
             warehouse: { select: { id: true, name: true } },
-            author: { select: { id: true, firstName: true, lastNamePaternal: true } },
+            author: { select: { id: true, firstName: true, lastName: true } },
           },
         }),
       ]);

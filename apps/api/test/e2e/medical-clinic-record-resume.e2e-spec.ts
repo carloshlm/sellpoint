@@ -40,7 +40,7 @@ describe("Consultorio Médico — continuar y vencer (F9-CLINIC-28)", () => {
     negocio = await consultorio(app, prisma, "resume", admin);
     const paciente = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Rosa",
-      lastNamePaternal: "Luna",
+      lastName: "Luna",
       birthDate: "1990-09-02",
     }).expect(201);
     customerId = (paciente.body as { id: string }).id;
@@ -131,7 +131,7 @@ describe("Consultorio Médico — continuar y vencer (F9-CLINIC-28)", () => {
   it("dos médicos que abren a la vez dejan UNA consulta y un 409 con su folio", async () => {
     const otro = await post(negocio.token, "/medical-clinic/patients", {
       firstName: "Mario",
-      lastNamePaternal: "Ríos",
+      lastName: "Ríos",
     }).expect(201);
     const id = (otro.body as { id: string }).id;
     const dos = await Promise.all([

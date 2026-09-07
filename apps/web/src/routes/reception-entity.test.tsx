@@ -151,8 +151,8 @@ describe("la palabra propia del negocio en Recepción (F9-RECEP-18)", () => {
         {
           id: "c1",
           firstName: "Rosa",
-          lastNamePaternal: "Luna",
-          lastNameMaternal: null,
+          lastName: "Luna",
+          secondLastName: null,
           birthDate: null,
           age: null,
           phone: null,
