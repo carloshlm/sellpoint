@@ -480,7 +480,8 @@
     "day": "Day",
     "month": "Month",
     "year": "Year",
-    "monthPlaceholder": "Month"
+    "monthPlaceholder": "Month",
+    "format": "Day · Month · Year"
   },
   "tax": {
     "selectLabel": "Tax",

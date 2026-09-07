@@ -480,7 +480,8 @@
     "day": "Día",
     "month": "Mes",
     "year": "Año",
-    "monthPlaceholder": "Mes"
+    "monthPlaceholder": "Mes",
+    "format": "Día · Mes · Año"
   },
   "tax": {
     "selectLabel": "Impuesto",

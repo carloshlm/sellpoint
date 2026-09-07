@@ -2,7 +2,6 @@ import { isRealCalendarDate } from "@sellpoint/shared";
 import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 interface BirthDateFieldProps {
@@ -107,67 +106,65 @@ function BirthDateField({ label, value, onChange, error, hint, className }: Birt
 
   return (
     <fieldset className={cn("flex flex-col gap-2", className)} aria-describedby={describedBy}>
-      <legend className="mb-2 font-medium text-sm">{label}</legend>
+      {/* Las MISMAS clases que `Label` (incluido `leading-none`) y el mismo
+          `mb` que el `gap-2` del resto: sin eso el input quedaba 6 px más abajo
+          que el de la celda de al lado. */}
+      <legend className="mb-2 flex select-none items-center font-medium text-sm leading-none">
+        {label}
+      </legend>
       {/* Ancho acotado: el mes no necesita estirarse a media pantalla, y en el
           celular las tres columnas siguen entrando cómodas. */}
-      {/* Anchos proporcionales a lo que se escribe: dos dígitos, dos dígitos,
-          cuatro. Un campo ancho para dos dígitos invita a escribir de más. */}
-      <div className="grid w-fit grid-cols-[4rem_4rem_5.5rem] gap-2">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={`${id}-d`} className="text-muted-foreground text-xs">
-            {t("common.birthDate.day")}
-          </Label>
-          <Input
-            id={`${id}-d`}
-            // `text` y no `number`: en el celular `number` deja pegar letras y
-            // trae flechitas que nadie usa. `inputMode` es lo que abre el
-            // teclado numérico de verdad.
-            type="text"
-            inputMode="numeric"
-            maxLength={2}
-            autoComplete="bday-day"
-            placeholder="31"
-            aria-invalid={invalido}
-            value={dia}
-            onChange={(e) => cambiar("dia", e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={`${id}-m`} className="text-muted-foreground text-xs">
-            {t("common.birthDate.month")}
-          </Label>
-          <Input
-            id={`${id}-m`}
-            type="text"
-            inputMode="numeric"
-            maxLength={2}
-            autoComplete="bday-month"
-            placeholder="3"
-            aria-invalid={invalido}
-            value={mes}
-            onChange={(e) => cambiar("mes", e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor={`${id}-a`} className="text-muted-foreground text-xs">
-            {t("common.birthDate.year")}
-          </Label>
-          <Input
-            id={`${id}-a`}
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            autoComplete="bday-year"
-            placeholder="1990"
-            aria-invalid={invalido}
-            value={anio}
-            onChange={(e) => cambiar("anio", e.target.value)}
-          />
-        </div>
+      {/* Sin etiqueta propia por campo: esa línea de más empujaba los inputs
+          26 px hacia abajo y rompía la retícula de dos columnas del form. El
+          nombre de cada parte vive en su `aria-label`, y el formato lo dice el
+          texto de abajo. */}
+      <div className="flex gap-2">
+        <Input
+          id={`${id}-d`}
+          aria-label={t("common.birthDate.day")}
+          // `text` y no `number`: en el celular `number` deja pegar letras y
+          // trae flechitas que nadie usa. `inputMode` es lo que abre el
+          // teclado numérico de verdad.
+          type="text"
+          inputMode="numeric"
+          maxLength={2}
+          className="w-16"
+          autoComplete="bday-day"
+          placeholder="31"
+          aria-invalid={invalido}
+          value={dia}
+          onChange={(e) => cambiar("dia", e.target.value)}
+        />
+        <Input
+          id={`${id}-m`}
+          aria-label={t("common.birthDate.month")}
+          type="text"
+          inputMode="numeric"
+          maxLength={2}
+          className="w-16"
+          autoComplete="bday-month"
+          placeholder="3"
+          aria-invalid={invalido}
+          value={mes}
+          onChange={(e) => cambiar("mes", e.target.value)}
+        />
+        <Input
+          id={`${id}-a`}
+          aria-label={t("common.birthDate.year")}
+          type="text"
+          inputMode="numeric"
+          maxLength={4}
+          className="w-24"
+          autoComplete="bday-year"
+          placeholder="1990"
+          aria-invalid={invalido}
+          value={anio}
+          onChange={(e) => cambiar("anio", e.target.value)}
+        />
       </div>
-      {(hint || enPalabras) && !error && (
+      {!error && (
         <p id={hintId} aria-live="polite" className="text-muted-foreground text-xs">
-          {[enPalabras, hint].filter(Boolean).join(" · ")}
+          {[enPalabras || t("common.birthDate.format"), hint].filter(Boolean).join(" · ")}
         </p>
       )}
       {error && (
