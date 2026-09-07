@@ -127,13 +127,15 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
     // Tres campos en vez de un calendario: se teclea de corrido y el mes se
     // elige de una lista (F1-BDATE).
     await user.type(await screen.findByLabelText("Día"), "2");
-    await user.selectOptions(screen.getByLabelText("Mes"), "9");
+    await user.type(screen.getByLabelText("Mes"), "9");
     await user.type(screen.getByLabelText("Año"), "1990");
     const esperada = ageFromBirthDate(
       "1990-09-02",
       localCalendarDate("America/Mexico_City", new Date()),
     );
-    expect(screen.getByText(`Edad: ${esperada} años`)).toBeInTheDocument();
+    // El hint confirma la fecha EN PALABRAS y la edad, en una sola línea.
+    expect(screen.getByText(new RegExp(`Edad: ${esperada} años`))).toBeInTheDocument();
+    expect(screen.getByText(/2 de septiembre de 1990/)).toBeInTheDocument();
   });
 
   it("la edición precarga los datos y el PATCH manda solo lo que cambió", async () => {

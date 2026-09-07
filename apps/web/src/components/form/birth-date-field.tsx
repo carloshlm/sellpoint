@@ -79,16 +79,20 @@ function BirthDateField({ label, value, onChange, error, hint, className }: Birt
   }
   const { dia, mes, anio } = partes;
 
-  const meses = useMemo(() => {
-    const nombre = new Intl.DateTimeFormat(i18n.language, { month: "long", timeZone: "UTC" });
-    return Array.from({ length: 12 }, (_, i) => ({
-      value: String(i + 1),
-      label: nombre.format(new Date(Date.UTC(2000, i, 1))),
-    }));
-  }, [i18n.language]);
+  /**
+   * La fecha tecleada, en palabras. Es lo que reemplaza al nombre del mes de
+   * la lista: «17 de marzo de 1985» confirma de un vistazo que 3 era marzo y
+   * no abril, sin costarle una interacción a nadie.
+   */
+  const enPalabras = useMemo(() => {
+    if (value === "") return "";
+    return new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: "UTC" }).format(
+      new Date(`${value}T12:00:00Z`),
+    );
+  }, [value, i18n.language]);
 
   const cambiar = (parte: "dia" | "mes" | "anio", crudo: string) => {
-    const limpio = parte === "mes" ? crudo : crudo.replace(/\D/g, "");
+    const limpio = crudo.replace(/\D/g, "");
     const siguiente = { dia, mes, anio, [parte]: limpio };
     setPartes(siguiente);
     const compuesto = componer(siguiente.dia, siguiente.mes, siguiente.anio);
@@ -99,14 +103,15 @@ function BirthDateField({ label, value, onChange, error, hint, className }: Birt
   const describedBy =
     [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
   const invalido = error ? true : undefined;
-  const campo = "h-9 rounded-md border border-input bg-background px-2 text-sm";
 
   return (
     <fieldset className={cn("flex flex-col gap-2", className)} aria-describedby={describedBy}>
       <legend className="mb-2 font-medium text-sm">{label}</legend>
       {/* Ancho acotado: el mes no necesita estirarse a media pantalla, y en el
           celular las tres columnas siguen entrando cómodas. */}
-      <div className="grid max-w-sm grid-cols-[4rem_minmax(0,1fr)_5rem] gap-2">
+      {/* Anchos proporcionales a lo que se escribe: dos dígitos, dos dígitos,
+          cuatro. Un campo ancho para dos dígitos invita a escribir de más. */}
+      <div className="grid w-fit grid-cols-[4rem_4rem_5.5rem] gap-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor={`${id}-d`} className="text-muted-foreground text-xs">
             {t("common.birthDate.day")}
@@ -130,21 +135,17 @@ function BirthDateField({ label, value, onChange, error, hint, className }: Birt
           <Label htmlFor={`${id}-m`} className="text-muted-foreground text-xs">
             {t("common.birthDate.month")}
           </Label>
-          <select
+          <Input
             id={`${id}-m`}
-            className={campo}
+            type="text"
+            inputMode="numeric"
+            maxLength={2}
             autoComplete="bday-month"
+            placeholder="3"
             aria-invalid={invalido}
             value={mes}
             onChange={(e) => cambiar("mes", e.target.value)}
-          >
-            <option value="">{t("common.birthDate.monthPlaceholder")}</option>
-            {meses.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor={`${id}-a`} className="text-muted-foreground text-xs">
@@ -163,9 +164,9 @@ function BirthDateField({ label, value, onChange, error, hint, className }: Birt
           />
         </div>
       </div>
-      {hint && !error && (
+      {(hint || enPalabras) && !error && (
         <p id={hintId} aria-live="polite" className="text-muted-foreground text-xs">
-          {hint}
+          {[enPalabras, hint].filter(Boolean).join(" · ")}
         </p>
       )}
       {error && (

@@ -32,7 +32,7 @@ describe("BirthDateField", () => {
     render(<Campo />);
 
     await user.type(screen.getByLabelText("Día"), "2");
-    await user.selectOptions(screen.getByLabelText("Mes"), "9");
+    await user.type(screen.getByLabelText("Mes"), "9");
     await user.type(screen.getByLabelText("Año"), "1990");
 
     expect(screen.getByTestId("valor")).toHaveTextContent("1990-09-02");
@@ -61,7 +61,7 @@ describe("BirthDateField", () => {
     render(<Campo />);
 
     await user.type(screen.getByLabelText("Día"), "31");
-    await user.selectOptions(screen.getByLabelText("Mes"), "2");
+    await user.type(screen.getByLabelText("Mes"), "2");
     await user.type(screen.getByLabelText("Año"), "1990");
 
     expect(screen.getByTestId("valor")).toHaveTextContent("");
@@ -74,14 +74,30 @@ describe("BirthDateField", () => {
     expect(screen.getByLabelText("Año")).toHaveAttribute("inputMode", "numeric");
   });
 
-  it("el mes es una lista, no un número: dd/mm y mm/dd dejan de ser ambiguos", () => {
+  it("los TRES se teclean: ningún desplegable que navegar (GOV.UK, NN/g)", () => {
     render(<Campo inicial="1985-03-17" />);
-    const mes = screen.getByLabelText("Mes") as HTMLSelectElement;
 
-    expect(mes.tagName).toBe("SELECT");
-    // 12 meses + el placeholder.
-    expect(mes.options).toHaveLength(13);
-    expect([...mes.options].map((o) => o.text)).toContain("marzo");
+    for (const etiqueta of ["Día", "Mes", "Año"]) {
+      const campo = screen.getByLabelText(etiqueta);
+      expect(campo.tagName).toBe("INPUT");
+      expect(campo).toHaveAttribute("inputMode", "numeric");
+    }
+  });
+
+  it("confirma en palabras lo tecleado: «3» se lee como marzo sin abrir nada", () => {
+    render(<Campo inicial="1985-03-17" />);
+
+    // Lo que la lista de meses daba gratis, ahora lo da el texto de abajo — y
+    // sin costarle una interacción a nadie.
+    expect(screen.getByText(/17 de marzo de 1985/)).toBeInTheDocument();
+  });
+
+  it("incompleta no confirma nada: no se lee una fecha que todavía no existe", async () => {
+    const user = userEvent.setup();
+    render(<Campo />);
+
+    await user.type(screen.getByLabelText("Día"), "17");
+    expect(screen.queryByText(/de \d{4}/)).not.toBeInTheDocument();
   });
 
   it("borrar una parte borra la fecha, sin dejar a medias lo guardado", async () => {
