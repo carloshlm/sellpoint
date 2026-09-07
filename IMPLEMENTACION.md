@@ -1144,10 +1144,11 @@ Ejemplos:
 
 #### Bloque 1 — El catálogo por país (shared)
 
-- [ ] **F1-NAME-03** — Los tres formatos de apellido
+- [x] **F1-NAME-03** — Los tres formatos de apellido
   - **Salida:** `packages/shared/src/names.ts` crece con `NAME_FORMATS = ["single","double","compound"]`, `NameFormat`, `DOUBLE_SURNAME_COUNTRIES` (MX ES CR SV GT HN NI PA BO CL CO EC PY PE UY VE + CU DO PR GQ AD), `COMPOUND_SURNAME_COUNTRIES` (PT BR + AO MZ CV GW ST TL), `resolveNameFormat(country)` (lo demás, `null` y desconocido → `single`) y `asksSecondSurname(format)` (`true` solo en `double`). Docblock en español con los hechos y sus fuentes: por qué Argentina es `single` (CCyC art. 64 + campo único del DNI), por qué `compound` existe aunque dibuje un solo campo, y por qué no se normaliza la caja del código de país (mismo criterio que `resolveTaxDefaults`). **NO se crea una tercera lista curada**: ya hay dos (`TAX_CURATED_COUNTRIES` en shared, `CURATED_COUNTRIES` en `markets.ts:27-58`).
   - **Verificar:** `names.test.ts` (RED): `double` para MX ES CL CO PE; `single` para US CA GB FR DE IT BZ **y AR**; `compound` para PT BR; `single` para `null`, `undefined`, `"JP"` y `"mx"` en minúscula. Test de cobertura que importa `TAX_CURATED_COUNTRIES` y afirma los **26** contra un mapa esperado explícito: un país curado sin formato lo caza. **Mutante:** poner AR en `DOUBLE_SURNAME_COUNTRIES` pone en rojo el test de Argentina.
   - **Depende de:** F1-NAME-02 · **Estimación:** 2.5 h
+  - **Cerrado (2026-09-06):** `NAME_FORMATS`, `NameFormat`, `DOUBLE_SURNAME_COUNTRIES` (21: los 16 curados + CU DO PR GQ AD), `COMPOUND_SURNAME_COUNTRIES` (8: PT BR + los lusófonos), `resolveNameFormat` y `asksSecondSurname`, con el docblock que explica por qué Argentina es `single` (CCyC art. 64 + el campo único del DNI) y por qué `compound` existe aunque dibuje un solo campo. El test de cobertura mapea los **26** curados uno por uno contra `TAX_CURATED_COUNTRIES`, así que un país nuevo sin formato no llega a producción. **Mutantes muertos:** Argentina en `double`, Uruguay fuera del catálogo, PT/BR degradados a `single`, y `asksSecondSurname` diciendo que sí en `compound`. **Gotcha de paso:** biome reformatea la lista a un país por línea, así que dos mutantes aplicados con `sed` sobre la forma vieja NO se aplicaron y parecieron sobrevivir — un mutante que no se aplica siempre sobrevive; hay que verificar que entró antes de creerle.
 
 #### Bloque 2 — Cerrar la ventana del deploy (va SOLO, antes del rename)
 
