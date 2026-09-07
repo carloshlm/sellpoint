@@ -3,7 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
@@ -52,17 +52,8 @@ const mockedProducts = vi.mocked(productsApi.listProducts);
 const mockedUsers = vi.mocked(rbacApi.listUsers);
 const mockedStock = vi.mocked(kardexApi.getStock);
 
-const demoUser = (permissions: string[], usesLocations = false): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ usesLocations: usesLocations }),
-});
+const demoUser = (permissions: string[], usesLocations = false): AuthUser =>
+  buildAuthUser({ permissions, tenant: buildTenantBlock({ usesLocations: usesLocations }) });
 
 const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   id: "doc-1",

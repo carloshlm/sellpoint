@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
@@ -37,17 +37,12 @@ vi.mock("../lib/warehouses/api", () => ({
 const mocked = vi.mocked(posApi);
 const mockedWarehouses = vi.mocked(warehousesApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "cajero@demo.test",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({
+    email: "cajero@demo.test",
+    permissions,
+    tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+  });
 
 const sesion = (overrides: Partial<posApi.CashboxSession> = {}): posApi.CashboxSession => ({
   id: "s1",

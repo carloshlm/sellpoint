@@ -5,8 +5,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { __resetRefreshStateForTests, installRefreshInterceptor } from "./refresh-interceptor";
 
 /** Respuesta con el shape que axios espera de un adaptador. */
@@ -81,17 +80,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
   beforeEach(() => {
     __resetRefreshStateForTests();
     useAuthStore.getState().clearAuth();
-    useAuthStore.getState().setAuth("token-viejo", {
-      id: "u1",
-      email: "ana@test.com",
-      firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
-      locale: "es",
-      permissions: [],
-      subscription: SUBSCRIPTION_PLUS,
-      tenant: buildTenantBlock(),
-    });
+    useAuthStore.getState().setAuth("token-viejo", buildAuthUser({ email: "ana@test.com" }));
   });
 
   it("adjunta el token del store como Bearer", async () => {
@@ -216,17 +205,7 @@ describe("interceptor de refresh (F1-WEB-AUTH-02)", () => {
 describe("interceptor de refresh — 401 de credenciales vs 401 de sesión", () => {
   beforeEach(() => {
     __resetRefreshStateForTests();
-    useAuthStore.getState().setAuth("token-viejo", {
-      id: "u1",
-      email: "ana@test.com",
-      firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
-      locale: "es",
-      permissions: [],
-      subscription: SUBSCRIPTION_PLUS,
-      tenant: buildTenantBlock(),
-    });
+    useAuthStore.getState().setAuth("token-viejo", buildAuthUser({ email: "ana@test.com" }));
   });
 
   function buildCredentialHarness(code: string | undefined) {

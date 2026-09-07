@@ -11,7 +11,7 @@ import { createQueryClient } from "@/lib/query-client";
 import * as reportsApi from "@/lib/reports/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
@@ -60,18 +60,15 @@ const mockedKpis = vi.mocked(dashboardApi.getDashboardKpis);
 const mockedSales = vi.mocked(reportsApi.getSalesReport);
 const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
 
-const demoUser = (isPlatformAdmin: boolean): AuthUser => ({
-  id: "u1",
-  email: "carls.hlm@gmail.com",
-  firstName: "Carlos",
-  lastNamePaternal: "H",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: ["tenants:manage"],
-  isPlatformAdmin,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ name: "SellPointy HQ" }),
-});
+const demoUser = (isPlatformAdmin: boolean): AuthUser =>
+  buildAuthUser({
+    email: "carls.hlm@gmail.com",
+    firstName: "Carlos",
+    lastNamePaternal: "H",
+    permissions: ["tenants:manage"],
+    isPlatformAdmin,
+    tenant: buildTenantBlock({ name: "SellPointy HQ" }),
+  });
 
 async function renderEn(path: string, isPlatformAdmin = true) {
   useAuthStore.getState().setAuth("jwt", demoUser(isPlatformAdmin));

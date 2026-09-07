@@ -6,6 +6,7 @@ import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as tenantApi from "@/lib/tenant/api";
 import type { AuthUser } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { BusinessDetails } from "./business-details";
@@ -28,22 +29,16 @@ vi.mock("@/lib/auth/session-resync", () => ({
 
 const mockedUpdate = vi.mocked(tenantApi.updateMyTenant);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({
-    legalName: "Acme SA de CV",
-    taxId: "ACM010101AAA",
-    address: "Av. Siempre Viva 123",
-    phone: "+525512345678",
-  }),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({
+    permissions,
+    tenant: buildTenantBlock({
+      legalName: "Acme SA de CV",
+      taxId: "ACM010101AAA",
+      address: "Av. Siempre Viva 123",
+      phone: "+525512345678",
+    }),
+  });
 
 function renderCard(user: AuthUser) {
   return render(

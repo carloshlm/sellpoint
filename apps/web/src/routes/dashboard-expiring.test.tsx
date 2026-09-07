@@ -2,8 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { ExpiringRow } from "../lib/inventory/types";
@@ -37,17 +36,7 @@ vi.mock("../lib/inventory/api", () => ({
 
 const mocked = vi.mocked(inventoryApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 const fila = (overrides: Partial<ExpiringRow> = {}): ExpiringRow => ({
   productId: "p1",

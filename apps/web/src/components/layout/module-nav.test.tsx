@@ -7,8 +7,8 @@ import { createQueryClient } from "@/lib/query-client";
 import * as settingsApi from "@/lib/reception/settings-api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 
 vi.mock("@/lib/reception/settings-api", () => ({
   getReceptionSettings: vi.fn(),
@@ -24,20 +24,8 @@ const settings = vi.mocked(settingsApi);
  * el backoffice). Y aun con el módulo, cada link se gatea por SU permiso,
  * como el resto del nav.
  */
-const demoUser = (
-  modules: AuthUser["subscription"]["modules"],
-  permissions: string[],
-): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: { ...SUBSCRIPTION_PLUS, modules },
-  tenant: buildTenantBlock(),
-});
+const demoUser = (modules: AuthUser["subscription"]["modules"], permissions: string[]): AuthUser =>
+  buildAuthUser({ permissions, subscription: { ...SUBSCRIPTION_PLUS, modules } });
 
 async function renderCon(modules: AuthUser["subscription"]["modules"], permissions: string[]) {
   useAuthStore.getState().setAuth("jwt-demo", demoUser(modules, permissions));

@@ -8,7 +8,7 @@ import * as billingApi from "@/lib/billing/api";
 import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
 vi.mock("@/lib/billing/api", async (importOriginal) => ({
@@ -29,21 +29,15 @@ const mockedVoid = vi.mocked(billingApi.voidPayment);
  * (registrar un pago). El flag del front solo pinta la pantalla; la verdad
  * vive en el guard del server.
  */
-const demoUser = (
-  isPlatformAdmin: boolean,
-  permissions: string[] = ["tenants:manage"],
-): AuthUser => ({
-  id: "u1",
-  email: "carls.hlm@gmail.com",
-  firstName: "Carlos",
-  lastNamePaternal: "H",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  isPlatformAdmin,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ name: "SellPointy HQ" }),
-});
+const demoUser = (isPlatformAdmin: boolean, permissions: string[] = ["tenants:manage"]): AuthUser =>
+  buildAuthUser({
+    email: "carls.hlm@gmail.com",
+    firstName: "Carlos",
+    lastNamePaternal: "H",
+    permissions,
+    isPlatformAdmin,
+    tenant: buildTenantBlock({ name: "SellPointy HQ" }),
+  });
 
 async function renderAdmin(isPlatformAdmin: boolean, permissions?: string[]) {
   useAuthStore.getState().setAuth("jwt", demoUser(isPlatformAdmin, permissions));

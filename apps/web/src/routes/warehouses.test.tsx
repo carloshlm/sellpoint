@@ -5,8 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
 import { createQueryClient } from "../lib/query-client";
@@ -63,17 +62,7 @@ const CATALOGOS_SISTEMA = [
   },
 ] as catalogsApi.CatalogSummary[];
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 const almacen = (over: Partial<warehousesApi.Warehouse>): warehousesApi.Warehouse => ({
   id: "w1",

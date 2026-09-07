@@ -7,8 +7,7 @@ import * as authApi from "@/lib/auth/api";
 import { createQueryClient } from "@/lib/query-client";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { ProfileDetails } from "./profile-details";
 
 /**
@@ -24,17 +23,7 @@ vi.mock("@/lib/auth/api", async (importOriginal) => ({
 
 const mockedUpdate = vi.mocked(authApi.updateMyProfile);
 
-const demoUser = (): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: [],
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (): AuthUser => buildAuthUser();
 
 function renderCard(user: AuthUser) {
   useAuthStore.setState({ accessToken: "token", user });

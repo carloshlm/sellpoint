@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "./i18n";
 import {
@@ -57,17 +57,11 @@ const forgotPasswordMock = vi.mocked(forgotPassword);
 // fuera del alcance del wizard; OnboardingGate no debe interceptarlos.
 const DEMO_TENANT = buildTenantBlock();
 
-const demoUser = {
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
+const demoUser = buildAuthUser({
   locale: "es" as const,
   permissions: ["products:read"],
-  subscription: SUBSCRIPTION_PLUS,
   tenant: DEMO_TENANT,
-};
+});
 
 /**
  * `queryClient` es un parámetro a propósito: la app monta UN solo cliente por
@@ -781,17 +775,14 @@ describe("C1 — la caché de React Query muere con la sesión", () => {
     },
   ];
 
-  const beto = {
+  const beto = buildAuthUser({
     id: "u2",
     email: "beto@otra-empresa.mx",
     firstName: "Beto",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
     locale: "es" as const,
     permissions: ["products:read"],
-    subscription: SUBSCRIPTION_PLUS,
     tenant: DEMO_TENANT,
-  };
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

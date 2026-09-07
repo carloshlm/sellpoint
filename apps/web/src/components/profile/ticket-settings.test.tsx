@@ -7,8 +7,7 @@ import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as ticketApi from "@/lib/tenant/ticket-settings-api";
 import type { AuthUser } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { TicketSettings } from "./ticket-settings";
 
 vi.mock("@/lib/tenant/ticket-settings-api", async (importOriginal) => ({
@@ -26,17 +25,7 @@ const mocked = vi.mocked(ticketApi);
  * previa es lo que QUEDÓ, no el archivo original); cinco casillas de qué se
  * imprime y el mensaje del pie; Guardar manda SOLO lo que cambió.
  */
-const user = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const user = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 const defaults = (): ticketApi.TicketSettingsView => ({
   showBusinessName: true,

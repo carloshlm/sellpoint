@@ -3,8 +3,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { PermissionGate } from "./permission-gate";
 
 /**
@@ -13,17 +12,7 @@ import { PermissionGate } from "./permission-gate";
  */
 
 function user(permissions: string[]): AuthUser {
-  return {
-    id: "u1",
-    email: "ana@acme.mx",
-    firstName: "Ana",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
-    locale: "es",
-    permissions,
-    subscription: SUBSCRIPTION_PLUS,
-    tenant: buildTenantBlock(),
-  };
+  return buildAuthUser({ permissions });
 }
 
 function renderGate(permissions: string[], need: string) {

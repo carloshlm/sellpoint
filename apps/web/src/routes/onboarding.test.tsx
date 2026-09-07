@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
@@ -45,18 +45,7 @@ function tenantFixture(overrides: Partial<AuthUser["tenant"]> = {}): AuthUser["t
 }
 
 function demoUser(tenant: AuthUser["tenant"], overrides: Partial<AuthUser> = {}): AuthUser {
-  return {
-    id: "u1",
-    email: "ana@acme.mx",
-    firstName: "Ana",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
-    locale: "es",
-    permissions: ["tenants:manage"],
-    subscription: SUBSCRIPTION_PLUS,
-    tenant,
-    ...overrides,
-  };
+  return buildAuthUser({ permissions: ["tenants:manage"], tenant, ...overrides });
 }
 
 async function renderRoute(path: string, lng?: "es" | "en") {

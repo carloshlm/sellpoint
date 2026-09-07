@@ -9,8 +9,8 @@ import { createQueryClient } from "@/lib/query-client";
 import * as receptionApi from "@/lib/reception/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-RECEP-12 — la pantalla de alta y edición de cliente (pantalla completa,
@@ -31,17 +31,11 @@ vi.mock("@/lib/reception/api", () => ({
 }));
 const mocked = vi.mocked(receptionApi);
 
-const demoUser = (): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: ["reception:read", "reception:manage"],
-  subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
-  tenant: buildTenantBlock(),
-});
+const demoUser = (): AuthUser =>
+  buildAuthUser({
+    permissions: ["reception:read", "reception:manage"],
+    subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
+  });
 
 const guardado: receptionApi.Customer = {
   id: "c1",

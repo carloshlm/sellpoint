@@ -8,8 +8,8 @@ import { createQueryClient } from "@/lib/query-client";
 import * as receptionApi from "@/lib/reception/api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-RECEP-13 — «Generar turno»: los turnos del día del negocio, del número
@@ -30,17 +30,8 @@ vi.mock("@/lib/reception/api", () => ({
 }));
 const mocked = vi.mocked(receptionApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({ permissions, subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] } });
 
 const turno = (over: Partial<receptionApi.Turn> = {}): receptionApi.Turn => ({
   id: "t5",

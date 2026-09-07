@@ -1,8 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { hasPermission, usePermissions } from "./permissions";
 
 /**
@@ -13,18 +12,7 @@ import { hasPermission, usePermissions } from "./permissions";
  */
 
 function user(overrides: Partial<AuthUser> = {}): AuthUser {
-  return {
-    id: "u1",
-    email: "ana@acme.mx",
-    firstName: "Ana",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
-    locale: "es",
-    permissions: [],
-    subscription: SUBSCRIPTION_PLUS,
-    tenant: buildTenantBlock(),
-    ...overrides,
-  };
+  return buildAuthUser({ ...overrides });
 }
 
 describe("hasPermission (función pura)", () => {

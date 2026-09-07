@@ -8,8 +8,8 @@ import * as clinicApi from "@/lib/medical-clinic/api";
 import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-CLINIC-WEB-04/05 — los dos catálogos de estudios sobre la misma
@@ -57,17 +57,11 @@ vi.mock("@/lib/tenant/tax-api", () => ({
 }));
 const mocked = vi.mocked(clinicApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: { ...SUBSCRIPTION_PLUS, modules: ["medical_clinic"] },
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({
+    permissions,
+    subscription: { ...SUBSCRIPTION_PLUS, modules: ["medical_clinic"] },
+  });
 
 const estudio = (over: Partial<clinicApi.Study> = {}): clinicApi.Study => ({
   id: "s1",

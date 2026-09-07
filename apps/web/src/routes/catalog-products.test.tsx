@@ -5,8 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
 import * as productsApi from "../lib/products/api";
@@ -76,17 +76,7 @@ vi.mock("@/lib/tenant/tax-api", () => ({
 const mockedProducts = vi.mocked(productsApi);
 const mockedCatalogs = vi.mocked(catalogsApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 const PRODUCT: productsApi.ProductDetail = {
   id: "prod-1",

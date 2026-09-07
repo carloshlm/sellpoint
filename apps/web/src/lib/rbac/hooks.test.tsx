@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { resyncSession } from "@/lib/auth/session-resync";
 import { createQueryClient } from "@/lib/query-client";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import type { PermissionGroup, RoleSummary, UserDetail } from "./api";
 import * as rbacApi from "./api";
@@ -237,17 +237,9 @@ describe("re-sync de sesión (D3)", () => {
 
   it("useUpdateUser SÍ llama resyncSession cuando el target editado es el actor logueado", async () => {
     mockedApi.updateUser.mockResolvedValue(USER);
-    useAuthStore.getState().setAuth("jwt-demo", {
-      id: "u1",
-      email: "ana@acme.mx",
-      firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
-      locale: "es",
-      permissions: ["users:read"],
-      subscription: SUBSCRIPTION_PLUS,
-      tenant: DEMO_TENANT,
-    });
+    useAuthStore
+      .getState()
+      .setAuth("jwt-demo", buildAuthUser({ permissions: ["users:read"], tenant: DEMO_TENANT }));
     const { Wrapper } = wrapper();
 
     const { result } = renderHook(() => useUpdateUser(), { wrapper: Wrapper });
@@ -298,17 +290,9 @@ describe("re-sync de sesión (D3)", () => {
 
   it("useUpdateUser (self-edit) ata un .catch() a resyncSession() — W5", async () => {
     mockedApi.updateUser.mockResolvedValue(USER);
-    useAuthStore.getState().setAuth("jwt-demo", {
-      id: "u1",
-      email: "ana@acme.mx",
-      firstName: "Ana",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
-      locale: "es",
-      permissions: ["users:read"],
-      subscription: SUBSCRIPTION_PLUS,
-      tenant: DEMO_TENANT,
-    });
+    useAuthStore
+      .getState()
+      .setAuth("jwt-demo", buildAuthUser({ permissions: ["users:read"], tenant: DEMO_TENANT }));
     const { promise, catchCalled } = trackedRejectedPromise();
     resyncSessionMock.mockReturnValueOnce(promise);
     const { Wrapper } = wrapper();
@@ -322,17 +306,16 @@ describe("re-sync de sesión (D3)", () => {
 
   it("useUpdateUser NO llama resyncSession cuando el target editado es OTRO usuario", async () => {
     mockedApi.updateUser.mockResolvedValue(USER);
-    useAuthStore.getState().setAuth("jwt-demo", {
-      id: "actor-distinto",
-      email: "otro@acme.mx",
-      firstName: "Otro",
-      lastNamePaternal: "Pérez",
-      lastNameMaternal: null,
-      locale: "es",
-      permissions: ["users:manage"],
-      subscription: SUBSCRIPTION_PLUS,
-      tenant: DEMO_TENANT,
-    });
+    useAuthStore.getState().setAuth(
+      "jwt-demo",
+      buildAuthUser({
+        id: "actor-distinto",
+        email: "otro@acme.mx",
+        firstName: "Otro",
+        permissions: ["users:manage"],
+        tenant: DEMO_TENANT,
+      }),
+    );
     const { Wrapper } = wrapper();
 
     const { result } = renderHook(() => useUpdateUser(), { wrapper: Wrapper });

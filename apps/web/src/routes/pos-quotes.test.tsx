@@ -6,7 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useCartStore } from "@/stores/cart.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
@@ -73,18 +73,13 @@ const AGUA: posApi.LookupProductItem = {
   matchedPresentationId: null,
 };
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "cajero@demo.test",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  defaultWarehouseId: "w1",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({
+    email: "cajero@demo.test",
+    defaultWarehouseId: "w1",
+    permissions,
+    tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+  });
 
 const sesion = (): posApi.CashboxSession => ({
   id: "s1",

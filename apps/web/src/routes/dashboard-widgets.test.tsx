@@ -3,8 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { createI18n } from "../i18n";
 import * as dashboardApi from "../lib/dashboard/api";
 import { createQueryClient } from "../lib/query-client";
@@ -103,17 +102,7 @@ const PAYMENTS: dashboardApi.DashboardPayments = {
   ],
 };
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 async function renderDashboard(permissions: string[] = ["reports:read", "inventory:read"]) {
   useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));

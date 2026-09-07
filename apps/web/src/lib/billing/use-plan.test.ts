@@ -1,24 +1,15 @@
 import { renderHook } from "@testing-library/react";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 import { usePlan } from "./use-plan";
 
 /**
  * F9-MOD-07 — `hasModule` responde si el negocio tiene activo un módulo
  * avanzado. Fail-closed como `hasFeature`: sin sesión, nada.
  */
-const usuario = (modules: AuthUser["subscription"]["modules"]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: [],
-  subscription: { ...SUBSCRIPTION_PLUS, modules },
-  tenant: buildTenantBlock(),
-});
+const usuario = (modules: AuthUser["subscription"]["modules"]): AuthUser =>
+  buildAuthUser({ subscription: { ...SUBSCRIPTION_PLUS, modules } });
 
 afterEach(() => {
   useAuthStore.getState().clearAuth();

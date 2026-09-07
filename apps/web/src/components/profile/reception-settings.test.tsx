@@ -7,8 +7,8 @@ import { createQueryClient } from "@/lib/query-client";
 import * as settingsApi from "@/lib/reception/settings-api";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 import { ReceptionSettings } from "./reception-settings";
 
 vi.mock("@/lib/reception/settings-api", () => ({
@@ -23,17 +23,8 @@ const mocked = vi.mocked(settingsApi);
  * Capitalizada; las dos entradas del menú se apagan por separado; Guardar
  * manda SOLO lo que cambió.
  */
-const user = (modules: AuthUser["subscription"]["modules"], permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: { ...SUBSCRIPTION_PLUS, modules },
-  tenant: buildTenantBlock(),
-});
+const user = (modules: AuthUser["subscription"]["modules"], permissions: string[]): AuthUser =>
+  buildAuthUser({ permissions, subscription: { ...SUBSCRIPTION_PLUS, modules } });
 
 function renderCard(u: AuthUser) {
   // El hook de la entidad lee el módulo del store, no de la prop.

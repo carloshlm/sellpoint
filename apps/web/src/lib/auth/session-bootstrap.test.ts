@@ -1,7 +1,6 @@
 import { getMe, refreshSession } from "@/lib/auth/api";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import {
   __resetSessionBootstrapForTests,
   bootstrapSession,
@@ -16,17 +15,7 @@ vi.mock("@/lib/auth/api", () => ({
 const refreshSessionMock = vi.mocked(refreshSession);
 const getMeMock = vi.mocked(getMe);
 
-const demoUser = {
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es" as const,
-  permissions: ["products:read"],
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-};
+const demoUser = buildAuthUser({ locale: "es" as const, permissions: ["products:read"] });
 
 describe("bootstrapSession (bootstrap de sesión tras reload)", () => {
   beforeEach(() => {

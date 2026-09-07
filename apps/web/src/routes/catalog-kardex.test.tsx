@@ -10,8 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { createI18n } from "../i18n";
 import type { KardexRow, StockSummary } from "../lib/inventory/kardex-api";
 import * as kardexApi from "../lib/inventory/kardex-api";
@@ -38,17 +37,7 @@ vi.mock("../lib/warehouses/api", () => ({ listWarehouses: vi.fn() }));
 
 const mocked = vi.mocked(kardexApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 const movimiento = (overrides: Partial<KardexRow> = {}): KardexRow => ({
   id: "m1",

@@ -8,8 +8,8 @@ import * as billingApi from "@/lib/billing/api";
 import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 
 vi.mock("@/lib/billing/api", async (importOriginal) => ({
   ...(await importOriginal<typeof billingApi>()),
@@ -24,17 +24,11 @@ const mockedRequestPlan = vi.mocked(billingApi.requestPlan);
 const demoUser = (
   permissions: string[],
   subscription: Partial<AuthUser["subscription"]> = {},
-): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: { ...SUBSCRIPTION_PLUS, status: "active", planName: "Plus", ...subscription },
-  tenant: buildTenantBlock(),
-});
+): AuthUser =>
+  buildAuthUser({
+    permissions,
+    subscription: { ...SUBSCRIPTION_PLUS, status: "active", planName: "Plus", ...subscription },
+  });
 
 async function renderBilling(
   permissions: string[],

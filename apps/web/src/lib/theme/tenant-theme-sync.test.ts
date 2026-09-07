@@ -1,5 +1,5 @@
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { applyTheme } from "./apply-theme";
 import { installTenantThemeSync } from "./tenant-theme-sync";
@@ -8,17 +8,8 @@ import { installTenantThemeSync } from "./tenant-theme-sync";
  * El tema de la cuenta manda apenas se conoce — gemelo de
  * `installAccountLanguageSync` y con las mismas guardas.
  */
-const userWithTheme = (theme: string | null): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: [],
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ theme: theme }),
-});
+const userWithTheme = (theme: string | null): AuthUser =>
+  buildAuthUser({ tenant: buildTenantBlock({ theme: theme }) });
 
 describe("installTenantThemeSync", () => {
   let uninstall: () => void;

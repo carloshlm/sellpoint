@@ -9,7 +9,7 @@ import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
@@ -98,17 +98,7 @@ describe("layout que encoge (LEY de responsive)", () => {
  * jsdom no calcula layout: acá se fija QUÉ está en el DOM y con qué nombre
  * accesible. Que se VEA bien se verifica en el navegador.
  */
-const usuarioDemo = (): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: [],
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ id: "t1" }),
-});
+const usuarioDemo = (): AuthUser => buildAuthUser({ tenant: buildTenantBlock({ id: "t1" }) });
 
 async function renderLayout() {
   useAuthStore.getState().setAuth("jwt-demo", usuarioDemo());

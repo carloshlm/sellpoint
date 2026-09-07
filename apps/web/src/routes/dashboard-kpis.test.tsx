@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import type { DashboardKpis } from "../lib/dashboard/api";
@@ -39,17 +39,8 @@ const KPIS: DashboardKpis = {
   profit: { month: "214580", deltaVsPrevMonthPct: 11.2 },
 };
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ monthlySalesGoal: "800000" }),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({ permissions, tenant: buildTenantBlock({ monthlySalesGoal: "800000" }) });
 
 async function renderDashboard(permissions: string[] = ["reports:read"]) {
   useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));

@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as posApi from "../lib/pos/api";
@@ -34,17 +34,12 @@ vi.mock("../lib/pos/api", () => ({
 
 const mocked = vi.mocked(posApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "cajero@demo.test",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({
+    email: "cajero@demo.test",
+    permissions,
+    tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+  });
 
 const venta = (overrides: Partial<posApi.SaleRow> = {}): posApi.SaleRow => ({
   id: "sale-1",

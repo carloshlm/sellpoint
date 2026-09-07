@@ -2,35 +2,25 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createQueryClient } from "./query-client";
 
 const DEMO_TENANT = buildTenantBlock();
 
-const ana: AuthUser = {
+const ana: AuthUser = buildAuthUser({
   id: "u-ana",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
   permissions: ["products:read"],
-  subscription: SUBSCRIPTION_PLUS,
   tenant: DEMO_TENANT,
-};
+});
 
-const beto: AuthUser = {
+const beto: AuthUser = buildAuthUser({
   id: "u-beto",
   email: "beto@otra-empresa.mx",
   firstName: "Beto",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
   permissions: ["products:read"],
-  subscription: SUBSCRIPTION_PLUS,
   tenant: DEMO_TENANT,
-};
+});
 
 const CACHE_KEY = ["auth", "sessions"] as const;
 const DATO_DE_ANA = [{ familyId: "fam-ana", createdAt: "2026-01-15T10:00:00.000Z" }];

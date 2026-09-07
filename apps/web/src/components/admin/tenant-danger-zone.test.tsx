@@ -6,7 +6,7 @@ import { createI18n } from "@/i18n";
 import * as adminApi from "@/lib/admin/api";
 import { createQueryClient } from "@/lib/query-client";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { TenantDangerZone } from "./tenant-danger-zone";
 
@@ -24,18 +24,16 @@ const mocked = vi.mocked(adminApi);
  * nombre exacto y la contraseña del administrador. Nunca sobre el propio
  * negocio.
  */
-const admin = (): AuthUser => ({
-  id: "admin-1",
-  email: "carlos@backoffice.mx",
-  firstName: "Carlos",
-  lastNamePaternal: "H",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: ["tenants:manage"],
-  isPlatformAdmin: true,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ id: "backoffice", name: "BACKOFFICE" }),
-});
+const admin = (): AuthUser =>
+  buildAuthUser({
+    id: "admin-1",
+    email: "carlos@backoffice.mx",
+    firstName: "Carlos",
+    lastNamePaternal: "H",
+    permissions: ["tenants:manage"],
+    isPlatformAdmin: true,
+    tenant: buildTenantBlock({ id: "backoffice", name: "BACKOFFICE" }),
+  });
 
 const activo: adminApi.TenantLifecycleView = {
   suspendedAt: null,

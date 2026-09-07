@@ -6,7 +6,7 @@ import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as taxApi from "@/lib/tenant/tax-api";
 import type { AuthUser } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { TaxSettings } from "./tax-settings";
 
@@ -26,17 +26,8 @@ const mocked = vi.mocked(taxApi);
  * default manda un solo `isDefault`; la tasa se valida en el cliente; y el
  * 409 de borrar se explica.
  */
-const user = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ country: "CA" }),
-});
+const user = (permissions: string[]): AuthUser =>
+  buildAuthUser({ permissions, tenant: buildTenantBlock({ country: "CA" }) });
 
 const vista = (): taxApi.TaxSettingsView => ({
   mode: "excluded",

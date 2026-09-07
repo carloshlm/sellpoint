@@ -2,8 +2,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
 import { routeTree } from "../routeTree.gen";
@@ -19,17 +19,7 @@ import { type AuthUser, useAuthStore } from "../stores/auth.store";
  * Mismo arnés que el resto: routeTree REAL y `createQueryClient()` — nunca un
  * `new QueryClient()` por render (C1 de f1-web-auth).
  */
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-});
+const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
 
 async function renderConPermisos(permissions: string[]) {
   useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));

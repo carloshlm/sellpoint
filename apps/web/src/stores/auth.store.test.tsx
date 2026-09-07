@@ -1,19 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
-import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { useAuthStore } from "./auth.store";
 
-const demoUser = {
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es" as const,
-  permissions: ["products:read"],
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock(),
-};
+const demoUser = buildAuthUser({ locale: "es" as const, permissions: ["products:read"] });
 
 function TokenReader() {
   const token = useAuthStore((state) => state.accessToken);

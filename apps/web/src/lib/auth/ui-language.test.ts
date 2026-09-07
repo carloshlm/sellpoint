@@ -1,6 +1,6 @@
 import { createI18n } from "@/i18n";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { installAccountLanguageSync } from "./ui-language";
 
@@ -14,17 +14,7 @@ import { installAccountLanguageSync } from "./ui-language";
 const TENANT: AuthUser["tenant"] = buildTenantBlock({ id: "t1", name: "Tienda" });
 
 function makeUser(locale: AuthUser["locale"]): AuthUser {
-  return {
-    id: "u1",
-    email: "ana@tienda.mx",
-    firstName: "Ana",
-    lastNamePaternal: "Pérez",
-    lastNameMaternal: null,
-    locale,
-    permissions: [],
-    subscription: SUBSCRIPTION_PLUS,
-    tenant: TENANT,
-  };
+  return buildAuthUser({ email: "ana@tienda.mx", locale, tenant: TENANT });
 }
 
 describe("installAccountLanguageSync", () => {

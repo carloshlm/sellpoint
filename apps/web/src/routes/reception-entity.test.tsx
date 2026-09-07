@@ -7,6 +7,7 @@ import { createQueryClient } from "@/lib/query-client";
 import * as receptionApi from "@/lib/reception/api";
 import * as settingsApi from "@/lib/reception/settings-api";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 
 /**
@@ -34,17 +35,11 @@ vi.mock("@/lib/reception/settings-api", () => ({
 const api = vi.mocked(receptionApi);
 const settings = vi.mocked(settingsApi);
 
-const demoUser = (): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions: ["reception:read", "reception:manage"],
-  subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
-  tenant: buildTenantBlock(),
-});
+const demoUser = (): AuthUser =>
+  buildAuthUser({
+    permissions: ["reception:read", "reception:manage"],
+    subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
+  });
 
 async function renderRuta(path: string) {
   useAuthStore.getState().setAuth("jwt-demo", demoUser());
@@ -63,7 +58,6 @@ async function renderRuta(path: string) {
 }
 
 import { routeTree } from "@/routeTree.gen";
-import { buildTenantBlock } from "@/test/tenant-fixture";
 
 beforeEach(() => {
   api.listCustomers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });

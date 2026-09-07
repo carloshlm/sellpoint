@@ -6,7 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
@@ -33,17 +33,12 @@ const RUTAS_EXISTENTES = [
 
 const mocked = vi.mocked(reportsApi);
 
-const demoUser = (permissions: string[]): AuthUser => ({
-  id: "u1",
-  email: "gerente@demo.test",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
-});
+const demoUser = (permissions: string[]): AuthUser =>
+  buildAuthUser({
+    email: "gerente@demo.test",
+    permissions,
+    tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+  });
 
 async function renderRuta(path: string, permissions: string[]) {
   useAuthStore.getState().setAuth("jwt", demoUser(permissions));

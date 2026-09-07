@@ -7,7 +7,7 @@ import { createQueryClient } from "@/lib/query-client";
 import * as tenantApi from "@/lib/tenant/api";
 import { applyTheme } from "@/lib/theme/apply-theme";
 import type { AuthUser } from "@/stores/auth.store";
-import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { ThemePreference } from "./theme-preference";
 
@@ -25,17 +25,8 @@ vi.mock("@/lib/auth/session-resync", () => ({
 
 const mockedUpdate = vi.mocked(tenantApi.updateMyTenant);
 
-const demoUser = (permissions: string[], theme: string | null = null): AuthUser => ({
-  id: "u1",
-  email: "ana@acme.mx",
-  firstName: "Ana",
-  lastNamePaternal: "Pérez",
-  lastNameMaternal: null,
-  locale: "es",
-  permissions,
-  subscription: SUBSCRIPTION_PLUS,
-  tenant: buildTenantBlock({ theme: theme }),
-});
+const demoUser = (permissions: string[], theme: string | null = null): AuthUser =>
+  buildAuthUser({ permissions, tenant: buildTenantBlock({ theme: theme }) });
 
 function renderCard(user: AuthUser) {
   return render(
