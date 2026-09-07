@@ -217,4 +217,39 @@ describe("los apellidos según el país del negocio (F1-NAME-09)", () => {
     expect(cambios).not.toHaveProperty("secondLastName");
     expect(cambios).toHaveProperty("phone");
   });
+
+  /**
+   * Carlos, 2026-09-07: «no me debe permitir guardar si pongo una fecha
+   * inválida». Antes el campo se tragaba el 31 de febrero y guardaba al
+   * paciente SIN fecha de nacimiento, en silencio.
+   */
+  it("una fecha que no existe no se guarda: lo dice y no llama al API", async () => {
+    const user = userEvent.setup();
+    await renderEn("/reception/customers/new");
+
+    await user.type(await screen.findByLabelText("Nombre"), "Rosa");
+    await user.type(screen.getByLabelText("Apellido paterno"), "Vega");
+    await user.type(screen.getByLabelText("Día"), "31");
+    await user.type(screen.getByLabelText("Mes"), "2");
+    await user.type(screen.getByLabelText("Año"), "1990");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("La fecha no es válida o es futura.")).toBeInTheDocument();
+    expect(mocked.createCustomer).not.toHaveBeenCalled();
+  });
+
+  it("una fecha futura tampoco: nadie nació el año que viene", async () => {
+    const user = userEvent.setup();
+    await renderEn("/reception/customers/new");
+
+    await user.type(await screen.findByLabelText("Nombre"), "Rosa");
+    await user.type(screen.getByLabelText("Apellido paterno"), "Vega");
+    await user.type(screen.getByLabelText("Día"), "15");
+    await user.type(screen.getByLabelText("Mes"), "6");
+    await user.type(screen.getByLabelText("Año"), "2050");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("La fecha no es válida o es futura.")).toBeInTheDocument();
+    expect(mocked.createCustomer).not.toHaveBeenCalled();
+  });
 });

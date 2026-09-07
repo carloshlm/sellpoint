@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { endOfDayUtc, localCalendarDate, startOfDayUtc } from "./day-range";
+import { endOfDayUtc, isRealCalendarDate, localCalendarDate, startOfDayUtc } from "./day-range";
 
 /**
  * ⚠ EL BUG QUE ESTE ARCHIVO EXISTE PARA MATAR (2026-08-24).
@@ -135,5 +135,35 @@ describe("localCalendarDate", () => {
       "2026-08-24",
     );
     expect(localCalendarDate("UTC", new Date("2026-08-25T05:30:00Z"))).toBe("2026-08-25");
+  });
+});
+
+/**
+ * `Date.parse("1990-02-31")` NO devuelve NaN: JavaScript normaliza la fecha al
+ * 3 de marzo y sigue como si nada. Ese silencio se coló en la validación del
+ * cliente Y del API, y solo no explotó porque el `<input type="date">` del
+ * navegador nunca dejaba escribir un 31 de febrero. Con los tres campos
+ * tecleados sí se puede, y Postgres —que no perdona— rechazaría la fila.
+ */
+describe("isRealCalendarDate", () => {
+  it("acepta fechas que existen, incluido el 29 de febrero de un año bisiesto", () => {
+    expect(isRealCalendarDate("1990-09-02")).toBe(true);
+    expect(isRealCalendarDate("2000-02-29")).toBe(true);
+    expect(isRealCalendarDate("2024-02-29")).toBe(true);
+  });
+
+  it("rechaza el día que no existe en ese mes — lo que `Date.parse` deja pasar", () => {
+    expect(Number.isNaN(Date.parse("1990-02-31"))).toBe(false); // el agujero
+    expect(isRealCalendarDate("1990-02-31")).toBe(false);
+    expect(isRealCalendarDate("2023-02-29")).toBe(false); // 2023 no es bisiesto
+    expect(isRealCalendarDate("1990-04-31")).toBe(false);
+    expect(isRealCalendarDate("1990-13-01")).toBe(false);
+    expect(isRealCalendarDate("1990-00-10")).toBe(false);
+  });
+
+  it("rechaza lo que ni siquiera tiene forma de fecha", () => {
+    expect(isRealCalendarDate("")).toBe(false);
+    expect(isRealCalendarDate("1990-9-2")).toBe(false);
+    expect(isRealCalendarDate("ayer")).toBe(false);
   });
 });

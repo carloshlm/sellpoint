@@ -127,3 +127,26 @@ export function endOfDayUtc(isoDate: string, timeZone: string): Date {
 
   return startOfDayUtc(siguiente.toISOString().slice(0, 10), timeZone);
 }
+
+/**
+ * ¿Existe esa fecha en el calendario? `YYYY-MM-DD` estricto.
+ *
+ * Hace falta porque **`Date.parse("1990-02-31")` NO devuelve NaN**: JavaScript
+ * normaliza al 3 de marzo y devuelve un timestamp perfectamente válido. Toda
+ * validación escrita como `!Number.isNaN(Date.parse(v))` deja pasar el 31 de
+ * febrero, el 31 de abril y el 29 de febrero de un año no bisiesto — y luego
+ * Postgres, que no normaliza nada, rechaza la fila con un error de tipo.
+ *
+ * El truco es el viaje de ida y vuelta: se construye la fecha en UTC y se
+ * comprueba que las tres partes salieron como entraron. Si el motor tuvo que
+ * corregir algo, la fecha no existía.
+ */
+export function isRealCalendarDate(isoDate: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!m) return false;
+  const [anio, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+  return (
+    fecha.getUTCFullYear() === anio && fecha.getUTCMonth() === mes - 1 && fecha.getUTCDate() === dia
+  );
+}

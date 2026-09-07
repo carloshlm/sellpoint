@@ -1,3 +1,4 @@
+import { isRealCalendarDate } from "@sellpoint/shared";
 import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
@@ -23,9 +24,14 @@ function partesDe(value: string): { dia: string; mes: string; anio: string } {
 }
 
 /**
- * Compone `YYYY-MM-DD` solo si las tres partes existen Y la fecha EXISTE: el 31
- * de febrero se descarta acá, no en el submit. Cualquier otra cosa devuelve
- * vacío — antes que adivinar una fecha, ninguna.
+ * Compone `YYYY-MM-DD` en cuanto las tres partes están, **sin juzgar si la
+ * fecha existe**. Que el 31 de febrero suba es a propósito: devolver "" acá
+ * significaba «sin fecha», y el formulario guardaba al paciente sin fecha de
+ * nacimiento sin decir una palabra. Ahora sube tal cual y el schema la marca
+ * con un error que se ve. El silencio es peor que el error.
+ *
+ * Incompleta sí devuelve vacío: mientras falta una parte todavía no hay nada
+ * que juzgar.
  */
 function componer(dia: string, mes: string, anio: string): string {
   if (dia === "" || mes === "" || anio.length !== 4) return "";
@@ -33,12 +39,6 @@ function componer(dia: string, mes: string, anio: string): string {
   const m = Number(mes);
   const a = Number(anio);
   if (!Number.isInteger(d) || !Number.isInteger(m) || !Number.isInteger(a)) return "";
-  // `new Date` normaliza en silencio (el 31/2 se vuelve 3/3): se compara de
-  // vuelta para cazar justo eso.
-  const fecha = new Date(Date.UTC(a, m - 1, d));
-  if (fecha.getUTCFullYear() !== a || fecha.getUTCMonth() !== m - 1 || fecha.getUTCDate() !== d) {
-    return "";
-  }
 
   return `${String(a).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
@@ -85,7 +85,8 @@ function BirthDateField({ label, value, onChange, error, hint, className }: Birt
    * no abril, sin costarle una interacción a nadie.
    */
   const enPalabras = useMemo(() => {
-    if (value === "") return "";
+    // Una fecha imposible no se confirma: no existe un «31 de febrero».
+    if (value === "" || !isRealCalendarDate(value)) return "";
     return new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: "UTC" }).format(
       new Date(`${value}T12:00:00Z`),
     );

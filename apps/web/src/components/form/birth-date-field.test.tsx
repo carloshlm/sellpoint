@@ -56,7 +56,7 @@ describe("BirthDateField", () => {
     expect(screen.getByTestId("valor")).toHaveTextContent("");
   });
 
-  it("el 31 de febrero no existe: una fecha imposible no se compone", async () => {
+  it("una fecha imposible VIAJA, para que el formulario pueda rechazarla en vez de tragársela", async () => {
     const user = userEvent.setup();
     render(<Campo />);
 
@@ -64,7 +64,22 @@ describe("BirthDateField", () => {
     await user.type(screen.getByLabelText("Mes"), "2");
     await user.type(screen.getByLabelText("Año"), "1990");
 
-    expect(screen.getByTestId("valor")).toHaveTextContent("");
+    // Devolver "" acá significaba «sin fecha», y el formulario guardaba al
+    // paciente SIN fecha de nacimiento sin decir una palabra. El silencio es
+    // peor que el error: la fecha sube tal como se escribió y el schema —que
+    // ya sabe rechazar imposibles y futuras— la marca.
+    expect(screen.getByTestId("valor")).toHaveTextContent("1990-02-31");
+  });
+
+  it("una fecha imposible no se confirma en palabras: no existe un «31 de febrero»", async () => {
+    const user = userEvent.setup();
+    render(<Campo />);
+
+    await user.type(screen.getByLabelText("Día"), "31");
+    await user.type(screen.getByLabelText("Mes"), "2");
+    await user.type(screen.getByLabelText("Año"), "1990");
+
+    expect(screen.queryByText(/de 1990/)).not.toBeInTheDocument();
   });
 
   it("en el celular abre el teclado numérico, no el alfabético", () => {

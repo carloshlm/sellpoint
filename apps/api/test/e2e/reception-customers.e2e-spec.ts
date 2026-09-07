@@ -212,6 +212,28 @@ describe("Recepción — clientes (F9-RECEP-14)", () => {
     await crear(viewerToken, { firstName: "Ana", lastName: "Pérez" }).expect(403);
   });
 
+  it("una fecha de nacimiento que NO EXISTE rebota con 400, no llega a Postgres", async () => {
+    // `Date.parse("1990-02-31")` no devuelve NaN: JavaScript normaliza al 3 de
+    // marzo y sigue. El DTO confiaba en eso, así que el 31 de febrero pasaba la
+    // validación y moría contra la columna DATE — un 500 donde correspondía un
+    // 400. Con el `<input type="date">` del navegador nunca se pudo escribir;
+    // desde que la fecha se teclea en tres campos, sí.
+    for (const imposible of ["1990-02-31", "1990-04-31", "2023-02-29", "1990-13-01"]) {
+      const res = await crear(negocio.token, {
+        firstName: "Ana",
+        lastName: "Pérez",
+        birthDate: imposible,
+      }).expect(400);
+      expect(res.body).toMatchObject({ code: "reception.invalid_birth_date" });
+    }
+    // El 29 de febrero de un año bisiesto SÍ existe.
+    await crear(negocio.token, {
+      firstName: "Bisiesta",
+      lastName: "Febrero",
+      birthDate: "2000-02-29",
+    }).expect(201);
+  });
+
   it("un teléfono sin prefijo internacional rebota con 400", async () => {
     await crear(negocio.token, {
       firstName: "Ana",

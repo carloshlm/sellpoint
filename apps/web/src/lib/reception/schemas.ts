@@ -1,4 +1,9 @@
-import { COUNTRY_DIAL_CODES, type CountryCode, isE164 } from "@sellpoint/shared";
+import {
+  COUNTRY_DIAL_CODES,
+  type CountryCode,
+  isE164,
+  isRealCalendarDate,
+} from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -16,9 +21,9 @@ export const customerFormSchema = z.object({
     .refine(
       (valor) =>
         valor === "" ||
-        (/^\d{4}-\d{2}-\d{2}$/.test(valor) &&
-          !Number.isNaN(Date.parse(valor)) &&
-          valor <= new Date().toISOString().slice(0, 10)),
+        // `Date.parse` deja pasar el 31 de febrero (lo normaliza al 3 de
+        // marzo); `isRealCalendarDate` hace el viaje de ida y vuelta.
+        (isRealCalendarDate(valor) && valor <= new Date().toISOString().slice(0, 10)),
       { message: "reception.form.errors.birthDate" },
     ),
   email: z

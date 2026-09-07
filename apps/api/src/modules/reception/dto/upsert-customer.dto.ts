@@ -1,4 +1,4 @@
-import { isE164 } from "@sellpoint/shared";
+import { isE164, isRealCalendarDate } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -16,7 +16,10 @@ const HOY_ISO = () => new Date().toISOString().slice(0, 10);
 const fechaDeNacimiento = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "reception.invalid_birth_date")
-  .refine((valor) => !Number.isNaN(Date.parse(valor)) && valor <= HOY_ISO(), {
+  // `Date.parse` NO alcanza: normaliza el 31 de febrero al 3 de marzo y
+  // devuelve un timestamp válido, así que una fecha imposible llegaba hasta
+  // Postgres —que sí la rechaza— como un 500 en vez de un 422.
+  .refine((valor) => isRealCalendarDate(valor) && valor <= HOY_ISO(), {
     message: "reception.invalid_birth_date",
   });
 const telefono = z.string().trim().refine(isE164, { message: "reception.invalid_phone" });
