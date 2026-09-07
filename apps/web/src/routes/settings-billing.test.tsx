@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -30,16 +30,21 @@ const demoUser = (
     subscription: { ...SUBSCRIPTION_PLUS, status: "active", planName: "Plus", ...subscription },
   });
 
+/** El router del render actual, para poder navegar DENTRO de un test. */
+let routerActual: { navigate: (opts: unknown) => Promise<void> } | null = null;
+
 async function renderBilling(
   permissions: string[],
   subscription: Partial<AuthUser["subscription"]> = {},
+  ruta = "/settings/billing",
 ) {
   useAuthStore.getState().setAuth("jwt", demoUser(permissions, subscription));
   const router = createRouter({
     routeTree,
-    history: createMemoryHistory({ initialEntries: ["/settings/billing"] }),
+    history: createMemoryHistory({ initialEntries: [ruta] }),
   });
   await router.load();
+  routerActual = router as unknown as typeof routerActual;
   render(
     <I18nextProvider i18n={createI18n()}>
       <QueryClientProvider client={createQueryClient()}>
@@ -314,5 +319,66 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     await renderBilling(["products:read"]);
 
     expect(screen.queryByTestId("my-plan")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * F7-CONTACT-02 (Carlos, 2026-09-07) — desde los planes, «escríbenos» tiene que
+ * dejar a la persona escribiendo, no buscando dónde. Y si vino por un plan
+ * concreto, el mensaje llega ESCRITO: el clic ya dijo cuál le interesa, pedirle
+ * que lo repita a mano es cobrarle dos veces la misma información.
+ */
+describe("del plan al mensaje (F7-CONTACT-02)", () => {
+  beforeEach(() => {
+    mockedMyBilling.mockResolvedValue({
+      subscription: SUBSCRIPTION_PLUS,
+      payments: [],
+      activeDiscount: null,
+    } as unknown as billingApi.MyBilling);
+    mockedRequestPlan.mockResolvedValue({ sent: true });
+  });
+
+  it("llegar con un plan en la URL deja el mensaje escrito y el cursor puesto", async () => {
+    await renderBilling(["tenants:manage"], {}, "/settings/billing?interes=pro");
+
+    const campo = await screen.findByLabelText("Tu mensaje");
+    expect(campo).toHaveValue("Me interesa el plan Pro. ¿Me ayudan a activarlo?");
+    // El foco: quien hizo clic en «Me interesa» ya está escribiendo.
+    await waitFor(() => expect(campo).toHaveFocus());
+    // Y con el mensaje puesto, Enviar ya está habilitado: un solo clic más.
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
+  });
+
+  it("sin plan en la URL, el formulario queda vacío y sin robar el foco", async () => {
+    await renderBilling(["tenants:manage"]);
+
+    const campo = await screen.findByLabelText("Tu mensaje");
+    expect(campo).toHaveValue("");
+    expect(campo).not.toHaveFocus();
+  });
+
+  it("YA estando en la pantalla, elegir un plan reescribe el mensaje (no solo al entrar)", async () => {
+    // El caso que los tests de arriba NO cubrían y el navegador sí: quien ya
+    // está en «Mi plan» abre el modal, elige un plan y vuelve. El componente no
+    // se vuelve a montar —solo cambia el search param—, así que un estado
+    // inicial calculado una vez dejaba el mensaje vacío.
+    await renderBilling(["tenants:manage"]);
+    const campo = await screen.findByLabelText("Tu mensaje");
+    expect(campo).toHaveValue("");
+
+    await act(async () => {
+      await routerActual?.navigate({ to: "/settings/billing", search: { interes: "premium" } });
+    });
+
+    await waitFor(() =>
+      expect(campo).toHaveValue("Me interesa el plan Premium. ¿Me ayudan a activarlo?"),
+    );
+  });
+
+  it("un plan que no existe no escribe nada raro: se ignora", async () => {
+    await renderBilling(["tenants:manage"], {}, "/settings/billing?interes=inventado");
+
+    const campo = await screen.findByLabelText("Tu mensaje");
+    expect(campo).toHaveValue("");
   });
 });

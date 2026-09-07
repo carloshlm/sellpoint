@@ -247,7 +247,7 @@
       "unlimitedWarehouses": "Unlimited warehouses",
       "current": "Your current plan",
       "contact": "Contact us",
-      "footer": "To subscribe or change plans, contact us and we will activate it the same day. Your data is never deleted.",
+      "footer": "To sign up or change plans,",
       "includes": "Includes",
       "notIncluded": "Not included: {{item}}",
       "users": "{{count}} users",
@@ -262,7 +262,9 @@
         "pro": "Full inventory, quotes and transfers",
         "plus": "Everything: lots and expiry dates, deep customization",
         "premium": "Plus without limits plus custom development"
-      }
+      },
+      "writeUs": "write to us",
+      "interested": "I'm interested"
     },
     "banner": {
       "trial": "You have {{count}} trial days left with the full Plus plan — choose your plan",
@@ -308,7 +310,8 @@
         "hint": "Between 10 and 1000 characters. We receive your name, your email and your business name along with the message.",
         "send": "Send",
         "sent": "Thanks for writing to us! We will contact you soon to activate the plan of your choice.",
-        "failed": "We could not send your message. Please try again in a moment."
+        "failed": "We could not send your message. Please try again in a moment.",
+        "prefill": "I'm interested in the {{plan}} plan. Can you help me activate it?"
       }
     },
     "admin": {

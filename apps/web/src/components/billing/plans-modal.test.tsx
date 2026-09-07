@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -8,6 +8,14 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { PlansModal } from "./plans-modal";
+
+let navegado: unknown = null;
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useNavigate: () => (args: unknown) => {
+    navegado = args;
+  },
+}));
 
 vi.mock("@/lib/billing/api", async (importOriginal) => ({
   ...(await importOriginal<typeof billingApi>()),
@@ -114,10 +122,12 @@ describe("PlansModal (F7-WEB-04)", () => {
 
     expect(await screen.findByText("Premium")).toBeInTheDocument();
     // Sin precio publicado: la tarjeta muestra el precio a la medida, y como
-    // TODO cambio de plan en cobro manual pasa por contacto, el CTA
-    // Contáctanos aparece en cada tarjeta que no es la actual.
+    // TODO cambio de plan en cobro manual pasa por contacto, cada tarjeta que
+    // no es la actual lleva su «Me interesa» (F7-CONTACT-02): un BOTÓN que
+    // lleva a escribir, no un texto que informa y deja a la persona buscando
+    // dónde hacerlo.
     expect(screen.getByText("A tu medida")).toBeInTheDocument();
-    expect(screen.getAllByText("Contáctanos").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("button", { name: "Me interesa" }).length).toBeGreaterThanOrEqual(1);
   });
 
   it("cerrado vive SOLO en memoria: el estado del store no persiste nada", async () => {
@@ -200,5 +210,44 @@ describe("el listado de lo que incluye cada plan", () => {
   it("en español, la descripción también sale del catálogo del web", async () => {
     renderModal("es");
     expect(await screen.findByText("POS completo sin control de inventario")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F7-CONTACT-02 (Carlos, 2026-09-07) — el modal no cobra nada, así que su
+ * única salida útil es dejar a la persona escribiendo. Cada plan manda el suyo.
+ */
+describe("del plan al mensaje (F7-CONTACT-02)", () => {
+  it("«Me interesa» cierra el modal y lleva a Mi plan con ESE plan en la URL", async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText("Premium");
+
+    // El botón de UNA tarjeta concreta: cada plan manda el suyo, no el primero
+    // que aparezca.
+    const tarjetaPremium = screen.getByTestId("plan-premium");
+    await user.click(within(tarjetaPremium).getByRole("button", { name: "Me interesa" }));
+
+    expect(navegado).toEqual({ to: "/settings/billing", search: { interes: "premium" } });
+    // Y el modal se cierra: quedaría tapando el formulario al que acaba de mandar.
+    expect(useBillingStore.getState().plansModalOpen).toBe(false);
+  });
+
+  it("«escríbenos» del pie lleva al mismo lugar, pero sin plan: nadie eligió uno", async () => {
+    const user = userEvent.setup();
+    renderModal();
+    await screen.findByText("Premium");
+
+    await user.click(screen.getByRole("button", { name: "escríbenos" }));
+
+    expect(navegado).toEqual({ to: "/settings/billing", search: {} });
+  });
+
+  it("el pie ya no promete que la información nunca se borra: nadie lo había preguntado", async () => {
+    renderModal();
+    await screen.findByText("Premium");
+
+    expect(screen.queryByText(/nunca se borra/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Para contratar o cambiar de plan,/)).toBeInTheDocument();
   });
 });

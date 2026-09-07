@@ -247,7 +247,7 @@
       "unlimitedWarehouses": "Almacenes ilimitados",
       "current": "Tu plan actual",
       "contact": "Contáctanos",
-      "footer": "Para contratar o cambiar de plan, contáctanos y lo activamos el mismo día. Tu información nunca se borra.",
+      "footer": "Para contratar o cambiar de plan,",
       "includes": "Incluye",
       "notIncluded": "No incluido: {{item}}",
       "users": "{{count}} usuarios",
@@ -262,7 +262,9 @@
         "pro": "Inventario completo, cotizaciones y traspasos",
         "plus": "Todo: lotes y caducidades, personalización profunda",
         "premium": "Plus sin límites más desarrollo a la medida"
-      }
+      },
+      "writeUs": "escríbenos",
+      "interested": "Me interesa"
     },
     "banner": {
       "trial": "Te quedan {{count}} días de prueba con el plan Plus completo — elige tu plan",
@@ -308,7 +310,8 @@
         "hint": "Entre 10 y 1000 caracteres. Recibimos tu nombre, tu correo y el nombre de tu negocio junto con el mensaje.",
         "send": "Enviar",
         "sent": "¡Gracias por escribirnos! Pronto nos comunicaremos contigo para activar el plan de tu preferencia.",
-        "failed": "No pudimos enviar tu mensaje. Inténtalo de nuevo en un momento."
+        "failed": "No pudimos enviar tu mensaje. Inténtalo de nuevo en un momento.",
+        "prefill": "Me interesa el plan {{plan}}. ¿Me ayudan a activarlo?"
       }
     },
     "admin": {

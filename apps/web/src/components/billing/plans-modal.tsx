@@ -1,5 +1,6 @@
-import { formatMoney } from "@sellpoint/shared";
+import { formatMoney, type PlanCode } from "@sellpoint/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,23 @@ export function PlansModal() {
   const { t, i18n } = useTranslation();
   const open = useBillingStore((state) => state.plansModalOpen);
   const close = useBillingStore((state) => state.closePlansModal);
+  const navigate = useNavigate();
+
+  /**
+   * F7-CONTACT-02 — el modal no cobra el plan, así que su única salida útil es
+   * dejar a la persona ESCRIBIENDO. Cierra, va a «Mi plan» y manda el plan en
+   * la URL: allá el mensaje llega escrito y el cursor puesto. Sin plan (desde
+   * el pie) el formulario queda vacío, solo enfocado.
+   */
+  const escribirSobre = (interes?: string) => {
+    close();
+    navigate({
+      to: "/settings/billing",
+      // El `validateSearch` de la ruta es la aduana: si el código no existe
+      // en el catálogo, allá se ignora y el formulario queda vacío.
+      search: interes ? { interes: interes as PlanCode } : {},
+    });
+  };
   const { planCode } = usePlan();
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
 
@@ -200,9 +218,14 @@ export function PlansModal() {
                   {t("common.billing.plans.current")}
                 </p>
               ) : (
-                <p className="text-center text-muted-foreground text-sm">
-                  {t("common.billing.plans.contact")}
-                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => escribirSobre(plan.code)}
+                >
+                  {t("common.billing.plans.interested")}
+                </Button>
               )}
             </div>
           </div>
@@ -210,7 +233,14 @@ export function PlansModal() {
       </div>
 
       <p className="mt-4 text-center text-muted-foreground text-sm">
-        {t("common.billing.plans.footer")}
+        {t("common.billing.plans.footer")}{" "}
+        <button
+          type="button"
+          className="font-medium text-primary underline underline-offset-2"
+          onClick={() => escribirSobre()}
+        >
+          {t("common.billing.plans.writeUs")}
+        </button>
       </p>
     </Dialog>
   );

@@ -1,7 +1,9 @@
+import { PLAN_CODES, type PlanCode } from "@sellpoint/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { z } from "zod";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { PaymentHistoryTable } from "@/components/billing/payment-history-table";
@@ -19,6 +21,18 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
 
 export const Route = createFileRoute("/settings/billing")({
+  /**
+   * F7-CONTACT-02: `?interes=pro` llega desde «Me interesa» del modal de
+   * planes. Se valida contra el catálogo real —lo que viene en la URL lo puede
+   * escribir cualquiera— y sin plan válido no pasa nada: el formulario queda
+   * vacío, como siempre.
+   */
+  validateSearch: z.object({
+    // `.catch`: un código inventado en la URL se ignora, no tumba la
+    // pantalla. Lo que llega por la barra de direcciones lo escribe
+    // cualquiera.
+    interes: z.enum(PLAN_CODES).optional().catch(undefined),
+  }),
   component: BillingSettingsPage,
 });
 
@@ -127,6 +141,15 @@ function BillingSettings() {
   );
 }
 
+/** El nombre como lo ve el cliente, no el código de la base. */
+const PLAN_NAMES: Record<PlanCode, string> = {
+  free: "Free",
+  basic: "Basic",
+  pro: "Pro",
+  plus: "Plus",
+  premium: "Premium",
+};
+
 const MENSAJE_MIN = 10;
 const MENSAJE_MAX = 1000;
 
@@ -138,7 +161,31 @@ const MENSAJE_MAX = 1000;
  */
 function PlanContactCard() {
   const { t } = useTranslation();
+  const { interes } = Route.useSearch();
+  const campoRef = useRef<HTMLTextAreaElement>(null);
   const [mensaje, setMensaje] = useState("");
+
+  /**
+   * Quien llegó por «Me interesa» ya dijo cuál quiere con el clic: pedirle que
+   * lo escriba otra vez sería cobrarle dos veces la misma información. El
+   * mensaje viene puesto y editable — es un punto de partida, no un candado.
+   *
+   * Va en un efecto y no en el estado inicial porque el caso normal es LLEGAR
+   * ESTANDO: quien ya está en «Mi plan» abre el modal, elige un plan y vuelve
+   * acá sin que el componente se vuelva a montar. Con un `useState(() => …)`
+   * el mensaje quedaba vacío justo en el camino más transitado — se vio en el
+   * navegador, no en los tests.
+   *
+   * El foco va al campo, no al principio de la página: la persona viene a
+   * escribir. Solo cuando vino por un plan; robar el foco sin que nadie lo
+   * haya pedido es de mala educación.
+   */
+  useEffect(() => {
+    if (!interes) return;
+    setMensaje(t("common.billing.me.contact.prefill", { plan: PLAN_NAMES[interes] }));
+    campoRef.current?.focus();
+  }, [interes, t]);
+
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
   const enviar = useMutation<{ sent: true }, ApiError, string>({
@@ -170,6 +217,7 @@ function PlanContactCard() {
           }}
         >
           <TextAreaField
+            ref={campoRef}
             label={k("message")}
             hint={k("hint")}
             rows={4}
