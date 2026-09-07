@@ -44,7 +44,7 @@
       "code": "Code",
       "name": "Name",
       "cost": "Cost",
-      "price": "Sale price",
+      "price": "Price",
       "status": "Status"
     },
     "form": {
@@ -55,7 +55,7 @@
       "name": "Name",
       "description": "Description",
       "cost": "Cost",
-      "price": "Sale price",
+      "price": "Price",
       "priceHint": "What you charge for this study.",
       "saveFailed": "We could not save the study."
     },

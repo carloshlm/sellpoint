@@ -33,7 +33,7 @@
     "costHint": "What one unit costs you from your supplier, before taxes. Never shown to the customer. Optional: leave it empty if you don't know it yet — empty means «not captured», zero means «it costs $0».",
     "isComposite": "Built from other products in the catalog",
     "name": "Name",
-    "price": "Sale price",
+    "price": "Price",
     "priceHint": "What you charge the customer for one unit. This is the price the point of sale puts on the receipt.",
     "sku": "Internal code",
     "skuHint": "The identifier YOUR business uses for this product, unique across the catalog. If you leave it empty, the barcode will be used.",
