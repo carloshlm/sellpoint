@@ -1,4 +1,4 @@
-import { type MovementReason, REASON_RULES } from "@sellpoint/shared";
+import { type MovementReason, REASON_RULES, shortName } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -236,7 +236,7 @@ function AutorizaSelect({ document }: { document: DocumentDetail }) {
           .filter((user) => user.status === "active")
           .map((user) => (
             <option key={user.id} value={user.id}>
-              {user.firstName} {user.lastNamePaternal}
+              {shortName(user)}
             </option>
           ))}
       </select>

@@ -1,3 +1,4 @@
+import { fullName } from "@sellpoint/shared";
 import { flexRender } from "@tanstack/react-table";
 import {
   getCoreRowModel,
@@ -23,11 +24,6 @@ import type { UserDetail } from "@/lib/rbac/api";
 import { UserRowActions } from "./user-row-actions";
 
 const PAGE_SIZE = 10;
-
-/** Reusado por `user-row-actions.tsx` (confirmación de "Suspender"). */
-export function fullName(user: UserDetail): string {
-  return [user.firstName, user.lastNamePaternal, user.lastNameMaternal].filter(Boolean).join(" ");
-}
 
 const STATUS_VARIANT: Record<UserDetail["status"], "warning" | "success" | "destructive"> = {
   invited: "warning",

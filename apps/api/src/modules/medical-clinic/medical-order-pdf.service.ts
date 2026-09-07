@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { ageFromBirthDate } from "@sellpoint/shared";
+import { ageFromBirthDate, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -63,8 +63,7 @@ export class MedicalOrderPdfService {
           patientName: orden.record.patientName,
           age: nacimiento === null ? null : ageFromBirthDate(nacimiento, consulta),
           sex: orden.record.patientSex,
-          doctorName:
-            `${orden.record.doctor.firstName} ${orden.record.doctor.lastNamePaternal}`.trim(),
+          doctorName: shortName(orden.record.doctor),
         },
         order: {
           kind: orden.kind as "prescription" | "lab_order" | "diagnostic_order",

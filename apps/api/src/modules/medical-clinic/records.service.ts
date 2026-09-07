@@ -1,12 +1,14 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   ageFromBirthDate,
+  fullName,
   localCalendarDate,
   MEDICAL_CLINIC_FOLIO_PREFIXES,
   MEDICAL_RECORD_SECTIONS,
   type MedicalRecordLockReason,
   type MedicalRecordSectionGroup,
   medicalRecordLock,
+  shortName,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -222,7 +224,9 @@ export class RecordsService {
           tenantId: user.tenantId,
           folio,
           patientCustomerId: paciente.id,
-          patientName: nombreCompleto(paciente),
+          // VARCHAR(200), igual que `customerName` más abajo: el nombre
+          // largo se corta acá, nunca dentro de `fullName`.
+          patientName: fullName(paciente).slice(0, 200),
           patientBirthDate: paciente.birthDate,
           patientSex: sexo,
           ...(turno !== null && { turnId: turno.id, turnNumber: turno.number }),
@@ -268,7 +272,7 @@ export class RecordsService {
             }),
             ...(turno.customerId === null && {
               customerId: paciente.id,
-              customerName: nombreCompleto(paciente).slice(0, 200),
+              customerName: fullName(paciente).slice(0, 200),
             }),
           },
         });
@@ -342,7 +346,7 @@ export class RecordsService {
           ),
           consultationDate: fecha(r.consultationDate),
           patientName: r.patientName,
-          doctorName: `${r.doctor.firstName} ${r.doctor.lastNamePaternal}`.trim(),
+          doctorName: shortName(r.doctor),
           createdAt: r.createdAt.toISOString(),
         })),
         total,
@@ -435,7 +439,7 @@ export function toDetail(fila: RecordRow, hoy: string): RecordDetail {
     },
     doctor: {
       id: fila.doctor.id,
-      name: `${fila.doctor.firstName} ${fila.doctor.lastNamePaternal}`.trim(),
+      name: shortName(fila.doctor),
     },
     // Las 32 del catálogo, en su orden: las que no tienen fila salen pendientes.
     sections: MEDICAL_RECORD_SECTIONS.map((def) => {
@@ -463,11 +467,3 @@ export function toDetail(fila: RecordRow, hoy: string): RecordDetail {
 }
 
 const fecha = (d: Date): string => d.toISOString().slice(0, 10);
-
-function nombreCompleto(p: {
-  firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
-}): string {
-  return [p.firstName, p.lastNamePaternal, p.lastNameMaternal].filter(Boolean).join(" ");
-}

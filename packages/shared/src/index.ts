@@ -10,6 +10,7 @@ export * from "./lot-code";
 export * from "./medical-clinic";
 export * from "./modules";
 export * from "./money";
+export * from "./names";
 export * from "./phone";
 export * from "./pos-lines";
 export * from "./quantity";

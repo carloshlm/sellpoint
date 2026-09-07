@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
+import { fullName } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
@@ -74,7 +75,7 @@ export class CatalogExportService {
         );
 
         return usuarios.map((u) => [
-          [u.firstName, u.lastNamePaternal, u.lastNameMaternal].filter(Boolean).join(" "),
+          fullName(u),
           u.email,
           u.roles.map((r) => r.role.name).join(", "),
           // Sin alcance = todos los almacenes. La celda vacía se leería como

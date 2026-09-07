@@ -4,7 +4,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { localCalendarDate, POS_FOLIO_PREFIXES, type PosLineKind } from "@sellpoint/shared";
+import {
+  localCalendarDate,
+  POS_FOLIO_PREFIXES,
+  type PosLineKind,
+  shortName,
+} from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
@@ -467,7 +472,7 @@ export class SalesService {
           ...sale,
           seller: {
             id: sale.seller.id,
-            name: `${sale.seller.firstName} ${sale.seller.lastNamePaternal}`.trim(),
+            name: shortName(sale.seller),
           },
         })),
         total,

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
 import {
   ageFromBirthDate,
+  fullName,
   localCalendarDate,
   type MedicalRecordLockReason,
   medicalRecordLock,
@@ -78,7 +79,7 @@ export class PatientsService {
       );
       return rows.map((r) => ({
         customerId: r.id,
-        name: nombreCompleto(r),
+        name: fullName(r),
         age: r.age,
         birthDate: r.birthDate,
         turnNumber: null,
@@ -133,7 +134,7 @@ export class PatientsService {
       return [
         {
           customerId: cliente.id,
-          name: nombreCompleto(cliente),
+          name: fullName(cliente),
           age: nacimiento === null ? null : ageFromBirthDate(nacimiento, hoy),
           birthDate: nacimiento,
           turnNumber: turno.number,
@@ -199,7 +200,7 @@ export class PatientsService {
       const consultationDate = ultimo?.consultationDate.toISOString().slice(0, 10);
       return {
         customerId: cliente.id,
-        name: nombreCompleto(cliente),
+        name: fullName(cliente),
         birthDate: nacimiento,
         age: nacimiento === null ? null : ageFromBirthDate(nacimiento, hoy),
         phone: cliente.phone,
@@ -272,12 +273,4 @@ export class PatientsService {
     });
     return tenant?.timezone ?? "UTC";
   }
-}
-
-function nombreCompleto(p: {
-  firstName: string;
-  lastNamePaternal: string;
-  lastNameMaternal: string | null;
-}): string {
-  return [p.firstName, p.lastNamePaternal, p.lastNameMaternal].filter(Boolean).join(" ");
 }

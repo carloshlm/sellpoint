@@ -1,4 +1,4 @@
-import { localCalendarDate } from "@sellpoint/shared";
+import { fullName, localCalendarDate } from "@sellpoint/shared";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -51,10 +51,6 @@ function CustomersPage() {
     </ProtectedRoute>
   );
 }
-
-export const nombreCompleto = (
-  c: Pick<Customer, "firstName" | "lastNamePaternal" | "lastNameMaternal">,
-) => [c.firstName, c.lastNamePaternal, c.lastNameMaternal].filter(Boolean).join(" ");
 
 const BOTON_PRIMARIO =
   "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
@@ -147,7 +143,7 @@ function CustomersContent() {
           <TableBody>
             {rows.map((customer) => (
               <TableRow key={customer.id} data-testid={`customer-${customer.id}`}>
-                <TableCell className="px-2 font-medium">{nombreCompleto(customer)}</TableCell>
+                <TableCell className="px-2 font-medium">{fullName(customer)}</TableCell>
                 <TableCell className="px-2 tabular-nums">{customer.phone ?? "—"}</TableCell>
                 <TableCell className="px-2">{customer.email ?? "—"}</TableCell>
                 <TableCell className="px-2">
@@ -205,7 +201,7 @@ function CustomersContent() {
       {/* Solo el borrado pide confirmación: es lo único sin vuelta atrás. */}
       {deleting && (
         <ConfirmDialog
-          title={t("reception.customers.delete.title", { name: nombreCompleto(deleting) })}
+          title={t("reception.customers.delete.title", { name: fullName(deleting) })}
           body={t("reception.customers.delete.body", entidad.vars)}
           confirmLabel={t("reception.customers.delete.confirm", entidad.vars)}
           cancelLabel={t("common.form.cancel")}

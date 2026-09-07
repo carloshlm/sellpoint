@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { InventoryDocumentType } from "@sellpoint/shared";
+import { shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import type { Prisma } from "../../generated/prisma/client";
@@ -158,7 +159,7 @@ export class DocumentPdfService {
       });
 
       const nombre = (p: { firstName: string; lastNamePaternal: string } | null) =>
-        p === null ? null : `${p.firstName} ${p.lastNamePaternal}`;
+        p === null ? null : shortName(p);
 
       const rows = pdfRowsFor(document);
 

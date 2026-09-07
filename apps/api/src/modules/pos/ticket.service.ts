@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Currency, TaxMode } from "@sellpoint/shared";
+import { shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { Prisma } from "../../generated/prisma/client";
@@ -128,7 +129,7 @@ export class TicketService {
         folio: venta.folio,
         barcode: venta.barcode,
         createdAt: venta.createdAt,
-        sellerName: `${venta.seller.firstName} ${venta.seller.lastNamePaternal}`.trim(),
+        sellerName: shortName(venta.seller),
         warehouseName: venta.warehouse.name,
         rows,
         subtotal: venta.subtotal.toString(),
@@ -214,7 +215,7 @@ export class TicketService {
         kind: "quote" as const,
         folio: cotizacion.folio,
         createdAt: cotizacion.createdAt,
-        sellerName: `${cotizacion.author.firstName} ${cotizacion.author.lastNamePaternal}`.trim(),
+        sellerName: shortName(cotizacion.author),
         warehouseName: cotizacion.warehouse.name,
         rows,
         subtotal: cotizacion.total.toString(),

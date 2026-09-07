@@ -286,6 +286,29 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     await get(viewerToken, `/medical-clinic/patients/${customerId}`).expect(403);
   });
 
+  it("F1-NAME-02: un nombre larguísimo NO revienta el alta — el snapshot se corta en 200", async () => {
+    // `medical_clinic_records.patient_name` es VARCHAR(200). Antes el alta
+    // mandaba el nombre entero y Postgres rechazaba la fila; el `.slice(200)`
+    // vive en quien guarda, nunca dentro de `fullName`.
+    const largo = await post(negocio.token, "/medical-clinic/patients", {
+      firstName: "A".repeat(100),
+      lastNamePaternal: "B".repeat(100),
+      lastNameMaternal: "C".repeat(100),
+      birthDate: "1990-09-03",
+    }).expect(201);
+    const creado = await post(negocio.token, "/medical-clinic/records", {
+      customerId: (largo.body as { id: string }).id,
+    }).expect(201);
+
+    const lista = await get(negocio.token, "/medical-clinic/records").expect(200);
+    const fila = (lista.body as { rows: { id: string; patientName: string }[] }).rows.find(
+      (r) => r.id === (creado.body as { id: string }).id,
+    );
+    expect(fila?.patientName).toHaveLength(200);
+    // El nombre COMPLETO sigue viviendo en el cliente, sin cortar.
+    expect((largo.body as { firstName: string }).firstName).toHaveLength(100);
+  });
+
   it("sin :attend no se lee ni se busca nada del consultorio", async () => {
     await get(viewerToken, "/medical-clinic/records").expect(403);
     await get(viewerToken, "/medical-clinic/patients/search?mode=name&q=ana").expect(403);

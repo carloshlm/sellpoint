@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { shortName } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -86,7 +87,7 @@ export class SalesReportService {
           warehouse: venta.warehouse,
           seller: {
             id: venta.seller.id,
-            name: `${venta.seller.firstName} ${venta.seller.lastNamePaternal}`.trim(),
+            name: shortName(venta.seller),
           },
         })),
         totals: totals.map((fila) => ({

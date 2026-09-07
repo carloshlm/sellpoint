@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { localCalendarDate } from "@sellpoint/shared";
+import { fullName, localCalendarDate } from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
@@ -83,10 +83,7 @@ export class TurnsService {
         customerId = cliente.id;
         // El snapshot: si mañana borran al cliente, el historial del día sigue
         // diciendo a quién se atendió.
-        customerName = [cliente.firstName, cliente.lastNamePaternal, cliente.lastNameMaternal]
-          .filter((parte): parte is string => Boolean(parte))
-          .join(" ")
-          .slice(0, 200);
+        customerName = fullName(cliente).slice(0, 200);
       }
 
       const instante = new Date();

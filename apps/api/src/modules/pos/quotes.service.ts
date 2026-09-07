@@ -8,6 +8,7 @@ import {
   endOfDayUtc,
   POS_FOLIO_PREFIXES,
   type PosLineKind,
+  shortName,
   startOfDayUtc,
 } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
@@ -240,7 +241,7 @@ export class QuotesService {
           ...q,
           author: {
             id: q.author.id,
-            name: `${q.author.firstName} ${q.author.lastNamePaternal}`.trim(),
+            name: shortName(q.author),
           },
         })),
         total,

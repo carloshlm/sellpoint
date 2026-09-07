@@ -1,3 +1,4 @@
+import { fullName } from "@sellpoint/shared";
 import { EllipsisVertical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { UserDetail } from "@/lib/rbac/api";
-import { fullName } from "./users-table";
 
 interface UserRowActionsProps {
   user: UserDetail;

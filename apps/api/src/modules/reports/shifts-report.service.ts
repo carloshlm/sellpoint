@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { endOfDayUtc, startOfDayUtc } from "@sellpoint/shared";
+import { endOfDayUtc, shortName, startOfDayUtc } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -54,7 +54,7 @@ export interface ShiftsReportPage {
 
 const nombre = (u: { id: string; firstName: string; lastNamePaternal: string }): Persona => ({
   id: u.id,
-  name: `${u.firstName} ${u.lastNamePaternal}`.trim(),
+  name: shortName(u),
 });
 
 const PERSONA = { select: { id: true, firstName: true, lastNamePaternal: true } } as const;

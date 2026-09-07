@@ -22,6 +22,7 @@ import {
   resolveMarket,
   type SubscriptionPaymentMethod,
   scaledInteger,
+  shortName,
   startOfDayUtc,
 } from "@sellpoint/shared";
 import type { Env } from "../../config/env.schema";
@@ -132,7 +133,7 @@ export class BillingService {
     }
     const vars = {
       tenantName: tenant.name,
-      userName: `${autor.firstName} ${autor.lastNamePaternal}`.trim(),
+      userName: shortName(autor),
       userEmail: autor.email,
       message,
     };

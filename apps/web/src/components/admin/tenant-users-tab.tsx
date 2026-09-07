@@ -1,3 +1,4 @@
+import { fullName } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -65,11 +66,7 @@ export function TenantUsersTab({ tenantId }: { tenantId: string }) {
           <TableBody>
             {rows.map((user) => (
               <TableRow key={user.id} data-testid={`tenant-user-${user.id}`}>
-                <TableCell className="px-2 font-medium">
-                  {[user.firstName, user.lastNamePaternal, user.lastNameMaternal]
-                    .filter(Boolean)
-                    .join(" ")}
-                </TableCell>
+                <TableCell className="px-2 font-medium">{fullName(user)}</TableCell>
                 <TableCell className="px-2">{user.email}</TableCell>
                 <TableCell className="px-2">{user.roles.map((r) => r.name).join(", ")}</TableCell>
                 <TableCell className="px-2">

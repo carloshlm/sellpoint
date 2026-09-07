@@ -13,6 +13,7 @@ import {
   MODULE_KEYS,
   type ModuleKey,
   type SuspendTenantInput,
+  shortName,
   tenantLifecycle,
 } from "@sellpoint/shared";
 import type Redis from "ioredis";
@@ -182,9 +183,7 @@ export class AdminTenantsService {
           );
     return {
       suspendedAt: fila.suspendedAt?.toISOString() ?? null,
-      suspendedBy: quien
-        ? { id: quien.id, name: `${quien.firstName} ${quien.lastNamePaternal}` }
-        : null,
+      suspendedBy: quien ? { id: quien.id, name: shortName(quien) } : null,
       reason: fila.suspendedReason,
       suspendedDays: ciclo.suspendedDays,
       deletableAt: ciclo.deletableAt?.toISOString() ?? null,

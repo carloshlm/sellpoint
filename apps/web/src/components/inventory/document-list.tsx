@@ -1,4 +1,4 @@
-import { effectiveDocumentDate, localeToBcp47 } from "@sellpoint/shared";
+import { effectiveDocumentDate, localeToBcp47, shortName } from "@sellpoint/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -294,9 +294,7 @@ export function DocumentList({ type }: DocumentListProps) {
                   </td>
                   <td className="px-2 py-2">{row.lineCount}</td>
                   <td className="px-2 py-2">
-                    {row.createdBy === null
-                      ? "—"
-                      : `${row.createdBy.firstName} ${row.createdBy.lastNamePaternal}`}
+                    {row.createdBy === null ? "—" : shortName(row.createdBy)}
                   </td>
                 </tr>
               ))}

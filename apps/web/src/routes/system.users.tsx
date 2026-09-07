@@ -1,3 +1,4 @@
+import { fullName } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +7,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { UserForm } from "@/components/system/user-form";
-import { fullName, UsersTable } from "@/components/system/users-table";
+import { UsersTable } from "@/components/system/users-table";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error-message";

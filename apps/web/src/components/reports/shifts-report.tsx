@@ -1,4 +1,4 @@
-import { formatMoney, localCalendarDate } from "@sellpoint/shared";
+import { formatMoney, localCalendarDate, shortName } from "@sellpoint/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -160,7 +160,7 @@ export function ShiftsReport() {
               <option value="">{t("reports.shifts.allEmployees")}</option>
               {(empleados.data ?? []).map((u) => (
                 <option key={u.id} value={u.id}>
-                  {[u.firstName, u.lastNamePaternal].filter(Boolean).join(" ")}
+                  {shortName(u)}
                 </option>
               ))}
             </select>

@@ -5,7 +5,13 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { endOfDayUtc, FOLIO_PREFIXES, startOfDayUtc, TRANSFER_STALE_DAYS } from "@sellpoint/shared";
+import {
+  endOfDayUtc,
+  FOLIO_PREFIXES,
+  shortName,
+  startOfDayUtc,
+  TRANSFER_STALE_DAYS,
+} from "@sellpoint/shared";
 import type { TransferStatus } from "../../generated/prisma/client";
 // `Prisma` va como VALOR y no como `import type`: `Prisma.Decimal` es un
 // constructor que se USA en runtime, no solo un espacio de tipos. Con
@@ -191,7 +197,7 @@ export class TransfersService {
           createdAt: row.createdAt,
           createdBy: {
             id: row.creator.id,
-            name: `${row.creator.firstName} ${row.creator.lastNamePaternal}`.trim(),
+            name: shortName(row.creator),
           },
           lineCount: row._count.lines,
           daysInTransit,
@@ -201,7 +207,7 @@ export class TransfersService {
           canceledBy: row.canceller
             ? {
                 id: row.canceller.id,
-                name: `${row.canceller.firstName} ${row.canceller.lastNamePaternal}`.trim(),
+                name: shortName(row.canceller),
               }
             : null,
         };
@@ -656,9 +662,7 @@ export class TransfersService {
   private persona(
     row: { id: string; firstName: string; lastNamePaternal: string } | null,
   ): { id: string; name: string } | null {
-    return row === null
-      ? null
-      : { id: row.id, name: `${row.firstName} ${row.lastNamePaternal}`.trim() };
+    return row === null ? null : { id: row.id, name: shortName(row) };
   }
 
   /**
