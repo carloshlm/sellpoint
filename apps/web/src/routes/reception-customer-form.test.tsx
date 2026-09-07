@@ -124,8 +124,11 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
   it("la edad aparece en vivo al escribir la fecha de nacimiento", async () => {
     await renderEn("/reception/customers/new");
     const user = userEvent.setup();
-    const fecha = await screen.findByLabelText("Fecha de nacimiento");
-    await user.type(fecha, "1990-09-02");
+    // Tres campos en vez de un calendario: se teclea de corrido y el mes se
+    // elige de una lista (F1-BDATE).
+    await user.type(await screen.findByLabelText("Día"), "2");
+    await user.selectOptions(screen.getByLabelText("Mes"), "9");
+    await user.type(screen.getByLabelText("Año"), "1990");
     const esperada = ageFromBirthDate(
       "1990-09-02",
       localCalendarDate("America/Mexico_City", new Date()),
@@ -137,7 +140,9 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
     const router = await renderEn("/reception/customers/c1");
     const user = userEvent.setup();
     expect(await screen.findByLabelText("Nombre")).toHaveValue("Rosa");
-    expect(screen.getByLabelText("Fecha de nacimiento")).toHaveValue("1990-09-02");
+    expect(screen.getByLabelText("Día")).toHaveValue("2");
+    expect(screen.getByLabelText("Mes")).toHaveValue("9");
+    expect(screen.getByLabelText("Año")).toHaveValue("1990");
     expect(screen.getByLabelText("Teléfono")).toHaveValue("5512345678");
 
     await user.type(screen.getByLabelText("Notas"), "VIP");

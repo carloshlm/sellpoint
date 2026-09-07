@@ -9,6 +9,7 @@ import {
 } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { BirthDateField } from "@/components/form/birth-date-field";
 import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
@@ -213,11 +214,10 @@ export function CustomerForm({
             onChange={(event) => setSecondLastName(event.target.value)}
           />
         )}
-        <TextField
-          type="date"
+        <BirthDateField
           label={t("reception.form.birthDate")}
           value={birthDate}
-          onChange={(event) => setBirthDate(event.target.value)}
+          onChange={setBirthDate}
           error={errores.birthDate}
           hint={
             edad !== null

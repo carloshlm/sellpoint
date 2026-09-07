@@ -476,6 +476,12 @@
       "reports_export": "Export reports"
     }
   },
+  "birthDate": {
+    "day": "Day",
+    "month": "Month",
+    "year": "Year",
+    "monthPlaceholder": "Month"
+  },
   "tax": {
     "selectLabel": "Tax",
     "selectDefault": "Business default ({{name}})",

@@ -476,6 +476,12 @@
       "reports_export": "Exportar reportes"
     }
   },
+  "birthDate": {
+    "day": "Día",
+    "month": "Mes",
+    "year": "Año",
+    "monthPlaceholder": "Mes"
+  },
   "tax": {
     "selectLabel": "Impuesto",
     "selectDefault": "Predeterminado del negocio ({{name}})",
