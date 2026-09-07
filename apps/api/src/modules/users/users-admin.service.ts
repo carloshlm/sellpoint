@@ -256,7 +256,7 @@ export class UsersAdminService {
         const data: {
           firstName?: string;
           lastName?: string;
-          secondLastName?: string;
+          secondLastName?: string | null;
           locale?: "es" | "en";
           defaultWarehouseId?: string | null;
         } = {};

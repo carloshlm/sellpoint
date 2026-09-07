@@ -47,11 +47,12 @@ describe("auth schemas", () => {
       expect(result.error?.issues[0]?.message).toBe("validation.passwordMin");
     });
 
-    it("secondLastName vacío se normaliza a undefined", () => {
-      const result = registerSchema.safeParse(base);
+    it("F1-NAME-09: el registro no pide segundo apellido — acá no hay negocio, ni país", () => {
+      const result = registerSchema.safeParse({ ...base, secondLastName: "Luna" });
       expect(result.success).toBe(true);
+      // La llave se descarta: lo que no se pide, no viaja al API.
       if (result.success) {
-        expect(result.data.secondLastName).toBeUndefined();
+        expect(result.data).not.toHaveProperty("secondLastName");
       }
     });
 

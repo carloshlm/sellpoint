@@ -298,7 +298,7 @@ describe("F1-WEB-AUTH-04 — /register", () => {
   async function fillRegisterForm(overrides: { email?: string; password?: string } = {}) {
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Nombre"), "Ana");
-    await user.type(screen.getByLabelText("Apellido paterno"), "García");
+    await user.type(screen.getByLabelText("Apellido"), "García");
     await user.type(screen.getByLabelText("Email"), overrides.email ?? "ana@acme.mx");
     await user.type(
       screen.getByLabelText("Contraseña"),

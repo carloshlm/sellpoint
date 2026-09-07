@@ -24,9 +24,6 @@
   "form": {
     "createTitle": "Register {{entityLower}}",
     "editTitle": "Edit {{entityLower}}",
-    "firstName": "First name",
-    "lastName": "Last name",
-    "secondLastName": "Second last name",
     "birthDate": "Birth date",
     "ageLive": "Age: {{age}}",
     "phoneCountry": "Phone country",

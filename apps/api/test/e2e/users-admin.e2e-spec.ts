@@ -203,6 +203,38 @@ describe("Users CRUD administrativo (e2e, F1-RBAC-03)", () => {
     expect(patched.body).toMatchObject({ locale: "en" });
   });
 
+  it("F1-NAME-10: un admin también puede BORRAR el segundo apellido de otro (null)", async () => {
+    const owner = await registerActiveOwner();
+    const viewerId = await viewerRoleId(owner.accessToken);
+    const created = await request(app.getHttpServer())
+      .post("/users")
+      .set("Authorization", bearer(owner.accessToken))
+      .send({
+        email: `segundo-${randomUUID()}@example.com`,
+        firstName: "Rosa",
+        lastName: "Vega",
+        secondLastName: "Luna",
+        roleIds: [viewerId],
+      })
+      .expect(201);
+    expect(created.body).toMatchObject({ secondLastName: "Luna" });
+
+    // Antes el DTO era `.optional()` y no `.nullable()`: el dueño podía limpiar
+    // el suyo por `PATCH /me` pero un admin no podía limpiar el de nadie.
+    const borrado = await request(app.getHttpServer())
+      .patch(`/users/${created.body.id}`)
+      .set("Authorization", bearer(owner.accessToken))
+      .send({ secondLastName: null })
+      .expect(200);
+    expect(borrado.body.secondLastName).toBeNull();
+
+    const leido = await request(app.getHttpServer())
+      .get(`/users/${created.body.id}`)
+      .set("Authorization", bearer(owner.accessToken))
+      .expect(200);
+    expect(leido.body.secondLastName).toBeNull();
+  });
+
   it("PATCH /users/:id reemplaza roleIds -> BUMPEA perm-epoch:{userId} (permisos del user cambian)", async () => {
     const owner = await registerActiveOwner();
     const viewerId = await viewerRoleId(owner.accessToken);

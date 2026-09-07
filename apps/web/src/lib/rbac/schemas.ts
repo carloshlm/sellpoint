@@ -24,11 +24,10 @@ export const userFormSchema = z.object({
   email: emailSchema,
   firstName: requiredString,
   lastName: requiredString,
-  secondLastName: z
-    .string()
-    .trim()
-    .transform((value) => (value === "" ? undefined : value))
-    .optional(),
+  // F1-NAME-10: sin transformar a `undefined`. Vacío significa cosas distintas
+  // según el modo — en el alta «no lo capturé», en la edición «bórralo» — y esa
+  // decisión es del formulario, no del schema.
+  secondLastName: z.string().trim(),
   locale: z.enum(["es", "en"]).optional(),
   roleIds: z.array(z.string()).min(1, "validation.rolesRequired"),
   /**

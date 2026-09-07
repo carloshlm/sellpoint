@@ -7,7 +7,10 @@ export const updateUserSchema = z
   .object({
     firstName: z.string().trim().min(1).optional(),
     lastName: z.string().trim().min(1).optional(),
-    secondLastName: z.string().trim().min(1).optional(),
+    // F1-NAME-10: `null` BORRA, igual que en `update-me`. Sin el `.nullable()`
+    // el dueño podía limpiar su propio segundo apellido pero un admin no podía
+    // limpiar el de nadie — una asimetría que no defendía nada.
+    secondLastName: z.string().trim().min(1).nullable().optional(),
     locale: z.enum(["es", "en"]).optional(),
     roleIds: z.array(z.uuid()).min(1).optional(),
     /** F3-HOME-01. `null` explícito lo quita. */

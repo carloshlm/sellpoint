@@ -24,9 +24,6 @@
   "form": {
     "createTitle": "Registrar {{entityLower}}",
     "editTitle": "Editar {{entityLower}}",
-    "firstName": "Nombres",
-    "lastName": "Apellido paterno",
-    "secondLastName": "Apellido materno",
     "birthDate": "Fecha de nacimiento",
     "ageLive": "Edad: {{age}}",
     "phoneCountry": "País del teléfono",

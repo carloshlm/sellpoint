@@ -194,7 +194,7 @@ describe("Paciente nuevo (F9-CLINIC-WEB-08)", () => {
     const titulo = await screen.findByRole("heading", { name: "Paciente nuevo" });
     expect(titulo.closest('[data-slot="card"]')).not.toBeNull();
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText("Nombres"), "Luis");
+    await user.type(screen.getByLabelText("Nombre"), "Luis");
     await user.type(screen.getByLabelText("Apellido paterno"), "Gómez");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() =>
@@ -344,7 +344,7 @@ describe("Atender paciente — turno sin paciente", () => {
   it("el paciente nuevo nace ligado al turno que lo trajo", async () => {
     const router = await renderRuta("/medical-clinic/patients/new?turnId=t3", ATTEND);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("Nombres"), "Luis");
+    await user.type(await screen.findByLabelText("Nombre"), "Luis");
     await user.type(screen.getByLabelText("Apellido paterno"), "Gómez");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() =>

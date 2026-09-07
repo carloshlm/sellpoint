@@ -143,9 +143,12 @@ function SystemUsersContent() {
       // `warehouseIds` NO viaja (es otro recurso y el usuario aún no tiene id),
       // pero `defaultWarehouseId` SÍ: es una columna del usuario. `""` es
       // "sin asignar" y se traduce a `null` para el API.
-      const { warehouseIds: _scope, defaultWarehouseId, ...resto } = values;
+      const { warehouseIds: _scope, defaultWarehouseId, secondLastName, ...resto } = values;
       const alta = {
         ...resto,
+        // F1-NAME-10: en el ALTA, vacío es «no lo capturé» y no viaja — nadie
+        // nace con un `null` explícito redundante.
+        ...(secondLastName ? { secondLastName } : {}),
         ...(defaultWarehouseId ? { defaultWarehouseId } : {}),
       };
       createUserMutation.mutate(alta, {
@@ -158,15 +161,26 @@ function SystemUsersContent() {
       return;
     }
 
-    const { email: _email, warehouseIds: scopeSeleccionado, defaultWarehouseId, ...resto } = values;
+    const {
+      email: _email,
+      warehouseIds: scopeSeleccionado,
+      defaultWarehouseId,
+      secondLastName,
+      ...resto
+    } = values;
     const warehouseIds = scopeSeleccionado ?? [];
     // Solo si CAMBIÓ. El API distingue "no lo toques" (ausente) de "quítalo"
     // (`null`), y mandarlo siempre haría que cada PATCH reescribiera un campo
     // que nadie tocó — ruido en la auditoría y una reescritura de más.
     const asignadoAnterior = formState.user.defaultWarehouseId ?? "";
     const asignadoNuevo = defaultWarehouseId ?? "";
+    // F1-NAME-10: en la EDICIÓN, vacío BORRA (`null`) — y solo viaja si cambió,
+    // para no reescribir un campo que nadie tocó. Antes el schema convertía el
+    // vacío en `undefined` y el valor viejo sobrevivía al intento de limpiarlo.
+    const segundoAnterior = formState.user.secondLastName ?? "";
     const input = {
       ...resto,
+      ...(secondLastName !== segundoAnterior ? { secondLastName: secondLastName || null } : {}),
       ...(asignadoNuevo !== asignadoAnterior ? { defaultWarehouseId: asignadoNuevo || null } : {}),
     };
     const userId = formState.user.id;

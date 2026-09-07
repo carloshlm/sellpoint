@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { asksSecondSurname } from "@sellpoint/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -10,6 +11,7 @@ import type { ApiError } from "@/lib/api";
 import type { UpdateMyProfileInput } from "@/lib/auth/api";
 import { useUpdateMyProfile } from "@/lib/auth/hooks";
 import { type ProfileDetailsValues, profileDetailsSchema } from "@/lib/auth/schemas";
+import { LAST_NAME_LABEL_KEY, nameFormatOf } from "@/lib/name-format";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -29,6 +31,15 @@ import { useAuthStore } from "@/stores/auth.store";
  */
 function ProfileDetails({ user }: { user: AuthUser }) {
   const { t } = useTranslation();
+  // F1-NAME-08: la etiqueta del apellido la decide el país del negocio.
+  const formatoDeNombre = nameFormatOf();
+  // F1-NAME-09 — LA LEY: el FORMATO decide qué se PIDE, el DATO decide qué se
+  // MUESTRA. Un segundo apellido ya guardado se ve y se edita aunque el país
+  // sea de uno solo — y si el campo NO se dibuja, la llave no viaja en el
+  // submit: esconder jamás es borrar. Se calcula con el valor PERSISTIDO y no
+  // con el del input, porque si no el campo se esfumaría mientras lo vacían.
+  const pideSegundoApellido =
+    asksSecondSurname(formatoDeNombre) || (user.secondLastName ?? "") !== "";
   const updateProfile = useUpdateMyProfile();
   const setUser = useAuthStore((state) => state.setUser);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -55,7 +66,7 @@ function ProfileDetails({ user }: { user: AuthUser }) {
     const patch: UpdateMyProfileInput = {};
     if (dirtyFields.firstName) patch.firstName = values.firstName.trim();
     if (dirtyFields.lastName) patch.lastName = values.lastName.trim();
-    if (dirtyFields.secondLastName) {
+    if (pideSegundoApellido && dirtyFields.secondLastName) {
       // Vacío BORRA (null): el materno es opcional desde el registro.
       const trimmed = values.secondLastName.trim();
       patch.secondLastName = trimmed === "" ? null : trimmed;
@@ -118,22 +129,24 @@ function ProfileDetails({ user }: { user: AuthUser }) {
             </p>
           )}
           <TextField
-            label={t("common.profile.details.firstName")}
+            label={t("common.name.firstName")}
             autoComplete="given-name"
             error={errors.firstName?.message ? t(errors.firstName.message) : undefined}
             {...register("firstName")}
           />
           <TextField
-            label={t("common.profile.details.lastName")}
+            label={t(LAST_NAME_LABEL_KEY[formatoDeNombre])}
             autoComplete="family-name"
             error={errors.lastName?.message ? t(errors.lastName.message) : undefined}
             {...register("lastName")}
           />
-          <TextField
-            label={t("common.profile.details.secondLastName")}
-            error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
-            {...register("secondLastName")}
-          />
+          {pideSegundoApellido && (
+            <TextField
+              label={t("common.name.secondLastName")}
+              error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
+              {...register("secondLastName")}
+            />
+          )}
           <div className="flex flex-col gap-2">
             <Label>{t("common.profile.details.email")}</Label>
             <p data-testid="profile-email" className="text-sm">

@@ -46,9 +46,6 @@
     "createTitle": "New user",
     "editTitle": "Edit user",
     "email": "Email",
-    "firstName": "First name",
-    "lastName": "Last name",
-    "secondLastName": "Second last name",
     "locale": "Language",
     "localeOptions": {
       "es": "Spanish",

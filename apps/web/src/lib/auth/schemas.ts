@@ -46,13 +46,10 @@ export const loginSchema = z.object({
 // paso 1 del wizard (Nombre legal), no en el registro.
 export const registerSchema = z.object({
   firstName: requiredString,
+  // F1-NAME-09: sin segundo apellido — en el registro no hay negocio y por
+  // lo tanto no hay país. El DTO del API lo sigue aceptando: no se estrecha
+  // el contrato, solo se deja de pedir.
   lastName: requiredString,
-  // Opcional: vacío se normaliza a undefined para no mandar "" al API.
-  secondLastName: z
-    .string()
-    .trim()
-    .transform((value) => (value === "" ? undefined : value))
-    .optional(),
   email: emailSchema,
   password: passwordSchema,
 });

@@ -46,9 +46,6 @@
     "createTitle": "Nuevo usuario",
     "editTitle": "Editar usuario",
     "email": "Email",
-    "firstName": "Nombre",
-    "lastName": "Apellido paterno",
-    "secondLastName": "Apellido materno",
     "locale": "Idioma",
     "localeOptions": {
       "es": "Español",

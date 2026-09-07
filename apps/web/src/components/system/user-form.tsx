@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { asksSecondSurname } from "@sellpoint/shared";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { LAST_NAME_LABEL_KEY, nameFormatOf } from "@/lib/name-format";
 import type { RoleSummary, UserDetail } from "@/lib/rbac/api";
 import { type UserFormValues, userFormSchema } from "@/lib/rbac/schemas";
 
@@ -68,13 +70,22 @@ function UserForm({
   onCancel,
 }: UserFormProps) {
   const { t, i18n } = useTranslation();
+  // F1-NAME-08: la etiqueta del apellido la decide el país del negocio.
+  const formatoDeNombre = nameFormatOf();
+  // F1-NAME-09 — LA LEY: el FORMATO decide qué se PIDE, el DATO decide qué se
+  // MUESTRA. Un segundo apellido ya guardado se ve y se edita aunque el país
+  // sea de uno solo — y si el campo NO se dibuja, la llave no viaja en el
+  // submit: esconder jamás es borrar. Se calcula con el valor PERSISTIDO y no
+  // con el del input, porque si no el campo se esfumaría mientras lo vacían.
+  const pideSegundoApellido =
+    asksSecondSurname(formatoDeNombre) || (user?.secondLastName ?? "") !== "";
 
   const defaultValues = React.useMemo<UserFormValues>(
     () => ({
       email: user?.email ?? "",
       firstName: user?.firstName ?? "",
       lastName: user?.lastName ?? "",
-      secondLastName: user?.secondLastName ?? undefined,
+      secondLastName: user?.secondLastName ?? "",
       locale:
         (user?.locale as "es" | "en" | undefined) ?? (i18n.language.startsWith("en") ? "en" : "es"),
       roleIds: user?.roles.map((role) => role.id) ?? [],
@@ -134,6 +145,10 @@ function UserForm({
     setValue("warehouseIds", next, { shouldValidate: true });
   }
 
+  // Esconder no es borrar: si el campo no se dibujó, su valor sigue siendo el
+  // PERSISTIDO (el `defaultValue`), así que la comparación del caller no lo
+  // manda. No hay que quitar la llave a mano — y mandar "" sería peor: en la
+  // edición significa «bórralo».
   const submit = handleSubmit((values) => onSubmit(values));
 
   return (
@@ -164,24 +179,26 @@ function UserForm({
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
-              label={t("users.form.firstName")}
+              label={t("common.name.firstName")}
               autoComplete="given-name"
               error={errors.firstName?.message ? t(errors.firstName.message) : undefined}
               {...register("firstName")}
             />
             <TextField
-              label={t("users.form.lastName")}
+              label={t(LAST_NAME_LABEL_KEY[formatoDeNombre])}
               autoComplete="family-name"
               error={errors.lastName?.message ? t(errors.lastName.message) : undefined}
               {...register("lastName")}
             />
           </div>
-          <TextField
-            label={t("users.form.secondLastName")}
-            autoComplete="family-name"
-            error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
-            {...register("secondLastName")}
-          />
+          {pideSegundoApellido && (
+            <TextField
+              label={t("common.name.secondLastName")}
+              autoComplete="family-name"
+              error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
+              {...register("secondLastName")}
+            />
+          )}
           <SelectField
             label={t("users.form.locale")}
             options={[

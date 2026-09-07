@@ -1,5 +1,6 @@
 import {
   ageFromBirthDate,
+  asksSecondSurname,
   COUNTRY_DIAL_CODES,
   type CountryCode,
   ISO_COUNTRY_CODES,
@@ -12,6 +13,7 @@ import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
+import { LAST_NAME_LABEL_KEY, nameFormatOf } from "@/lib/name-format";
 import type { CreateCustomerInput, Customer, UpdateCustomerInput } from "@/lib/reception/api";
 import { useCreateCustomer, useUpdateCustomer } from "@/lib/reception/hooks";
 import { composePhone, customerFormSchema } from "@/lib/reception/schemas";
@@ -64,12 +66,21 @@ export function CustomerForm({
   submitCreate?: (input: CreateCustomerInput) => Promise<Customer>;
 }) {
   const { t } = useTranslation();
+  // F1-NAME-08: la etiqueta del apellido la decide el país del negocio.
+  const formatoDeNombre = nameFormatOf();
+  // F1-NAME-09 — LA LEY: el FORMATO decide qué se PIDE, el DATO decide qué se
+  // MUESTRA. Un segundo apellido ya guardado se ve y se edita aunque el país
+  // sea de uno solo, y si el campo NO se dibuja su llave no viaja: esconder
+  // jamás es borrar. Va con el valor PERSISTIDO, no con el del input, porque
+  // si no el campo se esfumaría en el instante en que alguien lo vacía.
+  const pideSegundoApellido =
+    asksSecondSurname(formatoDeNombre) || (customer?.secondLastName ?? "") !== "";
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const tenantCountry = useAuthStore((state) => state.user?.tenant.country ?? null);
   const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
   const [firstName, setFirstName] = useState(customer?.firstName ?? "");
-  const [lastName, setLastNamePaternal] = useState(customer?.lastName ?? "");
-  const [secondLastName, setLastNameMaternal] = useState(customer?.secondLastName ?? "");
+  const [lastName, setLastName] = useState(customer?.lastName ?? "");
+  const [secondLastName, setSecondLastName] = useState(customer?.secondLastName ?? "");
   const [birthDate, setBirthDate] = useState(customer?.birthDate ?? "");
   const initialPhone = phonePartsOf(customer?.phone, tenantCountry);
   const [phoneCountry, setPhoneCountry] = useState(initialPhone.country);
@@ -125,7 +136,9 @@ export function CustomerForm({
       const input: CreateCustomerInput = {
         firstName: valores.firstName,
         lastName: valores.lastName,
-        ...(valores.secondLastName ? { secondLastName: valores.secondLastName } : {}),
+        ...(pideSegundoApellido && valores.secondLastName
+          ? { secondLastName: valores.secondLastName }
+          : {}),
         ...(valores.birthDate ? { birthDate: valores.birthDate } : {}),
         ...(telefono.phone ? { phone: telefono.phone } : {}),
         ...(valores.email ? { email: valores.email } : {}),
@@ -145,8 +158,14 @@ export function CustomerForm({
     if (valores.lastName !== customer.lastName) {
       cambios.lastName = valores.lastName;
     }
-    const maternal = valores.secondLastName || null;
-    if (maternal !== customer.secondLastName) cambios.secondLastName = maternal;
+    // Defensa en PROFUNDIDAD, no la barrera principal: con la ley del dato
+    // puesta el campo se dibuja siempre que haya algo que perder, así que este
+    // `if` no es matable por un test. Protege del día en que alguien cambie la
+    // condición de visibilidad y deje pasar un borrado silencioso.
+    if (pideSegundoApellido) {
+      const segundo = valores.secondLastName || null;
+      if (segundo !== customer.secondLastName) cambios.secondLastName = segundo;
+    }
     const nacimiento = valores.birthDate || null;
     if (nacimiento !== customer.birthDate) cambios.birthDate = nacimiento;
     if (telefono.phone !== customer.phone) cambios.phone = telefono.phone;
@@ -172,26 +191,28 @@ export function CustomerForm({
       {/* De a pares, como Servicios: el ancho lo da la tarjeta, no el form. */}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
-          label={t("reception.form.firstName")}
+          label={t("common.name.firstName")}
           value={firstName}
           onChange={(event) => setFirstName(event.target.value)}
           error={errores.firstName}
           required
         />
         <TextField
-          label={t("reception.form.lastName")}
+          label={t(LAST_NAME_LABEL_KEY[formatoDeNombre])}
           value={lastName}
-          onChange={(event) => setLastNamePaternal(event.target.value)}
+          onChange={(event) => setLastName(event.target.value)}
           error={errores.lastName}
           required
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
-          label={t("reception.form.secondLastName")}
-          value={secondLastName}
-          onChange={(event) => setLastNameMaternal(event.target.value)}
-        />
+        {pideSegundoApellido && (
+          <TextField
+            label={t("common.name.secondLastName")}
+            value={secondLastName}
+            onChange={(event) => setSecondLastName(event.target.value)}
+          />
+        )}
         <TextField
           type="date"
           label={t("reception.form.birthDate")}

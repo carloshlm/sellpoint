@@ -11,6 +11,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-RECEP-12 — la pantalla de alta y edición de cliente (pantalla completa,
@@ -31,10 +32,11 @@ vi.mock("@/lib/reception/api", () => ({
 }));
 const mocked = vi.mocked(receptionApi);
 
-const demoUser = (): AuthUser =>
+const demoUser = (country = "MX"): AuthUser =>
   buildAuthUser({
     permissions: ["reception:read", "reception:manage"],
     subscription: { ...SUBSCRIPTION_PLUS, modules: ["reception"] },
+    tenant: buildTenantBlock({ country }),
   });
 
 const guardado: receptionApi.Customer = {
@@ -52,8 +54,8 @@ const guardado: receptionApi.Customer = {
   updatedAt: "2026-09-02T18:00:00.000Z",
 };
 
-async function renderEn(path: string) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser());
+async function renderEn(path: string, country = "MX") {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(country));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -86,7 +88,7 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
     await renderEn("/reception/customers/new");
     const titulo = await screen.findByRole("heading", { name: "Registrar cliente" });
     expect(titulo.closest('[data-slot="card"]')).not.toBeNull();
-    expect(screen.getByLabelText("Nombres").closest('[data-slot="card"]')).toBe(
+    expect(screen.getByLabelText("Nombre").closest('[data-slot="card"]')).toBe(
       titulo.closest('[data-slot="card"]'),
     );
   });
@@ -94,7 +96,7 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
   it("guardar con los mínimos crea al cliente y vuelve al listado", async () => {
     const router = await renderEn("/reception/customers/new");
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("Nombres"), "Rosa");
+    await user.type(await screen.findByLabelText("Nombre"), "Rosa");
     await user.type(screen.getByLabelText("Apellido paterno"), "Luna");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
@@ -110,7 +112,7 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
   it("un teléfono inválido muestra el error del campo y no llama al API", async () => {
     await renderEn("/reception/customers/new");
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("Nombres"), "Rosa");
+    await user.type(await screen.findByLabelText("Nombre"), "Rosa");
     await user.type(screen.getByLabelText("Apellido paterno"), "Luna");
     await user.type(screen.getByLabelText("Teléfono"), "12");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
@@ -134,7 +136,7 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
   it("la edición precarga los datos y el PATCH manda solo lo que cambió", async () => {
     const router = await renderEn("/reception/customers/c1");
     const user = userEvent.setup();
-    expect(await screen.findByLabelText("Nombres")).toHaveValue("Rosa");
+    expect(await screen.findByLabelText("Nombre")).toHaveValue("Rosa");
     expect(screen.getByLabelText("Fecha de nacimiento")).toHaveValue("1990-09-02");
     expect(screen.getByLabelText("Teléfono")).toHaveValue("5512345678");
 
@@ -151,5 +153,61 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
     await user.click(await screen.findByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/reception/customers"));
     expect(mocked.createCustomer).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * F1-NAME-09 — el mismo formulario, tres mercados. Y la LEY: el formato decide
+ * qué se PIDE, el dato decide qué se MUESTRA, y esconder JAMÁS borra.
+ */
+describe("los apellidos según el país del negocio (F1-NAME-09)", () => {
+  it("México pide dos apellidos, con el vocabulario que la gente reconoce", async () => {
+    await renderEn("/reception/customers/new", "MX");
+    expect(await screen.findByLabelText("Apellido paterno")).toBeInTheDocument();
+    expect(screen.getByLabelText("Apellido materno (opcional)")).toBeInTheDocument();
+  });
+
+  it("Estados Unidos pide uno solo: ahí «apellido paterno» no significa nada", async () => {
+    await renderEn("/reception/customers/new", "US");
+    expect(await screen.findByLabelText("Apellido")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Apellido materno (opcional)")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Apellido paterno")).not.toBeInTheDocument();
+  });
+
+  it("Brasil pide un campo, pero en plural: ahí caben hasta cuatro apellidos", async () => {
+    await renderEn("/reception/customers/new", "BR");
+    expect(await screen.findByLabelText("Apellidos")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Apellido materno (opcional)")).not.toBeInTheDocument();
+  });
+
+  it("un cliente que YA tiene segundo apellido lo sigue viendo, aunque el país sea de uno", async () => {
+    mocked.getCustomer.mockResolvedValue({ ...guardado, secondLastName: "García" });
+    await renderEn("/reception/customers/c1", "US");
+    // El dato manda sobre el formato: esconderlo sería ocultarle a alguien lo
+    // que su propio registro dice.
+    expect(await screen.findByLabelText("Apellido materno (opcional)")).toHaveValue("García");
+  });
+
+  /**
+   * EL test de este módulo. Sin la guarda, el formulario de un negocio
+   * estadounidense manda `secondLastName: null` en CADA edición y le borra el
+   * segundo apellido a todo cliente que alguien abra para cambiarle el
+   * teléfono. Silencioso, acumulativo, irreversible sin backup.
+   */
+  it("esconder el campo NO lo borra: cambiar solo el teléfono no manda la llave", async () => {
+    const user = userEvent.setup();
+    mocked.getCustomer.mockResolvedValue({ ...guardado, secondLastName: null });
+    await renderEn("/reception/customers/c1", "US");
+
+    await screen.findByLabelText("Apellido");
+    expect(screen.queryByLabelText("Apellido materno (opcional)")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Teléfono"));
+    await user.type(screen.getByLabelText("Teléfono"), "5599887766");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(mocked.updateCustomer).toHaveBeenCalled());
+    const cambios = mocked.updateCustomer.mock.calls[0]?.[1] ?? {};
+    expect(cambios).not.toHaveProperty("secondLastName");
+    expect(cambios).toHaveProperty("phone");
   });
 });

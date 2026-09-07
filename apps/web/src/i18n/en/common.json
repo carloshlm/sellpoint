@@ -26,6 +26,15 @@
     "remove": "Remove",
     "search": "Search"
   },
+  "name": {
+    "firstName": "First name",
+    "lastName": {
+      "single": "Last name",
+      "double": "Paternal surname",
+      "compound": "Surnames"
+    },
+    "secondLastName": "Maternal surname (optional)"
+  },
   "hello": "Hello",
   "home": {
     "demoTotal": "Demo total: {{amount}}",
@@ -81,9 +90,6 @@
     "title": "My profile",
     "details": {
       "title": "Your details",
-      "firstName": "First name",
-      "lastName": "Paternal last name",
-      "secondLastName": "Maternal last name (optional)",
       "email": "Email",
       "language": "Language",
       "emailHint": "Your email is your sign-in identity and cannot be changed.",

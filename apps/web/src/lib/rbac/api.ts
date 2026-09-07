@@ -39,7 +39,8 @@ export interface CreateUserInput {
  * completo — no es un delta.
  */
 export type UpdateUserInput = Partial<Pick<UserDetail, "firstName" | "lastName">> & {
-  secondLastName?: string;
+  /** F1-NAME-10: `null` BORRA — igual que en «Tus datos», que ya lo permitía. */
+  secondLastName?: string | null;
   locale?: "es" | "en";
   roleIds?: string[];
   /** `null` explícito lo quita. */

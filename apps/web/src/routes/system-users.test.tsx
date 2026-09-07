@@ -962,4 +962,65 @@ describe("/system/users", () => {
       );
     });
   });
+
+  /**
+   * F1-NAME-10 — hasta hoy el dueño podía limpiar SU segundo apellido pero un
+   * admin no podía limpiar el de nadie: el DTO de `PATCH /users/:id` aceptaba
+   * `.optional()` y no `.nullable()`. Una asimetría que no defendía nada.
+   */
+  describe("un admin también puede BORRAR el segundo apellido (F1-NAME-10)", () => {
+    it("vaciar el campo manda null, no undefined — el valor viejo no sobrevive", async () => {
+      const user = userEvent.setup();
+      useAuthStore
+        .getState()
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read"]));
+      const [ana, beto] = USERS;
+      if (!ana || !beto) throw new Error("fixture USERS debe tener 2 elementos");
+      const conSegundo: rbacApi.UserDetail = { ...ana, secondLastName: "Luna" };
+      mockedApi.listUsers.mockResolvedValue([conSegundo, beto]);
+      mockedApi.updateUser.mockResolvedValue({ ...conSegundo, secondLastName: null });
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García Luna");
+
+      const rows = screen.getAllByRole("row");
+      await user.click(within(rows[1] as HTMLElement).getByRole("button", { name: "Acciones" }));
+      await user.click(await screen.findByRole("menuitem", { name: "Editar" }));
+
+      const segundo = await screen.findByLabelText("Apellido materno (opcional)");
+      expect(segundo).toHaveValue("Luna");
+      await user.clear(segundo);
+      await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+      await waitFor(() => expect(mockedApi.updateUser).toHaveBeenCalled());
+      expect(mockedApi.updateUser.mock.calls[0]?.[1] ?? {}).toMatchObject({
+        secondLastName: null,
+      });
+    });
+
+    it("en el ALTA, en cambio, un vacío NO viaja: nadie nace con un null redundante", async () => {
+      const user = userEvent.setup();
+      useAuthStore
+        .getState()
+        // `sales:read` incluido a propósito: sin él el checkbox del rol «Cajero»
+        // nace DESHABILITADO — no se puede asignar un rol con permisos que uno
+        // mismo no tiene.
+        .setAuth("jwt-demo", demoUser(["users:read", "users:manage", "roles:read", "sales:read"]));
+      mockedApi.listUsers.mockResolvedValue(USERS);
+      mockedApi.createUser.mockResolvedValue(USERS[0] as rbacApi.UserDetail);
+
+      await renderRoute("/system/users");
+      await screen.findByText("Ana García");
+
+      await user.click(screen.getByRole("button", { name: "Nuevo usuario" }));
+      await user.type(screen.getByLabelText("Email"), "nueva@acme.mx");
+      await user.type(screen.getByLabelText("Nombre"), "Rosa");
+      await user.type(screen.getByLabelText("Apellido paterno"), "Vega");
+      await user.click(screen.getByRole("checkbox", { name: "Cajero" }));
+      await user.click(screen.getByRole("button", { name: "Crear usuario" }));
+
+      await waitFor(() => expect(mockedApi.createUser).toHaveBeenCalled());
+      expect(mockedApi.createUser.mock.calls[0]?.[0] ?? {}).not.toHaveProperty("secondLastName");
+    });
+  });
 });

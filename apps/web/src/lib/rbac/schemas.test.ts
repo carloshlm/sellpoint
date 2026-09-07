@@ -6,6 +6,7 @@ describe("rbac schemas", () => {
       email: "ana@acme.mx",
       firstName: "Ana",
       lastName: "García",
+      secondLastName: "",
       roleIds: ["11111111-1111-1111-1111-111111111111"],
     };
 
@@ -31,11 +32,15 @@ describe("rbac schemas", () => {
       expect(result.error?.issues[0]?.message).toBe("validation.rolesRequired");
     });
 
-    it("secondLastName vacío se normaliza a undefined (igual que en auth/register)", () => {
+    it("F1-NAME-10: el vacío llega TAL CUAL — qué significa lo decide el formulario", () => {
+      // En el alta, vacío es «no lo capturé» y no viaja; en la edición es
+      // «bórralo» y viaja como null. El schema no puede decidir por los dos, y
+      // cuando lo hacía (transformando a `undefined`) vaciar el campo en una
+      // edición no borraba nada: el valor viejo sobrevivía al intento.
       const result = userFormSchema.safeParse({ ...base, secondLastName: "" });
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.secondLastName).toBeUndefined();
+        expect(result.data.secondLastName).toBe("");
       }
     });
   });

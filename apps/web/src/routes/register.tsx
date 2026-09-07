@@ -17,6 +17,10 @@ export const Route = createFileRoute("/register")({
 /** Container: form + mutación de registro. Éxito → card "revisa tu correo". */
 function RegisterPage() {
   const { t, i18n } = useTranslation();
+  // F1-NAME-09: acá todavía NO existe el negocio, así que no hay país del que
+  // sacar un formato: se pide Nombre + un Apellido, que es lo que no le pide
+  // de más a nadie. El segundo apellido aparece después, en Mi perfil, cuando
+  // el país del negocio ya se conoce.
   const registerMutation = useRegisterTenant();
   const [apiError, setApiError] = useState<string | null>(null);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
@@ -96,24 +100,18 @@ function RegisterPage() {
             entre el usuario y su cuenta. */}
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
-            label={t("auth.register.firstName")}
+            label={t("common.name.firstName")}
             autoComplete="given-name"
             error={errors.firstName?.message ? t(errors.firstName.message) : undefined}
             {...register("firstName")}
           />
           <TextField
-            label={t("auth.register.lastName")}
+            label={t("common.name.lastName.single")}
             autoComplete="family-name"
             error={errors.lastName?.message ? t(errors.lastName.message) : undefined}
             {...register("lastName")}
           />
         </div>
-        <TextField
-          label={t("auth.register.secondLastName")}
-          autoComplete="family-name"
-          error={errors.secondLastName?.message ? t(errors.secondLastName.message) : undefined}
-          {...register("secondLastName")}
-        />
         <TextField
           label={t("auth.register.email")}
           type="email"
