@@ -4,7 +4,9 @@
 > de nomenclatura que la UI tiene que respetar en cada uno. Mantener sincronizado
 > con `packages/shared/src/i18n.ts` (monedas), `packages/shared/src/countries.ts`
 > (catálogo ISO 3166-1 completo) y `apps/web/src/lib/tenant/markets.ts` (zonas
-> horarias curadas, moneda por defecto y sigla fiscal por país).
+> horarias curadas, moneda por defecto y sigla fiscal por país),
+> `packages/shared/src/tax-defaults.ts` (impuestos) y
+> `packages/shared/src/names.ts` (cuántos apellidos pide cada país).
 
 ---
 
@@ -16,22 +18,22 @@ una restricción: el selector de moneda es libre y ofrece las cinco habilitadas.
 
 ### Norteamérica
 
-| País | Moneda esperada | Zonas horarias ofrecidas |
-|---|---|---|
-| México | MXN | Centro (CDMX), Sureste (Cancún), Sonora (Hermosillo), Pacífico (Tijuana) |
-| Estados Unidos | USD | Este, Centro, Montaña, Arizona, Pacífico, Alaska, Hawái |
-| Canadá | CAD | Terranova, Atlántico, Este, Centro, Montaña, Pacífico |
+| País | Moneda esperada | Zonas horarias ofrecidas | Apellidos |
+|---|---|---|---|
+| México | MXN | Centro (CDMX), Sureste (Cancún), Sonora (Hermosillo), Pacífico (Tijuana) | Dos |
+| Estados Unidos | USD | Este, Centro, Montaña, Arizona, Pacífico, Alaska, Hawái | Uno |
+| Canadá | CAD | Terranova, Atlántico, Este, Centro, Montaña, Pacífico | Uno |
 
 ### Europa
 
-| País | Moneda esperada | Zonas horarias ofrecidas |
-|---|---|---|
-| Portugal | EUR | Lisboa |
-| España | EUR | Peninsular (Madrid), Canarias (Las Palmas) |
-| Francia | EUR | París |
-| Italia | EUR | Roma |
-| Alemania | EUR | Berlín |
-| Reino Unido (Inglaterra) | GBP | Londres |
+| País | Moneda esperada | Zonas horarias ofrecidas | Apellidos |
+|---|---|---|---|
+| Portugal | EUR | Lisboa | Compuestos |
+| España | EUR | Peninsular (Madrid), Canarias (Las Palmas) | Dos |
+| Francia | EUR | París | Uno |
+| Italia | EUR | Roma | Uno |
+| Alemania | EUR | Berlín | Uno |
+| Reino Unido (Inglaterra) | GBP | Londres | Uno |
 
 **Monedas habilitadas:** `MXN`, `USD`, `CAD`, `EUR`, `GBP` — definidas en
 `SUPPORTED_CURRENCIES` (`packages/shared/src/i18n.ts`), con test de contrato.
@@ -40,30 +42,30 @@ una restricción: el selector de moneda es libre y ofrece las cinco habilitadas.
 
 Ninguno tiene horario de verano: su offset es estable todo el año.
 
-| País | Moneda por defecto | Zona horaria |
-|---|---|---|
-| Belice | USD | Belmopán (UTC-6) |
-| Costa Rica | USD | San José (UTC-6) |
-| El Salvador | USD | San Salvador (UTC-6) |
-| Guatemala | USD | Ciudad de Guatemala (UTC-6) |
-| Honduras | USD | Tegucigalpa (UTC-6) |
-| Nicaragua | USD | Managua (UTC-6) |
-| Panamá | USD | Ciudad de Panamá (UTC-5) |
+| País | Moneda por defecto | Zona horaria | Apellidos |
+|---|---|---|---|
+| Belice | USD | Belmopán (UTC-6) | Uno |
+| Costa Rica | USD | San José (UTC-6) | Dos |
+| El Salvador | USD | San Salvador (UTC-6) | Dos |
+| Guatemala | USD | Ciudad de Guatemala (UTC-6) | Dos |
+| Honduras | USD | Tegucigalpa (UTC-6) | Dos |
+| Nicaragua | USD | Managua (UTC-6) | Dos |
+| Panamá | USD | Ciudad de Panamá (UTC-5) | Dos |
 
 ### Sudamérica
 
-| País | Moneda por defecto | Zonas horarias ofrecidas |
-|---|---|---|
-| Argentina | USD | Buenos Aires (UTC-3) |
-| Bolivia | USD | La Paz (UTC-4) |
-| Brasil | USD | Brasilia (UTC-3), Amazonas (UTC-4), Acre (UTC-5) |
-| Chile | USD | Continental (UTC-4/-3), Isla de Pascua (UTC-6/-5) |
-| Colombia | USD | Bogotá (UTC-5) |
-| Ecuador | USD | Continental (UTC-5), Galápagos (UTC-6) |
-| Paraguay | USD | Asunción (UTC-3) |
-| Perú | USD | Lima (UTC-5) |
-| Uruguay | USD | Montevideo (UTC-3) |
-| Venezuela | USD | Caracas (UTC-4) |
+| País | Moneda por defecto | Zonas horarias ofrecidas | Apellidos |
+|---|---|---|---|
+| Argentina | USD | Buenos Aires (UTC-3) | Uno |
+| Bolivia | USD | La Paz (UTC-4) | Dos |
+| Brasil | USD | Brasilia (UTC-3), Amazonas (UTC-4), Acre (UTC-5) | Compuestos |
+| Chile | USD | Continental (UTC-4/-3), Isla de Pascua (UTC-6/-5) | Dos |
+| Colombia | USD | Bogotá (UTC-5) | Dos |
+| Ecuador | USD | Continental (UTC-5), Galápagos (UTC-6) | Dos |
+| Paraguay | USD | Asunción (UTC-3) | Dos |
+| Perú | USD | Lima (UTC-5) | Dos |
+| Uruguay | USD | Montevideo (UTC-3) | Dos |
+| Venezuela | USD | Caracas (UTC-4) | Dos |
 
 > **Sobre la moneda por defecto:** Latinoamérica opera con **USD** por decisión
 > operativa (2026-08-16), no porque su moneda local no exista. Cada moneda se
@@ -248,6 +250,25 @@ recuerde en el review.
 Candidatas detectadas al escribir este documento; ninguna verificada en
 profundidad todavía:
 
+- **Nombre de persona** — RESUELTO (2026-09-06, F1-NAME). Tres formatos de
+  apellido, resueltos desde `tenants.country`: **`single`** un campo «Apellido»
+  (EE. UU., Canadá, Reino Unido, Francia, Alemania, Italia, Belice,
+  **Argentina** y todo el mundo no curado); **`double`** dos campos «Apellido
+  paterno» / «Apellido materno (opcional)» (México, España y los 14 países
+  hispanoamericanos restantes); **`compound`** un campo en plural «Apellidos»
+  (Portugal y Brasil, donde el orden es materno→paterno y caben hasta cuatro).
+  `single` no significa «una palabra» sino «un campo»: ahí adentro entran dos
+  apellidos sin perder nada, y la búsqueda por `contains` los encuentra igual.
+  Argentina va en `single` con fundamento: el CCyC art. 64 da UN apellido por
+  defecto y el del otro progenitor «se puede agregar» a pedido, y el DNI lo
+  guarda todo en un campo único. Los campos se llaman `lastName` y
+  `secondLastName` en base, API y web — nombres universales, no mexicanos; la
+  ETIQUETA sí habla el vocabulario local. **El formato decide qué PIDE el
+  formulario, no qué ACEPTA el servidor**: un negocio canadiense puede registrar
+  a una empleada mexicana con sus dos apellidos, y un segundo apellido ya
+  guardado se muestra y se edita aunque el país sea de uno solo. El registro
+  público siempre pide Nombre + un Apellido: ahí todavía no existe el negocio,
+  así que no hay país. Catálogo completo en `packages/shared/src/names.ts`.
 - **Dirección** — hoy es un campo de texto libre. Los formatos postales difieren
   (código postal antes o después de la ciudad, condado/provincia/estado…).
 - **Nombre del impuesto de venta** — RESUELTO (2026-09-06, F4-TAX). El

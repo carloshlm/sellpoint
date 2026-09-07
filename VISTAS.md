@@ -1574,6 +1574,8 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 │   (___________________)                                       │
 │                                                                │
 │   Nombre *                Apellido paterno *                   │
+│   (las etiquetas y cuántas casillas de apellido salen del PAÍS  │
+│    del negocio — F1-NAME; en EE. UU. es una sola: «Apellido»)   │
 │   (___________________)   (___________________)               │
 │                                                                │
 │   Apellido materno                                             │

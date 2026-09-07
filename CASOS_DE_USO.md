@@ -194,7 +194,9 @@ Detalle técnico en [ARQUITECTURA.md § 3.4](ARQUITECTURA.md#34-alcance-de-usuar
 - **Precondición:** Está autenticado en su tenant.
 - **Flujo principal:**
   1. Va a Sistema → Usuarios → "Nuevo usuario"
-  2. Completa: número de empleado, nombre, apellido paterno, apellido materno, email, rol(es) asignado(s)
+  2. Completa: número de empleado, nombre, apellido(s) **según el país del negocio**
+     (F1-NAME: México pide paterno y materno; Estados Unidos, uno solo), email,
+     rol(es) asignado(s)
   3. **(Opcional) Define alcance por almacén:** selecciona uno o más almacenes a los que el usuario tendrá acceso. Si no se selecciona ninguno, el usuario ve todos los almacenes del tenant.
   4. Sistema valida email único dentro del tenant
   5. Sistema envía email al usuario con link para que defina su password
