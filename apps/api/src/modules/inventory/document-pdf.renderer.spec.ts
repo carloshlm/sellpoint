@@ -261,6 +261,13 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       expect(json).not.toContain('"1250.5"');
     });
 
+    it("la referencia va DEBAJO de la moneda: primero en qué moneda, luego qué factura", () => {
+      const json = textos(buildDocumentDefinition(base, t));
+
+      expect(json.indexOf("pdf.currency")).toBeGreaterThan(-1);
+      expect(json.indexOf("pdf.currency")).toBeLessThan(json.indexOf("pdf.reference"));
+    });
+
     it("el encabezado dice la moneda con su nombre y su código, en el idioma de quien lee", () => {
       const es = textos(buildDocumentDefinition(base, t));
       expect(es).toContain("pdf.currency");

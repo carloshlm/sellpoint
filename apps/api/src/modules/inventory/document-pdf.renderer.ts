@@ -312,7 +312,6 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
                   )
                 : []),
               ...dato(t("pdf.registeredBy"), document.createdByName),
-              ...dato(t("pdf.reference"), document.reference),
               // La moneda de los importes, dicha UNA vez y solo cuando hay
               // importes: nombre en el idioma de quien lee y código ISO, como
               // la lleva una factura («Dólar canadiense (CAD)»).
@@ -322,6 +321,10 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
                     `${currencyName(input.currency, input.locale)} (${input.currency})`,
                   )
                 : []),
+              // La referencia va DEBAJO de la moneda (Carlos, 2026-09-08): es
+              // el número de la factura del proveedor, y se lee después de
+              // saber en qué moneda está.
+              ...dato(t("pdf.reference"), document.reference),
               ...dato(t("pdf.authorizedBy"), document.authorizedByName),
             ],
             fontSize: 9,
