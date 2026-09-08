@@ -31,6 +31,11 @@
     "phone": "Teléfono",
     "email": "Correo",
     "notes": "Notas",
+    "duplicates": {
+      "title": "Ya hay {{count}} {{entitiesLower}} con este teléfono o correo",
+      "title_one": "Ya hay {{count}} {{entityLower}} con este teléfono o correo",
+      "hint": "Puede ser la misma persona o un familiar que comparte el contacto. Si es la misma, edita su registro en vez de crear otro."
+    },
     "loadFailed": "No pudimos cargar el registro de {{entityLower}}.",
     "errors": {
       "required": "Este campo es obligatorio.",

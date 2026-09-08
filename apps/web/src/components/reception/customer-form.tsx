@@ -12,6 +12,10 @@ import { useTranslation } from "react-i18next";
 import { BirthDateField } from "@/components/form/birth-date-field";
 import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
+import {
+  type CheckedContact,
+  DuplicateContactCard,
+} from "@/components/reception/duplicate-contact-card";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { LAST_NAME_LABEL_KEY, nameFormatOf } from "@/lib/name-format";
@@ -90,6 +94,22 @@ export function CustomerForm({
   const [notes, setNotes] = useState(customer?.notes ?? "");
   const [errores, setErrores] = useState<Errores>({});
   const [errorApi, setErrorApi] = useState<string | null>(null);
+  // El contacto que se COMPRUEBA contra otros registros (Carlos, 2026-09-08).
+  // Arranca con lo persistido, para que al editar se vea de entrada con quién
+  // comparte teléfono o correo, y se actualiza al SALIR del campo: comprobar
+  // tecla a tecla haría una consulta por letra sin que ninguna pueda
+  // coincidir exacta hasta el final.
+  const [contacto, setContacto] = useState<CheckedContact>({
+    phone: customer?.phone ?? null,
+    email: customer?.email ?? null,
+  });
+  const comprobarTelefono = () =>
+    setContacto((previo) => ({ ...previo, phone: composePhone(phoneCountry, phoneNumber).phone }));
+  const comprobarCorreo = () => {
+    const limpio = email.trim();
+    const valido = customerFormSchema.pick({ email: true }).safeParse({ email: limpio }).success;
+    setContacto((previo) => ({ ...previo, email: valido && limpio ? limpio : null }));
+  };
 
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
@@ -189,6 +209,31 @@ export function CustomerForm({
           {errorApi}
         </p>
       )}
+      {/* Teléfono y correo ARRIBA del nombre (Carlos, 2026-09-08): identificar
+          antes de capturar. Si la persona ya existe, se sabe antes de teclear
+          apellidos y fecha de nacimiento. */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PhonePartsField
+          countryLabel={t("reception.form.phoneCountry")}
+          countryPlaceholder={t("reception.form.phoneCountryPlaceholder")}
+          numberLabel={t("reception.form.phone")}
+          country={phoneCountry}
+          number={phoneNumber}
+          onCountryChange={setPhoneCountry}
+          onNumberChange={setPhoneNumber}
+          onNumberBlur={comprobarTelefono}
+          numberError={errores.phone}
+        />
+        <TextField
+          type="email"
+          label={t("reception.form.email")}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          onBlur={comprobarCorreo}
+          error={errores.email}
+        />
+      </div>
+      <DuplicateContactCard contact={contacto} excludeId={customer?.id} />
       {/* De a pares, como Servicios: el ancho lo da la tarjeta, no el form. */}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
@@ -226,25 +271,6 @@ export function CustomerForm({
                 })
               : undefined
           }
-        />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <PhonePartsField
-          countryLabel={t("reception.form.phoneCountry")}
-          countryPlaceholder={t("reception.form.phoneCountryPlaceholder")}
-          numberLabel={t("reception.form.phone")}
-          country={phoneCountry}
-          number={phoneNumber}
-          onCountryChange={setPhoneCountry}
-          onNumberChange={setPhoneNumber}
-          numberError={errores.phone}
-        />
-        <TextField
-          type="email"
-          label={t("reception.form.email")}
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          error={errores.email}
         />
       </div>
       <TextField

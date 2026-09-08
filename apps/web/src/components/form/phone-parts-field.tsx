@@ -18,6 +18,8 @@ interface PhonePartsFieldProps {
   number: string;
   onCountryChange: (country: string) => void;
   onNumberChange: (number: string) => void;
+  /** Al salir del número: el contenedor decide qué comprobar con él. */
+  onNumberBlur?: () => void;
   numberError?: string;
 }
 
@@ -29,6 +31,7 @@ function PhonePartsField({
   number,
   onCountryChange,
   onNumberChange,
+  onNumberBlur,
   numberError,
 }: PhonePartsFieldProps) {
   const { i18n } = useTranslation();
@@ -61,6 +64,7 @@ function PhonePartsField({
         error={numberError}
         value={number}
         onChange={(event) => onNumberChange(event.target.value)}
+        onBlur={onNumberBlur}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import { ageFromBirthDate, localCalendarDate } from "@sellpoint/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -279,5 +279,116 @@ describe("los apellidos según el país del negocio (F1-NAME-09)", () => {
 
     expect(await screen.findByText("La fecha no es válida o es futura.")).toBeInTheDocument();
     expect(mocked.createCustomer).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Carlos, 2026-09-08: si ya hay un paciente con ese correo o teléfono, el
+ * sistema AVISA y ofrece editarlo, pero NO bloquea — padre e hijo comparten
+ * contacto todo el tiempo (la persona mayor sin correo la registra su hijo).
+ * Por eso teléfono y correo van ARRIBA del nombre: identificar antes de
+ * capturar.
+ */
+describe("aviso de contacto repetido", () => {
+  const otra: receptionApi.Customer = {
+    ...guardado,
+    id: "c2",
+    firstName: "Pedro",
+    lastName: "Luna",
+    age: 70,
+    email: "familia@yopmail.com",
+  };
+  const pagina = (rows: receptionApi.Customer[]) => ({
+    rows,
+    total: rows.length,
+    page: 1,
+    pageSize: 20,
+  });
+
+  it("teléfono y correo van arriba del nombre", async () => {
+    await renderEn("/reception/customers/new");
+    const correo = await screen.findByLabelText("Correo");
+    const nombre = screen.getByLabelText("Nombre");
+    expect(correo.compareDocumentPosition(nombre) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      screen.getByLabelText("Teléfono").compareDocumentPosition(nombre) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("al salir del correo con uno ya registrado avisa, ofrece editar al que lo tiene y NO bloquea", async () => {
+    mocked.listCustomers.mockImplementation(async ({ query } = {}) =>
+      pagina(query === "familia@yopmail.com" ? [otra] : []),
+    );
+    await renderEn("/reception/customers/new");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Correo"), "familia@yopmail.com");
+    await user.tab();
+    const aviso = await screen.findByTestId("duplicate-contact");
+    expect(aviso).toHaveTextContent("Ya hay 1 cliente con este teléfono o correo");
+    expect(within(aviso).getByText("Pedro Luna")).toBeInTheDocument();
+    expect(within(aviso).getByText("70 años")).toBeInTheDocument();
+    expect(within(aviso).getByRole("link", { name: "Editar" })).toHaveAttribute(
+      "href",
+      "/reception/customers/c2",
+    );
+
+    // No bloquea: se puede seguir y guardar.
+    await user.type(screen.getByLabelText("Nombre"), "Rosa");
+    await user.type(screen.getByLabelText("Apellido paterno"), "Luna");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.createCustomer).toHaveBeenCalledWith(
+        expect.objectContaining({ firstName: "Rosa", email: "familia@yopmail.com" }),
+      ),
+    );
+  });
+
+  it("solo coincidencia exacta: un correo que apenas contiene el texto no avisa", async () => {
+    mocked.listCustomers.mockResolvedValue(pagina([{ ...otra, email: "familia@yopmail.com.mx" }]));
+    await renderEn("/reception/customers/new");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Correo"), "familia@yopmail.com");
+    await user.tab();
+    await waitFor(() =>
+      expect(mocked.listCustomers).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "familia@yopmail.com" }),
+      ),
+    );
+    expect(screen.queryByTestId("duplicate-contact")).not.toBeInTheDocument();
+  });
+
+  it("el teléfono también avisa, y al editar no se cuenta a sí mismo", async () => {
+    // Rosa (c1) y Pedro (c2) comparten el +52 55 1234 5678.
+    mocked.listCustomers.mockImplementation(async ({ query } = {}) =>
+      pagina(query === "+525512345678" ? [guardado, { ...otra, email: null }] : []),
+    );
+    await renderEn("/reception/customers/c1");
+    const aviso = await screen.findByTestId("duplicate-contact");
+    expect(aviso).toHaveTextContent("Ya hay 1 cliente con este teléfono o correo");
+    expect(within(aviso).getByText("Pedro Luna")).toBeInTheDocument();
+    expect(within(aviso).getAllByRole("link", { name: "Editar" })).toHaveLength(1);
+  });
+
+  it("al salir del teléfono en un alta también avisa", async () => {
+    mocked.listCustomers.mockImplementation(async ({ query } = {}) =>
+      pagina(query === "+525512345678" ? [{ ...otra, email: null }] : []),
+    );
+    await renderEn("/reception/customers/new");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Teléfono"), "5512345678");
+    await user.tab();
+    const aviso = await screen.findByTestId("duplicate-contact");
+    expect(within(aviso).getByText("Pedro Luna")).toBeInTheDocument();
+    expect(within(aviso).getByText("+525512345678")).toBeInTheDocument();
+  });
+
+  it("sin teléfono ni correo no busca nada", async () => {
+    await renderEn("/reception/customers/new");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Nombre"), "Rosa");
+    await user.tab();
+    expect(mocked.listCustomers).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("duplicate-contact")).not.toBeInTheDocument();
   });
 });

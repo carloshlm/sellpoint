@@ -31,6 +31,11 @@
     "phone": "Phone",
     "email": "Email",
     "notes": "Notes",
+    "duplicates": {
+      "title": "There are already {{count}} {{entitiesLower}} with this phone or email",
+      "title_one": "There is already {{count}} {{entityLower}} with this phone or email",
+      "hint": "It may be the same person or a relative who shares the contact. If it is the same person, edit their record instead of creating another."
+    },
     "loadFailed": "We could not load the {{entityLower}} record.",
     "errors": {
       "required": "This field is required.",

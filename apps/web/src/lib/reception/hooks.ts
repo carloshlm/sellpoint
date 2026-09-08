@@ -29,11 +29,15 @@ export const TURNS_QUERY_KEY = ["reception", "turns"] as const;
  */
 export const TURNS_REFETCH_MS = 15_000;
 
-export function useCustomers(params: ListCustomersParams = {}) {
+export function useCustomers(
+  params: ListCustomersParams = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery<CustomersPage, ApiError>({
     queryKey: [...CUSTOMERS_QUERY_KEY, params],
     queryFn: () => listCustomers(params),
     placeholderData: (previous) => previous,
+    enabled: options.enabled ?? true,
   });
 }
 
