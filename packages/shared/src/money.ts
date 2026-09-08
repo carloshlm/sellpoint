@@ -118,6 +118,34 @@ export function currencySymbol(currency: Currency, locale: Locale = DEFAULT_LOCA
 }
 
 /**
+ * El importe a dos decimales y con separador de miles, SIN moneda: «1,250.50».
+ * Para columnas donde la moneda ya se dijo una vez —el encabezado de un PDF—
+ * y repetirla en cada fila sería ruido (Carlos, 2026-09-08).
+ */
+export function formatAmount(amount: number, locale: Locale = DEFAULT_LOCALE): string {
+  if (!Number.isFinite(amount)) {
+    throw new RangeError(`formatAmount: amount must be finite, received ${amount}`);
+  }
+  return new Intl.NumberFormat(localeToBcp47(locale), {
+    minimumFractionDigits: MONEY_DECIMALS,
+    maximumFractionDigits: MONEY_DECIMALS,
+  }).format(amount);
+}
+
+/**
+ * El nombre de la moneda en el idioma de quien lee («Dólar canadiense»,
+ * «Canadian Dollar»), con la inicial en mayúscula. Sale de ICU, no de un
+ * catálogo propio: son los mismos nombres que muestra Mi perfil.
+ */
+export function currencyName(currency: Currency, locale: Locale = DEFAULT_LOCALE): string {
+  const nombre = new Intl.DisplayNames([localeToBcp47(locale)], { type: "currency" }).of(currency);
+  if (!nombre) {
+    return currency;
+  }
+  return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+}
+
+/**
  * Formats a monetary amount for display (presentation-only helper).
  *
  * Uses `Intl.NumberFormat` with `currencyDisplay: "symbol"` (the default):

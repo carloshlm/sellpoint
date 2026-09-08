@@ -24,6 +24,7 @@
   "openedAt": "Opened",
   "registeredBy": "Registered by",
   "reference": "Reference",
+  "currency": "Currency",
   "authorizedBy": "Authorized by",
   "taxId": "Tax ID",
   "sku": "Code",

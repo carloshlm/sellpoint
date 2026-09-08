@@ -1,7 +1,8 @@
 import {
   type Currency,
+  currencyName,
   effectiveDocumentDate,
-  formatMoney,
+  formatAmount,
   formatQuantity,
   formatQuantityWithUnit,
   type InventoryDocumentType,
@@ -215,16 +216,12 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
               .join(" · ") || "—",
           ]
         : []),
-      // Con su moneda y sus dos decimales, como en la pantalla donde se
-      // capturó: un comprobante que alguien firma no muestra el decimal crudo
-      // de la base. Sin costo la celda queda VACÍA — «$0.00» sería afirmar un
-      // importe que nadie capturó.
+      // A dos decimales y SIN símbolo: la moneda es una sola para todo el
+      // documento y se declara una vez en el encabezado — «CA$40.00» en cada
+      // fila saturaba el papel (Carlos, 2026-09-08). Sin costo la celda queda
+      // VACÍA: «0.00» sería afirmar un importe que nadie capturó.
       ...(muestraCosto
-        ? [
-            row.unitCost === null
-              ? ""
-              : formatMoney(Number(row.unitCost), input.currency, input.locale),
-          ]
+        ? [row.unitCost === null ? "" : formatAmount(Number(row.unitCost), input.locale)]
         : []),
     ];
   });
@@ -316,6 +313,15 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
                 : []),
               ...dato(t("pdf.registeredBy"), document.createdByName),
               ...dato(t("pdf.reference"), document.reference),
+              // La moneda de los importes, dicha UNA vez y solo cuando hay
+              // importes: nombre en el idioma de quien lee y código ISO, como
+              // la lleva una factura («Dólar canadiense (CAD)»).
+              ...(muestraCosto
+                ? dato(
+                    t("pdf.currency"),
+                    `${currencyName(input.currency, input.locale)} (${input.currency})`,
+                  )
+                : []),
               ...dato(t("pdf.authorizedBy"), document.authorizedByName),
             ],
             fontSize: 9,

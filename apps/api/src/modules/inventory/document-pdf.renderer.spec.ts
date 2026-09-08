@@ -249,13 +249,25 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
      * compra dice el importe como se lee: con su moneda y sus dos decimales,
      * igual que la pantalla donde se capturó.
      */
-    it("el costo se imprime con la moneda del negocio y dos decimales", () => {
+    it("el costo se imprime a dos decimales, sin símbolo: la moneda se dice UNA vez, en el encabezado", () => {
+      // Carlos (2026-09-08, segunda pasada): «CA$40.00» en cada fila saturaba.
+      // La moneda es una sola para todo el documento, así que va arriba.
       const json = textos(
-        buildDocumentDefinition({ ...base, rows: [{ ...fila, unitCost: "20.5" }] }, t),
+        buildDocumentDefinition({ ...base, rows: [{ ...fila, unitCost: "1250.5" }] }, t),
       );
 
-      expect(json).toContain("$20.50");
-      expect(json).not.toContain('"20.5"');
+      expect(json).toContain("1,250.50");
+      expect(json).not.toContain("$1,250.50");
+      expect(json).not.toContain('"1250.5"');
+    });
+
+    it("el encabezado dice la moneda con su nombre y su código, en el idioma de quien lee", () => {
+      const es = textos(buildDocumentDefinition(base, t));
+      expect(es).toContain("pdf.currency");
+      expect(es).toContain("Peso mexicano (MXN)");
+
+      const en = textos(buildDocumentDefinition({ ...base, locale: "en", currency: "CAD" }, t));
+      expect(en).toContain("Canadian Dollar (CAD)");
     });
 
     it("una línea sin costo deja la celda vacía, no un «$0.00» que nadie capturó", () => {
@@ -279,6 +291,8 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       );
 
       expect(json).not.toContain("pdf.unitCost");
+      // Sin importes no hay moneda que declarar.
+      expect(json).not.toContain("pdf.currency");
     });
 
     it("un inventario físico muestra teórico, contado y diferencia", () => {

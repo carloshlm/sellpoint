@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  currencyName,
   currencySymbol,
+  formatAmount,
   formatMoney,
   formatMoneyInput,
   hasValidMoneyScale,
@@ -259,5 +261,26 @@ describe("currencySymbol", () => {
       expect(currencySymbol("EUR", locale)).toBe("€");
       expect(currencySymbol("GBP", locale)).toBe("£");
     }
+  });
+});
+
+describe("formatAmount", () => {
+  it("dos decimales y separador de miles, sin moneda", () => {
+    expect(formatAmount(1250.5, "es")).toBe("1,250.50");
+    expect(formatAmount(6, "en")).toBe("6.00");
+    expect(formatAmount(0, "es")).toBe("0.00");
+  });
+
+  it("rechaza lo que no es un número finito", () => {
+    expect(() => formatAmount(Number.NaN)).toThrow(RangeError);
+  });
+});
+
+describe("currencyName", () => {
+  it("el nombre en el idioma de quien lee, con la inicial en mayúscula", () => {
+    expect(currencyName("CAD", "es")).toBe("Dólar canadiense");
+    expect(currencyName("MXN", "es")).toBe("Peso mexicano");
+    expect(currencyName("CAD", "en")).toBe("Canadian Dollar");
+    expect(currencyName("EUR", "en")).toBe("Euro");
   });
 });
