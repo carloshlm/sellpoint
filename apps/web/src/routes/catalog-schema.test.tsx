@@ -67,15 +67,20 @@ function textField(overrides: Partial<catalogsApi.CatalogField> = {}): catalogsA
   };
 }
 
-async function renderSchema(permissions = ["catalogs:manage", "catalogs:read"]) {
+async function renderSchema(permissions = ["catalogs:manage", "catalogs:read"], lng?: "es" | "en") {
   useAuthStore.getState().setAuth("jwt", demoUser(permissions));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/catalog/schema"] }),
   });
   await router.load();
+  // `lng` opcional, mismo patrón que `system-roles.test.tsx`.
+  const i18n = createI18n();
+  if (lng) {
+    await i18n.changeLanguage(lng);
+  }
   render(
-    <I18nextProvider i18n={createI18n()}>
+    <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={createQueryClient()}>
         <RouterProvider router={router} />
       </QueryClientProvider>
@@ -151,6 +156,43 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     const target = screen.getByLabelText("Catálogo al que apunta");
     expect(target).not.toHaveTextContent("Catálogo de Productos");
     expect(target).toHaveTextContent("Unidad de Medida");
+  });
+
+  /**
+   * Carlos, 2026-09-07: con la sesión en inglés el selector le ofrecía
+   * «Catálogo de Almacenes», «Catálogo de Productos» y «Catálogo de
+   * Servicios». Esos nombres son copy nuestro sembrado en la columna `name`
+   * —el API no deja renombrarlos—, así que se traducen en los TRES lugares
+   * que los pintan. El nombre del subcatálogo lo escribió el usuario y no se
+   * toca en ningún idioma: es su dato, no nuestra etiqueta.
+   */
+  it("en inglés el catálogo del sistema se traduce y el subcatálogo conserva su nombre", async () => {
+    const user = userEvent.setup();
+    // Un campo lookup sembrado para que la LISTA tenga que nombrar su destino.
+    mockedApi.listFields.mockResolvedValue([
+      textField({ label: "Origen", fieldType: "lookup", lookupCatalogId: "cat-products" }),
+    ]);
+    await renderSchema(["catalogs:manage", "catalogs:read"], "en");
+
+    // (1) El selector de la cabecera — el de la pantalla que Carlos abrió.
+    const selector = await screen.findByRole("combobox", { name: "Catalog" });
+    expect(selector).toHaveTextContent("Product catalog");
+    expect(selector).not.toHaveTextContent("Catálogo de Productos");
+    expect(selector).toHaveTextContent("Unidad de Medida");
+
+    // Se edita el subcatálogo: ahí el de productos es un destino válido.
+    await user.selectOptions(selector, "cat-units");
+
+    // (2) El destino que la lista muestra debajo de un campo lookup.
+    expect(await screen.findByText(/→ Product catalog/)).toBeInTheDocument();
+    expect(screen.queryByText(/→ Catálogo de Productos/)).not.toBeInTheDocument();
+
+    // (3) El selector de destino del formulario, que también los lista.
+    await user.click(screen.getByRole("button", { name: "Add field" }));
+    await user.selectOptions(screen.getByLabelText("Type"), "lookup");
+    const destino = screen.getByLabelText("Catalog it points to");
+    expect(destino).toHaveTextContent("Product catalog");
+    expect(destino).not.toHaveTextContent("Catálogo de Productos");
   });
 
   it("quitar un campo pregunta ANTES de tocar el API, aunque no tenga datos", async () => {

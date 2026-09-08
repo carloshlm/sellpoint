@@ -28,6 +28,11 @@
     "email": "Email",
     "description": "Description"
   },
+  "system": {
+    "products": "Product catalog",
+    "warehouses": "Warehouse catalog",
+    "services": "Service catalog"
+  },
   "fields": {
     "add": "Add field",
     "archivedBadge": "inactive",

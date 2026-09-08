@@ -28,6 +28,11 @@
     "email": "Email",
     "description": "Descripción"
   },
+  "system": {
+    "products": "Catálogo de Productos",
+    "warehouses": "Catálogo de Almacenes",
+    "services": "Catálogo de Servicios"
+  },
   "fields": {
     "add": "Agregar campo",
     "archivedBadge": "inactivo",

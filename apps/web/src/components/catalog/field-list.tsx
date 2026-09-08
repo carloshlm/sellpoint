@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RowAction } from "@/components/ui/row-action";
 import type { CatalogField, CatalogSummary } from "@/lib/catalogs/api";
+import { catalogDisplayName } from "@/lib/catalogs/display-name";
 
 /**
  * El MISMO orden que aplica el API (`position` y desempate por etiqueta):
@@ -46,8 +47,12 @@ function FieldList({
   onRestore,
 }: FieldListProps) {
   const { t } = useTranslation();
-  const catalogName = (id: string | null) =>
-    catalogs.find((catalog) => catalog.id === id)?.name ?? t("catalogs.fields.unknownCatalog");
+  const catalogName = (id: string | null) => {
+    const destino = catalogs.find((catalog) => catalog.id === id);
+    return destino === undefined
+      ? t("catalogs.fields.unknownCatalog")
+      : catalogDisplayName(destino, t);
+  };
 
   const sorted = ordenarCampos(fields);
 

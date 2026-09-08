@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
 import type { CatalogField, CatalogSummary } from "@/lib/catalogs/api";
+import { catalogDisplayName } from "@/lib/catalogs/display-name";
 import {
   useCatalogFields,
   useCatalogs,
@@ -214,7 +215,10 @@ function CatalogSchemaContent() {
           className="min-w-64"
           label={t("catalogs.schema.selector")}
           value={catalogId}
-          options={(catalogs ?? []).map((item) => ({ value: item.id, label: item.name }))}
+          options={(catalogs ?? []).map((item) => ({
+            value: item.id,
+            label: catalogDisplayName(item, t),
+          }))}
           onChange={(event) => {
             setSelectedId(event.target.value);
             closeForm();

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { CatalogField, CatalogSummary, FieldType } from "@/lib/catalogs/api";
+import { catalogDisplayName } from "@/lib/catalogs/display-name";
 
 export interface FieldFormValues {
   label: string;
@@ -57,7 +58,7 @@ function FieldForm({
   // referencia circular sin contenido posible.
   const lookupTargets = catalogs
     .filter((catalog) => catalog.isActive && catalog.id !== currentCatalogId)
-    .map((catalog) => ({ value: catalog.id, label: catalog.name }));
+    .map((catalog) => ({ value: catalog.id, label: catalogDisplayName(catalog, t) }));
 
   const canSubmit =
     values.label.trim().length > 0 &&
