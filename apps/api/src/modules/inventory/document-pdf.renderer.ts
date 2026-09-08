@@ -1,5 +1,7 @@
 import {
+  type Currency,
   effectiveDocumentDate,
+  formatMoney,
   formatQuantity,
   formatQuantityWithUnit,
   type InventoryDocumentType,
@@ -56,6 +58,8 @@ export interface PdfDocumentInput {
    * `pdf.unit.kg` sería tener el nombre de un kilo en dos lugares.
    */
   locale: Locale;
+  /** La del NEGOCIO: el papel dice el importe en la moneda con la que se compró. */
+  currency: Currency;
 }
 
 const GRIS = "#666666";
@@ -211,7 +215,17 @@ export function buildDocumentDefinition(input: PdfDocumentInput, t: Translate) {
               .join(" · ") || "—",
           ]
         : []),
-      ...(muestraCosto ? [row.unitCost ?? ""] : []),
+      // Con su moneda y sus dos decimales, como en la pantalla donde se
+      // capturó: un comprobante que alguien firma no muestra el decimal crudo
+      // de la base. Sin costo la celda queda VACÍA — «$0.00» sería afirmar un
+      // importe que nadie capturó.
+      ...(muestraCosto
+        ? [
+            row.unitCost === null
+              ? ""
+              : formatMoney(Number(row.unitCost), input.currency, input.locale),
+          ]
+        : []),
     ];
   });
 

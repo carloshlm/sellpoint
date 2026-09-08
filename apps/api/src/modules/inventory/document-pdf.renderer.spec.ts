@@ -37,6 +37,7 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       authorizedByName: null,
     },
     locale: "es",
+    currency: "MXN",
     rows: [
       {
         lineNo: 1,
@@ -242,6 +243,29 @@ describe("buildDocumentDefinition (F3-DOC-07)", () => {
       expect(json).toContain("15.50");
     });
 
+    /**
+     * Carlos, 2026-09-08: el PDF imprimía «6», «20.5», «15.2» — el decimal
+     * crudo de la base. Un papel que alguien firma como comprobante de una
+     * compra dice el importe como se lee: con su moneda y sus dos decimales,
+     * igual que la pantalla donde se capturó.
+     */
+    it("el costo se imprime con la moneda del negocio y dos decimales", () => {
+      const json = textos(
+        buildDocumentDefinition({ ...base, rows: [{ ...fila, unitCost: "20.5" }] }, t),
+      );
+
+      expect(json).toContain("$20.50");
+      expect(json).not.toContain('"20.5"');
+    });
+
+    it("una línea sin costo deja la celda vacía, no un «$0.00» que nadie capturó", () => {
+      const json = textos(
+        buildDocumentDefinition({ ...base, rows: [{ ...fila, unitCost: null }] }, t),
+      );
+
+      expect(json).not.toContain("$0.00");
+    });
+
     it("una salida NO muestra costo: no tiene precio de compra", () => {
       const json = textos(
         buildDocumentDefinition(
@@ -368,6 +392,7 @@ describe("el papel dice lo que la pantalla (Carlos, 2026-09-02)", () => {
       authorizedByName: null,
     },
     locale: "es",
+    currency: "MXN",
     rows: [],
   };
   const fila: PdfRow = {
@@ -471,6 +496,7 @@ describe("la equivalencia solo cuando aporta", () => {
       authorizedByName: null,
     },
     locale: "es",
+    currency: "MXN",
     rows: [],
   };
   const fila: PdfRow = {
@@ -539,6 +565,7 @@ describe("la fecha del papel es la del estado, en la zona del negocio", () => {
       authorizedByName: null,
     },
     locale: "es",
+    currency: "MXN",
     rows: [],
   };
   const textos = (def: unknown): string => JSON.stringify(def);

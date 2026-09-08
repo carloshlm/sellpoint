@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type { InventoryDocumentType } from "@sellpoint/shared";
-import { shortName } from "@sellpoint/shared";
+import { type Currency, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import type { Prisma } from "../../generated/prisma/client";
@@ -155,7 +155,7 @@ export class DocumentPdfService {
 
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
-        select: { name: true, legalName: true, taxId: true, timezone: true },
+        select: { name: true, legalName: true, taxId: true, timezone: true, currency: true },
       });
 
       const nombre = (p: { firstName: string; lastName: string } | null) =>
@@ -184,8 +184,10 @@ export class DocumentPdfService {
           },
           rows,
           // El idioma de quien PIDIÓ el PDF, no el del tenant: dos personas del
-          // mismo negocio pueden trabajar en idiomas distintos.
+          // mismo negocio pueden trabajar en idiomas distintos. La MONEDA sí es
+          // del negocio: el costo se pagó en una sola, la lea quien la lea.
           locale: user.locale,
+          currency: tenant.currency as Currency,
         },
       };
     });
