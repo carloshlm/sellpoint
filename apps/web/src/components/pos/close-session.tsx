@@ -1,6 +1,7 @@
 import { formatMoney } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MoneyInput } from "@/components/form/money-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,14 +56,11 @@ export function CloseSession({ session }: { session: CashboxSession }) {
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="declared-cash">{t("pos.session.declaredCash")}</Label>
-        <Input
-          id="declared-cash"
-          type="number"
-          min="0"
-          step="0.01"
-          value={contado}
-          onChange={(event) => setContado(event.target.value)}
-        />
+        {/* Un importe como los demás (Carlos, 2026-09-08): la moneda a la
+            vista y dos decimales al salir. La DIFERENCIA no espera al blur —
+            se calcula mientras se teclea, que es lo que hace útil esta
+            pantalla. */}
+        <MoneyInput id="declared-cash" value={contado} onChange={setContado} />
       </div>
 
       {/* La diferencia se MUESTRA, nunca frena. Ver el docblock. */}

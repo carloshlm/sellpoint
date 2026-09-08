@@ -5,5 +5,6 @@
   "passwordMin": "Password must be at least 12 characters",
   "passwordMismatch": "Passwords don't match",
   "rolesRequired": "Select at least one role",
-  "money": "Enter a valid amount, with up to 2 decimals"
+  "money": "Enter a valid amount, with up to 2 decimals",
+  "moneyPositive": "The amount must be greater than zero"
 }

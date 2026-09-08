@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AddressFields } from "@/components/form/address-fields";
+import { MoneyField } from "@/components/form/money-field";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
+import { moneyInitialValue } from "@/lib/money";
 import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
 import { getCuratedTimezones, resolveCountryTimezones } from "@/lib/tenant/markets";
@@ -106,7 +108,8 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       region: user.tenant.region ?? "",
       postalCode: user.tenant.postalCode ?? "",
       timezone: user.tenant.timezone,
-      monthlySalesGoal: user.tenant.monthlySalesGoal ?? "",
+      // A dos decimales desde que abre: el API devuelve «25000», no «25000.00».
+      monthlySalesGoal: moneyInitialValue(user.tenant.monthlySalesGoal),
       ...phoneFormDefaults(user.tenant),
     },
   });
@@ -177,8 +180,9 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     }
     if (dirtyFields.monthlySalesGoal) {
       // Vacío BORRA (null) — mismo criterio que phone: capturar la meta una
-      // vez no la vuelve obligatoria. La coma decimal se normaliza a punto.
-      const meta = values.monthlySalesGoal.trim().replace(",", ".");
+      // vez no la vuelve obligatoria. Ya no hay coma que normalizar: el schema
+      // la rechaza, como en costo y precio.
+      const meta = values.monthlySalesGoal.trim();
       patch.monthlySalesGoal = meta === "" ? null : Number(meta);
     }
     if (dirtyFields.phoneNumber || dirtyFields.phoneCountry) {
@@ -289,14 +293,18 @@ function BusinessDetails({ user }: { user: AuthUser }) {
             }}
             regionLocked={needsRegion(user.tenant.country)}
           />
-          <TextField
+          {/* Un importe como cualquier otro (Carlos, 2026-09-08): la moneda del
+              negocio a la vista y dos decimales al salir del campo. */}
+          <MoneyField
             label={t("common.profile.business.monthlySalesGoal")}
             hint={t("common.profile.business.monthlySalesGoalHint")}
             error={
               errors.monthlySalesGoal?.message ? t(errors.monthlySalesGoal.message) : undefined
             }
-            inputMode="decimal"
-            {...register("monthlySalesGoal")}
+            value={watch("monthlySalesGoal")}
+            onChange={(next) =>
+              setValue("monthlySalesGoal", next, { shouldValidate: true, shouldDirty: true })
+            }
           />
           <SelectField
             label={t("common.profile.business.timezone")}

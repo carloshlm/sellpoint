@@ -8,6 +8,8 @@ import {
 } from "@sellpoint/shared";
 import { z } from "zod";
 
+import { moneyInputError } from "@/lib/money";
+
 /**
  * F1-WEB-ONBOARD-01, paso 1 (datos del negocio + moneda operacional).
  * Mismos mensajes-como-clave-i18n que `lib/rbac/schemas.ts`: el componente
@@ -108,9 +110,13 @@ export const businessDetailsSchema = z
     phoneCountry: z.string(),
     phoneNumber: z.string(),
     // F5-DASH-02: la meta mensual como TEXTO de formulario — vacío es válido
-    // (borra la meta). Si trae algo: número positivo con hasta 2 decimales.
-    // La coma se tolera como separador decimal de quien teclea («12500,50»);
-    // el container la normaliza a punto antes de validar y de mandar.
+    // (borra la meta). Va a la MISMA columna `DECIMAL(14,2)` que el costo y el
+    // precio, así que desde 2026-09-08 usa su misma aritmética
+    // (`moneyInputError`): la coma se RECHAZA con un mensaje que enseña el
+    // formato en vez de interpretarse —«25,000» es veinticinco mil para un
+    // mexicano y veinticinco para un español— y los tres decimales se marcan.
+    // Lo único propio es que cero no es una meta: para no perseguir ninguna,
+    // el campo se deja vacío.
     monthlySalesGoal: z.string(),
   })
   .superRefine((values, ctx) => {
@@ -124,12 +130,15 @@ export const businessDetailsSchema = z
         message: "common.address.postalCodeInvalid",
       });
     }
-    const meta = values.monthlySalesGoal.trim().replace(",", ".");
-    if (meta !== "") {
-      const numero = Number(meta);
-      if (!Number.isFinite(numero) || numero <= 0 || !/^\d+(\.\d{1,2})?$/.test(meta)) {
-        ctx.addIssue({ code: "custom", path: ["monthlySalesGoal"], message: "validation.money" });
-      }
+    const metaError = moneyInputError(values.monthlySalesGoal);
+    if (metaError !== null) {
+      ctx.addIssue({ code: "custom", path: ["monthlySalesGoal"], message: metaError });
+    } else if (values.monthlySalesGoal.trim() !== "" && Number(values.monthlySalesGoal) <= 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["monthlySalesGoal"],
+        message: "validation.moneyPositive",
+      });
     }
     const raw = values.phoneNumber.trim();
     if (raw === "") {

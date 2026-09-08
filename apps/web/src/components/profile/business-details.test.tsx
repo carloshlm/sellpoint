@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -484,5 +484,74 @@ describe("Datos del negocio — dirección por país (F1-ADDR-06)", () => {
     await waitFor(() => {
       expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ city: "Toronto", postalCode: "M5V 3L9" });
     });
+  });
+});
+
+/**
+ * Carlos, 2026-09-08: «Meta mensual de ventas debe tener el formato así como
+ * los demás montos». Es un importe en la moneda del negocio y va a la MISMA
+ * columna `DECIMAL(14,2)` que el costo y el precio: mismo campo, misma
+ * aritmética, mismo rechazo de la coma.
+ */
+describe("Datos del negocio — la meta mensual es un importe (F5-DASH-02 + MoneyField)", () => {
+  it("muestra el símbolo y el código de la moneda del negocio, como costo y precio", () => {
+    renderCard(demoUser(["tenants:manage"]));
+
+    const meta = screen.getByLabelText(/Meta mensual de ventas/);
+    const caja = meta.parentElement as HTMLElement;
+    expect(within(caja).getByText("$")).toBeInTheDocument();
+    expect(within(caja).getByText("MXN")).toBeInTheDocument();
+  });
+
+  it("abre a dos decimales lo que el API devuelve sin ceros («25000» → «25000.00»)", () => {
+    const actor = demoUser(["tenants:manage"]);
+    actor.tenant = { ...actor.tenant, monthlySalesGoal: "25000" };
+    renderCard(actor);
+
+    expect(screen.getByLabelText(/Meta mensual de ventas/)).toHaveValue("25000.00");
+  });
+
+  it("al salir del campo completa a dos decimales", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+
+    const meta = screen.getByLabelText(/Meta mensual de ventas/);
+    await user.type(meta, "25000");
+    await user.tab();
+
+    expect(meta).toHaveValue("25000.00");
+  });
+
+  it("la coma se rechaza con el mensaje que enseña el formato, y no se guarda", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+
+    await user.type(screen.getByLabelText(/Meta mensual de ventas/), "25,000");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(await screen.findByText(/punto decimal/)).toBeInTheDocument();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+  });
+
+  it("cero no es una meta: lo dice y ofrece la alternativa de dejarla vacía", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+
+    await user.type(screen.getByLabelText(/Meta mensual de ventas/), "0");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(await screen.findByText(/mayor que cero/)).toBeInTheDocument();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+  });
+
+  it("un importe con tres decimales se marca, igual que en costo y precio", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+
+    await user.type(screen.getByLabelText(/Meta mensual de ventas/), "25000.555");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(await screen.findByText(/2 decimales/)).toBeInTheDocument();
+    expect(mockedUpdate).not.toHaveBeenCalled();
   });
 });
