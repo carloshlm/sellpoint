@@ -1,3 +1,4 @@
+export * from "./address";
 export * from "./age";
 export * from "./billing";
 export * from "./countries";
