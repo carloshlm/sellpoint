@@ -18,6 +18,10 @@ export interface TenantBlock {
   legalName: string | null;
   taxId: string | null;
   address: string | null;
+  /** F1-ADDR: la dirección estructurada; `address` es la línea 1 (ver `@sellpoint/shared` address.ts). */
+  addressLine2: string | null;
+  city: string | null;
+  postalCode: string | null;
   phone: string | null;
   theme: string | null;
   timezone: string;
@@ -54,6 +58,9 @@ export type UpdateTenantInput = Partial<
     | "legalName"
     | "taxId"
     | "address"
+    | "addressLine2"
+    | "city"
+    | "postalCode"
     | "phone"
     | "theme"
     | "timezone"

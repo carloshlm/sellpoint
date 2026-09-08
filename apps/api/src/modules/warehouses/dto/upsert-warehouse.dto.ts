@@ -18,6 +18,32 @@ export const createWarehouseSchema = z.object({
   code: z.string().trim().min(1).max(64).optional(),
   name: z.string().trim().min(1).max(120),
   address: z.string().trim().max(500).optional(),
+  // F1-ADDR-03: la dirección estructurada; «» cuenta como «sin dato». El CP y
+  // la región se validan en el service contra el país del NEGOCIO.
+  addressLine2: z
+    .string()
+    .trim()
+    .max(120)
+    .transform((v) => (v === "" ? null : v))
+    .optional(),
+  city: z
+    .string()
+    .trim()
+    .max(120)
+    .transform((v) => (v === "" ? null : v))
+    .optional(),
+  region: z
+    .string()
+    .trim()
+    .max(8)
+    .transform((v) => (v === "" ? null : v))
+    .optional(),
+  postalCode: z
+    .string()
+    .trim()
+    .max(16)
+    .transform((v) => (v === "" ? null : v))
+    .optional(),
   phone: z.string().refine(isE164, { message: "warehouses.invalid_phone" }).optional(),
   email: z.string().trim().email("warehouses.invalid_email").max(254).optional(),
   attributes: z.record(z.string(), z.unknown()).optional(),
@@ -28,6 +54,34 @@ export const updateWarehouseSchema = z
     code: z.string().trim().min(1).max(64).optional(),
     name: z.string().trim().min(1).max(120).optional(),
     address: z.string().trim().max(500).nullable().optional(),
+    addressLine2: z
+      .string()
+      .trim()
+      .max(120)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
+    city: z
+      .string()
+      .trim()
+      .max(120)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
+    region: z
+      .string()
+      .trim()
+      .max(8)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
+    postalCode: z
+      .string()
+      .trim()
+      .max(16)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
     phone: z.string().refine(isE164, { message: "warehouses.invalid_phone" }).nullable().optional(),
     email: z.string().trim().email("warehouses.invalid_email").max(254).nullable().optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),

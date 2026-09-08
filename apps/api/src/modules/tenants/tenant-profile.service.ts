@@ -1,5 +1,10 @@
 import { Injectable, UnprocessableEntityException } from "@nestjs/common";
-import { isRegionCode, needsRegion } from "@sellpoint/shared";
+import {
+  addressAsksRegion,
+  isAddressRegionCode,
+  isPostalCode,
+  normalizePostalCode,
+} from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -41,7 +46,7 @@ export class TenantProfileService {
 
   async update(actor: AuthUser, dto: UpdateTenantDto, meta: RequestMeta): Promise<TenantBlock> {
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
-      const data = await this.conRegionValidada(tx, actor.tenantId, dto);
+      const data = await this.conDireccionValidada(tx, actor.tenantId, dto);
       const updated = await tx.tenant.update({
         where: { id: actor.tenantId },
         data,
@@ -64,27 +69,42 @@ export class TenantProfileService {
   }
 
   /**
-   * F4-TAX-18: la provincia o el estado viajan CON el país. Si el body trae
-   * país, la región es la que el body diga (o null: cambiar de país nunca
-   * arrastra la región del anterior). Si trae solo región, se valida contra
-   * el país guardado. Una región ajena al país, o para un país que no las
-   * usa, rebota con 422 — el DTO no puede decidirlo porque no ve el país
-   * guardado.
+   * F4-TAX-18 + F1-ADDR-03: la región y el código postal viajan CON el país.
+   * Si el body trae país, la región es la que el body diga (o null: cambiar
+   * de país nunca arrastra la región del anterior). Si trae solo región o CP,
+   * se validan contra el país guardado. Una región ajena al país, o para un
+   * país cuya dirección no la pide (`addressAsksRegion`: México, Canadá y
+   * Estados Unidos), rebota con 422 — antes solo entraban las de Canadá y
+   * Estados Unidos, porque la región nació fiscal; la de México es postal. Un
+   * CP que no cumple la regla del país rebota igual, y el que cumple se
+   * guarda NORMALIZADO (`M5V 3L9`, nunca `m5v3l9`). El DTO no puede decidir
+   * nada de esto porque no ve el país guardado.
    */
-  private async conRegionValidada(
+  private async conDireccionValidada(
     tx: Prisma.TransactionClient,
     tenantId: string,
     dto: UpdateTenantDto,
   ): Promise<UpdateTenantDto> {
-    if (dto.country === undefined && dto.region === undefined) return dto;
+    if (dto.country === undefined && dto.region === undefined && dto.postalCode == null) return dto;
     const country =
       dto.country ??
       (await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { country: true } }))
         .country;
-    if (dto.region != null && !(needsRegion(country) && isRegionCode(country, dto.region))) {
+    if (
+      dto.region != null &&
+      !(addressAsksRegion(country) && isAddressRegionCode(country, dto.region))
+    ) {
       throw new UnprocessableEntityException({ message: "tenants.tax_invalid_region" });
     }
-    return dto.country === undefined ? dto : { ...dto, region: dto.region ?? null };
+    let data = dto.country === undefined ? dto : { ...dto, region: dto.region ?? null };
+    if (dto.postalCode != null) {
+      const postalCode = normalizePostalCode(country, dto.postalCode);
+      if (!isPostalCode(country, postalCode)) {
+        throw new UnprocessableEntityException({ message: "tenants.invalid_postal_code" });
+      }
+      data = { ...data, postalCode: postalCode === "" ? null : postalCode };
+    }
+    return data;
   }
 
   /**

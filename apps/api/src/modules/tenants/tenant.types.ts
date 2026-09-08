@@ -19,6 +19,10 @@ export interface TenantBlock {
   legalName: string | null;
   taxId: string | null;
   address: string | null;
+  /** F1-ADDR-03: la dirección estructurada; `address` es la línea 1. */
+  addressLine2: string | null;
+  city: string | null;
+  postalCode: string | null;
   phone: string | null;
   theme: string | null;
   timezone: string;
@@ -54,6 +58,9 @@ export const TENANT_SELECT = {
   legalName: true,
   taxId: true,
   address: true,
+  addressLine2: true,
+  city: true,
+  postalCode: true,
   phone: true,
   theme: true,
   timezone: true,
@@ -75,6 +82,10 @@ export type TenantRow = {
   legalName: string | null;
   taxId: string | null;
   address: string | null;
+  /** F1-ADDR-03: la dirección estructurada; `address` es la línea 1. */
+  addressLine2: string | null;
+  city: string | null;
+  postalCode: string | null;
   phone: string | null;
   theme: string | null;
   timezone: string;
@@ -99,6 +110,9 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     legalName: row.legalName,
     taxId: row.taxId,
     address: row.address,
+    addressLine2: row.addressLine2,
+    city: row.city,
+    postalCode: row.postalCode,
     phone: row.phone,
     theme: row.theme,
     timezone: row.timezone,

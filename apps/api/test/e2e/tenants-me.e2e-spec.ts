@@ -584,6 +584,96 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
 
   // 01.9: mismo shape entre LoginResult.user.tenant y MeProfile.tenant (A1
   // del design) — el riesgo explícito es que diverjan con el tiempo.
+  /**
+   * F1-ADDR-03 — la dirección estructurada. Aditiva: `address` sigue siendo
+   * la línea 1 y los tres campos nuevos nacen en null. AQUÍ SÍ se valida por
+   * país —la dirección y el país son del negocio—, a diferencia del nombre de
+   * persona; y la región de México, que hoy rebotaba con 422 porque solo
+   * Canadá y Estados Unidos la tenían, entra como código ISO 3166-2.
+   */
+  describe("F1-ADDR-03 — dirección estructurada por país", () => {
+    const patchMe = (token: string, body: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(token))
+        .send(body);
+
+    it("México: colonia, ciudad, estado ISO y CP de cinco dígitos entran y vuelven en el GET", async () => {
+      const owner = await registerActiveOwner();
+      const patch = await patchMe(owner.accessToken, {
+        country: "MX",
+        address: "Av. Juárez 10",
+        addressLine2: "Col. Centro",
+        city: "Guadalajara",
+        region: "JAL",
+        postalCode: "44100",
+      }).expect(200);
+      expect(patch.body).toMatchObject({
+        address: "Av. Juárez 10",
+        addressLine2: "Col. Centro",
+        city: "Guadalajara",
+        region: "JAL",
+        postalCode: "44100",
+      });
+
+      const get = await request(app.getHttpServer())
+        .get("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect(get.body).toMatchObject({
+        addressLine2: "Col. Centro",
+        city: "Guadalajara",
+        region: "JAL",
+        postalCode: "44100",
+      });
+    });
+
+    it("un CP que no cumple la regla del país rebota con 422, también contra el país YA guardado", async () => {
+      const owner = await registerActiveOwner();
+      await patchMe(owner.accessToken, { country: "MX" }).expect(200);
+      const res = await patchMe(owner.accessToken, { postalCode: "4410" }).expect(422);
+      expect(res.body).toMatchObject({ code: "tenants.invalid_postal_code" });
+    });
+
+    it("una región de otro país rebota con 422: ON no es un estado mexicano", async () => {
+      const owner = await registerActiveOwner();
+      await patchMe(owner.accessToken, { country: "MX" }).expect(200);
+      const res = await patchMe(owner.accessToken, { region: "ON" }).expect(422);
+      expect(res.body).toMatchObject({ code: "tenants.tax_invalid_region" });
+    });
+
+    it("Canadá: el código postal se guarda normalizado, en mayúsculas y con su espacio", async () => {
+      const owner = await registerActiveOwner();
+      const res = await patchMe(owner.accessToken, {
+        country: "CA",
+        region: "ON",
+        postalCode: "m5v3l9",
+      }).expect(200);
+      expect(res.body).toMatchObject({ region: "ON", postalCode: "M5V 3L9" });
+    });
+
+    it("sin país no hay regla: el código postal entra tal cual (recortado y en mayúsculas)", async () => {
+      const owner = await registerActiveOwner();
+      const res = await patchMe(owner.accessToken, { postalCode: " sw1a 1aa " }).expect(200);
+      expect(res.body).toMatchObject({ postalCode: "SW1A 1AA" });
+    });
+
+    it("null BORRA: la línea 2, la ciudad y el CP se pueden quitar, como el teléfono", async () => {
+      const owner = await registerActiveOwner();
+      await patchMe(owner.accessToken, {
+        addressLine2: "Interior 3",
+        city: "Toluca",
+        postalCode: "50000",
+      }).expect(200);
+      const res = await patchMe(owner.accessToken, {
+        addressLine2: null,
+        city: null,
+        postalCode: null,
+      }).expect(200);
+      expect(res.body).toMatchObject({ addressLine2: null, city: null, postalCode: null });
+    });
+  });
+
   describe("Contrato: tenant en POST /auth/login === tenant en GET /me (A1)", () => {
     it("las mismas keys y los mismos valores en ambos endpoints", async () => {
       const email = `owner-${randomUUID()}@example.com`;

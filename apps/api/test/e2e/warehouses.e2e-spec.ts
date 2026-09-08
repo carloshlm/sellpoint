@@ -242,6 +242,71 @@ describe("Almacenes (F2-WH)", () => {
   });
 
   /**
+   * F1-ADDR-03: la dirección estructurada del almacén se valida contra el
+   * país del NEGOCIO (un almacén hereda `tenants.country`) y vuelve en la
+   * lista. La contraprueba —un almacén con solo `address`, o sin nada— sigue
+   * en los tests de arriba sin tocarse.
+   */
+  describe("F1-ADDR-03 — dirección estructurada por país", () => {
+    it("entra completa, se normaliza el CP y vuelve en la lista; lo que no es del país rebota con 422", async () => {
+      const token = await registerAndLogin();
+      await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(token))
+        .send({ country: "MX" })
+        .expect(200);
+
+      const created = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({
+          name: "Sucursal Centro",
+          address: "Av. Juárez 10",
+          addressLine2: "Col. Centro",
+          city: "Guadalajara",
+          region: "JAL",
+          postalCode: " 44100 ",
+        })
+        .expect(201);
+      expect(created.body).toMatchObject({
+        addressLine2: "Col. Centro",
+        city: "Guadalajara",
+        region: "JAL",
+        postalCode: "44100",
+      });
+
+      const list = await request(app.getHttpServer())
+        .get("/warehouses")
+        .set("Authorization", bearer(token))
+        .expect(200);
+      const enLista = (list.body as { id: string }[]).find((w) => w.id === created.body.id);
+      expect(enLista).toMatchObject({ city: "Guadalajara", region: "JAL", postalCode: "44100" });
+
+      const cpMalo = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Sucursal Norte", postalCode: "4410" })
+        .expect(422);
+      expect(cpMalo.body).toMatchObject({ code: "warehouses.invalid_postal_code" });
+
+      const regionAjena = await request(app.getHttpServer())
+        .post("/warehouses")
+        .set("Authorization", bearer(token))
+        .send({ name: "Sucursal Sur", region: "ON" })
+        .expect(422);
+      expect(regionAjena.body).toMatchObject({ code: "warehouses.invalid_region" });
+
+      // Editar: null borra la ciudad; el CP nuevo se normaliza igual que en el alta.
+      const edited = await request(app.getHttpServer())
+        .patch(`/warehouses/${created.body.id}`)
+        .set("Authorization", bearer(token))
+        .send({ city: null, postalCode: "45000" })
+        .expect(200);
+      expect(edited.body).toMatchObject({ city: null, postalCode: "45000", region: "JAL" });
+    });
+  });
+
+  /**
    * Contacto estándar + campos dinámicos (Carlos, 2026-08-26): el almacén
    * gana phone (E.164 canónico, mismo criterio que el tenant) y email, y su
    * `attributes` se valida contra el catálogo de sistema "warehouses".

@@ -22,6 +22,31 @@ export const updateTenantSchema = z
     legalName: z.string().trim().min(1).optional(),
     taxId: z.string().trim().min(1).optional(),
     address: z.string().trim().min(1).optional(),
+    // F1-ADDR-03: la dirección estructurada. Los tres son BORRABLES (null),
+    // como `phone`: capturarlos una vez no los vuelve obligatorios, y «» cuenta
+    // como «sin dato». El CP se normaliza y se valida contra el país en el
+    // service, que sí ve el país guardado.
+    addressLine2: z
+      .string()
+      .trim()
+      .max(120)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
+    city: z
+      .string()
+      .trim()
+      .max(120)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
+    postalCode: z
+      .string()
+      .trim()
+      .max(16)
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
     // El ÚNICO campo borrable (nullable): nunca lo exigió el wizard, así que
     // capturarlo una vez no lo vuelve obligatorio. Solo E.164 CANÓNICO
     // (`+525512345678`, isE164 de @sellpoint/shared — la misma fuente que el

@@ -7,6 +7,11 @@ export interface Warehouse {
   code: string;
   name: string;
   address: string | null;
+  /** F1-ADDR: la dirección estructurada; `address` es la línea 1. */
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
   /** E.164 canónico; el form lo pinta como país + número (2026-08-26). */
   phone: string | null;
   email: string | null;
@@ -26,6 +31,10 @@ export interface CreateWarehouseInput {
   code?: string;
   name: string;
   address?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
   phone?: string;
   email?: string;
   attributes?: Record<string, unknown>;
@@ -35,6 +44,10 @@ export interface UpdateWarehouseInput {
   code?: string;
   name?: string;
   address?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  region?: string | null;
+  postalCode?: string | null;
   phone?: string | null;
   email?: string | null;
   attributes?: Record<string, unknown>;

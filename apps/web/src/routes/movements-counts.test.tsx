@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
@@ -133,19 +134,7 @@ beforeEach(() => {
     }
   }
   mockedWarehouses.mockReset();
-  mockedWarehouses.mockResolvedValue([
-    {
-      id: "w1",
-      code: "ALM-001",
-      name: "Central",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
-  ]);
+  mockedWarehouses.mockResolvedValue([buildWarehouse()]);
   vi.mocked(productsApi.listProducts).mockResolvedValue({
     total: 0,
     page: 1,

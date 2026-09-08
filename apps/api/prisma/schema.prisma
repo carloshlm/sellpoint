@@ -21,6 +21,14 @@ model Tenant {
   // F1-WEB-ONBOARD-01 (paso 1 del wizard): aditivos, nullable — un tenant
   // creado antes de esta migración sigue operando con ambos en NULL.
   address          String?   @map("address")
+  // F1-ADDR-03 (2026-09-08): la dirección estructurada, ADITIVA. `address`
+  // sigue siendo la línea 1; estos tres nacen en NULL para todo negocio que
+  // ya existe. Qué se pide y cómo se valida lo decide `country` desde
+  // `packages/shared/src/address.ts`. `region` (más abajo, de F4-TAX) es
+  // también la región postal: fiscal en CA y US, postal en MX.
+  addressLine2     String?   @map("address_line2") @db.VarChar(120)
+  city             String?   @db.VarChar(120)
+  postalCode       String?   @map("postal_code") @db.VarChar(16)
   // Teléfono del negocio (2026-08-25): editable desde "Mi perfil", nunca lo
   // pide el wizard. El único campo del tenant borrable vía PATCH (null).
   phone            String?   @db.VarChar(20)
@@ -604,10 +612,12 @@ model ProductComposition {
   @@map("product_compositions")
 }
 
-// Un almacén del tenant. `address` es TEXTO LIBRE a propósito: SellPoint vende
-// a 26 mercados y los formatos postales difieren (MERCADOS.md § 4) — el
-// desglose colonia/alcaldía/estado del diseño original era México-céntrico.
-// Los racks quedaron FUERA de Fase 2 (se deciden con el stock por ubicación).
+// Un almacén del tenant. La dirección fue TEXTO LIBRE hasta F1-ADDR (2026-09-08):
+// el desglose colonia/alcaldía/estado del diseño original era México-céntrico y
+// SellPoint vende a 26 mercados. Ahora es UNIVERSAL —`address` como línea 1,
+// `addressLine2`, `city`, `region`, `postalCode`— y el formato lo decide el
+// país del NEGOCIO (`packages/shared/src/address.ts`): un almacén hereda
+// `tenants.country`. Los racks quedaron FUERA de Fase 2.
 model Warehouse {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId   String   @map("tenant_id") @db.Uuid
@@ -618,6 +628,10 @@ model Warehouse {
   code       String   @db.VarChar(64)
   name       String
   address    String?
+  addressLine2 String? @map("address_line2") @db.VarChar(120)
+  city         String? @db.VarChar(120)
+  region       String? @db.VarChar(8)
+  postalCode   String? @map("postal_code") @db.VarChar(16)
   // Contacto estándar de la sucursal (Carlos, 2026-08-26): el ticket pinta
   // la dirección y el teléfono del ALMACÉN con fallback al tenant. `phone`
   // es E.164 canónico y se valida en el DTO (isE164), mismo criterio que

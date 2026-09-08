@@ -1,4 +1,15 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import {
+  addressAsksRegion,
+  isAddressRegionCode,
+  isPostalCode,
+  normalizePostalCode,
+} from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -16,6 +27,11 @@ export interface WarehouseSummary {
   code: string;
   name: string;
   address: string | null;
+  /** F1-ADDR-03: la dirección estructurada; `address` es la línea 1. */
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
   phone: string | null;
   email: string | null;
   /** Campos dinámicos del catálogo de sistema "warehouses" (2026-08-26). */
@@ -154,6 +170,34 @@ export class WarehousesService {
     );
   }
 
+  /**
+   * F1-ADDR-03: el CP y la región de un almacén se validan contra el país del
+   * NEGOCIO —un almacén hereda `tenants.country`— y el CP se guarda
+   * normalizado (`M5V 3L9`). Sin región ni CP en el body no hay nada que
+   * mirar y no se consulta el tenant.
+   */
+  private async conDireccionValidada<
+    T extends { region?: string | null; postalCode?: string | null },
+  >(tx: Prisma.TransactionClient, tenantId: string, input: T): Promise<T> {
+    if (input.region == null && input.postalCode == null) return input;
+    const { country } = await tx.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { country: true },
+    });
+    if (
+      input.region != null &&
+      !(addressAsksRegion(country) && isAddressRegionCode(country, input.region))
+    ) {
+      throw new UnprocessableEntityException({ message: "warehouses.invalid_region" });
+    }
+    if (input.postalCode == null) return input;
+    const postalCode = normalizePostalCode(country, input.postalCode);
+    if (!isPostalCode(country, postalCode)) {
+      throw new UnprocessableEntityException({ message: "warehouses.invalid_postal_code" });
+    }
+    return { ...input, postalCode: postalCode === "" ? null : postalCode };
+  }
+
   async create(
     user: AuthUser,
     input: CreateWarehouseDto,
@@ -171,6 +215,7 @@ export class WarehousesService {
         await this.assertCodeFree(tx, user.tenantId, input.code);
       }
 
+      const direccion = await this.conDireccionValidada(tx, user.tenantId, input);
       let warehouse: WarehouseSummary;
       try {
         warehouse = await tx.warehouse.create({
@@ -181,6 +226,10 @@ export class WarehousesService {
             code: input.code ?? (await this.nextCode(tx, user.tenantId)),
             name: input.name,
             address: input.address ?? null,
+            addressLine2: direccion.addressLine2 ?? null,
+            city: direccion.city ?? null,
+            region: direccion.region ?? null,
+            postalCode: direccion.postalCode ?? null,
             phone: input.phone ?? null,
             email: input.email ?? null,
             ...(input.attributes !== undefined
@@ -274,6 +323,7 @@ export class WarehousesService {
         await this.assertCodeFree(tx, user.tenantId, input.code);
       }
 
+      const direccion = await this.conDireccionValidada(tx, user.tenantId, input);
       let updated: WarehouseSummary;
       try {
         updated = await tx.warehouse.update({
@@ -282,6 +332,12 @@ export class WarehousesService {
             ...(input.code !== undefined ? { code: input.code } : {}),
             ...(input.name !== undefined ? { name: input.name } : {}),
             ...(input.address !== undefined ? { address: input.address } : {}),
+            ...(direccion.addressLine2 !== undefined
+              ? { addressLine2: direccion.addressLine2 }
+              : {}),
+            ...(direccion.city !== undefined ? { city: direccion.city } : {}),
+            ...(direccion.region !== undefined ? { region: direccion.region } : {}),
+            ...(direccion.postalCode !== undefined ? { postalCode: direccion.postalCode } : {}),
             ...(input.phone !== undefined ? { phone: input.phone } : {}),
             ...(input.email !== undefined ? { email: input.email } : {}),
             ...(input.attributes !== undefined
