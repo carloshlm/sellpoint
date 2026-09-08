@@ -100,6 +100,46 @@ describe("MoneyField", () => {
     expect(screen.getByLabelText("Precio")).toHaveValue("");
   });
 
+  it("las letras y los símbolos NO entran: no forman parte de un importe", async () => {
+    const user = userEvent.setup();
+    render(<Campo />);
+    const campo = screen.getByLabelText("Precio");
+
+    await user.type(campo, "asdds");
+    expect(campo).toHaveValue("");
+
+    // Y en medio de un importe tampoco: «12abc34» deja «1234».
+    await user.type(campo, "12abc34");
+    expect(campo).toHaveValue("1234");
+    await user.clear(campo);
+
+    await user.type(campo, "-5$€");
+    expect(campo).toHaveValue("5");
+  });
+
+  it("la COMA sí entra, aunque sea inválida: descartarla convertiría «5,99» en «599»", async () => {
+    // Cien veces más. Entra y el error la marca, que es lo único que evita el
+    // precio equivocado.
+    const user = userEvent.setup();
+    render(<Campo />);
+    const campo = screen.getByLabelText("Precio");
+
+    await user.type(campo, "5,99");
+    expect(campo).toHaveValue("5,99");
+  });
+
+  it("un importe en construcción se puede teclear entero: «.5», «6.» y «0.05»", async () => {
+    const user = userEvent.setup();
+    render(<Campo />);
+    const campo = screen.getByLabelText("Precio");
+
+    await user.type(campo, ".5");
+    expect(campo).toHaveValue(".5");
+    await user.clear(campo);
+    await user.type(campo, "0.05");
+    expect(campo).toHaveValue("0.05");
+  });
+
   it("es texto con teclado decimal, no un number con flechitas", () => {
     render(<Campo />);
     const campo = screen.getByLabelText("Precio");

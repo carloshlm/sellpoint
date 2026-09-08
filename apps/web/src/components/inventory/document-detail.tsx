@@ -685,7 +685,11 @@ function LineRow({
   // su primera línea a esta altura para alinear con los inputs de la fila.
   const LINE_CELL = "flex min-h-[30px] items-center";
 
-  const conError = row.errors.length > 0;
+  // El error del costo es LOCAL —lo que hay tecleado todavía no llegó al
+  // servidor— y se muestra junto a los suyos, en la misma celda de la fila:
+  // un aviso arriba no señala a ninguna línea en un documento de cuarenta.
+  const errorCosto = costoInvalido ? t("products.invalid_amount") : null;
+  const conError = row.errors.length > 0 || errorCosto !== null;
   const presentacion = product?.presentations.find((p) => p.id === row.presentationId);
 
   return (
@@ -978,7 +982,10 @@ function LineRow({
       {conError && (
         <td className="px-2 py-2 text-destructive text-xs">
           <div className={LINE_CELL}>
-            {row.errors.map((error) => t(error.code, error.args)).join(" · ")}
+            {[
+              ...row.errors.map((error) => t(error.code, error.args)),
+              ...(errorCosto === null ? [] : [errorCosto]),
+            ].join(" · ")}
           </div>
         </td>
       )}

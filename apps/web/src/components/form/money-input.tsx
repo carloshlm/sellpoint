@@ -35,6 +35,15 @@ interface MoneyInputProps
  * el teclado numérico CON punto y deja el valor como texto, que es lo que hay
  * que formatear.
  *
+ * ── Lo que ni siquiera entra ────────────────────────────────────────────
+ *
+ * Las letras y los símbolos se descartan al teclear: no forman parte de un
+ * importe y quitarlos no cambia lo que la persona quiso escribir. La COMA es
+ * la excepción y entra, aunque sea inválida: descartarla convertiría «5,99»
+ * en «599» —cien veces más—, y el error que la marca es lo único que evita
+ * ese precio equivocado. Descartar en silencio solo es aceptable cuando el
+ * carácter no significa nada.
+ *
  * ── Se formatea al SALIR, no al escribir ────────────────────────────────
  *
  * Al perder el foco, lo que se escribió a medias se completa a dos decimales
@@ -42,6 +51,13 @@ interface MoneyInputProps
  * decimal— se deja tal cual para que el error del formulario lo señale: el
  * campo no disfraza lo que Postgres redondearía en silencio.
  */
+/**
+ * Lo que puede llegar a formar un importe mientras se teclea: dígitos, punto
+ * y coma. Lo que no está acá no entra — ver el docblock sobre por qué la coma
+ * es la excepción.
+ */
+const ADMITIDO = /^[\d.,]*$/;
+
 function MoneyInput({
   value,
   onChange,
@@ -78,7 +94,12 @@ function MoneyInput({
         className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          const texto = event.target.value;
+          if (ADMITIDO.test(texto)) {
+            onChange(texto);
+          }
+        }}
         onBlur={() => {
           const formateado = formatMoneyInput(value);
           if (formateado !== null && formateado !== value) {

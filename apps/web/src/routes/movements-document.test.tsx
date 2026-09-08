@@ -627,6 +627,25 @@ describe("Costo unitario de una entrada por factura (2026-09-08)", () => {
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
     expect(campoCosto()).toHaveAttribute("aria-invalid", "true");
+    // Y lo dice EN la línea: en un documento de cuarenta, un aviso suelto
+    // arriba no señala a ninguna.
+    expect(screen.getByText(/punto decimal/)).toBeInTheDocument();
+  });
+
+  it("la línea sin costo se marca con el error que manda el servidor", async () => {
+    mocked.getDocument.mockResolvedValue({
+      ...conFactura(null),
+      summary: { ...conFactura(null).summary, errors: 1 },
+      rows: conFactura(null).rows.map((fila) => ({
+        ...fila,
+        errors: [{ field: "unitCost", code: "inventory.unit_cost_required", args: { lineNo: 1 } }],
+      })),
+    });
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    const fila = screen.getByText("PAR-500").closest("tr") as HTMLElement;
+    expect(within(fila).getByText(/Falta el costo unitario/)).toBeInTheDocument();
   });
 
   it("confirmado, el costo se LEE formateado: la columna no vuelve al decimal crudo", async () => {

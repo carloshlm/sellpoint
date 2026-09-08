@@ -191,6 +191,59 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       await confirmar(id).expect(422);
     });
 
+    /**
+     * Carlos, 2026-09-08: «si no escribo nada no me dice la línea del error».
+     * El rechazo al confirmar existía, pero la falta se veía como un aviso
+     * suelto arriba y ninguna fila se marcaba — en un documento de cuarenta
+     * líneas eso obliga a buscar a ojo cuál es. El costo faltante pasa a ser
+     * un error DE LÍNEA, como el conteo vacío o el stock insuficiente, y
+     * viaja en la previa del borrador.
+     */
+    it("en un borrador `invoice`, la línea sin costo trae su propio error y el resumen la cuenta", async () => {
+      const id = await borrador({ reasonCode: "invoice", reference: "F-2" });
+      await agregar(id, { productId, quantity: 3 }).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+
+      const cuerpo = detalle.body as {
+        rows: { errors: { field: string; code: string }[] }[];
+        summary: { errors: number };
+      };
+      expect(cuerpo.rows[0]?.errors).toEqual([
+        expect.objectContaining({ field: "unitCost", code: "inventory.unit_cost_required" }),
+      ]);
+      expect(cuerpo.summary.errors).toBe(1);
+    });
+
+    it("con el costo puesto, esa misma línea deja de estar marcada", async () => {
+      const id = await borrador({ reasonCode: "invoice", reference: "F-3" });
+      await agregar(id, { productId, quantity: 3, unitCost: 10 }).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+
+      const cuerpo = detalle.body as { rows: { errors: unknown[] }[]; summary: { errors: number } };
+      expect(cuerpo.rows[0]?.errors).toEqual([]);
+      expect(cuerpo.summary.errors).toBe(0);
+    });
+
+    it("un motivo que NO pide costo no marca nada por no tenerlo", async () => {
+      const id = await borrador({ reasonCode: "adjustment", reasonNote: "Sobrante" });
+      await agregar(id, { productId, quantity: 2 }).expect(201);
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/inventory/documents/${id}`)
+        .set(auth())
+        .expect(200);
+
+      expect((detalle.body as { summary: { errors: number } }).summary.errors).toBe(0);
+    });
+
     it("una presentación solo-enteros con 1.5 se rechaza nombrando la presentación", async () => {
       const id = await borrador({ reasonCode: "adjustment", reasonNote: "Decimales" });
       await agregar(id, { productId, presentationId, quantity: 1.5 }).expect(201);

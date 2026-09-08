@@ -10,6 +10,7 @@ import {
   FOLIO_PREFIXES,
   type InventoryDocumentStatus,
   type InventoryDocumentType,
+  REASON_RULES,
   startOfDayUtc,
 } from "@sellpoint/shared";
 import { type InventoryDocument, Prisma } from "../../generated/prisma/client";
@@ -406,6 +407,12 @@ export class DocumentsService {
       // se piden 29» en una salida que acababa de dejar el saldo en 0
       // (Carlos, 2026-09-01). Lo que pasó no se recalcula: se cuenta.
       const esBorrador = document.status === "draft";
+      // El costo de una compra es el dato que el costo promedio del inventario
+      // va a usar. Que falte se sabía al confirmar, con un aviso suelto arriba
+      // que en un documento de cuarenta líneas no señalaba a ninguna (Carlos,
+      // 2026-09-08): ahora es un error DE LÍNEA, como el conteo vacío.
+      const requiereCosto =
+        document.reasonCode !== null && REASON_RULES[document.reasonCode].requiresUnitCost;
       const resolved = await resolveLines(
         tx,
         user.tenantId,
@@ -703,6 +710,13 @@ export class DocumentsService {
           errors.push({
             field: "counted",
             code: "inventory.count_negative",
+            args: { lineNo: line.lineNo },
+          });
+        }
+        if (esBorrador && requiereCosto && line.unitCost === null) {
+          errors.push({
+            field: "unitCost",
+            code: "inventory.unit_cost_required",
             args: { lineNo: line.lineNo },
           });
         }
