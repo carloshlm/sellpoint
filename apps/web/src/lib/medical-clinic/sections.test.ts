@@ -13,12 +13,12 @@ import {
 
 /**
  * F9-CLINIC-WEB-09 — el catálogo de tarjetas del tablero y el estado
- * derivado. Las 32 secciones vienen de shared; las 4 de órdenes son de esta
+ * derivado. Las 26 secciones vienen de shared; las 4 de órdenes son de esta
  * pantalla. «En progreso» vive en el GRUPO: una tarjeta o está capturada o
  * no.
  */
 describe("catálogo de tarjetas de la historia clínica", () => {
-  it("cinco grupos en el orden de Carlos, 36 tarjetas, las 32 secciones primero en su orden", () => {
+  it("cinco grupos en el orden de Carlos, 30 tarjetas, las 26 secciones primero en su orden", () => {
     expect(RECORD_GROUPS).toEqual([
       "interrogation",
       "examination",
@@ -26,7 +26,7 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "orders",
       "documents",
     ]);
-    expect(RECORD_CARDS).toHaveLength(36);
+    expect(RECORD_CARDS).toHaveLength(30);
     const secciones = RECORD_CARDS.filter((c) => c.kind === "section").map((c) => c.key);
     expect(secciones).toEqual(MEDICAL_RECORD_SECTIONS.map((s) => s.key));
     expect(RECORD_CARDS.filter((c) => c.group === "orders").map((c) => c.key)).toEqual([

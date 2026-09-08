@@ -10,19 +10,17 @@ import {
   Baby,
   CalendarClock,
   CalendarPlus,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   FlaskConical,
   FolderOpen,
-  GitBranch,
   HeartPulse,
   Leaf,
   Lightbulb,
   ListChecks,
-  ListPlus,
   type LucideIcon,
   Map as MapIcon,
-  MessageCircle,
   MessageSquareText,
   Microscope,
   NotebookPen,
@@ -30,12 +28,9 @@ import {
   Pill,
   Receipt,
   Ruler,
-  ScanLine,
-  ScanSearch,
   ScrollText,
   Stethoscope,
   Syringe,
-  Target,
   Thermometer,
   TriangleAlert,
   Users,
@@ -46,7 +41,7 @@ import type { MedicalRecord } from "./api";
 /**
  * F9-CLINIC-WEB-09 — el catálogo de tarjetas del tablero.
  *
- * Las 32 secciones vienen de shared (la misma lista que valida el API); las
+ * Las 26 secciones vienen de shared (la misma lista que valida el API); las
  * cuatro tarjetas de «Órdenes médicas» son de ESTA pantalla: tres emiten una
  * orden y una lista las emitidas. El grupo `orders` no existe en shared a
  * propósito — una orden no es una sección del expediente, es un documento
@@ -87,17 +82,11 @@ const SECTION_ICONS = {
   vital_signs: Thermometer,
   anthropometry: Ruler,
   physical_exam: Stethoscope,
-  systems_exam: ScanSearch,
-  lab_studies: FlaskConical,
-  imaging_studies: ScanLine,
   study_results: FileText,
   diagnostic_impression: Lightbulb,
-  primary_diagnosis: Target,
-  secondary_diagnoses: ListPlus,
-  differential_diagnosis: GitBranch,
+  diagnoses: ClipboardCheck,
   treatment: Syringe,
   management_plan: MapIcon,
-  recommendations: MessageCircle,
   follow_up: CalendarClock,
   prescriptions_doc: ScrollText,
   studies_doc: FolderOpen,

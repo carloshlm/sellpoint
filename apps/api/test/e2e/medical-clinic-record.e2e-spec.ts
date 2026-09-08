@@ -113,7 +113,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       },
       doctor: { name: "Ana Pérez" },
     });
-    expect(expediente.sections).toHaveLength(32);
+    expect(expediente.sections).toHaveLength(26);
     expect(expediente.sections.every((s) => s.status === "pending")).toBe(true);
 
     // Las tres secciones funcionales.
@@ -142,7 +142,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       "chief_complaint",
       "current_illness",
     ]);
-    expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(29);
+    expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(23);
     expect(d.patient.sex).toBe("F");
 
     // SEGUNDA visita: hay que cerrar la de hoy antes (F9-CLINIC-27: un

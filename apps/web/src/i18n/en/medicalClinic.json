@@ -200,41 +200,23 @@
     "physical_exam": {
       "title": "Physical Exam"
     },
-    "systems_exam": {
-      "title": "Exam by Systems"
-    },
-    "lab_studies": {
-      "title": "Lab Studies"
-    },
-    "imaging_studies": {
-      "title": "Imaging Studies"
-    },
     "study_results": {
       "title": "Study Results"
     },
     "diagnostic_impression": {
       "title": "Diagnostic Impression"
     },
-    "primary_diagnosis": {
-      "title": "Primary Diagnosis"
-    },
-    "secondary_diagnoses": {
-      "title": "Secondary Diagnoses"
-    },
-    "differential_diagnosis": {
-      "title": "Differential Diagnosis"
+    "diagnoses": {
+      "title": "Diagnoses"
     },
     "treatment": {
       "title": "Treatment"
     },
     "management_plan": {
-      "title": "Management Plan"
-    },
-    "recommendations": {
-      "title": "Recommendations"
+      "title": "Management Plan and Prognosis"
     },
     "follow_up": {
-      "title": "Follow-up"
+      "title": "Follow-up and Recommendations"
     },
     "prescriptions_doc": {
       "title": "Prescriptions"

@@ -200,41 +200,23 @@
     "physical_exam": {
       "title": "Exploración Física"
     },
-    "systems_exam": {
-      "title": "Exploración por Aparatos y Sistemas"
-    },
-    "lab_studies": {
-      "title": "Estudios de Laboratorio"
-    },
-    "imaging_studies": {
-      "title": "Estudios de Gabinete"
-    },
     "study_results": {
       "title": "Resultados de Estudios"
     },
     "diagnostic_impression": {
       "title": "Impresión Diagnóstica"
     },
-    "primary_diagnosis": {
-      "title": "Diagnóstico Principal"
-    },
-    "secondary_diagnoses": {
-      "title": "Diagnósticos Secundarios"
-    },
-    "differential_diagnosis": {
-      "title": "Diagnóstico Diferencial"
+    "diagnoses": {
+      "title": "Diagnósticos"
     },
     "treatment": {
       "title": "Tratamiento"
     },
     "management_plan": {
-      "title": "Plan de Manejo"
-    },
-    "recommendations": {
-      "title": "Recomendaciones"
+      "title": "Plan de Manejo y Pronóstico"
     },
     "follow_up": {
-      "title": "Seguimiento"
+      "title": "Seguimiento y Recomendaciones"
     },
     "prescriptions_doc": {
       "title": "Recetas"

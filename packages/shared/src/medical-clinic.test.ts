@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CARRIED_FORWARD_SECTION_KEYS,
   generalDataSchema,
   MEDICAL_ORDER_KINDS,
   MEDICAL_RECORD_SECTION_GROUPS,
@@ -16,10 +17,15 @@ import {
  * sección sin schema no es funcional, y una funcional sin schema no existe.
  */
 describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => {
-  it("son 32 claves únicas, en el orden de Carlos, repartidas en los cuatro grupos", () => {
+  /**
+   * F9-CLINIC-HC-01 — 26 claves, no 32 (Carlos, 2026-09-08). Exploración baja
+   * de 7 a 4 y Evaluación y plan de 8 a 5: lo que se fusionó no se perdió,
+   * se dejó de repartir en viajes de ida y vuelta.
+   */
+  it("son 26 claves únicas, en el orden de Carlos, repartidas en los cuatro grupos", () => {
     const claves = MEDICAL_RECORD_SECTIONS.map((s) => s.key);
-    expect(claves).toHaveLength(32);
-    expect(new Set(claves).size).toBe(32);
+    expect(claves).toHaveLength(26);
+    expect(new Set(claves).size).toBe(26);
     expect(claves.slice(0, 3)).toEqual(["general_data", "chief_complaint", "current_illness"]);
     expect(claves.at(-1)).toBe("follow_up_appointments");
     expect(MEDICAL_RECORD_SECTION_GROUPS).toEqual([
@@ -33,9 +39,77 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       expect(ordenes).toEqual([...ordenes].sort((a, b) => a - b));
     }
     expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "interrogation")).toHaveLength(10);
-    expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "examination")).toHaveLength(7);
-    expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "assessment_plan")).toHaveLength(8);
+    expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "examination")).toHaveLength(4);
+    expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "assessment_plan")).toHaveLength(5);
     expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "documents")).toHaveLength(7);
+  });
+
+  it("las siete claves fusionadas ya no existen, y los diagnósticos son UNA sola", () => {
+    const claves: string[] = MEDICAL_RECORD_SECTIONS.map((s) => s.key);
+    for (const muerta of [
+      "systems_exam",
+      "lab_studies",
+      "imaging_studies",
+      "primary_diagnosis",
+      "secondary_diagnoses",
+      "differential_diagnosis",
+      "recommendations",
+    ]) {
+      expect(claves).not.toContain(muerta);
+    }
+    expect(claves).toContain("diagnoses");
+    expect(medicalRecordSectionKeySchema.safeParse("primary_diagnosis").success).toBe(false);
+  });
+
+  /**
+   * Somatometría PRIMERO: es lo que la asistente ya midió cuando el paciente
+   * entra al consultorio (Carlos, 2026-09-08).
+   */
+  it("Exploración empieza por Somatometría y sigue con Signos Vitales", () => {
+    const examen = MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "examination").map(
+      (s) => s.key,
+    );
+    expect(examen).toEqual(["anthropometry", "vital_signs", "physical_exam", "study_results"]);
+  });
+
+  it("Evaluación y plan: impresión, diagnósticos, tratamiento, plan y seguimiento", () => {
+    const plan = MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "assessment_plan").map(
+      (s) => s.key,
+    );
+    expect(plan).toEqual([
+      "diagnostic_impression",
+      "diagnoses",
+      "treatment",
+      "management_plan",
+      "follow_up",
+    ]);
+  });
+
+  /**
+   * Los antecedentes son del PACIENTE, no de la consulta: la consulta nueva
+   * los hereda. Signos vitales y diagnósticos NO: esos son del día.
+   */
+  it("siete secciones se heredan de la consulta anterior, y solo esas", () => {
+    expect(CARRIED_FORWARD_SECTION_KEYS).toEqual([
+      "general_data",
+      "family_history",
+      "pathological_history",
+      "non_pathological_history",
+      "gyneco_obstetric_history",
+      "allergies",
+      "current_medications",
+    ]);
+    for (const seccion of MEDICAL_RECORD_SECTIONS) {
+      expect(seccion.carriedForward).toBe(
+        (CARRIED_FORWARD_SECTION_KEYS as readonly string[]).includes(seccion.key),
+      );
+    }
+  });
+
+  it("solo los antecedentes gineco-obstétricos se piden por sexo", () => {
+    const conSexo = MEDICAL_RECORD_SECTIONS.filter((s) => s.sexes !== undefined);
+    expect(conSexo.map((s) => s.key)).toEqual(["gyneco_obstetric_history"]);
+    expect(conSexo[0]?.sexes).toEqual(["F", "X"]);
   });
 
   it("exactamente tres son funcionales, y schema ⇔ funcional", () => {

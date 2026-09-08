@@ -9,6 +9,7 @@ export * from "./i18n";
 export * from "./inventory";
 export * from "./lot-code";
 export * from "./medical-clinic";
+export * from "./medical-measures";
 export * from "./modules";
 export * from "./money";
 export * from "./names";

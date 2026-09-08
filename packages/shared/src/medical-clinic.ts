@@ -2,16 +2,27 @@ import { z } from "zod";
 import { isE164 } from "./phone";
 
 /**
- * F9-CLINIC-01 — el catálogo de la historia clínica, en CÓDIGO compartido.
+ * F9-CLINIC-01 / F9-CLINIC-HC-01 — el catálogo de la historia clínica, en
+ * CÓDIGO compartido.
  *
- * Las 32 secciones del expediente viven en UNA tabla
+ * Las 26 secciones del expediente viven en UNA tabla
  * (`medical_clinic_record_sections`, una fila por clave con `data` JSONB).
  * Lo que fija la forma de cada JSON no es la base: es este catálogo y sus
  * schemas zod, que el API usa al escribir y el web al pintar. Una sección sin
  * schema no es funcional (el API responde 422 al intentar guardarla); agregar
  * una sección funcional es agregar su schema y marcarla, cero DDL.
  *
- * El orden es el de Carlos (2026-09-03), tarjeta por tarjeta.
+ * Eran 32 (Carlos, 2026-09-03). El 2026-09-08 Carlos decidió fusionar a 26
+ * para que el médico haga menos viajes de ida y vuelta: «Exploración por
+ * aparatos y sistemas» se fundió con Exploración Física (es lo mismo por
+ * regiones, NOM-004 6.1.2); «Estudios de laboratorio» y «de gabinete» se
+ * fundieron en Resultados de Estudios (PEDIRLOS ya vive en Órdenes médicas;
+ * lo que la NOM pide aquí, 6.1.3, son resultados); los tres diagnósticos
+ * (principal, secundarios, diferencial) son UNA lista en `diagnoses`;
+ * Pronóstico (NOM 6.1.5) entra en Plan de Manejo; Recomendaciones en
+ * Seguimiento. Somatometría va PRIMERO en Exploración: es lo que la asistente
+ * ya midió. Retirar claves fue cero DDL: `section_key` no tiene CHECK y las
+ * siete nunca tuvieron schema, así que no había ni una fila.
  */
 export const MEDICAL_RECORD_SECTION_GROUPS = [
   "interrogation",
@@ -21,6 +32,10 @@ export const MEDICAL_RECORD_SECTION_GROUPS = [
 ] as const;
 export type MedicalRecordSectionGroup = (typeof MEDICAL_RECORD_SECTION_GROUPS)[number];
 
+/** F, M, X: lo que la cabecera del expediente muestra. */
+export const MEDICAL_SEXES = ["F", "M", "X"] as const;
+export type MedicalSex = (typeof MEDICAL_SEXES)[number];
+
 export interface MedicalRecordSectionDef {
   key: string;
   group: MedicalRecordSectionGroup;
@@ -28,44 +43,61 @@ export interface MedicalRecordSectionDef {
   order: number;
   /** Con formulario y schema hoy. Las demás son tarjetas «Próximamente». */
   functional: boolean;
+  /**
+   * F9-CLINIC-HC-01 — es del PACIENTE, no de la consulta: al abrir un
+   * expediente nuevo se copia del anterior del mismo paciente (con
+   * `source_record_id`), y el médico confirma o actualiza. Signos vitales,
+   * exploración y diagnósticos no se heredan: son del día.
+   */
+  carriedForward: boolean;
+  /**
+   * Se PIDE solo a estos sexos (la tarjeta no se dibuja para los demás), pero
+   * si ya tiene datos se MUESTRA siempre: esconder jamás es borrar.
+   * `undefined` = se pide a todos.
+   */
+  sexes?: readonly MedicalSex[];
 }
 
 const seccion = (
   key: string,
   group: MedicalRecordSectionGroup,
   order: number,
-  functional = false,
-) => ({ key, group, order, functional }) as const;
+  opciones: { functional?: boolean; carriedForward?: boolean; sexes?: readonly MedicalSex[] } = {},
+) =>
+  ({
+    key,
+    group,
+    order,
+    functional: opciones.functional ?? false,
+    carriedForward: opciones.carriedForward ?? false,
+    ...(opciones.sexes !== undefined && { sexes: opciones.sexes }),
+  }) as const;
+
+const heredada = { carriedForward: true } as const;
 
 export const MEDICAL_RECORD_SECTIONS = [
   // 1. Interrogatorio
-  seccion("general_data", "interrogation", 1, true),
-  seccion("chief_complaint", "interrogation", 2, true),
-  seccion("current_illness", "interrogation", 3, true),
-  seccion("family_history", "interrogation", 4),
-  seccion("pathological_history", "interrogation", 5),
-  seccion("non_pathological_history", "interrogation", 6),
-  seccion("gyneco_obstetric_history", "interrogation", 7),
-  seccion("allergies", "interrogation", 8),
-  seccion("current_medications", "interrogation", 9),
+  seccion("general_data", "interrogation", 1, { functional: true, carriedForward: true }),
+  seccion("chief_complaint", "interrogation", 2, { functional: true }),
+  seccion("current_illness", "interrogation", 3, { functional: true }),
+  seccion("family_history", "interrogation", 4, heredada),
+  seccion("pathological_history", "interrogation", 5, heredada),
+  seccion("non_pathological_history", "interrogation", 6, heredada),
+  seccion("gyneco_obstetric_history", "interrogation", 7, { ...heredada, sexes: ["F", "X"] }),
+  seccion("allergies", "interrogation", 8, heredada),
+  seccion("current_medications", "interrogation", 9, heredada),
   seccion("systems_review", "interrogation", 10),
-  // 2. Exploración
-  seccion("vital_signs", "examination", 1),
-  seccion("anthropometry", "examination", 2),
+  // 2. Exploración (Somatometría primero: ya la midió la asistente)
+  seccion("anthropometry", "examination", 1),
+  seccion("vital_signs", "examination", 2),
   seccion("physical_exam", "examination", 3),
-  seccion("systems_exam", "examination", 4),
-  seccion("lab_studies", "examination", 5),
-  seccion("imaging_studies", "examination", 6),
-  seccion("study_results", "examination", 7),
+  seccion("study_results", "examination", 4),
   // 3. Evaluación y plan
   seccion("diagnostic_impression", "assessment_plan", 1),
-  seccion("primary_diagnosis", "assessment_plan", 2),
-  seccion("secondary_diagnoses", "assessment_plan", 3),
-  seccion("differential_diagnosis", "assessment_plan", 4),
-  seccion("treatment", "assessment_plan", 5),
-  seccion("management_plan", "assessment_plan", 6),
-  seccion("recommendations", "assessment_plan", 7),
-  seccion("follow_up", "assessment_plan", 8),
+  seccion("diagnoses", "assessment_plan", 2),
+  seccion("treatment", "assessment_plan", 3),
+  seccion("management_plan", "assessment_plan", 4),
+  seccion("follow_up", "assessment_plan", 5),
   // 5. Documentos y seguimiento (el 4, Órdenes médicas, no son secciones:
   // son tres órdenes y un listado, y viven en `medical_clinic_orders`)
   seccion("prescriptions_doc", "documents", 1),
@@ -83,13 +115,14 @@ export const MEDICAL_RECORD_SECTION_KEYS = MEDICAL_RECORD_SECTIONS.map(
 ) as readonly MedicalRecordSectionKey[] as [MedicalRecordSectionKey, ...MedicalRecordSectionKey[]];
 export const medicalRecordSectionKeySchema = z.enum(MEDICAL_RECORD_SECTION_KEYS);
 
+/** Las que se copian del expediente anterior del mismo paciente al abrir uno nuevo. */
+export const CARRIED_FORWARD_SECTION_KEYS = MEDICAL_RECORD_SECTIONS.filter(
+  (s) => s.carriedForward,
+).map((s) => s.key) as readonly MedicalRecordSectionKey[];
+
 // ─────────────────────────────────────────────────────────────────────────
 // Los schemas de las secciones funcionales
 // ─────────────────────────────────────────────────────────────────────────
-
-/** F, M, X: lo que la cabecera del expediente muestra. */
-export const MEDICAL_SEXES = ["F", "M", "X"] as const;
-export type MedicalSex = (typeof MEDICAL_SEXES)[number];
 
 export const MARITAL_STATUSES = [
   "single",

@@ -1,9 +1,10 @@
 import { ONSET_UNITS } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { NumberField } from "@/components/form/number-field";
 import { SelectField } from "@/components/form/select-field";
 import { TextAreaField } from "@/components/form/text-area-field";
-import { TextField } from "@/components/form/text-field";
+import { numberFieldError, numberFieldMessage } from "@/lib/measure";
 import { SectionFormActions } from "./form-actions";
 import type { SectionFormProps } from "./registry";
 
@@ -23,9 +24,12 @@ export function ChiefComplaintForm({
   const [complaint, setComplaint] = useState(texto(initialData.complaint));
   const [onsetValue, setOnsetValue] = useState(texto(initialData.onsetValue));
   const [onsetUnit, setOnsetUnit] = useState(texto(initialData.onsetUnit));
+  // F9-CLINIC-HC-03: entero sin negativos; vacío se omite.
+  const errorOnset = numberFieldError(onsetValue, { decimals: 0, min: 0 });
 
   const enviar = (event: React.FormEvent) => {
     event.preventDefault();
+    if (errorOnset !== null) return;
     const data: Record<string, unknown> = {};
     if (complaint.trim() !== "") data.complaint = complaint.trim();
     if (onsetValue.trim() !== "") data.onsetValue = Number(onsetValue);
@@ -50,14 +54,12 @@ export function ChiefComplaintForm({
           onChange={(e) => setComplaint(e.target.value)}
           maxLength={2000}
         />
-        <TextField
+        <NumberField
           label={t("medicalClinic.forms.chiefComplaint.onsetValue")}
-          type="number"
-          inputMode="numeric"
-          min={0}
-          step={1}
+          decimals={0}
           value={onsetValue}
-          onChange={(e) => setOnsetValue(e.target.value.replace(/\D/g, ""))}
+          onChange={setOnsetValue}
+          error={errorOnset ? numberFieldMessage(errorOnset, t) : undefined}
         />
         <SelectField
           label={t("medicalClinic.forms.chiefComplaint.onsetUnit")}
