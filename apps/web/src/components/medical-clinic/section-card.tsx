@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { formatCalendarDate } from "@/lib/inventory/format-date";
 import type { RecordCard, SectionStatus } from "@/lib/medical-clinic/sections";
 import { cn } from "@/lib/utils";
 import { StatusPill } from "./status-pill";
@@ -16,6 +17,8 @@ interface SectionCardProps {
   status: SectionStatus;
   /** Se pinta solo si la sección está capturada. */
   summary: string | null;
+  /** F9-CLINIC-HC-05: la fecha de la consulta de la que se heredó, si aplica. */
+  carriedFromDate?: string | null;
 }
 
 /**
@@ -26,8 +29,14 @@ interface SectionCardProps {
  * Placeholder = `<div aria-disabled>`: sin link, sin tabindex, con
  * «Próximamente» para que nadie la crea rota.
  */
-export function SectionCard({ card, recordId, status, summary }: SectionCardProps) {
-  const { t } = useTranslation();
+export function SectionCard({
+  card,
+  recordId,
+  status,
+  summary,
+  carriedFromDate = null,
+}: SectionCardProps) {
+  const { t, i18n } = useTranslation();
   const title = t(`medicalClinic.sections.${card.key}.title`);
   const Icon = card.icon;
   const testId = `record-card-${card.key}`;
@@ -42,6 +51,13 @@ export function SectionCard({ card, recordId, status, summary }: SectionCardProp
         ) : null}
         {status === "completed" && summary ? (
           <span className="line-clamp-2 text-muted-foreground text-xs">{summary}</span>
+        ) : null}
+        {status === "completed" && carriedFromDate ? (
+          <span className="text-warning text-xs">
+            {t("medicalClinic.record.carriedFrom", {
+              date: formatCalendarDate(carriedFromDate, i18n.language),
+            })}
+          </span>
         ) : null}
         {!card.functional ? (
           <span className="text-muted-foreground text-xs">

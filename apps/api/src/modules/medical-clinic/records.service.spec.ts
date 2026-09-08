@@ -135,23 +135,61 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       );
     });
 
-    it("el segundo copia SOLO Datos Generales del anterior y proyecta el sexo", async () => {
+    /**
+     * F9-CLINIC-HC-05 — el segundo hereda las secciones de nivel PACIENTE con
+     * la seña de dónde vienen. El mock devuelve lo que devolvería la base con
+     * el `where` por claves: solo las heredables.
+     */
+    it("el segundo copia las secciones del paciente con su origen y proyecta el sexo", async () => {
       anterior = expediente({
         id: "r-0",
         folio: "HCL-000000",
         sections: [
-          { sectionKey: "general_data", data: { sex: "F", occupation: "Docente" } },
-          { sectionKey: "chief_complaint", data: { complaint: "Dolor" } },
+          {
+            sectionKey: "general_data",
+            data: { sex: "F", occupation: "Docente" },
+            sourceRecordId: null,
+          },
+          // Esta ya venía heredada de más atrás: la seña se conserva.
+          { sectionKey: "allergies", data: { negated: true }, sourceRecordId: "r-00" },
+          // Vacía: no se arrastra una fila sin datos.
+          { sectionKey: "family_history", data: {}, sourceRecordId: null },
         ],
       });
       await service.create(USER, { customerId: "c-1" }, META);
 
       expect(tx.medicalClinicRecord.create.mock.calls[0][0].data.patientSex).toBe("F");
-      expect(tx.medicalClinicRecordSection.create).toHaveBeenCalledTimes(1);
+      const where = tx.medicalClinicRecord.findFirst.mock.calls.find(
+        (c) => c[0].where.consultationDate === undefined && c[0].where.id === undefined,
+      )?.[0];
+      expect(where.include.sections.where.sectionKey.in).toEqual([
+        "general_data",
+        "family_history",
+        "pathological_history",
+        "non_pathological_history",
+        "gyneco_obstetric_history",
+        "allergies",
+        "current_medications",
+      ]);
+      expect(tx.medicalClinicRecordSection.create).toHaveBeenCalledTimes(2);
       expect(tx.medicalClinicRecordSection.create.mock.calls[0][0].data).toMatchObject({
         sectionKey: "general_data",
         data: { sex: "F", occupation: "Docente" },
+        sourceRecordId: "r-0",
       });
+      expect(tx.medicalClinicRecordSection.create.mock.calls[1][0].data).toMatchObject({
+        sectionKey: "allergies",
+        sourceRecordId: "r-00",
+      });
+      expect(audit.record).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({
+          after: expect.objectContaining({
+            copiedFrom: "HCL-000000",
+            copiedSections: ["general_data", "allergies"],
+          }),
+        }),
+      );
     });
 
     it("con turno, guarda el número como snapshot; un paciente ajeno es 404", async () => {
@@ -187,6 +225,34 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       expect(d.patient).toMatchObject({ name: "Ana Pérez Luna", age: 36, sex: null });
       expect(d.doctor).toEqual({ id: "dr-1", name: "Gregorio House" });
       expect(d.status).toBe("open");
+    });
+
+    it("una sección con origen dice de qué consulta viene; sin origen, null", async () => {
+      tx.medicalClinicRecord.findFirst.mockResolvedValue(
+        expediente({
+          sections: [
+            {
+              sectionKey: "allergies",
+              data: { negated: true },
+              updatedAt: new Date("2026-09-03T15:00:00.000Z"),
+              source: { id: "r-0", folio: "HCL-000000", consultationDate: new Date("2026-08-01") },
+            },
+            {
+              sectionKey: "general_data",
+              data: { sex: "F" },
+              updatedAt: new Date("2026-09-03T15:00:00.000Z"),
+              source: null,
+            },
+          ],
+        }),
+      );
+      const d = await service.detail(USER, "r-1");
+      expect(d.sections.find((s) => s.key === "allergies")?.carriedFrom).toEqual({
+        recordId: "r-0",
+        folio: "HCL-000000",
+        consultationDate: "2026-08-01",
+      });
+      expect(d.sections.find((s) => s.key === "general_data")?.carriedFrom).toBeNull();
     });
 
     it("con Motivo de Consulta guardado: 25 pendientes y 1 completada, con sus datos", async () => {

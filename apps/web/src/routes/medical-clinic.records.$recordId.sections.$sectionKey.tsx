@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { SECTION_FORMS } from "@/components/medical-clinic/sections/registry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { useRecord, useSaveSection } from "@/lib/medical-clinic/hooks";
 
 export const Route = createFileRoute("/medical-clinic/records/$recordId/sections/$sectionKey")({
@@ -34,7 +35,7 @@ function SectionPage() {
  * Cancelar y el tablero se refresca solo al volver.
  */
 function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const record = useRecord(recordId);
   const guardar = useSaveSection(recordId);
@@ -74,6 +75,13 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {seccion?.carriedFrom ? (
+            <p className="rounded-md border border-warning bg-warning-soft p-3 text-sm">
+              {t("medicalClinic.record.carriedFrom", {
+                date: formatCalendarDate(seccion.carriedFrom.consultationDate, i18n.language),
+              })}
+            </p>
+          ) : null}
           {readOnly ? (
             <p className="rounded-md border bg-muted p-3 text-sm">
               {t(

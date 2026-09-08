@@ -58,6 +58,7 @@ export function expediente(
     status: "completed",
     data: data ?? {},
     updatedAt: "2026-09-03T18:10:00.000Z",
+    carriedFrom: null,
   }));
   return { ...base, sections: [...base.sections, ...guardadas] };
 }

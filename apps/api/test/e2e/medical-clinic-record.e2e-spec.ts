@@ -152,7 +152,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       201,
     );
     const s2 = segunda.body as typeof expediente & {
-      sections: { key: string; status: string; data: unknown }[];
+      sections: { key: string; status: string; data: unknown; carriedFrom: unknown }[];
     };
     expect(s2.folio).toBe("HCL-000002");
     expect(s2.patient.sex).toBe("F");
@@ -160,8 +160,24 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     expect(generales).toMatchObject({
       status: "completed",
       data: { sex: "F", occupation: "Docente" },
+      // F9-CLINIC-HC-05: heredada, con la seña de la consulta donde se capturó.
+      carriedFrom: { recordId: expediente.id, folio: "HCL-000001", consultationDate: hoy },
     });
-    expect(s2.sections.find((s) => s.key === "chief_complaint")?.status).toBe("pending");
+    expect(s2.sections.find((s) => s.key === "chief_complaint")).toMatchObject({
+      status: "pending",
+      carriedFrom: null,
+    });
+    // Guardarla es hacerla suya: la seña se borra.
+    const base2 = `/medical-clinic/records/${s2.id}`;
+    await put(negocio.token, `${base2}/sections/general_data`, {
+      sex: "F",
+      occupation: "Docente jubilada",
+    }).expect(200);
+    const d2 = (await get(negocio.token, base2).expect(200)).body as typeof s2;
+    expect(d2.sections.find((s) => s.key === "general_data")).toMatchObject({
+      data: { occupation: "Docente jubilada" },
+      carriedFrom: null,
+    });
     // La búsqueda ya conoce el último expediente.
     const otra = await get(
       negocio.token,
@@ -263,7 +279,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       customerId,
       name: "Ana Pérez Luna",
       birthDate: "1990-09-03",
-      generalData: { sex: "F", occupation: "Docente" },
+      generalData: { sex: "F", occupation: "Docente jubilada" },
       recordCount: 2,
       // La segunda visita sigue abierta (el `it` anterior cerró la primera).
       lastRecord: { folio: "HCL-000002", status: "open", lockReason: null },

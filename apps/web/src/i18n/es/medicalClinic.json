@@ -141,7 +141,8 @@
     },
     "orders": "{{count}} órdenes",
     "orders_one": "1 orden",
-    "backToPatient": "← Resumen del paciente"
+    "backToPatient": "← Resumen del paciente",
+    "carriedFrom": "De la consulta del {{date}} · confirma o actualiza"
   },
   "consultationStatus": {
     "open": "Abierta",

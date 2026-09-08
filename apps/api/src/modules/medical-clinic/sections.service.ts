@@ -112,7 +112,12 @@ export class SectionsService {
             data: data as Prisma.InputJsonObject,
             updatedBy: user.userId,
           },
-          update: { data: data as Prisma.InputJsonObject, updatedBy: user.userId },
+          // F9-CLINIC-HC-05: guardarla es hacerla suya; la seña de la heredada se borra.
+          update: {
+            data: data as Prisma.InputJsonObject,
+            updatedBy: user.userId,
+            sourceRecordId: null,
+          },
         });
         vista = {
           key: clave,

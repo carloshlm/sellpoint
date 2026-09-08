@@ -227,6 +227,38 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
       expect(restantes).toBe(0);
     });
 
+    /** F9-CLINIC-HC-05 — la seña de la heredada sobrevive en NULL si el origen se borra. */
+    it("source_record_id: nullable, FK a expedientes con SET NULL; borrar el origen no borra la heredada", async () => {
+      const columna = await prisma.$queryRaw<{ is_nullable: string; data_type: string }[]>`
+        SELECT is_nullable, data_type FROM information_schema.columns
+        WHERE table_name = 'medical_clinic_record_sections' AND column_name = 'source_record_id'`;
+      expect(columna).toEqual([{ is_nullable: "YES", data_type: "uuid" }]);
+
+      const { origenId, heredadaId } = await prisma.withTenantContext(tenantA, async (tx) => {
+        const origen = await tx.medicalClinicRecord.create({
+          data: expediente(tenantA, doctorA, "HCL-000920"),
+        });
+        const nuevo = await tx.medicalClinicRecord.create({
+          data: expediente(tenantA, doctorA, "HCL-000921"),
+        });
+        const heredada = await tx.medicalClinicRecordSection.create({
+          data: {
+            tenantId: tenantA,
+            recordId: nuevo.id,
+            sectionKey: "allergies",
+            data: { negated: true },
+            sourceRecordId: origen.id,
+          },
+        });
+        return { origenId: origen.id, heredadaId: heredada.id };
+      });
+      const despues = await prisma.withTenantContext(tenantA, async (tx) => {
+        await tx.medicalClinicRecord.delete({ where: { id: origenId } });
+        return tx.medicalClinicRecordSection.findUnique({ where: { id: heredadaId } });
+      });
+      expect(despues).toMatchObject({ sourceRecordId: null, data: { negated: true } });
+    });
+
     it("borrar al cliente deja el expediente vivo: patient_customer_id NULL y el nombre en el snapshot", async () => {
       const rec = await prisma.withTenantContext(tenantA, async (tx) => {
         const cliente = await tx.customer.create({

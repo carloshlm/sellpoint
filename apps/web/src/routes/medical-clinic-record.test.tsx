@@ -103,6 +103,31 @@ describe("Historia clínica — tablero", () => {
     expect(interrogatorio).toHaveTextContent("1 de 3");
   });
 
+  /**
+   * F9-CLINIC-HC-05 — los antecedentes son del paciente: la tarjeta heredada
+   * dice de qué consulta viene para que el médico confirme o actualice.
+   */
+  it("una sección heredada dice de qué consulta viene; una capturada aquí, no", async () => {
+    const record = expediente(
+      {},
+      { general_data: { sex: "F" }, chief_complaint: { complaint: "Tos" } },
+    );
+    const generales = record.sections.find((s) => s.key === "general_data");
+    if (generales) {
+      generales.carriedFrom = {
+        recordId: "r0",
+        folio: "HCL-000009",
+        consultationDate: "2026-08-01",
+      };
+    }
+    await renderRecord(record);
+    const tarjeta = await screen.findByTestId("record-card-general_data");
+    expect(tarjeta).toHaveTextContent("De la consulta del 01/08/2026 · confirma o actualiza");
+    expect(screen.getByTestId("record-card-chief_complaint")).not.toHaveTextContent(
+      "De la consulta del",
+    );
+  });
+
   it("«Cerrar consulta» pide confirmación y solo entonces llama al API; cerrada, ya no se ofrece", async () => {
     const cerrada = expediente({ status: "closed", closedAt: "2026-09-03T19:00:00.000Z" });
     mocked.closeRecord.mockImplementation(async () => {

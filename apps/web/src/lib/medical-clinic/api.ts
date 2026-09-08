@@ -155,6 +155,8 @@ export interface RecordSection {
   status: SectionStatus;
   data: Record<string, unknown> | null;
   updatedAt: string | null;
+  /** F9-CLINIC-HC-05: heredada de otra consulta; `null` si se capturó o confirmó en esta. */
+  carriedFrom: { recordId: string; folio: string; consultationDate: string } | null;
 }
 
 export interface RecordOrderSummary {

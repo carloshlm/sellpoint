@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   ageFromBirthDate,
+  CARRIED_FORWARD_SECTION_KEYS,
   fullName,
   localCalendarDate,
   MEDICAL_CLINIC_FOLIO_PREFIXES,
@@ -30,6 +31,11 @@ export interface RecordSectionView {
   status: SectionStatus;
   data: Record<string, unknown> | null;
   updatedAt: string | null;
+  /**
+   * F9-CLINIC-HC-05 — de qué consulta se heredó (los antecedentes son del
+   * paciente). `null` cuando el médico la capturó o la confirmó en ESTA.
+   */
+  carriedFrom: { recordId: string; folio: string; consultationDate: string } | null;
 }
 
 export interface RecordOrderView {
@@ -79,7 +85,7 @@ export interface RecordSummary {
 
 const INCLUDE = {
   doctor: { select: { id: true, firstName: true, lastName: true } },
-  sections: true,
+  sections: { include: { source: { select: { id: true, folio: true, consultationDate: true } } } },
   orders: { orderBy: { createdAt: "asc" as const } },
 } as const;
 
@@ -89,12 +95,15 @@ type RecordRow = Prisma.MedicalClinicRecordGetPayload<{ include: typeof INCLUDE 
 /**
  * F9-CLINIC-10/12 — la historia clínica: UN expediente por VISITA.
  *
- * Al abrir uno, se copia la fila de Datos Generales del expediente ANTERIOR
- * del mismo paciente (decisión de Carlos, 2026-09-03) y se proyecta su sexo
- * al encabezado. El resto de las secciones nace vacío: cada consulta cuenta
- * su propio motivo y su propio padecimiento.
+ * Al abrir uno, se copian del expediente ANTERIOR del mismo paciente las
+ * secciones de nivel PACIENTE (`CARRIED_FORWARD_SECTION_KEYS`: Datos
+ * Generales desde el 2026-09-03; AHF, APP, APNP, AGO, alergias y medicamentos
+ * actuales desde F9-CLINIC-HC-05) con `source_record_id` apuntando a la
+ * consulta donde el médico las capturó de verdad, y se proyecta el sexo al
+ * encabezado. El resto nace vacío: cada consulta cuenta su propio motivo, su
+ * padecimiento, sus signos y sus diagnósticos.
  *
- * El estado de las 32 secciones se DERIVA: existe fila ⇔ Completado. No hay
+ * El estado de las 26 secciones se DERIVA: existe fila ⇔ Completado. No hay
  * columna que se pueda desincronizar de su propia tabla.
  */
 @Injectable()
@@ -206,17 +215,29 @@ export class RecordsService {
         });
       }
 
-      // ── Copy-forward: SOLO Datos Generales del expediente anterior ──────
+      // ── Copy-forward: las secciones de nivel PACIENTE del expediente anterior
       const anterior = await tx.medicalClinicRecord.findFirst({
         where: { tenantId: user.tenantId, patientCustomerId: paciente.id },
         orderBy: [{ createdAt: "desc" }],
-        include: { sections: { where: { sectionKey: "general_data" } } },
+        include: {
+          sections: { where: { sectionKey: { in: [...CARRIED_FORWARD_SECTION_KEYS] } } },
+        },
       });
-      const generales = anterior?.sections.find((s) => s.sectionKey === "general_data") ?? null;
-      const datosGenerales =
-        generales !== null && typeof generales.data === "object" && generales.data !== null
-          ? (generales.data as Record<string, unknown>)
-          : null;
+      const heredadas = (anterior?.sections ?? []).flatMap((fila) =>
+        typeof fila.data === "object" && fila.data !== null && Object.keys(fila.data).length > 0
+          ? [
+              {
+                sectionKey: fila.sectionKey,
+                data: fila.data as Record<string, unknown>,
+                // La seña apunta a donde el médico la CAPTURÓ, no al último
+                // expediente que la arrastró: si en el anterior tampoco la
+                // tocó, la fuente sigue siendo la de más atrás.
+                sourceRecordId: fila.sourceRecordId ?? (anterior as { id: string }).id,
+              },
+            ]
+          : [],
+      );
+      const datosGenerales = heredadas.find((s) => s.sectionKey === "general_data")?.data ?? null;
       const sexo = typeof datosGenerales?.sex === "string" ? datosGenerales.sex : null;
 
       const creado = await tx.medicalClinicRecord.create({
@@ -235,14 +256,15 @@ export class RecordsService {
           consultationDate: new Date(hoy),
         },
       });
-      if (datosGenerales !== null) {
+      for (const heredada of heredadas) {
         await tx.medicalClinicRecordSection.create({
           data: {
             tenantId: user.tenantId,
             recordId: creado.id,
-            sectionKey: "general_data",
-            data: datosGenerales as Prisma.InputJsonObject,
+            sectionKey: heredada.sectionKey,
+            data: heredada.data as Prisma.InputJsonObject,
             updatedBy: user.userId,
+            sourceRecordId: heredada.sourceRecordId,
           },
         });
       }
@@ -287,7 +309,8 @@ export class RecordsService {
         after: {
           folio,
           patientCustomerId: paciente.id,
-          copiedGeneralDataFrom: anterior?.folio ?? null,
+          copiedFrom: anterior?.folio ?? null,
+          copiedSections: heredadas.map((s) => s.sectionKey),
         },
         ip: meta.ip,
         userAgent: meta.userAgent,
@@ -452,6 +475,14 @@ export function toDetail(fila: RecordRow, hoy: string): RecordDetail {
         status: guardada === undefined ? "pending" : "completed",
         data: guardada === undefined ? null : ((guardada.data ?? {}) as Record<string, unknown>),
         updatedAt: guardada?.updatedAt?.toISOString() ?? null,
+        carriedFrom:
+          guardada?.source === undefined || guardada.source === null
+            ? null
+            : {
+                recordId: guardada.source.id,
+                folio: guardada.source.folio,
+                consultationDate: fecha(guardada.source.consultationDate),
+              },
       };
     }),
     orders: fila.orders.map((o) => ({

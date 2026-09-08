@@ -202,7 +202,13 @@ function RecordGroupSection({
               : summaryOf(card.key, seccion?.data, t);
           return (
             <li key={card.key}>
-              <SectionCard card={card} recordId={recordId} status={status} summary={summary} />
+              <SectionCard
+                card={card}
+                recordId={recordId}
+                status={status}
+                summary={summary}
+                carriedFromDate={seccion?.carriedFrom?.consultationDate ?? null}
+              />
             </li>
           );
         })}

@@ -2247,6 +2247,8 @@ model MedicalClinicRecord {
   closer   User?                        @relation("MedicalRecordClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   sections MedicalClinicRecordSection[]
   orders   MedicalClinicOrder[]
+  /// F9-CLINIC-HC-05: las secciones que otros expedientes heredaron de este.
+  carriedSections MedicalClinicRecordSection[] @relation("MedicalSectionSource")
 
   @@unique([tenantId, folio])
   /// F9-CLINIC-27: además existe el UNIQUE PARCIAL
@@ -2263,23 +2265,31 @@ model MedicalClinicRecord {
 /// F9-CLINIC-03 — una fila por sección capturada. La forma de `data` la fija
 /// el schema zod de `MEDICAL_RECORD_SECTION_SCHEMAS` (shared); existe fila ⇔
 /// Completado. CASCADE: la sección es parte del expediente.
+///
+/// F9-CLINIC-HC-05: `source_record_id` dice de qué expediente se HEREDÓ la
+/// sección (los antecedentes son del paciente); el primer Guardar del médico
+/// lo deja en NULL. SET NULL si el origen se borra: los datos ya son de este
+/// expediente, solo se pierde la seña.
 model MedicalClinicRecordSection {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId   String   @map("tenant_id") @db.Uuid
-  recordId   String   @map("record_id") @db.Uuid
-  sectionKey String   @map("section_key") @db.VarChar(48)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  recordId       String   @map("record_id") @db.Uuid
+  sectionKey     String   @map("section_key") @db.VarChar(48)
   // CHECK (jsonb_typeof(data) = 'object').
-  data       Json     @default("{}")
-  updatedBy  String?  @map("updated_by") @db.Uuid
-  createdAt  DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  data           Json     @default("{}")
+  updatedBy      String?  @map("updated_by") @db.Uuid
+  sourceRecordId String?  @map("source_record_id") @db.Uuid
+  createdAt      DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant  Tenant              @relation(fields: [tenantId], references: [id])
-  record  MedicalClinicRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  updater User?               @relation("MedicalSectionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  tenant  Tenant               @relation(fields: [tenantId], references: [id])
+  record  MedicalClinicRecord  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  updater User?                @relation("MedicalSectionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  source  MedicalClinicRecord? @relation("MedicalSectionSource", fields: [sourceRecordId], references: [id], onDelete: SetNull)
 
   @@unique([recordId, sectionKey])
   @@index([tenantId])
+  @@index([sourceRecordId])
   @@map("medical_clinic_record_sections")
 }
 

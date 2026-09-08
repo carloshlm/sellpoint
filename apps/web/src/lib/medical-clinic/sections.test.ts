@@ -64,6 +64,7 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       status: "completed",
       data: null,
       updatedAt: null,
+      carriedFrom: null,
     });
     expect(sectionStatus(servidor, "allergies")).toBe("completed");
   });
