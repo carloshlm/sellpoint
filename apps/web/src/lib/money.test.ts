@@ -1,4 +1,4 @@
-import { moneyInitialValue, moneyInputError } from "./money";
+import { mismoImporte, moneyInitialValue, moneyInputError } from "./money";
 
 /**
  * La validación del formulario trabaja sobre el TEXTO del input, no sobre un
@@ -53,5 +53,25 @@ describe("moneyInitialValue", () => {
     expect(moneyInitialValue(null)).toBe("");
     expect(moneyInitialValue(undefined)).toBe("");
     expect(moneyInitialValue("")).toBe("");
+  });
+});
+
+describe("mismoImporte", () => {
+  it("el mismo número escrito de otra forma no es un cambio", () => {
+    expect(mismoImporte("6.00", "6")).toBe(true);
+    expect(mismoImporte("6", "6.00")).toBe(true);
+    expect(mismoImporte(" 6.0 ", "6")).toBe(true);
+  });
+
+  it("un importe distinto sí lo es", () => {
+    expect(mismoImporte("6.01", "6")).toBe(false);
+    expect(mismoImporte("7", "6")).toBe(false);
+  });
+
+  it("vacío y cero NO son lo mismo: uno es «sin capturar» y el otro «me cuesta $0»", () => {
+    expect(mismoImporte("", "0")).toBe(false);
+    expect(mismoImporte("0", "")).toBe(false);
+    expect(mismoImporte("", null)).toBe(true);
+    expect(mismoImporte("", "")).toBe(true);
   });
 });

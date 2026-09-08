@@ -6,14 +6,6 @@ import {
 } from "@sellpoint/shared";
 
 /**
- * Paso de los inputs de importe que todavía son `type="number"`: las flechitas
- * se mueven de a un centavo. Hoy lo usa solo el costo unitario de una línea de
- * documento de inventario; los catálogos pasaron a `MoneyField` (Carlos,
- * 2026-09-07), que no tiene flechitas ni necesita paso.
- */
-export const MONEY_STEP = "0.01";
-
-/**
  * ¿Qué le pasa a este importe? Devuelve la CLAVE i18n del problema, o `null` si
  * no hay ninguno.
  *
@@ -54,4 +46,26 @@ export function moneyInitialValue(value: string | null | undefined): string {
     return "";
   }
   return formatMoneyInput(value) ?? value;
+}
+
+/**
+ * ¿Estos dos textos son el MISMO importe? «6», «6.00» y « 6.0 » lo son; el
+ * campo vacío solo es igual a otro vacío.
+ *
+ * Existe porque un campo que se autoguarda compara lo tecleado contra lo
+ * guardado para decidir si hay algo que mandar, y desde que los importes se
+ * formatean al salir del campo, el TEXTO cambia sin que el importe cambie.
+ * Comparar cadenas ahí guardaría al abrir la pantalla y otra vez tras cada
+ * respuesta del API, que devuelve el decimal sin ceros de relleno.
+ *
+ * Vacío y cero NO son lo mismo, a propósito: vacío es «sin capturar» y cero
+ * es «me cuesta $0» — la distinción que el hint del producto ya explica.
+ */
+export function mismoImporte(a: string, b: string | null | undefined): boolean {
+  const izquierdo = a.trim();
+  const derecho = (b ?? "").trim();
+  if (izquierdo === "" || derecho === "") {
+    return izquierdo === derecho;
+  }
+  return Number(izquierdo) === Number(derecho);
 }

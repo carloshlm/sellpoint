@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
@@ -522,5 +522,140 @@ describe("el diálogo de confirmar habla en plural o singular", () => {
     await user.click(screen.getByRole("button", { name: /^confirmar$/i }));
 
     expect(screen.getByText(/^Se registrarán 2 líneas y el stock/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Carlos, 2026-09-08: «en las entradas por factura dale formato al Costo
+ * unitario como a los demás inputs de moneda». Es el único importe de la
+ * pantalla y el que alimenta el costo del inventario, así que va con la
+ * moneda del negocio a la vista y a dos decimales.
+ *
+ * Lo delicado es que esta línea se AUTOGUARDA con debounce: el campo formatea
+ * al salir, y un formateo NO es un cambio de importe. Si lo fuera, abrir un
+ * documento guardaría solo — y tras cada guardado el API devuelve «6», el
+ * campo mostraría «6.00», y el ciclo no pararía nunca.
+ */
+describe("Costo unitario de una entrada por factura (2026-09-08)", () => {
+  const conFactura = (unitCost: string | null) =>
+    detalle({
+      reasonCode: "invoice",
+      reference: "F001",
+      reasonNote: null,
+      rows: detalle().rows.map((fila) => ({ ...fila, unitCost })),
+    });
+
+  const campoCosto = () => screen.getByLabelText(/costo unitario/i);
+
+  it("muestra el símbolo y el código de la moneda del negocio", async () => {
+    mocked.getDocument.mockResolvedValue(conFactura("6"));
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    const caja = campoCosto().parentElement as HTMLElement;
+    expect(within(caja).getByText("$")).toBeInTheDocument();
+    expect(within(caja).getByText("MXN")).toBeInTheDocument();
+  });
+
+  it("abre a dos decimales lo que el API devuelve sin ceros («6» → «6.00»)", async () => {
+    mocked.getDocument.mockResolvedValue(conFactura("6"));
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    expect(campoCosto()).toHaveValue("6.00");
+  });
+
+  /**
+   * ⚠ EL QUE MÁS IMPORTA. Formatear no es editar: «6» y «6.00» son el mismo
+   * costo, y guardar por esa diferencia dispararía un PATCH al abrir cada
+   * documento y otro tras cada respuesta del API.
+   */
+  it("entrar y salir del campo sin cambiar el importe NO guarda nada", async () => {
+    const user = userEvent.setup();
+    mocked.getDocument.mockResolvedValue(conFactura("6"));
+    mocked.updateDocumentLine.mockResolvedValue({});
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    await user.click(campoCosto());
+    await user.tab();
+    // Y tampoco escribiendo el MISMO importe con otro texto.
+    await user.clear(campoCosto());
+    await user.type(campoCosto(), "6.00");
+
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+  });
+
+  it("cambiar el costo sí guarda, con el número", async () => {
+    const user = userEvent.setup();
+    mocked.getDocument.mockResolvedValue(conFactura("6"));
+    mocked.updateDocumentLine.mockResolvedValue({});
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    await user.clear(campoCosto());
+    await user.type(campoCosto(), "7.5");
+
+    await waitFor(
+      () => {
+        expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          expect.any(String),
+          expect.objectContaining({ unitCost: 7.5 }),
+        );
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  /**
+   * El campo pasó de `type="number"` a texto: ahora SÍ se pueden teclear
+   * letras o una coma. Guardarlas como `null` borraría el costo por una tecla
+   * mal puesta, en silencio. No se guarda nada y el campo queda marcado.
+   */
+  it("un texto que no es un importe no borra el costo: no llama al API y se marca", async () => {
+    const user = userEvent.setup();
+    mocked.getDocument.mockResolvedValue(conFactura("6"));
+    mocked.updateDocumentLine.mockResolvedValue({});
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    await user.clear(campoCosto());
+    await user.type(campoCosto(), "6,50");
+
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+    expect(campoCosto()).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("confirmado, el costo se LEE formateado: la columna no vuelve al decimal crudo", async () => {
+    mocked.getDocument.mockResolvedValue({ ...conFactura("6"), status: "confirmed" });
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    expect(screen.queryByLabelText(/costo unitario/i)).not.toBeInTheDocument();
+    expect(screen.getByText("$6.00")).toBeInTheDocument();
+  });
+
+  it("vaciar el costo SÍ lo borra: vacío es «sin capturar», y eso es un cambio real", async () => {
+    const user = userEvent.setup();
+    mocked.getDocument.mockResolvedValue(conFactura("6"));
+    mocked.updateDocumentLine.mockResolvedValue({});
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    await user.clear(campoCosto());
+
+    await waitFor(
+      () => {
+        expect(mocked.updateDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          expect.any(String),
+          expect.objectContaining({ unitCost: null }),
+        );
+      },
+      { timeout: 2000 },
+    );
   });
 });

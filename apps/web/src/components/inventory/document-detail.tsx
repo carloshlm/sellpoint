@@ -12,6 +12,8 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Money } from "@/components/common/money";
+import { MoneyInput } from "@/components/form/money-input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
@@ -27,7 +29,7 @@ import {
 } from "@/lib/inventory/hooks";
 import { useStock } from "@/lib/inventory/kardex-hooks";
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
-import { MONEY_STEP } from "@/lib/money";
+import { mismoImporte, moneyInitialValue, moneyInputError } from "@/lib/money";
 import { useAuthStore } from "@/stores/auth.store";
 import { AddLineForm } from "./add-line-form";
 import { CountPanel, CountSummary } from "./count-panel";
@@ -471,7 +473,8 @@ function LineRow({
   const [quantity, setQuantity] = useState(row.quantityInput ?? "");
   // Lo CONTADO: el dato que un inventario físico viene a capturar.
   const [counted, setCounted] = useState(row.counted ?? "");
-  const [unitCost, setUnitCost] = useState(row.unitCost ?? "");
+  // A dos decimales desde que abre: el API devuelve «6», no «6.00».
+  const [unitCost, setUnitCost] = useState(moneyInitialValue(row.unitCost));
   const [lotCode, setLotCode] = useState(row.lotCode ?? "");
   const [expiresAt, setExpiresAt] = useState(row.expiresAt?.slice(0, 10) ?? "");
   // La ubicación (pasillo, estante, rack). La línea NACE con la de la FICHA
@@ -481,6 +484,7 @@ function LineRow({
   const [location, setLocation] = useState(row.location ?? product?.location ?? "");
   const primeraCarga = useRef(true);
   const primeraCargaCosto = useRef(true);
+  const costoInvalido = moneyInputError(unitCost) !== null;
   const primeraCargaLote = useRef(true);
   const primeraCargaCaducidad = useRef(true);
   const primeraCargaUbicacion = useRef(true);
@@ -569,15 +573,24 @@ function LineRow({
       primeraCargaCosto.current = false;
       return;
     }
-    if (unitCost === (row.unitCost ?? "")) {
+    // Un texto que no es un importe NO se guarda: mandar `null` borraría el
+    // costo por una tecla mal puesta, y en silencio. Se queda en pantalla,
+    // marcado, hasta que se corrija. (Con `type="number"` esto era imposible;
+    // desde que el campo es texto con teclado decimal, sí puede pasar.)
+    if (costoInvalido) {
+      return;
+    }
+    // Por IMPORTE y no por texto: formatear no es editar. «6» y «6.00» son el
+    // mismo costo, y compararlos como cadenas guardaría al abrir el documento
+    // y otra vez tras cada respuesta del API —que devuelve «6»—, sin parar.
+    if (mismoImporte(unitCost, row.unitCost)) {
       return;
     }
     const timer = setTimeout(() => {
-      const parsed = unitCost.trim() === "" ? null : Number(unitCost);
-      guardarCosto.mutate(Number.isFinite(parsed) ? parsed : null);
+      guardarCosto.mutate(unitCost.trim() === "" ? null : Number(unitCost));
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [unitCost, row.unitCost, guardarCosto.mutate]);
+  }, [unitCost, row.unitCost, guardarCosto.mutate, costoInvalido]);
 
   useEffect(() => {
     if (primeraCargaLote.current) {
@@ -820,17 +833,18 @@ function LineRow({
               <label htmlFor={`line-${row.lineNo}-unit-cost`} className="sr-only">
                 {t("inventory.document.unitCost")}
               </label>
-              <input
+              <MoneyInput
                 id={`line-${row.lineNo}-unit-cost`}
-                type="number"
-                step={MONEY_STEP}
+                className="w-40"
+                aria-invalid={costoInvalido ? true : undefined}
                 value={unitCost}
-                onChange={(event) => setUnitCost(event.target.value)}
-                className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                onChange={setUnitCost}
               />
             </>
           ) : (
-            (row.unitCost ?? "—")
+            // Confirmado: se LEE, y se lee como se capturó — en la moneda del
+            // negocio y a dos decimales, no el decimal crudo del API.
+            <Money value={row.unitCost} />
           )}
         </td>
       )}
