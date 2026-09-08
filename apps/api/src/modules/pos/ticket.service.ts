@@ -73,7 +73,17 @@ export class TicketService {
         include: {
           items: { orderBy: { lineNo: "asc" } },
           taxes: { orderBy: { sortOrder: "asc" } },
-          warehouse: { select: { name: true, address: true, phone: true } },
+          warehouse: {
+            select: {
+              name: true,
+              address: true,
+              addressLine2: true,
+              city: true,
+              region: true,
+              postalCode: true,
+              phone: true,
+            },
+          },
           seller: { select: { firstName: true, lastName: true } },
         },
       });
@@ -88,6 +98,11 @@ export class TicketService {
           legalName: true,
           taxId: true,
           address: true,
+          addressLine2: true,
+          city: true,
+          region: true,
+          postalCode: true,
+          country: true,
           phone: true,
           currency: true,
         },
@@ -124,7 +139,7 @@ export class TicketService {
         },
         // El contacto del ALMACÉN con fallback al negocio (2026-08-26): la
         // regla vive en ticketHeaderContact, el renderer solo pinta.
-        header: ticketHeaderContact(tenant, venta.warehouse),
+        header: ticketHeaderContact(tenant, venta.warehouse, tenant.country),
         kind: "sale" as const,
         folio: venta.folio,
         barcode: venta.barcode,
@@ -174,7 +189,17 @@ export class TicketService {
         include: {
           lines: { orderBy: { lineNo: "asc" } },
           taxes: { orderBy: { sortOrder: "asc" } },
-          warehouse: { select: { name: true, address: true, phone: true } },
+          warehouse: {
+            select: {
+              name: true,
+              address: true,
+              addressLine2: true,
+              city: true,
+              region: true,
+              postalCode: true,
+              phone: true,
+            },
+          },
           author: { select: { firstName: true, lastName: true } },
         },
       });
@@ -189,6 +214,11 @@ export class TicketService {
           legalName: true,
           taxId: true,
           address: true,
+          addressLine2: true,
+          city: true,
+          region: true,
+          postalCode: true,
+          country: true,
           phone: true,
           currency: true,
         },
@@ -211,7 +241,7 @@ export class TicketService {
           legalName: tenant.legalName,
           taxId: tenant.taxId,
         },
-        header: ticketHeaderContact(tenant, cotizacion.warehouse),
+        header: ticketHeaderContact(tenant, cotizacion.warehouse, tenant.country),
         kind: "quote" as const,
         folio: cotizacion.folio,
         createdAt: cotizacion.createdAt,

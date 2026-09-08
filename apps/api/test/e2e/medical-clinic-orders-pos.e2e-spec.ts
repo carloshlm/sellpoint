@@ -252,6 +252,29 @@ describe("Consultorio Médico — órdenes y caja (F9-CLINIC-20)", () => {
       })
       .expect(200);
     expect(textoDelPdf(conDireccion.body as Buffer)).toContain("Calle Falsa 123");
+    // F1-ADDR-07: con la dirección completa, la carta la imprime en el orden
+    // de su país — en México el código postal va ANTES de la ciudad y el
+    // estado sale por nombre. Con el formato genérico el CP iría al final.
+    await request(app.getHttpServer())
+      .patch("/tenants/me")
+      .set("Authorization", bearer(negocio.token))
+      .send({
+        country: "MX",
+        addressLine2: "Col. Centro",
+        city: "Ciudad de México",
+        region: "CMX",
+        postalCode: "06000",
+      })
+      .expect(200);
+    const completa = await get(negocio.token, `/medical-clinic/orders/${orden.id}/document`)
+      .buffer(true)
+      .parse((res, callback) => {
+        const trozos: Buffer[] = [];
+        res.on("data", (trozo: Buffer) => trozos.push(trozo));
+        res.on("end", () => callback(null, Buffer.concat(trozos)));
+      })
+      .expect(200);
+    expect(textoDelPdf(completa.body as Buffer)).toContain("Col. Centro, 06000 Ciudad de México");
     await request(app.getHttpServer())
       .put("/tenants/me/ticket-settings")
       .set("Authorization", bearer(negocio.token))

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { ageFromBirthDate, shortName } from "@sellpoint/shared";
+import { ageFromBirthDate, formatAddress, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -45,14 +45,31 @@ export class MedicalOrderPdfService {
       }
       const tenant = await tx.tenant.findUniqueOrThrow({
         where: { id: user.tenantId },
-        select: { name: true, legalName: true, address: true, phone: true, timezone: true },
+        select: {
+          name: true,
+          legalName: true,
+          address: true,
+          addressLine2: true,
+          city: true,
+          region: true,
+          postalCode: true,
+          country: true,
+          phone: true,
+          timezone: true,
+        },
       });
       const consulta = orden.record.consultationDate.toISOString().slice(0, 10);
       const nacimiento = orden.record.patientBirthDate?.toISOString().slice(0, 10) ?? null;
       const { settings } = await this.ticketSettings.leer(tx, user.tenantId);
       return {
         tenant: {
-          ...tenant,
+          name: tenant.name,
+          legalName: tenant.legalName,
+          // F1-ADDR-07: la dirección en una línea, en el orden de su país; con
+          // solo la línea 1 es idéntica a la de siempre.
+          address: direccionEnLinea(tenant),
+          phone: tenant.phone,
+          timezone: tenant.timezone,
           showBusinessName: settings.showBusinessName,
           showAddress: settings.showAddress,
           showPhone: settings.showPhone,
@@ -92,4 +109,25 @@ export class MedicalOrderPdfService {
     });
     return { body, filename: `${input.order.folio}.pdf` };
   }
+}
+
+function direccionEnLinea(tenant: {
+  address: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+  country: string | null;
+}): string | null {
+  const linea = formatAddress(
+    {
+      line1: tenant.address,
+      line2: tenant.addressLine2,
+      city: tenant.city,
+      region: tenant.region,
+      postalCode: tenant.postalCode,
+    },
+    tenant.country,
+  );
+  return linea === "" ? null : linea;
 }
