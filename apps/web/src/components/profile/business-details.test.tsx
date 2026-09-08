@@ -72,7 +72,7 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
     expect(screen.getByLabelText("Nombre del negocio")).toHaveValue("Acme");
     expect(screen.getByLabelText("Nombre legal")).toHaveValue("Acme SA de CV");
     expect(screen.getByLabelText("Identificación fiscal")).toHaveValue("ACM010101AAA");
-    expect(screen.getByLabelText("Dirección")).toHaveValue("Av. Siempre Viva 123");
+    expect(screen.getByLabelText("Calle y número")).toHaveValue("Av. Siempre Viva 123");
   });
 
   /**
@@ -251,7 +251,7 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
 
       const country = screen.getByTestId("business-country");
       const name = screen.getByLabelText("Nombre del negocio");
-      const address = screen.getByLabelText("Dirección");
+      const address = screen.getByLabelText("Calle y número");
       const timezone = screen.getByLabelText("Zona horaria");
 
       // DOCUMENT_POSITION_FOLLOWING = el argumento está DESPUÉS del receptor.
@@ -316,8 +316,8 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
     mockedUpdate.mockResolvedValue(demoUser(["tenants:manage"]).tenant);
     renderCard(demoUser(["tenants:manage"]));
 
-    await user.clear(screen.getByLabelText("Dirección"));
-    await user.type(screen.getByLabelText("Dirección"), "Calle Nueva 456");
+    await user.clear(screen.getByLabelText("Calle y número"));
+    await user.type(screen.getByLabelText("Calle y número"), "Calle Nueva 456");
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     // Sobre el PRIMER argumento: React Query le pasa al `mutationFn` un
@@ -392,6 +392,97 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
       expect(toggle).toBeDisabled();
       expect(screen.getByText(/incluido en tu plan/i)).toBeInTheDocument();
       expect(mockedUpdate).not.toHaveBeenCalled();
+    });
+  });
+});
+
+/**
+ * F1-ADDR-06 — la dirección estructurada en Mi perfil: se completa sin
+ * obligar (un negocio existente no se traba), solo viaja lo tocado, vacío
+ * borra, y la región fiscal de Canadá y Estados Unidos tiene un solo dueño.
+ */
+describe("Datos del negocio — dirección por país (F1-ADDR-06)", () => {
+  it("un negocio con solo texto libre abre con la línea 1 llena y lo demás vacío, y guardar otra cosa NO manda la dirección", async () => {
+    const user = userEvent.setup();
+    mockedUpdate.mockResolvedValue(demoUser(["tenants:manage"]).tenant);
+    renderCard(demoUser(["tenants:manage"]));
+
+    expect(screen.getByLabelText("Calle y número")).toHaveValue("Av. Siempre Viva 123");
+    expect(screen.getByLabelText("Colonia")).toHaveValue("");
+    expect(screen.getByLabelText("Código postal")).toHaveValue("");
+    expect(screen.getByLabelText("Ciudad o municipio")).toHaveValue("");
+
+    await user.clear(screen.getByLabelText("Nombre legal"));
+    await user.type(screen.getByLabelText("Nombre legal"), "Acme Nueva SA");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    // La ley del dato: lo que no se tocó no viaja — un campo escondido o
+    // vacío que viajara en null borraría la dirección en cada guardado.
+    await waitFor(() => {
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ legalName: "Acme Nueva SA" });
+    });
+  });
+
+  it("completar el CP y el estado manda exactamente esos dos, normalizados", async () => {
+    const user = userEvent.setup();
+    mockedUpdate.mockResolvedValue(demoUser(["tenants:manage"]).tenant);
+    renderCard(demoUser(["tenants:manage"]));
+
+    await user.type(screen.getByLabelText("Código postal"), " 44100 ");
+    await user.selectOptions(screen.getByLabelText("Estado"), "JAL");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => {
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ region: "JAL", postalCode: "44100" });
+    });
+  });
+
+  it("un CP que no cumple la regla del país se marca y no se guarda", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+
+    await user.type(screen.getByLabelText("Código postal"), "4410");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(
+      await screen.findByText(/código postal válido para tu país, como 02860/),
+    ).toBeInTheDocument();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+  });
+
+  it("vaciar la colonia BORRA: manda null, no cadena vacía", async () => {
+    const user = userEvent.setup();
+    const conColonia = demoUser(["tenants:manage"]);
+    conColonia.tenant = { ...conColonia.tenant, addressLine2: "Col. Centro" };
+    mockedUpdate.mockResolvedValue(conColonia.tenant);
+    renderCard(conColonia);
+
+    await user.clear(screen.getByLabelText("Colonia"));
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => {
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ addressLine2: null });
+    });
+  });
+
+  it("Canadá: la provincia se ve pero no se edita acá (es fiscal), y nunca viaja en el PATCH", async () => {
+    const user = userEvent.setup();
+    const canadiense = demoUser(["tenants:manage"]);
+    canadiense.tenant = { ...canadiense.tenant, country: "CA", region: "ON", phone: null };
+    mockedUpdate.mockResolvedValue(canadiense.tenant);
+    renderCard(canadiense);
+
+    const provincia = screen.getByRole("combobox", { name: "Provincia o territorio" });
+    expect(provincia).toBeDisabled();
+    expect(provincia).toHaveValue("ON");
+    expect(screen.getByText(/Se cambia en Impuestos/)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Toronto");
+    await user.type(screen.getByLabelText("Código postal"), "m5v3l9");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => {
+      expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ city: "Toronto", postalCode: "M5V 3L9" });
     });
   });
 });

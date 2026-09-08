@@ -92,6 +92,14 @@ export const businessDetailsSchema = z
     legalName: requiredString,
     taxId: requiredString,
     address: requiredString,
+    // F1-ADDR-06: la dirección estructurada, OPCIONAL acá — un negocio que ya
+    // existe no se traba por lo que no capturó; solo el wizard obliga. El
+    // país viaja en el form SOLO para validar el CP (no se edita ni se manda).
+    country: z.string(),
+    addressLine2: z.string(),
+    city: z.string(),
+    region: z.string(),
+    postalCode: z.string(),
     // Zona horaria editable (Carlos, 2026-08-26): los negocios se mudan
     // dentro de su país. El PAÍS no está a propósito — quedó fijo el mismo
     // día que nació editable: los impuestos por país del roadmap dependerán
@@ -106,6 +114,16 @@ export const businessDetailsSchema = z
     monthlySalesGoal: z.string(),
   })
   .superRefine((values, ctx) => {
+    if (
+      values.postalCode.trim() !== "" &&
+      !isPostalCode(values.country || null, values.postalCode)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["postalCode"],
+        message: "common.address.postalCodeInvalid",
+      });
+    }
     const meta = values.monthlySalesGoal.trim().replace(",", ".");
     if (meta !== "") {
       const numero = Number(meta);

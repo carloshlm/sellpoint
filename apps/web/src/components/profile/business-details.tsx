@@ -3,11 +3,15 @@ import {
   COUNTRY_DIAL_CODES,
   type CountryCode,
   ISO_COUNTRY_CODES,
+  needsRegion,
+  normalizePostalCode,
+  resolveAddressFormat,
   splitE164,
 } from "@sellpoint/shared";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { AddressFields } from "@/components/form/address-fields";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
@@ -19,7 +23,11 @@ import type { ApiError } from "@/lib/api";
 import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
 import { getCuratedTimezones, resolveCountryTimezones } from "@/lib/tenant/markets";
-import { type BusinessDetailsValues, businessDetailsSchema } from "@/lib/tenant/schemas";
+import {
+  ADDRESS_FORM_FIELD,
+  type BusinessDetailsValues,
+  businessDetailsSchema,
+} from "@/lib/tenant/schemas";
 import type { AuthUser } from "@/stores/auth.store";
 
 /**
@@ -82,6 +90,8 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isDirty, dirtyFields },
   } = useForm<BusinessDetailsValues>({
     resolver: zodResolver(businessDetailsSchema),
@@ -90,6 +100,11 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       legalName: user.tenant.legalName ?? "",
       taxId: user.tenant.taxId ?? "",
       address: user.tenant.address ?? "",
+      country: user.tenant.country ?? "",
+      addressLine2: user.tenant.addressLine2 ?? "",
+      city: user.tenant.city ?? "",
+      region: user.tenant.region ?? "",
+      postalCode: user.tenant.postalCode ?? "",
       timezone: user.tenant.timezone,
       monthlySalesGoal: user.tenant.monthlySalesGoal ?? "",
       ...phoneFormDefaults(user.tenant),
@@ -134,6 +149,10 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     return null;
   }
 
+  const addressFormat = resolveAddressFormat(user.tenant.country);
+  const errorDeDireccion = (message: string | undefined) =>
+    message ? t(message, { example: addressFormat.postalCodeExample ?? "" }) : undefined;
+
   const onSubmit = handleSubmit((values) => {
     setApiError(null);
     setSucceeded(false);
@@ -144,6 +163,18 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     if (dirtyFields.legalName) patch.legalName = values.legalName.trim();
     if (dirtyFields.taxId) patch.taxId = values.taxId.trim();
     if (dirtyFields.address) patch.address = values.address.trim();
+    // F1-ADDR-06: solo lo TOCADO viaja, y vacío BORRA (null) — un campo que
+    // viajara siempre borraría la dirección en cada guardado de otra cosa.
+    // La región de Canadá y Estados Unidos es fiscal y se cambia en
+    // Impuestos: acá está bloqueada y jamás entra al PATCH.
+    if (dirtyFields.addressLine2) patch.addressLine2 = values.addressLine2.trim() || null;
+    if (dirtyFields.city) patch.city = values.city.trim() || null;
+    if (dirtyFields.postalCode) {
+      patch.postalCode = normalizePostalCode(user.tenant.country, values.postalCode) || null;
+    }
+    if (dirtyFields.region && !needsRegion(user.tenant.country)) {
+      patch.region = values.region || null;
+    }
     if (dirtyFields.monthlySalesGoal) {
       // Vacío BORRA (null) — mismo criterio que phone: capturar la meta una
       // vez no la vuelve obligatoria. La coma decimal se normaliza a punto.
@@ -236,11 +267,27 @@ function BusinessDetails({ user }: { user: AuthUser }) {
             error={errors.taxId?.message ? t(errors.taxId.message) : undefined}
             {...register("taxId")}
           />
-          <TextField
-            label={t("common.profile.business.address")}
-            autoComplete="street-address"
-            error={errors.address?.message ? t(errors.address.message) : undefined}
-            {...register("address")}
+          {/* F1-ADDR-06: la dirección en los campos del país del negocio. */}
+          <AddressFields
+            country={user.tenant.country}
+            value={{
+              line1: watch("address"),
+              line2: watch("addressLine2"),
+              city: watch("city"),
+              region: watch("region"),
+              postalCode: watch("postalCode"),
+            }}
+            onChange={(field, next) =>
+              setValue(ADDRESS_FORM_FIELD[field], next, { shouldValidate: true, shouldDirty: true })
+            }
+            errors={{
+              line1: errorDeDireccion(errors.address?.message),
+              line2: errorDeDireccion(errors.addressLine2?.message),
+              city: errorDeDireccion(errors.city?.message),
+              region: errorDeDireccion(errors.region?.message),
+              postalCode: errorDeDireccion(errors.postalCode?.message),
+            }}
+            regionLocked={needsRegion(user.tenant.country)}
           />
           <TextField
             label={t("common.profile.business.monthlySalesGoal")}
