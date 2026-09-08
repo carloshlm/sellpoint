@@ -84,7 +84,10 @@ export const GENERIC_ADDRESS_FORMAT: AddressFormat = {
   postalCodePattern: null,
   postalCodeExample: null,
   required: ["line1"],
-  fmt: "%A%n%D%n%C",
+  // Google no dibuja el CP en su formato por omisión; acá sí hay dónde
+  // escribirlo (sin regla), porque un negocio de un país no curado también
+  // tiene código postal.
+  fmt: "%A%n%D%n%C%n%Z",
 };
 
 /** Los 26 países curados (`TAX_CURATED_COUNTRIES`), generados desde el catálogo de Google. */

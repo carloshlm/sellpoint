@@ -486,6 +486,25 @@
     "monthPlaceholder": "Month",
     "format": "Day · Month · Year"
   },
+  "address": {
+    "line1": "Street address",
+    "line2": {
+      "neighborhood": "Neighborhood",
+      "unit": "Apt, suite or unit (optional)"
+    },
+    "city": "City",
+    "region": {
+      "state": "State",
+      "province": "Province or territory",
+      "placeholder": "Choose one"
+    },
+    "postalCode": {
+      "postalCode": "Postal code",
+      "zip": "ZIP code"
+    },
+    "postalCodeInvalid": "Enter a valid postal code for your country, like {{example}}",
+    "regionLockedHint": "Change it under Taxes: your sales tax rates come from it."
+  },
   "tax": {
     "selectLabel": "Tax",
     "selectDefault": "Business default ({{name}})",

@@ -486,6 +486,25 @@
     "monthPlaceholder": "Mes",
     "format": "Día · Mes · Año"
   },
+  "address": {
+    "line1": "Calle y número",
+    "line2": {
+      "neighborhood": "Colonia",
+      "unit": "Interior, departamento o unidad (opcional)"
+    },
+    "city": "Ciudad o municipio",
+    "region": {
+      "state": "Estado",
+      "province": "Provincia o territorio",
+      "placeholder": "Elige uno"
+    },
+    "postalCode": {
+      "postalCode": "Código postal",
+      "zip": "Código postal"
+    },
+    "postalCodeInvalid": "Escribe un código postal válido para tu país, como {{example}}",
+    "regionLockedHint": "Se cambia en Impuestos: de ahí salen tus tasas de venta."
+  },
   "tax": {
     "selectLabel": "Impuesto",
     "selectDefault": "Predeterminado del negocio ({{name}})",
