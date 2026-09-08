@@ -156,7 +156,9 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     expect(await screen.findByText("Corte de cabello")).toBeInTheDocument();
     const fila = screen.getByText("Corte de cabello").closest("tr") as HTMLElement;
     expect(within(fila).getByText("CORTE")).toBeInTheDocument();
-    expect(within(fila).getByText("150")).toBeInTheDocument();
+    // Formateado en la moneda del negocio (Carlos, 2026-09-07): si el campo de
+    // captura dice «150.00», el listado no puede decir «150».
+    expect(within(fila).getByText("$150.00")).toBeInTheDocument();
   });
 
   it("crear un servicio manda código, nombre y precio", async () => {
@@ -186,6 +188,39 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
         expect.anything(),
       );
     });
+  });
+
+  /**
+   * Carlos, 2026-09-07: el campo pasó de `type="number"` a texto con teclado
+   * decimal. Sin el number que frenaba las letras, el formulario tiene que
+   * marcar lo que no es un importe —antes una coma llegaba al API como NaN y
+   * volvía un 422 sin decir qué campo— y dejar el importe a dos decimales.
+   */
+  it("un importe con coma o con tres decimales se marca y bloquea Guardar; al corregirlo queda a dos decimales", async () => {
+    const user = userEvent.setup();
+    await renderServices();
+    await screen.findByText("Corte de cabello");
+
+    await user.click(screen.getByRole("button", { name: "Nuevo servicio" }));
+    await user.type(screen.getByLabelText("Código"), "TINTE");
+    await user.type(screen.getByLabelText("Nombre"), "Tinte");
+    const precio = screen.getByLabelText("Precio de venta");
+
+    await user.type(precio, "5,99");
+    expect(screen.getByText(/punto decimal/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+
+    await user.clear(precio);
+    await user.type(precio, "5.999");
+    expect(screen.getByText(/2 decimales/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+
+    await user.clear(precio);
+    await user.type(precio, "6");
+    await user.tab();
+    expect(precio).toHaveValue("6.00");
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
+    expect(mockedApi.createService).not.toHaveBeenCalled();
   });
 
   it("desactivar manda isActive:false y no borra nada", async () => {

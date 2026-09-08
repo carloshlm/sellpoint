@@ -166,6 +166,29 @@ describe.each([
     );
   });
 
+  // Mismo criterio que servicios (Carlos, 2026-09-07): el campo ya es texto
+  // con teclado decimal, así que lo que no es un importe se marca acá y no
+  // en un 422 del API; y al salir del campo queda a dos decimales.
+  it("un costo con coma se marca y bloquea Guardar; al corregirlo queda a dos decimales", async () => {
+    await renderRuta(path, ["medical_clinic:read", "medical_clinic:manage"]);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Agregar" }));
+    await user.type(screen.getByLabelText("Código"), "RX");
+    await user.type(screen.getByLabelText("Nombre"), "Rayos X de tórax");
+    const costo = screen.getByLabelText("Costo");
+
+    await user.type(costo, "1,500");
+    expect(screen.getByText(/punto decimal/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+
+    await user.clear(costo);
+    await user.type(costo, "1500");
+    await user.tab();
+    expect(costo).toHaveValue("1500.00");
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
+    expect(mocked.createStudy).not.toHaveBeenCalled();
+  });
+
   it("borrar pide confirmación y solo entonces llama al API", async () => {
     await renderRuta(path, ["medical_clinic:read", "medical_clinic:manage"]);
     const user = userEvent.setup();

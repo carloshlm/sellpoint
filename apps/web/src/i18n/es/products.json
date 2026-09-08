@@ -11,6 +11,7 @@
   "inactiveBadge": "Inactivo",
   "viewOf": "Ver {{name}}",
   "too_many_decimals": "El importe admite como máximo 2 decimales.",
+  "invalid_amount": "Escribe el importe solo con números y punto decimal, como 150.00",
   "composition_cycle": "Esa relación forma un ciclo: uno de los productos terminaría llevándose a sí mismo. Quita la composición inversa antes de agregar esta.",
   "availableUnits": "Alcanza para",
   "pagination": "{{total}} productos",

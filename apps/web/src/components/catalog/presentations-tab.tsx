@@ -2,6 +2,8 @@ import { unitName } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Money } from "@/components/common/money";
+import { MoneyInput } from "@/components/form/money-input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -17,13 +19,13 @@ import {
 } from "@/components/ui/table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import type { ApiError } from "@/lib/api";
+import { moneyInitialValue, moneyInputError } from "@/lib/money";
 import type { Presentation } from "@/lib/products/api";
 import {
   useCreatePresentation,
   useDeletePresentation,
   useUpdatePresentation,
 } from "@/lib/products/hooks";
-import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 
 interface PresentationsTabProps {
   productId: string;
@@ -193,7 +195,9 @@ function PresentationsTab({
                   />
                 </TableCell>
                 <TableCell>{presentation.barcode ?? "—"}</TableCell>
-                <TableCell>{presentation.price ?? "—"}</TableCell>
+                <TableCell>
+                  <Money value={presentation.price} />
+                </TableCell>
                 {canManage && (
                   <TableCell className="text-right whitespace-nowrap">
                     {/* EDITAR queda disponible incluso en la predeterminada: es
@@ -315,11 +319,11 @@ function EditPresentationRow({
   const [name, setName] = useState(presentation.name);
   const [factor, setFactor] = useState(presentation.factor);
   const [barcode, setBarcode] = useState(presentation.barcode ?? "");
-  const [price, setPrice] = useState(presentation.price ?? "");
+  const [price, setPrice] = useState(moneyInitialValue(presentation.price));
   const updatePresentation = useUpdatePresentation(productId);
 
   const factorValue = Number(factor);
-  const priceError = moneyScaleError(price);
+  const priceError = moneyInputError(price);
   const canSubmit = name.trim().length > 0 && factorValue > 0 && !priceError;
 
   function save() {
@@ -368,13 +372,11 @@ function EditPresentationRow({
         />
       </TableCell>
       <TableCell>
-        <Input
+        <MoneyInput
           aria-label={t("products.presentations.price")}
-          type="number"
-          step={MONEY_STEP}
           aria-invalid={priceError ? true : undefined}
           value={price}
-          onChange={(event) => setPrice(event.target.value)}
+          onChange={setPrice}
         />
       </TableCell>
       <TableCell className="text-right whitespace-nowrap">
@@ -408,7 +410,7 @@ function NewPresentationRow({
   const factorValue = Number(factor);
   // El precio de una presentación va a la MISMA columna `DECIMAL(14,2)` que el
   // del producto: misma regla, misma barrera antes de mandar.
-  const priceError = moneyScaleError(price);
+  const priceError = moneyInputError(price);
   const canSubmit = name.trim().length > 0 && factorValue > 0 && !priceError;
 
   return (
@@ -455,13 +457,11 @@ function NewPresentationRow({
       </div>
       <div className="flex flex-col gap-1 text-xs">
         <Label htmlFor="new-presentation-price">{t("products.presentations.price")}</Label>
-        <Input
+        <MoneyInput
           id="new-presentation-price"
-          type="number"
-          step={MONEY_STEP}
           aria-invalid={priceError ? true : undefined}
           value={price}
-          onChange={(event) => setPrice(event.target.value)}
+          onChange={setPrice}
         />
         {priceError && (
           <p role="alert" className="text-destructive">

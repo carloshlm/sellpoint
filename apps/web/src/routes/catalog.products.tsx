@@ -10,6 +10,8 @@ import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { PresentationsTab } from "@/components/catalog/presentations-tab";
 import { ProductImportDialog } from "@/components/catalog/product-import-dialog";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Money } from "@/components/common/money";
+import { MoneyField } from "@/components/form/money-field";
 import { SelectField } from "@/components/form/select-field";
 import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
@@ -37,6 +39,7 @@ import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
 import { fieldErrorsOf } from "@/lib/field-errors";
+import { moneyInitialValue, moneyInputError } from "@/lib/money";
 import type { ProductDetail } from "@/lib/products/api";
 import {
   useAvailability,
@@ -46,7 +49,6 @@ import {
   useProducts,
   useUpdateProduct,
 } from "@/lib/products/hooks";
-import { MONEY_STEP, moneyScaleError } from "@/lib/products/money";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -264,7 +266,9 @@ function ProductsContent() {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>{product.price ?? "—"}</TableCell>
+                  <TableCell>
+                    <Money value={product.price} />
+                  </TableCell>
                   {onlyComposite && <AvailabilityCell productId={product.id} />}
                   <TableCell className="text-right">
                     {/* «Ver» y no «Editar» (Carlos, 2026-08-31): el enlace abre
@@ -500,9 +504,9 @@ function ProductForm({
   const usaUbicaciones = useAuthStore((state) => state.user?.tenant?.usesLocations === true);
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
-  const [price, setPrice] = useState(basePresentation?.price ?? "");
+  const [price, setPrice] = useState(moneyInitialValue(basePresentation?.price));
   const [taxGroupId, setTaxGroupId] = useState<string | null>(product?.taxGroupId ?? null);
-  const [cost, setCost] = useState(basePresentation?.cost ?? "");
+  const [cost, setCost] = useState(moneyInitialValue(basePresentation?.cost));
   // Sale de la presentación base, igual que el precio: `barcode` no es columna
   // de `products` —la caja de 12 y la pieza suelta llevan códigos distintos—
   // pero el usuario lo ve como «el código del producto» y lo carga acá mismo,
@@ -530,8 +534,8 @@ function ProductForm({
   // llenar todo el formulario, es la peor forma de enterarse.
   // La clave la elige el helper: hay dos motivos distintos por los que un
   // importe no entra y el texto tiene que decir cuál.
-  const priceErrorKey = moneyScaleError(price);
-  const costErrorKey = moneyScaleError(cost);
+  const priceErrorKey = moneyInputError(price);
+  const costErrorKey = moneyInputError(cost);
   const priceError = priceErrorKey ? t(priceErrorKey) : undefined;
   const costError = costErrorKey ? t(costErrorKey) : undefined;
 
@@ -663,25 +667,21 @@ function ProductForm({
 
       {/* Costo y precio editan la presentación base: el usuario los ve como
           "el costo y el precio del producto" y los carga acá mismo. */}
-      <TextField
+      <MoneyField
         label={t("products.form.cost")}
-        type="number"
-        step={MONEY_STEP}
         hint={t("products.form.costHint")}
         error={costError}
         value={cost}
         disabled={!canManage}
-        onChange={(event) => setCost(event.target.value)}
+        onChange={setCost}
       />
-      <TextField
+      <MoneyField
         label={t("products.form.price")}
-        type="number"
-        step={MONEY_STEP}
         hint={t("products.form.priceHint")}
         error={priceError}
         value={price}
         disabled={!canManage}
-        onChange={(event) => setPrice(event.target.value)}
+        onChange={setPrice}
       />
       <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} disabled={!canManage} />
       <TextField

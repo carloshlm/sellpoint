@@ -56,6 +56,68 @@ export function hasValidMoneyScale(amount: number): boolean {
 }
 
 /**
+ * Lo que un campo de importe acepta tecleado: dígitos con a lo sumo UN punto
+ * decimal (`150`, `5.9`, `15.`, `.5`). Lo demás es null.
+ *
+ * ── Por qué no `Number(raw)` ────────────────────────────────────────────
+ *
+ * `Number` acepta en silencio `"1e3"`, `"0x10"`, `"Infinity"` y `"-5"`: nada
+ * de eso es un precio que alguien haya querido escribir. Y sobre todo acepta
+ * la coma como NaN a secas, sin distinguirla del texto basura.
+ *
+ * ── La coma se RECHAZA, no se interpreta ────────────────────────────────
+ *
+ * `"1,500"` es mil quinientos para un mexicano y uno con cincuenta para un
+ * español, y el sistema formatea en `es-MX` para los dos (ver
+ * `localeToBcp47`). Adivinar mal guarda un precio mil veces menor en un
+ * punto de venta, y nadie lo nota hasta que se cobra. Rechazarla con un
+ * mensaje que enseña el formato cuesta una tecla y no esconde nada.
+ *
+ * Vacío (o solo espacios) es «sin importe»: también null, y el llamador decide
+ * si eso es un campo opcional o un error.
+ */
+export function parseMoneyInput(raw: string): number | null {
+  const texto = raw.trim();
+  if (!/^(\d+\.?\d*|\.\d+)$/.test(texto)) {
+    return null;
+  }
+  return Number(texto);
+}
+
+/**
+ * El texto que el campo muestra al perder el foco: el importe completado a
+ * `MONEY_DECIMALS` decimales (`"6"` → `"6.00"`, `"5.9"` → `"5.90"`).
+ *
+ * Devuelve null cuando no hay nada que formatear —vacío, coma, texto— y
+ * también cuando el importe NO CABE en la columna (tres decimales o
+ * magnitud): ese número no se aproxima, se le muestra el error al usuario
+ * para que lo corrija. Por eso `toFixed` acá es exacto: solo se aplica a
+ * valores que `hasValidMoneyScale` ya aprobó, y para esos no hay redondeo.
+ */
+export function formatMoneyInput(raw: string): string | null {
+  const importe = parseMoneyInput(raw);
+  if (importe === null || !hasValidMoneyScale(importe)) {
+    return null;
+  }
+  return importe.toFixed(MONEY_DECIMALS);
+}
+
+/**
+ * El símbolo corto de una moneda (`"$"`, `"€"`, `"£"`) para usarlo como
+ * prefijo de un campo de importe. Corto a propósito (`narrowSymbol`): el
+ * campo lleva el código ISO como sufijo, y ese es el que desambigua los tres
+ * dólares — un prefijo largo como «MX$» lo diría dos veces.
+ */
+export function currencySymbol(currency: Currency, locale: Locale = DEFAULT_LOCALE): string {
+  const partes = new Intl.NumberFormat(localeToBcp47(locale), {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+  }).formatToParts(0);
+  return partes.find((parte) => parte.type === "currency")?.value ?? currency;
+}
+
+/**
  * Formats a monetary amount for display (presentation-only helper).
  *
  * Uses `Intl.NumberFormat` with `currencyDisplay: "symbol"` (the default):

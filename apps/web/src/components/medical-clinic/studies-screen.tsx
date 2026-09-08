@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Money } from "@/components/common/money";
 import { StudyForm } from "@/components/medical-clinic/study-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -146,8 +147,12 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
               <TableRow key={study.id} data-testid={`study-${study.id}`}>
                 <TableCell className="px-2 font-mono">{study.code}</TableCell>
                 <TableCell className="px-2 font-medium">{study.name}</TableCell>
-                <TableCell className="px-2 tabular-nums">{study.cost ?? "—"}</TableCell>
-                <TableCell className="px-2 tabular-nums">{study.price ?? "—"}</TableCell>
+                <TableCell className="px-2 tabular-nums">
+                  <Money value={study.cost} />
+                </TableCell>
+                <TableCell className="px-2 tabular-nums">
+                  <Money value={study.price} />
+                </TableCell>
                 <TableCell className="px-2">
                   <Badge variant={study.isActive ? "success" : "default"}>
                     {t(

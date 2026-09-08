@@ -6,6 +6,8 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { Money } from "@/components/common/money";
+import { MoneyField } from "@/components/form/money-field";
 import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -30,6 +32,7 @@ import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
+import { moneyInitialValue, moneyInputError } from "@/lib/money";
 import type { Service } from "@/lib/services/api";
 import {
   useCreateService,
@@ -180,8 +183,12 @@ function ServicesContent() {
               <TableRow key={service.id} data-testid={`service-${service.id}`}>
                 <TableCell className="px-2 font-mono">{service.code}</TableCell>
                 <TableCell className="px-2 font-medium">{service.name}</TableCell>
-                <TableCell className="px-2">{service.cost ?? "—"}</TableCell>
-                <TableCell className="px-2">{service.price ?? "—"}</TableCell>
+                <TableCell className="px-2">
+                  <Money value={service.cost} />
+                </TableCell>
+                <TableCell className="px-2">
+                  <Money value={service.price} />
+                </TableCell>
                 <TableCell className="px-2">
                   {t("services.warehouses.count", {
                     count: service.warehouseIds.length,
@@ -277,8 +284,8 @@ function ServiceForm({
   const [code, setCode] = useState(service?.code ?? "");
   const [name, setName] = useState(service?.name ?? "");
   const [description, setDescription] = useState(service?.description ?? "");
-  const [cost, setCost] = useState(service?.cost ?? "");
-  const [price, setPrice] = useState(service?.price ?? "");
+  const [cost, setCost] = useState(moneyInitialValue(service?.cost));
+  const [price, setPrice] = useState(moneyInitialValue(service?.price));
   const [taxGroupId, setTaxGroupId] = useState<string | null>(service?.taxGroupId ?? null);
   // F3-SVC-08. En el ALTA nacen todos marcados: sin almacenes el servicio no
   // se vende en ningún lado (semántica explícita), así que el caso común —un
@@ -310,6 +317,11 @@ function ServiceForm({
   /** "" es "sin importe" (null), no cero: un servicio puede no tener costo. */
   const importe = (value: string): number | undefined =>
     value.trim() === "" ? undefined : Number(value);
+  // Mismo criterio que productos: un importe que no cabe en `DECIMAL(14,2)` —o
+  // que no es un importe— se marca mientras se escribe y bloquea el envío. El
+  // API lo rechaza igual; esto solo adelanta el aviso.
+  const costErrorKey = moneyInputError(cost);
+  const priceErrorKey = moneyInputError(price);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -379,20 +391,18 @@ function ServiceForm({
         onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
+        <MoneyField
           label={t("services.form.cost")}
-          type="number"
-          step="0.01"
+          error={costErrorKey ? t(costErrorKey) : undefined}
           value={cost}
-          onChange={(event) => setCost(event.target.value)}
+          onChange={setCost}
         />
-        <TextField
+        <MoneyField
           label={t("services.form.price")}
-          type="number"
-          step="0.01"
           hint={t("services.form.priceHint")}
+          error={priceErrorKey ? t(priceErrorKey) : undefined}
           value={price}
-          onChange={(event) => setPrice(event.target.value)}
+          onChange={setPrice}
         />
         <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} />
       </div>
@@ -440,7 +450,16 @@ function ServiceForm({
       </fieldset>
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting || !code.trim() || !name.trim()}>
+        <Button
+          type="submit"
+          disabled={
+            isSubmitting ||
+            !code.trim() ||
+            !name.trim() ||
+            costErrorKey !== null ||
+            priceErrorKey !== null
+          }
+        >
           {isSubmitting ? t("common.form.submitting") : t("common.form.save")}
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

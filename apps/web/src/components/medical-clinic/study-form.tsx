@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MoneyField } from "@/components/form/money-field";
 import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import type { Study, StudyKind } from "@/lib/medical-clinic/api";
 import { useCreateStudy, useUpdateStudy } from "@/lib/medical-clinic/hooks";
+import { moneyInitialValue, moneyInputError } from "@/lib/money";
 
 /**
  * F9-CLINIC-WEB-04 — el formulario de un estudio (laboratorio o
@@ -27,12 +29,16 @@ export function StudyForm({
   const [code, setCode] = useState(study?.code ?? "");
   const [name, setName] = useState(study?.name ?? "");
   const [description, setDescription] = useState(study?.description ?? "");
-  const [cost, setCost] = useState(study?.cost ?? "");
-  const [price, setPrice] = useState(study?.price ?? "");
+  const [cost, setCost] = useState(moneyInitialValue(study?.cost));
+  const [price, setPrice] = useState(moneyInitialValue(study?.price));
   const [taxGroupId, setTaxGroupId] = useState<string | null>(study?.taxGroupId ?? null);
   const createStudy = useCreateStudy(kind);
   const updateStudy = useUpdateStudy(kind);
   const busy = createStudy.isPending || updateStudy.isPending;
+  // Mismo criterio que productos y servicios: el importe que no cabe en
+  // `DECIMAL(14,2)` —o que no es un importe— se marca al escribir y bloquea.
+  const costErrorKey = moneyInputError(cost);
+  const priceErrorKey = moneyInputError(price);
 
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -92,27 +98,28 @@ export function StudyForm({
         onChange={(event) => setDescription(event.target.value)}
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField
+        <MoneyField
           label={t("medicalClinic.studies.form.cost")}
-          type="number"
-          step="0.01"
-          min="0"
+          error={costErrorKey ? t(costErrorKey) : undefined}
           value={cost}
-          onChange={(event) => setCost(event.target.value)}
+          onChange={setCost}
         />
-        <TextField
+        <MoneyField
           label={t("medicalClinic.studies.form.price")}
-          type="number"
-          step="0.01"
-          min="0"
           hint={t("medicalClinic.studies.form.priceHint")}
+          error={priceErrorKey ? t(priceErrorKey) : undefined}
           value={price}
-          onChange={(event) => setPrice(event.target.value)}
+          onChange={setPrice}
         />
       </div>
       <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} />
       <div className="flex gap-2">
-        <Button type="submit" disabled={busy || !code.trim() || !name.trim()}>
+        <Button
+          type="submit"
+          disabled={
+            busy || !code.trim() || !name.trim() || costErrorKey !== null || priceErrorKey !== null
+          }
+        >
           {busy ? t("common.form.submitting") : t("common.form.save")}
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

@@ -27,7 +27,7 @@ import {
 } from "@/lib/inventory/hooks";
 import { useStock } from "@/lib/inventory/kardex-hooks";
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
-import { MONEY_STEP } from "@/lib/products/money";
+import { MONEY_STEP } from "@/lib/money";
 import { useAuthStore } from "@/stores/auth.store";
 import { AddLineForm } from "./add-line-form";
 import { CountPanel, CountSummary } from "./count-panel";

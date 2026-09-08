@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, hasValidMoneyScale, MONEY_DECIMALS, MONEY_MAX, multiplyMoney } from "./money";
+import {
+  currencySymbol,
+  formatMoney,
+  formatMoneyInput,
+  hasValidMoneyScale,
+  MONEY_DECIMALS,
+  MONEY_MAX,
+  multiplyMoney,
+  parseMoneyInput,
+} from "./money";
 
 /**
  * La columna es `DECIMAL(14,2)`: Postgres REDONDEA en silencio lo que no entra.
@@ -185,5 +194,70 @@ describe("multiplyMoney", () => {
     expect(multiplyMoney("10.00", "")).toBe(0);
     expect(multiplyMoney("10.00", ".")).toBe(0);
     expect(multiplyMoney("10.00", "12.")).toBe(120);
+  });
+});
+
+/**
+ * Carlos, 2026-09-07: los campos de costo y precio de los catálogos pasan a
+ * texto con `inputMode="decimal"` y se formatean a dos decimales al salir del
+ * campo. Estas tres funciones son la aritmética de ese campo, y viven acá
+ * porque `MONEY_DECIMALS` y `hasValidMoneyScale` ya viven acá.
+ */
+describe("parseMoneyInput", () => {
+  it("lee enteros y decimales con punto, con espacios alrededor", () => {
+    expect(parseMoneyInput("150")).toBe(150);
+    expect(parseMoneyInput("5.9")).toBe(5.9);
+    expect(parseMoneyInput(" 0.02 ")).toBe(0.02);
+    expect(parseMoneyInput("15.")).toBe(15);
+    expect(parseMoneyInput(".5")).toBe(0.5);
+  });
+
+  it("vacío es «sin importe»: null, no cero", () => {
+    expect(parseMoneyInput("")).toBeNull();
+    expect(parseMoneyInput("   ")).toBeNull();
+  });
+
+  it("rechaza la coma en vez de adivinar qué quiso decir quien la escribió", () => {
+    // «1,500» es mil quinientos para un mexicano y uno y medio para un
+    // español. Adivinar mal guarda un precio mil veces menor en un punto de
+    // venta; rechazar con un mensaje claro cuesta una tecla.
+    expect(parseMoneyInput("1,500")).toBeNull();
+    expect(parseMoneyInput("5,99")).toBeNull();
+  });
+
+  it("rechaza lo que Number() aceptaría en silencio", () => {
+    for (const raw of ["abc", "1e3", "0x10", "Infinity", "-5", ".", "1.2.3", "$5"]) {
+      expect(parseMoneyInput(raw)).toBeNull();
+    }
+  });
+});
+
+describe("formatMoneyInput", () => {
+  it("completa a dos decimales lo que el usuario escribió a medias", () => {
+    expect(formatMoneyInput("6")).toBe("6.00");
+    expect(formatMoneyInput("5.9")).toBe("5.90");
+    expect(formatMoneyInput("15.")).toBe("15.00");
+    expect(formatMoneyInput(" 0.02 ")).toBe("0.02");
+    expect(formatMoneyInput("1500")).toBe("1500.00");
+  });
+
+  it("no toca lo que no puede formatear: vacío, coma, texto o tres decimales", () => {
+    // Un tercer decimal NO se redondea: es un error que el usuario tiene que
+    // ver, no un número que haya que aproximar.
+    for (const raw of ["", "5,99", "abc", "5.999", "1000000000000"]) {
+      expect(formatMoneyInput(raw)).toBeNull();
+    }
+  });
+});
+
+describe("currencySymbol", () => {
+  it("el símbolo corto de cada moneda soportada, igual en los dos idiomas", () => {
+    for (const locale of ["es", "en"] as const) {
+      expect(currencySymbol("MXN", locale)).toBe("$");
+      expect(currencySymbol("USD", locale)).toBe("$");
+      expect(currencySymbol("CAD", locale)).toBe("$");
+      expect(currencySymbol("EUR", locale)).toBe("€");
+      expect(currencySymbol("GBP", locale)).toBe("£");
+    }
   });
 });
