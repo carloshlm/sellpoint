@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
@@ -118,28 +119,8 @@ const ROLES: rbacApi.RoleSummary[] = [
 
 // F3-NAV-03: los almacenes del checklist de alcance.
 const ALMACENES: warehousesApi.Warehouse[] = [
-  {
-    id: "w1",
-    code: "ALM-001",
-    name: "Central",
-    address: null,
-    phone: null,
-    email: null,
-    attributes: {},
-    isActive: true,
-    deactivationBlockedBy: null,
-  },
-  {
-    id: "w2",
-    code: "ALM-002",
-    name: "Bodega Norte",
-    address: null,
-    phone: null,
-    email: null,
-    attributes: {},
-    isActive: true,
-    deactivationBlockedBy: null,
-  },
+  buildWarehouse(),
+  buildWarehouse({ id: "w2", code: "ALM-002", name: "Bodega Norte" }),
 ];
 
 // W2 (verify-report #341): `lng` opcional — instancia hermética de i18n

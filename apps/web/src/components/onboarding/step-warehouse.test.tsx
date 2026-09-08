@@ -5,6 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as warehousesApi from "@/lib/warehouses/api";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { StepWarehouse } from "./step-warehouse";
 
 /**
@@ -45,17 +46,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
 
   it("crea el almacén y recién entonces avanza", async () => {
     const user = userEvent.setup();
-    mockedApi.createWarehouse.mockResolvedValue({
-      id: "w-1",
-      code: "ALM-001",
-      name: "Central",
-      address: null,
-      isActive: true,
-      phone: null,
-      email: null,
-      attributes: {},
-      deactivationBlockedBy: null,
-    });
+    mockedApi.createWarehouse.mockResolvedValue(buildWarehouse({ id: "w-1" }));
     const onSubmit = renderStep();
 
     await user.type(await screen.findByLabelText(/almacén/i), "Central");
@@ -97,17 +88,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
   it("con el almacén ya creado, el input trae su nombre y continuar no crea otro", async () => {
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([
-      {
-        id: "w-1",
-        code: "ALM-001",
-        name: "Almacén Central",
-        address: null,
-        isActive: true,
-        phone: null,
-        email: null,
-        attributes: {},
-        deactivationBlockedBy: null,
-      },
+      buildWarehouse({ id: "w-1", name: "Almacén Central" }),
     ]);
     const onSubmit = renderStep();
 
@@ -125,29 +106,9 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
   it("cambiar el nombre manda el PATCH y recién entonces avanza", async () => {
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([
-      {
-        id: "w-1",
-        code: "ALM-001",
-        name: "Almacén Central",
-        address: null,
-        isActive: true,
-        phone: null,
-        email: null,
-        attributes: {},
-        deactivationBlockedBy: null,
-      },
+      buildWarehouse({ id: "w-1", name: "Almacén Central" }),
     ]);
-    mockedApi.updateWarehouse.mockResolvedValue({
-      id: "w-1",
-      code: "ALM-001",
-      name: "CEDIS",
-      address: null,
-      isActive: true,
-      phone: null,
-      email: null,
-      attributes: {},
-      deactivationBlockedBy: null,
-    });
+    mockedApi.updateWarehouse.mockResolvedValue(buildWarehouse({ id: "w-1", name: "CEDIS" }));
     const onSubmit = renderStep();
 
     const input = await screen.findByTestId("step-warehouse-name");

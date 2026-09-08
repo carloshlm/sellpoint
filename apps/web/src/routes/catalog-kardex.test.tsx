@@ -11,6 +11,7 @@ import { I18nextProvider } from "react-i18next";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import type { KardexRow, StockSummary } from "../lib/inventory/kardex-api";
 import * as kardexApi from "../lib/inventory/kardex-api";
@@ -103,28 +104,8 @@ beforeEach(() => {
   mocked.updateLot.mockReset();
   vi.mocked(warehousesApi.listWarehouses).mockReset();
   vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
-    {
-      id: "w1",
-      code: "ALM-001",
-      name: "Central",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
-    {
-      id: "w2",
-      code: "ALM-002",
-      name: "Norte",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
+    buildWarehouse(),
+    buildWarehouse({ id: "w2", code: "ALM-002", name: "Norte" }),
   ]);
   mocked.getKardex.mockResolvedValue({
     rows: [movimiento()],

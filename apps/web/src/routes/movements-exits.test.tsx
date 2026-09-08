@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { DocumentDetail, DocumentRow } from "../lib/inventory/types";
@@ -141,39 +142,9 @@ beforeEach(() => {
   // TRES almacenes a propósito: excluido el origen quedan dos, así que el
   // selector NO auto-elige y "sin destino" es un estado alcanzable de verdad.
   mockedWarehouses.mockResolvedValue([
-    {
-      id: "w1",
-      code: "ALM-001",
-      name: "Central",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
-    {
-      id: "w2",
-      code: "ALM-002",
-      name: "Bodega Norte",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
-    {
-      id: "w3",
-      code: "ALM-003",
-      name: "Bodega Sur",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
+    buildWarehouse(),
+    buildWarehouse({ id: "w2", code: "ALM-002", name: "Bodega Norte" }),
+    buildWarehouse({ id: "w3", code: "ALM-003", name: "Bodega Sur" }),
   ]);
   mockedProducts.mockReset();
   mockedProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });

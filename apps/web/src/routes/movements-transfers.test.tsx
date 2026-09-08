@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import type { TransferDetail, TransferRow } from "../lib/inventory/transfers-api";
@@ -122,28 +123,8 @@ beforeEach(() => {
   mocked.cancelTransfer.mockReset();
   mockedWarehouses.mockReset();
   mockedWarehouses.mockResolvedValue([
-    {
-      id: "w1",
-      code: "ALM-001",
-      name: "Bodega Norte",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
-    {
-      id: "w2",
-      code: "ALM-002",
-      name: "Central",
-      address: null,
-      phone: null,
-      email: null,
-      attributes: {},
-      isActive: true,
-      deactivationBlockedBy: null,
-    },
+    buildWarehouse({ name: "Bodega Norte" }),
+    buildWarehouse({ id: "w2", code: "ALM-002" }),
   ]);
   mocked.listTransfers.mockResolvedValue(pagina([fila()]));
   mocked.getTransfer.mockResolvedValue(detalle());

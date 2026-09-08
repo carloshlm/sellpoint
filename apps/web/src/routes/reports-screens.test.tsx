@@ -8,6 +8,7 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import { createQueryClient } from "../lib/query-client";
 import * as rbacApi from "../lib/rbac/api";
@@ -112,28 +113,8 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
-      {
-        id: "w1",
-        code: "ALM-001",
-        name: "Central",
-        address: null,
-        phone: null,
-        email: null,
-        attributes: {},
-        isActive: true,
-        deactivationBlockedBy: null,
-      },
-      {
-        id: "w2",
-        code: "ALM-002",
-        name: "Norte",
-        address: null,
-        phone: null,
-        email: null,
-        attributes: {},
-        isActive: true,
-        deactivationBlockedBy: null,
-      },
+      buildWarehouse(),
+      buildWarehouse({ id: "w2", code: "ALM-002", name: "Norte" }),
     ]);
     mocked.getStockReport.mockResolvedValue({
       rows: [filaStock()],

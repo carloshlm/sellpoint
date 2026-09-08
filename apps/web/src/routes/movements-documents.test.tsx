@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as inventoryApi from "../lib/inventory/api";
 import { createQueryClient } from "../lib/query-client";
@@ -241,28 +242,8 @@ describe("Listado de documentos (F3-DOC-08)", () => {
    */
   describe("el almacén asignado preselecciona (F3-HOME-04)", () => {
     const DOS = [
-      {
-        id: "w1",
-        code: "ALM-001",
-        name: "Central",
-        address: null,
-        phone: null,
-        email: null,
-        attributes: {},
-        isActive: true,
-        deactivationBlockedBy: null,
-      },
-      {
-        id: "w2",
-        code: "ALM-002",
-        name: "Bodega Norte",
-        address: null,
-        isActive: true,
-        phone: null,
-        email: null,
-        attributes: {},
-        deactivationBlockedBy: null,
-      },
+      buildWarehouse(),
+      buildWarehouse({ id: "w2", code: "ALM-002", name: "Bodega Norte" }),
     ];
 
     it("con asignado, el documento nuevo sale de ESE almacén", async () => {
@@ -305,19 +286,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
   describe("crear", () => {
     it("el botón postea y navega al borrador recién creado", async () => {
       const user = userEvent.setup();
-      mockedWarehouses.mockResolvedValue([
-        {
-          id: "w1",
-          code: "ALM-001",
-          name: "Central",
-          address: null,
-          phone: null,
-          email: null,
-          attributes: {},
-          isActive: true,
-          deactivationBlockedBy: null,
-        },
-      ]);
+      mockedWarehouses.mockResolvedValue([buildWarehouse()]);
       mockedCreate.mockResolvedValue({ ...documento("ENT-000043", "draft"), id: "nuevo-id" });
       const router = await renderRuta("/movements/entries");
       await screen.findByText("ENT-000042");
@@ -375,19 +344,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
 describe("crear con uno abierto (Carlos, 2026-09-01)", () => {
   it("el 409 se muestra con el folio que estorba y el botón vuelve a servir", async () => {
     const user = userEvent.setup();
-    mockedWarehouses.mockResolvedValue([
-      {
-        id: "w1",
-        code: "ALM-001",
-        name: "Central",
-        address: null,
-        phone: null,
-        email: null,
-        attributes: {},
-        isActive: true,
-        deactivationBlockedBy: null,
-      },
-    ]);
+    mockedWarehouses.mockResolvedValue([buildWarehouse()]);
     mockedCreate.mockRejectedValue({
       statusCode: 409,
       message:

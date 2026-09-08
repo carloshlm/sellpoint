@@ -7,6 +7,7 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
+import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
@@ -85,17 +86,7 @@ describe("/onboarding", () => {
     // El piso del paso 2 depende de si ya hay almacenes. Default "ya tiene
     // uno" para que los tests de otros pasos no caigan al 2.
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
-      {
-        id: "w-1",
-        code: "ALM-w-1",
-        name: "Central",
-        address: null,
-        phone: null,
-        email: null,
-        attributes: {},
-        isActive: true,
-        deactivationBlockedBy: null,
-      },
+      buildWarehouse({ id: "w-1", code: "ALM-w-1" }),
     ]);
   });
 
