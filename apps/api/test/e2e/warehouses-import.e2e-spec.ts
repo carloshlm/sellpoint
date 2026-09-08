@@ -136,6 +136,58 @@ describe("Importación de almacenes (2026-09-01)", () => {
     });
   });
 
+  /**
+   * F1-ADDR-08: las cinco columnas de la dirección entran por la planilla; el
+   * CP y la región se validan contra el país del NEGOCIO fila por fila, y lo
+   * que entra vuelve por la plantilla (ida y vuelta).
+   */
+  it("la dirección estructurada entra por la planilla; el CP y la región ajenos al país fallan su fila", async () => {
+    const token = await ownerToken();
+    await request(app.getHttpServer())
+      .patch("/tenants/me")
+      .set("Authorization", bearer(token))
+      .send({ country: "MX" })
+      .expect(200);
+    const contenido = await xlsxBase64([
+      [
+        "codigo",
+        "nombre",
+        "direccion",
+        "direccion_2",
+        "ciudad",
+        "region",
+        "codigo_postal",
+        "telefono",
+        "email",
+      ],
+      ["GDL-01", "Guadalajara", "Av. Juárez 10", "Centro", "Guadalajara", "JAL", " 44100 ", "", ""],
+      ["MAL-01", "CP malo", "Calle 1", "", "Toluca", "MEX", "5000", "", ""],
+      ["MAL-02", "Región ajena", "Calle 2", "", "Toronto", "ON", "50000", "", ""],
+    ]);
+
+    const dryRun = await importar(token, contenido, { dryRun: true }).expect(200);
+    expect(dryRun.body).toMatchObject({ valid: 1, failed: 2 });
+    const errores = (dryRun.body as { errors: { row: number; field?: string }[] }).errors;
+    expect(errores.map((e) => [e.row, e.field])).toEqual([
+      [3, "codigo_postal"],
+      [4, "region"],
+    ]);
+
+    await importar(token, contenido, { skipErrors: true }).expect(200);
+    const lista = await request(app.getHttpServer())
+      .get("/warehouses")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const gdl = (lista.body as { code: string }[]).find((w) => w.code === "GDL-01");
+    expect(gdl).toMatchObject({
+      address: "Av. Juárez 10",
+      addressLine2: "Centro",
+      city: "Guadalajara",
+      region: "JAL",
+      postalCode: "44100",
+    });
+  });
+
   it("un teléfono que no es E.164 falla la FILA con su código — la planilla no salta al formulario", async () => {
     const token = await ownerToken();
     const contenido = await xlsxBase64([

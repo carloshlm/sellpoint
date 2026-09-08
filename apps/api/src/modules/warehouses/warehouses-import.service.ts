@@ -1,5 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { isE164, type Locale } from "@sellpoint/shared";
+import {
+  addressAsksRegion,
+  isAddressRegionCode,
+  isE164,
+  isPostalCode,
+  type Locale,
+  normalizePostalCode,
+} from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
@@ -22,9 +29,21 @@ import {
 import { type FieldDefinition, validateRecordAttributes } from "../catalogs/validate-attributes";
 import { WAREHOUSES_CATALOG_KEY } from "../tenants/role-catalog";
 
-// El mismo orden que el formulario: código, nombre, dirección, teléfono,
-// email — y al final los campos personalizados del catálogo de almacenes.
-const STANDARD_COLUMNS = ["codigo", "nombre", "direccion", "telefono", "email"] as const;
+// El mismo orden que el formulario: código, nombre, la dirección en sus
+// cinco partes (F1-ADDR-08: calle, línea 2, ciudad, región en ISO 3166-2 y
+// código postal), teléfono, email — y al final los campos personalizados del
+// catálogo de almacenes.
+const STANDARD_COLUMNS = [
+  "codigo",
+  "nombre",
+  "direccion",
+  "direccion_2",
+  "ciudad",
+  "region",
+  "codigo_postal",
+  "telefono",
+  "email",
+] as const;
 
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 
@@ -45,6 +64,10 @@ interface ParsedRow {
   code: string;
   name: string;
   address: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
   phone: string | null;
   email: string | null;
   attributes: Record<string, unknown>;
@@ -84,10 +107,14 @@ export class WarehousesImportService {
             [
               "ALM-002",
               "Sucursal Norte",
-              "Av. Norte 100, CDMX",
+              "Av. Norte 100",
+              "Col. Lindavista",
+              "Ciudad de México",
+              "CMX",
+              "07300",
               "+525512345678",
               "norte@negocio.mx",
-              ...header.slice(5).map(() => ""),
+              ...header.slice(STANDARD_COLUMNS.length).map(() => ""),
             ],
           ];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
@@ -116,6 +143,14 @@ export class WarehousesImportService {
     const errors: ImportRowError[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
     const vistos = new Set<string>();
+
+    // F1-ADDR-08: el CP y la región de cada fila se validan contra el país del
+
+    // NEGOCIO (un almacén lo hereda); se consulta una vez, no por fila.
+
+    const { country } = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+      tx.tenant.findUniqueOrThrow({ where: { id: user.tenantId }, select: { country: true } }),
+    );
 
     rows.forEach((cells, index) => {
       // +2: la fila 1 es el encabezado y Excel cuenta desde 1.
@@ -158,6 +193,28 @@ export class WarehousesImportService {
         return;
       }
 
+      const region = value("region") || null;
+      if (
+        region !== null &&
+        !(addressAsksRegion(country) && isAddressRegionCode(country, region))
+      ) {
+        errors.push(
+          conCodigo({ row: rowNumber, field: "region", message: "warehouses.invalid_region" }),
+        );
+        return;
+      }
+      const postalCode = normalizePostalCode(country, value("codigo_postal")) || null;
+      if (postalCode !== null && !isPostalCode(country, postalCode)) {
+        errors.push(
+          conCodigo({
+            row: rowNumber,
+            field: "codigo_postal",
+            message: "warehouses.invalid_postal_code",
+          }),
+        );
+        return;
+      }
+
       const { attributes, lookupError } = parseCustomAttributes(header, value, fields, lookups);
       if (lookupError !== null) {
         errors.push(
@@ -186,6 +243,10 @@ export class WarehousesImportService {
         code,
         name,
         address: value("direccion") || null,
+        addressLine2: value("direccion_2") || null,
+        city: value("ciudad") || null,
+        region,
+        postalCode,
         phone,
         email,
         attributes,
@@ -225,6 +286,10 @@ export class WarehousesImportService {
         const datos = {
           name: item.name,
           address: item.address,
+          addressLine2: item.addressLine2,
+          city: item.city,
+          region: item.region,
+          postalCode: item.postalCode,
           phone: item.phone,
           email: item.email,
           attributes: item.attributes as Prisma.InputJsonValue,
@@ -267,6 +332,10 @@ export class WarehousesImportService {
       warehouse.code,
       warehouse.name,
       warehouse.address ?? "",
+      warehouse.addressLine2 ?? "",
+      warehouse.city ?? "",
+      warehouse.region ?? "",
+      warehouse.postalCode ?? "",
       warehouse.phone ?? "",
       warehouse.email ?? "",
       ...customCells((warehouse.attributes ?? {}) as Record<string, unknown>, custom, lookups),

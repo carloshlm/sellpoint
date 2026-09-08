@@ -44,7 +44,6 @@
     "codeHint": "La clave con la que identificas este almacén, única en tu negocio. Es la que usa la plantilla de importación.",
     "name": "Nombre del almacén",
     "address": "Dirección",
-    "addressHint": "Opcional. Escríbela como se use en tu país.",
     "phoneCountry": "Código de país",
     "phoneCountryPlaceholder": "Elige un país",
     "phone": "Teléfono (opcional)",

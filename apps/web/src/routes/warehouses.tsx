@@ -1,7 +1,11 @@
 import {
   COUNTRY_DIAL_CODES,
   type CountryCode,
+  formatAddress,
   ISO_COUNTRY_CODES,
+  isPostalCode,
+  normalizePostalCode,
+  resolveAddressFormat,
   splitE164,
 } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
@@ -13,6 +17,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { ImportDialog } from "@/components/common/import-dialog";
+import { AddressFields } from "@/components/form/address-fields";
 import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -75,13 +80,27 @@ function WarehousesContent() {
   // los almacenes COMPLETOS sin paginar, así que pedirle al server que
   // busque sería un viaje de ida y vuelta por una lista que ya está aquí.
   const [query, setQuery] = useState("");
+  // F1-ADDR-08: un almacén hereda el país del negocio; con él se formatea
+  // la dirección de la tabla y se busca también por ciudad y código postal.
+  const paisDelNegocio = useAuthStore((state) => state.user?.tenant.country ?? null);
+  const direccionDe = (warehouse: Warehouse) =>
+    formatAddress(
+      {
+        line1: warehouse.address,
+        line2: warehouse.addressLine2,
+        city: warehouse.city,
+        region: warehouse.region,
+        postalCode: warehouse.postalCode,
+      },
+      paisDelNegocio,
+    );
   const needle = query.trim().toLowerCase();
   const visibles = (warehouses ?? []).filter(
     (warehouse) =>
       !needle ||
       warehouse.code.toLowerCase().includes(needle) ||
       warehouse.name.toLowerCase().includes(needle) ||
-      (warehouse.address ?? "").toLowerCase().includes(needle),
+      direccionDe(warehouse).toLowerCase().includes(needle),
   );
   const [editing, setEditing] = useState<Warehouse | null>(null);
   const [creating, setCreating] = useState(false);
@@ -201,7 +220,7 @@ function WarehousesContent() {
                 <TableRow key={warehouse.id} data-testid={`warehouse-${warehouse.id}`}>
                   <TableCell className="font-mono">{warehouse.code}</TableCell>
                   <TableCell className="font-medium">{warehouse.name}</TableCell>
-                  <TableCell>{warehouse.address ?? "—"}</TableCell>
+                  <TableCell>{direccionDe(warehouse) || "—"}</TableCell>
                   <TableCell>
                     <Badge variant={warehouse.isActive ? "success" : "default"}>
                       {warehouse.isActive ? t("warehouses.active") : t("warehouses.inactive")}
@@ -294,6 +313,25 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
   const [code, setCode] = useState(warehouse?.code ?? "");
   const [name, setName] = useState(warehouse?.name ?? "");
   const [address, setAddress] = useState(warehouse?.address ?? "");
+  const [addressLine2, setAddressLine2] = useState(warehouse?.addressLine2 ?? "");
+  const [city, setCity] = useState(warehouse?.city ?? "");
+  const [region, setRegion] = useState(warehouse?.region ?? "");
+  const [postalCode, setPostalCode] = useState(warehouse?.postalCode ?? "");
+  // F1-ADDR-08: el CP se valida contra el país del NEGOCIO (el almacén lo
+  // hereda) y bloquea Guardar; el resto de la dirección es opcional.
+  const postalCodeError =
+    postalCode.trim() !== "" && !isPostalCode(tenantCountry, postalCode)
+      ? t("common.address.postalCodeInvalid", {
+          example: resolveAddressFormat(tenantCountry).postalCodeExample ?? "",
+        })
+      : undefined;
+  const setDireccion = {
+    line1: setAddress,
+    line2: setAddressLine2,
+    city: setCity,
+    region: setRegion,
+    postalCode: setPostalCode,
+  } as const;
   const initialPhone = phonePartsOf(warehouse?.phone, tenantCountry);
   const [phoneCountry, setPhoneCountry] = useState(initialPhone.country);
   const [phoneNumber, setPhoneNumber] = useState(initialPhone.number);
@@ -347,6 +385,10 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
                 code: code.trim(),
                 name,
                 address: address || null,
+                addressLine2: addressLine2 || null,
+                city: city || null,
+                region: region || null,
+                postalCode: postalCode ? normalizePostalCode(tenantCountry, postalCode) : null,
                 phone: composedPhone,
                 email: trimmedEmail === "" ? null : trimmedEmail,
                 attributes,
@@ -361,6 +403,10 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
             code: code.trim(),
             name,
             ...(address ? { address } : {}),
+            ...(addressLine2 ? { addressLine2 } : {}),
+            ...(city ? { city } : {}),
+            ...(region ? { region } : {}),
+            ...(postalCode ? { postalCode: normalizePostalCode(tenantCountry, postalCode) } : {}),
             ...(composedPhone !== null ? { phone: composedPhone } : {}),
             ...(trimmedEmail !== "" ? { email: trimmedEmail } : {}),
             attributes,
@@ -392,13 +438,14 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
-      {/* Texto libre y opcional: los formatos postales difieren entre los 26
-          mercados (MERCADOS.md § 4). */}
-      <TextField
-        label={t("warehouses.form.address")}
-        hint={t("warehouses.form.addressHint")}
-        value={address}
-        onChange={(event) => setAddress(event.target.value)}
+      {/* F1-ADDR-08: la dirección en los campos del país del negocio, opcional
+          como siempre. Antes era texto libre porque los formatos difieren entre
+          los 26 mercados; ahora el formato lo trae el catálogo de shared. */}
+      <AddressFields
+        country={tenantCountry}
+        value={{ line1: address, line2: addressLine2, city, region, postalCode }}
+        onChange={(field, next) => setDireccion[field](next)}
+        errors={{ postalCode: postalCodeError }}
       />
       {/* El contacto de la SUCURSAL (2026-08-26): el ticket lo pinta con
           fallback al dato del negocio. */}
@@ -425,7 +472,10 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
         onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
       <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting || !name.trim() || !code.trim()}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || !name.trim() || !code.trim() || postalCodeError !== undefined}
+        >
           {isSubmitting ? t("common.form.submitting") : t("common.form.save")}
         </Button>
         <Button type="button" variant="outline" onClick={onDone}>

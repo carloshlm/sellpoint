@@ -473,3 +473,99 @@ describe("el menú CATÁLOGO (Carlos, 2026-09-01)", () => {
     expect(enlaces).toEqual(["Almacenes", "Productos", "Servicios", "Campos", "Subcatálogos"]);
   });
 });
+
+/**
+ * F1-ADDR-08 — la dirección del almacén en los campos del país del NEGOCIO
+ * (un almacén hereda `tenants.country`), opcional como siempre, y la tabla
+ * la muestra formateada.
+ */
+describe("almacenes — dirección por país (F1-ADDR-08)", () => {
+  beforeEach(() => {
+    mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+    mockedApi.createWarehouse.mockReset();
+  });
+
+  it("el alta con colonia, ciudad, estado y CP manda los cuatro, con el CP normalizado", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([]);
+    mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
+    await renderWarehouses();
+    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+
+    await user.type(screen.getByLabelText("Código"), "SUC-01");
+    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Calle y número"), "Av. Juárez 10");
+    await user.type(screen.getByLabelText("Colonia"), "Centro");
+    await user.type(screen.getByLabelText("Código postal"), " 44100 ");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Guadalajara");
+    await user.selectOptions(screen.getByLabelText("Estado"), "JAL");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(mockedApi.createWarehouse.mock.calls[0]?.[0]).toMatchObject({
+        address: "Av. Juárez 10",
+        addressLine2: "Centro",
+        city: "Guadalajara",
+        region: "JAL",
+        postalCode: "44100",
+      });
+    });
+  });
+
+  it("la contraprueba: con solo la calle, el POST no menciona los campos nuevos", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([]);
+    mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
+    await renderWarehouses();
+    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+
+    await user.type(screen.getByLabelText("Código"), "SUC-01");
+    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Calle y número"), "Av. Juárez 10");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(mockedApi.createWarehouse).toHaveBeenCalled());
+    const body = mockedApi.createWarehouse.mock.calls[0]?.[0];
+    expect(body).toMatchObject({ address: "Av. Juárez 10" });
+    for (const campo of ["addressLine2", "city", "region", "postalCode"]) {
+      expect(body).not.toHaveProperty(campo);
+    }
+  });
+
+  it("un CP que no cumple la regla del país se marca y Guardar no enciende", async () => {
+    const user = userEvent.setup();
+    mockedApi.listWarehouses.mockResolvedValue([]);
+    await renderWarehouses();
+    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+
+    await user.type(screen.getByLabelText("Código"), "SUC-01");
+    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Código postal"), "4410");
+
+    expect(
+      await screen.findByText(/código postal válido para tu país, como 02860/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+  });
+
+  it("la tabla muestra la dirección formateada en el orden del país", async () => {
+    mockedApi.listWarehouses.mockResolvedValue([
+      almacen({
+        id: "w1",
+        name: "Guadalajara",
+        address: "Av. Juárez 10",
+        city: "Guadalajara",
+        region: "JAL",
+        postalCode: "44100",
+      }),
+      almacen({ id: "w2", code: "ALM-002", name: "Viejo", address: "Calle 5 manzana 5, CDMX" }),
+    ]);
+    await renderWarehouses();
+
+    const fila = await screen.findByTestId("warehouse-w1");
+    expect(fila).toHaveTextContent("Av. Juárez 10, 44100 Guadalajara, Jalisco");
+    // Con solo la línea 1, lo de siempre.
+    expect(screen.getByTestId("warehouse-w2")).toHaveTextContent("Calle 5 manzana 5, CDMX");
+  });
+});

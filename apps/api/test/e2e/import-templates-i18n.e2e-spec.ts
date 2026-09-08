@@ -140,6 +140,10 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
       "code",
       "name",
       "address",
+      "address_2",
+      "city",
+      "region",
+      "postal_code",
       "phone",
       "email",
     ]);

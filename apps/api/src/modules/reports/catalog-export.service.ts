@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
-import { fullName } from "@sellpoint/shared";
+import { formatAddress, fullName } from "@sellpoint/shared";
 import { exportWithLimit } from "../../common/spreadsheet/export-guard";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import type { SpreadsheetFormat } from "../../common/spreadsheet/spreadsheet";
@@ -123,6 +123,10 @@ export class CatalogExportService {
             select: {
               name: true,
               address: true,
+              addressLine2: true,
+              city: true,
+              region: true,
+              postalCode: true,
               isActive: true,
               // Cuántos productos tienen saldo ahí. `_count` lo resuelve
               // Postgres: contar en JavaScript traería las filas enteras solo
@@ -133,9 +137,24 @@ export class CatalogExportService {
           }),
         );
 
+        // F1-ADDR-08: el reporte es para LEER — la dirección va formateada en
+        // el orden del país, en su columna de siempre (la plantilla de
+        // importación es la que la lleva en cinco columnas).
+        const { country } = await this.prisma.withTenantContext(user.tenantId, (tx) =>
+          tx.tenant.findUniqueOrThrow({ where: { id: user.tenantId }, select: { country: true } }),
+        );
         return almacenes.map((w) => [
           w.name,
-          w.address ?? "",
+          formatAddress(
+            {
+              line1: w.address,
+              line2: w.addressLine2,
+              city: w.city,
+              region: w.region,
+              postalCode: w.postalCode,
+            },
+            country,
+          ),
           w.isActive ? "Activo" : "Inactivo",
           String(w._count.stock),
         ]);
