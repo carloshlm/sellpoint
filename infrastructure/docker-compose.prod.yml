@@ -147,12 +147,27 @@ services:
       - min_wal_size=128MB
     mem_limit: 320M
     cpu_shares: 1024
-    env_file:
-      - /opt/sellpoint/.env
+    # SOLO sus tres variables, y NUNCA `env_file: .env` (incidente del
+    # 2026-09-08). El deploy reescribe IMAGE_TAG en el .env con cada release,
+    # y un contenedor que lee el archivo ENTERO cambia de configuración con
+    # cada tag: `up -d` recreaba postgres en cada deploy y la base se apagaba
+    # de 1 a 3 segundos — ocho veces ese día; Sentry atrapó una («Can't reach
+    # database server at postgres»). Redis, que no lee el .env, llevaba dos
+    # semanas arriba sin que nadie lo tocara. De paso, los secretos de la API
+    # (JWT, Resend, Sentry) dejan de viajar dentro del contenedor de la base,
+    # que nunca los necesitó. Los valores salen del MISMO .env: compose lo
+    # carga desde el directorio del proyecto para interpolar.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      # Con `-d`: sin él, pg_isready abre una base con el NOMBRE DEL USUARIO
+      # («sellpoint», que no existe) y deja un FATAL en el log cada 5 s —
+      # 332 líneas en 27 minutos que enterraban los errores reales.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10

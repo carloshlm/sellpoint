@@ -96,12 +96,18 @@ services:
       - random_page_cost=1.1
     mem_limit: 192M
     cpu_shares: 256
-    env_file:
-      - /opt/sellpoint-sandbox/.env
+    # Solo sus tres variables, nunca el .env entero: el deploy reescribe
+    # IMAGE_TAG ahí y `up -d` recreaba postgres en cada deploy (ver el
+    # comentario gemelo en docker-compose.prod.yml, incidente 2026-09-08).
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      # Con `-d`, o pg_isready deja un FATAL cada 5 s por una base inexistente.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10

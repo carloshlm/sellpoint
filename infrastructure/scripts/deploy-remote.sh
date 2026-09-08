@@ -137,6 +137,12 @@ echo "Disco OK: ${DISK_FREE_MB} MB libres."
 PREV_TAG="$(grep '^IMAGE_TAG=' .env | cut -d= -f2)"
 echo "Tag previo: ${PREV_TAG} -> Tag nuevo: ${NEW_TAG}"
 
+# Ojo: esto CAMBIA el .env, y todo servicio que lo lea entero con `env_file`
+# cambia de configuración con cada tag — `up -d` lo recrea aunque su imagen
+# no haya cambiado. Así se apagaba postgres 1–3 s en cada deploy (incidente
+# 2026-09-08); por eso postgres recibe solo sus tres variables por
+# `environment:` en los dos compose. api y migrate SÍ leen el .env entero, y
+# a ellos se los recrea a propósito: son los que cambian de imagen.
 write_image_tag() {
   sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$1/" .env
 }
