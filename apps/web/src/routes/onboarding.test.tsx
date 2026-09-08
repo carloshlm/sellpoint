@@ -98,7 +98,7 @@ describe("/onboarding", () => {
     expect(await screen.findByLabelText("Nombre legal")).toBeInTheDocument();
     expect(screen.getByLabelText("País")).toBeInTheDocument();
     expect(screen.getByLabelText("Identificación fiscal")).toBeInTheDocument();
-    expect(screen.getByLabelText("Dirección")).toBeInTheDocument();
+    expect(screen.getByLabelText("Calle y número")).toBeInTheDocument();
     expect(screen.getByLabelText("Moneda operacional")).toBeInTheDocument();
     // El wizard perdió dos pasos (Carlos, 2026-08-25): la cuenta es de 3.
     expect(screen.getByTestId("wizard-step-label")).toHaveTextContent("Paso 1 de 3");
@@ -186,7 +186,11 @@ describe("/onboarding", () => {
     await user.selectOptions(screen.getByLabelText("País"), "MX");
     await user.type(screen.getByLabelText("Nombre legal"), "Acme SA de CV");
     await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
-    await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
+    await user.type(screen.getByLabelText("Calle y número"), "Av. Siempre Viva 123");
+    // F1-ADDR-05: México pide además código postal, ciudad y estado.
+    await user.type(screen.getByLabelText("Código postal"), "06000");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Ciudad de México");
+    await user.selectOptions(screen.getByLabelText("Estado"), "CMX");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
     // `name: legalName` — el registro ya no nombra al negocio, este paso sí.
@@ -195,10 +199,14 @@ describe("/onboarding", () => {
         {
           name: "Acme SA de CV",
           country: "MX",
-          region: null,
+          region: "CMX",
           legalName: "Acme SA de CV",
           taxId: "ACM010101AAA",
           address: "Av. Siempre Viva 123",
+          // F1-ADDR-05: vacío viaja como null (la colonia no se llenó).
+          addressLine2: null,
+          city: "Ciudad de México",
+          postalCode: "06000",
           timezone: "America/Mexico_City",
           currency: "MXN",
         },
@@ -232,7 +240,11 @@ describe("/onboarding", () => {
     await user.selectOptions(screen.getByLabelText("País"), "MX");
     await user.type(screen.getByLabelText("Nombre legal"), "Acme SA de CV");
     await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
-    await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
+    await user.type(screen.getByLabelText("Calle y número"), "Av. Siempre Viva 123");
+    // F1-ADDR-05: México pide además código postal, ciudad y estado.
+    await user.type(screen.getByLabelText("Código postal"), "06000");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Ciudad de México");
+    await user.selectOptions(screen.getByLabelText("Estado"), "CMX");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
     expect(
@@ -261,7 +273,11 @@ describe("/onboarding", () => {
     await user.selectOptions(screen.getByLabelText("País"), "MX");
     await user.type(screen.getByLabelText("Nombre legal"), "Acme SA de CV");
     await user.type(screen.getByLabelText("Identificación fiscal (RFC)"), "ACM010101AAA");
-    await user.type(screen.getByLabelText("Dirección"), "Av. Siempre Viva 123");
+    await user.type(screen.getByLabelText("Calle y número"), "Av. Siempre Viva 123");
+    // F1-ADDR-05: México pide además código postal, ciudad y estado.
+    await user.type(screen.getByLabelText("Código postal"), "06000");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Ciudad de México");
+    await user.selectOptions(screen.getByLabelText("Estado"), "CMX");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
 
     expect(await screen.findByText("Tu plan actual es de solo lectura.")).toBeInTheDocument();

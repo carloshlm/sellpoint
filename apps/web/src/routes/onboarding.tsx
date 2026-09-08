@@ -143,8 +143,16 @@ function OnboardingContent() {
     // con el que nació el tenant.
     // F4-TAX-18: la región viaja con el país — vacía es null (México no la
     // usa), y el API la valida contra el país del mismo body.
+    // F1-ADDR-05: la línea 2, la ciudad y el CP vacíos viajan como null.
     updateTenantMutation.mutate(
-      { ...values, region: values.region || null, name: values.legalName },
+      {
+        ...values,
+        region: values.region || null,
+        addressLine2: values.addressLine2 || null,
+        city: values.city || null,
+        postalCode: values.postalCode || null,
+        name: values.legalName,
+      },
       {
         // A4 del design: navega SOLO en onSuccess. El hook ya esperó el
         // resync (ver lib/tenant/hooks.ts) — para cuando este callback corre,

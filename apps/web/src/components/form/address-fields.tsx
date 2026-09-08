@@ -41,6 +41,8 @@ interface AddressFieldsProps {
    * deshabilitada y el hint dice dónde cambiarla.
    */
   regionLocked?: boolean;
+  /** Ayuda bajo la región cuando no está bloqueada (el wizard explica que de ahí salen las tasas). */
+  regionHint?: string;
   disabled?: boolean;
   className?: string;
 }
@@ -109,6 +111,7 @@ export function AddressFields({
   onChange,
   errors = {},
   regionLocked = false,
+  regionHint,
   disabled = false,
   className,
 }: AddressFieldsProps) {
@@ -138,7 +141,7 @@ export function AddressFields({
                 ...regionOptions(country),
               ]}
               error={errors.region}
-              hint={regionLocked ? t("common.address.regionLockedHint") : undefined}
+              hint={regionLocked ? t("common.address.regionLockedHint") : regionHint}
               disabled={disabled || regionLocked}
               autoComplete={AUTOCOMPLETE.region}
             />

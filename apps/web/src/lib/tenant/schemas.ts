@@ -1,7 +1,9 @@
 import {
+  type AddressField,
   COUNTRY_DIAL_CODES,
   isCountryCode,
-  needsRegion,
+  isPostalCode,
+  resolveAddressFormat,
   SUPPORTED_CURRENCIES,
 } from "@sellpoint/shared";
 import { z } from "zod";
@@ -28,14 +30,45 @@ export const businessStepSchema = z
     legalName: requiredString,
     taxId: requiredString,
     address: requiredString,
+    // F1-ADDR-05: la dirección estructurada. Qué es obligatorio lo dice el
+    // PAÍS (`required` del formato: México, Canadá y Estados Unidos piden
+    // ciudad, región y código postal; un país sin formato solo la calle), y
+    // el código postal se valida contra su regla. Acá viajan como texto —
+    // vacío es «sin dato»— y el container manda `null` por lo vacío.
+    addressLine2: z.string(),
+    city: z.string(),
+    postalCode: z.string(),
     timezone: requiredString,
     currency: z.enum(SUPPORTED_CURRENCIES),
   })
   .superRefine((values, ctx) => {
-    if (needsRegion(values.country) && values.region.trim() === "") {
-      ctx.addIssue({ code: "custom", path: ["region"], message: "validation.required" });
+    const format = resolveAddressFormat(values.country);
+    for (const field of format.required) {
+      const path = ADDRESS_FORM_FIELD[field];
+      if (values[path].trim() === "") {
+        ctx.addIssue({ code: "custom", path: [path], message: "validation.required" });
+      }
+    }
+    if (values.postalCode.trim() !== "" && !isPostalCode(values.country, values.postalCode)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["postalCode"],
+        message: "common.address.postalCodeInvalid",
+      });
     }
   });
+
+/** El campo del formulario que guarda cada parte de la dirección (`line1` vive en `address`). */
+export const ADDRESS_FORM_FIELD: Record<
+  AddressField,
+  "address" | "addressLine2" | "city" | "region" | "postalCode"
+> = {
+  line1: "address",
+  line2: "addressLine2",
+  city: "city",
+  region: "region",
+  postalCode: "postalCode",
+};
 
 export type BusinessStepValues = z.infer<typeof businessStepSchema>;
 

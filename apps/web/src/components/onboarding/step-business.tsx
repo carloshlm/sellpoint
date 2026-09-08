@@ -1,8 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type Currency, ISO_COUNTRY_CODES, localeToBcp47 } from "@sellpoint/shared";
+import {
+  type Currency,
+  ISO_COUNTRY_CODES,
+  localeToBcp47,
+  normalizePostalCode,
+  resolveAddressFormat,
+} from "@sellpoint/shared";
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { AddressFields } from "@/components/form/address-fields";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
@@ -10,12 +17,15 @@ import type { TenantBlock } from "@/lib/tenant/api";
 import {
   getCuratedTimezones,
   getDefaultCurrency,
-  getRegionOptions,
   getTaxIdAbbreviation,
   needsRegion,
   resolveCountryTimezones,
 } from "@/lib/tenant/markets";
-import { type BusinessStepValues, businessStepSchema } from "@/lib/tenant/schemas";
+import {
+  ADDRESS_FORM_FIELD,
+  type BusinessStepValues,
+  businessStepSchema,
+} from "@/lib/tenant/schemas";
 import { CurrencySelector } from "./currency-selector";
 
 // Catálogo curado de zonas horarias por país (decisiones de Carlos,
@@ -70,6 +80,9 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
       legalName: tenant.legalName ?? "",
       taxId: tenant.taxId ?? "",
       address: tenant.address ?? "",
+      addressLine2: tenant.addressLine2 ?? "",
+      city: tenant.city ?? "",
+      postalCode: tenant.postalCode ?? "",
       timezone: tenant.timezone,
       currency: tenant.currency as Currency,
     }),
@@ -136,7 +149,14 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
     // listan para satisfacer el linter, no porque cambien entre renders.
   }, [country, watch, setValue]);
 
-  const submit = handleSubmit((values) => onSubmit(values));
+  // F1-ADDR-05: el código postal sale NORMALIZADO (`m5v3l9` → `M5V 3L9`),
+  // igual que lo guarda el API, para que lo que se ve sea lo que se manda.
+  const submit = handleSubmit((values) =>
+    onSubmit({ ...values, postalCode: normalizePostalCode(values.country, values.postalCode) }),
+  );
+  const addressFormat = resolveAddressFormat(country);
+  const errorDe = (message: string | undefined) =>
+    message ? t(message, { example: addressFormat.postalCodeExample ?? "" }) : undefined;
 
   const countryOptions = React.useMemo(() => {
     const displayNames = new Intl.DisplayNames([bcp47], { type: "region" });
@@ -182,18 +202,6 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
         ]}
         {...register("country")}
       />
-      {needsRegion(country) && (
-        <SelectField
-          label={t(country === "CA" ? "onboarding.step1.regionCA" : "onboarding.step1.regionUS")}
-          hint={t("onboarding.step1.regionHint")}
-          error={errors.region?.message ? t(errors.region.message) : undefined}
-          options={[
-            { value: "", label: t("onboarding.step1.regionPlaceholder") },
-            ...getRegionOptions(country),
-          ]}
-          {...register("region")}
-        />
-      )}
       <TextField
         label={t("onboarding.step1.legalName")}
         // El registro ya no pide "Nombre del negocio" (Carlos, 2026-08-25):
@@ -207,10 +215,29 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
         error={errors.taxId?.message ? t(errors.taxId.message) : undefined}
         {...register("taxId")}
       />
-      <TextField
-        label={t("onboarding.step1.address")}
-        error={errors.address?.message ? t(errors.address.message) : undefined}
-        {...register("address")}
+      {/* F1-ADDR-05: la dirección en los campos que el país usa, y UN solo
+          select de región — el fiscal de F4-TAX (CA/US) vive acá adentro,
+          con su hint, porque la región es una sola columna. */}
+      <AddressFields
+        country={country || null}
+        value={{
+          line1: watch("address"),
+          line2: watch("addressLine2"),
+          city: watch("city"),
+          region: watch("region"),
+          postalCode: watch("postalCode"),
+        }}
+        onChange={(field, next) =>
+          setValue(ADDRESS_FORM_FIELD[field], next, { shouldValidate: true, shouldDirty: true })
+        }
+        errors={{
+          line1: errorDe(errors.address?.message),
+          line2: errorDe(errors.addressLine2?.message),
+          city: errorDe(errors.city?.message),
+          region: errorDe(errors.region?.message),
+          postalCode: errorDe(errors.postalCode?.message),
+        }}
+        regionHint={needsRegion(country) ? t("onboarding.step1.regionHint") : undefined}
       />
       <SelectField
         label={t("onboarding.step1.timezone")}

@@ -370,10 +370,12 @@ describe("StepBusiness — provincia / estado (F4-TAX-18)", () => {
     return screen.getByLabelText(label) as HTMLSelectElement;
   }
 
-  it("México no la pide", () => {
+  it("México la pide como estado POSTAL (F1-ADDR-05), sin hint fiscal, en una lista de 32", () => {
     renderStep();
     expect(screen.queryByLabelText("Provincia o territorio")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Estado")).not.toBeInTheDocument();
+    const estado = regionSelect("Estado");
+    expect(within(estado).getAllByRole("option")).toHaveLength(33);
+    expect(screen.queryByText(/impuestos de venta/)).not.toBeInTheDocument();
   });
 
   it("Canadá pide la provincia por su nombre y sin ella no deja continuar; con ella viaja en el submit", async () => {
@@ -387,9 +389,12 @@ describe("StepBusiness — provincia / estado (F4-TAX-18)", () => {
 
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(await screen.findByText("Este campo es obligatorio")).toBeInTheDocument();
+    expect((await screen.findAllByText("Este campo es obligatorio")).length).toBeGreaterThan(0);
 
     await user.selectOptions(provincia, "BC");
+    // F1-ADDR-05: Canadá también pide ciudad y código postal.
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Vancouver");
+    await user.type(screen.getByLabelText("Código postal"), "V6B 1A1");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ country: "CA", region: "BC", currency: "CAD" }),
@@ -412,5 +417,99 @@ describe("StepBusiness — provincia / estado (F4-TAX-18)", () => {
   it("un negocio canadiense que ya tiene provincia la ve preseleccionada", () => {
     renderStep({ country: "CA", region: "ON", timezone: "America/Toronto", currency: "CAD" });
     expect(regionSelect("Provincia o territorio").value).toBe("ON");
+  });
+});
+
+/**
+ * F1-ADDR-05 — la dirección completa en el paso 1, con lo que cada país
+ * marca como obligatorio, y UN solo select de región (el fiscal de F4-TAX se
+ * fundió dentro del bloque de dirección).
+ */
+describe("StepBusiness — dirección por país (F1-ADDR-05)", () => {
+  it("México: sin código postal no continúa; con colonia, CP, ciudad y estado envía los cinco", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep();
+
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect((await screen.findAllByText("Este campo es obligatorio")).length).toBeGreaterThan(0);
+
+    await user.type(screen.getByLabelText("Colonia"), "Centro");
+    await user.type(screen.getByLabelText("Código postal"), "06000");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Ciudad de México");
+    await user.selectOptions(screen.getByLabelText("Estado"), "CMX");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: "Av. Siempre Viva 123",
+        addressLine2: "Centro",
+        city: "Ciudad de México",
+        region: "CMX",
+        postalCode: "06000",
+      }),
+    );
+  });
+
+  it("un código postal que no cumple la regla del país se marca con un ejemplo y no continúa", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep();
+    await user.type(screen.getByLabelText("Código postal"), "0600");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Ciudad de México");
+    await user.selectOptions(screen.getByLabelText("Estado"), "CMX");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(/código postal válido para tu país, como 02860/),
+    ).toBeInTheDocument();
+  });
+
+  it("Canadá: el código postal viaja NORMALIZADO, en mayúsculas y con su espacio", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep();
+    await selectCountry(user, "CA");
+    await user.selectOptions(timezoneSelect(), "America/Toronto");
+    await user.selectOptions(screen.getByLabelText("Provincia o territorio"), "ON");
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "Toronto");
+    await user.type(screen.getByLabelText("Código postal"), "m5v3l9");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "CA", region: "ON", postalCode: "M5V 3L9" }),
+    );
+  });
+
+  it("la contraprueba: en Canadá hay UN solo select de región, no el fiscal más el postal", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await selectCountry(user, "CA");
+    expect(screen.getAllByRole("combobox", { name: "Provincia o territorio" })).toHaveLength(1);
+    // Y el hint fiscal de F4-TAX sigue ahí, porque de esa región salen las tasas.
+    expect(screen.getByText(/impuestos de venta/)).toBeInTheDocument();
+  });
+
+  it("Reino Unido: sin región; con calle, ciudad y código postal envía", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep();
+    await selectCountry(user, "GB");
+    expect(screen.queryByRole("combobox", { name: /Estado|Provincia/ })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Ciudad o municipio"), "London");
+    await user.type(screen.getByLabelText("Código postal"), "ec1y 8sy");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "GB", region: "", postalCode: "EC1Y 8SY" }),
+    );
+  });
+
+  it("un país sin formato en el catálogo (Bolivia) sigue como hoy: con la calle basta", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep();
+    await selectCountry(user, "BO");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "BO", address: "Av. Siempre Viva 123", city: "" }),
+    );
   });
 });
