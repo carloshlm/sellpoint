@@ -50,11 +50,11 @@ const cliente = (over: Partial<receptionApi.Customer> = {}): receptionApi.Custom
   ...over,
 });
 
-async function renderCustomers(permissions: string[]) {
+async function renderCustomers(permissions: string[], path = "/reception/customers") {
   useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
   const router = createRouter({
     routeTree,
-    history: createMemoryHistory({ initialEntries: ["/reception/customers"] }),
+    history: createMemoryHistory({ initialEntries: [path] }),
   });
   await router.load();
   render(
@@ -175,30 +175,46 @@ describe("el registro filtra por fecha de alta (F9-RECEP-20)", () => {
     vi.useRealTimers();
   });
 
-  it("abre pidiendo solo los de hoy", async () => {
+  /**
+   * Carlos, 2026-09-08: abre con las fechas VACÍAS. F9-RECEP-20 había puesto
+   * «hoy» por defecto, y en la práctica escondía a todo paciente registrado
+   * otro día: la recepcionista entra a esta pantalla a BUSCAR a alguien, no a
+   * ver a los de hoy.
+   */
+  it("abre con las fechas vacías y pide a todos, para poder buscar a cualquiera", async () => {
     await renderCustomers(["reception:read"]);
-    await waitFor(() =>
-      expect(mocked.listCustomers).toHaveBeenCalledWith(
-        expect.objectContaining({ from: "2026-09-04", to: "2026-09-04", page: 1 }),
-      ),
-    );
+    await waitFor(() => expect(mocked.listCustomers).toHaveBeenCalled());
+    const primera = mocked.listCustomers.mock.calls[0]?.[0] ?? {};
+    expect(primera.from).toBeUndefined();
+    expect(primera.to).toBeUndefined();
+    expect(screen.getByLabelText("Desde")).toHaveValue("");
+    expect(screen.getByLabelText("Hasta")).toHaveValue("");
   });
 
-  it("cambiar «Desde» vuelve a pedir con el rango nuevo, y limpiar las fechas pide todo", async () => {
+  it("cambiar «Desde» y «Hasta» vuelve a pedir con el rango nuevo", async () => {
     await renderCustomers(["reception:read"]);
     await screen.findByText("Rosa Luna");
     fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-08-01" } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-09-04" } });
     await waitFor(() =>
       expect(mocked.listCustomers).toHaveBeenCalledWith(
         expect.objectContaining({ from: "2026-08-01", to: "2026-09-04" }),
       ),
     );
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Limpiar fechas" }));
-    await waitFor(() => {
-      const ultima = mocked.listCustomers.mock.calls.at(-1)?.[0] ?? {};
-      expect(ultima.from).toBeUndefined();
-      expect(ultima.to).toBeUndefined();
-    });
+  });
+
+  /**
+   * Carlos, 2026-09-08: al guardar un paciente, el listado abre mostrando
+   * SOLO a ese — el formulario manda el dato que lo identifica en la URL y el
+   * buscador arranca con él puesto, visible y borrable.
+   */
+  it("con ?q= en la URL el buscador arranca con ese texto y filtra por él", async () => {
+    await renderCustomers(["reception:read"], "/reception/customers?q=rosa%40yopmail.com");
+    await waitFor(() =>
+      expect(mocked.listCustomers).toHaveBeenCalledWith(
+        expect.objectContaining({ query: "rosa@yopmail.com" }),
+      ),
+    );
+    expect(screen.getByLabelText(/Buscar/)).toHaveValue("rosa@yopmail.com");
   });
 });

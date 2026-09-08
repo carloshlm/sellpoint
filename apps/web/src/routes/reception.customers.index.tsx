@@ -1,7 +1,8 @@
-import { fullName, localCalendarDate } from "@sellpoint/shared";
+import { fullName } from "@sellpoint/shared";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { z } from "zod";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -32,6 +33,13 @@ import { useReceptionEntity } from "@/lib/reception/settings";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/reception/customers/")({
+  /**
+   * `?q=`: el formulario vuelve acá con el dato que identifica al cliente
+   * recién guardado, para que el listado abra mostrando SOLO a ese (Carlos,
+   * 2026-09-08). Es el valor inicial del buscador, visible y borrable; un valor
+   * raro no rompe la pantalla (`catch`).
+   */
+  validateSearch: z.object({ q: z.string().optional().catch(undefined) }),
   component: CustomersPage,
 });
 
@@ -64,12 +72,13 @@ function CustomersContent() {
   const timeZone = useAuthStore((state) => state.user?.tenant?.timezone);
   const locale = i18n.language === "en" ? "en-US" : "es-MX";
 
-  const [query, setQuery] = useState("");
-  // F9-RECEP-20: abre con los dados de alta HOY, en el calendario del negocio.
-  // Es solo el valor inicial del filtro (se puede vaciar); el corte exacto por
-  // zona lo hace el API.
-  const [hoy] = useState(() => localCalendarDate(timeZone ?? "UTC", new Date()));
-  const [rango, setRango] = useState<RangoDeFechas>({ from: hoy, to: hoy });
+  const { q } = Route.useSearch();
+  const [query, setQuery] = useState(q ?? "");
+  // Las fechas abren VACÍAS (Carlos, 2026-09-08): a esta pantalla se entra a
+  // BUSCAR a alguien, y F9-RECEP-20, que arrancaba en «hoy», escondía a todo
+  // paciente registrado otro día. El corte exacto por zona lo sigue haciendo
+  // el API cuando se llenan.
+  const [rango, setRango] = useState<RangoDeFechas>({ from: "", to: "" });
   const [pagina, setPagina] = useState(1);
   // biome-ignore lint/correctness/useExhaustiveDependencies: las deps SON los filtros
   useEffect(() => {

@@ -107,6 +107,9 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
       }),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe("/reception/customers"));
+    // Carlos, 2026-09-08: el listado abre mostrando SOLO al recién guardado.
+    // Sin correo, lo identifica su teléfono.
+    expect(router.state.location.search).toEqual({ q: "+525512345678" });
   });
 
   it("un teléfono inválido muestra el error del campo y no llama al API", async () => {
@@ -152,6 +155,29 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
 
     await waitFor(() => expect(mocked.updateCustomer).toHaveBeenCalledWith("c1", { notes: "VIP" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/reception/customers"));
+    expect(router.state.location.search).toEqual({ q: "+525512345678" });
+  });
+
+  it("al guardar, el correo identifica antes que el teléfono, y sin ninguno de los dos, el nombre", async () => {
+    mocked.createCustomer.mockResolvedValue({ ...guardado, email: "rosa@yopmail.com" });
+    let router = await renderEn("/reception/customers/new");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Nombre"), "Rosa");
+    await user.type(screen.getByLabelText("Apellido paterno"), "Luna");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ q: "rosa@yopmail.com" }));
+
+    mocked.createCustomer.mockResolvedValue({ ...guardado, email: null, phone: null });
+    router = await renderEn("/reception/customers/new");
+    await user.type((await screen.findAllByLabelText("Nombre")).at(-1) as HTMLElement, "Rosa");
+    await user.type(
+      (await screen.findAllByLabelText("Apellido paterno")).at(-1) as HTMLElement,
+      "Luna",
+    );
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Guardar" })).at(-1) as HTMLElement,
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({ q: "Rosa Luna" }));
   });
 
   it("cancelar vuelve al listado sin guardar", async () => {
@@ -159,6 +185,8 @@ describe("alta y edición de cliente (F9-RECEP-12)", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Cancelar" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/reception/customers"));
+    // Cancelar no filtra nada: se vuelve al listado tal cual.
+    expect(router.state.location.search).toEqual({});
     expect(mocked.createCustomer).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,8 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { CustomerForm } from "@/components/reception/customer-form";
 import { ReceptionItemGate } from "@/components/reception/reception-item-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Customer } from "@/lib/reception/api";
+import { customerSearchKey } from "@/lib/reception/search-key";
 import { useReceptionEntity } from "@/lib/reception/settings";
 
 export const Route = createFileRoute("/reception/customers/new")({
@@ -38,7 +40,13 @@ function NewCustomerContent() {
   const { t } = useTranslation();
   const entidad = useReceptionEntity();
   const navigate = useNavigate();
-  const volver = () => navigate({ to: "/reception/customers" });
+  // Guardar vuelve al listado filtrado por el cliente guardado; Cancelar, al
+  // listado tal cual (Carlos, 2026-09-08).
+  const volver = (customer?: Customer) =>
+    navigate({
+      to: "/reception/customers",
+      search: customer ? { q: customerSearchKey(customer) } : {},
+    });
   return (
     <Card>
       <CardHeader>
@@ -47,7 +55,7 @@ function NewCustomerContent() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <CustomerForm onDone={volver} onCancel={volver} />
+        <CustomerForm onDone={volver} onCancel={() => volver()} />
       </CardContent>
     </Card>
   );
