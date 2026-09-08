@@ -128,6 +128,10 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
           legalName: null,
           taxId: null,
           address: null,
+          // F1-ADDR-03: la dirección estructurada nace en null.
+          addressLine2: null,
+          city: null,
+          postalCode: null,
           phone: null,
           theme: null,
           timezone: expect.any(String),
