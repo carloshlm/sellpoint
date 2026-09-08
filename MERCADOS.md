@@ -6,7 +6,8 @@
 > (catálogo ISO 3166-1 completo) y `apps/web/src/lib/tenant/markets.ts` (zonas
 > horarias curadas, moneda por defecto y sigla fiscal por país),
 > `packages/shared/src/tax-defaults.ts` (impuestos) y
-> `packages/shared/src/names.ts` (cuántos apellidos pide cada país).
+> `packages/shared/src/names.ts` (cuántos apellidos pide cada país) y
+> `packages/shared/src/address.ts` (qué campos de dirección, en qué orden y con qué código postal).
 
 ---
 
@@ -269,8 +270,33 @@ profundidad todavía:
   guardado se muestra y se edita aunque el país sea de uno solo. El registro
   público siempre pide Nombre + un Apellido: ahí todavía no existe el negocio,
   así que no hay país. Catálogo completo en `packages/shared/src/names.ts`.
-- **Dirección** — hoy es un campo de texto libre. Los formatos postales difieren
-  (código postal antes o después de la ciudad, condado/provincia/estado…).
+- **Dirección** — RESUELTO (2026-09-08, F1-ADDR). Los campos son UNIVERSALES en
+  la base —`address` (calle y número), `address_line2`, `city`, `region` y
+  `postal_code`, en `tenants` y en `warehouses`— y el formato lo decide
+  `tenants.country` desde un catálogo copiado del de Google (libaddressinput, el
+  de Chrome, Shopify y Stripe): qué campos se piden, en qué orden, con qué
+  etiqueta y con qué regla de código postal. Un cliente en Canadá pidió City,
+  Postal Code y Address 2 «que no existen en México»; es al revés: México pide
+  lo mismo y suma la **colonia** (la línea 2 en México, Brasil y Colombia; en
+  el resto es el interior o la unidad, opcional). El código postal va ANTES de
+  la ciudad en México y España, y al final en Estados Unidos y Canadá. La
+  **región** se pide con lista solo en **México** (32 estados, ISO 3166-2),
+  **Canadá** (13) y **Estados Unidos** (50 y DC, la lista fiscal de F4-TAX): la
+  columna admite códigos de ocho caracteres, nunca nombres, y los catálogos de
+  subdivisiones de los otros 23 países quedaron pospuestos aunque Google los
+  traiga (España, Italia). En Canadá y Estados Unidos la región es FISCAL y se
+  edita en Impuestos; en México es postal y se edita en la dirección. **Aquí sí
+  se valida por país** —la dirección y el país son del negocio—: `06000` vale
+  en México, `M5V 3L9` en Canadá (se guarda normalizado: mayúsculas y espacio),
+  `78701` o `78701-1234` en Estados Unidos, y un país sin regla acepta todo. Lo
+  que un negocio NUEVO debe capturar lo marca el país (`require` de Google: los
+  tres grandes exigen calle, ciudad, región y código postal); un negocio que ya
+  existía conserva su texto libre en la línea 1 y completa el resto cuando
+  quiera. El ticket y el PDF imprimen la dirección en UNA línea en el orden de
+  su país (`formatAddress`: «123 Main St, Austin, TX 78701»; «Calle 5 #12, Col.
+  Centro, 06000 Ciudad de México, Ciudad de México»), eligiendo el bloque
+  entero del almacén si tiene calle o el del negocio, nunca mezclados. Catálogo
+  completo en `packages/shared/src/address.ts`.
 - **Nombre del impuesto de venta** — RESUELTO (2026-09-06, F4-TAX). El
   nombre no se traduce por locale: es un dato del negocio, sembrado por país
   en el vocabulario fiscal local («IVA 16%», «TVA 20%», «MwSt 19%»,

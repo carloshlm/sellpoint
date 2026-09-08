@@ -710,11 +710,17 @@ Con **cero almacenes marcados** el form avisa: «Sin almacenes marcados, este se
 
 **Form de creación/edición:**
 
-> **Actualizado en la atomización de F2 (2026-08-16):** la dirección es **texto libre
-> opcional** — el desglose colonia/alcaldía/estado del mockup previo era México-céntrico
-> y SellPoint vende a 26 mercados (MERCADOS.md §4: los formatos postales difieren). Los
-> **racks quedaron FUERA de F2**: no existen en ningún modelo de datos y se decidirán
-> cuando llegue el stock por ubicación.
+> **Actualizado en F1-ADDR (2026-09-08):** la dirección dejó de ser texto libre. Es
+> **estructurada y universal** (calle y número, línea 2, ciudad, región, código
+> postal) y el formulario pinta los campos que el PAÍS del negocio usa, en su orden
+> y con su vocabulario —«Colonia» y «Estado» en México, «Apt, suite or unit» y
+> «Province or territory» en Canadá— desde `packages/shared/src/address.ts`
+> (MERCADOS.md §4). Sigue siendo opcional en el almacén; el código postal, si viene,
+> se valida contra la regla del país. La versión de 2026-08-16 la había dejado en
+> texto libre porque el desglose colonia/alcaldía/estado del mockup original era
+> México-céntrico: la respuesta correcta no era quitar el desglose, era hacerlo por
+> país. Los **racks quedaron FUERA de F2**: no existen en ningún modelo de datos y
+> se decidirán cuando llegue el stock por ubicación.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -724,9 +730,14 @@ Con **cero almacenes marcados** el form avisa: «Sin almacenes marcados, este se
 │   Nombre del almacén *                                         │
 │   (_________________________________________________)          │
 │                                                                │
-│   Dirección                                                    │
+│   Calle y número                                               │
 │   (_________________________________________________)          │
+│   Colonia                          (según el país)             │
 │   (_________________________________________________)          │
+│   Código postal          Ciudad o municipio                    │
+│   (______________)       (___________________________)         │
+│   Estado                                                       │
+│   [ Elige uno                                          ▾ ]     │
 │                                                                │
 │                            [Cancelar]  [Guardar almacén]       │
 └────────────────────────────────────────────────────────────────┘
