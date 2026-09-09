@@ -30,5 +30,11 @@
   "session_already_closed": "That shift is already closed.",
   "session_already_open": "You already have an open shift. Close it before opening another.",
   "warehouse_invalid": "The warehouse is not valid.",
-  "line_discount_exceeds_line": "The discount on line {lineIndex} exceeds its amount."
+  "line_discount_exceeds_line": "The discount on line {lineIndex} exceeds its amount.",
+  "discount_invalid_amount": "The discount must be a positive amount with up to 2 decimals.",
+  "discount_code_invalid": "The authorization code is not correct.",
+  "discount_code_locked": "Too many attempts with the authorization code. Wait 15 minutes.",
+  "discount_not_configured": "This business has no discount authorization code. The administrator sets it in My profile.",
+  "discount_exceeds_subtotal": "The discount cannot exceed the subtotal.",
+  "discount_exceeds_limit": "The discount exceeds the business limit ({max}% of the subtotal)."
 }

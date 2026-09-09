@@ -2,6 +2,7 @@ import {
   addQuantities,
   multiplyMoney,
   parseQuantity,
+  prorateDiscountCents,
   splitLineTax,
   type TaxMode,
 } from "@sellpoint/shared";
@@ -439,15 +440,32 @@ export interface ImpuestosDelCarrito {
  * mismo redondeo. Si el carrito dividiera por su cuenta, el cajero vería un
  * total y el papel imprimiría otro.
  */
-export function impuestosDelCarrito(lines: CartLine[], mode: TaxMode): ImpuestosDelCarrito {
+/**
+ * F4-DISC — el descuento del ticket repartido entre las líneas, en centavos,
+ * con la MISMA función que usa el servidor (`prorateDiscountCents`): lo que
+ * el cajero ve como total es lo que el papel imprime.
+ */
+export function descuentoPorLinea(lines: CartLine[], discountCents: number): number[] {
+  return prorateDiscountCents(
+    discountCents,
+    lines.map((l) => Math.round(totalDeLinea(l) * 100)),
+  );
+}
+
+export function impuestosDelCarrito(
+  lines: CartLine[],
+  mode: TaxMode,
+  discountCents = 0,
+): ImpuestosDelCarrito {
   const componentes = new Map<
     string,
     { code: string; name: string; rate: string; cents: number }
   >();
   let taxCents = 0;
   let baseCents = 0;
-  for (const line of lines) {
-    const amountCents = Math.round(totalDeLinea(line) * 100);
+  const partes = descuentoPorLinea(lines, discountCents);
+  for (const [i, line] of lines.entries()) {
+    const amountCents = Math.round(totalDeLinea(line) * 100) - (partes[i] ?? 0);
     const components = line.tax?.components ?? [];
     const split = splitLineTax({ amountCents, mode, components });
     taxCents += split.taxCents;
@@ -479,8 +497,12 @@ export function impuestosDelCarrito(lines: CartLine[], mode: TaxMode): Impuestos
  * Lo que se COBRA: en `included` es el subtotal tal cual (el impuesto va
  * adentro); en `excluded` es el subtotal más el impuesto.
  */
-export function totalDelCarrito(lines: CartLine[], mode: TaxMode): number {
-  const subtotal = subtotalDelCarrito(lines);
-  if (mode !== "excluded") return subtotal;
-  return Math.round(subtotal * 100 + impuestosDelCarrito(lines, mode).total * 100) / 100;
+export function totalDelCarrito(lines: CartLine[], mode: TaxMode, discountCents = 0): number {
+  const subtotalCents = Math.round(subtotalDelCarrito(lines) * 100);
+  // El descuento nunca deja el ticket en negativo: quien llama lo valida
+  // contra el subtotal; acá solo se recorta por seguridad.
+  const descontado = subtotalCents - Math.min(discountCents, subtotalCents);
+  if (mode !== "excluded") return descontado / 100;
+  const impuesto = Math.round(impuestosDelCarrito(lines, mode, discountCents).total * 100);
+  return (descontado + impuesto) / 100;
 }

@@ -49,6 +49,13 @@ export interface TenantBlock {
   taxMode: TaxMode;
   /** F4-TAX-16: provincia o estado (ISO 3166-2 sin prefijo), solo CA y US. */
   region: string | null;
+  /**
+   * F4-DISC: cuándo se configuró el PIN de descuentos (ISO) o null si no hay.
+   * El hash JAMÁS viaja: el cliente solo necesita saber si existe.
+   */
+  discountCodeSetAt: string | null;
+  /** F4-DISC: tope del descuento por ticket en % del subtotal («20») o null. */
+  discountMaxPercent: string | null;
 }
 
 /** Select de Prisma que alimenta `toTenantBlock` — un solo lugar para los 3 consumidores. */
@@ -74,6 +81,8 @@ export const TENANT_SELECT = {
   monthlySalesGoal: true,
   taxMode: true,
   region: true,
+  discountCodeSetAt: true,
+  discountMaxPercent: true,
 } as const;
 
 export type TenantRow = {
@@ -100,6 +109,8 @@ export type TenantRow = {
   monthlySalesGoal: { toString(): string } | null;
   taxMode: string;
   region: string | null;
+  discountCodeSetAt: Date | null;
+  discountMaxPercent: { toString(): string } | null;
 };
 
 /** Función pura: fila de Prisma → `TenantBlock`. Testeable sin DB. */
@@ -126,5 +137,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     monthlySalesGoal: row.monthlySalesGoal?.toString() ?? null,
     taxMode: row.taxMode as TaxMode,
     region: row.region,
+    discountCodeSetAt: row.discountCodeSetAt?.toISOString() ?? null,
+    discountMaxPercent: row.discountMaxPercent?.toString() ?? null,
   };
 }

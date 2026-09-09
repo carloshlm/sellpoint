@@ -30,5 +30,11 @@
   "session_already_closed": "Ese turno ya está cerrado.",
   "session_already_open": "Ya tienes un turno abierto. Ciérralo antes de abrir otro.",
   "warehouse_invalid": "El almacén no es válido.",
-  "line_discount_exceeds_line": "El descuento de la línea {lineIndex} supera su importe."
+  "line_discount_exceeds_line": "El descuento de la línea {lineIndex} supera su importe.",
+  "discount_invalid_amount": "El descuento debe ser un monto positivo con hasta 2 decimales.",
+  "discount_code_invalid": "El código de autorización no es correcto.",
+  "discount_code_locked": "Demasiados intentos con el código de autorización. Espera 15 minutos.",
+  "discount_not_configured": "Este negocio no tiene código de autorización de descuentos. El administrador lo define en Mi perfil.",
+  "discount_exceeds_subtotal": "El descuento no puede ser mayor que el subtotal.",
+  "discount_exceeds_limit": "El descuento supera el tope del negocio ({max} % del subtotal)."
 }

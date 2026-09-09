@@ -16,5 +16,7 @@
   "tax_invalid_region": "Esa provincia o estado no corresponde al país del negocio.",
   "tax_group_unknown": "Ese grupo de impuesto no existe.",
   "tax_group_in_use": "No se puede borrar: lo usan {count} artículos. Desactívalo o cámbiales el impuesto.",
-  "tax_group_is_default": "Es el impuesto predeterminado: elige otro antes de borrarlo."
+  "tax_group_is_default": "Es el impuesto predeterminado: elige otro antes de borrarlo.",
+  "invalid_discount_code": "El código de autorización debe tener de 4 a 8 dígitos.",
+  "invalid_discount_percent": "El tope debe ser un porcentaje entre 0 y 100 con hasta 2 decimales."
 }

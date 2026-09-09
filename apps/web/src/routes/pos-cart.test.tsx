@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
+import type { TenantBlock } from "@/lib/tenant/api";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useCartStore } from "@/stores/cart.store";
@@ -92,11 +93,11 @@ const HARINA: posApi.LookupProductItem = {
   presentations: [{ ...PIEZA, id: "pres-kg", name: "Kilo", allowFractionalInput: true }],
 };
 
-const demoUser = (permissions: string[]): AuthUser =>
+const demoUser = (permissions: string[], tenant: Partial<TenantBlock> = {}): AuthUser =>
   buildAuthUser({
     email: "cajero@demo.test",
     permissions,
-    tenant: buildTenantBlock({ id: "t1", name: "Demo" }),
+    tenant: buildTenantBlock({ id: "t1", name: "Demo", ...tenant }),
   });
 
 const sesion = (): posApi.CashboxSession => ({
@@ -465,8 +466,8 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     items: [],
   });
 
-  async function conCarrito() {
-    await renderPos();
+  async function conCarrito(usuario?: AuthUser) {
+    await renderPos(usuario);
     useCartStore.getState().add(AGUA, { quantity: "2" }); // 2 × 12.50 = 25.00
     await userEvent.click(await screen.findByRole("button", { name: "Cobrar" }));
     return screen.findByTestId("checkout-panel");
@@ -675,6 +676,135 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
       expect(mocked.createSale.mock.calls[0]?.[1]).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       );
+    });
+  });
+
+  /**
+   * F4-DISC (Carlos, 2026-09-09): el descuento del ticket se captura como los
+   * demás importes y lo AUTORIZA un código que el Admin define en Mi perfil.
+   * Sin código configurado el botón no existe —no hay nada que autorizar— y
+   * un importe mal tecleado o sin código bloquea Cobrar en vez de descartarse
+   * en silencio: «5,5» sin descuento sería un cobro de más que nadie ve.
+   */
+  describe("el descuento del ticket (F4-DISC)", () => {
+    const conPin = (tenant: Partial<TenantBlock> = {}) =>
+      demoUser(["pos:sell"], { discountCodeSetAt: "2026-09-09T15:00:00.000Z", ...tenant });
+
+    it("sin código configurado no hay forma de aplicar descuento", async () => {
+      await conCarrito();
+
+      expect(screen.queryByRole("button", { name: "Aplicar descuento" })).not.toBeInTheDocument();
+    });
+
+    it("con código: el importe baja el total, se pinta la línea y viaja con código y motivo", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      const panel = within(await conCarrito(conPin()));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+
+      const importe = panel.getByLabelText("Descuento");
+      expect(importe).toHaveAccessibleDescription(/MXN/);
+      await userEvent.type(importe, "5");
+      await userEvent.tab();
+      expect(importe).toHaveValue("5.00");
+      await userEvent.type(panel.getByLabelText("Código de autorización"), "1234");
+      await userEvent.type(panel.getByLabelText("Motivo (opcional)"), " Cliente frecuente ");
+
+      expect(screen.getByTestId("checkout-discount-lines")).toHaveTextContent(/−.*5\.00/);
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("20.00");
+
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalledTimes(1));
+      expect(mocked.createSale.mock.calls[0]?.[0]).toEqual({
+        paymentMethod: "transfer",
+        lines: [{ productId: "prod-agua", presentationId: PIEZA.id, quantity: 2 }],
+        discount: { amount: 5, code: "1234", reason: "Cliente frecuente" },
+      });
+    });
+
+    it("el vuelto se calcula sobre el total ya descontado", async () => {
+      const panel = within(await conCarrito(conPin()));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+      await userEvent.type(panel.getByLabelText("Descuento"), "5");
+      await userEvent.type(panel.getByLabelText("Código de autorización"), "1234");
+
+      await userEvent.type(panel.getByLabelText("Con cuánto paga"), "50");
+
+      expect(screen.getByTestId("checkout-change")).toHaveTextContent("30.00");
+    });
+
+    it("más que el subtotal se marca, no baja el total y no deja cobrar", async () => {
+      const panel = within(await conCarrito(conPin()));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+      await userEvent.type(panel.getByLabelText("Descuento"), "26");
+      await userEvent.type(panel.getByLabelText("Código de autorización"), "1234");
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+
+      expect(
+        screen.getByText("El descuento no puede ser mayor que el subtotal"),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("25.00");
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    it("una coma en el descuento no se descarta en silencio: bloquea Cobrar", async () => {
+      const panel = within(await conCarrito(conPin()));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+      await userEvent.type(panel.getByLabelText("Descuento"), "5,5");
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("25.00");
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    it("el tope del negocio se respeta: 10 % de 25.00 son 2.50", async () => {
+      const panel = within(await conCarrito(conPin({ discountMaxPercent: "10.00" })));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+      const importe = panel.getByLabelText("Descuento");
+      expect(importe).toHaveAccessibleDescription(/10 %/);
+
+      await userEvent.type(importe, "5");
+      expect(screen.getByText(/supera el tope del negocio \(10 %/)).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("25.00");
+
+      await userEvent.clear(importe);
+      await userEvent.type(importe, "2.50");
+      expect(screen.queryByText(/supera el tope/)).not.toBeInTheDocument();
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("22.50");
+    });
+
+    it("sin código no se cobra: el descuento lo autoriza alguien, no el cajero", async () => {
+      const panel = within(await conCarrito(conPin()));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+      await userEvent.type(panel.getByLabelText("Descuento"), "5");
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+
+      expect(screen.getByText("Escribe el código de 4 a 8 dígitos")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+
+      const codigo = panel.getByLabelText("Código de autorización");
+      await userEvent.type(codigo, "12ab34");
+      expect(codigo).toHaveValue("1234");
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
+    });
+
+    it("«Quitar descuento» devuelve el total y no manda nada al servidor", async () => {
+      mocked.createSale.mockResolvedValue(venta());
+      const panel = within(await conCarrito(conPin()));
+      await userEvent.click(panel.getByRole("button", { name: "Aplicar descuento" }));
+      await userEvent.type(panel.getByLabelText("Descuento"), "5");
+      await userEvent.type(panel.getByLabelText("Código de autorización"), "1234");
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("20.00");
+
+      await userEvent.click(panel.getByRole("button", { name: "Quitar descuento" }));
+
+      expect(screen.getByTestId("checkout-total")).toHaveTextContent("25.00");
+      expect(screen.queryByTestId("checkout-discount-lines")).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+      await waitFor(() => expect(mocked.createSale).toHaveBeenCalledTimes(1));
+      expect(mocked.createSale.mock.calls[0]?.[0]).not.toHaveProperty("discount");
     });
   });
 

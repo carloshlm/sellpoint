@@ -99,3 +99,37 @@ describe("DTOs del POS con línea de concepto (F4-CONCEPT-03)", () => {
     expect(res.success).toBe(false);
   });
 });
+
+/** F4-DISC — el descuento del ticket: monto positivo con escala de dinero y PIN de 4 a 8 dígitos. */
+describe("createSaleSchema con descuento del ticket (F4-DISC)", () => {
+  const linea = { productId: "11111111-1111-4111-8111-111111111111", quantity: 1 };
+
+  it("acepta monto, código y motivo opcional", () => {
+    const r = createSaleSchema.safeParse({
+      paymentMethod: "cash",
+      lines: [linea],
+      discount: { amount: 25.5, code: "1234", reason: "Cliente frecuente" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rechaza monto en cero o con tres decimales, código corto o con letras, y claves inventadas", () => {
+    const base = { paymentMethod: "cash", lines: [linea] };
+    expect(
+      createSaleSchema.safeParse({ ...base, discount: { amount: 0, code: "1234" } }).success,
+    ).toBe(false);
+    expect(
+      createSaleSchema.safeParse({ ...base, discount: { amount: 1.005, code: "1234" } }).success,
+    ).toBe(false);
+    expect(
+      createSaleSchema.safeParse({ ...base, discount: { amount: 10, code: "123" } }).success,
+    ).toBe(false);
+    expect(
+      createSaleSchema.safeParse({ ...base, discount: { amount: 10, code: "12a4" } }).success,
+    ).toBe(false);
+    expect(
+      createSaleSchema.safeParse({ ...base, discount: { amount: 10, code: "1234", percent: 5 } })
+        .success,
+    ).toBe(false);
+  });
+});

@@ -81,6 +81,11 @@ model Tenant {
   /// dashboard pinta «85% alcanzado». NULL = el negocio no persigue meta;
   /// borrable como phone.
   monthlySalesGoal Decimal?  @map("monthly_sales_goal") @db.Decimal(14, 2)
+  /// F4-DISC: el PIN de autorización de descuentos, HASHEADO (argon2); nunca viaja al cliente.
+  discountCodeHash   String?   @map("discount_code_hash")
+  discountCodeSetAt  DateTime? @map("discount_code_set_at") @db.Timestamptz(6)
+  /// F4-DISC: tope del descuento por ticket, % del subtotal; NULL = sin tope. CHECK (0, 100].
+  discountMaxPercent Decimal?  @map("discount_max_percent") @db.Decimal(5, 2)
   /**
    * F4-TAX — ¿el precio de catálogo YA incluye el impuesto? `included`
    * (México, la UE: precio final por ley de consumidor) o `excluded` (Canadá,
@@ -1453,6 +1458,8 @@ model Sale {
   paymentMethod      PaymentMethod @map("payment_method")
   subtotal           Decimal       @db.Decimal(14, 2)
   discount           Decimal       @default(0) @db.Decimal(14, 2)
+  /// F4-DISC: por qué se descontó, en palabras del cajero (opcional).
+  discountReason     String?       @map("discount_reason") @db.VarChar(200)
   total              Decimal       @db.Decimal(14, 2)
   /**
    * F4-TAX — el modo del día del cobro. En `included` el impuesto va DENTRO

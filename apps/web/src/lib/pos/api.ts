@@ -209,6 +209,8 @@ export interface CreateSaleInput {
     /** F4-CONCEPT-08: el concepto se cobra por la línea de su cotización. */
     quoteLineId?: string;
     quantity: number;
+    /** F4-DISC: el descuento del ticket, autorizado con el PIN del negocio. */
+    discount?: { amount: number; code: string; reason?: string };
   }[];
   quoteId?: string;
 }

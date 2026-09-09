@@ -1,4 +1,4 @@
-import { PAYMENT_METHODS } from "@sellpoint/shared";
+import { hasValidMoneyScale, isDiscountCode, MONEY_MAX, PAYMENT_METHODS } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -50,6 +50,24 @@ export const createSaleSchema = z
     lines: z.array(saleLineSchema).min(1, { message: "pos.sale_needs_lines" }),
     /** La cotización que se cargó, si el carrito vino de una (F4-QUOTE-02). */
     quoteId: z.string().uuid().optional(),
+    /**
+     * F4-DISC: el descuento del ticket, UN monto autorizado con el PIN del
+     * negocio. El servidor lo verifica contra el hash guardado, lo compara
+     * con el subtotal y el tope, y lo prorratea entre las líneas: el cliente
+     * nunca decide cuánto se descuenta de cada renglón.
+     */
+    discount: z
+      .object({
+        amount: z
+          .number()
+          .positive()
+          .max(MONEY_MAX)
+          .refine(hasValidMoneyScale, { message: "pos.discount_invalid_amount" }),
+        code: z.string().refine(isDiscountCode, { message: "pos.discount_code_invalid" }),
+        reason: z.string().trim().max(200).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

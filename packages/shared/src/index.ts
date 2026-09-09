@@ -4,6 +4,7 @@ export * from "./billing";
 export * from "./countries";
 export * from "./day-range";
 export * from "./decimal-text";
+export * from "./discount";
 export * from "./document-date";
 export * from "./i18n";
 export * from "./icd10";

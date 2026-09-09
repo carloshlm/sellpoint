@@ -1,17 +1,27 @@
 import {
   ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
+  discountCapCents,
   localCalendarDate,
   POS_FOLIO_PREFIXES,
   type PosLineKind,
+  prorateDiscountCents,
   shortName,
 } from "@sellpoint/shared";
+import type { Redis } from "ioredis";
 import { Prisma } from "../../generated/prisma/client";
+import { HASHER, type HashPort } from "../../infrastructure/crypto/hash.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import { REDIS_CLIENT } from "../../infrastructure/redis/redis.tokens";
 import type { AuthUser } from "../auth/types/auth-user";
 import { EntitlementsService } from "../billing/entitlements.service";
 import { SalesPlanGate } from "../billing/sales-plan.gate";
@@ -87,6 +97,10 @@ interface PrecioResuelto {
  * acabó entre que se armó el carrito y se cobró— no queda ni un folio gastado
  * ni media venta.
  */
+/** F4-DISC: intentos fallidos de PIN antes del candado, y cuánto dura. */
+const DISCOUNT_MAX_ATTEMPTS = 5;
+const DISCOUNT_LOCK_SECONDS = 15 * 60;
+
 @Injectable()
 export class SalesService {
   constructor(
@@ -96,7 +110,56 @@ export class SalesService {
     private readonly entitlements: EntitlementsService,
     private readonly salesPlanGate: SalesPlanGate,
     private readonly weightedCost: WeightedCostService,
+    @Inject(HASHER) private readonly hasher: HashPort,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
+
+  private readonly logger = new Logger(SalesService.name);
+
+  /**
+   * F4-DISC — el descuento del ticket se AUTORIZA antes de abrir la
+   * transacción: leer el hash y verificar argon2 (~50 ms) no tiene por qué
+   * alargar el lock de la serie. Sin PIN configurado no hay descuento que
+   * autorizar (422); cinco intentos fallidos seguidos bloquean al usuario
+   * quince minutos (429) — es una credencial y se defiende como tal; un PIN
+   * equivocado es 403 y se cuenta. El acierto borra la cuenta.
+   */
+  private async autorizarDescuento(
+    user: AuthUser,
+    descuento: NonNullable<CreateSaleDto["discount"]>,
+  ): Promise<{ amountCents: number; maxPercent: number | null; reason: string | null }> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { discountCodeHash: true, discountMaxPercent: true },
+    });
+    if (tenant?.discountCodeHash == null) {
+      throw new UnprocessableEntityException({ message: "pos.discount_not_configured" });
+    }
+    const llave = `pos:discount-attempts:${user.tenantId}:${user.userId}`;
+    const intentos = Number((await this.redis.get(llave)) ?? 0);
+    if (intentos >= DISCOUNT_MAX_ATTEMPTS) {
+      throw new HttpException(
+        { message: "pos.discount_code_locked" },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const valido = await this.hasher.verify(tenant.discountCodeHash, descuento.code);
+    if (!valido) {
+      await this.redis.incr(llave);
+      await this.redis.expire(llave, DISCOUNT_LOCK_SECONDS);
+      this.logger.warn(
+        { tenantId: user.tenantId, userId: user.userId },
+        "pos.discount_code_invalid",
+      );
+      throw new ForbiddenException({ message: "pos.discount_code_invalid" });
+    }
+    await this.redis.del(llave);
+    return {
+      amountCents: Math.round(descuento.amount * 100),
+      maxPercent: tenant.discountMaxPercent === null ? null : Number(tenant.discountMaxPercent),
+      reason: descuento.reason?.trim() || null,
+    };
+  }
 
   /**
    * ── La idempotencia, y por qué se resuelve ANTES de la transacción ──────
@@ -165,9 +228,41 @@ export class SalesService {
     ];
     const costosBase = await this.weightedCost.averageCosts(user.tenantId, productosVendidos);
 
+    // F4-DISC: el PIN se verifica ANTES de la transacción (ver `autorizarDescuento`).
+    const descuentoTicket =
+      dto.discount === undefined ? null : await this.autorizarDescuento(user, dto.discount);
+
     return this.prisma
       .withTenantContext(user.tenantId, async (tx) => {
         const precios = await this.resolverPrecios(tx, user, dto.lines, dto.quoteId);
+
+        // F4-DISC: el descuento del ticket se PRORRATEA entre las líneas por
+        // su importe bruto, en centavos exactos, antes de que el motor calcule
+        // el impuesto sobre la base ya descontada. Más que el subtotal o que
+        // el tope del negocio, rebota: el cliente no decide cuánto vale el
+        // ticket.
+        const brutosCents = dto.lines.map((line, i) =>
+          (precios[i] as PrecioResuelto).unitPrice
+            .times(new Prisma.Decimal(line.quantity))
+            .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+            .times(100)
+            .toNumber(),
+        );
+        let partesCents: number[] = dto.lines.map(() => 0);
+        if (descuentoTicket !== null) {
+          const subtotalCents = brutosCents.reduce((acc, c) => acc + c, 0);
+          if (descuentoTicket.amountCents > subtotalCents) {
+            throw new UnprocessableEntityException({ message: "pos.discount_exceeds_subtotal" });
+          }
+          const tope = discountCapCents(subtotalCents, descuentoTicket.maxPercent);
+          if (tope !== null && descuentoTicket.amountCents > tope) {
+            throw new UnprocessableEntityException({
+              message: "pos.discount_exceeds_limit",
+              args: { max: descuentoTicket.maxPercent },
+            });
+          }
+          partesCents = prorateDiscountCents(descuentoTicket.amountCents, brutosCents);
+        }
 
         // F4-TAX-06: UN motor suma el documento (venta, cotización y la orden
         // médica llaman al mismo). Redondea cada línea a centavos ANTES del
@@ -186,7 +281,9 @@ export class SalesService {
             return {
               unitPrice: precio.unitPrice,
               quantity: new Prisma.Decimal(line.quantity),
-              discount: new Prisma.Decimal(line.discount ?? 0),
+              discount: new Prisma.Decimal(line.discount ?? 0).plus(
+                new Prisma.Decimal(partesCents[i] ?? 0).dividedBy(100),
+              ),
               grupo:
                 precio.kind === "concept" ? precio.taxFrozen : grupoDe(fiscal, precio.taxGroupId),
             };
@@ -264,6 +361,7 @@ export class SalesService {
             paymentMethod: dto.paymentMethod,
             subtotal,
             discount: descuento,
+            ...(descuentoTicket?.reason != null && { discountReason: descuentoTicket.reason }),
             total: totales.total,
             taxMode: fiscal.mode,
             taxTotal: totales.taxTotal,
@@ -283,7 +381,9 @@ export class SalesService {
               create: dto.lines.map((line, i) => {
                 const precio = precios[i] as PrecioResuelto;
                 const cantidad = new Prisma.Decimal(line.quantity);
-                const desc = new Prisma.Decimal(line.discount ?? 0);
+                const desc = new Prisma.Decimal(line.discount ?? 0).plus(
+                  new Prisma.Decimal(partesCents[i] ?? 0).dividedBy(100),
+                );
                 // El costo viaja en la MISMA unidad que unitPrice. Fuente
                 // PRIMERA: el catálogo (presentación o servicio — el número
                 // que el dueño ve y edita; Carlos, 2026-09-01). De red, el

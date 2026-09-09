@@ -122,11 +122,25 @@
     "state": "Estado",
     "status": "Estado",
     "title": "Historial de ventas",
-    "total": "Total"
+    "total": "Total",
+    "discount": "Descuento"
   },
   "ticket": {
     "failed": "No pudimos abrir el ticket. Puedes reimprimirlo desde el historial.",
     "print": "Imprimir ticket",
     "reprint": "Reimprimir"
+  },
+  "discount": {
+    "apply": "Aplicar descuento",
+    "remove": "Quitar descuento",
+    "amount": "Descuento",
+    "code": "Código de autorización",
+    "codeHint": "Lo define el administrador en Mi perfil.",
+    "codeInvalid": "Escribe el código de 4 a 8 dígitos",
+    "reason": "Motivo (opcional)",
+    "exceedsSubtotal": "El descuento no puede ser mayor que el subtotal",
+    "exceedsLimit": "El descuento supera el tope del negocio ({{max}} % del subtotal)",
+    "limitHint": "Tope del negocio: {{max}} % del subtotal",
+    "line": "Descuento"
   }
 }

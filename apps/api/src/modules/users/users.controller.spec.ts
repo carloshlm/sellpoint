@@ -65,6 +65,8 @@ const ME: MeProfile = {
   tenant: {
     id: "tenant-1",
     name: "Acme",
+    discountCodeSetAt: null,
+    discountMaxPercent: null,
     legalName: null,
     taxId: null,
     phone: null,

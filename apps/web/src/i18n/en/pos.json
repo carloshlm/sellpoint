@@ -122,11 +122,25 @@
     "state": "Status",
     "status": "Status",
     "title": "Sales history",
-    "total": "Total"
+    "total": "Total",
+    "discount": "Discount"
   },
   "ticket": {
     "failed": "We couldn't open the receipt. You can reprint it from the history.",
     "print": "Print receipt",
     "reprint": "Reprint"
+  },
+  "discount": {
+    "apply": "Apply discount",
+    "remove": "Remove discount",
+    "amount": "Discount",
+    "code": "Authorization code",
+    "codeHint": "Set by the administrator in My profile.",
+    "codeInvalid": "Enter the 4 to 8 digit code",
+    "reason": "Reason (optional)",
+    "exceedsSubtotal": "The discount cannot exceed the subtotal",
+    "exceedsLimit": "The discount exceeds the business limit ({{max}}% of the subtotal)",
+    "limitHint": "Business limit: {{max}}% of the subtotal",
+    "line": "Discount"
   }
 }

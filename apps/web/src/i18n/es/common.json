@@ -123,6 +123,23 @@
       "posShowsStock": "Mostrar existencias en el punto de venta",
       "posShowsStockHint": "Con esto apagado, el vendedor no ve cuánto hay: ni «N disponibles» al buscar, ni el aviso de «más de lo que hay» en el carrito. La regla para cobrar sin existencias no cambia."
     },
+    "discounts": {
+      "title": "Descuentos en caja",
+      "subtitle": "El código que autoriza un descuento al cobrar y el tope por ticket. Sin código, el botón de descuento no aparece en la caja.",
+      "statusNone": "Sin código: los descuentos están apagados.",
+      "statusSet": "Código configurado el {{date}}. No se muestra: si se olvidó, define uno nuevo.",
+      "code": "Código de autorización (4 a 8 dígitos)",
+      "codeReplace": "Nuevo código (4 a 8 dígitos)",
+      "codeHint": "Se guarda cifrado; el cajero lo teclea al aplicar un descuento.",
+      "confirm": "Repite el código",
+      "codeInvalid": "El código debe tener de 4 a 8 dígitos",
+      "codeMismatch": "Los códigos no coinciden",
+      "maxPercent": "Tope por ticket (opcional)",
+      "maxPercentHint": "Porcentaje máximo del subtotal que se puede descontar. Vacío = sin tope.",
+      "remove": "Quitar código",
+      "saved": "Descuentos guardados.",
+      "removedNotice": "Código quitado: los descuentos quedan apagados."
+    },
     "preferences": {
       "title": "Preferencias",
       "languageLabel": "Idioma de la interfaz",

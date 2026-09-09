@@ -48,6 +48,10 @@ export interface TenantBlock {
   taxMode: TaxMode;
   /** F4-TAX-16: provincia o estado (ISO 3166-2 sin prefijo), solo CA y US. */
   region: string | null;
+  /** F4-DISC: cuándo se configuró el PIN de descuentos (ISO) o null; el hash nunca viaja. */
+  discountCodeSetAt: string | null;
+  /** F4-DISC: tope del descuento por ticket, % del subtotal como string decimal («20») o null. */
+  discountMaxPercent: string | null;
 }
 
 /** PATCH parcial — espejo de `update-tenant.dto.ts` (apps/api). */
@@ -77,6 +81,10 @@ export type UpdateTenantInput = Partial<
   // 2 decimales); en el TenantBlock vive como string decimal. Por eso no
   // entra al Pick de arriba.
   monthlySalesGoal?: number | null;
+  /** F4-DISC: el PIN nuevo (4 a 8 dígitos) o null para quitarlo. */
+  discountCode?: string | null;
+  /** F4-DISC: el tope por ticket en %, o null para quitarlo. */
+  discountMaxPercent?: number | null;
 };
 
 export async function getMyTenant(): Promise<TenantBlock> {

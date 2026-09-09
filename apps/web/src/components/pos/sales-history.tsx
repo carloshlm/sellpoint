@@ -143,6 +143,7 @@ export function SalesHistory() {
                 <th className="p-2">{t("pos.history.date")}</th>
                 <th className="p-2">{t("pos.history.seller")}</th>
                 <th className="p-2">{t("pos.history.method")}</th>
+                <th className="p-2 text-right">{t("pos.history.discount")}</th>
                 <th className="p-2 text-right">{t("pos.history.total")}</th>
                 <th className="p-2">{t("pos.history.state")}</th>
                 <th className="p-2" />
@@ -216,6 +217,14 @@ function SaleRowView({
         </td>
         <td className="p-2">{venta.seller.name}</td>
         <td className="p-2">{t(`pos.payment.${venta.paymentMethod}`)}</td>
+        {/* F4-DISC: lo descontado, con signo; sin descuento, el guion. */}
+        <td className="p-2 text-right tabular-nums">
+          {Number(venta.discount) > 0 ? (
+            `−${formatMoney(Number(venta.discount), currency, locale)}`
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
         <td className="p-2 text-right tabular-nums">
           {formatMoney(Number(venta.total), currency, locale)}
         </td>
@@ -269,7 +278,7 @@ function SaleRowView({
 
       {anulando && (
         <tr>
-          <td colSpan={8} className="p-2">
+          <td colSpan={9} className="p-2">
             <ConfirmDialog
               data-testid={`cancel-${venta.folio}`}
               title={t("pos.history.cancelTitle", { folio: venta.folio })}

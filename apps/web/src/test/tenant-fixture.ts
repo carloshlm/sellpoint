@@ -28,6 +28,8 @@ export const TENANT_DEMO: TenantBlock = {
   usesLocations: false,
   posShowsStock: true,
   monthlySalesGoal: null,
+  discountCodeSetAt: null,
+  discountMaxPercent: null,
   taxMode: "included",
   region: null,
 };

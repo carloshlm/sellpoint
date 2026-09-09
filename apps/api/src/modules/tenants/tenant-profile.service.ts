@@ -1,4 +1,4 @@
-import { Injectable, UnprocessableEntityException } from "@nestjs/common";
+import { Inject, Injectable, UnprocessableEntityException } from "@nestjs/common";
 import {
   addressAsksRegion,
   isAddressRegionCode,
@@ -6,6 +6,7 @@ import {
   normalizePostalCode,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
+import { HASHER, type HashPort } from "../../infrastructure/crypto/hash.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
@@ -31,6 +32,7 @@ export class TenantProfileService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly taxSettings: TaxSettingsService,
+    @Inject(HASHER) private readonly hasher: HashPort,
   ) {}
 
   async getProfile(actor: AuthUser): Promise<TenantBlock> {
@@ -45,8 +47,20 @@ export class TenantProfileService {
   }
 
   async update(actor: AuthUser, dto: UpdateTenantDto, meta: RequestMeta): Promise<TenantBlock> {
+    // F4-DISC: el PIN se hashea ANTES de la transacción (argon2 tarda ~50 ms
+    // y no hay por qué alargar el lock) y no se guarda ni se audita en claro.
+    const { discountCode, ...resto } = dto;
+    const pin =
+      discountCode === undefined
+        ? {}
+        : discountCode === null
+          ? { discountCodeHash: null, discountCodeSetAt: null }
+          : {
+              discountCodeHash: await this.hasher.hash(discountCode),
+              discountCodeSetAt: new Date(),
+            };
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
-      const data = await this.conDireccionValidada(tx, actor.tenantId, dto);
+      const data = { ...(await this.conDireccionValidada(tx, actor.tenantId, resto)), ...pin };
       const updated = await tx.tenant.update({
         where: { id: actor.tenantId },
         data,
@@ -59,7 +73,13 @@ export class TenantProfileService {
         action: "tenant.updated",
         resourceType: "tenant",
         resourceId: actor.tenantId,
-        after: dto,
+        // El PIN nunca queda en la bitácora: solo que se puso o se quitó.
+        after: {
+          ...resto,
+          ...(discountCode !== undefined && {
+            discountCode: discountCode === null ? null : "[set]",
+          }),
+        },
         ip: meta.ip,
         userAgent: meta.userAgent,
       });

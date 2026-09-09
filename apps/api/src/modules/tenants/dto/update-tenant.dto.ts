@@ -1,6 +1,7 @@
 import {
   hasValidMoneyScale,
   isCountryCode,
+  isDiscountCode,
   isE164,
   MONEY_MAX,
   SUPPORTED_CURRENCIES,
@@ -85,6 +86,22 @@ export const updateTenantSchema = z
       .positive()
       .max(MONEY_MAX)
       .refine(hasValidMoneyScale, { message: "tenants.invalid_goal" })
+      .nullable()
+      .optional(),
+    // F4-DISC: el PIN de autorización de descuentos (4 a 8 dígitos). Viaja en
+    // claro por HTTPS y se guarda hasheado; `null` lo quita y apaga los
+    // descuentos. Solo el Admin llega acá (`tenants:manage`).
+    discountCode: z
+      .string()
+      .refine(isDiscountCode, { message: "tenants.invalid_discount_code" })
+      .nullable()
+      .optional(),
+    // F4-DISC: tope por ticket, % del subtotal con hasta 2 decimales; `null` = sin tope.
+    discountMaxPercent: z
+      .number()
+      .positive()
+      .max(100)
+      .refine((v) => Number.isInteger(v * 100), { message: "tenants.invalid_discount_percent" })
       .nullable()
       .optional(),
   })

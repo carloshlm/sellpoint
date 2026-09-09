@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { ActiveSessions } from "@/components/profile/active-sessions";
 import { BusinessDetails } from "@/components/profile/business-details";
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
+import { DiscountSettings } from "@/components/profile/discount-settings";
 import { LanguagePreference } from "@/components/profile/language-preference";
 import { MedicalClinicSettings } from "@/components/profile/medical-clinic-settings";
 import { ProfileDetails } from "@/components/profile/profile-details";
@@ -57,6 +58,7 @@ function ProfileContent() {
       {/* Las tarjetas deciden solas si existen: sin tenants:manage devuelven null. */}
       {user && <BusinessDetails user={user} />}
       {user && <TaxSettings user={user} />}
+      {user && <DiscountSettings user={user} />}
       {user && <TicketSettings user={user} />}
       {user && <ReceptionSettings user={user} />}
       {user && <MedicalClinicSettings user={user} />}

@@ -49,8 +49,14 @@ function buildService(overrides?: {
   // solo importa que se llame con la MISMA tx y que se audite lo sembrado.
   const taxSettings = { sembrar: jest.fn().mockResolvedValue(null) };
 
-  const service = new TenantProfileService(prisma as never, auditService, taxSettings as never);
-  return { service, prisma, auditService, tx, taxSettings };
+  const hasher = { hash: jest.fn(async (p: string) => `hash(${p})`), verify: jest.fn() };
+  const service = new TenantProfileService(
+    prisma as never,
+    auditService,
+    taxSettings as never,
+    hasher,
+  );
+  return { service, prisma, auditService, tx, taxSettings, hasher };
 }
 
 describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
@@ -86,6 +92,8 @@ describe("TenantProfileService.getProfile (F1-WEB-ONBOARD)", () => {
       templateChoice: null,
       onboarded: false,
       monthlySalesGoal: null,
+      discountCodeSetAt: null,
+      discountMaxPercent: null,
     });
   });
 
@@ -316,5 +324,37 @@ describe("TenantProfileService.completeOnboarding — la siembra fiscal (F4-TAX-
       (c: unknown[]) => (c[1] as { action: string }).action,
     );
     expect(acciones).toEqual(["tenant.onboarded"]);
+  });
+});
+
+/** F4-DISC — el PIN de descuentos se guarda hasheado y nunca en claro, ni en la bitácora. */
+describe("TenantProfileService.update con el PIN de descuentos (F4-DISC)", () => {
+  const META = { ip: "1.2.3.4", userAgent: "jest" };
+  it("hashea el PIN, guarda la fecha y audita solo «[set]»", async () => {
+    const { service, tx, auditService, hasher } = buildService();
+    await service.update(
+      ACTOR,
+      updateTenantSchema.parse({ discountCode: "4321", discountMaxPercent: 20 }),
+      META,
+    );
+    expect(hasher.hash).toHaveBeenCalledWith("4321");
+    const data = tx.tenant.update.mock.calls[0][0].data;
+    expect(data.discountCodeHash).toBe("hash(4321)");
+    expect(data.discountCodeSetAt).toBeInstanceOf(Date);
+    expect(data.discountMaxPercent).toBe(20);
+    expect(data.discountCode).toBeUndefined();
+    const entrada = jest.mocked(auditService.record).mock.calls[0]?.[1];
+    expect(entrada?.after).toMatchObject({ discountCode: "[set]" });
+    expect(JSON.stringify(entrada?.after)).not.toContain("4321");
+  });
+
+  it("null quita el PIN: hash y fecha en null, sin hashear nada", async () => {
+    const { service, tx, hasher } = buildService();
+    await service.update(ACTOR, updateTenantSchema.parse({ discountCode: null }), META);
+    expect(hasher.hash).not.toHaveBeenCalled();
+    expect(tx.tenant.update.mock.calls[0][0].data).toMatchObject({
+      discountCodeHash: null,
+      discountCodeSetAt: null,
+    });
   });
 });

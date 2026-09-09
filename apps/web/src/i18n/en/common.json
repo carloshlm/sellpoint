@@ -123,6 +123,23 @@
       "posShowsStock": "Show stock in the point of sale",
       "posShowsStockHint": "With this off, the seller does not see how much there is: no “N available” when searching, no “more than in stock” warning in the cart. The rule for selling without stock does not change."
     },
+    "discounts": {
+      "title": "Register discounts",
+      "subtitle": "The code that authorizes a discount at checkout and the per-ticket limit. Without a code, the discount button does not show at the register.",
+      "statusNone": "No code: discounts are off.",
+      "statusSet": "Code set on {{date}}. It is not shown: if it was forgotten, set a new one.",
+      "code": "Authorization code (4 to 8 digits)",
+      "codeReplace": "New code (4 to 8 digits)",
+      "codeHint": "Stored encrypted; the cashier types it when applying a discount.",
+      "confirm": "Repeat the code",
+      "codeInvalid": "The code must be 4 to 8 digits",
+      "codeMismatch": "The codes do not match",
+      "maxPercent": "Per-ticket limit (optional)",
+      "maxPercentHint": "Maximum percentage of the subtotal that can be discounted. Empty = no limit.",
+      "remove": "Remove code",
+      "saved": "Discounts saved.",
+      "removedNotice": "Code removed: discounts are off."
+    },
     "preferences": {
       "title": "Preferences",
       "languageLabel": "Interface language",

@@ -172,6 +172,33 @@ describe("Historial de ventas (F4-UI-03)", () => {
     });
 
     /**
+     * F4-DISC (Carlos, 2026-09-09): lo descontado se ve en el historial, con
+     * su signo y pegado al total; sin descuento, el guion — como el código.
+     */
+    it("una venta con descuento lo muestra con signo antes del total; sin descuento, un guion", async () => {
+      mocked.listSales.mockResolvedValue(
+        pagina([
+          venta({ discount: "5.00", total: "95.00" }),
+          venta({ id: "sale-2", folio: "VTA-000002", barcode: "202608210002" }),
+        ]),
+      );
+      await renderRuta("/pos/sales", ["pos:view"]);
+
+      const conDescuento = (await screen.findByText("VTA-000001")).closest("tr") as HTMLElement;
+      const tabla = conDescuento.closest("table") as HTMLElement;
+      const encabezados = within(tabla)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent);
+      const columna = encabezados.indexOf("Descuento");
+      expect(columna).toBeGreaterThan(0);
+      expect(encabezados[columna + 1]).toBe("Total");
+      expect(within(conDescuento).getAllByRole("cell")[columna]).toHaveTextContent(/−.*5\.00/);
+
+      const sinDescuento = screen.getByText("VTA-000002").closest("tr") as HTMLElement;
+      expect(within(sinDescuento).getAllByRole("cell")[columna]).toHaveTextContent("—");
+    });
+
+    /**
      * El buscador sigue diciendo «Folio o código» —busca por los dos— pero la
      * COLUMNA del folio ya no puede llamarse igual: al lado de la columna del
      * código, «Folio o código» sería mentira.

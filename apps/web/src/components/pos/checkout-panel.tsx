@@ -1,6 +1,8 @@
 import {
   type Currency,
+  discountCapCents,
   formatMoney,
+  isDiscountCode,
   multiplyMoney,
   PAYMENT_METHODS,
   type PaymentMethod,
@@ -9,6 +11,7 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoneyField } from "@/components/form/money-field";
+import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { moneyInputError } from "@/lib/money";
@@ -17,6 +20,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import {
   aLineasDeVenta,
   impuestosDelCarrito,
+  subtotalDelCarrito,
   totalDelCarrito,
   useCartStore,
 } from "@/stores/cart.store";
@@ -63,6 +67,14 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [recibido, setRecibido] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // F4-DISC: el descuento del ticket. Solo existe si el Admin configuró el
+  // PIN; se captura como los demás importes y lo autoriza el servidor.
+  const pinConfigurado = useAuthStore((s) => s.user?.tenant.discountCodeSetAt != null);
+  const topePorcentaje = useAuthStore((s) => s.user?.tenant.discountMaxPercent ?? null);
+  const [conDescuento, setConDescuento] = useState(false);
+  const [descuento, setDescuento] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [motivo, setMotivo] = useState("");
 
   const cobrar = useCreateSale();
 
@@ -76,8 +88,38 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
   // F4-TAX-17: se cobra el total CON impuesto (en `included` es el mismo
   // subtotal); el vuelto sale de ahí.
   const mode = useAuthStore((s) => s.user?.tenant.taxMode ?? "included");
-  const impuestos = impuestosDelCarrito(lines, mode);
-  const total = totalDelCarrito(lines, mode);
+  const subtotal = subtotalDelCarrito(lines);
+  const subtotalCents = Math.round(subtotal * 100);
+  const errorImporteDescuento = conDescuento ? moneyInputError(descuento) : null;
+  const descuentoCents =
+    conDescuento && errorImporteDescuento === null
+      ? Math.round((parseMoneyInput(descuento) ?? 0) * 100)
+      : 0;
+  const tope = discountCapCents(
+    subtotalCents,
+    topePorcentaje === null ? null : Number(topePorcentaje),
+  );
+  const errorDescuento =
+    errorImporteDescuento !== null
+      ? t(errorImporteDescuento)
+      : descuentoCents > subtotalCents
+        ? t("pos.discount.exceedsSubtotal")
+        : tope !== null && descuentoCents > tope
+          ? t("pos.discount.exceedsLimit", { max: Number(topePorcentaje) })
+          : undefined;
+  const errorCodigo =
+    conDescuento && descuentoCents > 0 && !isDiscountCode(codigo)
+      ? t("pos.discount.codeInvalid")
+      : undefined;
+  // Lo que se resta del ticket: solo un descuento válido. El servidor lo
+  // prorratea entre las líneas con la misma función que el carrito.
+  const descuentoAplicado = conDescuento && errorDescuento === undefined ? descuentoCents : 0;
+  // Un importe mal tecleado («5,5», más que el subtotal) o sin código NO se
+  // descarta en silencio: bloquea Cobrar hasta que se corrija o se quite.
+  const bloqueaDescuento =
+    conDescuento && (errorDescuento !== undefined || errorCodigo !== undefined);
+  const impuestos = impuestosDelCarrito(lines, mode, descuentoAplicado);
+  const total = totalDelCarrito(lines, mode, descuentoAplicado);
   // «Con cuánto paga» se captura como los demás importes (Carlos, 2026-09-09):
   // símbolo y código de la moneda dentro del campo, dos decimales al salir y
   // la coma o las letras marcadas como error, no descartadas en silencio.
@@ -105,6 +147,13 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
           paymentMethod: method,
           lines: aLineasDeVenta(lines),
           ...(quoteId !== null && { quoteId }),
+          ...(descuentoAplicado > 0 && {
+            discount: {
+              amount: descuentoAplicado / 100,
+              code: codigo,
+              ...(motivo.trim() !== "" && { reason: motivo.trim() }),
+            },
+          }),
         },
         idempotencyKey,
       },
@@ -147,6 +196,22 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
           ))}
         </div>
       )}
+      {descuentoAplicado > 0 && (
+        <div className="flex flex-col gap-1 text-sm" data-testid="checkout-discount-lines">
+          {mode !== "excluded" && (
+            <p className="flex justify-between">
+              <span>{t("pos.cart.subtotal")}</span>
+              <span className="tabular-nums">{formatMoney(subtotal, currency, locale)}</span>
+            </p>
+          )}
+          <p className="flex justify-between">
+            <span>{t("pos.discount.line")}</span>
+            <span className="tabular-nums">
+              −{formatMoney(descuentoAplicado / 100, currency, locale)}
+            </span>
+          </p>
+        </div>
+      )}
       <p className="flex justify-between font-semibold text-xl">
         <span>{t("pos.checkout.total")}</span>
         <span className="tabular-nums" data-testid="checkout-total">
@@ -166,6 +231,68 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
               <span className="tabular-nums">{formatMoney(c.amount, currency, locale)}</span>
             </p>
           ))}
+
+      {pinConfigurado && (
+        <div className="flex flex-col gap-3" data-testid="checkout-discount">
+          {!conDescuento ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-fit"
+              onClick={() => setConDescuento(true)}
+            >
+              {t("pos.discount.apply")}
+            </Button>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MoneyField
+                  label={t("pos.discount.amount")}
+                  value={descuento}
+                  onChange={setDescuento}
+                  error={errorDescuento}
+                  hint={
+                    tope !== null
+                      ? t("pos.discount.limitHint", { max: Number(topePorcentaje) })
+                      : undefined
+                  }
+                  autoFocus
+                />
+                <TextField
+                  label={t("pos.discount.code")}
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={8}
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+                  error={errorCodigo}
+                  hint={t("pos.discount.codeHint")}
+                />
+              </div>
+              <TextField
+                label={t("pos.discount.reason")}
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                maxLength={200}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-fit text-destructive"
+                onClick={() => {
+                  setConDescuento(false);
+                  setDescuento("");
+                  setCodigo("");
+                  setMotivo("");
+                }}
+              >
+                {t("pos.discount.remove")}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       <fieldset className="flex flex-col gap-2">
         <legend className="font-medium text-sm">{t("pos.checkout.method")}</legend>
@@ -229,7 +356,7 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
           // única: la que de verdad impide el doble cobro es la clave de
           // idempotencia, porque un botón deshabilitado no sobrevive a un
           // recargar-y-reintentar.
-          disabled={cobrar.isPending || lines.length === 0 || faltaEfectivo}
+          disabled={cobrar.isPending || lines.length === 0 || faltaEfectivo || bloqueaDescuento}
           onClick={ejecutar}
         >
           {cobrar.isPending ? t("common.form.submitting") : t("pos.checkout.charge")}
