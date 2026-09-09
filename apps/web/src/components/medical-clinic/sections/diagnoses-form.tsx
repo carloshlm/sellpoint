@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { RowList } from "@/components/form/row-list";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
+import { Icd10Picker } from "@/components/medical-clinic/icd10-picker";
 import { SectionFormActions } from "./form-actions";
 import type { SectionFormProps } from "./registry";
 
@@ -19,9 +20,10 @@ const texto = (v: unknown): string => (typeof v === "string" ? v : "");
 /**
  * F9-CLINIC-HC-18 — Diagnósticos: principal, secundarios y diferencial en
  * UNA lista. A lo más un principal (las otras filas no lo ofrecen mientras
- * exista). El código CIE-10 se escribe a mano por ahora (mayúsculas
- * automáticas, forma validada); el catálogo con buscador llega en HC-22/23.
- * Una fila sin descripción no viaja.
+ * exista). Cada fila trae el buscador del catálogo CIE-10 (HC-23): elegir
+ * llena el código y, si estaba vacía, la descripción; la captura a mano
+ * sigue permitida (mayúsculas automáticas, forma validada). Una fila sin
+ * descripción no viaja.
  */
 export function DiagnosesForm({
   initialData,
@@ -85,6 +87,16 @@ export function DiagnosesForm({
           label={k("list")}
           render={(row, patch, index) => (
             <>
+              <Icd10Picker
+                label={k("search")}
+                onPick={(hit) =>
+                  patch({
+                    icd10Code: hit.code,
+                    // La descripción escrita a mano no se pisa: el catálogo solo llena lo vacío.
+                    ...(row.description.trim() === "" && { description: hit.title }),
+                  })
+                }
+              />
               <SelectField
                 label={k("role")}
                 options={DIAGNOSIS_ROLES.map((r) => ({

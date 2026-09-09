@@ -227,6 +227,34 @@ describe("modelo de datos del Consultorio Médico (F9-CLINIC-02/03/04/21)", () =
       expect(restantes).toBe(0);
     });
 
+    /**
+     * F9-CLINIC-HC-22 — el catálogo CIE-10 es GLOBAL: sin tenant, sin RLS, y
+     * viene lleno desde la migración (14 485 códigos de la DGIS 2024-04-16).
+     */
+    it("el catálogo CIE-10 viene lleno desde la migración y no tiene RLS", async () => {
+      const [conteo] = await prisma.$queryRaw<{ total: bigint; vigentes: bigint }[]>`
+        SELECT count(*) AS total, count(*) FILTER (WHERE is_valid) AS vigentes
+        FROM medical_clinic_icd10_codes`;
+      expect(Number(conteo?.total)).toBe(14485);
+      expect(Number(conteo?.vigentes)).toBe(12551);
+      const [rls] = await prisma.$queryRaw<{ relrowsecurity: boolean; policies: bigint }[]>`
+        SELECT c.relrowsecurity,
+               (SELECT count(*) FROM pg_policies p WHERE p.tablename = c.relname) AS policies
+        FROM pg_class c WHERE c.relname = 'medical_clinic_icd10_codes'`;
+      expect(rls).toMatchObject({ relrowsecurity: false });
+      expect(Number(rls?.policies)).toBe(0);
+      // Con punto, clave DGIS y título con acento, tal cual la fuente.
+      const j069 = await prisma.medicalClinicIcd10Code.findUnique({ where: { code: "J06.9" } });
+      expect(j069).toMatchObject({
+        dgisKey: "J069",
+        title: "INFECCIÓN AGUDA DE LAS VÍAS RESPIRATORIAS SUPERIORES, NO ESPECIFICADA",
+        search: "infeccion aguda de las vias respiratorias superiores, no especificada",
+        chapter: "X",
+        sex: null,
+        isValid: true,
+      });
+    });
+
     /** F9-CLINIC-HC-05 — la seña de la heredada sobrevive en NULL si el origen se borra. */
     it("source_record_id: nullable, FK a expedientes con SET NULL; borrar el origen no borra la heredada", async () => {
       const columna = await prisma.$queryRaw<{ is_nullable: string; data_type: string }[]>`

@@ -4,10 +4,12 @@ import { PosModule } from "../pos/pos.module";
 import { ReceptionModule } from "../reception/reception.module";
 import { TenantsModule } from "../tenants/tenants.module";
 import { DiagnosticStudiesService } from "./diagnostic-studies.service";
+import { Icd10Service } from "./icd10.service";
 import { LabStudiesService } from "./lab-studies.service";
 import { MedicalClinicDashboardController } from "./medical-clinic-dashboard.controller";
 import { MedicalClinicDashboardService } from "./medical-clinic-dashboard.service";
 import { MedicalClinicDiagnosticStudiesController } from "./medical-clinic-diagnostic-studies.controller";
+import { MedicalClinicIcd10Controller } from "./medical-clinic-icd10.controller";
 import { MedicalClinicLabStudiesController } from "./medical-clinic-lab-studies.controller";
 import { MedicalClinicOrdersController } from "./medical-clinic-orders.controller";
 import { MedicalClinicPatientsController } from "./medical-clinic-patients.controller";
@@ -42,6 +44,7 @@ import { DiagnosticStudyImportService, LabStudyImportService } from "./study-imp
     MedicalClinicRecordsController,
     MedicalClinicOrdersController,
     MedicalClinicDashboardController,
+    MedicalClinicIcd10Controller,
   ],
   providers: [
     MedicalClinicDashboardService,
@@ -56,6 +59,7 @@ import { DiagnosticStudyImportService, LabStudyImportService } from "./study-imp
     SectionsService,
     MedicalOrdersService,
     MedicalOrderPdfService,
+    Icd10Service,
   ],
   exports: [SettingsService],
 })

@@ -403,3 +403,17 @@ export async function getPatient(customerId: string): Promise<PatientSummary> {
   const { data } = await api.get<PatientSummary>(`/medical-clinic/patients/${customerId}`);
   return data;
 }
+
+// ── CIE-10 (F9-CLINIC-HC-22/23) ───────────────────────────────────────
+export interface Icd10Code {
+  code: string;
+  title: string;
+  chapter: string | null;
+  sex: string | null;
+}
+
+/** El catálogo CIE-10 global: por prefijo de código o por texto sin acentos. */
+export async function searchIcd10(q: string): Promise<Icd10Code[]> {
+  const { data } = await api.get<Icd10Code[]>("/medical-clinic/icd10", { params: { q } });
+  return data;
+}

@@ -712,7 +712,9 @@
       "certaintyOptions": {
         "presumptive": "Presumptive",
         "confirmed": "Confirmed"
-      }
+      },
+      "search": "Search the ICD-10 catalog",
+      "searchPlaceholder": "Code (J06) or text (pharyngitis)"
     },
     "treatment": {
       "issued": "Issued prescriptions",

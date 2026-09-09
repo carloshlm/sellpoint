@@ -20,6 +20,7 @@ vi.mock("@/lib/medical-clinic/api", () => ({
   closeRecord: vi.fn(),
   saveSection: vi.fn(),
   listStudies: vi.fn(),
+  searchIcd10: vi.fn(),
 }));
 const mocked = vi.mocked(clinicApi);
 
@@ -47,6 +48,7 @@ async function renderSection(key: string, record = expediente()) {
 
 beforeEach(() => {
   mocked.listStudies.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+  mocked.searchIcd10.mockResolvedValue([]);
   mocked.saveSection.mockImplementation((_id, key, data) =>
     Promise.resolve({
       key,
@@ -823,5 +825,46 @@ describe("Seguimiento y Recomendaciones (F9-CLINIC-HC-21)", () => {
         alarmSigns: "Fiebre mayor a 39",
       }),
     );
+  });
+});
+
+/** F9-CLINIC-HC-23 — el picker CIE-10 llena código y descripción; lo escrito a mano no se pisa. */
+describe("buscador CIE-10 en Diagnósticos (F9-CLINIC-HC-23)", () => {
+  it("escribir «farin» y elegir llena el código y la descripción vacía; borrar el código a mano sigue permitido", async () => {
+    mocked.searchIcd10.mockResolvedValue([
+      { code: "J02.9", title: "FARINGITIS AGUDA, NO ESPECIFICADA", chapter: "X", sex: null },
+      { code: "J02.0", title: "FARINGITIS ESTREPTOCÓCICA", chapter: "X", sex: null },
+    ]);
+    await renderSection("diagnoses");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar diagnóstico" }));
+    await user.type(screen.getByLabelText("Buscar en el catálogo CIE-10"), "farin");
+    await user.click(await screen.findByRole("button", { name: /J02\.9/ }));
+    expect(mocked.searchIcd10).toHaveBeenCalledWith("farin");
+    expect(screen.getByLabelText("Código CIE-10 (opcional)")).toHaveValue("J02.9");
+    expect(screen.getByLabelText("Diagnóstico")).toHaveValue("FARINGITIS AGUDA, NO ESPECIFICADA");
+    // El buscador se limpia tras elegir.
+    expect(screen.getByLabelText("Buscar en el catálogo CIE-10")).toHaveValue("");
+    await user.clear(screen.getByLabelText("Código CIE-10 (opcional)"));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "diagnoses", {
+        items: [{ role: "primary", description: "FARINGITIS AGUDA, NO ESPECIFICADA" }],
+      }),
+    );
+  });
+
+  it("una descripción ya escrita no se pisa al elegir del catálogo", async () => {
+    mocked.searchIcd10.mockResolvedValue([
+      { code: "J02.9", title: "FARINGITIS AGUDA, NO ESPECIFICADA", chapter: "X", sex: null },
+    ]);
+    await renderSection("diagnoses");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar diagnóstico" }));
+    await user.type(screen.getByLabelText("Diagnóstico"), "Faringitis viral");
+    await user.type(screen.getByLabelText("Buscar en el catálogo CIE-10"), "j02");
+    await user.click(await screen.findByRole("button", { name: /J02\.9/ }));
+    expect(screen.getByLabelText("Diagnóstico")).toHaveValue("Faringitis viral");
+    expect(screen.getByLabelText("Código CIE-10 (opcional)")).toHaveValue("J02.9");
   });
 });

@@ -712,7 +712,9 @@
       "certaintyOptions": {
         "presumptive": "Presuntivo",
         "confirmed": "Confirmado"
-      }
+      },
+      "search": "Buscar en el catálogo CIE-10",
+      "searchPlaceholder": "Código (J06) o texto (faringitis), sin acentos si quieres"
     },
     "treatment": {
       "issued": "Recetas emitidas",

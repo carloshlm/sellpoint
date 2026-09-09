@@ -32,6 +32,7 @@ import {
   type Study,
   type StudyKind,
   saveSection,
+  searchIcd10,
   searchPatients,
   searchStock,
   type UpdateStudyInput,
@@ -189,6 +190,17 @@ export function useCancelOrder(recordId: string) {
       void queryClient.invalidateQueries({ queryKey: recordKey(recordId) });
       void queryClient.invalidateQueries({ queryKey: ordersKey(recordId) });
     },
+  });
+}
+
+/** F9-CLINIC-HC-23 — el buscador CIE-10; quieto hasta que haya dos caracteres. */
+export function useIcd10Search(q: string) {
+  const termino = q.trim();
+  return useQuery({
+    queryKey: [...RAIZ, "icd10", termino],
+    queryFn: () => searchIcd10(termino),
+    enabled: termino.length >= 2,
+    staleTime: 60_000,
   });
 }
 

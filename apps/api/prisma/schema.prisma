@@ -2293,6 +2293,24 @@ model MedicalClinicRecordSection {
   @@map("medical_clinic_record_sections")
 }
 
+/// F9-CLINIC-HC-22 — el catálogo CIE-10 de México (DGIS), GLOBAL: sin tenant
+/// y sin RLS, como `permissions`. `code` con punto (J06.9) es el de la OMS;
+/// `dgis_key` la clave compacta de la DGIS (J069, A33X); `search` el título
+/// sin acentos para buscar; `isValid` = vigente para codificar. Los datos
+/// viajan en la migración, generada por prisma/seed/icd10/build-migration.py.
+model MedicalClinicIcd10Code {
+  code    String  @id @db.VarChar(8)
+  dgisKey String  @unique @map("dgis_key") @db.VarChar(4)
+  title   String  @db.VarChar(300)
+  search  String  @db.VarChar(300)
+  chapter String? @db.VarChar(8)
+  // CHECK (sex IS NULL OR sex IN ('F','M')); índice parcial sobre search WHERE is_valid.
+  sex     String? @db.Char(1)
+  isValid Boolean @default(true) @map("is_valid")
+
+  @@map("medical_clinic_icd10_codes")
+}
+
 /// F9-CLINIC-04 — la orden médica. Con venta: `folio` = el de su cotización
 /// (`COT-…`) y `quote_id` UNIQUE. Sin venta: serie `ORM` y `quote_id` NULL
 /// (CHECK «el prefijo no miente» en la migración). `(id, kind)` es UNIQUE
