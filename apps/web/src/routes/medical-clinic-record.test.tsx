@@ -128,6 +128,51 @@ describe("Historia clínica — tablero", () => {
     );
   });
 
+  /** F9-CLINIC-HC-13 — la seguridad sube al encabezado; el sexo decide qué se pide, el dato qué se muestra. */
+  it("alergias con ítems salen en rojo en el encabezado; negadas, en gris", async () => {
+    await renderRecord(
+      expediente(
+        {},
+        {
+          allergies: {
+            items: [
+              { kind: "drug", substance: "Penicilina", severity: "severe" },
+              { kind: "food", substance: "Mariscos" },
+            ],
+          },
+        },
+      ),
+    );
+    const badge = await screen.findByTestId("record-allergies");
+    expect(badge).toHaveTextContent("Alergias: Penicilina (Grave) · Mariscos");
+    expect(badge.querySelector("[data-slot=badge]")).toHaveClass("text-destructive");
+  });
+
+  it("alergias negadas se dicen en gris; sin sección no hay badge", async () => {
+    await renderRecord(expediente({}, { allergies: { negated: true } }));
+    const badge = await screen.findByTestId("record-allergies");
+    expect(badge).toHaveTextContent("Alergias negadas");
+    expect(badge.querySelector("[data-slot=badge]")).not.toHaveClass("text-destructive");
+  });
+
+  it("paciente M sin AGO: la tarjeta no se dibuja y el total baja a 9; con AGO capturado, se sigue viendo", async () => {
+    const hombre = expediente({ patient: { ...expediente().patient, sex: "M" } });
+    await renderRecord(hombre);
+    await screen.findByTestId("record-card-general_data");
+    expect(screen.queryByTestId("record-card-gyneco_obstetric_history")).not.toBeInTheDocument();
+    expect(screen.getByTestId("record-header")).toHaveTextContent("0 de 9 secciones capturadas");
+  });
+
+  it("paciente M CON AGO capturado la sigue viendo: esconder no es borrar", async () => {
+    const hombre = expediente(
+      { patient: { ...expediente().patient, sex: "M" } },
+      { gyneco_obstetric_history: { menarcheAge: 12 } },
+    );
+    await renderRecord(hombre);
+    expect(await screen.findByTestId("record-card-gyneco_obstetric_history")).toBeInTheDocument();
+    expect(screen.getByTestId("record-header")).toHaveTextContent("1 de 10 secciones capturadas");
+  });
+
   it("«Cerrar consulta» pide confirmación y solo entonces llama al API; cerrada, ya no se ofrece", async () => {
     const cerrada = expediente({ status: "closed", closedAt: "2026-09-03T19:00:00.000Z" });
     mocked.closeRecord.mockImplementation(async () => {

@@ -121,6 +121,32 @@ export const RECORD_CARDS: readonly RecordCard[] = [
 export const FUNCTIONAL_SECTION_KEYS: readonly MedicalRecordSectionKey[] =
   MEDICAL_RECORD_SECTIONS.filter((s) => s.functional).map((s) => s.key);
 
+/**
+ * F9-CLINIC-HC-13 — el sexo decide qué se PIDE, el dato decide qué se
+ * MUESTRA. Una sección con `sexes` (AGO) no se dibuja para los demás sexos…
+ * salvo que ya tenga datos: esconder jamás es borrar. Sin sexo capturado se
+ * pide a todos.
+ */
+export function isSectionVisible(record: MedicalRecord, key: string): boolean {
+  const def = MEDICAL_RECORD_SECTIONS.find((s) => s.key === key);
+  if (def === undefined || def.sexes === undefined) return true;
+  const sex = record.patient.sex;
+  if (sex === null || (def.sexes as readonly string[]).includes(sex)) return true;
+  return sectionStatus(record, key) === "completed";
+}
+
+/** Las tarjetas que se dibujan para ESTE expediente; las de órdenes siempre. */
+export function visibleCards(record: MedicalRecord): RecordCard[] {
+  return RECORD_CARDS.filter(
+    (card) => card.kind !== "section" || isSectionVisible(record, card.key),
+  );
+}
+
+/** Las funcionales visibles: el denominador del progreso. */
+export function visibleFunctionalKeys(record: MedicalRecord): MedicalRecordSectionKey[] {
+  return FUNCTIONAL_SECTION_KEYS.filter((key) => isSectionVisible(record, key));
+}
+
 export type SectionStatus = "pending" | "completed";
 export type GroupStatus = SectionStatus | "inProgress";
 
@@ -143,7 +169,7 @@ export function groupProgress(
   record: MedicalRecord,
   group: RecordGroup,
 ): { done: number; total: number } {
-  const keys = FUNCTIONAL_SECTION_KEYS.filter(
+  const keys = visibleFunctionalKeys(record).filter(
     (key) => MEDICAL_RECORD_SECTIONS.find((s) => s.key === key)?.group === group,
   );
   const done = keys.filter((key) => sectionStatus(record, key) === "completed").length;

@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
+import { allergiesLine } from "@/lib/medical-clinic/allergies";
 import type { MedicalRecord } from "@/lib/medical-clinic/api";
-import { FUNCTIONAL_SECTION_KEYS, sectionStatus } from "@/lib/medical-clinic/sections";
+import { sectionStatus, visibleFunctionalKeys } from "@/lib/medical-clinic/sections";
 
 /**
  * F9-CLINIC-WEB-11 — el encabezado del expediente: quién es el paciente,
@@ -16,12 +17,14 @@ import { FUNCTIONAL_SECTION_KEYS, sectionStatus } from "@/lib/medical-clinic/sec
  */
 export function RecordHeader({ record }: { record: MedicalRecord }) {
   const { t, i18n } = useTranslation();
-  const done = FUNCTIONAL_SECTION_KEYS.filter(
-    (key) => sectionStatus(record, key) === "completed",
-  ).length;
-  const total = FUNCTIONAL_SECTION_KEYS.length;
+  const funcionales = visibleFunctionalKeys(record);
+  const done = funcionales.filter((key) => sectionStatus(record, key) === "completed").length;
+  const total = funcionales.length;
   const progreso = t("medicalClinic.record.progress", { done, total });
   const sex = record.patient.sex;
+  // F9-CLINIC-HC-13: la seguridad sube al encabezado. Con ítems, en rojo;
+  // negadas, en gris; sin capturar, nada.
+  const alergias = allergiesLine(record.sections.find((s) => s.key === "allergies")?.data, t);
 
   const fila = (etiqueta: string, valor: React.ReactNode) => (
     <div className="flex flex-col">
@@ -46,6 +49,15 @@ export function RecordHeader({ record }: { record: MedicalRecord }) {
             )}
           </Badge>
         </div>
+        {alergias ? (
+          <p data-testid="record-allergies">
+            <Badge variant={alergias.kind === "items" ? "destructive" : "default"}>
+              {alergias.kind === "items"
+                ? t("medicalClinic.record.allergies", { list: alergias.text })
+                : t("medicalClinic.record.allergiesNegated")}
+            </Badge>
+          </p>
+        ) : null}
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {fila(
             t("medicalClinic.record.age"),

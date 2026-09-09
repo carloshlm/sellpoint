@@ -142,7 +142,9 @@
     "orders": "{{count}} orders",
     "orders_one": "1 order",
     "backToPatient": "← Patient information",
-    "carriedFrom": "From the visit on {{date}} · confirm or update"
+    "carriedFrom": "From the visit on {{date}} · confirm or update",
+    "allergies": "Allergies: {{list}}",
+    "allergiesNegated": "Allergies denied"
   },
   "consultationStatus": {
     "open": "Open",
@@ -289,7 +291,10 @@
       "emergencyContactName": "Emergency contact",
       "emergencyContactPhone": "Contact phone",
       "emergencyContactPhoneCountry": "Phone country",
-      "copiedFrom": "Copied from consultation {{folio}}. Review and save."
+      "copiedFrom": "Copied from consultation {{folio}}. Review and save.",
+      "ethnicGroup": "Ethnic group (optional)",
+      "ethnicGroupHint": "Required by NOM-004 in the identification sheet.",
+      "religion": "Religion (optional)"
     },
     "chiefComplaint": {
       "complaint": "Chief complaint",
@@ -533,6 +538,77 @@
       "menopauseAge": "Menopause (age)",
       "notes": "Notes (optional)",
       "summaryLastPeriod": "LMP"
+    },
+    "allergies": {
+      "negated": "Denied",
+      "negatedHint": "Asked and denied: no known allergies to drugs, food or other substances.",
+      "list": "Known allergies",
+      "add": "Add allergy",
+      "kind": "Type",
+      "kindOptions": {
+        "drug": "Drug",
+        "food": "Food",
+        "environmental": "Environmental",
+        "latex": "Latex",
+        "other": "Other"
+      },
+      "substance": "Substance",
+      "reaction": "Reaction (optional)",
+      "severity": "Severity (optional)",
+      "severityOptions": {
+        "mild": "Mild",
+        "moderate": "Moderate",
+        "severe": "Severe"
+      }
+    },
+    "currentMedications": {
+      "none": "Takes no medication",
+      "noneHint": "No current medication, prescription or over the counter.",
+      "list": "Current medications",
+      "add": "Add medication",
+      "name": "Medication",
+      "dose": "Dose (optional)",
+      "dosePlaceholder": "850 mg",
+      "frequency": "Frequency (optional)",
+      "frequencyPlaceholder": "Every 12 hours",
+      "reason": "Reason (optional)",
+      "since": "Since (optional)",
+      "sincePlaceholder": "2024 or “2 years ago”",
+      "notes": "Notes (optional)"
+    },
+    "systemsReview": {
+      "allNegated": "All denied",
+      "negated": "Asked and denied",
+      "findings": "With symptoms",
+      "findingsPlaceholder": "Describe the symptoms the patient reports",
+      "notes": "Notes (optional)",
+      "summaryNegated": "Denied in {{count}}",
+      "systems": {
+        "general": "General symptoms",
+        "skin": "Skin",
+        "cardiovascular": "Cardiovascular",
+        "respiratory": "Respiratory",
+        "digestive": "Digestive",
+        "genitourinary": "Genitourinary",
+        "endocrine": "Endocrine",
+        "nervous": "Nervous",
+        "musculoskeletal": "Musculoskeletal",
+        "hematologic": "Hematologic",
+        "psychiatric": "Psychiatric"
+      },
+      "hints": {
+        "general": "fever, weight loss, fatigue, weakness",
+        "skin": "itching, lesions, color changes",
+        "cardiovascular": "chest pain, palpitations, dyspnea, edema, orthopnea",
+        "respiratory": "cough, sputum, hemoptysis, wheezing, pleuritic pain",
+        "digestive": "nausea, vomiting, appetite, abdominal pain, bowel changes",
+        "genitourinary": "dysuria, frequency, hematuria, discharge, prostatic symptoms",
+        "endocrine": "polyuria, polydipsia, polyphagia, heat or cold intolerance",
+        "nervous": "headache, dizziness, loss of strength or sensation, seizures",
+        "musculoskeletal": "joint pain, limited motion, stiffness",
+        "hematologic": "bruising, abnormal bleeding, pallor",
+        "psychiatric": "anxiety, insomnia, mood"
+      }
     },
     "chooseOption": "Pick an option"
   },

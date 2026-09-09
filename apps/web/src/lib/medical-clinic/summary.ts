@@ -5,6 +5,8 @@
  * la tarjeta no pinta nada. `t` llega de afuera para que esto siga siendo una
  * función pura testeable sin i18n.
  */
+import { allergiesLine } from "./allergies";
+
 const MAX = 80;
 
 function recorte(texto: string): string {
@@ -140,6 +142,42 @@ export function summaryOf(
       const mpf = texto(data.contraception);
       if (mpf) partes.push(t(`medicalClinic.forms.gynecoObstetric.contraceptionOptions.${mpf}`));
       if (data.pregnant === true) partes.push(t("medicalClinic.forms.gynecoObstetric.pregnant"));
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
+    case "allergies": {
+      const linea = allergiesLine(data, t);
+      return linea ? recorte(linea.text) : null;
+    }
+    case "current_medications": {
+      if (data.none === true) return t("medicalClinic.forms.currentMedications.none");
+      const items = Array.isArray(data.items) ? (data.items as Record<string, unknown>[]) : [];
+      const nombres = items.flatMap((m) => {
+        const name = texto(m.name);
+        if (!name) return [];
+        const dose = texto(m.dose);
+        return [dose ? `${name} ${dose}` : name];
+      });
+      return nombres.length > 0 ? recorte(nombres.join(" · ")) : null;
+    }
+    case "systems_review": {
+      if (data.negated === true) return t("medicalClinic.forms.systemsReview.negated");
+      const systems =
+        typeof data.systems === "object" && data.systems !== null
+          ? (data.systems as Record<string, Record<string, unknown>>)
+          : {};
+      const negados = Object.values(systems).filter((s) => s?.normal === true).length;
+      const hallazgos = Object.entries(systems).flatMap(([key, s]) => {
+        const findings = texto(s?.findings);
+        return findings
+          ? [`${t(`medicalClinic.forms.systemsReview.systems.${key}`)}: ${findings}`]
+          : [];
+      });
+      const partes = [
+        ...(negados > 0
+          ? [t("medicalClinic.forms.systemsReview.summaryNegated", { count: negados })]
+          : []),
+        ...hallazgos,
+      ];
       return partes.length > 0 ? recorte(partes.join(" · ")) : null;
     }
     default:

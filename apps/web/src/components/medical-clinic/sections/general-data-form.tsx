@@ -58,6 +58,9 @@ export function GeneralDataForm({
   const [emergencyContactName, setEmergencyContactName] = useState(
     texto(initialData.emergencyContactName),
   );
+  // F9-CLINIC-HC-13: NOM-004 6.1.1 pide el grupo étnico en la ficha de identificación.
+  const [ethnicGroup, setEthnicGroup] = useState(texto(initialData.ethnicGroup));
+  const [religion, setReligion] = useState(texto(initialData.religion));
   const [phoneCountry, setPhoneCountry] = useState(telefonoInicial.country);
   const [phoneNumber, setPhoneNumber] = useState(telefonoInicial.number);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -86,6 +89,8 @@ export function GeneralDataForm({
     poner("address", address);
     poner("emergencyContactName", emergencyContactName);
     poner("emergencyContactPhone", telefono.phone);
+    poner("ethnicGroup", ethnicGroup);
+    poner("religion", religion);
     onSubmit(data);
   };
 
@@ -124,6 +129,19 @@ export function GeneralDataForm({
           options={opciones("medicalClinic.forms.generalData.educationOptions", EDUCATION_LEVELS)}
           value={education}
           onChange={(e) => setEducation(e.target.value)}
+        />
+        <TextField
+          label={t("medicalClinic.forms.generalData.ethnicGroup")}
+          hint={t("medicalClinic.forms.generalData.ethnicGroupHint")}
+          value={ethnicGroup}
+          onChange={(e) => setEthnicGroup(e.target.value)}
+          maxLength={80}
+        />
+        <TextField
+          label={t("medicalClinic.forms.generalData.religion")}
+          value={religion}
+          onChange={(e) => setReligion(e.target.value)}
+          maxLength={80}
         />
         <TextField
           className="sm:col-span-2"

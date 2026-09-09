@@ -142,7 +142,9 @@
     "orders": "{{count}} órdenes",
     "orders_one": "1 orden",
     "backToPatient": "← Resumen del paciente",
-    "carriedFrom": "De la consulta del {{date}} · confirma o actualiza"
+    "carriedFrom": "De la consulta del {{date}} · confirma o actualiza",
+    "allergies": "Alergias: {{list}}",
+    "allergiesNegated": "Alergias negadas"
   },
   "consultationStatus": {
     "open": "Abierta",
@@ -289,7 +291,10 @@
       "emergencyContactName": "Contacto de emergencia",
       "emergencyContactPhone": "Teléfono del contacto",
       "emergencyContactPhoneCountry": "País del teléfono",
-      "copiedFrom": "Copiado de la consulta {{folio}}. Revisa y guarda."
+      "copiedFrom": "Copiado de la consulta {{folio}}. Revisa y guarda.",
+      "ethnicGroup": "Grupo étnico (opcional)",
+      "ethnicGroupHint": "Lo pide la NOM-004 en la ficha de identificación.",
+      "religion": "Religión (opcional)"
     },
     "chiefComplaint": {
       "complaint": "Motivo de consulta",
@@ -533,6 +538,77 @@
       "menopauseAge": "Menopausia (edad)",
       "notes": "Notas (opcional)",
       "summaryLastPeriod": "FUM"
+    },
+    "allergies": {
+      "negated": "Negadas",
+      "negatedHint": "Interrogadas y negadas: sin alergias conocidas a medicamentos, alimentos ni otras sustancias.",
+      "list": "Alergias conocidas",
+      "add": "Agregar alergia",
+      "kind": "Tipo",
+      "kindOptions": {
+        "drug": "Medicamento",
+        "food": "Alimento",
+        "environmental": "Ambiental",
+        "latex": "Látex",
+        "other": "Otra"
+      },
+      "substance": "Sustancia",
+      "reaction": "Reacción (opcional)",
+      "severity": "Gravedad (opcional)",
+      "severityOptions": {
+        "mild": "Leve",
+        "moderate": "Moderada",
+        "severe": "Grave"
+      }
+    },
+    "currentMedications": {
+      "none": "No toma medicamentos",
+      "noneHint": "Ningún medicamento de uso actual, ni de prescripción ni de libre venta.",
+      "list": "Medicamentos de uso actual",
+      "add": "Agregar medicamento",
+      "name": "Medicamento",
+      "dose": "Dosis (opcional)",
+      "dosePlaceholder": "850 mg",
+      "frequency": "Frecuencia (opcional)",
+      "frequencyPlaceholder": "Cada 12 horas",
+      "reason": "Motivo (opcional)",
+      "since": "Desde (opcional)",
+      "sincePlaceholder": "2024 o «hace 2 años»",
+      "notes": "Notas (opcional)"
+    },
+    "systemsReview": {
+      "allNegated": "Todos negados",
+      "negated": "Interrogado y negado",
+      "findings": "Con síntomas",
+      "findingsPlaceholder": "Describe los síntomas que refiere el paciente",
+      "notes": "Notas (opcional)",
+      "summaryNegated": "Negado en {{count}}",
+      "systems": {
+        "general": "Síntomas generales",
+        "skin": "Piel y anexos",
+        "cardiovascular": "Cardiovascular",
+        "respiratory": "Respiratorio",
+        "digestive": "Digestivo",
+        "genitourinary": "Genitourinario",
+        "endocrine": "Endocrino",
+        "nervous": "Nervioso",
+        "musculoskeletal": "Musculoesquelético",
+        "hematologic": "Hematológico",
+        "psychiatric": "Psiquiátrico"
+      },
+      "hints": {
+        "general": "fiebre, pérdida de peso, astenia, adinamia",
+        "skin": "prurito, lesiones, cambios de coloración",
+        "cardiovascular": "dolor torácico, palpitaciones, disnea, edema, ortopnea",
+        "respiratory": "tos, expectoración, hemoptisis, sibilancias, dolor pleurítico",
+        "digestive": "náusea, vómito, apetito, dolor abdominal, cambios en las evacuaciones",
+        "genitourinary": "disuria, frecuencia, hematuria, flujo, síntomas prostáticos",
+        "endocrine": "poliuria, polidipsia, polifagia, intolerancia al calor o al frío",
+        "nervous": "cefalea, mareo, pérdida de fuerza o sensibilidad, convulsiones",
+        "musculoskeletal": "dolor articular, limitación de movimiento, rigidez",
+        "hematologic": "equimosis, sangrados anormales, palidez",
+        "psychiatric": "ansiedad, insomnio, estado de ánimo"
+      }
     },
     "chooseOption": "Elige una opción"
   },

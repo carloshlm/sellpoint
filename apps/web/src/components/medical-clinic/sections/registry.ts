@@ -1,11 +1,14 @@
 import type { ComponentType } from "react";
+import { AllergiesForm } from "./allergies-form";
 import { ChiefComplaintForm } from "./chief-complaint-form";
 import { CurrentIllnessForm } from "./current-illness-form";
+import { CurrentMedicationsForm } from "./current-medications-form";
 import { FamilyHistoryForm } from "./family-history-form";
 import { GeneralDataForm } from "./general-data-form";
 import { GynecoObstetricForm } from "./gyneco-obstetric-form";
 import { NonPathologicalHistoryForm } from "./non-pathological-history-form";
 import { PathologicalHistoryForm } from "./pathological-history-form";
+import { SystemsReviewForm } from "./systems-review-form";
 
 /**
  * F9-CLINIC-WEB-13 — el contrato de un formulario de sección.
@@ -32,4 +35,7 @@ export const SECTION_FORMS: Partial<Record<string, ComponentType<SectionFormProp
   pathological_history: PathologicalHistoryForm,
   non_pathological_history: NonPathologicalHistoryForm,
   gyneco_obstetric_history: GynecoObstetricForm,
+  allergies: AllergiesForm,
+  current_medications: CurrentMedicationsForm,
+  systems_review: SystemsReviewForm,
 };

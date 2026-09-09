@@ -62,7 +62,7 @@ afterEach(() => {
 
 describe("ruta de sección (F9-CLINIC-WEB-13)", () => {
   it("una clave sin formulario o desconocida redirige al tablero", async () => {
-    const router = await renderSection("allergies");
+    const router = await renderSection("attachments");
     await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r1"));
     const otro = await renderSection("no_existe");
     await waitFor(() => expect(otro.state.location.pathname).toBe("/medical-clinic/records/r1"));
@@ -403,5 +403,125 @@ describe("Antecedentes Gineco-Obstétricos (F9-CLINIC-HC-09)", () => {
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(screen.getByRole("alert")).toHaveTextContent("El valor mínimo es 8");
     expect(mocked.saveSection).not.toHaveBeenCalled();
+  });
+});
+
+/** F9-CLINIC-HC-10 — Alergias: negadas o lista; la fila sin sustancia no viaja. */
+describe("Alergias (F9-CLINIC-HC-10)", () => {
+  it("dos filas guardan dos ítems en orden; una tercera sin sustancia no viaja", async () => {
+    await renderSection("allergies");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar alergia" }));
+    await user.type(screen.getByLabelText("Sustancia"), "Penicilina");
+    await user.type(screen.getByLabelText("Reacción (opcional)"), "Urticaria");
+    await user.selectOptions(screen.getByLabelText("Gravedad (opcional)"), "severe");
+    await user.click(screen.getByRole("button", { name: "+ Agregar alergia" }));
+    const sustancias = screen.getAllByLabelText("Sustancia");
+    await user.selectOptions(screen.getAllByLabelText("Tipo")[1] as HTMLElement, "food");
+    await user.type(sustancias[1] as HTMLElement, "Mariscos");
+    await user.click(screen.getByRole("button", { name: "+ Agregar alergia" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "allergies", {
+        items: [
+          { kind: "drug", substance: "Penicilina", reaction: "Urticaria", severity: "severe" },
+          { kind: "food", substance: "Mariscos" },
+        ],
+      }),
+    );
+  });
+
+  it("«Negadas» manda solo la marca; precarga pinta las filas", async () => {
+    await renderSection(
+      "allergies",
+      expediente({}, { allergies: { items: [{ kind: "latex", substance: "Látex" }] } }),
+    );
+    const user = userEvent.setup();
+    expect(await screen.findByLabelText("Sustancia")).toHaveValue("Látex");
+    await user.click(screen.getByRole("checkbox", { name: "Negadas" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "allergies", { negated: true }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-11 — Medicamentos actuales: ninguno o lista. */
+describe("Medicamentos Actuales (F9-CLINIC-HC-11)", () => {
+  it("una fila con nombre y dosis viaja; «No toma medicamentos» manda none", async () => {
+    await renderSection("current_medications");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar medicamento" }));
+    await user.type(screen.getByLabelText("Medicamento"), "Metformina");
+    await user.type(screen.getByLabelText("Dosis (opcional)"), "850 mg");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "current_medications", {
+        items: [{ name: "Metformina", dose: "850 mg" }],
+      }),
+    );
+    mocked.saveSection.mockClear();
+    await renderSection("current_medications");
+    await user.click(
+      (await screen.findAllByRole("checkbox", { name: "No toma medicamentos" })).at(
+        -1,
+      ) as HTMLElement,
+    );
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Guardar" })).at(-1) as HTMLElement,
+    );
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "current_medications", { none: true }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-12 — Aparatos y sistemas: negado POR SISTEMA, no en la raíz. */
+describe("Interrogatorio por Aparatos y Sistemas (F9-CLINIC-HC-12)", () => {
+  it("«Todos negados» guarda los once sistemas negados; uno con síntomas guarda su texto", async () => {
+    await renderSection("systems_review");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Todos negados" }));
+    expect(
+      screen.getByText("tos, expectoración, hemoptisis, sibilancias, dolor pleurítico"),
+    ).toBeInTheDocument();
+    const digestivo = screen.getByRole("radiogroup", { name: "Digestivo" });
+    await user.click(within(digestivo).getByRole("radio", { name: "Con síntomas" }));
+    await user.type(screen.getByLabelText("Con síntomas: Digestivo"), "Dolor epigástrico");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(mocked.saveSection).toHaveBeenCalled());
+    const body = mocked.saveSection.mock.calls[0]?.[2] as { systems: Record<string, unknown> };
+    expect(body).toEqual({
+      systems: {
+        general: { normal: true },
+        skin: { normal: true },
+        cardiovascular: { normal: true },
+        respiratory: { normal: true },
+        digestive: { findings: "Dolor epigástrico" },
+        genitourinary: { normal: true },
+        endocrine: { normal: true },
+        nervous: { normal: true },
+        musculoskeletal: { normal: true },
+        hematologic: { normal: true },
+        psychiatric: { normal: true },
+      },
+    });
+  });
+});
+
+/** F9-CLINIC-HC-13 — lo que la NOM 6.1.1 pide en la ficha de identificación. */
+describe("Datos Generales: grupo étnico y religión (F9-CLINIC-HC-13)", () => {
+  it("guarda ethnicGroup y religion", async () => {
+    await renderSection("general_data");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Grupo étnico (opcional)"), "Náhuatl");
+    await user.type(screen.getByLabelText("Religión (opcional)"), "Católica");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "general_data", {
+        ethnicGroup: "Náhuatl",
+        religion: "Católica",
+      }),
+    );
   });
 });

@@ -6,9 +6,11 @@ import {
   FUNCTIONAL_SECTION_KEYS,
   groupProgress,
   groupStatus,
+  isSectionVisible,
   RECORD_CARDS,
   RECORD_GROUPS,
   sectionStatus,
+  visibleCards,
 } from "./sections";
 
 /**
@@ -111,5 +113,35 @@ describe("catálogo de tarjetas de la historia clínica", () => {
     ).toBe("completed");
     // Un grupo sin secciones funcionales todavía no puede estar «en progreso».
     expect(groupStatus(expediente(), "examination")).toBe("pending");
+  });
+});
+
+/** F9-CLINIC-HC-13 — el sexo decide qué se PIDE; el dato decide qué se MUESTRA. */
+describe("visibilidad por sexo", () => {
+  const conSexo = (sex: "F" | "M" | "X" | null, secciones = {}) =>
+    expediente({ patient: { ...expediente().patient, sex } }, secciones);
+
+  it("AGO se pide a F y X, y sin sexo; a M no", () => {
+    expect(isSectionVisible(conSexo("F"), "gyneco_obstetric_history")).toBe(true);
+    expect(isSectionVisible(conSexo("X"), "gyneco_obstetric_history")).toBe(true);
+    expect(isSectionVisible(conSexo(null), "gyneco_obstetric_history")).toBe(true);
+    expect(isSectionVisible(conSexo("M"), "gyneco_obstetric_history")).toBe(false);
+    expect(isSectionVisible(conSexo("M"), "allergies")).toBe(true);
+  });
+
+  it("a M con AGO capturado se le sigue mostrando: esconder no es borrar", () => {
+    expect(
+      isSectionVisible(
+        conSexo("M", { gyneco_obstetric_history: { menarcheAge: 12 } }),
+        "gyneco_obstetric_history",
+      ),
+    ).toBe(true);
+  });
+
+  it("las tarjetas visibles y el progreso del grupo lo respetan", () => {
+    expect(visibleCards(conSexo("M"))).toHaveLength(29);
+    expect(visibleCards(conSexo("F"))).toHaveLength(30);
+    expect(groupProgress(conSexo("M"), "interrogation")).toEqual({ done: 0, total: 9 });
+    expect(groupProgress(conSexo("F"), "interrogation")).toEqual({ done: 0, total: 10 });
   });
 });

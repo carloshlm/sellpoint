@@ -14,10 +14,10 @@ import { useCloseRecord, useCreateRecord, useRecord } from "@/lib/medical-clinic
 import {
   groupProgress,
   groupStatus,
-  RECORD_CARDS,
   RECORD_GROUPS,
   type RecordGroup,
   sectionStatus,
+  visibleCards,
 } from "@/lib/medical-clinic/sections";
 import { summaryOf } from "@/lib/medical-clinic/summary";
 
@@ -158,7 +158,7 @@ function RecordGroupSection({
   t: ReturnType<typeof useTranslation>["t"];
 }) {
   const headingId = `record-group-${group}-title`;
-  const cards = RECORD_CARDS.filter((card) => card.group === group);
+  const cards = visibleCards(record).filter((card) => card.group === group);
   const progreso = groupProgress(record, group);
   const ordenes = record.orders.length;
 

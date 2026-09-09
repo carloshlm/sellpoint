@@ -82,6 +82,38 @@ describe("summaryOf", () => {
     ).toBe("G2 P1 A0 C1 · summaryLastPeriod 2026-08-20 · iud · pregnant");
   });
 
+  it("alergias, medicamentos y aparatos y sistemas", () => {
+    expect(summaryOf("allergies", { negated: true }, t)).toBe("negated");
+    expect(
+      summaryOf(
+        "allergies",
+        { items: [{ substance: "Penicilina", severity: "severe" }, { substance: "Mariscos" }] },
+        t,
+      ),
+    ).toBe("Penicilina (severe) · Mariscos");
+    expect(summaryOf("current_medications", { none: true }, t)).toBe("none");
+    expect(
+      summaryOf(
+        "current_medications",
+        { items: [{ name: "Metformina", dose: "850 mg" }, { name: "Losartán" }] },
+        t,
+      ),
+    ).toBe("Metformina 850 mg · Losartán");
+    expect(
+      summaryOf(
+        "systems_review",
+        {
+          systems: {
+            respiratory: { normal: true },
+            skin: { normal: true },
+            digestive: { findings: "Dolor epigástrico" },
+          },
+        },
+        t,
+      ),
+    ).toBe("summaryNegated · digestive: Dolor epigástrico");
+  });
+
   it("sin datos, o en una sección sin resumen, devuelve null", () => {
     expect(summaryOf("general_data", {}, t)).toBeNull();
     expect(summaryOf("chief_complaint", { onsetValue: 3 }, t)).toBeNull();
