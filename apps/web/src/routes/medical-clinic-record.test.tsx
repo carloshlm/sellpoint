@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe("Historia clínica — tablero", () => {
-  it("el encabezado trae nombre, folio, edad, médico; sin sexo ofrece completar Datos Generales; 1 de 3", async () => {
+  it("el encabezado trae nombre, folio, edad, médico; sin sexo ofrece completar Datos Generales; 1 de 10", async () => {
     await renderRecord(expediente({}, { chief_complaint: { complaint: "Dolor" } }));
     // Carlos, 2026-09-04: la pantalla se llama «Historia clínica»; el paciente
     // es el subtítulo, y desde aquí se vuelve a su resumen.
@@ -70,7 +70,7 @@ describe("Historia clínica — tablero", () => {
       "/medical-clinic/records/r1/sections/general_data",
     );
     expect(within(header).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
-    expect(header).toHaveTextContent("1 de 3 secciones capturadas");
+    expect(header).toHaveTextContent("1 de 10 secciones capturadas");
   });
 
   it("cinco grupos en orden, 30 tarjetas, links solo en las funcionales y en órdenes", async () => {
@@ -86,11 +86,11 @@ describe("Historia clínica — tablero", () => {
     ]);
     expect(screen.getAllByTestId(/^record-card-/)).toHaveLength(30);
     const links = within(screen.getByTestId("record-groups")).getAllByRole("link");
-    // 3 secciones funcionales + 3 órdenes + el listado de órdenes.
-    expect(links).toHaveLength(7);
+    // 10 secciones funcionales + 3 órdenes + el listado de órdenes.
+    expect(links).toHaveLength(14);
   });
 
-  it("estados: la sección con datos dice Completado y su resumen; el grupo dice En progreso y 1 de 3", async () => {
+  it("estados: la sección con datos dice Completado y su resumen; el grupo dice En progreso y 1 de 10", async () => {
     await renderRecord(expediente({}, { general_data: { sex: "F", occupation: "Docente" } }));
     const generales = await screen.findByTestId("record-card-general_data");
     expect(generales).toHaveTextContent("Completado");
@@ -100,7 +100,7 @@ describe("Historia clínica — tablero", () => {
     expect(motivo).not.toHaveTextContent("·");
     const interrogatorio = screen.getByTestId("record-group-interrogation");
     expect(interrogatorio).toHaveTextContent("En progreso");
-    expect(interrogatorio).toHaveTextContent("1 de 3");
+    expect(interrogatorio).toHaveTextContent("1 de 10");
   });
 
   /**

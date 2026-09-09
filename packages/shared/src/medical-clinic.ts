@@ -80,13 +80,17 @@ export const MEDICAL_RECORD_SECTIONS = [
   seccion("general_data", "interrogation", 1, { functional: true, carriedForward: true }),
   seccion("chief_complaint", "interrogation", 2, { functional: true }),
   seccion("current_illness", "interrogation", 3, { functional: true }),
-  seccion("family_history", "interrogation", 4, heredada),
-  seccion("pathological_history", "interrogation", 5, heredada),
-  seccion("non_pathological_history", "interrogation", 6, heredada),
-  seccion("gyneco_obstetric_history", "interrogation", 7, { ...heredada, sexes: ["F", "X"] }),
-  seccion("allergies", "interrogation", 8, heredada),
-  seccion("current_medications", "interrogation", 9, heredada),
-  seccion("systems_review", "interrogation", 10),
+  seccion("family_history", "interrogation", 4, { ...heredada, functional: true }),
+  seccion("pathological_history", "interrogation", 5, { ...heredada, functional: true }),
+  seccion("non_pathological_history", "interrogation", 6, { ...heredada, functional: true }),
+  seccion("gyneco_obstetric_history", "interrogation", 7, {
+    ...heredada,
+    functional: true,
+    sexes: ["F", "X"],
+  }),
+  seccion("allergies", "interrogation", 8, { ...heredada, functional: true }),
+  seccion("current_medications", "interrogation", 9, { ...heredada, functional: true }),
+  seccion("systems_review", "interrogation", 10, { functional: true }),
   // 2. Exploración (Somatometría primero: ya la midió la asistente)
   seccion("anthropometry", "examination", 1),
   seccion("vital_signs", "examination", 2),
@@ -163,6 +167,9 @@ export const generalDataSchema = z
     address: texto(300).optional(),
     emergencyContactName: texto(120).optional(),
     emergencyContactPhone: z.string().trim().refine(isE164).optional(),
+    /** NOM-004 6.1.1 pide el grupo étnico en la ficha de identificación (F9-CLINIC-HC-13). */
+    ethnicGroup: texto(80).optional(),
+    religion: texto(80).optional(),
   })
   .strict();
 
@@ -185,6 +192,365 @@ export type GeneralData = z.infer<typeof generalDataSchema>;
 export type ChiefComplaint = z.infer<typeof chiefComplaintSchema>;
 export type CurrentIllness = z.infer<typeof currentIllnessSchema>;
 
+// ─────────────────────────────────────────────────────────────────────────
+// F9-CLINIC-HC — el interrogatorio (Bloque 1)
+//
+// Leyes comunes: `.strict()` en todo objeto; lo NEGADO se guarda explícito
+// (`{ negated: true }`: «AHF negados» no es «sin AHF»); un objeto vacío `{}`
+// sigue siendo válido porque guardar sin datos BORRA la fila (regla de
+// Carlos: Guardar a medias es Completado, guardar nada es Pendiente); las
+// filas de una lista exigen su dato principal y el formulario quita las
+// vacías antes de mandar, porque el API solo limpia el primer nivel.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** `{ negated: true }` solo, sin nada más: la marca es toda la sección. */
+const negado = z.object({ negated: z.literal(true) }).strict();
+const anioMax = () => new Date().getUTCFullYear();
+const anio = z
+  .number()
+  .int()
+  .min(1900)
+  .refine((v) => v <= anioMax(), { message: "medical_clinic.year_in_future" });
+const entero = (min: number, max: number) => z.number().int().min(min).max(max);
+
+// ── Antecedentes heredofamiliares (HC-06) ────────────────────────────────
+export const FAMILY_CONDITIONS = [
+  "diabetes",
+  "hypertension",
+  "heart_disease",
+  "kidney_disease",
+  "thyroid",
+  "asthma_copd",
+  "epilepsy",
+  "mental_illness",
+  "congenital",
+  "tuberculosis",
+  "rheumatic",
+  "cancer",
+  "obesity",
+  "dyslipidemia",
+  "allergies",
+  "other",
+] as const;
+export const RELATIVES = [
+  "father",
+  "mother",
+  "siblings",
+  "paternal_grandparents",
+  "maternal_grandparents",
+  "children",
+  "other",
+] as const;
+
+const antecedenteFamiliar = z
+  .object({
+    condition: z.enum(FAMILY_CONDITIONS),
+    relatives: z.array(z.enum(RELATIVES)).min(1),
+    otherLabel: texto(80).optional(),
+    notes: texto(200).optional(),
+  })
+  .strict()
+  .refine((c) => c.condition !== "other" || (c.otherLabel ?? "") !== "", {
+    message: "medical_clinic.other_label_required",
+    path: ["otherLabel"],
+  });
+
+export const familyHistorySchema = z.union([
+  negado,
+  z
+    .object({
+      conditions: z.array(antecedenteFamiliar).min(1).optional(),
+      notes: texto(1000).optional(),
+    })
+    .strict(),
+]);
+
+// ── Antecedentes personales patológicos (HC-07) ──────────────────────────
+export const CHILDHOOD_DISEASES = [
+  "measles",
+  "chickenpox",
+  "rubella",
+  "mumps",
+  "scarlet_fever",
+  "whooping_cough",
+] as const;
+export const CHRONIC_CONDITIONS = [
+  "diabetes",
+  "hypertension",
+  "asthma",
+  "copd",
+  "heart_disease",
+  "kidney_disease",
+  "thyroid",
+  "epilepsy",
+  "cancer",
+  "arthritis",
+  "depression_anxiety",
+  "other",
+] as const;
+export const INFECTIOUS_DISEASES = [
+  "covid19",
+  "hepatitis",
+  "tuberculosis",
+  "sti",
+  "dengue",
+  "other",
+] as const;
+
+export const pathologicalHistorySchema = z.union([
+  negado,
+  z
+    .object({
+      childhood: z.array(z.enum(CHILDHOOD_DISEASES)).min(1).optional(),
+      chronic: z
+        .array(
+          z
+            .object({
+              condition: z.enum(CHRONIC_CONDITIONS),
+              otherLabel: texto(80).optional(),
+              sinceYear: anio.optional(),
+              treatment: texto(200).optional(),
+            })
+            .strict()
+            .refine((c) => c.condition !== "other" || (c.otherLabel ?? "") !== "", {
+              message: "medical_clinic.other_label_required",
+              path: ["otherLabel"],
+            }),
+        )
+        .min(1)
+        .optional(),
+      surgeries: z
+        .array(
+          z
+            .object({
+              procedure: texto(120).min(1),
+              year: anio.optional(),
+              notes: texto(200).optional(),
+            })
+            .strict(),
+        )
+        .min(1)
+        .optional(),
+      traumas: z
+        .array(z.object({ description: texto(200).min(1), year: anio.optional() }).strict())
+        .min(1)
+        .optional(),
+      transfusions: z
+        .object({ had: z.boolean(), year: anio.optional(), reaction: texto(200).optional() })
+        .strict()
+        .refine((t) => t.had || (t.year === undefined && t.reaction === undefined), {
+          message: "medical_clinic.transfusion_details_without_transfusion",
+        })
+        .optional(),
+      hospitalizations: z
+        .array(z.object({ reason: texto(200).min(1), year: anio.optional() }).strict())
+        .min(1)
+        .optional(),
+      infectious: z.array(z.enum(INFECTIOUS_DISEASES)).min(1).optional(),
+      infectiousNotes: texto(500).optional(),
+      notes: texto(1000).optional(),
+    })
+    .strict(),
+]);
+
+// ── Antecedentes personales no patológicos (HC-08) ───────────────────────
+export const HOUSING_TYPES = ["own", "rented", "family", "other"] as const;
+export const HOUSING_MATERIALS = ["concrete", "mixed", "precarious"] as const;
+export const HOUSING_SERVICES = ["water", "sewage", "electricity", "gas", "internet"] as const;
+export const QUALITY_LEVELS = ["good", "regular", "poor"] as const;
+export const ACTIVITY_LEVELS = ["none", "occasional", "regular"] as const;
+export const IMMUNIZATION_STATUSES = ["complete", "incomplete", "unknown"] as const;
+export const SMOKING_STATUSES = ["never", "current", "former"] as const;
+export const ALCOHOL_STATUSES = ["never", "occasional", "weekly", "daily", "former"] as const;
+export const DRUG_STATUSES = ["never", "current", "former"] as const;
+export const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"] as const;
+
+export const nonPathologicalHistorySchema = z
+  .object({
+    housing: z
+      .object({
+        type: z.enum(HOUSING_TYPES).optional(),
+        materials: z.enum(HOUSING_MATERIALS).optional(),
+        services: z.array(z.enum(HOUSING_SERVICES)).min(1).optional(),
+        residents: entero(1, 50).optional(),
+        rooms: entero(1, 30).optional(),
+      })
+      .strict()
+      .optional(),
+    zoonosis: z
+      .object({ has: z.boolean(), animals: texto(120).optional() })
+      .strict()
+      .optional(),
+    diet: z.enum(QUALITY_LEVELS).optional(),
+    dietNotes: texto(300).optional(),
+    hygiene: z.enum(QUALITY_LEVELS).optional(),
+    physicalActivity: z.enum(ACTIVITY_LEVELS).optional(),
+    physicalActivityNotes: texto(200).optional(),
+    immunizations: z.enum(IMMUNIZATION_STATUSES).optional(),
+    immunizationsNotes: texto(300).optional(),
+    smoking: z
+      .object({
+        status: z.enum(SMOKING_STATUSES),
+        cigarettesPerDay: entero(1, 200).optional(),
+        years: entero(1, 100).optional(),
+        quitYear: anio.optional(),
+      })
+      .strict()
+      // Quien nunca fumó no tiene cigarros al día ni años ni año en que dejó.
+      .refine(
+        (s) =>
+          s.status !== "never" ||
+          (s.cigarettesPerDay === undefined && s.years === undefined && s.quitYear === undefined),
+        { message: "medical_clinic.smoking_details_for_never" },
+      )
+      .optional(),
+    alcohol: z
+      .object({ status: z.enum(ALCOHOL_STATUSES), notes: texto(200).optional() })
+      .strict()
+      .optional(),
+    drugs: z
+      .object({ status: z.enum(DRUG_STATUSES), substances: texto(200).optional() })
+      .strict()
+      .optional(),
+    bloodType: z.enum(BLOOD_TYPES).optional(),
+    religion: texto(80).optional(),
+    notes: texto(1000).optional(),
+  })
+  .strict();
+
+// ── Antecedentes gineco-obstétricos (HC-09) ──────────────────────────────
+export const CONTRACEPTION_METHODS = [
+  "none",
+  "condom",
+  "pill",
+  "iud",
+  "implant",
+  "injection",
+  "tubal_ligation",
+  "partner_vasectomy",
+  "natural",
+  "other",
+] as const;
+export const SCREENING_RESULTS = ["normal", "abnormal", "pending"] as const;
+
+const tamizaje = z
+  .object({ date: fechaNoFutura.optional(), result: z.enum(SCREENING_RESULTS).optional() })
+  .strict();
+
+export const gynecoObstetricHistorySchema = z
+  .object({
+    menarcheAge: entero(8, 20).optional(),
+    cycleDays: entero(15, 90).optional(),
+    periodDays: entero(1, 15).optional(),
+    lastPeriodDate: fechaNoFutura.optional(),
+    sexualDebutAge: entero(8, 60).optional(),
+    partners: entero(0, 99).optional(),
+    gestations: entero(0, 30).optional(),
+    births: entero(0, 30).optional(),
+    abortions: entero(0, 30).optional(),
+    cesareans: entero(0, 30).optional(),
+    contraception: z.enum(CONTRACEPTION_METHODS).optional(),
+    papSmear: tamizaje.optional(),
+    mammogram: tamizaje.optional(),
+    menopauseAge: entero(30, 70).optional(),
+    pregnant: z.boolean().optional(),
+    breastfeeding: z.boolean().optional(),
+    notes: texto(1000).optional(),
+  })
+  .strict();
+
+// ── Alergias (HC-10) ─────────────────────────────────────────────────────
+export const ALLERGY_KINDS = ["drug", "food", "environmental", "latex", "other"] as const;
+export const ALLERGY_SEVERITIES = ["mild", "moderate", "severe"] as const;
+
+export const allergiesSchema = z.union([
+  negado,
+  z
+    .object({
+      items: z
+        .array(
+          z
+            .object({
+              kind: z.enum(ALLERGY_KINDS),
+              substance: texto(120).min(1),
+              reaction: texto(200).optional(),
+              severity: z.enum(ALLERGY_SEVERITIES).optional(),
+            })
+            .strict(),
+        )
+        .min(1)
+        .optional(),
+    })
+    .strict(),
+]);
+
+// ── Medicamentos actuales (HC-11) ────────────────────────────────────────
+export const currentMedicationsSchema = z.union([
+  z.object({ none: z.literal(true) }).strict(),
+  z
+    .object({
+      items: z
+        .array(
+          z
+            .object({
+              name: texto(120).min(1),
+              dose: texto(60).optional(),
+              frequency: texto(60).optional(),
+              reason: texto(120).optional(),
+              since: texto(40).optional(),
+            })
+            .strict(),
+        )
+        .min(1)
+        .optional(),
+      notes: texto(500).optional(),
+    })
+    .strict(),
+]);
+
+// ── Interrogatorio por aparatos y sistemas (HC-12) ───────────────────────
+export const REVIEW_SYSTEMS = [
+  "general",
+  "skin",
+  "cardiovascular",
+  "respiratory",
+  "digestive",
+  "genitourinary",
+  "endocrine",
+  "nervous",
+  "musculoskeletal",
+  "hematologic",
+  "psychiatric",
+] as const;
+
+/** Un ítem del checklist: normal explícito, o hallazgos con texto. */
+export const findingSchema = z.union([
+  z.object({ normal: z.literal(true) }).strict(),
+  z.object({ findings: texto(1000).min(1) }).strict(),
+]);
+export type Finding = z.infer<typeof findingSchema>;
+
+const porClave = <K extends string>(claves: readonly K[]) =>
+  z.object(Object.fromEntries(claves.map((k) => [k, findingSchema.optional()]))).strict();
+
+export const systemsReviewSchema = z.union([
+  negado,
+  z
+    .object({
+      systems: porClave(REVIEW_SYSTEMS).optional(),
+      notes: texto(1000).optional(),
+    })
+    .strict(),
+]);
+
+export type FamilyHistory = z.infer<typeof familyHistorySchema>;
+export type PathologicalHistory = z.infer<typeof pathologicalHistorySchema>;
+export type NonPathologicalHistory = z.infer<typeof nonPathologicalHistorySchema>;
+export type GynecoObstetricHistory = z.infer<typeof gynecoObstetricHistorySchema>;
+export type Allergies = z.infer<typeof allergiesSchema>;
+export type CurrentMedications = z.infer<typeof currentMedicationsSchema>;
+export type SystemsReview = z.infer<typeof systemsReviewSchema>;
+
 /** Solo las funcionales tienen schema; el test del catálogo lo exige. */
 export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
   Record<MedicalRecordSectionKey, z.ZodType<Record<string, unknown>>>
@@ -192,6 +558,13 @@ export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
   general_data: generalDataSchema,
   chief_complaint: chiefComplaintSchema,
   current_illness: currentIllnessSchema,
+  family_history: familyHistorySchema,
+  pathological_history: pathologicalHistorySchema,
+  non_pathological_history: nonPathologicalHistorySchema,
+  gyneco_obstetric_history: gynecoObstetricHistorySchema,
+  allergies: allergiesSchema,
+  current_medications: currentMedicationsSchema,
+  systems_review: systemsReviewSchema,
 };
 
 // ─────────────────────────────────────────────────────────────────────────

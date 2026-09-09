@@ -35,7 +35,18 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "diagnostic_order",
       "orders_list",
     ]);
-    expect(FUNCTIONAL_SECTION_KEYS).toEqual(["general_data", "chief_complaint", "current_illness"]);
+    expect(FUNCTIONAL_SECTION_KEYS).toEqual([
+      "general_data",
+      "chief_complaint",
+      "current_illness",
+      "family_history",
+      "pathological_history",
+      "non_pathological_history",
+      "gyneco_obstetric_history",
+      "allergies",
+      "current_medications",
+      "systems_review",
+    ]);
   });
 
   it("toda tarjeta tiene título en es y en en", () => {
@@ -76,7 +87,7 @@ describe("catálogo de tarjetas de la historia clínica", () => {
     );
     expect(groupProgress(expediente({}, { general_data: { sex: "F" } }), "interrogation")).toEqual({
       done: 1,
-      total: 3,
+      total: 10,
     });
     expect(
       groupStatus(
@@ -86,6 +97,13 @@ describe("catálogo de tarjetas de la historia clínica", () => {
             general_data: { sex: "F" },
             chief_complaint: { complaint: "x" },
             current_illness: { narrative: "y" },
+            family_history: { negated: true },
+            pathological_history: { negated: true },
+            non_pathological_history: { bloodType: "O+" },
+            gyneco_obstetric_history: { menarcheAge: 12 },
+            allergies: { negated: true },
+            current_medications: { none: true },
+            systems_review: { negated: true },
           },
         ),
         "interrogation",

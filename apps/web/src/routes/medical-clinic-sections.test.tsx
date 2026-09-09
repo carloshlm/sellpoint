@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -192,5 +192,216 @@ describe("sección de una consulta vencida", () => {
       "Esa consulta es de otro día: ya no se puede capturar. Abre una consulta nueva.",
     );
     expect(motivo).toHaveValue("Dolor de garganta");
+  });
+});
+
+/**
+ * F9-CLINIC-HC-06 — AHF: enfermedad × parentesco. Lo negado viaja explícito;
+ * una enfermedad sin parentesco no viaja.
+ */
+describe("Antecedentes Heredofamiliares (F9-CLINIC-HC-06)", () => {
+  it("marcar Diabetes y Madre guarda la enfermedad con su parentesco, en el orden del catálogo", async () => {
+    await renderSection("family_history");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("checkbox", { name: "Diabetes" }));
+    const diabetes = screen.getByRole("group", { name: "Diabetes: ¿en quién?" });
+    await user.click(within(diabetes).getByRole("checkbox", { name: "Madre" }));
+    await user.click(within(diabetes).getByRole("checkbox", { name: "Padre" }));
+    await user.click(screen.getByRole("checkbox", { name: "Hipertensión" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "family_history", {
+        // Hipertensión marcada SIN parentesco no viaja; los parentescos en orden fijo.
+        conditions: [{ condition: "diabetes", relatives: ["father", "mother"] }],
+      }),
+    );
+  });
+
+  it("«Negados» manda solo la marca, aunque haya casillas marcadas", async () => {
+    await renderSection("family_history");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("checkbox", { name: "Cáncer" }));
+    await user.click(screen.getByRole("checkbox", { name: "Negados" }));
+    expect(screen.getByRole("checkbox", { name: "Cáncer" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "family_history", { negated: true }),
+    );
+  });
+
+  it("precarga lo guardado: la enfermedad marcada, sus chips y «otra» con su nombre", async () => {
+    await renderSection(
+      "family_history",
+      expediente(
+        {},
+        {
+          family_history: {
+            conditions: [
+              { condition: "diabetes", relatives: ["mother"], notes: "Tipo 2" },
+              { condition: "other", relatives: ["siblings"], otherLabel: "Lupus" },
+            ],
+            notes: "Abuela finada por DM",
+          },
+        },
+      ),
+    );
+    expect(await screen.findByRole("checkbox", { name: "Diabetes" })).toBeChecked();
+    const diabetes = screen.getByRole("group", { name: "Diabetes: ¿en quién?" });
+    expect(within(diabetes).getByRole("checkbox", { name: "Madre" })).toBeChecked();
+    expect(within(diabetes).getByRole("checkbox", { name: "Padre" })).not.toBeChecked();
+    expect(screen.getByLabelText("¿Cuál?")).toHaveValue("Lupus");
+    expect(screen.getByLabelText("Notas (opcional)")).toHaveValue("Abuela finada por DM");
+  });
+});
+
+/** F9-CLINIC-HC-07 — APP: seis bloques; las filas sin su dato principal no viajan. */
+describe("Antecedentes Personales Patológicos (F9-CLINIC-HC-07)", () => {
+  it("una cirugía con año y una crónica con tratamiento viajan; la fila vacía de arrastre no", async () => {
+    await renderSection("pathological_history");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("checkbox", { name: "Varicela" }));
+    await user.click(screen.getByRole("button", { name: "+ Agregar cirugía" }));
+    await user.type(screen.getByLabelText("Cirugía"), "Apendicectomía");
+    await user.type(screen.getByLabelText("Año (opcional)"), "2015");
+    // Segunda fila que se queda vacía: no viaja.
+    await user.click(screen.getByRole("button", { name: "+ Agregar cirugía" }));
+    await user.click(screen.getByRole("button", { name: "+ Agregar enfermedad" }));
+    await user.selectOptions(screen.getByLabelText("Enfermedad"), "diabetes");
+    await user.type(screen.getByLabelText("Tratamiento (opcional)"), "Metformina");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "pathological_history", {
+        childhood: ["chickenpox"],
+        chronic: [{ condition: "diabetes", treatment: "Metformina" }],
+        surgeries: [{ procedure: "Apendicectomía", year: 2015 }],
+      }),
+    );
+  });
+
+  it("un año fuera de rango marca el error y no envía; «Negados» manda solo la marca", async () => {
+    await renderSection("pathological_history");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar cirugía" }));
+    await user.type(screen.getByLabelText("Cirugía"), "Hernia");
+    await user.type(screen.getByLabelText("Año (opcional)"), "999");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("El valor mínimo es 1900");
+    expect(mocked.saveSection).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("checkbox", { name: "Negados" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "pathological_history", {
+        negated: true,
+      }),
+    );
+  });
+
+  it("precarga transfusión con reacción, hospitalización e infecciosas", async () => {
+    await renderSection(
+      "pathological_history",
+      expediente(
+        {},
+        {
+          pathological_history: {
+            transfusions: { had: true, year: 2010, reaction: "Fiebre" },
+            hospitalizations: [{ reason: "Neumonía", year: 2020 }],
+            infectious: ["covid19"],
+          },
+        },
+      ),
+    );
+    expect(
+      await screen.findByRole("checkbox", { name: "Ha recibido transfusiones" }),
+    ).toBeChecked();
+    expect(screen.getByLabelText("Reacción (opcional)")).toHaveValue("Fiebre");
+    expect(screen.getByLabelText("Motivo")).toHaveValue("Neumonía");
+    expect(screen.getByRole("checkbox", { name: "COVID-19" })).toBeChecked();
+  });
+});
+
+/** F9-CLINIC-HC-08 — APNP: hábitos, vivienda y el índice tabáquico calculado. */
+describe("Antecedentes Personales No Patológicos (F9-CLINIC-HC-08)", () => {
+  it("fuma 20 al día por 10 años: pinta 10 paquetes-año y guarda solo los datos, no el índice", async () => {
+    await renderSection("non_pathological_history");
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Tabaquismo"), "current");
+    await user.type(screen.getByLabelText("Cigarros al día"), "20");
+    await user.type(screen.getByLabelText("Años fumando"), "10");
+    expect(screen.getByText("Índice tabáquico: 10 paquetes-año")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Tipo sanguíneo y Rh"), "O+");
+    await user.click(screen.getByRole("checkbox", { name: "Agua" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "non_pathological_history", {
+        housing: { services: ["water"] },
+        smoking: { status: "current", cigarettesPerDay: 20, years: 10 },
+        bloodType: "O+",
+      }),
+    );
+  });
+
+  it("cambiar a «Nunca ha fumado» esconde cigarros y años y no los manda", async () => {
+    await renderSection(
+      "non_pathological_history",
+      expediente(
+        {},
+        {
+          non_pathological_history: {
+            smoking: { status: "current", cigarettesPerDay: 20, years: 10 },
+          },
+        },
+      ),
+    );
+    const user = userEvent.setup();
+    expect(await screen.findByLabelText("Cigarros al día")).toHaveValue("20");
+    await user.selectOptions(screen.getByLabelText("Tabaquismo"), "never");
+    expect(screen.queryByLabelText("Cigarros al día")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "non_pathological_history", {
+        smoking: { status: "never" },
+      }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-09 — AGO: G/P/A/C y la FPP calculada desde la FUM. */
+describe("Antecedentes Gineco-Obstétricos (F9-CLINIC-HC-09)", () => {
+  it("FUM 2026-01-01 con embarazo pinta la FPP del 08/10/2026; sin embarazo no la pinta; guarda enteros", async () => {
+    await renderSection("gyneco_obstetric_history");
+    const user = userEvent.setup();
+    fireEvent.change(await screen.findByLabelText("Última menstruación (FUM)"), {
+      target: { value: "2026-01-01" },
+    });
+    expect(screen.queryByTestId("edd")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Embarazo actual" }));
+    expect(screen.getByTestId("edd")).toHaveTextContent("Fecha probable de parto: 08/10/2026");
+    await user.type(screen.getByLabelText("Gestas (G)"), "2");
+    await user.type(screen.getByLabelText("Partos (P)"), "1");
+    await user.type(screen.getByLabelText("Cesáreas (C)"), "1");
+    await user.selectOptions(screen.getByLabelText("Método de planificación"), "iud");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "gyneco_obstetric_history", {
+        gestations: 2,
+        births: 1,
+        cesareans: 1,
+        lastPeriodDate: "2026-01-01",
+        contraception: "iud",
+        pregnant: true,
+      }),
+    );
+  });
+
+  it("P + A + C distinto de G avisa sin bloquear; una menarca de 7 marca error y no envía", async () => {
+    await renderSection("gyneco_obstetric_history");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Gestas (G)"), "3");
+    await user.type(screen.getByLabelText("Partos (P)"), "1");
+    expect(screen.getByText(/P \+ A \+ C no suma G/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Menarca (edad)"), "7");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("El valor mínimo es 8");
+    expect(mocked.saveSection).not.toHaveBeenCalled();
   });
 });

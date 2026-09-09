@@ -22,7 +22,7 @@ function texto(valor: unknown): string | null {
 export function summaryOf(
   key: string,
   data: Record<string, unknown> | null | undefined,
-  t: (key: string) => string,
+  t: (key: string, options?: Record<string, unknown>) => string,
 ): string | null {
   if (!data) return null;
   switch (key) {
@@ -41,6 +41,106 @@ export function summaryOf(
     case "current_illness": {
       const narrative = texto(data.narrative);
       return narrative ? recorte(narrative) : null;
+    }
+    case "family_history": {
+      if (data.negated === true) return t("medicalClinic.forms.familyHistory.negated");
+      const conditions = Array.isArray(data.conditions)
+        ? (data.conditions as Record<string, unknown>[])
+        : [];
+      const partes = conditions.flatMap((c) => {
+        const condition = texto(c.condition);
+        const relatives = Array.isArray(c.relatives) ? (c.relatives as string[]) : [];
+        if (!condition || relatives.length === 0) return [];
+        const nombre =
+          condition === "other" && texto(c.otherLabel)
+            ? (c.otherLabel as string)
+            : t(`medicalClinic.forms.familyHistory.conditions.${condition}`);
+        return [
+          `${nombre}: ${relatives.map((r) => t(`medicalClinic.forms.familyHistory.relatives.${r}`)).join(", ")}`,
+        ];
+      });
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
+    case "pathological_history": {
+      if (data.negated === true) return t("medicalClinic.forms.pathologicalHistory.negated");
+      const partes: string[] = [];
+      for (const c of Array.isArray(data.chronic)
+        ? (data.chronic as Record<string, unknown>[])
+        : []) {
+        const condition = texto(c.condition);
+        if (!condition) continue;
+        const nombre =
+          condition === "other" && texto(c.otherLabel)
+            ? (c.otherLabel as string)
+            : t(`medicalClinic.forms.pathologicalHistory.chronicOptions.${condition}`);
+        partes.push(typeof c.sinceYear === "number" ? `${nombre} (${c.sinceYear})` : nombre);
+      }
+      for (const s of Array.isArray(data.surgeries)
+        ? (data.surgeries as Record<string, unknown>[])
+        : []) {
+        const procedure = texto(s.procedure);
+        if (procedure)
+          partes.push(typeof s.year === "number" ? `${procedure} ${s.year}` : procedure);
+      }
+      const resto =
+        (Array.isArray(data.childhood) ? data.childhood.length : 0) +
+        (Array.isArray(data.traumas) ? data.traumas.length : 0) +
+        (Array.isArray(data.hospitalizations) ? data.hospitalizations.length : 0) +
+        (Array.isArray(data.infectious) ? data.infectious.length : 0) +
+        (typeof data.transfusions === "object" && data.transfusions !== null ? 1 : 0);
+      if (partes.length === 0 && resto === 0) return null;
+      const linea = partes.join(" · ");
+      return recorte(resto > 0 ? (linea ? `${linea} · +${resto}` : `+${resto}`) : linea);
+    }
+    case "non_pathological_history": {
+      const partes: string[] = [];
+      const smoking = data.smoking as Record<string, unknown> | undefined;
+      if (smoking && typeof smoking === "object" && texto(smoking.status)) {
+        const status = smoking.status as string;
+        partes.push(
+          status === "current" && typeof smoking.cigarettesPerDay === "number"
+            ? t("medicalClinic.forms.nonPathologicalHistory.summarySmokes", {
+                count: smoking.cigarettesPerDay,
+              })
+            : t(`medicalClinic.forms.nonPathologicalHistory.smokingOptions.${status}`),
+        );
+      }
+      const alcohol = data.alcohol as Record<string, unknown> | undefined;
+      if (alcohol && typeof alcohol === "object" && texto(alcohol.status)) {
+        partes.push(
+          t(
+            `medicalClinic.forms.nonPathologicalHistory.alcoholOptions.${alcohol.status as string}`,
+          ),
+        );
+      }
+      const bloodType = texto(data.bloodType);
+      if (bloodType) {
+        partes.push(
+          bloodType === "unknown"
+            ? t("medicalClinic.forms.nonPathologicalHistory.bloodTypeUnknown")
+            : bloodType,
+        );
+      }
+      const immunizations = texto(data.immunizations);
+      if (immunizations) {
+        partes.push(
+          t(`medicalClinic.forms.nonPathologicalHistory.immunizationOptions.${immunizations}`),
+        );
+      }
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
+    case "gyneco_obstetric_history": {
+      const partes: string[] = [];
+      const gpac = ["gestations", "births", "abortions", "cesareans"]
+        .map((c, i) => (typeof data[c] === "number" ? `${"GPAC"[i]}${data[c]}` : null))
+        .filter((p): p is string => p !== null);
+      if (gpac.length > 0) partes.push(gpac.join(" "));
+      const fum = texto(data.lastPeriodDate);
+      if (fum) partes.push(`${t("medicalClinic.forms.gynecoObstetric.summaryLastPeriod")} ${fum}`);
+      const mpf = texto(data.contraception);
+      if (mpf) partes.push(t(`medicalClinic.forms.gynecoObstetric.contraceptionOptions.${mpf}`));
+      if (data.pregnant === true) partes.push(t("medicalClinic.forms.gynecoObstetric.pregnant"));
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
     }
     default:
       return null;

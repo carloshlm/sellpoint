@@ -49,11 +49,11 @@ describe("SectionCard", () => {
 
   it("una placeholder no es link, no es enfocable y dice Próximamente y Pendiente", async () => {
     renderCard(
-      <SectionCard card={card("allergies")} recordId="r1" status="pending" summary={null} />,
+      <SectionCard card={card("attachments")} recordId="r1" status="pending" summary={null} />,
     );
-    expect(await screen.findByText("Alergias")).toBeInTheDocument();
+    expect(await screen.findByText("Archivos Adjuntos")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    const caja = screen.getByText("Alergias").closest('[aria-disabled="true"]');
+    const caja = screen.getByText("Archivos Adjuntos").closest('[aria-disabled="true"]');
     expect(caja).not.toBeNull();
     expect(caja).toHaveTextContent("Próximamente");
     expect(caja).toHaveTextContent("Pendiente");

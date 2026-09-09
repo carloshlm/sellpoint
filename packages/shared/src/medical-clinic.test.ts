@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  allergiesSchema,
   CARRIED_FORWARD_SECTION_KEYS,
+  currentMedicationsSchema,
+  familyHistorySchema,
   generalDataSchema,
+  gynecoObstetricHistorySchema,
   MEDICAL_ORDER_KINDS,
   MEDICAL_RECORD_SECTION_GROUPS,
   MEDICAL_RECORD_SECTION_SCHEMAS,
@@ -9,6 +13,9 @@ import {
   MEDICAL_RECORD_STATUSES,
   medicalRecordLock,
   medicalRecordSectionKeySchema,
+  nonPathologicalHistorySchema,
+  pathologicalHistorySchema,
+  systemsReviewSchema,
 } from "./medical-clinic";
 
 /**
@@ -112,9 +119,20 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
     expect(conSexo[0]?.sexes).toEqual(["F", "X"]);
   });
 
-  it("exactamente tres son funcionales, y schema ⇔ funcional", () => {
+  it("las diez del interrogatorio son funcionales, y schema ⇔ funcional", () => {
     const funcionales = MEDICAL_RECORD_SECTIONS.filter((s) => s.functional).map((s) => s.key);
-    expect(funcionales).toEqual(["general_data", "chief_complaint", "current_illness"]);
+    expect(funcionales).toEqual([
+      "general_data",
+      "chief_complaint",
+      "current_illness",
+      "family_history",
+      "pathological_history",
+      "non_pathological_history",
+      "gyneco_obstetric_history",
+      "allergies",
+      "current_medications",
+      "systems_review",
+    ]);
     for (const seccion of MEDICAL_RECORD_SECTIONS) {
       expect(MEDICAL_RECORD_SECTION_SCHEMAS[seccion.key] !== undefined).toBe(seccion.functional);
     }
@@ -140,6 +158,11 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
     );
     // Sin claves inventadas: el JSON de la sección es la forma del schema.
     expect(generalDataSchema.safeParse({ foo: 1 }).success).toBe(false);
+    // F9-CLINIC-HC-13: lo que la NOM 6.1.1 pide en la ficha de identificación.
+    expect(generalDataSchema.parse({ ethnicGroup: "Náhuatl", religion: "Católica" })).toEqual({
+      ethnicGroup: "Náhuatl",
+      religion: "Católica",
+    });
   });
 
   it("las órdenes son tres tipos", () => {
@@ -182,5 +205,149 @@ describe("medicalRecordLock (F9-CLINIC-25)", () => {
 
   it("una fecha futura no se castiga: un reloj mal puesto no bloquea al médico", () => {
     expect(medicalRecordLock({ status: "open", consultationDate: "2026-09-05" }, HOY)).toBeNull();
+  });
+});
+
+/**
+ * F9-CLINIC-HC-06..12 — los schemas del interrogatorio. Lo negado se guarda
+ * explícito y solo; lo capturado exige su dato principal por fila; `{}`
+ * sigue valiendo porque guardar nada es Pendiente.
+ */
+describe("interrogatorio: antecedentes y aparatos y sistemas", () => {
+  it("AHF: negados o enfermedades con al menos un parentesco; «otra» pide el nombre", () => {
+    expect(familyHistorySchema.parse({ negated: true })).toEqual({ negated: true });
+    expect(familyHistorySchema.safeParse({ negated: true, conditions: [] }).success).toBe(false);
+    expect(
+      familyHistorySchema.parse({
+        conditions: [{ condition: "diabetes", relatives: ["mother", "father"] }],
+      }),
+    ).toEqual({ conditions: [{ condition: "diabetes", relatives: ["mother", "father"] }] });
+    expect(
+      familyHistorySchema.safeParse({ conditions: [{ condition: "diabetes", relatives: [] }] })
+        .success,
+    ).toBe(false);
+    expect(
+      familyHistorySchema.safeParse({ conditions: [{ condition: "other", relatives: ["father"] }] })
+        .success,
+    ).toBe(false);
+    expect(
+      familyHistorySchema.safeParse({
+        conditions: [{ condition: "other", relatives: ["father"], otherLabel: "Lupus" }],
+      }).success,
+    ).toBe(true);
+    expect(familyHistorySchema.parse({})).toEqual({});
+  });
+
+  it("APP: año futuro rechaza; transfusión sin haberla tenido no lleva detalles; una cirugía sin nombre rechaza", () => {
+    expect(pathologicalHistorySchema.parse({ negated: true })).toEqual({ negated: true });
+    expect(
+      pathologicalHistorySchema.parse({
+        childhood: ["chickenpox"],
+        chronic: [{ condition: "diabetes", sinceYear: 2019, treatment: "Metformina" }],
+        surgeries: [{ procedure: "Apendicectomía", year: 2015 }],
+        transfusions: { had: false },
+      }),
+    ).toMatchObject({ surgeries: [{ procedure: "Apendicectomía", year: 2015 }] });
+    expect(
+      pathologicalHistorySchema.safeParse({ surgeries: [{ procedure: "x", year: 2999 }] }).success,
+    ).toBe(false);
+    expect(
+      pathologicalHistorySchema.safeParse({ surgeries: [{ procedure: "x", year: 999 }] }).success,
+    ).toBe(false);
+    expect(
+      pathologicalHistorySchema.safeParse({ transfusions: { had: false, reaction: "Fiebre" } })
+        .success,
+    ).toBe(false);
+    expect(pathologicalHistorySchema.safeParse({ surgeries: [{ procedure: "" }] }).success).toBe(
+      false,
+    );
+    expect(pathologicalHistorySchema.safeParse({ chronic: [{ condition: "other" }] }).success).toBe(
+      false,
+    );
+  });
+
+  it("APNP: quien nunca fumó no lleva cigarros ni años; residentes 0 rechaza; tipo sanguíneo del catálogo", () => {
+    expect(
+      nonPathologicalHistorySchema.parse({
+        smoking: { status: "current", cigarettesPerDay: 20, years: 10 },
+        bloodType: "O+",
+        housing: { type: "own", services: ["water", "electricity"], residents: 4 },
+      }),
+    ).toMatchObject({ bloodType: "O+" });
+    expect(
+      nonPathologicalHistorySchema.safeParse({ smoking: { status: "never", cigarettesPerDay: 5 } })
+        .success,
+    ).toBe(false);
+    expect(nonPathologicalHistorySchema.safeParse({ housing: { residents: 0 } }).success).toBe(
+      false,
+    );
+    expect(nonPathologicalHistorySchema.safeParse({ bloodType: "Z+" }).success).toBe(false);
+    expect(nonPathologicalHistorySchema.parse({})).toEqual({});
+  });
+
+  it("AGO: FUM futura rechaza; menarca a los 7 rechaza; G/P/A/C enteros", () => {
+    expect(
+      gynecoObstetricHistorySchema.parse({
+        menarcheAge: 12,
+        gestations: 2,
+        births: 1,
+        abortions: 0,
+        cesareans: 1,
+        contraception: "iud",
+        papSmear: { date: "2026-01-15", result: "normal" },
+        pregnant: false,
+      }),
+    ).toMatchObject({ gestations: 2, cesareans: 1 });
+    expect(gynecoObstetricHistorySchema.safeParse({ lastPeriodDate: "2999-01-01" }).success).toBe(
+      false,
+    );
+    expect(gynecoObstetricHistorySchema.safeParse({ menarcheAge: 7 }).success).toBe(false);
+    expect(gynecoObstetricHistorySchema.safeParse({ births: 1.5 }).success).toBe(false);
+  });
+
+  it("alergias: negadas o una lista con sustancia; sin sustancia rechaza; lista vacía rechaza", () => {
+    expect(allergiesSchema.parse({ negated: true })).toEqual({ negated: true });
+    expect(
+      allergiesSchema.parse({
+        items: [
+          { kind: "drug", substance: "Penicilina", reaction: "Urticaria", severity: "severe" },
+        ],
+      }),
+    ).toMatchObject({ items: [{ substance: "Penicilina" }] });
+    expect(allergiesSchema.safeParse({ items: [] }).success).toBe(false);
+    expect(allergiesSchema.safeParse({ items: [{ kind: "food", substance: " " }] }).success).toBe(
+      false,
+    );
+  });
+
+  it("medicamentos actuales: ninguno o una lista con nombre; `none` no convive con la lista", () => {
+    expect(currentMedicationsSchema.parse({ none: true })).toEqual({ none: true });
+    expect(
+      currentMedicationsSchema.parse({ items: [{ name: "Metformina", dose: "850 mg" }] }),
+    ).toEqual({ items: [{ name: "Metformina", dose: "850 mg" }] });
+    expect(currentMedicationsSchema.safeParse({ none: true, items: [{ name: "x" }] }).success).toBe(
+      false,
+    );
+    expect(currentMedicationsSchema.safeParse({ items: [{ name: "" }] }).success).toBe(false);
+  });
+
+  it("aparatos y sistemas: por sistema, negado explícito o hallazgos con texto; un sistema inventado rechaza", () => {
+    expect(systemsReviewSchema.parse({ negated: true })).toEqual({ negated: true });
+    expect(
+      systemsReviewSchema.parse({
+        systems: { respiratory: { normal: true }, digestive: { findings: "Dolor epigástrico" } },
+      }),
+    ).toEqual({
+      systems: { respiratory: { normal: true }, digestive: { findings: "Dolor epigástrico" } },
+    });
+    expect(
+      systemsReviewSchema.safeParse({ systems: { digestive: { findings: "" } } }).success,
+    ).toBe(false);
+    expect(systemsReviewSchema.safeParse({ systems: { liver: { normal: true } } }).success).toBe(
+      false,
+    );
+    expect(
+      systemsReviewSchema.safeParse({ systems: { digestive: { normal: false } } }).success,
+    ).toBe(false);
   });
 });
