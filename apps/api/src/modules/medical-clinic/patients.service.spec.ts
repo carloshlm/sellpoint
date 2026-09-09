@@ -187,6 +187,7 @@ describe("PatientsService.get (F9-CLINIC-32)", () => {
   let tx: {
     customer: { findFirst: jest.Mock };
     medicalClinicRecord: { findFirst: jest.Mock; count: jest.Mock };
+    medicalClinicRecordSection: { findFirst: jest.Mock };
   };
   let prisma: { withTenantContext: jest.Mock; tenant: { findUnique: jest.Mock } };
   let service: PatientsService;
@@ -216,6 +217,7 @@ describe("PatientsService.get (F9-CLINIC-32)", () => {
         }),
         count: jest.fn().mockResolvedValue(2),
       },
+      medicalClinicRecordSection: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
@@ -247,6 +249,72 @@ describe("PatientsService.get (F9-CLINIC-32)", () => {
         status: "closed",
         lockReason: "closed",
       },
+      nextAppointment: null,
+    });
+  });
+
+  /**
+   * F9-CLINIC-DOC-07 — la próxima cita sale de Seguimiento; «no vino» se
+   * deriva (la fecha pasó y la última consulta es anterior), como el
+   * vencimiento del expediente: cero almacenamiento.
+   */
+  describe("la próxima cita (F9-CLINIC-DOC-07)", () => {
+    const seguimiento = (nextAppointmentDate: string) => ({
+      data: { nextAppointmentDate, nextAppointmentNotes: "Control" },
+      record: { id: "r-2", folio: "HCL-000002", consultationDate: new Date("2026-08-20") },
+    });
+
+    it("futura: la cita con su folio, sin marca", async () => {
+      tx.medicalClinicRecordSection.findFirst.mockResolvedValue(seguimiento("2026-09-22"));
+      await expect(service.get(USER, "c-1")).resolves.toMatchObject({
+        nextAppointment: {
+          date: "2026-09-22",
+          notes: "Control",
+          recordId: "r-2",
+          recordFolio: "HCL-000002",
+          missed: false,
+        },
+      });
+      // Se pide la última consulta que dejó una cita, no cualquier sección.
+      expect(tx.medicalClinicRecordSection.findFirst.mock.calls[0][0]).toMatchObject({
+        where: { sectionKey: "follow_up", record: { patientCustomerId: "c-1" } },
+        orderBy: { record: { consultationDate: "desc" } },
+      });
+    });
+
+    it("pasada sin consulta posterior: no vino", async () => {
+      tx.medicalClinicRecordSection.findFirst.mockResolvedValue(seguimiento("2026-08-30"));
+      await expect(service.get(USER, "c-1")).resolves.toMatchObject({
+        nextAppointment: { date: "2026-08-30", missed: true },
+      });
+    });
+
+    it("pasada con consulta posterior: vino, y la cita ya no se muestra", async () => {
+      tx.medicalClinicRecordSection.findFirst.mockResolvedValue(seguimiento("2026-08-30"));
+      tx.medicalClinicRecord.findFirst.mockResolvedValue({
+        id: "r-3",
+        folio: "HCL-000003",
+        consultationDate: new Date("2026-09-01"),
+        status: "closed",
+        sections: [],
+      });
+      await expect(service.get(USER, "c-1")).resolves.toMatchObject({ nextAppointment: null });
+    });
+
+    it("el día de hoy todavía cuenta como futura (se compara en el calendario del negocio)", async () => {
+      // 2026-09-04T15:00Z son las 09:00 en CDMX: sigue siendo el 4.
+      tx.medicalClinicRecordSection.findFirst.mockResolvedValue(seguimiento("2026-09-04"));
+      await expect(service.get(USER, "c-1")).resolves.toMatchObject({
+        nextAppointment: { date: "2026-09-04", missed: false },
+      });
+    });
+
+    it("una sección de seguimiento sin fecha no es una cita", async () => {
+      tx.medicalClinicRecordSection.findFirst.mockResolvedValue({
+        data: { alarmSigns: "Fiebre" },
+        record: { id: "r-2", folio: "HCL-000002", consultationDate: new Date("2026-08-20") },
+      });
+      await expect(service.get(USER, "c-1")).resolves.toMatchObject({ nextAppointment: null });
     });
   });
 

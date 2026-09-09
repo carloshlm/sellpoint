@@ -15,6 +15,8 @@
   "record_open_today": "This patient already has a consultation open today ({folio}). Continue it instead of opening another.",
   "section_unknown": "That section does not exist in the medical record.",
   "section_not_available": "That section cannot be captured yet.",
+  "document_not_available": "That section is not printed as a letter.",
+  "document_not_found": "There is no letter with that number in this visit.",
   "order_not_found": "The order does not exist.",
   "order_already_charged": "That order was already charged at the register. What must be voided is the sale.",
   "order_already_canceled": "That order is already canceled.",
@@ -46,6 +48,18 @@
     "quantity": "Quantity",
     "dosage": "Directions",
     "indications": "General indications",
-    "signature": "Doctor's signature"
+    "signature": "Doctor's signature",
+    "title_referral": "REFERRAL NOTE",
+    "title_interconsultation": "INTERCONSULTATION REQUEST",
+    "letter_referral": "Referral",
+    "letter_interconsultation": "Interconsultation",
+    "letter_to": "To",
+    "priority": "Priority",
+    "priority_routine": "Routine",
+    "priority_urgent": "Urgent",
+    "reason": "Reason",
+    "clinical_summary": "Clinical summary",
+    "diagnosis_icd10": "Diagnostic impression",
+    "treatment_given": "Treatment given"
   }
 }

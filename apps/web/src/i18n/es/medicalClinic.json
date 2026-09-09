@@ -110,7 +110,9 @@
       "start": "Iniciar consulta",
       "continue": "Continuar consulta {{folio}}",
       "loadFailed": "No pudimos cargar el resumen del paciente.",
-      "back": "← Atender paciente"
+      "back": "← Atender paciente",
+      "nextAppointment": "Próxima cita",
+      "missedAppointment": "No vino a la cita del {{date}}"
     }
   },
   "record": {
@@ -772,7 +774,8 @@
       "treatment": "Terapéutica empleada (opcional)",
       "prefill": "Traer del expediente",
       "prefillHint": "Llena lo vacío con el padecimiento actual, el diagnóstico principal y el tratamiento ya capturados.",
-      "summaryMore": "+{{count}}"
+      "summaryMore": "+{{count}}",
+      "saved": "Guardado. Imprime la carta que necesites o sigue capturando."
     },
     "referrals": {
       "list": "Referencias de esta consulta",
@@ -784,7 +787,8 @@
       "service": "Servicio o especialidad",
       "doctorName": "Médico receptor (opcional)",
       "reason": "Motivo de envío",
-      "reasonPlaceholder": "Por qué se refiere y qué se espera de la unidad receptora"
+      "reasonPlaceholder": "Por qué se refiere y qué se espera de la unidad receptora",
+      "print": "Imprimir referencia {{number}}"
     },
     "interconsultations": {
       "list": "Interconsultas solicitadas en esta consulta",
@@ -796,7 +800,8 @@
       "service": "Especialidad o servicio solicitado",
       "doctorName": "Médico (opcional)",
       "reason": "Pregunta clínica o motivo de la interconsulta",
-      "reasonPlaceholder": "Qué opinión se pide y sobre qué"
+      "reasonPlaceholder": "Qué opinión se pide y sobre qué",
+      "print": "Imprimir interconsulta {{number}}"
     },
     "chooseOption": "Elige una opción"
   },

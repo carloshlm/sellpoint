@@ -1,21 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { ageFromBirthDate, formatAddress, shortName } from "@sellpoint/shared";
+import { ageFromBirthDate, shortName } from "@sellpoint/shared";
 import PdfPrinter from "pdfmake";
-import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { TicketSettingsService } from "../tenants/ticket-settings.service";
-import { buildMedicalOrderDefinition, type Translate } from "./medical-order-pdf.renderer";
-
-/** Las fuentes estándar del visor, como en el PDF de inventario. */
-const FONTS = {
-  Roboto: {
-    normal: "Helvetica",
-    bold: "Helvetica-Bold",
-    italics: "Helvetica-Oblique",
-    bolditalics: "Helvetica-BoldOblique",
-  },
-};
+import { buildMedicalOrderDefinition } from "./medical-order-pdf.renderer";
+import { direccionEnLinea, FONTS, renderizar, type Translate } from "./medical-pdf-blocks";
 
 /** F9-CLINIC-24 — arma y renderiza el documento carta de una orden. */
 @Injectable()
@@ -98,36 +88,7 @@ export class MedicalOrderPdfService {
       };
     });
 
-    const definition = buildMedicalOrderDefinition(input, t) as unknown as TDocumentDefinitions;
-    const pdf = this.printer.createPdfKitDocument(definition);
-    const body = await new Promise<Buffer>((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      pdf.on("data", (chunk: Buffer) => chunks.push(chunk));
-      pdf.on("end", () => resolve(Buffer.concat(chunks)));
-      pdf.on("error", reject);
-      pdf.end();
-    });
+    const body = await renderizar(this.printer, buildMedicalOrderDefinition(input, t));
     return { body, filename: `${input.order.folio}.pdf` };
   }
-}
-
-function direccionEnLinea(tenant: {
-  address: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  region: string | null;
-  postalCode: string | null;
-  country: string | null;
-}): string | null {
-  const linea = formatAddress(
-    {
-      line1: tenant.address,
-      line2: tenant.addressLine2,
-      city: tenant.city,
-      region: tenant.region,
-      postalCode: tenant.postalCode,
-    },
-    tenant.country,
-  );
-  return linea === "" ? null : linea;
 }

@@ -21,6 +21,21 @@ export interface UltimoExpediente {
   lockReason: MedicalRecordLockReason | null;
 }
 
+/**
+ * F9-CLINIC-DOC-07 — la próxima cita, tal como la dejó Seguimiento en la
+ * última consulta que la tuvo. `missed` se DERIVA (como el vencimiento del
+ * expediente): la fecha ya pasó y no hubo consulta ese día ni después. Si
+ * la hubo, la cita se cumplió y ya no se muestra.
+ */
+export interface ProximaCita {
+  /** `YYYY-MM-DD`. */
+  date: string;
+  notes: string | null;
+  recordId: string;
+  recordFolio: string;
+  missed: boolean;
+}
+
 export interface PatientHit {
   /** `null` en un turno todavía sin paciente: se da de alta al atenderlo. */
   customerId: string | null;
@@ -51,6 +66,7 @@ export interface PatientSummary {
   generalData: Record<string, unknown> | null;
   recordCount: number;
   lastRecord: UltimoExpediente | null;
+  nextAppointment: ProximaCita | null;
 }
 
 /**
@@ -176,7 +192,7 @@ export class PatientsService {
       // El expediente más reciente trae los Datos Generales que se copian de
       // visita en visita (F9-CLINIC-10): lo último que el médico supo de la
       // persona.
-      const [ultimo, recordCount] = await Promise.all([
+      const [ultimo, recordCount, seguimiento] = await Promise.all([
         tx.medicalClinicRecord.findFirst({
           where: { tenantId: user.tenantId, patientCustomerId: cliente.id },
           orderBy: [{ createdAt: "desc" }],
@@ -193,6 +209,19 @@ export class PatientsService {
         }),
         tx.medicalClinicRecord.count({
           where: { tenantId: user.tenantId, patientCustomerId: cliente.id },
+        }),
+        // La última consulta que dejó una próxima cita (no siempre es la última consulta).
+        tx.medicalClinicRecordSection.findFirst({
+          where: {
+            tenantId: user.tenantId,
+            sectionKey: "follow_up",
+            record: { patientCustomerId: cliente.id },
+          },
+          orderBy: { record: { consultationDate: "desc" } },
+          select: {
+            data: true,
+            record: { select: { id: true, folio: true, consultationDate: true } },
+          },
         }),
       ]);
       const generales = ultimo?.sections.find((s) => s.sectionKey === "general_data")?.data;
@@ -221,6 +250,7 @@ export class PatientsService {
                 status: ultimo.status,
                 lockReason: medicalRecordLock({ status: ultimo.status, consultationDate }, hoy),
               },
+        nextAppointment: proximaCita(seguimiento, consultationDate, hoy),
       };
     });
   }
@@ -273,4 +303,35 @@ export class PatientsService {
     });
     return tenant?.timezone ?? "UTC";
   }
+}
+
+/**
+ * La cita que Seguimiento dejó, y si el paciente vino. «Vino» = hubo una
+ * consulta ese día o después (la última consulta del paciente es al menos
+ * de esa fecha); si la fecha pasó sin consulta, `missed`. Sin fecha, nada.
+ */
+function proximaCita(
+  seguimiento: {
+    data: unknown;
+    record: { id: string; folio: string; consultationDate: Date };
+  } | null,
+  ultimaConsulta: string | undefined,
+  hoy: string,
+): ProximaCita | null {
+  if (seguimiento === null) return null;
+  const data =
+    seguimiento.data && typeof seguimiento.data === "object"
+      ? (seguimiento.data as Record<string, unknown>)
+      : {};
+  const fecha = data.nextAppointmentDate;
+  if (typeof fecha !== "string" || fecha === "") return null;
+  const vencida = fecha < hoy;
+  if (vencida && ultimaConsulta !== undefined && ultimaConsulta >= fecha) return null;
+  return {
+    date: fecha,
+    notes: typeof data.nextAppointmentNotes === "string" ? data.nextAppointmentNotes : null,
+    recordId: seguimiento.record.id,
+    recordFolio: seguimiento.record.folio,
+    missed: vencida,
+  };
 }

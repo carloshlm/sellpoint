@@ -303,6 +303,23 @@ export async function printMedicalOrder(id: string, folio: string): Promise<void
   imprimirPdf(data, `${folio}.pdf`);
 }
 
+/**
+ * F9-CLINIC-DOC-06 — la carta de una referencia o interconsulta, por índice
+ * dentro de su sección, directo al cuadro de impresión.
+ */
+export async function printSectionLetter(
+  recordId: string,
+  key: string,
+  index: number,
+  filename: string,
+): Promise<void> {
+  const { data } = await api.get<Blob>(
+    `/medical-clinic/records/${recordId}/sections/${key}/items/${index}/document`,
+    { responseType: "blob" },
+  );
+  imprimirPdf(data, filename);
+}
+
 // ── Medicamentos del stock del médico ─────────────────────────────────
 /** El mismo ítem del buscador del POS, re-exportado: el módulo no importa de `@/lib/pos` en pantallas. */
 /**
@@ -397,6 +414,14 @@ export interface PatientSummary {
   generalData: Record<string, unknown> | null;
   recordCount: number;
   lastRecord: PatientHit["lastRecord"];
+  /** F9-CLINIC-DOC-07: la cita que dejó Seguimiento; `missed` si la fecha pasó sin consulta. */
+  nextAppointment: {
+    date: string;
+    notes: string | null;
+    recordId: string;
+    recordFolio: string;
+    missed: boolean;
+  } | null;
 }
 
 export async function getPatient(customerId: string): Promise<PatientSummary> {

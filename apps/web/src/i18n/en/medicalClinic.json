@@ -110,7 +110,9 @@
       "start": "Start visit",
       "continue": "Continue visit {{folio}}",
       "loadFailed": "We could not load the patient information.",
-      "back": "← Attend patient"
+      "back": "← Attend patient",
+      "nextAppointment": "Next appointment",
+      "missedAppointment": "Missed the appointment of {{date}}"
     }
   },
   "record": {
@@ -772,7 +774,8 @@
       "treatment": "Treatment given (optional)",
       "prefill": "Bring from the record",
       "prefillHint": "Fills what is empty with the current illness, the primary diagnosis and the treatment already captured.",
-      "summaryMore": "+{{count}}"
+      "summaryMore": "+{{count}}",
+      "saved": "Saved. Print the letter you need or keep editing."
     },
     "referrals": {
       "list": "Referrals of this visit",
@@ -784,7 +787,8 @@
       "service": "Service or specialty",
       "doctorName": "Receiving physician (optional)",
       "reason": "Reason for referral",
-      "reasonPlaceholder": "Why the patient is referred and what is expected from the receiving facility"
+      "reasonPlaceholder": "Why the patient is referred and what is expected from the receiving facility",
+      "print": "Print referral {{number}}"
     },
     "interconsultations": {
       "list": "Interconsultations requested in this visit",
@@ -796,7 +800,8 @@
       "service": "Specialty or service requested",
       "doctorName": "Physician (optional)",
       "reason": "Clinical question or reason for the interconsultation",
-      "reasonPlaceholder": "Which opinion is requested and about what"
+      "reasonPlaceholder": "Which opinion is requested and about what",
+      "print": "Print interconsultation {{number}}"
     },
     "chooseOption": "Pick an option"
   },

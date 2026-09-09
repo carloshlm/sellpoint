@@ -105,6 +105,32 @@ describe("SectionsService (F9-CLINIC-11)", () => {
     expect(tx.medicalClinicRecordSection.upsert).not.toHaveBeenCalled();
   });
 
+  /**
+   * F9-CLINIC-DOC-08 — la bitácora guarda lo que decía y lo que dice: una
+   * sección sobrescrita ya no tiene «antes» en ningún otro lado.
+   */
+  it("audita el antes y el después con los datos; borrar audita el después como pendiente", async () => {
+    await service.save(USER, "r-1", "chief_complaint", { complaint: "Dolor" }, META);
+    expect(audit.record.mock.calls[0][1]).toMatchObject({
+      action: "medical_clinic.section.save",
+      before: { sectionKey: "chief_complaint", data: null },
+      after: { sectionKey: "chief_complaint", status: "completed", data: { complaint: "Dolor" } },
+    });
+
+    tx.medicalClinicRecordSection.findFirst.mockResolvedValue({ data: { complaint: "Dolor" } });
+    await service.save(USER, "r-1", "chief_complaint", { complaint: "Tos seca" }, META);
+    expect(audit.record.mock.calls[1][1]).toMatchObject({
+      before: { data: { complaint: "Dolor" } },
+      after: { status: "completed", data: { complaint: "Tos seca" } },
+    });
+
+    await service.save(USER, "r-1", "chief_complaint", {}, META);
+    expect(audit.record.mock.calls[2][1]).toMatchObject({
+      before: { data: { complaint: "Dolor" } },
+      after: { status: "pending", data: {} },
+    });
+  });
+
   it("datos que no cumplen el schema son 400 con la clave del cuerpo", async () => {
     await expect(
       service.save(USER, "r-1", "general_data", { sex: "Q" }, META),

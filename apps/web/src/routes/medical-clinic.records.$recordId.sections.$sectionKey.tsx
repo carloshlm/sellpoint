@@ -4,7 +4,7 @@ import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
-import { SECTION_FORMS } from "@/components/medical-clinic/sections/registry";
+import { KEEP_OPEN_SECTIONS, SECTION_FORMS } from "@/components/medical-clinic/sections/registry";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { useRecord, useSaveSection } from "@/lib/medical-clinic/hooks";
@@ -55,6 +55,11 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
   const seccion = expediente.sections.find((s) => s.key === sectionKey);
   const volver = () =>
     void navigate({ to: "/medical-clinic/records/$recordId", params: { recordId }, replace: true });
+  // F9-CLINIC-DOC-06: las cartas se quedan tras guardar para imprimirse.
+  // `saved` se deriva de la mutación (y de su clave) para no arrastrar
+  // estado de una sección a otra.
+  const quedarse = KEEP_OPEN_SECTIONS.has(sectionKey);
+  const saved = quedarse && guardar.isSuccess && guardar.variables?.key === sectionKey;
 
   return (
     <div className="flex flex-col gap-4">
@@ -94,6 +99,7 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
           <Form
             key={sectionKey}
             recordId={recordId}
+            folio={expediente.folio}
             initialData={seccion?.data && typeof seccion.data === "object" ? seccion.data : {}}
             patientAge={expediente.patient.age}
             consultationDate={expediente.consultationDate}
@@ -101,6 +107,7 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
             sections={expediente.sections}
             readOnly={readOnly}
             busy={guardar.isPending}
+            saved={saved}
             error={
               guardar.isError
                 ? (guardar.error.statusCode >= 400 &&
@@ -109,7 +116,12 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
                   t("medicalClinic.forms.saveFailed")
                 : null
             }
-            onSubmit={(data) => guardar.mutate({ key: sectionKey, data }, { onSuccess: volver })}
+            onSubmit={(data) =>
+              guardar.mutate(
+                { key: sectionKey, data },
+                quedarse ? undefined : { onSuccess: volver },
+              )
+            }
             onCancel={volver}
           />
         </CardContent>

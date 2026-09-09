@@ -100,6 +100,13 @@ export class SectionsService {
       if (candado !== null) {
         throw new ConflictException({ message: `medical_clinic.record_${candado}` });
       }
+      // F9-CLINIC-DOC-08: lo que decía ANTES, para la bitácora. NOM-004 5.x
+      // pide trazabilidad; la fila se sobrescribe, así que el «antes» solo
+      // sobrevive aquí.
+      const previa = await tx.medicalClinicRecordSection.findFirst({
+        where: { recordId, sectionKey: clave, tenantId: user.tenantId },
+        select: { data: true },
+      });
 
       let vista: SectionView;
       if (Object.keys(data).length === 0) {
@@ -140,13 +147,20 @@ export class SectionsService {
         });
       }
 
+      // F9-CLINIC-DOC-08 (decisión de Carlos, 2026-09-09): la bitácora guarda
+      // lo que decía y lo que dice. Mete texto clínico en `audit_logs`, a
+      // sabiendas: es lo que da trazabilidad NOM 5.x a las 22 secciones.
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
         userId: user.userId,
         action: "medical_clinic.section.save",
         resourceType: "medical_record_section",
         resourceId: recordId,
-        after: { sectionKey: clave, status: vista.status },
+        before: {
+          sectionKey: clave,
+          data: (previa?.data ?? null) as Prisma.InputJsonValue,
+        },
+        after: { sectionKey: clave, status: vista.status, data: data as Prisma.InputJsonObject },
         ip: meta.ip,
         userAgent: meta.userAgent,
       });

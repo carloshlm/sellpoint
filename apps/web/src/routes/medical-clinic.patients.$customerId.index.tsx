@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppLayout } from "@/components/layout/app-layout";
 import { RecordsTable } from "@/components/medical-clinic/records-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Paginator } from "@/components/ui/paginator";
@@ -13,7 +14,7 @@ import type { ApiError } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-error-message";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
-import { formatBusinessDate } from "@/lib/inventory/format-date";
+import { formatBusinessDate, formatCalendarDate } from "@/lib/inventory/format-date";
 import type { PatientSummary } from "@/lib/medical-clinic/api";
 import { useCreateRecord, usePatient, useRecords } from "@/lib/medical-clinic/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -123,6 +124,16 @@ function PatientContent({ customerId }: { customerId: string }) {
               {error}
             </p>
           )}
+          {/* F9-CLINIC-DOC-07: la cita pasó y no hubo consulta; se deriva, no se guarda. */}
+          {p.nextAppointment?.missed ? (
+            <p className="mb-3" data-testid="missed-appointment">
+              <Badge variant="warning">
+                {t("medicalClinic.patient.summary.missedAppointment", {
+                  date: formatCalendarDate(p.nextAppointment.date, locale),
+                })}
+              </Badge>
+            </p>
+          ) : null}
           <Ficha paciente={p} locale={locale} timeZone={timeZone} />
         </CardContent>
       </Card>
@@ -200,6 +211,18 @@ function Ficha({
     [t("medicalClinic.patient.summary.occupation"), texto(g.occupation)],
     [t("medicalClinic.patient.summary.emergencyContact"), contacto || null],
     [t("medicalClinic.patient.summary.notes"), paciente.notes],
+    [
+      t("medicalClinic.patient.summary.nextAppointment"),
+      paciente.nextAppointment === null
+        ? null
+        : [
+            // Una FECHA de calendario, no un instante: dd/mm/aaaa sin huso.
+            formatCalendarDate(paciente.nextAppointment.date, locale),
+            paciente.nextAppointment.notes,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+    ],
   ];
   return (
     <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">

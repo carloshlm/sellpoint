@@ -15,6 +15,8 @@
   "record_open_today": "Este paciente ya tiene una consulta abierta hoy ({folio}). Continúala en vez de abrir otra.",
   "section_unknown": "Esa sección no existe en la historia clínica.",
   "section_not_available": "Esa sección todavía no se puede capturar.",
+  "document_not_available": "Esa sección no se imprime como carta.",
+  "document_not_found": "No hay una carta con ese número en la consulta.",
   "order_not_found": "La orden no existe.",
   "order_already_charged": "Esa orden ya se cobró en caja. Lo que hay que anular es la venta.",
   "order_already_canceled": "Esa orden ya está cancelada.",
@@ -46,6 +48,18 @@
     "quantity": "Cantidad",
     "dosage": "Indicación",
     "indications": "Indicaciones generales",
-    "signature": "Firma del médico"
+    "signature": "Firma del médico",
+    "title_referral": "NOTA DE REFERENCIA",
+    "title_interconsultation": "SOLICITUD DE INTERCONSULTA",
+    "letter_referral": "Referencia",
+    "letter_interconsultation": "Interconsulta",
+    "letter_to": "Para",
+    "priority": "Prioridad",
+    "priority_routine": "Ordinaria",
+    "priority_urgent": "Urgente",
+    "reason": "Motivo",
+    "clinical_summary": "Resumen clínico",
+    "diagnosis_icd10": "Impresión diagnóstica",
+    "treatment_given": "Terapéutica empleada"
   }
 }

@@ -45,6 +45,7 @@ const resumen = (over: Partial<PatientSummary> = {}): PatientSummary => ({
     status: "open",
     lockReason: null,
   },
+  nextAppointment: null,
   ...over,
 });
 
@@ -138,6 +139,42 @@ describe("«Resumen del paciente» (F9-CLINIC-WEB-29)", () => {
       "/medical-clinic/records/r0",
     );
     expect(screen.getByText("2 historias clínicas")).toBeInTheDocument();
+  });
+
+  /** F9-CLINIC-DOC-07 — la próxima cita se ve donde se decide volver a citar. */
+  it("pinta la próxima cita con su motivo; sin cita, «—»; si no vino, lo dice", async () => {
+    mocked.getPatient.mockResolvedValue(
+      resumen({
+        nextAppointment: {
+          date: "2026-09-22",
+          notes: "Control",
+          recordId: "r1",
+          recordFolio: "HCL-000010",
+          missed: false,
+        },
+      }),
+    );
+    await renderRuta();
+    const ficha = await screen.findByTestId("patient-summary");
+    expect(ficha).toHaveTextContent("Próxima cita");
+    expect(ficha).toHaveTextContent("22/09/2026 · Control");
+    expect(screen.queryByTestId("missed-appointment")).not.toBeInTheDocument();
+
+    mocked.getPatient.mockResolvedValue(
+      resumen({
+        nextAppointment: {
+          date: "2026-08-30",
+          notes: null,
+          recordId: "r0",
+          recordFolio: "HCL-000009",
+          missed: true,
+        },
+      }),
+    );
+    await renderRuta();
+    expect(await screen.findByTestId("missed-appointment")).toHaveTextContent(
+      "No vino a la cita del 30/08/2026",
+    );
   });
 
   it("con una consulta abierta hoy ofrece continuarla; si no, iniciar una nueva", async () => {

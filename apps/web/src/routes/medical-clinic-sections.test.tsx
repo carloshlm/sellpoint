@@ -21,6 +21,7 @@ vi.mock("@/lib/medical-clinic/api", () => ({
   saveSection: vi.fn(),
   listStudies: vi.fn(),
   searchIcd10: vi.fn(),
+  printSectionLetter: vi.fn(),
 }));
 const mocked = vi.mocked(clinicApi);
 
@@ -1041,5 +1042,78 @@ describe("Interconsultas (F9-CLINIC-DOC-04)", () => {
     await waitFor(() =>
       expect(mocked.saveSection).toHaveBeenCalledWith("r1", "interconsultations", {}),
     );
+  });
+});
+
+/**
+ * F9-CLINIC-DOC-06 — las cartas se QUEDAN tras guardar (patrón de
+ * `order-form-shell`): un botón «Imprimir» por carta persistida y «Volver a
+ * la historia clínica». Las demás secciones siguen volviendo al tablero.
+ */
+describe("imprimir sin salir del formulario (F9-CLINIC-DOC-06)", () => {
+  const guardaYRefresca = () => {
+    mocked.saveSection.mockImplementation(async (_id, key, data) => {
+      // Tras guardar, el expediente refrescado ya trae la carta persistida.
+      mocked.getRecord.mockResolvedValue(expediente({}, { [key]: data }));
+      return { key, status: "completed", data, updatedAt: null };
+    });
+  };
+
+  it("al guardar una referencia se queda, ofrece imprimirla y volver", async () => {
+    guardaYRefresca();
+    mocked.printSectionLetter.mockResolvedValue(undefined);
+    const router = await renderSection("referrals");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar referencia" }));
+    await user.type(screen.getByLabelText("Unidad o consultorio receptor"), "Hospital General");
+    await user.type(screen.getByLabelText("Servicio o especialidad"), "Cardiología");
+    await user.type(screen.getByLabelText("Motivo de envío"), "Soplo");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    const imprimir = await screen.findByRole("button", { name: "Imprimir referencia 1" });
+    expect(router.state.location.pathname).toBe("/medical-clinic/records/r1/sections/referrals");
+    expect(screen.getByRole("status")).toHaveTextContent("Guardado.");
+    await user.click(imprimir);
+    expect(mocked.printSectionLetter).toHaveBeenCalledWith(
+      "r1",
+      "referrals",
+      0,
+      "HCL-000010-REF-1.pdf",
+    );
+    expect(screen.getByRole("link", { name: "Volver a la historia clínica" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/records/r1",
+    );
+  });
+
+  it("si la impresión falla lo dice, sin salir del formulario", async () => {
+    guardaYRefresca();
+    mocked.printSectionLetter.mockRejectedValue(new Error("popup"));
+    await renderSection("interconsultations");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar interconsulta" }));
+    await user.type(screen.getByLabelText("Especialidad o servicio solicitado"), "Nefrología");
+    await user.type(
+      screen.getByLabelText("Pregunta clínica o motivo de la interconsulta"),
+      "¿Requiere biopsia?",
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await user.click(await screen.findByRole("button", { name: "Imprimir interconsulta 1" }));
+    expect(
+      await screen.findByText("No pudimos abrir el documento. Intenta imprimirlo de nuevo."),
+    ).toBeInTheDocument();
+    expect(mocked.printSectionLetter).toHaveBeenCalledWith(
+      "r1",
+      "interconsultations",
+      0,
+      "HCL-000010-INT-1.pdf",
+    );
+  });
+
+  it("una sección que no es carta sigue volviendo al tablero al guardar", async () => {
+    const router = await renderSection("diagnostic_impression");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Impresión diagnóstica"), "Probable IVRS");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r1"));
   });
 });

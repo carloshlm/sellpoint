@@ -15,6 +15,7 @@ import { MedicalClinicOrdersController } from "./medical-clinic-orders.controlle
 import { MedicalClinicPatientsController } from "./medical-clinic-patients.controller";
 import { MedicalClinicRecordsController } from "./medical-clinic-records.controller";
 import { MedicalClinicSettingsController } from "./medical-clinic-settings.controller";
+import { MedicalLetterPdfService } from "./medical-letter-pdf.service";
 import { MedicalOrderPdfService } from "./medical-order-pdf.service";
 import { MedicalOrdersService } from "./medical-orders.service";
 import { PatientsService } from "./patients.service";
@@ -59,6 +60,7 @@ import { DiagnosticStudyImportService, LabStudyImportService } from "./study-imp
     SectionsService,
     MedicalOrdersService,
     MedicalOrderPdfService,
+    MedicalLetterPdfService,
     Icd10Service,
   ],
   exports: [SettingsService],

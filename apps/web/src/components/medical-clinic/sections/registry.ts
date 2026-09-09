@@ -31,6 +31,8 @@ import { VitalSignsForm } from "./vital-signs-form";
  */
 export interface SectionFormProps {
   recordId: string;
+  /** El folio del expediente (F9-CLINIC-DOC-06): nombra el PDF de la carta. */
+  folio: string;
   initialData: Record<string, unknown>;
   /** Años cumplidos el día de la consulta (F9-CLINIC-HC-14): decide categoría OMS y semáforo. */
   patientAge: number | null;
@@ -42,11 +44,24 @@ export interface SectionFormProps {
   sections: MedicalRecord["sections"];
   readOnly: boolean;
   busy: boolean;
+  /**
+   * F9-CLINIC-DOC-06: ya se guardó en ESTA pantalla y la ruta se quedó
+   * (solo en `KEEP_OPEN_SECTIONS`); el formulario ofrece imprimir.
+   */
+  saved: boolean;
   /** Error del API, ya traducido. */
   error: string | null;
   onSubmit: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }
+
+/**
+ * F9-CLINIC-DOC-06 — las secciones que al guardar se QUEDAN en el formulario
+ * (patrón de `order-form-shell`): las cartas se imprimen justo después de
+ * guardarse, y volver al tablero obligaría a entrar de nuevo. Las demás
+ * vuelven al tablero, como siempre.
+ */
+export const KEEP_OPEN_SECTIONS: ReadonlySet<string> = new Set(["referrals", "interconsultations"]);
 
 export const SECTION_FORMS: Partial<Record<string, ComponentType<SectionFormProps>>> = {
   general_data: GeneralDataForm,
