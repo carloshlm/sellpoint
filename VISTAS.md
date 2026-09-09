@@ -1271,6 +1271,15 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 > TOTAL con impuesto: el vuelto y el faltante salen de ahí. El ticket (F4-TAX-12/13) imprime
 > Descuento / Subtotal (base) / una fila por componente / Total; en `excluded` las líneas
 > van a precio neto (CRA) y en `included` a precio final (LFPC).
+>
+> **F4-DISC (2026-09-09):** botón «Aplicar descuento» —solo si el Admin definió el código en
+> Mi perfil— que abre «Descuento» (importe con moneda y dos decimales, hint «Tope del
+> negocio: N % del subtotal»), «Código de autorización» (oculto, numérico, 4 a 8 dígitos),
+> «Motivo (opcional)» y «Quitar descuento». Con un importe válido aparecen «Subtotal» y
+> «Descuento −$x» sobre el Total, el impuesto incluido se recalcula y el vuelto sale del total
+> descontado. Un importe con coma, mayor que el subtotal o que el tope, o sin código, se marca
+> y BLOQUEA Cobrar: nunca se descarta en silencio. El servidor verifica el código (403 si
+> falla; cinco fallos → 429 por 15 minutos) y prorratea el importe entre las líneas.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -1335,17 +1344,20 @@ Después de confirmar:
 │   Estado: ▼ Todas                                              │
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐ │
-│  │ Folio      │ Fecha       │ Vendió │ Pago     │ Total  │…│ │
-│  ├──────────────────────────────────────────────────────────┤ │
-│  │ VTA-000003 │ 21/8, 14:30 │ María  │ Efectivo │ $60.00 │…│ │
-│  │ VTA-000002 │ 21/8, 14:15 │ María  │ Tarjeta  │$145.00 │…│ │
-│  │ VTA-000001 │ 21/8, 13:50 │ Pedro  │ Efectivo │ $80.00 │…│ │
-│  │            │             │        │ ANULADA  │        │…│ │
+│  │ Folio      │ Fecha       │ Vendió │ Pago     │ Descuento│ Total  │…│ │
+│  ├──────────────────────────────────────────────────────────────────┤ │
+│  │ VTA-000003 │ 21/8, 14:30 │ María  │ Efectivo │   −$5.00 │ $60.00 │…│ │
+│  │ VTA-000002 │ 21/8, 14:15 │ María  │ Tarjeta  │     —    │$145.00 │…│ │
+│  │ VTA-000001 │ 21/8, 13:50 │ Pedro  │ Efectivo │     —    │ $80.00 │…│ │
+│  │            │             │        │ ANULADA  │          │        │…│ │
 │  └──────────────────────────────────────────────────────────┘ │
 │                                                                │
 │   ← Anterior   Página 1 de 3   Siguiente →                     │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+> **F4-DISC (2026-09-09):** la columna «Descuento» va pegada al Total, con signo; sin
+> descuento, el guion (como el código de barras).
 
 **Las anuladas se VEN, marcadas.** Esconderlas por defecto sería tentador —«ruido»— y
 es lo contrario de lo que necesita quien busca una venta que no cuadra: encontrarla
@@ -1718,6 +1730,13 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 > hasta 4 decimales), marcar el predeterminado, activar/desactivar, agregar y borrar (un
 > grupo con artículos responde 409 «lo usan N artículos»). Modo y región se guardan al
 > elegir; los grupos con «Guardar impuestos».
+>
+> **Tarjeta «Descuentos en caja» (F4-DISC, 2026-09-09; solo `tenants:manage`, después de
+> «Impuestos»):** el estado («Sin código: los descuentos están apagados.» o «Código
+> configurado el {fecha}. No se muestra: si se olvidó, define uno nuevo.»), «Código de
+> autorización (4 a 8 dígitos)» —o «Nuevo código…»— y «Repite el código» (ocultos, solo
+> dígitos), «Tope por ticket (opcional)» en % del subtotal (vacío = sin tope), Guardar y
+> «Quitar código». El código viaja una vez, se guarda hasheado y nunca se vuelve a mostrar.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
