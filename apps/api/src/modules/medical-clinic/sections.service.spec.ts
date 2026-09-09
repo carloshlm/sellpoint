@@ -77,7 +77,7 @@ describe("SectionsService (F9-CLINIC-11)", () => {
     await expect(service.save(USER, "r-1", "no_existe", {}, META)).rejects.toMatchObject({
       response: { message: "medical_clinic.section_unknown" },
     });
-    await expect(service.save(USER, "r-1", "family_history", {}, META)).rejects.toMatchObject({
+    await expect(service.save(USER, "r-1", "attachments", {}, META)).rejects.toMatchObject({
       response: { message: "medical_clinic.section_not_available" },
     });
     expect(tx.medicalClinicRecordSection.upsert).not.toHaveBeenCalled();
