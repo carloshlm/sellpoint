@@ -11,10 +11,10 @@ import { adminDePlataforma, consultorio } from "./support/medical-clinic-scenari
 import { startTestApp } from "./support/start-test-app";
 
 /**
- * F9-CLINIC-HC-24 — las 16 secciones nuevas de la historia clínica contra
- * sus schemas de shared, de punta a punta: un cuerpo válido guarda y vuelve
- * Completado; uno inválido es 400 con `errors[]`; el detalle trae las 19
- * con datos; lo NEGADO se guarda explícito y solo; los antecedentes se
+ * F9-CLINIC-HC-24 — las 16 secciones nuevas de la historia clínica (y las
+ * tres de Documentos, F9-CLINIC-DOC) contra sus schemas de shared, de punta
+ * a punta: un cuerpo válido guarda y vuelve Completado; uno inválido es 400
+ * con `errors[]`; el detalle trae las 22 con datos; lo NEGADO se guarda explícito y solo; los antecedentes se
  * heredan a la segunda consulta con la seña de la primera, y lo del día
  * (signos, exploración, diagnósticos) no.
  */
@@ -167,6 +167,31 @@ describe("Consultorio Médico — las secciones de la historia clínica (F9-CLIN
       { items: [{ time: "09:15", kind: "evolution", text: "Mejoría clínica" }] },
       { items: [{ time: "24:00", kind: "evolution", text: "x" }] },
     ],
+    // F9-CLINIC-DOC-03/04: la referencia exige unidad receptora (NOM 6.4); la interconsulta no.
+    [
+      "referrals",
+      {
+        items: [
+          {
+            priority: "urgent",
+            facility: "Hospital General",
+            service: "Cardiología",
+            reason: "Soplo sistólico",
+            icd10Code: "R01.1",
+          },
+        ],
+      },
+      { items: [{ service: "Cardiología", reason: "Soplo" }] },
+    ],
+    [
+      "interconsultations",
+      {
+        items: [
+          { priority: "routine", service: "Cardiología", reason: "¿Requiere ecocardiograma?" },
+        ],
+      },
+      { items: [{ service: "Cardiología" }] },
+    ],
   ];
 
   it.each(CASOS)(
@@ -205,17 +230,17 @@ describe("Consultorio Médico — las secciones de la historia clínica (F9-CLIN
     await guardar("diagnostic_impression", { impression: "Probable IVRS" });
   });
 
-  it("el detalle trae las funcionales capturadas, y las de Documentos sin formulario siguen pendientes", async () => {
+  it("el detalle trae las 22 funcionales capturadas: TODO el catálogo tiene formulario", async () => {
     const detalle = (await get(negocio.token, `/medical-clinic/records/${recordId}`).expect(200))
       .body as {
       sections: (Vista & { functional: boolean })[];
     };
     const funcionales = detalle.sections.filter((s) => s.functional);
-    expect(funcionales).toHaveLength(20);
-    // Motivo y Padecimiento no se capturaron en este spec: 18 completadas.
-    expect(funcionales.filter((s) => s.status === "completed")).toHaveLength(18);
-    // F9-CLINIC-DOC-01/02: de las siete de Documentos quedan tres, y Notas ya es funcional.
-    expect(detalle.sections.filter((s) => !s.functional)).toHaveLength(2);
+    expect(funcionales).toHaveLength(22);
+    // Motivo y Padecimiento no se capturaron en este spec: 20 completadas.
+    expect(funcionales.filter((s) => s.status === "completed")).toHaveLength(20);
+    // F9-CLINIC-DOC: de las siete de Documentos quedan tres, y ya no hay «Próximamente».
+    expect(detalle.sections.every((s) => s.functional)).toBe(true);
     expect(detalle.sections.find((s) => s.key === "allergies")?.data).toEqual({
       items: [{ kind: "drug", substance: "Penicilina", severity: "severe" }],
     });

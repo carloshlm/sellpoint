@@ -190,6 +190,38 @@ describe("summaryOf", () => {
     expect(summaryOf("medical_notes", { items: [] }, t)).toBeNull();
   });
 
+  it("las cartas: servicio, urgencia, unidad (o la pregunta) y cuántas más (F9-CLINIC-DOC-03/04)", () => {
+    expect(
+      summaryOf(
+        "referrals",
+        {
+          items: [
+            {
+              priority: "urgent",
+              facility: "Hospital General",
+              service: "Cardiología",
+              reason: "Soplo",
+            },
+            { priority: "routine", facility: "IMSS", service: "Nefrología", reason: "x" },
+          ],
+        },
+        t,
+      ),
+    ).toBe("Cardiología (urgent) · Hospital General · summaryMore");
+    expect(
+      summaryOf(
+        "interconsultations",
+        {
+          items: [
+            { priority: "routine", service: "Cardiología", reason: "¿Requiere ecocardiograma?" },
+          ],
+        },
+        t,
+      ),
+    ).toBe("Cardiología · ¿Requiere ecocardiograma?");
+    expect(summaryOf("referrals", { items: [] }, t)).toBeNull();
+  });
+
   it("sin datos, o en una sección sin resumen, devuelve null", () => {
     expect(summaryOf("general_data", {}, t)).toBeNull();
     expect(summaryOf("chief_complaint", { onsetValue: 3 }, t)).toBeNull();

@@ -10,6 +10,8 @@ import {
   followUpSchema,
   generalDataSchema,
   gynecoObstetricHistorySchema,
+  interconsultationsSchema,
+  LETTER_SECTION_KEYS,
   MEDICAL_ORDER_KINDS,
   MEDICAL_RECORD_SECTION_GROUPS,
   MEDICAL_RECORD_SECTION_SCHEMAS,
@@ -22,6 +24,7 @@ import {
   nonPathologicalHistorySchema,
   pathologicalHistorySchema,
   physicalExamSchema,
+  referralsSchema,
   resolveSectionSchema,
   studyResultsSchema,
   systemsReviewSchema,
@@ -175,7 +178,11 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       "management_plan",
       "follow_up",
       "medical_notes",
+      "referrals",
+      "interconsultations",
     ]);
+    // F9-CLINIC-DOC-04: con las cartas, TODO el catálogo tiene formulario.
+    expect(MEDICAL_RECORD_SECTIONS.every((s) => s.functional)).toBe(true);
     for (const seccion of MEDICAL_RECORD_SECTIONS) {
       expect(MEDICAL_RECORD_SECTION_SCHEMAS[seccion.key] !== undefined).toBe(seccion.functional);
       // Schema o fábrica: las dos formas resuelven a un schema utilizable.
@@ -240,6 +247,41 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       false,
     );
     expect(medicalNotesSchema.safeParse({ foo: 1 }).success).toBe(false);
+  });
+
+  /**
+   * F9-CLINIC-DOC-03/04 — la referencia exige unidad receptora (NOM 6.4: se
+   * transfiere la atención); la interconsulta no (a veces solo se pide la
+   * especialidad). El resto es la misma carta.
+   */
+  it("las cartas: la referencia exige unidad; la interconsulta no; la prioridad nace ordinaria", () => {
+    const carta = { service: "Cardiología", reason: "Soplo sistólico" };
+    expect(referralsSchema.safeParse({ items: [carta] }).success).toBe(false);
+    expect(referralsSchema.parse({ items: [{ ...carta, facility: "Hospital General" }] })).toEqual({
+      items: [{ ...carta, facility: "Hospital General", priority: "routine" }],
+    });
+    expect(interconsultationsSchema.parse({ items: [carta] })).toEqual({
+      items: [{ ...carta, priority: "routine" }],
+    });
+    expect(
+      interconsultationsSchema.safeParse({ items: [{ ...carta, priority: "asap" }] }).success,
+    ).toBe(false);
+    expect(
+      interconsultationsSchema.safeParse({ items: [{ ...carta, icd10Code: "j02.9" }] }).success,
+    ).toBe(false);
+    expect(
+      interconsultationsSchema.safeParse({ items: [{ ...carta, icd10Code: "J02.9" }] }).success,
+    ).toBe(true);
+    expect(
+      interconsultationsSchema.safeParse({ items: [{ service: "Cardiología" }] }).success,
+    ).toBe(false);
+    expect(interconsultationsSchema.safeParse({ items: [{ ...carta, reply: "x" }] }).success).toBe(
+      false,
+    );
+    expect(interconsultationsSchema.safeParse({ items: [] }).success).toBe(false);
+    expect(interconsultationsSchema.safeParse({ items: Array(9).fill(carta) }).success).toBe(false);
+    expect(referralsSchema.parse({})).toEqual({});
+    expect(LETTER_SECTION_KEYS).toEqual(["referrals", "interconsultations"]);
   });
 
   it("las órdenes son tres tipos", () => {

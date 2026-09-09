@@ -294,6 +294,26 @@ export function summaryOf(
         `${t("medicalClinic.forms.medicalNotes.summaryCount", { count: items.length })} · ${cabeza}${cuerpo ? `: ${cuerpo}` : ""}`,
       );
     }
+    case "referrals":
+    case "interconsultations": {
+      // F9-CLINIC-DOC-03/04: a quién, con qué urgencia, y cuántas más.
+      const items = Array.isArray(data.items) ? (data.items as Record<string, unknown>[]) : [];
+      const primera = items[0] as Record<string, unknown> | undefined;
+      const servicio = primera ? texto(primera.service) : null;
+      if (!primera || !servicio) return null;
+      const urgente =
+        primera.priority === "urgent"
+          ? ` (${t("medicalClinic.forms.letter.priorityOptions.urgent")})`
+          : "";
+      const partes = [
+        `${servicio}${urgente}`,
+        texto(primera.facility) ?? (key === "interconsultations" ? texto(primera.reason) : null),
+      ];
+      if (items.length > 1) {
+        partes.push(t("medicalClinic.forms.letter.summaryMore", { count: items.length - 1 }));
+      }
+      return recorte(partes.filter((p): p is string => p !== null).join(" · "));
+    }
     default:
       return null;
   }

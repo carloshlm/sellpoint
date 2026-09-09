@@ -759,6 +759,45 @@
       "summaryCount": "{{count}} notes",
       "summaryCount_one": "1 note"
     },
+    "letter": {
+      "priority": "Priority",
+      "priorityOptions": {
+        "routine": "Routine",
+        "urgent": "Urgent"
+      },
+      "clinicalSummary": "Clinical summary",
+      "diagnosis": "Diagnostic impression",
+      "icd10Code": "ICD-10 (optional)",
+      "search": "Search the ICD-10 catalog",
+      "treatment": "Treatment given (optional)",
+      "prefill": "Bring from the record",
+      "prefillHint": "Fills what is empty with the current illness, the primary diagnosis and the treatment already captured.",
+      "summaryMore": "+{{count}}"
+    },
+    "referrals": {
+      "list": "Referrals of this visit",
+      "hint": "NOM-004 6.4: where the patient is sent, why, with which diagnostic impression and what has been done. The counter-referral they bring back is recorded in Medical Notes.",
+      "add": "Add referral",
+      "facility": "Receiving facility or practice",
+      "facilityHint": "The patient will be seen there: say where.",
+      "facilityRequired": "Enter the facility the patient is referred to",
+      "service": "Service or specialty",
+      "doctorName": "Receiving physician (optional)",
+      "reason": "Reason for referral",
+      "reasonPlaceholder": "Why the patient is referred and what is expected from the receiving facility"
+    },
+    "interconsultations": {
+      "list": "Interconsultations requested in this visit",
+      "hint": "NOM-004 6.3: you make the request and the patient stays under your care; the specialist writes the reply note, recorded in Medical Notes as “Specialist reply” the day it arrives.",
+      "add": "Add interconsultation",
+      "facility": "Facility or practice (optional)",
+      "facilityHint": "",
+      "facilityRequired": "",
+      "service": "Specialty or service requested",
+      "doctorName": "Physician (optional)",
+      "reason": "Clinical question or reason for the interconsultation",
+      "reasonPlaceholder": "Which opinion is requested and about what"
+    },
     "chooseOption": "Pick an option"
   },
   "orders": {

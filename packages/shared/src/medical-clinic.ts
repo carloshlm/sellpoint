@@ -116,8 +116,8 @@ export const MEDICAL_RECORD_SECTIONS = [
   // Nada de aquí se hereda: las notas y las cartas son de la consulta, y la
   // respuesta del especialista se captura como nota el día que llega.
   seccion("medical_notes", "documents", 1, { functional: true }),
-  seccion("referrals", "documents", 2),
-  seccion("interconsultations", "documents", 3),
+  seccion("referrals", "documents", 2, { functional: true }),
+  seccion("interconsultations", "documents", 3, { functional: true }),
 ] as const satisfies readonly MedicalRecordSectionDef[];
 
 export type MedicalRecordSectionKey = (typeof MEDICAL_RECORD_SECTIONS)[number]["key"];
@@ -795,6 +795,57 @@ export const medicalNotesSchema = z
   .strict();
 export type MedicalNotes = z.infer<typeof medicalNotesSchema>;
 
+/**
+ * F9-CLINIC-DOC-03/04 — las cartas: la nota de referencia (NOM-004 6.4:
+ * establecimiento que envía —el negocio, impreso en el encabezado—,
+ * establecimiento receptor y resumen clínico con motivo de envío, impresión
+ * diagnóstica y terapéutica empleada) y la solicitud de interconsulta (6.3:
+ * la elabora el tratante; la NOTA de respuesta la elabora el consultado y
+ * se transcribe como nota el día que llega). Comparten forma; solo cambia
+ * si la unidad receptora es obligatoria: en la referencia se transfiere la
+ * atención, así que hay que decir a dónde. Sin fecha (la de la consulta) y
+ * sin `reply`: la respuesta es una nota. Se imprimen por índice
+ * (F9-CLINIC-DOC-05), sin serie de folio: las identifica el folio del
+ * expediente y su número.
+ */
+export const LETTER_PRIORITIES = ["routine", "urgent"] as const;
+export type LetterPriority = (typeof LETTER_PRIORITIES)[number];
+/** Las secciones que se imprimen como carta. */
+export const LETTER_SECTION_KEYS = ["referrals", "interconsultations"] as const;
+export type LetterSectionKey = (typeof LETTER_SECTION_KEYS)[number];
+
+const cartaMedica = (opciones: { requiresFacility: boolean }) =>
+  z
+    .object({
+      // `.min(1)`: `{ items: [] }` sería una fila «Completada» sin contenido.
+      items: z
+        .array(
+          z
+            .object({
+              priority: z.enum(LETTER_PRIORITIES).default("routine"),
+              facility: opciones.requiresFacility ? texto(160).min(1) : texto(160).optional(),
+              service: texto(120).min(1),
+              doctorName: texto(120).optional(),
+              reason: texto(1000).min(1),
+              clinicalSummary: texto(4000).optional(),
+              diagnosis: texto(500).optional(),
+              icd10Code: z.string().regex(ICD10_CODE).optional(),
+              treatment: texto(2000).optional(),
+            })
+            .strict(),
+        )
+        .min(1)
+        .max(8)
+        .optional(),
+    })
+    .strict();
+
+export const referralsSchema = cartaMedica({ requiresFacility: true });
+export const interconsultationsSchema = cartaMedica({ requiresFacility: false });
+export type Referrals = z.infer<typeof referralsSchema>;
+export type Interconsultations = z.infer<typeof interconsultationsSchema>;
+export type MedicalLetterItem = NonNullable<Interconsultations["items"]>[number];
+
 type SectionSchema = z.ZodType<Record<string, unknown>>;
 type SectionSchemaOrFactory = SectionSchema | ((ctx: SectionSchemaContext) => SectionSchema);
 
@@ -826,6 +877,8 @@ export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
   management_plan: managementPlanSchema,
   follow_up: followUpSchema,
   medical_notes: medicalNotesSchema,
+  referrals: referralsSchema,
+  interconsultations: interconsultationsSchema,
 };
 
 /** El schema listo para validar, o `undefined` si la sección no es funcional. */

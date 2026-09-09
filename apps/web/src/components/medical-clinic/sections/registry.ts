@@ -11,11 +11,13 @@ import { FamilyHistoryForm } from "./family-history-form";
 import { FollowUpForm } from "./follow-up-form";
 import { GeneralDataForm } from "./general-data-form";
 import { GynecoObstetricForm } from "./gyneco-obstetric-form";
+import { InterconsultationsForm } from "./interconsultations-form";
 import { ManagementPlanForm } from "./management-plan-form";
 import { MedicalNotesForm } from "./medical-notes-form";
 import { NonPathologicalHistoryForm } from "./non-pathological-history-form";
 import { PathologicalHistoryForm } from "./pathological-history-form";
 import { PhysicalExamForm } from "./physical-exam-form";
+import { ReferralsForm } from "./referrals-form";
 import { StudyResultsForm } from "./study-results-form";
 import { SystemsReviewForm } from "./systems-review-form";
 import { TreatmentForm } from "./treatment-form";
@@ -36,6 +38,8 @@ export interface SectionFormProps {
   consultationDate: string;
   /** Las órdenes emitidas del expediente (F9-CLINIC-HC-19): Tratamiento enlista las recetas. */
   orders: MedicalRecord["orders"];
+  /** Las secciones del expediente (F9-CLINIC-DOC-03): las cartas traen de ellas el resumen clínico. */
+  sections: MedicalRecord["sections"];
   readOnly: boolean;
   busy: boolean;
   /** Error del API, ya traducido. */
@@ -65,4 +69,6 @@ export const SECTION_FORMS: Partial<Record<string, ComponentType<SectionFormProp
   management_plan: ManagementPlanForm,
   follow_up: FollowUpForm,
   medical_notes: MedicalNotesForm,
+  referrals: ReferralsForm,
+  interconsultations: InterconsultationsForm,
 };

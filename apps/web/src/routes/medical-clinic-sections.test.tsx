@@ -916,3 +916,130 @@ describe("Notas Médicas (F9-CLINIC-DOC-02)", () => {
     expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * F9-CLINIC-DOC-03 — Referencias (NOM-004 6.4): «Traer del expediente» llena
+ * SOLO lo vacío; la referencia sin unidad receptora no se envía y lo dice en
+ * su campo; lo que viaja es exactamente lo capturado.
+ */
+describe("Referencias (F9-CLINIC-DOC-03)", () => {
+  const conExpediente = (over = {}) =>
+    expediente(over, {
+      current_illness: { narrative: "Fiebre de tres días con dolor torácico" },
+      diagnoses: {
+        items: [{ role: "primary", description: "Soplo cardiaco", icd10Code: "R01.1" }],
+      },
+      treatment: { pharmacological: "Paracetamol 500 mg" },
+    });
+
+  it("«Traer del expediente» no pisa lo escrito; sin unidad no envía; guarda solo lo capturado", async () => {
+    await renderSection("referrals", conExpediente());
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar referencia" }));
+    await user.type(screen.getByLabelText("Servicio o especialidad"), "Cardiología");
+    await user.type(screen.getByLabelText("Motivo de envío"), "Valoración de soplo");
+    await user.type(screen.getByLabelText("Resumen clínico"), "Mi resumen");
+    await user.click(screen.getByRole("button", { name: "Traer del expediente" }));
+    expect(screen.getByLabelText("Resumen clínico")).toHaveValue("Mi resumen");
+    expect(screen.getByLabelText("Impresión diagnóstica")).toHaveValue("Soplo cardiaco");
+    expect(screen.getByLabelText("CIE-10 (opcional)")).toHaveValue("R01.1");
+    expect(screen.getByLabelText("Terapéutica empleada (opcional)")).toHaveValue(
+      "Paracetamol 500 mg",
+    );
+    await user.selectOptions(screen.getByLabelText("Prioridad"), "urgent");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText("Escribe a qué unidad se refiere")).toBeInTheDocument();
+    expect(mocked.saveSection).not.toHaveBeenCalled();
+    await user.type(screen.getByLabelText("Unidad o consultorio receptor"), "Hospital General");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "referrals", {
+        items: [
+          {
+            priority: "urgent",
+            facility: "Hospital General",
+            service: "Cardiología",
+            reason: "Valoración de soplo",
+            clinicalSummary: "Mi resumen",
+            diagnosis: "Soplo cardiaco",
+            icd10Code: "R01.1",
+            treatment: "Paracetamol 500 mg",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("con el resumen vacío, «Traer del expediente» lo llena con el padecimiento actual", async () => {
+    await renderSection("referrals", conExpediente());
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar referencia" }));
+    await user.click(screen.getByRole("button", { name: "Traer del expediente" }));
+    expect(screen.getByLabelText("Resumen clínico")).toHaveValue(
+      "Fiebre de tres días con dolor torácico",
+    );
+  });
+
+  it("precarga la referencia guardada y en solo lectura no deja escribir", async () => {
+    await renderSection(
+      "referrals",
+      expediente(
+        { status: "closed" },
+        {
+          referrals: {
+            items: [
+              {
+                priority: "urgent",
+                facility: "Hospital General",
+                service: "Cardiología",
+                reason: "Soplo",
+              },
+            ],
+          },
+        },
+      ),
+    );
+    const unidad = await screen.findByLabelText("Unidad o consultorio receptor");
+    expect(unidad).toHaveValue("Hospital General");
+    expect(unidad).toBeDisabled();
+    expect(screen.getByLabelText("Prioridad")).toHaveValue("urgent");
+    expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * F9-CLINIC-DOC-04 — Interconsultas (NOM-004 6.3): la unidad es opcional y
+ * el aviso dice dónde se registra la respuesta del especialista.
+ */
+describe("Interconsultas (F9-CLINIC-DOC-04)", () => {
+  it("sin unidad también se guarda, con prioridad ordinaria; el aviso apunta a Notas Médicas", async () => {
+    await renderSection("interconsultations");
+    const user = userEvent.setup();
+    expect(await screen.findByText(/se registra en Notas Médicas/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "+ Agregar interconsulta" }));
+    await user.type(screen.getByLabelText("Especialidad o servicio solicitado"), "Cardiología");
+    await user.type(
+      screen.getByLabelText("Pregunta clínica o motivo de la interconsulta"),
+      "¿Requiere ecocardiograma?",
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "interconsultations", {
+        items: [
+          { priority: "routine", service: "Cardiología", reason: "¿Requiere ecocardiograma?" },
+        ],
+      }),
+    );
+  });
+
+  it("la fila sin pregunta no viaja: guardar sin nada manda {} (Pendiente)", async () => {
+    await renderSection("interconsultations");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar interconsulta" }));
+    await user.type(screen.getByLabelText("Especialidad o servicio solicitado"), "Cardiología");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "interconsultations", {}),
+    );
+  });
+});

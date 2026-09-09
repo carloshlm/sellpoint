@@ -86,8 +86,9 @@ describe("Historia clínica — tablero", () => {
     ]);
     expect(screen.getAllByTestId(/^record-card-/)).toHaveLength(26);
     const links = within(screen.getByTestId("record-groups")).getAllByRole("link");
-    // 19 secciones clínicas + Notas Médicas + 3 órdenes + el listado de órdenes.
-    expect(links).toHaveLength(24);
+    // 22 secciones funcionales + 3 órdenes + el listado de órdenes: ya no hay «Próximamente».
+    expect(links).toHaveLength(26);
+    expect(screen.queryByText("Próximamente")).not.toBeInTheDocument();
     // F9-CLINIC-DOC-01: Documentos no dice «Pendiente», cuenta lo que hay.
     const documentos = screen.getByTestId("record-group-documents");
     expect(documentos).toHaveTextContent("Sin documentos");

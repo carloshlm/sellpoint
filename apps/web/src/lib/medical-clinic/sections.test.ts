@@ -61,6 +61,8 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "management_plan",
       "follow_up",
       "medical_notes",
+      "referrals",
+      "interconsultations",
     ]);
   });
 

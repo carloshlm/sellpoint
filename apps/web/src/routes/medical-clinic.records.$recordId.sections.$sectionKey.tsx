@@ -98,6 +98,7 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
             patientAge={expediente.patient.age}
             consultationDate={expediente.consultationDate}
             orders={expediente.orders}
+            sections={expediente.sections}
             readOnly={readOnly}
             busy={guardar.isPending}
             error={
