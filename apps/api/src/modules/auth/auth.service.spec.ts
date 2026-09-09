@@ -123,6 +123,8 @@ function buildService(overrides?: {
     templateChoice: null,
     onboarded: false,
     monthlySalesGoal: null,
+    discountCodeSetAt: null,
+    discountMaxPercent: null,
   };
   const negocioDesactivado = jest
     .fn()
@@ -554,6 +556,8 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
           templateChoice: null,
           onboarded: false,
           monthlySalesGoal: null,
+          discountCodeSetAt: null,
+          discountMaxPercent: null,
         },
         // F7-WEB-01 (A1): MISMO shape que el otro emisor — ver
         // subscription.types.spec.ts para la matemática de daysLeft.

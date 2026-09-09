@@ -125,6 +125,8 @@ describe("TenantProfileService.update (F1-WEB-ONBOARD)", () => {
         templateChoice: null,
         onboarded: false,
         monthlySalesGoal: null,
+        discountCodeSetAt: null,
+        discountMaxPercent: null,
       },
     });
 
@@ -171,6 +173,8 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
         templateChoice: null,
         onboarded: true,
         monthlySalesGoal: null,
+        discountCodeSetAt: null,
+        discountMaxPercent: null,
       },
     });
 
@@ -217,16 +221,22 @@ describe("TenantProfileService.completeOnboarding (F1-WEB-ONBOARD)", () => {
         templateChoice: null,
         onboarded: true,
         monthlySalesGoal: null,
+        discountCodeSetAt: null,
+        discountMaxPercent: null,
       },
     });
 
     await expect(service.completeOnboarding(ACTOR, {})).resolves.toMatchObject({
       onboarded: true,
       monthlySalesGoal: null,
+      discountCodeSetAt: null,
+      discountMaxPercent: null,
     });
     await expect(service.completeOnboarding(ACTOR, {})).resolves.toMatchObject({
       onboarded: true,
       monthlySalesGoal: null,
+      discountCodeSetAt: null,
+      discountMaxPercent: null,
     });
   });
 });

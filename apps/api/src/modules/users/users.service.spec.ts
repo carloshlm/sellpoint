@@ -40,6 +40,8 @@ function buildService(overrides?: {
     templateChoice: null,
     onboarded: false,
     monthlySalesGoal: null,
+    discountCodeSetAt: null,
+    discountMaxPercent: null,
   };
 
   const tx = {
@@ -135,6 +137,8 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         templateChoice: null,
         onboarded: false,
         monthlySalesGoal: null,
+        discountCodeSetAt: null,
+        discountMaxPercent: null,
       },
       // F7-WEB-01 (A1): MISMO shape que el otro emisor — ver
       // subscription.types.spec.ts para la matemática de daysLeft.
