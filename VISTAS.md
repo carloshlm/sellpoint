@@ -1779,6 +1779,56 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 
 ---
 
+## 12. Consultorio Médico — Historia clínica
+
+> F9-CLINIC-WEB (2026-09-03) y F9-CLINIC-HC (2026-09-09). Un expediente por VISITA (folio `HCL-`), un tablero de tarjetas y un formulario por tarjeta: nunca un formulario gigante. **19 tarjetas** funcionales en tres bloques (Carlos, 2026-09-08: fusionadas desde 25 para que el médico haga menos viajes), cuatro de Órdenes médicas (documentos con folio propio) y siete de Documentos y seguimiento todavía «Próximamente».
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ ← Resumen del paciente                                              │
+│ Historia clínica                                                     │
+│ ┌─────────────────────────────────────────────────────────────────┐ │
+│ │ Paciente Prueba   HCL-000004   [Abierta]                        │ │
+│ │ [Alergias: Penicilina (Grave)]           ← rojo; gris si negadas│ │
+│ │ Edad 36 años · Sexo — · Nacimiento 10/05/1990 · Consulta …      │ │
+│ │ ▓▓▓▓░░░░░░░░░░░░  4 de 19 secciones capturadas                  │ │
+│ └─────────────────────────────────────────────────────────────────┘ │
+│ Interrogatorio  (En progreso · 2 de 10)                             │
+│ ┌ Datos Generales ┐ ┌ Motivo de Consulta ┐ ┌ Padecimiento Actual ┐  │
+│ │ ○ Pendiente     │ │ ○ Pendiente        │ │ ○ Pendiente         │  │
+│ ┌ A. Heredofamiliares ─────┐ ┌ A. Personales Patológicos ┐ …       │
+│ │ ✓ Completado             │ │ ○ Pendiente               │          │
+│ │ Diabetes: Madre          │ └───────────────────────────┘          │
+│ │ De la consulta del 08/09/2026 · confirma o actualiza  │ ← heredada│
+│ └──────────────────────────┘                                        │
+│ Exploración  (0 de 4)     Somatometría · Signos Vitales ·           │
+│                           Exploración Física · Resultados de Estudios│
+│ Evaluación y plan (0 de 5) Impresión Diagnóstica · Diagnósticos ·   │
+│                           Tratamiento · Plan de Manejo y Pronóstico ·│
+│                           Seguimiento y Recomendaciones              │
+│ Órdenes médicas           Receta · Orden de Laboratorio ·           │
+│                           Estudios Diagnósticos · Órdenes Emitidas   │
+│ Documentos y seguimiento  (7 tarjetas «Próximamente»)                │
+│                                                  [Cerrar consulta]   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Las leyes del tablero.** Guardar una tarjeta es Completado aunque falten campos; guardar sin nada es Pendiente (borra la fila). El estado de cada tarjeta se deriva de que exista su fila; «En progreso» vive en el grupo. Los **antecedentes son del paciente**: al abrir una consulta nueva, Datos Generales, AHF, APP, APNP, AGO, Alergias y Medicamentos Actuales llegan copiados de la anterior con la leyenda «De la consulta del {fecha} · confirma o actualiza», y el primer Guardar la quita; signos, exploración y diagnósticos NO se heredan (son del día). **El sexo decide qué se PIDE y el dato qué se MUESTRA**: la tarjeta de Antecedentes Gineco-Obstétricos no se dibuja para un paciente `M`, salvo que ya tenga datos, y el progreso cuenta solo lo visible. Las alergias capturadas suben al encabezado en rojo.
+
+**Los formularios, y cómo van rápido.** Cada tarjeta abre una ruta propia (Atrás es Cancelar) con el título, «Paciente · folio», la leyenda de heredada si aplica, el aviso de solo lectura si la consulta está cerrada o es de otro día, y Guardar/Cancelar al pie. Patrones que se repiten:
+
+| Patrón | Dónde | Qué hace |
+|---|---|---|
+| **«Negados» en un clic** (`NegatedToggle`) | AHF, APP, Alergias («Negadas»), Medicamentos («No toma medicamentos») | Marca una casilla, deshabilita el resto y guarda explícito (`{negated: true}`): «AHF negados» no es «sin AHF». |
+| **Checklist de hallazgos** (`FindingsChecklist`) | Aparatos y Sistemas (11 sistemas con sus síntomas cardinales), Exploración Física (12 regiones + habitus) | Botón «Todos negados» / «Todo sin alteraciones» pone cada ítem en normal POR ÍTEM; solo se escribe el hallazgo. |
+| **Lista de filas** (`RowList`) | Alergias, Medicamentos, Cirugías/Traumatismos/Hospitalizaciones, Resultados de estudios, Diagnósticos | «+ Agregar …» con el foco en la fila nueva, «Quitar» por fila; la fila sin su dato principal no viaja. |
+| **Número con unidad** (`NumberField`) | Somatometría (kg, cm), Signos Vitales (mmHg, lpm, rpm, °C, %, mg/dL), años, G/P/A/C | Letras fuera; coma y punto de más entran y el error lo explica; rango mínimo/máximo con su mensaje. |
+| **Lo derivado se pinta, no se guarda** | IMC + categoría OMS (Somatometría), índice tabáquico (APNP), FPP desde la FUM (AGO), semáforo Alto/Bajo/alarma (Signos Vitales) | La aritmética vive en `packages/shared/src/medical-measures.ts`; en el JSON viajan solo los datos medidos. |
+| **Catálogo CIE-10** (`Icd10Picker`) | Diagnósticos (una lista: principal, secundarios, diferencial; a lo más un principal) | Se teclea código («j06») o texto sin acentos («faringitis»); elegir llena código y descripción vacía; la captura a mano sigue permitida. El principal precarga «Diagnóstico relacionado» en las órdenes. |
+| **Fecha contra la consulta** | Seguimiento y Recomendaciones | La próxima cita no es anterior a la fecha de consulta (no a «hoy»: una consulta vencida se lee, no se captura). |
+
+**Lo que la NOM-004-SSA3-2012 pide y dónde vive.** 6.1.1 interrogatorio (ficha de identificación con grupo étnico y religión en Datos Generales; AHF; APP; APNP con tabaquismo, alcoholismo y toxicomanías; padecimiento actual; aparatos y sistemas); 6.1.2 exploración (habitus exterior, signos vitales, peso y talla, regiones); 6.1.3 resultados de estudios; 6.1.4 diagnósticos; 6.1.5 pronóstico (dentro de Plan de Manejo); 6.1.6 indicación terapéutica (Tratamiento; la receta con folio y cobro es una Orden médica).
+
 ## Apéndice — Documentos Relacionados
 
 - [ARQUITECTURA.md](ARQUITECTURA.md) — Stack, multi-tenancy, seguridad, roadmap
