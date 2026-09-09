@@ -1280,6 +1280,13 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 > descontado. Un importe con coma, mayor que el subtotal o que el tope, o sin código, se marca
 > y BLOQUEA Cobrar: nunca se descarta en silencio. El servidor verifica el código (403 si
 > falla; cinco fallos → 429 por 15 minutos) y prorratea el importe entre las líneas.
+>
+> **El papel con descuento (Carlos, 2026-09-09):** cada línea se imprime a PRECIO DE LISTA
+> (precio × cantidad), nunca ya descontada —si no, las líneas sumaban el total final y abajo
+> volvía a aparecer «Descuento»—. El pie dice Subtotal (Σ líneas) → Descuento → Base
+> gravable → una fila por impuesto → Total, y las dos restas cierran a la vista; sin
+> descuento, el pie sigue siendo el de F4-TAX-12 (la base como «Subtotal»). El prorrateo por
+> línea vive en `sale_items.discount` para rentabilidad y devoluciones, no en el papel.
 
 ```
 ┌──────────────────────────────────────────────────┐
