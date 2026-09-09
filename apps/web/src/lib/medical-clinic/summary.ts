@@ -5,6 +5,7 @@
  * la tarjeta no pinta nada. `t` llega de afuera para que esto siga siendo una
  * función pura testeable sin i18n.
  */
+import { bmi } from "@sellpoint/shared";
 import { allergiesLine } from "./allergies";
 
 const MAX = 80;
@@ -179,6 +180,66 @@ export function summaryOf(
         ...hallazgos,
       ];
       return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
+    case "anthropometry": {
+      const peso = typeof data.weightKg === "number" ? data.weightKg : null;
+      const talla = typeof data.heightCm === "number" ? data.heightCm : null;
+      const partes = [
+        peso !== null ? `${peso} kg` : null,
+        talla !== null ? `${talla} cm` : null,
+      ].filter((p): p is string => p !== null);
+      const imc = bmi(peso, talla);
+      if (imc !== null) partes.push(`IMC ${imc.toFixed(1)}`);
+      return partes.length > 0 ? partes.join(" · ") : null;
+    }
+    case "vital_signs": {
+      const partes: string[] = [];
+      if (typeof data.systolic === "number" || typeof data.diastolic === "number") {
+        partes.push(`TA ${data.systolic ?? "—"}/${data.diastolic ?? "—"}`);
+      }
+      if (typeof data.heartRate === "number") partes.push(`FC ${data.heartRate}`);
+      if (typeof data.respiratoryRate === "number") partes.push(`FR ${data.respiratoryRate}`);
+      if (typeof data.temperatureC === "number") partes.push(`T ${data.temperatureC}`);
+      if (typeof data.oxygenSaturation === "number") partes.push(`SpO2 ${data.oxygenSaturation}`);
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
+    case "physical_exam": {
+      const regions =
+        typeof data.regions === "object" && data.regions !== null
+          ? (data.regions as Record<string, Record<string, unknown>>)
+          : {};
+      const normales = Object.values(regions).filter((r) => r?.normal === true).length;
+      const hallazgos = Object.entries(regions).flatMap(([key, r]) => {
+        const findings = texto(r?.findings);
+        return findings
+          ? [`${t(`medicalClinic.forms.physicalExam.regions.${key}`)}: ${findings}`]
+          : [];
+      });
+      const partes = [
+        ...(normales > 0
+          ? [t("medicalClinic.forms.physicalExam.summaryNormal", { count: normales })]
+          : []),
+        ...hallazgos,
+      ];
+      if (partes.length === 0) {
+        const habitus = texto(data.habitus);
+        return habitus ? recorte(habitus) : null;
+      }
+      return recorte(partes.join(" · "));
+    }
+    case "study_results": {
+      const items = Array.isArray(data.items) ? (data.items as Record<string, unknown>[]) : [];
+      if (items.length === 0) return null;
+      const primero = items[0] as Record<string, unknown>;
+      const nombre = texto(primero.name);
+      const detalle = [nombre, texto(primero.date)].filter(Boolean).join(" ");
+      const interpretacion = texto(primero.interpretation);
+      const cabeza = interpretacion
+        ? `${detalle} (${t(`medicalClinic.forms.studyResults.interpretationOptions.${interpretacion}`)})`
+        : detalle;
+      return recorte(
+        `${t("medicalClinic.forms.studyResults.summaryCount", { count: items.length })} · ${cabeza}`,
+      );
     }
     default:
       return null;

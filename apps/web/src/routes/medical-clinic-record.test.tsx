@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe("Historia clínica — tablero", () => {
-  it("el encabezado trae nombre, folio, edad, médico; sin sexo ofrece completar Datos Generales; 1 de 10", async () => {
+  it("el encabezado trae nombre, folio, edad, médico; sin sexo ofrece completar Datos Generales; 1 de 14", async () => {
     await renderRecord(expediente({}, { chief_complaint: { complaint: "Dolor" } }));
     // Carlos, 2026-09-04: la pantalla se llama «Historia clínica»; el paciente
     // es el subtítulo, y desde aquí se vuelve a su resumen.
@@ -70,7 +70,7 @@ describe("Historia clínica — tablero", () => {
       "/medical-clinic/records/r1/sections/general_data",
     );
     expect(within(header).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "1");
-    expect(header).toHaveTextContent("1 de 10 secciones capturadas");
+    expect(header).toHaveTextContent("1 de 14 secciones capturadas");
   });
 
   it("cinco grupos en orden, 30 tarjetas, links solo en las funcionales y en órdenes", async () => {
@@ -86,8 +86,8 @@ describe("Historia clínica — tablero", () => {
     ]);
     expect(screen.getAllByTestId(/^record-card-/)).toHaveLength(30);
     const links = within(screen.getByTestId("record-groups")).getAllByRole("link");
-    // 10 secciones funcionales + 3 órdenes + el listado de órdenes.
-    expect(links).toHaveLength(14);
+    // 14 secciones funcionales + 3 órdenes + el listado de órdenes.
+    expect(links).toHaveLength(18);
   });
 
   it("estados: la sección con datos dice Completado y su resumen; el grupo dice En progreso y 1 de 10", async () => {
@@ -155,12 +155,12 @@ describe("Historia clínica — tablero", () => {
     expect(badge.querySelector("[data-slot=badge]")).not.toHaveClass("text-destructive");
   });
 
-  it("paciente M sin AGO: la tarjeta no se dibuja y el total baja a 9; con AGO capturado, se sigue viendo", async () => {
+  it("paciente M sin AGO: la tarjeta no se dibuja y el total baja a 13; con AGO capturado, se sigue viendo", async () => {
     const hombre = expediente({ patient: { ...expediente().patient, sex: "M" } });
     await renderRecord(hombre);
     await screen.findByTestId("record-card-general_data");
     expect(screen.queryByTestId("record-card-gyneco_obstetric_history")).not.toBeInTheDocument();
-    expect(screen.getByTestId("record-header")).toHaveTextContent("0 de 9 secciones capturadas");
+    expect(screen.getByTestId("record-header")).toHaveTextContent("0 de 13 secciones capturadas");
   });
 
   it("paciente M CON AGO capturado la sigue viendo: esconder no es borrar", async () => {
@@ -170,7 +170,7 @@ describe("Historia clínica — tablero", () => {
     );
     await renderRecord(hombre);
     expect(await screen.findByTestId("record-card-gyneco_obstetric_history")).toBeInTheDocument();
-    expect(screen.getByTestId("record-header")).toHaveTextContent("1 de 10 secciones capturadas");
+    expect(screen.getByTestId("record-header")).toHaveTextContent("1 de 14 secciones capturadas");
   });
 
   it("«Cerrar consulta» pide confirmación y solo entonces llama al API; cerrada, ya no se ofrece", async () => {

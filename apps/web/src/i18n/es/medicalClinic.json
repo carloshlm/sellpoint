@@ -610,6 +610,87 @@
         "psychiatric": "ansiedad, insomnio, estado de ánimo"
       }
     },
+    "anthropometry": {
+      "weightKg": "Peso",
+      "heightCm": "Talla",
+      "headCircumferenceCm": "Perímetro cefálico",
+      "headCircumferenceHint": "Lactantes y preescolares.",
+      "waistCm": "Perímetro abdominal",
+      "hipCm": "Perímetro de cadera",
+      "bmi": "IMC {{value}}",
+      "bmiCategory": {
+        "underweight": "Bajo peso",
+        "normal": "Normal",
+        "overweight": "Sobrepeso",
+        "obesity": "Obesidad"
+      },
+      "pediatricHint": "Menor de 18: la categoría es por percentil (próximamente)."
+    },
+    "vitalSigns": {
+      "bloodPressure": "Tensión arterial",
+      "systolic": "Sistólica",
+      "diastolic": "Diastólica",
+      "diastolicNotBelow": "La diastólica va por debajo de la sistólica",
+      "heartRate": "Frecuencia cardiaca",
+      "respiratoryRate": "Frecuencia respiratoria",
+      "temperatureC": "Temperatura",
+      "oxygenSaturation": "Saturación de oxígeno",
+      "capillaryGlucoseMgDl": "Glucemia capilar",
+      "painScale": "Dolor (EVA)",
+      "painScaleHint": "0 sin dolor, 10 el peor dolor imaginable.",
+      "painNone": "0 · Sin dolor",
+      "painWorst": "10 · Peor dolor imaginable",
+      "normalRange": "Normal: {{min}} a {{max}}",
+      "high": "Alto",
+      "low": "Bajo",
+      "pediatricHint": "Menor de 12 años: los rangos de referencia son de adulto y el semáforo está apagado."
+    },
+    "physicalExam": {
+      "habitus": "Habitus exterior",
+      "habitusPlaceholder": "Edad aparente acorde a la cronológica, íntegro, bien hidratado, cooperador, marcha normal…",
+      "allNormal": "Todo sin alteraciones",
+      "normal": "Sin alteraciones",
+      "findings": "Con hallazgos",
+      "findingsPlaceholder": "Describe lo que encontraste al explorar",
+      "notes": "Notas (opcional)",
+      "summaryNormal": "Sin alteraciones en {{count}}",
+      "regions": {
+        "head": "Cabeza",
+        "eyes": "Ojos",
+        "ears_nose_throat": "Oídos, nariz y faringe",
+        "neck": "Cuello",
+        "chest_lungs": "Tórax y pulmones",
+        "cardiovascular": "Cardiovascular",
+        "abdomen": "Abdomen",
+        "genitourinary": "Genitourinario",
+        "extremities": "Extremidades",
+        "spine": "Columna",
+        "neurological": "Neurológico",
+        "skin": "Piel y anexos"
+      }
+    },
+    "studyResults": {
+      "list": "Resultados previos y actuales",
+      "add": "Agregar resultado",
+      "kind": "Tipo",
+      "kindOptions": {
+        "lab": "Laboratorio",
+        "imaging": "Gabinete",
+        "other": "Otro"
+      },
+      "name": "Estudio",
+      "date": "Fecha (opcional)",
+      "result": "Resultado",
+      "interpretation": "Interpretación (opcional)",
+      "interpretationOptions": {
+        "normal": "Normal",
+        "abnormal": "Anormal",
+        "pending": "Pendiente"
+      },
+      "notes": "Notas (opcional)",
+      "summaryCount": "{{count}} resultados",
+      "summaryCount_one": "1 resultado"
+    },
     "chooseOption": "Elige una opción"
   },
   "orders": {

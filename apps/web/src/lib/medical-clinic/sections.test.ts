@@ -48,6 +48,10 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "allergies",
       "current_medications",
       "systems_review",
+      "anthropometry",
+      "vital_signs",
+      "physical_exam",
+      "study_results",
     ]);
   });
 
@@ -112,7 +116,7 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       ),
     ).toBe("completed");
     // Un grupo sin secciones funcionales todavía no puede estar «en progreso».
-    expect(groupStatus(expediente(), "examination")).toBe("pending");
+    expect(groupStatus(expediente(), "documents")).toBe("pending");
   });
 });
 

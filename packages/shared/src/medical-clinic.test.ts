@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   allergiesSchema,
+  anthropometrySchema,
   CARRIED_FORWARD_SECTION_KEYS,
   currentMedicationsSchema,
   familyHistorySchema,
@@ -15,7 +16,10 @@ import {
   medicalRecordSectionKeySchema,
   nonPathologicalHistorySchema,
   pathologicalHistorySchema,
+  physicalExamSchema,
+  studyResultsSchema,
   systemsReviewSchema,
+  vitalSignsSchema,
 } from "./medical-clinic";
 
 /**
@@ -119,7 +123,7 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
     expect(conSexo[0]?.sexes).toEqual(["F", "X"]);
   });
 
-  it("las diez del interrogatorio son funcionales, y schema ⇔ funcional", () => {
+  it("interrogatorio y exploración son funcionales (14), y schema ⇔ funcional", () => {
     const funcionales = MEDICAL_RECORD_SECTIONS.filter((s) => s.functional).map((s) => s.key);
     expect(funcionales).toEqual([
       "general_data",
@@ -132,6 +136,10 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       "allergies",
       "current_medications",
       "systems_review",
+      "anthropometry",
+      "vital_signs",
+      "physical_exam",
+      "study_results",
     ]);
     for (const seccion of MEDICAL_RECORD_SECTIONS) {
       expect(MEDICAL_RECORD_SECTION_SCHEMAS[seccion.key] !== undefined).toBe(seccion.functional);
@@ -349,5 +357,85 @@ describe("interrogatorio: antecedentes y aparatos y sistemas", () => {
     expect(
       systemsReviewSchema.safeParse({ systems: { digestive: { normal: false } } }).success,
     ).toBe(false);
+  });
+});
+
+/** F9-CLINIC-HC-14..17 — los schemas de la exploración: números, no strings; lo derivado no viaja. */
+describe("exploración: somatometría, signos vitales, exploración física y resultados", () => {
+  it("somatometría: peso y talla con un decimal; peso 0 rechaza; dos decimales rechazan; el IMC no cabe", () => {
+    expect(anthropometrySchema.parse({ weightKg: 68.5, heightCm: 165 })).toEqual({
+      weightKg: 68.5,
+      heightCm: 165,
+    });
+    expect(anthropometrySchema.safeParse({ weightKg: 0 }).success).toBe(false);
+    expect(anthropometrySchema.safeParse({ heightCm: 165.55 }).success).toBe(false);
+    expect(anthropometrySchema.safeParse({ weightKg: "68" }).success).toBe(false);
+    expect(anthropometrySchema.safeParse({ weightKg: 68, bmi: 25 }).success).toBe(false);
+  });
+
+  it("signos vitales: enteros en rango; la diastólica va por debajo de la sistólica; temperatura con un decimal", () => {
+    expect(
+      vitalSignsSchema.parse({
+        systolic: 120,
+        diastolic: 80,
+        heartRate: 72,
+        temperatureC: 36.6,
+        oxygenSaturation: 98,
+        painScale: 3,
+      }),
+    ).toMatchObject({ systolic: 120, diastolic: 80 });
+    expect(vitalSignsSchema.safeParse({ systolic: 80, diastolic: 120 }).success).toBe(false);
+    expect(vitalSignsSchema.safeParse({ temperatureC: 36.55 }).success).toBe(false);
+    expect(vitalSignsSchema.safeParse({ heartRate: 72.5 }).success).toBe(false);
+    expect(vitalSignsSchema.safeParse({ painScale: 11 }).success).toBe(false);
+    expect(vitalSignsSchema.parse({ diastolic: 80 })).toEqual({ diastolic: 80 });
+  });
+
+  it("exploración física: habitus libre; por región normal explícito o hallazgos; región inventada rechaza", () => {
+    expect(
+      physicalExamSchema.parse({
+        habitus: "Íntegro, cooperador",
+        regions: { abdomen: { findings: "Dolor en FID" }, skin: { normal: true } },
+      }),
+    ).toEqual({
+      habitus: "Íntegro, cooperador",
+      regions: { abdomen: { findings: "Dolor en FID" }, skin: { normal: true } },
+    });
+    expect(physicalExamSchema.safeParse({ regions: { liver: { normal: true } } }).success).toBe(
+      false,
+    );
+    expect(physicalExamSchema.safeParse({ regions: { abdomen: { findings: "" } } }).success).toBe(
+      false,
+    );
+  });
+
+  it("resultados: cada fila con nombre y resultado; fecha futura rechaza; studyId vacío rechaza", () => {
+    expect(
+      studyResultsSchema.parse({
+        items: [
+          {
+            kind: "lab",
+            name: "Biometría hemática",
+            date: "2026-09-01",
+            result: "Hb 13.5",
+            interpretation: "normal",
+          },
+        ],
+      }),
+    ).toMatchObject({ items: [{ name: "Biometría hemática" }] });
+    expect(
+      studyResultsSchema.safeParse({ items: [{ kind: "lab", name: "BH", result: "" }] }).success,
+    ).toBe(false);
+    expect(
+      studyResultsSchema.safeParse({
+        items: [{ kind: "lab", name: "BH", result: "x", date: "2999-01-01" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      studyResultsSchema.safeParse({
+        items: [{ kind: "lab", name: "BH", result: "x", studyId: "" }],
+      }).success,
+    ).toBe(false);
+    expect(studyResultsSchema.safeParse({ items: [] }).success).toBe(false);
   });
 });

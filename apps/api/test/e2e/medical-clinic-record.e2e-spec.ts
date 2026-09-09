@@ -131,7 +131,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       narrative: "Inicia hace 3 días…",
     }).expect(200);
     // Una sin formulario todavía es 422; una desconocida, 400; datos inválidos, 400.
-    await put(negocio.token, `${base}/sections/family_history`, {}).expect(422);
+    await put(negocio.token, `${base}/sections/attachments`, {}).expect(422);
     await put(negocio.token, `${base}/sections/no_existe`, {}).expect(400);
     await put(negocio.token, `${base}/sections/general_data`, { sex: "Q" }).expect(400);
 

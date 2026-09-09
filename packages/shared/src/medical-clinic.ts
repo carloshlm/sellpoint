@@ -92,10 +92,10 @@ export const MEDICAL_RECORD_SECTIONS = [
   seccion("current_medications", "interrogation", 9, { ...heredada, functional: true }),
   seccion("systems_review", "interrogation", 10, { functional: true }),
   // 2. Exploración (Somatometría primero: ya la midió la asistente)
-  seccion("anthropometry", "examination", 1),
-  seccion("vital_signs", "examination", 2),
-  seccion("physical_exam", "examination", 3),
-  seccion("study_results", "examination", 4),
+  seccion("anthropometry", "examination", 1, { functional: true }),
+  seccion("vital_signs", "examination", 2, { functional: true }),
+  seccion("physical_exam", "examination", 3, { functional: true }),
+  seccion("study_results", "examination", 4, { functional: true }),
   // 3. Evaluación y plan
   seccion("diagnostic_impression", "assessment_plan", 1),
   seccion("diagnoses", "assessment_plan", 2),
@@ -543,6 +543,109 @@ export const systemsReviewSchema = z.union([
     .strict(),
 ]);
 
+// ─────────────────────────────────────────────────────────────────────────
+// F9-CLINIC-HC — la exploración (Bloque 2)
+//
+// Números, no strings: el formulario convierte con `parseMeasure` antes de
+// mandar. Lo derivado (IMC, categoría OMS, semáforo) NO viaja: se calcula
+// con `medical-measures.ts` al pintar.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Un decimal como máximo: `36.55` no es una temperatura que mida nadie. */
+const conDecimales = (min: number, max: number, decimales: number) =>
+  z
+    .number()
+    .min(min)
+    .max(max)
+    .refine((v) => Number.isInteger(v * 10 ** decimales), {
+      message: "medical_clinic.too_many_decimals",
+    });
+
+// ── Somatometría (HC-14) ─────────────────────────────────────────────────
+export const anthropometrySchema = z
+  .object({
+    weightKg: conDecimales(0.5, 500, 1).optional(),
+    heightCm: conDecimales(20, 250, 1).optional(),
+    headCircumferenceCm: conDecimales(20, 70, 1).optional(),
+    waistCm: conDecimales(30, 250, 1).optional(),
+    hipCm: conDecimales(30, 250, 1).optional(),
+  })
+  .strict();
+
+// ── Signos vitales (HC-15) ───────────────────────────────────────────────
+export const vitalSignsSchema = z
+  .object({
+    systolic: entero(40, 300).optional(),
+    diastolic: entero(20, 200).optional(),
+    heartRate: entero(20, 300).optional(),
+    respiratoryRate: entero(5, 80).optional(),
+    temperatureC: conDecimales(30, 45, 1).optional(),
+    oxygenSaturation: entero(50, 100).optional(),
+    capillaryGlucoseMgDl: entero(20, 800).optional(),
+    painScale: entero(0, 10).optional(),
+  })
+  .strict()
+  .refine(
+    (v) => v.systolic === undefined || v.diastolic === undefined || v.diastolic < v.systolic,
+    { message: "medical_clinic.diastolic_not_below_systolic", path: ["diastolic"] },
+  );
+
+// ── Exploración física (HC-16) ───────────────────────────────────────────
+export const EXAM_REGIONS = [
+  "head",
+  "eyes",
+  "ears_nose_throat",
+  "neck",
+  "chest_lungs",
+  "cardiovascular",
+  "abdomen",
+  "genitourinary",
+  "extremities",
+  "spine",
+  "neurological",
+  "skin",
+] as const;
+
+export const physicalExamSchema = z
+  .object({
+    /** El habitus exterior se DESCRIBE, no es normal/anormal. */
+    habitus: texto(1000).optional(),
+    regions: porClave(EXAM_REGIONS).optional(),
+    notes: texto(1000).optional(),
+  })
+  .strict();
+
+// ── Resultados de estudios (HC-17) ───────────────────────────────────────
+export const STUDY_RESULT_KINDS = ["lab", "imaging", "other"] as const;
+export const STUDY_INTERPRETATIONS = ["normal", "abnormal", "pending"] as const;
+
+export const studyResultsSchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({
+            kind: z.enum(STUDY_RESULT_KINDS),
+            name: texto(120).min(1),
+            /** El estudio del catálogo, si el nombre salió de ahí. */
+            studyId: z.string().uuid().optional(),
+            date: fechaNoFutura.optional(),
+            result: texto(2000).min(1),
+            interpretation: z.enum(STUDY_INTERPRETATIONS).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .optional(),
+    notes: texto(1000).optional(),
+  })
+  .strict();
+
+export type Anthropometry = z.infer<typeof anthropometrySchema>;
+export type VitalSigns = z.infer<typeof vitalSignsSchema>;
+export type PhysicalExam = z.infer<typeof physicalExamSchema>;
+export type StudyResults = z.infer<typeof studyResultsSchema>;
+
 export type FamilyHistory = z.infer<typeof familyHistorySchema>;
 export type PathologicalHistory = z.infer<typeof pathologicalHistorySchema>;
 export type NonPathologicalHistory = z.infer<typeof nonPathologicalHistorySchema>;
@@ -565,6 +668,10 @@ export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
   allergies: allergiesSchema,
   current_medications: currentMedicationsSchema,
   systems_review: systemsReviewSchema,
+  anthropometry: anthropometrySchema,
+  vital_signs: vitalSignsSchema,
+  physical_exam: physicalExamSchema,
+  study_results: studyResultsSchema,
 };
 
 // ─────────────────────────────────────────────────────────────────────────

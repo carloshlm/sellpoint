@@ -95,6 +95,7 @@ function SectionScreen({ recordId, sectionKey }: { recordId: string; sectionKey:
             key={sectionKey}
             recordId={recordId}
             initialData={seccion?.data && typeof seccion.data === "object" ? seccion.data : {}}
+            patientAge={expediente.patient.age}
             readOnly={readOnly}
             busy={guardar.isPending}
             error={

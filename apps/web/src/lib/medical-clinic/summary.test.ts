@@ -114,6 +114,44 @@ describe("summaryOf", () => {
     ).toBe("summaryNegated · digestive: Dolor epigástrico");
   });
 
+  it("somatometría con IMC, signos vitales, exploración por regiones y resultados", () => {
+    expect(summaryOf("anthropometry", { weightKg: 68, heightCm: 165 }, t)).toBe(
+      "68 kg · 165 cm · IMC 25.0",
+    );
+    expect(
+      summaryOf(
+        "vital_signs",
+        { systolic: 120, diastolic: 80, heartRate: 72, temperatureC: 36.6, oxygenSaturation: 98 },
+        t,
+      ),
+    ).toBe("TA 120/80 · FC 72 · T 36.6 · SpO2 98");
+    expect(
+      summaryOf(
+        "physical_exam",
+        {
+          regions: {
+            skin: { normal: true },
+            neck: { normal: true },
+            abdomen: { findings: "Dolor en FID" },
+          },
+        },
+        t,
+      ),
+    ).toBe("summaryNormal · abdomen: Dolor en FID");
+    expect(
+      summaryOf(
+        "study_results",
+        {
+          items: [
+            { kind: "lab", name: "BH", date: "2026-09-01", result: "x", interpretation: "normal" },
+            { kind: "other", name: "ECG", result: "y" },
+          ],
+        },
+        t,
+      ),
+    ).toBe("summaryCount · BH 2026-09-01 (normal)");
+  });
+
   it("sin datos, o en una sección sin resumen, devuelve null", () => {
     expect(summaryOf("general_data", {}, t)).toBeNull();
     expect(summaryOf("chief_complaint", { onsetValue: 3 }, t)).toBeNull();

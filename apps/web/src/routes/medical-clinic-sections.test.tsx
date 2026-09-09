@@ -19,6 +19,7 @@ vi.mock("@/lib/medical-clinic/api", () => ({
   getRecord: vi.fn(),
   closeRecord: vi.fn(),
   saveSection: vi.fn(),
+  listStudies: vi.fn(),
 }));
 const mocked = vi.mocked(clinicApi);
 
@@ -45,6 +46,7 @@ async function renderSection(key: string, record = expediente()) {
 }
 
 beforeEach(() => {
+  mocked.listStudies.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
   mocked.saveSection.mockImplementation((_id, key, data) =>
     Promise.resolve({
       key,
@@ -521,6 +523,160 @@ describe("Datos Generales: grupo étnico y religión (F9-CLINIC-HC-13)", () => {
       expect(mocked.saveSection).toHaveBeenCalledWith("r1", "general_data", {
         ethnicGroup: "Náhuatl",
         religion: "Católica",
+      }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-14 — Somatometría: el IMC se pinta y no se guarda. */
+describe("Somatometría (F9-CLINIC-HC-14)", () => {
+  it("68 kg y 165 cm pintan «IMC 25.0 · Sobrepeso» y guardan números, sin IMC", async () => {
+    await renderSection("anthropometry");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Peso"), "68");
+    await user.type(screen.getByLabelText("Talla"), "165");
+    expect(screen.getByTestId("bmi")).toHaveTextContent("IMC 25.0 · Sobrepeso");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "anthropometry", {
+        weightKg: 68,
+        heightCm: 165,
+      }),
+    );
+  });
+
+  it("menor de edad: IMC sin categoría y el aviso pediátrico; peso 0 marca error y no envía", async () => {
+    await renderSection(
+      "anthropometry",
+      expediente({ patient: { ...expediente().patient, age: 10 } }),
+    );
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Peso"), "30");
+    await user.type(screen.getByLabelText("Talla"), "135");
+    expect(screen.getByTestId("bmi")).toHaveTextContent("IMC 16.5");
+    expect(screen.getByTestId("bmi")).not.toHaveTextContent("Bajo peso");
+    expect(screen.getByTestId("bmi")).toHaveTextContent("Menor de 18");
+    await user.clear(screen.getByLabelText("Peso"));
+    await user.type(screen.getByLabelText("Peso"), "0");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("El valor mínimo es 0.5");
+    expect(mocked.saveSection).not.toHaveBeenCalled();
+  });
+});
+
+/** F9-CLINIC-HC-15 — Signos vitales con semáforo. */
+describe("Signos Vitales (F9-CLINIC-HC-15)", () => {
+  it("150 de sistólica dice «Alto» en ámbar; 93 de SpO2 «Bajo»; 185/115 en rojo; guarda enteros", async () => {
+    await renderSection("vital_signs");
+    const user = userEvent.setup();
+    const sistolica = await screen.findByLabelText("Sistólica");
+    await user.type(sistolica, "150");
+    expect(sistolica).toHaveAccessibleDescription(/Alto · Normal: 90 a 139/);
+    await user.type(screen.getByLabelText("Saturación de oxígeno"), "93");
+    expect(screen.getByLabelText("Saturación de oxígeno")).toHaveAccessibleDescription(/Bajo/);
+    await user.clear(sistolica);
+    await user.type(sistolica, "185");
+    await user.type(screen.getByLabelText("Diastólica"), "115");
+    expect(screen.getByText(/Alto · Normal: 90 a 139/)).toHaveClass("text-destructive");
+    await user.type(screen.getByLabelText("Temperatura"), "36.6");
+    await user.selectOptions(screen.getByLabelText("Dolor (EVA)"), "3");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "vital_signs", {
+        systolic: 185,
+        diastolic: 115,
+        temperatureC: 36.6,
+        oxygenSaturation: 93,
+        painScale: 3,
+      }),
+    );
+  });
+
+  it("80/120 (diastólica arriba) marca el error y no envía", async () => {
+    await renderSection("vital_signs");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Sistólica"), "80");
+    await user.type(screen.getByLabelText("Diastólica"), "120");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "La diastólica va por debajo de la sistólica",
+    );
+    expect(mocked.saveSection).not.toHaveBeenCalled();
+  });
+});
+
+/** F9-CLINIC-HC-16 — Exploración física por regiones. */
+describe("Exploración Física (F9-CLINIC-HC-16)", () => {
+  it("«Todo sin alteraciones» pone las doce regiones en normal; abdomen con hallazgo lleva su texto; el habitus va aparte", async () => {
+    await renderSection("physical_exam");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Habitus exterior"), "Íntegro, cooperador");
+    await user.click(screen.getByRole("button", { name: "Todo sin alteraciones" }));
+    const abdomen = screen.getByRole("radiogroup", { name: "Abdomen" });
+    await user.click(within(abdomen).getByRole("radio", { name: "Con hallazgos" }));
+    await user.type(screen.getByLabelText("Con hallazgos: Abdomen"), "Dolor en FID");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() => expect(mocked.saveSection).toHaveBeenCalled());
+    const body = mocked.saveSection.mock.calls[0]?.[2] as Record<string, unknown>;
+    expect(body.habitus).toBe("Íntegro, cooperador");
+    const regions = body.regions as Record<string, unknown>;
+    expect(Object.keys(regions)).toHaveLength(12);
+    expect(regions.abdomen).toEqual({ findings: "Dolor en FID" });
+    expect(regions.skin).toEqual({ normal: true });
+  });
+});
+
+/** F9-CLINIC-HC-17 — Resultados de estudios con el catálogo como autocompletado. */
+describe("Resultados de Estudios (F9-CLINIC-HC-17)", () => {
+  it("elegir del catálogo guarda studyId; escribir a mano no lo manda; la fila sin resultado no viaja", async () => {
+    mocked.listStudies.mockResolvedValue({
+      rows: [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          code: "BH",
+          name: "Biometría hemática",
+          description: null,
+          cost: null,
+          price: null,
+          taxGroupId: null,
+          isActive: true,
+          createdAt: "",
+          updatedAt: "",
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await renderSection("study_results");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar resultado" }));
+    await user.type(screen.getByLabelText("Estudio"), "Biometría hemática");
+    await waitFor(() =>
+      expect(mocked.listStudies).toHaveBeenCalledWith(
+        "lab",
+        expect.objectContaining({ query: "Biometría hemática" }),
+      ),
+    );
+    // El datalist ya trae la opción: retipear el último carácter la «elige» por nombre exacto.
+    await user.type(screen.getByLabelText("Estudio"), "{backspace}a");
+    await user.type(screen.getByLabelText("Resultado"), "Hb 13.5");
+    await user.selectOptions(screen.getByLabelText("Interpretación (opcional)"), "normal");
+    await user.click(screen.getByRole("button", { name: "+ Agregar resultado" }));
+    await user.selectOptions(screen.getAllByLabelText("Tipo")[1] as HTMLElement, "other");
+    await user.type(screen.getAllByLabelText("Estudio")[1] as HTMLElement, "Electrocardiograma");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "study_results", {
+        items: [
+          {
+            kind: "lab",
+            name: "Biometría hemática",
+            studyId: "11111111-1111-4111-8111-111111111111",
+            result: "Hb 13.5",
+            interpretation: "normal",
+          },
+        ],
       }),
     );
   });

@@ -610,6 +610,87 @@
         "psychiatric": "anxiety, insomnia, mood"
       }
     },
+    "anthropometry": {
+      "weightKg": "Weight",
+      "heightCm": "Height",
+      "headCircumferenceCm": "Head circumference",
+      "headCircumferenceHint": "Infants and preschoolers.",
+      "waistCm": "Waist circumference",
+      "hipCm": "Hip circumference",
+      "bmi": "BMI {{value}}",
+      "bmiCategory": {
+        "underweight": "Underweight",
+        "normal": "Normal",
+        "overweight": "Overweight",
+        "obesity": "Obesity"
+      },
+      "pediatricHint": "Under 18: category by percentile (coming soon)."
+    },
+    "vitalSigns": {
+      "bloodPressure": "Blood pressure",
+      "systolic": "Systolic",
+      "diastolic": "Diastolic",
+      "diastolicNotBelow": "Diastolic must be below systolic",
+      "heartRate": "Heart rate",
+      "respiratoryRate": "Respiratory rate",
+      "temperatureC": "Temperature",
+      "oxygenSaturation": "Oxygen saturation",
+      "capillaryGlucoseMgDl": "Capillary glucose",
+      "painScale": "Pain (VAS)",
+      "painScaleHint": "0 no pain, 10 worst imaginable pain.",
+      "painNone": "0 · No pain",
+      "painWorst": "10 · Worst imaginable pain",
+      "normalRange": "Normal: {{min}} to {{max}}",
+      "high": "High",
+      "low": "Low",
+      "pediatricHint": "Under 12: reference ranges are for adults and the traffic light is off."
+    },
+    "physicalExam": {
+      "habitus": "General appearance",
+      "habitusPlaceholder": "Apparent age matches, intact, well hydrated, cooperative, normal gait…",
+      "allNormal": "All unremarkable",
+      "normal": "Unremarkable",
+      "findings": "With findings",
+      "findingsPlaceholder": "Describe what you found on examination",
+      "notes": "Notes (optional)",
+      "summaryNormal": "Unremarkable in {{count}}",
+      "regions": {
+        "head": "Head",
+        "eyes": "Eyes",
+        "ears_nose_throat": "Ears, nose and throat",
+        "neck": "Neck",
+        "chest_lungs": "Chest and lungs",
+        "cardiovascular": "Cardiovascular",
+        "abdomen": "Abdomen",
+        "genitourinary": "Genitourinary",
+        "extremities": "Extremities",
+        "spine": "Spine",
+        "neurological": "Neurological",
+        "skin": "Skin"
+      }
+    },
+    "studyResults": {
+      "list": "Previous and current results",
+      "add": "Add result",
+      "kind": "Type",
+      "kindOptions": {
+        "lab": "Laboratory",
+        "imaging": "Imaging",
+        "other": "Other"
+      },
+      "name": "Study",
+      "date": "Date (optional)",
+      "result": "Result",
+      "interpretation": "Interpretation (optional)",
+      "interpretationOptions": {
+        "normal": "Normal",
+        "abnormal": "Abnormal",
+        "pending": "Pending"
+      },
+      "notes": "Notes (optional)",
+      "summaryCount": "{{count}} results",
+      "summaryCount_one": "1 result"
+    },
     "chooseOption": "Pick an option"
   },
   "orders": {
