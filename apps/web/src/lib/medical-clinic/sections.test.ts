@@ -52,6 +52,11 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "vital_signs",
       "physical_exam",
       "study_results",
+      "diagnostic_impression",
+      "diagnoses",
+      "treatment",
+      "management_plan",
+      "follow_up",
     ]);
   });
 

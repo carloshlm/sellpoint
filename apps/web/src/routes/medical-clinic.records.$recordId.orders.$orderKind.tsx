@@ -11,6 +11,7 @@ import { OrderFormShell } from "@/components/medical-clinic/order-form-shell";
 import { StudyPicker } from "@/components/medical-clinic/study-picker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Study } from "@/lib/medical-clinic/api";
+import { principalDiagnosisLine } from "@/lib/medical-clinic/diagnoses";
 import { useMedicalClinicSettings, useRecord } from "@/lib/medical-clinic/hooks";
 import { type OrderFormLine, STUDY_KIND_OF } from "@/lib/medical-clinic/order-lines";
 import { useAuthStore } from "@/stores/auth.store";
@@ -113,6 +114,7 @@ function OrderScreen({ recordId, orderKind }: { recordId: string; orderKind: str
               kind={orderKind}
               lines={lines}
               onLinesChange={setLines}
+              defaultDiagnosis={principalDiagnosisLine(expediente)}
             >
               {studyKind ? (
                 <StudyPicker

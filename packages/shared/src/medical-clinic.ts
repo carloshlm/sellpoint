@@ -97,11 +97,11 @@ export const MEDICAL_RECORD_SECTIONS = [
   seccion("physical_exam", "examination", 3, { functional: true }),
   seccion("study_results", "examination", 4, { functional: true }),
   // 3. Evaluación y plan
-  seccion("diagnostic_impression", "assessment_plan", 1),
-  seccion("diagnoses", "assessment_plan", 2),
-  seccion("treatment", "assessment_plan", 3),
-  seccion("management_plan", "assessment_plan", 4),
-  seccion("follow_up", "assessment_plan", 5),
+  seccion("diagnostic_impression", "assessment_plan", 1, { functional: true }),
+  seccion("diagnoses", "assessment_plan", 2, { functional: true }),
+  seccion("treatment", "assessment_plan", 3, { functional: true }),
+  seccion("management_plan", "assessment_plan", 4, { functional: true }),
+  seccion("follow_up", "assessment_plan", 5, { functional: true }),
   // 5. Documentos y seguimiento (el 4, Órdenes médicas, no son secciones:
   // son tres órdenes y un listado, y viven en `medical_clinic_orders`)
   seccion("prescriptions_doc", "documents", 1),
@@ -641,6 +641,94 @@ export const studyResultsSchema = z
   })
   .strict();
 
+// ─────────────────────────────────────────────────────────────────────────
+// F9-CLINIC-HC — evaluación y plan (Bloque 3)
+// ─────────────────────────────────────────────────────────────────────────
+
+// ── Impresión diagnóstica y diagnósticos (HC-18) ─────────────────────────
+export const diagnosticImpressionSchema = z.object({ impression: texto(2000).optional() }).strict();
+
+export const DIAGNOSIS_ROLES = ["primary", "secondary", "differential"] as const;
+export const DIAGNOSIS_CERTAINTIES = ["presumptive", "confirmed"] as const;
+/** CIE-10: letra, dos dígitos y hasta dos decimales (J06.9, E11, I10). */
+export const ICD10_CODE = /^[A-Z]\d{2}(\.\d{1,2})?$/;
+
+export const diagnosesSchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({
+            role: z.enum(DIAGNOSIS_ROLES),
+            description: texto(300).min(1),
+            icd10Code: z.string().regex(ICD10_CODE).optional(),
+            certainty: z.enum(DIAGNOSIS_CERTAINTIES).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .optional(),
+  })
+  .strict()
+  // Un solo principal: dos «principales» no dicen cuál es el que manda.
+  .refine((d) => (d.items ?? []).filter((i) => i.role === "primary").length <= 1, {
+    message: "medical_clinic.one_primary_diagnosis",
+    path: ["items"],
+  });
+
+// ── Tratamiento (HC-19) ──────────────────────────────────────────────────
+export const treatmentSchema = z
+  .object({
+    pharmacological: texto(4000).optional(),
+    nonPharmacological: texto(2000).optional(),
+    procedures: texto(2000).optional(),
+  })
+  .strict();
+
+// ── Plan de manejo y pronóstico (HC-20) ──────────────────────────────────
+export const PROGNOSES = ["good", "reserved", "poor"] as const;
+export const managementPlanSchema = z
+  .object({
+    prognosis: z.enum(PROGNOSES).optional(),
+    prognosisNotes: texto(500).optional(),
+    plan: texto(4000).optional(),
+  })
+  .strict();
+
+// ── Seguimiento y recomendaciones (HC-21) ────────────────────────────────
+/**
+ * Lo que un schema de sección puede necesitar del expediente. Es la primera
+ * clave cuyo schema depende de él: la próxima cita no puede ser anterior a
+ * la consulta (y NO se compara contra «hoy»: una consulta vencida se lee,
+ * no se captura, y ese candado ya vive en `medicalRecordLock`).
+ */
+export interface SectionSchemaContext {
+  /** `YYYY-MM-DD` en el calendario del negocio. */
+  consultationDate: string;
+}
+
+const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const followUpSchema = (ctx: SectionSchemaContext) =>
+  z
+    .object({
+      nextAppointmentDate: fechaIso
+        .refine((v) => !Number.isNaN(Date.parse(v)) && v >= ctx.consultationDate, {
+          message: "medical_clinic.appointment_before_consultation",
+        })
+        .optional(),
+      nextAppointmentNotes: texto(300).optional(),
+      alarmSigns: texto(1000).optional(),
+      recommendations: texto(2000).optional(),
+    })
+    .strict();
+
+export type DiagnosticImpression = z.infer<typeof diagnosticImpressionSchema>;
+export type Diagnoses = z.infer<typeof diagnosesSchema>;
+export type Treatment = z.infer<typeof treatmentSchema>;
+export type ManagementPlan = z.infer<typeof managementPlanSchema>;
+export type FollowUp = z.infer<ReturnType<typeof followUpSchema>>;
+
 export type Anthropometry = z.infer<typeof anthropometrySchema>;
 export type VitalSigns = z.infer<typeof vitalSignsSchema>;
 export type PhysicalExam = z.infer<typeof physicalExamSchema>;
@@ -654,9 +742,16 @@ export type Allergies = z.infer<typeof allergiesSchema>;
 export type CurrentMedications = z.infer<typeof currentMedicationsSchema>;
 export type SystemsReview = z.infer<typeof systemsReviewSchema>;
 
-/** Solo las funcionales tienen schema; el test del catálogo lo exige. */
+type SectionSchema = z.ZodType<Record<string, unknown>>;
+type SectionSchemaOrFactory = SectionSchema | ((ctx: SectionSchemaContext) => SectionSchema);
+
+/**
+ * Solo las funcionales tienen schema; el test del catálogo lo exige. Una
+ * entrada puede ser el schema o una FÁBRICA que lo arma con el contexto del
+ * expediente (`follow_up`); `resolveSectionSchema` unifica las dos formas.
+ */
 export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
-  Record<MedicalRecordSectionKey, z.ZodType<Record<string, unknown>>>
+  Record<MedicalRecordSectionKey, SectionSchemaOrFactory>
 > = {
   general_data: generalDataSchema,
   chief_complaint: chiefComplaintSchema,
@@ -672,7 +767,22 @@ export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
   vital_signs: vitalSignsSchema,
   physical_exam: physicalExamSchema,
   study_results: studyResultsSchema,
+  diagnostic_impression: diagnosticImpressionSchema,
+  diagnoses: diagnosesSchema,
+  treatment: treatmentSchema,
+  management_plan: managementPlanSchema,
+  follow_up: followUpSchema,
 };
+
+/** El schema listo para validar, o `undefined` si la sección no es funcional. */
+export function resolveSectionSchema(
+  key: MedicalRecordSectionKey,
+  ctx: SectionSchemaContext,
+): SectionSchema | undefined {
+  const entrada = MEDICAL_RECORD_SECTION_SCHEMAS[key];
+  if (entrada === undefined) return undefined;
+  return typeof entrada === "function" ? entrada(ctx) : entrada;
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Las órdenes médicas

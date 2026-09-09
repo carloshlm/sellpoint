@@ -1,17 +1,23 @@
 import type { ComponentType } from "react";
+import type { MedicalRecord } from "@/lib/medical-clinic/api";
 import { AllergiesForm } from "./allergies-form";
 import { AnthropometryForm } from "./anthropometry-form";
 import { ChiefComplaintForm } from "./chief-complaint-form";
 import { CurrentIllnessForm } from "./current-illness-form";
 import { CurrentMedicationsForm } from "./current-medications-form";
+import { DiagnosesForm } from "./diagnoses-form";
+import { DiagnosticImpressionForm } from "./diagnostic-impression-form";
 import { FamilyHistoryForm } from "./family-history-form";
+import { FollowUpForm } from "./follow-up-form";
 import { GeneralDataForm } from "./general-data-form";
 import { GynecoObstetricForm } from "./gyneco-obstetric-form";
+import { ManagementPlanForm } from "./management-plan-form";
 import { NonPathologicalHistoryForm } from "./non-pathological-history-form";
 import { PathologicalHistoryForm } from "./pathological-history-form";
 import { PhysicalExamForm } from "./physical-exam-form";
 import { StudyResultsForm } from "./study-results-form";
 import { SystemsReviewForm } from "./systems-review-form";
+import { TreatmentForm } from "./treatment-form";
 import { VitalSignsForm } from "./vital-signs-form";
 
 /**
@@ -25,6 +31,10 @@ export interface SectionFormProps {
   initialData: Record<string, unknown>;
   /** Años cumplidos el día de la consulta (F9-CLINIC-HC-14): decide categoría OMS y semáforo. */
   patientAge: number | null;
+  /** `YYYY-MM-DD` de la consulta (F9-CLINIC-HC-21): la próxima cita no es anterior. */
+  consultationDate: string;
+  /** Las órdenes emitidas del expediente (F9-CLINIC-HC-19): Tratamiento enlista las recetas. */
+  orders: MedicalRecord["orders"];
   readOnly: boolean;
   busy: boolean;
   /** Error del API, ya traducido. */
@@ -48,4 +58,9 @@ export const SECTION_FORMS: Partial<Record<string, ComponentType<SectionFormProp
   vital_signs: VitalSignsForm,
   physical_exam: PhysicalExamForm,
   study_results: StudyResultsForm,
+  diagnostic_impression: DiagnosticImpressionForm,
+  diagnoses: DiagnosesForm,
+  treatment: TreatmentForm,
+  management_plan: ManagementPlanForm,
+  follow_up: FollowUpForm,
 };

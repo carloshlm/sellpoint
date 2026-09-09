@@ -241,6 +241,45 @@ export function summaryOf(
         `${t("medicalClinic.forms.studyResults.summaryCount", { count: items.length })} · ${cabeza}`,
       );
     }
+    case "diagnostic_impression": {
+      const impression = texto(data.impression);
+      return impression ? recorte(impression) : null;
+    }
+    case "diagnoses": {
+      const items = Array.isArray(data.items) ? (data.items as Record<string, unknown>[]) : [];
+      const principal = items.find((i) => i.role === "primary") ?? items[0];
+      if (!principal || !texto(principal.description)) return null;
+      const code = texto(principal.icd10Code);
+      const linea = code ? `${code} ${principal.description}` : (principal.description as string);
+      return recorte(items.length > 1 ? `${linea} (+${items.length - 1})` : linea);
+    }
+    case "treatment": {
+      const elegido =
+        texto(data.pharmacological) ?? texto(data.nonPharmacological) ?? texto(data.procedures);
+      return elegido ? recorte(elegido) : null;
+    }
+    case "management_plan": {
+      const partes: string[] = [];
+      const prognosis = texto(data.prognosis);
+      if (prognosis) {
+        partes.push(
+          `${t("medicalClinic.forms.managementPlan.summaryPrognosis")}: ${t(`medicalClinic.forms.managementPlan.prognosisOptions.${prognosis}`)}`,
+        );
+      }
+      const plan = texto(data.plan);
+      if (plan) partes.push(plan);
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
+    case "follow_up": {
+      const partes: string[] = [];
+      const cita = texto(data.nextAppointmentDate);
+      if (cita) partes.push(`${t("medicalClinic.forms.followUp.summaryAppointment")} ${cita}`);
+      const alarma = texto(data.alarmSigns);
+      if (alarma) partes.push(`${t("medicalClinic.forms.followUp.summaryAlarm")}: ${alarma}`);
+      const recomendaciones = texto(data.recommendations);
+      if (partes.length === 0 && recomendaciones) partes.push(recomendaciones);
+      return partes.length > 0 ? recorte(partes.join(" · ")) : null;
+    }
     default:
       return null;
   }

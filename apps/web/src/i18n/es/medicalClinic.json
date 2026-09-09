@@ -691,6 +691,62 @@
       "summaryCount": "{{count}} resultados",
       "summaryCount_one": "1 resultado"
     },
+    "diagnosticImpression": {
+      "impression": "Impresión diagnóstica",
+      "placeholder": "El juicio clínico de primer contacto, antes de estudios: probable…"
+    },
+    "diagnoses": {
+      "list": "Diagnósticos",
+      "add": "Agregar diagnóstico",
+      "role": "Tipo",
+      "roleOptions": {
+        "primary": "Principal",
+        "secondary": "Secundario",
+        "differential": "Diferencial"
+      },
+      "description": "Diagnóstico",
+      "code": "Código CIE-10 (opcional)",
+      "codeHint": "Ej. J06.9",
+      "codeInvalid": "Un código CIE-10 es una letra, dos dígitos y hasta dos decimales, como J06.9",
+      "certainty": "Certeza (opcional)",
+      "certaintyOptions": {
+        "presumptive": "Presuntivo",
+        "confirmed": "Confirmado"
+      }
+    },
+    "treatment": {
+      "issued": "Recetas emitidas",
+      "noPrescriptions": "Sin recetas emitidas en esta consulta",
+      "issuePrescription": "Emitir receta de medicamentos",
+      "pharmacological": "Tratamiento farmacológico",
+      "pharmacologicalPlaceholder": "Nombre genérico, dosis, vía, frecuencia y duración (NOM-004 6.2)",
+      "nonPharmacological": "Tratamiento no farmacológico",
+      "nonPharmacologicalPlaceholder": "Dieta, reposo, hidratación, medidas generales…",
+      "procedures": "Procedimientos (opcional)"
+    },
+    "managementPlan": {
+      "prognosis": "Pronóstico",
+      "prognosisHint": "Lo pide la NOM-004 (6.1.5).",
+      "prognosisOptions": {
+        "good": "Bueno",
+        "reserved": "Reservado",
+        "poor": "Malo"
+      },
+      "prognosisNotes": "Notas del pronóstico (opcional)",
+      "plan": "Plan de manejo",
+      "planPlaceholder": "Estudios a solicitar, interconsultas, metas, cuándo reevaluar…",
+      "summaryPrognosis": "Pronóstico"
+    },
+    "followUp": {
+      "nextAppointmentDate": "Próxima cita (opcional)",
+      "nextAppointmentNotes": "Motivo de la cita (opcional)",
+      "appointmentBeforeConsultation": "La próxima cita no puede ser anterior a la fecha de consulta",
+      "alarmSigns": "Datos de alarma",
+      "alarmSignsPlaceholder": "Acudir a urgencias si…",
+      "recommendations": "Recomendaciones",
+      "summaryAppointment": "Cita",
+      "summaryAlarm": "Datos de alarma"
+    },
     "chooseOption": "Elige una opción"
   },
   "orders": {

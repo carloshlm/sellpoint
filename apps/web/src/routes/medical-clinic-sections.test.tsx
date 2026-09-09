@@ -681,3 +681,147 @@ describe("Resultados de Estudios (F9-CLINIC-HC-17)", () => {
     );
   });
 });
+
+/** F9-CLINIC-HC-18 — Impresión y Diagnósticos: un solo principal, CIE-10 a mano. */
+describe("Diagnósticos (F9-CLINIC-HC-18)", () => {
+  it("dos filas con roles distintos se guardan; el código se sube a mayúsculas; la impresión es un texto", async () => {
+    await renderSection("diagnoses");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar diagnóstico" }));
+    await user.type(screen.getByLabelText("Diagnóstico"), "Faringitis aguda");
+    await user.type(screen.getByLabelText("Código CIE-10 (opcional)"), "j02.9");
+    await user.selectOptions(screen.getByLabelText("Certeza (opcional)"), "confirmed");
+    await user.click(screen.getByRole("button", { name: "+ Agregar diagnóstico" }));
+    // La segunda fila nace secundaria y no ofrece «Principal» mientras haya uno.
+    const roles = screen.getAllByLabelText("Tipo");
+    expect(roles[1]).toHaveValue("secondary");
+    expect(
+      within(roles[1] as HTMLElement).getByRole("option", { name: "Principal" }),
+    ).toBeDisabled();
+    await user.type(screen.getAllByLabelText("Diagnóstico")[1] as HTMLElement, "Mononucleosis");
+    await user.selectOptions(roles[1] as HTMLElement, "differential");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "diagnoses", {
+        items: [
+          {
+            role: "primary",
+            description: "Faringitis aguda",
+            icd10Code: "J02.9",
+            certainty: "confirmed",
+          },
+          { role: "differential", description: "Mononucleosis" },
+        ],
+      }),
+    );
+  });
+
+  it("un código con forma inválida marca el error y no envía", async () => {
+    await renderSection("diagnoses");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar diagnóstico" }));
+    await user.type(screen.getByLabelText("Diagnóstico"), "Faringitis");
+    await user.type(screen.getByLabelText("Código CIE-10 (opcional)"), "JX");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Un código CIE-10 es una letra");
+    expect(mocked.saveSection).not.toHaveBeenCalled();
+  });
+
+  it("la impresión diagnóstica guarda su texto", async () => {
+    await renderSection("diagnostic_impression");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Impresión diagnóstica"), "Probable IVRS");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "diagnostic_impression", {
+        impression: "Probable IVRS",
+      }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-19 — Tratamiento enlista las recetas y enlaza a emitir una. */
+describe("Tratamiento (F9-CLINIC-HC-19)", () => {
+  it("lee el folio de la receta emitida, enlaza a la receta y guarda solo lo capturado", async () => {
+    await renderSection(
+      "treatment",
+      expediente({
+        orders: [
+          {
+            id: "o1",
+            kind: "prescription",
+            folio: "COT-000005",
+            status: "issued",
+            quoteId: "q1",
+            createdAt: "",
+          },
+          {
+            id: "o2",
+            kind: "lab_order",
+            folio: "ORM-000001",
+            status: "issued",
+            quoteId: null,
+            createdAt: "",
+          },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    expect(await screen.findByTestId("issued-prescriptions")).toHaveTextContent(
+      "Recetas emitidas: COT-000005",
+    );
+    expect(screen.getByRole("link", { name: "Emitir receta de medicamentos" })).toHaveAttribute(
+      "href",
+      "/medical-clinic/records/r1/orders/prescription",
+    );
+    await user.type(screen.getByLabelText("Tratamiento no farmacológico"), "Reposo e hidratación");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "treatment", {
+        nonPharmacological: "Reposo e hidratación",
+      }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-20 — Plan de manejo y pronóstico. */
+describe("Plan de Manejo y Pronóstico (F9-CLINIC-HC-20)", () => {
+  it("guarda el pronóstico por código y el plan; vacío no manda nada", async () => {
+    await renderSection("management_plan");
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Pronóstico"), "reserved");
+    await user.type(screen.getByLabelText("Plan de manejo"), "Control en 2 semanas");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "management_plan", {
+        prognosis: "reserved",
+        plan: "Control en 2 semanas",
+      }),
+    );
+  });
+});
+
+/** F9-CLINIC-HC-21 — Seguimiento: la cita no es anterior a la consulta. */
+describe("Seguimiento y Recomendaciones (F9-CLINIC-HC-21)", () => {
+  it("el mínimo del input es la fecha de consulta; una cita anterior marca error; una válida se guarda", async () => {
+    await renderSection("follow_up");
+    const user = userEvent.setup();
+    const cita = await screen.findByLabelText("Próxima cita (opcional)");
+    expect(cita).toHaveAttribute("min", "2026-09-03");
+    fireEvent.change(cita, { target: { value: "2026-09-01" } });
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "no puede ser anterior a la fecha de consulta",
+    );
+    expect(mocked.saveSection).not.toHaveBeenCalled();
+    fireEvent.change(cita, { target: { value: "2026-09-17" } });
+    await user.type(screen.getByLabelText("Datos de alarma"), "Fiebre mayor a 39");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "follow_up", {
+        nextAppointmentDate: "2026-09-17",
+        alarmSigns: "Fiebre mayor a 39",
+      }),
+    );
+  });
+});

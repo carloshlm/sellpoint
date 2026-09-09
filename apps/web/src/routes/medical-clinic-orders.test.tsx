@@ -536,3 +536,27 @@ describe("la tabla de líneas no titula la columna de la acción (2026-09-04)", 
     columnasCuadran();
   });
 });
+
+/** F9-CLINIC-HC-18 — el diagnóstico principal del expediente precarga «Diagnóstico relacionado». */
+describe("diagnóstico relacionado precargado (F9-CLINIC-HC-18)", () => {
+  it("con diagnósticos capturados el campo arranca con el principal, y sigue editable", async () => {
+    mocked.getRecord.mockResolvedValue(
+      expediente(
+        {},
+        {
+          diagnoses: {
+            items: [
+              { role: "differential", description: "Mononucleosis" },
+              { role: "primary", description: "Faringitis aguda", icd10Code: "J02.9" },
+            ],
+          },
+        },
+      ),
+    );
+    await renderRuta("/medical-clinic/records/r1/orders/lab_order");
+    const campo = await screen.findByLabelText("Diagnóstico relacionado");
+    expect(campo).toHaveValue("J02.9 Faringitis aguda");
+    await userEvent.setup().type(campo, " en estudio");
+    expect(campo).toHaveValue("J02.9 Faringitis aguda en estudio");
+  });
+});

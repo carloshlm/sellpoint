@@ -9,6 +9,7 @@ import {
   MEDICAL_RECORD_SECTION_SCHEMAS,
   medicalRecordLock,
   medicalRecordSectionKeySchema,
+  resolveSectionSchema,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -69,24 +70,28 @@ export class SectionsService {
     meta: RequestMeta,
   ): Promise<SectionView> {
     const clave = claveDelCatalogo(key);
-    const schema = MEDICAL_RECORD_SECTION_SCHEMAS[clave];
-    if (schema === undefined) {
+    if (MEDICAL_RECORD_SECTION_SCHEMAS[clave] === undefined) {
       throw new UnprocessableEntityException({ message: "medical_clinic.section_not_available" });
     }
-    const parsed = schema.safeParse(body ?? {});
-    if (!parsed.success) {
-      throw new BadRequestException({
-        message: "medical_clinic.invalid_body",
-        errors: parsed.error.issues.map((i) => ({ key: i.path.join("."), message: i.message })),
-      });
-    }
-    // Sin claves vacías: lo que no se capturó no se guarda.
-    const data = Object.fromEntries(
-      Object.entries(parsed.data).filter(([, v]) => v !== undefined && v !== ""),
-    ) as Record<string, unknown>;
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const expediente = await this.expediente(tx, user.tenantId, recordId);
+      // F9-CLINIC-HC-21: el schema puede depender del expediente (la próxima
+      // cita no es anterior a la consulta), así que se resuelve con él cargado.
+      const schema = resolveSectionSchema(clave, {
+        consultationDate: diaDe(expediente.consultationDate),
+      });
+      const parsed = (schema as NonNullable<typeof schema>).safeParse(body ?? {});
+      if (!parsed.success) {
+        throw new BadRequestException({
+          message: "medical_clinic.invalid_body",
+          errors: parsed.error.issues.map((i) => ({ key: i.path.join("."), message: i.message })),
+        });
+      }
+      // Sin claves vacías: lo que no se capturó no se guarda.
+      const data = Object.fromEntries(
+        Object.entries(parsed.data).filter(([, v]) => v !== undefined && v !== ""),
+      ) as Record<string, unknown>;
       // Cerrada o de otro día: se lee, no se captura (F9-CLINIC-26).
       const candado = medicalRecordLock(
         { status: expediente.status, consultationDate: diaDe(expediente.consultationDate) },

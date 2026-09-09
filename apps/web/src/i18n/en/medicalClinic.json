@@ -691,6 +691,62 @@
       "summaryCount": "{{count}} results",
       "summaryCount_one": "1 result"
     },
+    "diagnosticImpression": {
+      "impression": "Diagnostic impression",
+      "placeholder": "First-contact clinical judgment, before studies: probable…"
+    },
+    "diagnoses": {
+      "list": "Diagnoses",
+      "add": "Add diagnosis",
+      "role": "Type",
+      "roleOptions": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "differential": "Differential"
+      },
+      "description": "Diagnosis",
+      "code": "ICD-10 code (optional)",
+      "codeHint": "E.g. J06.9",
+      "codeInvalid": "An ICD-10 code is a letter, two digits and up to two decimals, like J06.9",
+      "certainty": "Certainty (optional)",
+      "certaintyOptions": {
+        "presumptive": "Presumptive",
+        "confirmed": "Confirmed"
+      }
+    },
+    "treatment": {
+      "issued": "Issued prescriptions",
+      "noPrescriptions": "No prescriptions issued in this visit",
+      "issuePrescription": "Issue a prescription",
+      "pharmacological": "Pharmacological treatment",
+      "pharmacologicalPlaceholder": "Generic name, dose, route, frequency and duration (NOM-004 6.2)",
+      "nonPharmacological": "Non-pharmacological treatment",
+      "nonPharmacologicalPlaceholder": "Diet, rest, hydration, general measures…",
+      "procedures": "Procedures (optional)"
+    },
+    "managementPlan": {
+      "prognosis": "Prognosis",
+      "prognosisHint": "Required by NOM-004 (6.1.5).",
+      "prognosisOptions": {
+        "good": "Good",
+        "reserved": "Guarded",
+        "poor": "Poor"
+      },
+      "prognosisNotes": "Prognosis notes (optional)",
+      "plan": "Management plan",
+      "planPlaceholder": "Studies to order, referrals, goals, when to reassess…",
+      "summaryPrognosis": "Prognosis"
+    },
+    "followUp": {
+      "nextAppointmentDate": "Next appointment (optional)",
+      "nextAppointmentNotes": "Appointment reason (optional)",
+      "appointmentBeforeConsultation": "The next appointment cannot be before the consultation date",
+      "alarmSigns": "Warning signs",
+      "alarmSignsPlaceholder": "Go to the ER if…",
+      "recommendations": "Recommendations",
+      "summaryAppointment": "Appointment",
+      "summaryAlarm": "Warning signs"
+    },
     "chooseOption": "Pick an option"
   },
   "orders": {

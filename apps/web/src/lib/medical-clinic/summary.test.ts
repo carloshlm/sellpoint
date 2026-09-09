@@ -152,6 +152,28 @@ describe("summaryOf", () => {
     ).toBe("summaryCount · BH 2026-09-01 (normal)");
   });
 
+  it("diagnósticos con el principal y el resto contado; plan con pronóstico; seguimiento con cita", () => {
+    expect(
+      summaryOf(
+        "diagnoses",
+        {
+          items: [
+            { role: "differential", description: "Mono" },
+            { role: "primary", description: "Faringitis aguda", icd10Code: "J02.9" },
+          ],
+        },
+        t,
+      ),
+    ).toBe("J02.9 Faringitis aguda (+1)");
+    expect(summaryOf("management_plan", { prognosis: "good", plan: "Control" }, t)).toBe(
+      "summaryPrognosis: good · Control",
+    );
+    expect(
+      summaryOf("follow_up", { nextAppointmentDate: "2026-09-22", alarmSigns: "Fiebre" }, t),
+    ).toBe("summaryAppointment 2026-09-22 · summaryAlarm: Fiebre");
+    expect(summaryOf("treatment", { nonPharmacological: "Reposo" }, t)).toBe("Reposo");
+  });
+
   it("sin datos, o en una sección sin resumen, devuelve null", () => {
     expect(summaryOf("general_data", {}, t)).toBeNull();
     expect(summaryOf("chief_complaint", { onsetValue: 3 }, t)).toBeNull();

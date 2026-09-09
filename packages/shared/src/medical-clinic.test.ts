@@ -4,7 +4,10 @@ import {
   anthropometrySchema,
   CARRIED_FORWARD_SECTION_KEYS,
   currentMedicationsSchema,
+  diagnosesSchema,
+  diagnosticImpressionSchema,
   familyHistorySchema,
+  followUpSchema,
   generalDataSchema,
   gynecoObstetricHistorySchema,
   MEDICAL_ORDER_KINDS,
@@ -12,13 +15,16 @@ import {
   MEDICAL_RECORD_SECTION_SCHEMAS,
   MEDICAL_RECORD_SECTIONS,
   MEDICAL_RECORD_STATUSES,
+  managementPlanSchema,
   medicalRecordLock,
   medicalRecordSectionKeySchema,
   nonPathologicalHistorySchema,
   pathologicalHistorySchema,
   physicalExamSchema,
+  resolveSectionSchema,
   studyResultsSchema,
   systemsReviewSchema,
+  treatmentSchema,
   vitalSignsSchema,
 } from "./medical-clinic";
 
@@ -123,7 +129,7 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
     expect(conSexo[0]?.sexes).toEqual(["F", "X"]);
   });
 
-  it("interrogatorio y exploración son funcionales (14), y schema ⇔ funcional", () => {
+  it("las 19 de interrogatorio, exploración y plan son funcionales, y schema ⇔ funcional", () => {
     const funcionales = MEDICAL_RECORD_SECTIONS.filter((s) => s.functional).map((s) => s.key);
     expect(funcionales).toEqual([
       "general_data",
@@ -140,9 +146,18 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       "vital_signs",
       "physical_exam",
       "study_results",
+      "diagnostic_impression",
+      "diagnoses",
+      "treatment",
+      "management_plan",
+      "follow_up",
     ]);
     for (const seccion of MEDICAL_RECORD_SECTIONS) {
       expect(MEDICAL_RECORD_SECTION_SCHEMAS[seccion.key] !== undefined).toBe(seccion.functional);
+      // Schema o fábrica: las dos formas resuelven a un schema utilizable.
+      expect(
+        resolveSectionSchema(seccion.key, { consultationDate: "2026-09-08" }) !== undefined,
+      ).toBe(seccion.functional);
     }
   });
 
@@ -437,5 +452,79 @@ describe("exploración: somatometría, signos vitales, exploración física y re
       }).success,
     ).toBe(false);
     expect(studyResultsSchema.safeParse({ items: [] }).success).toBe(false);
+  });
+});
+
+/** F9-CLINIC-HC-18..21 — evaluación y plan. */
+describe("evaluación y plan: diagnósticos, tratamiento, plan y seguimiento", () => {
+  it("diagnósticos: a lo más un principal; CIE-10 con forma; minúscula rechaza; sin decimal acepta", () => {
+    expect(
+      diagnosesSchema.parse({
+        items: [
+          {
+            role: "primary",
+            description: "Faringitis aguda",
+            icd10Code: "J02.9",
+            certainty: "confirmed",
+          },
+          { role: "differential", description: "Mononucleosis" },
+        ],
+      }),
+    ).toMatchObject({ items: [{ icd10Code: "J02.9" }, { role: "differential" }] });
+    expect(
+      diagnosesSchema.safeParse({
+        items: [
+          { role: "primary", description: "A" },
+          { role: "primary", description: "B" },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      diagnosesSchema.safeParse({
+        items: [{ role: "primary", description: "A", icd10Code: "j06.9" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      diagnosesSchema.safeParse({
+        items: [{ role: "primary", description: "A", icd10Code: "J06" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      diagnosesSchema.safeParse({ items: [{ role: "secondary", description: "" }] }).success,
+    ).toBe(false);
+    expect(diagnosticImpressionSchema.parse({ impression: "Probable IVRS" })).toEqual({
+      impression: "Probable IVRS",
+    });
+  });
+
+  it("tratamiento y plan: texto y pronóstico del catálogo", () => {
+    expect(treatmentSchema.parse({ nonPharmacological: "Reposo" })).toEqual({
+      nonPharmacological: "Reposo",
+    });
+    expect(
+      managementPlanSchema.parse({ prognosis: "reserved", plan: "Control en 2 semanas" }),
+    ).toEqual({
+      prognosis: "reserved",
+      plan: "Control en 2 semanas",
+    });
+    expect(managementPlanSchema.safeParse({ prognosis: "Bueno" }).success).toBe(false);
+  });
+
+  it("seguimiento: la próxima cita no es anterior a la consulta, y NO se compara con hoy", () => {
+    const schema = followUpSchema({ consultationDate: "2026-09-08" });
+    expect(schema.parse({ nextAppointmentDate: "2026-09-22", alarmSigns: "Fiebre > 39" })).toEqual({
+      nextAppointmentDate: "2026-09-22",
+      alarmSigns: "Fiebre > 39",
+    });
+    expect(schema.parse({ nextAppointmentDate: "2026-09-08" })).toEqual({
+      nextAppointmentDate: "2026-09-08",
+    });
+    expect(schema.safeParse({ nextAppointmentDate: "2026-09-07" }).success).toBe(false);
+    // Una consulta de hace un año acepta una cita de hace once meses: es del expediente, no de hoy.
+    expect(
+      followUpSchema({ consultationDate: "2025-01-10" }).safeParse({
+        nextAppointmentDate: "2025-02-10",
+      }).success,
+    ).toBe(true);
   });
 });

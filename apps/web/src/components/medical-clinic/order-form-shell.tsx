@@ -29,6 +29,8 @@ interface OrderFormShellProps {
   onLinesChange: (lines: OrderFormLine[]) => void;
   /** El buscador que agrega líneas (estudios o medicamentos). */
   children: React.ReactNode;
+  /** F9-CLINIC-HC-18: el diagnóstico principal del expediente, precargado y editable. */
+  defaultDiagnosis?: string | null;
 }
 
 /**
@@ -42,11 +44,12 @@ export function OrderFormShell({
   lines,
   onLinesChange,
   children,
+  defaultDiagnosis = null,
 }: OrderFormShellProps) {
   const { t } = useTranslation();
   const emitir = useCreateOrder(recordId);
   const [indications, setIndications] = useState("");
-  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnosis, setDiagnosis] = useState(defaultDiagnosis ?? "");
   const [sinLineas, setSinLineas] = useState(false);
   const [emitida, setEmitida] = useState<MedicalOrder | null>(null);
   const [errorImpresion, setErrorImpresion] = useState(false);
