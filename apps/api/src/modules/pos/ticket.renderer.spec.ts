@@ -500,22 +500,47 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
     expect(textosDe(con)).not.toContain("ticket.taxBase");
   });
 
-  it("México incluido con descuento: Descuento → Subtotal 86.21 → IVA 16% 13.79 → Total 100.00, y cuadra", () => {
+  /**
+   * Carlos (2026-09-09): con descuento, «Subtotal» NO puede ser la base
+   * gravable — las líneas de arriba suman 116 y el lector espera verlo. El
+   * pie dice Subtotal 116 → Descuento −16 → Base gravable 86.21 → IVA 16%
+   * 13.79 → Total 100, y las dos restas cierran. Sin descuento, el pie sigue
+   * siendo el de F4-TAX-12 (la base como «Subtotal», como todo ticket
+   * mexicano).
+   */
+  it("México incluido con descuento: Subtotal 116 → Descuento → Base gravable 86.21 → IVA 16% 13.79 → Total 100.00, y cuadra", () => {
     const mx = conDescuento({
       ...baseSinImpuesto(),
       taxBase: "86.21",
       taxes: [{ name: "IVA 16%", rate: "16", amount: "13.79" }],
     });
     const texto = textosDe(buildTicketDefinition(mx, t));
+    expect(texto).toContain("ticket.subtotal");
+    expect(texto).toContain("$116.00");
     expect(texto).toContain("ticket.discount");
-    expect(texto).toContain("ticket.taxBase");
+    expect(texto).toContain("ticket.taxableBase");
+    expect(texto).not.toContain("ticket.taxBase");
     expect(texto).toContain("IVA 16%");
-    expect(texto).not.toContain("ticket.subtotal");
     const pie = filasDelPie(buildTicketDefinition(mx, t)).join(" ");
-    expect(pie.indexOf("ticket.discount")).toBeLessThan(pie.indexOf("ticket.taxBase"));
-    expect(pie.indexOf("ticket.taxBase")).toBeLessThan(pie.indexOf("IVA 16%"));
+    expect(pie.indexOf("ticket.subtotal")).toBeLessThan(pie.indexOf("ticket.discount"));
+    expect(pie.indexOf("ticket.discount")).toBeLessThan(pie.indexOf("ticket.taxableBase"));
+    expect(pie.indexOf("ticket.taxableBase")).toBeLessThan(pie.indexOf("IVA 16%"));
     expect(pie.indexOf("IVA 16%")).toBeLessThan(pie.indexOf("ticket.total"));
+    expect((116 - 16).toFixed(2)).toBe("100.00");
     expect((86.21 + 13.79).toFixed(2)).toBe("100.00");
+  });
+
+  it("México incluido SIN descuento: el pie sigue siendo Subtotal (la base) → IVA → Total", () => {
+    const mx: TicketInput = {
+      ...baseSinImpuesto(),
+      taxBase: "100.00",
+      taxes: [{ name: "IVA 16%", rate: "16", amount: "16.00" }],
+    };
+    const texto = textosDe(buildTicketDefinition(mx, t));
+    expect(texto).toContain("ticket.taxBase");
+    expect(texto).not.toContain("ticket.taxableBase");
+    expect(texto).not.toContain("ticket.subtotal");
+    expect(texto).not.toContain("ticket.discount");
   });
 
   it("Columbia Británica: GST y PST salen en filas SEPARADAS y suman el total", () => {

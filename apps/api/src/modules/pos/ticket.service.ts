@@ -332,15 +332,17 @@ export class TicketService {
         // Un servicio no sale del anaquel: sin unidad base.
         baseUnit: producto?.baseUnit ?? null,
         unitPrice: line.unitPrice.toString(),
-        // El recibo canadiense muestra las líneas a precio NETO; el mexicano
-        // a precio final (LFPC). `line_total` siempre es lo que se paga, así
-        // que en `excluded` se le quita el impuesto para pintar la fila.
-        lineTotal:
-          mode === "excluded"
-            ? new Prisma.Decimal(line.lineTotal.toString())
-                .minus(new Prisma.Decimal(line.taxAmount.toString()))
-                .toString()
-            : line.lineTotal.toString(),
+        // La fila imprime precio × cantidad A PRECIO DE LISTA (Carlos,
+        // 2026-09-09): `line_total` ya trae restada la parte prorrateada del
+        // descuento del ticket, y pintarlo hacía que las líneas sumaran el
+        // total final y abajo apareciera «Descuento» otra vez. El descuento
+        // sale UNA vez, en el pie. El recibo canadiense sigue a precio NETO
+        // y el mexicano a precio final (LFPC): eso lo decide `unit_price`,
+        // no esta resta. Misma aritmética que `armarTotales` (bruto).
+        lineTotal: new Prisma.Decimal(line.unitPrice.toString())
+          .times(new Prisma.Decimal(line.quantity.toString()))
+          .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+          .toString(),
         lotCode: line.productId === null ? null : (lotePorProducto.get(line.productId) ?? null),
       };
     });

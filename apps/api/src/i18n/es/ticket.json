@@ -18,5 +18,6 @@
   "phone": "Tel",
   "turn": "TURNO",
   "turnFooter": "Espera a que llamen tu número.",
-  "taxBase": "Subtotal"
+  "taxBase": "Subtotal",
+  "taxableBase": "Base gravable"
 }

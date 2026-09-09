@@ -25,6 +25,11 @@ export interface TicketRow {
   /** La unidad BASE del producto. `null` en un servicio: no sale del anaquel. */
   baseUnit: string | null;
   unitPrice: string;
+  /**
+   * Lo que se IMPRIME en la fila: precio × cantidad, a precio de lista. NO
+   * es lo pagado por la línea: un descuento de ticket se prorratea por
+   * dentro (`sale_items.discount`) y en el papel sale UNA vez, en el pie.
+   */
   lineTotal: string;
   /** El lote que FEFO eligió, si el producto los lleva. */
   lotCode: string | null;
@@ -214,15 +219,24 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
 
       // ── Los totales ───────────────────────────────────────────────────
       //
-      // F4-TAX-12: con impuestos, Descuento (si hay) → Subtotal = la BASE →
-      // una fila por componente (CRA exige GST/HST separado del PST) → Total.
-      // Sin impuestos, exactamente lo de siempre.
+      // F4-TAX-12: con impuestos, Subtotal = la BASE → una fila por
+      // componente (CRA exige GST/HST separado del PST) → Total. Sin
+      // impuestos, exactamente lo de siempre.
+      //
+      // Con descuento (Carlos, 2026-09-09) la base NO puede llamarse
+      // «Subtotal»: las líneas de arriba van a precio de lista y el lector
+      // espera verlas sumadas antes de la rebaja. Entonces el pie dice
+      // Subtotal (Σ líneas) → Descuento → Base gravable → impuestos → Total,
+      // y las dos restas cierran a la vista.
       ...(input.taxes.length > 0
         ? [
             ...(Number(input.discount) > 0
-              ? [fila(t("ticket.discount"), `-${dinero(input.discount)}`)]
-              : []),
-            fila(t("ticket.taxBase"), dinero(input.taxBase)),
+              ? [
+                  fila(t("ticket.subtotal"), dinero(input.subtotal)),
+                  fila(t("ticket.discount"), `-${dinero(input.discount)}`),
+                  fila(t("ticket.taxableBase"), dinero(input.taxBase)),
+                ]
+              : [fila(t("ticket.taxBase"), dinero(input.taxBase))]),
             ...input.taxes.map((tax) => fila(tax.name, dinero(tax.amount))),
           ]
         : Number(input.discount) > 0

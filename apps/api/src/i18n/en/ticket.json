@@ -18,5 +18,6 @@
   "phone": "Phone",
   "turn": "TICKET",
   "turnFooter": "Please wait until your number is called.",
-  "taxBase": "Subtotal"
+  "taxBase": "Subtotal",
+  "taxableBase": "Taxable base"
 }

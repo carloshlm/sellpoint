@@ -15,6 +15,7 @@ import {
   setTenantMarket,
   type TenantFixture,
 } from "./support/billing-scenario";
+import { textoDelPdf } from "./support/pdf-text";
 import { startTestApp } from "./support/start-test-app";
 
 /**
@@ -54,6 +55,17 @@ describe("descuento del ticket con código de autorización (F4-DISC)", () => {
         ...(discount && { discount }),
       });
 
+  const pdf = (ruta: string, token: string) =>
+    http()
+      .get(ruta)
+      .set("Authorization", bearer(token))
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (c: Buffer) => chunks.push(c));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+
   const configurar = (body: Record<string, unknown>) =>
     http().patch("/tenants/me").set("Authorization", bearer(fx.token)).send(body);
 
@@ -70,6 +82,25 @@ describe("descuento del ticket con código de autorización (F4-DISC)", () => {
 
     fx = await registerTenant(app, "disc");
     await setTenantMarket(prisma, fx.tenantId, "MX");
+    // IVA 16 % incluido, sembrado a mano como en pos-taxes: el papel con
+    // descuento tiene que mostrar Subtotal → Descuento → Base gravable → IVA.
+    await prisma.tenant.update({ where: { id: fx.tenantId }, data: { taxMode: "included" } });
+    await prisma.withTenantContext(fx.tenantId, (tx) =>
+      tx.taxGroup.create({
+        data: {
+          tenantId: fx.tenantId,
+          code: "VAT16",
+          name: "IVA 16%",
+          isDefault: true,
+          sortOrder: 0,
+          rates: {
+            create: [
+              { tenantId: fx.tenantId, code: "VAT", name: "IVA 16%", rate: "16", sortOrder: 0 },
+            ],
+          },
+        },
+      }),
+    );
     const almacen = await almacenInicial(prisma, fx.tenantId);
     caro = (await crearProducto(app, fx.token, 100)).id;
     barato = (await crearProducto(app, fx.token, 50)).id;
@@ -168,6 +199,22 @@ describe("descuento del ticket con código de autorización (F4-DISC)", () => {
     );
     expect(guardada.discount.toString()).toBe("5");
     expect(guardada.discountReason).toBe("Cliente frecuente");
+
+    // El papel (Carlos, 2026-09-09): cada línea a su importe de LISTA, y el
+    // descuento UNA sola vez en el pie. Si la línea saliera ya descontada,
+    // las líneas sumarían 145 y abajo diría «Descuento −5»: dos veces. Con
+    // IVA incluido, la base gravable (145 / 1.16 = 125) se llama por su
+    // nombre, no «Subtotal», y las dos restas cierran a la vista.
+    const papel = await pdf(`/pos/sales/${body.id}/ticket`, fx.token).expect(200);
+    const texto = textoDelPdf(papel.body as Buffer);
+    expect(texto).toContain("1 pieza × $100.00$100.00");
+    expect(texto).toContain("1 pieza × $50.00$50.00");
+    expect(texto).not.toContain("$96.67");
+    expect(texto).not.toContain("$48.33");
+    expect(texto).toContain(
+      "Subtotal$150.00Descuento-$5.00Base gravable$125.00IVA 16%$20.00Total$145.00",
+    );
+    expect(body.taxTotal).toBe("20");
   });
 
   it("más que el tope del negocio (10 % de 150 = 15): 422 y ninguna venta nueva", async () => {
