@@ -1807,7 +1807,7 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 
 ## 12. Consultorio Médico — Historia clínica
 
-> F9-CLINIC-WEB (2026-09-03) y F9-CLINIC-HC (2026-09-09). Un expediente por VISITA (folio `HCL-`), un tablero de tarjetas y un formulario por tarjeta: nunca un formulario gigante. **19 tarjetas** funcionales en tres bloques (Carlos, 2026-09-08: fusionadas desde 25 para que el médico haga menos viajes), cuatro de Órdenes médicas (documentos con folio propio) y siete de Documentos y seguimiento todavía «Próximamente».
+> F9-CLINIC-WEB (2026-09-03) y F9-CLINIC-HC (2026-09-09). Un expediente por VISITA (folio `HCL-`), un tablero de tarjetas y un formulario por tarjeta: nunca un formulario gigante. **22 tarjetas** funcionales: 19 en tres bloques clínicos (Carlos, 2026-09-08: fusionadas desde 25 para que el médico haga menos viajes), cuatro de Órdenes médicas (documentos con folio propio) y **tres de Documentos y seguimiento** (F9-CLINIC-DOC, 2026-09-09: Notas Médicas, Referencias e Interconsultas; Recetas, Estudios y Citas de Seguimiento se retiraron por duplicar Órdenes y Seguimiento, y Archivos Adjuntos se pospuso por almacenamiento). Ya no queda ninguna «Próximamente».
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -1834,12 +1834,13 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 │                           Seguimiento y Recomendaciones              │
 │ Órdenes médicas           Receta · Orden de Laboratorio ·           │
 │                           Estudios Diagnósticos · Órdenes Emitidas   │
-│ Documentos y seguimiento  (7 tarjetas «Próximamente»)                │
+│ Documentos y seguimiento · 4 documentos    Notas Médicas ·           │
+│                            Referencias · Interconsultas              │
 │                                                  [Cerrar consulta]   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Las leyes del tablero.** Guardar una tarjeta es Completado aunque falten campos; guardar sin nada es Pendiente (borra la fila). El estado de cada tarjeta se deriva de que exista su fila; «En progreso» vive en el grupo. Los **antecedentes son del paciente**: al abrir una consulta nueva, Datos Generales, AHF, APP, APNP, AGO, Alergias y Medicamentos Actuales llegan copiados de la anterior con la leyenda «De la consulta del {fecha} · confirma o actualiza», y el primer Guardar la quita; signos, exploración y diagnósticos NO se heredan (son del día). **El sexo decide qué se PIDE y el dato qué se MUESTRA**: la tarjeta de Antecedentes Gineco-Obstétricos no se dibuja para un paciente `M`, salvo que ya tenga datos, y el progreso cuenta solo lo visible. Las alergias capturadas suben al encabezado en rojo.
+**Las leyes del tablero.** Guardar una tarjeta es Completado aunque falten campos; guardar sin nada es Pendiente (borra la fila). El estado de cada tarjeta se deriva de que exista su fila; «En progreso» vive en el grupo. Los **antecedentes son del paciente**: al abrir una consulta nueva, Datos Generales, AHF, APP, APNP, AGO, Alergias y Medicamentos Actuales llegan copiados de la anterior con la leyenda «De la consulta del {fecha} · confirma o actualiza», y el primer Guardar la quita; signos, exploración y diagnósticos NO se heredan (son del día). **El sexo decide qué se PIDE y el dato qué se MUESTRA**: la tarjeta de Antecedentes Gineco-Obstétricos no se dibuja para un paciente `M`, salvo que ya tenga datos, y el progreso cuenta solo lo visible. Las alergias capturadas suben al encabezado en rojo. **La barra del encabezado mide la historia clínica** (los tres bloques clínicos: «N de 19»); Documentos cuenta lo que hay («Sin documentos», «4 documentos») y nunca dice «Pendiente»: una consulta sin referencias está completa. La próxima cita de Seguimiento sube al **resumen del paciente**, con «No vino a la cita del …» derivado cuando la fecha pasó sin consulta posterior.
 
 **Los formularios, y cómo van rápido.** Cada tarjeta abre una ruta propia (Atrás es Cancelar) con el título, «Paciente · folio», la leyenda de heredada si aplica, el aviso de solo lectura si la consulta está cerrada o es de otro día, y Guardar/Cancelar al pie. Patrones que se repiten:
 
@@ -1852,6 +1853,8 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Lo derivado se pinta, no se guarda** | IMC + categoría OMS (Somatometría), índice tabáquico (APNP), FPP desde la FUM (AGO), semáforo Alto/Bajo/alarma (Signos Vitales) | La aritmética vive en `packages/shared/src/medical-measures.ts`; en el JSON viajan solo los datos medidos. |
 | **Catálogo CIE-10** (`Icd10Picker`) | Diagnósticos (una lista: principal, secundarios, diferencial; a lo más un principal) | Se teclea código («j06») o texto sin acentos («faringitis»); elegir llena código y descripción vacía; la captura a mano sigue permitida. El principal precarga «Diagnóstico relacionado» en las órdenes. |
 | **Fecha contra la consulta** | Seguimiento y Recomendaciones | La próxima cita no es anterior a la fecha de consulta (no a «hoy»: una consulta vencida se lee, no se captura). |
+| **Línea de tiempo** (`RowList` con hora) | Notas Médicas | Hora, tipo (evolución con guía SOAP, procedimiento, observación, contacto telefónico, respuesta de especialista) y texto; sin fecha ni autor por nota: el expediente es de un día y firma el médico. La respuesta del especialista se registra aquí el día que llega. |
+| **Carta imprimible** (`LetterSectionForm`) | Referencias, Interconsultas | Misma forma (NOM-004 6.4 y 6.3: prioridad, unidad receptora —obligatoria en la referencia—, servicio, médico, motivo, resumen clínico, impresión diagnóstica con CIE-10, terapéutica); «Traer del expediente» llena solo lo vacío; al guardar la ruta se QUEDA y aparece «Imprimir referencia N» por carta persistida; el PDF (por índice, folio del expediente + número, sin serie propia) se lee e imprime aunque la consulta esté vencida. |
 
 **Lo que la NOM-004-SSA3-2012 pide y dónde vive.** 6.1.1 interrogatorio (ficha de identificación con grupo étnico y religión en Datos Generales; AHF; APP; APNP con tabaquismo, alcoholismo y toxicomanías; padecimiento actual; aparatos y sistemas); 6.1.2 exploración (habitus exterior, signos vitales, peso y talla, regiones); 6.1.3 resultados de estudios; 6.1.4 diagnósticos; 6.1.5 pronóstico (dentro de Plan de Manejo); 6.1.6 indicación terapéutica (Tratamiento; la receta con folio y cobro es una Orden médica).
 
