@@ -515,6 +515,30 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     });
 
     /**
+     * Carlos, 2026-09-09: «Con cuánto paga» se captura como los demás importes
+     * — símbolo y código de la moneda en el campo, dos decimales al salir — y
+     * una coma no se descarta en silencio («50,5» no es «505»): se marca y no
+     * deja cobrar.
+     */
+    it("va con la moneda del negocio y formatea a dos decimales al salir", async () => {
+      await conCarrito();
+      const campo = screen.getByLabelText("Con cuánto paga");
+      expect(campo).toHaveAccessibleDescription(/MXN/);
+      expect(within(screen.getByTestId("checkout-panel")).getByText("$")).toBeInTheDocument();
+      await userEvent.type(campo, "50");
+      await userEvent.tab();
+      expect(campo).toHaveValue("50.00");
+      expect(screen.getByTestId("checkout-change")).toHaveTextContent("25.00");
+    });
+
+    it("una coma en el importe marca el error y no deja cobrar", async () => {
+      await conCarrito();
+      await userEvent.type(screen.getByLabelText("Con cuánto paga"), "50,5");
+      expect(screen.getByRole("alert")).toHaveTextContent("solo con números y punto decimal");
+      expect(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+    });
+
+    /**
      * Tarjeta y transferencia se autorizan por su monto exacto fuera del
      * sistema: pedir "con cuánto paga" ahí sería una pregunta sin respuesta.
      */

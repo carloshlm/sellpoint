@@ -4,11 +4,14 @@ import {
   multiplyMoney,
   PAYMENT_METHODS,
   type PaymentMethod,
+  parseMoneyInput,
 } from "@sellpoint/shared";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MoneyField } from "@/components/form/money-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
+import { moneyInputError } from "@/lib/money";
 import { useCreateSale } from "@/lib/pos/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 import {
@@ -75,14 +78,23 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
   const mode = useAuthStore((s) => s.user?.tenant.taxMode ?? "included");
   const impuestos = impuestosDelCarrito(lines, mode);
   const total = totalDelCarrito(lines, mode);
+  // «Con cuánto paga» se captura como los demás importes (Carlos, 2026-09-09):
+  // símbolo y código de la moneda dentro del campo, dos decimales al salir y
+  // la coma o las letras marcadas como error, no descartadas en silencio.
+  const errorRecibido = moneyInputError(recibido);
   // El cambio se calcula con la misma aritmética entera que los totales: un
   // vuelto con `0.30000000000000004` es dinero que alguien tiene que contar.
-  const recibidoNum = multiplyMoney("1.00", recibido.replace(/[^\d.]/g, ""));
+  const recibidoNum =
+    errorRecibido === null && parseMoneyInput(recibido) !== null
+      ? multiplyMoney("1.00", recibido.trim())
+      : 0;
   const vuelto = recibidoNum - total;
 
   // El efectivo es el único método que exige cubrir el total: tarjeta y
-  // transferencia se autorizan por su monto exacto fuera del sistema.
-  const faltaEfectivo = method === "cash" && recibidoNum + 0.0001 < total;
+  // transferencia se autorizan por su monto exacto fuera del sistema. Un
+  // importe mal tecleado tampoco cubre nada.
+  const faltaEfectivo =
+    method === "cash" && (errorRecibido !== null || recibidoNum + 0.0001 < total);
 
   const ejecutar = () => {
     setError(null);
@@ -178,15 +190,12 @@ export function CheckoutPanel({ onDone, onCancel }: CheckoutPanelProps) {
 
       {method === "cash" && (
         <div className="flex flex-col gap-2">
-          <label htmlFor="checkout-received" className="font-medium text-sm">
-            {t("pos.checkout.received")}
-          </label>
-          <input
-            id="checkout-received"
-            inputMode="decimal"
-            className="h-12 rounded-md border bg-background px-3 text-right text-xl tabular-nums"
+          <MoneyField
+            label={t("pos.checkout.received")}
             value={recibido}
-            onChange={(e) => setRecibido(e.target.value)}
+            onChange={setRecibido}
+            error={errorRecibido ? t(errorRecibido) : undefined}
+            autoFocus
           />
           <p className="flex justify-between text-lg">
             <span>{t("pos.checkout.change")}</span>
