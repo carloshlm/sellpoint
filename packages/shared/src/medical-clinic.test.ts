@@ -16,6 +16,7 @@ import {
   MEDICAL_RECORD_SECTIONS,
   MEDICAL_RECORD_STATUSES,
   managementPlanSchema,
+  medicalNotesSchema,
   medicalRecordLock,
   medicalRecordSectionKeySchema,
   nonPathologicalHistorySchema,
@@ -37,14 +38,15 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
   /**
    * F9-CLINIC-HC-01 — 26 claves, no 32 (Carlos, 2026-09-08). Exploración baja
    * de 7 a 4 y Evaluación y plan de 8 a 5: lo que se fusionó no se perdió,
-   * se dejó de repartir en viajes de ida y vuelta.
+   * se dejó de repartir en viajes de ida y vuelta. F9-CLINIC-DOC-01
+   * (2026-09-09): Documentos baja de 7 a 3 y el catálogo queda en 22.
    */
-  it("son 26 claves únicas, en el orden de Carlos, repartidas en los cuatro grupos", () => {
+  it("son 22 claves únicas, en el orden de Carlos, repartidas en los cuatro grupos", () => {
     const claves = MEDICAL_RECORD_SECTIONS.map((s) => s.key);
-    expect(claves).toHaveLength(26);
-    expect(new Set(claves).size).toBe(26);
+    expect(claves).toHaveLength(22);
+    expect(new Set(claves).size).toBe(22);
     expect(claves.slice(0, 3)).toEqual(["general_data", "chief_complaint", "current_illness"]);
-    expect(claves.at(-1)).toBe("follow_up_appointments");
+    expect(claves.at(-1)).toBe("interconsultations");
     expect(MEDICAL_RECORD_SECTION_GROUPS).toEqual([
       "interrogation",
       "examination",
@@ -58,7 +60,28 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
     expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "interrogation")).toHaveLength(10);
     expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "examination")).toHaveLength(4);
     expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "assessment_plan")).toHaveLength(5);
-    expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "documents")).toHaveLength(7);
+    expect(MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "documents")).toHaveLength(3);
+  });
+
+  /**
+   * F9-CLINIC-DOC-01 — Recetas y Estudios duplicaban las Órdenes médicas,
+   * Citas de Seguimiento duplicaba `follow_up.nextAppointmentDate` y
+   * Archivos Adjuntos se pospuso por almacenamiento (Carlos, 2026-09-09).
+   */
+  it("las cuatro tarjetas de Documentos retiradas ya no existen, y quedan tres", () => {
+    const claves: string[] = MEDICAL_RECORD_SECTIONS.map((s) => s.key);
+    for (const muerta of [
+      "prescriptions_doc",
+      "studies_doc",
+      "attachments",
+      "follow_up_appointments",
+    ]) {
+      expect(claves).not.toContain(muerta);
+      expect(medicalRecordSectionKeySchema.safeParse(muerta).success).toBe(false);
+    }
+    expect(
+      MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "documents").map((s) => s.key),
+    ).toEqual(["medical_notes", "referrals", "interconsultations"]);
   });
 
   it("las siete claves fusionadas ya no existen, y los diagnósticos son UNA sola", () => {
@@ -129,7 +152,7 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
     expect(conSexo[0]?.sexes).toEqual(["F", "X"]);
   });
 
-  it("las 19 de interrogatorio, exploración y plan son funcionales, y schema ⇔ funcional", () => {
+  it("las funcionales del catálogo, en orden, y schema ⇔ funcional", () => {
     const funcionales = MEDICAL_RECORD_SECTIONS.filter((s) => s.functional).map((s) => s.key);
     expect(funcionales).toEqual([
       "general_data",
@@ -151,6 +174,7 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       "treatment",
       "management_plan",
       "follow_up",
+      "medical_notes",
     ]);
     for (const seccion of MEDICAL_RECORD_SECTIONS) {
       expect(MEDICAL_RECORD_SECTION_SCHEMAS[seccion.key] !== undefined).toBe(seccion.functional);
@@ -186,6 +210,36 @@ describe("catálogo de secciones de la historia clínica (F9-CLINIC-01)", () => 
       ethnicGroup: "Náhuatl",
       religion: "Católica",
     });
+  });
+
+  /**
+   * F9-CLINIC-DOC-02 — la nota es hora + tipo + texto, del día del
+   * expediente; `{ items: [] }` no es una nota, es una tarjeta «Completada»
+   * vacía, y por eso rebota.
+   */
+  it("Notas Médicas: hora de 24 horas, tipo del catálogo, texto obligatorio; la lista vacía rebota", () => {
+    const nota = { time: "09:15", kind: "evolution", text: "Mejoría clínica" };
+    expect(medicalNotesSchema.parse({ items: [nota] })).toEqual({ items: [nota] });
+    expect(medicalNotesSchema.parse({})).toEqual({});
+    expect(medicalNotesSchema.safeParse({ items: [{ ...nota, time: "23:59" }] }).success).toBe(
+      true,
+    );
+    expect(medicalNotesSchema.safeParse({ items: [{ ...nota, time: "24:00" }] }).success).toBe(
+      false,
+    );
+    expect(medicalNotesSchema.safeParse({ items: [{ ...nota, time: "9:15" }] }).success).toBe(
+      false,
+    );
+    expect(medicalNotesSchema.safeParse({ items: [{ ...nota, text: "  " }] }).success).toBe(false);
+    expect(medicalNotesSchema.safeParse({ items: [{ ...nota, kind: "soap" }] }).success).toBe(
+      false,
+    );
+    expect(medicalNotesSchema.safeParse({ items: [] }).success).toBe(false);
+    expect(medicalNotesSchema.safeParse({ items: Array(21).fill(nota) }).success).toBe(false);
+    expect(medicalNotesSchema.safeParse({ items: [{ ...nota, author: "Dra." }] }).success).toBe(
+      false,
+    );
+    expect(medicalNotesSchema.safeParse({ foo: 1 }).success).toBe(false);
   });
 
   it("las órdenes son tres tipos", () => {

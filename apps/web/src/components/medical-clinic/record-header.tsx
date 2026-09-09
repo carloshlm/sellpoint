@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { allergiesLine } from "@/lib/medical-clinic/allergies";
 import type { MedicalRecord } from "@/lib/medical-clinic/api";
-import { sectionStatus, visibleFunctionalKeys } from "@/lib/medical-clinic/sections";
+import { progressKeys, sectionStatus } from "@/lib/medical-clinic/sections";
 
 /**
  * F9-CLINIC-WEB-11 — el encabezado del expediente: quién es el paciente,
@@ -17,7 +17,8 @@ import { sectionStatus, visibleFunctionalKeys } from "@/lib/medical-clinic/secti
  */
 export function RecordHeader({ record }: { record: MedicalRecord }) {
   const { t, i18n } = useTranslation();
-  const funcionales = visibleFunctionalKeys(record);
+  // F9-CLINIC-DOC-01: la barra mide los tres bloques clínicos, no Documentos.
+  const funcionales = progressKeys(record);
   const done = funcionales.filter((key) => sectionStatus(record, key) === "completed").length;
   const total = funcionales.length;
   const progreso = t("medicalClinic.record.progress", { done, total });

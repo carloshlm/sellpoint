@@ -12,6 +12,7 @@ import { StatusPill } from "@/components/medical-clinic/status-pill";
 import { Button } from "@/components/ui/button";
 import { useCloseRecord, useCreateRecord, useRecord } from "@/lib/medical-clinic/hooks";
 import {
+  documentsCount,
   groupProgress,
   groupStatus,
   RECORD_GROUPS,
@@ -41,9 +42,10 @@ function RecordPage() {
 }
 
 /**
- * F9-CLINIC-WEB-12 — el tablero de la historia clínica: cinco grupos, 36
- * tarjetas en el orden del catálogo, el estado derivado de lo capturado y
- * el cierre de la consulta con confirmación.
+ * F9-CLINIC-WEB-12 — el tablero de la historia clínica: cinco grupos, 26
+ * tarjetas (22 secciones + 4 de órdenes) en el orden del catálogo, el
+ * estado derivado de lo capturado y el cierre de la consulta con
+ * confirmación.
  */
 function RecordDashboard({ recordId }: { recordId: string }) {
   const { t } = useTranslation();
@@ -175,6 +177,12 @@ function RecordGroupSection({
         {group === "orders" ? (
           <span className="text-muted-foreground text-sm">
             {t("medicalClinic.record.orders", { count: ordenes })}
+          </span>
+        ) : group === "documents" ? (
+          // F9-CLINIC-DOC-01: Documentos no tiene «pendiente» — una consulta
+          // sin referencias está completa; se cuenta lo que hay.
+          <span className="text-muted-foreground text-sm">
+            {t("medicalClinic.record.documents", { count: documentsCount(record) })}
           </span>
         ) : (
           <>

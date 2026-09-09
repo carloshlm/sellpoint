@@ -280,6 +280,20 @@ export function summaryOf(
       if (partes.length === 0 && recomendaciones) partes.push(recomendaciones);
       return partes.length > 0 ? recorte(partes.join(" · ")) : null;
     }
+    case "medical_notes": {
+      // F9-CLINIC-DOC-02: cuántas y la última («3 notas · 18:40 Evolución: …»).
+      const items = Array.isArray(data.items) ? (data.items as Record<string, unknown>[]) : [];
+      if (items.length === 0) return null;
+      const ultima = items[items.length - 1] as Record<string, unknown>;
+      const tipo = texto(ultima.kind)
+        ? t(`medicalClinic.forms.medicalNotes.kinds.${ultima.kind as string}`)
+        : null;
+      const cabeza = [texto(ultima.time), tipo].filter(Boolean).join(" ");
+      const cuerpo = texto(ultima.text);
+      return recorte(
+        `${t("medicalClinic.forms.medicalNotes.summaryCount", { count: items.length })} · ${cabeza}${cuerpo ? `: ${cuerpo}` : ""}`,
+      );
+    }
     default:
       return null;
   }

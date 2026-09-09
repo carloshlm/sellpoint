@@ -9,12 +9,10 @@ import {
   ArrowRightLeft,
   Baby,
   CalendarClock,
-  CalendarPlus,
   ClipboardCheck,
   ClipboardList,
   FileText,
   FlaskConical,
-  FolderOpen,
   HeartPulse,
   Leaf,
   Lightbulb,
@@ -24,11 +22,9 @@ import {
   MessageSquareText,
   Microscope,
   NotebookPen,
-  Paperclip,
   Pill,
   Receipt,
   Ruler,
-  ScrollText,
   Stethoscope,
   Syringe,
   Thermometer,
@@ -41,7 +37,7 @@ import type { MedicalRecord } from "./api";
 /**
  * F9-CLINIC-WEB-09 — el catálogo de tarjetas del tablero.
  *
- * Las 26 secciones vienen de shared (la misma lista que valida el API); las
+ * Las 22 secciones vienen de shared (la misma lista que valida el API); las
  * cuatro tarjetas de «Órdenes médicas» son de ESTA pantalla: tres emiten una
  * orden y una lista las emitidas. El grupo `orders` no existe en shared a
  * propósito — una orden no es una sección del expediente, es un documento
@@ -88,13 +84,9 @@ const SECTION_ICONS = {
   treatment: Syringe,
   management_plan: MapIcon,
   follow_up: CalendarClock,
-  prescriptions_doc: ScrollText,
-  studies_doc: FolderOpen,
-  attachments: Paperclip,
   medical_notes: NotebookPen,
   referrals: ArrowRightLeft,
   interconsultations: UsersRound,
-  follow_up_appointments: CalendarPlus,
 } satisfies Record<MedicalRecordSectionKey, LucideIcon>;
 
 const ORDER_CARDS: readonly RecordCard[] = [
@@ -142,9 +134,41 @@ export function visibleCards(record: MedicalRecord): RecordCard[] {
   );
 }
 
-/** Las funcionales visibles: el denominador del progreso. */
+/** Las funcionales visibles: el denominador del progreso de cada grupo. */
 export function visibleFunctionalKeys(record: MedicalRecord): MedicalRecordSectionKey[] {
   return FUNCTIONAL_SECTION_KEYS.filter((key) => isSectionVisible(record, key));
+}
+
+/**
+ * F9-CLINIC-DOC-01 — la barra del encabezado mide la HISTORIA CLÍNICA: los
+ * tres bloques clínicos. Documentos (notas, referencias, interconsultas) no
+ * cuenta: una consulta sin referencias está completa, y una barra que nunca
+ * llega a 100 % enseña a ignorarla. Por eso «N de 19» es una decisión con
+ * nombre y no un número que sobrevivió por suerte.
+ */
+export const PROGRESS_GROUPS: readonly RecordGroup[] = [
+  "interrogation",
+  "examination",
+  "assessment_plan",
+];
+
+/** Las funcionales visibles de los bloques clínicos: el denominador de la barra. */
+export function progressKeys(record: MedicalRecord): MedicalRecordSectionKey[] {
+  return visibleFunctionalKeys(record).filter((key) =>
+    PROGRESS_GROUPS.includes(
+      MEDICAL_RECORD_SECTIONS.find((s) => s.key === key)?.group ?? "documents",
+    ),
+  );
+}
+
+/** Cuántos documentos tiene la consulta: la suma de los ítems del grupo. */
+export function documentsCount(record: MedicalRecord): number {
+  return MEDICAL_RECORD_SECTIONS.filter((s) => s.group === "documents").reduce((total, def) => {
+    const data = record.sections.find((s) => s.key === def.key)?.data;
+    const items =
+      data && typeof data === "object" ? (data as Record<string, unknown>).items : undefined;
+    return total + (Array.isArray(items) ? items.length : 0);
+  }, 0);
 }
 
 export type SectionStatus = "pending" | "completed";

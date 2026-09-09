@@ -3,10 +3,13 @@ import en from "@/i18n/en/medicalClinic.json";
 import es from "@/i18n/es/medicalClinic.json";
 import { expediente } from "@/test/medical-clinic-fixture";
 import {
+  documentsCount,
   FUNCTIONAL_SECTION_KEYS,
   groupProgress,
   groupStatus,
   isSectionVisible,
+  PROGRESS_GROUPS,
+  progressKeys,
   RECORD_CARDS,
   RECORD_GROUPS,
   sectionStatus,
@@ -15,12 +18,12 @@ import {
 
 /**
  * F9-CLINIC-WEB-09 — el catálogo de tarjetas del tablero y el estado
- * derivado. Las 26 secciones vienen de shared; las 4 de órdenes son de esta
+ * derivado. Las 22 secciones vienen de shared; las 4 de órdenes son de esta
  * pantalla. «En progreso» vive en el GRUPO: una tarjeta o está capturada o
  * no.
  */
 describe("catálogo de tarjetas de la historia clínica", () => {
-  it("cinco grupos en el orden de Carlos, 30 tarjetas, las 26 secciones primero en su orden", () => {
+  it("cinco grupos en el orden de Carlos, 26 tarjetas, las 22 secciones primero en su orden", () => {
     expect(RECORD_GROUPS).toEqual([
       "interrogation",
       "examination",
@@ -28,7 +31,7 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "orders",
       "documents",
     ]);
-    expect(RECORD_CARDS).toHaveLength(30);
+    expect(RECORD_CARDS).toHaveLength(26);
     const secciones = RECORD_CARDS.filter((c) => c.kind === "section").map((c) => c.key);
     expect(secciones).toEqual(MEDICAL_RECORD_SECTIONS.map((s) => s.key));
     expect(RECORD_CARDS.filter((c) => c.group === "orders").map((c) => c.key)).toEqual([
@@ -57,6 +60,7 @@ describe("catálogo de tarjetas de la historia clínica", () => {
       "treatment",
       "management_plan",
       "follow_up",
+      "medical_notes",
     ]);
   });
 
@@ -123,6 +127,36 @@ describe("catálogo de tarjetas de la historia clínica", () => {
     // Un grupo sin secciones funcionales todavía no puede estar «en progreso».
     expect(groupStatus(expediente(), "documents")).toBe("pending");
   });
+
+  /**
+   * F9-CLINIC-DOC-01 — la barra del encabezado mide los tres bloques
+   * clínicos; Documentos cuenta lo que hay. «N de 19» es una decisión, no un
+   * accidente.
+   */
+  it("progressKeys deja fuera a Documentos aunque sea funcional; documentsCount suma los ítems", () => {
+    expect(PROGRESS_GROUPS).toEqual(["interrogation", "examination", "assessment_plan"]);
+    const claves = progressKeys(expediente());
+    expect(claves).toHaveLength(19);
+    expect(claves).not.toContain("medical_notes");
+    expect(claves).not.toContain("referrals");
+    expect(documentsCount(expediente())).toBe(0);
+    expect(
+      documentsCount(
+        expediente(
+          {},
+          {
+            medical_notes: {
+              items: [
+                { time: "09:00", kind: "evolution", text: "a" },
+                { time: "10:00", kind: "observation", text: "b" },
+              ],
+            },
+            referrals: { items: [{ service: "Cardiología", reason: "Soplo" }] },
+          },
+        ),
+      ),
+    ).toBe(3);
+  });
 });
 
 /** F9-CLINIC-HC-13 — el sexo decide qué se PIDE; el dato decide qué se MUESTRA. */
@@ -148,8 +182,8 @@ describe("visibilidad por sexo", () => {
   });
 
   it("las tarjetas visibles y el progreso del grupo lo respetan", () => {
-    expect(visibleCards(conSexo("M"))).toHaveLength(29);
-    expect(visibleCards(conSexo("F"))).toHaveLength(30);
+    expect(visibleCards(conSexo("M"))).toHaveLength(25);
+    expect(visibleCards(conSexo("F"))).toHaveLength(26);
     expect(groupProgress(conSexo("M"), "interrogation")).toEqual({ done: 0, total: 9 });
     expect(groupProgress(conSexo("F"), "interrogation")).toEqual({ done: 0, total: 10 });
   });

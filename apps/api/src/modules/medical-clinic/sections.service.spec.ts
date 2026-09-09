@@ -1,3 +1,4 @@
+import { MEDICAL_RECORD_SECTION_SCHEMAS } from "@sellpoint/shared";
 import { SectionsService } from "./sections.service";
 
 /**
@@ -73,13 +74,34 @@ describe("SectionsService (F9-CLINIC-11)", () => {
     );
   });
 
-  it("una clave fuera del catálogo es 400; una sin formulario es 422", async () => {
+  it("una clave fuera del catálogo es 400, y una retirada del catálogo también", async () => {
     await expect(service.save(USER, "r-1", "no_existe", {}, META)).rejects.toMatchObject({
       response: { message: "medical_clinic.section_unknown" },
     });
+    // F9-CLINIC-DOC-01: «Archivos Adjuntos» se retiró; ya no es «sin
+    // formulario», simplemente no existe.
     await expect(service.save(USER, "r-1", "attachments", {}, META)).rejects.toMatchObject({
-      response: { message: "medical_clinic.section_not_available" },
+      response: { message: "medical_clinic.section_unknown" },
     });
+    expect(tx.medicalClinicRecordSection.upsert).not.toHaveBeenCalled();
+  });
+
+  /**
+   * F9-CLINIC-DOC-01 — con todo el catálogo funcional ya no hay una clave
+   * real sin schema, pero la ley sigue: sin schema no es funcional y el API
+   * dice 422 antes de tocar la base. Se prueba quitando un schema del mapa
+   * (es un `Partial<Record>` mutable exportado) y devolviéndolo al final.
+   */
+  it("una clave del catálogo sin schema es 422 y no toca la base", async () => {
+    const guardado = MEDICAL_RECORD_SECTION_SCHEMAS.general_data;
+    MEDICAL_RECORD_SECTION_SCHEMAS.general_data = undefined;
+    try {
+      await expect(service.save(USER, "r-1", "general_data", {}, META)).rejects.toMatchObject({
+        response: { message: "medical_clinic.section_not_available" },
+      });
+    } finally {
+      MEDICAL_RECORD_SECTION_SCHEMAS.general_data = guardado;
+    }
     expect(tx.medicalClinicRecordSection.upsert).not.toHaveBeenCalled();
   });
 

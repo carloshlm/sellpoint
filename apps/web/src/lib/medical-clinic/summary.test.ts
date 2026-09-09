@@ -174,9 +174,25 @@ describe("summaryOf", () => {
     expect(summaryOf("treatment", { nonPharmacological: "Reposo" }, t)).toBe("Reposo");
   });
 
+  it("Notas Médicas: cuántas y la última, con hora y tipo (F9-CLINIC-DOC-02)", () => {
+    expect(
+      summaryOf(
+        "medical_notes",
+        {
+          items: [
+            { time: "09:00", kind: "evolution", text: "Mejoría" },
+            { time: "18:40", kind: "procedure", text: "Curación de herida en pierna derecha" },
+          ],
+        },
+        t,
+      ),
+    ).toBe("summaryCount · 18:40 procedure: Curación de herida en pierna derecha");
+    expect(summaryOf("medical_notes", { items: [] }, t)).toBeNull();
+  });
+
   it("sin datos, o en una sección sin resumen, devuelve null", () => {
     expect(summaryOf("general_data", {}, t)).toBeNull();
     expect(summaryOf("chief_complaint", { onsetValue: 3 }, t)).toBeNull();
-    expect(summaryOf("attachments", { foo: "bar" }, t)).toBeNull();
+    expect(summaryOf("no_existe", { foo: "bar" }, t)).toBeNull();
   });
 });

@@ -141,6 +141,9 @@
     },
     "orders": "{{count}} orders",
     "orders_one": "1 order",
+    "documents": "{{count}} documents",
+    "documents_one": "1 document",
+    "documents_zero": "No documents",
     "backToPatient": "← Patient information",
     "carriedFrom": "From the visit on {{date}} · confirm or update",
     "allergies": "Allergies: {{list}}",
@@ -221,15 +224,6 @@
     "follow_up": {
       "title": "Follow-up and Recommendations"
     },
-    "prescriptions_doc": {
-      "title": "Prescriptions"
-    },
-    "studies_doc": {
-      "title": "Studies"
-    },
-    "attachments": {
-      "title": "Attachments"
-    },
     "medical_notes": {
       "title": "Medical Notes"
     },
@@ -238,9 +232,6 @@
     },
     "interconsultations": {
       "title": "Interconsultations"
-    },
-    "follow_up_appointments": {
-      "title": "Follow-up Appointments"
     },
     "prescription": {
       "title": "Medication Prescription"
@@ -748,6 +739,25 @@
       "recommendations": "Recommendations",
       "summaryAppointment": "Appointment",
       "summaryAlarm": "Warning signs"
+    },
+    "medicalNotes": {
+      "list": "Notes of this visit",
+      "hint": "The date is the visit date and the record's physician signs. A specialist's reply to an interconsultation, or the counter-referral, is recorded here the day it arrives.",
+      "add": "Add note",
+      "time": "Time",
+      "kind": "Type",
+      "kinds": {
+        "evolution": "Progress note",
+        "procedure": "Procedure note",
+        "observation": "Observation",
+        "phone_contact": "Phone contact",
+        "specialist_reply": "Specialist reply"
+      },
+      "text": "Note",
+      "soapPlaceholder": "S: what the patient reports · O: what you find · A: assessment · P: plan",
+      "specialistReplyHint": "What the specialist replied to an interconsultation, or the counter-referral.",
+      "summaryCount": "{{count}} notes",
+      "summaryCount_one": "1 note"
     },
     "chooseOption": "Pick an option"
   },

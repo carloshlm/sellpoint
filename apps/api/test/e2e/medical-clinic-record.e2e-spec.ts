@@ -113,7 +113,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       },
       doctor: { name: "Ana Pérez" },
     });
-    expect(expediente.sections).toHaveLength(26);
+    expect(expediente.sections).toHaveLength(22);
     expect(expediente.sections.every((s) => s.status === "pending")).toBe(true);
 
     // Las tres secciones funcionales.
@@ -130,8 +130,9 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
     await put(negocio.token, `${base}/sections/current_illness`, {
       narrative: "Inicia hace 3 días…",
     }).expect(200);
-    // Una sin formulario todavía es 422; una desconocida, 400; datos inválidos, 400.
-    await put(negocio.token, `${base}/sections/attachments`, {}).expect(422);
+    // Una retirada del catálogo (F9-CLINIC-DOC-01) ya no existe: 400, como una
+    // desconocida; datos inválidos, 400.
+    await put(negocio.token, `${base}/sections/attachments`, {}).expect(400);
     await put(negocio.token, `${base}/sections/no_existe`, {}).expect(400);
     await put(negocio.token, `${base}/sections/general_data`, { sex: "Q" }).expect(400);
 
@@ -142,7 +143,7 @@ describe("Consultorio Médico — expediente (F9-CLINIC-19)", () => {
       "chief_complaint",
       "current_illness",
     ]);
-    expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(23);
+    expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(19);
     expect(d.patient.sex).toBe("F");
 
     // SEGUNDA visita: hay que cerrar la de hoy antes (F9-CLINIC-27: un

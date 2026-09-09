@@ -12,7 +12,7 @@ import { clinicUser, expediente } from "@/test/medical-clinic-fixture";
 
 /**
  * F9-CLINIC-WEB-11/12/16 — el tablero: encabezado con el paciente, cinco
- * grupos, 30 tarjetas (3 funcionales + las de órdenes), estados derivados,
+ * grupos, 26 tarjetas (22 secciones + las 4 de órdenes), estados derivados,
  * resumen solo en las completadas y el cierre con confirmación.
  */
 vi.mock("@/lib/medical-clinic/api", () => ({
@@ -73,7 +73,7 @@ describe("Historia clínica — tablero", () => {
     expect(header).toHaveTextContent("1 de 19 secciones capturadas");
   });
 
-  it("cinco grupos en orden, 30 tarjetas, links solo en las funcionales y en órdenes", async () => {
+  it("cinco grupos en orden, 26 tarjetas, links solo en las funcionales y en órdenes; Documentos cuenta", async () => {
     await renderRecord();
     await screen.findByRole("heading", { level: 1, name: "Historia clínica" });
     const grupos = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
@@ -84,10 +84,14 @@ describe("Historia clínica — tablero", () => {
       "Órdenes médicas",
       "Documentos y seguimiento",
     ]);
-    expect(screen.getAllByTestId(/^record-card-/)).toHaveLength(30);
+    expect(screen.getAllByTestId(/^record-card-/)).toHaveLength(26);
     const links = within(screen.getByTestId("record-groups")).getAllByRole("link");
-    // 19 secciones funcionales + 3 órdenes + el listado de órdenes.
-    expect(links).toHaveLength(23);
+    // 19 secciones clínicas + Notas Médicas + 3 órdenes + el listado de órdenes.
+    expect(links).toHaveLength(24);
+    // F9-CLINIC-DOC-01: Documentos no dice «Pendiente», cuenta lo que hay.
+    const documentos = screen.getByTestId("record-group-documents");
+    expect(documentos).toHaveTextContent("Sin documentos");
+    expect(documentos).not.toHaveTextContent(/\d+ de \d+/);
   });
 
   it("estados: la sección con datos dice Completado y su resumen; el grupo dice En progreso y 1 de 10", async () => {

@@ -161,6 +161,12 @@ describe("Consultorio Médico — las secciones de la historia clínica (F9-CLIN
       { prognosis: "good", plan: "Control en 2 semanas" },
       { prognosis: "Bueno" },
     ],
+    // F9-CLINIC-DOC-02: la nota es hora + tipo + texto; «24:00» no existe.
+    [
+      "medical_notes",
+      { items: [{ time: "09:15", kind: "evolution", text: "Mejoría clínica" }] },
+      { items: [{ time: "24:00", kind: "evolution", text: "x" }] },
+    ],
   ];
 
   it.each(CASOS)(
@@ -199,16 +205,17 @@ describe("Consultorio Médico — las secciones de la historia clínica (F9-CLIN
     await guardar("diagnostic_impression", { impression: "Probable IVRS" });
   });
 
-  it("el detalle trae las 19 funcionales capturadas, y las siete de Documentos siguen pendientes", async () => {
+  it("el detalle trae las funcionales capturadas, y las de Documentos sin formulario siguen pendientes", async () => {
     const detalle = (await get(negocio.token, `/medical-clinic/records/${recordId}`).expect(200))
       .body as {
       sections: (Vista & { functional: boolean })[];
     };
     const funcionales = detalle.sections.filter((s) => s.functional);
-    expect(funcionales).toHaveLength(19);
-    // Motivo y Padecimiento no se capturaron en este spec: 17 completadas.
-    expect(funcionales.filter((s) => s.status === "completed")).toHaveLength(17);
-    expect(detalle.sections.filter((s) => !s.functional)).toHaveLength(7);
+    expect(funcionales).toHaveLength(20);
+    // Motivo y Padecimiento no se capturaron en este spec: 18 completadas.
+    expect(funcionales.filter((s) => s.status === "completed")).toHaveLength(18);
+    // F9-CLINIC-DOC-01/02: de las siete de Documentos quedan tres, y Notas ya es funcional.
+    expect(detalle.sections.filter((s) => !s.functional)).toHaveLength(2);
     expect(detalle.sections.find((s) => s.key === "allergies")?.data).toEqual({
       items: [{ kind: "drug", substance: "Penicilina", severity: "severe" }],
     });

@@ -65,11 +65,9 @@ afterEach(() => {
 });
 
 describe("ruta de sección (F9-CLINIC-WEB-13)", () => {
-  it("una clave sin formulario o desconocida redirige al tablero", async () => {
-    const router = await renderSection("attachments");
+  it("una clave desconocida (o sin formulario) redirige al tablero", async () => {
+    const router = await renderSection("no_existe");
     await waitFor(() => expect(router.state.location.pathname).toBe("/medical-clinic/records/r1"));
-    const otro = await renderSection("no_existe");
-    await waitFor(() => expect(otro.state.location.pathname).toBe("/medical-clinic/records/r1"));
   });
 
   it("Datos Generales pinta el h1 en la tarjeta; Cancelar vuelve sin guardar", async () => {
@@ -866,5 +864,55 @@ describe("buscador CIE-10 en Diagnósticos (F9-CLINIC-HC-23)", () => {
     await user.click(await screen.findByRole("button", { name: /J02\.9/ }));
     expect(screen.getByLabelText("Diagnóstico")).toHaveValue("Faringitis viral");
     expect(screen.getByLabelText("Código CIE-10 (opcional)")).toHaveValue("J02.9");
+  });
+});
+
+/**
+ * F9-CLINIC-DOC-02 — Notas Médicas: la línea de tiempo del día. La fila sin
+ * texto no viaja (el API solo limpia el primer nivel y rechazaría
+ * `text: ""`); la nota de evolución trae la guía SOAP como placeholder.
+ */
+describe("Notas Médicas (F9-CLINIC-DOC-02)", () => {
+  it("agrega una nota con hora, tipo y texto y manda solo eso; la fila sin texto no viaja", async () => {
+    await renderSection("medical_notes");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "+ Agregar nota" }));
+    // La hora nace con el reloj del equipo; aquí se fija para afirmar el cuerpo.
+    fireEvent.change(screen.getByLabelText("Hora"), { target: { value: "09:15" } });
+    expect(screen.getByLabelText("Nota")).toHaveAttribute(
+      "placeholder",
+      "S: lo que refiere · O: lo que encuentras · A: análisis · P: plan",
+    );
+    await user.selectOptions(screen.getByLabelText("Tipo"), "procedure");
+    expect(screen.getByLabelText("Nota")).not.toHaveAttribute("placeholder");
+    await user.type(screen.getByLabelText("Nota"), "Curación de herida");
+    await user.click(screen.getByRole("button", { name: "+ Agregar nota" }));
+    expect(screen.getAllByLabelText("Nota")).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.saveSection).toHaveBeenCalledWith("r1", "medical_notes", {
+        items: [{ time: "09:15", kind: "procedure", text: "Curación de herida" }],
+      }),
+    );
+  });
+
+  it("precarga las notas guardadas y en solo lectura no deja escribir", async () => {
+    await renderSection(
+      "medical_notes",
+      expediente(
+        { status: "closed" },
+        {
+          medical_notes: {
+            items: [{ time: "10:00", kind: "specialist_reply", text: "Ecocardiograma normal" }],
+          },
+        },
+      ),
+    );
+    const nota = await screen.findByLabelText("Nota");
+    expect(nota).toHaveValue("Ecocardiograma normal");
+    expect(nota).toBeDisabled();
+    expect(screen.getByLabelText("Hora")).toHaveValue("10:00");
+    expect(screen.getByLabelText("Tipo")).toHaveValue("specialist_reply");
+    expect(screen.queryByRole("button", { name: "Guardar" })).not.toBeInTheDocument();
   });
 });

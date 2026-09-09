@@ -12,6 +12,7 @@ import { FollowUpForm } from "./follow-up-form";
 import { GeneralDataForm } from "./general-data-form";
 import { GynecoObstetricForm } from "./gyneco-obstetric-form";
 import { ManagementPlanForm } from "./management-plan-form";
+import { MedicalNotesForm } from "./medical-notes-form";
 import { NonPathologicalHistoryForm } from "./non-pathological-history-form";
 import { PathologicalHistoryForm } from "./pathological-history-form";
 import { PhysicalExamForm } from "./physical-exam-form";
@@ -63,4 +64,5 @@ export const SECTION_FORMS: Partial<Record<string, ComponentType<SectionFormProp
   treatment: TreatmentForm,
   management_plan: ManagementPlanForm,
   follow_up: FollowUpForm,
+  medical_notes: MedicalNotesForm,
 };

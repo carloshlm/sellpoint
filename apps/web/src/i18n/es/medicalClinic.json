@@ -141,6 +141,9 @@
     },
     "orders": "{{count}} órdenes",
     "orders_one": "1 orden",
+    "documents": "{{count}} documentos",
+    "documents_one": "1 documento",
+    "documents_zero": "Sin documentos",
     "backToPatient": "← Resumen del paciente",
     "carriedFrom": "De la consulta del {{date}} · confirma o actualiza",
     "allergies": "Alergias: {{list}}",
@@ -221,15 +224,6 @@
     "follow_up": {
       "title": "Seguimiento y Recomendaciones"
     },
-    "prescriptions_doc": {
-      "title": "Recetas"
-    },
-    "studies_doc": {
-      "title": "Estudios"
-    },
-    "attachments": {
-      "title": "Archivos Adjuntos"
-    },
     "medical_notes": {
       "title": "Notas Médicas"
     },
@@ -238,9 +232,6 @@
     },
     "interconsultations": {
       "title": "Interconsultas"
-    },
-    "follow_up_appointments": {
-      "title": "Citas de Seguimiento"
     },
     "prescription": {
       "title": "Receta de Medicamentos"
@@ -748,6 +739,25 @@
       "recommendations": "Recomendaciones",
       "summaryAppointment": "Cita",
       "summaryAlarm": "Datos de alarma"
+    },
+    "medicalNotes": {
+      "list": "Notas de la consulta",
+      "hint": "La fecha es la de la consulta y firma el médico del expediente. La respuesta del especialista a una interconsulta, o la contrarreferencia, se registra aquí el día que llega.",
+      "add": "Agregar nota",
+      "time": "Hora",
+      "kind": "Tipo",
+      "kinds": {
+        "evolution": "Nota de evolución",
+        "procedure": "Nota de procedimiento",
+        "observation": "Observación",
+        "phone_contact": "Contacto telefónico",
+        "specialist_reply": "Respuesta de especialista"
+      },
+      "text": "Nota",
+      "soapPlaceholder": "S: lo que refiere · O: lo que encuentras · A: análisis · P: plan",
+      "specialistReplyHint": "Lo que respondió el especialista a una interconsulta, o la contrarreferencia.",
+      "summaryCount": "{{count}} notas",
+      "summaryCount_one": "1 nota"
     },
     "chooseOption": "Elige una opción"
   },

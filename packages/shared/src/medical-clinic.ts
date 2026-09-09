@@ -5,7 +5,7 @@ import { isE164 } from "./phone";
  * F9-CLINIC-01 / F9-CLINIC-HC-01 — el catálogo de la historia clínica, en
  * CÓDIGO compartido.
  *
- * Las 26 secciones del expediente viven en UNA tabla
+ * Las 22 secciones del expediente viven en UNA tabla
  * (`medical_clinic_record_sections`, una fila por clave con `data` JSONB).
  * Lo que fija la forma de cada JSON no es la base: es este catálogo y sus
  * schemas zod, que el API usa al escribir y el web al pintar. Una sección sin
@@ -23,6 +23,15 @@ import { isE164 } from "./phone";
  * Seguimiento. Somatometría va PRIMERO en Exploración: es lo que la asistente
  * ya midió. Retirar claves fue cero DDL: `section_key` no tiene CHECK y las
  * siete nunca tuvieron schema, así que no había ni una fila.
+ *
+ * El 2026-09-09 (F9-CLINIC-DOC) bajó a 22: de «Documentos y seguimiento» se
+ * retiraron Recetas y Estudios (duplicaban las Órdenes médicas: receta,
+ * laboratorio, diagnóstico y órdenes emitidas, con folio, PDF y cobro),
+ * Citas de Seguimiento (duplicaba `follow_up.nextAppointmentDate` dentro de
+ * un expediente que se bloquea al día siguiente, sin agenda que la lea) y
+ * Archivos Adjuntos (Carlos: no gastar almacenamiento). Quedan Notas
+ * Médicas, Referencias e Interconsultas, y con ellas TODO el catálogo es
+ * funcional. Otra vez cero DDL: ninguna de las cuatro tuvo schema ni fila.
  */
 export const MEDICAL_RECORD_SECTION_GROUPS = [
   "interrogation",
@@ -103,14 +112,12 @@ export const MEDICAL_RECORD_SECTIONS = [
   seccion("management_plan", "assessment_plan", 4, { functional: true }),
   seccion("follow_up", "assessment_plan", 5, { functional: true }),
   // 5. Documentos y seguimiento (el 4, Órdenes médicas, no son secciones:
-  // son tres órdenes y un listado, y viven en `medical_clinic_orders`)
-  seccion("prescriptions_doc", "documents", 1),
-  seccion("studies_doc", "documents", 2),
-  seccion("attachments", "documents", 3),
-  seccion("medical_notes", "documents", 4),
-  seccion("referrals", "documents", 5),
-  seccion("interconsultations", "documents", 6),
-  seccion("follow_up_appointments", "documents", 7),
+  // son tres órdenes y un listado, y viven en `medical_clinic_orders`).
+  // Nada de aquí se hereda: las notas y las cartas son de la consulta, y la
+  // respuesta del especialista se captura como nota el día que llega.
+  seccion("medical_notes", "documents", 1, { functional: true }),
+  seccion("referrals", "documents", 2),
+  seccion("interconsultations", "documents", 3),
 ] as const satisfies readonly MedicalRecordSectionDef[];
 
 export type MedicalRecordSectionKey = (typeof MEDICAL_RECORD_SECTIONS)[number]["key"];
@@ -742,6 +749,52 @@ export type Allergies = z.infer<typeof allergiesSchema>;
 export type CurrentMedications = z.infer<typeof currentMedicationsSchema>;
 export type SystemsReview = z.infer<typeof systemsReviewSchema>;
 
+// ─────────────────────────────────────────────────────────────────────────
+// Documentos y seguimiento (F9-CLINIC-DOC)
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * F9-CLINIC-DOC-02 — Notas Médicas: la línea de tiempo del día. Hora, tipo
+ * y texto; SIN fecha (el expediente es de un día: `consultationDate`) y SIN
+ * autor por ítem (firma el médico del expediente; quién guardó vive en
+ * `updated_by` y en la auditoría). NOM-004 5.x pide fecha, hora y nombre de
+ * quien elabora: los tres salen del expediente, no del JSON. La «respuesta
+ * de especialista» es la nota de interconsulta o la contrarreferencia que el
+ * paciente trae días después (6.3: la elabora el consultado; aquí solo se
+ * transcribe el día que llega).
+ */
+export const MEDICAL_NOTE_KINDS = [
+  "evolution",
+  "procedure",
+  "observation",
+  "phone_contact",
+  "specialist_reply",
+] as const;
+export type MedicalNoteKind = (typeof MEDICAL_NOTE_KINDS)[number];
+
+/** «HH:mm» de 24 horas: `24:00` no existe. */
+export const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export const medicalNotesSchema = z
+  .object({
+    // `.min(1)`: `{ items: [] }` sería una fila «Completada» sin contenido.
+    items: z
+      .array(
+        z
+          .object({
+            time: z.string().regex(CLOCK_TIME),
+            kind: z.enum(MEDICAL_NOTE_KINDS),
+            text: texto(2000).min(1),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20)
+      .optional(),
+  })
+  .strict();
+export type MedicalNotes = z.infer<typeof medicalNotesSchema>;
+
 type SectionSchema = z.ZodType<Record<string, unknown>>;
 type SectionSchemaOrFactory = SectionSchema | ((ctx: SectionSchemaContext) => SectionSchema);
 
@@ -772,6 +825,7 @@ export const MEDICAL_RECORD_SECTION_SCHEMAS: Partial<
   treatment: treatmentSchema,
   management_plan: managementPlanSchema,
   follow_up: followUpSchema,
+  medical_notes: medicalNotesSchema,
 };
 
 /** El schema listo para validar, o `undefined` si la sección no es funcional. */

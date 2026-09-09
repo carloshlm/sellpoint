@@ -103,7 +103,7 @@ type RecordRow = Prisma.MedicalClinicRecordGetPayload<{ include: typeof INCLUDE 
  * encabezado. El resto nace vacío: cada consulta cuenta su propio motivo, su
  * padecimiento, sus signos y sus diagnósticos.
  *
- * El estado de las 26 secciones se DERIVA: existe fila ⇔ Completado. No hay
+ * El estado de las 22 secciones se DERIVA: existe fila ⇔ Completado. No hay
  * columna que se pueda desincronizar de su propia tabla.
  */
 @Injectable()
@@ -464,7 +464,7 @@ export function toDetail(fila: RecordRow, hoy: string): RecordDetail {
       id: fila.doctor.id,
       name: shortName(fila.doctor),
     },
-    // Las 32 del catálogo, en su orden: las que no tienen fila salen pendientes.
+    // Las 22 del catálogo, en su orden: las que no tienen fila salen pendientes.
     sections: MEDICAL_RECORD_SECTIONS.map((def) => {
       const guardada = porClave.get(def.key);
       return {

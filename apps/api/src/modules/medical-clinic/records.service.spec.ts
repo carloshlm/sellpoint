@@ -6,7 +6,7 @@ jest.mock("../inventory/folio", () => ({
 
 /**
  * F9-CLINIC-10/12 — UN expediente por visita, con copy-forward de Datos
- * Generales y el estado de las 26 secciones derivado (existe fila ⇔
+ * Generales y el estado de las 22 secciones derivado (existe fila ⇔
  * Completado). Cerrar es idempotente.
  */
 const TENANT = "11111111-1111-1111-1111-111111111111";
@@ -213,9 +213,9 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       tx.medicalClinicRecord.findFirst.mockReset().mockResolvedValue(expediente());
     });
 
-    it("recién creado: 26 secciones pendientes, edad contra la fecha de consulta, médico con nombre", async () => {
+    it("recién creado: 22 secciones pendientes, edad contra la fecha de consulta, médico con nombre", async () => {
       const d = await service.detail(USER, "r-1");
-      expect(d.sections).toHaveLength(26);
+      expect(d.sections).toHaveLength(22);
       expect(d.sections.every((s) => s.status === "pending")).toBe(true);
       expect(d.sections[0]).toMatchObject({
         key: "general_data",
@@ -255,7 +255,7 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       expect(d.sections.find((s) => s.key === "general_data")?.carriedFrom).toBeNull();
     });
 
-    it("con Motivo de Consulta guardado: 25 pendientes y 1 completada, con sus datos", async () => {
+    it("con Motivo de Consulta guardado: 21 pendientes y 1 completada, con sus datos", async () => {
       tx.medicalClinicRecord.findFirst.mockResolvedValue(
         expediente({
           sections: [
@@ -270,7 +270,7 @@ describe("RecordsService (F9-CLINIC-10/12)", () => {
       expect(d.sections.find((s) => s.key === "chief_complaint")?.data).toEqual({
         complaint: "Dolor",
       });
-      expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(25);
+      expect(d.sections.filter((s) => s.status === "pending")).toHaveLength(21);
     });
 
     it("cerrar es idempotente: la segunda vez no falla y devuelve el mismo estado", async () => {

@@ -47,13 +47,22 @@ describe("SectionCard", () => {
     expect(link).toHaveFocus();
   });
 
+  /**
+   * F9-CLINIC-DOC-01: ya no queda ninguna placeholder en el catálogo, pero la
+   * ley sigue (sin formulario, inerte): se prueba con una tarjeta sintética.
+   */
   it("una placeholder no es link, no es enfocable y dice Próximamente y Pendiente", async () => {
     renderCard(
-      <SectionCard card={card("attachments")} recordId="r1" status="pending" summary={null} />,
+      <SectionCard
+        card={{ ...card("medical_notes"), functional: false }}
+        recordId="r1"
+        status="pending"
+        summary={null}
+      />,
     );
-    expect(await screen.findByText("Archivos Adjuntos")).toBeInTheDocument();
+    expect(await screen.findByText("Notas Médicas")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    const caja = screen.getByText("Archivos Adjuntos").closest('[aria-disabled="true"]');
+    const caja = screen.getByText("Notas Médicas").closest('[aria-disabled="true"]');
     expect(caja).not.toBeNull();
     expect(caja).toHaveTextContent("Próximamente");
     expect(caja).toHaveTextContent("Pendiente");
