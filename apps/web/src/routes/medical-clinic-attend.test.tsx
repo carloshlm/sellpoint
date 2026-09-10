@@ -396,3 +396,57 @@ describe("«Resumen del paciente» desde la búsqueda (F9-CLINIC-WEB-29)", () =>
     ).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Un turno que no existe hoy NO es una falla del sistema: el API responde 404
+ * `medical_clinic.turn_not_found` y la pantalla debe decir eso, no «no pudimos
+ * buscar» (Carlos, 2026-09-09). Lo genérico se reserva para lo que de verdad
+ * se rompió.
+ */
+describe("Atender paciente — un turno que no existe hoy", () => {
+  const noExiste = {
+    statusCode: 404,
+    code: "medical_clinic.turn_not_found",
+    message: "No hay un turno con ese número hoy.",
+    error: "Not Found",
+  };
+
+  const buscarTurno = async (numero: string) => {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("radio", { name: "Por turno" }));
+    await user.type(screen.getByLabelText("Número de turno"), numero);
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+  };
+
+  it("lo dice con su número y ofrece el alta, sin el error genérico", async () => {
+    mocked.searchPatients.mockRejectedValue(noExiste);
+    await renderRuta("/medical-clinic/attend", ATTEND);
+    await buscarTurno("2");
+
+    expect(
+      await screen.findByText(
+        "El turno 2 no existe para hoy. Revisa el número o busca al paciente por su nombre.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos buscar. Intenta de nuevo.")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Paciente nuevo" })[0]).toHaveAttribute(
+      "href",
+      "/medical-clinic/patients/new",
+    );
+  });
+
+  // Otro 404 con OTRA clave: el caso se reconoce por `code`, no por el status.
+  it("lo que sí se rompió sigue cayendo en el genérico", async () => {
+    mocked.searchPatients.mockRejectedValue({
+      statusCode: 404,
+      code: "medical_clinic.record_not_found",
+      message: "No encontramos la historia clínica.",
+      error: "Not Found",
+    });
+    await renderRuta("/medical-clinic/attend", ATTEND);
+    await buscarTurno("2");
+
+    expect(await screen.findByText("No pudimos buscar. Intenta de nuevo.")).toBeInTheDocument();
+    expect(screen.queryByTestId("patients-empty")).not.toBeInTheDocument();
+  });
+});

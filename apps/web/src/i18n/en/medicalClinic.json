@@ -77,6 +77,7 @@
     "search": "Search",
     "empty": "We found nobody with that name.",
     "emptyByTurn": "There is no patient with ticket {{number}}.",
+    "turnNotFound": "Ticket {{number}} does not exist for today. Check the number or search the patient by name.",
     "start": "Start consultation",
     "continue": "Resume consultation {{folio}}",
     "openToday": "Consultation open today · {{folio}}",

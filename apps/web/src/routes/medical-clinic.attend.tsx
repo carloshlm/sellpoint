@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
@@ -24,6 +25,24 @@ export const Route = createFileRoute("/medical-clinic/attend")({
 const BOTON_PRIMARIO =
   "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
 
+/**
+ * Qué decir cuando la búsqueda no trajo a nadie. El turno inexistente tiene
+ * mensaje propio —dice el número y a dónde ir— porque es el error de dedo
+ * más común de la recepción, no un fallo del sistema.
+ */
+function vacio(
+  t: TFunction,
+  busqueda: { mode: SearchMode; q: string },
+  turnoInexistente: boolean,
+): string {
+  if (turnoInexistente) {
+    return t("medicalClinic.attend.turnNotFound", { number: busqueda.q });
+  }
+  return busqueda.mode === "turn"
+    ? t("medicalClinic.attend.emptyByTurn", { number: busqueda.q })
+    : t("medicalClinic.attend.empty");
+}
+
 /** F9-CLINIC-WEB-07 — «Atender paciente». Solo con `:attend`. */
 function AttendPage() {
   return (
@@ -46,10 +65,15 @@ function AttendContent() {
   const { canWrite } = usePlan();
   const canStart = has("medical_clinic:attend") && canWrite;
   const [busqueda, setBusqueda] = useState<{ mode: SearchMode; q: string } | null>(null);
-  const { data, isFetching, isError } = usePatientSearch(
-    busqueda ?? { mode: "name", q: "" },
-    busqueda !== null,
-  );
+  const {
+    data,
+    isFetching,
+    isError,
+    error: searchError,
+  } = usePatientSearch(busqueda ?? { mode: "name", q: "" }, busqueda !== null);
+  // Un turno que no existe hoy NO es una falla: el API lo dice con su propia
+  // clave y la pantalla lo trata como «sin resultados», con la salida al alta.
+  const turnoInexistente = searchError?.code === "medical_clinic.turn_not_found";
   const createRecord = useCreateRecord();
   const [error, setError] = useState<string | null>(null);
   const [abriendo, setAbriendo] = useState<string | null>(null);
@@ -109,17 +133,15 @@ function AttendContent() {
           {error}
         </p>
       )}
-      {isError && (
+      {isError && !turnoInexistente && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {t("medicalClinic.attend.searchFailed")}
         </p>
       )}
 
-      {busqueda !== null && data !== undefined && data.length === 0 && (
+      {busqueda !== null && (turnoInexistente || (data !== undefined && data.length === 0)) && (
         <p className="text-muted-foreground text-sm" data-testid="patients-empty">
-          {busqueda.mode === "turn"
-            ? t("medicalClinic.attend.emptyByTurn", { number: busqueda.q })
-            : t("medicalClinic.attend.empty")}{" "}
+          {vacio(t, busqueda, turnoInexistente)}{" "}
           {canStart && (
             <Link to="/medical-clinic/patients/new" className="text-primary hover:underline">
               {t("medicalClinic.attend.newPatient")}

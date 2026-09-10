@@ -77,6 +77,7 @@
     "search": "Buscar",
     "empty": "No encontramos a nadie con ese nombre.",
     "emptyByTurn": "No hay ningún paciente con el turno {{number}}.",
+    "turnNotFound": "El turno {{number}} no existe para hoy. Revisa el número o busca al paciente por su nombre.",
     "start": "Iniciar consulta",
     "continue": "Continuar consulta {{folio}}",
     "openToday": "Consulta abierta hoy · {{folio}}",
