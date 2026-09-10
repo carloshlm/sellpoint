@@ -170,6 +170,14 @@ Formato en UI: `"Identificación fiscal (RFC)"` / `"Tax ID (RFC)"` para un
 país curado; `"Identificación fiscal"` / `"Tax ID"` (sin paréntesis) para el
 resto del mundo. **Sin validación de formato** — fuera de alcance (opción C).
 
+> **2026-09-10 — la opción C entra como F1-TAXID.** El «cliente real» llegó con un
+> ticket en la mano: F4-TAXMARK empezó a imprimir el registro fiscal con su nombre y los
+> números guardados eran imposibles («GST/HST No.: CAN67843554», «RFC: CINCO8507223N4»).
+> Se valida el FORMATO por país curado con el mismo molde que el código postal de F1-ADDR
+> (patrón + ejemplo en shared, normalizar antes de validar, 422 en el servidor, hint con
+> ejemplo en el campo); sin patrón donde no hay fuente oficial (NI, PA, BZ); lo ya guardado
+> no se exige hasta que se toque. Detalle en IMPLEMENTACION.md, módulo F1-TAXID.
+
 ---
 
 ## 3. Voz de la UI — LEY
