@@ -8,6 +8,7 @@ import type { Locale } from "@sellpoint/shared";
  */
 const ENGLISH: Record<string, string> = {
   productos: "products",
+  gastos: "expenses",
   servicios: "services",
   almacenes: "warehouses",
   registros: "records",

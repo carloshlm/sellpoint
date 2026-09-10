@@ -6,5 +6,19 @@
   "category_not_found": "La categoría no existe.",
   "category_code_taken": "Ya existe una categoría con ese código.",
   "invalid_category_code": "El código va en minúsculas, sin espacios ni acentos, por ejemplo servicios_profesionales.",
-  "category_in_use": "Esta categoría ya tiene gastos registrados y no se puede borrar. Puedes desactivarla."
+  "category_in_use": "Esta categoría ya tiene gastos registrados y no se puede borrar. Puedes desactivarla.",
+  "supplier_not_found": "El proveedor no existe.",
+  "category_inactive": "Esa categoría está desactivada. Elige otra o reactívala.",
+  "already_canceled": "Ese gasto ya está anulado.",
+  "already_paid": "Ese gasto ya está pagado.",
+  "paid_immutable": "Un gasto pagado no cambia de monto, descuento ni impuesto. Si hay un error, anúlalo y regístralo de nuevo.",
+  "session_closed": "Ese gasto salió de un turno de caja que ya se cerró y no se puede anular. Registra un gasto de ajuste.",
+  "session_not_open": "Ese turno de caja no está abierto o no es del almacén del gasto.",
+  "session_needs_cash": "Solo un gasto en efectivo puede salir de un turno de caja.",
+  "discount_exceeds_amount": "El descuento supera el monto del gasto.",
+  "cancel_reason_required": "Escribe el motivo de la anulación (al menos 3 caracteres).",
+  "payee_conflict": "Elige un proveedor o escribe un beneficiario, no los dos.",
+  "invalid_amount": "El monto debe ser mayor a cero y con hasta dos decimales.",
+  "invalid_payment_method": "El método de pago no es válido.",
+  "warehouse_required": "No tienes un almacén asignado: elige uno para el gasto."
 }

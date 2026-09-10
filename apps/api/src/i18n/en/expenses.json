@@ -6,5 +6,19 @@
   "category_not_found": "The category does not exist.",
   "category_code_taken": "A category with that code already exists.",
   "invalid_category_code": "The code goes in lowercase, without spaces or accents, for example professional_services.",
-  "category_in_use": "This category already has expenses on record and cannot be deleted. You can deactivate it instead."
+  "category_in_use": "This category already has expenses on record and cannot be deleted. You can deactivate it instead.",
+  "supplier_not_found": "The supplier does not exist.",
+  "category_inactive": "That category is deactivated. Choose another one or reactivate it.",
+  "already_canceled": "That expense is already canceled.",
+  "already_paid": "That expense is already paid.",
+  "paid_immutable": "A paid expense does not change its amount, discount or tax. If there is a mistake, cancel it and record it again.",
+  "session_closed": "That expense came out of a cash shift that is already closed and cannot be canceled. Record an adjustment expense.",
+  "session_not_open": "That cash shift is not open or does not belong to the expense's warehouse.",
+  "session_needs_cash": "Only a cash expense can come out of a cash shift.",
+  "discount_exceeds_amount": "The discount exceeds the expense amount.",
+  "cancel_reason_required": "Write the reason for the cancellation (at least 3 characters).",
+  "payee_conflict": "Choose a supplier or write a payee, not both.",
+  "invalid_amount": "The amount must be greater than zero with up to two decimals.",
+  "invalid_payment_method": "The payment method is not valid.",
+  "warehouse_required": "You have no assigned warehouse: choose one for the expense."
 }
