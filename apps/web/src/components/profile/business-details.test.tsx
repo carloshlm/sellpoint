@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -55,6 +55,25 @@ beforeEach(() => {
 });
 
 describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
+  /** F4-TAXMARK-04: la etiqueta del registro fiscal es la del país del negocio. */
+  it("en Canadá el campo se llama GST/HST No. y en un país no curado, Identificación fiscal", () => {
+    renderCard(
+      buildAuthUser({
+        permissions: ["tenants:manage"],
+        tenant: buildTenantBlock({ country: "CA", taxId: "123456789 RT0001" }),
+      }),
+    );
+    expect(screen.getByLabelText("GST/HST No.")).toHaveValue("123456789 RT0001");
+    cleanup();
+    renderCard(
+      buildAuthUser({
+        permissions: ["tenants:manage"],
+        tenant: buildTenantBlock({ country: "JP", taxId: "T1" }),
+      }),
+    );
+    expect(screen.getByLabelText("Identificación fiscal")).toHaveValue("T1");
+  });
+
   /**
    * Mismo criterio que el botón Crear de los movimientos: sin permiso la
    * tarjeta NO EXISTE — deshabilitarla sugeriría que falta un clic, no un
@@ -71,7 +90,8 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
 
     expect(screen.getByLabelText("Nombre del negocio")).toHaveValue("Acme");
     expect(screen.getByLabelText("Nombre legal")).toHaveValue("Acme SA de CV");
-    expect(screen.getByLabelText("Identificación fiscal")).toHaveValue("ACM010101AAA");
+    // F4-TAXMARK-04: en México el campo se llama RFC.
+    expect(screen.getByLabelText("RFC")).toHaveValue("ACM010101AAA");
     expect(screen.getByLabelText("Calle y número")).toHaveValue("Av. Siempre Viva 123");
   });
 

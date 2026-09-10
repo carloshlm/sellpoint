@@ -5,11 +5,13 @@ import {
   type Locale,
   type TaxMode,
   type TicketSettings,
+  taxIdLabel,
 } from "@sellpoint/shared";
 import type { TicketLogoRender } from "../tenants/ticket-settings.service";
 import { ticketBarcodeSvg } from "./barcode-svg";
 import type { TicketHeaderContact } from "./ticket-header";
 import { ticketLogoNodes } from "./ticket-logo";
+import type { TaxMark } from "./ticket-tax-marks";
 
 /** Traduce una clave; lo inyecta el service con el locale del usuario. */
 export type Translate = (key: string) => string;
@@ -33,6 +35,8 @@ export interface TicketRow {
   lineTotal: string;
   /** El lote que FEFO eligió, si el producto los lleva. */
   lotCode: string | null;
+  /** F4-TAXMARK — el grupo de impuesto de la línea (snapshot); la llave de su letra. */
+  taxGroupCode: string | null;
 }
 
 /** `=== null` a secas trataría "" como texto imprimible: línea vacía en papel. */
@@ -41,7 +45,13 @@ function noVacio(value: string | null): value is string {
 }
 
 export interface TicketInput {
-  tenant: { name: string; legalName: string | null; taxId: string | null };
+  tenant: {
+    name: string;
+    legalName: string | null;
+    taxId: string | null;
+    /** F4-TAXMARK-04: decide cómo se llama el registro fiscal («RFC», «GST/HST No.»). */
+    country: string | null;
+  };
   /**
    * El contacto que se imprime bajo la razón social (2026-08-26): dirección
    * y teléfono del ALMACÉN con fallback al tenant, YA colapsados por el
@@ -72,6 +82,13 @@ export interface TicketInput {
   /** El neto tras descuento: `total − Σ taxes.amount`. */
   taxBase: string;
   taxes: { name: string; rate: string; amount: string }[];
+  /**
+   * F4-TAXMARK-03 — la letra por grupo y su leyenda. Vacío salvo que el
+   * ticket mezcle dos o más grupos: entonces cada fila lleva su letra tras el
+   * importe y el pie explica cada una (la CRA pide indicar el estatus fiscal
+   * de cada línea). Sin marcas, el papel es idéntico al de siempre.
+   */
+  taxMarks: TaxMark[];
   /**
    * El código de barras diario del ticket (`202608240045`). Solo en ventas
    * nuevas: `null` en las anteriores a la migración y en cotizaciones — esos
@@ -134,6 +151,21 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
 
   const esCotizacion = input.kind === "quote";
 
+  // F4-TAXMARK-03: la columna de la letra existe SOLO con marcas. Una columna
+  // vacía en cada fila correría el importe en 48 mm de papel.
+  const marcaPorGrupo = new Map(input.taxMarks.map((m) => [m.code, m.mark]));
+  const columnaDeMarca = (row: TicketRow) =>
+    input.taxMarks.length === 0
+      ? []
+      : [
+          {
+            width: 12,
+            text: row.taxGroupCode === null ? "" : (marcaPorGrupo.get(row.taxGroupCode) ?? ""),
+            alignment: "right",
+            fontSize: 7,
+          },
+        ];
+
   return {
     pageSize: { width: anchoPt, height: "auto" },
     pageMargins: [margen, margen, margen, margen],
@@ -147,7 +179,16 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
         ? [{ text: input.tenant.legalName ?? input.tenant.name, bold: true, alignment: "center" }]
         : []),
       ...(input.settings.showTaxId && noVacio(input.tenant.taxId)
-        ? [{ text: input.tenant.taxId, alignment: "center", fontSize: 7 }]
+        ? [
+            {
+              // F4-TAXMARK-04: el número con su nombre («RFC: …», «GST/HST
+              // No.: …»); sin nombre universal, el genérico traducido. Un
+              // número sin nombre no le sirve a nadie en ningún país.
+              text: `${taxIdLabel(input.tenant.country) ?? t("ticket.taxId")}: ${input.tenant.taxId}`,
+              alignment: "center",
+              fontSize: 7,
+            },
+          ]
         : []),
       ...(input.settings.showAddress && noVacio(input.header.address)
         ? [{ text: input.header.address, alignment: "center", fontSize: 7 }]
@@ -208,6 +249,7 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
               fontSize: 7,
             },
             { text: dinero(row.lineTotal), alignment: "right", fontSize: 7 },
+            ...columnaDeMarca(row),
           ],
         },
         ...(row.lotCode === null
@@ -252,6 +294,16 @@ export function buildTicketDefinition(input: TicketInput, t: Translate) {
         ],
         margin: [0, 2, 0, 2],
       },
+
+      // ── La leyenda de las letras (F4-TAXMARK-03) ──────────────────────
+      //
+      // Bajo el Total y antes del cobro: «A = GST 5% + PST 7%». Son datos del
+      // negocio (el nombre del grupo ya trae la tasa), no copy: sin i18n.
+      ...input.taxMarks.map((m) => ({
+        text: `${m.mark} = ${m.label}`,
+        fontSize: 6,
+        color: "#666666",
+      })),
 
       // ── El cobro, solo en la venta ────────────────────────────────────
       ...(esCotizacion

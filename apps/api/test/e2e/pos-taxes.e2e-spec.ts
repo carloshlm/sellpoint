@@ -106,6 +106,8 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
 
     mx = await registerTenant(app, "tax-mx");
     await setTenantMarket(prisma, mx.tenantId, "MX");
+    // F4-TAXMARK-04: el registro fiscal, para ver su etiqueta en el papel.
+    await prisma.tenant.update({ where: { id: mx.tenantId }, data: { taxId: "DNO010203AB4" } });
     almacenMx = await almacenInicial(prisma, mx.tenantId);
     const gruposMx = await sembrar(mx.tenantId, "included", [
       {
@@ -120,6 +122,7 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
 
     bc = await registerTenant(app, "tax-bc");
     await setTenantMarket(prisma, bc.tenantId, "CA");
+    await prisma.tenant.update({ where: { id: bc.tenantId }, data: { taxId: "123456789 RT0001" } });
     almacenBc = await almacenInicial(prisma, bc.tenantId);
     await sembrar(bc.tenantId, "excluded", [
       {
@@ -331,6 +334,13 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
     expect(textoMx).toContain("116.00");
     expect(textoMx).toContain("200.00");
     expect(textoMx).toContain("216.00");
+    // F4-TAXMARK: la venta mezcla IVA 16% y Exento → cada grupo tiene su letra
+    // (por aparición) y la leyenda dice el nombre del grupo.
+    expect(textoMx).toMatch(/A = IVA/);
+    expect(textoMx).toContain("B = Exento");
+    // F4-TAXMARK-04: el registro fiscal con su nombre, según el país.
+    expect(textoMx).toContain("RFC: DNO010203AB4");
+    expect(textoMx).not.toContain("GST/HST");
 
     const bc = await pdf(`/pos/sales/${ventaBcId}/ticket?width=58mm`, bc_token()).expect(200);
     const textoBc = textoDelPdf(bc.body as Buffer);
@@ -342,6 +352,10 @@ describe("impuestos en la venta y la cotización (F4-TAX-07/08)", () => {
     // imprimiendo con el impuesto adentro.
     expect(textoBc.split("89.60").length - 1).toBe(1);
     expect(textoBc).not.toContain("IVA");
+    // Un solo grupo: ni letras ni leyenda; el papel de siempre (F4-TAXMARK).
+    expect(textoBc).not.toContain(" = GST");
+    expect(textoBc).toContain("GST/HST No.: 123456789 RT0001");
+    expect(textoBc).not.toContain("RFC");
   });
 
   it("el buscador trae el impuesto vigente de cada ítem, y /me el modo del negocio (F4-TAX-16)", async () => {

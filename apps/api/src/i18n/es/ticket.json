@@ -19,5 +19,6 @@
   "turn": "TURNO",
   "turnFooter": "Espera a que llamen tu número.",
   "taxBase": "Subtotal",
-  "taxableBase": "Base gravable"
+  "taxableBase": "Base gravable",
+  "taxId": "Identificación fiscal"
 }

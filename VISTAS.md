@@ -1281,6 +1281,13 @@ En un documento confirmado las líneas muestran **lo que el ledger asentó**: si
 > y BLOQUEA Cobrar: nunca se descarta en silencio. El servidor verifica el código (403 si
 > falla; cinco fallos → 429 por 15 minutos) y prorratea el importe entre las líneas.
 >
+> **F4-TAXMARK (2026-09-10):** cuando el ticket mezcla dos o más grupos de impuesto (GST 5% y
+> HST 13% en Canadá; IVA 16% y exento en una farmacia), cada línea lleva una letra tras el
+> importe («CA$6.00  A») y bajo el Total va la leyenda en gris chico («A = GST 5%», «B = HST
+> 13%»); con un solo grupo el papel no cambia. El registro fiscal sale con su nombre según el
+> país del negocio («RFC: DNO010203AB4», «GST/HST No.: 123456789 RT0001»), y la casilla de
+> Configuración del ticket y el campo de Datos del negocio se llaman igual.
+>
 > **El papel con descuento (Carlos, 2026-09-09):** cada línea se imprime a PRECIO DE LISTA
 > (precio × cantidad), nunca ya descontada —si no, las líneas sumaban el total final y abajo
 > volvía a aparecer «Descuento»—. El pie dice Subtotal (Σ líneas) → Descuento → Base

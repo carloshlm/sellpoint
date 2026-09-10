@@ -8,6 +8,8 @@ import {
   regionName,
   resolveTaxDefaults,
   TAX_CURATED_COUNTRIES,
+  TAX_ID_LABELS,
+  taxIdLabel,
   US_REGION_NAMES,
   US_REGIONS,
   US_STATE_BASE_RATE,
@@ -173,5 +175,35 @@ describe("el nombre de la provincia o del estado (F4-TAX-18)", () => {
     expect(regionName("US", "DC")).toBe("District of Columbia");
     expect(regionName("CA", "TX")).toBeUndefined();
     expect(regionName("MX", "BC")).toBeUndefined();
+  });
+});
+
+/**
+ * F4-TAXMARK-04 — la etiqueta del registro fiscal por país (Carlos, 2026-09-10:
+ * el ticket imprimía el `tax_id` pelado y Mi perfil lo llamaba «RFC» sin
+ * mirar el país). Donde el nombre es universal, se dice; donde no, `null` y
+ * el que llama pone el genérico traducido.
+ */
+describe("taxIdLabel (F4-TAXMARK-04)", () => {
+  it("México dice RFC, Canadá GST/HST No., Argentina CUIT, Brasil CNPJ", () => {
+    expect(taxIdLabel("MX")).toBe("RFC");
+    expect(taxIdLabel("CA")).toBe("GST/HST No.");
+    expect(taxIdLabel("AR")).toBe("CUIT");
+    expect(taxIdLabel("BR")).toBe("CNPJ");
+  });
+
+  it("Estados Unidos EIN y Francia SIREN/SIRET (la decisión 6 del web, mudada aquí)", () => {
+    expect(taxIdLabel("US")).toBe("EIN");
+    expect(taxIdLabel("FR")).toBe("SIREN/SIRET");
+  });
+
+  it("sin país o con uno no curado, null: el genérico traducido", () => {
+    expect(taxIdLabel(null)).toBeNull();
+    expect(taxIdLabel(undefined)).toBeNull();
+    expect(taxIdLabel("JP")).toBeNull();
+  });
+
+  it("cobertura: los 26 países curados tienen etiqueta, y ninguna sobra", () => {
+    expect(Object.keys(TAX_ID_LABELS).sort()).toEqual([...TAX_CURATED_COUNTRIES].sort());
   });
 });

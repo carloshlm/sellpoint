@@ -1,6 +1,6 @@
 import { TICKET_LOGO_SVG } from "@sellpoint/shared";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -8,6 +8,7 @@ import { createQueryClient } from "@/lib/query-client";
 import * as ticketApi from "@/lib/tenant/ticket-settings-api";
 import type { AuthUser } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { TicketSettings } from "./ticket-settings";
 
 vi.mock("@/lib/tenant/ticket-settings-api", async (importOriginal) => ({
@@ -231,5 +232,26 @@ describe("«Configuración del ticket» en Mi perfil (F4-TICKETCFG-08)", () => {
       "aria-pressed",
       "true",
     );
+  });
+});
+
+/** F4-TAXMARK-04: la casilla del registro fiscal se llama como en el país del negocio. */
+describe("la casilla del registro fiscal habla el idioma fiscal del país", () => {
+  it("en Canadá dice GST/HST No.; sin sigla, Identificación fiscal", async () => {
+    renderCard(
+      buildAuthUser({
+        permissions: ["tenants:manage"],
+        tenant: buildTenantBlock({ country: "CA" }),
+      }),
+    );
+    expect(await screen.findByLabelText("GST/HST No.")).toBeChecked();
+    cleanup();
+    renderCard(
+      buildAuthUser({
+        permissions: ["tenants:manage"],
+        tenant: buildTenantBlock({ country: "JP" }),
+      }),
+    );
+    expect(await screen.findByLabelText("Identificación fiscal")).toBeChecked();
   });
 });

@@ -4,6 +4,7 @@ import {
   type Currency,
   needsRegion,
   regionName,
+  taxIdLabel,
   US_REGIONS,
 } from "@sellpoint/shared";
 import { getCountryTimezones } from "./country-timezones";
@@ -148,42 +149,13 @@ export const DEFAULT_CURRENCY_BY_COUNTRY: Record<CuratedCountry, Currency> = {
 };
 
 /**
- * Decisión 6 (2026-08-16): siglas EXACTAS del identificador fiscal local
- * por país curado — mueren "RFC / RUT" (RUT era de Chile/Uruguay, países que
- * NO soportábamos; y no nombraba a los otros ocho). Un país NO curado usa la
- * etiqueta genérica sin sigla (`getTaxIdAbbreviation` devuelve `undefined`)
- * — SIN validación de formato por país, fuera de alcance (MERCADOS.md §2,
- * opción B vs C).
+ * Decisión 6 (2026-08-16): siglas EXACTAS del identificador fiscal local por
+ * país curado. La tabla vive en shared desde el 2026-09-10 (`TAX_ID_LABELS`,
+ * F4-TAXMARK-04): el ticket también la imprime, y dos tablas —una por lado—
+ * era exactamente el bug de «RFC» fijo en Mi perfil. Un país NO curado usa la
+ * etiqueta genérica sin sigla — SIN validación de formato por país, fuera de
+ * alcance (MERCADOS.md §2, opción B vs C).
  */
-export const TAX_ID_ABBREVIATION_BY_COUNTRY: Record<CuratedCountry, string> = {
-  MX: "RFC",
-  US: "EIN",
-  CA: "BN",
-  PT: "NIF",
-  ES: "NIF",
-  FR: "SIREN/SIRET",
-  IT: "Partita IVA",
-  DE: "USt-IdNr",
-  GB: "Company Number / VAT",
-  BZ: "TIN",
-  CR: "Cédula Jurídica",
-  SV: "NIT",
-  GT: "NIT",
-  HN: "RTN",
-  NI: "RUC",
-  PA: "RUC",
-  AR: "CUIT",
-  BO: "NIT",
-  BR: "CNPJ",
-  CL: "RUT",
-  CO: "NIT",
-  EC: "RUC",
-  PY: "RUC",
-  PE: "RUC",
-  UY: "RUT",
-  VE: "RIF",
-};
-
 export function isCuratedCountry(country: string): country is CuratedCountry {
   return Object.hasOwn(CURATED_TIMEZONES, country);
 }
@@ -214,7 +186,7 @@ export function getDefaultCurrency(country: string): Currency {
 
 /** `undefined` para un país no curado — el caller arma la etiqueta genérica sin sigla. */
 export function getTaxIdAbbreviation(country: string): string | undefined {
-  return isCuratedCountry(country) ? TAX_ID_ABBREVIATION_BY_COUNTRY[country] : undefined;
+  return taxIdLabel(country) ?? undefined;
 }
 
 /**

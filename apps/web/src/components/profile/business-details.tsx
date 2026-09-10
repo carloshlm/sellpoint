@@ -7,6 +7,7 @@ import {
   normalizePostalCode,
   resolveAddressFormat,
   splitE164,
+  taxIdLabel,
 } from "@sellpoint/shared";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -267,7 +268,8 @@ function BusinessDetails({ user }: { user: AuthUser }) {
             {...register("legalName")}
           />
           <TextField
-            label={t("common.profile.business.taxId")}
+            // F4-TAXMARK-04: «RFC», «GST/HST No.»… según el país; genérico si no hay sigla.
+            label={taxIdLabel(user.tenant.country) ?? t("common.profile.business.taxId")}
             error={errors.taxId?.message ? t(errors.taxId.message) : undefined}
             {...register("taxId")}
           />

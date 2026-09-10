@@ -14,6 +14,7 @@ import {
   type TicketWidth,
 } from "./ticket.renderer";
 import { ticketHeaderContact } from "./ticket-header";
+import { distinctTaxGroupCodes, type TaxMark, taxMarksFor } from "./ticket-tax-marks";
 
 /**
  * Las Type1 que trae pdfkit: sin archivos de fuente que empaquetar en la
@@ -136,6 +137,7 @@ export class TicketService {
           name: tenant.name,
           legalName: tenant.legalName,
           taxId: tenant.taxId,
+          country: tenant.country,
         },
         // El contacto del ALMACÉN con fallback al negocio (2026-08-26): la
         // regla vive en ticketHeaderContact, el renderer solo pinta.
@@ -159,6 +161,7 @@ export class TicketService {
           rate: x.rate.toString(),
           amount: x.amount.toString(),
         })),
+        taxMarks: await this.marcasDe(tx, user.tenantId, venta.items, venta.taxes),
         paymentMethod: venta.paymentMethod,
         // El recibido y el vuelto los sabe la PANTALLA, no la base: el sistema
         // registra qué se cobró, no con qué billete se pagó. Se dejan en null
@@ -240,6 +243,7 @@ export class TicketService {
           name: tenant.name,
           legalName: tenant.legalName,
           taxId: tenant.taxId,
+          country: tenant.country,
         },
         header: ticketHeaderContact(tenant, cotizacion.warehouse, tenant.country),
         kind: "quote" as const,
@@ -258,6 +262,7 @@ export class TicketService {
           rate: x.rate.toString(),
           amount: x.amount.toString(),
         })),
+        taxMarks: await this.marcasDe(tx, user.tenantId, cotizacion.lines, cotizacion.taxes),
         paymentMethod: null,
         received: null,
         change: null,
@@ -292,6 +297,8 @@ export class TicketService {
       lineTotal: { toString(): string };
       /** F4-TAX-13: en `excluded` la fila se imprime SIN el impuesto (CRA). */
       taxAmount: { toString(): string };
+      /** F4-TAXMARK: el grupo de la línea (snapshot); la llave de su letra. */
+      taxGroupCode: string | null;
       description?: string;
       /** F4-CONCEPT-07: el texto del concepto vive en la fila de la venta. */
       conceptDescription?: string | null;
@@ -344,8 +351,36 @@ export class TicketService {
           .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
           .toString(),
         lotCode: line.productId === null ? null : (lotePorProducto.get(line.productId) ?? null),
+        taxGroupCode: line.taxGroupCode,
       };
     });
+  }
+
+  /**
+   * F4-TAXMARK-02 — las marcas de impuesto del ticket. Solo cuando las líneas
+   * traen dos o más grupos distintos y hay impuestos: con uno no se consulta
+   * nada y el papel no cambia. El nombre del grupo se lee del catálogo
+   * VIGENTE, como el nombre del producto en la fila (deriva aceptada: un
+   * grupo renombrado reimprime la leyenda nueva); un código que ya no existe
+   * entra con su código como nombre: la marca no desaparece porque el grupo
+   * se borró.
+   */
+  private async marcasDe(
+    tx: Parameters<Parameters<PrismaService["withTenantContext"]>[1]>[0],
+    tenantId: string,
+    lines: { taxGroupCode: string | null }[],
+    taxes: unknown[],
+  ): Promise<TaxMark[]> {
+    const codigos = distinctTaxGroupCodes(lines);
+    if (taxes.length === 0 || codigos.length < 2) {
+      return [];
+    }
+    const grupos = await tx.taxGroup.findMany({
+      where: { tenantId, code: { in: codigos } },
+      select: { code: true, name: true },
+    });
+    const nombre = new Map(grupos.map((g) => [g.code, g.name]));
+    return taxMarksFor(codigos.map((code) => ({ code, name: nombre.get(code) ?? code })));
   }
 
   private async aBinario(input: TicketInput, t: (key: string) => string): Promise<Buffer> {

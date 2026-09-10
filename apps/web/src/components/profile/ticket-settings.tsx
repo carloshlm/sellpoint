@@ -4,6 +4,7 @@ import {
   TICKET_LOGO_PRESETS,
   TICKET_LOGO_SVG,
   type TicketLogoPreset,
+  taxIdLabel,
 } from "@sellpoint/shared";
 import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -72,6 +73,12 @@ const desdeSettings = (s: TicketSettingsView): Formulario => ({
  */
 export function TicketSettings({ user }: { user: AuthUser }) {
   const { t } = useTranslation();
+  // F4-TAXMARK-04: la casilla del registro fiscal se llama como en el país del
+  // negocio («RFC», «GST/HST No.»), la misma etiqueta que imprime el ticket.
+  const etiqueta = (casilla: Casilla) =>
+    casilla === "showTaxId"
+      ? (taxIdLabel(user.tenant.country) ?? t("common.profile.ticket.showTaxId"))
+      : t(`common.profile.ticket.${casilla}`);
   const visible = user.permissions.includes("tenants:manage");
   const { data, isError } = useTicketSettings(visible);
   const update = useUpdateTicketSettings();
@@ -243,7 +250,7 @@ export function TicketSettings({ user }: { user: AuthUser }) {
                 <div key={casilla} className="flex items-center gap-3">
                   <Checkbox
                     id={`ticket-${casilla}`}
-                    aria-label={t(`common.profile.ticket.${casilla}`)}
+                    aria-label={etiqueta(casilla)}
                     checked={form.casillas[casilla]}
                     disabled={ocupado}
                     onCheckedChange={(checked) =>
@@ -253,9 +260,7 @@ export function TicketSettings({ user }: { user: AuthUser }) {
                       })
                     }
                   />
-                  <Label htmlFor={`ticket-${casilla}`}>
-                    {t(`common.profile.ticket.${casilla}`)}
-                  </Label>
+                  <Label htmlFor={`ticket-${casilla}`}>{etiqueta(casilla)}</Label>
                 </div>
               ))}
             </fieldset>

@@ -487,3 +487,54 @@ export const TAX_CURATED_COUNTRIES = [
   "UY",
   "VE",
 ] as const;
+
+/**
+ * F4-TAXMARK-04 — cómo se llama el registro fiscal en cada país curado.
+ *
+ * Nació en el web (`markets.ts`, decisión 6 del 2026-08-16: siglas EXACTAS
+ * por país curado) y se MUDÓ aquí el 2026-09-10 porque el ticket también la
+ * necesita: la CRA exige el número de registro GST/HST en todo ticket de $30
+ * o más, y el papel lo imprimía pelado (Carlos: «¿este ticket es correcto en
+ * Canadá?»). Una sola tabla para el wizard, Mi perfil y el ticket. No depende
+ * del idioma: «RFC» es «RFC» también en inglés.
+ *
+ * Canadá dice «GST/HST No.» y no «BN»: es como la CRA llama a lo que va en el
+ * recibo (el Business Number con su sufijo `RT0001`), y es lo que el dueño
+ * reconoce como «su número de GST».
+ */
+export const TAX_ID_LABELS: Record<(typeof TAX_CURATED_COUNTRIES)[number], string> = {
+  MX: "RFC",
+  US: "EIN",
+  CA: "GST/HST No.",
+  PT: "NIF",
+  ES: "NIF",
+  FR: "SIREN/SIRET",
+  IT: "Partita IVA",
+  DE: "USt-IdNr",
+  GB: "Company Number / VAT",
+  BZ: "TIN",
+  CR: "Cédula Jurídica",
+  SV: "NIT",
+  GT: "NIT",
+  HN: "RTN",
+  NI: "RUC",
+  PA: "RUC",
+  AR: "CUIT",
+  BO: "NIT",
+  BR: "CNPJ",
+  CL: "RUT",
+  CO: "NIT",
+  EC: "RUC",
+  PY: "RUC",
+  PE: "RUC",
+  UY: "RUT",
+  VE: "RIF",
+};
+
+/** `null` sin país o para uno no curado: el que llama pone el genérico traducido. */
+export function taxIdLabel(country: string | null | undefined): string | null {
+  if (!country || !(TAX_CURATED_COUNTRIES as readonly string[]).includes(country)) {
+    return null;
+  }
+  return TAX_ID_LABELS[country as (typeof TAX_CURATED_COUNTRIES)[number]];
+}

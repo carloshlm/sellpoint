@@ -18,6 +18,7 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
     unitPrice: "15.00",
     lineTotal: "30.00",
     lotCode: null,
+    taxGroupCode: null,
   };
 
   const base: TicketInput = {
@@ -25,6 +26,7 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       name: "Mi Negocio",
       legalName: "DISTRIBUIDORA DEL NORTE S.A. DE C.V.",
       taxId: "DNO010203AB4",
+      country: "MX",
     },
     // Ya colapsado por el service (2026-08-26): almacén con fallback al tenant.
     header: { address: "Av. Siempre Viva 742", phone: "+525512345678" },
@@ -40,6 +42,7 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
     taxMode: "included",
     taxBase: "30.00",
     taxes: [],
+    taxMarks: [],
     paymentMethod: "cash",
     received: "50.00",
     change: "20.00",
@@ -359,9 +362,10 @@ describe("el código de barras del folio", () => {
     unitPrice: "15.00",
     lineTotal: "15.00",
     lotCode: null,
+    taxGroupCode: null,
   };
   const base: TicketInput = {
-    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, country: null },
     header: { address: null, phone: null },
     kind: "sale",
     folio: "VTA-000042",
@@ -375,6 +379,7 @@ describe("el código de barras del folio", () => {
     taxMode: "included",
     taxBase: "0.00",
     taxes: [],
+    taxMarks: [],
     paymentMethod: "cash",
     received: null,
     change: null,
@@ -459,7 +464,7 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
     total: "100.00",
   });
   const baseSinImpuesto = (): TicketInput => ({
-    tenant: { name: "Mi Negocio", legalName: null, taxId: null },
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, country: null },
     header: { address: null, phone: null },
     kind: "sale",
     folio: "VTA-000001",
@@ -473,6 +478,7 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
     taxMode: "included",
     taxBase: "116.00",
     taxes: [],
+    taxMarks: [],
     paymentMethod: "cash",
     received: null,
     change: null,
@@ -568,3 +574,144 @@ describe("el desglose del impuesto (F4-TAX-12)", () => {
 function textosDe(def: unknown): string {
   return JSON.stringify(def);
 }
+
+/**
+ * F4-TAXMARK-03 — la letra tras el importe y la leyenda bajo el total, SOLO
+ * cuando el ticket mezcla grupos de impuesto (la CRA pide indicar el estatus
+ * fiscal de cada línea). Sin marcas, el papel es el de siempre: ni una
+ * columna vacía, que en 48 mm cuesta espacio real.
+ */
+describe("la marca de impuesto por línea (F4-TAXMARK-03)", () => {
+  const t = (key: string) => key;
+  const linea = (description: string, taxGroupCode: string | null): TicketRow => ({
+    description,
+    quantity: "1",
+    baseUnit: null,
+    unitPrice: "6.00",
+    lineTotal: "6.00",
+    lotCode: null,
+    taxGroupCode,
+  });
+  const marcas = [
+    { code: "GST", mark: "A", label: "GST 5%" },
+    { code: "HST", mark: "B", label: "HST 13%" },
+  ];
+  const base = (): TicketInput => ({
+    tenant: { name: "Mi Negocio", legalName: null, taxId: null, country: null },
+    header: { address: null, phone: null },
+    kind: "sale",
+    folio: "VTA-000008",
+    createdAt: new Date("2026-09-10T20:40:00Z"),
+    sellerName: "Dos Test",
+    warehouseName: "Main Warehouse",
+    rows: [linea("Service Three", "GST"), linea("Service Four", "HST"), linea("Envío", null)],
+    subtotal: "18.00",
+    discount: "0.00",
+    total: "19.94",
+    taxMode: "excluded",
+    taxBase: "18.00",
+    taxes: [
+      { name: "GST 5%", rate: "5", amount: "0.30" },
+      { name: "HST 13%", rate: "13", amount: "1.64" },
+    ],
+    taxMarks: marcas,
+    paymentMethod: "card",
+    received: null,
+    change: null,
+    note: null,
+    currency: "CAD",
+    locale: "en",
+    width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
+  });
+  /** La segunda línea de cada fila: la que trae «1 × $6.00» y el importe. */
+  const columnasDeFila = (def: unknown): { text?: string }[][] =>
+    (def as { content: { columns?: { text?: string }[] }[] }).content
+      .filter((n) => n.columns !== undefined && JSON.stringify(n).includes(" × "))
+      .map((n) => n.columns as { text?: string }[]);
+
+  it("con dos grupos, cada fila lleva la letra de su grupo tras el importe; sin grupo, la celda va vacía", () => {
+    const filas = columnasDeFila(buildTicketDefinition(base(), t));
+    expect(filas.map((c) => c.length)).toEqual([3, 3, 3]);
+    expect(filas.map((c) => c[2]?.text)).toEqual(["A", "B", ""]);
+  });
+
+  it("la leyenda dice el nombre del grupo, después del Total y antes del cobro", () => {
+    const texto = JSON.stringify(buildTicketDefinition(base(), t));
+    const leyenda = texto.indexOf("B = HST 13%");
+    expect(leyenda).toBeGreaterThan(texto.indexOf("ticket.total"));
+    expect(leyenda).toBeLessThan(texto.indexOf("ticket.payment"));
+    expect(texto).toContain("A = GST 5%");
+  });
+
+  it("sin marcas no existe la tercera columna ni la leyenda: el papel de siempre", () => {
+    const def = buildTicketDefinition({ ...base(), taxMarks: [] }, t);
+    expect(columnasDeFila(def).map((c) => c.length)).toEqual([2, 2, 2]);
+    expect(JSON.stringify(def)).not.toContain(" = ");
+  });
+});
+
+/**
+ * F4-TAXMARK-04 — el registro fiscal sale con su nombre según el país del
+ * negocio; sin nombre universal, el genérico traducido. La CRA lo exige en
+ * tickets de $30 o más, y un número sin nombre no le sirve a nadie.
+ */
+describe("la etiqueta del registro fiscal por país (F4-TAXMARK-04)", () => {
+  const t = (key: string) => key;
+  const conRegistro = (country: string | null, taxId: string): TicketInput => ({
+    tenant: { name: "Mi Negocio", legalName: null, taxId, country },
+    header: { address: null, phone: null },
+    kind: "sale",
+    folio: "VTA-000001",
+    createdAt: new Date("2026-09-10T18:00:00Z"),
+    sellerName: "Ana",
+    warehouseName: "Central",
+    rows: [],
+    subtotal: "10.00",
+    discount: "0.00",
+    total: "10.00",
+    taxMode: "included",
+    taxBase: "10.00",
+    taxes: [],
+    taxMarks: [],
+    paymentMethod: "cash",
+    received: null,
+    change: null,
+    note: null,
+    currency: "MXN",
+    locale: "es",
+    width: "58mm",
+    settings: DEFAULT_TICKET_SETTINGS,
+    logo: null,
+  });
+
+  it("México dice «RFC: …» y Canadá «GST/HST No.: …»", () => {
+    expect(JSON.stringify(buildTicketDefinition(conRegistro("MX", "DNO010203AB4"), t))).toContain(
+      "RFC: DNO010203AB4",
+    );
+    expect(
+      JSON.stringify(buildTicketDefinition(conRegistro("CA", "123456789 RT0001"), t)),
+    ).toContain("GST/HST No.: 123456789 RT0001");
+  });
+
+  it("un país no curado (o sin país) va con el genérico traducido", () => {
+    expect(JSON.stringify(buildTicketDefinition(conRegistro("JP", "T1234567890123"), t))).toContain(
+      "ticket.taxId: T1234567890123",
+    );
+    expect(JSON.stringify(buildTicketDefinition(conRegistro(null, "X1"), t))).toContain(
+      "ticket.taxId: X1",
+    );
+  });
+
+  it("con la casilla apagada no sale ni el nombre", () => {
+    const def = buildTicketDefinition(
+      {
+        ...conRegistro("MX", "DNO010203AB4"),
+        settings: { ...DEFAULT_TICKET_SETTINGS, showTaxId: false },
+      },
+      t,
+    );
+    expect(JSON.stringify(def)).not.toContain("RFC");
+  });
+});
