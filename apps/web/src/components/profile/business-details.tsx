@@ -3,6 +3,7 @@ import {
   COUNTRY_DIAL_CODES,
   type CountryCode,
   ISO_COUNTRY_CODES,
+  isTaxId,
   needsRegion,
   normalizePostalCode,
   normalizeTaxId,
@@ -21,6 +22,7 @@ import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ErrorNotice } from "@/components/ui/error-notice";
 import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
@@ -104,7 +106,6 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       name: user.tenant.name,
       legalName: user.tenant.legalName ?? "",
       taxId: user.tenant.taxId ?? "",
-      initialTaxId: user.tenant.taxId ?? "",
       address: user.tenant.address ?? "",
       country: user.tenant.country ?? "",
       addressLine2: user.tenant.addressLine2 ?? "",
@@ -170,7 +171,23 @@ function BusinessDetails({ user }: { user: AuthUser }) {
     if (dirtyFields.timezone) patch.timezone = values.timezone;
     if (dirtyFields.name) patch.name = values.name.trim();
     if (dirtyFields.legalName) patch.legalName = values.legalName.trim();
-    if (dirtyFields.taxId) patch.taxId = values.taxId.trim();
+    // F1-TAXID: el registro fiscal se valida EXACTAMENTE cuando viaja —si
+    // cambió—, con la misma función que el servidor. Vacío BORRA (null).
+    //
+    // El aviso va ARRIBA y no en el campo (`setError`): con `resolver`, un
+    // error puesto a mano no sobrevive al siguiente ciclo de validación —el
+    // `onBlur` que normaliza lo dispara— y el mensaje desaparecía sin que
+    // ningún test en jsdom lo viera (2026-09-10, destapado en el navegador).
+    // El cuadro rojo se lleva el foco y con él el scroll, que es lo que
+    // faltaba: el formulario es largo y el aviso vive arriba.
+    if (dirtyFields.taxId) {
+      const taxId = normalizeTaxId(user.tenant.country, values.taxId);
+      if (taxId !== "" && !isTaxId(user.tenant.country, taxId)) {
+        setApiError(t("validation.taxIdInvalid", { example: ejemploFiscal ?? "" }));
+        return;
+      }
+      patch.taxId = taxId === "" ? null : taxId;
+    }
     if (dirtyFields.address) patch.address = values.address.trim();
     // F1-ADDR-06: solo lo TOCADO viaja, y vacío BORRA (null) — un campo que
     // viajara siempre borraría la dirección en cada guardado de otra cosa.
@@ -233,15 +250,10 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} noValidate className="flex max-w-md flex-col gap-4">
-          {apiError && (
-            <p
-              role="alert"
-              data-testid="business-details-error"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {apiError}
-            </p>
-          )}
+          {/* ErrorNotice y no un <p>: se lleva el FOCO (y con él el scroll) —
+              el formulario es largo y el aviso vive arriba, así que un
+              guardado rechazado parecía no hacer nada (Carlos, 2026-09-10). */}
+          {apiError && <ErrorNotice testId="business-details-error">{apiError}</ErrorNotice>}
           {/* SuccessNotice y no un <p>: mueve el FOCO al cuadro (y con él el
               scroll) — en un celular el formulario es largo y el mensaje vive
               arriba, así que guardar parecía no hacer nada (Carlos, 2026-09-01). */}

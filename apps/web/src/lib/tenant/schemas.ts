@@ -98,11 +98,13 @@ export const businessDetailsSchema = z
   .object({
     name: requiredString,
     legalName: requiredString,
-    taxId: requiredString,
-    // F1-TAXID-03: lo guardado, SOLO para comparar: el patrón corre nada más
-    // cuando el registro cambió, así un RFC viejo mal tecleado no impide
-    // cambiar el teléfono. No se manda.
-    initialTaxId: z.string(),
+    // F1-TAXID (2026-09-10): OPCIONAL —un negocio que no lo tiene o no lo sabe
+    // guarda lo demás; vacío BORRA, como el teléfono y la meta—. El formato NO
+    // se valida acá: la regla corre en el submit, donde se sabe si el campo
+    // CAMBIÓ (`dirtyFields`), que es exactamente cuando el valor viaja. Dos
+    // condiciones distintas para validar y para mandar podían divergir, y ahí
+    // el que avisaba era el servidor, con un mensaje sin ejemplo.
+    taxId: z.string(),
     address: requiredString,
     // F1-ADDR-06: la dirección estructurada, OPCIONAL acá — un negocio que ya
     // existe no se traba por lo que no capturó; solo el wizard obliga. El
@@ -139,9 +141,6 @@ export const businessDetailsSchema = z
         path: ["postalCode"],
         message: "common.address.postalCodeInvalid",
       });
-    }
-    if (values.taxId !== values.initialTaxId && !isTaxId(values.country || null, values.taxId)) {
-      ctx.addIssue({ code: "custom", path: ["taxId"], message: "validation.taxIdInvalid" });
     }
     const metaError = moneyInputError(values.monthlySalesGoal);
     if (metaError !== null) {

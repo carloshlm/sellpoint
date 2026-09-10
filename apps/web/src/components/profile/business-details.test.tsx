@@ -601,14 +601,22 @@ describe("Datos del negocio — el registro fiscal por país (F1-TAXID-03)", () 
     expect(screen.queryByText(MENSAJE)).not.toBeInTheDocument();
   });
 
-  it("al tocar el RFC y dejarlo mal, el error enseña el ejemplo y no se guarda", async () => {
+  /**
+   * El aviso va ARRIBA, con el foco: en el navegador un `setError` sobre el
+   * campo no sobrevivía al ciclo de validación que dispara el `onBlur` que
+   * normaliza, y el mensaje desaparecía (2026-09-10). El test mira el cuadro,
+   * no el campo, porque el cuadro es lo que el usuario ve.
+   */
+  it("al tocar el RFC y dejarlo mal, el aviso enseña el ejemplo, se lleva el foco y no se guarda", async () => {
     const user = userEvent.setup();
     renderCard(demoUser(["tenants:manage"]));
     const rfc = screen.getByLabelText("RFC");
     await user.clear(rfc);
     await user.type(rfc, "CINCO8507223N4");
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
-    expect(await screen.findByText(MENSAJE)).toBeInTheDocument();
+    const aviso = await screen.findByTestId("business-details-error");
+    expect(aviso).toHaveTextContent(MENSAJE);
+    expect(aviso).toHaveFocus();
     expect(mockedUpdate).not.toHaveBeenCalled();
   });
 
@@ -621,5 +629,74 @@ describe("Datos del negocio — el registro fiscal por país (F1-TAXID-03)", () 
     await user.type(rfc, "xaxx010101000");
     await user.tab();
     expect(rfc).toHaveValue("XAXX010101000");
+  });
+});
+
+/**
+ * Carlos (2026-09-10), con la tarjeta en pantalla: el registro fiscal es
+ * OPCIONAL —un negocio que no lo tiene o no lo sabe debe poder guardar lo
+ * demás— y, cuando algo falla, el aviso tiene que VERSE: el formulario es
+ * largo y el mensaje vive arriba.
+ */
+describe("Datos del negocio — el registro fiscal es opcional y el error se ve (2026-09-10)", () => {
+  it("vaciar el registro fiscal lo BORRA (null) y no bloquea el guardado", async () => {
+    const user = userEvent.setup();
+    const actor = demoUser(["tenants:manage"]);
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, taxId: null });
+    renderCard(actor);
+
+    await user.clear(screen.getByLabelText("RFC"));
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ taxId: null }));
+  });
+
+  /**
+   * El bug que Carlos vio: `onBlur` normalizaba con `shouldDirty`, así que
+   * PASAR el foco por el campo lo marcaba como tocado y el registro viejo
+   * viajaba al servidor, que lo rechazaba con 422. Tocar no es cambiar.
+   */
+  it("pasar el foco por el registro fiscal sin cambiarlo NO lo manda", async () => {
+    const user = userEvent.setup();
+    const actor = buildAuthUser({
+      permissions: ["tenants:manage"],
+      tenant: buildTenantBlock({
+        legalName: "Acme SA de CV",
+        taxId: "CINCO8507223N4",
+        address: "Av. Siempre Viva 123",
+        phone: "+525512345678",
+      }),
+    });
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, name: "Acme 2" });
+    renderCard(actor);
+
+    await user.click(screen.getByLabelText("RFC"));
+    await user.tab();
+    const nombre = screen.getByLabelText("Nombre del negocio");
+    await user.clear(nombre);
+    await user.type(nombre, "Acme 2");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ name: "Acme 2" }));
+  });
+
+  it("el error del servidor recibe el FOCO, como el mensaje de éxito", async () => {
+    const user = userEvent.setup();
+    mockedUpdate.mockRejectedValue({
+      statusCode: 422,
+      code: "tenants.invalid_tax_id",
+      message: "La identificación fiscal no tiene el formato de tu país.",
+      error: "Unprocessable Entity",
+    });
+    renderCard(demoUser(["tenants:manage"]));
+
+    const nombre = screen.getByLabelText("Nombre del negocio");
+    await user.clear(nombre);
+    await user.type(nombre, "Acme 2");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    const aviso = await screen.findByTestId("business-details-error");
+    expect(aviso).toHaveTextContent("La identificación fiscal no tiene el formato de tu país.");
+    expect(aviso).toHaveFocus();
   });
 });

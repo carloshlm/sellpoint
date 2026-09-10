@@ -149,7 +149,7 @@ export class TenantProfileService {
     tenantId: string,
     dto: UpdateTenantDto,
   ): Promise<UpdateTenantDto> {
-    if (dto.taxId === undefined) return dto;
+    if (dto.taxId === undefined || dto.taxId === null) return dto;
     const country =
       dto.country ??
       (await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { country: true } }))

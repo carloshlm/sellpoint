@@ -287,6 +287,13 @@ describe("TenantProfileService.update — la provincia o el estado (F4-TAX-18)",
     );
   });
 
+  it("el DTO acepta el registro fiscal en null y la cadena vacía cuenta como «sin dato»", () => {
+    expect(updateTenantSchema.safeParse({ taxId: null }).success).toBe(true);
+    const vacio = updateTenantSchema.safeParse({ taxId: "  " });
+    expect(vacio.success).toBe(true);
+    expect(vacio.success && vacio.data.taxId).toBeNull();
+  });
+
   it("el DTO acepta region en null y rechaza la cadena vacía", () => {
     expect(updateTenantSchema.safeParse({ region: null }).success).toBe(true);
     expect(updateTenantSchema.safeParse({ region: "" }).success).toBe(false);
@@ -403,6 +410,14 @@ describe("TenantProfileService.update — el registro fiscal por país (F1-TAXID
     await service.update(ACTOR, { taxId: " t1234567890123 " }, meta);
     expect(tx.tenant.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { taxId: "T1234567890123" } }),
+    );
+  });
+
+  it("es OPCIONAL: vacío BORRA (null) y no se valida — no hay formato que cumplir", async () => {
+    const { service, tx } = buildService({ tenantRow: { id: "tenant-1", country: "MX" } });
+    await service.update(ACTOR, { taxId: null }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { taxId: null } }),
     );
   });
 

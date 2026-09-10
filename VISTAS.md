@@ -1760,10 +1760,12 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 > «Quitar código». El código viaja una vez, se guarda hasheado y nunca se vuelve a mostrar.
 >
 > **Registro fiscal por país (F1-TAXID, 2026-09-10; en «Datos del negocio»):** el campo
-> «RFC» / «GST/HST No.» lleva el hint con el ejemplo del país, normaliza al salir y solo se
-> valida cuando CAMBIÓ: un registro viejo mal guardado no impide cambiar el teléfono, y al
-> tocarlo el error enseña el ejemplo. El servidor responde 422 «La identificación fiscal no
-> tiene el formato de tu país.» si algo se le cuela.
+> «RFC» / «GST/HST No.» es **opcional** —vaciarlo lo BORRA, como el teléfono y la meta— y
+> lleva el hint con el ejemplo del país. Se normaliza al salir del campo y se valida solo
+> cuando CAMBIÓ: un registro viejo mal guardado no impide cambiar el teléfono. Si no cumple
+> la regla, el aviso rojo sale ARRIBA con el ejemplo y **se lleva el foco**, así el navegador
+> desplaza hasta él (el formulario es largo y el mensaje quedaba fuera de la pantalla —
+> Carlos, 2026-09-10); lo mismo hace el 422 del servidor.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐

@@ -21,7 +21,15 @@ export const updateTenantSchema = z
   .object({
     name: z.string().trim().min(1).optional(),
     legalName: z.string().trim().min(1).optional(),
-    taxId: z.string().trim().min(1).optional(),
+    // F1-TAXID (2026-09-10): BORRABLE (null), como `phone` — capturarlo una
+    // vez no lo vuelve obligatorio, y «» cuenta como «sin dato». El FORMATO se
+    // valida en el service, que sí ve el país guardado.
+    taxId: z
+      .string()
+      .trim()
+      .nullable()
+      .transform((v) => (v === "" ? null : v))
+      .optional(),
     address: z.string().trim().min(1).optional(),
     // F1-ADDR-03: la dirección estructurada. Los tres son BORRABLES (null),
     // como `phone`: capturarlos una vez no los vuelve obligatorios, y «» cuenta
