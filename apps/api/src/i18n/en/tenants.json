@@ -4,6 +4,7 @@
   "invalid_country": "The country is not valid",
   "invalid_phone": "The phone must be in international format, for example +525512345678",
   "invalid_postal_code": "The postal code does not match your country's format.",
+  "invalid_tax_id": "The tax ID does not match your country's format.",
   "invalid_goal": "The monthly goal must be a positive amount with up to 2 decimals",
   "empty_update": "There are no changes to save",
   "ticket_logo_not_image": "The file is not an image",

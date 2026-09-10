@@ -5,8 +5,10 @@ import {
   ISO_COUNTRY_CODES,
   needsRegion,
   normalizePostalCode,
+  normalizeTaxId,
   resolveAddressFormat,
   splitE164,
+  taxIdExample,
   taxIdLabel,
 } from "@sellpoint/shared";
 import { useMemo, useState } from "react";
@@ -102,6 +104,7 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       name: user.tenant.name,
       legalName: user.tenant.legalName ?? "",
       taxId: user.tenant.taxId ?? "",
+      initialTaxId: user.tenant.taxId ?? "",
       address: user.tenant.address ?? "",
       country: user.tenant.country ?? "",
       addressLine2: user.tenant.addressLine2 ?? "",
@@ -114,6 +117,8 @@ function BusinessDetails({ user }: { user: AuthUser }) {
       ...phoneFormDefaults(user.tenant),
     },
   });
+  // F1-TAXID-03: el ejemplo del país para el hint y el error del registro fiscal.
+  const ejemploFiscal = taxIdExample(user.tenant.country);
 
   // Mismo patrón que el selector de país del wizard (step-business): nombres
   // vía Intl.DisplayNames en el locale del usuario — nunca se guardan.
@@ -270,8 +275,23 @@ function BusinessDetails({ user }: { user: AuthUser }) {
           <TextField
             // F4-TAXMARK-04: «RFC», «GST/HST No.»… según el país; genérico si no hay sigla.
             label={taxIdLabel(user.tenant.country) ?? t("common.profile.business.taxId")}
-            error={errors.taxId?.message ? t(errors.taxId.message) : undefined}
-            {...register("taxId")}
+            hint={
+              ejemploFiscal === null
+                ? undefined
+                : t("validation.taxIdExample", { example: ejemploFiscal })
+            }
+            error={
+              errors.taxId?.message
+                ? t(errors.taxId.message, { example: ejemploFiscal ?? "" })
+                : undefined
+            }
+            {...register("taxId", {
+              onBlur: (event) =>
+                setValue("taxId", normalizeTaxId(user.tenant.country, event.target.value), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                }),
+            })}
           />
           {/* F1-ADDR-06: la dirección en los campos del país del negocio. */}
           <AddressFields

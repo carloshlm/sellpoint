@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
@@ -23,6 +23,17 @@ function tenantFixture(overrides: Partial<TenantBlock> = {}): TenantBlock {
     onboarded: false,
     ...overrides,
   });
+}
+
+/** F1-TAXID-03: el RFC del fixture es mexicano; al cambiar de país se teclea el registro de ese país. */
+async function escribirRegistroFiscal(
+  user: ReturnType<typeof userEvent.setup>,
+  etiqueta: string,
+  valor: string,
+) {
+  const campo = screen.getByLabelText(etiqueta);
+  await user.clear(campo);
+  await user.type(campo, valor);
 }
 
 function renderStep(overrides: Partial<TenantBlock> = {}) {
@@ -382,6 +393,7 @@ describe("StepBusiness — provincia / estado (F4-TAX-18)", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderStep();
     await selectCountry(user, "CA");
+    await escribirRegistroFiscal(user, "Identificación fiscal (GST/HST No.)", "123456789 RT0001");
 
     const provincia = regionSelect("Provincia o territorio");
     expect(within(provincia).getByRole("option", { name: "British Columbia" })).toBeInTheDocument();
@@ -469,6 +481,7 @@ describe("StepBusiness — dirección por país (F1-ADDR-05)", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderStep();
     await selectCountry(user, "CA");
+    await escribirRegistroFiscal(user, "Identificación fiscal (GST/HST No.)", "123456789 RT0001");
     await user.selectOptions(timezoneSelect(), "America/Toronto");
     await user.selectOptions(screen.getByLabelText("Provincia o territorio"), "ON");
     await user.type(screen.getByLabelText("Ciudad o municipio"), "Toronto");
@@ -493,6 +506,11 @@ describe("StepBusiness — dirección por país (F1-ADDR-05)", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderStep();
     await selectCountry(user, "GB");
+    await escribirRegistroFiscal(
+      user,
+      "Identificación fiscal (Company Number / VAT)",
+      "GB123456789",
+    );
     expect(screen.queryByRole("combobox", { name: /Estado|Provincia/ })).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Ciudad o municipio"), "London");
     await user.type(screen.getByLabelText("Código postal"), "ec1y 8sy");
@@ -507,9 +525,49 @@ describe("StepBusiness — dirección por país (F1-ADDR-05)", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderStep();
     await selectCountry(user, "BO");
+    await escribirRegistroFiscal(user, "Identificación fiscal (NIT)", "1234567012");
     await user.click(screen.getByRole("button", { name: "Continuar" }));
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ country: "BO", address: "Av. Siempre Viva 123", city: "" }),
     );
+  });
+});
+
+/**
+ * F1-TAXID-03 — el registro fiscal se valida contra la regla de su país con
+ * la MISMA función que el servidor, el error y el hint enseñan el ejemplo, y
+ * al salir del campo el valor se normaliza para que se vea lo que se guarda.
+ */
+describe("StepBusiness — el registro fiscal por país (F1-TAXID-03)", () => {
+  const MENSAJE = "Escribe una identificación fiscal válida para tu país, como ABC010101AB1";
+
+  it("México: un RFC de 14 caracteres no deja continuar y el error enseña el ejemplo", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderStep({ country: "MX" });
+    const campo = screen.getByLabelText("Identificación fiscal (RFC)");
+    await user.clear(campo);
+    await user.type(campo, "CINCO8507223N4");
+    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(await screen.findByText(MENSAJE)).toBeInTheDocument();
+  });
+
+  it("en minúsculas se normaliza al salir del campo, sin error", async () => {
+    const user = userEvent.setup();
+    renderStep({ country: "MX" });
+    const campo = screen.getByLabelText("Identificación fiscal (RFC)");
+    await user.clear(campo);
+    await user.type(campo, "abc010101ab1");
+    await user.tab();
+    expect(campo).toHaveValue("ABC010101AB1");
+    expect(screen.queryByText(MENSAJE)).not.toBeInTheDocument();
+  });
+
+  it("Canadá enseña su ejemplo en el hint; Japón no tiene hint", () => {
+    renderStep({ country: "CA", region: "ON", timezone: "America/Toronto", currency: "CAD" });
+    expect(screen.getByText("Por ejemplo 123456789 RT0001")).toBeInTheDocument();
+    cleanup();
+    renderStep({ country: "JP", timezone: "Asia/Tokyo", currency: "USD" });
+    expect(screen.queryByText(/Por ejemplo/)).not.toBeInTheDocument();
   });
 });

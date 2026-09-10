@@ -635,6 +635,22 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       expect(res.body).toMatchObject({ code: "tenants.invalid_postal_code" });
     });
 
+    /** F1-TAXID-02: el registro fiscal se valida por país, normalizado, y solo cuando viene. */
+    it("un registro fiscal que no cumple la regla del país rebota con 422; Canadá se guarda normalizado", async () => {
+      const owner = await registerActiveOwner();
+      await patchMe(owner.accessToken, { country: "MX" }).expect(200);
+      const res = await patchMe(owner.accessToken, { taxId: "CINCO8507223N4" }).expect(422);
+      expect(res.body).toMatchObject({ code: "tenants.invalid_tax_id" });
+      // El wizard manda país y registro JUNTOS: se valida contra el que viene.
+      const ca = await patchMe(owner.accessToken, {
+        country: "CA",
+        taxId: "123456789rt0001",
+      }).expect(200);
+      expect((ca.body as { taxId: string }).taxId).toBe("123456789 RT0001");
+      // Lo ya guardado no se exige hasta tocarlo: cambiar el teléfono no revalida.
+      await patchMe(owner.accessToken, { phone: "+14165550123" }).expect(200);
+    });
+
     it("una región de otro país rebota con 422: ON no es un estado mexicano", async () => {
       const owner = await registerActiveOwner();
       await patchMe(owner.accessToken, { country: "MX" }).expect(200);

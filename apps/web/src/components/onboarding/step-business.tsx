@@ -4,7 +4,9 @@ import {
   ISO_COUNTRY_CODES,
   localeToBcp47,
   normalizePostalCode,
+  normalizeTaxId,
   resolveAddressFormat,
+  taxIdExample,
 } from "@sellpoint/shared";
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -169,6 +171,9 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
   const taxIdLabel = taxIdAbbreviation
     ? t("onboarding.step1.taxIdWithAbbr", { abbr: taxIdAbbreviation })
     : t("onboarding.step1.taxId");
+  // F1-TAXID-03: el ejemplo del país en el hint y en el error; al salir del
+  // campo el valor se normaliza para que el usuario VEA lo que se va a guardar.
+  const ejemploFiscal = taxIdExample(country || null);
 
   // Las zonas de un país curado tienen etiqueta propia en i18n; las del resto
   // del mundo se muestran con su identificador IANA (no hay 418 traducciones).
@@ -212,8 +217,22 @@ function StepBusiness({ tenant, isSubmitting, formError, onSubmit }: StepBusines
       />
       <TextField
         label={taxIdLabel}
-        error={errors.taxId?.message ? t(errors.taxId.message) : undefined}
-        {...register("taxId")}
+        hint={
+          ejemploFiscal === null
+            ? undefined
+            : t("validation.taxIdExample", { example: ejemploFiscal })
+        }
+        error={
+          errors.taxId?.message
+            ? t(errors.taxId.message, { example: ejemploFiscal ?? "" })
+            : undefined
+        }
+        {...register("taxId", {
+          onBlur: (event) =>
+            setValue("taxId", normalizeTaxId(country || null, event.target.value), {
+              shouldValidate: true,
+            }),
+        })}
       />
       {/* F1-ADDR-05: la dirección en los campos que el país usa, y UN solo
           select de región — el fiscal de F4-TAX (CA/US) vive acá adentro,

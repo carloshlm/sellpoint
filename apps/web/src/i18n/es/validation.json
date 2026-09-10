@@ -14,5 +14,7 @@
     "tooManyDecimals_zero": "Este valor no admite decimales",
     "min": "El valor mínimo es {{min}}",
     "max": "El valor máximo es {{max}}"
-  }
+  },
+  "taxIdInvalid": "Escribe una identificación fiscal válida para tu país, como {{example}}",
+  "taxIdExample": "Por ejemplo {{example}}"
 }

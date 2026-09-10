@@ -575,3 +575,51 @@ describe("Datos del negocio — la meta mensual es un importe (F5-DASH-02 + Mone
     expect(mockedUpdate).not.toHaveBeenCalled();
   });
 });
+
+/** F1-TAXID-03 — solo se valida lo que cambió; el error y el hint enseñan el ejemplo. */
+describe("Datos del negocio — el registro fiscal por país (F1-TAXID-03)", () => {
+  const MENSAJE = "Escribe una identificación fiscal válida para tu país, como ABC010101AB1";
+
+  it("un RFC viejo mal guardado no impide cambiar otra cosa: el patrón corre solo sobre lo que cambió", async () => {
+    const user = userEvent.setup();
+    const actor = buildAuthUser({
+      permissions: ["tenants:manage"],
+      tenant: buildTenantBlock({
+        legalName: "Acme SA de CV",
+        taxId: "CINCO8507223N4",
+        address: "Av. Siempre Viva 123",
+        phone: "+525512345678",
+      }),
+    });
+    mockedUpdate.mockResolvedValue({ ...actor.tenant, name: "Acme 2" });
+    renderCard(actor);
+    const nombre = screen.getByLabelText("Nombre del negocio");
+    await user.clear(nombre);
+    await user.type(nombre, "Acme 2");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ name: "Acme 2" }));
+    expect(screen.queryByText(MENSAJE)).not.toBeInTheDocument();
+  });
+
+  it("al tocar el RFC y dejarlo mal, el error enseña el ejemplo y no se guarda", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+    const rfc = screen.getByLabelText("RFC");
+    await user.clear(rfc);
+    await user.type(rfc, "CINCO8507223N4");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText(MENSAJE)).toBeInTheDocument();
+    expect(mockedUpdate).not.toHaveBeenCalled();
+  });
+
+  it("el hint enseña el ejemplo del país y en minúsculas se normaliza al salir del campo", async () => {
+    const user = userEvent.setup();
+    renderCard(demoUser(["tenants:manage"]));
+    expect(screen.getByText("Por ejemplo ABC010101AB1")).toBeInTheDocument();
+    const rfc = screen.getByLabelText("RFC");
+    await user.clear(rfc);
+    await user.type(rfc, "xaxx010101000");
+    await user.tab();
+    expect(rfc).toHaveValue("XAXX010101000");
+  });
+});

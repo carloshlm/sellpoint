@@ -3,7 +3,9 @@ import {
   addressAsksRegion,
   isAddressRegionCode,
   isPostalCode,
+  isTaxId,
   normalizePostalCode,
+  normalizeTaxId,
 } from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { HASHER, type HashPort } from "../../infrastructure/crypto/hash.port";
@@ -60,7 +62,14 @@ export class TenantProfileService {
               discountCodeSetAt: new Date(),
             };
     return this.prisma.withTenantContext(actor.tenantId, async (tx) => {
-      const data = { ...(await this.conDireccionValidada(tx, actor.tenantId, resto)), ...pin };
+      const data = {
+        ...(await this.conRegistroFiscalValidado(
+          tx,
+          actor.tenantId,
+          await this.conDireccionValidada(tx, actor.tenantId, resto),
+        )),
+        ...pin,
+      };
       const updated = await tx.tenant.update({
         where: { id: actor.tenantId },
         data,
@@ -125,6 +134,31 @@ export class TenantProfileService {
       data = { ...data, postalCode: postalCode === "" ? null : postalCode };
     }
     return data;
+  }
+
+  /**
+   * F1-TAXID-02 — el registro fiscal se normaliza y se valida contra el país
+   * del PATCH (el wizard manda los dos juntos) o, si no viene, el guardado; y
+   * SOLO cuando viene: lo ya guardado no se exige hasta que se toque, así un
+   * RFC viejo mal tecleado no impide cambiar el teléfono. Se guarda
+   * NORMALIZADO (`123456789rt0001` → `123456789 RT0001`), como el CP. La regla
+   * vive en shared (`isTaxId`) y es la misma que valida el web: paridad.
+   */
+  private async conRegistroFiscalValidado(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    dto: UpdateTenantDto,
+  ): Promise<UpdateTenantDto> {
+    if (dto.taxId === undefined) return dto;
+    const country =
+      dto.country ??
+      (await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { country: true } }))
+        .country;
+    const taxId = normalizeTaxId(country, dto.taxId);
+    if (!isTaxId(country, taxId)) {
+      throw new UnprocessableEntityException({ message: "tenants.invalid_tax_id" });
+    }
+    return { ...dto, taxId };
   }
 
   /**

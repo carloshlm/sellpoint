@@ -3,6 +3,7 @@ import {
   COUNTRY_DIAL_CODES,
   isCountryCode,
   isPostalCode,
+  isTaxId,
   resolveAddressFormat,
   SUPPORTED_CURRENCIES,
 } from "@sellpoint/shared";
@@ -58,6 +59,11 @@ export const businessStepSchema = z
         message: "common.address.postalCodeInvalid",
       });
     }
+    // F1-TAXID-03: el registro fiscal contra la regla de su país (la misma
+    // función que el servidor); el componente traduce con el ejemplo.
+    if (values.taxId.trim() !== "" && !isTaxId(values.country || null, values.taxId)) {
+      ctx.addIssue({ code: "custom", path: ["taxId"], message: "validation.taxIdInvalid" });
+    }
   });
 
 /** El campo del formulario que guarda cada parte de la dirección (`line1` vive en `address`). */
@@ -93,6 +99,10 @@ export const businessDetailsSchema = z
     name: requiredString,
     legalName: requiredString,
     taxId: requiredString,
+    // F1-TAXID-03: lo guardado, SOLO para comparar: el patrón corre nada más
+    // cuando el registro cambió, así un RFC viejo mal tecleado no impide
+    // cambiar el teléfono. No se manda.
+    initialTaxId: z.string(),
     address: requiredString,
     // F1-ADDR-06: la dirección estructurada, OPCIONAL acá — un negocio que ya
     // existe no se traba por lo que no capturó; solo el wizard obliga. El
@@ -129,6 +139,9 @@ export const businessDetailsSchema = z
         path: ["postalCode"],
         message: "common.address.postalCodeInvalid",
       });
+    }
+    if (values.taxId !== values.initialTaxId && !isTaxId(values.country || null, values.taxId)) {
+      ctx.addIssue({ code: "custom", path: ["taxId"], message: "validation.taxIdInvalid" });
     }
     const metaError = moneyInputError(values.monthlySalesGoal);
     if (metaError !== null) {

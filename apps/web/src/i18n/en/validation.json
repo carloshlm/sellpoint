@@ -14,5 +14,7 @@
     "tooManyDecimals_zero": "This value does not allow decimals",
     "min": "The minimum value is {{min}}",
     "max": "The maximum value is {{max}}"
-  }
+  },
+  "taxIdInvalid": "Enter a valid tax ID for your country, like {{example}}",
+  "taxIdExample": "For example {{example}}"
 }

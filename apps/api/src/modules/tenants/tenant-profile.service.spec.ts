@@ -368,3 +368,51 @@ describe("TenantProfileService.update con el PIN de descuentos (F4-DISC)", () =>
     });
   });
 });
+
+/**
+ * F1-TAXID-02 — el registro fiscal se normaliza y se valida contra el país
+ * del PATCH (el wizard manda los dos juntos) o, si no viene, el guardado; y
+ * SOLO cuando viene: lo ya guardado no se exige hasta que se toque.
+ */
+describe("TenantProfileService.update — el registro fiscal por país (F1-TAXID-02)", () => {
+  const meta = { ip: "1.2.3.4", userAgent: "jest" };
+  it("un RFC de 14 caracteres rebota con 422 contra el país guardado", async () => {
+    const { service } = buildService({ tenantRow: { id: "tenant-1", country: "MX" } });
+    await expect(service.update(ACTOR, { taxId: "CINCO8507223N4" }, meta)).rejects.toThrow(
+      UnprocessableEntityException,
+    );
+  });
+
+  it("Canadá: se guarda NORMALIZADO, en mayúsculas y con su espacio", async () => {
+    const { service, tx } = buildService({ tenantRow: { id: "tenant-1", country: "CA" } });
+    await service.update(ACTOR, { taxId: "123456789rt0001" }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { taxId: "123456789 RT0001" } }),
+    );
+  });
+
+  it("el país que viene en el PATCH manda sobre el guardado: el wizard manda los dos", async () => {
+    const { service } = buildService({ tenantRow: { id: "tenant-1", country: "CA" } });
+    await expect(
+      service.update(ACTOR, { country: "MX", taxId: "123456789 RT0001" }, meta),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
+  it("sin patrón (Japón) cualquier texto se guarda recortado y en mayúsculas", async () => {
+    const { service, tx } = buildService({ tenantRow: { id: "tenant-1", country: "JP" } });
+    await service.update(ACTOR, { taxId: " t1234567890123 " }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { taxId: "T1234567890123" } }),
+    );
+  });
+
+  it("lo ya guardado no se exige hasta que se toque: un PATCH sin taxId no lo revalida", async () => {
+    const { service, tx } = buildService({
+      tenantRow: { id: "tenant-1", country: "MX", taxId: "CINCO8507223N4" },
+    });
+    await service.update(ACTOR, { phone: "+525512345678" }, meta);
+    expect(tx.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { phone: "+525512345678" } }),
+    );
+  });
+});

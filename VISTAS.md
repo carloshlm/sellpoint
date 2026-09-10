@@ -308,6 +308,13 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 > paso 1 muestra un select «Provincia o territorio» / «Estado» con el nombre oficial,
 > obligatorio ahí y ausente para el resto del mundo; cambiar de país lo vacía. Con él, al
 > Terminar se siembra el catálogo fiscal del negocio (F4-TAX-19).
+>
+> **Registro fiscal por país (F1-TAXID, 2026-09-10):** el campo «Identificación fiscal
+> (RFC)» / «(GST/HST No.)» trae el hint «Por ejemplo ABC010101AB1» del país elegido, al
+> salir del campo el valor se normaliza (mayúsculas, separadores en su lugar) y un valor
+> que no cumple la regla del país detiene «Continuar» con «Escribe una identificación
+> fiscal válida para tu país, como …». Sin hint ni regla donde no hay fuente oficial (NI,
+> PA, BZ). CUIT, RUT y CNPJ también verifican su dígito.
 
 ## 5. Dashboard
 
@@ -1751,6 +1758,12 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 > autorización (4 a 8 dígitos)» —o «Nuevo código…»— y «Repite el código» (ocultos, solo
 > dígitos), «Tope por ticket (opcional)» en % del subtotal (vacío = sin tope), Guardar y
 > «Quitar código». El código viaja una vez, se guarda hasheado y nunca se vuelve a mostrar.
+>
+> **Registro fiscal por país (F1-TAXID, 2026-09-10; en «Datos del negocio»):** el campo
+> «RFC» / «GST/HST No.» lleva el hint con el ejemplo del país, normaliza al salir y solo se
+> valida cuando CAMBIÓ: un registro viejo mal guardado no impide cambiar el teléfono, y al
+> tocarlo el error enseña el ejemplo. El servidor responde 422 «La identificación fiscal no
+> tiene el formato de tu país.» si algo se le cuela.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐

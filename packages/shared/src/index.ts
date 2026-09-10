@@ -22,6 +22,7 @@ export * from "./reception";
 export * from "./schemas/health";
 export * from "./tax";
 export * from "./tax-defaults";
+export * from "./tax-id";
 export * from "./tenant-lifecycle";
 export * from "./ticket-settings";
 export * from "./units";
