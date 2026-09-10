@@ -59,11 +59,26 @@ export const MEDICAL_CLINIC_FOLIO_PREFIXES = {
   order: "ORM",
 } as const satisfies Record<string, string>;
 
+/**
+ * F9-EXP-01 / F9-PURCH-01 — las series de Gastos (`GAS`) y Compras (`COM`).
+ * Un gasto toma su folio al crearse (nace completo, no hay borrador); la
+ * compra lo toma al crear el borrador, como la cotización.
+ */
+export const EXPENSE_FOLIO_PREFIXES = {
+  expense: "GAS",
+} as const satisfies Record<string, string>;
+
+export const PURCHASE_FOLIO_PREFIXES = {
+  purchase: "COM",
+} as const satisfies Record<string, string>;
+
 /** Todas las series del sistema. Ninguna puede repetir prefijo con otra. */
 export const ALL_FOLIO_PREFIXES = [
   ...Object.values(FOLIO_PREFIXES),
   ...Object.values(POS_FOLIO_PREFIXES),
   ...Object.values(MEDICAL_CLINIC_FOLIO_PREFIXES),
+  ...Object.values(EXPENSE_FOLIO_PREFIXES),
+  ...Object.values(PURCHASE_FOLIO_PREFIXES),
 ] as const;
 
 /**

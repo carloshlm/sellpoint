@@ -1,0 +1,10 @@
+{
+  "invalid_body": "Check the expense data.",
+  "invalid_query": "The search filters are not valid.",
+  "empty_update": "There are no changes to save.",
+  "not_found": "The expense does not exist.",
+  "category_not_found": "The category does not exist.",
+  "category_code_taken": "A category with that code already exists.",
+  "invalid_category_code": "The code goes in lowercase, without spaces or accents, for example professional_services.",
+  "category_in_use": "This category already has expenses on record and cannot be deleted. You can deactivate it instead."
+}

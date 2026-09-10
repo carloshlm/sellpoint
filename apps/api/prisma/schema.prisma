@@ -144,6 +144,8 @@ model Tenant {
   // Recepción (Fase 9)
   customers            Customer[]
   suppliers            Supplier[]
+  expenseCategories    ExpenseCategory[]
+  expenses             Expense[]
   receptionTurns       ReceptionTurn[]
   billingNotifications BillingNotification[]
 
@@ -220,6 +222,10 @@ model User {
   transfersCreated        Transfer[]               @relation("TransferCreatedBy")
   suppliersCreated        Supplier[]               @relation("SupplierCreatedBy")
   suppliersUpdated        Supplier[]               @relation("SupplierUpdatedBy")
+  expenseCategoriesCreated ExpenseCategory[]       @relation("ExpenseCategoryCreatedBy")
+  expenseCategoriesUpdated ExpenseCategory[]       @relation("ExpenseCategoryUpdatedBy")
+  expensesCreated         Expense[]                @relation("ExpenseCreatedBy")
+  expensesCanceled        Expense[]                @relation("ExpenseCanceledBy")
   transfersReceived       Transfer[]               @relation("TransferReceivedBy")
   transfersCanceled       Transfer[]               @relation("TransferCanceledBy")
   tenantsSuspended        Tenant[]                 @relation("TenantSuspendedBy")
@@ -667,6 +673,7 @@ model Warehouse {
   documents       InventoryDocument[]  @relation("DocumentWarehouse")
   cashboxSessions CashboxSession[]
   sales           Sale[]
+  expenses        Expense[]
   quotes          Quote[]
   documentsLinked InventoryDocument[]  @relation("DocumentLinkedWarehouse")
   stockLots       StockLot[]
@@ -1412,6 +1419,7 @@ model CashboxSession {
   opener    User      @relation("CashboxOpenedBy", fields: [openedBy], references: [id])
   closer    User?     @relation("CashboxClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   sales     Sale[]
+  expenses  Expense[]
 
   @@index([tenantId])
   @@index([tenantId, warehouseId, openedAt(sort: Desc)], map: "cashbox_sessions_tenant_warehouse_opened_idx")
@@ -2005,11 +2013,94 @@ model Supplier {
   tenant  Tenant @relation(fields: [tenantId], references: [id])
   creator User?  @relation("SupplierCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updater User?  @relation("SupplierUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  expenses Expense[]
 
   @@index([tenantId, name])
   @@index([tenantId, taxId])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
   @@map("suppliers")
+}
+
+/// F9-EXP-02 — la categoría de gasto: tabla propia (Basic no trae el motor
+/// F2-CAT). 18 de fábrica por negocio (`EXPENSE_CATEGORY_SEED`), sembradas en
+/// `provision()` y por backfill. `code` identifica; `name` se lee; `is_active`
+/// la esconde del selector sin borrarla. Borrar una en uso rebota por la FK.
+/// CHECKs: btrim(name) <> ''; code en snake_case.
+model ExpenseCategory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  code      String   @db.VarChar(48)
+  name      String   @db.VarChar(120)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+  createdAt DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  creator  User?     @relation("ExpenseCategoryCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater  User?     @relation("ExpenseCategoryUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  expenses Expense[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, sortOrder, name])
+  @@map("expense_categories")
+}
+
+/// F9-EXP-04 — el GASTO: un egreso que no toca inventario. UNA línea cuyos
+/// totales salen de `armarTotales` (quantity 1); `tax_rates` con la forma de
+/// `sale_taxes`. Dos hechos ortogonales: `status` y `payment_status`.
+/// `cashbox_session_id` solo con `cash`: el cierre lo resta del esperado.
+/// CHECKs: amount > 0; 0 <= discount <= amount; paid ⇔ (method ∧ paid_at);
+/// canceled ⇔ (canceled_at ∧ canceled_by ∧ cancel_reason); supplier XOR
+/// beneficiary; tax_amount = 0 ∨ tax_group_code.
+model Expense {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  folio            String    @db.VarChar(32)
+  warehouseId      String    @map("warehouse_id") @db.Uuid
+  expenseDate      DateTime  @map("expense_date") @db.Date
+  categoryId       String    @map("category_id") @db.Uuid
+  supplierId       String?   @map("supplier_id") @db.Uuid
+  beneficiary      String?   @db.VarChar(120)
+  description      String    @db.VarChar(300)
+  reference        String?   @db.VarChar(120)
+  amount           Decimal   @db.Decimal(14, 2)
+  discount         Decimal   @default(0) @db.Decimal(14, 2)
+  taxGroupCode     String?   @map("tax_group_code") @db.VarChar(32)
+  taxRates         Json      @default("[]") @map("tax_rates")
+  taxAmount        Decimal   @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  total            Decimal   @db.Decimal(14, 2)
+  taxMode          String    @map("tax_mode") @db.VarChar(8)
+  status           String    @default("active") @db.VarChar(16)
+  paymentStatus    String    @default("pending") @map("payment_status") @db.VarChar(16)
+  paymentMethod    PaymentMethod? @map("payment_method")
+  paidAt           DateTime? @map("paid_at") @db.Timestamptz(6)
+  dueDate          DateTime? @map("due_date") @db.Date
+  cashboxSessionId String?   @map("cashbox_session_id") @db.Uuid
+  accountRef       String?   @map("account_ref") @db.VarChar(120)
+  notes            String?
+  createdBy        String    @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  canceledBy       String?   @map("canceled_by") @db.Uuid
+  canceledAt       DateTime? @map("canceled_at") @db.Timestamptz(6)
+  cancelReason     String?   @map("cancel_reason")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  category       ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  cashboxSession CashboxSession? @relation(fields: [cashboxSessionId], references: [id], onDelete: Restrict)
+  creator        User            @relation("ExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  canceler       User?           @relation("ExpenseCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, expenseDate(sort: Desc)])
+  @@index([tenantId, status, paymentStatus])
+  @@index([tenantId, categoryId])
+  @@map("expenses")
 }
 
 /// F9-RECEP-03 — un turno de Recepción. El número reinicia con el DÍA DEL

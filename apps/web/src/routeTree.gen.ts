@@ -26,6 +26,7 @@ import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as CatalogServicesRouteImport } from './routes/catalog.services'
+import { Route as ExpensesCategoriesRouteImport } from './routes/expenses.categories'
 import { Route as MedicalClinicAttendRouteImport } from './routes/medical-clinic.attend'
 import { Route as MedicalClinicDiagnosticStudiesRouteImport } from './routes/medical-clinic.diagnostic-studies'
 import { Route as MedicalClinicLabStudiesRouteImport } from './routes/medical-clinic.lab-studies'
@@ -148,6 +149,11 @@ const CatalogSchemaRoute = CatalogSchemaRouteImport.update({
 const CatalogServicesRoute = CatalogServicesRouteImport.update({
   id: '/catalog/services',
   path: '/catalog/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesCategoriesRoute = ExpensesCategoriesRouteImport.update({
+  id: '/expenses/categories',
+  path: '/expenses/categories',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MedicalClinicAttendRoute = MedicalClinicAttendRouteImport.update({
@@ -369,6 +375,7 @@ export interface FileRoutesByFullPath {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/expenses/categories': typeof ExpensesCategoriesRoute
   '/medical-clinic/attend': typeof MedicalClinicAttendRoute
   '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
   '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
@@ -426,6 +433,7 @@ export interface FileRoutesByTo {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/expenses/categories': typeof ExpensesCategoriesRoute
   '/medical-clinic/attend': typeof MedicalClinicAttendRoute
   '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
   '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
@@ -484,6 +492,7 @@ export interface FileRoutesById {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/expenses/categories': typeof ExpensesCategoriesRoute
   '/medical-clinic/attend': typeof MedicalClinicAttendRoute
   '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
   '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
@@ -543,6 +552,7 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/expenses/categories'
     | '/medical-clinic/attend'
     | '/medical-clinic/diagnostic-studies'
     | '/medical-clinic/lab-studies'
@@ -600,6 +610,7 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/expenses/categories'
     | '/medical-clinic/attend'
     | '/medical-clinic/diagnostic-studies'
     | '/medical-clinic/lab-studies'
@@ -657,6 +668,7 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/expenses/categories'
     | '/medical-clinic/attend'
     | '/medical-clinic/diagnostic-studies'
     | '/medical-clinic/lab-studies'
@@ -715,6 +727,7 @@ export interface RootRouteChildren {
   CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
   CatalogServicesRoute: typeof CatalogServicesRoute
+  ExpensesCategoriesRoute: typeof ExpensesCategoriesRoute
   MedicalClinicAttendRoute: typeof MedicalClinicAttendRoute
   MedicalClinicDiagnosticStudiesRoute: typeof MedicalClinicDiagnosticStudiesRoute
   MedicalClinicLabStudiesRoute: typeof MedicalClinicLabStudiesRoute
@@ -874,6 +887,13 @@ declare module '@tanstack/react-router' {
       path: '/catalog/services'
       fullPath: '/catalog/services'
       preLoaderRoute: typeof CatalogServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses/categories': {
+      id: '/expenses/categories'
+      path: '/expenses/categories'
+      fullPath: '/expenses/categories'
+      preLoaderRoute: typeof ExpensesCategoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/medical-clinic/attend': {
@@ -1163,6 +1183,7 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
   CatalogServicesRoute: CatalogServicesRoute,
+  ExpensesCategoriesRoute: ExpensesCategoriesRoute,
   MedicalClinicAttendRoute: MedicalClinicAttendRoute,
   MedicalClinicDiagnosticStudiesRoute: MedicalClinicDiagnosticStudiesRoute,
   MedicalClinicLabStudiesRoute: MedicalClinicLabStudiesRoute,

@@ -1,0 +1,10 @@
+{
+  "invalid_body": "Revisa los datos del gasto.",
+  "invalid_query": "Los filtros de búsqueda no son válidos.",
+  "empty_update": "No hay cambios que guardar.",
+  "not_found": "El gasto no existe.",
+  "category_not_found": "La categoría no existe.",
+  "category_code_taken": "Ya existe una categoría con ese código.",
+  "invalid_category_code": "El código va en minúsculas, sin espacios ni acentos, por ejemplo servicios_profesionales.",
+  "category_in_use": "Esta categoría ya tiene gastos registrados y no se puede borrar. Puedes desactivarla."
+}

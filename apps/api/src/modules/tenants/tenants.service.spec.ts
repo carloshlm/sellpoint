@@ -34,6 +34,7 @@ function buildTx() {
   const userRole = { create: jest.fn().mockResolvedValue(undefined) };
   const catalog = { create: jest.fn().mockResolvedValue({ id: "catalog-1" }) };
   const warehouse = { create: jest.fn().mockResolvedValue({ id: "warehouse-1" }) };
+  const expenseCategory = { createMany: jest.fn().mockResolvedValue({ count: 18 }) };
   // F7-CORE-03: el trial nace con el tenant, en la misma transacción.
   const plan = {
     findUniqueOrThrow: jest.fn().mockResolvedValue({ id: "plan-plus", code: "plus" }),
@@ -49,6 +50,7 @@ function buildTx() {
     userRole,
     catalog,
     warehouse,
+    expenseCategory,
     plan,
     tenantSubscription,
     roleIdByName,
@@ -246,5 +248,23 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
       userId: "user-1",
     });
     expect(tx.rolePermission.createMany).not.toHaveBeenCalled();
+  });
+  /** F9-EXP-02 — las 18 categorías de gasto nacen con el negocio, en su idioma. */
+  it("siembra las 18 categorías de gasto en el idioma del negocio, en la misma transacción", async () => {
+    const { service, tx } = buildService();
+    await service.provision({ ...baseInput, locale: "en" });
+    const llamada = tx.expenseCategory.createMany.mock.calls[0][0];
+    expect(llamada.data).toHaveLength(18);
+    expect(llamada.data[0]).toEqual({
+      tenantId: "tenant-1",
+      code: "rent",
+      name: "Rent",
+      sortOrder: 0,
+      createdBy: "user-1",
+    });
+    expect(llamada.data[17]).toMatchObject({ code: "other", name: "Other", sortOrder: 170 });
+
+    await service.provision(baseInput);
+    expect(tx.expenseCategory.createMany.mock.calls[1][0].data[0].name).toBe("Renta");
   });
 });

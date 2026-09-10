@@ -1,5 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { dueInstant, localCalendarDate, TRIAL_DAYS } from "@sellpoint/shared";
+import {
+  dueInstant,
+  EXPENSE_CATEGORY_SEED,
+  expenseCategorySortOrder,
+  localCalendarDate,
+  TRIAL_DAYS,
+} from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import {
@@ -154,6 +160,21 @@ export class TenantsService {
       await tx.user.update({
         where: { id: owner.id },
         data: { defaultWarehouseId: warehouse.id },
+      });
+
+      // F9-EXP-02: las 18 categorías de gasto de fábrica, en el idioma del
+      // negocio y en esta misma transacción. Los negocios que ya existían las
+      // recibieron por el backfill de la migración; nunca se siembran en
+      // diferido dentro de un GET (una escritura escondida en una lectura).
+      const idioma = input.locale ?? "es";
+      await tx.expenseCategory.createMany({
+        data: EXPENSE_CATEGORY_SEED.map((categoria, indice) => ({
+          tenantId: tenant.id,
+          code: categoria.code,
+          name: categoria.name[idioma],
+          sortOrder: expenseCategorySortOrder(indice),
+          createdBy: owner.id,
+        })),
       });
 
       await this.auditService.record(tx, {

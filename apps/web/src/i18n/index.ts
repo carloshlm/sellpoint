@@ -6,6 +6,7 @@ import enAuth from "./en/auth.json";
 import enCatalogs from "./en/catalogs.json";
 import enCommon from "./en/common.json";
 import enDashboard from "./en/dashboard.json";
+import enExpenses from "./en/expenses.json";
 import enInventory from "./en/inventory.json";
 import enMedicalClinic from "./en/medicalClinic.json";
 import enOnboarding from "./en/onboarding.json";
@@ -22,6 +23,7 @@ import esAuth from "./es/auth.json";
 import esCatalogs from "./es/catalogs.json";
 import esCommon from "./es/common.json";
 import esDashboard from "./es/dashboard.json";
+import esExpenses from "./es/expenses.json";
 import esInventory from "./es/inventory.json";
 import esMedicalClinic from "./es/medicalClinic.json";
 import esOnboarding from "./es/onboarding.json";
@@ -59,6 +61,7 @@ const resources = {
     translation: {
       common: esCommon,
       dashboard: esDashboard,
+      expenses: esExpenses,
       auth: esAuth,
       validation: esValidation,
       users: esUsers,
@@ -79,6 +82,7 @@ const resources = {
     translation: {
       common: enCommon,
       dashboard: enDashboard,
+      expenses: enExpenses,
       auth: enAuth,
       validation: enValidation,
       users: enUsers,

@@ -27,6 +27,7 @@ import { PermissionsGuard } from "./modules/auth/guards/permissions.guard";
 import { BillingModule } from "./modules/billing/billing.module";
 import { SubscriptionGuard } from "./modules/billing/guards/subscription.guard";
 import { CatalogsModule } from "./modules/catalogs/catalogs.module";
+import { ExpensesModule } from "./modules/expenses/expenses.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { MedicalClinicModule } from "./modules/medical-clinic/medical-clinic.module";
@@ -127,6 +128,8 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     ServicesModule,
     // F9-SUPPL: proveedores es core (Compras y Gastos lo comparten).
     SuppliersModule,
+    // F9-EXP: Gastos, incluido desde Basic.
+    ExpensesModule,
     ReceptionModule,
     MedicalClinicModule,
     AdminModule,

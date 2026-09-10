@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   ALL_FOLIO_PREFIXES,
+  EXPENSE_FOLIO_PREFIXES,
   FOLIO_PREFIXES,
   hasValidQuantityScale,
   INVENTORY_DOCUMENT_TYPES,
   MEDICAL_CLINIC_FOLIO_PREFIXES,
   MOVEMENT_REASONS,
   POS_FOLIO_PREFIXES,
+  PURCHASE_FOLIO_PREFIXES,
   REASON_RULES,
   REASONS_BY_DIRECTION,
   RESERVED_FOLIO_PREFIXES,
@@ -54,6 +56,14 @@ describe("FOLIO_PREFIXES", () => {
     expect(MEDICAL_CLINIC_FOLIO_PREFIXES).toEqual({ record: "HCL", order: "ORM" });
     expect(ALL_FOLIO_PREFIXES).toContain("HCL");
     expect(ALL_FOLIO_PREFIXES).toContain("ORM");
+  });
+
+  /** F9-EXP-01 / F9-PURCH-01 — Gastos y Compras entran al catálogo de series. */
+  it("las de Gastos y Compras son GAS y COM y entran en el catálogo", () => {
+    expect(EXPENSE_FOLIO_PREFIXES).toEqual({ expense: "GAS" });
+    expect(PURCHASE_FOLIO_PREFIXES).toEqual({ purchase: "COM" });
+    expect(ALL_FOLIO_PREFIXES).toContain("GAS");
+    expect(ALL_FOLIO_PREFIXES).toContain("COM");
   });
 
   it("ningún prefijo se repite entre series, ni con las reservadas", () => {

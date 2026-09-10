@@ -1,0 +1,28 @@
+{
+  "categories": {
+    "title": "Expense categories",
+    "intro": "Your business starts with 18 categories. Add your own or deactivate the ones you don't use: a deactivated category is no longer offered when recording expenses, but keeps its history.",
+    "add": "New category",
+    "createTitle": "New category",
+    "editTitle": "Edit category",
+    "empty": "There are no categories yet.",
+    "columns": {
+      "name": "Category",
+      "code": "Code",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "form": {
+      "name": "Name",
+      "codeHint": "The code is generated from the name and does not change afterwards."
+    },
+    "delete": {
+      "title": "Delete “{{name}}”",
+      "body": "The category is deleted and cannot be recovered. If it already has expenses on record it cannot be deleted: deactivate it instead.",
+      "confirm": "Delete category"
+    }
+  }
+}
