@@ -14,6 +14,7 @@ import enProducts from "./en/products.json";
 import enReception from "./en/reception.json";
 import enReports from "./en/reports.json";
 import enServices from "./en/services.json";
+import enSuppliers from "./en/suppliers.json";
 import enUsers from "./en/users.json";
 import enValidation from "./en/validation.json";
 import enWarehouses from "./en/warehouses.json";
@@ -29,6 +30,7 @@ import esProducts from "./es/products.json";
 import esReception from "./es/reception.json";
 import esReports from "./es/reports.json";
 import esServices from "./es/services.json";
+import esSuppliers from "./es/suppliers.json";
 import esUsers from "./es/users.json";
 import esValidation from "./es/validation.json";
 import esWarehouses from "./es/warehouses.json";
@@ -67,6 +69,7 @@ const resources = {
       pos: esPos,
       products: esProducts,
       services: esServices,
+      suppliers: esSuppliers,
       medicalClinic: esMedicalClinic,
       reception: esReception,
       reports: esReports,
@@ -86,6 +89,7 @@ const resources = {
       pos: enPos,
       products: enProducts,
       services: enServices,
+      suppliers: enSuppliers,
       medicalClinic: enMedicalClinic,
       reception: enReception,
       reports: enReports,

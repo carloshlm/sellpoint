@@ -1,0 +1,64 @@
+{
+  "list": {
+    "title": "Suppliers",
+    "new": "New",
+    "search": "Search supplier",
+    "searchPlaceholder": "Name, tax ID, contact, phone or email…",
+    "empty": "You haven't registered any suppliers yet.",
+    "columns": {
+      "name": "Supplier",
+      "taxId": "Tax ID",
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "deactivate": "Deactivate supplier",
+    "delete": {
+      "title": "Delete “{{name}}”",
+      "body": "The supplier is deleted and cannot be recovered. If it already has purchases or expenses on record it cannot be deleted: deactivate it instead and it keeps its history.",
+      "confirm": "Delete supplier"
+    }
+  },
+  "form": {
+    "createTitle": "Register supplier",
+    "editTitle": "Edit supplier",
+    "name": "Name or legal name",
+    "taxId": "Tax ID",
+    "taxIdWithAbbr": "Tax ID ({{abbr}})",
+    "taxIdHint": "For example {{example}}",
+    "contactName": "Contact person",
+    "phoneCountry": "Phone country",
+    "phoneCountryPlaceholder": "Choose the country",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "notes": "Notes",
+    "isActive": "Active supplier",
+    "isActiveHint": "An inactive supplier is not offered when capturing purchases or expenses, but keeps its history.",
+    "loadFailed": "We couldn't load the supplier.",
+    "duplicates": {
+      "title": "There are already {{count}} suppliers with this tax ID",
+      "title_one": "There is already {{count}} supplier with this tax ID",
+      "hint": "It may be the same supplier. If it is, edit its record instead of creating another."
+    },
+    "errors": {
+      "required": "This field is required.",
+      "phone": "Type only the digits of the number, without the country code.",
+      "email": "Enter a valid email.",
+      "taxId": "Enter a valid tax ID for your business's country, such as {{example}}.",
+      "taxIdNoExample": "Enter a valid tax ID for your business's country."
+    }
+  },
+  "picker": {
+    "label": "Supplier",
+    "placeholder": "Search by name or tax ID…",
+    "noResults": "No active supplier matches.",
+    "searchFailed": "We couldn't search suppliers. Try again.",
+    "clear": "Remove"
+  }
+}

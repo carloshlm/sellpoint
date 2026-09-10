@@ -1880,6 +1880,30 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 
 **Lo que la NOM-004-SSA3-2012 pide y dónde vive.** 6.1.1 interrogatorio (ficha de identificación con grupo étnico y religión en Datos Generales; AHF; APP; APNP con tabaquismo, alcoholismo y toxicomanías; padecimiento actual; aparatos y sistemas); 6.1.2 exploración (habitus exterior, signos vitales, peso y talla, regiones); 6.1.3 resultados de estudios; 6.1.4 diagnósticos; 6.1.5 pronóstico (dentro de Plan de Manejo); 6.1.6 indicación terapéutica (Tratamiento; la receta con folio y cobro es una Orden médica).
 
+## 13. Proveedores
+
+> F9-SUPPL (2026-09-10). El catálogo de proveedores es **core**: lo comparten Compras y Gastos, y el enlace del menú aparece una sola vez bajo el primero de los dos grupos que el negocio tenga (`useModuleNav` deduplica por ruta). Se lee con `suppliers:read`; alta, edición y baja con `suppliers:manage`. No hay candado de módulo: sin Compras ni Gastos no hay enlace, pero la ruta `/suppliers` responde.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Proveedores                                              [ Nuevo ]  │
+│ Buscar proveedor [ Nombre, registro fiscal, contacto… ]             │
+│ ┌──────────────────┬──────────────┬────────────┬──────────┬───────┐ │
+│ │ Proveedor        │ Registro f.  │ Contacto   │ Teléfono │ Estado│ │
+│ ├──────────────────┼──────────────┼────────────┼──────────┼───────┤ │
+│ │ Abarrotes Centro │ —            │ Luis Gómez │ —        │Inactivo│ Editar · Eliminar
+│ │ Distribuidora N. │ DNO900101AB1 │ Rosa Luna  │ +52 55…  │ Activo│ Editar · Eliminar
+│ └──────────────────┴──────────────┴────────────┴──────────┴───────┘ │
+│ ⚠ Este proveedor tiene compras o gastos registrados… [Desactivar]   │  ← el 409 al borrar
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+| Pieza | Qué hace | Regla |
+|---|---|---|
+| **Listado** (`suppliers-list.tsx`, componente `Table`) | Alfabético, buscador por nombre / registro fiscal / contacto / teléfono / correo, paginado del API, `Badge` Activo/Inactivo. | «Eliminar» pide confirmación; un 409 (tiene compras o gastos) se pinta con el mensaje del API y ofrece **Desactivar** ahí mismo. |
+| **Formulario** (`supplier-form.tsx`, skill `sellpoint-forms`) | Tarjeta con rejilla de dos columnas: Nombre o razón social, Registro fiscal, Persona de contacto, Teléfono (`PhonePartsField`), Correo, Dirección, Notas; «Proveedor activo» solo al editar. | La etiqueta y el ejemplo del registro fiscal los decide el país del negocio (`taxIdLabel`/`taxIdExample`); al salir del campo se normaliza y, si ya existe otro con ese registro, **avisa sin bloquear** (`DuplicateSupplierCard`). La edición manda al PATCH solo lo que cambió. |
+| **`SupplierPicker`** | UN buscador para Compras y Gastos: busca solo activos con debounce; un clic elige; «Quitar» suelta. Con solo el id trae el nombre por su cuenta. | Es la pieza que F9-EXP-14 y F9-PURCH-11 montan en sus formularios. |
+
 ## Apéndice — Documentos Relacionados
 
 - [ARQUITECTURA.md](ARQUITECTURA.md) — Stack, multi-tenancy, seguridad, roadmap

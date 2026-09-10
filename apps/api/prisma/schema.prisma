@@ -143,6 +143,7 @@ model Tenant {
 
   // Recepción (Fase 9)
   customers            Customer[]
+  suppliers            Supplier[]
   receptionTurns       ReceptionTurn[]
   billingNotifications BillingNotification[]
 
@@ -217,6 +218,8 @@ model User {
   movementsCreated        StockMovement[]          @relation("MovementCreatedBy")
   movementsAuthorized     StockMovement[]          @relation("MovementAuthorizedBy")
   transfersCreated        Transfer[]               @relation("TransferCreatedBy")
+  suppliersCreated        Supplier[]               @relation("SupplierCreatedBy")
+  suppliersUpdated        Supplier[]               @relation("SupplierUpdatedBy")
   transfersReceived       Transfer[]               @relation("TransferReceivedBy")
   transfersCanceled       Transfer[]               @relation("TransferCanceledBy")
   tenantsSuspended        Tenant[]                 @relation("TenantSuspendedBy")
@@ -838,8 +841,8 @@ model StockMovement {
   reasonCode        MovementReason    @map("reason_code")
   reasonNote        String?           @map("reason_note")
   /// Campo contextual genérico: número de factura, remisión, vale de salida.
-  /// Sin catálogo de proveedores — un tenant que lo necesite lo arma como
-  /// subcatálogo del motor de F2 (LEY de genericidad).
+  /// El catálogo de proveedores existe desde F9-SUPPL (`suppliers`); ligar
+  /// el movimiento a una fila (`supplier_id`) sigue pospuesto con nombre.
   reference         String?           @db.VarChar(120)
   authorizedBy      String?           @map("authorized_by") @db.Uuid
   /// El OTRO almacén de un traspaso. Va con `reason_code = 'transfer'` o no va.
@@ -1974,6 +1977,39 @@ model Customer {
   @@index([tenantId, phone])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)
   @@map("customers")
+}
+
+/// F9-SUPPL-01 — el proveedor: la EMPRESA a la que se le compra o se le paga
+/// un gasto. Core, no de un módulo (lo usan Compras y Gastos). `tax_id` se
+/// normaliza y valida contra el país del negocio en el service; sin UNIQUE
+/// a propósito (un repetido avisa, no bloquea). `is_active` retira sin
+/// borrar; borrar uno referenciado rebota por la FK RESTRICT de quien lo use.
+/// CHECKs: btrim(name) <> ''; phone E.164.
+model Supplier {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  taxId       String?  @map("tax_id") @db.VarChar(32)
+  contactName String?  @map("contact_name") @db.VarChar(120)
+  phone       String?  @db.VarChar(20)
+  email       String?
+  address     String?
+  notes       String?
+  attributes  Json     @default("{}")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String?  @map("created_by") @db.Uuid
+  updatedBy   String?  @map("updated_by") @db.Uuid
+  createdAt   DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  creator User?  @relation("SupplierCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updater User?  @relation("SupplierUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, name])
+  @@index([tenantId, taxId])
+  @@index([attributes(ops: JsonbPathOps)], type: Gin)
+  @@map("suppliers")
 }
 
 /// F9-RECEP-03 — un turno de Recepción. El número reinicia con el DÍA DEL

@@ -9,6 +9,7 @@ import {
   ShoppingCart,
   Stethoscope,
   Ticket,
+  Truck,
   UserRoundSearch,
 } from "lucide-react";
 import type * as React from "react";
@@ -40,6 +41,14 @@ export interface ModuleNavGroup {
  * tiene el módulo — sin candado, porque el candado abre el modal de planes y
  * el modal no vende módulos (se pactan uno a uno desde el backoffice).
  */
+/** F9-SUPPL-09 — el enlace compartido por Compras y Gastos (uno solo: se deduplica por `to`). */
+const SUPPLIERS_LINK: ModuleNavLink = {
+  to: "/suppliers",
+  labelKey: "common.layout.nav.suppliers",
+  permission: "suppliers:read",
+  icon: Truck,
+};
+
 export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
   reception: {
     labelKey: "common.layout.nav.modules.reception.group",
@@ -92,19 +101,20 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
       },
     ],
   },
-  // F9-PLANMOD-01 — Compras (desde Pro) y Gastos (desde Basic) nacen con el
-  // grupo VACÍO: un grupo sin links no se pinta (`use-module-nav.ts`), así el
-  // catálogo ya los conoce sin mandar a nadie a una ruta que no existe. Los
-  // links llegan con F9-PURCH-10 y F9-EXP-14.
+  // F9-PLANMOD-01 — Compras (desde Pro) y Gastos (desde Basic). Sus rutas
+  // propias llegan con F9-PURCH-10 y F9-EXP-14; mientras, el único enlace es
+  // Proveedores (F9-SUPPL-09), el catálogo CORE que los dos comparten: va en
+  // los dos grupos con la MISMA clave i18n y `useModuleNav` lo deduplica por
+  // ruta, así que se ve una vez, bajo el primer grupo que el negocio tenga.
   purchases: {
     labelKey: "common.layout.nav.modules.purchases.group",
     icon: ShoppingCart,
-    links: [],
+    links: [SUPPLIERS_LINK],
   },
   expenses: {
     labelKey: "common.layout.nav.modules.expenses.group",
     icon: Receipt,
-    links: [],
+    links: [SUPPLIERS_LINK],
   },
 };
 

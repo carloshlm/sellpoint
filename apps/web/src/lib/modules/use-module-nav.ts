@@ -29,12 +29,22 @@ export function useModuleNav(): ResolvedModuleNavGroup[] {
   // Solo Recepción interpola una palabra propia; el resto no lleva variables.
   const variablesDe = (key: ModuleKey) => (key === "reception" ? recepcion.vars : undefined);
 
+  // F9-SUPPL-09 — un enlace que vive en dos grupos (Proveedores, en Compras y
+  // en Gastos) se pinta UNA vez: gana la primera aparición en el orden de
+  // `MODULE_KEYS`. Se deduplica por RUTA, no por etiqueta: la ruta es la
+  // identidad del destino; la etiqueta es solo cómo se llama.
+  const vistas = new Set<string>();
   return MODULE_NAV_ENTRIES.filter(([key]) => hasModule(key))
     .map(([key, grupo]) => ({
       key,
       label: t(grupo.labelKey),
       links: grupo.links
         .filter((link) => has(link.permission) && !ocultas.has(link.to))
+        .filter((link) => {
+          if (vistas.has(link.to)) return false;
+          vistas.add(link.to);
+          return true;
+        })
         .map((link) => ({
           to: link.to,
           icon: link.icon,

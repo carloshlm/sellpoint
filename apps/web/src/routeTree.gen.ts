@@ -44,6 +44,9 @@ import { Route as ReportsShiftsRouteImport } from './routes/reports.shifts'
 import { Route as ReportsStockRouteImport } from './routes/reports.stock'
 import { Route as ReportsTaxesRouteImport } from './routes/reports.taxes'
 import { Route as SettingsBillingRouteImport } from './routes/settings.billing'
+import { Route as SuppliersIndexRouteImport } from './routes/suppliers.index'
+import { Route as SuppliersSupplierIdRouteImport } from './routes/suppliers.$supplierId'
+import { Route as SuppliersNewRouteImport } from './routes/suppliers.new'
 import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as AdminTenantsIndexRouteImport } from './routes/admin.tenants.index'
@@ -238,6 +241,21 @@ const SettingsBillingRoute = SettingsBillingRouteImport.update({
   path: '/settings/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuppliersIndexRoute = SuppliersIndexRouteImport.update({
+  id: '/suppliers/',
+  path: '/suppliers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuppliersSupplierIdRoute = SuppliersSupplierIdRouteImport.update({
+  id: '/suppliers/$supplierId',
+  path: '/suppliers/$supplierId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuppliersNewRoute = SuppliersNewRouteImport.update({
+  id: '/suppliers/new',
+  path: '/suppliers/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SystemRolesRoute = SystemRolesRouteImport.update({
   id: '/system/roles',
   path: '/system/roles',
@@ -367,10 +385,13 @@ export interface FileRoutesByFullPath {
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
   '/settings/billing': typeof SettingsBillingRoute
+  '/suppliers/$supplierId': typeof SuppliersSupplierIdRoute
+  '/suppliers/new': typeof SuppliersNewRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
   '/reports/': typeof ReportsIndexRoute
+  '/suppliers/': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
   '/medical-clinic/patients/new': typeof MedicalClinicPatientsNewRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
@@ -421,10 +442,13 @@ export interface FileRoutesByTo {
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
   '/settings/billing': typeof SettingsBillingRoute
+  '/suppliers/$supplierId': typeof SuppliersSupplierIdRoute
+  '/suppliers/new': typeof SuppliersNewRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos': typeof PosIndexRoute
   '/reports': typeof ReportsIndexRoute
+  '/suppliers': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
   '/medical-clinic/patients/new': typeof MedicalClinicPatientsNewRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
@@ -476,10 +500,13 @@ export interface FileRoutesById {
   '/reports/stock': typeof ReportsStockRoute
   '/reports/taxes': typeof ReportsTaxesRoute
   '/settings/billing': typeof SettingsBillingRoute
+  '/suppliers/$supplierId': typeof SuppliersSupplierIdRoute
+  '/suppliers/new': typeof SuppliersNewRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
   '/pos/': typeof PosIndexRoute
   '/reports/': typeof ReportsIndexRoute
+  '/suppliers/': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
   '/medical-clinic/patients/new': typeof MedicalClinicPatientsNewRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
@@ -532,10 +559,13 @@ export interface FileRouteTypes {
     | '/reports/stock'
     | '/reports/taxes'
     | '/settings/billing'
+    | '/suppliers/$supplierId'
+    | '/suppliers/new'
     | '/system/roles'
     | '/system/users'
     | '/pos/'
     | '/reports/'
+    | '/suppliers/'
     | '/admin/tenants/$tenantId'
     | '/medical-clinic/patients/new'
     | '/movements/documents/$documentId'
@@ -586,10 +616,13 @@ export interface FileRouteTypes {
     | '/reports/stock'
     | '/reports/taxes'
     | '/settings/billing'
+    | '/suppliers/$supplierId'
+    | '/suppliers/new'
     | '/system/roles'
     | '/system/users'
     | '/pos'
     | '/reports'
+    | '/suppliers'
     | '/admin/tenants/$tenantId'
     | '/medical-clinic/patients/new'
     | '/movements/documents/$documentId'
@@ -640,10 +673,13 @@ export interface FileRouteTypes {
     | '/reports/stock'
     | '/reports/taxes'
     | '/settings/billing'
+    | '/suppliers/$supplierId'
+    | '/suppliers/new'
     | '/system/roles'
     | '/system/users'
     | '/pos/'
     | '/reports/'
+    | '/suppliers/'
     | '/admin/tenants/$tenantId'
     | '/medical-clinic/patients/new'
     | '/movements/documents/$documentId'
@@ -695,10 +731,13 @@ export interface RootRouteChildren {
   ReportsStockRoute: typeof ReportsStockRoute
   ReportsTaxesRoute: typeof ReportsTaxesRoute
   SettingsBillingRoute: typeof SettingsBillingRoute
+  SuppliersSupplierIdRoute: typeof SuppliersSupplierIdRoute
+  SuppliersNewRoute: typeof SuppliersNewRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
   PosIndexRoute: typeof PosIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
+  SuppliersIndexRoute: typeof SuppliersIndexRoute
   AdminTenantsTenantIdRoute: typeof AdminTenantsTenantIdRoute
   MedicalClinicPatientsNewRoute: typeof MedicalClinicPatientsNewRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
@@ -963,6 +1002,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/suppliers/': {
+      id: '/suppliers/'
+      path: '/suppliers'
+      fullPath: '/suppliers/'
+      preLoaderRoute: typeof SuppliersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suppliers/$supplierId': {
+      id: '/suppliers/$supplierId'
+      path: '/suppliers/$supplierId'
+      fullPath: '/suppliers/$supplierId'
+      preLoaderRoute: typeof SuppliersSupplierIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suppliers/new': {
+      id: '/suppliers/new'
+      path: '/suppliers/new'
+      fullPath: '/suppliers/new'
+      preLoaderRoute: typeof SuppliersNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/system/roles': {
       id: '/system/roles'
       path: '/system/roles'
@@ -1119,10 +1179,13 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsStockRoute: ReportsStockRoute,
   ReportsTaxesRoute: ReportsTaxesRoute,
   SettingsBillingRoute: SettingsBillingRoute,
+  SuppliersSupplierIdRoute: SuppliersSupplierIdRoute,
+  SuppliersNewRoute: SuppliersNewRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
   PosIndexRoute: PosIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
+  SuppliersIndexRoute: SuppliersIndexRoute,
   AdminTenantsTenantIdRoute: AdminTenantsTenantIdRoute,
   MedicalClinicPatientsNewRoute: MedicalClinicPatientsNewRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,

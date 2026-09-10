@@ -1,0 +1,9 @@
+{
+  "not_found": "The supplier does not exist.",
+  "invalid_body": "Check the form data.",
+  "invalid_query": "The search filters are not valid.",
+  "empty_update": "There are no changes to save.",
+  "invalid_phone": "The phone must include the country code, for example +1 555 123 4567.",
+  "invalid_tax_id": "The tax ID is not valid for your business's country.",
+  "in_use": "This supplier has purchases or expenses on record and cannot be deleted. You can deactivate it instead."
+}

@@ -1,0 +1,9 @@
+{
+  "not_found": "El proveedor no existe.",
+  "invalid_body": "Revisa los datos del formulario.",
+  "invalid_query": "Los filtros de búsqueda no son válidos.",
+  "empty_update": "No hay cambios que guardar.",
+  "invalid_phone": "El teléfono debe llevar el prefijo del país, por ejemplo +52 55 1234 5678.",
+  "invalid_tax_id": "El registro fiscal no es válido para el país de tu negocio.",
+  "in_use": "Este proveedor tiene compras o gastos registrados y no se puede borrar. Puedes desactivarlo."
+}

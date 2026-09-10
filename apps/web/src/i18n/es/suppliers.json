@@ -1,0 +1,64 @@
+{
+  "list": {
+    "title": "Proveedores",
+    "new": "Nuevo",
+    "search": "Buscar proveedor",
+    "searchPlaceholder": "Nombre, registro fiscal, contacto, teléfono o correo…",
+    "empty": "Todavía no registraste proveedores.",
+    "columns": {
+      "name": "Proveedor",
+      "taxId": "Registro fiscal",
+      "contact": "Contacto",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "status": "Estado"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "deactivate": "Desactivar proveedor",
+    "delete": {
+      "title": "Eliminar a «{{name}}»",
+      "body": "El proveedor se borra y no se puede recuperar. Si ya tiene compras o gastos registrados no podrá borrarse: en ese caso desactívalo y conservará su historial.",
+      "confirm": "Eliminar proveedor"
+    }
+  },
+  "form": {
+    "createTitle": "Registrar proveedor",
+    "editTitle": "Editar proveedor",
+    "name": "Nombre o razón social",
+    "taxId": "Registro fiscal",
+    "taxIdWithAbbr": "Registro fiscal ({{abbr}})",
+    "taxIdHint": "Por ejemplo {{example}}",
+    "contactName": "Persona de contacto",
+    "phoneCountry": "País del teléfono",
+    "phoneCountryPlaceholder": "Elige el país",
+    "phone": "Teléfono",
+    "email": "Correo",
+    "address": "Dirección",
+    "notes": "Notas",
+    "isActive": "Proveedor activo",
+    "isActiveHint": "Un proveedor inactivo no aparece al capturar compras ni gastos, pero conserva su historial.",
+    "loadFailed": "No pudimos cargar el proveedor.",
+    "duplicates": {
+      "title": "Ya hay {{count}} proveedores con este registro fiscal",
+      "title_one": "Ya hay {{count}} proveedor con este registro fiscal",
+      "hint": "Puede ser el mismo proveedor. Si lo es, edita su registro en vez de crear otro."
+    },
+    "errors": {
+      "required": "Este campo es obligatorio.",
+      "phone": "Escribe solo los dígitos del número, sin el prefijo del país.",
+      "email": "Escribe un correo válido.",
+      "taxId": "Escribe un registro fiscal válido para el país de tu negocio, como {{example}}.",
+      "taxIdNoExample": "Escribe un registro fiscal válido para el país de tu negocio."
+    }
+  },
+  "picker": {
+    "label": "Proveedor",
+    "placeholder": "Busca por nombre o registro fiscal…",
+    "noResults": "Ningún proveedor activo coincide.",
+    "searchFailed": "No pudimos buscar proveedores. Intenta de nuevo.",
+    "clear": "Quitar"
+  }
+}

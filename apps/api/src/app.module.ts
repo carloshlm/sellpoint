@@ -37,6 +37,7 @@ import { ReceptionModule } from "./modules/reception/reception.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { ServicesModule } from "./modules/services/services.module";
+import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
 import { WarehousesModule } from "./modules/warehouses/warehouses.module";
@@ -124,6 +125,8 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     RolesModule,
     CatalogsModule,
     ServicesModule,
+    // F9-SUPPL: proveedores es core (Compras y Gastos lo comparten).
+    SuppliersModule,
     ReceptionModule,
     MedicalClinicModule,
     AdminModule,

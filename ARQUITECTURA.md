@@ -873,6 +873,10 @@ Cada módulo activable es un **add-on con precio mensual/anual independiente** d
 
 En Stripe se modelan como `subscription_items` adicionales — agregar/quitar un add-on proratea automáticamente.
 
+#### 9.6 Proveedores: el catálogo core que los módulos comparten (F9-SUPPL, 2026-09-10)
+
+Proveedores **no es de ningún módulo**: lo usan Compras (F9-PURCH) y Gastos (F9-EXP), y mañana lo querrá la entrada de inventario, cuyo `stock_movements.reference` sigue siendo texto libre. Por eso la tabla `suppliers` (molde `customers`, cambiando persona por empresa) vive en el core con permisos propios (`suppliers:read|manage`) y su controller **no lleva `@RequiresModule`**: un negocio sin ninguno de los dos módulos simplemente no ve el enlace del menú, pero el API responde igual. El enlace «Proveedores» va en los grupos Compras y Gastos con la misma clave i18n y `useModuleNav` lo deduplica por ruta. El registro fiscal se normaliza y valida con el país del negocio (`normalizeTaxId`/`isTaxId`), sin UNIQUE: un repetido avisa en el formulario, no bloquea. Borrar un proveedor referenciado rebota por la FK (`RESTRICT`, jamás `SET NULL`) y se traduce a 409 `suppliers.in_use`: la salida es desactivarlo (`is_active`), y el listado lo ofrece ahí mismo. **Pospuesto con nombre:** `stock_movements.supplier_id` en lugar del `reference` libre; `tax_id` UNIQUE por tenant; saldo por proveedor.
+
 ---
 
 ## 7. Internacionalización + Multi-Currency
