@@ -59,6 +59,19 @@ export function localizeHeaders(keys: readonly string[], locale: Locale): string
 }
 
 /**
+ * Una celda de sí/no en el idioma pedido (Carlos, 2026-09-10: un usuario en
+ * inglés bajaba «SI» en `tracks_lots`). Solo la ESCRITURA cambia: los parsers
+ * ya entendían `yes` y `si` por igual, así que lo que sale en un idioma se
+ * reimporta en el otro.
+ */
+export function yesNoLabel(value: boolean, locale: Locale): string {
+  if (!value) {
+    return "NO";
+  }
+  return locale === "en" ? "YES" : "SI";
+}
+
+/**
  * Un encabezado tal como viene del archivo → la clave interna. Reconoce la
  * etiqueta en inglés (sin distinguir mayúsculas); cualquier otra cosa vuelve
  * recortada, tal cual: puede ser la clave en español o una columna

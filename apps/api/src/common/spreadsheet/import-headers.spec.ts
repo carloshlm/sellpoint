@@ -1,4 +1,4 @@
-import { canonicalHeader, headerLabel, localizeHeaders } from "./import-headers";
+import { canonicalHeader, headerLabel, localizeHeaders, yesNoLabel } from "./import-headers";
 
 /**
  * Las plantillas hablan el idioma de quien las descarga; los parsers entienden
@@ -25,6 +25,17 @@ describe("encabezados de importación por idioma", () => {
     expect(canonicalHeader(" nombre ")).toBe("nombre");
     expect(canonicalHeader("laboratorio")).toBe("laboratorio");
     expect(canonicalHeader("Laboratorio")).toBe("Laboratorio");
+  });
+
+  /**
+   * Carlos (2026-09-10): la celda de sí/no también habla el idioma. Un usuario
+   * en inglés bajaba la plantilla con «SI» en `tracks_lots`.
+   */
+  it("la celda de sí/no dice SI/NO en español y YES/NO en inglés", () => {
+    expect(yesNoLabel(true, "es")).toBe("SI");
+    expect(yesNoLabel(false, "es")).toBe("NO");
+    expect(yesNoLabel(true, "en")).toBe("YES");
+    expect(yesNoLabel(false, "en")).toBe("NO");
   });
 
   it("ida y vuelta: toda clave conocida regresa a sí misma desde su etiqueta en inglés", () => {

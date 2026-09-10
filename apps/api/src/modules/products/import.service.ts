@@ -2,7 +2,11 @@ import { BadRequestException, Injectable, PayloadTooLargeException } from "@nest
 import { getUnit, type Locale } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
-import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
+import {
+  canonicalHeader,
+  localizeHeaders,
+  yesNoLabel,
+} from "../../common/spreadsheet/import-headers";
 import {
   parseSpreadsheet,
   type SpreadsheetFormat,
@@ -153,7 +157,7 @@ export class ImportService {
     format: SpreadsheetFormat,
     locale: Locale = "es",
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const { header, rows, custom } = await this.catalogRows(user);
+    const { header, rows, custom } = await this.catalogRows(user, locale);
 
     // Sin productos todavía, una fila de ejemplo: si no, nadie sabe si el
     // precio va con punto o con coma, ni qué se espera en "unidad_base".
@@ -175,8 +179,8 @@ export class ImportService {
               "15.50",
               "0",
               "A-01-01",
-              "NO",
-              "NO",
+              yesNoLabel(false, locale),
+              yesNoLabel(false, locale),
               (await this.taxIndex(user)).defaultCode ?? "",
               ...custom.map(() => ""),
             ],
@@ -198,6 +202,7 @@ export class ImportService {
    */
   async catalogRows(
     user: AuthUser,
+    locale: Locale = "es",
   ): Promise<{ header: string[]; rows: string[][]; custom: string[] }> {
     const fields = await this.loadFields(user);
     const active = fields.filter((field) => !field.isArchived);
@@ -231,8 +236,8 @@ export class ImportService {
         base?.price?.toString() ?? "",
         product.stockMin.toString(),
         product.location ?? "",
-        product.tracksLots ? "SI" : "NO",
-        product.isComposite ? "SI" : "NO",
+        yesNoLabel(product.tracksLots, locale),
+        yesNoLabel(product.isComposite, locale),
         // Vacío = hereda el default; el código solo cuando hay override.
         product.taxGroup?.code ?? "",
         ...custom.map((key) => {

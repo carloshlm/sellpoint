@@ -179,7 +179,7 @@ export class CatalogExportService {
    * reporte diría que existe un producto que nadie dio de alta.
    */
   async products(user: AuthUser, format: SpreadsheetFormat, locale: Locale = "es") {
-    const catalogo = await this.imports.catalogRows(user);
+    const catalogo = await this.imports.catalogRows(user, locale);
 
     return exportWithLimit({
       count: async () => catalogo.rows.length,

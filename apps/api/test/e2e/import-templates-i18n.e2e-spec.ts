@@ -186,6 +186,37 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
     ).toEqual(["sku", "name", "unit", "lot", "expiry", "location", "expected", "counted"]);
   });
 
+  /**
+   * Carlos (2026-09-10): las celdas de sí/no también hablan el idioma. Un
+   * usuario en inglés bajaba «SI» en `tracks_lots`. La plantilla y el reporte
+   * de catálogo comparten filas, así que los dos cambian juntos; y lo que sale
+   * en inglés se reimporta, porque el parser entiende YES desde siempre.
+   */
+  it("las celdas de sí/no dicen YES/NO en inglés y SI/NO en español, y se reimportan", async () => {
+    const filas = async (ruta: string, lang: "es" | "en") => {
+      const res = await descargar(ruta, lang).expect(200);
+      return parseSpreadsheet((res.body as Buffer).toString("utf8"), "csv");
+    };
+    const columnas = (rows: string[][], sku: string) => {
+      const fila = rows.find((r) => r[1] === sku);
+      return fila === undefined ? null : { lotes: fila[8], compuesto: fila[9] };
+    };
+    await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(tokens.en))
+      .send({ content: "SKU,Name,Price,Tracks_Lots\nYES-1,Con lotes,10,YES" })
+      .expect(200);
+
+    const en = await filas("/products/import/template", "en");
+    expect(columnas(en, "YES-1")).toEqual({ lotes: "YES", compuesto: "NO" });
+    const es = await filas("/products/import/template", "es");
+    expect(columnas(es, "YES-1")).toEqual({ lotes: "SI", compuesto: "NO" });
+    const reporte = await filas("/reports/products/export?format=csv", "en");
+    expect(columnas(reporte, "YES-1")).toEqual({ lotes: "YES", compuesto: "NO" });
+    // Ni un «SI» escondido en la plantilla en inglés.
+    expect(en.flat()).not.toContain("SI");
+  });
+
   it("ida y vuelta: un archivo con encabezados en INGLÉS se importa igual", async () => {
     const res = await request(app.getHttpServer())
       .post("/products/import")
