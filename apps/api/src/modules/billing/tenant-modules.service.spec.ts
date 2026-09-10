@@ -1,4 +1,4 @@
-import { UnprocessableEntityException } from "@nestjs/common";
+import { ConflictException, UnprocessableEntityException } from "@nestjs/common";
 import { TenantModulesService } from "./tenant-modules.service";
 
 /**
@@ -162,6 +162,46 @@ describe("TenantModulesService (F9-MOD-04)", () => {
         response: { message: "billing.subscription_not_found" },
       });
       expect(billing.changePlan).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * F9-PLANMOD-04 — un módulo de plan (Gastos desde Basic, Compras desde Pro)
+   * no se pacta si el plan ya lo incluye (409), y como add-on a un plan menor
+   * NO fuerza Premium. Recepción sigue forzándolo (los casos de arriba).
+   */
+  describe("activar un módulo de plan (F9-PLANMOD-04)", () => {
+    it("Gastos en un Basic → 409 module_included_in_plan, sin fila y sin tocar el plan", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(suscripcion("basic"));
+      await expect(
+        service.enable(TENANT, { moduleKey: "expenses", reason: "x", changedBy: ADMIN }),
+      ).rejects.toThrow(ConflictException);
+      expect(tx.tenantModule.create).not.toHaveBeenCalled();
+      expect(billing.changePlan).not.toHaveBeenCalled();
+      expect(entitlements.invalidate).not.toHaveBeenCalled();
+    });
+
+    it("Compras en un Basic es un add-on: crea la fila e invalida SIN forzar Premium", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(suscripcion("basic"));
+      await service.enable(TENANT, { moduleKey: "purchases", reason: "trato", changedBy: ADMIN });
+      expect(tx.tenantModule.create).toHaveBeenCalledTimes(1);
+      expect(billing.changePlan).not.toHaveBeenCalled();
+      expect(entitlements.invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it("Compras en un Basic con precio pactado aplica el precio sobre el plan que tiene", async () => {
+      tx.tenantSubscription.findUnique.mockResolvedValue(suscripcion("basic"));
+      await service.enable(TENANT, {
+        moduleKey: "purchases",
+        customPrice: "399.00",
+        reason: "trato",
+        changedBy: ADMIN,
+      });
+      expect(billing.changePlan).toHaveBeenCalledWith(TENANT, {
+        customPrice: "399.00",
+        reason: "trato",
+        changedBy: ADMIN,
+      });
     });
   });
 

@@ -97,6 +97,53 @@ describe("resolveRolePermissionCodes", () => {
     });
   });
 
+  /**
+   * F9-PLANMOD-02 — Compras, Gastos y Proveedores: la regla implícita reparte
+   * sola (`:read` a Viewer, el resto a Manager, nada a Seller). Este test fija
+   * que nadie meta un `:manage` de estos en MANAGER_EXCLUDED_CODES por error.
+   */
+  describe("permisos de Compras, Gastos y Proveedores (F9-PLANMOD-02)", () => {
+    const conEgresos = [
+      ...catalog,
+      "purchases:read",
+      "purchases:manage",
+      "purchases:cancel",
+      "expenses:read",
+      "expenses:manage",
+      "expenses:cancel",
+      "suppliers:read",
+      "suppliers:manage",
+    ];
+
+    it("Manager recibe los ocho, incluidos :manage y :cancel", () => {
+      const result = resolveRolePermissionCodes(conEgresos);
+      expect(result.Manager).toEqual(
+        expect.arrayContaining([
+          "purchases:manage",
+          "purchases:cancel",
+          "expenses:manage",
+          "expenses:cancel",
+          "suppliers:manage",
+        ]),
+      );
+    });
+
+    it("Viewer recibe solo los tres :read; Seller ninguno", () => {
+      const result = resolveRolePermissionCodes(conEgresos);
+      expect(result.Viewer).toEqual(
+        expect.arrayContaining(["purchases:read", "expenses:read", "suppliers:read"]),
+      );
+      expect(result.Viewer).not.toContain("purchases:manage");
+      expect(result.Viewer).not.toContain("expenses:cancel");
+      expect(
+        result.Seller.some(
+          (c) =>
+            c.startsWith("purchases:") || c.startsWith("expenses:") || c.startsWith("suppliers:"),
+        ),
+      ).toBe(false);
+    });
+  });
+
   it("catálogo vacío → todos los roles nacen sin permisos (degradación aceptada)", () => {
     const result = resolveRolePermissionCodes([]);
     for (const role of TENANT_ROLE_NAMES) {

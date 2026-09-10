@@ -1,4 +1,4 @@
-import { PLAN_CODES, type PlanCode } from "@sellpoint/shared";
+import { PLAN_CODES, type PlanCode, planIncludesModule } from "@sellpoint/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import { usePermissions } from "@/lib/auth/permissions";
 import { getMyBilling, requestPlan } from "@/lib/billing/api";
 import { formatDeadline } from "@/lib/billing/dates";
 import { usePlan } from "@/lib/billing/use-plan";
+import { MODULE_NAV } from "@/lib/modules/nav";
 import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
 
@@ -56,7 +57,7 @@ function BillingSettingsPage() {
 function BillingSettings() {
   const { t, i18n } = useTranslation();
   const { has } = usePermissions();
-  const { subscription, daysLeft } = usePlan();
+  const { subscription, daysLeft, planCode, modules } = usePlan();
   const openPlansModal = useBillingStore((state) => state.openPlansModal);
   // Al tope con los demás hooks: abajo hay un early return, y un hook
   // después de un `return` se llama en un orden distinto en cada render.
@@ -115,6 +116,43 @@ function BillingSettings() {
           </Button>
         </CardContent>
       </Card>
+
+      {/*
+        F9-PLANMOD-06 — los módulos que el negocio tiene, con su origen: los
+        que el plan contratado INCLUYE (`plan-modules.ts`) y los pactados a la
+        medida desde el backoffice. Sin módulos la tarjeta no existe: un
+        negocio Free no tiene nada que leer aquí.
+      */}
+      {modules.length > 0 ? (
+        <Card data-testid="my-modules">
+          <CardHeader>
+            <CardTitle>{t("common.billing.me.modules.title")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {modules.map((key) => {
+                const incluido = planCode !== null && planIncludesModule(planCode, key);
+                return (
+                  <li
+                    key={key}
+                    className="flex flex-wrap items-baseline gap-2"
+                    data-testid={`my-module-${key}`}
+                  >
+                    <span className="font-medium">{t(MODULE_NAV[key].labelKey)}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {incluido
+                        ? t("common.billing.me.modules.included", {
+                            plan: subscription?.planName ?? planCode,
+                          })
+                        : t("common.billing.me.modules.custom")}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

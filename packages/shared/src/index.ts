@@ -16,6 +16,7 @@ export * from "./modules";
 export * from "./money";
 export * from "./names";
 export * from "./phone";
+export * from "./plan-modules";
 export * from "./pos-lines";
 export * from "./quantity";
 export * from "./reception";

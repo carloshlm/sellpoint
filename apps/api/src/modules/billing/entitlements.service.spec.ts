@@ -62,6 +62,8 @@ const PLAN_FREE = {
   features: FEATURES_FREE,
 };
 
+const PLAN_BASIC = { ...PLAN_PLUS, id: "plan-basic", code: "basic", name: "Basic" };
+
 const TENANT = "11111111-1111-1111-1111-111111111111";
 
 describe("EntitlementsService (F7-CORE-01/02)", () => {
@@ -152,17 +154,30 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
    * se concede — reactivar el plan lo devuelve.
    */
   describe("módulos por tenant (F9-MOD-03)", () => {
-    it("sin filas en tenant_modules, `modules` es una lista vacía", async () => {
+    it("un Plus sin filas en tenant_modules trae los INCLUIDOS por su plan: Compras y Gastos", async () => {
       conSuscripcion("active");
       const e = await service.resolve(TENANT);
-      expect(e.modules).toEqual([]);
+      expect(e.modules).toEqual(["purchases", "expenses"]);
     });
 
-    it("con Recepción activada, `modules` la trae", async () => {
+    it("un Basic incluye Gastos pero no Compras (F9-PLANMOD-03)", async () => {
+      conSuscripcion("active", { plan: PLAN_BASIC });
+      const e = await service.resolve(TENANT);
+      expect(e.modules).toEqual(["expenses"]);
+    });
+
+    it("con Recepción pactada, `modules` la trae junto a los del plan, en orden de catálogo", async () => {
       conSuscripcion("active");
       tx.tenantModule.findMany.mockResolvedValue([{ moduleKey: "reception" }]);
       const e = await service.resolve(TENANT);
-      expect(e.modules).toEqual(["reception"]);
+      expect(e.modules).toEqual(["reception", "purchases", "expenses"]);
+    });
+
+    it("un módulo pactado Y incluido no se duplica", async () => {
+      conSuscripcion("active", { plan: PLAN_BASIC });
+      tx.tenantModule.findMany.mockResolvedValue([{ moduleKey: "expenses" }]);
+      const e = await service.resolve(TENANT);
+      expect(e.modules).toEqual(["expenses"]);
     });
 
     it("una clave que ya no está en el catálogo se descarta con WARN, no revienta", async () => {
@@ -173,17 +188,18 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
         { moduleKey: "reception" },
       ]);
       const e = await service.resolve(TENANT);
-      expect(e.modules).toEqual(["reception"]);
+      expect(e.modules).toEqual(["reception", "purchases", "expenses"]);
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("foo"));
       warn.mockRestore();
     });
 
-    it("un negocio que cayó a free no conserva sus módulos aunque las filas sigan", async () => {
+    it("un negocio que cayó a free pierde los PACTADOS pero conserva los del plan CONTRATADO (lectura)", async () => {
       conSuscripcion("canceled");
       tx.tenantModule.findMany.mockResolvedValue([{ moduleKey: "reception" }]);
       const e = await service.resolve(TENANT);
       expect(e.planCode).toBe("free");
-      expect(e.modules).toEqual([]);
+      expect(e.writeAccess).toBe(false);
+      expect(e.modules).toEqual(["purchases", "expenses"]);
     });
 
     it("el objeto cacheado en Redis conserva los módulos", async () => {
@@ -192,7 +208,7 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
       const primera = await service.resolve(TENANT);
       redis.get.mockResolvedValue(JSON.stringify(primera));
       const segunda = await service.resolve(TENANT);
-      expect(segunda.modules).toEqual(["reception"]);
+      expect(segunda.modules).toEqual(["reception", "purchases", "expenses"]);
     });
   });
 

@@ -5,6 +5,8 @@ import {
   FlaskConical,
   Microscope,
   NotebookText,
+  Receipt,
+  ShoppingCart,
   Stethoscope,
   Ticket,
   UserRoundSearch,
@@ -89,6 +91,20 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         icon: NotebookText,
       },
     ],
+  },
+  // F9-PLANMOD-01 — Compras (desde Pro) y Gastos (desde Basic) nacen con el
+  // grupo VACÍO: un grupo sin links no se pinta (`use-module-nav.ts`), así el
+  // catálogo ya los conoce sin mandar a nadie a una ruta que no existe. Los
+  // links llegan con F9-PURCH-10 y F9-EXP-14.
+  purchases: {
+    labelKey: "common.layout.nav.modules.purchases.group",
+    icon: ShoppingCart,
+    links: [],
+  },
+  expenses: {
+    labelKey: "common.layout.nav.modules.expenses.group",
+    icon: Receipt,
+    links: [],
   },
 };
 

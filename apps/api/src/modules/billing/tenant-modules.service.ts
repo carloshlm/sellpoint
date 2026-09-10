@@ -1,5 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { MODULE_KEYS, type ModuleKey } from "@sellpoint/shared";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  MODULE_KEYS,
+  MODULE_MIN_PLAN,
+  type ModuleKey,
+  type PlanCode,
+  planIncludesModule,
+} from "@sellpoint/shared";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -71,7 +77,18 @@ export class TenantModulesService {
       throw new NotFoundException({ message: "billing.subscription_not_found" });
     }
 
-    if (sub.plan.code !== "premium") {
+    // F9-PLANMOD-04 — un módulo que el plan contratado ya incluye no se
+    // pacta: una fila diría «activado» sin explicar nada. 409, no no-op.
+    if (planIncludesModule(sub.plan.code as PlanCode, input.moduleKey)) {
+      throw new ConflictException({ message: "billing.module_included_in_plan" });
+    }
+
+    // Solo el módulo PACTADO (`minPlan: null`) fuerza Premium (LEY 4). Un
+    // módulo de plan pactado a un plan menor (Compras a un Basic) es un
+    // add-on: fila en `tenant_modules` sin tocar el plan; si viene precio,
+    // se aplica sobre el plan que tiene.
+    const fuerzaPremium = MODULE_MIN_PLAN[input.moduleKey] === null;
+    if (fuerzaPremium && sub.plan.code !== "premium") {
       await this.billing.changePlan(tenantId, {
         planCode: "premium",
         customPrice: input.customPrice,

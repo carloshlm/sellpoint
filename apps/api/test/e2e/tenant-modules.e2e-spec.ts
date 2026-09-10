@@ -111,7 +111,8 @@ describe("Módulos por tenant (F9-MOD-10)", () => {
     const suscripcion = (me.body as { subscription: { planCode: string; modules: string[] } })
       .subscription;
     expect(suscripcion.planCode).toBe("premium");
-    expect(suscripcion.modules).toEqual(["reception"]);
+    // F9-PLANMOD-03: Premium incluye Compras y Gastos; Recepción va pactada.
+    expect(suscripcion.modules).toEqual(["reception", "purchases", "expenses"]);
 
     const detalle = await request(app.getHttpServer())
       .get(`/admin/billing/tenants/${negocio.tenantId}`)
@@ -135,6 +136,15 @@ describe("Módulos por tenant (F9-MOD-10)", () => {
     expect(res.body).toEqual(["reception"]);
   });
 
+  it("activar un módulo que el plan ya incluye es 409 (F9-PLANMOD-04)", async () => {
+    const res = await request(app.getHttpServer())
+      .post(modulos(negocio.tenantId))
+      .set("Authorization", bearer(admin.token))
+      .send({ moduleKey: "expenses", reason: "ya viene" })
+      .expect(409);
+    expect(res.body).toMatchObject({ code: "billing.module_included_in_plan" });
+  });
+
   it("desactivar apaga el módulo, el plan sigue Premium y el audit guarda las dos acciones", async () => {
     const res = await request(app.getHttpServer())
       .delete(`${modulos(negocio.tenantId)}/reception`)
@@ -150,7 +160,7 @@ describe("Módulos por tenant (F9-MOD-10)", () => {
     const suscripcion = (me.body as { subscription: { planCode: string; modules: string[] } })
       .subscription;
     expect(suscripcion.planCode).toBe("premium");
-    expect(suscripcion.modules).toEqual([]);
+    expect(suscripcion.modules).toEqual(["purchases", "expenses"]);
 
     const rastro = await prisma.withTenantContext(negocio.tenantId, (tx) =>
       tx.auditLog.findMany({

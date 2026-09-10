@@ -62,8 +62,15 @@
           "diagnosticStudies": "Diagnostic Studies",
           "attend": "Attend patient",
           "records": "Medical records"
+        },
+        "purchases": {
+          "group": "Purchases"
+        },
+        "expenses": {
+          "group": "Expenses"
         }
-      }
+      },
+      "suppliers": "Suppliers"
     },
     "navLabel": "Main navigation",
     "offline": "You're offline. You can review what's already loaded, but you can't charge or quote until the connection returns.",
@@ -306,6 +313,11 @@
       "nextDue": "Next payment: {{date}}",
       "discount": "Active discount: -${{amount}} per period ({{used}}/{{total}} used)",
       "viewPlans": "View plans",
+      "modules": {
+        "title": "Modules",
+        "included": "Included in your {{plan}} plan",
+        "custom": "Enabled on request"
+      },
       "history": "Payment history",
       "noPayments": "No payments recorded yet.",
       "voided": "voided",
@@ -422,10 +434,12 @@
           "disable": "Disable",
           "enabled": "Active",
           "disabled": "Inactive",
-          "enableHint": "Enabling a module moves this business to Premium at the agreed price. If you disable it later, it stops seeing what it captured with it (nothing is deleted).",
+          "enableHint": "A negotiated module (Reception, Clinic) moves the business to Premium with the agreed price; Purchases and Expenses come with the plan and, on a lower plan, are agreed as an add-on without changing the plan. If you turn a module off, the business stops seeing what it captured with it (nothing is deleted).",
           "lastModuleHint": "It stays on Premium with no modules: adjust the plan and price if needed.",
           "noSubscriptionHint": "Record a plan or a payment first: modules cannot be enabled without a subscription.",
-          "propagationHint": "The business sees the module on its next session, not instantly."
+          "propagationHint": "The business sees the module on its next session, not instantly.",
+          "included": "Included",
+          "includedInPlan": "Included in the {{plan}} plan"
         },
         "reports": {
           "title": "Reports",

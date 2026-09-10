@@ -62,8 +62,15 @@
           "diagnosticStudies": "Estudios Diagnósticos",
           "attend": "Atender paciente",
           "records": "Historias clínicas"
+        },
+        "purchases": {
+          "group": "Compras"
+        },
+        "expenses": {
+          "group": "Gastos"
         }
-      }
+      },
+      "suppliers": "Proveedores"
     },
     "navLabel": "Navegación principal",
     "offline": "Sin conexión. Puedes consultar lo que ya cargaste, pero no cobrar ni cotizar hasta que vuelva la red.",
@@ -306,6 +313,11 @@
       "nextDue": "Próximo pago: {{date}}",
       "discount": "Descuento vigente: -${{amount}} por período ({{used}}/{{total}} usados)",
       "viewPlans": "Ver planes",
+      "modules": {
+        "title": "Módulos",
+        "included": "Incluido en tu plan {{plan}}",
+        "custom": "Activado a la medida"
+      },
       "history": "Historial de pagos",
       "noPayments": "Aún no hay pagos registrados.",
       "voided": "anulado",
@@ -422,10 +434,12 @@
           "disable": "Desactivar",
           "enabled": "Activo",
           "disabled": "Inactivo",
-          "enableHint": "Al activar un módulo, este negocio pasa a Premium con el precio pactado. Si lo apagas después, deja de ver lo que capturó con él (no se borra).",
+          "enableHint": "Un módulo pactado (Recepción, Consultorio) pasa el negocio a Premium con el precio pactado; Compras y Gastos vienen con el plan y, a un plan menor, se pactan como add-on sin cambiar el plan. Si apagas un módulo, el negocio deja de ver lo que capturó con él (no se borra).",
           "lastModuleHint": "Queda en Premium sin módulos: ajusta el plan y el precio si corresponde.",
           "noSubscriptionHint": "Primero regístrale un plan o un pago: sin suscripción no se pueden activar módulos.",
-          "propagationHint": "El negocio ve el módulo en su próxima sesión, no al instante."
+          "propagationHint": "El negocio ve el módulo en su próxima sesión, no al instante.",
+          "included": "Incluido",
+          "includedInPlan": "Incluido en el plan {{plan}}"
         },
         "reports": {
           "title": "Reportes",

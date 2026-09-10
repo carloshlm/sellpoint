@@ -278,6 +278,33 @@ describe("el expediente (F9-ADMIN-07..11)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/precio pactado/);
   });
 
+  /**
+   * F9-PLANMOD-05 — un módulo que el plan contratado ya incluye se ve como
+   * «Incluido» y no tiene botón; el pactado (Recepción) sigue activable; y en
+   * un Basic, Compras se ofrece como add-on.
+   */
+  it("Plan y módulos: un Plus muestra Compras y Gastos incluidos, sin botón; Recepción sigue activable", async () => {
+    await renderEn("/admin/tenants/t1?tab=plan");
+    const compras = await screen.findByTestId("module-purchases");
+    expect(compras).toHaveTextContent("Incluido en el plan Plus");
+    expect(within(compras).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByTestId("module-expenses")).toHaveTextContent("Incluido");
+    expect(
+      within(screen.getByTestId("module-reception")).getByRole("button", { name: "Activar" }),
+    ).toBeInTheDocument();
+  });
+
+  it("Plan y módulos: en un Basic, Compras se ofrece como add-on y Gastos viene incluido", async () => {
+    mockedOverview.mockResolvedValue({
+      ...overview,
+      subscription: { ...overview.subscription, planCode: "basic", planName: "Basic" },
+    });
+    await renderEn("/admin/tenants/t1?tab=plan");
+    const compras = await screen.findByTestId("module-purchases");
+    expect(within(compras).getByRole("button", { name: "Activar" })).toBeInTheDocument();
+    expect(screen.getByTestId("module-expenses")).toHaveTextContent("Incluido en el plan Basic");
+  });
+
   it("Panel: pide el dashboard del negocio mirado, no el propio", async () => {
     await renderEn("/admin/tenants/t1?tab=dashboard");
     await screen.findByTestId("tenant-dashboard");

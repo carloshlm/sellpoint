@@ -29,6 +29,24 @@ const PERMISSIONS = [
     module: "tenants",
     description: "Configurar el perfil del negocio (razón social, dirección, moneda, onboarding)",
   },
+  // F9-PLANMOD-02 — Compras, Gastos y Proveedores (la migración
+  // 20260918100000_f9_purch_exp_permissions es la fuente en el pipeline).
+  { code: "purchases:read", module: "purchases", description: "Ver las compras a proveedores" },
+  {
+    code: "purchases:manage",
+    module: "purchases",
+    description: "Registrar, editar y confirmar compras",
+  },
+  { code: "purchases:cancel", module: "purchases", description: "Anular compras" },
+  { code: "expenses:read", module: "expenses", description: "Ver los gastos del negocio" },
+  { code: "expenses:manage", module: "expenses", description: "Registrar, editar y pagar gastos" },
+  { code: "expenses:cancel", module: "expenses", description: "Anular gastos" },
+  { code: "suppliers:read", module: "suppliers", description: "Ver el catálogo de proveedores" },
+  {
+    code: "suppliers:manage",
+    module: "suppliers",
+    description: "Dar de alta, editar y retirar proveedores",
+  },
 ] as const;
 
 type PermissionCode = (typeof PERMISSIONS)[number]["code"];

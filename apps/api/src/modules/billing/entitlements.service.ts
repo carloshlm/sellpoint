@@ -5,6 +5,7 @@ import {
   type PlanCode,
   type PlanFeatures,
   planFeaturesSchema,
+  planModules,
 } from "@sellpoint/shared";
 import type { Redis } from "ioredis";
 import type { Prisma } from "../../generated/prisma/client";
@@ -29,9 +30,13 @@ export interface Entitlements {
   maxWarehouses: number | null;
   features: PlanFeatures;
   /**
-   * F9-MOD-03 — los módulos avanzados activos por encima del plan. Van
+   * F9-MOD-03 / F9-PLANMOD-03 — los módulos del negocio, de dos clases: los
+   * INCLUIDOS por el plan contratado (`plan-modules.ts`: Gastos desde Basic,
+   * Compras desde Pro) y los PACTADOS (`tenant_modules`). Los pactados van
    * ATADOS al plan efectivo: un negocio que cayó a free no los conserva
-   * aunque sus filas sigan en `tenant_modules` (reactivar los devuelve).
+   * aunque sus filas sigan (reactivar los devuelve). Los incluidos siguen al
+   * plan CONTRATADO: el que se atrasa sigue leyendo sus gastos y
+   * `writeAccess=false` corta las escrituras — la doctrina del kardex.
    */
   modules: ModuleKey[];
   trialEndsAt: string | null;
@@ -133,9 +138,16 @@ export class EntitlementsService {
       const planEfectivo = planVivo
         ? (sub.plan as PlanRow)
         : ((await tx.plan.findUniqueOrThrow({ where: { code: "free" } })) as PlanRow);
-      // Los módulos solo se conceden con el plan VIVO: caer a free los apaga
-      // sin borrar nada.
-      const modules = planVivo ? await this.resolveModules(tx, tenantId) : [];
+      // F9-PLANMOD-03 — dos clases: los INCLUIDOS por el plan CONTRATADO
+      // (`sub.plan.code`, no el efectivo: el que se atrasa sigue LEYENDO y el
+      // `writeAccess` corta las escrituras) y los PACTADOS, que solo se
+      // conceden con el plan VIVO: caer a free los apaga sin borrar nada. La
+      // unión sale en el orden del catálogo, sin duplicados.
+      const incluidos = planModules(sub.plan.code as PlanCode);
+      const pactados = planVivo ? await this.resolveModules(tx, tenantId) : [];
+      const modules = MODULE_KEYS.filter(
+        (key) => incluidos.includes(key) || pactados.includes(key),
+      );
 
       return this.toEntitlements(
         planEfectivo,

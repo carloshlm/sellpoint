@@ -173,6 +173,27 @@ describe("el listado de lo que incluye cada plan", () => {
     expect(basic.querySelector('[title^="No incluido"]')).not.toBeNull();
   });
 
+  /**
+   * F9-PLANMOD-06 — los módulos de plan se derivan de `MODULE_MIN_PLAN`, no
+   * de `features`: Gastos desde Basic, Compras desde Pro. Plus los trae los
+   * dos; Basic solo Gastos, y Compras queda dicho como no incluido.
+   */
+  it("Basic incluye Gastos y NO Compras; Plus incluye los dos", async () => {
+    renderModal();
+
+    const basic = await screen.findByTestId("plan-basic");
+    expect(within(basic).getByTestId("plan-basic-module-expenses")).toHaveTextContent("✓Gastos");
+    expect(within(basic).getByTestId("plan-basic-module-purchases")).toHaveTextContent("—Compras");
+    expect(within(basic).getByTestId("plan-basic-module-purchases")).toHaveAttribute(
+      "title",
+      "No incluido: Compras",
+    );
+
+    const plus = screen.getByTestId("plan-plus");
+    expect(within(plus).getByTestId("plan-plus-module-purchases")).toHaveTextContent("✓Compras");
+    expect(within(plus).getByTestId("plan-plus-module-expenses")).toHaveTextContent("✓Gastos");
+  });
+
   /** Vender sin existencias es una VENTAJA del mostrador sin inventario. */
   it("Basic explica que puede vender sin existencias cargadas", async () => {
     renderModal();

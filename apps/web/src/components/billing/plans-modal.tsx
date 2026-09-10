@@ -1,4 +1,10 @@
-import { formatMoney, type PlanCode } from "@sellpoint/shared";
+import {
+  formatMoney,
+  MODULE_KEYS,
+  MODULE_MIN_PLAN,
+  type PlanCode,
+  planIncludesModule,
+} from "@sellpoint/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -7,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { getPlans, type PublicPlan } from "@/lib/billing/api";
 import { usePlan } from "@/lib/billing/use-plan";
+import { MODULE_NAV } from "@/lib/modules/nav";
 import { useBillingStore } from "@/stores/billing.store";
 
 /**
@@ -51,6 +58,15 @@ const CAPACIDADES = [
 ] as const;
 
 type Capacidad = (typeof CAPACIDADES)[number];
+
+/**
+ * F9-PLANMOD-06 — los módulos DE PLAN (Gastos desde Basic, Compras desde
+ * Pro) se listan tras las capacidades, derivados de `MODULE_MIN_PLAN` y no
+ * de `plan.features`: la matriz de features es un `strictObject` sin
+ * defaults y un módulo no es un feature. Los pactados (`minPlan: null`)
+ * no se venden en la vitrina: se acuerdan uno a uno desde el backoffice.
+ */
+const MODULOS_DE_PLAN = MODULE_KEYS.filter((key) => MODULE_MIN_PLAN[key] !== null);
 
 /** `stockControl` es columna dura; el resto vive en la matriz `features`. */
 function incluye(plan: PublicPlan, capacidad: Capacidad): boolean {
@@ -189,6 +205,25 @@ export function PlansModal() {
                     key={capacidad}
                     className={`flex gap-2 ${tiene ? "" : "text-muted-foreground"}`}
                     title={tiene ? nombre : t("common.billing.plans.notIncluded", { item: nombre })}
+                  >
+                    <span aria-hidden="true" className={tiene ? "text-primary" : ""}>
+                      {tiene ? "✓" : "—"}
+                    </span>
+                    <span className={tiene ? "" : "line-through decoration-muted-foreground/40"}>
+                      {nombre}
+                    </span>
+                  </li>
+                );
+              })}
+              {MODULOS_DE_PLAN.map((key) => {
+                const tiene = planIncludesModule(plan.code as PlanCode, key);
+                const nombre = t(MODULE_NAV[key].labelKey);
+                return (
+                  <li
+                    key={key}
+                    className={`flex gap-2 ${tiene ? "" : "text-muted-foreground"}`}
+                    title={tiene ? nombre : t("common.billing.plans.notIncluded", { item: nombre })}
+                    data-testid={`plan-${plan.code}-module-${key}`}
                   >
                     <span aria-hidden="true" className={tiene ? "text-primary" : ""}>
                       {tiene ? "✓" : "—"}

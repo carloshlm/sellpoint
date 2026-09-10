@@ -11,9 +11,12 @@ import { z } from "zod";
  * (`@RequiresModule`), los toggles del backoffice y el grupo del menú del
  * cliente; los metadatos de UI (etiqueta, ícono, rutas) viven en el web.
  *
- * Activar cualquier módulo vuelve al negocio Premium con precio pactado
- * (decisión de Carlos, 2026-09-02).
+ * Activar un módulo PACTADO (`reception`, `medical_clinic`) vuelve al negocio
+ * Premium con precio pactado (decisión de Carlos, 2026-09-02). Desde el
+ * 2026-09-10 hay una segunda clase: el módulo DE PLAN (`expenses` desde Basic,
+ * `purchases` desde Pro), que se incluye solo con el plan contratado — ver
+ * `plan-modules.ts` (`MODULE_MIN_PLAN`).
  */
-export const MODULE_KEYS = ["reception", "medical_clinic"] as const;
+export const MODULE_KEYS = ["reception", "medical_clinic", "purchases", "expenses"] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 export const moduleKeySchema = z.enum(MODULE_KEYS);

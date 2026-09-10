@@ -854,6 +854,8 @@ Aplica a **cualquier vertical** (B2B, B2C consultivo). El TenantAdmin lo activa 
 
 #### 9.5 Modelo de pricing de los add-ons
 
+> **Superado el 2026-09-10 (F9-PLANMOD).** El pricing real no pasa por Stripe ni por `subscription_items`: un módulo pactado (`reception`, `medical_clinic`) se activa desde el backoffice en `tenant_modules` y lleva al negocio a Premium con precio pactado; un módulo **de plan** (`expenses` desde Basic, `purchases` desde Pro) se incluye solo con el plan contratado según `MODULE_MIN_PLAN` (`packages/shared/src/plan-modules.ts`) y puede pactarse como add-on a un plan menor sin cambiar el plan. La tabla de abajo queda como registro histórico del diseño original.
+
 Cada módulo activable es un **add-on con precio mensual/anual independiente** del plan base:
 
 | Plan base | Incluye |

@@ -1,4 +1,10 @@
-import { MODULE_KEYS, type ModuleKey } from "@sellpoint/shared";
+import {
+  MODULE_KEYS,
+  type ModuleKey,
+  PLAN_CODES,
+  type PlanCode,
+  planIncludesModule,
+} from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +34,12 @@ export function TenantPlanTab({ overview }: { overview: TenantOverview; tenantId
   const [error, setError] = useState<string | null>(null);
   const sinSuscripcion = overview.subscription.status === "none";
   const activos = new Set<ModuleKey>(overview.modules);
+  // F9-PLANMOD-05 — el plan CONTRATADO decide qué módulos ya vienen incluidos
+  // (`plan-modules.ts`); esos no se activan ni se apagan desde aquí.
+  const planContratado = (PLAN_CODES as readonly string[]).includes(overview.subscription.planCode)
+    ? (overview.subscription.planCode as PlanCode)
+    : null;
+  const nombreDelPlan = overview.subscription.planName ?? overview.subscription.planCode;
 
   return (
     <div className="flex flex-col gap-4" data-testid="tenant-plan">
@@ -97,6 +109,8 @@ export function TenantPlanTab({ overview }: { overview: TenantOverview; tenantId
                 moduleKey={key}
                 activo={activos.has(key)}
                 esElUltimo={activos.has(key) && activos.size === 1}
+                incluidoEnPlan={planContratado !== null && planIncludesModule(planContratado, key)}
+                nombreDelPlan={nombreDelPlan}
                 deshabilitado={sinSuscripcion || reason.trim() === ""}
                 customPrice={customPrice.trim()}
                 reason={reason.trim()}
@@ -116,6 +130,8 @@ function ModuleRow({
   moduleKey,
   activo,
   esElUltimo,
+  incluidoEnPlan,
+  nombreDelPlan,
   deshabilitado,
   customPrice,
   reason,
@@ -125,6 +141,9 @@ function ModuleRow({
   moduleKey: ModuleKey;
   activo: boolean;
   esElUltimo: boolean;
+  /** F9-PLANMOD-05: el plan contratado ya lo trae — ni Activar ni Desactivar. */
+  incluidoEnPlan: boolean;
+  nombreDelPlan: string;
   deshabilitado: boolean;
   customPrice: string;
   reason: string;
@@ -142,11 +161,15 @@ function ModuleRow({
     <li className="flex items-center justify-between gap-3 p-3" data-testid={`module-${moduleKey}`}>
       <div className="flex items-center gap-2">
         <span className="font-medium text-sm">{t(MODULE_NAV[moduleKey].labelKey)}</span>
-        <Badge variant={activo ? "success" : "default"}>
-          {activo ? k("enabled") : k("disabled")}
+        <Badge variant={incluidoEnPlan || activo ? "success" : "default"}>
+          {incluidoEnPlan ? k("included") : activo ? k("enabled") : k("disabled")}
         </Badge>
       </div>
-      {activo ? (
+      {incluidoEnPlan ? (
+        <span className="text-muted-foreground text-xs">
+          {t("common.billing.admin.tenants.plan.includedInPlan", { plan: nombreDelPlan })}
+        </span>
+      ) : activo ? (
         <div className="flex flex-col items-end gap-1">
           <Button
             type="button"

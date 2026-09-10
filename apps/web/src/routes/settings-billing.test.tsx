@@ -58,6 +58,22 @@ afterEach(() => {
   useAuthStore.getState().clearAuth();
 });
 
+/** Una respuesta de `GET /billing/me` sin pagos: lo mínimo para pintar la pantalla. */
+const billingVacio = () => ({
+  subscription: {
+    status: "active" as const,
+    billingCycle: "monthly" as const,
+    dueAt: "2026-09-06T06:00:00.000Z",
+    trialEndsAt: null,
+    customPrice: null,
+    plan: { code: "plus", name: "Plus" },
+  },
+  payments: [],
+  activeDiscount: null,
+  timezone: "America/Mexico_City",
+  modules: [],
+});
+
 describe("Mi plan /settings/billing (F7-WEB-09)", () => {
   it("muestra el plan, el vencimiento y el historial de pagos propio", async () => {
     mockedMyBilling.mockResolvedValue({
@@ -100,6 +116,50 @@ describe("Mi plan /settings/billing (F7-WEB-09)", () => {
     expect(screen.getByText(/Plus/)).toBeInTheDocument();
     expect(await screen.findByText(/Transferencia/)).toBeInTheDocument();
     expect(screen.getByText(/\$499\.00/)).toBeInTheDocument();
+  });
+
+  /**
+   * F9-PLANMOD-06 — la tarjeta «Módulos» dice de dónde viene cada uno: los
+   * que el plan contratado incluye y los pactados a la medida. Sin módulos
+   * no se pinta.
+   */
+  it("Módulos: un Plus con Recepción pactada distingue lo incluido de lo pactado", async () => {
+    mockedMyBilling.mockResolvedValue(billingVacio());
+    await renderBilling(["tenants:manage"], { modules: ["reception", "purchases", "expenses"] });
+
+    const tarjeta = await screen.findByTestId("my-modules");
+    expect(within(tarjeta).getByTestId("my-module-purchases")).toHaveTextContent(
+      "ComprasIncluido en tu plan Plus",
+    );
+    expect(within(tarjeta).getByTestId("my-module-expenses")).toHaveTextContent("Gastos");
+    expect(within(tarjeta).getByTestId("my-module-reception")).toHaveTextContent(
+      "RecepciónActivado a la medida",
+    );
+  });
+
+  it("Módulos: un Basic con Compras pactada la muestra a la medida y Gastos incluido", async () => {
+    mockedMyBilling.mockResolvedValue(billingVacio());
+    await renderBilling(["tenants:manage"], {
+      planCode: "basic",
+      planName: "Basic",
+      modules: ["purchases", "expenses"],
+    });
+
+    const tarjeta = await screen.findByTestId("my-modules");
+    expect(within(tarjeta).getByTestId("my-module-purchases")).toHaveTextContent(
+      "Activado a la medida",
+    );
+    expect(within(tarjeta).getByTestId("my-module-expenses")).toHaveTextContent(
+      "Incluido en tu plan Basic",
+    );
+  });
+
+  it("Módulos: sin módulos la tarjeta no existe", async () => {
+    mockedMyBilling.mockResolvedValue(billingVacio());
+    await renderBilling(["tenants:manage"], { modules: [] });
+
+    expect(await screen.findByTestId("my-plan")).toBeInTheDocument();
+    expect(screen.queryByTestId("my-modules")).not.toBeInTheDocument();
   });
 
   /**

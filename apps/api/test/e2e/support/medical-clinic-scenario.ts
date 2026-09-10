@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
-import { localCalendarDate } from "@sellpoint/shared";
+import { localCalendarDate, type ModuleKey } from "@sellpoint/shared";
 import request from "supertest";
 import type { App } from "supertest/types";
 import type { PrismaService } from "../../../src/infrastructure/prisma/prisma.service";
@@ -28,7 +28,7 @@ export async function activarModulo(
   app: INestApplication<App>,
   admin: TenantFixture,
   tenantId: string,
-  moduleKey: "reception" | "medical_clinic",
+  moduleKey: ModuleKey,
 ): Promise<void> {
   await request(app.getHttpServer())
     .post(`/admin/billing/tenants/${tenantId}/modules`)
@@ -42,7 +42,7 @@ export async function consultorio(
   prisma: PrismaService,
   prefix: string,
   admin: TenantFixture,
-  modulos: ("reception" | "medical_clinic")[] = ["reception", "medical_clinic"],
+  modulos: ModuleKey[] = ["reception", "medical_clinic"],
 ): Promise<TenantFixture & { warehouseId: string }> {
   const negocio = await registerTenant(app, prefix);
   await setTenantMarket(prisma, negocio.tenantId, "MX");
