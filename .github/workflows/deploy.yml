@@ -1,8 +1,14 @@
-# Deploy a producción. Push a main = deploy (no hay branch protection todavía,
-# F0-CI-03 queda para su propio módulo — ver proposal f0-deploy D5).
+# Deploy: push a main = UN pipeline que valida una vez, construye una vez y
+# despliega SANDBOX y luego PRODUCCIÓN (unificado el 2026-09-10; antes había
+# dos workflows gemelos —main y develop— que repetían los mismos 16 minutos
+# de checks e imágenes para el mismo sha, y obligaban a pushear dos ramas).
 #
-# checks → build-push (3 imágenes a GHCR) → deploy (ssh, migrate, up -d,
-# smoke test con rollback automático por reescritura de IMAGE_TAG, D10).
+# checks → build-push (3 imágenes a GHCR) → deploy-sandbox (ssh, migrate,
+# up -d, smoke) → deploy (producción, ssh, migrate, up -d, smoke con rollback
+# automático por reescritura de IMAGE_TAG, D10).
+#
+# El sandbox es el GATE de producción: si su migración o su smoke fallan,
+# producción no arranca. Ya no hay branch develop ni gate manual.
 #
 # Secrets asumidos (M3 del proposal, los carga Carlos a mano):
 #   DEPLOY_SSH_KEY  — privada de ~/.ssh/sellpoint_ci (autoriza SOLO a `deploy`)
@@ -31,6 +37,8 @@ jobs:
   checks:
     uses: ./.github/workflows/checks.yml
 
+  # `latest` se etiqueta aquí, ANTES del gate del sandbox: es informativo —
+  # ningún deploy lo usa, los dos stacks arrancan por el tag del sha.
   build-push:
     name: build y push imagenes a GHCR
     needs: checks
@@ -126,9 +134,49 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
-  deploy:
-    name: deploy via ssh + smoke test
+  # El MISMO script curtido de producción con overrides de ambiente: destino
+  # /opt/sellpoint-sandbox, compose propio, SMOKE_DOMAIN propio y WITH_EDGE=0
+  # (el sandbox no tiene nginx ni php-fpm — su tráfico entra por el edge de
+  # producción vía la red compartida, así que el smoke ejercita la cadena
+  # completa). No se copian configs de nginx/php-fpm: pertenecen a producción.
+  deploy-sandbox:
+    name: deploy sandbox via ssh + smoke test
     needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: configurar ssh
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: copiar compose y script al server
+        run: |
+          # mkdir COMO deploy antes de cualquier bind-mount (R9): si Docker
+          # crea el directorio, queda owner root.
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mkdir -p /opt/sellpoint-sandbox/scripts"
+          scp -i ~/.ssh/deploy_key \
+            infrastructure/docker-compose.sandbox.yml \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint-sandbox/docker-compose.sandbox.yml"
+          scp -i ~/.ssh/deploy_key \
+            infrastructure/scripts/deploy-remote.sh \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint-sandbox/scripts/deploy-remote.sh"
+
+      # `ssh -n` por la razón de siempre (heredoc/stdin drenado, C1/C2).
+      - name: migrar, actualizar y smoke test (con rollback)
+        run: |
+          ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "BASE_DIR=/opt/sellpoint-sandbox COMPOSE_FILE=docker-compose.sandbox.yml SMOKE_DOMAIN=sandbox.sellpointy.com WITH_EDGE=0 bash /opt/sellpoint-sandbox/scripts/deploy-remote.sh '${{ github.sha }}'"
+
+  # Producción solo arranca con el sandbox verde: misma migración, mismo sha.
+  deploy:
+    name: deploy produccion via ssh + smoke test
+    needs: deploy-sandbox
     runs-on: ubuntu-latest
     steps:
       - name: checkout

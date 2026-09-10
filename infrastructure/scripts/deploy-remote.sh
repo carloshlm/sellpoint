@@ -18,7 +18,7 @@ NEW_TAG="$1"
 #
 # Los defaults REPRODUCEN el comportamiento histórico de producción: sin
 # overrides, este script hace exactamente lo mismo que siempre. El pipeline
-# del sandbox (deploy-sandbox.yml) lo invoca con BASE_DIR/COMPOSE_FILE/
+# del sandbox (job deploy-sandbox de deploy.yml) lo invoca con BASE_DIR/COMPOSE_FILE/
 # SMOKE_DOMAIN propios y WITH_EDGE=0 — el edge (nginx) y php-fpm pertenecen
 # al stack de producción; el sandbox no tiene los suyos y el smoke atraviesa
 # el edge de prod vía la red compartida.
