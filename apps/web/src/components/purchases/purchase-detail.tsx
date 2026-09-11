@@ -1,12 +1,13 @@
 import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateField } from "@/components/form/date-field";
 import { MoneyField } from "@/components/form/money-field";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
+import type { LineasHandle } from "@/components/purchase-orders/purchase-order-lines-table";
 import { PurchaseCharges } from "@/components/purchases/purchase-charges";
 import { PurchaseLinesTable } from "@/components/purchases/purchase-lines-table";
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
@@ -77,6 +78,8 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   const guardarRecepcion = useUpdateReception();
   const confirmar = useConfirmPurchase();
   const anular = useCancelPurchase();
+  const lineasRef = useRef<LineasHandle>(null);
+  const cargosRef = useRef<LineasHandle>(null);
   const ingresar = useCreateEntryDraft();
 
   // Autoguardado ACUMULADO (`useAutosave`): un PATCH por pausa con todo lo
@@ -128,7 +131,20 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
             </Button>
           )}
           {borrador && puedeEditar && (
-            <Button type="button" onClick={() => setConfirmando(true)}>
+            <Button
+              type="button"
+              onClick={() => {
+                // Lo tecleado en líneas y cargos se guarda ANTES de preguntar
+                // (Carlos, 2026-09-11): confirmar con cambios sin guardar
+                // sellaría un papel distinto del que se ve en pantalla.
+                setError(null);
+                Promise.resolve()
+                  .then(() => lineasRef.current?.guardarSiHayCambios())
+                  .then(() => cargosRef.current?.guardarSiHayCambios())
+                  .then(() => setConfirmando(true))
+                  .catch((apiError: { message: string }) => setError(apiError.message));
+              }}
+            >
               {t("purchases.detail.confirm")}
             </Button>
           )}
@@ -334,8 +350,8 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
         </CardContent>
       </Card>
 
-      <PurchaseLinesTable purchase={purchase} />
-      <PurchaseCharges purchase={purchase} />
+      <PurchaseLinesTable ref={lineasRef} purchase={purchase} />
+      <PurchaseCharges ref={cargosRef} purchase={purchase} />
 
       <section className="flex flex-col items-end gap-1 text-sm" data-testid="purchase-totals">
         <Total label={t("purchases.totals.subtotal")} value={dinero(purchase.subtotal)} />

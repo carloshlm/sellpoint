@@ -106,6 +106,38 @@ beforeEach(() => {
   mocked.closePurchaseOrder.mockImplementation(async () =>
     buildPurchaseOrder({ status: "closed" }),
   );
+  mocked.replacePurchaseOrderLines.mockImplementation(async () =>
+    buildPurchaseOrder({ status: "draft", issuedAt: null }),
+  );
+  mocked.issuePurchaseOrder.mockImplementation(async () => buildPurchaseOrder());
+  mockedProductos.getProduct.mockResolvedValue({
+    id: "prod-2",
+    sku: "SKU-2",
+    name: "Gasas estériles",
+    baseUnit: "pieza",
+    isComposite: false,
+    isActive: true,
+    taxGroupId: null,
+    attributes: {},
+    stockMin: "0",
+    location: null,
+    presentations: [
+      {
+        id: "pres-2",
+        productId: "prod-2",
+        name: "Paquete ×10",
+        factor: "10",
+        isPurchasable: true,
+        isSellable: true,
+        isDefaultSale: false,
+        allowFractionalInput: false,
+        barcode: null,
+        price: null,
+        cost: "79",
+        isActive: true,
+      },
+    ],
+  });
   mocked.createPurchaseFromReceipts.mockResolvedValue(
     buildPurchase({ id: "c9", folio: "COM-000009" }),
   );
@@ -227,6 +259,79 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
       expect(mocked.createPurchaseFromReceipts).toHaveBeenCalledWith("po1", ["r1"]),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe("/purchases/c9"));
+  });
+
+  /** Carlos, 2026-09-11: emitir con líneas sin guardar emitía un pedido distinto del que se veía. */
+  it("«Emitir orden» guarda las líneas sin guardar ANTES de preguntar, y no pregunta si guardar falla", async () => {
+    const borrador = buildPurchaseOrder({ status: "draft", issuedAt: null });
+    mocked.getPurchaseOrder.mockResolvedValue(borrador);
+    // El servidor devuelve lo GUARDADO: con eso la tabla deja de estar sucia.
+    mocked.replacePurchaseOrderLines.mockImplementation(async () => {
+      const guardada = {
+        ...borrador,
+        lines: [
+          {
+            ...(borrador.lines[0] as (typeof borrador.lines)[number]),
+            quantityOrdered: "120",
+            pending: "120",
+          },
+        ],
+      };
+      // Y un refetch posterior también trae lo guardado (como el servidor real).
+      mocked.getPurchaseOrder.mockResolvedValue(guardada);
+      return guardada;
+    });
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const cantidad = within(screen.getByTestId("purchase-order-line-0")).getByLabelText("Cantidad");
+    await user.clear(cantidad);
+    await user.type(cantidad, "120");
+    await user.click(screen.getByRole("button", { name: "Emitir orden" }));
+    await waitFor(() =>
+      expect(mocked.replacePurchaseOrderLines).toHaveBeenCalledWith("po1", [
+        expect.objectContaining({ quantity: 120 }),
+      ]),
+    );
+    await screen.findByTestId("issue-order");
+
+    // Sin cambios, no guarda de más.
+    mocked.replacePurchaseOrderLines.mockClear();
+    await user.click(
+      within(screen.getByTestId("issue-order")).getByRole("button", { name: "Cancelar" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Emitir orden" }));
+    await screen.findByTestId("issue-order");
+    expect(mocked.replacePurchaseOrderLines).not.toHaveBeenCalled();
+  });
+
+  it("al agregar un producto, el costo del catálogo se precarga (el de la presentación comprable)", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(
+      buildPurchaseOrder({ status: "draft", issuedAt: null }),
+    );
+    mockedProductos.listProducts.mockResolvedValue({
+      items: [
+        {
+          id: "prod-2",
+          sku: "SKU-2",
+          name: "Gasas estériles",
+          baseUnit: "pieza",
+          isComposite: false,
+          isActive: true,
+          taxGroupId: null,
+          attributes: {},
+          price: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Buscar producto"), "gas");
+    await user.click(await screen.findByTestId("add-product-prod-2"));
+    const fila = await screen.findByTestId("purchase-order-line-1");
+    expect(within(fila).getByLabelText("Costo acordado")).toHaveValue("79");
   });
 
   it("sin nada confirmado sin factura, el botón de registrar compra no existe; sin `purchases:cancel` no hay anular", async () => {

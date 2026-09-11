@@ -97,7 +97,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const onError = (apiError: { message: string }) => setError(apiError.message);
   const ids = { orderId: receipt.purchaseOrderId, receiptId: receipt.id };
 
-  const firmaDeLineas = JSON.stringify(receipt.lines);
+  const firmaDeLineas = JSON.stringify([receipt.status, receipt.lines]);
   // Se resincroniza SOLO cuando las LÍNEAS del servidor cambian (por su
   // firma), no cada vez que llega el objeto entero: el autoguardado de la
   // cabecera devuelve el documento completo y, con `[documento]` como

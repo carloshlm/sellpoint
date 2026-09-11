@@ -86,6 +86,9 @@ const GESTOR = ["purchases:read", "purchases:manage"];
 beforeEach(() => {
   mocked.getPurchase.mockResolvedValue(buildPurchase({ status: "draft", confirmedAt: null }));
   mocked.confirmPurchase.mockImplementation(async () => buildPurchase());
+  mocked.replacePurchaseLines.mockImplementation(async () =>
+    buildPurchase({ status: "draft", confirmedAt: null }),
+  );
   mocked.updatePurchase.mockImplementation(async () =>
     buildPurchase({ status: "draft", confirmedAt: null }),
   );
@@ -251,6 +254,21 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     await user.type(screen.getByLabelText("Notas"), "llegó tarde");
     await waitFor(() => expect(mocked.updatePurchase).toHaveBeenCalled());
     expect(cantidad).toHaveValue("7");
+  });
+
+  it("«Confirmar compra» guarda las líneas sin guardar ANTES de preguntar", async () => {
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const cantidad = within(screen.getByTestId("purchase-line-0")).getByLabelText("Cantidad");
+    await user.clear(cantidad);
+    await user.type(cantidad, "3");
+    await user.click(screen.getByRole("button", { name: "Confirmar compra" }));
+    await waitFor(() =>
+      expect(mocked.replacePurchaseLines).toHaveBeenCalledWith("p1", [
+        expect.objectContaining({ quantity: 3 }),
+      ]),
+    );
+    await screen.findByTestId("confirm-purchase");
   });
 
   it("anular pide el motivo antes de dejar anular", async () => {

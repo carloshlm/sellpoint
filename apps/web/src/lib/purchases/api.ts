@@ -74,7 +74,13 @@ export interface PurchaseProduct {
   name: string;
   baseUnit: string;
   tracksLots: boolean;
-  presentations: { id: string; name: string; factor: string; isPurchasable: boolean }[];
+  presentations: {
+    id: string;
+    name: string;
+    factor: string;
+    isPurchasable: boolean;
+    cost?: string | null;
+  }[];
 }
 
 export interface Purchase extends PurchaseRow {

@@ -59,7 +59,13 @@ export interface PurchaseOrderProduct {
   sku: string;
   name: string;
   baseUnit: string;
-  presentations: { id: string; name: string; factor: string; isPurchasable: boolean }[];
+  presentations: {
+    id: string;
+    name: string;
+    factor: string;
+    isPurchasable: boolean;
+    cost?: string | null;
+  }[];
 }
 
 export interface PurchaseOrderReceiptSummary {

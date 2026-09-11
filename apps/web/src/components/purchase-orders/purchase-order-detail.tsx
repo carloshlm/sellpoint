@@ -1,12 +1,15 @@
 import { type Currency, formatMoney } from "@sellpoint/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateField } from "@/components/form/date-field";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
-import { PurchaseOrderLinesTable } from "@/components/purchase-orders/purchase-order-lines-table";
+import {
+  type LineasHandle,
+  PurchaseOrderLinesTable,
+} from "@/components/purchase-orders/purchase-order-lines-table";
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,6 +95,7 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
 
   const guardar = useUpdatePurchaseOrder();
   const emitir = useIssuePurchaseOrder();
+  const lineasRef = useRef<LineasHandle>(null);
   const cerrar = useClosePurchaseOrder();
   const anular = useCancelPurchaseOrder();
   const recibir = useCreatePurchaseReceipt();
@@ -132,7 +136,19 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
             </Button>
           )}
           {borrador && puedeEditar && (
-            <Button type="button" onClick={() => setEmitiendo(true)}>
+            <Button
+              type="button"
+              onClick={() => {
+                // Lo tecleado en la tabla se guarda ANTES de preguntar: emitir
+                // con líneas sin guardar emitía un pedido distinto del que se
+                // veía en pantalla (Carlos, 2026-09-11).
+                setError(null);
+                lineasRef.current
+                  ?.guardarSiHayCambios()
+                  .then(() => setEmitiendo(true))
+                  .catch((apiError: { message: string }) => setError(apiError.message));
+              }}
+            >
               {t("purchaseOrders.detail.issue")}
             </Button>
           )}
@@ -309,7 +325,7 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
         </CardContent>
       </Card>
 
-      <PurchaseOrderLinesTable order={order} />
+      <PurchaseOrderLinesTable ref={lineasRef} order={order} />
 
       <section
         className="flex flex-col items-end gap-1 text-sm"
