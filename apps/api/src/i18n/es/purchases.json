@@ -1,0 +1,20 @@
+{
+  "invalid_body": "Revisa los datos de la compra.",
+  "invalid_query": "Los filtros de búsqueda no son válidos.",
+  "invalid_amount": "El importe debe ser mayor o igual a cero y con hasta dos decimales.",
+  "empty_update": "No hay cambios que guardar.",
+  "not_found": "La compra no existe.",
+  "not_draft": "Esta compra ya se confirmó o se anuló: sus líneas y sus importes no se editan.",
+  "not_confirmed": "Esta compra todavía no está confirmada.",
+  "supplier_not_found": "El proveedor no existe.",
+  "product_not_found": "Uno de los productos de la compra no existe.",
+  "presentation_invalid": "Esa presentación no es de ese producto o está desactivada.",
+  "warehouse_required": "No tienes un almacén asignado: elige a cuál entra la compra.",
+  "needs_lines": "Agrega al menos un producto antes de confirmar la compra.",
+  "line_needs_quantity": "Escribe la cantidad de {field}.",
+  "line_needs_cost": "Escribe el costo de {field}: es el que va a quedar en el catálogo.",
+  "already_canceled": "Esta compra ya está anulada.",
+  "entry_already_confirmed": "La entrada de inventario de esta compra ya se confirmó: la mercancía entró. Para corregirlo registra una salida.",
+  "cancel_reason_required": "Escribe el motivo de la anulación (al menos 3 caracteres).",
+  "draft_has_no_document": "Una compra en borrador todavía no tiene documento: confírmala primero."
+}

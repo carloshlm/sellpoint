@@ -34,6 +34,7 @@ import { MedicalClinicModule } from "./modules/medical-clinic/medical-clinic.mod
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { PosModule } from "./modules/pos/pos.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { PurchasesModule } from "./modules/purchases/purchases.module";
 import { ReceptionModule } from "./modules/reception/reception.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { RolesModule } from "./modules/roles/roles.module";
@@ -130,6 +131,8 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     SuppliersModule,
     // F9-EXP: Gastos, incluido desde Basic.
     ExpensesModule,
+    // F9-PURCH: Compras, incluido desde Pro.
+    PurchasesModule,
     ReceptionModule,
     MedicalClinicModule,
     AdminModule,

@@ -1,0 +1,20 @@
+{
+  "invalid_body": "Check the purchase data.",
+  "invalid_query": "The search filters are not valid.",
+  "invalid_amount": "The amount must be zero or greater with up to two decimals.",
+  "empty_update": "There are no changes to save.",
+  "not_found": "The purchase does not exist.",
+  "not_draft": "This purchase is already confirmed or canceled: its lines and amounts cannot be edited.",
+  "not_confirmed": "This purchase is not confirmed yet.",
+  "supplier_not_found": "The supplier does not exist.",
+  "product_not_found": "One of the products in the purchase does not exist.",
+  "presentation_invalid": "That presentation does not belong to that product or is deactivated.",
+  "warehouse_required": "You have no assigned warehouse: choose where the purchase goes in.",
+  "needs_lines": "Add at least one product before confirming the purchase.",
+  "line_needs_quantity": "Enter the quantity for {field}.",
+  "line_needs_cost": "Enter the cost for {field}: it is the one that will stay in the catalog.",
+  "already_canceled": "This purchase is already canceled.",
+  "entry_already_confirmed": "The inventory entry for this purchase is already confirmed: the goods came in. To correct it, record an exit.",
+  "cancel_reason_required": "Write the reason for the cancellation (at least 3 characters).",
+  "draft_has_no_document": "A draft purchase has no document yet: confirm it first."
+}

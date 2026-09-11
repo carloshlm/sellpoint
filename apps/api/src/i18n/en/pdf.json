@@ -40,5 +40,31 @@
   "deliveredBy": "Delivered by",
   "receivedBy": "Received by",
   "watermarkDraft": "DRAFT",
-  "watermarkCanceled": "VOID"
+  "watermarkCanceled": "VOID",
+  "purchase": {
+    "title": "Purchase",
+    "supplier": "Supplier",
+    "taxId": "Tax ID",
+    "date": "Purchase date",
+    "receivedDate": "Received on",
+    "invoice": "Supplier invoice",
+    "warehouse": "Goes into",
+    "unitCost": "Unit cost",
+    "discount": "Discount",
+    "tax": "Tax",
+    "amount": "Amount",
+    "expiresAt": "Expires",
+    "subtotal": "Subtotal",
+    "charges": "Charges",
+    "chargesTitle": "Additional charges",
+    "chargeDescription": "Concept",
+    "total": "Total",
+    "declaredTotal": "Total declared on the invoice",
+    "mismatch": "⚠ The declared total does not match the sum of the lines. Difference:",
+    "notes": "Notes",
+    "entry": "Inventory entry",
+    "canceled": "CANCELED",
+    "taxIncluded": "Costs already include tax.",
+    "taxExcluded": "Costs do NOT include tax: it is added separately."
+  }
 }

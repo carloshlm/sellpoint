@@ -99,7 +99,7 @@ export type ListDocumentsQueryDto = z.infer<typeof listDocumentsQuerySchema>;
  * El `min(1)` va DESPUÉS del transform a propósito: `"---"` normaliza a vacío,
  * y eso tiene que ser un 400 —«ese código no sirve»— y no un lote sin nombre.
  */
-function lotCodeField() {
+export function lotCodeField() {
   return z.string().trim().max(64).transform(normalizeLotCode).pipe(z.string().min(1).max(64));
 }
 

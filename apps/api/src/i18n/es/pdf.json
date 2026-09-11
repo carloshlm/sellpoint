@@ -40,5 +40,31 @@
   "deliveredBy": "Entregó",
   "receivedBy": "Recibió",
   "watermarkDraft": "BORRADOR",
-  "watermarkCanceled": "ANULADO"
+  "watermarkCanceled": "ANULADO",
+  "purchase": {
+    "title": "Compra",
+    "supplier": "Proveedor",
+    "taxId": "Registro fiscal",
+    "date": "Fecha de compra",
+    "receivedDate": "Fecha de recepción",
+    "invoice": "Factura del proveedor",
+    "warehouse": "Entra a",
+    "unitCost": "Costo unitario",
+    "discount": "Descuento",
+    "tax": "Impuesto",
+    "amount": "Importe",
+    "expiresAt": "Caducidad",
+    "subtotal": "Subtotal",
+    "charges": "Cargos",
+    "chargesTitle": "Cargos adicionales",
+    "chargeDescription": "Concepto",
+    "total": "Total",
+    "declaredTotal": "Total declarado en la factura",
+    "mismatch": "⚠ El total declarado no coincide con la suma de las líneas. Diferencia:",
+    "notes": "Notas",
+    "entry": "Entrada de inventario",
+    "canceled": "ANULADA",
+    "taxIncluded": "Los costos ya incluyen el impuesto.",
+    "taxExcluded": "Los costos NO incluyen el impuesto: se suma aparte."
+  }
 }
