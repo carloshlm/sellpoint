@@ -20,5 +20,15 @@
   "not_cancelable": "This order can no longer be canceled.",
   "line_not_found": "That line does not exist in the order.",
   "cancel_reason_required": "Write the reason for the cancellation (at least 3 characters).",
-  "draft_has_no_document": "A draft order isn't sent yet: issue it first."
+  "draft_has_no_document": "A draft order isn't sent yet: issue it first.",
+  "not_receivable": "Goods can only be received against an issued order that is still waiting for them.",
+  "receipt_not_found": "The receipt does not exist.",
+  "receipt_not_draft": "This receipt is already confirmed or canceled: its lines can't be edited.",
+  "receipt_needs_lines": "Add at least one line before confirming the receipt.",
+  "receipt_line_foreign": "{field}: that line does not belong to this order.",
+  "line_closed_short": "{field}: that line was closed short; the supplier will no longer deliver it. If it arrived, reopen the order with a new line.",
+  "over_receipt": "{field}: more than what is pending ({pending}) is arriving. Receive up to the pending amount and note the rest.",
+  "receipt_date_in_future": "{field}: the receipt date can't be after today. A receipt is a fact.",
+  "receipt_invoiced": "This receipt is already invoiced in a purchase: cancel that purchase first.",
+  "receipt_already_canceled": "This receipt is already canceled."
 }

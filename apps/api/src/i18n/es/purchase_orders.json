@@ -20,5 +20,15 @@
   "not_cancelable": "Esta orden ya no se puede anular.",
   "line_not_found": "Esa línea no existe en la orden.",
   "cancel_reason_required": "Escribe el motivo de la anulación (al menos 3 caracteres).",
-  "draft_has_no_document": "Una orden en borrador todavía no se manda: emítela primero."
+  "draft_has_no_document": "Una orden en borrador todavía no se manda: emítela primero.",
+  "not_receivable": "Solo se recibe sobre una orden emitida que todavía espera mercancía.",
+  "receipt_not_found": "La recepción no existe.",
+  "receipt_not_draft": "Esta recepción ya se confirmó o se anuló: sus líneas no se editan.",
+  "receipt_needs_lines": "Agrega al menos una línea antes de confirmar la recepción.",
+  "receipt_line_foreign": "{field}: esa línea no es de esta orden.",
+  "line_closed_short": "{field}: esa línea se cerró corta; el proveedor ya no la surtirá. Si llegó, reabre la orden con una línea nueva.",
+  "over_receipt": "{field}: llega más de lo pendiente ({pending}). Recibe hasta lo pendiente y anota el resto en las notas.",
+  "receipt_date_in_future": "{field}: la fecha de recepción no puede ser posterior a hoy. Una recepción es un hecho.",
+  "receipt_invoiced": "Esta recepción ya está facturada en una compra: anula esa compra primero.",
+  "receipt_already_canceled": "Esta recepción ya está anulada."
 }

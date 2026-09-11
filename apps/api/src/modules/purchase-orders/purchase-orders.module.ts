@@ -3,6 +3,8 @@ import { AuditModule } from "../audit/audit.module";
 import { PurchaseOrderPdfService } from "./purchase-order-pdf.service";
 import { PurchaseOrdersController } from "./purchase-orders.controller";
 import { PurchaseOrdersService } from "./purchase-orders.service";
+import { PurchaseReceiptsController } from "./purchase-receipts.controller";
+import { PurchaseReceiptsService } from "./purchase-receipts.service";
 
 /**
  * F9-PO — Órdenes de compra y recepciones: el compromiso con el proveedor y
@@ -15,8 +17,8 @@ import { PurchaseOrdersService } from "./purchase-orders.service";
  */
 @Module({
   imports: [AuditModule],
-  controllers: [PurchaseOrdersController],
-  providers: [PurchaseOrdersService, PurchaseOrderPdfService],
-  exports: [PurchaseOrdersService],
+  controllers: [PurchaseOrdersController, PurchaseReceiptsController],
+  providers: [PurchaseOrdersService, PurchaseOrderPdfService, PurchaseReceiptsService],
+  exports: [PurchaseOrdersService, PurchaseReceiptsService],
 })
 export class PurchaseOrdersModule {}

@@ -12,6 +12,7 @@ import type {
   ReplacePurchaseChargesDto,
   ReplacePurchaseLinesDto,
 } from "./dto/purchase.dto";
+import { aplicarReglasDeLote } from "./lot-rules";
 import { armarCompra, costoNetoPorUnidad } from "./purchase-totals";
 import { type PurchaseDetail, PurchasesService } from "./purchases.service";
 
@@ -289,29 +290,19 @@ export class PurchaseLinesService {
       select: {
         id: true,
         name: true,
-        tracksLots: true,
         presentations: { select: { id: true, name: true, isActive: true } },
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
-    // La caducidad es del LOTE, no de la línea (la misma regla que
-    // `line-resolver.ts` en la entrada): si el lote ya existe en el registro
-    // —con o sin existencias—, su fecha manda. Una línea sin fecha la hereda;
-    // una línea con OTRA fecha rebota, porque adivinar cuál de las dos está
-    // mal sería peor que preguntar (Carlos, 2026-09-11).
-    const conLote = lineas.filter((l) => (l.lotCode ?? "") !== "");
-    const lotesConocidos =
-      conLote.length === 0
-        ? []
-        : await tx.productLot.findMany({
-            where: {
-              tenantId,
-              OR: conLote.map((l) => ({ productId: l.productId, lotCode: l.lotCode as string })),
-            },
-            select: { productId: true, lotCode: true, expiresAt: true },
-          });
-    const caducidadDe = new Map(
-      lotesConocidos.map((lot) => [`${lot.productId}|${lot.lotCode}`, lot.expiresAt]),
+    // Las reglas de lote viven en `lot-rules.ts`, compartidas con la recepción.
+    const lotes = await aplicarReglasDeLote(
+      tx,
+      tenantId,
+      lineas.map((l) => ({
+        productId: l.productId,
+        lotCode: l.lotCode ?? null,
+        expiresAt: l.expiresAt ?? null,
+      })),
     );
     const fiscal = await contextoFiscal(
       tx,
@@ -323,19 +314,6 @@ export class PurchaseLinesService {
       const producto = porId.get(linea.productId);
       if (producto === undefined) {
         throw new NotFoundException({ message: "purchases.product_not_found" });
-      }
-      // «La compra transporta» tiene un límite: un lote en un producto que NO
-      // se controla por lote no es un dato que la entrada vaya a exigir, es
-      // uno que la entrada va a RECHAZAR (`inventory.lot_not_tracked`) — y el
-      // usuario descubriría, ya con la compra confirmada, que capturó algo que
-      // no tenía dónde caer. Se rebota aquí, nombrando la línea, igual que la
-      // cantidad o el costo al confirmar (Carlos, 2026-09-11).
-      const traeLote = (linea.lotCode ?? "") !== "" || linea.expiresAt != null;
-      if (traeLote && !producto.tracksLots) {
-        throw new UnprocessableEntityException({
-          message: "purchases.lot_not_tracked",
-          args: { field: `lines.${index + 1}.lotCode` },
-        });
       }
       let presentationId: string | null = null;
       if (linea.presentationId !== null && linea.presentationId !== undefined) {
@@ -354,20 +332,6 @@ export class PurchaseLinesService {
       if (linea.taxGroupId != null && grupo === null) {
         throw new UnprocessableEntityException({ message: "catalogs.tax_group_unknown" });
       }
-      let expiresAt = linea.expiresAt == null ? null : new Date(linea.expiresAt);
-      const clave = `${linea.productId}|${linea.lotCode ?? ""}`;
-      if (traeLote && caducidadDe.has(clave)) {
-        const guardada = caducidadDe.get(clave) ?? null;
-        const pedida = expiresAt?.toISOString().slice(0, 10) ?? null;
-        const conocida = guardada?.toISOString().slice(0, 10) ?? null;
-        if (pedida !== null && conocida !== null && pedida !== conocida) {
-          throw new UnprocessableEntityException({
-            message: "purchases.lot_expiry_mismatch",
-            args: { field: `lines.${index + 1}.expiresAt`, lotCode: linea.lotCode },
-          });
-        }
-        if (pedida === null) expiresAt = guardada;
-      }
       return {
         productId: linea.productId,
         presentationId,
@@ -375,8 +339,8 @@ export class PurchaseLinesService {
         unitCost: linea.unitCost == null ? null : new Prisma.Decimal(linea.unitCost),
         discount: new Prisma.Decimal(linea.discount ?? 0),
         grupo,
-        lotCode: linea.lotCode ?? null,
-        expiresAt,
+        lotCode: lotes[index]?.lotCode ?? null,
+        expiresAt: lotes[index]?.expiresAt ?? null,
         description: producto.name,
       };
     });
