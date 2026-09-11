@@ -540,9 +540,16 @@ export class PurchasesService {
       // la pantalla de la entrada ofrece, igual que en una entrada a mano.
       const productos = await tx.product.findMany({
         where: { tenantId: user.tenantId, id: { in: compra.lines.map((l) => l.productId) } },
-        select: { id: true, location: true },
+        select: { id: true, location: true, tracksLots: true },
       });
       const ubicacion = new Map(productos.map((p) => [p.id, p.location]));
+      // Un lote solo cruza si el producto TODAVÍA se controla por lote: las
+      // líneas rechazan el lote en un producto sin control desde el 2026-09-11,
+      // pero una compra anterior a eso —o un producto al que le apagaron el
+      // control después de confirmarla— lo trae, y la entrada lo rechazaría al
+      // confirmar. El costo y la cantidad viajan igual; el lote se queda en el
+      // papel de la compra, que es donde el proveedor lo escribió.
+      const controlaLote = new Map(productos.map((p) => [p.id, p.tracksLots]));
 
       const folio = await nextFolio(tx, user.tenantId, "entry", FOLIO_PREFIXES.entry);
       const entrada = await tx.inventoryDocument.create({
@@ -571,8 +578,8 @@ export class PurchasesService {
               presentationId: linea.presentationId,
               quantity: linea.quantity,
               unitCost: linea.unitCostNet,
-              lotCode: linea.lotCode,
-              expiresAt: linea.expiresAt,
+              lotCode: controlaLote.get(linea.productId) === true ? linea.lotCode : null,
+              expiresAt: controlaLote.get(linea.productId) === true ? linea.expiresAt : null,
               location: ubicacion.get(linea.productId) ?? null,
             })),
           },

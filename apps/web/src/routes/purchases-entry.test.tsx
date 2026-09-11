@@ -46,7 +46,7 @@ vi.mock("@/lib/suppliers/api", () => ({
 vi.mock("@/lib/products/api", async (original) => ({
   ...(await original<typeof productsApi>()),
   listProducts: vi.fn(),
-  listPresentations: vi.fn(),
+  getProduct: vi.fn(),
 }));
 // La entrada a la que se navega no es lo que se prueba: basta con que exista.
 vi.mock("@/lib/inventory/api", async (original) => ({
@@ -89,7 +89,6 @@ beforeEach(() => {
   mocked.createEntryDraft.mockResolvedValue({ id: "d9", folio: "ENT-000012", status: "draft" });
   mockedProveedores.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
   mockedProductos.listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-  mockedProductos.listPresentations.mockResolvedValue([]);
   mockedInventario.getDocument.mockRejectedValue(new Error("la entrada no es el sujeto"));
 });
 

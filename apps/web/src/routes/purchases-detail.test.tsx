@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
+import * as kardexApi from "@/lib/inventory/kardex-api";
 import * as productsApi from "@/lib/products/api";
 import * as purchasesApi from "@/lib/purchases/api";
 import { createQueryClient } from "@/lib/query-client";
@@ -43,8 +44,14 @@ vi.mock("@/lib/suppliers/api", () => ({
 vi.mock("@/lib/products/api", async (original) => ({
   ...(await original<typeof productsApi>()),
   listProducts: vi.fn(),
-  listPresentations: vi.fn(),
+  getProduct: vi.fn(),
 }));
+// El stock del producto: de ahí sale la caducidad de un lote que YA existe.
+vi.mock("@/lib/inventory/kardex-api", async (original) => ({
+  ...(await original<typeof kardexApi>()),
+  getStock: vi.fn(),
+}));
+const mockedStock = vi.mocked(kardexApi.getStock);
 const mocked = vi.mocked(purchasesApi);
 const mockedProveedores = vi.mocked(suppliersApi);
 const mockedProductos = vi.mocked(productsApi);
@@ -86,7 +93,32 @@ beforeEach(() => {
   );
   mockedProveedores.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
   mockedProductos.listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-  mockedProductos.listPresentations.mockResolvedValue([]);
+  mockedStock.mockResolvedValue({
+    isComposite: false,
+    total: "40",
+    stockMin: "0",
+    belowMin: false,
+    baseUnit: "pieza",
+    rows: [
+      {
+        warehouseId: "w1",
+        name: "Central",
+        quantity: "40",
+        updatedAt: null,
+        lots: [
+          {
+            lotId: "lot-1",
+            lotCode: "STM01",
+            expiresAt: "2027-03-31T00:00:00.000Z",
+            location: "",
+            quantity: "40",
+            expired: false,
+            expiringSoon: false,
+          },
+        ],
+      },
+    ],
+  });
 });
 
 afterEach(() => {
@@ -173,6 +205,25 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
 
     expect(screen.getByText(/se controla por lote/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Confirmar compra" })).toBeEnabled();
+
+    // Mismas reglas que Entradas (Carlos, 2026-09-11): el lote se normaliza a
+    // MAYÚSCULAS al teclear, y si ya existe, su caducidad se pone sola.
+    const user = userEvent.setup();
+    const lote = screen.getByLabelText("Lote");
+    await user.type(lote, "st m 01");
+    expect(lote).toHaveValue("STM01");
+    await waitFor(() => expect(screen.getByLabelText("Caducidad")).toHaveValue("2027-03-31"));
+    await waitFor(() => expect(mockedStock).toHaveBeenCalledWith("prod-1"));
+  });
+
+  it("un producto que NO se controla por lote no ofrece lote ni caducidad", async () => {
+    // El fixture nace con `tracksLots: false`. Pedir el lote ahí es pedir
+    // algo que la entrada de inventario va a rechazar al confirmar.
+    await renderFicha(GESTOR);
+    expect(screen.queryByLabelText("Lote")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Caducidad")).not.toBeInTheDocument();
+    expect(screen.queryByText(/se controla por lote/i)).not.toBeInTheDocument();
+    expect(mockedStock).not.toHaveBeenCalled();
   });
 
   it("anular pide el motivo antes de dejar anular", async () => {

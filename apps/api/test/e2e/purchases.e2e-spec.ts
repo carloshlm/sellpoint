@@ -612,39 +612,6 @@ describe("Compras (F9-PURCH)", () => {
       },
     );
 
-    /**
-     * ⚠ La asimetría, probada: la compra acepta un lote sobre un producto que
-     * no lleva lotes —el papel dice lo que dice— y es la ENTRADA la que se
-     * niega al confirmar. El web avisa blando al capturar; nadie bloquea la
-     * captura de una factura por lo que el inventario exigirá después.
-     */
-    it("la compra TRANSPORTA un lote que la entrada rechaza si el producto no lleva lotes", async () => {
-      const sinLotes = await prisma.withTenantContext(negocio.tenantId, (tx) =>
-        tx.product.create({
-          data: {
-            tenantId: negocio.tenantId,
-            sku: `NL-${randomUUID().slice(0, 8)}`,
-            name: "Bolsa de papel",
-          },
-        }),
-      );
-      const compra = await nuevaCompra();
-      await api(negocio.token)
-        .put(`/purchases/${compra.id}/lines`, {
-          lines: [{ productId: sinLotes.id, quantity: 5, unitCost: 10, lotCode: "L-9" }],
-        })
-        .expect(200);
-      await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
-      const entrada = await api(negocio.token)
-        .post(`/purchases/${compra.id}/entry-draft`)
-        .expect(201);
-
-      const rebote = await api(negocio.token)
-        .post(`/inventory/documents/${(entrada.body as { id: string }).id}/confirm`)
-        .expect(422);
-      expect((rebote.body as { code: string }).code).toBe("inventory.lot_not_tracked");
-    });
-
     it("anular la compra arrastra su borrador de entrada; con la entrada confirmada, 409", async () => {
       const conBorrador = await compraLista(120, "excluded");
       const entrada = await api(negocio.token)
@@ -723,6 +690,88 @@ describe("Compras (F9-PURCH)", () => {
         total: 1,
         summary: { count: 0, total: "0", mismatchCount: 0 },
       });
+    });
+  });
+
+  describe("el lote solo cabe donde se controla (Carlos, 2026-09-11)", () => {
+    /** Un producto suelto del negocio, con o sin control por lote y sin presentaciones. */
+    const producto = (tracksLots: boolean) =>
+      prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.product.create({
+          data: {
+            tenantId: negocio.tenantId,
+            sku: `L-${randomUUID().slice(0, 8)}`,
+            name: tracksLots ? "Con lote" : "Sin lote",
+            tracksLots,
+          },
+        }),
+      );
+
+    it("un lote en un producto que no se controla por lote rebota nombrando la línea", async () => {
+      // La entrada lo rechazaría al confirmar (`inventory.lot_not_tracked`);
+      // descubrirlo ahí, con la compra ya sellada, es descubrirlo tarde.
+      const sinLote = await producto(false);
+      const compra = await nuevaCompra();
+      const rebote = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            { productId: productoId, presentationId: piezaId, quantity: 1, unitCost: 10 },
+            { productId: sinLote.id, quantity: 1, unitCost: 10, lotCode: "ST1" },
+          ],
+        })
+        .expect(422);
+      expect((rebote.body as { message: string }).message).toContain("lines.2.lotCode");
+
+      // Solo la caducidad también es «lote»: no hay caducidad sin lote.
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [{ productId: sinLote.id, quantity: 1, unitCost: 10, expiresAt: "2027-01-31" }],
+        })
+        .expect(422);
+      // Sin lote ni caducidad, el mismo producto entra sin problema.
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [{ productId: sinLote.id, quantity: 1, unitCost: 10 }],
+        })
+        .expect(200);
+    });
+
+    it("si le apagan el control por lote después de confirmar, el puente no copia el lote", async () => {
+      const conLote = await producto(true);
+      const compra = await nuevaCompra();
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            {
+              productId: conLote.id,
+              quantity: 5,
+              unitCost: 10,
+              lotCode: "L-2026",
+              expiresAt: "2027-01-31",
+            },
+          ],
+        })
+        .expect(200);
+      await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
+      await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.product.update({ where: { id: conLote.id }, data: { tracksLots: false } }),
+      );
+
+      const entrada = await api(negocio.token)
+        .post(`/purchases/${compra.id}/entry-draft`)
+        .expect(201);
+      const entradaId = (entrada.body as { id: string }).id;
+      const lineas = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.inventoryDocumentLine.findMany({ where: { documentId: entradaId } }),
+      );
+      expect(lineas).toHaveLength(1);
+      expect(lineas[0]).toMatchObject({
+        lotCode: null,
+        expiresAt: null,
+        unitCost: expect.anything(),
+      });
+      // Y la entrada se confirma: sin el lote de más, ya no hay nada que rechazar.
+      await api(negocio.token).post(`/inventory/documents/${entradaId}/confirm`).expect(201);
     });
   });
 });

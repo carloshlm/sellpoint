@@ -1,12 +1,13 @@
-import { type Currency, formatMoney } from "@sellpoint/shared";
-import { useEffect, useState } from "react";
+import { type Currency, formatMoney, normalizeLotCode } from "@sellpoint/shared";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateField } from "@/components/form/date-field";
 import { MoneyInput } from "@/components/form/money-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
-import { listPresentations } from "@/lib/products/api";
+import { useStock } from "@/lib/inventory/kardex-hooks";
+import { getProduct } from "@/lib/products/api";
 import { useProducts } from "@/lib/products/hooks";
 import type { Purchase, PurchaseLineInput, PurchaseProduct } from "@/lib/purchases/api";
 import { useReplacePurchaseLines } from "@/lib/purchases/hooks";
@@ -40,6 +41,28 @@ const MIN_QUERY = 2;
 
 const nuevoUid = () =>
   typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `l-${Math.random()}`;
+
+/** La ficha del catálogo con lo que la fila necesita: presentaciones y si lleva lote. */
+async function fichaDe(producto: {
+  id: string;
+  sku: string;
+  name: string;
+}): Promise<PurchaseProduct> {
+  const detalle = await getProduct(producto.id);
+  return {
+    id: producto.id,
+    sku: producto.sku,
+    name: producto.name,
+    baseUnit: "",
+    tracksLots: detalle.tracksLots === true,
+    presentations: detalle.presentations.map((p) => ({
+      id: p.id,
+      name: p.name,
+      factor: p.factor,
+      isPurchasable: p.isPurchasable,
+    })),
+  };
+}
 
 function aEditable(compra: Purchase): LineaEditable[] {
   return compra.lines.map((linea) => ({
@@ -108,31 +131,18 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
 
   async function agregar(producto: { id: string; sku: string; name: string }) {
     setTermino("");
+    // La ficha se resuelve ANTES de armar la línea, en una variable local:
+    // leerla de `catalogo` después del `setCatalogo` devolvía el estado VIEJO
+    // (React no lo actualiza a mitad de la función) y la presentación nacía
+    // vacía. Y es la ficha ENTERA, no solo las presentaciones: `tracksLots`
+    // decide si la fila ofrece lote y caducidad, y un `false` puesto a mano
+    // (como estaba) le pedía lote a productos que no lo controlan — la
+    // entrada después lo rechazaba (Carlos, 2026-09-11).
     const yaEstaba = productoDe(producto.id);
-    // Las presentaciones se resuelven ANTES de armar la línea, en una variable
-    // local: leerlas de `catalogo` después del `setCatalogo` devolvía el estado
-    // VIEJO (React no lo actualiza a mitad de la función) y la presentación
-    // nacía vacía — con la fila pidiendo «—» en vez de la comprable.
-    const presentaciones =
-      yaEstaba?.presentations ??
-      (await listPresentations(producto.id)).map((p) => ({
-        id: p.id,
-        name: p.name,
-        factor: p.factor,
-        isPurchasable: p.isPurchasable,
-      }));
+    const ficha: PurchaseProduct = yaEstaba ?? (await fichaDe(producto));
+    const presentaciones = ficha.presentations;
     if (yaEstaba === undefined) {
-      setCatalogo((previo) => [
-        ...previo,
-        {
-          id: producto.id,
-          sku: producto.sku,
-          name: producto.name,
-          baseUnit: "",
-          tracksLots: false,
-          presentations: presentaciones,
-        },
-      ]);
+      setCatalogo((previo) => [...previo, ficha]);
     }
     setLineas((previas) => [
       ...previas,
@@ -313,24 +323,15 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
                         onChange={(valor) => cambiar(index, "discount", valor)}
                       />
                     </td>
-                    <td className="p-2">
-                      <Input
-                        aria-label={t("purchases.lines.lot")}
-                        className="w-28"
-                        value={linea.lotCode}
-                        disabled={!editable}
-                        onChange={(event) => cambiar(index, "lotCode", event.target.value)}
-                      />
-                    </td>
-                    <td className="p-2">
-                      <DateField
-                        label={t("purchases.lines.expiresAt")}
-                        className="[&>label]:sr-only"
-                        value={linea.expiresAt}
-                        disabled={!editable}
-                        onChange={(event) => cambiar(index, "expiresAt", event.target.value)}
-                      />
-                    </td>
+                    <CeldasDeLote
+                      productId={linea.productId}
+                      controlaLote={producto?.tracksLots === true}
+                      lotCode={linea.lotCode}
+                      expiresAt={linea.expiresAt}
+                      editable={editable}
+                      onLotCode={(valor) => cambiar(index, "lotCode", valor)}
+                      onExpiresAt={(valor) => cambiar(index, "expiresAt", valor)}
+                    />
                     <td className="p-2 text-right tabular-nums">
                       {linea.lineTotal === null ? "—" : dinero(linea.lineTotal)}
                     </td>
@@ -364,5 +365,78 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Lote y caducidad de una fila — SOLO si el producto se controla por lote.
+ *
+ * Un producto sin control no las ofrece: la compra transporta lo que la
+ * entrada va a exigir, y un lote que la entrada RECHAZA no es transporte, es
+ * carga que se descubre tarde (el API lo rebota con `purchases.lot_not_tracked`).
+ *
+ * Mismas dos reglas que Entradas (`document-detail.tsx`): el código se
+ * normaliza al teclear (`STM01` y `stm01` serían dos lotes en la base) y la
+ * caducidad SIGUE al lote — si ya existe, su fecha se pone siempre; si no, se
+ * limpia, porque es del lote y no de la línea. El ref evita pisar la fecha que
+ * el usuario corrija a mano sobre el mismo código.
+ */
+function CeldasDeLote({
+  productId,
+  controlaLote,
+  lotCode,
+  expiresAt,
+  editable,
+  onLotCode,
+  onExpiresAt,
+}: {
+  productId: string;
+  controlaLote: boolean;
+  lotCode: string;
+  expiresAt: string;
+  editable: boolean;
+  onLotCode: (valor: string) => void;
+  onExpiresAt: (valor: string) => void;
+}) {
+  const { t } = useTranslation();
+  const codigo = lotCode.trim();
+  const { data: stock } = useStock(controlaLote && codigo !== "" ? productId : undefined);
+  const ultimoLoteProcesado = useRef(codigo);
+  useEffect(() => {
+    if (codigo === "" || stock === undefined || ultimoLoteProcesado.current === codigo) return;
+    ultimoLoteProcesado.current = codigo;
+    const conocido = stock.rows.flatMap((r) => r.lots ?? []).find((lot) => lot.lotCode === codigo);
+    onExpiresAt(conocido?.expiresAt != null ? conocido.expiresAt.slice(0, 10) : "");
+  }, [codigo, stock, onExpiresAt]);
+
+  if (!controlaLote) {
+    return (
+      <>
+        <td className="p-2 text-muted-foreground">—</td>
+        <td className="p-2 text-muted-foreground">—</td>
+      </>
+    );
+  }
+  return (
+    <>
+      <td className="p-2">
+        <Input
+          aria-label={t("purchases.lines.lot")}
+          className="w-28 uppercase"
+          value={lotCode}
+          disabled={!editable}
+          onChange={(event) => onLotCode(normalizeLotCode(event.target.value))}
+        />
+      </td>
+      <td className="p-2">
+        <DateField
+          label={t("purchases.lines.expiresAt")}
+          className="[&>label]:sr-only"
+          value={expiresAt}
+          disabled={!editable}
+          onChange={(event) => onExpiresAt(event.target.value)}
+        />
+      </td>
+    </>
   );
 }

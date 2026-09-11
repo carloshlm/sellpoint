@@ -310,6 +310,7 @@ export class PurchaseLinesService {
       select: {
         id: true,
         name: true,
+        tracksLots: true,
         presentations: { select: { id: true, name: true, isActive: true } },
       },
     });
@@ -320,10 +321,23 @@ export class PurchaseLinesService {
       lineas.map((l) => l.taxGroupId),
     );
 
-    return lineas.map((linea) => {
+    return lineas.map((linea, index) => {
       const producto = porId.get(linea.productId);
       if (producto === undefined) {
         throw new NotFoundException({ message: "purchases.product_not_found" });
+      }
+      // «La compra transporta» tiene un límite: un lote en un producto que NO
+      // se controla por lote no es un dato que la entrada vaya a exigir, es
+      // uno que la entrada va a RECHAZAR (`inventory.lot_not_tracked`) — y el
+      // usuario descubriría, ya con la compra confirmada, que capturó algo que
+      // no tenía dónde caer. Se rebota aquí, nombrando la línea, igual que la
+      // cantidad o el costo al confirmar (Carlos, 2026-09-11).
+      const traeLote = (linea.lotCode ?? "") !== "" || linea.expiresAt != null;
+      if (traeLote && !producto.tracksLots) {
+        throw new UnprocessableEntityException({
+          message: "purchases.lot_not_tracked",
+          args: { field: `lines.${index + 1}.lotCode` },
+        });
       }
       let presentationId: string | null = null;
       if (linea.presentationId !== null && linea.presentationId !== undefined) {

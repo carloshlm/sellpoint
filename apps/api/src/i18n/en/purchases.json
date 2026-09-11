@@ -9,6 +9,7 @@
   "supplier_not_found": "The supplier does not exist.",
   "product_not_found": "One of the products in the purchase does not exist.",
   "presentation_invalid": "That presentation does not belong to that product or is deactivated.",
+  "lot_not_tracked": "{field}: this product isn't tracked by lot. Remove the lot and expiry, or turn on lot tracking on its catalog card.",
   "warehouse_required": "You have no assigned warehouse: choose where the purchase goes in.",
   "needs_lines": "Add at least one product before confirming the purchase.",
   "line_needs_quantity": "Enter the quantity for {field}.",
