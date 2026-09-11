@@ -65,7 +65,10 @@
     "entry": "Inventory entry",
     "canceled": "CANCELED",
     "taxIncluded": "Costs already include tax.",
-    "taxExcluded": "Costs do NOT include tax: it is added separately."
+    "taxExcluded": "Costs do NOT include tax: it is added separately.",
+    "order": "Purchase order",
+    "receipts": "Receipts",
+    "priceVariance": "Cost differs from the agreed one on line"
   },
   "purchaseOrder": {
     "title": "PURCHASE ORDER",

@@ -65,7 +65,10 @@
     "entry": "Entrada de inventario",
     "canceled": "ANULADA",
     "taxIncluded": "Los costos ya incluyen el impuesto.",
-    "taxExcluded": "Los costos NO incluyen el impuesto: se suma aparte."
+    "taxExcluded": "Los costos NO incluyen el impuesto: se suma aparte.",
+    "order": "Orden de compra",
+    "receipts": "Recepciones",
+    "priceVariance": "Costo distinto al acordado en la línea"
   },
   "purchaseOrder": {
     "title": "ORDEN DE COMPRA",

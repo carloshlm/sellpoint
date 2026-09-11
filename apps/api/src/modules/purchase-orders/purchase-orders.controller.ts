@@ -23,10 +23,13 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RequiresModule } from "../billing/decorators/requires-module.decorator";
+import { PurchasesService } from "../purchases/purchases.service";
 import {
   type CancelPurchaseOrderDto,
+  type CreatePurchaseFromReceiptsDto,
   type CreatePurchaseOrderDto,
   cancelPurchaseOrderSchema,
+  createPurchaseFromReceiptsSchema,
   createPurchaseOrderSchema,
   type ListPurchaseOrdersQuery,
   listPurchaseOrdersQuerySchema,
@@ -55,6 +58,7 @@ export class PurchaseOrdersController {
   constructor(
     private readonly orders: PurchaseOrdersService,
     private readonly pdf: PurchaseOrderPdfService,
+    private readonly purchases: PurchasesService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -155,6 +159,25 @@ export class PurchaseOrdersController {
     @Req() request: Request,
   ) {
     return this.orders.closeLineShort(user, id, lineNo, metaFrom(request));
+  }
+
+  /**
+   * F9-PO-09 — «Registrar compra de lo recibido»: la compra nace de las
+   * recepciones confirmadas y sin factura de esta orden. Vive en el service
+   * de Compras (es una compra); acá solo se expone bajo la orden.
+   */
+  @Post(":id/purchases")
+  @HttpCode(201)
+  @RequirePermissions("purchases:manage")
+  createPurchase(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(createPurchaseFromReceiptsSchema, "purchase_orders.invalid_body"))
+    dto: CreatePurchaseFromReceiptsDto,
+    @CurrentUser() user: AuthUser,
+    @CurrentUserScope() scope: UserScope,
+    @Req() request: Request,
+  ) {
+    return this.purchases.createFromReceipts(user, scope, id, dto.receiptIds, metaFrom(request));
   }
 
   @Post(":id/cancel")

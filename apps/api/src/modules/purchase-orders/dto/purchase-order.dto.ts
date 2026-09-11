@@ -75,6 +75,11 @@ export const replacePurchaseOrderLinesSchema = z
   .object({ lines: z.array(purchaseOrderLineSchema).max(500) })
   .strict();
 
+/** F9-PO-09: las recepciones confirmadas (sin factura) que una compra va a facturar. */
+export const createPurchaseFromReceiptsSchema = z
+  .object({ receiptIds: z.array(z.uuid()).min(1).max(50) })
+  .strict();
+
 export const cancelPurchaseOrderSchema = z
   .object({
     reason: z.string().trim().min(3, "purchase_orders.cancel_reason_required").max(500),
@@ -123,4 +128,5 @@ export type UpdatePurchaseOrderDto = z.infer<typeof updatePurchaseOrderSchema>;
 export type PurchaseOrderLineDto = z.infer<typeof purchaseOrderLineSchema>;
 export type ReplacePurchaseOrderLinesDto = z.infer<typeof replacePurchaseOrderLinesSchema>;
 export type CancelPurchaseOrderDto = z.infer<typeof cancelPurchaseOrderSchema>;
+export type CreatePurchaseFromReceiptsDto = z.infer<typeof createPurchaseFromReceiptsSchema>;
 export type ListPurchaseOrdersQuery = z.infer<typeof listPurchaseOrdersQuerySchema>;

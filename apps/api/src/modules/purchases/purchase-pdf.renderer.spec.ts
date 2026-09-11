@@ -43,6 +43,8 @@ const base: PdfPurchaseInput = {
     declaredTotal: null,
     notes: null,
     entryFolio: null,
+    orderFolio: null,
+    receiptFolios: [],
   },
   lines: [
     {
@@ -57,6 +59,7 @@ const base: PdfPurchaseInput = {
       lineTotal: "1160",
       lotCode: null,
       expiresAt: null,
+      orderedUnitCost: null,
     },
   ],
   charges: [],
@@ -174,5 +177,37 @@ describe("buildPurchaseDefinition (F9-PURCH-09)", () => {
 
     expect(texto).toContain("pdf.purchase.entry");
     expect(texto).toContain("ENT-000012");
+  });
+
+  /** F9-PO-09 — nacida de una orden: el origen se imprime y la variación de precio no se esconde. */
+  it("nacida de una orden imprime el origen, y la línea facturada a otro costo, su variación", () => {
+    const deOrden: PdfPurchaseInput = {
+      ...base,
+      purchase: {
+        ...base.purchase,
+        orderFolio: "OCO-000007",
+        receiptFolios: ["RCP-000003", "RCP-000004"],
+      },
+      lines: [
+        {
+          ...(base.lines[0] as PdfPurchaseInput["lines"][number]),
+          unitCost: "125",
+          orderedUnitCost: "120",
+        },
+      ],
+    };
+    const texto = papel(deOrden);
+    expect(texto).toContain(
+      "pdf.purchase.order: OCO-000007 · pdf.purchase.receipts: RCP-000003, RCP-000004",
+    );
+    expect(texto).toContain("pdf.purchase.priceVariance #1: 120.00 → 125.00");
+    // Al costo acordado, ninguna leyenda.
+    expect(
+      papel({
+        ...deOrden,
+        lines: [{ ...(deOrden.lines[0] as PdfPurchaseInput["lines"][number]), unitCost: "120" }],
+      }),
+    ).not.toContain("priceVariance");
+    expect(papel(base)).not.toContain("pdf.purchase.order");
   });
 });

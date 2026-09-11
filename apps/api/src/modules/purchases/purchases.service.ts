@@ -33,7 +33,7 @@ import type {
   UpdatePurchaseDto,
   UpdateReceptionDto,
 } from "./dto/purchase.dto";
-import { PurchaseLinesService } from "./purchase-lines.service";
+import { gruposPorCodigo, type LineaLista, PurchaseLinesService } from "./purchase-lines.service";
 
 /** El módulo que el inventario guarda como ORIGEN de una entrada nacida de una compra. */
 export const PURCHASE_SOURCE_MODULE = "purchases";
@@ -55,6 +55,10 @@ export interface PurchaseLineView {
   lotCode: string | null;
   expiresAt: string | null;
   description: string;
+  /** F9-PO-09: la línea de la orden que factura, su costo ACORDADO y la variación (facturado − acordado). */
+  purchaseOrderLineId: string | null;
+  orderedUnitCost: string | null;
+  priceVariance: string | null;
 }
 
 export interface PurchaseChargeView {
@@ -123,6 +127,11 @@ export interface PurchaseDetail extends PurchaseRow {
   taxes: { code: string; name: string; rate: string; base: string; amount: string }[];
   /** La entrada de inventario VIVA que nació de esta compra, si ya se pidió. */
   entry: { id: string; folio: string; status: string } | null;
+  /** F9-PO-09: la orden de la que nació y las recepciones que factura. */
+  order: { id: string; folio: string } | null;
+  receipts: { id: string; folio: string }[];
+  /** DERIVADO: alguna línea factura MÁS de lo recibido en su línea de orden. Avisa, no bloquea. */
+  quantityVariance: boolean;
 }
 
 const INCLUDE = {
@@ -156,10 +165,20 @@ const DETALLE = {
         },
       },
       presentation: { select: { name: true } },
+      purchaseOrderLine: { select: { unitCost: true } },
     },
   },
   charges: { orderBy: { lineNo: "asc" } },
   taxes: { orderBy: { sortOrder: "asc" } },
+  purchaseOrder: { select: { id: true, folio: true } },
+  receipts: {
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      folio: true,
+      lines: { select: { purchaseOrderLineId: true, quantity: true } },
+    },
+  },
 } as const;
 
 type FilaConRelaciones = Prisma.PurchaseGetPayload<{ include: typeof INCLUDE }>;
@@ -481,6 +500,12 @@ export class PurchasesService {
       if (tomadas.count !== 1) {
         throw new ConflictException({ message: "purchases.already_canceled" });
       }
+      // F9-PO-09: las recepciones que esta compra facturaba quedan libres
+      // para facturarse en otra. Un papel anulado no cuenta nada.
+      await tx.purchaseReceipt.updateMany({
+        where: { purchaseId: id, tenantId: user.tenantId },
+        data: { purchaseId: null },
+      });
       if (entrada !== null) {
         await this.documents.cancelDraftWithinTx(
           tx,
@@ -603,6 +628,7 @@ export class PurchasesService {
       ...(query.warehouseId !== undefined && { warehouseId: query.warehouseId }),
       ...(query.status !== undefined && { status: query.status }),
       ...(query.supplierId !== undefined && { supplierId: query.supplierId }),
+      ...(query.purchaseOrderId !== undefined && { purchaseOrderId: query.purchaseOrderId }),
       ...(query.folio !== undefined && {
         folio: { contains: query.folio, mode: "insensitive" as const },
       }),
@@ -627,6 +653,121 @@ export class PurchasesService {
           }
         : {}),
     };
+  }
+
+  /**
+   * F9-PO-09 — «Registrar compra de lo recibido»: la compra nace de una o
+   * varias recepciones CONFIRMADAS de la misma orden, todavía sin factura.
+   *
+   * Lo que cruza: UNA línea por línea de recepción (dos lotes de la misma
+   * línea de orden no se mezclan), con la cantidad recibida, el costo
+   * ACORDADO de la orden como punto de partida —la factura real se teclea
+   * encima y la variación se ve—, el impuesto de la orden, el lote y la
+   * caducidad de la recepción, y el hilo a la línea de la orden. La compra
+   * sigue siendo la de siempre en todo lo demás: editar costos, cargos,
+   * confirmar, anular, PDF y la entrada.
+   */
+  async createFromReceipts(
+    user: AuthUser,
+    scope: UserScope,
+    orderId: string,
+    receiptIds: string[],
+    meta: RequestMeta,
+  ): Promise<PurchaseDetail> {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const ids = [...new Set(receiptIds)];
+      const orden = await tx.purchaseOrder.findFirst({
+        where: { id: orderId, tenantId: user.tenantId },
+        include: {
+          lines: true,
+          receipts: {
+            where: { id: { in: ids } },
+            include: {
+              lines: { orderBy: { lineNo: "asc" } },
+              purchase: { select: { status: true } },
+            },
+          },
+        },
+      });
+      if (orden === null) {
+        throw new NotFoundException({ message: "purchases.order_not_found" });
+      }
+      if (orden.receipts.length !== ids.length) {
+        throw new UnprocessableEntityException({ message: "purchases.receipt_foreign" });
+      }
+      // En el orden pedido: el papel se lee como llegó la mercancía.
+      const recepciones = ids.map((id) => orden.receipts.find((r) => r.id === id));
+      for (const recepcion of recepciones) {
+        if (recepcion === undefined || recepcion.status !== "confirmed") {
+          throw new UnprocessableEntityException({ message: "purchases.receipt_not_confirmed" });
+        }
+        if (recepcion.purchaseId !== null && recepcion.purchase?.status !== "canceled") {
+          throw new ConflictException({ message: "purchases.receipt_invoiced" });
+        }
+      }
+      assertWarehouseInScope(scope, orden.warehouseId);
+      await assertActiveWarehouse(tx, user.tenantId, orden.warehouseId);
+
+      const porCodigo = await gruposPorCodigo(tx, user.tenantId);
+      const lineaDeOrden = new Map(orden.lines.map((l) => [l.id, l]));
+      const partidas: LineaLista[] = [];
+      for (const recepcion of recepciones) {
+        for (const linea of recepcion?.lines ?? []) {
+          const deOrden = lineaDeOrden.get(linea.purchaseOrderLineId);
+          if (deOrden === undefined) continue;
+          partidas.push({
+            productId: deOrden.productId,
+            presentationId: deOrden.presentationId,
+            quantity: linea.quantity,
+            unitCost: deOrden.unitCost,
+            discount: new Prisma.Decimal(0),
+            grupo:
+              deOrden.taxGroupCode === null ? null : (porCodigo.get(deOrden.taxGroupCode) ?? null),
+            lotCode: linea.lotCode,
+            expiresAt: linea.expiresAt,
+            description: deOrden.description,
+            purchaseOrderLineId: deOrden.id,
+          });
+        }
+      }
+      const folio = await nextFolio(
+        tx,
+        user.tenantId,
+        "purchase",
+        PURCHASE_FOLIO_PREFIXES.purchase,
+      );
+      const recibidas = recepciones.map((r) => r?.receivedDate.getTime() ?? 0);
+      const creada = await tx.purchase.create({
+        data: {
+          tenantId: user.tenantId,
+          folio,
+          supplierId: orden.supplierId,
+          warehouseId: orden.warehouseId,
+          purchaseDate: new Date(await hoyDelNegocio(tx, user.tenantId)),
+          receivedDate: new Date(Math.max(...recibidas)),
+          taxMode: orden.taxMode,
+          purchaseOrderId: orden.id,
+          createdBy: user.userId,
+        },
+        select: { id: true },
+      });
+      await this.lines.recomponer(tx, user.tenantId, creada.id, { lineas: partidas });
+      await tx.purchaseReceipt.updateMany({
+        where: { id: { in: ids }, tenantId: user.tenantId },
+        data: { purchaseId: creada.id },
+      });
+      await this.auditService.record(tx, {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        action: "purchases.create_from_receipts",
+        resourceType: "purchase",
+        resourceId: creada.id,
+        after: { folio, order: orden.folio, receipts: ids, lines: partidas.length },
+        ip: meta.ip,
+        userAgent: meta.userAgent,
+      });
+      return this.detailFrom(await this.buscar(tx, user.tenantId, creada.id), null);
+    });
   }
 
   /** La compra, o 404. `tenantId` en el WHERE además de la RLS. */
@@ -689,6 +830,12 @@ export class PurchasesService {
         lotCode: l.lotCode,
         expiresAt: fechaIso(l.expiresAt),
         description: l.description,
+        purchaseOrderLineId: l.purchaseOrderLineId,
+        orderedUnitCost: l.purchaseOrderLine?.unitCost?.toString() ?? null,
+        priceVariance:
+          l.purchaseOrderLine?.unitCost != null && l.unitCost !== null
+            ? l.unitCost.minus(l.purchaseOrderLine.unitCost).toString()
+            : null,
       })),
       // Únicos por producto: dos líneas del mismo artículo no repiten su catálogo.
       products: [...new Map(compra.lines.map((l) => [l.productId, l.product])).values()].map(
@@ -725,6 +872,9 @@ export class PurchasesService {
         amount: t.amount.toString(),
       })),
       entry,
+      order: compra.purchaseOrder,
+      receipts: compra.receipts.map((r) => ({ id: r.id, folio: r.folio })),
+      quantityVariance: hayVariacionDeCantidad(compra),
     };
   }
 
@@ -818,4 +968,33 @@ function aFila(compra: FilaConRelaciones): PurchaseRow {
     canceledAt: compra.canceledAt?.toISOString() ?? null,
     cancelReason: compra.cancelReason,
   };
+}
+
+/**
+ * F9-PO-09 — ¿alguna línea factura MÁS de lo que se recibió de su línea de
+ * orden en las recepciones de esta compra? Se compara por línea de orden
+ * (dos lotes de la misma línea se suman de los dos lados). Avisa, no bloquea.
+ */
+function hayVariacionDeCantidad(compra: FilaDetallada): boolean {
+  if (compra.purchaseOrder === null) return false;
+  const recibido = new Map<string, Prisma.Decimal>();
+  for (const recepcion of compra.receipts) {
+    for (const linea of recepcion.lines) {
+      recibido.set(
+        linea.purchaseOrderLineId,
+        (recibido.get(linea.purchaseOrderLineId) ?? new Prisma.Decimal(0)).plus(linea.quantity),
+      );
+    }
+  }
+  const facturado = new Map<string, Prisma.Decimal>();
+  for (const linea of compra.lines) {
+    if (linea.purchaseOrderLineId === null || linea.quantity === null) continue;
+    facturado.set(
+      linea.purchaseOrderLineId,
+      (facturado.get(linea.purchaseOrderLineId) ?? new Prisma.Decimal(0)).plus(linea.quantity),
+    );
+  }
+  return [...facturado].some(([lineaId, cantidad]) =>
+    cantidad.greaterThan(recibido.get(lineaId) ?? new Prisma.Decimal(0)),
+  );
 }

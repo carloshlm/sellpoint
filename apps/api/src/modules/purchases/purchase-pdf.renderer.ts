@@ -27,6 +27,8 @@ export interface PdfPurchaseLine {
   lineTotal: string;
   lotCode: string | null;
   expiresAt: string | null;
+  /** F9-PO-09: el costo ACORDADO en la orden, si la compra nació de una. */
+  orderedUnitCost: string | null;
 }
 
 export interface PdfPurchaseCharge {
@@ -57,6 +59,9 @@ export interface PdfPurchaseInput {
     notes: string | null;
     /** El folio de la entrada de inventario que nació de esta compra, si existe. */
     entryFolio: string | null;
+    /** F9-PO-09: la orden de la que nació y las recepciones que factura. */
+    orderFolio: string | null;
+    receiptFolios: string[];
   };
   lines: PdfPurchaseLine[];
   charges: PdfPurchaseCharge[];
@@ -85,6 +90,10 @@ export function buildPurchaseDefinition(input: PdfPurchaseInput, t: Translate) {
   const { mismatch, difference } = totalMismatch(purchase.declaredTotal, purchase.total);
   const etiquetaFiscal = taxIdLabel(tenant.country) ?? t("pdf.purchase.taxId");
   const conLotes = lines.some((l) => l.lotCode !== null);
+  // Las líneas facturadas a OTRO costo que el acordado: se imprimen, no se esconden.
+  const conVariacion = lines.filter(
+    (l) => l.orderedUnitCost !== null && l.unitCost !== null && l.orderedUnitCost !== l.unitCost,
+  );
 
   const encabezadoTabla = [
     "#",
@@ -163,6 +172,17 @@ export function buildPurchaseDefinition(input: PdfPurchaseInput, t: Translate) {
                 ? [{ text: `${t("pdf.purchase.invoice")}: ${purchase.supplierInvoice}` }]
                 : []),
               { text: `${t("pdf.purchase.warehouse")}: ${purchase.warehouseName}` },
+              ...(purchase.orderFolio !== null
+                ? [
+                    {
+                      text: `${t("pdf.purchase.order")}: ${purchase.orderFolio}${
+                        purchase.receiptFolios.length > 0
+                          ? ` · ${t("pdf.purchase.receipts")}: ${purchase.receiptFolios.join(", ")}`
+                          : ""
+                      }`,
+                    },
+                  ]
+                : []),
             ],
           },
         ],
@@ -232,6 +252,12 @@ export function buildPurchaseDefinition(input: PdfPurchaseInput, t: Translate) {
             },
           ]
         : []),
+      ...conVariacion.map((l) => ({
+        text: `${t("pdf.purchase.priceVariance")} #${l.lineNo}: ${dinero(l.orderedUnitCost as string)} → ${dinero(l.unitCost as string)}`,
+        color: "#b45309",
+        margin: [0, 4, 0, 0] as [number, number, number, number],
+        fontSize: 9,
+      })),
       ...(purchase.notes !== null
         ? [
             {

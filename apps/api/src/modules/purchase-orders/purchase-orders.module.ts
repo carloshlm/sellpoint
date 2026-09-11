@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { PurchasesModule } from "../purchases/purchases.module";
 import { PurchaseOrderPdfService } from "./purchase-order-pdf.service";
 import { PurchaseOrdersController } from "./purchase-orders.controller";
 import { PurchaseOrdersService } from "./purchase-orders.service";
@@ -11,12 +12,13 @@ import { PurchaseReceiptsService } from "./purchase-receipts.service";
  * el papel del andén. Vive bajo el módulo Compras (mismo `@RequiresModule` y
  * mismos permisos) y se enciende por negocio (`tenants.uses_purchase_orders`).
  *
- * No importa `PurchasesModule`: la composición fiscal que comparte con la
- * compra son funciones de módulo (`armarCompraConGrupos`, `gruposPorCodigo`),
- * no services inyectados.
+ * La composición fiscal que comparte con la compra son funciones de módulo
+ * (`armarCompraConGrupos`, `gruposPorCodigo`); `PurchasesModule` se importa
+ * solo por «Registrar compra de lo recibido» (F9-PO-09), que ES una compra y
+ * vive en `PurchasesService`. La dependencia va en un solo sentido.
  */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, PurchasesModule],
   controllers: [PurchaseOrdersController, PurchaseReceiptsController],
   providers: [PurchaseOrdersService, PurchaseOrderPdfService, PurchaseReceiptsService],
   exports: [PurchaseOrdersService, PurchaseReceiptsService],

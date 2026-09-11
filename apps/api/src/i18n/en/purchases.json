@@ -19,5 +19,10 @@
   "already_canceled": "This purchase is already canceled.",
   "entry_already_confirmed": "The inventory entry for this purchase is already confirmed: the goods came in. To correct it, record an exit.",
   "cancel_reason_required": "Write the reason for the cancellation (at least 3 characters).",
-  "draft_has_no_document": "A draft purchase has no document yet: confirm it first."
+  "draft_has_no_document": "A draft purchase has no document yet: confirm it first.",
+  "order_not_found": "The purchase order does not exist.",
+  "receipt_foreign": "One of those receipts does not belong to this order.",
+  "receipt_not_confirmed": "Only a confirmed receipt can be invoiced.",
+  "receipt_invoiced": "That receipt is already invoiced in another purchase: cancel that purchase first.",
+  "order_line_foreign": "{field}: that line does not belong to this purchase's order."
 }

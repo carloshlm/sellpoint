@@ -19,5 +19,10 @@
   "already_canceled": "Esta compra ya está anulada.",
   "entry_already_confirmed": "La entrada de inventario de esta compra ya se confirmó: la mercancía entró. Para corregirlo registra una salida.",
   "cancel_reason_required": "Escribe el motivo de la anulación (al menos 3 caracteres).",
-  "draft_has_no_document": "Una compra en borrador todavía no tiene documento: confírmala primero."
+  "draft_has_no_document": "Una compra en borrador todavía no tiene documento: confírmala primero.",
+  "order_not_found": "La orden de compra no existe.",
+  "receipt_foreign": "Alguna de esas recepciones no es de esta orden.",
+  "receipt_not_confirmed": "Solo se factura una recepción confirmada.",
+  "receipt_invoiced": "Esa recepción ya está facturada en otra compra: anula esa compra primero.",
+  "order_line_foreign": "{field}: esa línea no es de la orden de esta compra."
 }

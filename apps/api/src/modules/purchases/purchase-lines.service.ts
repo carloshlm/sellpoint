@@ -29,6 +29,8 @@ export interface LineaLista {
   lotCode: string | null;
   expiresAt: Date | null;
   description: string;
+  /** F9-PO-09: la línea de la orden que esta línea factura (solo con orden). */
+  purchaseOrderLineId?: string | null;
 }
 
 export interface CargoListo {
@@ -67,8 +69,13 @@ export class PurchaseLinesService {
     meta: RequestMeta,
   ): Promise<PurchaseDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.purchases.assertDraft(tx, user.tenantId, id);
-      const lineas = await this.resolverLineas(tx, user.tenantId, dto.lines);
+      const compra = await this.purchases.assertDraft(tx, user.tenantId, id);
+      const lineas = await this.resolverLineas(
+        tx,
+        user.tenantId,
+        dto.lines,
+        compra.purchaseOrderId,
+      );
       await this.recomponer(tx, user.tenantId, id, { lineas });
       await this.auditService.record(tx, {
         tenantId: user.tenantId,
@@ -149,6 +156,7 @@ export class PurchaseLinesService {
         lotCode: l.lotCode,
         expiresAt: l.expiresAt,
         description: l.description,
+        purchaseOrderLineId: l.purchaseOrderLineId,
       }));
     const cargos =
       opciones.cargos ??
@@ -195,6 +203,7 @@ export class PurchaseLinesService {
             lotCode: l.lotCode,
             expiresAt: l.expiresAt,
             description: l.description,
+            purchaseOrderLineId: l.purchaseOrderLineId ?? null,
           };
         }),
       });
@@ -281,10 +290,34 @@ export class PurchaseLinesService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     lineas: PurchaseLineDto[],
+    orderId: string | null,
   ): Promise<LineaLista[]> {
     if (lineas.length === 0) {
       return [];
     }
+    // F9-PO-09: el hilo a la orden solo vale hacia la orden de ESTA compra.
+    const idsDeOrden = lineas.flatMap((l) =>
+      l.purchaseOrderLineId == null ? [] : [l.purchaseOrderLineId],
+    );
+    const lineasDeOrden =
+      idsDeOrden.length === 0 || orderId === null
+        ? new Set<string>()
+        : new Set(
+            (
+              await tx.purchaseOrderLine.findMany({
+                where: { tenantId, purchaseOrderId: orderId, id: { in: idsDeOrden } },
+                select: { id: true },
+              })
+            ).map((l) => l.id),
+          );
+    lineas.forEach((l, index) => {
+      if (l.purchaseOrderLineId != null && !lineasDeOrden.has(l.purchaseOrderLineId)) {
+        throw new UnprocessableEntityException({
+          message: "purchases.order_line_foreign",
+          args: { field: `lines.${index + 1}.purchaseOrderLineId` },
+        });
+      }
+    });
     const productos = await tx.product.findMany({
       where: { tenantId, id: { in: [...new Set(lineas.map((l) => l.productId))] } },
       select: {
@@ -342,6 +375,7 @@ export class PurchaseLinesService {
         lotCode: lotes[index]?.lotCode ?? null,
         expiresAt: lotes[index]?.expiresAt ?? null,
         description: producto.name,
+        purchaseOrderLineId: linea.purchaseOrderLineId ?? null,
       };
     });
   }

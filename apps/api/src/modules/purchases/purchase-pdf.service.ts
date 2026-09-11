@@ -91,6 +91,8 @@ export class PurchasePdfService {
               declaredTotal: compra.declaredTotal?.toString() ?? null,
               notes: compra.notes,
               entryFolio: entrada?.folio ?? null,
+              orderFolio: compra.purchaseOrder?.folio ?? null,
+              receiptFolios: compra.receipts.map((r) => r.folio),
             },
             lines: compra.lines.map((l) => ({
               lineNo: l.lineNo,
@@ -104,6 +106,7 @@ export class PurchasePdfService {
               lineTotal: l.lineTotal.toString(),
               lotCode: l.lotCode,
               expiresAt: fecha(l.expiresAt),
+              orderedUnitCost: l.purchaseOrderLine?.unitCost?.toString() ?? null,
             })),
             charges: compra.charges.map((c) => ({
               description: c.description,

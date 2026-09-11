@@ -68,6 +68,12 @@ export const purchaseLineSchema = z
     taxGroupId: z.uuid().nullish(),
     lotCode: lotCodeField().nullish(),
     expiresAt: z.iso.date().nullish(),
+    /**
+     * F9-PO-09: la línea de la ORDEN que esta línea factura. Solo tiene
+     * sentido en una compra nacida de recepciones; la pantalla lo conserva al
+     * reguardar las líneas para no perder el hilo del three-way match.
+     */
+    purchaseOrderLineId: z.uuid().nullish(),
   })
   .strict();
 
@@ -99,6 +105,8 @@ const filtrosDeCompras = z.object({
   status: z.enum(PURCHASE_STATUSES).optional(),
   supplierId: z.uuid().optional(),
   warehouseId: z.uuid().optional(),
+  /** F9-PO-09: las compras que nacieron de una orden. */
+  purchaseOrderId: z.uuid().optional(),
   /** Días del calendario del negocio sobre `purchase_date` (DATE con DATE). */
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
