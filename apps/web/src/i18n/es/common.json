@@ -65,7 +65,8 @@
         },
         "purchases": {
           "group": "Compras",
-          "purchases": "Compras"
+          "purchases": "Compras",
+          "orders": "Órdenes de compra"
         },
         "expenses": {
           "group": "Gastos",

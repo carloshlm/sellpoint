@@ -12,6 +12,7 @@ import enMedicalClinic from "./en/medicalClinic.json";
 import enOnboarding from "./en/onboarding.json";
 import enPos from "./en/pos.json";
 import enProducts from "./en/products.json";
+import enPurchaseOrders from "./en/purchaseOrders.json";
 import enPurchases from "./en/purchases.json";
 import enReception from "./en/reception.json";
 import enReports from "./en/reports.json";
@@ -30,6 +31,7 @@ import esMedicalClinic from "./es/medicalClinic.json";
 import esOnboarding from "./es/onboarding.json";
 import esPos from "./es/pos.json";
 import esProducts from "./es/products.json";
+import esPurchaseOrders from "./es/purchaseOrders.json";
 import esPurchases from "./es/purchases.json";
 import esReception from "./es/reception.json";
 import esReports from "./es/reports.json";
@@ -74,6 +76,7 @@ const resources = {
       pos: esPos,
       products: esProducts,
       purchases: esPurchases,
+      purchaseOrders: esPurchaseOrders,
       services: esServices,
       suppliers: esSuppliers,
       medicalClinic: esMedicalClinic,
@@ -96,6 +99,7 @@ const resources = {
       pos: enPos,
       products: enProducts,
       purchases: enPurchases,
+      purchaseOrders: enPurchaseOrders,
       services: enServices,
       suppliers: enSuppliers,
       medicalClinic: enMedicalClinic,

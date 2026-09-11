@@ -21,6 +21,10 @@ export interface PurchaseLine {
   lotCode: string | null;
   expiresAt: string | null;
   description: string;
+  /** F9-PO-09: el hilo a la orden, el costo ACORDADO y la variación (facturado − acordado). */
+  purchaseOrderLineId: string | null;
+  orderedUnitCost: string | null;
+  priceVariance: string | null;
 }
 
 export interface PurchaseCharge {
@@ -80,6 +84,11 @@ export interface Purchase extends PurchaseRow {
   taxes: { code: string; name: string; rate: string; base: string; amount: string }[];
   /** La entrada de inventario VIVA que nació de esta compra, si ya se pidió. */
   entry: { id: string; folio: string; status: string } | null;
+  /** F9-PO-09: la orden de la que nació y las recepciones que factura. */
+  order: { id: string; folio: string } | null;
+  receipts: { id: string; folio: string }[];
+  /** DERIVADO: alguna línea factura más de lo recibido. Avisa, no bloquea. */
+  quantityVariance: boolean;
 }
 
 export interface PurchasesPage {
@@ -97,6 +106,7 @@ export interface ListPurchasesParams {
   status?: PurchaseStatus;
   supplierId?: string;
   warehouseId?: string;
+  purchaseOrderId?: string;
   from?: string;
   to?: string;
   page?: number;
@@ -123,6 +133,7 @@ export interface PurchaseLineInput {
   taxGroupId?: string | null;
   lotCode?: string | null;
   expiresAt?: string | null;
+  purchaseOrderLineId?: string | null;
 }
 
 export interface PurchaseChargeInput {

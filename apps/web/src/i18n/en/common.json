@@ -65,7 +65,8 @@
         },
         "purchases": {
           "group": "Purchases",
-          "purchases": "Purchases"
+          "purchases": "Purchases",
+          "orders": "Purchase orders"
         },
         "expenses": {
           "group": "Expenses",

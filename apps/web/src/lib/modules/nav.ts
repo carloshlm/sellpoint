@@ -14,6 +14,7 @@ import {
   UserRoundSearch,
 } from "lucide-react";
 import type * as React from "react";
+import type { TenantBlock } from "@/lib/tenant/api";
 
 type NavIcon = React.ComponentType<{
   className?: string;
@@ -27,6 +28,11 @@ export interface ModuleNavLink {
   /** El PERMISO decide si el ROL puede; el módulo, si el negocio lo tiene. Los dos en AND. */
   permission: string;
   icon: NavIcon;
+  /**
+   * F9-PO-11: un enlace que además depende de un AJUSTE del negocio (las
+   * órdenes de compra se encienden en Mi perfil). Ausente = siempre.
+   */
+  when?: (tenant: TenantBlock) => boolean;
 }
 
 export interface ModuleNavGroup {
@@ -118,6 +124,13 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         labelKey: "common.layout.nav.modules.purchases.purchases",
         permission: "purchases:read",
         icon: ShoppingCart,
+      },
+      {
+        to: "/purchase-orders",
+        labelKey: "common.layout.nav.modules.purchases.orders",
+        permission: "purchases:read",
+        icon: ClipboardList,
+        when: (tenant) => tenant.usesPurchaseOrders,
       },
       SUPPLIERS_LINK,
     ],

@@ -215,6 +215,44 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     expect(mockedLots).not.toHaveBeenCalled();
   });
 
+  /** F9-PO-13 — nacida de una orden: el origen se ve, la variación de precio se ve, y Confirmar sigue habilitado. */
+  it("nacida de una orden muestra el origen y la variación de precio SIN deshabilitar Confirmar", async () => {
+    const deOrden = buildPurchase({
+      status: "draft",
+      confirmedAt: null,
+      order: { id: "po1", folio: "OCO-000007" },
+      receipts: [{ id: "r1", folio: "RCP-000003" }],
+      quantityVariance: true,
+    });
+    deOrden.lines = [
+      {
+        ...(deOrden.lines[0] as (typeof deOrden.lines)[number]),
+        unitCost: "125",
+        purchaseOrderLineId: "pol1",
+        orderedUnitCost: "120",
+        priceVariance: "5",
+      },
+    ];
+    mocked.getPurchase.mockResolvedValue(deOrden);
+    await renderFicha(GESTOR);
+    expect(screen.getByTestId("purchase-origin")).toHaveTextContent("OCO-000007");
+    expect(screen.getByTestId("purchase-origin")).toHaveTextContent("RCP-000003");
+    expect(screen.getByTestId("agreed-cost-0")).toHaveTextContent("Acordado: $120.00 · +$5.00");
+    expect(screen.getByTestId("purchase-quantity-variance")).toHaveAttribute("role", "alert");
+    expect(screen.getByRole("button", { name: "Confirmar compra" })).toBeEnabled();
+  });
+
+  it("autoguardar la cabecera NO pisa la cantidad tecleada en las líneas", async () => {
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    const cantidad = within(screen.getByTestId("purchase-line-0")).getByLabelText("Cantidad");
+    await user.clear(cantidad);
+    await user.type(cantidad, "7");
+    await user.type(screen.getByLabelText("Notas"), "llegó tarde");
+    await waitFor(() => expect(mocked.updatePurchase).toHaveBeenCalled());
+    expect(cantidad).toHaveValue("7");
+  });
+
   it("anular pide el motivo antes de dejar anular", async () => {
     await renderFicha([...GESTOR, "purchases:cancel"]);
     const user = userEvent.setup();

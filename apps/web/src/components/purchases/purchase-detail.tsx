@@ -1,6 +1,6 @@
 import { type Currency, formatMoney } from "@sellpoint/shared";
-import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateField } from "@/components/form/date-field";
@@ -27,9 +27,8 @@ import {
   useUpdatePurchase,
   useUpdateReception,
 } from "@/lib/purchases/hooks";
+import { useAutosave } from "@/lib/use-autosave";
 import { useAuthStore } from "@/stores/auth.store";
-
-const AUTOGUARDADO_MS = 400;
 
 /**
  * F9-PURCH-11/12 — la pantalla de la compra: la factura del proveedor tal
@@ -80,39 +79,22 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   const anular = useCancelPurchase();
   const ingresar = useCreateEntryDraft();
 
-  /**
-   * Autoguardado: el cambio viaja 400 ms después de la última tecla.
-   *
-   * Los cambios se ACUMULAN en un solo pendiente. El temporizador es uno para
-   * toda la cabecera —lo que queremos: un PATCH por pausa, no uno por campo—,
-   * pero con un `input` suelto cada llamada pisaba a la anterior: teclear el
-   * total declarado y saltar a la factura mandaba solo la factura y el total
-   * se perdía sin decir nada. Con el acumulador, la pausa manda los dos.
-   */
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendiente = useRef<UpdatePurchaseInput>({});
-  const autoguardar = (input: UpdatePurchaseInput) => {
-    pendiente.current = { ...pendiente.current, ...input };
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      const cambios = pendiente.current;
-      pendiente.current = {};
-      setError(null);
-      const onError = (apiError: { message: string }) => setError(apiError.message);
-      if (borrador) {
-        guardarCabecera.mutate({ id: purchase.id, input: cambios }, { onError });
-        return;
-      }
-      // Confirmada: solo lo que no mueve dinero.
-      const { receivedDate: rd, supplierInvoice: si, notes: nt } = cambios;
-      if (rd === undefined && si === undefined && nt === undefined) return;
-      guardarRecepcion.mutate(
-        { id: purchase.id, input: { receivedDate: rd, supplierInvoice: si, notes: nt } },
-        { onError },
-      );
-    }, AUTOGUARDADO_MS);
-  };
-  useEffect(() => () => (timer.current !== null ? clearTimeout(timer.current) : undefined), []);
+  // Autoguardado ACUMULADO (`useAutosave`): un PATCH por pausa con todo lo
+  // tecleado; en una confirmada solo viaja lo que no mueve dinero.
+  const autoguardar = useAutosave<UpdatePurchaseInput>((cambios) => {
+    setError(null);
+    const onError = (apiError: { message: string }) => setError(apiError.message);
+    if (borrador) {
+      guardarCabecera.mutate({ id: purchase.id, input: cambios }, { onError });
+      return;
+    }
+    const { receivedDate: rd, supplierInvoice: si, notes: nt } = cambios;
+    if (rd === undefined && si === undefined && nt === undefined) return;
+    guardarRecepcion.mutate(
+      { id: purchase.id, input: { receivedDate: rd, supplierInvoice: si, notes: nt } },
+      { onError },
+    );
+  });
 
   const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
   const fecha = (iso: string) =>
@@ -222,6 +204,37 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
       )}
       {confirmada && (
         <p className="text-muted-foreground text-sm">{t("purchases.detail.sealed")}</p>
+      )}
+      {/* F9-PO-13: de dónde nació. El hilo del three-way match, a la vista. */}
+      {purchase.order !== null && (
+        <p className="text-muted-foreground text-sm" data-testid="purchase-origin">
+          {t("purchases.detail.origin")}{" "}
+          <Link
+            to="/purchase-orders/$orderId"
+            params={{ orderId: purchase.order.id }}
+            className="font-mono text-primary underline-offset-2 hover:underline"
+          >
+            {purchase.order.folio}
+          </Link>
+          {purchase.receipts.length > 0 && (
+            <>
+              {" · "}
+              {t("purchases.detail.originReceipts")}{" "}
+              {purchase.receipts.map((r, i) => (
+                <span key={r.id}>
+                  {i > 0 ? ", " : ""}
+                  <Link
+                    to="/purchase-orders/$orderId/receipts/$receiptId"
+                    params={{ orderId: purchase.order?.id ?? "", receiptId: r.id }}
+                    className="font-mono text-primary underline-offset-2 hover:underline"
+                  >
+                    {r.folio}
+                  </Link>
+                </span>
+              ))}
+            </>
+          )}
+        </p>
       )}
 
       <Card>
@@ -343,6 +356,12 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
         />
         {purchase.declaredTotal !== null && (
           <Total label={t("purchases.totals.declared")} value={dinero(purchase.declaredTotal)} />
+        )}
+        {/* F9-PO-13: facturar MÁS de lo recibido avisa; tampoco bloquea. */}
+        {purchase.quantityVariance && (
+          <p role="alert" data-testid="purchase-quantity-variance" className="text-warning">
+            {t("purchases.totals.quantityVariance")}
+          </p>
         )}
         {/* El descuadre AVISA. Nunca deshabilita «Confirmar»: el papel dice lo
             que dice, y ajustar las líneas para cuadrarlo pisaría el costo del

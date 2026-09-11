@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { hiddenReceptionRoutes, useReceptionEntity } from "@/lib/reception/settings";
+import { useAuthStore } from "@/stores/auth.store";
 import { MODULE_NAV_ENTRIES, type ModuleNavLink } from "./nav";
 
 export interface ResolvedModuleNavGroup {
@@ -26,6 +27,8 @@ export function useModuleNav(): ResolvedModuleNavGroup[] {
   const { hasModule } = usePlan();
   const recepcion = useReceptionEntity();
   const ocultas = hiddenReceptionRoutes(recepcion.settings);
+  // F9-PO-11: un enlace puede depender de un ajuste del negocio (`when`).
+  const tenant = useAuthStore((s) => s.user?.tenant);
   // Solo Recepción interpola una palabra propia; el resto no lleva variables.
   const variablesDe = (key: ModuleKey) => (key === "reception" ? recepcion.vars : undefined);
 
@@ -40,6 +43,7 @@ export function useModuleNav(): ResolvedModuleNavGroup[] {
       label: t(grupo.labelKey),
       links: grupo.links
         .filter((link) => has(link.permission) && !ocultas.has(link.to))
+        .filter((link) => link.when === undefined || (tenant !== undefined && link.when(tenant)))
         .filter((link) => {
           if (vistas.has(link.to)) return false;
           vistas.add(link.to);

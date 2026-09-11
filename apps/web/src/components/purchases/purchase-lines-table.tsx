@@ -1,17 +1,15 @@
-import { type Currency, formatMoney, normalizeLotCode } from "@sellpoint/shared";
-import { useEffect, useRef, useState } from "react";
+import { type Currency, formatMoney } from "@sellpoint/shared";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DateField } from "@/components/form/date-field";
 import { MoneyInput } from "@/components/form/money-input";
+import { LotCells } from "@/components/inventory/lot-cells";
+import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
-import { useProductLots } from "@/lib/inventory/kardex-hooks";
 import { getProduct } from "@/lib/products/api";
-import { useProducts } from "@/lib/products/hooks";
 import type { Purchase, PurchaseLineInput, PurchaseProduct } from "@/lib/purchases/api";
 import { useReplacePurchaseLines } from "@/lib/purchases/hooks";
-import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { useAuthStore } from "@/stores/auth.store";
 
 /** La línea EN EDICIÓN: todo texto, porque es lo que el usuario teclea. */
@@ -31,13 +29,15 @@ interface LineaEditable {
   discount: string;
   lotCode: string;
   expiresAt: string;
+  /** F9-PO-09: la línea de la orden que factura; se conserva al reguardar. */
+  purchaseOrderLineId: string | null;
+  /** El costo ACORDADO en la orden, para verlo junto al facturado. */
+  orderedUnitCost: string | null;
   /** Lo ya calculado por el API para esta línea (vacío mientras no se guarde). */
   taxAmount: string | null;
   lineTotal: string | null;
   unitCostNet: string | null;
 }
-
-const MIN_QUERY = 2;
 
 const nuevoUid = () =>
   typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `l-${Math.random()}`;
@@ -76,6 +76,8 @@ function aEditable(compra: Purchase): LineaEditable[] {
     discount: Number(linea.discount) > 0 ? linea.discount : "",
     lotCode: linea.lotCode ?? "",
     expiresAt: linea.expiresAt ?? "",
+    purchaseOrderLineId: linea.purchaseOrderLineId ?? null,
+    orderedUnitCost: linea.orderedUnitCost ?? null,
     taxAmount: linea.taxAmount,
     lineTotal: linea.lineTotal,
     unitCostNet: linea.unitCostNet,
@@ -102,15 +104,18 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
 
   const [lineas, setLineas] = useState<LineaEditable[]>(() => aEditable(purchase));
   const [catalogo, setCatalogo] = useState<PurchaseProduct[]>(purchase.products);
-  const [termino, setTermino] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const buscado = useDebouncedValue(termino.trim());
-  const buscar = buscado.length >= MIN_QUERY;
-  const { data: encontrados } = useProducts({ query: buscado, pageSize: 10 }, { enabled: buscar });
   const guardar = useReplacePurchaseLines();
 
   // La compra vuelve del API con sus totales ya hechos: la tabla se rehace
   // desde ella, que es la única fuente de verdad de lo guardado.
+  const firmaDeLineas = JSON.stringify(purchase.lines);
+  // Se resincroniza SOLO cuando las LÍNEAS del servidor cambian (por su
+  // firma), no cada vez que llega el objeto entero: el autoguardado de la
+  // cabecera devuelve el documento completo y, con `[documento]` como
+  // dependencia, pisaba lo que el usuario estaba tecleando en la tabla antes
+  // de guardar (lo cazó el navegador el 2026-09-11: 6 tecleados, 10 guardados).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: la dependencia real es la firma de las líneas
   useEffect(() => {
     setLineas(aEditable(purchase));
     setCatalogo((previo) => {
@@ -118,7 +123,7 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
       for (const producto of purchase.products) porId.set(producto.id, producto);
       return [...porId.values()];
     });
-  }, [purchase]);
+  }, [firmaDeLineas]);
 
   const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
   const productoDe = (id: string) => catalogo.find((p) => p.id === id);
@@ -130,7 +135,6 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
   };
 
   async function agregar(producto: { id: string; sku: string; name: string }) {
-    setTermino("");
     // La ficha se resuelve ANTES de armar la línea, en una variable local:
     // leerla de `catalogo` después del `setCatalogo` devolvía el estado VIEJO
     // (React no lo actualiza a mitad de la función) y la presentación nacía
@@ -160,6 +164,8 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
         discount: "",
         lotCode: "",
         expiresAt: "",
+        purchaseOrderLineId: null,
+        orderedUnitCost: null,
         taxAmount: null,
         lineTotal: null,
         unitCostNet: null,
@@ -177,6 +183,7 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
       discount: linea.discount.trim() === "" ? 0 : Number(linea.discount),
       lotCode: linea.lotCode.trim() === "" ? null : linea.lotCode.trim(),
       expiresAt: linea.expiresAt === "" ? null : linea.expiresAt,
+      purchaseOrderLineId: linea.purchaseOrderLineId,
     }));
     guardar.mutate(
       { id: purchase.id, lines: payload },
@@ -189,41 +196,12 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
       <h2 className="font-medium">{t("purchases.lines.title")}</h2>
 
       {editable && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="purchase-line-search" className="font-medium text-sm">
-            {t("purchases.lines.search")}
-          </label>
-          <Input
-            id="purchase-line-search"
-            type="search"
-            value={termino}
-            placeholder={t("purchases.lines.searchPlaceholder")}
-            onChange={(event) => setTermino(event.target.value)}
-            className="max-w-sm"
-          />
-          {buscar && (encontrados?.items ?? []).length > 0 && (
-            <ul className="flex max-h-48 max-w-sm flex-col gap-1 overflow-y-auto">
-              {(encontrados?.items ?? []).map((producto) => (
-                <li key={producto.id}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-auto w-full justify-start py-2 text-left"
-                    data-testid={`add-product-${producto.id}`}
-                    onClick={() => void agregar(producto)}
-                  >
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate font-medium">{producto.name}</span>
-                      <span className="font-mono text-muted-foreground text-xs">
-                        {producto.sku}
-                      </span>
-                    </span>
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <ProductSearch
+          id="purchase-line-search"
+          label={t("purchases.lines.search")}
+          placeholder={t("purchases.lines.searchPlaceholder")}
+          onPick={(producto) => void agregar(producto)}
+        />
       )}
 
       {error !== null && (
@@ -314,6 +292,14 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
                           {t("purchases.lines.netCost", { cost: dinero(linea.unitCostNet) })}
                         </span>
                       )}
+                      {linea.orderedUnitCost !== null && (
+                        <AcordadoYVariacion
+                          acordado={linea.orderedUnitCost}
+                          facturado={linea.unitCost}
+                          dinero={dinero}
+                          testId={`agreed-cost-${index}`}
+                        />
+                      )}
                     </td>
                     <td className="p-2 text-right">
                       <MoneyInput
@@ -323,7 +309,7 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
                         onChange={(valor) => cambiar(index, "discount", valor)}
                       />
                     </td>
-                    <CeldasDeLote
+                    <LotCells
                       productId={linea.productId}
                       controlaLote={producto?.tracksLots === true}
                       lotCode={linea.lotCode}
@@ -331,6 +317,8 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
                       editable={editable}
                       onLotCode={(valor) => cambiar(index, "lotCode", valor)}
                       onExpiresAt={(valor) => cambiar(index, "expiresAt", valor)}
+                      lotLabel={t("purchases.lines.lot")}
+                      expiresLabel={t("purchases.lines.expiresAt")}
                     />
                     <td className="p-2 text-right tabular-nums">
                       {linea.lineTotal === null ? "—" : dinero(linea.lineTotal)}
@@ -369,77 +357,31 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
 }
 
 /**
- * Lote y caducidad de una fila — SOLO si el producto se controla por lote.
- *
- * Un producto sin control no las ofrece: la compra transporta lo que la
- * entrada va a exigir, y un lote que la entrada RECHAZA no es transporte, es
- * carga que se descubre tarde (el API lo rebota con `purchases.lot_not_tracked`).
- *
- * Mismas dos reglas que Entradas (`document-detail.tsx`): el código se
- * normaliza al teclear (`STM01` y `stm01` serían dos lotes en la base) y la
- * caducidad SIGUE al lote del REGISTRO (con o sin existencias) — si ya existe,
- * su fecha se pone siempre; si no, se
- * limpia, porque es del lote y no de la línea. El ref evita pisar la fecha que
- * el usuario corrija a mano sobre el mismo código.
+ * F9-PO-13 — el costo ACORDADO junto al facturado, y la diferencia en ámbar
+ * cuando no coinciden. Se ve, no bloquea: la factura dice lo que dice.
  */
-function CeldasDeLote({
-  productId,
-  controlaLote,
-  lotCode,
-  expiresAt,
-  editable,
-  onLotCode,
-  onExpiresAt,
+function AcordadoYVariacion({
+  acordado,
+  facturado,
+  dinero,
+  testId,
 }: {
-  productId: string;
-  controlaLote: boolean;
-  lotCode: string;
-  expiresAt: string;
-  editable: boolean;
-  onLotCode: (valor: string) => void;
-  onExpiresAt: (valor: string) => void;
+  acordado: string;
+  facturado: string;
+  dinero: (valor: string) => string;
+  testId: string;
 }) {
   const { t } = useTranslation();
-  const codigo = lotCode.trim();
-  // El REGISTRO de lotes, no el stock: un lote agotado en este almacén sigue
-  // teniendo su fecha, y el API rebota otra distinta (`lot_expiry_mismatch`).
-  const { data: lotes } = useProductLots(controlaLote && codigo !== "" ? productId : undefined);
-  const ultimoLoteProcesado = useRef(codigo);
-  useEffect(() => {
-    if (codigo === "" || lotes === undefined || ultimoLoteProcesado.current === codigo) return;
-    ultimoLoteProcesado.current = codigo;
-    const conocido = lotes.find((lot) => lot.lotCode === codigo);
-    onExpiresAt(conocido?.expiresAt != null ? conocido.expiresAt.slice(0, 10) : "");
-  }, [codigo, lotes, onExpiresAt]);
-
-  if (!controlaLote) {
-    return (
-      <>
-        <td className="p-2 text-muted-foreground">—</td>
-        <td className="p-2 text-muted-foreground">—</td>
-      </>
-    );
-  }
+  const hayFacturado = facturado.trim() !== "";
+  const diferencia = hayFacturado ? Number(facturado) - Number(acordado) : 0;
+  const distinto = hayFacturado && diferencia !== 0;
   return (
-    <>
-      <td className="p-2">
-        <Input
-          aria-label={t("purchases.lines.lot")}
-          className="w-28 uppercase"
-          value={lotCode}
-          disabled={!editable}
-          onChange={(event) => onLotCode(normalizeLotCode(event.target.value))}
-        />
-      </td>
-      <td className="p-2">
-        <DateField
-          label={t("purchases.lines.expiresAt")}
-          className="[&>label]:sr-only"
-          value={expiresAt}
-          disabled={!editable}
-          onChange={(event) => onExpiresAt(event.target.value)}
-        />
-      </td>
-    </>
+    <span
+      className={`block text-xs ${distinto ? "text-warning" : "text-muted-foreground"}`}
+      data-testid={testId}
+    >
+      {t("purchases.lines.agreedCost", { cost: dinero(acordado) })}
+      {distinto && ` · ${diferencia > 0 ? "+" : "−"}${dinero(String(Math.abs(diferencia)))}`}
+    </span>
   );
 }

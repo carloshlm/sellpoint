@@ -38,6 +38,13 @@ export function PurchaseCharges({ purchase }: { purchase: Purchase }) {
   const guardar = useReplacePurchaseCharges();
 
   // Los cargos guardados mandan: la compra vuelve del API recompuesta.
+  const firmaDeLineas = JSON.stringify(purchase.charges);
+  // Se resincroniza SOLO cuando las LÍNEAS del servidor cambian (por su
+  // firma), no cada vez que llega el objeto entero: el autoguardado de la
+  // cabecera devuelve el documento completo y, con `[documento]` como
+  // dependencia, pisaba lo que el usuario estaba tecleando en la tabla antes
+  // de guardar (lo cazó el navegador el 2026-09-11: 6 tecleados, 10 guardados).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: la dependencia real es la firma de las líneas
   useEffect(() => {
     setCargos(
       purchase.charges.map((c) => ({
@@ -46,7 +53,7 @@ export function PurchaseCharges({ purchase }: { purchase: Purchase }) {
         lineTotal: c.lineTotal,
       })),
     );
-  }, [purchase]);
+  }, [firmaDeLineas]);
 
   if (!editable && cargos.length === 0) {
     return null;

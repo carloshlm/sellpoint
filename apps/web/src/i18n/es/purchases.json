@@ -61,7 +61,9 @@
     "entryConfirmed": "La mercancía ya entró con {{folio}}",
     "confirmedOn": "Confirmada el {{date}}",
     "canceledOn": "Anulada el {{date}}: {{reason}}",
-    "sealed": "Esta compra ya está confirmada: solo se pueden anotar la recepción, la factura y las notas."
+    "sealed": "Esta compra ya está confirmada: solo se pueden anotar la recepción, la factura y las notas.",
+    "origin": "Nació de la orden",
+    "originReceipts": "Recepciones"
   },
   "totals": {
     "subtotal": "Subtotal",
@@ -70,7 +72,8 @@
     "charges": "Cargos",
     "total": "Total",
     "declared": "Declarado",
-    "mismatch": "El total de la factura no coincide con la suma de las líneas: {{difference}}."
+    "mismatch": "El total de la factura no coincide con la suma de las líneas: {{difference}}.",
+    "quantityVariance": "Alguna línea factura más de lo recibido en la orden. La compra se confirma igual; revisa la cantidad."
   },
   "lines": {
     "title": "Productos de la factura",
@@ -90,7 +93,8 @@
     "expiresAt": "Caducidad",
     "lotHint": "Este producto se controla por lote: la entrada de inventario va a pedirlo.",
     "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla.",
-    "netCost": "Costo sin impuesto: {{cost}}"
+    "netCost": "Costo sin impuesto: {{cost}}",
+    "agreedCost": "Acordado: {{cost}}"
   },
   "charges": {
     "title": "Cargos adicionales",

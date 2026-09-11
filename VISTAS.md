@@ -1978,6 +1978,37 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Acciones** | «Confirmar compra» y «Anular compra» (motivo obligatorio) con `ConfirmDialog`, «Imprimir» el PDF, «Ingresar al inventario». | «Ingresar al inventario» solo sobre una confirmada y con `purchases:manage` **y** `inventory:movement`; si la entrada ya existe dice «Continuar ENT-…», y si ya se confirmó deja constancia en vez de botón. |
 | **La entrada que nace** (`document-header-form.tsx`) | Aviso «Esta entrada nació de la compra COM-…» con el motivo bloqueado. | El motivo y el almacén los fija la compra (el API responde 409 `inventory.source_header_locked`); el lote, la caducidad y la ubicación se completan ahí antes de confirmar. |
 
+## 16. Órdenes de compra
+
+> F9-PO (2026-09-11). **Ajuste del negocio**, no plan: se enciende en Mi perfil («Usar órdenes de compra») y solo tiene sentido con el módulo Compras. Apagado, nada cambia (la compra es la factura); encendido, aparece «Órdenes de compra» en el grupo Compras y la compra puede nacer de lo recibido. **Decisión de Carlos:** la recepción es el papel del andén y NO mueve existencias — la mercancía entra por la entrada de la compra que se registra sobre lo recibido, como siempre.
+
+```
+┌ Órdenes de compra ──────────────────────────────── [Nueva orden] ┐
+│ Folio [OCO-…]  Estado [Con pendiente ▾]  Proveedor [ … ▾]  Desde/Hasta │
+│ 3 órdenes   Total esperado del rango: $41,760.00   2 esperan mercancía │
+│ │ OCO-000002 │ 10/09 │ 05/09 (Vencida) │ Distr. Norte │ 13,920 │ Emitida │ Ver
+│ │ OCO-000001 │ 10/09 │ 25/09           │ Distr. Norte │ 13,920 │ Parcial │ Ver
+└───────────────────────────────────────────────────────────────────┘
+
+┌ Orden OCO-000001  [Parcialmente recibida] ── [Imprimir] [Registrar recepción] [Registrar compra de lo recibido] [Cerrar orden] ┐
+│ ┌ Proveedor ── Entregar en: Central ── Fecha del pedido ── Entrega esperada (sin tope) ── Referencia ── Condiciones ── Notas ┐ │
+│ Productos del pedido                                                                                                         │
+│ │ Guantes de nitrilo │ Caja ×12 │ 100 │ 120.00 │ — │ 13,920.00 │ 60 de 100 ▓▓▓▓▓▓░░░░ │ [Cerrar corta] │                    │
+│ Recepciones: RCP-000001 · 11/09 · REM-889 · Confirmada · Sin factura      Compras de esta orden: —                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Pieza | Qué hace | Regla |
+|---|---|---|
+| **Listado** (`purchase-order-list.tsx`, tabla cruda con `TABLE_HEAD_ROW`/`TABLE_ROW_HOVER`) | Folio con debounce, chips de estado más dos VISTAS («Con pendiente», «Recibidas sin factura»), proveedor, rango sobre la fecha del pedido, resumen del rango. | La fecha esperada va en rojo con «(Vencida)» solo si ya pasó Y la orden sigue esperando; cerrada o recibida no está vencida. |
+| **Enlace del menú** (`nav.ts` con `when`) | «Órdenes de compra» en el grupo Compras. | Existe solo con módulo + permiso + **el ajuste encendido** (`useModuleNav` aplica el predicado); la pantalla sigue accesible por URL — leer nunca se apaga. |
+| **Nueva orden** (`/purchase-orders/new`) | Proveedor, fecha del pedido (tope hoy) y fecha esperada. | La fecha esperada es la ÚNICA sin tope: es la promesa del proveedor. |
+| **Cabecera** (`purchase-order-detail.tsx`, `<Card>`) | Autoguardado ACUMULADO con `useAutosave` (un PATCH por pausa, extraído de la compra). | En borrador se edita todo; emitida, solo fecha esperada, referencia, condiciones y notas; cerrada o anulada, nada. |
+| **Líneas** (`purchase-order-lines-table.tsx`) | En borrador: buscador (`ProductSearch`, compartido con la compra), presentación, cantidad, costo acordado, descuento, en bloque. Emitida: «60 de 100» con barra de progreso y «Cerrar corta» por línea con pendiente. | Sin lote ni caducidad: eso es de la recepción. Comparte con la compra el buscador y nada más: las dos tablas dicen cosas distintas. |
+| **Acciones** | «Emitir orden» (exige costo acordado), «Cerrar orden» (dice cuántas líneas quedan cortas), «Anular» (solo borrador o emitida sin mercancía), «Imprimir». | «Registrar recepción» solo con pendiente; «Registrar compra de lo recibido» solo con recepciones confirmadas sin factura: abre un selector con esas recepciones marcadas, crea la compra y navega a ella. |
+| **Recepción** (`purchase-receipt-detail.tsx`) | Nace prellenada con lo pendiente; fecha (tope hoy), remisión / *packing slip*, notas; por línea pedido, recibido antes, pendiente, «Llegó», lote y caducidad con `LotCells` (las MISMAS celdas de la compra). | Confirmar suma a la orden y avisa que la mercancía entra al inventario con la compra y su entrada; el 422 por recibir de más se pinta junto a la tabla; facturada no se anula. |
+| **La compra que nace** (`purchase-detail.tsx`) | «Nació de la orden OCO-… · Recepciones RCP-…» con enlaces; por línea «Acordado: $120.00 · +$5.00» en ámbar si difiere; aviso en `role="alert"` si factura más de lo recibido. | Las variaciones **avisan y no bloquean**: Confirmar sigue habilitado. |
+
 ## Apéndice — Documentos Relacionados
 
 - [ARQUITECTURA.md](ARQUITECTURA.md) — Stack, multi-tenancy, seguridad, roadmap

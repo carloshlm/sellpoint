@@ -57,6 +57,9 @@ export function buildPurchase(over: Partial<Purchase> = {}): Purchase {
         lotCode: null,
         expiresAt: null,
         description: "Guantes de nitrilo",
+        purchaseOrderLineId: null,
+        orderedUnitCost: null,
+        priceVariance: null,
       },
     ],
     products: [
@@ -75,6 +78,9 @@ export function buildPurchase(over: Partial<Purchase> = {}): Purchase {
     charges: [],
     taxes: [{ code: "VAT16", name: "IVA 16%", rate: "16", base: "1000", amount: "160" }],
     entry: null,
+    order: null,
+    receipts: [],
+    quantityVariance: false,
     ...over,
   };
 }

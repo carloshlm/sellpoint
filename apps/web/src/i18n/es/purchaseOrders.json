@@ -1,0 +1,169 @@
+{
+  "list": {
+    "title": "Órdenes de compra",
+    "new": "Nueva orden",
+    "folio": "Folio",
+    "status": "Estado",
+    "statusAll": "Todas",
+    "pendingOnly": "Con pendiente",
+    "pendingInvoice": "Recibidas sin factura",
+    "supplier": "Proveedor",
+    "empty": "No hay órdenes con estos filtros.",
+    "view": "Ver",
+    "overdue": "Vencida",
+    "columns": {
+      "folio": "Folio",
+      "date": "Fecha",
+      "expected": "Esperada",
+      "supplier": "Proveedor",
+      "received": "Recibido",
+      "total": "Total esperado",
+      "status": "Estado"
+    },
+    "summary": {
+      "count": "{{count}} orden",
+      "count_other": "{{count}} órdenes",
+      "total": "Total esperado del rango: {{total}}",
+      "pending": "{{count}} espera mercancía",
+      "pending_other": "{{count}} esperan mercancía"
+    }
+  },
+  "status": {
+    "draft": "Borrador",
+    "open": "Emitida",
+    "partially_received": "Parcialmente recibida",
+    "received": "Recibida",
+    "closed": "Cerrada",
+    "canceled": "Anulada"
+  },
+  "receiptStatus": {
+    "draft": "Borrador",
+    "confirmed": "Confirmada",
+    "canceled": "Anulada"
+  },
+  "new": {
+    "title": "Nueva orden de compra",
+    "intro": "Elige el proveedor, la fecha del pedido y, si la sabes, la fecha esperada de entrega. Las líneas se capturan después.",
+    "supplier": "Proveedor",
+    "date": "Fecha del pedido",
+    "expectedDate": "Entrega esperada",
+    "create": "Crear borrador",
+    "supplierRequired": "Elige el proveedor del pedido."
+  },
+  "detail": {
+    "title": "Orden {{folio}}",
+    "loadFailed": "No pudimos cargar la orden.",
+    "supplier": "Proveedor",
+    "warehouse": "Entregar en",
+    "date": "Fecha del pedido",
+    "expectedDate": "Entrega esperada",
+    "expectedHint": "La única fecha que puede ser futura: es una promesa del proveedor.",
+    "reference": "Referencia del proveedor",
+    "terms": "Condiciones de pago",
+    "taxMode": "Los costos acordados",
+    "taxModeExcluded": "NO incluyen impuesto (se suma aparte)",
+    "taxModeIncluded": "ya incluyen impuesto",
+    "notes": "Notas",
+    "issue": "Emitir orden",
+    "close": "Cerrar orden",
+    "cancel": "Anular orden",
+    "print": "Imprimir",
+    "issuedNote": "Esta orden ya se emitió: las líneas y el costo acordado quedaron fijos. Siguen abiertas la fecha esperada, la referencia, las condiciones y las notas.",
+    "closedOn": "Cerrada el {{date}}",
+    "canceledOn": "Anulada el {{date}}: {{reason}}"
+  },
+  "totals": {
+    "subtotal": "Subtotal",
+    "discount": "Descuento",
+    "estimated": "estimado",
+    "total": "Total esperado"
+  },
+  "lines": {
+    "title": "Productos del pedido",
+    "search": "Buscar producto",
+    "searchPlaceholder": "Nombre o código…",
+    "empty": "Todavía no agregaste productos.",
+    "save": "Guardar líneas",
+    "remove": "Quitar",
+    "product": "Producto",
+    "presentation": "Presentación",
+    "quantity": "Cantidad",
+    "unitCost": "Costo acordado",
+    "discount": "Descuento",
+    "amount": "Importe",
+    "received": "Recibido",
+    "pending": "Pendiente",
+    "progress": "{{received}} de {{ordered}}",
+    "closedShort": "Cerrada corta",
+    "closeShort": "Cerrar corta",
+    "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla."
+  },
+  "receipts": {
+    "title": "Recepciones",
+    "empty": "Todavía no llega nada de esta orden.",
+    "new": "Registrar recepción",
+    "invoicedIn": "Facturada en {{folio}}",
+    "notInvoiced": "Sin factura",
+    "packingSlip": "Remisión",
+    "registerPurchase": "Registrar compra de lo recibido",
+    "registerPurchaseIntro": "Elige las recepciones que cubre la factura. La compra nace con las cantidades recibidas y el costo acordado; encima se teclea lo que dice la factura.",
+    "registerPurchaseConfirm": "Crear la compra",
+    "noneToInvoice": "No hay recepciones confirmadas sin factura."
+  },
+  "purchases": {
+    "title": "Compras de esta orden",
+    "empty": "Todavía no se registró ninguna compra sobre esta orden."
+  },
+  "receipt": {
+    "title": "Recepción {{folio}}",
+    "of": "de la orden {{folio}}",
+    "loadFailed": "No pudimos cargar la recepción.",
+    "receivedDate": "Fecha de recepción",
+    "packingSlip": "Remisión o packing slip",
+    "notes": "Notas",
+    "linesTitle": "Lo que llegó",
+    "linesIntro": "Nace con lo pendiente de cada línea. Quita lo que no llegó y ajusta lo que llegó incompleto.",
+    "empty": "No queda nada por recibir de esta orden.",
+    "ordered": "Pedido",
+    "receivedBefore": "Recibido antes",
+    "pending": "Pendiente",
+    "quantity": "Llegó",
+    "lot": "Lote",
+    "expiresAt": "Caducidad",
+    "remove": "Quitar",
+    "save": "Guardar líneas",
+    "confirm": "Confirmar recepción",
+    "cancel": "Anular recepción",
+    "confirmDialog": {
+      "title": "Confirmar {{folio}}",
+      "body": "Lo recibido se suma a la orden. La mercancía entra al inventario cuando registres la compra sobre esta recepción y confirmes su entrada.",
+      "confirm": "Confirmar recepción"
+    },
+    "cancelDialog": {
+      "title": "Anular {{folio}}",
+      "body": "Lo recibido vuelve a quedar pendiente en la orden. Escribe el motivo: queda en el historial.",
+      "reason": "Motivo",
+      "confirm": "Anular recepción"
+    },
+    "invoiced": "Esta recepción ya está facturada en {{folio}}: para anularla, anula esa compra primero.",
+    "sealed": "Esta recepción ya está confirmada."
+  },
+  "confirmDialog": {
+    "title": "Emitir {{folio}}",
+    "body": "Al emitir, las líneas y el costo acordado quedan fijos y la orden se puede mandar al proveedor. Después registrarás lo que vaya llegando.",
+    "confirm": "Emitir orden"
+  },
+  "closeDialog": {
+    "title": "Cerrar {{folio}}",
+    "body": "Lo que falta ya no llegará: las líneas con pendiente quedan cerradas cortas.",
+    "bodyShort": "{{count}} línea quedará corta.",
+    "bodyShort_other": "{{count}} líneas quedarán cortas.",
+    "confirm": "Cerrar orden"
+  },
+  "cancelDialog": {
+    "title": "Anular {{folio}}",
+    "body": "La orden deja de contar. Solo se anula sin mercancía recibida; con mercancía, se cierra. Escribe el motivo: queda en el historial.",
+    "reason": "Motivo",
+    "confirm": "Anular orden"
+  }
+}

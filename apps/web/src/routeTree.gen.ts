@@ -41,6 +41,9 @@ import { Route as MovementsTransfersRouteImport } from './routes/movements.trans
 import { Route as PosIndexRouteImport } from './routes/pos.index'
 import { Route as PosCloseRouteImport } from './routes/pos.close'
 import { Route as PosSalesRouteImport } from './routes/pos.sales'
+import { Route as PurchaseOrdersIndexRouteImport } from './routes/purchase-orders.index'
+import { Route as PurchaseOrdersOrderIdRouteImport } from './routes/purchase-orders.$orderId'
+import { Route as PurchaseOrdersNewRouteImport } from './routes/purchase-orders.new'
 import { Route as PurchasesIndexRouteImport } from './routes/purchases.index'
 import { Route as PurchasesPurchaseIdRouteImport } from './routes/purchases.$purchaseId'
 import { Route as PurchasesNewRouteImport } from './routes/purchases.new'
@@ -68,6 +71,7 @@ import { Route as ReceptionCustomersCustomerIdRouteImport } from './routes/recep
 import { Route as ReceptionCustomersNewRouteImport } from './routes/reception.customers.new'
 import { Route as MedicalClinicPatientsCustomerIdIndexRouteImport } from './routes/medical-clinic.patients.$customerId.index'
 import { Route as MedicalClinicRecordsRecordIdIndexRouteImport } from './routes/medical-clinic.records.$recordId.index'
+import { Route as PurchaseOrdersOrderIdReceiptsReceiptIdRouteImport } from './routes/purchase-orders.$orderId_.receipts.$receiptId'
 import { Route as MedicalClinicRecordsRecordIdOrdersIndexRouteImport } from './routes/medical-clinic.records.$recordId.orders.index'
 import { Route as MedicalClinicRecordsRecordIdOrdersOrderKindRouteImport } from './routes/medical-clinic.records.$recordId.orders.$orderKind'
 import { Route as MedicalClinicRecordsRecordIdSectionsSectionKeyRouteImport } from './routes/medical-clinic.records.$recordId.sections.$sectionKey'
@@ -233,6 +237,21 @@ const PosSalesRoute = PosSalesRouteImport.update({
   path: '/pos/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PurchaseOrdersIndexRoute = PurchaseOrdersIndexRouteImport.update({
+  id: '/purchase-orders/',
+  path: '/purchase-orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchaseOrdersOrderIdRoute = PurchaseOrdersOrderIdRouteImport.update({
+  id: '/purchase-orders/$orderId',
+  path: '/purchase-orders/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchaseOrdersNewRoute = PurchaseOrdersNewRouteImport.update({
+  id: '/purchase-orders/new',
+  path: '/purchase-orders/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PurchasesIndexRoute = PurchasesIndexRouteImport.update({
   id: '/purchases/',
   path: '/purchases/',
@@ -374,6 +393,12 @@ const MedicalClinicRecordsRecordIdIndexRoute =
     path: '/medical-clinic/records/$recordId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PurchaseOrdersOrderIdReceiptsReceiptIdRoute =
+  PurchaseOrdersOrderIdReceiptsReceiptIdRouteImport.update({
+    id: '/purchase-orders/$orderId_/receipts/$receiptId',
+    path: '/purchase-orders/$orderId/receipts/$receiptId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const MedicalClinicRecordsRecordIdOrdersIndexRoute =
   MedicalClinicRecordsRecordIdOrdersIndexRouteImport.update({
     id: '/medical-clinic/records/$recordId/orders/',
@@ -424,6 +449,8 @@ export interface FileRoutesByFullPath {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/purchase-orders/$orderId': typeof PurchaseOrdersOrderIdRoute
+  '/purchase-orders/new': typeof PurchaseOrdersNewRoute
   '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
@@ -438,6 +465,7 @@ export interface FileRoutesByFullPath {
   '/system/users': typeof SystemUsersRoute
   '/expenses/': typeof ExpensesIndexRoute
   '/pos/': typeof PosIndexRoute
+  '/purchase-orders/': typeof PurchaseOrdersIndexRoute
   '/purchases/': typeof PurchasesIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
@@ -451,6 +479,7 @@ export interface FileRoutesByFullPath {
   '/medical-clinic/records/': typeof MedicalClinicRecordsIndexRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
+  '/purchase-orders/$orderId/receipts/$receiptId': typeof PurchaseOrdersOrderIdReceiptsReceiptIdRoute
   '/medical-clinic/patients/$customerId/': typeof MedicalClinicPatientsCustomerIdIndexRoute
   '/medical-clinic/records/$recordId/': typeof MedicalClinicRecordsRecordIdIndexRoute
   '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
@@ -488,6 +517,8 @@ export interface FileRoutesByTo {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/purchase-orders/$orderId': typeof PurchaseOrdersOrderIdRoute
+  '/purchase-orders/new': typeof PurchaseOrdersNewRoute
   '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
@@ -502,6 +533,7 @@ export interface FileRoutesByTo {
   '/system/users': typeof SystemUsersRoute
   '/expenses': typeof ExpensesIndexRoute
   '/pos': typeof PosIndexRoute
+  '/purchase-orders': typeof PurchaseOrdersIndexRoute
   '/purchases': typeof PurchasesIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/suppliers': typeof SuppliersIndexRoute
@@ -515,6 +547,7 @@ export interface FileRoutesByTo {
   '/medical-clinic/records': typeof MedicalClinicRecordsIndexRoute
   '/pos/quotes': typeof PosQuotesIndexRoute
   '/reception/customers': typeof ReceptionCustomersIndexRoute
+  '/purchase-orders/$orderId/receipts/$receiptId': typeof PurchaseOrdersOrderIdReceiptsReceiptIdRoute
   '/medical-clinic/patients/$customerId': typeof MedicalClinicPatientsCustomerIdIndexRoute
   '/medical-clinic/records/$recordId': typeof MedicalClinicRecordsRecordIdIndexRoute
   '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
@@ -553,6 +586,8 @@ export interface FileRoutesById {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/purchase-orders/$orderId': typeof PurchaseOrdersOrderIdRoute
+  '/purchase-orders/new': typeof PurchaseOrdersNewRoute
   '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
   '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
@@ -567,6 +602,7 @@ export interface FileRoutesById {
   '/system/users': typeof SystemUsersRoute
   '/expenses/': typeof ExpensesIndexRoute
   '/pos/': typeof PosIndexRoute
+  '/purchase-orders/': typeof PurchaseOrdersIndexRoute
   '/purchases/': typeof PurchasesIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
@@ -580,6 +616,7 @@ export interface FileRoutesById {
   '/medical-clinic/records/': typeof MedicalClinicRecordsIndexRoute
   '/pos/quotes/': typeof PosQuotesIndexRoute
   '/reception/customers/': typeof ReceptionCustomersIndexRoute
+  '/purchase-orders/$orderId_/receipts/$receiptId': typeof PurchaseOrdersOrderIdReceiptsReceiptIdRoute
   '/medical-clinic/patients/$customerId/': typeof MedicalClinicPatientsCustomerIdIndexRoute
   '/medical-clinic/records/$recordId/': typeof MedicalClinicRecordsRecordIdIndexRoute
   '/medical-clinic/records/$recordId/orders/$orderKind': typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
@@ -619,6 +656,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/purchase-orders/$orderId'
+    | '/purchase-orders/new'
     | '/purchases/$purchaseId'
     | '/purchases/new'
     | '/reception/turns'
@@ -633,6 +672,7 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/expenses/'
     | '/pos/'
+    | '/purchase-orders/'
     | '/purchases/'
     | '/reports/'
     | '/suppliers/'
@@ -646,6 +686,7 @@ export interface FileRouteTypes {
     | '/medical-clinic/records/'
     | '/pos/quotes/'
     | '/reception/customers/'
+    | '/purchase-orders/$orderId/receipts/$receiptId'
     | '/medical-clinic/patients/$customerId/'
     | '/medical-clinic/records/$recordId/'
     | '/medical-clinic/records/$recordId/orders/$orderKind'
@@ -683,6 +724,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/purchase-orders/$orderId'
+    | '/purchase-orders/new'
     | '/purchases/$purchaseId'
     | '/purchases/new'
     | '/reception/turns'
@@ -697,6 +740,7 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/expenses'
     | '/pos'
+    | '/purchase-orders'
     | '/purchases'
     | '/reports'
     | '/suppliers'
@@ -710,6 +754,7 @@ export interface FileRouteTypes {
     | '/medical-clinic/records'
     | '/pos/quotes'
     | '/reception/customers'
+    | '/purchase-orders/$orderId/receipts/$receiptId'
     | '/medical-clinic/patients/$customerId'
     | '/medical-clinic/records/$recordId'
     | '/medical-clinic/records/$recordId/orders/$orderKind'
@@ -747,6 +792,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/purchase-orders/$orderId'
+    | '/purchase-orders/new'
     | '/purchases/$purchaseId'
     | '/purchases/new'
     | '/reception/turns'
@@ -761,6 +808,7 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/expenses/'
     | '/pos/'
+    | '/purchase-orders/'
     | '/purchases/'
     | '/reports/'
     | '/suppliers/'
@@ -774,6 +822,7 @@ export interface FileRouteTypes {
     | '/medical-clinic/records/'
     | '/pos/quotes/'
     | '/reception/customers/'
+    | '/purchase-orders/$orderId_/receipts/$receiptId'
     | '/medical-clinic/patients/$customerId/'
     | '/medical-clinic/records/$recordId/'
     | '/medical-clinic/records/$recordId/orders/$orderKind'
@@ -812,6 +861,8 @@ export interface RootRouteChildren {
   MovementsTransfersRoute: typeof MovementsTransfersRoute
   PosCloseRoute: typeof PosCloseRoute
   PosSalesRoute: typeof PosSalesRoute
+  PurchaseOrdersOrderIdRoute: typeof PurchaseOrdersOrderIdRoute
+  PurchaseOrdersNewRoute: typeof PurchaseOrdersNewRoute
   PurchasesPurchaseIdRoute: typeof PurchasesPurchaseIdRoute
   PurchasesNewRoute: typeof PurchasesNewRoute
   ReceptionTurnsRoute: typeof ReceptionTurnsRoute
@@ -826,6 +877,7 @@ export interface RootRouteChildren {
   SystemUsersRoute: typeof SystemUsersRoute
   ExpensesIndexRoute: typeof ExpensesIndexRoute
   PosIndexRoute: typeof PosIndexRoute
+  PurchaseOrdersIndexRoute: typeof PurchaseOrdersIndexRoute
   PurchasesIndexRoute: typeof PurchasesIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SuppliersIndexRoute: typeof SuppliersIndexRoute
@@ -839,6 +891,7 @@ export interface RootRouteChildren {
   MedicalClinicRecordsIndexRoute: typeof MedicalClinicRecordsIndexRoute
   PosQuotesIndexRoute: typeof PosQuotesIndexRoute
   ReceptionCustomersIndexRoute: typeof ReceptionCustomersIndexRoute
+  PurchaseOrdersOrderIdReceiptsReceiptIdRoute: typeof PurchaseOrdersOrderIdReceiptsReceiptIdRoute
   MedicalClinicPatientsCustomerIdIndexRoute: typeof MedicalClinicPatientsCustomerIdIndexRoute
   MedicalClinicRecordsRecordIdIndexRoute: typeof MedicalClinicRecordsRecordIdIndexRoute
   MedicalClinicRecordsRecordIdOrdersOrderKindRoute: typeof MedicalClinicRecordsRecordIdOrdersOrderKindRoute
@@ -1072,6 +1125,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosSalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/purchase-orders/': {
+      id: '/purchase-orders/'
+      path: '/purchase-orders'
+      fullPath: '/purchase-orders/'
+      preLoaderRoute: typeof PurchaseOrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchase-orders/$orderId': {
+      id: '/purchase-orders/$orderId'
+      path: '/purchase-orders/$orderId'
+      fullPath: '/purchase-orders/$orderId'
+      preLoaderRoute: typeof PurchaseOrdersOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchase-orders/new': {
+      id: '/purchase-orders/new'
+      path: '/purchase-orders/new'
+      fullPath: '/purchase-orders/new'
+      preLoaderRoute: typeof PurchaseOrdersNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/purchases/': {
       id: '/purchases/'
       path: '/purchases'
@@ -1261,6 +1335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MedicalClinicRecordsRecordIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/purchase-orders/$orderId_/receipts/$receiptId': {
+      id: '/purchase-orders/$orderId_/receipts/$receiptId'
+      path: '/purchase-orders/$orderId/receipts/$receiptId'
+      fullPath: '/purchase-orders/$orderId/receipts/$receiptId'
+      preLoaderRoute: typeof PurchaseOrdersOrderIdReceiptsReceiptIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/medical-clinic/records/$recordId/orders/': {
       id: '/medical-clinic/records/$recordId/orders/'
       path: '/medical-clinic/records/$recordId/orders'
@@ -1316,6 +1397,8 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsTransfersRoute: MovementsTransfersRoute,
   PosCloseRoute: PosCloseRoute,
   PosSalesRoute: PosSalesRoute,
+  PurchaseOrdersOrderIdRoute: PurchaseOrdersOrderIdRoute,
+  PurchaseOrdersNewRoute: PurchaseOrdersNewRoute,
   PurchasesPurchaseIdRoute: PurchasesPurchaseIdRoute,
   PurchasesNewRoute: PurchasesNewRoute,
   ReceptionTurnsRoute: ReceptionTurnsRoute,
@@ -1330,6 +1413,7 @@ const rootRouteChildren: RootRouteChildren = {
   SystemUsersRoute: SystemUsersRoute,
   ExpensesIndexRoute: ExpensesIndexRoute,
   PosIndexRoute: PosIndexRoute,
+  PurchaseOrdersIndexRoute: PurchaseOrdersIndexRoute,
   PurchasesIndexRoute: PurchasesIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SuppliersIndexRoute: SuppliersIndexRoute,
@@ -1343,6 +1427,8 @@ const rootRouteChildren: RootRouteChildren = {
   MedicalClinicRecordsIndexRoute: MedicalClinicRecordsIndexRoute,
   PosQuotesIndexRoute: PosQuotesIndexRoute,
   ReceptionCustomersIndexRoute: ReceptionCustomersIndexRoute,
+  PurchaseOrdersOrderIdReceiptsReceiptIdRoute:
+    PurchaseOrdersOrderIdReceiptsReceiptIdRoute,
   MedicalClinicPatientsCustomerIdIndexRoute:
     MedicalClinicPatientsCustomerIdIndexRoute,
   MedicalClinicRecordsRecordIdIndexRoute:

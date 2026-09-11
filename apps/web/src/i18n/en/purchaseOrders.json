@@ -1,0 +1,169 @@
+{
+  "list": {
+    "title": "Purchase orders",
+    "new": "New order",
+    "folio": "Number",
+    "status": "Status",
+    "statusAll": "All",
+    "pendingOnly": "With pending",
+    "pendingInvoice": "Received without invoice",
+    "supplier": "Supplier",
+    "empty": "No orders match these filters.",
+    "view": "View",
+    "overdue": "Overdue",
+    "columns": {
+      "folio": "Number",
+      "date": "Date",
+      "expected": "Expected",
+      "supplier": "Supplier",
+      "received": "Received",
+      "total": "Expected total",
+      "status": "Status"
+    },
+    "summary": {
+      "count": "{{count}} order",
+      "count_other": "{{count}} orders",
+      "total": "Expected total for the range: {{total}}",
+      "pending": "{{count}} awaiting goods",
+      "pending_other": "{{count}} awaiting goods"
+    }
+  },
+  "status": {
+    "draft": "Draft",
+    "open": "Issued",
+    "partially_received": "Partially received",
+    "received": "Received",
+    "closed": "Closed",
+    "canceled": "Canceled"
+  },
+  "receiptStatus": {
+    "draft": "Draft",
+    "confirmed": "Confirmed",
+    "canceled": "Canceled"
+  },
+  "new": {
+    "title": "New purchase order",
+    "intro": "Choose the supplier, the order date and, if you know it, the expected delivery date. Lines are entered afterwards.",
+    "supplier": "Supplier",
+    "date": "Order date",
+    "expectedDate": "Expected delivery",
+    "create": "Create draft",
+    "supplierRequired": "Choose the order's supplier."
+  },
+  "detail": {
+    "title": "Order {{folio}}",
+    "loadFailed": "We couldn't load the order.",
+    "supplier": "Supplier",
+    "warehouse": "Ship to",
+    "date": "Order date",
+    "expectedDate": "Expected delivery",
+    "expectedHint": "The only date that can be in the future: it's the supplier's promise.",
+    "reference": "Supplier reference",
+    "terms": "Payment terms",
+    "taxMode": "Agreed costs",
+    "taxModeExcluded": "do NOT include tax (added separately)",
+    "taxModeIncluded": "already include tax",
+    "notes": "Notes",
+    "issue": "Issue order",
+    "close": "Close order",
+    "cancel": "Cancel order",
+    "print": "Print",
+    "issuedNote": "This order is issued: lines and agreed costs are fixed. Expected date, reference, terms and notes stay open.",
+    "closedOn": "Closed on {{date}}",
+    "canceledOn": "Canceled on {{date}}: {{reason}}"
+  },
+  "totals": {
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "estimated": "estimated",
+    "total": "Expected total"
+  },
+  "lines": {
+    "title": "Ordered products",
+    "search": "Search product",
+    "searchPlaceholder": "Name or code…",
+    "empty": "No products added yet.",
+    "save": "Save lines",
+    "remove": "Remove",
+    "product": "Product",
+    "presentation": "Presentation",
+    "quantity": "Quantity",
+    "unitCost": "Agreed cost",
+    "discount": "Discount",
+    "amount": "Amount",
+    "received": "Received",
+    "pending": "Pending",
+    "progress": "{{received}} of {{ordered}}",
+    "closedShort": "Closed short",
+    "closeShort": "Close short",
+    "notPurchasable": "That presentation isn't marked as purchasable, but you can use it."
+  },
+  "receipts": {
+    "title": "Receipts",
+    "empty": "Nothing from this order has arrived yet.",
+    "new": "Record receipt",
+    "invoicedIn": "Invoiced in {{folio}}",
+    "notInvoiced": "Not invoiced",
+    "packingSlip": "Packing slip",
+    "registerPurchase": "Record purchase from received goods",
+    "registerPurchaseIntro": "Choose the receipts the invoice covers. The purchase starts with the received quantities and the agreed cost; type what the invoice says on top.",
+    "registerPurchaseConfirm": "Create the purchase",
+    "noneToInvoice": "There are no confirmed receipts without an invoice."
+  },
+  "purchases": {
+    "title": "Purchases from this order",
+    "empty": "No purchase has been recorded from this order yet."
+  },
+  "receipt": {
+    "title": "Receipt {{folio}}",
+    "of": "for order {{folio}}",
+    "loadFailed": "We couldn't load the receipt.",
+    "receivedDate": "Received on",
+    "packingSlip": "Packing slip",
+    "notes": "Notes",
+    "linesTitle": "What arrived",
+    "linesIntro": "It starts with what's pending on each line. Remove what didn't arrive and adjust what came incomplete.",
+    "empty": "Nothing is left to receive from this order.",
+    "ordered": "Ordered",
+    "receivedBefore": "Received before",
+    "pending": "Pending",
+    "quantity": "Arrived",
+    "lot": "Lot",
+    "expiresAt": "Expires",
+    "remove": "Remove",
+    "save": "Save lines",
+    "confirm": "Confirm receipt",
+    "cancel": "Cancel receipt",
+    "confirmDialog": {
+      "title": "Confirm {{folio}}",
+      "body": "What arrived is added to the order. Goods enter inventory when you record the purchase from this receipt and confirm its entry.",
+      "confirm": "Confirm receipt"
+    },
+    "cancelDialog": {
+      "title": "Cancel {{folio}}",
+      "body": "What arrived goes back to pending on the order. Write the reason: it stays in the history.",
+      "reason": "Reason",
+      "confirm": "Cancel receipt"
+    },
+    "invoiced": "This receipt is already invoiced in {{folio}}: to cancel it, cancel that purchase first.",
+    "sealed": "This receipt is already confirmed."
+  },
+  "confirmDialog": {
+    "title": "Issue {{folio}}",
+    "body": "Once issued, lines and agreed costs are fixed and the order can be sent to the supplier. You'll record goods as they arrive.",
+    "confirm": "Issue order"
+  },
+  "closeDialog": {
+    "title": "Close {{folio}}",
+    "body": "What's missing will no longer arrive: lines with pending quantities are closed short.",
+    "bodyShort": "{{count}} line will be closed short.",
+    "bodyShort_other": "{{count}} lines will be closed short.",
+    "confirm": "Close order"
+  },
+  "cancelDialog": {
+    "title": "Cancel {{folio}}",
+    "body": "The order no longer counts. It can only be canceled with no goods received; with goods, it's closed. Write the reason: it stays in the history.",
+    "reason": "Reason",
+    "confirm": "Cancel order"
+  }
+}
