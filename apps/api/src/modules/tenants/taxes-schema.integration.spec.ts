@@ -33,7 +33,27 @@ describe("modelo de datos de impuestos (F4-TAX-04)", () => {
       new ConfigService<Env, true>({ DATABASE_URL: process.env.DATABASE_URL }),
     );
     await prisma.onModuleInit();
+    // ⚠ El tenant nace CON un grupo, en la MISMA transacción, y no porque el
+    // test lo necesite: el backfill de impuestos (`tax-backfill.integration`)
+    // replaya la migración real con el rol admin sobre TODA la base de
+    // pruebas, y esa migración le inserta el catálogo del país a cada negocio
+    // **que no tenga ningún grupo**. Corriendo en paralelo (jest reparte los
+    // archivos entre workers), el tenant recién creado por este spec caía en
+    // esa ventana y aparecía con un VAT16 que este archivo no había creado:
+    // «dos defaults activos rebotan» fallaba porque el PRIMER create ya
+    // chocaba contra el UNIQUE. Con el grupo semilla —NO default, para no
+    // ocupar el único lugar que el índice parcial reserva— la ventana
+    // desaparece: o el negocio todavía no existe, o ya tiene grupos y el
+    // backfill lo salta. Cazado el 2026-09-11 al agregar un spec de
+    // integración que cambió el reparto de workers.
+    const semilla = (tenantId: string) =>
+      prisma.withTenantContext(tenantId, (tx) =>
+        tx.taxGroup.create({
+          data: { tenantId, code: "SEED", name: "Semilla del test", isDefault: false },
+        }),
+      );
     tenantA = (await prisma.tenant.create({ data: { name: `Tax A ${stamp}` } })).id;
+    await semilla(tenantA);
     tenantB = (await prisma.tenant.create({ data: { name: `Tax B ${stamp}` } })).id;
     grupoB = (
       await prisma.withTenantContext(tenantB, (tx) =>

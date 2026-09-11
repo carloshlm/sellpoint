@@ -19,6 +19,7 @@ export * from "./names";
 export * from "./phone";
 export * from "./plan-modules";
 export * from "./pos-lines";
+export * from "./purchases";
 export * from "./quantity";
 export * from "./reception";
 export * from "./schemas/health";

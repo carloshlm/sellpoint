@@ -146,6 +146,10 @@ model Tenant {
   suppliers            Supplier[]
   expenseCategories    ExpenseCategory[]
   expenses             Expense[]
+  purchases            Purchase[]
+  purchaseLines        PurchaseLine[]
+  purchaseTaxes        PurchaseTax[]
+  purchaseCharges      PurchaseCharge[]
   receptionTurns       ReceptionTurn[]
   billingNotifications BillingNotification[]
 
@@ -226,6 +230,9 @@ model User {
   expenseCategoriesUpdated ExpenseCategory[]       @relation("ExpenseCategoryUpdatedBy")
   expensesCreated         Expense[]                @relation("ExpenseCreatedBy")
   expensesCanceled        Expense[]                @relation("ExpenseCanceledBy")
+  purchasesCreated        Purchase[]               @relation("PurchaseCreatedBy")
+  purchasesConfirmed      Purchase[]               @relation("PurchaseConfirmedBy")
+  purchasesCanceled       Purchase[]               @relation("PurchaseCanceledBy")
   transfersReceived       Transfer[]               @relation("TransferReceivedBy")
   transfersCanceled       Transfer[]               @relation("TransferCanceledBy")
   tenantsSuspended        Tenant[]                 @relation("TenantSuspendedBy")
@@ -512,6 +519,7 @@ model Product {
   tenant            Tenant                  @relation(fields: [tenantId], references: [id])
   unit              Unit                    @relation(fields: [baseUnit], references: [code])
   presentations     ProductPresentation[]
+  purchaseLines     PurchaseLine[]
   components        ProductComposition[]    @relation("CompositionParent")
   usedIn            ProductComposition[]    @relation("CompositionComponent")
   stock             StockByWarehouse[]
@@ -571,6 +579,7 @@ model ProductPresentation {
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant        Tenant                  @relation(fields: [tenantId], references: [id])
+  purchaseLines PurchaseLine[]
   product       Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
   movements     StockMovement[]
   documentLines InventoryDocumentLine[]
@@ -674,6 +683,7 @@ model Warehouse {
   cashboxSessions CashboxSession[]
   sales           Sale[]
   expenses        Expense[]
+  purchases       Purchase[]
   quotes          Quote[]
   documentsLinked InventoryDocument[]  @relation("DocumentLinkedWarehouse")
   stockLots       StockLot[]
@@ -1057,6 +1067,14 @@ model InventoryDocument {
   /// el documento se confirma DESPUÉS de crear el traspaso, y uno confirmado
   /// ya no admite que le rellenen una columna hacia atrás.
   transferId        String?               @map("transfer_id") @db.Uuid
+  /// F9-PURCH-03: de dónde NACIÓ esta entrada, como par OPACO (igual que
+  /// `quotes.source_module`): el inventario no sabe qué es «purchases», lo
+  /// guarda y lo pinta. Sin FK a propósito — el core no depende de un módulo
+  /// de plan. Un índice único parcial `WHERE source_ref IS NOT NULL AND
+  /// status <> 'canceled'` hace la idempotencia en la base y deja abrir otro
+  /// borrador cuando el anterior se anuló.
+  sourceModule      String?               @map("source_module") @db.VarChar(32)
+  sourceRef         String?               @map("source_ref") @db.Uuid
   confirmedBy       String?               @map("confirmed_by") @db.Uuid
   confirmedAt       DateTime?             @map("confirmed_at") @db.Timestamptz(6)
   canceledBy        String?               @map("canceled_by") @db.Uuid
@@ -1088,6 +1106,7 @@ model InventoryDocument {
   @@index([tenantId, folio])
   @@index([tenantId, warehouseId, createdAt(sort: Desc)])
   @@index([tenantId, createdBy, status])
+  @@index([tenantId, sourceModule, sourceRef], map: "inventory_documents_source_idx")
   @@map("inventory_documents")
 }
 
@@ -2014,6 +2033,7 @@ model Supplier {
   creator User?  @relation("SupplierCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updater User?  @relation("SupplierUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
   expenses Expense[]
+  purchases Purchase[]
 
   @@index([tenantId, name])
   @@index([tenantId, taxId])
@@ -2101,6 +2121,147 @@ model Expense {
   @@index([tenantId, status, paymentStatus])
   @@index([tenantId, categoryId])
   @@map("expenses")
+}
+
+/// F9-PURCH-02 — la COMPRA a un proveedor: la factura capturada.
+///
+/// No mueve inventario: TRANSPORTA. Al confirmarse ofrece un borrador de
+/// entrada (`inventory_documents` con `source_module='purchases'`) que es
+/// quien exige lote, caducidad y ubicación, y quien al confirmarse mueve el
+/// stock. `tax_mode` es POR COMPRA con default `excluded` (la factura viene
+/// neta + IVA, al revés que el mostrador). `declared_total` es lo que dice el
+/// papel: el descuadre se DERIVA (`totalMismatch`), avisa y nunca bloquea.
+/// La compra NO se borra nunca: la entrada la apunta por un par opaco sin FK.
+/// CHECKs: status y tax_mode del catálogo; montos >= 0; sellos por estado
+/// (draft sin sellos, confirmed con los suyos, canceled con quién/cuándo/por qué).
+model Purchase {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  folio             String    @db.VarChar(20)
+  status            String    @default("draft") @db.VarChar(16)
+  supplierId        String    @map("supplier_id") @db.Uuid
+  warehouseId       String    @map("warehouse_id") @db.Uuid
+  /// La fecha del PAPEL, tecleada. DATE: un día del calendario, sin zona.
+  purchaseDate      DateTime  @map("purchase_date") @db.Date
+  receivedDate      DateTime? @map("received_date") @db.Date
+  supplierInvoice   String?   @map("supplier_invoice") @db.VarChar(120)
+  declaredTotal     Decimal?  @map("declared_total") @db.Decimal(14, 2)
+  subtotal          Decimal   @default(0) @db.Decimal(14, 2)
+  discount          Decimal   @default(0) @db.Decimal(14, 2)
+  taxTotal          Decimal   @default(0) @map("tax_total") @db.Decimal(14, 2)
+  total             Decimal   @default(0) @db.Decimal(14, 2)
+  extraChargesTotal Decimal   @default(0) @map("extra_charges_total") @db.Decimal(14, 2)
+  taxMode           String    @default("excluded") @map("tax_mode") @db.VarChar(8)
+  notes             String?
+  confirmedBy       String?   @map("confirmed_by") @db.Uuid
+  confirmedAt       DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  canceledBy        String?   @map("canceled_by") @db.Uuid
+  canceledAt        DateTime? @map("canceled_at") @db.Timestamptz(6)
+  cancelReason      String?   @map("cancel_reason")
+  createdBy         String    @map("created_by") @db.Uuid
+  createdAt         DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  supplier  Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse Warehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  creator   User             @relation("PurchaseCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+  confirmer User?            @relation("PurchaseConfirmedBy", fields: [confirmedBy], references: [id], onDelete: Restrict)
+  canceler  User?            @relation("PurchaseCanceledBy", fields: [canceledBy], references: [id], onDelete: Restrict)
+  lines     PurchaseLine[]
+  taxes     PurchaseTax[]
+  charges   PurchaseCharge[]
+
+  @@unique([tenantId, folio])
+  @@index([tenantId, purchaseDate(sort: Desc)])
+  @@index([tenantId, status])
+  @@index([tenantId, supplierId, purchaseDate(sort: Desc)])
+  @@map("purchases")
+}
+
+/// F9-PURCH-02 — una línea de la factura del proveedor.
+///
+/// `presentationId` null = la unidad base, igual que en
+/// `InventoryDocumentLine`: el puente copia campo a campo sin inventar
+/// conversiones. `quantity` y `unitCost` son nullables porque un borrador se
+/// captura a pedazos; el `confirm` exige que estén. `unitCostNet` se
+/// materializa al confirmar y es lo ÚNICO que cruza a la entrada: pisa
+/// `product_presentations.cost`, y un bruto con IVA inflaría el margen.
+/// Inmutable con la compra (trigger sobre las hijas).
+model PurchaseLine {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  purchaseId     String    @map("purchase_id") @db.Uuid
+  lineNo         Int       @map("line_no")
+  productId      String    @map("product_id") @db.Uuid
+  presentationId String?   @map("presentation_id") @db.Uuid
+  quantity       Decimal?  @db.Decimal(14, 4)
+  unitCost       Decimal?  @map("unit_cost") @db.Decimal(14, 2)
+  unitCostNet    Decimal?  @map("unit_cost_net") @db.Decimal(14, 2)
+  discount       Decimal   @default(0) @db.Decimal(14, 2)
+  taxGroupCode   String?   @map("tax_group_code") @db.VarChar(32)
+  taxAmount      Decimal   @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  lineTotal      Decimal   @default(0) @map("line_total") @db.Decimal(14, 2)
+  lotCode        String?   @map("lot_code") @db.VarChar(64)
+  expiresAt      DateTime? @map("expires_at") @db.Date
+  /// Snapshot del nombre al capturar: el papel dice lo que decía ese día.
+  description    String
+  createdAt      DateTime  @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  purchase     Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  presentation ProductPresentation? @relation(fields: [presentationId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseId, lineNo])
+  @@index([tenantId, productId])
+  @@map("purchase_lines")
+}
+
+/// F9-PURCH-02 — el impuesto de la compra por componente: espejo exacto de
+/// `QuoteTax` y `SaleTax`. El `PUT` de líneas lo borra y lo recrea entero.
+model PurchaseTax {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String  @map("tenant_id") @db.Uuid
+  purchaseId String  @map("purchase_id") @db.Uuid
+  code       String  @db.VarChar(16)
+  name       String  @db.VarChar(40)
+  rate       Decimal @db.Decimal(7, 4)
+  base       Decimal @db.Decimal(14, 2)
+  amount     Decimal @db.Decimal(14, 2)
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseId, code])
+  @@index([tenantId])
+  @@map("purchase_taxes")
+}
+
+/// F9-PURCH-02 — un cargo de la factura: flete, maniobras, seguro. Suma al
+/// total con su propio impuesto y **no** se prorratea al costo de las líneas
+/// (landed cost pospuesto con nombre).
+model PurchaseCharge {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  purchaseId   String   @map("purchase_id") @db.Uuid
+  lineNo       Int      @map("line_no")
+  description  String   @db.VarChar(200)
+  amount       Decimal  @default(0) @db.Decimal(14, 2)
+  taxGroupId   String?  @map("tax_group_id") @db.Uuid
+  taxGroupCode String?  @map("tax_group_code") @db.VarChar(32)
+  taxAmount    Decimal  @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  lineTotal    Decimal  @default(0) @map("line_total") @db.Decimal(14, 2)
+  createdAt    DateTime @default(dbgenerated("transaction_timestamp()")) @map("created_at") @db.Timestamptz(6)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  purchase Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  taxGroup TaxGroup? @relation(fields: [taxGroupId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseId, lineNo])
+  @@index([tenantId])
+  @@map("purchase_charges")
 }
 
 /// F9-RECEP-03 — un turno de Recepción. El número reinicia con el DÍA DEL
@@ -2212,6 +2373,7 @@ model TaxGroup {
   services          Service[]                      @relation("TaxGroupServices")
   labStudies        MedicalClinicLabStudy[]        @relation("TaxGroupLabStudies")
   diagnosticStudies MedicalClinicDiagnosticStudy[] @relation("TaxGroupDiagnosticStudies")
+  purchaseCharges   PurchaseCharge[]
 
   @@unique([tenantId, code])
   @@index([tenantId])

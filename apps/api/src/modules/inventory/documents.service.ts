@@ -163,21 +163,41 @@ export class DocumentsService {
    * existe — eso se corrige registrando otro movimiento.
    */
   async cancel(user: AuthUser, documentId: string, reason?: string): Promise<InventoryDocument> {
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      // Verifica pertenencia Y estado. El update de abajo va sin `tenantId`
-      // porque esta línea ya probó que el documento es de este tenant, dentro
-      // de la misma transacción.
-      await this.assertDraft(tx, user.tenantId, documentId);
+    return this.prisma.withTenantContext(user.tenantId, (tx) =>
+      this.cancelDraftWithinTx(tx, user.tenantId, user.userId, documentId, reason),
+    );
+  }
 
-      return tx.inventoryDocument.update({
-        where: { id: documentId },
-        data: {
-          status: "canceled",
-          canceledBy: user.userId,
-          canceledAt: new Date(),
-          cancelReason: reason ?? null,
-        },
-      });
+  /**
+   * F9-PURCH-03 — anular un borrador DENTRO de una transacción ajena.
+   *
+   * Existe porque anular una compra tiene que anular, en el MISMO commit, el
+   * borrador de entrada que ella abrió: o se caen las dos cosas o no se cae
+   * ninguna. `cancel` abre su propio `withTenantContext`, y llamarlo desde
+   * otra transacción tomaría una SEGUNDA conexión del pool —dos
+   * transacciones, dos commits— justo donde la atomicidad es el punto.
+   *
+   * Verifica pertenencia Y estado. El update va sin `tenantId` porque
+   * `assertDraft` ya probó que el documento es de este tenant, dentro de la
+   * misma transacción.
+   */
+  async cancelDraftWithinTx(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    userId: string,
+    documentId: string,
+    reason?: string,
+  ): Promise<InventoryDocument> {
+    await this.assertDraft(tx, tenantId, documentId);
+
+    return tx.inventoryDocument.update({
+      where: { id: documentId },
+      data: {
+        status: "canceled",
+        canceledBy: userId,
+        canceledAt: new Date(),
+        cancelReason: reason ?? null,
+      },
     });
   }
 
@@ -210,13 +230,25 @@ export class DocumentsService {
       // 10"). Un primer intento bloqueó el PATCH entero y rompió justo ese
       // caso — lo cazó el e2e de recepción con faltante. Las cantidades van
       // por `DocumentLinesService`, no por acá.
-      if (document.transferId !== null) {
+      //
+      // F9-PURCH-03: la misma regla vale para un documento que nació de OTRO
+      // módulo (`source_module`, hoy una compra): el motivo lo fijó quien lo
+      // creó —«Factura de compra»— y cambiarlo deja una entrada que ya no
+      // explica de dónde salió su costo. La nota sigue editable por lo mismo
+      // de siempre: es donde se anota el faltante.
+      const derivado = document.transferId !== null || document.sourceModule !== null;
+      if (derivado) {
         const tocaDerivados =
           (dto.reasonCode !== undefined && dto.reasonCode !== document.reasonCode) ||
           (dto.linkedWarehouseId !== undefined &&
             dto.linkedWarehouseId !== document.linkedWarehouseId);
         if (tocaDerivados) {
-          throw new ConflictException({ message: "inventory.transfer_header_locked" });
+          throw new ConflictException({
+            message:
+              document.transferId !== null
+                ? "inventory.transfer_header_locked"
+                : "inventory.source_header_locked",
+          });
         }
       }
 
@@ -793,6 +825,12 @@ export class DocumentsService {
 
       return {
         ...document,
+        // F9-PURCH-03: de dónde nació, como par explícito para la pantalla
+        // (el módulo lo pinta; el inventario no sabe qué significa).
+        source:
+          document.sourceModule === null || document.sourceRef === null
+            ? null
+            : { module: document.sourceModule, ref: document.sourceRef },
         rows,
         products: catalogo.map((p) => ({
           ...p,

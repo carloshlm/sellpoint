@@ -43,6 +43,7 @@
   "reference_required": "Falta la referencia (número de documento o concepto).",
   "transfer_entry_requires_transfer": "Una entrada por traspaso se confirma desde la vista de traspasos en tránsito.",
   "transfer_header_locked": "El motivo y el almacén de un traspaso los define el traspaso: no se editan desde la entrada.",
+  "source_header_locked": "El motivo y el almacén de esta entrada los define la compra que la originó: no se editan desde aquí.",
   "transfer_line_unknown": "Una de las líneas no pertenece a este traspaso.",
   "transfer_lines_incomplete": "Falta confirmar alguna línea del traspaso.",
   "transfer_not_found": "El traspaso no existe.",

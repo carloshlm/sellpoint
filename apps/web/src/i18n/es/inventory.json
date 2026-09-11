@@ -126,7 +126,8 @@
     "lotCode": "Lote",
     "lotExpiresAt": "Caducidad",
     "location": "Ubicación",
-    "locationPlaceholder": "A-1"
+    "locationPlaceholder": "A-1",
+    "purchaseHint": "Esta entrada nació de la compra {{folio}}: su motivo y su almacén los fija la compra."
   },
   "document_not_found": "El movimiento no existe.",
   "document_not_draft": "Este movimiento ya no es un borrador: alguien lo confirmó o lo anuló. Actualiza la pantalla para ver cómo quedó.",

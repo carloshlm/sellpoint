@@ -43,6 +43,7 @@
   "reference_required": "The reference is missing (document number or purpose).",
   "transfer_entry_requires_transfer": "A transfer entry is confirmed from the in-transit transfers view.",
   "transfer_header_locked": "The reason and warehouse of a transfer are set by the transfer itself: they cannot be edited from the entry.",
+  "source_header_locked": "The reason and warehouse of this entry are set by the purchase that created it: they cannot be edited here.",
   "transfer_line_unknown": "One of the lines doesn't belong to this transfer.",
   "transfer_lines_incomplete": "Some transfer line is missing confirmation.",
   "transfer_not_found": "The transfer does not exist.",

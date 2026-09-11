@@ -203,6 +203,89 @@ describe("DocumentsService — ciclo de vida (F3-DOC-03)", () => {
 
       await expect(service.cancel(ajeno, draft.id, "no deberías poder")).rejects.toThrow();
     });
+
+    /**
+     * F9-PURCH-03 — `cancelDraftWithinTx` es la misma anulación pero DENTRO de
+     * una transacción ajena: anular una compra tiene que anular su borrador de
+     * entrada en el MISMO commit. `cancel` la usa, así que no hay dos caminos
+     * que puedan divergir.
+     */
+    it("cancelDraftWithinTx anula dentro de una transacción ajena, y respeta el estado", async () => {
+      const draft = await service.createDraft(user, { type: "entry", warehouseId });
+
+      const anulado = await prisma.withTenantContext(user.tenantId, (tx) =>
+        service.cancelDraftWithinTx(tx, user.tenantId, user.userId, draft.id, "la compra se anuló"),
+      );
+      expect(anulado).toMatchObject({ status: "canceled", cancelReason: "la compra se anuló" });
+
+      // Lo ya anulado no se vuelve a anular: sigue siendo «no es un borrador».
+      await expect(
+        prisma.withTenantContext(user.tenantId, (tx) =>
+          service.cancelDraftWithinTx(tx, user.tenantId, user.userId, draft.id, "otra vez"),
+        ),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  /**
+   * F9-PURCH-03 — el documento que nació de OTRO módulo. El par
+   * `source_module`/`source_ref` es opaco para el inventario: lo guarda, lo
+   * devuelve y bloquea los dos campos que ese módulo fijó.
+   */
+  describe("el origen: un documento que nació de otro módulo", () => {
+    const conOrigen = async (ref: string) => {
+      const draft = await service.createDraft(user, { type: "entry", warehouseId });
+      await prisma.withTenantContext(user.tenantId, (tx) =>
+        tx.inventoryDocument.update({
+          where: { id: draft.id },
+          data: { reasonCode: "invoice", sourceModule: "purchases", sourceRef: ref },
+        }),
+      );
+      return draft;
+    };
+    const uuid = () => crypto.randomUUID();
+
+    it("el motivo queda bloqueado con 409 propio, pero la NOTA sigue editable", async () => {
+      const draft = await conOrigen(uuid());
+
+      await expect(
+        service.updateHeader(user, draft.id, { reasonCode: "adjustment" }),
+      ).rejects.toMatchObject({ response: { message: "inventory.source_header_locked" } });
+
+      const anotado = await service.updateHeader(user, draft.id, {
+        reasonNote: "llegaron 8 de 10",
+      });
+      expect(anotado.reasonNote).toBe("llegaron 8 de 10");
+      expect(anotado.reasonCode).toBe("invoice");
+    });
+
+    it("el detalle devuelve el origen como par explícito; sin origen, null", async () => {
+      const ref = uuid();
+      const draft = await conOrigen(ref);
+
+      const detalle = await service.detail(user, draft.id);
+      expect(detalle.source).toEqual({ module: "purchases", ref });
+
+      const suelto = await service.createDraft(user, { type: "entry", warehouseId });
+      expect((await service.detail(user, suelto.id)).source).toBeNull();
+    });
+
+    /**
+     * ⚠ El callejón de SAL-000002, cerrado en la BASE. Dos borradores vivos
+     * para el mismo origen no existen —la idempotencia no depende de un `if`
+     * que dos pestañas pueden cruzar—, pero anular el primero tiene que dejar
+     * abrir otro: si no, la mercancía queda sin forma de entrar.
+     */
+    it("un solo documento VIVO por origen; con el primero anulado, el segundo pasa", async () => {
+      const ref = uuid();
+      const primero = await conOrigen(ref);
+
+      await expect(conOrigen(ref)).rejects.toMatchObject({ code: "P2002" });
+
+      await service.cancel(user, primero.id, "me equivoqué");
+      const segundo = await conOrigen(ref);
+      expect(segundo.id).not.toBe(primero.id);
+    });
   });
 
   /**
