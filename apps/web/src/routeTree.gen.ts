@@ -26,7 +26,10 @@ import { Route as CatalogListsRouteImport } from './routes/catalog.lists'
 import { Route as CatalogProductsRouteImport } from './routes/catalog.products'
 import { Route as CatalogSchemaRouteImport } from './routes/catalog.schema'
 import { Route as CatalogServicesRouteImport } from './routes/catalog.services'
+import { Route as ExpensesIndexRouteImport } from './routes/expenses.index'
+import { Route as ExpensesExpenseIdRouteImport } from './routes/expenses.$expenseId'
 import { Route as ExpensesCategoriesRouteImport } from './routes/expenses.categories'
+import { Route as ExpensesNewRouteImport } from './routes/expenses.new'
 import { Route as MedicalClinicAttendRouteImport } from './routes/medical-clinic.attend'
 import { Route as MedicalClinicDiagnosticStudiesRouteImport } from './routes/medical-clinic.diagnostic-studies'
 import { Route as MedicalClinicLabStudiesRouteImport } from './routes/medical-clinic.lab-studies'
@@ -151,9 +154,24 @@ const CatalogServicesRoute = CatalogServicesRouteImport.update({
   path: '/catalog/services',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExpensesIndexRoute = ExpensesIndexRouteImport.update({
+  id: '/expenses/',
+  path: '/expenses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesExpenseIdRoute = ExpensesExpenseIdRouteImport.update({
+  id: '/expenses/$expenseId',
+  path: '/expenses/$expenseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExpensesCategoriesRoute = ExpensesCategoriesRouteImport.update({
   id: '/expenses/categories',
   path: '/expenses/categories',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesNewRoute = ExpensesNewRouteImport.update({
+  id: '/expenses/new',
+  path: '/expenses/new',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MedicalClinicAttendRoute = MedicalClinicAttendRouteImport.update({
@@ -375,7 +393,9 @@ export interface FileRoutesByFullPath {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/expenses/$expenseId': typeof ExpensesExpenseIdRoute
   '/expenses/categories': typeof ExpensesCategoriesRoute
+  '/expenses/new': typeof ExpensesNewRoute
   '/medical-clinic/attend': typeof MedicalClinicAttendRoute
   '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
   '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
@@ -396,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/suppliers/new': typeof SuppliersNewRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/expenses/': typeof ExpensesIndexRoute
   '/pos/': typeof PosIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
@@ -433,7 +454,9 @@ export interface FileRoutesByTo {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/expenses/$expenseId': typeof ExpensesExpenseIdRoute
   '/expenses/categories': typeof ExpensesCategoriesRoute
+  '/expenses/new': typeof ExpensesNewRoute
   '/medical-clinic/attend': typeof MedicalClinicAttendRoute
   '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
   '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
@@ -454,6 +477,7 @@ export interface FileRoutesByTo {
   '/suppliers/new': typeof SuppliersNewRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/expenses': typeof ExpensesIndexRoute
   '/pos': typeof PosIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/suppliers': typeof SuppliersIndexRoute
@@ -492,7 +516,9 @@ export interface FileRoutesById {
   '/catalog/products': typeof CatalogProductsRoute
   '/catalog/schema': typeof CatalogSchemaRoute
   '/catalog/services': typeof CatalogServicesRoute
+  '/expenses/$expenseId': typeof ExpensesExpenseIdRoute
   '/expenses/categories': typeof ExpensesCategoriesRoute
+  '/expenses/new': typeof ExpensesNewRoute
   '/medical-clinic/attend': typeof MedicalClinicAttendRoute
   '/medical-clinic/diagnostic-studies': typeof MedicalClinicDiagnosticStudiesRoute
   '/medical-clinic/lab-studies': typeof MedicalClinicLabStudiesRoute
@@ -513,6 +539,7 @@ export interface FileRoutesById {
   '/suppliers/new': typeof SuppliersNewRoute
   '/system/roles': typeof SystemRolesRoute
   '/system/users': typeof SystemUsersRoute
+  '/expenses/': typeof ExpensesIndexRoute
   '/pos/': typeof PosIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
@@ -552,7 +579,9 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/expenses/$expenseId'
     | '/expenses/categories'
+    | '/expenses/new'
     | '/medical-clinic/attend'
     | '/medical-clinic/diagnostic-studies'
     | '/medical-clinic/lab-studies'
@@ -573,6 +602,7 @@ export interface FileRouteTypes {
     | '/suppliers/new'
     | '/system/roles'
     | '/system/users'
+    | '/expenses/'
     | '/pos/'
     | '/reports/'
     | '/suppliers/'
@@ -610,7 +640,9 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/expenses/$expenseId'
     | '/expenses/categories'
+    | '/expenses/new'
     | '/medical-clinic/attend'
     | '/medical-clinic/diagnostic-studies'
     | '/medical-clinic/lab-studies'
@@ -631,6 +663,7 @@ export interface FileRouteTypes {
     | '/suppliers/new'
     | '/system/roles'
     | '/system/users'
+    | '/expenses'
     | '/pos'
     | '/reports'
     | '/suppliers'
@@ -668,7 +701,9 @@ export interface FileRouteTypes {
     | '/catalog/products'
     | '/catalog/schema'
     | '/catalog/services'
+    | '/expenses/$expenseId'
     | '/expenses/categories'
+    | '/expenses/new'
     | '/medical-clinic/attend'
     | '/medical-clinic/diagnostic-studies'
     | '/medical-clinic/lab-studies'
@@ -689,6 +724,7 @@ export interface FileRouteTypes {
     | '/suppliers/new'
     | '/system/roles'
     | '/system/users'
+    | '/expenses/'
     | '/pos/'
     | '/reports/'
     | '/suppliers/'
@@ -727,7 +763,9 @@ export interface RootRouteChildren {
   CatalogProductsRoute: typeof CatalogProductsRoute
   CatalogSchemaRoute: typeof CatalogSchemaRoute
   CatalogServicesRoute: typeof CatalogServicesRoute
+  ExpensesExpenseIdRoute: typeof ExpensesExpenseIdRoute
   ExpensesCategoriesRoute: typeof ExpensesCategoriesRoute
+  ExpensesNewRoute: typeof ExpensesNewRoute
   MedicalClinicAttendRoute: typeof MedicalClinicAttendRoute
   MedicalClinicDiagnosticStudiesRoute: typeof MedicalClinicDiagnosticStudiesRoute
   MedicalClinicLabStudiesRoute: typeof MedicalClinicLabStudiesRoute
@@ -748,6 +786,7 @@ export interface RootRouteChildren {
   SuppliersNewRoute: typeof SuppliersNewRoute
   SystemRolesRoute: typeof SystemRolesRoute
   SystemUsersRoute: typeof SystemUsersRoute
+  ExpensesIndexRoute: typeof ExpensesIndexRoute
   PosIndexRoute: typeof PosIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SuppliersIndexRoute: typeof SuppliersIndexRoute
@@ -889,11 +928,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CatalogServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/expenses/': {
+      id: '/expenses/'
+      path: '/expenses'
+      fullPath: '/expenses/'
+      preLoaderRoute: typeof ExpensesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses/$expenseId': {
+      id: '/expenses/$expenseId'
+      path: '/expenses/$expenseId'
+      fullPath: '/expenses/$expenseId'
+      preLoaderRoute: typeof ExpensesExpenseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/expenses/categories': {
       id: '/expenses/categories'
       path: '/expenses/categories'
       fullPath: '/expenses/categories'
       preLoaderRoute: typeof ExpensesCategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses/new': {
+      id: '/expenses/new'
+      path: '/expenses/new'
+      fullPath: '/expenses/new'
+      preLoaderRoute: typeof ExpensesNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/medical-clinic/attend': {
@@ -1183,7 +1243,9 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogProductsRoute: CatalogProductsRoute,
   CatalogSchemaRoute: CatalogSchemaRoute,
   CatalogServicesRoute: CatalogServicesRoute,
+  ExpensesExpenseIdRoute: ExpensesExpenseIdRoute,
   ExpensesCategoriesRoute: ExpensesCategoriesRoute,
+  ExpensesNewRoute: ExpensesNewRoute,
   MedicalClinicAttendRoute: MedicalClinicAttendRoute,
   MedicalClinicDiagnosticStudiesRoute: MedicalClinicDiagnosticStudiesRoute,
   MedicalClinicLabStudiesRoute: MedicalClinicLabStudiesRoute,
@@ -1204,6 +1266,7 @@ const rootRouteChildren: RootRouteChildren = {
   SuppliersNewRoute: SuppliersNewRoute,
   SystemRolesRoute: SystemRolesRoute,
   SystemUsersRoute: SystemUsersRoute,
+  ExpensesIndexRoute: ExpensesIndexRoute,
   PosIndexRoute: PosIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SuppliersIndexRoute: SuppliersIndexRoute,

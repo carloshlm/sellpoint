@@ -24,5 +24,117 @@
       "body": "The category is deleted and cannot be recovered. If it already has expenses on record it cannot be deleted: deactivate it instead.",
       "confirm": "Delete category"
     }
+  },
+  "list": {
+    "title": "Expenses",
+    "new": "Record expense",
+    "search": "Search",
+    "searchPlaceholder": "Folio, description, reference or supplier…",
+    "status": "Status",
+    "statusAll": "All",
+    "paymentStatus": "Payment",
+    "paymentAll": "All",
+    "category": "Category",
+    "categoryAll": "All",
+    "export": "Export",
+    "empty": "There are no expenses with these filters.",
+    "columns": {
+      "folio": "Folio",
+      "date": "Date",
+      "category": "Category",
+      "payee": "Supplier / payee",
+      "description": "Description",
+      "total": "Total",
+      "payment": "Payment",
+      "status": "Status"
+    },
+    "view": "View"
+  },
+  "status": {
+    "active": "Active",
+    "canceled": "Canceled"
+  },
+  "paymentStatusLabel": {
+    "pending": "Pending",
+    "paid": "Paid"
+  },
+  "summary": {
+    "title": "Filter summary",
+    "count": "{{count}} expenses",
+    "count_one": "1 expense",
+    "total": "Total",
+    "tax": "Tax",
+    "pending": "Pending payment",
+    "paid": "Paid",
+    "byCategory": "By category"
+  },
+  "detail": {
+    "title": "Expense {{folio}}",
+    "edit": "Edit",
+    "pay": "Mark as paid",
+    "cancel": "Cancel expense",
+    "loadFailed": "We couldn't load the expense.",
+    "canceledOn": "Canceled on {{date}}: {{reason}}",
+    "paidOn": "Paid on {{date}}",
+    "fromShift": "Came out of a cash shift drawer",
+    "amount": "Amount",
+    "discount": "Discount",
+    "taxAmount": "Tax",
+    "total": "Total",
+    "warehouse": "Warehouse",
+    "account": "Account",
+    "dueDate": "Due",
+    "reference": "Reference",
+    "notes": "Notes",
+    "noTax": "No tax",
+    "taxIncluded": "tax included",
+    "taxExcluded": "tax added"
+  },
+  "pay": {
+    "title": "Mark “{{folio}}” as paid",
+    "body": "The expense is paid in full, with the method and today's date. After this the amount is no longer editable: if there is a mistake, cancel it and record it again.",
+    "confirm": "Mark as paid",
+    "method": "Payment method"
+  },
+  "cancelDialog": {
+    "title": "Cancel “{{folio}}”",
+    "body": "The expense stops counting in the totals and in the shift's cash count. Write the reason: it stays in the history.",
+    "reason": "Reason",
+    "confirm": "Cancel expense",
+    "failed": "We couldn't cancel the expense."
+  },
+  "form": {
+    "createTitle": "Record expense",
+    "editTitle": "Edit expense",
+    "date": "Expense date",
+    "category": "Category",
+    "categoryPlaceholder": "Choose a category",
+    "payee": "Who was paid",
+    "supplier": "Supplier",
+    "beneficiary": "Payee",
+    "beneficiaryHint": "If it isn't a supplier from the catalog: the person or place that was paid.",
+    "amount": "Amount",
+    "amountHint": "What the receipt says, before the discount.",
+    "discount": "Discount",
+    "payment": "Payment",
+    "paymentPending": "Pending payment",
+    "cashbox": "Source drawer",
+    "cashboxNone": "Not from a cash drawer",
+    "cashboxOwn": "My open shift ({{warehouse}})",
+    "cashboxOther": "{{name}}'s shift ({{warehouse}})",
+    "cashboxHint": "An expense paid from the drawer is subtracted from the expected cash when that shift closes.",
+    "account": "Cash or bank account",
+    "accountHint": "Optional. For example “BBVA” or “Petty cash”.",
+    "dueDate": "Due",
+    "reference": "Reference",
+    "referenceHint": "Invoice, receipt or note number.",
+    "description": "Description",
+    "notes": "Notes",
+    "paidImmutable": "This expense is already paid: the amount, discount and tax cannot be edited.",
+    "errors": {
+      "required": "This field is required.",
+      "date": "The date is not valid.",
+      "amount": "Enter a valid amount greater than zero."
+    }
   }
 }

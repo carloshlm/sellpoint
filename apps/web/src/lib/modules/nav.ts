@@ -8,6 +8,7 @@ import {
   Receipt,
   ShoppingCart,
   Stethoscope,
+  Tags,
   Ticket,
   Truck,
   UserRoundSearch,
@@ -111,10 +112,26 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
     icon: ShoppingCart,
     links: [SUPPLIERS_LINK],
   },
+  // F9-EXP-14 — Gastos ya tiene sus rutas: el listado, las categorías y el
+  // catálogo compartido de proveedores.
   expenses: {
     labelKey: "common.layout.nav.modules.expenses.group",
     icon: Receipt,
-    links: [SUPPLIERS_LINK],
+    links: [
+      {
+        to: "/expenses",
+        labelKey: "common.layout.nav.modules.expenses.expenses",
+        permission: "expenses:read",
+        icon: Receipt,
+      },
+      {
+        to: "/expenses/categories",
+        labelKey: "common.layout.nav.modules.expenses.categories",
+        permission: "expenses:read",
+        icon: Tags,
+      },
+      SUPPLIERS_LINK,
+    ],
   },
 };
 

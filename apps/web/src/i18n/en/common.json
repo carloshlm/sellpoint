@@ -67,7 +67,9 @@
           "group": "Purchases"
         },
         "expenses": {
-          "group": "Expenses"
+          "group": "Expenses",
+          "expenses": "Expenses",
+          "categories": "Categories"
         }
       },
       "suppliers": "Suppliers"

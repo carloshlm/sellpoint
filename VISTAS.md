@@ -1904,6 +1904,34 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Formulario** (`supplier-form.tsx`, skill `sellpoint-forms`) | Tarjeta con rejilla de dos columnas: Nombre o razón social, Registro fiscal, Persona de contacto, Teléfono (`PhonePartsField`), Correo, Dirección, Notas; «Proveedor activo» solo al editar. | La etiqueta y el ejemplo del registro fiscal los decide el país del negocio (`taxIdLabel`/`taxIdExample`); al salir del campo se normaliza y, si ya existe otro con ese registro, **avisa sin bloquear** (`DuplicateSupplierCard`). La edición manda al PATCH solo lo que cambió. |
 | **`SupplierPicker`** | UN buscador para Compras y Gastos: busca solo activos con debounce; un clic elige; «Quitar» suelta. Con solo el id trae el nombre por su cuenta. | Es la pieza que F9-EXP-14 y F9-PURCH-11 montan en sus formularios. |
 
+## 14. Gastos
+
+> F9-EXP (2026-09-10). Módulo incluido desde **Basic**. Un gasto es un egreso que no toca inventario: fecha, categoría (18 de fábrica + las del negocio), a quién se le pagó (proveedor del catálogo O beneficiario libre), monto, descuento e impuesto con la aritmética de la venta, y cómo se pagó. **Decisión de Carlos:** un gasto pagado en efectivo del cajón de un turno abierto resta del efectivo esperado al cerrar ese turno.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Gastos                                    [Exportar] [Registrar gasto]│
+│ Buscar [ … ]  Estado [Todos▾]  Pago [Todos▾]  Categoría [Todas▾]     │
+│ Desde [        ]  Hasta [        ]                                    │
+│ ┌ 3 gastos · $1,232.00 │ Impuesto $170 │ Pendiente $116 │ Pagado … ┐│
+│ ┌────────────┬──────────┬──────────┬───────────┬────────┬─────────┐ │
+│ │ Folio      │ Fecha    │ Categoría│ Proveedor │  Total │ Pago    │ │
+│ │ GAS-000003 │ 10/09/26 │ Internet │ Telmex    │ 116.00 │ Pagado  │ Ver
+│ │ GAS-000002 │ 10/09/26 │ Renta    │ Don Pepe  │ 116.00 │ Pendiente│ Ver
+│ │ GAS-000001 │ 09/09/26 │ Luz      │ CFE       │ ~~58~~ │ Anulado │ Ver
+│ └────────────┴──────────┴──────────┴───────────┴────────┴─────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+| Pieza | Qué hace | Regla |
+|---|---|---|
+| **Listado** (`expenses-list.tsx`, tabla cruda con `TABLE_HEAD_ROW`/`TABLE_ROW_HOVER`) | Buscador con debounce, estado, estado de pago, categoría y rango de fechas del negocio; paginado; los anulados tachados. | El resumen del filtro (`expenses-summary-bar.tsx`) va en SU consulta: no cambia al paginar y no cuenta anulados. |
+| **Ficha** (`expense-detail.tsx`) | Todos los datos; «Marcar como pagado» (método, cuenta y —con efectivo— la caja de origen con el turno propio preseleccionado) y «Anular» con motivo. | Pagar es entero y una vez; sin `expenses:cancel` no hay «Anular»; un gasto ligado a un turno cerrado no se anula (409, libro cerrado). «Editar» abre el formulario en su lugar. |
+| **Formulario** (`expense-form.tsx`, skill `sellpoint-forms`) | Fecha (`DateField`), categoría, proveedor (`SupplierPicker`) o beneficiario (excluyentes), monto y descuento (`MoneyField`), impuesto (`TaxGroupSelect`), pago («Pendiente» ⇒ vencimiento; método ⇒ cuenta con `<datalist>`; «Efectivo» ⇒ caja de origen), referencia, descripción y notas. | Al editar el pago no se toca (se paga desde la ficha); pagado ⇒ monto, descuento e impuesto deshabilitados. |
+| **Categorías** (`/expenses/categories`) | Las 18 de fábrica más las propias, con formulario inline. | Desactivar la esconde del selector; borrar una en uso rebota (409). |
+| **Cierre de turno** (`close-session.tsx`) | Renglón «Gastos en efectivo −X (n)» y «Efectivo esperado»; la diferencia se calcula contra el esperado. | La columna «Efectivo» sigue siendo ventas: la resta es un renglón aparte. El reporte de cierres y su XLSX ganan la columna. |
+| **Dashboard** (`kpi-row.tsx`) | Tarjeta «Utilidad neta del mes» = bruta − gastos activos del mes en el alcance. | Solo con el módulo; `null` (sin datos de costo) nunca es cero. |
+
 ## Apéndice — Documentos Relacionados
 
 - [ARQUITECTURA.md](ARQUITECTURA.md) — Stack, multi-tenancy, seguridad, roadmap

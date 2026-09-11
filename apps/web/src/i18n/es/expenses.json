@@ -24,5 +24,117 @@
       "body": "La categoría se borra y no se puede recuperar. Si ya tiene gastos registrados no podrá borrarse: en ese caso desactívala.",
       "confirm": "Eliminar categoría"
     }
+  },
+  "list": {
+    "title": "Gastos",
+    "new": "Registrar gasto",
+    "search": "Buscar",
+    "searchPlaceholder": "Folio, descripción, referencia o proveedor…",
+    "status": "Estado",
+    "statusAll": "Todos",
+    "paymentStatus": "Pago",
+    "paymentAll": "Todos",
+    "category": "Categoría",
+    "categoryAll": "Todas",
+    "export": "Exportar",
+    "empty": "No hay gastos con estos filtros.",
+    "columns": {
+      "folio": "Folio",
+      "date": "Fecha",
+      "category": "Categoría",
+      "payee": "Proveedor / beneficiario",
+      "description": "Descripción",
+      "total": "Total",
+      "payment": "Pago",
+      "status": "Estado"
+    },
+    "view": "Ver"
+  },
+  "status": {
+    "active": "Activo",
+    "canceled": "Anulado"
+  },
+  "paymentStatusLabel": {
+    "pending": "Pendiente",
+    "paid": "Pagado"
+  },
+  "summary": {
+    "title": "Resumen del filtro",
+    "count": "{{count}} gastos",
+    "count_one": "1 gasto",
+    "total": "Total",
+    "tax": "Impuesto",
+    "pending": "Pendiente de pago",
+    "paid": "Pagado",
+    "byCategory": "Por categoría"
+  },
+  "detail": {
+    "title": "Gasto {{folio}}",
+    "edit": "Editar",
+    "pay": "Marcar como pagado",
+    "cancel": "Anular",
+    "loadFailed": "No pudimos cargar el gasto.",
+    "canceledOn": "Anulado el {{date}}: {{reason}}",
+    "paidOn": "Pagado el {{date}}",
+    "fromShift": "Salió del cajón de un turno de caja",
+    "amount": "Monto",
+    "discount": "Descuento",
+    "taxAmount": "Impuesto",
+    "total": "Total",
+    "warehouse": "Almacén",
+    "account": "Cuenta",
+    "dueDate": "Vence",
+    "reference": "Referencia",
+    "notes": "Notas",
+    "noTax": "Sin impuesto",
+    "taxIncluded": "impuesto incluido",
+    "taxExcluded": "impuesto sumado"
+  },
+  "pay": {
+    "title": "Marcar «{{folio}}» como pagado",
+    "body": "El gasto queda pagado entero, con el método y la fecha de hoy. Después de esto el monto ya no se edita: si hay un error, se anula y se registra de nuevo.",
+    "confirm": "Marcar como pagado",
+    "method": "Método de pago"
+  },
+  "cancelDialog": {
+    "title": "Anular «{{folio}}»",
+    "body": "El gasto deja de contar en los totales y en el arqueo del turno. Escribe el motivo: queda en el historial.",
+    "reason": "Motivo",
+    "confirm": "Anular gasto",
+    "failed": "No pudimos anular el gasto."
+  },
+  "form": {
+    "createTitle": "Registrar gasto",
+    "editTitle": "Editar gasto",
+    "date": "Fecha del gasto",
+    "category": "Categoría",
+    "categoryPlaceholder": "Elige una categoría",
+    "payee": "A quién se le pagó",
+    "supplier": "Proveedor",
+    "beneficiary": "Beneficiario",
+    "beneficiaryHint": "Si no es un proveedor del catálogo: la persona o el lugar al que se pagó.",
+    "amount": "Monto",
+    "amountHint": "Lo que dice el comprobante, antes del descuento.",
+    "discount": "Descuento",
+    "payment": "Pago",
+    "paymentPending": "Pendiente de pago",
+    "cashbox": "Caja de origen",
+    "cashboxNone": "No sale de una caja",
+    "cashboxOwn": "Mi turno abierto ({{warehouse}})",
+    "cashboxOther": "Turno de {{name}} ({{warehouse}})",
+    "cashboxHint": "Un gasto pagado del cajón se resta del efectivo esperado al cerrar ese turno.",
+    "account": "Cuenta de caja o banco",
+    "accountHint": "Opcional. Por ejemplo «BBVA» o «Caja chica».",
+    "dueDate": "Vence",
+    "reference": "Referencia",
+    "referenceHint": "Número de factura, recibo o nota.",
+    "description": "Descripción",
+    "notes": "Notas",
+    "paidImmutable": "Este gasto ya está pagado: el monto, el descuento y el impuesto no se editan.",
+    "errors": {
+      "required": "Este campo es obligatorio.",
+      "date": "La fecha no es válida.",
+      "amount": "Escribe un importe válido, mayor a cero."
+    }
   }
 }

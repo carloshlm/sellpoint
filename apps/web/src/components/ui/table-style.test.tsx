@@ -42,6 +42,7 @@ describe("el estilo compartido de los listados", () => {
     "inventory/expiring-list.tsx",
     "pos/quotes-list.tsx",
     "pos/sales-history.tsx",
+    "expenses/expenses-list.tsx",
     "../routes/admin.billing.tsx",
     "billing/payment-history-table.tsx",
     // Reportes: la MISMA tabla sirve a Ventas e Inventario, y al backoffice

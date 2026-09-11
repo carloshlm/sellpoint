@@ -67,7 +67,9 @@
           "group": "Compras"
         },
         "expenses": {
-          "group": "Gastos"
+          "group": "Gastos",
+          "expenses": "Gastos",
+          "categories": "Categorías"
         }
       },
       "suppliers": "Proveedores"

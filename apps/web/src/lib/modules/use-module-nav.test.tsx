@@ -54,6 +54,28 @@ describe("useModuleNav — el enlace compartido de Proveedores (F9-SUPPL-09)", (
     expect(grupos()).toEqual([]);
   });
 
+  /** F9-EXP-14 — Gastos ya tiene rutas: el listado, las categorías y Proveedores. */
+  it("con Gastos, el grupo trae Gastos, Categorías y Proveedores; sin el módulo no se pinta", () => {
+    useAuthStore
+      .getState()
+      .setAuth("jwt", usuario(["expenses"], ["expenses:read", "suppliers:read"]));
+    const resultado = grupos();
+    expect(resultado.map((g) => g.key)).toEqual(["expenses"]);
+    expect(resultado[0]?.links.map((l) => l.to)).toEqual([
+      "/expenses",
+      "/expenses/categories",
+      "/suppliers",
+    ]);
+    expect(resultado[0]?.links.map((l) => l.label)).toEqual([
+      "Gastos",
+      "Categorías",
+      "Proveedores",
+    ]);
+
+    useAuthStore.getState().setAuth("jwt", usuario([], ["expenses:read", "suppliers:read"]));
+    expect(grupos()).toEqual([]);
+  });
+
   it("la deduplicación es por RUTA y no toca los links de otros grupos", () => {
     useAuthStore
       .getState()
