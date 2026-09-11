@@ -1,5 +1,7 @@
 import {
+  type Currency,
   effectiveDocumentDate,
+  formatMoney,
   formatQuantity,
   localeToBcp47,
   normalizeLotCode,
@@ -69,6 +71,8 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   // El interruptor de ubicaciones del NEGOCIO. Hook: va arriba del return
   // temprano de carga, o React ve distinta cantidad entre renders.
   const usaUbicaciones = useAuthStore((state) => state.user?.tenant?.usesLocations === true);
+  // F9-COSTMODE-07: en qué base captura el negocio su costo (sin/con impuesto).
+  const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
   const { data: document, isPending } = useDocument(documentId);
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
   // La línea recién agregada desde el buscador: su CANTIDAD recibe el foco.
@@ -341,7 +345,18 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                   </>
                 )}
                 {conCosto && (
-                  <th className="px-2 py-2 font-medium">{t("inventory.document.unitCost")}</th>
+                  <th className="px-2 py-2 font-medium">
+                    {t("inventory.document.unitCost")}
+                    {editable && (
+                      <span className="block font-normal text-muted-foreground text-xs">
+                        {t(
+                          costTaxMode === "included"
+                            ? "inventory.document.unitCostHintIncluded"
+                            : "inventory.document.unitCostHintExcluded",
+                        )}
+                      </span>
+                    )}
+                  </th>
                 )}
                 {conLote && (
                   <>
@@ -470,6 +485,7 @@ function LineRow({
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const [quantity, setQuantity] = useState(row.quantityInput ?? "");
   // Lo CONTADO: el dato que un inventario físico viene a capturar.
   const [counted, setCounted] = useState(row.counted ?? "");
@@ -847,8 +863,18 @@ function LineRow({
             </>
           ) : (
             // Confirmado: se LEE, y se lee como se capturó — en la moneda del
-            // negocio y a dos decimales, no el decimal crudo del API.
-            <Money value={row.unitCost} />
+            // negocio y a dos decimales, no el decimal crudo del API. Si el
+            // neto que entró al kardex es otro (F9-COSTMODE-07), se dice.
+            <>
+              <Money value={row.unitCost} />
+              {row.unitCostNet !== null && row.unitCostNet !== row.unitCost && (
+                <span className="block text-muted-foreground text-xs">
+                  {t("inventory.document.netCost", {
+                    cost: formatMoney(Number(row.unitCostNet), currency, resolveUiLocale(i18n)),
+                  })}
+                </span>
+              )}
+            </>
           )}
         </td>
       )}

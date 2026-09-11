@@ -797,6 +797,8 @@ export class DocumentsService {
           quantityInput: line.quantity?.toString() ?? null,
           quantityBase: res?.quantityBase.toString() ?? null,
           unitCost: line.unitCost?.toString() ?? null,
+          /** F9-COSTMODE-06: el neto materializado (puente o confirm); `null` en un borrador manual. */
+          unitCostNet: line.unitCostNet?.toString() ?? null,
           lotCode: line.lotCode,
           expiresAt: line.expiresAt,
           location: line.location,

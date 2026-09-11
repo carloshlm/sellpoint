@@ -5,6 +5,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { netUnitCost } from "../cost/cost-tax";
+import { contextoFiscal, grupoDe, snapshotDeTasas } from "../pos/tax-resolver";
 import { type ExpandedLine, expandComposition } from "./composition-expander";
 import { bucketKeyById, bucketsToZero, loadCountBuckets, sumBuckets } from "./count-buckets";
 import { DocumentsService } from "./documents.service";
@@ -77,6 +79,12 @@ export class ConfirmService {
       const reasonCode = document.reasonCode as NonNullable<typeof document.reasonCode>;
       this.assertHeaderRules(document, lines);
 
+      // 0. El costo NETO de cada línea (F9-COSTMODE-06), ANTES de resolver:
+      //    es el que entra al kardex y al promedio. Se escribe en la línea
+      //    mientras el documento sigue `draft` (el trigger de F3 mira el
+      //    estado del documento; sellar es el último paso).
+      const netos = await this.materializarCostoNeto(tx, user.tenantId, lines);
+
       // 1. Resolver: presentación → unidad base, lotes, estado del producto.
       const resolved = await resolveLines(
         tx,
@@ -88,7 +96,8 @@ export class ConfirmService {
           // cuánto HAY, no cuánto se mueve. Lo que se mueve lo calcula
           // `expandCount` contra el teórico fresco.
           quantity: document.type === "physical_count" ? l.counted : l.quantity,
-          unitCost: l.unitCost,
+          // Al ledger va el NETO: lo tecleado se queda en la línea y en el catálogo.
+          unitCost: netos.get(l.id) ?? l.unitCost,
           lotCode: l.lotCode,
           expiresAt: l.expiresAt,
           location: l.location,
@@ -213,6 +222,8 @@ export class ConfirmService {
       // presentación en que se capturó — la MISMA unidad, sin conversiones —
       // y una línea capturada en unidad base actualiza la presentación de
       // factor 1 si existe. Solo la factura: un ajuste no es una compra.
+      // Va lo TECLEADO (`unit_cost`), en la base del negocio: el catálogo se
+      // guarda como se captura (F9-COSTMODE); el neto es cosa del kardex.
       if (document.type === "entry" && reasonCode === "invoice") {
         await this.actualizarCostoDeCatalogo(tx, user.tenantId, lines);
       }
@@ -270,6 +281,59 @@ export class ConfirmService {
   /**
    * Copia al catálogo la ubicación capturada para productos SIN lote.
    */
+  /**
+   * F9-COSTMODE-06 — el costo NETO de cada línea con costo, en la base que
+   * entra al kardex.
+   *
+   * Si la línea ya trae `unit_cost_net` (la escribió el puente desde la
+   * compra, con el descuento de línea dentro y sin redondeo de ida y vuelta)
+   * se RESPETA; editar el costo de una línea lo anula (`document-lines`), así
+   * que un neto presente siempre corresponde al costo que se ve. Si no, se
+   * deriva del tecleado con el grupo fiscal efectivo del producto y el modo
+   * del negocio (`tenants.cost_tax_mode`): en `excluded` —el default de
+   * todos— es el mismo número; en `included` se desimpuesta con la MISMA
+   * aritmética de la venta. Sin grupo y sin default, neto = tecleado.
+   *
+   * Devuelve el neto por id de línea y lo persiste, mientras el documento
+   * sigue borrador.
+   */
+  private async materializarCostoNeto(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    lines: {
+      id: string;
+      productId: string;
+      unitCost: Prisma.Decimal | null;
+      unitCostNet: Prisma.Decimal | null;
+    }[],
+  ): Promise<Map<string, Prisma.Decimal>> {
+    const netos = new Map<string, Prisma.Decimal>();
+    const conCosto = lines.filter((l) => l.unitCost !== null);
+    if (conCosto.length === 0) {
+      return netos;
+    }
+    const pendientes = conCosto.filter((l) => l.unitCostNet === null);
+    for (const l of conCosto) {
+      if (l.unitCostNet !== null) netos.set(l.id, l.unitCostNet);
+    }
+    if (pendientes.length === 0) {
+      return netos;
+    }
+    const productos = await tx.product.findMany({
+      where: { tenantId, id: { in: [...new Set(pendientes.map((l) => l.productId))] } },
+      select: { id: true, taxGroupId: true },
+    });
+    const grupoPorProducto = new Map(productos.map((p) => [p.id, p.taxGroupId]));
+    const fiscal = await contextoFiscal(tx, tenantId, [...grupoPorProducto.values()]);
+    for (const l of pendientes) {
+      const componentes = snapshotDeTasas(grupoDe(fiscal, grupoPorProducto.get(l.productId)));
+      const neto = netUnitCost(l.unitCost as Prisma.Decimal, componentes, fiscal.costMode);
+      netos.set(l.id, neto);
+      await tx.inventoryDocumentLine.update({ where: { id: l.id }, data: { unitCostNet: neto } });
+    }
+    return netos;
+  }
+
   private async actualizarCostoDeCatalogo(
     tx: Prisma.TransactionClient,
     tenantId: string,

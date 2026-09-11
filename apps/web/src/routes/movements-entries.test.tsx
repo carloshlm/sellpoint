@@ -74,6 +74,7 @@ const fila = (overrides: Partial<DocumentRow> = {}): DocumentRow => ({
   quantityInput: "3",
   quantityBase: "3",
   unitCost: null,
+  unitCostNet: null,
   lotCode: null,
   expiresAt: null,
   location: null,

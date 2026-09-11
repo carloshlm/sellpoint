@@ -115,7 +115,9 @@ export class DocumentLinesService {
         data: {
           ...(dto.presentationId !== undefined && { presentationId: dto.presentationId ?? null }),
           ...(dto.quantity !== undefined && { quantity: dto.quantity ?? null }),
-          ...(dto.unitCost !== undefined && { unitCost: dto.unitCost ?? null }),
+          // F9-COSTMODE-06: el neto que trajo el puente corresponde al costo
+          // que se ve; si el costo cambia, el neto se rederiva al confirmar.
+          ...(dto.unitCost !== undefined && { unitCost: dto.unitCost ?? null, unitCostNet: null }),
           ...(dto.lotCode !== undefined && { lotCode: dto.lotCode ?? null }),
           ...(dto.expiresAt !== undefined && {
             expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,

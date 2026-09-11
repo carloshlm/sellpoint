@@ -4,6 +4,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
+import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
 import { extractTokenFromLink } from "./support/extract-token-from-link";
@@ -19,6 +20,8 @@ import { startTestApp } from "./support/start-test-app";
  */
 describe("Confirmar una entrada (F3-ENTRY-01)", () => {
   let app: INestApplication<App>;
+  let prisma: PrismaService;
+  let tenantId: string;
   let token: string;
   let warehouseId: string;
   let productId: string;
@@ -57,6 +60,15 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
       .send({ email, password: OWNER_PASSWORD })
       .expect(200);
     token = (login.body as { accessToken: string }).accessToken;
+    prisma = app.get(PrismaService);
+    tenantId = (
+      (
+        await request(app.getHttpServer())
+          .get("/me")
+          .set("Authorization", `Bearer ${token}`)
+          .expect(200)
+      ).body as { tenant: { id: string } }
+    ).tenant.id;
 
     const warehouse = await request(app.getHttpServer())
       .post("/warehouses")
@@ -125,6 +137,131 @@ describe("Confirmar una entrada (F3-ENTRY-01)", () => {
     const stock = (res.body as { stock: { productId: string; quantity: string }[] }).stock;
     return Number(stock.find((s) => s.productId === product)?.quantity ?? 0);
   };
+
+  /**
+   * F9-COSTMODE-06 — el kardex recibe el costo NETO; el catálogo, lo tecleado.
+   * En `excluded` (el default de todos) son el mismo número: byte a byte como
+   * siempre. En `included` la línea se desimpuesta con el grupo del producto.
+   */
+  describe("la base del costo (F9-COSTMODE-06)", () => {
+    // Producto propio: los otros bloques afirman saldos ABSOLUTOS del de arriba.
+    let productoNeto: string;
+    let cajaNeta: string;
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
+        .post("/products")
+        .set(auth())
+        .send({ sku: `NETO-${randomUUID()}`, name: "Ibuprofeno", price: 10 })
+        .expect(201);
+      productoNeto = (res.body as { id: string }).id;
+      const pres = await request(app.getHttpServer())
+        .post(`/products/${productoNeto}/presentations`)
+        .set(auth())
+        .send({ name: "Caja ×10", factor: 10, allowFractionalInput: false })
+        .expect(201);
+      cajaNeta = (pres.body as { id: string }).id;
+    });
+
+    const impuestos = (costMode: "included" | "excluded") =>
+      request(app.getHttpServer())
+        .put("/tenants/me/taxes")
+        .set(auth())
+        .send({
+          costMode,
+          groups: [
+            {
+              code: "VAT16",
+              name: "IVA 16%",
+              isDefault: true,
+              isActive: true,
+              rates: [{ code: "IVA", name: "IVA 16%", rate: "16" }],
+            },
+          ],
+        })
+        .expect(200);
+
+    const loQueEntro = async (documentId: string) => {
+      const [linea] = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.inventoryDocumentLine.findMany({
+          where: { documentId },
+          select: { unitCost: true, unitCostNet: true },
+        }),
+      );
+      const [movimiento] = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.stockMovement.findMany({
+          where: { documentId },
+          select: { unitCost: true },
+        }),
+      );
+      const presentacion = await prisma.withTenantContext(tenantId, (tx) =>
+        tx.productPresentation.findFirstOrThrow({
+          where: { id: cajaNeta },
+          select: { cost: true },
+        }),
+      );
+      return {
+        unitCost: linea?.unitCost?.toString(),
+        unitCostNet: linea?.unitCostNet?.toString(),
+        movimiento: movimiento?.unitCost?.toString(),
+        catalogo: presentacion.cost?.toString(),
+      };
+    };
+
+    it("capturando SIN impuesto (el default), línea, kardex y catálogo dicen lo mismo: 116", async () => {
+      await impuestos("excluded");
+      const id = await borrador({ reasonCode: "invoice", reference: "F-NETO-1" });
+      await agregar(id, {
+        productId: productoNeto,
+        presentationId: cajaNeta,
+        quantity: 3,
+        unitCost: 116,
+      }).expect(201);
+      await confirmar(id).expect(201);
+      expect(await loQueEntro(id)).toEqual({
+        unitCost: "116",
+        unitCostNet: "116",
+        movimiento: "116",
+        catalogo: "116",
+      });
+    });
+
+    it("capturando CON impuesto, 116 al 16 % entra al kardex como 100 y el catálogo conserva 116", async () => {
+      await impuestos("included");
+      try {
+        const id = await borrador({ reasonCode: "invoice", reference: "F-NETO-2" });
+        await agregar(id, {
+          productId: productoNeto,
+          presentationId: cajaNeta,
+          quantity: 3,
+          unitCost: 116,
+        }).expect(201);
+        const detalle = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+        // Un borrador manual todavía no tiene neto: se materializa al confirmar.
+        expect((detalle.body as { rows: { unitCostNet: string | null }[] }).rows[0]).toMatchObject({
+          unitCostNet: null,
+        });
+        await confirmar(id).expect(201);
+        expect(await loQueEntro(id)).toEqual({
+          unitCost: "116",
+          unitCostNet: "100",
+          movimiento: "100",
+          catalogo: "116",
+        });
+        const confirmado = await request(app.getHttpServer())
+          .get(`/inventory/documents/${id}`)
+          .set(auth())
+          .expect(200);
+        expect(
+          (confirmado.body as { rows: { unitCost: string; unitCostNet: string }[] }).rows[0],
+        ).toMatchObject({ unitCost: "116", unitCostNet: "100" });
+      } finally {
+        await impuestos("excluded");
+      }
+    });
+  });
 
   describe("el camino feliz", () => {
     it("3 cajas ×12 dejan 36 unidades y el documento confirmado", async () => {

@@ -54,6 +54,8 @@ export interface DocumentRow {
   quantityInput: string | null;
   quantityBase: string | null;
   unitCost: string | null;
+  /** F9-COSTMODE-06: el costo SIN impuesto que entra al kardex; `null` en un borrador manual. */
+  unitCostNet: string | null;
   lotCode: string | null;
   expiresAt: string | null;
   location: string | null;

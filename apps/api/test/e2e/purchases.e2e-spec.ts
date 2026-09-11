@@ -676,6 +676,45 @@ describe("Compras (F9-PURCH)", () => {
       }
     });
 
+    it("editar el costo de una línea traída del puente rederiva el neto al confirmar (F9-COSTMODE-06)", async () => {
+      await api(negocio.token).put("/tenants/me/taxes", { costMode: "included" }).expect(200);
+      // El neto rederivado usa el grupo EFECTIVO del producto (no el de la
+      // línea de la compra, que ya no existe en la entrada): la ficha lleva IVA.
+      await api(negocio.token).patch(`/products/${productoId}`, { taxGroupId: ivaId }).expect(200);
+      try {
+        const compra = await compraLista(139.2, "included");
+        const entrada = await api(negocio.token)
+          .post(`/purchases/${compra.id}/entry-draft`)
+          .expect(201);
+        const entradaId = (entrada.body as { id: string }).id;
+        const detalle = await api(negocio.token)
+          .get(`/inventory/documents/${entradaId}`)
+          .expect(200);
+        const linea = (detalle.body as { rows: { id: string; unitCostNet: string }[] }).rows[0];
+        expect(linea?.unitCostNet).toBe("120");
+
+        // La caja resultó costar 232 con IVA: el neto viejo (120) no puede quedar.
+        await api(negocio.token)
+          .patch(`/inventory/documents/${entradaId}/lines/${linea?.id}`, { unitCost: 232 })
+          .expect(200);
+        await api(negocio.token).post(`/inventory/documents/${entradaId}/confirm`).expect(201);
+        const movimientos = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+          tx.stockMovement.findMany({
+            where: { documentId: entradaId },
+            select: { unitCost: true },
+          }),
+        );
+        expect(movimientos.map((m) => m.unitCost?.toString())).toEqual(["200"]);
+        const presentacion = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+          tx.productPresentation.findUniqueOrThrow({ where: { id: cajaId } }),
+        );
+        expect(presentacion.cost?.toString()).toBe("232");
+      } finally {
+        await api(negocio.token).put("/tenants/me/taxes", { costMode: "excluded" }).expect(200);
+        await api(negocio.token).patch(`/products/${productoId}`, { taxGroupId: null }).expect(200);
+      }
+    });
+
     it("anular la compra arrastra su borrador de entrada; con la entrada confirmada, 409", async () => {
       const conBorrador = await compraLista(120, "excluded");
       const entrada = await api(negocio.token)

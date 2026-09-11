@@ -55,8 +55,12 @@ const mockedUsers = vi.mocked(rbacApi.listUsers);
 const mockedStock = vi.mocked(kardexApi.getStock);
 const mockedLots = vi.mocked(kardexApi.listProductLots);
 
-const demoUser = (permissions: string[], usesLocations = false): AuthUser =>
-  buildAuthUser({ permissions, tenant: buildTenantBlock({ usesLocations: usesLocations }) });
+const demoUser = (
+  permissions: string[],
+  usesLocations = false,
+  costTaxMode: "included" | "excluded" = "excluded",
+): AuthUser =>
+  buildAuthUser({ permissions, tenant: buildTenantBlock({ usesLocations, costTaxMode }) });
 
 const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   id: "doc-1",
@@ -86,6 +90,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
       quantityInput: "10",
       quantityBase: "10",
       unitCost: null,
+      unitCostNet: null,
       lotCode: null,
       expiresAt: null,
       location: null,
@@ -117,8 +122,9 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
 async function renderDoc(
   permissions: string[] = ["inventory:read", "inventory:movement"],
   usesLocations = false,
+  costTaxMode: "included" | "excluded" = "excluded",
 ) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, usesLocations));
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, usesLocations, costTaxMode));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/movements/documents/doc-1"] }),
@@ -374,6 +380,48 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       expect(screen.getByLabelText("Motivo")).toBeDisabled();
       // La referencia sigue siendo del usuario: la factura puede llegar después.
       expect(screen.getByLabelText(/referencia/i)).toBeEnabled();
+    });
+  });
+
+  /**
+   * F9-COSTMODE-07 — la entrada dice en qué base captura el costo (el ajuste
+   * del negocio) y, confirmada, muestra el neto que entró al kardex cuando es
+   * distinto del capturado.
+   */
+  describe("la base del costo (F9-COSTMODE-07)", () => {
+    const conCosto = (overrides: Partial<DocumentDetail> = {}) =>
+      detalle({ reasonCode: "invoice", reference: "F-1", ...overrides });
+
+    it("capturando «con impuesto», el encabezado del costo lo dice; «sin impuesto», también", async () => {
+      mocked.getDocument.mockResolvedValue(conCosto());
+      await renderDoc(undefined, false, "included");
+      await screen.findByText("PAR-500");
+      expect(screen.getByText("con impuesto incluido, como lo pagaste")).toBeInTheDocument();
+      useAuthStore.getState().clearAuth();
+
+      mocked.getDocument.mockResolvedValue(conCosto());
+      await renderDoc(undefined, false, "excluded");
+      expect(await screen.findByText("sin impuesto, como en la factura")).toBeInTheDocument();
+    });
+
+    it("confirmada con un neto distinto del capturado, la línea dice el costo sin impuesto; igual, no lo repite", async () => {
+      const base = conCosto({ status: "confirmed", confirmedAt: "2026-08-18T20:00:00.000Z" });
+      const fila = base.rows[0] as DocumentRow;
+      mocked.getDocument.mockResolvedValue({
+        ...base,
+        rows: [{ ...fila, unitCost: "116", unitCostNet: "100" }],
+      });
+      await renderDoc();
+      expect(await screen.findByText(/Costo sin impuesto: \$100\.00/)).toBeInTheDocument();
+      useAuthStore.getState().clearAuth();
+
+      mocked.getDocument.mockResolvedValue({
+        ...base,
+        rows: [{ ...fila, unitCost: "116", unitCostNet: "116" }],
+      });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+      expect(screen.queryByText(/Costo sin impuesto/)).not.toBeInTheDocument();
     });
   });
 
