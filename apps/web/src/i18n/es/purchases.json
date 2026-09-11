@@ -1,0 +1,116 @@
+{
+  "list": {
+    "title": "Compras",
+    "new": "Nueva compra",
+    "folio": "Folio",
+    "status": "Estado",
+    "statusAll": "Todas",
+    "supplier": "Proveedor",
+    "empty": "No hay compras con estos filtros.",
+    "mismatch": "No cuadra con la factura: {{difference}}",
+    "view": "Ver",
+    "columns": {
+      "folio": "Folio",
+      "date": "Fecha",
+      "supplier": "Proveedor",
+      "invoice": "Factura",
+      "lines": "Líneas",
+      "total": "Total",
+      "status": "Estado"
+    },
+    "summary": {
+      "count": "{{count}} compra",
+      "count_other": "{{count}} compras",
+      "total": "Total del rango: {{total}}",
+      "mismatch": "{{count}} no cuadra con la factura",
+      "mismatch_other": "{{count}} no cuadran con la factura"
+    }
+  },
+  "status": {
+    "draft": "Borrador",
+    "confirmed": "Confirmada",
+    "canceled": "Anulada"
+  },
+  "new": {
+    "title": "Nueva compra",
+    "intro": "Elige el proveedor y la fecha que dice la factura. Las líneas se capturan después.",
+    "supplier": "Proveedor",
+    "date": "Fecha de la factura",
+    "create": "Crear borrador",
+    "supplierRequired": "Elige el proveedor de la factura."
+  },
+  "detail": {
+    "title": "Compra {{folio}}",
+    "loadFailed": "No pudimos cargar la compra.",
+    "supplier": "Proveedor",
+    "warehouse": "Entra a",
+    "date": "Fecha de la factura",
+    "receivedDate": "Fecha de recepción",
+    "invoice": "Factura del proveedor",
+    "declaredTotal": "Total que dice la factura",
+    "declaredHint": "Opcional. Si no cuadra con las líneas, te avisamos y la compra se confirma igual.",
+    "taxMode": "Los costos de la factura",
+    "taxModeExcluded": "NO incluyen impuesto (se suma aparte)",
+    "taxModeIncluded": "ya incluyen impuesto",
+    "notes": "Notas",
+    "confirm": "Confirmar compra",
+    "cancel": "Anular compra",
+    "print": "Imprimir",
+    "toInventory": "Ingresar al inventario",
+    "continueEntry": "Continuar {{folio}}",
+    "entryConfirmed": "La mercancía ya entró con {{folio}}",
+    "confirmedOn": "Confirmada el {{date}}",
+    "canceledOn": "Anulada el {{date}}: {{reason}}",
+    "sealed": "Esta compra ya está confirmada: solo se pueden anotar la recepción, la factura y las notas."
+  },
+  "totals": {
+    "subtotal": "Subtotal",
+    "discount": "Descuento",
+    "tax": "Impuesto",
+    "charges": "Cargos",
+    "total": "Total",
+    "declared": "Declarado",
+    "mismatch": "El total de la factura no coincide con la suma de las líneas: {{difference}}."
+  },
+  "lines": {
+    "title": "Productos de la factura",
+    "search": "Buscar producto",
+    "searchPlaceholder": "Nombre o código…",
+    "empty": "Todavía no agregaste productos.",
+    "save": "Guardar líneas",
+    "remove": "Quitar",
+    "product": "Producto",
+    "presentation": "Presentación",
+    "quantity": "Cantidad",
+    "unitCost": "Costo unitario",
+    "discount": "Descuento",
+    "tax": "Impuesto",
+    "amount": "Importe",
+    "lot": "Lote",
+    "expiresAt": "Caducidad",
+    "lotHint": "Este producto se controla por lote: la entrada de inventario va a pedirlo.",
+    "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla.",
+    "netCost": "Costo sin impuesto: {{cost}}"
+  },
+  "charges": {
+    "title": "Cargos adicionales",
+    "intro": "Flete, maniobras o seguro. Suman al total de la factura y no cambian el costo de los productos.",
+    "description": "Concepto",
+    "amount": "Importe",
+    "add": "Agregar cargo",
+    "save": "Guardar cargos",
+    "remove": "Quitar"
+  },
+  "confirmDialog": {
+    "title": "Confirmar {{folio}}",
+    "body": "Al confirmar, las líneas y los importes quedan sellados y el costo sin impuesto se congela. Después podrás ingresar la mercancía al inventario.",
+    "confirm": "Confirmar compra"
+  },
+  "cancelDialog": {
+    "title": "Anular {{folio}}",
+    "body": "La compra deja de contar y, si ya abriste su entrada de inventario en borrador, también se anula. Escribe el motivo: queda en el historial.",
+    "reason": "Motivo",
+    "confirm": "Anular compra",
+    "failed": "No pudimos anular la compra."
+  }
+}

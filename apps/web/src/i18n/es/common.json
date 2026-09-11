@@ -64,7 +64,8 @@
           "records": "Historias clínicas"
         },
         "purchases": {
-          "group": "Compras"
+          "group": "Compras",
+          "purchases": "Compras"
         },
         "expenses": {
           "group": "Gastos",

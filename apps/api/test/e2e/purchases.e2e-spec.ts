@@ -672,4 +672,57 @@ describe("Compras (F9-PURCH)", () => {
         .expect(409);
     });
   });
+
+  describe("el resumen del rango (F9-PURCH-13)", () => {
+    /** Una compra del día dado, con una línea de `unitCost` y lo que dice el papel. */
+    async function compraDelDia(purchaseDate: string, unitCost: number, declaredTotal: number) {
+      const compra = await nuevaCompra(purchaseDate);
+      await api(negocio.token).patch(`/purchases/${compra.id}`, { declaredTotal }).expect(200);
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            {
+              productId: productoId,
+              presentationId: piezaId,
+              quantity: 1,
+              unitCost,
+              taxGroupId: ivaId,
+            },
+          ],
+        })
+        .expect(200);
+      await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
+      return compra;
+    }
+
+    it("suma el FILTRO sin las anuladas y cuenta solo las que no cuadran", async () => {
+      // $100 + IVA 16% = $116 (cuadra con el papel), y $200 + IVA = $232 declarado
+      // en $250 (no cuadra). La tercera se anula: un papel anulado no se compró.
+      await compraDelDia("2026-04-07", 100, 116);
+      await compraDelDia("2026-04-07", 200, 250);
+      const anulada = await compraDelDia("2026-04-07", 500, 580);
+      await api(negocio.token)
+        .post(`/purchases/${anulada.id}/cancel`, { reason: "pedido duplicado" })
+        .expect(200);
+
+      const delDia = await api(negocio.token)
+        .get("/purchases?from=2026-04-07&to=2026-04-07")
+        .expect(200);
+      // `total` es el conteo del PAGINADO (las tres filas, anulada incluida:
+      // sigue siendo un papel que se puede abrir); `summary` es el dinero.
+      expect(delDia.body).toMatchObject({
+        total: 3,
+        summary: { count: 2, total: "348", mismatchCount: 1 },
+      });
+
+      // Filtrar justamente las anuladas deja el resumen en cero, no en error.
+      const soloAnuladas = await api(negocio.token)
+        .get("/purchases?from=2026-04-07&to=2026-04-07&status=canceled")
+        .expect(200);
+      expect(soloAnuladas.body).toMatchObject({
+        total: 1,
+        summary: { count: 0, total: "0", mismatchCount: 0 },
+      });
+    });
+  });
 });

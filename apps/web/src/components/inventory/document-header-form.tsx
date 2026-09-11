@@ -44,16 +44,30 @@ export function DocumentHeaderForm({ document }: DocumentHeaderFormProps) {
     return <CabeceraDeTraspaso document={document} />;
   }
 
+  // F9-PURCH-12 — una entrada que nació de una compra tiene el motivo
+  // DERIVADO, igual que una recepción de traspaso: el API lo rechaza
+  // (`inventory.source_header_locked`) y acá solo evitamos ofrecerlo. La
+  // diferencia con el traspaso es que el resto de la cabecera SÍ se edita:
+  // la compra transporta, la entrada exige, y el lote o la ubicación que
+  // falten se completan aquí antes de confirmar.
+  const nacioDeCompra = document.source?.module === "purchases";
+
   const rules = document.reasonCode === null ? null : REASON_RULES[document.reasonCode];
   const muestraAutoriza =
     document.reasonCode !== null && REASONS_WITH_AUTHORIZATION.includes(document.reasonCode);
 
   return (
     <div className="flex flex-wrap items-start gap-4 rounded-md border border-input p-4">
+      {nacioDeCompra && (
+        <p role="status" className="w-full text-muted-foreground text-sm">
+          {t("inventory.document.purchaseHint", { folio: document.reasonNote ?? "" })}
+        </p>
+      )}
       <Campo htmlFor="document-reason" label={t("inventory.document.reason")}>
         <select
           id="document-reason"
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          disabled={nacioDeCompra}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-70"
           value={document.reasonCode ?? ""}
           onChange={(event) => {
             guardar.mutate({ reasonCode: event.target.value as MovementReason });

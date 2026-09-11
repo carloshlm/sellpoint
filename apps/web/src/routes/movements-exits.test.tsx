@@ -92,6 +92,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   authorizedBy: null,
   linkedWarehouseId: null,
   transferId: null,
+  source: null,
   lineCount: 1,
   createdAt: "2026-08-18T19:42:00.000Z",
   createdBy: { id: "u1", firstName: "Ana", lastName: "Pérez" },

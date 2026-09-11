@@ -107,10 +107,20 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
   // Proveedores (F9-SUPPL-09), el catálogo CORE que los dos comparten: va en
   // los dos grupos con la MISMA clave i18n y `useModuleNav` lo deduplica por
   // ruta, así que se ve una vez, bajo el primer grupo que el negocio tenga.
+  // F9-PURCH-10 — Compras ya tiene sus rutas; Proveedores es el catálogo que
+  // comparte con Gastos (se deduplica por ruta).
   purchases: {
     labelKey: "common.layout.nav.modules.purchases.group",
     icon: ShoppingCart,
-    links: [SUPPLIERS_LINK],
+    links: [
+      {
+        to: "/purchases",
+        labelKey: "common.layout.nav.modules.purchases.purchases",
+        permission: "purchases:read",
+        icon: ShoppingCart,
+      },
+      SUPPLIERS_LINK,
+    ],
   },
   // F9-EXP-14 — Gastos ya tiene sus rutas: el listado, las categorías y el
   // catálogo compartido de proveedores.

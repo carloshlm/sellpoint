@@ -1,0 +1,116 @@
+{
+  "list": {
+    "title": "Purchases",
+    "new": "New purchase",
+    "folio": "Folio",
+    "status": "Status",
+    "statusAll": "All",
+    "supplier": "Supplier",
+    "empty": "There are no purchases with these filters.",
+    "mismatch": "Doesn't match the invoice: {{difference}}",
+    "view": "View",
+    "columns": {
+      "folio": "Folio",
+      "date": "Date",
+      "supplier": "Supplier",
+      "invoice": "Invoice",
+      "lines": "Lines",
+      "total": "Total",
+      "status": "Status"
+    },
+    "summary": {
+      "count": "{{count}} purchase",
+      "count_other": "{{count}} purchases",
+      "total": "Range total: {{total}}",
+      "mismatch": "{{count}} does not match the invoice",
+      "mismatch_other": "{{count}} do not match the invoice"
+    }
+  },
+  "status": {
+    "draft": "Draft",
+    "confirmed": "Confirmed",
+    "canceled": "Canceled"
+  },
+  "new": {
+    "title": "New purchase",
+    "intro": "Choose the supplier and the date on the invoice. Lines are captured afterwards.",
+    "supplier": "Supplier",
+    "date": "Invoice date",
+    "create": "Create draft",
+    "supplierRequired": "Choose the supplier on the invoice."
+  },
+  "detail": {
+    "title": "Purchase {{folio}}",
+    "loadFailed": "We couldn't load the purchase.",
+    "supplier": "Supplier",
+    "warehouse": "Goes into",
+    "date": "Invoice date",
+    "receivedDate": "Received on",
+    "invoice": "Supplier invoice",
+    "declaredTotal": "Total on the invoice",
+    "declaredHint": "Optional. If it doesn't match the lines we'll tell you, and the purchase is confirmed anyway.",
+    "taxMode": "The invoice costs",
+    "taxModeExcluded": "do NOT include tax (added separately)",
+    "taxModeIncluded": "already include tax",
+    "notes": "Notes",
+    "confirm": "Confirm purchase",
+    "cancel": "Cancel purchase",
+    "print": "Print",
+    "toInventory": "Add to inventory",
+    "continueEntry": "Continue {{folio}}",
+    "entryConfirmed": "The goods already came in with {{folio}}",
+    "confirmedOn": "Confirmed on {{date}}",
+    "canceledOn": "Canceled on {{date}}: {{reason}}",
+    "sealed": "This purchase is confirmed: only the reception, invoice and notes can be edited."
+  },
+  "totals": {
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "tax": "Tax",
+    "charges": "Charges",
+    "total": "Total",
+    "declared": "Declared",
+    "mismatch": "The invoice total does not match the sum of the lines: {{difference}}."
+  },
+  "lines": {
+    "title": "Products on the invoice",
+    "search": "Search product",
+    "searchPlaceholder": "Name or code…",
+    "empty": "You haven't added any products yet.",
+    "save": "Save lines",
+    "remove": "Remove",
+    "product": "Product",
+    "presentation": "Presentation",
+    "quantity": "Quantity",
+    "unitCost": "Unit cost",
+    "discount": "Discount",
+    "tax": "Tax",
+    "amount": "Amount",
+    "lot": "Lot",
+    "expiresAt": "Expires",
+    "lotHint": "This product is tracked by lot: the inventory entry will ask for it.",
+    "notPurchasable": "That presentation isn't marked as purchasable, but you can still use it.",
+    "netCost": "Cost without tax: {{cost}}"
+  },
+  "charges": {
+    "title": "Additional charges",
+    "intro": "Freight, handling or insurance. They add to the invoice total and don't change product costs.",
+    "description": "Concept",
+    "amount": "Amount",
+    "add": "Add charge",
+    "save": "Save charges",
+    "remove": "Remove"
+  },
+  "confirmDialog": {
+    "title": "Confirm {{folio}}",
+    "body": "On confirming, the lines and amounts are sealed and the cost without tax is frozen. Afterwards you'll be able to add the goods to inventory.",
+    "confirm": "Confirm purchase"
+  },
+  "cancelDialog": {
+    "title": "Cancel {{folio}}",
+    "body": "The purchase stops counting and, if you already opened its inventory entry as a draft, that is canceled too. Write the reason: it stays in the history.",
+    "reason": "Reason",
+    "confirm": "Cancel purchase",
+    "failed": "We couldn't cancel the purchase."
+  }
+}

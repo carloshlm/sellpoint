@@ -1932,6 +1932,52 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Cierre de turno** (`close-session.tsx`) | Renglón «Gastos en efectivo −X (n)» y «Efectivo esperado»; la diferencia se calcula contra el esperado. | La columna «Efectivo» sigue siendo ventas: la resta es un renglón aparte. El reporte de cierres y su XLSX ganan la columna. |
 | **Dashboard** (`kpi-row.tsx`) | Tarjeta «Utilidad neta del mes» = bruta − gastos activos del mes en el alcance. | Solo con el módulo; `null` (sin datos de costo) nunca es cero. |
 
+## 15. Compras
+
+> F9-PURCH (2026-09-10). Módulo incluido desde **Pro**. Una compra es la factura del proveedor capturada tal como llegó; la mercancía entra después, por una entrada de inventario que nace de ella. **Decisión de Carlos:** si el total que dice el papel no cuadra con la suma de las líneas, la pantalla avisa y la compra se confirma igual.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ Compras                                              [Nueva compra] │
+│ Folio [COM-…]  Estado [Todas▾]  Proveedor [ … ▾]                    │
+│ Desde [        ]  Hasta [        ]                                   │
+│ 2 compras   Total del rango: $2,320.00   1 no cuadra con la factura  │
+│ ┌────────────┬──────────┬───────────────┬─────────┬───────┬────────┐│
+│ │ Folio      │ Fecha    │ Proveedor     │ Factura │ Total │ Estado ││
+│ │ COM-000002 │ 11/09/26 │ Distr. Norte  │ A-4472  │ 1,200 │Borrador││ Ver
+│ │            │          │ ⚠ No cuadra con la factura: $40.00       ││
+│ │ COM-000001 │ 11/09/26 │ Distr. Norte  │ A-4471  │ 1,160 │Confirm.││ Ver
+│ └────────────┴──────────┴───────────────┴─────────┴───────┴────────┘│
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─ Compra COM-000001 ────────────────────── [Imprimir] [Ingresar al inventario] ┐
+│ ┌ Proveedor ─────────────────────────────────────────────────────────────┐ │
+│ │ Proveedor [Distribuidora Norte ▾]     Entra a  Central                 │ │
+│ │ Fecha de la factura [11/09/2026]      Fecha de recepción [          ]   │ │
+│ │ Factura del proveedor [A-4471]        Los costos [NO incluyen impuesto▾]│ │
+│ │ Total que dice la factura [1,160.00]  Notas [                        ]  │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+│ Productos de la factura                                 [Guardar líneas]   │
+│ │ Guantes de nitrilo │ Caja ×12 │ 2 │ 500.00 │ 0 │ Lote │ Cad. │ 1,000.00 │ │
+│ Cargos adicionales (flete, maniobras)                    [Guardar cargos]  │
+│                                             Subtotal        1,000.00       │
+│                                             IVA 16% (16%)     160.00       │
+│                                             Total          1,160.00        │
+│                                             Declarado      1,160.00        │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Pieza | Qué hace | Regla |
+|---|---|---|
+| **Listado** (`purchase-list.tsx`, tabla cruda con `TABLE_HEAD_ROW`/`TABLE_ROW_HOVER`) | Folio con debounce, chips de estado, proveedor y rango sobre la fecha DEL PAPEL; paginado; bandera de descuadre por fila. | El resumen es del **rango filtrado**, no de la página, y excluye anuladas; el descuadre solo se pinta cuando hay. |
+| **Nueva compra** (`/purchases/new`) | Proveedor y fecha de la factura; crea el borrador y entra a su ficha. | El folio `COM-…` se acuña al crear el borrador; confirmar no vuelve a pedir folio. |
+| **Cabecera** (`purchase-detail.tsx`, `<Card>` con rejilla) | Proveedor, almacén, fechas (`DateField`), factura, modo de impuesto, total declarado (`MoneyField`) y notas, con autoguardado a 400 ms. | En una compra **confirmada** solo siguen vivos recepción, factura y notas: lo demás se selló y su papel se imprimió. |
+| **Líneas** (`purchase-lines-table.tsx`) | Buscador de producto, presentación, cantidad, costo y descuento (`MoneyInput`), lote y caducidad. Se guardan **en bloque**. | Cada guardado recompone los impuestos de la compra, por eso no hay autoguardado por celda. Un producto que se controla por lote avisa y **no** bloquea: la entrada lo exigirá. |
+| **Cargos** (`purchase-charges.tsx`) | Flete, maniobras, seguro: concepto e importe, en bloque. | Suman al total de la factura y **no** cambian el costo de los productos (landed cost pospuesto). |
+| **Totales** | Subtotal, descuento, impuesto por componente, cargos, total y lo declarado. | El descuadre va en `role="alert"` y **no** deshabilita «Confirmar compra». |
+| **Acciones** | «Confirmar compra» y «Anular compra» (motivo obligatorio) con `ConfirmDialog`, «Imprimir» el PDF, «Ingresar al inventario». | «Ingresar al inventario» solo sobre una confirmada y con `purchases:manage` **y** `inventory:movement`; si la entrada ya existe dice «Continuar ENT-…», y si ya se confirmó deja constancia en vez de botón. |
+| **La entrada que nace** (`document-header-form.tsx`) | Aviso «Esta entrada nació de la compra COM-…» con el motivo bloqueado. | El motivo y el almacén los fija la compra (el API responde 409 `inventory.source_header_locked`); el lote, la caducidad y la ubicación se completan ahí antes de confirmar. |
+
 ## Apéndice — Documentos Relacionados
 
 - [ARQUITECTURA.md](ARQUITECTURA.md) — Stack, multi-tenancy, seguridad, roadmap

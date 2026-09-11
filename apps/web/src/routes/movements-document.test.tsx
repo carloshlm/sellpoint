@@ -68,6 +68,7 @@ const detalle = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   authorizedBy: null,
   linkedWarehouseId: null,
   transferId: null,
+  source: null,
   lineCount: 1,
   createdAt: "2026-08-18T19:42:00.000Z",
   createdBy: { id: "u1", firstName: "Ana", lastName: "Pérez" },
@@ -343,6 +344,32 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       await waitFor(() => {
         expect(mocked.confirmDocument).toHaveBeenCalledWith("doc-1");
       });
+    });
+  });
+
+  /**
+   * F9-PURCH-12 — una entrada que nació de una COMPRA. El motivo es un dato
+   * DERIVADO, igual que en una recepción de traspaso: el API lo rechaza
+   * (`inventory.source_header_locked`) y la pantalla no lo ofrece. Lo que SÍ
+   * se edita es el resto —lote, caducidad, ubicación—: la compra transporta y
+   * la entrada exige.
+   */
+  describe("la entrada que nació de una compra (F9-PURCH-12)", () => {
+    it("el motivo queda bloqueado y el aviso nombra la compra", async () => {
+      mocked.getDocument.mockResolvedValue(
+        detalle({
+          reasonCode: "invoice",
+          reference: "A-4471",
+          reasonNote: "COM-000001",
+          source: { module: "purchases", ref: "p1" },
+        }),
+      );
+      await renderDoc();
+
+      expect(await screen.findByText(/nació de la compra COM-000001/i)).toBeInTheDocument();
+      expect(screen.getByLabelText("Motivo")).toBeDisabled();
+      // La referencia sigue siendo del usuario: la factura puede llegar después.
+      expect(screen.getByLabelText(/referencia/i)).toBeEnabled();
     });
   });
 

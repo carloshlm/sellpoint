@@ -106,6 +106,15 @@ export interface PurchaseProductView {
   presentations: { id: string; name: string; factor: string; isPurchasable: boolean }[];
 }
 
+/** Una página del listado con el resumen del RANGO filtrado (sin anuladas). */
+export interface PurchasesPage {
+  rows: PurchaseRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: { count: number; total: string; mismatchCount: number };
+}
+
 export interface PurchaseDetail extends PurchaseRow {
   lines: PurchaseLineView[];
   products: PurchaseProductView[];
@@ -224,14 +233,16 @@ export class PurchasesService {
     });
   }
 
-  async list(
-    user: AuthUser,
-    scope: UserScope,
-    query: ListPurchasesQuery,
-  ): Promise<{ rows: PurchaseRow[]; total: number; page: number; pageSize: number }> {
+  async list(user: AuthUser, scope: UserScope, query: ListPurchasesQuery): Promise<PurchasesPage> {
     const where = this.where(user, scope, query);
+    // El resumen es del FILTRO, no de la página: quien busca «septiembre, este
+    // proveedor» quiere saber cuánto compró en septiembre, no cuánto suman las
+    // veinte filas que le tocaron. Y excluye las anuladas: un papel anulado no
+    // se compró. Si el usuario filtra justamente `status=canceled`, el resumen
+    // queda en cero — que es la verdad, no un error.
+    const vivas: Prisma.PurchaseWhereInput = { AND: [where, { status: { not: "canceled" } }] };
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      const [total, rows] = await Promise.all([
+      const [total, rows, agregado, declaradas] = await Promise.all([
         tx.purchase.count({ where }),
         tx.purchase.findMany({
           where,
@@ -241,8 +252,31 @@ export class PurchasesService {
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
         }),
+        tx.purchase.aggregate({ where: vivas, _count: { _all: true }, _sum: { total: true } }),
+        // El descuadre compara DOS columnas y eso Prisma no lo sabe hacer; en
+        // vez de rehacer el `where` en SQL crudo (que sería la copia que un día
+        // se desincroniza del filtro de arriba), se traen solo las compras con
+        // total declarado —las únicas que pueden descuadrar— y las cuenta la
+        // MISMA función que usan la fila, el detalle y el PDF.
+        tx.purchase.findMany({
+          where: { AND: [vivas, { declaredTotal: { not: null } }] },
+          select: { declaredTotal: true, total: true },
+        }),
       ]);
-      return { rows: rows.map(aFila), total, page: query.page, pageSize: query.pageSize };
+      const mismatchCount = declaradas.filter(
+        (c) => totalMismatch(c.declaredTotal?.toString() ?? null, c.total.toString()).mismatch,
+      ).length;
+      return {
+        rows: rows.map(aFila),
+        total,
+        page: query.page,
+        pageSize: query.pageSize,
+        summary: {
+          count: agregado._count._all,
+          total: (agregado._sum.total ?? new Prisma.Decimal(0)).toString(),
+          mismatchCount,
+        },
+      };
     });
   }
 
@@ -521,7 +555,11 @@ export class PurchasesService {
           // referencia y costo: es exactamente esta operación.
           reasonCode: "invoice",
           reference: compra.supplierInvoice ?? compra.folio,
-          reasonNote: `Compra ${compra.folio}`,
+          // Solo el folio, SIN prefijo en prosa: la nota la lee un negocio que
+          // puede estar en inglés, y el aviso del web ya dice «nació de la
+          // compra {{folio}}». Un `Compra COM-…` acá se traduciría solo en
+          // español y se leería duplicado allá.
+          reasonNote: compra.folio,
           sourceModule: PURCHASE_SOURCE_MODULE,
           sourceRef: compra.id,
           createdBy: user.userId,

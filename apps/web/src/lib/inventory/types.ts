@@ -138,6 +138,15 @@ export interface DocumentDetail extends DocumentSummary {
    * ahí la cabecera sí se edita.
    */
   transferId: string | null;
+  /**
+   * El MÓDULO que originó este documento, si lo hay (hoy solo `purchases`).
+   *
+   * Es un par opaco a propósito: el core no conoce las tablas de los módulos,
+   * así que `ref` es un id que acá no se resuelve. Alcanza para lo que la
+   * pantalla necesita: saber que el motivo y el almacén los fijó el origen y
+   * que ofrecerlos sería ofrecer lo que el API niega.
+   */
+  source: { module: string; ref: string } | null;
   rows: DocumentRow[];
   products: DocumentProduct[];
   /** Solo en un conteo: el resumen de la reconciliación. */

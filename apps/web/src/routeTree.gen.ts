@@ -41,6 +41,9 @@ import { Route as MovementsTransfersRouteImport } from './routes/movements.trans
 import { Route as PosIndexRouteImport } from './routes/pos.index'
 import { Route as PosCloseRouteImport } from './routes/pos.close'
 import { Route as PosSalesRouteImport } from './routes/pos.sales'
+import { Route as PurchasesIndexRouteImport } from './routes/purchases.index'
+import { Route as PurchasesPurchaseIdRouteImport } from './routes/purchases.$purchaseId'
+import { Route as PurchasesNewRouteImport } from './routes/purchases.new'
 import { Route as ReceptionTurnsRouteImport } from './routes/reception.turns'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as ReportsSalesRouteImport } from './routes/reports.sales'
@@ -230,6 +233,21 @@ const PosSalesRoute = PosSalesRouteImport.update({
   path: '/pos/sales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PurchasesIndexRoute = PurchasesIndexRouteImport.update({
+  id: '/purchases/',
+  path: '/purchases/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchasesPurchaseIdRoute = PurchasesPurchaseIdRouteImport.update({
+  id: '/purchases/$purchaseId',
+  path: '/purchases/$purchaseId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PurchasesNewRoute = PurchasesNewRouteImport.update({
+  id: '/purchases/new',
+  path: '/purchases/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceptionTurnsRoute = ReceptionTurnsRouteImport.update({
   id: '/reception/turns',
   path: '/reception/turns',
@@ -406,6 +424,8 @@ export interface FileRoutesByFullPath {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
+  '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/shifts': typeof ReportsShiftsRoute
@@ -418,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/system/users': typeof SystemUsersRoute
   '/expenses/': typeof ExpensesIndexRoute
   '/pos/': typeof PosIndexRoute
+  '/purchases/': typeof PurchasesIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
@@ -467,6 +488,8 @@ export interface FileRoutesByTo {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
+  '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/shifts': typeof ReportsShiftsRoute
@@ -479,6 +502,7 @@ export interface FileRoutesByTo {
   '/system/users': typeof SystemUsersRoute
   '/expenses': typeof ExpensesIndexRoute
   '/pos': typeof PosIndexRoute
+  '/purchases': typeof PurchasesIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/suppliers': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
@@ -529,6 +553,8 @@ export interface FileRoutesById {
   '/movements/transfers': typeof MovementsTransfersRoute
   '/pos/close': typeof PosCloseRoute
   '/pos/sales': typeof PosSalesRoute
+  '/purchases/$purchaseId': typeof PurchasesPurchaseIdRoute
+  '/purchases/new': typeof PurchasesNewRoute
   '/reception/turns': typeof ReceptionTurnsRoute
   '/reports/sales': typeof ReportsSalesRoute
   '/reports/shifts': typeof ReportsShiftsRoute
@@ -541,6 +567,7 @@ export interface FileRoutesById {
   '/system/users': typeof SystemUsersRoute
   '/expenses/': typeof ExpensesIndexRoute
   '/pos/': typeof PosIndexRoute
+  '/purchases/': typeof PurchasesIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
@@ -592,6 +619,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/purchases/$purchaseId'
+    | '/purchases/new'
     | '/reception/turns'
     | '/reports/sales'
     | '/reports/shifts'
@@ -604,6 +633,7 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/expenses/'
     | '/pos/'
+    | '/purchases/'
     | '/reports/'
     | '/suppliers/'
     | '/admin/tenants/$tenantId'
@@ -653,6 +683,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/purchases/$purchaseId'
+    | '/purchases/new'
     | '/reception/turns'
     | '/reports/sales'
     | '/reports/shifts'
@@ -665,6 +697,7 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/expenses'
     | '/pos'
+    | '/purchases'
     | '/reports'
     | '/suppliers'
     | '/admin/tenants/$tenantId'
@@ -714,6 +747,8 @@ export interface FileRouteTypes {
     | '/movements/transfers'
     | '/pos/close'
     | '/pos/sales'
+    | '/purchases/$purchaseId'
+    | '/purchases/new'
     | '/reception/turns'
     | '/reports/sales'
     | '/reports/shifts'
@@ -726,6 +761,7 @@ export interface FileRouteTypes {
     | '/system/users'
     | '/expenses/'
     | '/pos/'
+    | '/purchases/'
     | '/reports/'
     | '/suppliers/'
     | '/admin/tenants/$tenantId'
@@ -776,6 +812,8 @@ export interface RootRouteChildren {
   MovementsTransfersRoute: typeof MovementsTransfersRoute
   PosCloseRoute: typeof PosCloseRoute
   PosSalesRoute: typeof PosSalesRoute
+  PurchasesPurchaseIdRoute: typeof PurchasesPurchaseIdRoute
+  PurchasesNewRoute: typeof PurchasesNewRoute
   ReceptionTurnsRoute: typeof ReceptionTurnsRoute
   ReportsSalesRoute: typeof ReportsSalesRoute
   ReportsShiftsRoute: typeof ReportsShiftsRoute
@@ -788,6 +826,7 @@ export interface RootRouteChildren {
   SystemUsersRoute: typeof SystemUsersRoute
   ExpensesIndexRoute: typeof ExpensesIndexRoute
   PosIndexRoute: typeof PosIndexRoute
+  PurchasesIndexRoute: typeof PurchasesIndexRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
   SuppliersIndexRoute: typeof SuppliersIndexRoute
   AdminTenantsTenantIdRoute: typeof AdminTenantsTenantIdRoute
@@ -1033,6 +1072,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosSalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/purchases/': {
+      id: '/purchases/'
+      path: '/purchases'
+      fullPath: '/purchases/'
+      preLoaderRoute: typeof PurchasesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchases/$purchaseId': {
+      id: '/purchases/$purchaseId'
+      path: '/purchases/$purchaseId'
+      fullPath: '/purchases/$purchaseId'
+      preLoaderRoute: typeof PurchasesPurchaseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchases/new': {
+      id: '/purchases/new'
+      path: '/purchases/new'
+      fullPath: '/purchases/new'
+      preLoaderRoute: typeof PurchasesNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reception/turns': {
       id: '/reception/turns'
       path: '/reception/turns'
@@ -1256,6 +1316,8 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsTransfersRoute: MovementsTransfersRoute,
   PosCloseRoute: PosCloseRoute,
   PosSalesRoute: PosSalesRoute,
+  PurchasesPurchaseIdRoute: PurchasesPurchaseIdRoute,
+  PurchasesNewRoute: PurchasesNewRoute,
   ReceptionTurnsRoute: ReceptionTurnsRoute,
   ReportsSalesRoute: ReportsSalesRoute,
   ReportsShiftsRoute: ReportsShiftsRoute,
@@ -1268,6 +1330,7 @@ const rootRouteChildren: RootRouteChildren = {
   SystemUsersRoute: SystemUsersRoute,
   ExpensesIndexRoute: ExpensesIndexRoute,
   PosIndexRoute: PosIndexRoute,
+  PurchasesIndexRoute: PurchasesIndexRoute,
   ReportsIndexRoute: ReportsIndexRoute,
   SuppliersIndexRoute: SuppliersIndexRoute,
   AdminTenantsTenantIdRoute: AdminTenantsTenantIdRoute,

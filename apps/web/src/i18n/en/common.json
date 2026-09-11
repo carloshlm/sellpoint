@@ -64,7 +64,8 @@
           "records": "Medical records"
         },
         "purchases": {
-          "group": "Purchases"
+          "group": "Purchases",
+          "purchases": "Purchases"
         },
         "expenses": {
           "group": "Expenses",
