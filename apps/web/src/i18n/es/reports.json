@@ -100,7 +100,8 @@
     "seller": "Vendió",
     "method": "Pago",
     "total": "Total",
-    "close": "Cerrar detalle"
+    "close": "Cerrar detalle",
+    "cashExpenses": "Gastos en efectivo"
   },
   "taxes": {
     "title": "Impuestos cobrados",

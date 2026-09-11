@@ -74,7 +74,13 @@ describe("GET /reports/dashboard/kpis (F5-DASH-03)", () => {
     expect(res.body).toEqual({
       today: { total: "0", tickets: 0, averageTicket: null, deltaVsLastWeekPct: null },
       month: { total: "0", deltaVsPrevMonthPct: null, goal: null, goalPct: null },
-      profit: { month: null, deltaVsPrevMonthPct: null },
+      // F9-EXP-11: la neta viaja junto a la bruta; sin bruta, las dos son null.
+      profit: {
+        month: null,
+        deltaVsPrevMonthPct: null,
+        netMonth: null,
+        netDeltaVsPrevMonthPct: null,
+      },
     });
   });
 

@@ -21,7 +21,11 @@
     "note": "Nota (opcional)",
     "notePlaceholder": "Por ejemplo: faltó un billete de 20",
     "saleCount": "{{count}} ventas",
-    "saleCount_one": "{{count}} venta"
+    "saleCount_one": "{{count}} venta",
+    "cashExpenses": "Gastos en efectivo",
+    "expenseCount": "{{count}} gastos",
+    "expenseCount_one": "1 gasto",
+    "expectedCash": "Efectivo esperado"
   },
   "nav": {
     "close": "Cierre de turno",

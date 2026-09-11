@@ -81,7 +81,11 @@ beforeEach(() => {
   mockedWarehouses.listWarehouses.mockResolvedValue([
     { id: "w1", name: "Almacén Centro", isActive: true } as never,
   ]);
-  mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+  mocked.getSessionTotals.mockResolvedValue({
+    totals: [],
+    cashExpenses: { total: "0", count: 0 },
+    expectedCash: "0",
+  });
 });
 
 describe("/pos — la puerta del punto de venta", () => {
@@ -154,6 +158,8 @@ describe("/pos/close — el arqueo", () => {
         { method: "card", total: "80.00", count: 1 },
         { method: "transfer", total: "0", count: 0 },
       ],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "150.00",
     });
 
     await renderRuta("/pos/close");
@@ -172,6 +178,8 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "150.00",
     });
 
     const user = await renderRuta("/pos/close");
@@ -183,6 +191,30 @@ describe("/pos/close — el arqueo", () => {
   });
 
   /**
+   * F9-EXP-10 — el gasto pagado del cajón NO es un faltante del cajero: la
+   * diferencia se calcula contra el efectivo ESPERADO (ventas − gastos), y el
+   * renglón de gastos lleva el signo menos a la vista.
+   */
+  it("con gastos del cajón, la diferencia se calcula contra el efectivo esperado", async () => {
+    mocked.getSession.mockResolvedValue({ session: sesion() });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [{ method: "cash", total: "500.00", count: 2 }],
+      cashExpenses: { total: "200.00", count: 1 },
+      expectedCash: "300.00",
+    });
+
+    const user = await renderRuta("/pos/close");
+    expect(await screen.findByTestId("total-cash-expenses")).toHaveTextContent("−$200.00");
+    expect(screen.getByTestId("expected-cash")).toHaveTextContent("$300.00");
+    expect(screen.getByText(/1 gasto/)).toBeInTheDocument();
+    // Las ventas en efectivo siguen diciendo 500: la resta es un renglón aparte.
+    expect(screen.getByTestId("total-cash")).toHaveTextContent("500");
+
+    await user.type(screen.getByLabelText(/efectivo contado/i), "300");
+    expect(screen.getByTestId("cash-difference")).toHaveTextContent("$0.00");
+  });
+
+  /**
    * Carlos, 2026-09-08: el efectivo contado es un importe y se captura como
    * los demás — con la moneda a la vista y a dos decimales al salir. La
    * diferencia se sigue calculando en vivo mientras se teclea.
@@ -191,6 +223,8 @@ describe("/pos/close — el arqueo", () => {
     mocked.getSession.mockResolvedValue({ session: sesion() });
     mocked.getSessionTotals.mockResolvedValue({
       totals: [{ method: "cash", total: "150.00", count: 3 }],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "150.00",
     });
 
     const user = await renderRuta("/pos/close");

@@ -27,9 +27,13 @@ export function CloseSession({ session }: { session: CashboxSession }) {
   const [error, setError] = useState<string | null>(null);
 
   const totales = data?.totals ?? [];
-  const efectivo = Number(totales.find((x) => x.method === "cash")?.total ?? 0);
+  // F9-EXP-10: se cuenta contra el efectivo ESPERADO (ventas − gastos del
+  // cajón), no contra las ventas en efectivo: un gasto pagado del cajón no es
+  // un faltante del cajero.
+  const gastos = data?.cashExpenses ?? { total: "0", count: 0 };
+  const esperado = Number(data?.expectedCash ?? 0);
   const declarado = contado.trim() === "" ? null : Number(contado);
-  const diferencia = declarado === null ? null : declarado - efectivo;
+  const diferencia = declarado === null ? null : declarado - esperado;
 
   return (
     <section className="flex max-w-md flex-col gap-4" data-testid="close-session">
@@ -52,6 +56,28 @@ export function CloseSession({ session }: { session: CashboxSession }) {
             </span>
           </div>
         ))}
+        {/* Los gastos que salieron del cajón, con el signo a la vista, y el
+            esperado contra el que se cuenta. Solo si hubo alguno: un turno sin
+            gastos no necesita un renglón en cero que confunda. */}
+        {gastos.count > 0 && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>
+              {t("pos.session.cashExpenses")}{" "}
+              <span className="text-xs">
+                ({t("pos.session.expenseCount", { count: gastos.count })})
+              </span>
+            </span>
+            <span data-testid="total-cash-expenses" className="font-medium">
+              −{formatMoney(Number(gastos.total))}
+            </span>
+          </div>
+        )}
+        <div className="flex justify-between border-t pt-1">
+          <span>{t("pos.session.expectedCash")}</span>
+          <span data-testid="expected-cash" className="font-semibold">
+            {formatMoney(esperado)}
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1">

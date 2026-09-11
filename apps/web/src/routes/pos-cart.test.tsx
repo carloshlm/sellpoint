@@ -135,7 +135,11 @@ describe("El carrito del POS (F4-CART)", () => {
     vi.clearAllMocks();
     useCartStore.getState().clear();
     mocked.getSession.mockResolvedValue({ session: sesion() });
-    mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "0",
+    });
   });
 
   describe("buscar", () => {
@@ -449,7 +453,11 @@ describe("Cobrar (F4-UI-01 / F4-UI-02)", () => {
     vi.clearAllMocks();
     useCartStore.getState().clear();
     mocked.getSession.mockResolvedValue({ session: sesion() });
-    mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "0",
+    });
   });
 
   const venta = (): posApi.Sale => ({
@@ -903,7 +911,11 @@ describe("el impuesto en el carrito y en el cobro (F4-TAX-17)", () => {
     vi.clearAllMocks();
     useCartStore.getState().clear();
     mocked.getSession.mockResolvedValue({ session: sesion() });
-    mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "0",
+    });
   });
 
   const IVA: posApi.LookupItemTax = {

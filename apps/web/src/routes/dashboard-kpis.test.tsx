@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import type { DashboardKpis } from "../lib/dashboard/api";
@@ -36,14 +37,23 @@ const mocked = vi.mocked(dashboardApi.getDashboardKpis);
 const KPIS: DashboardKpis = {
   today: { total: "48520", tickets: 126, averageTicket: "385.08", deltaVsLastWeekPct: 12.4 },
   month: { total: "685240", deltaVsPrevMonthPct: 8.7, goal: "800000", goalPct: 85.7 },
-  profit: { month: "214580", deltaVsPrevMonthPct: 11.2 },
+  profit: {
+    month: "214580",
+    deltaVsPrevMonthPct: 11.2,
+    netMonth: "180000",
+    netDeltaVsPrevMonthPct: 5.1,
+  },
 };
 
-const demoUser = (permissions: string[]): AuthUser =>
-  buildAuthUser({ permissions, tenant: buildTenantBlock({ monthlySalesGoal: "800000" }) });
+const demoUser = (permissions: string[], modules: string[] = []): AuthUser =>
+  buildAuthUser({
+    permissions,
+    tenant: buildTenantBlock({ monthlySalesGoal: "800000" }),
+    subscription: { ...SUBSCRIPTION_PLUS, modules: modules as never },
+  });
 
-async function renderDashboard(permissions: string[] = ["reports:read"]) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+async function renderDashboard(permissions: string[] = ["reports:read"], modules: string[] = []) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, modules));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
@@ -85,6 +95,19 @@ describe("La fila de KPIs (F5-DASH-10)", () => {
     expect(screen.getByText("$385.08 promedio")).toBeInTheDocument();
   });
 
+  /** F9-EXP-11 — la utilidad NETA existe solo con el módulo de Gastos. */
+  it("con Gastos aparece la utilidad neta; sin el módulo, no", async () => {
+    await renderDashboard(["reports:read"], ["expenses"]);
+    expect(await screen.findByText("Utilidad neta del mes")).toBeInTheDocument();
+    expect(screen.getByText("$180,000.00")).toBeInTheDocument();
+  });
+
+  it("sin el módulo de Gastos no hay tarjeta de utilidad neta", async () => {
+    await renderDashboard(["reports:read"]);
+    expect(await screen.findByText("Utilidad del mes")).toBeInTheDocument();
+    expect(screen.queryByText("Utilidad neta del mes")).not.toBeInTheDocument();
+  });
+
   it("sin reports:read no hay UN número de dinero — y ni siquiera se piden", async () => {
     await renderDashboard(["inventory:read"]);
 
@@ -97,7 +120,15 @@ describe("La fila de KPIs (F5-DASH-10)", () => {
   });
 
   it("la utilidad sin snapshot dice «Aún sin datos de costo», no $0", async () => {
-    mocked.mockResolvedValue({ ...KPIS, profit: { month: null, deltaVsPrevMonthPct: null } });
+    mocked.mockResolvedValue({
+      ...KPIS,
+      profit: {
+        month: null,
+        deltaVsPrevMonthPct: null,
+        netMonth: null,
+        netDeltaVsPrevMonthPct: null,
+      },
+    });
 
     await renderDashboard();
 
@@ -110,7 +141,12 @@ describe("La fila de KPIs (F5-DASH-10)", () => {
     mocked.mockResolvedValue({
       today: { total: "0", tickets: 0, averageTicket: null, deltaVsLastWeekPct: null },
       month: { total: "0", deltaVsPrevMonthPct: null, goal: null, goalPct: null },
-      profit: { month: null, deltaVsPrevMonthPct: null },
+      profit: {
+        month: null,
+        deltaVsPrevMonthPct: null,
+        netMonth: null,
+        netDeltaVsPrevMonthPct: null,
+      },
     });
 
     await renderDashboard();

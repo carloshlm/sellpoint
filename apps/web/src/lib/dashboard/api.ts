@@ -24,6 +24,9 @@ export interface DashboardKpis {
     month: string | null;
     /** Δ% vs la utilidad del mes anterior corrido; null sin base previa. */
     deltaVsPrevMonthPct: number | null;
+    /** F9-EXP-11: bruta − gastos activos del mes; null sin bruta. Se pinta solo con Gastos. */
+    netMonth: string | null;
+    netDeltaVsPrevMonthPct: number | null;
   };
 }
 

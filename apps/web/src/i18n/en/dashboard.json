@@ -9,7 +9,8 @@
     "profitMonth": "This month's profit",
     "ticketsToday": "Today's tickets",
     "averageTicket": "{{value}} average",
-    "profitPending": "No cost data yet"
+    "profitPending": "No cost data yet",
+    "netProfitMonth": "This month's net profit"
   },
   "charts": {
     "monthVsPrev": "Sales: this month vs last",

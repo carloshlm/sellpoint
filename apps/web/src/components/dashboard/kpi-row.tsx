@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { useDashboardKpis } from "@/lib/dashboard/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -22,6 +23,10 @@ function KpiRow() {
   const { forcePermission } = useAdminTenantScope();
   const puedeVer = forcePermission || has("reports:read");
   const { data } = useDashboardKpis(puedeVer);
+  // F9-EXP-11: la utilidad NETA solo tiene sentido con el módulo de Gastos;
+  // sin él, la tarjeta no existe (no una neta igual a la bruta que confunda).
+  const { hasModule } = usePlan();
+  const conGastos = hasModule("expenses");
 
   if (!puedeVer || data === undefined) {
     return null;
@@ -30,7 +35,7 @@ function KpiRow() {
   const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={`grid gap-3 sm:grid-cols-2 ${conGastos ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
       <KpiCard
         label={t("dashboard.kpi.salesToday")}
         value={dinero(data.today.total)}
@@ -48,6 +53,14 @@ function KpiRow() {
         deltaPct={data.profit.deltaVsPrevMonthPct}
         detail={data.profit.month === null ? t("dashboard.kpi.profitPending") : undefined}
       />
+      {conGastos && (
+        <KpiCard
+          label={t("dashboard.kpi.netProfitMonth")}
+          value={data.profit.netMonth === null ? null : dinero(data.profit.netMonth)}
+          deltaPct={data.profit.netDeltaVsPrevMonthPct}
+          detail={data.profit.netMonth === null ? t("dashboard.kpi.profitPending") : undefined}
+        />
+      )}
       <KpiCard
         label={t("dashboard.kpi.ticketsToday")}
         value={String(data.today.tickets)}

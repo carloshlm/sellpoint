@@ -21,7 +21,11 @@
     "note": "Note (optional)",
     "notePlaceholder": "For example: a 20 bill was missing",
     "saleCount": "{{count}} sales",
-    "saleCount_one": "{{count}} sale"
+    "saleCount_one": "{{count}} sale",
+    "cashExpenses": "Cash expenses",
+    "expenseCount": "{{count}} expenses",
+    "expenseCount_one": "1 expense",
+    "expectedCash": "Expected cash"
   },
   "nav": {
     "close": "Shift close",

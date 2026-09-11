@@ -110,7 +110,11 @@ export class PosController {
   @RequirePermissions("pos:sell")
   async totals(@CurrentUser() user: AuthUser) {
     const sesion = await this.cashbox.current(user);
-    return { totals: sesion === null ? [] : await this.cashbox.totals(user, sesion.id) };
+    // F9-EXP-09: además de lo vendido por método, los gastos en efectivo del
+    // cajón y el efectivo ESPERADO (aditivo: `totals` sigue siendo ventas).
+    return sesion === null
+      ? { totals: [], cashExpenses: { total: "0", count: 0 }, expectedCash: "0" }
+      : this.cashbox.totals(user, sesion.id);
   }
 
   /** Cierra el turno con su arqueo. La diferencia se registra, no bloquea. */

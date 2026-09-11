@@ -260,6 +260,97 @@ describe("DashboardKpisService (integration)", () => {
     expect(kpis.profit.deltaVsPrevMonthPct).toBe(250);
   });
 
+  /**
+   * F9-EXP-11 — la utilidad NETA: bruta − gastos ACTIVOS del mes por DÍA del
+   * negocio y en el alcance. Sin bruta no hay neta, aunque haya gastos.
+   */
+  describe("utilidad neta (F9-EXP-11)", () => {
+    async function gasto(
+      tenantId: string,
+      warehouseId: string,
+      dia: string,
+      total: number,
+      canceled = false,
+    ): Promise<void> {
+      const { usuarioId } = contexto.get(tenantId) as { usuarioId: string };
+      await prisma.withTenantContext(tenantId, async (tx) => {
+        const categoria =
+          (await tx.expenseCategory.findFirst({ where: { tenantId, code: "rent" } })) ??
+          (await tx.expenseCategory.create({ data: { tenantId, code: "rent", name: "Renta" } }));
+        await tx.expense.create({
+          data: {
+            tenantId,
+            folio: `G-${randomUUID().slice(0, 12)}`,
+            warehouseId,
+            expenseDate: new Date(dia),
+            categoryId: categoria.id,
+            description: "Gasto",
+            amount: total,
+            total,
+            taxMode: "included",
+            createdBy: usuarioId,
+            ...(canceled && {
+              status: "canceled",
+              canceledAt: new Date(),
+              canceledBy: usuarioId,
+              cancelReason: "x",
+            }),
+          },
+        });
+      });
+    }
+
+    it("resta los gastos activos del mes corriente, por día del negocio; un anulado no resta", async () => {
+      const esc = await escenarioCompleto();
+      // Día 1 del mes: cuenta, aunque a las 20:00 de CDMX ya sea día 2 en UTC.
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-01", 30);
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-15", 10);
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-14", 999, true);
+      // Del mes anterior dentro del corrido (10-feb): la base de la delta neta.
+      await gasto(esc.tenantId, esc.warehouseId, "2026-02-10", 20);
+      // Fuera del corrido del mes anterior (20-feb): no cuenta.
+      await gasto(esc.tenantId, esc.warehouseId, "2026-02-20", 500);
+
+      const kpis = await service.kpis(
+        { tenantId: esc.tenantId } as never,
+        { warehouseIds: "all" } as never,
+      );
+      // Bruta 140 − (30 + 10) = 100; la anulada no existe.
+      expect(kpis.profit.month).toBe("140");
+      expect(kpis.profit.netMonth).toBe("100");
+      // Neta pasada: 40 − 20 = 20 → (100 − 20) / 20 = +400 %.
+      expect(kpis.profit.netDeltaVsPrevMonthPct).toBe(400);
+    });
+
+    it("sin costo congelado la neta es null aunque haya gastos", async () => {
+      const esc = await escenario();
+      await venta(esc.tenantId, {
+        creadaEn: "2026-03-10T18:00:00Z",
+        total: 100,
+        warehouseId: esc.warehouseId,
+        items: [{ lineTotal: 100, quantity: 1, unitCost: null }],
+      });
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-10", 30);
+      const kpis = await service.kpis(
+        { tenantId: esc.tenantId } as never,
+        { warehouseIds: "all" } as never,
+      );
+      expect(kpis.profit.month).toBeNull();
+      expect(kpis.profit.netMonth).toBeNull();
+    });
+
+    it("el alcance acota: mirando Central no se restan los gastos de la Sucursal", async () => {
+      const esc = await escenarioCompleto();
+      await gasto(esc.tenantId, esc.warehouseId, "2026-03-15", 10);
+      await gasto(esc.tenantId, esc.otroAlmacenId, "2026-03-15", 1000);
+      const kpis = await service.kpis(
+        { tenantId: esc.tenantId } as never,
+        { warehouseIds: [esc.warehouseId] } as never,
+      );
+      expect(kpis.profit.netMonth).toBe("130");
+    });
+  });
+
   it("F4-TAX-20: la utilidad resta el impuesto de la línea; el bruto del mes no lo toca", async () => {
     const esc = await escenario();
     // Una venta en excluido: 100 neto + 12 de impuesto, costo 40…

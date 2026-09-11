@@ -184,7 +184,12 @@ beforeEach(() => {
   mockedKpis.mockResolvedValue({
     today: { total: "30.00", tickets: 1, averageTicket: "30.00", deltaVsLastWeekPct: null },
     month: { total: "30.00", deltaVsPrevMonthPct: null, goal: null, goalPct: null },
-    profit: { month: null, deltaVsPrevMonthPct: null },
+    profit: {
+      month: null,
+      deltaVsPrevMonthPct: null,
+      netMonth: null,
+      netDeltaVsPrevMonthPct: null,
+    },
   });
   mockedSales.mockResolvedValue({ rows: [], totals: [], total: 0, page: 1, pageSize: 20 });
 });

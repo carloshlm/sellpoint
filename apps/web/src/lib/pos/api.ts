@@ -35,8 +35,19 @@ export async function openSession(warehouseId?: string): Promise<CashboxSession>
   return data;
 }
 
-export async function getSessionTotals(): Promise<{ totals: SessionTotal[] }> {
-  const { data } = await api.get<{ totals: SessionTotal[] }>("/pos/session/totals");
+/**
+ * F9-EXP-09 — el arqueo del turno: lo vendido por método, los gastos en
+ * EFECTIVO que salieron del cajón y el efectivo ESPERADO (ventas cash −
+ * gastos cash). `totals` sigue siendo ventas: la resta es un renglón aparte.
+ */
+export interface SessionArqueo {
+  totals: SessionTotal[];
+  cashExpenses: { total: string; count: number };
+  expectedCash: string;
+}
+
+export async function getSessionTotals(): Promise<SessionArqueo> {
+  const { data } = await api.get<SessionArqueo>("/pos/session/totals");
   return data;
 }
 

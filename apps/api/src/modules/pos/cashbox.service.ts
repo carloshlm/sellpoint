@@ -8,7 +8,13 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
-import { totalesEnCero, totalesPorSesion } from "./cashbox-totals";
+import {
+  efectivoEsperado,
+  gastosEnEfectivoPorSesion,
+  type SessionCashExpenses,
+  sinGastos,
+} from "./cashbox-expenses";
+import { type SessionTotal, totalesEnCero, totalesPorSesion } from "./cashbox-totals";
 import type { CloseSessionDto, OpenSessionDto } from "./dto/open-session.dto";
 
 /**
@@ -26,6 +32,14 @@ import type { CloseSessionDto, OpenSessionDto } from "./dto/open-session.dto";
  * que hace que un arqueo signifique algo. Ventas sueltas sin turno serían
  * dinero que nadie cuadra al final del día.
  */
+/** Lo que el cierre muestra y persiste: ventas por método, gastos del cajón y el esperado. */
+export interface SessionArqueo {
+  totals: SessionTotal[];
+  cashExpenses: SessionCashExpenses;
+  /** Ventas en efectivo − gastos en efectivo: contra esto se cuenta el cajón. */
+  expectedCash: string;
+}
+
 @Injectable()
 export class CashboxService {
   constructor(private readonly prisma: PrismaService) {}
@@ -93,14 +107,32 @@ export class CashboxService {
    * alguien puede preguntarse por qué el turno cerró con menos de lo que
    * recordaba.
    */
-  async totals(user: AuthUser, sessionId: string) {
+  async totals(user: AuthUser, sessionId: string): Promise<SessionArqueo> {
     // La MISMA función que el reporte de cierres (F5-SHIFT-01): el papel del
     // cierre y el reporte no pueden decir cosas distintas.
-    return this.prisma.withTenantContext(
-      user.tenantId,
-      async (tx) =>
-        (await totalesPorSesion(tx, user.tenantId, [sessionId])).get(sessionId) ?? totalesEnCero(),
+    return this.prisma.withTenantContext(user.tenantId, (tx) =>
+      this.arqueo(tx, user.tenantId, sessionId),
     );
+  }
+
+  /**
+   * F9-EXP-09 — lo vendido por método, los gastos en efectivo que salieron
+   * del cajón y el efectivo ESPERADO (ventas cash − gastos cash). La resta
+   * va aparte de `totals`: la columna «Efectivo» sigue siendo ventas.
+   */
+  private async arqueo(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    sessionId: string,
+  ): Promise<SessionArqueo> {
+    const [porMetodo, gastos] = await Promise.all([
+      totalesPorSesion(tx, tenantId, [sessionId]),
+      gastosEnEfectivoPorSesion(tx, tenantId, [sessionId]),
+    ]);
+    const totals = porMetodo.get(sessionId) ?? totalesEnCero();
+    const cashExpenses = gastos.get(sessionId) ?? sinGastos();
+    const ventasCash = totals.find((t) => t.method === "cash")?.total ?? "0";
+    return { totals, cashExpenses, expectedCash: efectivoEsperado(ventasCash, cashExpenses.total) };
   }
 
   /**
@@ -127,33 +159,38 @@ export class CashboxService {
       throw new ConflictException({ message: "pos.no_session" });
     }
 
-    const porMetodo = await this.totals(user, sesion.id);
-    const calculado = new Prisma.Decimal(porMetodo.find((t) => t.method === "cash")?.total ?? 0);
     const declarado = new Prisma.Decimal(dto.declaredCash);
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      // El lock lógico PRIMERO, y el cálculo DESPUÉS y dentro de la misma tx
+      // (F9-EXP-09): antes se calculaba fuera, y una venta o un gasto que
+      // entrara entre la lectura y el `updateMany` quedaba fuera del
+      // `calculatedCash` persistido mientras el reporte (que recalcula) decía
+      // otra cosa que el papel. Con la fila tomada, un gasto en efectivo que
+      // quiera ligarse (`FOR UPDATE` sobre la sesión) espera y encuentra el
+      // turno cerrado.
       const tomadas = await tx.cashboxSession.updateMany({
         where: { id: sesion.id, tenantId: user.tenantId, status: "open" },
-        data: {
-          status: "closed",
-          closedBy: user.userId,
-          closedAt: new Date(),
-          declaredCash: declarado,
-          calculatedCash: calculado,
-          cashDifference: declarado.minus(calculado),
-          ...(dto.note !== undefined && { closingNote: dto.note }),
-        },
+        data: { status: "closed", closedBy: user.userId, closedAt: new Date() },
       });
       if (tomadas.count !== 1) {
         throw new ConflictException({ message: "pos.session_already_closed" });
       }
 
-      const cerrada = await tx.cashboxSession.findUniqueOrThrow({
+      const arqueo = await this.arqueo(tx, user.tenantId, sesion.id);
+      const calculado = new Prisma.Decimal(arqueo.expectedCash);
+      const cerrada = await tx.cashboxSession.update({
         where: { id: sesion.id },
+        data: {
+          declaredCash: declarado,
+          calculatedCash: calculado,
+          cashDifference: declarado.minus(calculado),
+          ...(dto.note !== undefined && { closingNote: dto.note }),
+        },
         include: { warehouse: { select: { id: true, name: true } } },
       });
 
-      return { session: cerrada, totals: porMetodo };
+      return { session: cerrada, ...arqueo };
     });
   }
 

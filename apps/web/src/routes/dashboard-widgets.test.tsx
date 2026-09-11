@@ -32,7 +32,12 @@ const mocked = vi.mocked(dashboardApi);
 const KPIS: dashboardApi.DashboardKpis = {
   today: { total: "1000", tickets: 4, averageTicket: "250", deltaVsLastWeekPct: -14 },
   month: { total: "50000", deltaVsPrevMonthPct: 5, goal: null, goalPct: null },
-  profit: { month: "12000", deltaVsPrevMonthPct: null },
+  profit: {
+    month: "12000",
+    deltaVsPrevMonthPct: null,
+    netMonth: null,
+    netDeltaVsPrevMonthPct: null,
+  },
 };
 
 const SERIES: dashboardApi.DashboardSeries = {

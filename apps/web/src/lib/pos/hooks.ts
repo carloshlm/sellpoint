@@ -24,6 +24,7 @@ import {
   type QuotesPage,
   type Sale,
   type SalesPage,
+  type SessionArqueo,
   type SessionTotal,
 } from "./api";
 
@@ -42,7 +43,7 @@ export function useSession() {
  * render de la pantalla de venta.
  */
 export function useSessionTotals(enabled: boolean) {
-  return useQuery<{ totals: SessionTotal[] }, ApiError>({
+  return useQuery<SessionArqueo, ApiError>({
     queryKey: [...POS_SESSION_KEY, "totals"],
     queryFn: getSessionTotals,
     enabled,

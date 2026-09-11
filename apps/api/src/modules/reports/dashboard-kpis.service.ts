@@ -32,6 +32,14 @@ export interface DashboardKpis {
      * primera delta madura un mes después, y eso es un dato, no un hueco).
      */
     deltaVsPrevMonthPct: number | null;
+    /**
+     * F9-EXP-11 — la utilidad NETA: la bruta menos los gastos ACTIVOS del mes
+     * (por `expense_date`, día del negocio) en el alcance. null cuando la
+     * bruta es null: sin costos no hay utilidad que netear, aunque haya gastos.
+     * El front la pinta solo con el módulo de Gastos.
+     */
+    netMonth: string | null;
+    netDeltaVsPrevMonthPct: number | null;
   };
 }
 
@@ -104,14 +112,39 @@ export class DashboardKpisService {
       };
     };
 
-    const [diaHoy, diaPasado, mesActual, mesPasado, utilidad, utilidadPasada] = await Promise.all([
+    const [
+      diaHoy,
+      diaPasado,
+      mesActual,
+      mesPasado,
+      utilidad,
+      utilidadPasada,
+      gastos,
+      gastosPasados,
+    ] = await Promise.all([
       suma(inicioHoy, ahora),
       suma(inicioMismoDiaPasado, haceUnaSemana),
       suma(inicioMes, ahora),
       suma(inicioMesAnterior, corteMesAnterior),
       this.utilidadDelMes(user.tenantId, alcance, inicioMes, ahora),
       this.utilidadDelMes(user.tenantId, alcance, inicioMesAnterior, corteMesAnterior),
+      // Los gastos van por DÍA del negocio (DATE con DATE): el corte corrido
+      // se traduce a los días locales de los dos instantes.
+      this.gastosDelMes(
+        user.tenantId,
+        alcance,
+        localCalendarDate(zona, inicioMes),
+        localCalendarDate(zona, ahora),
+      ),
+      this.gastosDelMes(
+        user.tenantId,
+        alcance,
+        localCalendarDate(zona, inicioMesAnterior),
+        localCalendarDate(zona, corteMesAnterior),
+      ),
     ]);
+    const neta = utilidad === null ? null : utilidad.minus(gastos);
+    const netaPasada = utilidadPasada === null ? null : utilidadPasada.minus(gastosPasados);
 
     const goal = tenant?.monthlySalesGoal ?? null;
     return {
@@ -134,8 +167,38 @@ export class DashboardKpisService {
         month: utilidad?.toString() ?? null,
         deltaVsPrevMonthPct:
           utilidad !== null && utilidadPasada !== null ? deltaPct(utilidad, utilidadPasada) : null,
+        netMonth: neta?.toString() ?? null,
+        netDeltaVsPrevMonthPct:
+          neta !== null && netaPasada !== null ? deltaPct(neta, netaPasada) : null,
       },
     };
+  }
+
+  /**
+   * F9-EXP-11 — Σ total de los gastos ACTIVOS entre dos días del negocio
+   * (inclusive, `expense_date` es DATE y se compara con DATE — nunca con un
+   * instante UTC: un gasto del día 1 a las 20:00 de CDMX es del día 1), en
+   * los almacenes del alcance. SUM sobre cero filas es NULL: acá sí vale 0,
+   * porque «no gastó nada» es un número, no un hueco.
+   */
+  private async gastosDelMes(
+    tenantId: string,
+    alcance: { warehouseId?: { in: string[] } },
+    desdeDia: string,
+    hastaDia: string,
+  ): Promise<Prisma.Decimal> {
+    const agregado = await this.prisma.withTenantContext(tenantId, (tx) =>
+      tx.expense.aggregate({
+        where: {
+          tenantId,
+          status: "active",
+          ...alcance,
+          expenseDate: { gte: new Date(desdeDia), lte: new Date(hastaDia) },
+        },
+        _sum: { total: true },
+      }),
+    );
+    return agregado._sum.total ?? new Prisma.Decimal(0);
   }
 
   /**

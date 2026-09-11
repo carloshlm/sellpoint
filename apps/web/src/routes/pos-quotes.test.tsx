@@ -221,7 +221,11 @@ describe("Cotización (F4-QUOTE-03 / F4-QUOTE-04)", () => {
     // componente encadena un `.catch()` sobre lo que esto devuelva.
     mocked.printTicket.mockResolvedValue(undefined);
     mocked.getSession.mockResolvedValue({ session: null });
-    mocked.getSessionTotals.mockResolvedValue({ totals: [] });
+    mocked.getSessionTotals.mockResolvedValue({
+      totals: [],
+      cashExpenses: { total: "0", count: 0 },
+      expectedCash: "0",
+    });
     mocked.listQuotes.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
     mockedWarehouses.listWarehouses.mockResolvedValue([
       { id: "w1", name: "Almacén Centro", isActive: true },

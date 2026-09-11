@@ -192,6 +192,121 @@ describe("Gastos (F9-EXP)", () => {
       );
     });
 
+    /**
+     * F9-EXP-09 — el arqueo: vender 150 en efectivo y pagar 50 del cajón deja
+     * `totals.cash 150` (las ventas no cambian), `cashExpenses 50` y
+     * `expectedCash 100`; cerrar declarando 100 cuadra en cero y persiste el
+     * calculado ya neteado. Anular el gasto antes de cerrar devuelve el esperado.
+     */
+    it("el cierre resta del efectivo esperado los gastos pagados del cajón", async () => {
+      const cajero = await usuarioConRol(app, negocio, "Manager", "exp-cajero");
+      const turno = await request(app.getHttpServer())
+        .post("/pos/session")
+        .set("Authorization", bearer(cajero))
+        .send({ warehouseId: almacenId })
+        .expect(201);
+      const sesionId = (turno.body as { id: string }).id;
+      // Una venta en efectivo por el camino real: producto con existencias.
+      const { productoId } = await prisma.withTenantContext(negocio.tenantId, async (tx) => {
+        const producto = await tx.product.create({
+          data: { tenantId: negocio.tenantId, sku: `EXP-${Date.now()}`, name: "Paracetamol" },
+        });
+        await tx.productPresentation.create({
+          data: {
+            tenantId: negocio.tenantId,
+            productId: producto.id,
+            name: "Pieza",
+            factor: "1",
+            price: "15.00",
+            isDefaultSale: true,
+            allowFractionalInput: false,
+          },
+        });
+        await tx.stockByWarehouse.create({
+          data: {
+            tenantId: negocio.tenantId,
+            productId: producto.id,
+            warehouseId: almacenId,
+            quantity: 100,
+          },
+        });
+        return { productoId: producto.id };
+      });
+      await request(app.getHttpServer())
+        .post("/pos/sales")
+        .set("Authorization", bearer(cajero))
+        .send({ paymentMethod: "cash", lines: [{ productId: productoId, quantity: 10 }] })
+        .expect(201);
+      const gastoDelCajon = await api(negocio.token)
+        .post(
+          "/expenses",
+          gasto({
+            paymentMethod: "cash",
+            cashboxSessionId: sesionId,
+            amount: 50,
+            warehouseId: almacenId,
+          }),
+        )
+        .expect(201);
+
+      const arqueo = await request(app.getHttpServer())
+        .get("/pos/session/totals")
+        .set("Authorization", bearer(cajero))
+        .expect(200);
+      expect(arqueo.body).toMatchObject({
+        cashExpenses: { total: "50", count: 1 },
+        expectedCash: "100",
+      });
+      expect(
+        (arqueo.body as { totals: { method: string; total: string }[] }).totals.find(
+          (t) => t.method === "cash",
+        )?.total,
+      ).toBe("150");
+
+      // Anular el gasto antes de cerrar: el esperado vuelve a las ventas.
+      await api(negocio.token)
+        .post(`/expenses/${(gastoDelCajon.body as { id: string }).id}/cancel`, { reason: "error" })
+        .expect(200);
+      const sinGasto = await request(app.getHttpServer())
+        .get("/pos/session/totals")
+        .set("Authorization", bearer(cajero))
+        .expect(200);
+      expect((sinGasto.body as { expectedCash: string }).expectedCash).toBe("150");
+
+      // Otro gasto de 50 y el cierre declarando 100: cuadra en cero.
+      await api(negocio.token)
+        .post(
+          "/expenses",
+          gasto({
+            paymentMethod: "cash",
+            cashboxSessionId: sesionId,
+            amount: 50,
+            warehouseId: almacenId,
+          }),
+        )
+        .expect(201);
+      const cierre = await request(app.getHttpServer())
+        .post("/pos/session/close")
+        .set("Authorization", bearer(cajero))
+        .send({ declaredCash: 100 })
+        .expect(200);
+      expect(cierre.body).toMatchObject({
+        session: { calculatedCash: "100", declaredCash: "100", cashDifference: "0" },
+        cashExpenses: { total: "50", count: 1 },
+        expectedCash: "100",
+      });
+
+      // Y el reporte de cierres lo cuenta igual que el papel.
+      const reporte = await request(app.getHttpServer())
+        .get(`/reports/shifts/${sesionId}`)
+        .set("Authorization", bearer(negocio.token))
+        .expect(200);
+      expect(reporte.body).toMatchObject({
+        cashExpenses: { total: "50", count: 1 },
+        calculatedCash: "100",
+      });
+    });
+
     it("un gasto en efectivo sale del turno abierto; cerrado o de otro cajero no", async () => {
       const turno = await request(app.getHttpServer())
         .post("/pos/session")

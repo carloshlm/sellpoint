@@ -9,7 +9,8 @@
     "profitMonth": "Utilidad del mes",
     "ticketsToday": "Tickets de hoy",
     "averageTicket": "{{value}} promedio",
-    "profitPending": "Aún sin datos de costo"
+    "profitPending": "Aún sin datos de costo",
+    "netProfitMonth": "Utilidad neta del mes"
   },
   "charts": {
     "monthVsPrev": "Ventas: mes actual vs anterior",

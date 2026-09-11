@@ -89,6 +89,7 @@ export function ShiftsReport() {
     { key: "warehouseName", header: t("reports.shifts.warehouse") },
     { key: "closedBy", header: t("reports.shifts.closedBy") },
     { key: "salesCount", header: t("reports.shifts.sales"), numeric: true },
+    { key: "cashExpenses", header: t("reports.shifts.cashExpenses"), numeric: true },
     { key: "calculated", header: t("reports.shifts.calculated"), numeric: true },
     { key: "declared", header: t("reports.shifts.declared"), numeric: true },
     { key: "difference", header: t("reports.shifts.difference"), numeric: true },
@@ -101,6 +102,8 @@ export function ShiftsReport() {
     warehouseName: turno.warehouse.name,
     closedBy: (turno.closedBy ?? turno.openedBy).name,
     salesCount: turno.salesCount,
+    // F9-EXP-10: con signo, como se lee en un arqueo; «—» si no salió nada.
+    cashExpenses: turno.cashExpenses.count === 0 ? "—" : `−${dinero(turno.cashExpenses.total)}`,
     calculated: dinero(turno.calculatedCash),
     declared: dinero(turno.declaredCash),
     difference: diferencia(turno.cashDifference),

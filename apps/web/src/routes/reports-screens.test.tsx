@@ -94,6 +94,7 @@ const turno = (overrides: Partial<reportsApi.ShiftRow> = {}): reportsApi.ShiftRo
     { method: "card", total: "50.00", count: 1 },
     { method: "transfer", total: "0.00", count: 0 },
   ],
+  cashExpenses: { total: "0", count: 0 },
   calculatedCash: "100.00",
   declaredCash: "90.00",
   cashDifference: "-10.00",
@@ -410,6 +411,30 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       const faltante = await screen.findByText(/-\$10\.00/);
       expect(faltante).toHaveClass("text-destructive");
       expect(screen.getByText("Cuadró")).toBeInTheDocument();
+    });
+
+    /** F9-EXP-10 — los gastos que salieron del cajón, con signo, antes de lo calculado. */
+    it("muestra los gastos en efectivo del turno con signo, y «—» cuando no hubo", async () => {
+      mocked.getShiftsReport.mockResolvedValue({
+        rows: [
+          turno({
+            cashExpenses: { total: "20.00", count: 1 },
+            calculatedCash: "80.00",
+            cashDifference: "10.00",
+          }),
+          turno({ id: "cs2" }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+      await renderRuta("/reports/shifts");
+
+      expect(
+        await screen.findByRole("columnheader", { name: "Gastos en efectivo" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("−$20.00")).toBeInTheDocument();
+      expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     });
 
     it("abre con el día actual del negocio y solo los cerrados", async () => {

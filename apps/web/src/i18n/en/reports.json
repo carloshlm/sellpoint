@@ -100,7 +100,8 @@
     "seller": "Sold by",
     "method": "Payment",
     "total": "Total",
-    "close": "Close detail"
+    "close": "Close detail",
+    "cashExpenses": "Cash expenses"
   },
   "taxes": {
     "title": "Taxes collected",

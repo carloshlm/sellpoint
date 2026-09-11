@@ -5,6 +5,11 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
 import type { AuthUser } from "../auth/types/auth-user";
 import { assertWarehouseInScope } from "../inventory/warehouse-scope.helpers";
+import {
+  gastosEnEfectivoPorSesion,
+  type SessionCashExpenses,
+  sinGastos,
+} from "../pos/cashbox-expenses";
 import { type SessionTotal, totalesEnCero, totalesPorSesion } from "../pos/cashbox-totals";
 import type { ShiftsReportQueryDto } from "./dto/shifts-report.dto";
 
@@ -23,6 +28,8 @@ export interface ShiftRow {
   closedAt: string | null;
   salesCount: number;
   totals: SessionTotal[];
+  /** F9-EXP-09: los gastos en efectivo que salieron del cajón; el calculado ya los resta. */
+  cashExpenses: SessionCashExpenses;
   calculatedCash: string | null;
   declaredCash: string | null;
   cashDifference: string | null;
@@ -98,13 +105,15 @@ export class ShiftsReportService {
           },
         }),
       ]);
-      const totales = await totalesPorSesion(
-        tx,
-        user.tenantId,
-        filas.map((f) => f.id),
-      );
+      const ids = filas.map((f) => f.id);
+      const [totales, gastos] = await Promise.all([
+        totalesPorSesion(tx, user.tenantId, ids),
+        gastosEnEfectivoPorSesion(tx, user.tenantId, ids),
+      ]);
       return {
-        rows: filas.map((f) => this.fila(f, totales.get(f.id) ?? totalesEnCero())),
+        rows: filas.map((f) =>
+          this.fila(f, totales.get(f.id) ?? totalesEnCero(), gastos.get(f.id) ?? sinGastos()),
+        ),
         total,
         page: query.page,
         pageSize: query.pageSize,
@@ -129,12 +138,14 @@ export class ShiftsReportService {
           _count: { select: { sales: true } },
         },
       });
-      const totales = await totalesPorSesion(
-        tx,
-        user.tenantId,
-        filas.map((f) => f.id),
+      const ids = filas.map((f) => f.id);
+      const [totales, gastos] = await Promise.all([
+        totalesPorSesion(tx, user.tenantId, ids),
+        gastosEnEfectivoPorSesion(tx, user.tenantId, ids),
+      ]);
+      return filas.map((f) =>
+        this.fila(f, totales.get(f.id) ?? totalesEnCero(), gastos.get(f.id) ?? sinGastos()),
       );
-      return filas.map((f) => this.fila(f, totales.get(f.id) ?? totalesEnCero()));
     });
   }
 
@@ -167,6 +178,8 @@ export class ShiftsReportService {
         throw new NotFoundException({ message: "reports.shift_not_found" });
       }
       const totales = (await totalesPorSesion(tx, user.tenantId, [id])).get(id) ?? totalesEnCero();
+      const gastos =
+        (await gastosEnEfectivoPorSesion(tx, user.tenantId, [id])).get(id) ?? sinGastos();
       const sales: ShiftSaleRow[] = fila.sales.map((v) => ({
         id: v.id,
         folio: v.folio,
@@ -176,7 +189,7 @@ export class ShiftsReportService {
         status: v.status,
         total: v.total.toString(),
       }));
-      return { ...this.fila(fila, totales), sales };
+      return { ...this.fila(fila, totales, gastos), sales };
     });
   }
 
@@ -196,6 +209,7 @@ export class ShiftsReportService {
       _count: { sales: number };
     },
     totals: SessionTotal[],
+    cashExpenses: SessionCashExpenses,
   ): ShiftRow {
     return {
       id: f.id,
@@ -207,6 +221,7 @@ export class ShiftsReportService {
       closedAt: f.closedAt?.toISOString() ?? null,
       salesCount: f._count.sales,
       totals,
+      cashExpenses,
       calculatedCash: f.calculatedCash?.toString() ?? null,
       declaredCash: f.declaredCash?.toString() ?? null,
       cashDifference: f.cashDifference?.toString() ?? null,
