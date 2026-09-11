@@ -135,3 +135,36 @@ export function splitLineTax(input: {
     byComponent: components.map((c, i) => ({ code: c.code, taxCents: Number(porComponente[i]) })),
   };
 }
+
+/**
+ * F9-COSTMODE-01 — el costo unitario en su base NETA y en su base BRUTA.
+ *
+ * El costo se GUARDA como se captura, en la base del negocio
+ * (`tenants.cost_tax_mode`): lo que dice la factura antes de IVA/GST
+ * (`excluded`) o lo que se pagó en mostrador (`included`). El NETO se
+ * materializa solo donde se computa dinero — la compra, la entrada al
+ * confirmar y la venta — y sale de AQUÍ, sobre la misma `splitLineTax` que
+ * reparte el impuesto de una venta: una sola aritmética, un solo redondeo.
+ *
+ * Con `excluded` el número no se toca. Con `included` el neto es la base de
+ * `splitLineTax` en modo `included` (importe ÷ (1 + Σ tasas), half-up) y el
+ * bruto es el neto más el impuesto que `excluded` le sumaría. Sin
+ * componentes (exento, `NO_TAX`) las dos devuelven el mismo importe.
+ */
+export function netUnitCostCents(
+  amountCents: number,
+  components: readonly TaxComponent[],
+  mode: TaxMode,
+): number {
+  if (mode === "excluded") return amountCents;
+  return splitLineTax({ amountCents, mode: "included", components }).netCents;
+}
+
+export function grossUnitCostCents(
+  amountCents: number,
+  components: readonly TaxComponent[],
+  mode: TaxMode,
+): number {
+  if (mode === "excluded") return amountCents;
+  return amountCents + splitLineTax({ amountCents, mode: "excluded", components }).taxCents;
+}

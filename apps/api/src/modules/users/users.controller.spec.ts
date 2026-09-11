@@ -84,6 +84,7 @@ const ME: MeProfile = {
     posShowsStock: true,
     usesPurchaseOrders: false,
     taxMode: "included",
+    costTaxMode: "excluded",
     region: null,
     monthlySalesGoal: null,
     country: "MX",

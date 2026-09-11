@@ -238,6 +238,15 @@ describe("modelo de datos de impuestos (F4-TAX-04)", () => {
       ]);
     });
 
+    it("el modo del COSTO lleva su propio CHECK y nace en excluded (F9-COSTMODE-02)", async () => {
+      await expect(
+        prisma.tenant.update({ where: { id: tenantA }, data: { costTaxMode: "gross" } }),
+      ).rejects.toThrow();
+      expect((await prisma.tenant.findUniqueOrThrow({ where: { id: tenantA } })).costTaxMode).toBe(
+        "excluded",
+      );
+    });
+
     it("un código de grupo en minúsculas o con espacios rebota", async () => {
       await expect(
         prisma.withTenantContext(tenantA, (tx) =>

@@ -479,6 +479,6 @@ export function armarCompraConGrupos(
       taxGroupId: l.grupo?.id ?? null,
     })),
     charges: cargos.map((c) => ({ amount: c.amount, taxGroupId: c.grupo?.id ?? null })),
-    fiscal: { mode, porDefecto: null, grupos },
+    fiscal: { mode, costMode: mode, porDefecto: null, grupos },
   });
 }

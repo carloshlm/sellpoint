@@ -51,6 +51,8 @@ const grupo = z
 export const updateTaxSettingsSchema = z
   .object({
     mode: taxModeSchema.optional(),
+    /** F9-COSTMODE-02: ¿el costo se captura con el impuesto adentro? */
+    costMode: taxModeSchema.optional(),
     /** ISO 3166-2 sin prefijo (`ON`, `TX`); el service la valida contra el país del negocio. */
     region: z
       .string()
@@ -61,9 +63,14 @@ export const updateTaxSettingsSchema = z
     groups: z.array(grupo).max(50).optional(),
   })
   .strict()
-  .refine((v) => v.mode !== undefined || v.region !== undefined || v.groups !== undefined, {
-    message: "tenants.empty_update",
-  })
+  .refine(
+    (v) =>
+      v.mode !== undefined ||
+      v.costMode !== undefined ||
+      v.region !== undefined ||
+      v.groups !== undefined,
+    { message: "tenants.empty_update" },
+  )
   .refine(
     (v) => v.groups === undefined || new Set(v.groups.map((g) => g.code)).size === v.groups.length,
     {

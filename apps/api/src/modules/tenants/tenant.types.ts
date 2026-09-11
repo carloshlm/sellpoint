@@ -49,6 +49,12 @@ export interface TenantBlock {
    * consulta para calcular con la MISMA aritmética que el servidor.
    */
   taxMode: TaxMode;
+  /**
+   * F9-COSTMODE-02: ¿el COSTO se captura con el impuesto adentro? Gobierna la
+   * etiqueta del costo en los catálogos y el modo con que nacen compras y
+   * órdenes; el neto se materializa donde se computa dinero.
+   */
+  costTaxMode: TaxMode;
   /** F4-TAX-16: provincia o estado (ISO 3166-2 sin prefijo), solo CA y US. */
   region: string | null;
   /**
@@ -83,6 +89,7 @@ export const TENANT_SELECT = {
   usesPurchaseOrders: true,
   monthlySalesGoal: true,
   taxMode: true,
+  costTaxMode: true,
   region: true,
   discountCodeSetAt: true,
   discountMaxPercent: true,
@@ -112,6 +119,7 @@ export type TenantRow = {
   usesPurchaseOrders: boolean;
   monthlySalesGoal: { toString(): string } | null;
   taxMode: string;
+  costTaxMode: string;
   region: string | null;
   discountCodeSetAt: Date | null;
   discountMaxPercent: { toString(): string } | null;
@@ -141,6 +149,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     usesPurchaseOrders: row.usesPurchaseOrders,
     monthlySalesGoal: row.monthlySalesGoal?.toString() ?? null,
     taxMode: row.taxMode as TaxMode,
+    costTaxMode: row.costTaxMode as TaxMode,
     region: row.region,
     discountCodeSetAt: row.discountCodeSetAt?.toISOString() ?? null,
     discountMaxPercent: row.discountMaxPercent?.toString() ?? null,

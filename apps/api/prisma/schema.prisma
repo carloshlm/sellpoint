@@ -98,6 +98,13 @@ model Tenant {
    */
   taxMode            String    @default("included") @map("tax_mode") @db.VarChar(8)
   /**
+   * F9-COSTMODE — ¿el COSTO se captura con el impuesto adentro? `excluded`
+   * (lo que dice la factura antes de IVA/GST: el default en todos los
+   * mercados) o `included` (lo que se pagó en mostrador). El costo se guarda
+   * como se captura; el neto se materializa en compra, entrada y venta.
+   */
+  costTaxMode        String    @default("excluded") @map("cost_tax_mode") @db.VarChar(8)
+  /**
    * F4-TAX — provincia o estado (ISO 3166-2 sin el prefijo del país: `ON`,
    * `BC`, `TX`). Solo Canadá y EE. UU. la necesitan para sembrar sus tasas.
    */

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { MONEY_MAX } from "./money";
 import {
+  grossUnitCostCents,
   MAX_TAX_COMPONENTS,
+  netUnitCostCents,
   rateToScaled,
   splitLineTax,
   TAX_MODES,
@@ -153,5 +155,42 @@ describe("splitLineTax — los bordes", () => {
     ).toThrow();
     expect(() => splitLineTax({ amountCents: -1, mode: "excluded", components: [GST] })).toThrow();
     expect(() => splitLineTax({ amountCents: 1.5, mode: "excluded", components: [GST] })).toThrow();
+  });
+});
+
+/**
+ * F9-COSTMODE-01 — el costo en su base neta y en su base bruta, sobre la
+ * MISMA aritmética que reparte el impuesto de la venta. Con `excluded` no se
+ * toca; con `included` se desimpuesta half-up; sin componentes, da lo mismo.
+ */
+describe("netUnitCostCents / grossUnitCostCents — el costo en la base del negocio (F9-COSTMODE-01)", () => {
+  it("$116.00 capturados CON IVA 16% son $100.00 netos; capturados SIN, siguen siendo $116.00", () => {
+    expect(netUnitCostCents(11600, [IVA], "included")).toBe(10000);
+    expect(netUnitCostCents(11600, [IVA], "excluded")).toBe(11600);
+  });
+
+  it("Columbia Británica: $112.00 con GST 5% + PST 7% adentro son $100.00 netos", () => {
+    expect(netUnitCostCents(11200, [GST, PST], "included")).toBe(10000);
+  });
+
+  it("sin componentes (exento, sin impuesto) el neto y el bruto son el importe capturado", () => {
+    expect(netUnitCostCents(11600, [], "included")).toBe(11600);
+    expect(grossUnitCostCents(11600, [], "included")).toBe(11600);
+  });
+
+  it("el bruto es la inversa: $100.00 netos al 16% son $116.00; en excluded no se toca", () => {
+    expect(grossUnitCostCents(10000, [IVA], "included")).toBe(11600);
+    expect(grossUnitCostCents(10000, [IVA], "excluded")).toBe(10000);
+  });
+
+  it("ida y vuelta estable: neto(bruto(x)) === x de $0.01 a $999.99 al 16 %, 13 %, 9.975 % y 0 %", () => {
+    const tasas = [[IVA], [{ code: "HST", name: "HST 13%", rate: "13" }], [QST], []];
+    for (const componentes of tasas) {
+      for (let x = 1; x <= 99_999; x += 7) {
+        expect(
+          netUnitCostCents(grossUnitCostCents(x, componentes, "included"), componentes, "included"),
+        ).toBe(x);
+      }
+    }
   });
 });

@@ -31,10 +31,12 @@ const user = (permissions: string[]): AuthUser =>
 
 const vista = (): taxApi.TaxSettingsView => ({
   mode: "excluded",
+  costMode: "excluded",
   country: "CA",
   region: "BC",
   needsRegion: true,
   hasSales: true,
+  hasCosts: false,
   groups: [
     {
       id: "g1",
@@ -77,6 +79,7 @@ beforeEach(() => {
   mocked.updateTaxSettings.mockImplementation(async (input) => ({
     ...vista(),
     ...(input.mode !== undefined && { mode: input.mode }),
+    ...(input.costMode !== undefined && { costMode: input.costMode }),
   }));
   mocked.deleteTaxGroup.mockResolvedValue(vista());
 });
@@ -118,6 +121,40 @@ describe("«Impuestos» en Mi perfil (F4-TAX-14)", () => {
     await waitFor(() =>
       expect(mocked.updateTaxSettings).toHaveBeenCalledWith({ mode: "included" }),
     );
+  });
+
+  /**
+   * F9-COSTMODE-03 — el segundo interruptor: su propio grupo de radios (elegir
+   * uno no desmarca el del precio), manda SOLO `costMode`, y avisa cuando ya
+   * hay costos capturados (el número no se convierte, cambia su lectura).
+   */
+  it("el modo del costo es otro grupo de radios: elegir «con impuesto» manda {costMode} y deja el del precio como estaba", async () => {
+    renderCard(user(["tenants:manage"]));
+    const usuario = userEvent.setup();
+    const conImpuesto = await screen.findByRole("radio", { name: /lo que pagué en mostrador/i });
+    const precioSinImpuesto = screen.getByRole("radio", {
+      name: /el impuesto se agrega al cobrar/i,
+    });
+    expect(conImpuesto).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /antes del impuesto/i })).toBeChecked();
+    expect((conImpuesto as HTMLInputElement).name).not.toBe(
+      (precioSinImpuesto as HTMLInputElement).name,
+    );
+
+    await usuario.click(conImpuesto);
+    await waitFor(() =>
+      expect(mocked.updateTaxSettings).toHaveBeenCalledWith({ costMode: "included" }),
+    );
+    expect(mocked.updateTaxSettings).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(conImpuesto).toBeChecked());
+    expect(precioSinImpuesto).toBeChecked();
+    expect(screen.queryByText(/Ya tienes costos capturados/)).not.toBeInTheDocument();
+  });
+
+  it("con costos capturados, el interruptor del costo avisa que no convierte nada", async () => {
+    mocked.getTaxSettings.mockResolvedValue({ ...vista(), hasCosts: true });
+    renderCard(user(["tenants:manage"]));
+    expect(await screen.findByText(/Ya tienes costos capturados/)).toBeInTheDocument();
   });
 
   it("marcar otro grupo como predeterminado y guardar manda un solo isDefault", async () => {

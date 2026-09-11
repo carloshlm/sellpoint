@@ -51,6 +51,8 @@ export interface TenantBlock {
   monthlySalesGoal: string | null;
   /** F4-TAX-16: ¿el precio de catálogo ya incluye el impuesto? Lo consulta el carrito. */
   taxMode: TaxMode;
+  /** F9-COSTMODE-02: ¿el costo se captura con el impuesto adentro? */
+  costTaxMode: TaxMode;
   /** F4-TAX-16: provincia o estado (ISO 3166-2 sin prefijo), solo CA y US. */
   region: string | null;
   /** F4-DISC: cuándo se configuró el PIN de descuentos (ISO) o null; el hash nunca viaja. */

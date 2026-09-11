@@ -145,6 +145,7 @@ describe("POST /auth/login + /auth/refresh + /auth/logout (e2e)", () => {
           usesPurchaseOrders: false,
           // F4-TAX-16: el modo del impuesto y la región viajan en el bloque del negocio.
           taxMode: "included",
+          costTaxMode: "excluded",
           region: null,
           monthlySalesGoal: null,
           discountCodeSetAt: null,

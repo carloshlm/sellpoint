@@ -21,13 +21,22 @@ export interface TaxGroupView {
 }
 
 export interface TaxSettingsView {
+  /** ¿El PRECIO de catálogo ya trae el impuesto? */
   mode: TaxMode;
+  /** F9-COSTMODE-02: ¿el COSTO se captura con el impuesto adentro? */
+  costMode: TaxMode;
   country: string | null;
   region: string | null;
   /** Solo Canadá y EE. UU.: sin región no se puede sembrar la tasa correcta. */
   needsRegion: boolean;
   /** Con ventas hechas, cambiar el modo merece una advertencia en la tarjeta (los snapshots protegen lo cobrado). */
   hasSales: boolean;
+  /**
+   * F9-COSTMODE-02: con costos capturados (cualquier catálogo) o compras con
+   * líneas, cambiar el modo del costo merece el aviso: el número no se
+   * convierte, cambia su lectura.
+   */
+  hasCosts: boolean;
   groups: TaxGroupView[];
 }
 
@@ -63,7 +72,7 @@ export class TaxSettingsService {
   async leer(tx: Tx, tenantId: string): Promise<TaxSettingsView> {
     const tenant = await tx.tenant.findUniqueOrThrow({
       where: { id: tenantId },
-      select: { taxMode: true, country: true, region: true },
+      select: { taxMode: true, costTaxMode: true, country: true, region: true },
     });
     const grupos = await tx.taxGroup.findMany({
       where: { tenantId },
@@ -74,10 +83,12 @@ export class TaxSettingsService {
     const ventas = await tx.sale.count({ where: { tenantId }, take: 1 });
     return {
       mode: tenant.taxMode as TaxMode,
+      costMode: tenant.costTaxMode as TaxMode,
       country: tenant.country,
       region: tenant.region,
       needsRegion: needsRegion(tenant.country),
       hasSales: ventas > 0,
+      hasCosts: await this.hayCostos(tx, tenantId),
       groups: grupos.map((g) => ({
         id: g.id,
         code: g.code,
@@ -108,11 +119,12 @@ export class TaxSettingsService {
           throw new UnprocessableEntityException({ message: "tenants.tax_invalid_region" });
         }
       }
-      if (dto.mode !== undefined || dto.region !== undefined) {
+      if (dto.mode !== undefined || dto.costMode !== undefined || dto.region !== undefined) {
         await tx.tenant.update({
           where: { id: user.tenantId },
           data: {
             ...(dto.mode !== undefined && { taxMode: dto.mode }),
+            ...(dto.costMode !== undefined && { costTaxMode: dto.costMode }),
             ...(dto.region !== undefined && { region: dto.region }),
           },
         });
@@ -222,10 +234,15 @@ export class TaxSettingsService {
     tenantId: string,
     country: string | null,
     region: string | null,
-  ): Promise<{ mode: TaxMode; codes: string[] } | null> {
+  ): Promise<{ mode: TaxMode; costMode: TaxMode; codes: string[] } | null> {
     if ((await tx.taxGroup.count({ where: { tenantId } })) > 0) return null;
     const defaults = resolveTaxDefaults(country, region);
-    await tx.tenant.update({ where: { id: tenantId }, data: { taxMode: defaults.mode } });
+    // Los DOS modos: el del precio lo decide el mercado; el del costo, la
+    // tabla de excepciones de shared (hoy `excluded` para todos, F9-COSTMODE).
+    await tx.tenant.update({
+      where: { id: tenantId },
+      data: { taxMode: defaults.mode, costTaxMode: defaults.costMode },
+    });
     for (const [i, g] of defaults.groups.entries()) {
       await tx.taxGroup.create({
         data: {
@@ -246,7 +263,31 @@ export class TaxSettingsService {
         },
       });
     }
-    return { mode: defaults.mode, codes: defaults.groups.map((g) => g.code) };
+    return {
+      mode: defaults.mode,
+      costMode: defaults.costMode,
+      codes: defaults.groups.map((g) => g.code),
+    };
+  }
+
+  /**
+   * ¿Hay algún costo capturado que el ajuste reinterpretaría? Los cuatro
+   * catálogos con `cost` y las líneas de compra, en un solo EXISTS.
+   */
+  private async hayCostos(tx: Tx, tenantId: string): Promise<boolean> {
+    const filas = await tx.$queryRaw<{ hay: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM product_presentations WHERE tenant_id = ${tenantId}::uuid AND cost IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM services WHERE tenant_id = ${tenantId}::uuid AND cost IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM medical_clinic_lab_studies WHERE tenant_id = ${tenantId}::uuid AND cost IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM medical_clinic_diagnostic_studies WHERE tenant_id = ${tenantId}::uuid AND cost IS NOT NULL
+        UNION ALL
+        SELECT 1 FROM purchase_lines WHERE tenant_id = ${tenantId}::uuid
+      ) AS hay`;
+    return filas[0]?.hay === true;
   }
 
   /** Un solo viaje: cuántos artículos de cada catálogo nombran cada grupo. */
@@ -271,6 +312,7 @@ export class TaxSettingsService {
 function sinUsos(v: TaxSettingsView) {
   return {
     mode: v.mode,
+    costMode: v.costMode,
     region: v.region,
     groups: v.groups.map(({ usageCount: _usos, ...g }) => g),
   };

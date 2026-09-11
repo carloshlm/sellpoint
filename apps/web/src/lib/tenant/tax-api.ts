@@ -25,11 +25,16 @@ export interface TaxGroupView {
 }
 
 export interface TaxSettingsView {
+  /** ¿El PRECIO de catálogo ya trae el impuesto? */
   mode: TaxMode;
+  /** F9-COSTMODE-03: ¿el COSTO se captura con el impuesto adentro? */
+  costMode: TaxMode;
   country: string | null;
   region: string | null;
   needsRegion: boolean;
   hasSales: boolean;
+  /** F9-COSTMODE-03: con costos capturados, cambiar el modo del costo merece aviso. */
+  hasCosts: boolean;
   groups: TaxGroupView[];
 }
 
@@ -43,6 +48,7 @@ export interface UpdateTaxGroupInput {
 
 export interface UpdateTaxSettingsInput {
   mode?: TaxMode;
+  costMode?: TaxMode;
   region?: string | null;
   groups?: UpdateTaxGroupInput[];
 }

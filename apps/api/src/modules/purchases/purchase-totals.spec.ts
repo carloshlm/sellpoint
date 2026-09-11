@@ -21,6 +21,7 @@ const IVA16 = {
 
 const fiscal = (mode: "included" | "excluded"): ContextoFiscal => ({
   mode,
+  costMode: "excluded",
   porDefecto: IVA16,
   grupos: new Map([[IVA16.id, IVA16]]),
 });
@@ -118,7 +119,12 @@ describe("armarCompra (F9-PURCH-04)", () => {
   });
 
   it("una línea sin impuesto no inventa componentes y suma limpio", () => {
-    const sinIva: ContextoFiscal = { mode: "excluded", porDefecto: null, grupos: new Map() };
+    const sinIva: ContextoFiscal = {
+      mode: "excluded",
+      costMode: "excluded",
+      porDefecto: null,
+      grupos: new Map(),
+    };
     const totales = armarCompra({ lines: [linea("100", "3")], charges: [], fiscal: sinIva });
 
     expect(totales.taxTotal.toString()).toBe("0");

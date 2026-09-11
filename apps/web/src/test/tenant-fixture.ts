@@ -32,6 +32,7 @@ export const TENANT_DEMO: TenantBlock = {
   discountCodeSetAt: null,
   discountMaxPercent: null,
   taxMode: "included",
+  costTaxMode: "excluded",
   region: null,
 };
 

@@ -477,7 +477,12 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
         .get("/tenants/me")
         .set("Authorization", bearer(owner.accessToken))
         .expect(200);
-      expect(me.body).toMatchObject({ country: "MX", region: null, taxMode: "included" });
+      expect(me.body).toMatchObject({
+        country: "MX",
+        region: null,
+        taxMode: "included",
+        costTaxMode: "excluded",
+      });
     });
 
     it("body vacío -> 400 tenants.invalid_body", async () => {
@@ -556,13 +561,19 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
           .get("/tenants/me/taxes")
           .set("Authorization", auth)
           .expect(200);
-        return { auth, bloque: hecho.body as { taxMode: string }, vista: vista.body as Vista };
+        return {
+          auth,
+          bloque: hecho.body as { taxMode: string; costTaxMode: string },
+          vista: vista.body as Vista,
+        };
       };
       const porDefecto = (v: Vista) => v.groups.find((g) => g.isDefault);
 
       // México: IVA 16% incluido, y el bloque que vuelve ya trae el modo.
       const mx = await terminar({ country: "MX" });
       expect(mx.bloque.taxMode).toBe("included");
+      // F9-COSTMODE-02: el precio mexicano va con IVA, el COSTO se captura sin él.
+      expect(mx.bloque.costTaxMode).toBe("excluded");
       expect(mx.vista.mode).toBe("included");
       expect(porDefecto(mx.vista)?.code).toBe("VAT16");
       expect(mx.vista.groups.map((g) => g.code).sort()).toEqual([

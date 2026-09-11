@@ -50,8 +50,9 @@ const desdeVista = (g: TaxGroupView): GrupoEditable => ({
 /**
  * F4-TAX-14 — «Impuestos» en Mi perfil.
  *
- * Dos decisiones inmediatas (el modo y la provincia o el estado se guardan
- * al elegirlos, como los interruptores de «Datos del negocio») y un catálogo
+ * Tres decisiones inmediatas (el modo del precio, el modo del COSTO
+ * —F9-COSTMODE-03— y la provincia o el estado se guardan al elegirlos, como
+ * los interruptores de «Datos del negocio») y un catálogo
  * que se edita y se guarda con un botón: los grupos con sus componentes, cuál
  * es el predeterminado y cuáles siguen activos. Borrar es aparte, y solo
  * procede sin artículos: el API contesta 409 con cuántos lo usan.
@@ -89,6 +90,13 @@ export function TaxSettings({ user }: { user: AuthUser }) {
     setError(null);
     setGuardado(false);
     update.mutate({ mode }, { onError: falla });
+  };
+  // El costo se GUARDA como se captura: cambiar el modo no convierte nada, y
+  // por eso el aviso cuando ya hay costos (la lectura cambia, el número no).
+  const cambiarModoDeCosto = (costMode: TaxMode) => {
+    setError(null);
+    setGuardado(false);
+    update.mutate({ costMode }, { onError: falla });
   };
   const cambiarRegion = (region: string) => {
     setError(null);
@@ -178,6 +186,30 @@ export function TaxSettings({ user }: { user: AuthUser }) {
                 </label>
               ))}
               {data.hasSales && <p className="text-muted-foreground text-xs">{k("modeWarning")}</p>}
+            </fieldset>
+
+            {/* ── El modo del COSTO (F9-COSTMODE-03) ───────────────────── */}
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="font-medium text-sm">{k("costModeTitle")}</legend>
+              {(["excluded", "included"] as const).map((costMode) => (
+                <label key={costMode} className="flex items-start gap-3 text-sm">
+                  <input
+                    type="radio"
+                    name="cost-tax-mode"
+                    value={costMode}
+                    className="mt-1"
+                    checked={data.costMode === costMode}
+                    disabled={ocupado}
+                    onChange={() => cambiarModoDeCosto(costMode)}
+                  />
+                  <span>
+                    {k(costMode === "included" ? "costModeIncluded" : "costModeExcluded")}
+                  </span>
+                </label>
+              ))}
+              {data.hasCosts && (
+                <p className="text-muted-foreground text-xs">{k("costModeWarning")}</p>
+              )}
             </fieldset>
 
             {/* ── La provincia o el estado ────────────────────────────── */}

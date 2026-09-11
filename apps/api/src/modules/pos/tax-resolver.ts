@@ -12,7 +12,10 @@ import type { GrupoResuelto } from "./totals";
  * simplemente no aparece y la línea cae al default.
  */
 export interface ContextoFiscal {
+  /** ¿El PRECIO de catálogo ya trae el impuesto? */
   mode: TaxMode;
+  /** F9-COSTMODE-02: ¿el COSTO se captura con el impuesto adentro? Mismo viaje, cero queries extra. */
+  costMode: TaxMode;
   porDefecto: GrupoResuelto | null;
   grupos: Map<string, GrupoResuelto>;
 }
@@ -71,11 +74,19 @@ export async function contextoFiscal(
   ids: readonly (string | null | undefined)[],
 ): Promise<ContextoFiscal> {
   const [tenant, porDefecto, grupos] = await Promise.all([
-    tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { taxMode: true } }),
+    tx.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { taxMode: true, costTaxMode: true },
+    }),
     grupoPorDefecto(tx, tenantId),
     resolverGrupos(tx, tenantId, ids),
   ]);
-  return { mode: tenant.taxMode as TaxMode, porDefecto, grupos };
+  return {
+    mode: tenant.taxMode as TaxMode,
+    costMode: tenant.costTaxMode as TaxMode,
+    porDefecto,
+    grupos,
+  };
 }
 
 /** El grupo de una línea de CATÁLOGO: el suyo, o el default del negocio. Sin default: sin impuesto. */

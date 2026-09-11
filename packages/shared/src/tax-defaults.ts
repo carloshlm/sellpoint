@@ -44,8 +44,38 @@ export interface SeedTaxGroup {
 }
 
 export interface TaxDefaults {
+  /** ¿El PRECIO de catálogo ya trae el impuesto? */
   mode: TaxMode;
+  /** ¿El COSTO se captura con el impuesto adentro? (F9-COSTMODE-01) */
+  costMode: TaxMode;
   groups: SeedTaxGroup[];
+}
+
+/**
+ * F9-COSTMODE-01 — en qué base se captura el COSTO, por país.
+ *
+ * El default es «sin impuesto» en TODOS los mercados, México incluido: el
+ * CFDI trae `ValorUnitario` sin IVA y el IVA es acreditable; en Canadá el
+ * GST/HST pagado se recupera como input tax credit; en EE. UU. la compra
+ * para reventa va con certificado de reventa, sin sales tax. El «costo con
+ * IVA» que ve el pequeño comercio es el precio de mostrador de un proveedor
+ * minorista — y para ESE negocio existe el ajuste en Mi perfil, no el
+ * default del país.
+ *
+ * `COST_MODE_BY_COUNTRY` es la ÚNICA tabla de excepciones: entra un país
+ * cuando su pequeño comercio típico NO acredita el impuesto de compra (un
+ * régimen simplificado sin crédito fiscal, un impuesto en cascada). Hoy está
+ * vacía a propósito, y el test lo fija.
+ */
+export const DEFAULT_COST_MODE: TaxMode = "excluded";
+export const COST_MODE_BY_COUNTRY: Partial<Record<string, TaxMode>> = {};
+
+/** Lo que decide el MERCADO (precio y grupos); el costo se resuelve aparte. */
+type DefaultsDeVenta = Omit<TaxDefaults, "costMode">;
+
+export function costModeFor(country: string | null | undefined): TaxMode {
+  if (country === null || country === undefined) return DEFAULT_COST_MODE;
+  return COST_MODE_BY_COUNTRY[country] ?? DEFAULT_COST_MODE;
 }
 
 export const CA_REGIONS = [
@@ -317,7 +347,7 @@ const sinImpuesto = (name: string, isDefault = true): SeedTaxGroup => ({
   rates: [],
 });
 
-function mexico(): TaxDefaults {
+function mexico(): DefaultsDeVenta {
   return {
     mode: "included",
     groups: [
@@ -339,7 +369,7 @@ function mexico(): TaxDefaults {
   };
 }
 
-function canada(region: string | null | undefined): TaxDefaults {
+function canada(region: string | null | undefined): DefaultsDeVenta {
   const zero = (code: string): SeedTaxGroup => ({
     code: "ZERO",
     name: "Zero-rated 0%",
@@ -390,7 +420,7 @@ function canada(region: string | null | undefined): TaxDefaults {
   return { mode: "excluded", groups: [soloGst, zero("GST"), exento("Exempt")] };
 }
 
-function estadosUnidos(region: string | null | undefined): TaxDefaults {
+function estadosUnidos(region: string | null | undefined): DefaultsDeVenta {
   const base =
     region !== null && region !== undefined ? US_STATE_BASE_RATE[region as UsRegion] : undefined;
   const tasa = base ?? "0";
@@ -431,6 +461,15 @@ export function resolveTaxDefaults(
   country: string | null | undefined,
   region?: string | null,
 ): TaxDefaults {
+  // El modo del PRECIO y los grupos salen del mercado; el del COSTO, de la
+  // tabla de excepciones (o el default): dos preguntas distintas, una respuesta.
+  return { ...defaultsDeVenta(country, region), costMode: costModeFor(country) };
+}
+
+function defaultsDeVenta(
+  country: string | null | undefined,
+  region?: string | null,
+): DefaultsDeVenta {
   if (country === "MX") return mexico();
   if (country === "CA") return canada(region);
   if (country === "US") return estadosUnidos(region);

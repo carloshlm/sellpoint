@@ -75,11 +75,51 @@ describe("Configuración de impuestos (F4-TAX-09)", () => {
     const res = await get(negocio.token).expect(200);
     expect(res.body).toMatchObject({
       mode: "included",
+      costMode: "excluded",
       region: null,
       needsRegion: true,
       hasSales: false,
+      hasCosts: false,
       groups: [],
     });
+  });
+
+  it("el modo del COSTO viaja solo, se audita, llega a /me y avisa cuando ya hay costos (F9-COSTMODE-02)", async () => {
+    // Solo `costMode` en el body: antes era `empty_update`.
+    const solo = await put(negocio.token, { costMode: "included" }).expect(200);
+    expect(solo.body).toMatchObject({ mode: "included", costMode: "included" });
+    await put(negocio.token, { costMode: "raro" }).expect(400);
+
+    const me = await request(app.getHttpServer())
+      .get("/me")
+      .set("Authorization", bearer(negocio.token))
+      .expect(200);
+    expect((me.body as { tenant: { costTaxMode: string } }).tenant.costTaxMode).toBe("included");
+
+    const audit = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+      tx.auditLog.findFirst({
+        where: { tenantId: negocio.tenantId, action: "tenant.tax_settings.update" },
+        orderBy: { createdAt: "desc" },
+      }),
+    );
+    expect(audit?.before).toMatchObject({ costMode: "excluded" });
+    expect(audit?.after).toMatchObject({ costMode: "included" });
+
+    // Un costo capturado en el catálogo: la vista avisa, y cambiar el modo NO lo convierte.
+    await request(app.getHttpServer())
+      .post("/products")
+      .set("Authorization", bearer(negocio.token))
+      .send({ sku: "COSTMODE-1", name: "Con costo", baseUnit: "unit", cost: 116 })
+      .expect(201);
+    expect((await get(negocio.token).expect(200)).body).toMatchObject({ hasCosts: true });
+    await put(negocio.token, { costMode: "excluded" }).expect(200);
+    const presentacion = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+      tx.productPresentation.findFirstOrThrow({
+        where: { tenantId: negocio.tenantId, product: { sku: "COSTMODE-1" } },
+        select: { cost: true },
+      }),
+    );
+    expect(presentacion.cost?.toString()).toBe("116");
   });
 
   it("PUT guarda el modo, la región y el catálogo; GET lo devuelve igual (viaje redondo)", async () => {

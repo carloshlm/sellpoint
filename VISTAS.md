@@ -1746,7 +1746,10 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 
 > **Tarjeta «Impuestos» (F4-TAX-14, 2026-09-06; solo `tenants:manage`, entre «Datos del
 > negocio» y «Ticket»):** el modo («¿El precio de tus artículos ya incluye el impuesto?»,
-> con advertencia si el negocio ya tiene ventas), la provincia o el estado si el país los
+> con advertencia si el negocio ya tiene ventas), el modo del COSTO («¿El costo de tus
+> artículos lo capturas con el impuesto incluido?», F9-COSTMODE-03, 2026-09-11: su propio
+> grupo de radios, con advertencia si ya hay costos capturados porque cambiarlo no
+> convierte nada), la provincia o el estado si el país los
 > usa, y la lista de grupos con sus componentes (código, nombre en el ticket, tasa con
 > hasta 4 decimales), marcar el predeterminado, activar/desactivar, agregar y borrar (un
 > grupo con artículos responde 409 «lo usan N artículos»). Modo y región se guardan al

@@ -3,6 +3,9 @@ import { rateToScaled, TAX_RATE_SCALE } from "./tax";
 import {
   CA_REGION_NAMES,
   CA_REGIONS,
+  COST_MODE_BY_COUNTRY,
+  costModeFor,
+  DEFAULT_COST_MODE,
   isRegionCode,
   needsRegion,
   regionName,
@@ -205,5 +208,34 @@ describe("taxIdLabel (F4-TAXMARK-04)", () => {
 
   it("cobertura: los 26 países curados tienen etiqueta, y ninguna sobra", () => {
     expect(Object.keys(TAX_ID_LABELS).sort()).toEqual([...TAX_CURATED_COUNTRIES].sort());
+  });
+});
+
+/**
+ * F9-COSTMODE-01 — en qué base se captura el COSTO. El default es «sin
+ * impuesto» en todos los mercados (el CFDI trae el valor unitario sin IVA y
+ * el IVA es acreditable; Canadá acredita GST/HST; en EE. UU. la reventa va
+ * sin sales tax) y `COST_MODE_BY_COUNTRY` es la única tabla de excepciones,
+ * vacía a propósito. Que el precio sea `included` NO arrastra al costo.
+ */
+describe("el modo del costo por país (F9-COSTMODE-01)", () => {
+  it("México, Columbia Británica y California capturan el costo SIN impuesto, aunque el precio mexicano vaya con IVA", () => {
+    const mx = resolveTaxDefaults("MX");
+    expect(mx.mode).toBe("included");
+    expect(mx.costMode).toBe("excluded");
+    expect(resolveTaxDefaults("CA", "BC").costMode).toBe("excluded");
+    expect(resolveTaxDefaults("US", "CA").costMode).toBe("excluded");
+  });
+
+  it("un país con IVA, uno no curado y «sin país» caen al default", () => {
+    expect(resolveTaxDefaults("ES").costMode).toBe(DEFAULT_COST_MODE);
+    expect(resolveTaxDefaults("ZZ").costMode).toBe(DEFAULT_COST_MODE);
+    expect(resolveTaxDefaults(null).costMode).toBe(DEFAULT_COST_MODE);
+    expect(DEFAULT_COST_MODE).toBe("excluded");
+  });
+
+  it("la tabla de excepciones está vacía: los 26 curados capturan sin impuesto, y solo ella puede cambiarlo", () => {
+    expect(Object.keys(COST_MODE_BY_COUNTRY)).toHaveLength(0);
+    expect(TAX_CURATED_COUNTRIES.every((c) => costModeFor(c) === "excluded")).toBe(true);
   });
 });
