@@ -52,3 +52,22 @@ export function formatBusinessDate(
     return new Intl.DateTimeFormat(locale, opciones).format(instante).replace(",", "");
   }
 }
+
+/**
+ * El «hoy» del calendario del NEGOCIO como `YYYY-MM-DD`, para el `max` de una
+ * fecha que no puede ser de mañana. Con la zona del navegador, a las 11 de la
+ * noche en Ciudad de México un servidor —o un usuario— en UTC ya está en
+ * mañana y la factura del día no cabría. `en-CA` da el ISO directo.
+ */
+export function businessToday(timeZone: string | undefined): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      ...(timeZone ? { timeZone } : {}),
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}

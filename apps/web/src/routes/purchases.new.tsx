@@ -10,7 +10,9 @@ import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { businessToday } from "@/lib/inventory/format-date";
 import { useCreatePurchase } from "@/lib/purchases/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/purchases/new")({
   component: NewPurchasePage,
@@ -37,7 +39,7 @@ function NewPurchasePage() {
 function NewPurchaseContent() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = businessToday(useAuthStore((s) => s.user?.tenant.timezone));
   const [supplierId, setSupplierId] = useState<string | null>(null);
   const [purchaseDate, setPurchaseDate] = useState(hoy);
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +83,7 @@ function NewPurchaseContent() {
             />
             <DateField
               label={t("purchases.new.date")}
+              max={hoy}
               value={purchaseDate}
               onChange={(event) => setPurchaseDate(event.target.value)}
               required

@@ -101,6 +101,25 @@ export async function getStock(productId: string): Promise<StockSummary> {
   return data;
 }
 
+/** Un lote del REGISTRO del producto (`product_lots`): existe aunque no tenga existencias. */
+export interface ProductLotRow {
+  id: string;
+  lotCode: string;
+  expiresAt: string | null;
+  totalQuantity: string;
+  byWarehouse: { warehouseId: string; warehouseName: string; location: string; quantity: string }[];
+}
+
+/**
+ * Todos los lotes del producto, con o sin stock. Es lo que hay que mirar para
+ * que «la caducidad siga al lote»: `getStock` solo trae los que tienen
+ * existencias, y un lote agotado sigue teniendo SU fecha (Carlos, 2026-09-11).
+ */
+export async function listProductLots(productId: string): Promise<ProductLotRow[]> {
+  const { data } = await api.get<ProductLotRow[]>(`/products/${productId}/lots`);
+  return data;
+}
+
 export async function getInTransit(productId: string): Promise<{ rows: InTransitRow[] }> {
   const { data } = await api.get<{ rows: InTransitRow[] }>("/inventory/in-transit", {
     params: { productId },

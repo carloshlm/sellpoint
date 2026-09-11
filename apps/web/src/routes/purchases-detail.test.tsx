@@ -46,12 +46,13 @@ vi.mock("@/lib/products/api", async (original) => ({
   listProducts: vi.fn(),
   getProduct: vi.fn(),
 }));
-// El stock del producto: de ahí sale la caducidad de un lote que YA existe.
+// El REGISTRO de lotes del producto: de ahí sale la caducidad de un lote que
+// YA existe, tenga o no existencias.
 vi.mock("@/lib/inventory/kardex-api", async (original) => ({
   ...(await original<typeof kardexApi>()),
-  getStock: vi.fn(),
+  listProductLots: vi.fn(),
 }));
-const mockedStock = vi.mocked(kardexApi.getStock);
+const mockedLots = vi.mocked(kardexApi.listProductLots);
 const mocked = vi.mocked(purchasesApi);
 const mockedProveedores = vi.mocked(suppliersApi);
 const mockedProductos = vi.mocked(productsApi);
@@ -93,32 +94,16 @@ beforeEach(() => {
   );
   mockedProveedores.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
   mockedProductos.listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-  mockedStock.mockResolvedValue({
-    isComposite: false,
-    total: "40",
-    stockMin: "0",
-    belowMin: false,
-    baseUnit: "pieza",
-    rows: [
-      {
-        warehouseId: "w1",
-        name: "Central",
-        quantity: "40",
-        updatedAt: null,
-        lots: [
-          {
-            lotId: "lot-1",
-            lotCode: "STM01",
-            expiresAt: "2027-03-31T00:00:00.000Z",
-            location: "",
-            quantity: "40",
-            expired: false,
-            expiringSoon: false,
-          },
-        ],
-      },
-    ],
-  });
+  mockedLots.mockResolvedValue([
+    // Agotado (cero existencias) y aun así con SU fecha: es del lote.
+    {
+      id: "lot-1",
+      lotCode: "STM01",
+      expiresAt: "2027-03-31T00:00:00.000Z",
+      totalQuantity: "0",
+      byWarehouse: [],
+    },
+  ]);
 });
 
 afterEach(() => {
@@ -135,6 +120,10 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     ).not.toBeNull();
     expect(screen.getByTestId("purchase-total")).toHaveTextContent("$1,160.00");
     expect(screen.queryByTestId("purchase-mismatch")).not.toBeInTheDocument();
+    // Ni la factura ni la recepción son de mañana: el calendario tope en hoy.
+    const hoy = /^\d{4}-\d{2}-\d{2}$/;
+    expect(screen.getByLabelText("Fecha de la factura").getAttribute("max")).toMatch(hoy);
+    expect(screen.getByLabelText("Fecha de recepción").getAttribute("max")).toMatch(hoy);
   });
 
   it("un total declarado distinto avisa y NO deshabilita «Confirmar compra»", async () => {
@@ -213,7 +202,7 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     await user.type(lote, "st m 01");
     expect(lote).toHaveValue("STM01");
     await waitFor(() => expect(screen.getByLabelText("Caducidad")).toHaveValue("2027-03-31"));
-    await waitFor(() => expect(mockedStock).toHaveBeenCalledWith("prod-1"));
+    await waitFor(() => expect(mockedLots).toHaveBeenCalledWith("prod-1"));
   });
 
   it("un producto que NO se controla por lote no ofrece lote ni caducidad", async () => {
@@ -223,7 +212,7 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     expect(screen.queryByLabelText("Lote")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Caducidad")).not.toBeInTheDocument();
     expect(screen.queryByText(/se controla por lote/i)).not.toBeInTheDocument();
-    expect(mockedStock).not.toHaveBeenCalled();
+    expect(mockedLots).not.toHaveBeenCalled();
   });
 
   it("anular pide el motivo antes de dejar anular", async () => {

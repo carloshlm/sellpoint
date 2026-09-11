@@ -27,7 +27,7 @@ import {
   useConfirmDocument,
   useDocument,
 } from "@/lib/inventory/hooks";
-import { useStock } from "@/lib/inventory/kardex-hooks";
+import { useProductLots } from "@/lib/inventory/kardex-hooks";
 import type { DocumentProduct, DocumentRow } from "@/lib/inventory/types";
 import { mismoImporte, moneyInitialValue, moneyInputError } from "@/lib/money";
 import { useAuthStore } from "@/stores/auth.store";
@@ -497,7 +497,9 @@ function LineRow({
    * paga nada.
    */
   const [lotTocado, setLotTocado] = useState(false);
-  const { data: stockProducto } = useStock(conLote && lotTocado ? row.productId : undefined);
+  // El REGISTRO de lotes y no el stock: un lote agotado sigue teniendo su
+  // fecha, y el API rebota otra distinta (Carlos, 2026-09-11).
+  const { data: lotesProducto } = useProductLots(conLote && lotTocado ? row.productId : undefined);
 
   const invalidar = () => {
     // Recargar el documento es lo que refresca la PREVIA: el stock resultante
@@ -671,15 +673,13 @@ function LineRow({
   const ultimoLoteProcesado = useRef((row.lotCode ?? "").trim());
   useEffect(() => {
     const codigo = lotCode.trim();
-    if (codigo === "" || stockProducto === undefined || ultimoLoteProcesado.current === codigo) {
+    if (codigo === "" || lotesProducto === undefined || ultimoLoteProcesado.current === codigo) {
       return;
     }
     ultimoLoteProcesado.current = codigo;
-    const conocido = stockProducto.rows
-      .flatMap((r) => r.lots ?? [])
-      .find((lot) => lot.lotCode === codigo);
+    const conocido = lotesProducto.find((lot) => lot.lotCode === codigo);
     setExpiresAt(conocido?.expiresAt != null ? conocido.expiresAt.slice(0, 10) : "");
-  }, [lotCode, stockProducto]);
+  }, [lotCode, lotesProducto]);
 
   // La altura del input (py-1 + text-sm + borde): las celdas de texto centran
   // su primera línea a esta altura para alinear con los inputs de la fila.

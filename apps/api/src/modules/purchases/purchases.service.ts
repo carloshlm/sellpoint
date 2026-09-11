@@ -9,6 +9,7 @@ import {
 import {
   DEFAULT_PURCHASE_TAX_MODE,
   FOLIO_PREFIXES,
+  localCalendarDate,
   PURCHASE_FOLIO_PREFIXES,
   type PurchaseTaxMode,
   totalMismatch,
@@ -207,6 +208,7 @@ export class PurchasesService {
         "purchase",
         PURCHASE_FOLIO_PREFIXES.purchase,
       );
+      await this.assertFechasNoFuturas(tx, user.tenantId, { purchaseDate: input.purchaseDate });
       const creada = await tx.purchase.create({
         data: {
           tenantId: user.tenantId,
@@ -308,6 +310,7 @@ export class PurchasesService {
       if (input.supplierId !== undefined) {
         await this.assertProveedor(tx, user.tenantId, input.supplierId);
       }
+      await this.assertFechasNoFuturas(tx, user.tenantId, input);
       const data: Prisma.PurchaseUncheckedUpdateInput = {
         ...(input.supplierId !== undefined && { supplierId: input.supplierId }),
         ...(input.warehouseId !== undefined && { warehouseId: input.warehouseId }),
@@ -360,6 +363,7 @@ export class PurchasesService {
       if (actual.status !== "confirmed") {
         throw new ConflictException({ message: "purchases.not_confirmed" });
       }
+      await this.assertFechasNoFuturas(tx, user.tenantId, input);
       await tx.purchase.update({
         where: { id },
         data: {
@@ -722,6 +726,43 @@ export class PurchasesService {
       })),
       entry,
     };
+  }
+
+  /**
+   * Ni la factura ni la recepción pueden ser de MAÑANA (Carlos, 2026-09-11):
+   * una compra es un papel que ya llegó, y una fecha futura corre el resumen
+   * del rango y el costo promedio a un mes que todavía no existe. El «hoy» es
+   * el del calendario del NEGOCIO, no el UTC del servidor: a las 11 de la
+   * noche en Ciudad de México, «hoy» en UTC ya es mañana y la factura del día
+   * rebotaría sin razón.
+   */
+  private async assertFechasNoFuturas(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    fechas: { purchaseDate?: string; receivedDate?: string | null },
+  ): Promise<void> {
+    const candidatas: [string, string][] = [];
+    if (typeof fechas.purchaseDate === "string") {
+      candidatas.push(["purchaseDate", fechas.purchaseDate]);
+    }
+    if (typeof fechas.receivedDate === "string") {
+      candidatas.push(["receivedDate", fechas.receivedDate]);
+    }
+    if (candidatas.length === 0) return;
+    const negocio = await tx.tenant.findUnique({
+      where: { id: tenantId },
+      select: { timezone: true },
+    });
+    const hoy = localCalendarDate(negocio?.timezone ?? "UTC", new Date());
+    for (const [campo, fecha] of candidatas) {
+      // ISO `YYYY-MM-DD`: el orden lexicográfico ES el cronológico.
+      if (fecha > hoy) {
+        throw new UnprocessableEntityException({
+          message: "purchases.date_in_future",
+          args: { field: campo },
+        });
+      }
+    }
   }
 
   private async assertProveedor(

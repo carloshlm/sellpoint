@@ -315,6 +315,25 @@ export class PurchaseLinesService {
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
+    // La caducidad es del LOTE, no de la línea (la misma regla que
+    // `line-resolver.ts` en la entrada): si el lote ya existe en el registro
+    // —con o sin existencias—, su fecha manda. Una línea sin fecha la hereda;
+    // una línea con OTRA fecha rebota, porque adivinar cuál de las dos está
+    // mal sería peor que preguntar (Carlos, 2026-09-11).
+    const conLote = lineas.filter((l) => (l.lotCode ?? "") !== "");
+    const lotesConocidos =
+      conLote.length === 0
+        ? []
+        : await tx.productLot.findMany({
+            where: {
+              tenantId,
+              OR: conLote.map((l) => ({ productId: l.productId, lotCode: l.lotCode as string })),
+            },
+            select: { productId: true, lotCode: true, expiresAt: true },
+          });
+    const caducidadDe = new Map(
+      lotesConocidos.map((lot) => [`${lot.productId}|${lot.lotCode}`, lot.expiresAt]),
+    );
     const fiscal = await contextoFiscal(
       tx,
       tenantId,
@@ -356,6 +375,20 @@ export class PurchaseLinesService {
       if (linea.taxGroupId != null && grupo === null) {
         throw new UnprocessableEntityException({ message: "catalogs.tax_group_unknown" });
       }
+      let expiresAt = linea.expiresAt == null ? null : new Date(linea.expiresAt);
+      const clave = `${linea.productId}|${linea.lotCode ?? ""}`;
+      if (traeLote && caducidadDe.has(clave)) {
+        const guardada = caducidadDe.get(clave) ?? null;
+        const pedida = expiresAt?.toISOString().slice(0, 10) ?? null;
+        const conocida = guardada?.toISOString().slice(0, 10) ?? null;
+        if (pedida !== null && conocida !== null && pedida !== conocida) {
+          throw new UnprocessableEntityException({
+            message: "purchases.lot_expiry_mismatch",
+            args: { field: `lines.${index + 1}.expiresAt`, lotCode: linea.lotCode },
+          });
+        }
+        if (pedida === null) expiresAt = guardada;
+      }
       return {
         productId: linea.productId,
         presentationId,
@@ -364,7 +397,7 @@ export class PurchaseLinesService {
         discount: new Prisma.Decimal(linea.discount ?? 0),
         grupo,
         lotCode: linea.lotCode ?? null,
-        expiresAt: linea.expiresAt == null ? null : new Date(linea.expiresAt),
+        expiresAt,
         description: producto.name,
       };
     });

@@ -6,7 +6,7 @@ import { MoneyInput } from "@/components/form/money-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
-import { useStock } from "@/lib/inventory/kardex-hooks";
+import { useProductLots } from "@/lib/inventory/kardex-hooks";
 import { getProduct } from "@/lib/products/api";
 import { useProducts } from "@/lib/products/hooks";
 import type { Purchase, PurchaseLineInput, PurchaseProduct } from "@/lib/purchases/api";
@@ -377,7 +377,8 @@ export function PurchaseLinesTable({ purchase }: { purchase: Purchase }) {
  *
  * Mismas dos reglas que Entradas (`document-detail.tsx`): el código se
  * normaliza al teclear (`STM01` y `stm01` serían dos lotes en la base) y la
- * caducidad SIGUE al lote — si ya existe, su fecha se pone siempre; si no, se
+ * caducidad SIGUE al lote del REGISTRO (con o sin existencias) — si ya existe,
+ * su fecha se pone siempre; si no, se
  * limpia, porque es del lote y no de la línea. El ref evita pisar la fecha que
  * el usuario corrija a mano sobre el mismo código.
  */
@@ -400,14 +401,16 @@ function CeldasDeLote({
 }) {
   const { t } = useTranslation();
   const codigo = lotCode.trim();
-  const { data: stock } = useStock(controlaLote && codigo !== "" ? productId : undefined);
+  // El REGISTRO de lotes, no el stock: un lote agotado en este almacén sigue
+  // teniendo su fecha, y el API rebota otra distinta (`lot_expiry_mismatch`).
+  const { data: lotes } = useProductLots(controlaLote && codigo !== "" ? productId : undefined);
   const ultimoLoteProcesado = useRef(codigo);
   useEffect(() => {
-    if (codigo === "" || stock === undefined || ultimoLoteProcesado.current === codigo) return;
+    if (codigo === "" || lotes === undefined || ultimoLoteProcesado.current === codigo) return;
     ultimoLoteProcesado.current = codigo;
-    const conocido = stock.rows.flatMap((r) => r.lots ?? []).find((lot) => lot.lotCode === codigo);
+    const conocido = lotes.find((lot) => lot.lotCode === codigo);
     onExpiresAt(conocido?.expiresAt != null ? conocido.expiresAt.slice(0, 10) : "");
-  }, [codigo, stock, onExpiresAt]);
+  }, [codigo, lotes, onExpiresAt]);
 
   if (!controlaLote) {
     return (

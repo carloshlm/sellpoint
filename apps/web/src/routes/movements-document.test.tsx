@@ -45,6 +45,7 @@ vi.mock("../lib/inventory/kardex-api", () => ({
   getStock: vi.fn(),
   getKardex: vi.fn(),
   getInTransit: vi.fn(),
+  listProductLots: vi.fn(),
 }));
 
 const mocked = vi.mocked(inventoryApi);
@@ -52,6 +53,7 @@ const mockedWarehouses = vi.mocked(warehousesApi.listWarehouses);
 const mockedProducts = vi.mocked(productsApi.listProducts);
 const mockedUsers = vi.mocked(rbacApi.listUsers);
 const mockedStock = vi.mocked(kardexApi.getStock);
+const mockedLots = vi.mocked(kardexApi.listProductLots);
 
 const demoUser = (permissions: string[], usesLocations = false): AuthUser =>
   buildAuthUser({ permissions, tenant: buildTenantBlock({ usesLocations: usesLocations }) });
@@ -145,6 +147,8 @@ beforeEach(() => {
   mockedUsers.mockReset();
   mockedUsers.mockResolvedValue([]);
   mockedStock.mockReset();
+  mockedLots.mockReset();
+  mockedLots.mockResolvedValue([]);
   mockedStock.mockResolvedValue({
     isComposite: false,
     rows: [],
@@ -189,24 +193,24 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
 
     it("cambiar a OTRO lote conocido re-llena su caducidad — no se queda la del anterior", async () => {
       const user = userEvent.setup();
-      mockedStock.mockResolvedValue({
-        isComposite: false,
-        total: "10",
-        stockMin: "0",
-        belowMin: false,
-        baseUnit: "unit",
-        rows: [
-          {
-            warehouseId: "w1",
-            warehouseName: "Central",
-            quantity: "10",
-            lots: [
-              { lotCode: "ST1", expiresAt: "2026-07-01T00:00:00.000Z", quantity: "4" },
-              { lotCode: "ST2", expiresAt: "2026-09-30T00:00:00.000Z", quantity: "6" },
-            ],
-          },
-        ],
-      } as never);
+      // Del REGISTRO de lotes (con o sin existencias), no del stock: ST2 está
+      // agotado y aun así tiene su fecha (Carlos, 2026-09-11).
+      mockedLots.mockResolvedValue([
+        {
+          id: "lot-1",
+          lotCode: "ST1",
+          expiresAt: "2026-07-01T00:00:00.000Z",
+          totalQuantity: "4",
+          byWarehouse: [],
+        },
+        {
+          id: "lot-2",
+          lotCode: "ST2",
+          expiresAt: "2026-09-30T00:00:00.000Z",
+          totalQuantity: "0",
+          byWarehouse: [],
+        },
+      ]);
       mocked.getDocument.mockResolvedValue(detalleConLote());
       await renderDoc();
       await screen.findByText("PAR-500");

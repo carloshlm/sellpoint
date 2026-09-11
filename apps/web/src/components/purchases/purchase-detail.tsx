@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
+import { businessToday } from "@/lib/inventory/format-date";
 import type { Purchase, UpdatePurchaseInput } from "@/lib/purchases/api";
 import { printPurchase } from "@/lib/purchases/api";
 import {
@@ -50,6 +51,10 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   const { canWrite } = usePlan();
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+  const timeZone = useAuthStore((s) => s.user?.tenant.timezone);
+  // Ni la factura ni la recepción son de mañana: el API lo rebota
+  // (`purchases.date_in_future`) y el calendario no lo ofrece.
+  const hoy = businessToday(timeZone);
 
   const borrador = purchase.status === "draft";
   const confirmada = purchase.status === "confirmed";
@@ -251,6 +256,7 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
             </div>
             <DateField
               label={t("purchases.detail.date")}
+              max={hoy}
               value={purchaseDate}
               disabled={!borrador || !puedeEditar}
               onChange={(event) => {
@@ -260,6 +266,7 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
             />
             <DateField
               label={t("purchases.detail.receivedDate")}
+              max={hoy}
               value={receivedDate}
               disabled={!puedeEditar || purchase.status === "canceled"}
               onChange={(event) => {

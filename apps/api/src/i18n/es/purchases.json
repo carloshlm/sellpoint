@@ -10,6 +10,8 @@
   "product_not_found": "Uno de los productos de la compra no existe.",
   "presentation_invalid": "Esa presentación no es de ese producto o está desactivada.",
   "lot_not_tracked": "{field}: este producto no se controla por lote. Quita el lote y la caducidad, o activa el control por lote en su ficha del catálogo.",
+  "date_in_future": "{field}: la fecha no puede ser posterior a hoy. Una compra es un papel que ya llegó.",
+  "lot_expiry_mismatch": "{field}: el lote «{lotCode}» ya existe con otra fecha de caducidad. La caducidad es del lote: déjala vacía y se pone sola, o corrige el lote.",
   "warehouse_required": "No tienes un almacén asignado: elige a cuál entra la compra.",
   "needs_lines": "Agrega al menos un producto antes de confirmar la compra.",
   "line_needs_quantity": "Escribe la cantidad de {field}.",

@@ -42,6 +42,7 @@ vi.mock("../lib/inventory/kardex-api", () => ({
   getStock: vi.fn(),
   getKardex: vi.fn(),
   getInTransit: vi.fn(),
+  listProductLots: vi.fn(),
   updateLot: vi.fn(),
 }));
 vi.mock("../lib/products/api", () => ({ listProducts: vi.fn() }));
@@ -426,32 +427,16 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
      */
     it("teclear un lote que ya existe autocompleta su caducidad", async () => {
       mocked.getDocument.mockResolvedValue(detalleConLotes());
-      mockedKardex.getStock.mockResolvedValue({
-        isComposite: false,
-        rows: [
-          {
-            warehouseId: "w1",
-            name: "Central",
-            quantity: "92",
-            updatedAt: "2026-08-24T10:00:00.000Z",
-            lots: [
-              {
-                lotId: "l-st4",
-                lotCode: "ST4",
-                quantity: "92",
-                expiresAt: "2027-03-05",
-                location: "",
-                expired: false,
-                expiringSoon: false,
-              },
-            ],
-          },
-        ],
-        total: "92",
-        stockMin: "0",
-        belowMin: false,
-        baseUnit: "unit",
-      });
+      // Del REGISTRO de lotes (con o sin existencias), no del stock.
+      mockedKardex.listProductLots.mockResolvedValue([
+        {
+          id: "l-st4",
+          lotCode: "ST4",
+          expiresAt: "2027-03-05",
+          totalQuantity: "92",
+          byWarehouse: [],
+        },
+      ]);
       await renderDoc();
       await screen.findByText("PAR-500");
       const user = userEvent.setup();
@@ -468,32 +453,16 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       const d = detalleConLotes();
       (d.rows[0] as DocumentRow).expiresAt = "2026-12-31";
       mocked.getDocument.mockResolvedValue(d);
-      mockedKardex.getStock.mockResolvedValue({
-        isComposite: false,
-        rows: [
-          {
-            warehouseId: "w1",
-            name: "Central",
-            quantity: "92",
-            updatedAt: null,
-            lots: [
-              {
-                lotId: "l-st4",
-                lotCode: "ST4",
-                quantity: "92",
-                expiresAt: "2027-03-05",
-                location: "",
-                expired: false,
-                expiringSoon: false,
-              },
-            ],
-          },
-        ],
-        total: "92",
-        stockMin: "0",
-        belowMin: false,
-        baseUnit: "unit",
-      });
+      // Del REGISTRO de lotes (con o sin existencias), no del stock.
+      mockedKardex.listProductLots.mockResolvedValue([
+        {
+          id: "l-st4",
+          lotCode: "ST4",
+          expiresAt: "2027-03-05",
+          totalQuantity: "92",
+          byWarehouse: [],
+        },
+      ]);
       await renderDoc();
       await screen.findByText("PAR-500");
       const user = userEvent.setup();

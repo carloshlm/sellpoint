@@ -438,13 +438,13 @@ describe("Compras (F9-PURCH)", () => {
 
       const anotada = await api(negocio.token)
         .patch(`/purchases/${compra.id}/reception`, {
-          receivedDate: "2026-09-15",
+          receivedDate: "2026-09-10",
           supplierInvoice: "A-9001",
           notes: "Llegó incompleta: faltan 2 cajas",
         })
         .expect(200);
       expect(anotada.body).toMatchObject({
-        receivedDate: "2026-09-15",
+        receivedDate: "2026-09-10",
         supplierInvoice: "A-9001",
         total: (antes.body as { total: string }).total,
       });
@@ -772,6 +772,100 @@ describe("Compras (F9-PURCH)", () => {
       });
       // Y la entrada se confirma: sin el lote de más, ya no hay nada que rechazar.
       await api(negocio.token).post(`/inventory/documents/${entradaId}/confirm`).expect(201);
+    });
+  });
+
+  describe("fechas de hoy para atrás y la caducidad del lote conocido (Carlos, 2026-09-11)", () => {
+    it("ni la factura ni la recepción pueden ser de mañana", async () => {
+      await api(negocio.token)
+        .post("/purchases", { supplierId: proveedorId, purchaseDate: "2031-01-01" })
+        .expect(422);
+      const compra = await nuevaCompra("2026-01-10");
+      const rebote = await api(negocio.token)
+        .patch(`/purchases/${compra.id}`, { receivedDate: "2031-01-01" })
+        .expect(422);
+      expect((rebote.body as { message: string }).message).toContain("receivedDate");
+      // Ayer sí: el papel ya llegó.
+      await api(negocio.token)
+        .patch(`/purchases/${compra.id}`, { receivedDate: "2026-01-11" })
+        .expect(200);
+
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [{ productId: productoId, presentationId: piezaId, quantity: 1, unitCost: 10 }],
+        })
+        .expect(200);
+      await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
+      await api(negocio.token)
+        .patch(`/purchases/${compra.id}/reception`, { receivedDate: "2031-01-01" })
+        .expect(422);
+    });
+
+    it("un lote que ya existe —aunque no tenga existencias— manda su caducidad", async () => {
+      // Registrado a mano, SIN stock: es el caso del histórico que el stock
+      // no ve y que dejaba capturar otra fecha.
+      await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.productLot.create({
+          data: {
+            tenantId: negocio.tenantId,
+            productId: productoId,
+            lotCode: "HIST-01",
+            expiresAt: new Date("2028-05-31"),
+          },
+        }),
+      );
+      const compra = await nuevaCompra();
+
+      // Sin fecha: la hereda del lote.
+      const heredada = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            {
+              productId: productoId,
+              presentationId: piezaId,
+              quantity: 1,
+              unitCost: 10,
+              lotCode: "hist-01",
+            },
+          ],
+        })
+        .expect(200);
+      expect(
+        (heredada.body as { lines: { lotCode: string; expiresAt: string | null }[] }).lines[0],
+      ).toMatchObject({ lotCode: "HIST-01", expiresAt: "2028-05-31" });
+
+      // Con OTRA fecha: rebota nombrando la línea. La caducidad es del lote.
+      const rebote = await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            {
+              productId: productoId,
+              presentationId: piezaId,
+              quantity: 1,
+              unitCost: 10,
+              lotCode: "HIST-01",
+              expiresAt: "2029-01-01",
+            },
+          ],
+        })
+        .expect(422);
+      expect((rebote.body as { message: string }).message).toContain("lines.1.expiresAt");
+
+      // Con LA MISMA fecha: pasa.
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [
+            {
+              productId: productoId,
+              presentationId: piezaId,
+              quantity: 1,
+              unitCost: 10,
+              lotCode: "HIST-01",
+              expiresAt: "2028-05-31",
+            },
+          ],
+        })
+        .expect(200);
     });
   });
 });
