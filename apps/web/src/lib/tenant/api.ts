@@ -40,6 +40,11 @@ export interface TenantBlock {
   /** F4-POSVIS: si el vendedor ve existencias en el punto de venta (por defecto sí). */
   posShowsStock: boolean;
   /**
+   * F9-PO-02: «Usar órdenes de compra» — pedido al proveedor, recepciones
+   * parciales y la compra sobre lo recibido. Apagado, la compra es la factura.
+   */
+  usesPurchaseOrders: boolean;
+  /**
    * F5-DASH-02: la meta mensual de ventas — string decimal («800000») o null.
    * El dashboard pinta contra ella la barra de «% alcanzado».
    */
@@ -75,6 +80,7 @@ export type UpdateTenantInput = Partial<
     | "sellWithoutStock"
     | "usesLocations"
     | "posShowsStock"
+    | "usesPurchaseOrders"
   >
 > & {
   // En el PATCH la meta viaja como NÚMERO (el DTO del API valida positivo y

@@ -5,7 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as tenantApi from "@/lib/tenant/api";
-import type { AuthUser } from "@/stores/auth.store";
+import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { buildTenantBlock } from "@/test/tenant-fixture";
@@ -134,6 +134,40 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
         "Mostrar existencias en el punto de venta",
         "Usar ubicaciones de almacén",
       ]);
+    });
+
+    /**
+     * F9-PO-02 (Carlos, 2026-09-11): «Usar órdenes de compra» es un ajuste del
+     * negocio, no un plan. Solo existe con el módulo Compras: sin él no hay a
+     * dónde llevar al que lo encienda.
+     */
+    it("«Usar órdenes de compra» aparece solo con el módulo Compras y se guarda al vuelo", async () => {
+      const user = userEvent.setup();
+      const conCompras = buildAuthUser({
+        permissions: ["tenants:manage"],
+        tenant: buildTenantBlock(),
+        subscription: { ...SUBSCRIPTION_PLUS, modules: ["purchases"] },
+      });
+      mockedUpdate.mockResolvedValue({ ...conCompras.tenant, usesPurchaseOrders: true });
+      // `usePlan()` lee la suscripción del STORE, no del `user` que recibe la
+      // tarjeta: sin esto, el módulo Compras no existe para el interruptor.
+      useAuthStore.getState().setAuth("jwt-demo", conCompras);
+      renderCard(conCompras);
+
+      const casilla = screen.getByRole("checkbox", { name: "Usar órdenes de compra" });
+      expect(casilla).not.toBeChecked();
+      await user.click(casilla);
+      await waitFor(() => {
+        expect(mockedUpdate.mock.calls[0]?.[0]).toEqual({ usesPurchaseOrders: true });
+      });
+      useAuthStore.getState().clearAuth();
+    });
+
+    it("sin el módulo Compras, el interruptor de órdenes no existe", () => {
+      renderCard(demoUser(["tenants:manage"]));
+      expect(
+        screen.queryByRole("checkbox", { name: "Usar órdenes de compra" }),
+      ).not.toBeInTheDocument();
     });
 
     /**

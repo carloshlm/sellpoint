@@ -125,6 +125,7 @@ describe("/me (e2e)", () => {
         sellWithoutStock: false,
         usesLocations: false,
         posShowsStock: true,
+        usesPurchaseOrders: false,
         // F4-TAX-16: el modo del impuesto y la región viajan en el bloque del negocio.
         taxMode: "included",
         region: null,

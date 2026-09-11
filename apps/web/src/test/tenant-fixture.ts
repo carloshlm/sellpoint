@@ -27,6 +27,7 @@ export const TENANT_DEMO: TenantBlock = {
   sellWithoutStock: false,
   usesLocations: false,
   posShowsStock: true,
+  usesPurchaseOrders: false,
   monthlySalesGoal: null,
   discountCodeSetAt: null,
   discountMaxPercent: null,

@@ -84,6 +84,9 @@ export const updateTenantSchema = z
     usesLocations: z.boolean().optional(),
     // F4-POSVIS: «Mostrar existencias en el punto de venta».
     posShowsStock: z.boolean().optional(),
+    // F9-PO-02: «Usar órdenes de compra». El web lo ofrece solo con el módulo
+    // Compras; el API lo acepta siempre (es un ajuste, no un derecho).
+    usesPurchaseOrders: z.boolean().optional(),
     // F5-DASH-02: la meta mensual de ventas. Positiva y con 2 decimales — es
     // dinero, y la misma regla que valida precios (hasValidMoneyScale) valida
     // la meta: dos fuentes de verdad para "cuántos decimales tiene el dinero"

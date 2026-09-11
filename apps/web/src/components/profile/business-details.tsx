@@ -26,6 +26,7 @@ import { ErrorNotice } from "@/components/ui/error-notice";
 import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
+import { usePlan } from "@/lib/billing/use-plan";
 import { moneyInitialValue } from "@/lib/money";
 import type { TenantBlock, UpdateTenantInput } from "@/lib/tenant/api";
 import { useUpdateMyTenant } from "@/lib/tenant/hooks";
@@ -91,6 +92,12 @@ function BusinessDetails({ user }: { user: AuthUser }) {
   const [sellWithoutStock, setSellWithoutStock] = useState(user.tenant.sellWithoutStock);
   const [usesLocations, setUsesLocations] = useState(user.tenant.usesLocations);
   const [posShowsStock, setPosShowsStock] = useState(user.tenant.posShowsStock);
+  const [usesPurchaseOrders, setUsesPurchaseOrders] = useState(user.tenant.usesPurchaseOrders);
+  // F9-PO-02: el interruptor solo tiene sentido con el módulo Compras. Sin
+  // él no hay «Compras» en el menú y encenderlo sería prometer una pantalla
+  // que no existe.
+  const { hasModule } = usePlan();
+  const ofreceOrdenes = hasModule("purchases");
   const [succeeded, setSucceeded] = useState(false);
 
   const {
@@ -474,6 +481,33 @@ function BusinessDetails({ user }: { user: AuthUser }) {
               }}
             />
           </div>
+
+          {ofreceOrdenes && (
+            <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+              <div className="space-y-1">
+                <Label htmlFor="uses-purchase-orders">
+                  {t("common.profile.business.usesPurchaseOrders")}
+                </Label>
+                <p className="text-muted-foreground text-xs">
+                  {t("common.profile.business.usesPurchaseOrdersHint")}
+                </p>
+              </div>
+              <Checkbox
+                id="uses-purchase-orders"
+                aria-label={t("common.profile.business.usesPurchaseOrders")}
+                checked={usesPurchaseOrders}
+                disabled={updateTenant.isPending}
+                onCheckedChange={(checked) => {
+                  const next = checked === true;
+                  setUsesPurchaseOrders(next);
+                  updateTenant.mutate(
+                    { usesPurchaseOrders: next },
+                    { onError: () => setUsesPurchaseOrders(!next) },
+                  );
+                }}
+              />
+            </div>
+          )}
 
           <Button type="submit" disabled={!isDirty || updateTenant.isPending}>
             {updateTenant.isPending

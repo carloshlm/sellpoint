@@ -128,6 +128,8 @@
       "sellWithoutStockPlanNote": "Included in your plan: without inventory control, sales are never blocked.",
       "usesLocations": "Use warehouse locations",
       "usesLocationsHint": "Adds a «Location» field to products and sorts the stock count sheet by walking route instead of by code. It does not track stock per location.",
+      "usesPurchaseOrders": "Use purchase orders",
+      "usesPurchaseOrdersHint": "Order from the supplier, receive in parts, and record the purchase from what arrived. Off, a purchase is just the invoice.",
       "monthlySalesGoal": "Monthly sales goal",
       "monthlySalesGoalHint": "The number your dashboard measures the month against. Leave it empty if you don't want to chase a goal.",
       "posShowsStock": "Show stock in the point of sale",

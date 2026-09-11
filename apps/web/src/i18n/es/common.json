@@ -128,6 +128,8 @@
       "sellWithoutStockPlanNote": "Incluido en tu plan: sin control de inventario, la venta nunca se bloquea.",
       "usesLocations": "Usar ubicaciones de almacén",
       "usesLocationsHint": "Agrega el campo «Ubicación» a los productos y ordena la hoja del inventario físico por recorrido del almacén en vez de por código. No lleva existencias por ubicación.",
+      "usesPurchaseOrders": "Usar órdenes de compra",
+      "usesPurchaseOrdersHint": "Pedido al proveedor, recepciones parciales y la compra sobre lo recibido. Apagado, la compra es la factura y nada más.",
       "monthlySalesGoal": "Meta mensual de ventas",
       "monthlySalesGoalHint": "El número contra el que el panel mide tu avance del mes. Déjala vacía si no quieres perseguir una meta.",
       "posShowsStock": "Mostrar existencias en el punto de venta",

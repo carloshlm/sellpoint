@@ -61,7 +61,7 @@ describe("FOLIO_PREFIXES", () => {
   /** F9-EXP-01 / F9-PURCH-01 — Gastos y Compras entran al catálogo de series. */
   it("las de Gastos y Compras son GAS y COM y entran en el catálogo", () => {
     expect(EXPENSE_FOLIO_PREFIXES).toEqual({ expense: "GAS" });
-    expect(PURCHASE_FOLIO_PREFIXES).toEqual({ purchase: "COM" });
+    expect(PURCHASE_FOLIO_PREFIXES).toEqual({ purchase: "COM", order: "OCO", receipt: "RCP" });
     expect(ALL_FOLIO_PREFIXES).toContain("GAS");
     expect(ALL_FOLIO_PREFIXES).toContain("COM");
   });

@@ -1,0 +1,12 @@
+-- F9-PO-02 — el ajuste del negocio «Usar órdenes de compra».
+--
+-- Es un AJUSTE, no un plan ni un módulo: lo necesita el negocio con volumen
+-- (pedido al proveedor → recepciones parciales → la compra sobre lo
+-- recibido), no el que paga más. Apagado, la compra sigue siendo la factura
+-- y nada cambia; encendido, aparece «Órdenes de compra» en el menú y la
+-- compra puede nacer de lo recibido. Molde: `uses_locations`.
+--
+-- El API solo lo exige para CREAR órdenes: apagarlo no esconde datos ni
+-- rompe lecturas. Por eso no hay backfill ni nada que migrar: `false` de
+-- fábrica y listo.
+ALTER TABLE "tenants" ADD COLUMN "uses_purchase_orders" BOOLEAN NOT NULL DEFAULT false;

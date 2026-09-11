@@ -164,6 +164,40 @@ describe("/tenants/me (e2e, F1-WEB-ONBOARD-01)", () => {
       expect(getResponse.body).toMatchObject({ country: "MX" });
     });
 
+    /**
+     * F9-PO-02 (Carlos, 2026-09-11): «Usar órdenes de compra» es un ajuste del
+     * negocio, como `usesLocations`. Nace apagado; se enciende desde Mi perfil
+     * y viaja en el TenantBlock para que el menú lo lea.
+     */
+    it("usesPurchaseOrders: nace apagado, PATCH lo enciende y GET /me lo trae", async () => {
+      const owner = await registerActiveOwner();
+
+      const antes = await request(app.getHttpServer())
+        .get("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect(antes.body).toMatchObject({ usesPurchaseOrders: false });
+
+      await request(app.getHttpServer())
+        .patch("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .send({ usesPurchaseOrders: true })
+        .expect(200);
+
+      const despues = await request(app.getHttpServer())
+        .get("/tenants/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect(despues.body).toMatchObject({ usesPurchaseOrders: true });
+      const me = await request(app.getHttpServer())
+        .get("/me")
+        .set("Authorization", bearer(owner.accessToken))
+        .expect(200);
+      expect((me.body as { tenant: { usesPurchaseOrders: boolean } }).tenant).toMatchObject({
+        usesPurchaseOrders: true,
+      });
+    });
+
     it("país en formato inválido (minúsculas) -> 400 tenants.invalid_country", async () => {
       const owner = await registerActiveOwner();
 

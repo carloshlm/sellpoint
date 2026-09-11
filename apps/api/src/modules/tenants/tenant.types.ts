@@ -38,6 +38,8 @@ export interface TenantBlock {
   usesLocations: boolean;
   /** F4-POSVIS: si el vendedor ve existencias en el punto de venta. */
   posShowsStock: boolean;
+  /** F9-PO-02: pedido → recepciones parciales → compra sobre lo recibido. */
+  usesPurchaseOrders: boolean;
   // F5-DASH-02: la meta mensual de ventas, como string decimal («800000») o
   // null. String y no number: es un Decimal de Prisma y el JSON del resto del
   // sistema ya serializa el dinero así.
@@ -78,6 +80,7 @@ export const TENANT_SELECT = {
   sellWithoutStock: true,
   usesLocations: true,
   posShowsStock: true,
+  usesPurchaseOrders: true,
   monthlySalesGoal: true,
   taxMode: true,
   region: true,
@@ -106,6 +109,7 @@ export type TenantRow = {
   usesLocations: boolean;
   /** F4-POSVIS: si el vendedor ve existencias en el punto de venta. */
   posShowsStock: boolean;
+  usesPurchaseOrders: boolean;
   monthlySalesGoal: { toString(): string } | null;
   taxMode: string;
   region: string | null;
@@ -134,6 +138,7 @@ export function toTenantBlock(row: TenantRow): TenantBlock {
     sellWithoutStock: row.sellWithoutStock,
     usesLocations: row.usesLocations,
     posShowsStock: row.posShowsStock,
+    usesPurchaseOrders: row.usesPurchaseOrders,
     monthlySalesGoal: row.monthlySalesGoal?.toString() ?? null,
     taxMode: row.taxMode as TaxMode,
     region: row.region,

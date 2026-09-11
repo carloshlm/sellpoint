@@ -70,6 +70,12 @@ export const EXPENSE_FOLIO_PREFIXES = {
 
 export const PURCHASE_FOLIO_PREFIXES = {
   purchase: "COM",
+  // F9-PO-01: la orden de compra (el compromiso) y la recepción (el andén).
+  // `RCP` y no `REC`: la recepción de un TRASPASO no tiene serie propia (es
+  // una entrada, y el test lo fija con «no contiene REC»); una serie llamada
+  // REC se leería como si la tuviera.
+  order: "OCO",
+  receipt: "RCP",
 } as const satisfies Record<string, string>;
 
 /** Todas las series del sistema. Ninguna puede repetir prefijo con otra. */
