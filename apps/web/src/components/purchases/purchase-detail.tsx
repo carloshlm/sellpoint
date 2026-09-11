@@ -52,6 +52,12 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const timeZone = useAuthStore((s) => s.user?.tenant.timezone);
+  // F9-COSTMODE-04: la opción que coincide con el ajuste del negocio se marca.
+  const costTaxMode = useAuthStore((s) => s.user?.tenant.costTaxMode ?? "excluded");
+  const etiquetaDeModo = (modo: Purchase["taxMode"]) =>
+    `${t(modo === "excluded" ? "purchases.detail.taxModeExcluded" : "purchases.detail.taxModeIncluded")}${
+      modo === costTaxMode ? ` ${t("purchases.detail.taxModeDefault")}` : ""
+    }`;
   // Ni la factura ni la recepción son de mañana: el API lo rebota
   // (`purchases.date_in_future`) y el calendario no lo ofrece.
   const hoy = businessToday(timeZone);
@@ -317,8 +323,8 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
               value={taxMode}
               disabled={!borrador || !puedeEditar}
               options={[
-                { value: "excluded", label: t("purchases.detail.taxModeExcluded") },
-                { value: "included", label: t("purchases.detail.taxModeIncluded") },
+                { value: "excluded", label: etiquetaDeModo("excluded") },
+                { value: "included", label: etiquetaDeModo("included") },
               ]}
               onChange={(event) => {
                 const modo = event.target.value as Purchase["taxMode"];

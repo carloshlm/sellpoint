@@ -271,6 +271,14 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     await screen.findByTestId("confirm-purchase");
   });
 
+  it("el selector del modo marca la opción que coincide con el ajuste del negocio (F9-COSTMODE-04)", async () => {
+    await renderFicha(["purchases:read", "purchases:manage"]);
+    const selector = await screen.findByLabelText("Los costos de la factura");
+    expect(within(selector).getByRole("option", { name: /ajuste del negocio/ })).toHaveValue(
+      "excluded",
+    );
+  });
+
   it("anular pide el motivo antes de dejar anular", async () => {
     await renderFicha([...GESTOR, "purchases:cancel"]);
     const user = userEvent.setup();

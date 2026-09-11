@@ -1162,6 +1162,12 @@ model InventoryDocumentLine {
   /// es del `confirm`, no de la captura.
   quantity       Decimal?  @db.Decimal(14, 4)
   unitCost       Decimal?  @map("unit_cost") @db.Decimal(14, 2)
+  /**
+   * F9-COSTMODE-05: el costo NETO de la línea — el canal del descuento y del
+   * redondeo (ver la migración). Lo escribe el puente desde la compra; en una
+   * entrada manual lo deriva el `confirm`. Es lo que entra al kardex.
+   */
+  unitCostNet    Decimal?  @map("unit_cost_net") @db.Decimal(14, 2)
   lotCode        String?   @map("lot_code") @db.VarChar(64)
   expiresAt      DateTime? @map("expires_at") @db.Date
   location       String?   @db.VarChar(64)

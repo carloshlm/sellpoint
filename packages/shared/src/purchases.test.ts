@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_PURCHASE_TAX_MODE,
   PURCHASE_STATUSES,
   PURCHASE_TAX_MODES,
   purchaseStatusSchema,
@@ -9,11 +8,9 @@ import {
 
 /** F9-PURCH-01 — los contratos de Compras y el descuadre DERIVADO del papel. */
 describe("contratos de Compras (F9-PURCH-01)", () => {
-  it("los tres estados y el modo fiscal por compra, con `excluded` de fábrica", () => {
+  it("los tres estados y el modo fiscal por documento (el default lo pone el negocio, F9-COSTMODE-04)", () => {
     expect(PURCHASE_STATUSES).toEqual(["draft", "confirmed", "canceled"]);
     expect(PURCHASE_TAX_MODES).toEqual(["included", "excluded"]);
-    // Al revés que el mostrador: la factura del proveedor viene neta + IVA.
-    expect(DEFAULT_PURCHASE_TAX_MODE).toBe("excluded");
     expect(purchaseStatusSchema.parse("confirmed")).toBe("confirmed");
     expect(() => purchaseStatusSchema.parse("open")).toThrow();
   });

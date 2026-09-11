@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
+import { costoDeCatalogo } from "@/components/purchase-orders/purchase-order-lines-table";
 import { createI18n } from "@/i18n";
 import * as productsApi from "@/lib/products/api";
 import * as ordersApi from "@/lib/purchase-orders/api";
@@ -334,9 +335,67 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     expect(within(fila).getByLabelText("Costo acordado")).toHaveValue("79");
   });
 
+  it("el selector del modo marca la opción que coincide con el ajuste del negocio (F9-COSTMODE-04)", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(
+      buildPurchaseOrder({ status: "draft", issuedAt: null }),
+    );
+    await renderFicha(GESTOR);
+    const selector = await screen.findByLabelText("Los costos acordados");
+    expect(within(selector).getByRole("option", { name: /ajuste del negocio/ })).toHaveValue(
+      "excluded",
+    );
+    expect(
+      within(selector).getByRole("option", { name: /ya incluyen impuesto/ }),
+    ).not.toHaveTextContent("ajuste del negocio");
+  });
+
+  it("con la orden en la OTRA base que el negocio, agregar un producto no precarga el costo y lo dice (F9-COSTMODE-05)", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(
+      buildPurchaseOrder({ status: "draft", issuedAt: null, taxMode: "included" }),
+    );
+    mockedProductos.listProducts.mockResolvedValue({
+      items: [
+        {
+          id: "prod-2",
+          sku: "SKU-2",
+          name: "Gasas estériles",
+          baseUnit: "pieza",
+          isComposite: false,
+          isActive: true,
+          taxGroupId: null,
+          attributes: {},
+          price: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+    await renderFicha(GESTOR);
+    expect(await screen.findByText(/El costo del catálogo está en la otra base/)).toBeVisible();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Buscar producto"), "gas");
+    await user.click(await screen.findByTestId("add-product-prod-2"));
+    const fila = await screen.findByTestId("purchase-order-line-1");
+    expect(within(fila).getByLabelText("Costo acordado")).toHaveValue("");
+  });
+
   it("sin nada confirmado sin factura, el botón de registrar compra no existe; sin `purchases:cancel` no hay anular", async () => {
     await renderFicha(GESTOR);
     expect(screen.queryByTestId("register-purchase")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Anular orden" })).not.toBeInTheDocument();
+  });
+});
+
+/** F9-COSTMODE-05 — la función pura: solo sugiere cuando el documento y el negocio hablan la misma base. */
+describe("costoDeCatalogo con la base del negocio", () => {
+  const ficha = { presentations: [{ id: "caja", cost: "79" }] };
+  it.each([
+    ["excluded", "excluded", "79"],
+    ["included", "included", "79"],
+    ["included", "excluded", ""],
+    ["excluded", "included", ""],
+  ] as const)("documento %s · negocio %s → «%s»", (documento, negocio, esperado) => {
+    expect(costoDeCatalogo(ficha, "caja", documento, negocio)).toBe(esperado);
   });
 });

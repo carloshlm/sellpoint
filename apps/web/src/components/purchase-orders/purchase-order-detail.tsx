@@ -65,6 +65,12 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
   const locale = useAuthStore((s) => s.user?.locale ?? "es");
   const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
   const hoy = businessToday(useAuthStore((s) => s.user?.tenant.timezone));
+  // F9-COSTMODE-04: la opción que coincide con el ajuste del negocio se marca.
+  const costTaxMode = useAuthStore((s) => s.user?.tenant.costTaxMode ?? "excluded");
+  const etiquetaDeModo = (modo: PurchaseOrder["taxMode"]) =>
+    `${t(modo === "excluded" ? "purchaseOrders.detail.taxModeExcluded" : "purchaseOrders.detail.taxModeIncluded")}${
+      modo === costTaxMode ? ` ${t("purchaseOrders.detail.taxModeDefault")}` : ""
+    }`;
 
   const borrador = order.status === "draft";
   const viva = order.status === "open" || order.status === "partially_received";
@@ -302,8 +308,8 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
               value={taxMode}
               disabled={!borrador || !puedeEditar}
               options={[
-                { value: "excluded", label: t("purchaseOrders.detail.taxModeExcluded") },
-                { value: "included", label: t("purchaseOrders.detail.taxModeIncluded") },
+                { value: "excluded", label: etiquetaDeModo("excluded") },
+                { value: "included", label: etiquetaDeModo("included") },
               ]}
               onChange={(event) => {
                 const modo = event.target.value as PurchaseOrder["taxMode"];

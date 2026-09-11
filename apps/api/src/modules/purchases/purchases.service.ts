@@ -7,7 +7,6 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
-  DEFAULT_PURCHASE_TAX_MODE,
   FOLIO_PREFIXES,
   PURCHASE_FOLIO_PREFIXES,
   type PurchaseTaxMode,
@@ -34,6 +33,7 @@ import type {
   UpdateReceptionDto,
 } from "./dto/purchase.dto";
 import { gruposPorCodigo, type LineaLista, PurchaseLinesService } from "./purchase-lines.service";
+import { costoBrutoPorUnidad } from "./purchase-totals";
 
 /** El módulo que el inventario guarda como ORIGEN de una entrada nacida de una compra. */
 export const PURCHASE_SOURCE_MODULE = "purchases";
@@ -228,6 +228,13 @@ export class PurchasesService {
         PURCHASE_FOLIO_PREFIXES.purchase,
       );
       await this.assertFechasNoFuturas(tx, user.tenantId, { purchaseDate: input.purchaseDate });
+      // F9-COSTMODE-04: la compra nace en la base del negocio («los costos se
+      // capturan con o sin impuesto»); sigue editable por documento, porque
+      // una factura concreta puede venir en la otra.
+      const { costTaxMode } = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { costTaxMode: true },
+      });
       const creada = await tx.purchase.create({
         data: {
           tenantId: user.tenantId,
@@ -235,7 +242,7 @@ export class PurchasesService {
           supplierId: input.supplierId,
           warehouseId,
           purchaseDate: new Date(input.purchaseDate),
-          taxMode: DEFAULT_PURCHASE_TAX_MODE,
+          taxMode: costTaxMode,
           createdBy: user.userId,
         },
         include: DETALLE,
@@ -538,8 +545,15 @@ export class PurchasesService {
    * Lo que cruza y lo que no:
    *  · la CANTIDAD va en la presentación capturada, tal cual — convertirla a
    *    base la multiplicaría por el factor (3 cajas de 12 llegarían como 36);
-   *  · el costo que viaja es `unit_cost_net`, nunca el bruto: pisa
-   *    `product_presentations.cost` y un precio con IVA inflaría el margen;
+   *  · el costo cruza en la base del NEGOCIO (`tenants.cost_tax_mode`,
+   *    F9-COSTMODE-05): es lo que el usuario ve en su catálogo, y por eso es
+   *    lo que pisa `product_presentations.cost`; en `excluded` (el default de
+   *    todos) es el neto de la compra tal cual, en `included` es el bruto por
+   *    unidad de la propia línea (`line_total / quantity`), sin snapshot ni
+   *    redondeo de ida y vuelta;
+   *  · al lado viaja `unit_cost_net` EXACTO: el que entra al kardex y al
+   *    promedio, con el descuento de línea ya dentro — jamás se rederiva
+   *    desde el bruto;
    *  · lote, caducidad y la ubicación de referencia del producto viajan para
    *    que quien recibe pueda cotejarlas contra la caja física;
    *  · **no se confirma**: la entrada se revisa y se cierra a mano, que es
@@ -564,6 +578,10 @@ export class PurchasesService {
       }
       assertWarehouseInScope(scope, compra.warehouseId);
       await assertActiveWarehouse(tx, user.tenantId, compra.warehouseId);
+      const { costTaxMode } = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { costTaxMode: true },
+      });
 
       // La ubicación de REFERENCIA de cada producto: es el valor inicial que
       // la pantalla de la entrada ofrece, igual que en una entrada a mano.
@@ -606,7 +624,11 @@ export class PurchasesService {
               productId: linea.productId,
               presentationId: linea.presentationId,
               quantity: linea.quantity,
-              unitCost: linea.unitCostNet,
+              unitCost:
+                costTaxMode === "excluded"
+                  ? linea.unitCostNet
+                  : costoBrutoPorUnidad(linea.lineTotal, linea.quantity),
+              unitCostNet: linea.unitCostNet,
               lotCode: controlaLote.get(linea.productId) === true ? linea.lotCode : null,
               expiresAt: controlaLote.get(linea.productId) === true ? linea.expiresAt : null,
               location: ubicacion.get(linea.productId) ?? null,

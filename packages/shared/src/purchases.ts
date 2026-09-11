@@ -13,16 +13,17 @@ export type PurchaseStatus = (typeof PURCHASE_STATUSES)[number];
 export const purchaseStatusSchema = z.enum(PURCHASE_STATUSES);
 
 /**
- * El modo fiscal es POR COMPRA y su default es `excluded`, al revés que el
- * mostrador: la factura del proveedor viene en neto y suma el IVA aparte,
- * mientras el precio de venta mexicano ya lo trae adentro (`tenants.tax_mode`
- * = `included`). Copiar el modo del negocio habría inflado o desinflado el
- * costo de cada compra en un 16 %.
+ * El modo fiscal es POR DOCUMENTO (compra u orden) y NACE del ajuste del
+ * negocio «los costos se capturan con o sin impuesto» (`tenants.cost_tax_mode`,
+ * F9-COSTMODE-04) — no del modo del PRECIO (`tax_mode`), que responde otra
+ * pregunta: el mostrador mexicano vende con IVA adentro y compra con IVA
+ * aparte. Sigue editable por documento porque una factura concreta puede
+ * venir en la otra base. Ya no hay default hardcodeado aquí: lo decide el
+ * negocio, y por país lo siembra `tax-defaults.ts#costModeFor`.
  */
 export const PURCHASE_TAX_MODES = ["included", "excluded"] as const;
 export type PurchaseTaxMode = (typeof PURCHASE_TAX_MODES)[number];
 export const purchaseTaxModeSchema = z.enum(PURCHASE_TAX_MODES);
-export const DEFAULT_PURCHASE_TAX_MODE: PurchaseTaxMode = "excluded";
 
 export interface TotalMismatch {
   /** El papel del proveedor dice OTRA cosa que la suma de las líneas. */

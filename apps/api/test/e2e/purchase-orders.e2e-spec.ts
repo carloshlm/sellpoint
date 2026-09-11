@@ -180,6 +180,20 @@ describe("Órdenes de compra (F9-PO)", () => {
       });
     });
 
+    it("la orden nace con el modo del NEGOCIO y sigue editable por documento (F9-COSTMODE-04)", async () => {
+      await api(negocio.token).put("/tenants/me/taxes", { costMode: "included" }).expect(200);
+      try {
+        const orden = await nuevaOrden();
+        const detalle = await api(negocio.token).get(`/purchase-orders/${orden.id}`).expect(200);
+        expect(detalle.body).toMatchObject({ taxMode: "included" });
+        await api(negocio.token)
+          .patch(`/purchase-orders/${orden.id}`, { taxMode: "excluded" })
+          .expect(200);
+      } finally {
+        await api(negocio.token).put("/tenants/me/taxes", { costMode: "excluded" }).expect(200);
+      }
+    });
+
     it("la fecha del pedido es de hoy para atrás; la esperada es la única que puede ser mañana", async () => {
       await api(negocio.token)
         .post("/purchase-orders", { supplierId: proveedorId, orderDate: "2031-01-01" })

@@ -52,6 +52,7 @@
     "taxMode": "Los costos de la factura",
     "taxModeExcluded": "NO incluyen impuesto (se suma aparte)",
     "taxModeIncluded": "ya incluyen impuesto",
+    "taxModeDefault": "(ajuste del negocio)",
     "notes": "Notas",
     "confirm": "Confirmar compra",
     "cancel": "Anular compra",
@@ -76,6 +77,7 @@
     "quantityVariance": "Alguna línea factura más de lo recibido en la orden. La compra se confirma igual; revisa la cantidad."
   },
   "lines": {
+    "catalogCostOtherBase": "El costo del catálogo está en la otra base (con o sin impuesto) y no se precarga: captúralo como viene en el papel.",
     "title": "Productos de la factura",
     "search": "Buscar producto",
     "searchPlaceholder": "Nombre o código…",

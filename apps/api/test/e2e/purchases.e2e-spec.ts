@@ -214,6 +214,21 @@ describe("Compras (F9-PURCH)", () => {
       });
     });
 
+    it("nace con el modo del NEGOCIO: capturando «con impuesto», la compra nueva nace included (F9-COSTMODE-04)", async () => {
+      await api(negocio.token).put("/tenants/me/taxes", { costMode: "included" }).expect(200);
+      try {
+        const compra = await nuevaCompra();
+        const detalle = await api(negocio.token).get(`/purchases/${compra.id}`).expect(200);
+        expect(detalle.body).toMatchObject({ taxMode: "included" });
+        // Sigue siendo POR documento: esta factura vino neta.
+        await api(negocio.token)
+          .patch(`/purchases/${compra.id}`, { taxMode: "excluded" })
+          .expect(200);
+      } finally {
+        await api(negocio.token).put("/tenants/me/taxes", { costMode: "excluded" }).expect(200);
+      }
+    });
+
     it("el rango de fechas es DATE con DATE: la compra del 5 de enero aparece ese día", async () => {
       const deEnero = await nuevaCompra("2026-01-05");
 
@@ -510,7 +525,7 @@ describe("Compras (F9-PURCH)", () => {
 
   describe("el puente a la entrada (F9-PURCH-08)", () => {
     /** Una compra confirmada de 3 «Caja ×12» al costo dado, en el modo dado. */
-    async function compraLista(unitCost: number, taxMode: "included" | "excluded") {
+    async function compraLista(unitCost: number, taxMode: "included" | "excluded", discount = 0) {
       const compra = await nuevaCompra();
       await api(negocio.token).patch(`/purchases/${compra.id}`, { taxMode }).expect(200);
       await api(negocio.token)
@@ -521,6 +536,7 @@ describe("Compras (F9-PURCH)", () => {
               presentationId: cajaId,
               quantity: 3,
               unitCost,
+              discount,
               taxGroupId: ivaId,
               lotCode: "L-2026",
               expiresAt: "2027-01-31",
@@ -611,6 +627,54 @@ describe("Compras (F9-PURCH)", () => {
         expect(presentacion.cost?.toString()).toBe("120");
       },
     );
+
+    /**
+     * F9-COSTMODE-05 — el negocio que captura «con impuesto»: la entrada ve el
+     * BRUTO por unidad (lo que verá en su catálogo) y el neto EXACTO de la
+     * compra viaja al lado, con el descuento de línea ya dentro.
+     */
+    it("capturando «con impuesto», la entrada recibe el bruto y el neto exacto de la compra; el descuento va dentro del neto", async () => {
+      await api(negocio.token).put("/tenants/me/taxes", { costMode: "included" }).expect(200);
+      try {
+        const lineasDe = async (compraId: string) => {
+          const entrada = await api(negocio.token)
+            .post(`/purchases/${compraId}/entry-draft`)
+            .expect(201);
+          const lineas = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+            tx.inventoryDocumentLine.findMany({
+              where: { documentId: (entrada.body as { id: string }).id },
+              select: { unitCost: true, unitCostNet: true },
+            }),
+          );
+          return lineas.map((l) => ({
+            unitCost: l.unitCost?.toString(),
+            unitCostNet: l.unitCostNet?.toString(),
+          }));
+        };
+
+        // La factura vino con IVA adentro: 139.20 la caja → 120 netos.
+        const conIva = await compraLista(139.2, "included");
+        expect(await lineasDe(conIva.id)).toEqual([{ unitCost: "139.2", unitCostNet: "120" }]);
+
+        // La factura vino neta aunque el negocio capture con IVA: el bruto se
+        // reconstruye desde la propia línea, el neto no se toca.
+        const neta = await compraLista(120, "excluded");
+        expect(await lineasDe(neta.id)).toEqual([{ unitCost: "139.2", unitCostNet: "120" }]);
+
+        // Con $30 de descuento en la línea (3 × 120 = 360 − 30 = 330 netos):
+        // el neto de la entrada es el de la compra al centavo, 110, no 120.
+        const conDescuento = await compraLista(120, "excluded", 30);
+        const compra = await api(negocio.token).get(`/purchases/${conDescuento.id}`).expect(200);
+        const netoDeLaCompra = (compra.body as { lines: { unitCostNet: string }[] }).lines[0]
+          ?.unitCostNet;
+        expect(netoDeLaCompra).toBe("110");
+        expect(await lineasDe(conDescuento.id)).toEqual([
+          { unitCost: "127.6", unitCostNet: "110" },
+        ]);
+      } finally {
+        await api(negocio.token).put("/tenants/me/taxes", { costMode: "excluded" }).expect(200);
+      }
+    });
 
     it("anular la compra arrastra su borrador de entrada; con la entrada confirmada, 409", async () => {
       const conBorrador = await compraLista(120, "excluded");

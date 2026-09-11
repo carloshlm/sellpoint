@@ -1,3 +1,4 @@
+import type { TaxMode } from "@sellpoint/shared";
 import { type Currency, formatMoney } from "@sellpoint/shared";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -99,11 +100,19 @@ export interface LineasHandle {
  * 2026-09-11): el de la presentación elegida (`product_presentations.cost`,
  * el mismo que pisa la entrada al confirmarse). Sin presentación o sin costo
  * registrado, vacío: nunca se inventa un múltiplo.
+ *
+ * F9-COSTMODE-05: el catálogo guarda el costo en la base del NEGOCIO
+ * (`tenants.cost_tax_mode`); si este documento está en la otra base, no se
+ * sugiere nada — un costo en la base equivocada es peor que ninguno — y la
+ * tabla lo dice con un hint.
  */
 export function costoDeCatalogo(
   ficha: { presentations: { id: string; cost?: string | null }[] },
   presentationId: string,
+  documentMode: TaxMode,
+  tenantCostMode: TaxMode,
 ): string {
+  if (documentMode !== tenantCostMode) return "";
   return ficha.presentations.find((p) => p.id === presentationId)?.cost ?? "";
 }
 
@@ -112,8 +121,10 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
     const { t } = useTranslation();
     const locale = useAuthStore((s) => s.user?.locale ?? "es");
     const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+    const costTaxMode = useAuthStore((s) => s.user?.tenant.costTaxMode ?? "excluded");
     const editable = order.status === "draft";
     const viva = order.status === "open" || order.status === "partially_received";
+    const mismaBase = order.taxMode === costTaxMode;
 
     const [lineas, setLineas] = useState<LineaEditable[]>(() => aEditable(order));
     const [catalogo, setCatalogo] = useState<PurchaseOrderProduct[]>(order.products);
@@ -161,7 +172,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
           description: producto.name,
           presentationId: presentacionInicial,
           quantity: "",
-          unitCost: costoDeCatalogo(ficha, presentacionInicial),
+          unitCost: costoDeCatalogo(ficha, presentacionInicial, order.taxMode, costTaxMode),
           discount: "",
           lineTotal: null,
           lineNo: null,
@@ -215,6 +226,11 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
             placeholder={t("purchaseOrders.lines.searchPlaceholder")}
             onPick={(producto) => void agregar(producto)}
           />
+        )}
+        {editable && !mismaBase && (
+          <p className="text-muted-foreground text-xs">
+            {t("purchaseOrders.lines.catalogCostOtherBase")}
+          </p>
         )}
 
         {error !== null && (
@@ -280,7 +296,12 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                                 cambiar(
                                   index,
                                   "unitCost",
-                                  costoDeCatalogo(producto, event.target.value),
+                                  costoDeCatalogo(
+                                    producto,
+                                    event.target.value,
+                                    order.taxMode,
+                                    costTaxMode,
+                                  ),
                                 );
                               }
                             }}

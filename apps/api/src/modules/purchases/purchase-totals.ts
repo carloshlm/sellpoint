@@ -112,6 +112,23 @@ export function armarCompra(input: {
  * Sin cantidad no hay costo unitario: `null`, jamás cero — un cero diría «me
  * salió gratis» y el promedio ponderado se lo creería.
  */
+/**
+ * F9-COSTMODE-05 — el costo CON impuesto por unidad, para el negocio que
+ * captura sus costos «con el impuesto adentro»: `line_total` ya es neto +
+ * impuesto en los dos modos, así que no hace falta ningún snapshot fiscal ni
+ * convertir el neto de vuelta (que podría mover un centavo). Es lo que cruza
+ * al `unit_cost` de la entrada en ese negocio; el neto viaja aparte.
+ */
+export function costoBrutoPorUnidad(
+  lineTotal: Prisma.Decimal,
+  quantity: Prisma.Decimal | null,
+): Prisma.Decimal | null {
+  if (quantity === null || quantity.lessThanOrEqualTo(0)) {
+    return null;
+  }
+  return lineTotal.dividedBy(quantity).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+}
+
 export function costoNetoPorUnidad(
   lineTotal: Prisma.Decimal,
   taxAmount: Prisma.Decimal,

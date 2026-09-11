@@ -106,7 +106,10 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
     const { t } = useTranslation();
     const locale = useAuthStore((s) => s.user?.locale ?? "es");
     const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
+    const costTaxMode = useAuthStore((s) => s.user?.tenant.costTaxMode ?? "excluded");
     const editable = purchase.status === "draft";
+    // F9-COSTMODE-05: el catálogo está en la base del negocio; en la otra, no se precarga.
+    const mismaBase = purchase.taxMode === costTaxMode;
 
     const [lineas, setLineas] = useState<LineaEditable[]>(() => aEditable(purchase));
     const [catalogo, setCatalogo] = useState<PurchaseProduct[]>(purchase.products);
@@ -169,7 +172,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
           presentationId: presentacionInicial,
           quantity: "",
           // El costo del catálogo como punto de partida (Carlos, 2026-09-11).
-          unitCost: costoDeCatalogo(ficha, presentacionInicial),
+          unitCost: costoDeCatalogo(ficha, presentacionInicial, purchase.taxMode, costTaxMode),
           discount: "",
           lotCode: "",
           expiresAt: "",
@@ -230,6 +233,11 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
             placeholder={t("purchases.lines.searchPlaceholder")}
             onPick={(producto) => void agregar(producto)}
           />
+        )}
+        {editable && !mismaBase && (
+          <p className="text-muted-foreground text-xs">
+            {t("purchases.lines.catalogCostOtherBase")}
+          </p>
         )}
 
         {error !== null && (
@@ -292,7 +300,12 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                               cambiar(
                                 index,
                                 "unitCost",
-                                costoDeCatalogo(producto, event.target.value),
+                                costoDeCatalogo(
+                                  producto,
+                                  event.target.value,
+                                  purchase.taxMode,
+                                  costTaxMode,
+                                ),
                               );
                             }
                           }}

@@ -52,6 +52,7 @@
     "taxMode": "The invoice costs",
     "taxModeExcluded": "do NOT include tax (added separately)",
     "taxModeIncluded": "already include tax",
+    "taxModeDefault": "(business setting)",
     "notes": "Notes",
     "confirm": "Confirm purchase",
     "cancel": "Cancel purchase",
@@ -76,6 +77,7 @@
     "quantityVariance": "Some line invoices more than what was received on the order. The purchase confirms anyway; check the quantity."
   },
   "lines": {
+    "catalogCostOtherBase": "The catalog cost is in the other basis (with or without tax) and is not preloaded: enter it as it appears on the paper.",
     "title": "Products on the invoice",
     "search": "Search product",
     "searchPlaceholder": "Name or code…",

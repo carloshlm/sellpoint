@@ -5,7 +5,6 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import {
-  DEFAULT_PURCHASE_TAX_MODE,
   PURCHASE_FOLIO_PREFIXES,
   type PurchaseTaxMode,
   pendingQuantity,
@@ -220,6 +219,12 @@ export class PurchaseOrdersService {
         "purchase_order",
         PURCHASE_FOLIO_PREFIXES.order,
       );
+      // F9-COSTMODE-04: la orden nace en la base del negocio; la compra que
+      // salga de sus recepciones copia el de la ORDEN, no el del día.
+      const { costTaxMode } = await tx.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { costTaxMode: true },
+      });
       const creada = await tx.purchaseOrder.create({
         data: {
           tenantId: user.tenantId,
@@ -228,7 +233,7 @@ export class PurchaseOrdersService {
           warehouseId,
           orderDate: new Date(input.orderDate),
           expectedDate: input.expectedDate == null ? null : new Date(input.expectedDate),
-          taxMode: DEFAULT_PURCHASE_TAX_MODE,
+          taxMode: costTaxMode,
           createdBy: user.userId,
         },
         include: DETALLE,

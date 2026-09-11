@@ -292,6 +292,20 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
     await compraDe(ajena, [recepcion.id]).expect(422);
   });
 
+  it("la compra nacida de recepciones copia el modo de la ORDEN, aunque el negocio ya capture en otra base (F9-COSTMODE-04)", async () => {
+    const orden = await ordenEmitida(10);
+    const recepcion = await recibirYConfirmar(orden, 10, "L-MODO");
+    await api(negocio.token).put("/tenants/me/taxes", { costMode: "included" }).expect(200);
+    try {
+      const compra = (await compraDe(orden, [recepcion.id]).expect(201)).body as Compra & {
+        taxMode: string;
+      };
+      expect(compra.taxMode).toBe("excluded");
+    } finally {
+      await api(negocio.token).put("/tenants/me/taxes", { costMode: "excluded" }).expect(200);
+    }
+  });
+
   it("la cantidad facturada por encima de lo recibido se VE y no bloquea; la compra sin orden sigue igual", async () => {
     const orden = await ordenEmitida(10);
     const recepcion = await recibirYConfirmar(orden, 6, "L-D");
