@@ -9,7 +9,6 @@ import {
 import {
   DEFAULT_PURCHASE_TAX_MODE,
   FOLIO_PREFIXES,
-  localCalendarDate,
   PURCHASE_FOLIO_PREFIXES,
   type PurchaseTaxMode,
   totalMismatch,
@@ -26,6 +25,7 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
+import { hoyDelNegocio } from "./business-today";
 import type {
   CancelPurchaseDto,
   CreatePurchaseDto,
@@ -749,11 +749,7 @@ export class PurchasesService {
       candidatas.push(["receivedDate", fechas.receivedDate]);
     }
     if (candidatas.length === 0) return;
-    const negocio = await tx.tenant.findUnique({
-      where: { id: tenantId },
-      select: { timezone: true },
-    });
-    const hoy = localCalendarDate(negocio?.timezone ?? "UTC", new Date());
+    const hoy = await hoyDelNegocio(tx, tenantId);
     for (const [campo, fecha] of candidatas) {
       // ISO `YYYY-MM-DD`: el orden lexicográfico ES el cronológico.
       if (fecha > hoy) {

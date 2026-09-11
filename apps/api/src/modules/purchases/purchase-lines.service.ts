@@ -18,7 +18,7 @@ import { type PurchaseDetail, PurchasesService } from "./purchases.service";
 const CERO = new Prisma.Decimal(0);
 
 /** Una línea lista para el sumador, con su grupo YA resuelto y su snapshot. */
-interface LineaLista {
+export interface LineaLista {
   productId: string;
   presentationId: string | null;
   quantity: Prisma.Decimal | null;
@@ -30,7 +30,7 @@ interface LineaLista {
   description: string;
 }
 
-interface CargoListo {
+export interface CargoListo {
   description: string;
   amount: Prisma.Decimal;
   grupo: GrupoResuelto | null;
@@ -263,32 +263,11 @@ export class PurchaseLinesService {
   }
 
   /** Los grupos del negocio por CÓDIGO: una línea guardada solo recuerda su código. */
-  private async gruposPorCodigo(
+  private gruposPorCodigo(
     tx: Prisma.TransactionClient,
     tenantId: string,
   ): Promise<Map<string, GrupoResuelto>> {
-    const grupos = await tx.taxGroup.findMany({
-      where: { tenantId },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        rates: { select: { code: true, name: true, rate: true, sortOrder: true } },
-      },
-    });
-    return new Map(
-      grupos.map((g) => [
-        g.code,
-        {
-          id: g.id,
-          code: g.code,
-          name: g.name,
-          rates: [...g.rates]
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map((r) => ({ code: r.code, name: r.name, rate: r.rate.toString() })),
-        },
-      ]),
-    );
+    return gruposPorCodigo(tx, tenantId);
   }
 
   /**
@@ -445,12 +424,45 @@ export class PurchaseLinesService {
 }
 
 /**
+ * Los grupos del negocio por CÓDIGO: una partida guardada solo recuerda su
+ * código. Función de módulo (no método) para que Órdenes de compra la use sin
+ * inyectar este service.
+ */
+export async function gruposPorCodigo(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+): Promise<Map<string, GrupoResuelto>> {
+  const grupos = await tx.taxGroup.findMany({
+    where: { tenantId },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      rates: { select: { code: true, name: true, rate: true, sortOrder: true } },
+    },
+  });
+  return new Map(
+    grupos.map((g) => [
+      g.code,
+      {
+        id: g.id,
+        code: g.code,
+        name: g.name,
+        rates: [...g.rates]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((r) => ({ code: r.code, name: r.name, rate: r.rate.toString() })),
+      },
+    ]),
+  );
+}
+
+/**
  * `armarCompra` resuelve el grupo por id contra un contexto; acá las partidas
  * ya traen el suyo resuelto (una línea guardada solo recuerda su CÓDIGO). Se
  * arma un contexto a medida donde cada id mapea a su grupo, que es la forma
  * de reusar el MISMO sumador sin duplicar su aritmética.
  */
-function armarCompraConGrupos(
+export function armarCompraConGrupos(
   lineas: LineaLista[],
   cargos: CargoListo[],
   mode: "included" | "excluded",

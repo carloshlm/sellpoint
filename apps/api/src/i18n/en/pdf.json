@@ -66,5 +66,28 @@
     "canceled": "CANCELED",
     "taxIncluded": "Costs already include tax.",
     "taxExcluded": "Costs do NOT include tax: it is added separately."
+  },
+  "purchaseOrder": {
+    "title": "PURCHASE ORDER",
+    "supplier": "Supplier",
+    "taxId": "Tax ID",
+    "reference": "Supplier reference",
+    "date": "Order date",
+    "expectedDate": "Expected delivery",
+    "shipTo": "Ship to",
+    "terms": "Payment terms",
+    "unitCost": "Agreed cost",
+    "discount": "Discount",
+    "tax": "Tax",
+    "amount": "Amount",
+    "subtotal": "Subtotal",
+    "estimated": "estimated",
+    "total": "Expected total",
+    "notes": "Notes",
+    "footer": "Please quote purchase order number {folio} on your invoice and packing slip.",
+    "closed": "CLOSED",
+    "canceled": "CANCELED",
+    "taxIncluded": "Agreed costs already include tax.",
+    "taxExcluded": "Agreed costs do NOT include tax: it is added separately."
   }
 }

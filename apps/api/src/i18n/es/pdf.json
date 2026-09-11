@@ -66,5 +66,28 @@
     "canceled": "ANULADA",
     "taxIncluded": "Los costos ya incluyen el impuesto.",
     "taxExcluded": "Los costos NO incluyen el impuesto: se suma aparte."
+  },
+  "purchaseOrder": {
+    "title": "ORDEN DE COMPRA",
+    "supplier": "Proveedor",
+    "taxId": "Registro fiscal",
+    "reference": "Referencia del proveedor",
+    "date": "Fecha de la orden",
+    "expectedDate": "Entrega esperada",
+    "shipTo": "Entregar en",
+    "terms": "Condiciones de pago",
+    "unitCost": "Costo acordado",
+    "discount": "Descuento",
+    "tax": "Impuesto",
+    "amount": "Importe",
+    "subtotal": "Subtotal",
+    "estimated": "estimado",
+    "total": "Total esperado",
+    "notes": "Notas",
+    "footer": "Indique el número de orden {folio} en su factura y en su remisión.",
+    "closed": "CERRADA",
+    "canceled": "ANULADA",
+    "taxIncluded": "Los costos acordados ya incluyen el impuesto.",
+    "taxExcluded": "Los costos acordados NO incluyen el impuesto: se suma aparte."
   }
 }

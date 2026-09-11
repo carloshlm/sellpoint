@@ -34,6 +34,7 @@ import { MedicalClinicModule } from "./modules/medical-clinic/medical-clinic.mod
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { PosModule } from "./modules/pos/pos.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { PurchaseOrdersModule } from "./modules/purchase-orders/purchase-orders.module";
 import { PurchasesModule } from "./modules/purchases/purchases.module";
 import { ReceptionModule } from "./modules/reception/reception.module";
 import { ReportsModule } from "./modules/reports/reports.module";
@@ -133,6 +134,8 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     ExpensesModule,
     // F9-PURCH: Compras, incluido desde Pro.
     PurchasesModule,
+    // F9-PO: Órdenes de compra, bajo Compras y activable por negocio.
+    PurchaseOrdersModule,
     ReceptionModule,
     MedicalClinicModule,
     AdminModule,
