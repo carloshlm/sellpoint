@@ -343,13 +343,17 @@ describe("Gastos (F9-EXP)", () => {
       await api(sinModulo.token).post("/expenses/categories", { name: "X" }).expect(402);
     });
 
-    it("el negocio nace con las 18 de fábrica, en su idioma y en su orden", async () => {
+    it("el negocio nace con las 18 de fábrica, en su idioma, listadas por NOMBRE", async () => {
       const res = await api(negocio.token).get("/expenses/categories").expect(200);
       const filas = (res.body as { rows: { code: string; name: string; sortOrder: number }[] })
         .rows;
       expect(filas).toHaveLength(18);
-      expect(filas[0]).toMatchObject({ code: "rent", name: "Renta", sortOrder: 0 });
-      expect(filas[17]).toMatchObject({ code: "other", name: "Otros", sortOrder: 170 });
+      // Carlos (2026-09-12): alfabético por nombre, ya no por el orden de
+      // siembra — con 18 de fábrica más las propias, ese orden no ayuda a
+      // encontrar nada. `sortOrder` sigue sembrado (Renta = 0) pero no manda.
+      expect(filas.map((f) => f.name)).toEqual([...filas.map((f) => f.name)].sort());
+      expect(filas[0]).toMatchObject({ code: "water", name: "Agua" });
+      expect(filas.find((f) => f.code === "rent")).toMatchObject({ name: "Renta", sortOrder: 0 });
     });
 
     it("Viewer lee y recibe 403 al crear; el Admin crea con código derivado del nombre", async () => {
