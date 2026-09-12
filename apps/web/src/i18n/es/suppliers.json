@@ -21,7 +21,8 @@
     "delete": {
       "title": "Eliminar a «{{name}}»",
       "body": "El proveedor se borra y no se puede recuperar. Si ya tiene compras o gastos registrados no podrá borrarse: en ese caso desactívalo y conservará su historial.",
-      "confirm": "Eliminar proveedor"
+      "confirm": "Eliminar proveedor",
+      "done": "Se eliminó el proveedor «{{name}}»."
     }
   },
   "form": {

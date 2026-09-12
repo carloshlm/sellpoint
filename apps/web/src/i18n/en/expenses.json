@@ -22,7 +22,8 @@
     "delete": {
       "title": "Delete “{{name}}”",
       "body": "The category is deleted and cannot be recovered. If it already has expenses on record it cannot be deleted: deactivate it instead.",
-      "confirm": "Delete category"
+      "confirm": "Delete category",
+      "done": "Category \u201c{{name}}\u201d deleted."
     }
   },
   "list": {

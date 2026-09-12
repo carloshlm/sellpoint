@@ -70,7 +70,8 @@
     "delete": {
       "title": "Delete «{{name}}»",
       "body": "The study is deleted. If it is already in an order, deactivate it instead.",
-      "confirm": "Delete study"
+      "confirm": "Delete study",
+      "done": "Study \u00ab{{name}}\u00bb deleted."
     }
   },
   "attend": {

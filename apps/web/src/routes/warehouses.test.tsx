@@ -203,6 +203,10 @@ describe("Eliminar un almacén (2026-08-25)", () => {
     await user.click(await screen.findByRole("button", { name: "Eliminar almacén" }));
 
     await waitFor(() => expect(mockedApi.deleteWarehouse.mock.calls[0]?.[0]).toBe("w1"));
+    // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("warehouse-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó el almacén «Central».");
+    expect(aviso).toHaveFocus();
   });
 
   it("el 409 por historia se muestra y el diálogo se cierra", async () => {

@@ -103,7 +103,8 @@
     "delete": {
       "title": "Delete record",
       "body": "You are about to delete \"{{code}}\". Only a record nothing references can be deleted; this can not be undone.",
-      "confirm": "Delete record"
+      "confirm": "Delete record",
+      "done": "Record \"{{code}}\" deleted."
     },
     "selector": "Sub-catalog",
     "noCatalogs": "You haven't created sub-catalogs yet. You can create them from Fields."

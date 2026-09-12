@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -47,6 +48,8 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
   const [editing, setEditing] = useState<Study | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Study | null>(null);
+  // El nombre del que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [importando, setImportando] = useState(false);
   const updateStudy = useUpdateStudy(kind);
@@ -86,6 +89,11 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
         </p>
+      )}
+      {deleted !== null && (
+        <SuccessNotice testId="study-deleted">
+          {t("medicalClinic.studies.delete.done", { name: deleted })}
+        </SuccessNotice>
       )}
 
       {(creating || editing) && (
@@ -186,6 +194,7 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
                       intent="delete"
                       onClick={() => {
                         setError(null);
+                        setDeleted(null);
                         setDeleting(study);
                       }}
                     />
@@ -206,7 +215,9 @@ export function StudiesScreen({ kind }: { kind: StudyKind }) {
           busy={removeStudy.isPending}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            removeStudy.mutate(deleting.id, {
+            const objetivo = deleting;
+            removeStudy.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(objetivo.name),
               onError: (apiError: ApiError) => setError(apiError.message),
               onSettled: () => setDeleting(null),
             });

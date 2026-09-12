@@ -16,7 +16,8 @@
   "delete": {
     "title": "Delete warehouse",
     "body": "You are about to delete \"{{name}}\". Only a warehouse that never operated can be deleted; this can not be undone.",
-    "confirm": "Delete warehouse"
+    "confirm": "Delete warehouse",
+    "done": "Warehouse \"{{name}}\" deleted."
   },
   "deactivate": "Deactivate",
   "reactivate": "Reactivate",

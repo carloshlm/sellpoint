@@ -36,7 +36,8 @@
   "delete": {
     "title": "Eliminar «{{name}}»",
     "body": "El servicio se borra y no se puede recuperar. Si solo quieres dejar de ofrecerlo, desactívalo.",
-    "confirm": "Eliminar servicio"
+    "confirm": "Eliminar servicio",
+    "done": "Se eliminó el servicio «{{name}}»."
   },
   "warehouses": {
     "legend": "Almacenes donde se ofrece",

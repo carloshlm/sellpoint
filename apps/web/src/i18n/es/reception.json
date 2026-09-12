@@ -18,7 +18,8 @@
     "delete": {
       "title": "Eliminar a «{{name}}»",
       "body": "Este registro de {{entityLower}} se borra y no se puede recuperar. Los turnos que ya tuvo conservan su nombre en el historial.",
-      "confirm": "Eliminar {{entityLower}}"
+      "confirm": "Eliminar {{entityLower}}",
+      "done": "Se eliminó a «{{name}}»."
     }
   },
   "form": {

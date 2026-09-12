@@ -249,6 +249,10 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     await waitFor(() =>
       expect(mockedApi.removeService).toHaveBeenCalledWith("s1", expect.anything()),
     );
+    // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("service-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó el servicio «Corte de cabello».");
+    expect(aviso).toHaveFocus();
   });
 
   it("el 409 de código repetido se muestra sin romper la tabla", async () => {

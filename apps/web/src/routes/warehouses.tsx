@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -106,6 +107,8 @@ function WarehousesContent() {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Warehouse | null>(null);
+  // El nombre del que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const updateWarehouse = useUpdateWarehouse();
   const deleteWarehouse = useDeleteWarehouse();
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +152,11 @@ function WarehousesContent() {
         >
           {error}
         </p>
+      )}
+      {deleted !== null && (
+        <SuccessNotice testId="warehouse-deleted">
+          {t("warehouses.delete.done", { name: deleted })}
+        </SuccessNotice>
       )}
 
       {(creating || editing) && (
@@ -250,6 +258,7 @@ function WarehousesContent() {
                         intent="delete"
                         onClick={() => {
                           setError(null);
+                          setDeleted(null);
                           setDeleting(warehouse);
                         }}
                       />
@@ -275,7 +284,9 @@ function WarehousesContent() {
           busy={deleteWarehouse.isPending}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            deleteWarehouse.mutate(deleting.id, {
+            const objetivo = deleting;
+            deleteWarehouse.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(objetivo.name),
               onError: (apiError: ApiError) => setError(apiError.message),
               onSettled: () => setDeleting(null),
             });

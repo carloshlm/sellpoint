@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -91,6 +92,8 @@ function CustomersContent() {
     page: pagina,
   });
   const [deleting, setDeleting] = useState<Customer | null>(null);
+  // El nombre del que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const [turno, setTurno] = useState<Turn | null>(null);
   const [error, setError] = useState<string | null>(null);
   const removeCustomer = useRemoveCustomer();
@@ -113,6 +116,11 @@ function CustomersContent() {
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
         </p>
+      )}
+      {deleted !== null && (
+        <SuccessNotice testId="customer-deleted">
+          {t("reception.customers.delete.done", { name: deleted })}
+        </SuccessNotice>
       )}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -196,6 +204,7 @@ function CustomersContent() {
                       intent="delete"
                       onClick={() => {
                         setError(null);
+                        setDeleted(null);
                         setDeleting(customer);
                       }}
                     />
@@ -217,7 +226,9 @@ function CustomersContent() {
           busy={removeCustomer.isPending}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            removeCustomer.mutate(deleting.id, {
+            const objetivo = deleting;
+            removeCustomer.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(fullName(objetivo)),
               onError: (apiError: ApiError) => setError(apiError.message),
               onSettled: () => setDeleting(null),
             });

@@ -36,7 +36,8 @@
   "delete": {
     "title": "Delete \"{{name}}\"",
     "body": "The service is deleted permanently. If you just want to stop offering it, deactivate it instead.",
-    "confirm": "Delete service"
+    "confirm": "Delete service",
+    "done": "Service \"{{name}}\" deleted."
   },
   "warehouses": {
     "legend": "Warehouses where it's offered",

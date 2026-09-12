@@ -141,6 +141,10 @@ describe("Registro de cliente (F9-RECEP-11)", () => {
     const dialogo = screen.getByRole("alertdialog", { name: /Eliminar a «Rosa Luna»/ });
     await user.click(within(dialogo).getByRole("button", { name: "Eliminar cliente" }));
     await waitFor(() => expect(mocked.removeCustomer).toHaveBeenCalledWith("c1"));
+    // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("customer-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó a «Rosa Luna».");
+    expect(aviso).toHaveFocus();
   });
 
   it("«Editar» lleva a la pantalla del cliente", async () => {

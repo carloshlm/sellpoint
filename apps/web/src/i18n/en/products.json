@@ -118,6 +118,7 @@
   "removeDialog": {
     "title": "Delete product",
     "body": "You are about to delete \"{{name}}\" with all its presentations, barcodes and composition. This can not be undone.",
-    "confirm": "Delete product"
+    "confirm": "Delete product",
+    "done": "Product \"{{name}}\" deleted."
   }
 }

@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -128,6 +129,9 @@ function ProductsContent() {
   // inventario fantasma — el conteo excluye los inactivos). Sin este aviso el
   // clic no haría nada visible y el usuario creería que la app se colgó.
   const [errorAcción, setErrorAcción] = useState<string | null>(null);
+  // El nombre del producto que se acaba de borrar desde su ficha: al volver
+  // a la lista, el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   const { data, isPending } = useProducts({
@@ -147,6 +151,7 @@ function ProductsContent() {
         tab={tab ?? "info"}
         onTab={(next) => navigate({ search: { open: openId, tab: next } })}
         onBack={() => navigate({ search: {} })}
+        onDeleted={setDeleted}
       />
     );
   }
@@ -214,6 +219,11 @@ function ProductsContent() {
           {errorAcción}
         </p>
       ) : null}
+      {deleted !== null && (
+        <SuccessNotice testId="product-deleted">
+          {t("products.removeDialog.done", { name: deleted })}
+        </SuccessNotice>
+      )}
 
       {isPending ? (
         <p role="status">{t("common.form.loading")}</p>
@@ -356,12 +366,15 @@ function ProductDetailPanel({
   tab,
   onTab,
   onBack,
+  onDeleted,
 }: {
   productId: string;
   canManage: boolean;
   tab: ProductTab;
   onTab: (tab: ProductTab) => void;
   onBack: () => void;
+  /** El producto se borró desde la ficha: la lista es quien lo anuncia. */
+  onDeleted: (name: string) => void;
 }) {
   const { t } = useTranslation();
   const { has } = usePermissions();
@@ -437,7 +450,7 @@ function ProductDetailPanel({
       {tab === "info" && (
         <Card>
           <CardContent>
-            <ProductForm product={product} onDone={onBack} scroll={false} />
+            <ProductForm product={product} onDone={onBack} onDeleted={onDeleted} scroll={false} />
           </CardContent>
         </Card>
       )}
@@ -466,10 +479,13 @@ function ProductDetailPanel({
 function ProductForm({
   product,
   onDone,
+  onDeleted,
   scroll = true,
 }: {
   product?: ProductDetail;
   onDone: () => void;
+  /** Se avisa ANTES de `onDone`: la lista tiene que saber qué anunciar al volver. */
+  onDeleted?: (name: string) => void;
   /** Dentro del panel del producto es el PANEL el que se desplaza (Carlos, 2026-09-02). */
   scroll?: boolean;
 }) {
@@ -837,7 +853,10 @@ function ProductForm({
           onConfirm={() => {
             setError(null);
             deleteProduct.mutate(product.id, {
-              onSuccess: onDone,
+              onSuccess: () => {
+                onDeleted?.(product.name);
+                onDone();
+              },
               // 409 si es componente de otro: el mensaje nombra a quiénes. El
               // diálogo se cierra porque insistir con el mismo botón no lo
               // arregla — hay que deshacer la composición primero.

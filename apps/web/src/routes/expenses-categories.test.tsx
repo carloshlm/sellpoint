@@ -121,6 +121,21 @@ describe("Categorías de gasto (F9-EXP-03)", () => {
     expect(mocked.removeExpenseCategory).not.toHaveBeenCalled();
   });
 
+  it("borrar pide confirmación, llama al API y el éxito se VE en verde", async () => {
+    await renderCategorias(["expenses:read", "expenses:manage"]);
+    const user = userEvent.setup();
+    const fila = await screen.findByTestId("expense-category-c1");
+    await user.click(within(fila).getByRole("button", { name: "Eliminar" }));
+    expect(mocked.removeExpenseCategory).not.toHaveBeenCalled();
+    const dialogo = screen.getByRole("alertdialog", { name: /Eliminar «Renta»/ });
+    await user.click(within(dialogo).getByRole("button", { name: "Eliminar categoría" }));
+    await waitFor(() => expect(mocked.removeExpenseCategory).toHaveBeenCalledWith("c1"));
+    // Carlos, 2026-09-12: verde y con el foco.
+    const aviso = await screen.findByTestId("category-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó la categoría «Renta».");
+    expect(aviso).toHaveFocus();
+  });
+
   it("el 409 de «en uso» al borrar se muestra sin romper la tabla", async () => {
     mocked.removeExpenseCategory.mockRejectedValue({
       statusCode: 409,

@@ -215,6 +215,10 @@ describe.each([
     const dialogo = screen.getByRole("alertdialog", { name: /Eliminar «Biometría hemática»/ });
     await user.click(within(dialogo).getByRole("button", { name: "Eliminar estudio" }));
     await waitFor(() => expect(mocked.removeStudy).toHaveBeenCalledWith(kind, "s1"));
+    // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("study-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó el estudio «Biometría hemática».");
+    expect(aviso).toHaveFocus();
   });
 
   it("sin :manage no hay «Agregar» ni acciones", async () => {

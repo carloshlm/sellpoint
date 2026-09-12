@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -81,6 +82,8 @@ function ServicesContent() {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<Service | null>(null);
+  // El nombre del que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const updateService = useUpdateService();
@@ -123,6 +126,11 @@ function ServicesContent() {
         >
           {error}
         </p>
+      )}
+      {deleted !== null && (
+        <SuccessNotice testId="service-deleted">
+          {t("services.delete.done", { name: deleted })}
+        </SuccessNotice>
       )}
 
       {(creating || editing) && (
@@ -224,6 +232,7 @@ function ServicesContent() {
                       intent="delete"
                       onClick={() => {
                         setError(null);
+                        setDeleted(null);
                         setDeleting(service);
                       }}
                     />
@@ -246,7 +255,9 @@ function ServicesContent() {
           busy={removeService.isPending}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            removeService.mutate(deleting.id, {
+            const objetivo = deleting;
+            removeService.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(objetivo.name),
               onError: (apiError: ApiError) => setError(apiError.message),
               onSettled: () => setDeleting(null),
             });

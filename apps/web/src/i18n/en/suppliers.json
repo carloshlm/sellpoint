@@ -21,7 +21,8 @@
     "delete": {
       "title": "Delete “{{name}}”",
       "body": "The supplier is deleted and cannot be recovered. If it already has purchases or expenses on record it cannot be deleted: deactivate it instead and it keeps its history.",
-      "confirm": "Delete supplier"
+      "confirm": "Delete supplier",
+      "done": "Supplier \u201c{{name}}\u201d deleted."
     }
   },
   "form": {

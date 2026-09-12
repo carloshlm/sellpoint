@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -65,6 +66,8 @@ function CategoriesContent() {
   const [editing, setEditing] = useState<ExpenseCategory | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<ExpenseCategory | null>(null);
+  // El nombre de la que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const updateCategory = useUpdateExpenseCategory();
   const removeCategory = useRemoveExpenseCategory();
@@ -96,6 +99,11 @@ function CategoriesContent() {
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
         </p>
+      )}
+      {deleted !== null && (
+        <SuccessNotice testId="category-deleted">
+          {t("expenses.categories.delete.done", { name: deleted })}
+        </SuccessNotice>
       )}
 
       {(creating || editing) && (
@@ -173,6 +181,7 @@ function CategoriesContent() {
                       intent="delete"
                       onClick={() => {
                         setError(null);
+                        setDeleted(null);
                         setDeleting(category);
                       }}
                     />
@@ -193,7 +202,9 @@ function CategoriesContent() {
           busy={removeCategory.isPending}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            removeCategory.mutate(deleting.id, {
+            const objetivo = deleting;
+            removeCategory.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(objetivo.name),
               onError: (apiError: ApiError) => setError(apiError.message),
               onSettled: () => setDeleting(null),
             });

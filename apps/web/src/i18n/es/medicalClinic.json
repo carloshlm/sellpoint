@@ -70,7 +70,8 @@
     "delete": {
       "title": "Eliminar «{{name}}»",
       "body": "El estudio se borra. Si ya está en una orden, desactívalo en vez de borrarlo.",
-      "confirm": "Eliminar estudio"
+      "confirm": "Eliminar estudio",
+      "done": "Se eliminó el estudio «{{name}}»."
     }
   },
   "attend": {

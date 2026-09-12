@@ -16,7 +16,8 @@
   "delete": {
     "title": "Eliminar almacén",
     "body": "Vas a eliminar «{{name}}». Solo se puede eliminar un almacén que nunca operó; esta acción no se puede deshacer.",
-    "confirm": "Eliminar almacén"
+    "confirm": "Eliminar almacén",
+    "done": "Se eliminó el almacén «{{name}}»."
   },
   "deactivate": "Desactivar",
   "reactivate": "Reactivar",

@@ -112,6 +112,10 @@ describe("Proveedores (F9-SUPPL-08)", () => {
     const dialogo = screen.getByRole("alertdialog", { name: /Eliminar a «Distribuidora Norte»/ });
     await user.click(within(dialogo).getByRole("button", { name: "Eliminar proveedor" }));
     await waitFor(() => expect(mocked.removeSupplier).toHaveBeenCalledWith("s1"));
+    // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("supplier-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó el proveedor «Distribuidora Norte».");
+    expect(aviso).toHaveFocus();
   });
 
   it("un 409 al borrar muestra el aviso y ofrece desactivarlo ahí mismo", async () => {

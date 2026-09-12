@@ -155,6 +155,10 @@ describe("Borrar un producto (F2-PROD)", () => {
 
     await waitFor(() => expect(mockedProducts.deleteProduct).toHaveBeenCalled());
     expect(mockedProducts.deleteProduct.mock.calls[0]?.[0]).toBe("prod-1");
+    // De vuelta en la lista, el éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("product-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó el producto «Azucar».");
+    expect(aviso).toHaveFocus();
   });
 
   it("cancelar cierra el diálogo y no borra nada", async () => {

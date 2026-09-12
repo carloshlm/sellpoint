@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -229,6 +230,8 @@ function RecordsTable({
   const updateRecord = useUpdateRecord(catalogId);
   const deleteRecord = useDeleteRecord(catalogId);
   const [deleting, setDeleting] = useState<CatalogRecord | null>(null);
+  // El código del que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (records.length === 0) {
@@ -253,6 +256,11 @@ function RecordsTable({
         >
           {error}
         </p>
+      )}
+      {deleted !== null && (
+        <SuccessNotice testId="record-deleted">
+          {t("catalogs.records.delete.done", { code: deleted })}
+        </SuccessNotice>
       )}
       <Table>
         <TableHeader>
@@ -304,6 +312,7 @@ function RecordsTable({
                     intent="delete"
                     onClick={() => {
                       setError(null);
+                      setDeleted(null);
                       setDeleting(record);
                     }}
                   />
@@ -328,7 +337,9 @@ function RecordsTable({
           busy={deleteRecord.isPending}
           onCancel={() => setDeleting(null)}
           onConfirm={() => {
-            deleteRecord.mutate(deleting.id, {
+            const objetivo = deleting;
+            deleteRecord.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(objetivo.code),
               onError: (apiError: ApiError) => setError(apiError.message),
               onSettled: () => setDeleting(null),
             });

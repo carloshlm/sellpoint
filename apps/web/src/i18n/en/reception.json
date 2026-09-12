@@ -18,7 +18,8 @@
     "delete": {
       "title": "Delete «{{name}}»",
       "body": "This {{entityLower}} record is deleted and cannot be recovered. Their past tickets keep the name in the history.",
-      "confirm": "Delete {{entityLower}}"
+      "confirm": "Delete {{entityLower}}",
+      "done": "\u00ab{{name}}\u00bb deleted."
     }
   },
   "form": {

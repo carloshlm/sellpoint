@@ -368,6 +368,10 @@ describe("Eliminar un registro (2026-08-25)", () => {
     await waitFor(() =>
       expect(mockedApi.deleteRecord.mock.calls[0]?.slice(0, 2)).toEqual(["cat-units", "r1"]),
     );
+    // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
+    const aviso = await screen.findByTestId("record-deleted");
+    expect(aviso).toHaveTextContent("Se eliminó el registro «kg».");
+    expect(aviso).toHaveFocus();
   });
 
   it("el 409 de uno referenciado se muestra y la fila no desaparece", async () => {

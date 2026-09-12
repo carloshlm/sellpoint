@@ -22,7 +22,8 @@
     "delete": {
       "title": "Eliminar «{{name}}»",
       "body": "La categoría se borra y no se puede recuperar. Si ya tiene gastos registrados no podrá borrarse: en ese caso desactívala.",
-      "confirm": "Eliminar categoría"
+      "confirm": "Eliminar categoría",
+      "done": "Se eliminó la categoría «{{name}}»."
     }
   },
   "list": {

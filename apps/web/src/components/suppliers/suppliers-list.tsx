@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Paginator } from "@/components/ui/paginator";
 import { RowAction } from "@/components/ui/row-action";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -45,6 +46,8 @@ export function SuppliersList() {
   }, [query]);
   const { data, isPending } = useSuppliers({ query: query.trim() || undefined, page: pagina });
   const [deleting, setDeleting] = useState<Supplier | null>(null);
+  // El nombre del que se acaba de borrar: el éxito tiene que VERSE (Carlos, 2026-09-12).
+  const [deleted, setDeleted] = useState<string | null>(null);
   // El 409 recuerda a QUIÉN no se pudo borrar, para ofrecer desactivarlo.
   const [enUso, setEnUso] = useState<Supplier | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +67,11 @@ export function SuppliersList() {
         )}
       </div>
 
+      {deleted !== null && (
+        <SuccessNotice testId="supplier-deleted">
+          {t("suppliers.list.delete.done", { name: deleted })}
+        </SuccessNotice>
+      )}
       {error && (
         <div
           role="alert"
@@ -156,6 +164,7 @@ export function SuppliersList() {
                       onClick={() => {
                         setError(null);
                         setEnUso(null);
+                        setDeleted(null);
                         setDeleting(supplier);
                       }}
                     />
@@ -179,6 +188,7 @@ export function SuppliersList() {
           onConfirm={() => {
             const objetivo = deleting;
             removeSupplier.mutate(objetivo.id, {
+              onSuccess: () => setDeleted(objetivo.name),
               onError: (apiError: ApiError) => {
                 setError(apiError.message);
                 if (apiError.statusCode === 409) setEnUso(objetivo);
