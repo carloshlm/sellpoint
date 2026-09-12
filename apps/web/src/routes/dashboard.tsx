@@ -7,6 +7,7 @@ import { AlertsBlock } from "@/components/dashboard/alerts-block";
 import { InventoryWidgets } from "@/components/dashboard/inventory-widgets";
 import { KpiRow } from "@/components/dashboard/kpi-row";
 import { PeriodFilter } from "@/components/dashboard/period-filter";
+import { SellerPanel } from "@/components/dashboard/seller-panel";
 import { TopProducts } from "@/components/dashboard/top-products";
 import { ClinicTop } from "@/components/medical-clinic/clinic-top";
 import type { DashboardPeriod } from "@/lib/dashboard/api";
@@ -26,6 +27,8 @@ const PaymentDonut = lazy(() =>
 
 import { ExpiringCard } from "@/components/inventory/expiring-card";
 import { AppLayout } from "@/components/layout/app-layout";
+import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -48,9 +51,16 @@ function DashboardPage() {
 function DashboardContent() {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
+  const { has } = usePermissions();
+  const { hasModule } = usePlan();
   // El período del filtro global: gobierna tops y métodos de pago. Estado de
   // pantalla, no de URL — es una lente de lectura, no una navegación.
   const [period, setPeriod] = useState<DashboardPeriod>("month");
+  // Y se pinta SOLO si gobierna algo (Carlos, 2026-09-12): a un vendedor sin
+  // `reports:read` le salían las cuatro pestañas sobre una pantalla vacía —
+  // un control que no controla nada es peor que ninguno.
+  const gobiernaAlgo =
+    has("reports:read") || (hasModule("medical_clinic") && has("medical_clinic:read"));
 
   return (
     <div className="flex flex-col gap-3">
@@ -62,12 +72,13 @@ function DashboardContent() {
           {t("common.dashboard.welcome", { name: user.firstName })}
         </p>
       )}
+      <SellerPanel />
       <KpiRow />
       <AlertsBlock />
       <Suspense fallback={null}>
         <SalesCharts />
       </Suspense>
-      <PeriodFilter value={period} onChange={setPeriod} />
+      {gobiernaAlgo && <PeriodFilter value={period} onChange={setPeriod} />}
       <TopProducts period={period} />
       <ClinicTop period={period} />
       <div className="grid gap-3 lg:grid-cols-2">

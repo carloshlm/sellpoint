@@ -20,6 +20,12 @@
     "dayLabel": "Día {{day}}",
     "hourLabel": "{{hour}} hrs."
   },
+  "seller": {
+    "title": "Tu turno",
+    "charged": "Cobrado en este turno",
+    "tickets": "Ventas de este turno",
+    "noShift": "No tienes un turno abierto. Ábrelo para empezar a cobrar."
+  },
   "period": {
     "today": "Hoy",
     "week": "Esta semana",

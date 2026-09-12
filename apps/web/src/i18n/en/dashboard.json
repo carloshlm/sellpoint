@@ -20,6 +20,12 @@
     "dayLabel": "Day {{day}}",
     "hourLabel": "{{hour}}:00"
   },
+  "seller": {
+    "title": "Your shift",
+    "charged": "Charged this shift",
+    "tickets": "Sales this shift",
+    "noShift": "You don't have an open shift. Open it to start charging."
+  },
   "period": {
     "today": "Today",
     "week": "This week",

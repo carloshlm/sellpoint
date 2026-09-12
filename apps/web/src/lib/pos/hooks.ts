@@ -30,10 +30,17 @@ import {
 
 export const POS_SESSION_KEY = ["pos", "session"] as const;
 
-export function useSession() {
+/**
+ * `enabled` para quien NO vende (2026-09-12): el Panel monta la tarjeta del
+ * vendedor siempre —un hook no puede vivir detrás de un `if`— y sin el
+ * interruptor pediría el turno a alguien que no tiene `pos:sell`, que es un
+ * 403 en la pestaña Red por cada carga del panel de un auditor.
+ */
+export function useSession(enabled = true) {
   return useQuery<{ session: CashboxSession | null }, ApiError>({
     queryKey: POS_SESSION_KEY,
     queryFn: getSession,
+    enabled,
   });
 }
 
