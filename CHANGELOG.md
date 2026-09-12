@@ -2,6 +2,11 @@
 
 Lo que cambió en cada versión de SellPointy, escrito desde los commits (`feat` → Novedades, `fix` → Correcciones, `perf` → Rendimiento). Se corta con `pnpm release` (F6-RELEASE-03). La historia anterior a 1.0.0 vive en los tags de fase (`v0.2.0-fase1` … `v0.6.0-fase5`) y en IMPLEMENTACION.md.
 
+## [1.0.1](https://github.com/carloshlm/sellpoint/compare/v1.0.0...v1.0.1) (2026-09-12)
+
+### Correcciones
+
+* **pos:** el carrito y el ticket dicen la cantidad en la presentación vendida, no en la unidad base ([d80eee1](https://github.com/carloshlm/sellpoint/commit/d80eee1de0384661d3da7410652b3b62e666560b))
 ## 1.0.0 (2026-09-12)
 
 ### ⚠ BREAKING CHANGES
