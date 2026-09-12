@@ -11,12 +11,14 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import {
   customCells,
+  customHeaderLabels,
   type ImportRowError,
   type LookupIndex,
   loadImportFields,
   loadLookupIndexes,
   parseCustomAttributes,
   readImportWorkbook,
+  resolveCustomColumns,
   translateImportErrors,
 } from "./import-engine";
 import { type FieldDefinition, validateRecordAttributes } from "./validate-attributes";
@@ -85,7 +87,7 @@ export class CatalogRecordsImportService {
     options: { dryRun: boolean; skipErrors: boolean; locale: Locale },
     meta: RequestMeta,
   ): Promise<RecordsImportReport> {
-    const { header, rows } = await readImportWorkbook(content, {
+    const { header: encabezado, rows } = await readImportWorkbook(content, {
       maxBytes: MAX_IMPORT_BYTES,
       messages: {
         tooLarge: "catalogs.import_too_large",
@@ -95,6 +97,7 @@ export class CatalogRecordsImportService {
     });
 
     const { fields, lookups } = await this.contexto(user, catalogId);
+    const { header, nameOf } = resolveCustomColumns(encabezado, fields);
 
     const errors: ImportRowError[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
@@ -130,7 +133,7 @@ export class CatalogRecordsImportService {
         errors.push(
           conCodigo({
             row: rowNumber,
-            field: lookupError,
+            field: nameOf(lookupError),
             message: "catalogs.lookup_value_not_found",
           }),
         );
@@ -141,7 +144,7 @@ export class CatalogRecordsImportService {
         errors.push(
           conCodigo({
             row: rowNumber,
-            field: attributeErrors[0]?.key,
+            field: nameOf(attributeErrors[0]?.key ?? ""),
             message: attributeErrors[0]?.message ?? "catalogs.import_invalid_attributes",
           }),
         );
@@ -221,7 +224,9 @@ export class CatalogRecordsImportService {
   ): Promise<{ header: string[]; rows: string[][]; catalogName: string }> {
     const { fields, lookups, catalogName } = await this.contexto(user, catalogId);
     const custom = fields.map((field) => field.key);
-    const header = [...STANDARD_COLUMNS, ...custom];
+    // El encabezado lleva la ETIQUETA de hoy; `custom` sigue siendo la key,
+    // que es de dónde se leen los datos (Carlos, 2026-09-12).
+    const header = [...STANDARD_COLUMNS, ...customHeaderLabels(fields)];
 
     const records = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.catalogRecord.findMany({ where: { catalogId }, orderBy: { code: "asc" } }),

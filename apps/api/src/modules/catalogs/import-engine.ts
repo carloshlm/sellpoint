@@ -4,6 +4,7 @@ import type { I18nService } from "nestjs-i18n";
 import { canonicalHeader } from "../../common/spreadsheet/import-headers";
 import { parseSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import type { Prisma } from "../../generated/prisma/client";
+import { deriveFieldKey } from "./field-key";
 import type { FieldDefinition } from "./validate-attributes";
 
 /**
@@ -98,6 +99,7 @@ export async function loadImportFields(
     where: { catalogId },
     select: {
       key: true,
+      label: true,
       fieldType: true,
       required: true,
       isArchived: true,
@@ -158,6 +160,93 @@ export async function loadLookupIndexes(
     }
   }
   return porCampo;
+}
+
+/** Cómo se llama cada campo propio en la planilla de ESTA persona. */
+export interface CustomColumns {
+  /** El encabezado del archivo, con las columnas propias normalizadas a su `key`. */
+  header: string[];
+  /**
+   * El nombre de la columna tal como la persona la ve: la celda de SU archivo
+   * si la trajo, y si no, la etiqueta actual del campo. Es lo que se reporta
+   * en un error de fila — decirle `proveedor` a quien tiene escrito
+   * «Vendedores» lo manda a buscar una columna que no existe.
+   */
+  nameOf: (key: string) => string;
+}
+
+/**
+ * Resuelve el encabezado de un archivo contra los campos propios del catálogo.
+ *
+ * Carlos (2026-09-12): renombró un campo y la plantilla siguió diciendo el
+ * nombre viejo, porque el encabezado se escribía con la `key` —que es
+ * IMMUTABLE por diseño: es dónde vive el dato dentro de `attributes`— en vez
+ * de con la etiqueta. La plantilla es una superficie que lee un humano: lleva
+ * la etiqueta. Para que eso no rompa los archivos ya descargados, acá se
+ * acepta cualquiera de las tres formas de nombrar la columna —la etiqueta de
+ * hoy, su slug y la key histórica— y todas se normalizan a la key.
+ *
+ * De paso corrige una trampa vieja: `canonicalHeader` respeta las mayúsculas
+ * de una columna que no conoce, así que un encabezado «Proveedor» no casaba
+ * con la key `proveedor` y la columna entera se ignoraba en silencio — la
+ * fila terminaba diciendo «este campo es obligatorio» con el dato escrito al
+ * lado. La comparación es por slug, que ignora mayúsculas y acentos.
+ */
+export function resolveCustomColumns(
+  header: readonly string[],
+  fields: readonly FieldDefinition[],
+): CustomColumns {
+  const porSlug = new Map<string, string | null>();
+  // La key primero y con prioridad: ante un empate entre «la key de A» y «la
+  // etiqueta de B», manda dónde vive el dato. Una key es prueba exacta; una
+  // etiqueta, una coincidencia de nombre.
+  const porKey = new Set<string>();
+  for (const field of fields) {
+    const slug = slugSeguro(field.key);
+    if (slug !== null) {
+      porSlug.set(slug, field.key);
+      porKey.add(slug);
+    }
+  }
+  for (const field of fields) {
+    const slug = slugSeguro(field.label);
+    if (slug === null || porKey.has(slug)) {
+      continue;
+    }
+    // Dos ETIQUETAS que reclaman el mismo nombre: no se adivina cuál quiso la
+    // persona, se deja la columna como vino y el campo se reporta vacío.
+    porSlug.set(slug, porSlug.has(slug) && porSlug.get(slug) !== field.key ? null : field.key);
+  }
+
+  const normalizado: string[] = [];
+  const enElArchivo = new Map<string, string>();
+  for (const celda of header) {
+    const key = porSlug.get(slugSeguro(celda) ?? "") ?? null;
+    normalizado.push(key ?? celda);
+    if (key !== null && !enElArchivo.has(key)) {
+      enElArchivo.set(key, celda.trim());
+    }
+  }
+
+  const etiquetas = new Map(fields.map((field) => [field.key, field.label]));
+  return {
+    header: normalizado,
+    nameOf: (key) => enElArchivo.get(key) ?? etiquetas.get(key) ?? key,
+  };
+}
+
+/** El slug de un texto, o `null` si no deja nada usable (una celda de guiones). */
+function slugSeguro(texto: string): string | null {
+  try {
+    return deriveFieldKey(texto);
+  } catch {
+    return null;
+  }
+}
+
+/** Los encabezados que la PLANTILLA escribe para los campos propios: sus etiquetas. */
+export function customHeaderLabels(fields: readonly FieldDefinition[]): string[] {
+  return fields.map((field) => field.label);
 }
 
 /** El código de la planilla → id del registro, exacto primero y laxo después. */

@@ -24,6 +24,7 @@ export function loadCatalogFields(
     where: { catalogId },
     select: {
       key: true,
+      label: true,
       fieldType: true,
       required: true,
       isArchived: true,

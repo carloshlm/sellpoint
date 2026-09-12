@@ -12,6 +12,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import {
   customCells,
+  customHeaderLabels,
   type ImportRowError,
   type LookupIndex,
   loadImportFields,
@@ -19,6 +20,7 @@ import {
   loadTaxGroupIndex,
   parseCustomAttributes,
   readImportWorkbook,
+  resolveCustomColumns,
   resolveTaxGroupCode,
   type TaxGroupIndex,
   translateImportErrors,
@@ -107,7 +109,7 @@ export class ServicesImportService {
     options: { dryRun: boolean; skipErrors: boolean; locale: Locale },
     meta: RequestMeta,
   ): Promise<ServiceImportReport> {
-    const { header, rows } = await readImportWorkbook(content, {
+    const { header: encabezado, rows } = await readImportWorkbook(content, {
       maxBytes: MAX_IMPORT_BYTES,
       messages: {
         tooLarge: "services.import_too_large",
@@ -117,6 +119,7 @@ export class ServicesImportService {
     });
 
     const { fields, lookups, impuestos } = await this.contexto(user);
+    const { header, nameOf } = resolveCustomColumns(encabezado, fields);
 
     const errors: ServiceImportRowError[] = [];
     const parsed: Omit<ParsedRow, "existingId">[] = [];
@@ -172,7 +175,7 @@ export class ServicesImportService {
         errors.push(
           conCodigo({
             row: rowNumber,
-            field: lookupError,
+            field: nameOf(lookupError),
             message: "catalogs.lookup_value_not_found",
           }),
         );
@@ -183,7 +186,7 @@ export class ServicesImportService {
         errors.push(
           conCodigo({
             row: rowNumber,
-            field: attributeErrors[0]?.key,
+            field: nameOf(attributeErrors[0]?.key ?? ""),
             message: attributeErrors[0]?.message ?? "services.import_invalid_attributes",
           }),
         );
@@ -300,7 +303,9 @@ export class ServicesImportService {
   ): Promise<{ header: string[]; rows: string[][]; impuestos: TaxGroupIndex }> {
     const { fields, lookups, impuestos } = await this.contexto(user);
     const custom = fields.map((field) => field.key);
-    const header = [...STANDARD_COLUMNS, ...custom];
+    // El encabezado lleva la ETIQUETA de hoy; `custom` sigue siendo la key,
+    // que es de dónde se leen los datos (Carlos, 2026-09-12).
+    const header = [...STANDARD_COLUMNS, ...customHeaderLabels(fields)];
 
     const services = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.service.findMany({ orderBy: { code: "asc" } }),

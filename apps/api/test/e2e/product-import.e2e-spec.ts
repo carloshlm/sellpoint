@@ -91,8 +91,9 @@ describe("Importación de productos (F2-IMPORT)", () => {
       .set("Authorization", bearer(token))
       .expect(200);
 
-    // La columna nueva aparece sin que nadie mantenga una lista aparte.
-    expect(template.text).toContain("laboratorio");
+    // La columna nueva aparece sin que nadie mantenga una lista aparte, y con
+    // la ETIQUETA que puso el negocio (Carlos, 2026-09-12).
+    expect(template.text).toContain("Laboratorio");
     expect(template.text).toContain("sku");
     // BOM para que Excel muestre bien los acentos.
     expect(template.text.charCodeAt(0)).toBe(0xfeff);
@@ -368,14 +369,141 @@ describe("Importación de productos (F2-IMPORT)", () => {
         .send({ code: "ACME", attributes: {} })
         .expect(201);
 
-      await request(app.getHttpServer())
+      const field = await request(app.getHttpServer())
         .post(`/catalogs/${productsCatalog?.id}/fields`)
         .set("Authorization", bearer(token))
         .send({ label: "Proveedor", fieldType: "lookup", lookupCatalogId: subcatalogId })
         .expect(201);
 
-      return { recordId: (record.body as { id: string }).id };
+      return {
+        recordId: (record.body as { id: string }).id,
+        catalogId: productsCatalog?.id as string,
+        fieldId: (field.body as { id: string }).id,
+      };
     }
+
+    /**
+     * Carlos (2026-09-12, producción): renombró el campo y la plantilla siguió
+     * escribiendo `proveedor`, el nombre viejo — y los errores también. La
+     * `key` es inmutable por diseño (es dónde vive el dato); lo que la persona
+     * lee lleva la ETIQUETA de hoy. Los archivos ya descargados siguen
+     * entrando: la key histórica se acepta igual.
+     */
+    describe("un campo renombrado", () => {
+      const renombrar = async (token: string, catalogId: string, fieldId: string) =>
+        request(app.getHttpServer())
+          .patch(`/catalogs/${catalogId}/fields/${fieldId}`)
+          .set("Authorization", bearer(token))
+          .send({ label: "Vendedores" })
+          .expect(200);
+
+      it("la plantilla escribe el nombre NUEVO, no la key vieja", async () => {
+        const { token } = await registerAndLogin();
+        const { catalogId, fieldId } = await setupLookup(token);
+        await renombrar(token, catalogId, fieldId);
+
+        const template = await request(app.getHttpServer())
+          .get("/products/import/template")
+          .set("Authorization", bearer(token))
+          .expect(200);
+
+        expect(template.text).toContain("Vendedores");
+        expect(template.text).not.toContain("proveedor");
+      });
+
+      it("el archivo YA descargado, con la key vieja, sigue importando", async () => {
+        const { token } = await registerAndLogin();
+        const { recordId, catalogId, fieldId } = await setupLookup(token);
+        await renombrar(token, catalogId, fieldId);
+
+        await request(app.getHttpServer())
+          .post("/products/import")
+          .set("Authorization", bearer(token))
+          .send({ content: "sku,nombre,proveedor\nRN-1,Con el nombre viejo,ACME" })
+          .expect(200);
+
+        const list = await request(app.getHttpServer())
+          .get("/products?search=RN-1")
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${(list.body as { items: { id: string }[] }).items[0]?.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        // El dato sigue viviendo bajo la key: renombrar no movió nada.
+        expect((detail.body as { attributes: Record<string, string> }).attributes.proveedor).toBe(
+          recordId,
+        );
+      });
+
+      it("el archivo NUEVO, con la etiqueta de hoy, importa igual", async () => {
+        const { token } = await registerAndLogin();
+        const { recordId, catalogId, fieldId } = await setupLookup(token);
+        await renombrar(token, catalogId, fieldId);
+
+        await request(app.getHttpServer())
+          .post("/products/import")
+          .set("Authorization", bearer(token))
+          .send({ content: "sku,nombre,Vendedores\nRN-2,Con el nombre nuevo,ACME" })
+          .expect(200);
+
+        const list = await request(app.getHttpServer())
+          .get("/products?search=RN-2")
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${(list.body as { items: { id: string }[] }).items[0]?.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect((detail.body as { attributes: Record<string, string> }).attributes.proveedor).toBe(
+          recordId,
+        );
+      });
+
+      it("el error de fila nombra la columna como la persona la ve, no la key", async () => {
+        const { token } = await registerAndLogin();
+        const { catalogId, fieldId } = await setupLookup(token);
+        await request(app.getHttpServer())
+          .patch(`/catalogs/${catalogId}/fields/${fieldId}`)
+          .set("Authorization", bearer(token))
+          .send({ label: "Vendedores", required: true })
+          .expect(200);
+
+        const report = await request(app.getHttpServer())
+          .post("/products/import")
+          .set("Authorization", bearer(token))
+          .send({ content: "sku,nombre\nRN-3,Sin la columna", dryRun: true })
+          .expect(200);
+
+        expect((report.body as { errors: { field?: string }[] }).errors[0]).toMatchObject({
+          row: 2,
+          field: "Vendedores",
+        });
+      });
+
+      it("mayúsculas distintas en el encabezado no tiran la columna entera", async () => {
+        const { token } = await registerAndLogin();
+        const { recordId } = await setupLookup(token);
+
+        await request(app.getHttpServer())
+          .post("/products/import")
+          .set("Authorization", bearer(token))
+          .send({ content: "sku,nombre,Proveedor\nRN-4,Con mayúscula,ACME" })
+          .expect(200);
+
+        const list = await request(app.getHttpServer())
+          .get("/products?search=RN-4")
+          .set("Authorization", bearer(token))
+          .expect(200);
+        const detail = await request(app.getHttpServer())
+          .get(`/products/${(list.body as { items: { id: string }[] }).items[0]?.id}`)
+          .set("Authorization", bearer(token))
+          .expect(200);
+        expect((detail.body as { attributes: Record<string, string> }).attributes.proveedor).toBe(
+          recordId,
+        );
+      });
+    });
 
     it("la plantilla muestra el código, NUNCA el uuid del registro", async () => {
       const { token } = await registerAndLogin();

@@ -7,6 +7,7 @@ const USER: AuthUser = { userId: "u1", tenantId: "t1", permissions: [], locale: 
 
 const textField = (key: string, required = false): FieldDefinition => ({
   key,
+  label: key,
   fieldType: "text",
   required,
   isArchived: false,
@@ -61,6 +62,7 @@ describe("attribute-assertions (helper compartido, 2026-08-26)", () => {
   it("un lookup hacia un registro inexistente se rechaza", async () => {
     const lookup: FieldDefinition = {
       key: "region",
+      label: "region",
       fieldType: "lookup",
       required: false,
       isArchived: false,
@@ -108,7 +110,9 @@ describe("attribute-assertions (helper compartido, 2026-08-26)", () => {
         },
       ),
     ).rejects.toMatchObject({
-      response: { errors: [{ key: "encargado", message: "catalogs.field_required" }] },
+      response: {
+        errors: [{ key: "encargado", message: "catalogs.field_required" }],
+      },
     });
 
     expect((tx as { catalog: { findFirst: jest.Mock } }).catalog.findFirst).toHaveBeenCalledWith({

@@ -12,6 +12,7 @@ import { validateRecordAttributes } from "./validate-attributes";
 function field(overrides: Partial<FieldDefinition> = {}): FieldDefinition {
   return {
     key: "campo",
+    label: "campo",
     fieldType: "text",
     required: false,
     isArchived: false,
@@ -23,8 +24,8 @@ function field(overrides: Partial<FieldDefinition> = {}): FieldDefinition {
 describe("validateRecordAttributes (F2-CAT-04)", () => {
   it("un registro que cumple no produce errores", () => {
     const fields = [
-      field({ key: "sustancia", fieldType: "text", required: true }),
-      field({ key: "dosis", fieldType: "number" }),
+      field({ key: "sustancia", label: "sustancia", fieldType: "text", required: true }),
+      field({ key: "dosis", label: "dosis", fieldType: "number" }),
     ];
 
     expect(validateRecordAttributes(fields, { sustancia: "Paracetamol", dosis: 500 })).toEqual([]);
@@ -32,7 +33,7 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
 
   describe("required", () => {
     it("un requerido ausente, vacío o nulo falla", () => {
-      const fields = [field({ key: "sustancia", required: true })];
+      const fields = [field({ key: "sustancia", label: "sustancia", required: true })];
 
       expect(validateRecordAttributes(fields, {})).toEqual([
         { key: "sustancia", message: "catalogs.field_required" },
@@ -43,7 +44,7 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
     });
 
     it("un opcional ausente o nulo es válido: no todo campo se llena siempre", () => {
-      const fields = [field({ key: "notas", required: false })];
+      const fields = [field({ key: "notas", label: "notas", required: false })];
 
       expect(validateRecordAttributes(fields, {})).toEqual([]);
       expect(validateRecordAttributes(fields, { notas: null })).toEqual([]);
@@ -52,7 +53,7 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
 
   describe("tipos", () => {
     it("text exige string", () => {
-      const fields = [field({ key: "nombre", fieldType: "text" })];
+      const fields = [field({ key: "nombre", label: "nombre", fieldType: "text" })];
 
       expect(validateRecordAttributes(fields, { nombre: 42 })).toEqual([
         { key: "nombre", message: "catalogs.field_must_be_text" },
@@ -61,7 +62,7 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
 
     it("number exige un número FINITO, no un string que parece número", () => {
       // Aceptar "500" abriría la puerta a "aproximadamente 3" un día después.
-      const fields = [field({ key: "dosis", fieldType: "number" })];
+      const fields = [field({ key: "dosis", label: "dosis", fieldType: "number" })];
 
       expect(validateRecordAttributes(fields, { dosis: 500 })).toEqual([]);
       expect(validateRecordAttributes(fields, { dosis: 12.5 })).toEqual([]);
@@ -72,7 +73,9 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
     it("lookup exige un UUID: guarda el id del registro destino, no su código", () => {
       // El id es estable ante renombres del código; el código es lo que se
       // muestra (ARQUITECTURA § 3.3).
-      const fields = [field({ key: "unidad", fieldType: "lookup", lookupCatalogId: "cat-1" })];
+      const fields = [
+        field({ key: "unidad", label: "unidad", fieldType: "lookup", lookupCatalogId: "cat-1" }),
+      ];
 
       expect(
         validateRecordAttributes(fields, { unidad: "0f14d0ab-9605-4a62-a9e4-5ed26688389b" }),
@@ -87,7 +90,7 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
     it("no se validan ni se exigen, aunque estén marcados como requeridos", () => {
       // Su valor sigue en `attributes` y debe poder guardarse tal cual: el
       // campo está oculto, no borrado.
-      const fields = [field({ key: "viejo", required: true, isArchived: true })];
+      const fields = [field({ key: "viejo", label: "viejo", required: true, isArchived: true })];
 
       expect(validateRecordAttributes(fields, {})).toEqual([]);
       expect(validateRecordAttributes(fields, { viejo: 12345 })).toEqual([]);
@@ -106,7 +109,7 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
     });
 
     it("la clave de un campo ARCHIVADO no se considera desconocida", () => {
-      const fields = [field({ key: "viejo", isArchived: true })];
+      const fields = [field({ key: "viejo", label: "viejo", isArchived: true })];
 
       expect(validateRecordAttributes(fields, { viejo: "valor previo" })).toEqual([]);
     });
@@ -115,7 +118,10 @@ describe("validateRecordAttributes (F2-CAT-04)", () => {
   it("reporta TODOS los errores juntos, no solo el primero", () => {
     // El form pinta los mensajes de una sola vez; devolver de a uno haría que
     // el usuario corrija, reintente y descubra el siguiente.
-    const fields = [field({ key: "a", required: true }), field({ key: "b", fieldType: "number" })];
+    const fields = [
+      field({ key: "a", label: "a", required: true }),
+      field({ key: "b", label: "b", fieldType: "number" }),
+    ];
 
     expect(validateRecordAttributes(fields, { b: "no numero", c: 1 })).toHaveLength(3);
   });

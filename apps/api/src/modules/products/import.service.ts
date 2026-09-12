@@ -18,7 +18,9 @@ import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import {
+  customHeaderLabels,
   loadTaxGroupIndex,
+  resolveCustomColumns,
   resolveTaxGroupCode,
   type TaxGroupIndex,
 } from "../catalogs/import-engine";
@@ -207,7 +209,9 @@ export class ImportService {
     const fields = await this.loadFields(user);
     const active = fields.filter((field) => !field.isArchived);
     const custom = active.map((field) => field.key);
-    const header = [...STANDARD_COLUMNS, ...custom];
+    // El encabezado lleva la ETIQUETA de hoy; `custom` sigue siendo la key,
+    // que es de dónde se leen los datos (Carlos, 2026-09-12).
+    const header = [...STANDARD_COLUMNS, ...customHeaderLabels(active)];
     const lookups = await this.loadLookupIndexes(user, active);
 
     const products = await this.prisma.withTenantContext(user.tenantId, (tx) =>
@@ -296,10 +300,15 @@ export class ImportService {
       throw new BadRequestException({ message: "products.import_empty" });
     }
 
-    const header = rows[0]?.map((cell) => canonicalHeader(cell)) ?? [];
     const fields = await this.loadFields(user);
     const active = fields.filter((field) => !field.isArchived);
     const knownKeys = new Set(active.map((f) => f.key));
+    // La etiqueta de hoy, su slug o la key histórica: las tres nombran la
+    // misma columna, y todas se normalizan a la key.
+    const { header, nameOf } = resolveCustomColumns(
+      rows[0]?.map((cell) => canonicalHeader(cell)) ?? [],
+      active,
+    );
     const lookups = await this.loadLookupIndexes(user, active);
     const impuestos = await this.taxIndex(user);
 
@@ -365,7 +374,7 @@ export class ImportService {
           if (!resolved) {
             lookupError = {
               row: rowNumber,
-              field: column,
+              field: nameOf(column),
               message: "catalogs.lookup_value_not_found",
             };
             break;
@@ -391,7 +400,7 @@ export class ImportService {
         errors.push(
           conCodigo({
             row: rowNumber,
-            field: attributeErrors[0]?.key,
+            field: nameOf(attributeErrors[0]?.key ?? ""),
             message: attributeErrors[0]?.message ?? "products.invalid_attributes",
           }),
         );
@@ -705,6 +714,7 @@ export class ImportService {
         where: { catalogId: catalog.id },
         select: {
           key: true,
+          label: true,
           fieldType: true,
           required: true,
           isArchived: true,

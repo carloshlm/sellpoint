@@ -15,6 +15,12 @@
 
 export interface FieldDefinition {
   key: string;
+  /**
+   * Lo que la persona ve y puede renombrar. La `key` es dónde vive el dato;
+   * la etiqueta es cómo se llama hoy, y es la que va a toda superficie que
+   * lee un humano — la plantilla de importación incluida (Carlos, 2026-09-12).
+   */
+  label: string;
   fieldType: "text" | "number" | "lookup";
   required: boolean;
   isArchived: boolean;
