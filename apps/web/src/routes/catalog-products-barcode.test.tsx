@@ -54,8 +54,13 @@ describe("código de barras en el formulario de producto", () => {
     // pasaba con el orden roto. Medir el prefijo es medir al vecino.
     const posicion = (clave: string) => {
       // Con o sin argumentos (`{ context }`): lo que importa es que la clave
-      // termine ahí — `cost"` no casa con `costHint"`.
-      const indice = codigo.indexOf(`label={t("products.form.${clave}"`);
+      // termine ahí — `cost"` no casa con `costHint"`. Desde 2026-09-12 el
+      // costo y el precio viven en `PricingFieldset` y llegan como
+      // `costLabel={t(…)}` / `priceLabel={t(…)}`: la etiqueta sigue siendo
+      // la que se mide, con el nombre de la prop que sea.
+      const indice = codigo.search(
+        new RegExp(`[a-zA-Z]*[lL]abel=\\{t\\("products\\.form\\.${clave}"`),
+      );
       if (indice === -1) {
         throw new Error(`el formulario no tiene el campo ${clave}`);
       }

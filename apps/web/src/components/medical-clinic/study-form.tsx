@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MoneyField } from "@/components/form/money-field";
-import { TaxGroupSelect } from "@/components/form/tax-group-select";
+import { PricingFieldset } from "@/components/form/pricing-fieldset";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
@@ -29,6 +28,7 @@ export function StudyForm({
   const { t } = useTranslation();
   // F9-COSTMODE-10: el costo se captura en la base del negocio; la etiqueta lo dice.
   const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
+  const priceTaxMode = useAuthStore((state) => state.user?.tenant?.taxMode ?? "included");
   const [code, setCode] = useState(study?.code ?? "");
   const [name, setName] = useState(study?.name ?? "");
   const [description, setDescription] = useState(study?.description ?? "");
@@ -100,27 +100,28 @@ export function StudyForm({
         value={description}
         onChange={(event) => setDescription(event.target.value)}
       />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MoneyField
-          label={t("medicalClinic.studies.form.cost", { context: costTaxMode })}
-          hint={t(
-            costTaxMode === "included"
-              ? "medicalClinic.studies.form.costHintIncluded"
-              : "medicalClinic.studies.form.costHintExcluded",
-          )}
-          error={costErrorKey ? t(costErrorKey) : undefined}
-          value={cost}
-          onChange={setCost}
-        />
-        <MoneyField
-          label={t("medicalClinic.studies.form.price")}
-          hint={t("medicalClinic.studies.form.priceHint")}
-          error={priceErrorKey ? t(priceErrorKey) : undefined}
-          value={price}
-          onChange={setPrice}
-        />
-      </div>
-      <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} />
+      <PricingFieldset
+        taxGroupId={taxGroupId}
+        onTaxGroupChange={setTaxGroupId}
+        cost={cost}
+        onCostChange={setCost}
+        costLabel={t("medicalClinic.studies.form.cost", { context: costTaxMode })}
+        costHint={t(
+          costTaxMode === "included"
+            ? "medicalClinic.studies.form.costHintIncluded"
+            : "medicalClinic.studies.form.costHintExcluded",
+        )}
+        costError={costErrorKey ? t(costErrorKey) : undefined}
+        price={price}
+        onPriceChange={setPrice}
+        priceLabel={t("medicalClinic.studies.form.price", { context: priceTaxMode })}
+        priceHint={t(
+          priceTaxMode === "included"
+            ? "medicalClinic.studies.form.priceHintIncluded"
+            : "medicalClinic.studies.form.priceHintExcluded",
+        )}
+        priceError={priceErrorKey ? t(priceErrorKey) : undefined}
+      />
       <div className="flex gap-2">
         <Button
           type="submit"

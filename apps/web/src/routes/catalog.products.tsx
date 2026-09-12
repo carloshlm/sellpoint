@@ -11,9 +11,8 @@ import { PresentationsTab } from "@/components/catalog/presentations-tab";
 import { ProductImportDialog } from "@/components/catalog/product-import-dialog";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Money } from "@/components/common/money";
-import { MoneyField } from "@/components/form/money-field";
+import { PricingFieldset } from "@/components/form/pricing-fieldset";
 import { SelectField } from "@/components/form/select-field";
-import { TaxGroupSelect } from "@/components/form/tax-group-select";
 import { TextField } from "@/components/form/text-field";
 import { KardexTab } from "@/components/inventory/kardex-tab";
 import { StockTab } from "@/components/inventory/stock-tab";
@@ -505,6 +504,7 @@ function ProductForm({
   // F9-COSTMODE-10: el costo se captura en la base del negocio; la etiqueta y
   // la ayuda lo dicen (context de i18next: `cost_excluded` / `cost_included`).
   const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
+  const priceTaxMode = useAuthStore((state) => state.user?.tenant?.taxMode ?? "included");
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(moneyInitialValue(basePresentation?.price));
@@ -669,28 +669,32 @@ function ProductForm({
       />
 
       {/* Costo y precio editan la presentación base: el usuario los ve como
-          "el costo y el precio del producto" y los carga acá mismo. */}
-      <MoneyField
-        label={t("products.form.cost", { context: costTaxMode })}
-        hint={t(
+          "el costo y el precio del producto" y los carga acá mismo. El bloque
+          pone el impuesto ANTES (decide cómo se leen los dos importes), dice la
+          regla del negocio arriba y muestra el desglose del ticket en vivo. */}
+      <PricingFieldset
+        taxGroupId={taxGroupId}
+        onTaxGroupChange={setTaxGroupId}
+        disabled={!canManage}
+        cost={cost}
+        onCostChange={setCost}
+        costLabel={t("products.form.cost", { context: costTaxMode })}
+        costHint={t(
           costTaxMode === "included"
             ? "products.form.costHintIncluded"
             : "products.form.costHintExcluded",
         )}
-        error={costError}
-        value={cost}
-        disabled={!canManage}
-        onChange={setCost}
+        costError={costError}
+        price={price}
+        onPriceChange={setPrice}
+        priceLabel={t("products.form.price", { context: priceTaxMode })}
+        priceHint={t(
+          priceTaxMode === "included"
+            ? "products.form.priceHintIncluded"
+            : "products.form.priceHintExcluded",
+        )}
+        priceError={priceError}
       />
-      <MoneyField
-        label={t("products.form.price")}
-        hint={t("products.form.priceHint")}
-        error={priceError}
-        value={price}
-        disabled={!canManage}
-        onChange={setPrice}
-      />
-      <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} disabled={!canManage} />
       <TextField
         label={t("products.form.stockMin")}
         type="number"

@@ -27,7 +27,11 @@
     "costHintExcluded": "Lo que te cuesta darlo, antes del impuesto. No se le muestra al cliente.",
     "costHintIncluded": "Lo que te cuesta darlo, con el impuesto adentro. No se le muestra al cliente.",
     "price": "Precio de venta",
-    "priceHint": "Lo que cobras por este servicio."
+    "price_included": "Precio de venta (con impuesto incluido)",
+    "price_excluded": "Precio de venta (sin impuesto)",
+    "priceHint": "Lo que cobras por este servicio.",
+    "priceHintIncluded": "Lo que paga el cliente, con el impuesto ya adentro: es el número del ticket.",
+    "priceHintExcluded": "Lo que cobras antes del impuesto: el ticket lo suma al final."
   },
   "delete": {
     "title": "Eliminar «{{name}}»",

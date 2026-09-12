@@ -160,7 +160,7 @@ describe.each([
     await user.type(screen.getByLabelText("Código"), "RX");
     await user.type(screen.getByLabelText("Nombre"), "Rayos X de tórax");
     await user.type(screen.getByLabelText("Costo (sin impuesto)"), "120");
-    await user.type(screen.getByLabelText("Precio de venta"), "350");
+    await user.type(screen.getByLabelText("Precio de venta (con impuesto incluido)"), "350");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() =>

@@ -80,7 +80,8 @@ const mockedCatalogs = vi.mocked(catalogsApi);
 const demoUser = (
   permissions: string[],
   costTaxMode: "included" | "excluded" = "excluded",
-): AuthUser => buildAuthUser({ permissions, tenant: buildTenantBlock({ costTaxMode }) });
+  taxMode: "included" | "excluded" = "included",
+): AuthUser => buildAuthUser({ permissions, tenant: buildTenantBlock({ costTaxMode, taxMode }) });
 
 const PRODUCT: productsApi.ProductDetail = {
   id: "prod-1",
@@ -96,10 +97,13 @@ const PRODUCT: productsApi.ProductDetail = {
   presentations: [],
 };
 
-async function openProduct(costTaxMode: "included" | "excluded" = "excluded") {
+async function openProduct(
+  costTaxMode: "included" | "excluded" = "excluded",
+  taxMode: "included" | "excluded" = "included",
+) {
   useAuthStore
     .getState()
-    .setAuth("jwt", demoUser(["products:read", "products:manage"], costTaxMode));
+    .setAuth("jwt", demoUser(["products:read", "products:manage"], costTaxMode, taxMode));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
@@ -325,6 +329,79 @@ describe("la base del costo en la ficha (F9-COSTMODE-10)", () => {
         "prod-1",
         expect.objectContaining({ cost: 116 }),
       ),
+    );
+  });
+
+  /**
+   * Carlos, 2026-09-12: «aún es confuso poner el costo y el precio». El bloque
+   * pone el impuesto ANTES de los dos importes (decide cómo se leen), dice la
+   * regla del negocio arriba con enlace a Mi perfil, y debajo del precio
+   * muestra lo que verá el cliente en el ticket con el impuesto aplicado.
+   */
+  it("el impuesto va antes que el costo y el precio; la regla del negocio se lee arriba", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    await openProduct();
+    const impuesto = await screen.findByLabelText("Impuesto");
+    const costo = screen.getByLabelText("Costo (sin impuesto)");
+    const precio = screen.getByLabelText("Precio de venta (con impuesto incluido)");
+    const antes = (a: Element, b: Element) =>
+      (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect(antes(impuesto, costo)).toBe(true);
+    expect(antes(costo, precio)).toBe(true);
+    const regla = screen.getByTestId("pricing-rule");
+    expect(regla).toHaveTextContent("el costo se captura SIN impuesto");
+    expect(regla).toHaveTextContent("El precio de venta va CON el impuesto incluido");
+    expect(
+      within(regla).getByRole("link", { name: "Cambiar en Mi perfil › Impuestos" }),
+    ).toHaveAttribute("href", "/profile");
+  });
+
+  it("México: el precio muestra en vivo cuánto IVA lleva adentro", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    const user = await openProduct();
+    const precio = await screen.findByLabelText("Precio de venta (con impuesto incluido)");
+    await user.clear(precio);
+    await user.type(precio, "23");
+    // 23.00 con IVA 16% adentro: 19.83 + 3.17.
+    await waitFor(() =>
+      expect(screen.getByTestId("price-breakdown")).toHaveTextContent(
+        /En el ticket: \$23\.00, que ya incluye \$3\.17 de IVA 16%\./,
+      ),
+    );
+    expect(screen.queryByTestId("cost-breakdown")).not.toBeInTheDocument();
+  });
+
+  it("Canadá: precio sin impuesto → el ticket lo suma; costo con impuesto → se muestra el neto", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    const user = await openProduct("included", "excluded");
+    const precio = await screen.findByLabelText("Precio de venta (sin impuesto)");
+    expect(screen.getByTestId("pricing-rule")).toHaveTextContent(
+      "El precio de venta va SIN impuesto",
+    );
+    await user.clear(precio);
+    await user.type(precio, "23");
+    await waitFor(() =>
+      expect(screen.getByTestId("price-breakdown")).toHaveTextContent(
+        /En el ticket: \$23\.00 \+ \$3\.68 de IVA 16% = \$26\.68\./,
+      ),
+    );
+    const costo = screen.getByLabelText("Costo (con impuesto incluido)");
+    await user.clear(costo);
+    await user.type(costo, "116");
+    await waitFor(() =>
+      expect(screen.getByTestId("cost-breakdown")).toHaveTextContent(/Sin impuesto: \$100\.00\./),
     );
   });
 

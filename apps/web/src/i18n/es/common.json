@@ -551,5 +551,17 @@
     "selectLabel": "Impuesto",
     "selectDefault": "Predeterminado del negocio ({{name}})",
     "selectDefaultUnknown": "Predeterminado del negocio"
+  },
+  "pricing": {
+    "legend": "Impuesto, costo y precio",
+    "costRuleExcluded": "En este negocio el costo se captura SIN impuesto, como lo dice la factura.",
+    "costRuleIncluded": "En este negocio el costo se captura CON el impuesto incluido, como lo pagas en mostrador.",
+    "priceRuleIncluded": "El precio de venta va CON el impuesto incluido: es lo que paga el cliente.",
+    "priceRuleExcluded": "El precio de venta va SIN impuesto: el ticket lo suma al cobrar.",
+    "changeLink": "Cambiar en Mi perfil › Impuestos",
+    "breakdownIncluded": "En el ticket: {{gross}}, que ya incluye {{tax}} de {{taxes}}.",
+    "breakdownExcluded": "En el ticket: {{net}} + {{tax}} de {{taxes}} = {{gross}}.",
+    "breakdownNone": "En el ticket: {{gross}}, sin impuesto.",
+    "costNet": "Sin impuesto: {{net}}. Es el costo con el que se calcula tu utilidad."
   }
 }

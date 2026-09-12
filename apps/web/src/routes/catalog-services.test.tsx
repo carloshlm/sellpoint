@@ -158,7 +158,7 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     await user.click(screen.getByRole("button", { name: "Nuevo servicio" }));
     await user.type(screen.getByLabelText("Código"), "TINTE");
     await user.type(screen.getByLabelText("Nombre"), "Tinte");
-    await user.type(screen.getByLabelText("Precio de venta"), "300");
+    await user.type(screen.getByLabelText("Precio de venta (con impuesto incluido)"), "300");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {
@@ -192,7 +192,7 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     await user.click(screen.getByRole("button", { name: "Nuevo servicio" }));
     await user.type(screen.getByLabelText("Código"), "TINTE");
     await user.type(screen.getByLabelText("Nombre"), "Tinte");
-    const precio = screen.getByLabelText("Precio de venta");
+    const precio = screen.getByLabelText("Precio de venta (con impuesto incluido)");
 
     await user.type(precio, "5,99");
     expect(screen.getByText(/punto decimal/)).toBeInTheDocument();

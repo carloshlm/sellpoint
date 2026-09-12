@@ -7,8 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { Money } from "@/components/common/money";
-import { MoneyField } from "@/components/form/money-field";
-import { TaxGroupSelect } from "@/components/form/tax-group-select";
+import { PricingFieldset } from "@/components/form/pricing-fieldset";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
 import { ServiceImportDialog } from "@/components/services/service-import-dialog";
@@ -280,6 +279,7 @@ function ServiceForm({
   const { t } = useTranslation();
   // F9-COSTMODE-10: el costo se captura en la base del negocio; la etiqueta lo dice.
   const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
+  const priceTaxMode = useAuthStore((state) => state.user?.tenant?.taxMode ?? "included");
   // El form vive ARRIBA de la tabla: quien editó desde la fila 15 no lo ve
   // aparecer. El scroll es la respuesta visible al clic, y el foco queda en
   // el primer campo — quien edita viene a escribir.
@@ -393,27 +393,28 @@ function ServiceForm({
         values={attributes}
         onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MoneyField
-          label={t("services.form.cost", { context: costTaxMode })}
-          hint={t(
-            costTaxMode === "included"
-              ? "services.form.costHintIncluded"
-              : "services.form.costHintExcluded",
-          )}
-          error={costErrorKey ? t(costErrorKey) : undefined}
-          value={cost}
-          onChange={setCost}
-        />
-        <MoneyField
-          label={t("services.form.price")}
-          hint={t("services.form.priceHint")}
-          error={priceErrorKey ? t(priceErrorKey) : undefined}
-          value={price}
-          onChange={setPrice}
-        />
-        <TaxGroupSelect value={taxGroupId} onChange={setTaxGroupId} />
-      </div>
+      <PricingFieldset
+        taxGroupId={taxGroupId}
+        onTaxGroupChange={setTaxGroupId}
+        cost={cost}
+        onCostChange={setCost}
+        costLabel={t("services.form.cost", { context: costTaxMode })}
+        costHint={t(
+          costTaxMode === "included"
+            ? "services.form.costHintIncluded"
+            : "services.form.costHintExcluded",
+        )}
+        costError={costErrorKey ? t(costErrorKey) : undefined}
+        price={price}
+        onPriceChange={setPrice}
+        priceLabel={t("services.form.price", { context: priceTaxMode })}
+        priceHint={t(
+          priceTaxMode === "included"
+            ? "services.form.priceHintIncluded"
+            : "services.form.priceHintExcluded",
+        )}
+        priceError={priceErrorKey ? t(priceErrorKey) : undefined}
+      />
       <fieldset className="flex flex-col gap-2" data-testid="service-warehouses">
         <div className="flex items-center justify-between gap-2">
           <legend className="font-medium text-sm">{t("services.warehouses.legend")}</legend>

@@ -551,5 +551,17 @@
     "selectLabel": "Tax",
     "selectDefault": "Business default ({{name}})",
     "selectDefaultUnknown": "Business default"
+  },
+  "pricing": {
+    "legend": "Tax, cost and price",
+    "costRuleExcluded": "In this business the cost is entered BEFORE tax, as the invoice states it.",
+    "costRuleIncluded": "In this business the cost is entered WITH tax included, as you pay it at the counter.",
+    "priceRuleIncluded": "The selling price is WITH tax included: it is what the customer pays.",
+    "priceRuleExcluded": "The selling price is BEFORE tax: the receipt adds it at checkout.",
+    "changeLink": "Change in My profile › Taxes",
+    "breakdownIncluded": "On the receipt: {{gross}}, which already includes {{tax}} of {{taxes}}.",
+    "breakdownExcluded": "On the receipt: {{net}} + {{tax}} of {{taxes}} = {{gross}}.",
+    "breakdownNone": "On the receipt: {{gross}}, no tax.",
+    "costNet": "Before tax: {{net}}. This is the cost your profit is calculated with."
   }
 }

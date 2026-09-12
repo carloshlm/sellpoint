@@ -64,7 +64,11 @@
       "costHintExcluded": "What the study costs you, before tax. Never shown to the patient.",
       "costHintIncluded": "What the study costs you, tax included. Never shown to the patient.",
       "price": "Price",
+      "price_included": "Selling price (tax included)",
+      "price_excluded": "Selling price (before tax)",
       "priceHint": "What you charge for this study.",
+      "priceHintIncluded": "What the patient pays, tax already included: the number on the receipt.",
+      "priceHintExcluded": "What you charge before tax: the receipt adds it at the end.",
       "saveFailed": "We could not save the study."
     },
     "delete": {
