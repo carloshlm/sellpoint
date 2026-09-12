@@ -759,15 +759,20 @@ describe("Compras (F9-PURCH)", () => {
         .get(`/purchases/last-cost?supplierId=${proveedorId}&productId=${productoId}`)
         .expect(200);
       expect(res.body).toMatchObject({
-        unitCost: "125",
-        presentationId: cajaId,
-        taxMode: "excluded",
-        folio: ultima.folio,
+        lastCost: {
+          unitCost: "125",
+          presentationId: cajaId,
+          taxMode: "excluded",
+          folio: ultima.folio,
+        },
       });
+      // Sin historial: un OBJETO con `null`, nunca un cuerpo vacío (el web lo
+      // recibía como "" y tumbaba la ficha al pintar NaN — producción, 2026-09-12).
       const sinHistorial = await api(negocio.token)
         .get(`/purchases/last-cost?supplierId=${proveedorId}&productId=${randomUUID()}`)
         .expect(200);
-      expect(sinHistorial.body).toEqual({});
+      expect(sinHistorial.body).toEqual({ lastCost: null });
+      expect(sinHistorial.text).toContain("null");
     });
 
     it("anular la compra arrastra su borrador de entrada; con la entrada confirmada, 409", async () => {

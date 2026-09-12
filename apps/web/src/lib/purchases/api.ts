@@ -246,6 +246,11 @@ export async function getLastCost(params: {
   supplierId: string;
   productId: string;
 }): Promise<LastCost | null> {
-  const { data } = await api.get<LastCost | null>("/purchases/last-cost", { params });
-  return data;
+  const { data } = await api.get<{ lastCost?: LastCost | null } | "">("/purchases/last-cost", {
+    params,
+  });
+  // Solo un objeto con `unitCost` es un costo; cualquier otra cosa (cuerpo
+  // vacío, null) es «sin historial». Un valor raro aquí tumbaba la ficha.
+  const ultimo = typeof data === "object" && data !== null ? (data.lastCost ?? null) : null;
+  return ultimo !== null && typeof ultimo.unitCost === "string" ? ultimo : null;
 }

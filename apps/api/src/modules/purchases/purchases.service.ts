@@ -690,8 +690,11 @@ export class PurchasesService {
    * papel), con su presentación y el modo fiscal de esa compra — quien la
    * pinta decide si precarga (misma presentación y misma base) o solo avisa.
    */
-  async lastCost(user: AuthUser, query: LastCostQuery): Promise<LastCostView | null> {
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+  async lastCost(user: AuthUser, query: LastCostQuery): Promise<{ lastCost: LastCostView | null }> {
+    // Un OBJETO siempre: un `null` suelto viaja como cuerpo vacío y el cliente
+    // recibe "" —que no es null— y pintaba la leyenda con NaN (Carlos, en
+    // producción, 2026-09-12: agregar un producto sin historial tumbaba la ficha).
+    const lastCost = await this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const linea = await tx.purchaseLine.findFirst({
         where: {
           tenantId: user.tenantId,
@@ -719,6 +722,7 @@ export class PurchasesService {
         purchaseDate: fechaIso(linea.purchase.purchaseDate) as string,
       };
     });
+    return { lastCost };
   }
 
   /** El `where` compartido por listado, conteo y resumen. */

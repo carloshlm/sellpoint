@@ -263,7 +263,10 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
             id="purchase-order-line-search"
             label={t("purchaseOrders.lines.search")}
             placeholder={t("purchaseOrders.lines.searchPlaceholder")}
-            onPick={(producto) => void agregar(producto)}
+            onPick={(producto) => {
+              setError(null);
+              agregar(producto).catch((e: { message?: string }) => setError(e.message ?? "error"));
+            }}
           />
         )}
         {editable && !mismaBase && (
