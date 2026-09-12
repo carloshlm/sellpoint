@@ -1,4 +1,4 @@
-import { type Currency, formatMoney, formatQuantityWithUnit } from "@sellpoint/shared";
+import { type Currency, formatMoney, formatSoldQuantity } from "@sellpoint/shared";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Numpad } from "@/components/pos/numpad";
@@ -191,10 +191,16 @@ function CartLineRow({
           data-testid={`cart-qty-${line.key}`}
           onClick={onSelect}
         >
-          {/* La cantidad se pinta según la unidad: piezas sin decimales, kilos
-              con tres. La regla vive en la unidad, no en esta pantalla. */}
+          {/* La cantidad se pinta en la PRESENTACIÓN vendida («1 Bolsa 10Kg
+              (10.000 kilogramos)»); la base, según su unidad: piezas sin
+              decimales, kilos con tres. La regla vive en shared, no aquí. */}
           {line.type === "product"
-            ? formatQuantityWithUnit(line.quantity, line.baseUnit, locale)
+            ? formatSoldQuantity(
+                line.quantity,
+                line.baseUnit,
+                line.presentations.find((p) => p.id === line.presentationId) ?? null,
+                locale,
+              )
             : line.quantity}
         </button>
 

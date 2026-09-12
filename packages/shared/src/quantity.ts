@@ -158,3 +158,50 @@ export function formatQuantityWithUnit(
 export function unitLabelFor(quantity: string | number, baseUnit: string, locale: Locale): string {
   return unitName(baseUnit, locale, { plural: parseQuantity(quantity) !== 1 }).toLowerCase();
 }
+
+/**
+ * `a × b` con la misma aritmética entera de `addQuantities`: cantidad por
+ * factor de presentación (`0.3 × 10 = 3.0000`), sin que la coma flotante
+ * corra un dígito. Redondea a los cuatro decimales de la columna.
+ */
+export function multiplyQuantities(a: string | number, b: string | number): string {
+  const producto = Math.round(
+    (scaledInteger(a, QUANTITY_SCALE) * scaledInteger(b, QUANTITY_SCALE)) / 10 ** QUANTITY_SCALE,
+  );
+  const negativo = producto < 0;
+  const absoluto = String(Math.abs(producto)).padStart(QUANTITY_SCALE + 1, "0");
+  const entero = absoluto.slice(0, -QUANTITY_SCALE);
+  const fraccion = absoluto.slice(-QUANTITY_SCALE);
+  return `${negativo ? "-" : ""}${entero}.${fraccion}`;
+}
+
+/**
+ * La cantidad de una línea VENDIDA, en la presentación que se vendió.
+ *
+ * Lo destapó Carlos en producción (2026-09-12): vendió «1 Bolsa 10Kg» y el
+ * carrito y el ticket decían «1.000 kilogramo» — la cantidad tecleada (en
+ * bolsas) con la unidad BASE (kilos). El stock sí descontó 10 kg, porque el
+ * factor vive en el servidor; el papel mentía.
+ *
+ * Regla: si la presentación es la base (factor 1) o no hay presentación, se
+ * imprime como siempre («0.300 kilogramos»). Si no, la cantidad va con el
+ * NOMBRE de la presentación y, entre paréntesis, su equivalencia en la
+ * unidad base: «1 Bolsa 10Kg (10.000 kilogramos)», «5 Caja ×12 (60 piezas)».
+ * La cantidad de presentaciones se pinta como piezas (sin ceros de relleno).
+ */
+export function formatSoldQuantity(
+  quantity: string | number,
+  baseUnit: string,
+  presentation: { name: string; factor: string | number } | null | undefined,
+  locale: Locale,
+): string {
+  if (
+    presentation === null ||
+    presentation === undefined ||
+    parseQuantity(presentation.factor) === 1
+  ) {
+    return formatQuantityWithUnit(quantity, baseUnit, locale);
+  }
+  const enBase = multiplyQuantities(quantity, presentation.factor);
+  return `${formatQuantity(quantity, "unit")} ${presentation.name} (${formatQuantityWithUnit(enBase, baseUnit, locale)})`;
+}

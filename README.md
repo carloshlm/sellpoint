@@ -38,7 +38,7 @@ git push --follow-tags origin main   # SIN --follow-tags no viaja el tag y el pi
 ```
 
 La primera vez: `pnpm release:first` (fija 1.0.0). El pipeline, con producción verde, ve el tag en
-HEAD, etiqueta las tres imágenes con `:X.Y.Z` (alias del mismo digest que `:sha`) y crea la GitHub
+HEAD, etiqueta las tres imágenes con `:X.Y.Z` (alias de la misma imagen que `:sha`) y crea la GitHub
 Release con la sección del CHANGELOG. Qué versión corre: `GET /api/health` (`version` y `build`), el
 pie del menú lateral, o la Release.
 

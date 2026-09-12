@@ -117,6 +117,29 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
       expect(json).not.toContain("2 unit");
     });
 
+    /** Carlos, 2026-09-12: «1 Bolsa 10Kg» salía como «1.000 kilogramo». */
+    it("una presentación con factor imprime su nombre y la equivalencia en la unidad base", () => {
+      const json = textos(
+        buildTicketDefinition(
+          {
+            ...base,
+            rows: [
+              {
+                ...fila,
+                baseUnit: "kg",
+                quantity: "1",
+                presentation: { name: "Bolsa 10Kg", factor: "10.0000" },
+              },
+            ],
+          },
+          t,
+        ),
+      );
+
+      expect(json).toContain("1 Bolsa 10Kg (10.000 kilogramos)");
+      expect(json).not.toContain("1.000 kilogramo");
+    });
+
     it("una cantidad por peso lleva sus tres decimales", () => {
       const json = textos(
         buildTicketDefinition({ ...base, rows: [{ ...fila, baseUnit: "kg", quantity: "0.5" }] }, t),

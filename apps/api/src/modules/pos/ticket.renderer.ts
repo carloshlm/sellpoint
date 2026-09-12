@@ -1,7 +1,7 @@
 import {
   type Currency,
   formatMoney,
-  formatQuantityWithUnit,
+  formatSoldQuantity,
   type Locale,
   type TaxMode,
   type TicketSettings,
@@ -26,6 +26,12 @@ export interface TicketRow {
   quantity: string;
   /** La unidad BASE del producto. `null` en un servicio: no sale del anaquel. */
   baseUnit: string | null;
+  /**
+   * La PRESENTACIÓN vendida (nombre y factor), para imprimir «1 Bolsa 10Kg
+   * (10.000 kilogramos)» y no «1.000 kilogramo» (Carlos, 2026-09-12). `null`
+   * en la base, en un servicio o en una venta anterior a la columna.
+   */
+  presentation?: { name: string; factor: string } | null;
   unitPrice: string;
   /**
    * Lo que se IMPRIME en la fila: precio × cantidad, a precio de lista. NO
@@ -409,7 +415,7 @@ function cantidadLegible(row: TicketRow, locale: Locale): string {
   if (row.baseUnit === null) {
     return row.quantity;
   }
-  return formatQuantityWithUnit(row.quantity, row.baseUnit, locale);
+  return formatSoldQuantity(row.quantity, row.baseUnit, row.presentation ?? null, locale);
 }
 
 /** Fecha corta en la zona del usuario: un ticket se lee el mismo día. */

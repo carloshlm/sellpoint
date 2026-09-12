@@ -316,6 +316,20 @@ export class TicketService {
           });
     const porId = new Map(productos.map((p) => [p.id, p]));
 
+    // La presentación vendida, para que la fila diga «1 Bolsa 10Kg (10.000
+    // kilogramos)» y no la cantidad en bolsas con la unidad de kilos.
+    const presentationIds = lines
+      .map((l) => l.presentationId)
+      .filter((id): id is string => id !== null);
+    const presentaciones =
+      presentationIds.length === 0
+        ? []
+        : await tx.productPresentation.findMany({
+            where: { id: { in: presentationIds }, tenantId },
+            select: { id: true, name: true, factor: true },
+          });
+    const presentacionPorId = new Map(presentaciones.map((p) => [p.id, p]));
+
     const serviceIds = lines.map((l) => l.serviceId).filter((id): id is string => id !== null);
     const servicios =
       serviceIds.length === 0
@@ -329,6 +343,8 @@ export class TicketService {
     return lines.map((line) => {
       const producto = line.productId === null ? undefined : porId.get(line.productId);
       const servicio = line.serviceId === null ? undefined : servicioPorId.get(line.serviceId);
+      const presentacion =
+        line.presentationId === null ? undefined : presentacionPorId.get(line.presentationId);
 
       return {
         // La `description` de la cotización gana: es lo que decía el papel que
@@ -338,6 +354,10 @@ export class TicketService {
         quantity: line.quantity.toString(),
         // Un servicio no sale del anaquel: sin unidad base.
         baseUnit: producto?.baseUnit ?? null,
+        presentation:
+          presentacion === undefined
+            ? null
+            : { name: presentacion.name, factor: presentacion.factor.toString() },
         unitPrice: line.unitPrice.toString(),
         // La fila imprime precio × cantidad A PRECIO DE LISTA (Carlos,
         // 2026-09-09): `line_total` ya trae restada la parte prorrateada del

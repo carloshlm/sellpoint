@@ -252,6 +252,14 @@ describe("El carrito del POS (F4-CART)", () => {
      * cantidad porque cada una llamaba a `unitName(..., { plural: true })` por
      * su cuenta. La decisión vive ahora en `formatQuantityWithUnit`.
      */
+    /** Carlos, 2026-09-12: «1 Bolsa 10Kg» se veía como «1.000 kilogramo». */
+    it("una presentación con factor se pinta con su nombre y la equivalencia en la base", async () => {
+      await renderPos();
+      useCartStore.getState().add({ ...AGUA, matchedPresentationId: CAJA.id }, { quantity: "2" });
+      const linea = await screen.findByTestId(`cart-qty-${useCartStore.getState().lines[0]?.key}`);
+      expect(linea).toHaveTextContent("2 Caja ×12 (24 piezas)");
+    });
+
     it("una sola unidad va en SINGULAR: «1 pieza», no «1 piezas»", async () => {
       await renderPos();
       useCartStore.getState().add(AGUA, { quantity: "1" });

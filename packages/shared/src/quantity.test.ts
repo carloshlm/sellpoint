@@ -3,6 +3,8 @@ import {
   addQuantities,
   formatQuantity,
   formatQuantityWithUnit,
+  formatSoldQuantity,
+  multiplyQuantities,
   parseQuantity,
   quantityDecimals,
 } from "./quantity";
@@ -155,6 +157,37 @@ describe("parseQuantity", () => {
  * El arreglo vive acá y no en cada pantalla: mientras la decisión esté repetida,
  * el próximo lugar que imprima una cantidad va a repetir el error.
  */
+describe("multiplyQuantities", () => {
+  it("cantidad por factor sin coma flotante: 0.3 × 10 = 3.0000", () => {
+    expect(multiplyQuantities("0.3", "10")).toBe("3.0000");
+    expect(multiplyQuantities("5", "12")).toBe("60.0000");
+    expect(multiplyQuantities("1.5", "0.25")).toBe("0.3750");
+  });
+});
+
+/**
+ * Lo destapó Carlos en producción (2026-09-12): «1 Bolsa 10Kg» salía como
+ * «1.000 kilogramo». La cantidad va en la PRESENTACIÓN vendida, con su
+ * equivalencia en la unidad base; la base (factor 1) se imprime como siempre.
+ */
+describe("formatSoldQuantity", () => {
+  it("una presentación con factor lleva su nombre y la equivalencia en la unidad base", () => {
+    expect(formatSoldQuantity("1", "kg", { name: "Bolsa 10Kg", factor: "10.0000" }, "es")).toBe(
+      "1 Bolsa 10Kg (10.000 kilogramos)",
+    );
+    expect(formatSoldQuantity("5", "unit", { name: "Caja ×12", factor: "12" }, "es")).toBe(
+      "5 Caja ×12 (60 piezas)",
+    );
+  });
+
+  it("la base (factor 1) o sin presentación se imprime como siempre", () => {
+    expect(formatSoldQuantity("0.3", "kg", { name: "Kilo", factor: "1" }, "es")).toBe(
+      "0.300 kilogramos",
+    );
+    expect(formatSoldQuantity("2", "unit", null, "es")).toBe("2 piezas");
+  });
+});
+
 describe("formatQuantityWithUnit", () => {
   it("usa el SINGULAR cuando hay exactamente uno", () => {
     expect(formatQuantityWithUnit("1", "unit", "es")).toBe("1 pieza");
