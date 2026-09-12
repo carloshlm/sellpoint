@@ -18,7 +18,7 @@
     "createTitle": "Nuevo servicio",
     "editTitle": "Editar servicio",
     "code": "Código",
-    "codeHint": "El nombre corto con el que lo buscas al cobrar.",
+    "codeHint": "La clave o nombre corto con el que identificas este servicio, única en tu negocio. Es la que usa la plantilla de importación. Además es con la que lo buscas al cobrar.",
     "name": "Nombre",
     "description": "Descripción",
     "cost": "Costo",

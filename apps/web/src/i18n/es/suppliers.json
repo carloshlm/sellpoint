@@ -44,7 +44,7 @@
     "createTitle": "Registrar proveedor",
     "editTitle": "Editar proveedor",
     "code": "Código",
-    "codeHint": "Si lo dejas vacío, se genera solo: PROV-001, PROV-002…",
+    "codeHint": "La clave o nombre corto con el que identificas este proveedor, única en tu negocio. Es la que usa la plantilla de importación. Si lo dejas vacío, se genera solo: PROV-001, PROV-002…",
     "name": "Nombre o razón social",
     "taxId": "Registro fiscal",
     "taxIdWithAbbr": "Registro fiscal ({{abbr}})",

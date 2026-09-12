@@ -40,7 +40,7 @@
   },
   "form": {
     "code": "Código",
-    "codeHint": "La clave con la que identificas este almacén, única en tu negocio. Es la que usa la plantilla de importación.",
+    "codeHint": "La clave o nombre corto con el que identificas este almacén, única en tu negocio. Es la que usa la plantilla de importación.",
     "name": "Nombre del almacén",
     "address": "Dirección",
     "phoneCountry": "Código de país",

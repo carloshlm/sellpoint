@@ -40,7 +40,7 @@
   },
   "form": {
     "code": "Code",
-    "codeHint": "The key you identify this warehouse by, unique in your business. It's the one the import template uses.",
+    "codeHint": "The key or short name you identify this warehouse by, unique in your business. It's the one the import template uses.",
     "name": "Warehouse name",
     "address": "Address",
     "phoneCountry": "Country code",

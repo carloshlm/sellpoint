@@ -44,7 +44,7 @@
     "createTitle": "Register supplier",
     "editTitle": "Edit supplier",
     "code": "Code",
-    "codeHint": "Leave it empty and it is generated: PROV-001, PROV-002…",
+    "codeHint": "The key or short name you identify this supplier by, unique in your business. It's the one the import template uses. Leave it empty and it is generated: PROV-001, PROV-002…",
     "name": "Name or legal name",
     "taxId": "Tax ID",
     "taxIdWithAbbr": "Tax ID ({{abbr}})",

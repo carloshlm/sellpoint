@@ -18,7 +18,7 @@
     "createTitle": "New service",
     "editTitle": "Edit service",
     "code": "Code",
-    "codeHint": "The short name you use to find it when charging.",
+    "codeHint": "The key or short name you identify this service by, unique in your business. It's the one the import template uses. It is also how you find it when charging.",
     "name": "Name",
     "description": "Description",
     "cost": "Cost",
