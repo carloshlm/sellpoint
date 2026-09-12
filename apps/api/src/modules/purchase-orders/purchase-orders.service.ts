@@ -6,9 +6,13 @@ import {
 } from "@nestjs/common";
 import {
   PURCHASE_FOLIO_PREFIXES,
+  type PurchaseOrderStatus,
+  type PurchaseOrderViewStatus,
   type PurchaseTaxMode,
   pendingQuantity,
   purchaseOrderStatusFrom,
+  purchaseOrderViewStatus,
+  receivedPercent,
 } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -61,7 +65,10 @@ export interface PurchaseOrderLineView {
 export interface PurchaseOrderRow {
   id: string;
   folio: string;
-  status: string;
+  /** DERIVADO: `invoiced` cuando todo lo recibido ya tiene su compra (Carlos, 2026-09-12). */
+  status: PurchaseOrderViewStatus;
+  /** Cuánto de lo pedido llegó, 0–100 (todas las líneas, en su unidad). */
+  receivedPercent: number;
   supplierId: string;
   supplierName: string;
   warehouseId: string;
@@ -124,6 +131,10 @@ const INCLUDE = {
   supplier: { select: { name: true } },
   warehouse: { select: { name: true } },
   _count: { select: { lines: true } },
+  // Lo mínimo para DERIVAR en el listado el avance y el «facturada»: el
+  // detalle (DETALLE) pisa estas dos con sus versiones completas.
+  lines: { select: { quantityOrdered: true, quantityReceived: true, closedShort: true } },
+  receipts: { select: { status: true, purchase: { select: { status: true } } } },
 } as const;
 
 const DETALLE = {
@@ -267,7 +278,9 @@ export class PurchaseOrdersService {
         tx.purchaseOrder.findMany({
           where,
           include: INCLUDE,
-          orderBy: [{ orderDate: "desc" }, { id: "desc" }],
+          // Del pedido más reciente al más viejo; desempate por FOLIO (Carlos,
+          // 2026-09-12: el id es un uuid y no ordena nada legible).
+          orderBy: [{ orderDate: "desc" }, { folio: "desc" }],
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
         }),
@@ -601,7 +614,7 @@ export class PurchaseOrdersService {
       tenantId: user.tenantId,
       ...(scope.warehouseIds !== "all" && { warehouseId: { in: [...scope.warehouseIds] } }),
       ...(query.warehouseId !== undefined && { warehouseId: query.warehouseId }),
-      ...(query.status !== undefined && { status: query.status }),
+      ...porEstadoDeVista(query.status),
       ...(query.pendingOnly === true && { status: { in: [...ABIERTAS] } }),
       ...(query.pendingInvoice === true && {
         receipts: { some: { status: "confirmed", purchaseId: null } },
@@ -888,11 +901,62 @@ export class PurchaseOrdersService {
 const fechaIso = (d: Date | null): string | null =>
   d === null ? null : d.toISOString().slice(0, 10);
 
+/**
+ * El filtro por estado de VISTA. `invoiced` (recibida o cerrada, con al menos
+ * una recepción confirmada y NINGUNA confirmada sin compra viva) y sus
+ * complementos: `received`/`closed` filtran lo que todavía NO está facturado,
+ * para que los dos chips sean excluyentes, como lo son en la fila.
+ */
+function porEstadoDeVista(
+  status: PurchaseOrderViewStatus | undefined,
+): Prisma.PurchaseOrderWhereInput {
+  if (status === undefined) return {};
+  const sinFacturar: Prisma.PurchaseOrderWhereInput = {
+    OR: [
+      { receipts: { none: { status: "confirmed" } } },
+      {
+        receipts: {
+          some: {
+            status: "confirmed",
+            OR: [{ purchaseId: null }, { purchase: { status: "canceled" } }],
+          },
+        },
+      },
+    ],
+  };
+  if (status === "invoiced") {
+    return {
+      status: { in: ["received", "closed"] },
+      receipts: {
+        some: { status: "confirmed" },
+        none: {
+          status: "confirmed",
+          OR: [{ purchaseId: null }, { purchase: { status: "canceled" } }],
+        },
+      },
+    };
+  }
+  if (status === "received" || status === "closed") {
+    return { AND: [{ status }, sinFacturar] };
+  }
+  return { status };
+}
+
 function aFila(orden: FilaConRelaciones): PurchaseOrderRow {
   return {
     id: orden.id,
     folio: orden.folio,
-    status: orden.status,
+    status: purchaseOrderViewStatus(
+      orden.status as PurchaseOrderStatus,
+      orden.receipts.map((r) => ({ status: r.status, purchaseStatus: r.purchase?.status ?? null })),
+    ),
+    receivedPercent: receivedPercent(
+      orden.lines.map((l) => ({
+        ordered: l.quantityOrdered.toString(),
+        received: l.quantityReceived.toString(),
+        closedShort: l.closedShort,
+      })),
+    ),
     supplierId: orden.supplierId,
     supplierName: orden.supplier.name,
     warehouseId: orden.warehouseId,

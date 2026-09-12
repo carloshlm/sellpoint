@@ -111,3 +111,70 @@ export function purchaseOrderStatusFrom(
   }
   return tocadas > 0 ? "partially_received" : "open";
 }
+
+/**
+ * Lo que el listado y el detalle DICEN de una orden (Carlos, 2026-09-12: «un
+ * estatus para saber si ya fue asignada a una compra»). `invoiced` se DERIVA:
+ * la orden terminó de recibirse (`received` o cerrada con faltante) y TODAS
+ * sus recepciones confirmadas ya tienen su compra (viva). El estado
+ * persistido no cambia — sigue siendo lo que dicen las recepciones — y una
+ * compra anulada devuelve la orden a «recibida», porque vuelve a tener papel
+ * sin factura.
+ */
+export const PURCHASE_ORDER_VIEW_STATUSES = [
+  "draft",
+  "open",
+  "partially_received",
+  "received",
+  "closed",
+  "invoiced",
+  "canceled",
+] as const;
+export type PurchaseOrderViewStatus = (typeof PURCHASE_ORDER_VIEW_STATUSES)[number];
+export const purchaseOrderViewStatusSchema = z.enum(PURCHASE_ORDER_VIEW_STATUSES);
+
+export interface PurchaseOrderReceiptProgress {
+  status: string;
+  /** El estado de la compra que la factura; `null` si todavía no tiene. */
+  purchaseStatus: string | null;
+}
+
+export function purchaseOrderViewStatus(
+  status: PurchaseOrderStatus,
+  receipts: readonly PurchaseOrderReceiptProgress[],
+): PurchaseOrderViewStatus {
+  if (status !== "received" && status !== "closed") {
+    return status;
+  }
+  const confirmadas = receipts.filter((r) => r.status === "confirmed");
+  if (confirmadas.length === 0) {
+    return status;
+  }
+  const todasFacturadas = confirmadas.every(
+    (r) => r.purchaseStatus !== null && r.purchaseStatus !== "canceled",
+  );
+  return todasFacturadas ? "invoiced" : status;
+}
+
+/**
+ * Cuánto de lo pedido ya llegó, en por ciento entero (0–100), sumando TODAS
+ * las líneas en su propia unidad — es una lectura de avance, no dinero. Sin
+ * líneas, 0; recibir de más no pasa de 100.
+ */
+export function receivedPercent(lines: readonly PurchaseOrderLineProgress[]): number {
+  let pedido = 0n;
+  let recibido = 0n;
+  const escala = Math.max(
+    0,
+    ...lines.map((l) => Math.max(decimalesDe(l.ordered), decimalesDe(l.received))),
+  );
+  for (const linea of lines) {
+    pedido += escalar(linea.ordered, escala);
+    recibido += escalar(linea.received, escala);
+  }
+  if (pedido <= 0n) {
+    return 0;
+  }
+  const pct = Number((recibido * 100n) / pedido);
+  return Math.max(0, Math.min(100, pct));
+}

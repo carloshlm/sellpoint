@@ -1,8 +1,8 @@
 import {
   hasValidMoneyScale,
   MONEY_MAX,
-  PURCHASE_STATUSES,
   PURCHASE_TAX_MODES,
+  PURCHASE_VIEW_STATUSES,
 } from "@sellpoint/shared";
 import { z } from "zod";
 import { lotCodeField } from "../../inventory/dto/document.dto";
@@ -102,7 +102,8 @@ const filtrosDeCompras = z.object({
   /** Folio, factura del proveedor, notas o nombre del proveedor. */
   query: z.string().trim().min(1).max(120).optional(),
   folio: z.string().trim().min(1).max(20).optional(),
-  status: z.enum(PURCHASE_STATUSES).optional(),
+  /** Los estados de VISTA: `stocked` y `confirmed` son excluyentes (ya entró / aún no). */
+  status: z.enum(PURCHASE_VIEW_STATUSES).optional(),
   supplierId: z.uuid().optional(),
   warehouseId: z.uuid().optional(),
   /** F9-PO-09: las compras que nacieron de una orden. */
@@ -132,3 +133,12 @@ export type PurchaseChargeDto = z.infer<typeof purchaseChargeSchema>;
 export type ReplacePurchaseChargesDto = z.infer<typeof replacePurchaseChargesSchema>;
 export type CancelPurchaseDto = z.infer<typeof cancelPurchaseSchema>;
 export type ListPurchasesQuery = z.infer<typeof listPurchasesQuerySchema>;
+
+/** F9-PO: «el último costo con este proveedor» para precargar una línea. */
+export const lastCostQuerySchema = z
+  .object({
+    supplierId: z.string().uuid(),
+    productId: z.string().uuid(),
+  })
+  .strict();
+export type LastCostQuery = z.infer<typeof lastCostQuerySchema>;

@@ -19,7 +19,7 @@ import { useAuthStore } from "@/stores/auth.store";
 const BOTON_PRIMARIO =
   "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
 
-/** Los chips de estado: los seis reales más dos VISTAS que el API entiende como filtros. */
+/** Los chips de estado: los siete de VISTA (con «Facturada», derivado) más dos que el API entiende como filtros. */
 type Filtro = "todas" | "pendingOnly" | "pendingInvoice" | PurchaseOrderRow["status"];
 
 const VARIANTE: Record<
@@ -31,6 +31,7 @@ const VARIANTE: Record<
   partially_received: "warning",
   received: "success",
   closed: "default",
+  invoiced: "success",
   canceled: "destructive",
 };
 
@@ -112,7 +113,15 @@ export function PurchaseOrderList() {
             <option value="pendingOnly">{t("purchaseOrders.list.pendingOnly")}</option>
             <option value="pendingInvoice">{t("purchaseOrders.list.pendingInvoice")}</option>
             {(
-              ["draft", "open", "partially_received", "received", "closed", "canceled"] as const
+              [
+                "draft",
+                "open",
+                "partially_received",
+                "received",
+                "closed",
+                "invoiced",
+                "canceled",
+              ] as const
             ).map((estado) => (
               <option key={estado} value={estado}>
                 {t(`purchaseOrders.status.${estado}`)}
@@ -164,6 +173,7 @@ export function PurchaseOrderList() {
                 <th className="p-2">{t("purchaseOrders.list.columns.expected")}</th>
                 <th className="p-2">{t("purchaseOrders.list.columns.supplier")}</th>
                 <th className="p-2 text-right">{t("purchaseOrders.list.columns.total")}</th>
+                <th className="p-2 text-right">{t("purchaseOrders.list.columns.received")}</th>
                 <th className="p-2">{t("purchaseOrders.list.columns.status")}</th>
                 <th className="p-2" />
               </tr>
@@ -193,6 +203,19 @@ export function PurchaseOrderList() {
                     </td>
                     <td className="p-2">{orden.supplierName}</td>
                     <td className="p-2 text-right tabular-nums">{dinero(orden.total)}</td>
+                    {/* Carlos, 2026-09-12: cuánto llegó, de un vistazo. */}
+                    <td className="p-2 text-right tabular-nums">
+                      <span data-testid={`received-pct-${orden.id}`}>{orden.receivedPercent}%</span>
+                      <span
+                        aria-hidden="true"
+                        className="mt-1 block h-1.5 w-20 overflow-hidden rounded bg-muted"
+                      >
+                        <span
+                          className="block h-full rounded bg-primary"
+                          style={{ width: `${orden.receivedPercent}%` }}
+                        />
+                      </span>
+                    </td>
                     <td className="p-2">
                       <Badge variant={VARIANTE[orden.status]}>
                         {t(`purchaseOrders.status.${orden.status}`)}

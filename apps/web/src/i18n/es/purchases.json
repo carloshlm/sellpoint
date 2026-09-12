@@ -29,6 +29,7 @@
   "status": {
     "draft": "Borrador",
     "confirmed": "Confirmada",
+    "stocked": "En inventario",
     "canceled": "Anulada"
   },
   "new": {
@@ -63,6 +64,7 @@
     "confirmedOn": "Confirmada el {{date}}",
     "canceledOn": "Anulada el {{date}}: {{reason}}",
     "sealed": "Esta compra ya está confirmada: solo se pueden anotar la recepción, la factura y las notas.",
+    "confirmedNotice": "Compra confirmada. Cuando la mercancía esté en el almacén, usa «Ingresar al inventario».",
     "origin": "Nació de la orden",
     "originReceipts": "Recepciones"
   },
@@ -77,6 +79,7 @@
     "quantityVariance": "Alguna línea factura más de lo recibido en la orden. La compra se confirma igual; revisa la cantidad."
   },
   "lines": {
+    "lastCost": "Último con este proveedor: {{cost}} · {{presentation}} · {{folio}} ({{date}})",
     "catalogCostOtherBase": "El costo del catálogo está en la otra base (con o sin impuesto) y no se precarga: captúralo como viene en el papel.",
     "title": "Productos de la factura",
     "search": "Buscar producto",

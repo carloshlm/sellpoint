@@ -57,6 +57,7 @@ vi.mock("@/lib/purchases/api", () => ({
   cancelPurchase: vi.fn(),
   createEntryDraft: vi.fn(),
   printPurchase: vi.fn(),
+  getLastCost: vi.fn(),
 }));
 vi.mock("@/lib/suppliers/api", () => ({
   listSuppliers: vi.fn(),
@@ -143,6 +144,7 @@ beforeEach(() => {
     buildPurchase({ id: "c9", folio: "COM-000009" }),
   );
   mockedCompras.getPurchase.mockResolvedValue(buildPurchase({ id: "c9", folio: "COM-000009" }));
+  mockedCompras.getLastCost.mockResolvedValue(null);
   mockedProveedores.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
   mockedProductos.listProducts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
 });
@@ -187,7 +189,7 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Cerrar orden" }));
     const dialogo = await screen.findByTestId("close-order");
-    expect(dialogo).toHaveTextContent("1 línea quedará corta.");
+    expect(dialogo).toHaveTextContent("1 línea quedará con faltante.");
     await user.click(within(dialogo).getByRole("button", { name: "Cerrar orden" }));
     await waitFor(() => expect(mocked.closePurchaseOrder).toHaveBeenCalledWith("po1"));
   });
@@ -333,6 +335,72 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     await user.click(await screen.findByTestId("add-product-prod-2"));
     const fila = await screen.findByTestId("purchase-order-line-1");
     expect(within(fila).getByLabelText("Costo acordado")).toHaveValue("79");
+  });
+
+  /** Carlos, 2026-09-12: «el último costo al cual se le compró a ese proveedor». */
+  it("al agregar un producto, el último costo con ESTE proveedor gana al del catálogo y se dice de dónde viene", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(
+      buildPurchaseOrder({ status: "draft", issuedAt: null }),
+    );
+    mockedCompras.getLastCost.mockResolvedValue({
+      unitCost: "600",
+      presentationId: "pres-2",
+      presentationName: "Bolsa 10Kg",
+      taxMode: "excluded",
+      folio: "COM-000004",
+      purchaseDate: "2026-09-11",
+    });
+    mockedProductos.listProducts.mockResolvedValue({
+      items: [
+        {
+          id: "prod-2",
+          sku: "SKU-2",
+          name: "Gasas estériles",
+          baseUnit: "pieza",
+          isComposite: false,
+          isActive: true,
+          taxGroupId: null,
+          attributes: {},
+          price: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Buscar producto"), "gas");
+    await user.click(await screen.findByTestId("add-product-prod-2"));
+    const fila = await screen.findByTestId("purchase-order-line-1");
+    expect(mockedCompras.getLastCost).toHaveBeenCalledWith({
+      supplierId: expect.any(String),
+      productId: "prod-2",
+    });
+    expect(within(fila).getByLabelText("Costo acordado")).toHaveValue("600");
+    expect(within(fila).getByTestId("last-cost-1")).toHaveTextContent(
+      /Último con este proveedor: \$600\.00 · Bolsa 10Kg · COM-000004/,
+    );
+  });
+
+  /** Carlos, 2026-09-12: emitir tiene que VERSE, en verde y a la vista. */
+  it("emitida, aparece el aviso verde de éxito", async () => {
+    mocked.getPurchaseOrder.mockResolvedValue(
+      buildPurchaseOrder({ status: "draft", issuedAt: null }),
+    );
+    mocked.issuePurchaseOrder.mockImplementation(async () => {
+      const emitida = buildPurchaseOrder({ status: "open" });
+      mocked.getPurchaseOrder.mockResolvedValue(emitida);
+      return emitida;
+    });
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Emitir orden" }));
+    const dialogo = await screen.findByTestId("issue-order");
+    await user.click(within(dialogo).getByRole("button", { name: "Emitir orden" }));
+    const aviso = await screen.findByTestId("order-issued");
+    expect(aviso).toHaveTextContent("Orden emitida");
+    expect(aviso).toHaveAttribute("role", "status");
   });
 
   it("el selector del modo marca la opción que coincide con el ajuste del negocio (F9-COSTMODE-04)", async () => {

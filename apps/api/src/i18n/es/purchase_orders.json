@@ -27,7 +27,7 @@
   "receipt_needs_lines": "Agrega al menos una línea antes de confirmar la recepción.",
   "receipt_line_foreign": "{field}: esa línea no es de esta orden.",
   "line_closed_short": "{field}: esa línea se cerró corta; el proveedor ya no la surtirá. Si llegó, reabre la orden con una línea nueva.",
-  "over_receipt": "{field}: llega más de lo pendiente ({pending}). Recibe hasta lo pendiente y anota el resto en las notas.",
+  "over_receipt": "Línea {line}: llega más de lo pendiente ({pending}). Recibe hasta lo pendiente y anota el resto en las notas.",
   "receipt_date_in_future": "{field}: la fecha de recepción no puede ser posterior a hoy. Una recepción es un hecho.",
   "receipt_invoiced": "Esta recepción ya está facturada en una compra: anula esa compra primero.",
   "receipt_already_canceled": "Esta recepción ya está anulada."

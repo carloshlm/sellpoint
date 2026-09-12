@@ -9,7 +9,10 @@ import {
 import {
   FOLIO_PREFIXES,
   PURCHASE_FOLIO_PREFIXES,
+  type PurchaseStatus,
   type PurchaseTaxMode,
+  type PurchaseViewStatus,
+  purchaseViewStatus,
   totalMismatch,
 } from "@sellpoint/shared";
 import { Prisma } from "../../generated/prisma/client";
@@ -28,6 +31,7 @@ import { hoyDelNegocio } from "./business-today";
 import type {
   CancelPurchaseDto,
   CreatePurchaseDto,
+  LastCostQuery,
   ListPurchasesQuery,
   UpdatePurchaseDto,
   UpdateReceptionDto,
@@ -75,7 +79,8 @@ export interface PurchaseChargeView {
 export interface PurchaseRow {
   id: string;
   folio: string;
-  status: string;
+  /** DERIVADO: `stocked` cuando la entrada al inventario ya se confirmó (Carlos, 2026-09-12). */
+  status: PurchaseViewStatus;
   supplierId: string;
   supplierName: string;
   warehouseId: string;
@@ -112,6 +117,15 @@ export interface PurchaseProductView {
 }
 
 /** Una página del listado con el resumen del RANGO filtrado (sin anuladas). */
+export interface LastCostView {
+  unitCost: string;
+  presentationId: string | null;
+  presentationName: string | null;
+  taxMode: PurchaseTaxMode;
+  folio: string;
+  purchaseDate: string;
+}
+
 export interface PurchasesPage {
   rows: PurchaseRow[];
   total: number;
@@ -262,21 +276,49 @@ export class PurchasesService {
   }
 
   async list(user: AuthUser, scope: UserScope, query: ListPurchasesQuery): Promise<PurchasesPage> {
-    const where = this.where(user, scope, query);
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      // «En inventario» se deriva del kardex: las compras cuya entrada ya se
+      // confirmó. Se leen una vez para el filtro y para pintar cada fila.
+      const ingresadas = await this.idsIngresadas(tx, user.tenantId);
+      return this.listar(tx, user, scope, query, ingresadas);
+    });
+  }
+
+  /** Las compras con entrada de inventario CONFIRMADA (el par opaco `source_module/source_ref`). */
+  private async idsIngresadas(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+  ): Promise<Set<string>> {
+    const entradas = await tx.inventoryDocument.findMany({
+      where: { tenantId, sourceModule: PURCHASE_SOURCE_MODULE, status: "confirmed" },
+      select: { sourceRef: true },
+    });
+    return new Set(entradas.map((e) => e.sourceRef).filter((id): id is string => id !== null));
+  }
+
+  private async listar(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    scope: UserScope,
+    query: ListPurchasesQuery,
+    ingresadas: Set<string>,
+  ): Promise<PurchasesPage> {
+    const where = this.where(user, scope, query, ingresadas);
     // El resumen es del FILTRO, no de la página: quien busca «septiembre, este
     // proveedor» quiere saber cuánto compró en septiembre, no cuánto suman las
     // veinte filas que le tocaron. Y excluye las anuladas: un papel anulado no
     // se compró. Si el usuario filtra justamente `status=canceled`, el resumen
     // queda en cero — que es la verdad, no un error.
     const vivas: Prisma.PurchaseWhereInput = { AND: [where, { status: { not: "canceled" } }] };
-    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+    {
       const [total, rows, agregado, declaradas] = await Promise.all([
         tx.purchase.count({ where }),
         tx.purchase.findMany({
           where,
           include: INCLUDE,
-          // Del papel más reciente al más viejo; desempate por id.
-          orderBy: [{ purchaseDate: "desc" }, { id: "desc" }],
+          // Del papel más reciente al más viejo; desempate por FOLIO (Carlos,
+          // 2026-09-12: el id es un uuid y no ordena nada legible).
+          orderBy: [{ purchaseDate: "desc" }, { folio: "desc" }],
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
         }),
@@ -295,7 +337,7 @@ export class PurchasesService {
         (c) => totalMismatch(c.declaredTotal?.toString() ?? null, c.total.toString()).mismatch,
       ).length;
       return {
-        rows: rows.map(aFila),
+        rows: rows.map((c) => aFila(c, ingresadas.has(c.id))),
         total,
         page: query.page,
         pageSize: query.pageSize,
@@ -305,7 +347,7 @@ export class PurchasesService {
           mismatchCount,
         },
       };
-    });
+    }
   }
 
   async detail(user: AuthUser, id: string): Promise<PurchaseDetail> {
@@ -641,14 +683,67 @@ export class PurchasesService {
     });
   }
 
+  /**
+   * Carlos (2026-09-12): al agregar un producto a la orden, «el último costo
+   * al cual se le compró a ese proveedor». La última línea de una compra
+   * CONFIRMADA de ese proveedor y ese producto (la más reciente por fecha del
+   * papel), con su presentación y el modo fiscal de esa compra — quien la
+   * pinta decide si precarga (misma presentación y misma base) o solo avisa.
+   */
+  async lastCost(user: AuthUser, query: LastCostQuery): Promise<LastCostView | null> {
+    return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      const linea = await tx.purchaseLine.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          productId: query.productId,
+          unitCost: { not: null },
+          purchase: { supplierId: query.supplierId, status: "confirmed" },
+        },
+        orderBy: [{ purchase: { purchaseDate: "desc" } }, { purchase: { createdAt: "desc" } }],
+        select: {
+          unitCost: true,
+          presentationId: true,
+          presentation: { select: { name: true } },
+          purchase: { select: { folio: true, purchaseDate: true, taxMode: true } },
+        },
+      });
+      if (linea === null || linea.unitCost === null) {
+        return null;
+      }
+      return {
+        unitCost: linea.unitCost.toString(),
+        presentationId: linea.presentationId,
+        presentationName: linea.presentation?.name ?? null,
+        taxMode: linea.purchase.taxMode as PurchaseTaxMode,
+        folio: linea.purchase.folio,
+        purchaseDate: fechaIso(linea.purchase.purchaseDate) as string,
+      };
+    });
+  }
+
   /** El `where` compartido por listado, conteo y resumen. */
-  where(user: AuthUser, scope: UserScope, query: ListPurchasesQuery): Prisma.PurchaseWhereInput {
+  where(
+    user: AuthUser,
+    scope: UserScope,
+    query: ListPurchasesQuery,
+    ingresadas: Set<string>,
+  ): Prisma.PurchaseWhereInput {
     const texto = query.query?.trim();
+    // `stocked` y `confirmed` son excluyentes en el filtro: «ya entró» y «aún
+    // no entra». Las dos son `status = confirmed` en la base.
+    const porEstado: Prisma.PurchaseWhereInput =
+      query.status === "stocked"
+        ? { status: "confirmed", id: { in: [...ingresadas] } }
+        : query.status === "confirmed"
+          ? { status: "confirmed", id: { notIn: [...ingresadas] } }
+          : query.status !== undefined
+            ? { status: query.status }
+            : {};
     return {
       tenantId: user.tenantId,
       ...(scope.warehouseIds !== "all" && { warehouseId: { in: [...scope.warehouseIds] } }),
       ...(query.warehouseId !== undefined && { warehouseId: query.warehouseId }),
-      ...(query.status !== undefined && { status: query.status }),
+      ...porEstado,
       ...(query.supplierId !== undefined && { supplierId: query.supplierId }),
       ...(query.purchaseOrderId !== undefined && { purchaseOrderId: query.purchaseOrderId }),
       ...(query.folio !== undefined && {
@@ -834,7 +929,7 @@ export class PurchasesService {
     entry: { id: string; folio: string; status: string } | null,
   ): PurchaseDetail {
     return {
-      ...aFila(compra),
+      ...aFila(compra, entry?.status === "confirmed"),
       lines: compra.lines.map((l) => ({
         id: l.id,
         lineNo: l.lineNo,
@@ -959,14 +1054,14 @@ export class PurchasesService {
 const fechaIso = (d: Date | null): string | null =>
   d === null ? null : d.toISOString().slice(0, 10);
 
-function aFila(compra: FilaConRelaciones): PurchaseRow {
+function aFila(compra: FilaConRelaciones, ingresada: boolean): PurchaseRow {
   const total = compra.total.toString();
   const declarado = compra.declaredTotal?.toString() ?? null;
   const { mismatch, difference } = totalMismatch(declarado, total);
   return {
     id: compra.id,
     folio: compra.folio,
-    status: compra.status,
+    status: purchaseViewStatus(compra.status as PurchaseStatus, ingresada ? "confirmed" : null),
     supplierId: compra.supplierId,
     supplierName: compra.supplier.name,
     warehouseId: compra.warehouseId,

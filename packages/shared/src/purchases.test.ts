@@ -3,6 +3,7 @@ import {
   PURCHASE_STATUSES,
   PURCHASE_TAX_MODES,
   purchaseStatusSchema,
+  purchaseViewStatus,
   totalMismatch,
 } from "./purchases";
 
@@ -45,5 +46,15 @@ describe("contratos de Compras (F9-PURCH-01)", () => {
     it("un declarado que no es un número se trata como si no hubiera papel", () => {
       expect(totalMismatch("mil pesos", "100.00")).toEqual({ mismatch: false, difference: null });
     });
+  });
+});
+
+/** Carlos, 2026-09-12: «un estatus para saber que la compra ya fue ingresada al inventario». */
+describe("purchaseViewStatus — «en inventario» se deriva de la entrada", () => {
+  it("confirmada con su entrada confirmada → stocked; sin entrada o en borrador, sigue confirmed", () => {
+    expect(purchaseViewStatus("confirmed", "confirmed")).toBe("stocked");
+    expect(purchaseViewStatus("confirmed", "draft")).toBe("confirmed");
+    expect(purchaseViewStatus("confirmed", null)).toBe("confirmed");
+    expect(purchaseViewStatus("canceled", "confirmed")).toBe("canceled");
   });
 });

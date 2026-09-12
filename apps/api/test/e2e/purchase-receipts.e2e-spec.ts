@@ -222,7 +222,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
         lines: [{ purchaseOrderLineId: orden.lines[0]?.id, quantity: 70 }],
       })
       .expect(422);
-    expect((rebote.body as { message: string }).message).toContain("lines.1.quantity");
+    expect((rebote.body as { message: string }).message).toContain("Línea 1");
     // Exactamente el resto sí cabe.
     await api(negocio.token)
       .put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
@@ -237,7 +237,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
     const b = await recibir(orden, 60, { lotCode: "L-E" });
     await confirmar(orden, a).expect(200);
     const rebote = await confirmar(orden, b).expect(422);
-    expect((rebote.body as { message: string }).message).toContain("lines.1.quantity");
+    expect((rebote.body as { message: string }).message).toContain("Línea 1");
     expect((await estadoDe(orden)).lines[0]).toMatchObject({ quantityReceived: "60" });
   });
 

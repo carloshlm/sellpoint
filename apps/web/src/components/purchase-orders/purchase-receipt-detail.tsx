@@ -7,10 +7,12 @@ import { TextField } from "@/components/form/text-field";
 import { LotCells } from "@/components/inventory/lot-cells";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CanceledNotice } from "@/components/ui/canceled-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { businessToday } from "@/lib/inventory/format-date";
@@ -87,6 +89,8 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const [lineas, setLineas] = useState<LineaEditable[]>(() => aEditable(receipt));
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  // Se acaba de confirmar en ESTA pantalla: el aviso verde se trae a la vista.
+  const [confirmadaAhora, setConfirmadaAhora] = useState(false);
   const [anulando, setAnulando] = useState(false);
   const [motivo, setMotivo] = useState("");
 
@@ -119,15 +123,31 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
       new Date(iso),
     );
 
-  const guardar = () => {
-    setError(null);
-    const payload: PurchaseReceiptLineInput[] = lineas.map((l) => ({
+  const armarPayload = (): PurchaseReceiptLineInput[] =>
+    lineas.map((l) => ({
       purchaseOrderLineId: l.purchaseOrderLineId,
       quantity: Number(l.quantity),
       lotCode: l.lotCode.trim() === "" ? null : l.lotCode.trim(),
       expiresAt: l.expiresAt === "" ? null : l.expiresAt,
     }));
-    guardarLineas.mutate({ ...ids, lines: payload }, { onError });
+  const guardar = () => {
+    setError(null);
+    guardarLineas.mutate({ ...ids, lines: armarPayload() }, { onError });
+  };
+  // Confirmar GUARDA primero lo tecleado (cantidad, lote, caducidad): sin esto,
+  // un lote capturado sin «Guardar líneas» se perdía al confirmar y la compra
+  // nacía sin él (Carlos, 2026-09-12). Mismo trato que emitir/confirmar compra.
+  const sucia = JSON.stringify(lineas) !== JSON.stringify(aEditable(receipt));
+  const pedirConfirmar = () => {
+    setError(null);
+    if (!sucia) {
+      setConfirmando(true);
+      return;
+    }
+    guardarLineas
+      .mutateAsync({ ...ids, lines: armarPayload() })
+      .then(() => setConfirmando(true))
+      .catch(onError);
   };
 
   return (
@@ -158,7 +178,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
         </div>
         <div className="flex flex-wrap gap-2">
           {borrador && puedeEditar && (
-            <Button type="button" onClick={() => setConfirmando(true)}>
+            <Button type="button" onClick={pedirConfirmar}>
               {t("purchaseOrders.receipt.confirm")}
             </Button>
           )}
@@ -177,6 +197,11 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
         </div>
       </div>
 
+      {confirmadaAhora && receipt.status === "confirmed" && (
+        <SuccessNotice testId="receipt-confirmed">
+          {t("purchaseOrders.receipt.confirmedNotice")}
+        </SuccessNotice>
+      )}
       {error !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
@@ -191,15 +216,12 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
         <p className="text-muted-foreground text-sm">{t("purchaseOrders.receipt.sealed")}</p>
       )}
       {receipt.status === "canceled" && receipt.canceledAt !== null && (
-        <p
-          role="status"
-          className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
-        >
+        <CanceledNotice testId="receipt-canceled">
           {t("purchaseOrders.detail.canceledOn", {
             date: fecha(receipt.canceledAt),
             reason: receipt.cancelReason ?? "",
           })}
-        </p>
+        </CanceledNotice>
       )}
 
       <Card>
@@ -272,7 +294,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                   <tr
                     key={linea.uid}
                     data-testid={`receipt-line-${index}`}
-                    className="border-b last:border-0 hover:bg-muted/50"
+                    className="border-b last:border-0 hover:bg-muted/50 [&>td]:align-top"
                   >
                     <td className="p-2">
                       <span className="block font-medium">{linea.description}</span>
@@ -288,7 +310,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                       {borrador ? (
                         <Input
                           aria-label={t("purchaseOrders.receipt.quantity")}
-                          className="w-24 text-right tabular-nums"
+                          className="ml-auto w-24 text-right tabular-nums"
                           inputMode="decimal"
                           value={linea.quantity}
                           disabled={!puedeEditar}
@@ -353,7 +375,10 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
           onConfirm={() => {
             setError(null);
             confirmar.mutate(ids, {
-              onSuccess: () => setConfirmando(false),
+              onSuccess: () => {
+                setConfirmando(false);
+                setConfirmadaAhora(true);
+              },
               onError: (apiError) => {
                 setError(apiError.message);
                 setConfirmando(false);

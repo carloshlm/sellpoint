@@ -91,6 +91,7 @@ export function PurchaseList() {
             <option value="todas">{t("purchases.list.statusAll")}</option>
             <option value="draft">{t("purchases.status.draft")}</option>
             <option value="confirmed">{t("purchases.status.confirmed")}</option>
+            <option value="stocked">{t("purchases.status.stocked")}</option>
             <option value="canceled">{t("purchases.status.canceled")}</option>
           </select>
         </label>
@@ -184,9 +185,11 @@ export function PurchaseList() {
                         variant={
                           anulada
                             ? "destructive"
-                            : compra.status === "confirmed"
+                            : compra.status === "stocked"
                               ? "success"
-                              : "default"
+                              : compra.status === "confirmed"
+                                ? "warning"
+                                : "default"
                         }
                       >
                         {t(`purchases.status.${compra.status}`)}

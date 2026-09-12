@@ -128,6 +128,27 @@ describe("Compras — listado (F9-PURCH-10/13)", () => {
     );
   });
 
+  /** Carlos, 2026-09-12: «un estatus para saber que la compra ya fue ingresada al inventario». */
+  it("una compra ya ingresada dice «En inventario», y el filtro viaja como status=stocked", async () => {
+    mocked.listPurchases.mockResolvedValue({
+      rows: [fila({ id: "p3", folio: "COM-000003", status: "stocked" })],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      summary: { count: 1, total: "1160", mismatchCount: 0 },
+    });
+    await renderEn("/purchases", ["purchases:read"]);
+    const filaIngresada = await screen.findByTestId("purchase-p3");
+    expect(within(filaIngresada).getByText("En inventario")).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Estado"), "stocked");
+    await waitFor(() =>
+      expect(mocked.listPurchases).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "stocked" }),
+      ),
+    );
+  });
+
   it("el folio busca con debounce: una sola petición con el término", async () => {
     await renderEn("/purchases", ["purchases:read"]);
     await screen.findByTestId("purchase-p1");

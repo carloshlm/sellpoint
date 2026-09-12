@@ -1,4 +1,4 @@
-import type { PurchaseStatus, PurchaseTaxMode } from "@sellpoint/shared";
+import type { PurchaseTaxMode, PurchaseViewStatus } from "@sellpoint/shared";
 import { api } from "@/lib/api";
 import { imprimirPdf } from "@/lib/download";
 
@@ -41,7 +41,8 @@ export interface PurchaseCharge {
 export interface PurchaseRow {
   id: string;
   folio: string;
-  status: PurchaseStatus;
+  /** DERIVADO en el API: `stocked` = confirmada con su entrada al inventario confirmada. */
+  status: PurchaseViewStatus;
   supplierId: string;
   supplierName: string;
   warehouseId: string;
@@ -109,7 +110,7 @@ export interface PurchasesPage {
 export interface ListPurchasesParams {
   query?: string;
   folio?: string;
-  status?: PurchaseStatus;
+  status?: PurchaseViewStatus;
   supplierId?: string;
   warehouseId?: string;
   purchaseOrderId?: string;
@@ -229,4 +230,22 @@ export async function createEntryDraft(
 export async function printPurchase(id: string, folio: string): Promise<void> {
   const { data } = await api.get<Blob>(`/purchases/${id}/document`, { responseType: "blob" });
   imprimirPdf(data, `${folio}.pdf`);
+}
+
+/** El último costo confirmado de un producto con un proveedor (Carlos, 2026-09-12). */
+export interface LastCost {
+  unitCost: string;
+  presentationId: string | null;
+  presentationName: string | null;
+  taxMode: PurchaseTaxMode;
+  folio: string;
+  purchaseDate: string;
+}
+
+export async function getLastCost(params: {
+  supplierId: string;
+  productId: string;
+}): Promise<LastCost | null> {
+  const { data } = await api.get<LastCost | null>("/purchases/last-cost", { params });
+  return data;
 }

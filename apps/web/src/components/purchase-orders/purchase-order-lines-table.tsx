@@ -7,6 +7,7 @@ import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { getProduct } from "@/lib/products/api";
 import type {
   PurchaseOrder,
@@ -17,6 +18,7 @@ import {
   useClosePurchaseOrderLineShort,
   useReplacePurchaseOrderLines,
 } from "@/lib/purchase-orders/hooks";
+import { getLastCost, type LastCost } from "@/lib/purchases/api";
 import { useAuthStore } from "@/stores/auth.store";
 
 interface LineaEditable {
@@ -35,6 +37,8 @@ interface LineaEditable {
   quantityReceived: string;
   pending: string;
   closedShort: boolean;
+  /** Carlos, 2026-09-12: lo último que se le pagó a ESTE proveedor por el producto. */
+  lastCost: LastCost | null;
 }
 
 const nuevoUid = () =>
@@ -76,6 +80,7 @@ function aEditable(orden: PurchaseOrder): LineaEditable[] {
     quantityReceived: l.quantityReceived,
     pending: l.pending,
     closedShort: l.closedShort,
+    lastCost: null,
   }));
 }
 
@@ -116,9 +121,31 @@ export function costoDeCatalogo(
   return ficha.presentations.find((p) => p.id === presentationId)?.cost ?? "";
 }
 
+/**
+ * El punto de partida del costo de una línea nueva: el último pagado a ESTE
+ * proveedor si es de la misma presentación y de la misma base que el
+ * documento; si no, lo que diga el catálogo (o nada).
+ */
+export function costoInicial(
+  ultimo: LastCost | null,
+  presentationId: string,
+  documentMode: TaxMode,
+  delCatalogo: string,
+): string {
+  if (
+    ultimo !== null &&
+    ultimo.presentationId !== null &&
+    ultimo.presentationId === presentationId &&
+    ultimo.taxMode === documentMode
+  ) {
+    return ultimo.unitCost;
+  }
+  return delCatalogo;
+}
+
 export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: PurchaseOrder }>(
   function PurchaseOrderLinesTable({ order }, ref) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const locale = useAuthStore((s) => s.user?.locale ?? "es");
     const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
     const costTaxMode = useAuthStore((s) => s.user?.tenant.costTaxMode ?? "excluded");
@@ -163,6 +190,12 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
       if (yaEstaba === undefined) setCatalogo((previo) => [...previo, ficha]);
       const presentacionInicial =
         (ficha.presentations.find((p) => p.isPurchasable) ?? ficha.presentations[0])?.id ?? "";
+      // El último costo con ESTE proveedor gana al del catálogo como punto de
+      // partida — si es de la misma presentación y de la misma base; si no,
+      // solo se muestra (Carlos, 2026-09-12). Sin red, se sigue sin él.
+      const ultimo = await getLastCost({ supplierId: order.supplierId, productId: producto.id })
+        .then((r) => r)
+        .catch(() => null);
       setLineas((previas) => [
         ...previas,
         {
@@ -172,7 +205,13 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
           description: producto.name,
           presentationId: presentacionInicial,
           quantity: "",
-          unitCost: costoDeCatalogo(ficha, presentacionInicial, order.taxMode, costTaxMode),
+          unitCost: costoInicial(
+            ultimo,
+            presentacionInicial,
+            order.taxMode,
+            costoDeCatalogo(ficha, presentacionInicial, order.taxMode, costTaxMode),
+          ),
+          lastCost: ultimo,
           discount: "",
           lineTotal: null,
           lineNo: null,
@@ -278,7 +317,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                     <tr
                       key={linea.uid}
                       data-testid={`purchase-order-line-${index}`}
-                      className="border-b last:border-0 hover:bg-muted/50"
+                      className="border-b last:border-0 hover:bg-muted/50 [&>td]:align-top"
                     >
                       <td className="p-2">
                         <span className="block font-medium">{linea.description}</span>
@@ -326,7 +365,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                         {editable ? (
                           <Input
                             aria-label={t("purchaseOrders.lines.quantity")}
-                            className="w-24 text-right tabular-nums"
+                            className="ml-auto w-24 text-right tabular-nums"
                             inputMode="decimal"
                             value={linea.quantity}
                             onChange={(event) => cambiar(index, "quantity", event.target.value)}
@@ -337,11 +376,29 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                       </td>
                       <td className="p-2 text-right tabular-nums">
                         {editable ? (
-                          <MoneyInput
-                            aria-label={t("purchaseOrders.lines.unitCost")}
-                            value={linea.unitCost}
-                            onChange={(valor) => cambiar(index, "unitCost", valor)}
-                          />
+                          <>
+                            <MoneyInput
+                              aria-label={t("purchaseOrders.lines.unitCost")}
+                              value={linea.unitCost}
+                              onChange={(valor) => cambiar(index, "unitCost", valor)}
+                            />
+                            {linea.lastCost !== null && (
+                              <span
+                                className="block text-muted-foreground text-xs"
+                                data-testid={`last-cost-${index}`}
+                              >
+                                {t("purchaseOrders.lines.lastCost", {
+                                  cost: dinero(linea.lastCost.unitCost),
+                                  presentation: linea.lastCost.presentationName ?? "—",
+                                  folio: linea.lastCost.folio,
+                                  date: formatCalendarDate(
+                                    linea.lastCost.purchaseDate,
+                                    i18n.language,
+                                  ),
+                                })}
+                              </span>
+                            )}
+                          </>
                         ) : linea.unitCost === "" ? (
                           "—"
                         ) : (

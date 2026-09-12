@@ -5,14 +5,17 @@ import { MoneyInput } from "@/components/form/money-input";
 import { LotCells } from "@/components/inventory/lot-cells";
 import {
   costoDeCatalogo,
+  costoInicial,
   type LineasHandle,
 } from "@/components/purchase-orders/purchase-order-lines-table";
 import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { getProduct } from "@/lib/products/api";
 import type { Purchase, PurchaseLineInput, PurchaseProduct } from "@/lib/purchases/api";
+import { getLastCost, type LastCost } from "@/lib/purchases/api";
 import { useReplacePurchaseLines } from "@/lib/purchases/hooks";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -37,6 +40,8 @@ interface LineaEditable {
   purchaseOrderLineId: string | null;
   /** El costo ACORDADO en la orden, para verlo junto al facturado. */
   orderedUnitCost: string | null;
+  /** Carlos, 2026-09-12: lo último que se le pagó a ESTE proveedor por el producto. */
+  lastCost: LastCost | null;
   /** Lo ya calculado por el API para esta línea (vacío mientras no se guarde). */
   taxAmount: string | null;
   lineTotal: string | null;
@@ -83,6 +88,7 @@ function aEditable(compra: Purchase): LineaEditable[] {
     expiresAt: linea.expiresAt ?? "",
     purchaseOrderLineId: linea.purchaseOrderLineId ?? null,
     orderedUnitCost: linea.orderedUnitCost ?? null,
+    lastCost: null,
     taxAmount: linea.taxAmount,
     lineTotal: linea.lineTotal,
     unitCostNet: linea.unitCostNet,
@@ -103,7 +109,7 @@ function aEditable(compra: Purchase): LineaEditable[] {
  */
 export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase }>(
   function PurchaseLinesTable({ purchase }, ref) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const locale = useAuthStore((s) => s.user?.locale ?? "es");
     const currency = (useAuthStore((s) => s.user?.tenant.currency) ?? "MXN") as Currency;
     const costTaxMode = useAuthStore((s) => s.user?.tenant.costTaxMode ?? "excluded");
@@ -160,6 +166,11 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
       }
       const presentacionInicial =
         (presentaciones.find((p) => p.isPurchasable) ?? presentaciones[0])?.id ?? "";
+      // El último costo con ESTE proveedor gana al del catálogo (misma
+      // presentación y misma base); si no, solo se muestra (Carlos, 2026-09-12).
+      const ultimo = await getLastCost({ supplierId: purchase.supplierId, productId: producto.id })
+        .then((r) => r)
+        .catch(() => null);
       setLineas((previas) => [
         ...previas,
         {
@@ -171,13 +182,19 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
           // la primera (el API cae a la unidad base si llega vacía).
           presentationId: presentacionInicial,
           quantity: "",
-          // El costo del catálogo como punto de partida (Carlos, 2026-09-11).
-          unitCost: costoDeCatalogo(ficha, presentacionInicial, purchase.taxMode, costTaxMode),
+          // El último costo con el proveedor, o el del catálogo (Carlos, 2026-09-11/12).
+          unitCost: costoInicial(
+            ultimo,
+            presentacionInicial,
+            purchase.taxMode,
+            costoDeCatalogo(ficha, presentacionInicial, purchase.taxMode, costTaxMode),
+          ),
           discount: "",
           lotCode: "",
           expiresAt: "",
           purchaseOrderLineId: null,
           orderedUnitCost: null,
+          lastCost: ultimo,
           taxAmount: null,
           lineTotal: null,
           unitCostNet: null,
@@ -277,7 +294,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                     <tr
                       key={linea.uid}
                       data-testid={`purchase-line-${index}`}
-                      className="border-b last:border-0 hover:bg-muted/50"
+                      className="border-b last:border-0 hover:bg-muted/50 [&>td]:align-top"
                     >
                       <td className="p-2">
                         <span className="block font-medium">{linea.description}</span>
@@ -326,7 +343,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       <td className="p-2 text-right">
                         <Input
                           aria-label={t("purchases.lines.quantity")}
-                          className="w-24 text-right tabular-nums"
+                          className="ml-auto w-24 text-right tabular-nums"
                           inputMode="decimal"
                           value={linea.quantity}
                           disabled={!editable}
@@ -343,6 +360,19 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                         {linea.unitCostNet !== null && (
                           <span className="block text-muted-foreground text-xs">
                             {t("purchases.lines.netCost", { cost: dinero(linea.unitCostNet) })}
+                          </span>
+                        )}
+                        {linea.lastCost !== null && (
+                          <span
+                            className="block text-muted-foreground text-xs"
+                            data-testid={`last-cost-${index}`}
+                          >
+                            {t("purchases.lines.lastCost", {
+                              cost: dinero(linea.lastCost.unitCost),
+                              presentation: linea.lastCost.presentationName ?? "—",
+                              folio: linea.lastCost.folio,
+                              date: formatCalendarDate(linea.lastCost.purchaseDate, i18n.language),
+                            })}
                           </span>
                         )}
                         {linea.orderedUnitCost !== null && (

@@ -13,10 +13,12 @@ import {
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CanceledNotice } from "@/components/ui/canceled-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { businessToday, formatCalendarDate } from "@/lib/inventory/format-date";
@@ -40,6 +42,7 @@ const VARIANTE: Record<PurchaseOrder["status"], "default" | "success" | "warning
     partially_received: "warning",
     received: "success",
     closed: "default",
+    invoiced: "success",
     canceled: "destructive",
   };
 
@@ -90,6 +93,8 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
   const [supplierReference, setSupplierReference] = useState(order.supplierReference ?? "");
   const [paymentTerms, setPaymentTerms] = useState(order.paymentTerms ?? "");
   const [taxMode, setTaxMode] = useState(order.taxMode);
+  // Se acaba de emitir en ESTA pantalla: el aviso verde se trae a la vista.
+  const [emitidaAhora, setEmitidaAhora] = useState(false);
   const [notes, setNotes] = useState(order.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [emitiendo, setEmitiendo] = useState(false);
@@ -209,21 +214,23 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
         </div>
       </div>
 
+      {emitidaAhora && order.status !== "draft" && (
+        <SuccessNotice testId="order-issued">
+          {t("purchaseOrders.detail.issuedNotice")}
+        </SuccessNotice>
+      )}
       {error !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
         </p>
       )}
       {order.status === "canceled" && order.canceledAt !== null && (
-        <p
-          role="status"
-          className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
-        >
+        <CanceledNotice testId="order-canceled">
           {t("purchaseOrders.detail.canceledOn", {
             date: fecha(order.canceledAt),
             reason: order.cancelReason ?? "",
           })}
-        </p>
+        </CanceledNotice>
       )}
       {order.status === "closed" && order.closedAt !== null && (
         <p role="status" className="text-muted-foreground text-sm">
@@ -452,7 +459,10 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
             emitir.mutate(
               { id: order.id },
               {
-                onSuccess: () => setEmitiendo(false),
+                onSuccess: () => {
+                  setEmitiendo(false);
+                  setEmitidaAhora(true);
+                },
                 onError: (apiError) => {
                   setError(apiError.message);
                   setEmitiendo(false);

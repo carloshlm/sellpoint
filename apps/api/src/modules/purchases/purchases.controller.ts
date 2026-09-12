@@ -27,7 +27,9 @@ import {
   type CreatePurchaseDto,
   cancelPurchaseSchema,
   createPurchaseSchema,
+  type LastCostQuery,
   type ListPurchasesQuery,
+  lastCostQuerySchema,
   listPurchasesQuerySchema,
   type ReplacePurchaseChargesDto,
   type ReplacePurchaseLinesDto,
@@ -72,6 +74,17 @@ export class PurchasesController {
     query: ListPurchasesQuery,
   ) {
     return this.purchases.list(user, scope, query);
+  }
+
+  /** El último costo confirmado de un producto con un proveedor (va ANTES de `:id`). */
+  @Get("last-cost")
+  @RequirePermissions("purchases:read")
+  lastCost(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(lastCostQuerySchema, "purchases.invalid_query"))
+    query: LastCostQuery,
+  ) {
+    return this.purchases.lastCost(user, query);
   }
 
   /** El papel de la compra: lo que se archiva junto a la factura del proveedor. */

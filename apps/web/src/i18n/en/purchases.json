@@ -29,6 +29,7 @@
   "status": {
     "draft": "Draft",
     "confirmed": "Confirmed",
+    "stocked": "In inventory",
     "canceled": "Canceled"
   },
   "new": {
@@ -63,6 +64,7 @@
     "confirmedOn": "Confirmed on {{date}}",
     "canceledOn": "Canceled on {{date}}: {{reason}}",
     "sealed": "This purchase is confirmed: only the reception, invoice and notes can be edited.",
+    "confirmedNotice": "Purchase confirmed. When the goods are in the warehouse, use «Enter into inventory».",
     "origin": "Created from order",
     "originReceipts": "Receipts"
   },
@@ -77,6 +79,7 @@
     "quantityVariance": "Some line invoices more than what was received on the order. The purchase confirms anyway; check the quantity."
   },
   "lines": {
+    "lastCost": "Last with this supplier: {{cost}} · {{presentation}} · {{folio}} ({{date}})",
     "catalogCostOtherBase": "The catalog cost is in the other basis (with or without tax) and is not preloaded: enter it as it appears on the paper.",
     "title": "Products on the invoice",
     "search": "Search product",

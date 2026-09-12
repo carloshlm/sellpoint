@@ -257,7 +257,11 @@ export class PurchaseReceiptsService {
         if (new Prisma.Decimal(linea.quantity).greaterThan(pendiente)) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.over_receipt",
-            args: { field: `lines.${index + 1}.quantity`, pending: pendiente.toString() },
+            args: {
+              field: `lines.${index + 1}.quantity`,
+              line: index + 1,
+              pending: pendiente.toString(),
+            },
           });
         }
       });
@@ -341,7 +345,11 @@ export class PurchaseReceiptsService {
         if (total.greaterThan(pendiente)) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.over_receipt",
-            args: { field: `lines.${index + 1}.quantity`, pending: pendiente.toString() },
+            args: {
+              field: `lines.${index + 1}.quantity`,
+              line: index + 1,
+              pending: pendiente.toString(),
+            },
           });
         }
       }

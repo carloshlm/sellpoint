@@ -13,9 +13,11 @@ import { PurchaseLinesTable } from "@/components/purchases/purchase-lines-table"
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CanceledNotice } from "@/components/ui/canceled-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { businessToday } from "@/lib/inventory/format-date";
@@ -63,7 +65,7 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   const hoy = businessToday(timeZone);
 
   const borrador = purchase.status === "draft";
-  const confirmada = purchase.status === "confirmed";
+  const confirmada = purchase.status === "confirmed" || purchase.status === "stocked";
   const puedeEditar = has("purchases:manage") && canWrite;
   const puedeAnular = has("purchases:cancel") && canWrite && purchase.status !== "canceled";
   const puedeIngresar = puedeEditar && has("inventory:movement") && confirmada;
@@ -77,6 +79,8 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   const [notes, setNotes] = useState(purchase.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  // Se acaba de confirmar en ESTA pantalla: el aviso verde se trae a la vista.
+  const [confirmadaAhora, setConfirmadaAhora] = useState(false);
   const [anulando, setAnulando] = useState(false);
   const [motivo, setMotivo] = useState("");
 
@@ -120,7 +124,13 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
           </h1>
           <Badge
             variant={
-              purchase.status === "canceled" ? "destructive" : confirmada ? "success" : "default"
+              purchase.status === "canceled"
+                ? "destructive"
+                : purchase.status === "stocked"
+                  ? "success"
+                  : confirmada
+                    ? "warning"
+                    : "default"
             }
           >
             {t(`purchases.status.${purchase.status}`)}
@@ -208,21 +218,23 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
         </div>
       </div>
 
+      {confirmadaAhora && confirmada && (
+        <SuccessNotice testId="purchase-confirmed">
+          {t("purchases.detail.confirmedNotice")}
+        </SuccessNotice>
+      )}
       {error !== null && (
         <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
           {error}
         </p>
       )}
       {purchase.status === "canceled" && purchase.canceledAt !== null && (
-        <p
-          role="status"
-          className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
-        >
+        <CanceledNotice testId="purchase-canceled">
           {t("purchases.detail.canceledOn", {
             date: fecha(purchase.canceledAt),
             reason: purchase.cancelReason ?? "",
           })}
-        </p>
+        </CanceledNotice>
       )}
       {confirmada && (
         <p className="text-muted-foreground text-sm">{t("purchases.detail.sealed")}</p>
@@ -409,7 +421,10 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
             confirmar.mutate(
               { id: purchase.id },
               {
-                onSuccess: () => setConfirmando(false),
+                onSuccess: () => {
+                  setConfirmando(false);
+                  setConfirmadaAhora(true);
+                },
                 onError: (apiError) => {
                   setError(apiError.message);
                   setConfirmando(false);

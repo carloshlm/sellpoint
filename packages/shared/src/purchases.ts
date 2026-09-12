@@ -13,6 +13,25 @@ export type PurchaseStatus = (typeof PURCHASE_STATUSES)[number];
 export const purchaseStatusSchema = z.enum(PURCHASE_STATUSES);
 
 /**
+ * Lo que el listado y el detalle DICEN (Carlos, 2026-09-12: «un estatus para
+ * saber que la compra ya fue ingresada al inventario»). `stocked` no es una
+ * columna: se DERIVA de la compra confirmada cuya entrada de inventario ya se
+ * confirmó — el estado persistido sigue siendo `confirmed`, y el kardex es
+ * quien sabe si la mercancía entró. Como filtro, `confirmed` significa
+ * «confirmada y todavía sin ingresar»: los dos son excluyentes.
+ */
+export const PURCHASE_VIEW_STATUSES = ["draft", "confirmed", "stocked", "canceled"] as const;
+export type PurchaseViewStatus = (typeof PURCHASE_VIEW_STATUSES)[number];
+export const purchaseViewStatusSchema = z.enum(PURCHASE_VIEW_STATUSES);
+
+export function purchaseViewStatus(
+  status: PurchaseStatus,
+  entryStatus: string | null | undefined,
+): PurchaseViewStatus {
+  return status === "confirmed" && entryStatus === "confirmed" ? "stocked" : status;
+}
+
+/**
  * El modo fiscal es POR DOCUMENTO (compra u orden) y NACE del ajuste del
  * negocio «los costos se capturan con o sin impuesto» (`tenants.cost_tax_mode`,
  * F9-COSTMODE-04) — no del modo del PRECIO (`tax_mode`), que responde otra

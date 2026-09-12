@@ -33,6 +33,7 @@ vi.mock("@/lib/purchases/api", () => ({
   cancelPurchase: vi.fn(),
   createEntryDraft: vi.fn(),
   printPurchase: vi.fn(),
+  getLastCost: vi.fn(),
 }));
 vi.mock("@/lib/suppliers/api", () => ({
   listSuppliers: vi.fn(),
@@ -86,6 +87,7 @@ const GESTOR = ["purchases:read", "purchases:manage"];
 beforeEach(() => {
   mocked.getPurchase.mockResolvedValue(buildPurchase({ status: "draft", confirmedAt: null }));
   mocked.confirmPurchase.mockImplementation(async () => buildPurchase());
+  mocked.getLastCost.mockResolvedValue(null);
   mocked.replacePurchaseLines.mockImplementation(async () =>
     buildPurchase({ status: "draft", confirmedAt: null }),
   );
@@ -277,6 +279,36 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     expect(within(selector).getByRole("option", { name: /ajuste del negocio/ })).toHaveValue(
       "excluded",
     );
+  });
+
+  /** Carlos, 2026-09-12: confirmar y anular tienen que VERSE — verde y rojo, a la vista. */
+  it("confirmada, aparece el aviso verde; anulada, el rojo que se enfoca solo", async () => {
+    mocked.confirmPurchase.mockImplementation(async () => {
+      const sellada = buildPurchase();
+      mocked.getPurchase.mockResolvedValue(sellada);
+      return sellada;
+    });
+    await renderFicha(["purchases:read", "purchases:manage"]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Confirmar compra" }));
+    const dialogo = await screen.findByTestId("confirm-purchase");
+    await user.click(within(dialogo).getByRole("button", { name: "Confirmar compra" }));
+    const aviso = await screen.findByTestId("purchase-confirmed");
+    expect(aviso).toHaveTextContent("Compra confirmada");
+    expect(aviso).toHaveAttribute("role", "status");
+    useAuthStore.getState().clearAuth();
+
+    mocked.getPurchase.mockResolvedValue(
+      buildPurchase({
+        status: "canceled",
+        canceledAt: "2026-09-12T01:00:00.000Z",
+        cancelReason: "duplicada",
+      }),
+    );
+    await renderFicha(["purchases:read"]);
+    const anulada = await screen.findByTestId("purchase-canceled");
+    expect(anulada).toHaveTextContent("duplicada");
+    expect(anulada).toHaveFocus();
   });
 
   it("anular pide el motivo antes de dejar anular", async () => {

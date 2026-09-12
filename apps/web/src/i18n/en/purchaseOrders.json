@@ -15,8 +15,8 @@
       "folio": "Number",
       "date": "Date",
       "expected": "Expected",
-      "supplier": "Supplier",
       "received": "Received",
+      "supplier": "Supplier",
       "total": "Expected total",
       "status": "Status"
     },
@@ -34,6 +34,7 @@
     "partially_received": "Partially received",
     "received": "Received",
     "closed": "Closed",
+    "invoiced": "Invoiced",
     "canceled": "Canceled"
   },
   "receiptStatus": {
@@ -70,6 +71,7 @@
     "cancel": "Cancel order",
     "print": "Print",
     "issuedNote": "This order is issued: lines and agreed costs are fixed. Expected date, reference, terms and notes stay open.",
+    "issuedNotice": "Order issued: lines and agreed costs are now fixed. You can record receipts as goods arrive.",
     "closedOn": "Closed on {{date}}",
     "canceledOn": "Canceled on {{date}}: {{reason}}"
   },
@@ -80,6 +82,7 @@
     "total": "Expected total"
   },
   "lines": {
+    "lastCost": "Last with this supplier: {{cost}} · {{presentation}} · {{folio}} ({{date}})",
     "catalogCostOtherBase": "The catalog cost is in the other basis (with or without tax) and is not preloaded: enter it as it appears on the paper.",
     "title": "Ordered products",
     "search": "Search product",
@@ -96,8 +99,8 @@
     "received": "Received",
     "pending": "Pending",
     "progress": "{{received}} of {{ordered}}",
-    "closedShort": "Closed short",
-    "closeShort": "Close short",
+    "closedShort": "Closed with shortage",
+    "closeShort": "Close with shortage",
     "notPurchasable": "That presentation isn't marked as purchasable, but you can use it."
   },
   "receipts": {
@@ -148,7 +151,8 @@
       "confirm": "Cancel receipt"
     },
     "invoiced": "This receipt is already invoiced in {{folio}}: to cancel it, cancel that purchase first.",
-    "sealed": "This receipt is already confirmed."
+    "sealed": "This receipt is already confirmed.",
+    "confirmedNotice": "Receipt confirmed: what arrived was added to the order."
   },
   "confirmDialog": {
     "title": "Issue {{folio}}",
@@ -157,9 +161,9 @@
   },
   "closeDialog": {
     "title": "Close {{folio}}",
-    "body": "What's missing will no longer arrive: lines with pending quantities are closed short.",
-    "bodyShort": "{{count}} line will be closed short.",
-    "bodyShort_other": "{{count}} lines will be closed short.",
+    "body": "What's missing will no longer arrive: lines with pending quantities are closed with a shortage.",
+    "bodyShort": "{{count}} line will be closed with a shortage.",
+    "bodyShort_other": "{{count}} lines will be closed with a shortage.",
     "confirm": "Close order"
   },
   "cancelDialog": {

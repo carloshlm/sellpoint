@@ -10,6 +10,7 @@ export function buildPurchaseOrderRow(over: Partial<PurchaseOrderRow> = {}): Pur
     id: "po1",
     folio: "OCO-000001",
     status: "open",
+    receivedPercent: 0,
     supplierId: "s1",
     supplierName: "Distribuidora Norte",
     warehouseId: "w1",

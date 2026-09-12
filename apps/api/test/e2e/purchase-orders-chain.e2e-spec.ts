@@ -259,7 +259,20 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
       receipts: { folio: string; purchase: { folio: string } | null }[];
       purchases: { folio: string }[];
     };
-    expect(detalle.status).toBe("received");
+    expect(detalle.status).toBe("invoiced");
+    // Carlos, 2026-09-12: «facturada» es un estado de vista y viaja como filtro;
+    // el listado dice cuánto llegó.
+    const facturadas = await api(negocio.token).get("/purchase-orders?status=invoiced").expect(200);
+    const filaFacturada = (
+      facturadas.body as { rows: { id: string; receivedPercent: number }[] }
+    ).rows.find((r) => r.id === orden.id);
+    expect(filaFacturada).toMatchObject({ receivedPercent: 100 });
+    const recibidasSinFactura = await api(negocio.token)
+      .get("/purchase-orders?status=received")
+      .expect(200);
+    expect(
+      (recibidasSinFactura.body as { rows: { id: string }[] }).rows.map((r) => r.id),
+    ).not.toContain(orden.id);
     expect(detalle.receipts.map((r) => r.purchase?.folio)).toEqual([compra.folio, compra2.folio]);
     expect(detalle.purchases.map((c) => c.folio)).toEqual([compra.folio, compra2.folio]);
 

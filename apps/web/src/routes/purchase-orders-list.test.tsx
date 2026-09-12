@@ -85,11 +85,18 @@ beforeEach(() => {
         status: "closed",
         expectedDate: "2000-01-01",
       }),
+      // Carlos, 2026-09-12: ya facturada, con el 95 % recibido.
+      buildPurchaseOrderRow({
+        id: "po4",
+        folio: "OCO-000004",
+        status: "invoiced",
+        receivedPercent: 95,
+      }),
     ],
-    total: 3,
+    total: 4,
     page: 1,
     pageSize: 20,
-    summary: { count: 3, total: "41760", pendingCount: 2 },
+    summary: { count: 4, total: "41760", pendingCount: 2 },
   });
   mockedProveedores.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
 });
@@ -103,12 +110,12 @@ describe("Órdenes de compra — listado (F9-PO-11)", () => {
   it("lista las órdenes, resume el rango y marca la esperada vencida SOLO si sigue abierta", async () => {
     await renderEn("/purchase-orders", ["purchases:read"]);
     const filas = await screen.findAllByTestId(/^purchase-order-po/);
-    expect(filas).toHaveLength(3);
+    expect(filas).toHaveLength(4);
     expect(within(filas[0] as HTMLElement).getByText("OCO-000001")).toBeInTheDocument();
     expect(screen.getByTestId("overdue-po2")).toBeInTheDocument();
     // Cerrada con fecha vieja: ya no espera nada, no está vencida.
     expect(screen.queryByTestId("overdue-po3")).not.toBeInTheDocument();
-    expect(screen.getByTestId("purchase-orders-summary")).toHaveTextContent("3 órdenes");
+    expect(screen.getByTestId("purchase-orders-summary")).toHaveTextContent("4 órdenes");
     expect(screen.getByTestId("purchase-orders-summary-pending")).toHaveTextContent(
       "2 esperan mercancía",
     );
@@ -134,6 +141,22 @@ describe("Órdenes de compra — listado (F9-PO-11)", () => {
       ),
     );
     expect(mocked.listPurchaseOrders.mock.calls.at(-1)?.[0]).not.toHaveProperty("pendingInvoice");
+  });
+
+  /** Carlos, 2026-09-12: «¿ya fue asignada a una compra?» y «¿qué porcentaje llegó?», en el listado. */
+  it("una orden facturada lleva su estado, cada fila dice el % recibido, y «Facturadas» viaja como filtro", async () => {
+    await renderEn("/purchase-orders", ["purchases:read"]);
+    const fila = await screen.findByTestId("purchase-order-po4");
+    expect(within(fila).getByText("Facturada")).toBeInTheDocument();
+    expect(screen.getByTestId("received-pct-po4")).toHaveTextContent("95%");
+    expect(screen.getByTestId("received-pct-po1")).toHaveTextContent("0%");
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Estado"), "invoiced");
+    await waitFor(() =>
+      expect(mocked.listPurchaseOrders).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "invoiced" }),
+      ),
+    );
   });
 
   it("el enlace «Órdenes de compra» del menú existe solo con el ajuste encendido", async () => {

@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { ALL_FOLIO_PREFIXES, PURCHASE_FOLIO_PREFIXES } from "./inventory";
 import {
   PURCHASE_ORDER_STATUSES,
+  PURCHASE_ORDER_VIEW_STATUSES,
   PURCHASE_RECEIPT_STATUSES,
   pendingQuantity,
   purchaseOrderStatusFrom,
   purchaseOrderStatusSchema,
+  purchaseOrderViewStatus,
+  receivedPercent,
 } from "./purchase-orders";
 
 /**
@@ -90,5 +93,59 @@ describe("contratos de Órdenes de compra (F9-PO-01)", () => {
     it("sin líneas no hay nada que derivar: abierta", () => {
       expect(purchaseOrderStatusFrom([])).toBe("open");
     });
+  });
+});
+
+/** Carlos, 2026-09-12: «¿ya fue asignada a una compra?» y «¿qué porcentaje llegó?». */
+describe("purchaseOrderViewStatus — «facturada» se deriva de las recepciones", () => {
+  it("recibida con todas sus recepciones confirmadas facturadas → invoiced; cerrada con faltante también", () => {
+    expect(
+      purchaseOrderViewStatus("received", [{ status: "confirmed", purchaseStatus: "confirmed" }]),
+    ).toBe("invoiced");
+    expect(
+      purchaseOrderViewStatus("closed", [
+        { status: "confirmed", purchaseStatus: "draft" },
+        { status: "canceled", purchaseStatus: null },
+      ]),
+    ).toBe("invoiced");
+  });
+
+  it("una recepción confirmada sin compra, o con la compra anulada, la deja recibida", () => {
+    expect(
+      purchaseOrderViewStatus("received", [
+        { status: "confirmed", purchaseStatus: "confirmed" },
+        { status: "confirmed", purchaseStatus: null },
+      ]),
+    ).toBe("received");
+    expect(
+      purchaseOrderViewStatus("received", [{ status: "confirmed", purchaseStatus: "canceled" }]),
+    ).toBe("received");
+  });
+
+  it("sin recepciones confirmadas, o antes de terminar de recibir, el estado no cambia", () => {
+    expect(purchaseOrderViewStatus("received", [])).toBe("received");
+    expect(
+      purchaseOrderViewStatus("partially_received", [
+        { status: "confirmed", purchaseStatus: "confirmed" },
+      ]),
+    ).toBe("partially_received");
+    expect(PURCHASE_ORDER_VIEW_STATUSES).toContain("invoiced");
+  });
+});
+
+describe("receivedPercent", () => {
+  it("suma todas las líneas: 9 de 10 y 10 de 10 son 95 %", () => {
+    expect(
+      receivedPercent([
+        { ordered: "10", received: "9", closedShort: false },
+        { ordered: "10", received: "10", closedShort: false },
+      ]),
+    ).toBe(95);
+  });
+
+  it("decimales, sin líneas y de más: 0.5 de 2 son 25 %; nada pedido es 0; 12 de 10 no pasa de 100", () => {
+    expect(receivedPercent([{ ordered: "2", received: "0.5", closedShort: false }])).toBe(25);
+    expect(receivedPercent([])).toBe(0);
+    expect(receivedPercent([{ ordered: "10", received: "12", closedShort: false }])).toBe(100);
   });
 });

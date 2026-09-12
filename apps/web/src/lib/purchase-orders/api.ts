@@ -1,5 +1,5 @@
 import type {
-  PurchaseOrderStatus,
+  PurchaseOrderViewStatus,
   PurchaseReceiptStatus,
   PurchaseTaxMode,
 } from "@sellpoint/shared";
@@ -31,7 +31,10 @@ export interface PurchaseOrderLine {
 export interface PurchaseOrderRow {
   id: string;
   folio: string;
-  status: PurchaseOrderStatus;
+  /** DERIVADO en el API: `invoiced` = todo lo recibido ya tiene su compra. */
+  status: PurchaseOrderViewStatus;
+  /** Cuánto de lo pedido llegó, 0–100. */
+  receivedPercent: number;
   supplierId: string;
   supplierName: string;
   warehouseId: string;
@@ -97,7 +100,7 @@ export interface PurchaseOrdersPage {
 export interface ListPurchaseOrdersParams {
   query?: string;
   folio?: string;
-  status?: PurchaseOrderStatus;
+  status?: PurchaseOrderViewStatus;
   supplierId?: string;
   warehouseId?: string;
   from?: string;
@@ -156,7 +159,7 @@ export interface PurchaseReceipt {
   status: PurchaseReceiptStatus;
   purchaseOrderId: string;
   orderFolio: string;
-  orderStatus: PurchaseOrderStatus;
+  orderStatus: PurchaseOrderViewStatus;
   receivedDate: string;
   packingSlip: string | null;
   notes: string | null;

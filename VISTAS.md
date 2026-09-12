@@ -1993,6 +1993,8 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 ## 16. Órdenes de compra
 
 > F9-PO (2026-09-11). **Ajuste del negocio**, no plan: se enciende en Mi perfil («Usar órdenes de compra») y solo tiene sentido con el módulo Compras. Apagado, nada cambia (la compra es la factura); encendido, aparece «Órdenes de compra» en el grupo Compras y la compra puede nacer de lo recibido. **Decisión de Carlos:** la recepción es el papel del andén y NO mueve existencias — la mercancía entra por la entrada de la compra que se registra sobre lo recibido, como siempre.
+>
+> **Ajustes de la prueba en producción (Carlos, 2026-09-12; 1.0.1):** el listado ordena por fecha y folio desc, gana la columna «Recibido» (% de lo pedido, con su barra) y el estado de vista «Facturada» (todo lo recibido ya tiene compra; una compra anulada la devuelve a «Recibida»); en Compras, el estado de vista «En inventario» (la entrada ya se confirmó) y el filtro «Confirmada» pasa a ser «aún sin ingresar». Al agregar un producto a la orden o a la compra se precarga el último costo pagado a ESE proveedor (misma presentación y misma base) y se dice de qué compra viene. Emitir la orden, confirmar la recepción y confirmar la compra muestran el aviso verde que se trae a la vista; anular, el rojo. Confirmar la recepción guarda antes las líneas tecleadas (el lote viajaba vacío a la compra). Los rebotes de recibir de más dicen «Línea N: …». «Cerrar corta» → «Cerrar con faltante».
 
 ```
 ┌ Órdenes de compra ──────────────────────────────── [Nueva orden] ┐

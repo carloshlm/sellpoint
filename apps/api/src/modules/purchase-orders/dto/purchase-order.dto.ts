@@ -1,7 +1,7 @@
 import {
   hasValidMoneyScale,
   MONEY_MAX,
-  PURCHASE_ORDER_STATUSES,
+  PURCHASE_ORDER_VIEW_STATUSES,
   PURCHASE_TAX_MODES,
 } from "@sellpoint/shared";
 import { z } from "zod";
@@ -91,7 +91,8 @@ const filtrosDeOrdenes = z.object({
   /** Folio, referencia del proveedor, notas o nombre del proveedor. */
   query: z.string().trim().min(1).max(120).optional(),
   folio: z.string().trim().min(1).max(20).optional(),
-  status: z.enum(PURCHASE_ORDER_STATUSES).optional(),
+  /** Estados de VISTA: `invoiced` y sus complementos `received`/`closed` (sin factura). */
+  status: z.enum(PURCHASE_ORDER_VIEW_STATUSES).optional(),
   supplierId: z.uuid().optional(),
   warehouseId: z.uuid().optional(),
   /** Días del calendario del negocio sobre `order_date` (DATE con DATE). */

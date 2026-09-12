@@ -15,8 +15,8 @@
       "folio": "Folio",
       "date": "Fecha",
       "expected": "Esperada",
-      "supplier": "Proveedor",
       "received": "Recibido",
+      "supplier": "Proveedor",
       "total": "Total esperado",
       "status": "Estado"
     },
@@ -34,6 +34,7 @@
     "partially_received": "Parcialmente recibida",
     "received": "Recibida",
     "closed": "Cerrada",
+    "invoiced": "Facturada",
     "canceled": "Anulada"
   },
   "receiptStatus": {
@@ -70,6 +71,7 @@
     "cancel": "Anular orden",
     "print": "Imprimir",
     "issuedNote": "Esta orden ya se emitió: las líneas y el costo acordado quedaron fijos. Siguen abiertas la fecha esperada, la referencia, las condiciones y las notas.",
+    "issuedNotice": "Orden emitida: las líneas y el costo acordado quedaron fijos. Ya puedes registrar recepciones conforme vaya llegando.",
     "closedOn": "Cerrada el {{date}}",
     "canceledOn": "Anulada el {{date}}: {{reason}}"
   },
@@ -80,6 +82,7 @@
     "total": "Total esperado"
   },
   "lines": {
+    "lastCost": "Último con este proveedor: {{cost}} · {{presentation}} · {{folio}} ({{date}})",
     "catalogCostOtherBase": "El costo del catálogo está en la otra base (con o sin impuesto) y no se precarga: captúralo como viene en el papel.",
     "title": "Productos del pedido",
     "search": "Buscar producto",
@@ -96,8 +99,8 @@
     "received": "Recibido",
     "pending": "Pendiente",
     "progress": "{{received}} de {{ordered}}",
-    "closedShort": "Cerrada corta",
-    "closeShort": "Cerrar corta",
+    "closedShort": "Cerrada con faltante",
+    "closeShort": "Cerrar con faltante",
     "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla."
   },
   "receipts": {
@@ -148,7 +151,8 @@
       "confirm": "Anular recepción"
     },
     "invoiced": "Esta recepción ya está facturada en {{folio}}: para anularla, anula esa compra primero.",
-    "sealed": "Esta recepción ya está confirmada."
+    "sealed": "Esta recepción ya está confirmada.",
+    "confirmedNotice": "Recepción confirmada: lo que llegó se sumó a la orden."
   },
   "confirmDialog": {
     "title": "Emitir {{folio}}",
@@ -157,9 +161,9 @@
   },
   "closeDialog": {
     "title": "Cerrar {{folio}}",
-    "body": "Lo que falta ya no llegará: las líneas con pendiente quedan cerradas cortas.",
-    "bodyShort": "{{count}} línea quedará corta.",
-    "bodyShort_other": "{{count}} líneas quedarán cortas.",
+    "body": "Lo que falta ya no llegará: las líneas con pendiente quedan cerradas con faltante.",
+    "bodyShort": "{{count}} línea quedará con faltante.",
+    "bodyShort_other": "{{count}} líneas quedarán con faltante.",
     "confirm": "Cerrar orden"
   },
   "cancelDialog": {

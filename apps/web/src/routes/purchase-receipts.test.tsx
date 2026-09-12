@@ -128,7 +128,8 @@ describe("Recepción de una orden (F9-PO-13)", () => {
 
   it("el rebote del API por recibir de más se ve junto a la tabla", async () => {
     mocked.replacePurchaseReceiptLines.mockRejectedValue({
-      message: "lines.1.quantity: llega más de lo pendiente (100).",
+      message:
+        "Línea 1: llega más de lo pendiente (100). Recibe hasta lo pendiente y anota el resto en las notas.",
     });
     await renderRecepcion(GESTOR);
     const user = userEvent.setup();
@@ -136,7 +137,52 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     await user.clear(cantidad);
     await user.type(cantidad, "170");
     await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("lines.1.quantity");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Línea 1: llega más de lo pendiente",
+    );
+  });
+
+  /**
+   * Carlos, 2026-09-12: el lote tecleado sin «Guardar líneas» se perdía al
+   * confirmar y la compra nacía sin él. Confirmar guarda primero lo sucio y
+   * después pregunta; y al confirmar, el aviso verde aparece a la vista.
+   */
+  it("confirmar guarda las líneas sucias ANTES de preguntar, y confirmada muestra el aviso verde", async () => {
+    mocked.replacePurchaseReceiptLines.mockImplementation(async (_orderId, _receiptId, lines) => {
+      const guardada = buildPurchaseReceipt({
+        lines: buildPurchaseReceipt().lines.map((l) => ({
+          ...l,
+          quantity: String(lines[0]?.quantity ?? l.quantity),
+          lotCode: lines[0]?.lotCode ?? l.lotCode,
+        })),
+      });
+      mocked.getPurchaseReceipt.mockResolvedValue(guardada);
+      return guardada;
+    });
+    mocked.confirmPurchaseReceipt.mockImplementation(async () => {
+      const confirmada = buildPurchaseReceipt({
+        status: "confirmed",
+        confirmedAt: "2026-09-12T01:00:00.000Z",
+      });
+      mocked.getPurchaseReceipt.mockResolvedValue(confirmada);
+      return confirmada;
+    });
+    await renderRecepcion(GESTOR);
+    const user = userEvent.setup();
+    const fila = screen.getByTestId("receipt-line-0");
+    await user.type(within(fila).getByLabelText("Lote"), "st1");
+    await user.click(screen.getByRole("button", { name: "Confirmar recepción" }));
+    await waitFor(() =>
+      expect(mocked.replacePurchaseReceiptLines).toHaveBeenCalledWith("po1", "rcp1", [
+        expect.objectContaining({ lotCode: "ST1" }),
+      ]),
+    );
+    const dialogo = await screen.findByTestId("confirm-receipt");
+    await user.click(within(dialogo).getByRole("button", { name: "Confirmar recepción" }));
+    await waitFor(() => expect(mocked.confirmPurchaseReceipt).toHaveBeenCalledWith("po1", "rcp1"));
+    const aviso = await screen.findByTestId("receipt-confirmed");
+    expect(aviso).toHaveTextContent("Recepción confirmada");
+    expect(aviso).toHaveAttribute("role", "status");
   });
 
   it("confirmar pide confirmación; una facturada no ofrece anular", async () => {

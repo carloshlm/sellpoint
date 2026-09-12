@@ -6,6 +6,7 @@ Lo que cambió en cada versión de SellPointy, escrito desde los commits (`feat`
 
 ### Correcciones
 
+* **purchases:** 16 ajustes de la prueba en producción: estados derivados («En inventario», «Facturada»), último costo con el proveedor, columna «Recibido», avisos que se traen a la vista, alineación y el lote que la recepción no guardaba antes de confirmar
 * **pos:** el carrito y el ticket dicen la cantidad en la presentación vendida, no en la unidad base ([d80eee1](https://github.com/carloshlm/sellpoint/commit/d80eee1de0384661d3da7410652b3b62e666560b))
 ## 1.0.0 (2026-09-12)
 

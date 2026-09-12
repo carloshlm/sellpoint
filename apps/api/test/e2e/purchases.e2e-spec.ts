@@ -202,6 +202,11 @@ describe("Compras (F9-PURCH)", () => {
 
       expect(primera.folio).toBe("COM-000001");
       expect(segunda.folio).toBe("COM-000002");
+      // Carlos, 2026-09-12: misma fecha → el folio más alto primero (antes el
+      // desempate era por id, un uuid que no ordena nada).
+      const lista = await api(negocio.token).get("/purchases").expect(200);
+      const folios = (lista.body as { rows: { folio: string }[] }).rows.map((r) => r.folio);
+      expect(folios.indexOf("COM-000002")).toBeLessThan(folios.indexOf("COM-000001"));
       const detalle = await api(negocio.token).get(`/purchases/${primera.id}`).expect(200);
       expect(detalle.body).toMatchObject({
         status: "draft",
@@ -713,6 +718,56 @@ describe("Compras (F9-PURCH)", () => {
         await api(negocio.token).put("/tenants/me/taxes", { costMode: "excluded" }).expect(200);
         await api(negocio.token).patch(`/products/${productoId}`, { taxGroupId: null }).expect(200);
       }
+    });
+
+    /**
+     * Carlos, 2026-09-12: «un estatus para saber que la compra ya fue ingresada
+     * al inventario». Se DERIVA de la entrada confirmada; el filtro `confirmed`
+     * deja de incluirla y `stocked` la trae.
+     */
+    it("con la entrada confirmada, la compra se ve «en inventario» y los filtros lo separan", async () => {
+      const compra = await compraLista(120, "excluded");
+      const antes = await api(negocio.token).get(`/purchases/${compra.id}`).expect(200);
+      expect(antes.body).toMatchObject({ status: "confirmed" });
+
+      const entrada = await api(negocio.token)
+        .post(`/purchases/${compra.id}/entry-draft`)
+        .expect(201);
+      await api(negocio.token)
+        .post(`/inventory/documents/${(entrada.body as { id: string }).id}/confirm`)
+        .expect(201);
+
+      const despues = await api(negocio.token).get(`/purchases/${compra.id}`).expect(200);
+      expect(despues.body).toMatchObject({ status: "stocked" });
+      const ingresadas = await api(negocio.token).get("/purchases?status=stocked").expect(200);
+      expect((ingresadas.body as { rows: { id: string }[] }).rows.map((r) => r.id)).toContain(
+        compra.id,
+      );
+      const soloConfirmadas = await api(negocio.token)
+        .get("/purchases?status=confirmed")
+        .expect(200);
+      expect(
+        (soloConfirmadas.body as { rows: { id: string }[] }).rows.map((r) => r.id),
+      ).not.toContain(compra.id);
+    });
+
+    /** Carlos, 2026-09-12: «el último costo al cual se le compró a ese proveedor». */
+    it("last-cost devuelve la línea de la compra CONFIRMADA más reciente con ese proveedor", async () => {
+      await compraLista(120, "excluded");
+      const ultima = await compraLista(125, "excluded");
+      const res = await api(negocio.token)
+        .get(`/purchases/last-cost?supplierId=${proveedorId}&productId=${productoId}`)
+        .expect(200);
+      expect(res.body).toMatchObject({
+        unitCost: "125",
+        presentationId: cajaId,
+        taxMode: "excluded",
+        folio: ultima.folio,
+      });
+      const sinHistorial = await api(negocio.token)
+        .get(`/purchases/last-cost?supplierId=${proveedorId}&productId=${randomUUID()}`)
+        .expect(200);
+      expect(sinHistorial.body).toEqual({});
     });
 
     it("anular la compra arrastra su borrador de entrada; con la entrada confirmada, 409", async () => {
