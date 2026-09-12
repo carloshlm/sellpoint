@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
-import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
+import { hasValidMoneyScale, MONEY_MAX, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
@@ -130,7 +130,8 @@ export class ServicesImportService {
       const rowNumber = index + 2;
       const value = (column: string) => (cells[header.indexOf(column)] ?? "").trim();
 
-      const code = value("codigo");
+      // F9-SUPPCAT-01: en MAYÚSCULAS antes de buscar el existente, o `abc` duplicaría a `ABC`.
+      const code = normalizeCode(value("codigo"));
       const name = value("nombre");
       // Todo error de esta fila lleva su código, si lo hay: es lo que permite
       // encontrarla en el Excel sin contar renglones (Carlos, 2026-09-01).

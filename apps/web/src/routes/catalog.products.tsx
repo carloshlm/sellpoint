@@ -1,4 +1,4 @@
-import { UNIT_CODES, unitName } from "@sellpoint/shared";
+import { normalizeCode, UNIT_CODES, unitName } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -652,7 +652,7 @@ function ProductForm({
         // Decirlo con el valor real vale más que explicarlo en abstracto.
         placeholder={barcode.trim() !== "" && sku.trim() === "" ? barcode : undefined}
         disabled={!canManage}
-        onChange={(event) => setSku(event.target.value)}
+        onChange={(event) => setSku(normalizeCode(event.target.value))}
       />
       {/* El porqué del botón muerto. Un Guardar deshabilitado sin explicación
           se lee como pantalla rota — lección repetida de este proyecto. */}

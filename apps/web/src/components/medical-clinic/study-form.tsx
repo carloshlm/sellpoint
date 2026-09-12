@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PricingFieldset } from "@/components/form/pricing-fieldset";
@@ -85,7 +86,7 @@ export function StudyForm({
           label={t("medicalClinic.studies.form.code")}
           hint={t("medicalClinic.studies.form.codeHint")}
           value={code}
-          onChange={(event) => setCode(event.target.value)}
+          onChange={(event) => setCode(normalizeCode(event.target.value))}
           required
         />
         <TextField

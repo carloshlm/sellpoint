@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../../products/money";
 
@@ -10,7 +11,7 @@ import { moneyAmount } from "../../products/money";
  * solo lugar.
  */
 export const createServiceSchema = z.object({
-  code: z.string().trim().min(1).max(64),
+  code: z.string().trim().min(1).max(64).transform(normalizeCode),
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
   cost: moneyAmount().optional(),
@@ -30,7 +31,7 @@ export const createServiceSchema = z.object({
 
 export const updateServiceSchema = z
   .object({
-    code: z.string().trim().min(1).max(64).optional(),
+    code: z.string().trim().min(1).max(64).transform(normalizeCode).optional(),
     name: z.string().trim().min(1).max(200).optional(),
     description: z.string().trim().max(2000).nullable().optional(),
     cost: moneyAmount().nullable().optional(),

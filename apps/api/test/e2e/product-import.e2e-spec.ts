@@ -215,6 +215,30 @@ describe("Importación de productos (F2-IMPORT)", () => {
     expect(template.text).toContain("33.5");
   });
 
+  it("F9-SUPPCAT-01: una planilla con el sku en minúsculas ACTUALIZA el existente, no duplica", async () => {
+    const { token } = await registerAndLogin();
+    await request(app.getHttpServer())
+      .post("/products")
+      .set("Authorization", bearer(token))
+      .send({ sku: "MAYUS-1", name: "Antes", baseUnit: "unit" })
+      .expect(201);
+
+    const report = await request(app.getHttpServer())
+      .post("/products/import")
+      .set("Authorization", bearer(token))
+      .send({ content: "sku,nombre\nmayus-1,Después" })
+      .expect(200);
+    expect(report.body).toMatchObject({ created: 0, updated: 1 });
+
+    const list = await request(app.getHttpServer())
+      .get("/products?search=MAYUS-1")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    const items = (list.body as { items: { sku: string; name: string }[] }).items;
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ sku: "MAYUS-1", name: "Después" });
+  });
+
   it("volver a subir la plantilla ACTUALIZA en vez de fallar por SKU repetido", async () => {
     const { token } = await registerAndLogin();
     await request(app.getHttpServer())

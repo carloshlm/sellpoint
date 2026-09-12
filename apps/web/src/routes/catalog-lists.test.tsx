@@ -176,8 +176,9 @@ describe("Registros de subcatálogos (F2-SUBCAT)", () => {
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() =>
+      // F9-SUPPCAT-01: se tecleó `kg`, viaja `KG` — el input normaliza al escribir.
       expect(mockedApi.createRecord).toHaveBeenCalledWith("cat-units", {
-        code: "kg",
+        code: "KG",
         attributes: { medida: "kilogramos" },
       }),
     );

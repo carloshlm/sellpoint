@@ -1,4 +1,4 @@
-import { isE164 } from "@sellpoint/shared";
+import { isE164, normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
 
 // `address` es TEXTO LIBRE y opcional: SellPoint vende a 26 mercados y los
@@ -15,7 +15,7 @@ export const createWarehouseSchema = z.object({
   // quien no lo manda —el onboarding, otro cliente del API— recibe uno
   // generado (`ALM-NNN`). Mismo espíritu que el sku que se completa solo
   // desde el código de barras.
-  code: z.string().trim().min(1).max(64).optional(),
+  code: z.string().trim().min(1).max(64).transform(normalizeCode).optional(),
   name: z.string().trim().min(1).max(120),
   address: z.string().trim().max(500).optional(),
   // F1-ADDR-03: la dirección estructurada; «» cuenta como «sin dato». El CP y
@@ -51,7 +51,7 @@ export const createWarehouseSchema = z.object({
 
 export const updateWarehouseSchema = z
   .object({
-    code: z.string().trim().min(1).max(64).optional(),
+    code: z.string().trim().min(1).max(64).transform(normalizeCode).optional(),
     name: z.string().trim().min(1).max(120).optional(),
     address: z.string().trim().max(500).nullable().optional(),
     addressLine2: z

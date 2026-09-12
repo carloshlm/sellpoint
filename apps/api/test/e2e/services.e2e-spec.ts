@@ -207,7 +207,8 @@ describe("Servicios (F3-SVC)", () => {
           attributes: { duracion: 30 },
         })
         .expect(201);
-      expect(created.body).toMatchObject({ attributes: { duracion: 30 } });
+      // F9-SUPPCAT-01: `corte` entra, `CORTE` sale.
+      expect(created.body).toMatchObject({ code: "CORTE", attributes: { duracion: 30 } });
 
       const bad = await request(app.getHttpServer())
         .post("/services")

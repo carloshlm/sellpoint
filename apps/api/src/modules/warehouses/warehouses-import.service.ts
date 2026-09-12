@@ -5,6 +5,7 @@ import {
   isE164,
   isPostalCode,
   type Locale,
+  normalizeCode,
   normalizePostalCode,
 } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
@@ -160,7 +161,8 @@ export class WarehousesImportService {
       const rowNumber = index + 2;
       const value = (column: string) => (cells[header.indexOf(column)] ?? "").trim();
 
-      const code = value("codigo");
+      // F9-SUPPCAT-01: en MAYÚSCULAS antes de buscar el existente, o `abc` duplicaría a `ABC`.
+      const code = normalizeCode(value("codigo"));
       const name = value("nombre");
       const conCodigo = (error: ImportRowError): ImportRowError =>
         code ? { ...error, itemCode: code } : error;

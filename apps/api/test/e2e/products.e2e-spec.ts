@@ -73,6 +73,22 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
   }
 
   describe("F2-PROD — alta y precio", () => {
+    it("F9-SUPPCAT-01: el sku se guarda en MAYÚSCULAS aunque llegue en minúsculas", async () => {
+      const { token } = await registerAndLogin();
+      const sufijo = randomUUID().slice(0, 6);
+      const created = await createProduct(token, {
+        sku: `  ref.${sufijo}/a `,
+        name: "Con sku en minúsculas",
+        baseUnit: "unit",
+      }).expect(201);
+      // Se recorta y se sube; el punto y la barra son parte del código.
+      expect((created.body as { sku: string }).sku).toBe(`REF.${sufijo.toUpperCase()}/A`);
+      // El mismo código en otra capitalización es el MISMO producto: 409.
+      await createProduct(token, { sku: `REF.${sufijo}/A`, name: "Otro", baseUnit: "unit" }).expect(
+        409,
+      );
+    });
+
     it("el alta crea la presentación base «Pieza ×1» con el precio del formulario", async () => {
       const { token } = await registerAndLogin();
 

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
-import { hasValidMoneyScale, MONEY_MAX } from "@sellpoint/shared";
+import { hasValidMoneyScale, MONEY_MAX, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
@@ -158,7 +158,8 @@ export abstract class StudyImportService {
       // +2: la fila 1 es el encabezado y Excel cuenta desde 1.
       const rowNumber = index + 2;
       const value = (column: string) => (cells[header.indexOf(column)] ?? "").trim();
-      const code = value("codigo");
+      // F9-SUPPCAT-01: en MAYÚSCULAS antes de buscar el existente, o `abc` duplicaría a `ABC`.
+      const code = normalizeCode(value("codigo"));
       const name = value("nombre");
       // Todo error lleva su código: es lo que permite encontrar la fila en el
       // Excel sin contar renglones.

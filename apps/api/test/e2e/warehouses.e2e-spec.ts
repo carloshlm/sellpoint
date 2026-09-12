@@ -54,6 +54,16 @@ describe("Almacenes (F2-WH)", () => {
 
   const bearer = (token: string) => `Bearer ${token}`;
 
+  it("F9-SUPPCAT-01: el código se guarda en MAYÚSCULAS aunque llegue en minúsculas", async () => {
+    const token = await registerAndLogin();
+    const created = await request(app.getHttpServer())
+      .post("/warehouses")
+      .set("Authorization", bearer(token))
+      .send({ code: " bodega norte ", name: "Bodega" })
+      .expect(201);
+    expect(created.body).toMatchObject({ code: "BODEGA NORTE" });
+  });
+
   it("crea, lista, edita y desactiva un almacén", async () => {
     const token = await registerAndLogin();
 

@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -6,12 +7,8 @@ import { z } from "zod";
  * descripción, costo y precio de venta). El código se guarda en mayúsculas,
  * como el SKU.
  */
-const codigo = z
-  .string()
-  .trim()
-  .min(1)
-  .max(64)
-  .transform((v) => v.toUpperCase());
+// F9-SUPPCAT-01: el MISMO normalizador que todo código de catálogo.
+const codigo = z.string().trim().min(1).max(64).transform(normalizeCode);
 const nombre = z.string().trim().min(1).max(200);
 const descripcion = z.string().trim().max(2000);
 const dinero = z.coerce.number().min(0).max(999_999_999_999);

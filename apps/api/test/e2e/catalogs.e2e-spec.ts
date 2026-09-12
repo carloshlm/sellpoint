@@ -721,7 +721,8 @@ describe("Motor de catálogos (F2-CAT)", () => {
       const records = (
         list.body as { rows: { code: string; attributes: Record<string, string> }[] }
       ).rows;
-      expect(records.map((r) => r.code)).toEqual(["kg", "lt"]);
+      // F9-SUPPCAT-01: se cargaron `kg` y `lt`; se guardan en MAYÚSCULAS.
+      expect(records.map((r) => r.code)).toEqual(["KG", "LT"]);
       expect(records[0]?.attributes).toMatchObject({ medida: "kilogramos" });
     });
 
@@ -934,9 +935,10 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .get(`/catalogs/${unidadesId}/records/options`)
         .set("Authorization", bearer(token))
         .expect(200);
+      // F9-SUPPCAT-01: se mandaron `kg` y `lt`; vuelven en MAYÚSCULAS.
       expect(all.body).toEqual([
-        { id: expect.any(String), code: "kg", display: "kilogramos" },
-        { id: expect.any(String), code: "lt", display: "litros" },
+        { id: expect.any(String), code: "KG", display: "kilogramos" },
+        { id: expect.any(String), code: "LT", display: "litros" },
       ]);
 
       // Por código...
@@ -951,7 +953,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .get(`/catalogs/${unidadesId}/records/options?query=litro`)
         .set("Authorization", bearer(token))
         .expect(200);
-      expect(byDisplay.body).toMatchObject([{ code: "lt" }]);
+      expect(byDisplay.body).toMatchObject([{ code: "LT" }]);
     });
 
     it("el picker no ofrece registros archivados", async () => {
@@ -961,7 +963,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .set("Authorization", bearer(token))
         .expect(200);
       const lt = (list.body as { rows: { id: string; code: string }[] }).rows.find(
-        (r) => r.code === "lt",
+        (r) => r.code === "LT",
       );
 
       await request(app.getHttpServer())
@@ -974,7 +976,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .get(`/catalogs/${unidadesId}/records/options`)
         .set("Authorization", bearer(token))
         .expect(200);
-      expect(options.body).toMatchObject([{ code: "kg" }]);
+      expect(options.body).toMatchObject([{ code: "KG" }]);
     });
   });
 

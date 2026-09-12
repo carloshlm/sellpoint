@@ -110,7 +110,8 @@ describe("Exports directos (F5-CAT)", () => {
       .expect(200);
     token = (login.body as { accessToken: string }).accessToken;
 
-    sku = `CAT-${randomUUID().slice(0, 6)}`;
+    // F9-SUPPCAT-01: el hex del uuid es minúsculo y el API lo sube; el fixture nace ya en mayúsculas.
+    sku = `CAT-${randomUUID().slice(0, 6).toUpperCase()}`;
     await request(app.getHttpServer())
       .post("/products")
       .set(auth())

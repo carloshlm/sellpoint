@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../money";
 
@@ -15,7 +16,7 @@ import { moneyAmount } from "../money";
  * deja al POS preseleccionar la presentación correcta al escanear.
  */
 export const createProductSchema = z.object({
-  sku: z.string().trim().min(1).max(64),
+  sku: z.string().trim().min(1).max(64).transform(normalizeCode),
   name: z.string().trim().min(1).max(200),
   baseUnit: z.string().trim().min(1).max(8).default("unit"),
   /** Dónde SUELE estar (pasillo, estante). Referencia: no parte el saldo. */
@@ -34,7 +35,7 @@ export const createProductSchema = z.object({
 
 export const updateProductSchema = z
   .object({
-    sku: z.string().trim().min(1).max(64).optional(),
+    sku: z.string().trim().min(1).max(64).transform(normalizeCode).optional(),
     name: z.string().trim().min(1).max(200).optional(),
     baseUnit: z.string().trim().min(1).max(8).optional(),
     stockMin: z.number().nonnegative().optional(),

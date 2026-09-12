@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -386,7 +387,7 @@ function ServiceForm({
           label={t("services.form.code")}
           hint={t("services.form.codeHint")}
           value={code}
-          onChange={(event) => setCode(event.target.value)}
+          onChange={(event) => setCode(normalizeCode(event.target.value))}
         />
         <TextField
           label={t("services.form.name")}

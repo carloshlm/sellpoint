@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
-import { getUnit, type Locale } from "@sellpoint/shared";
+import { getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import {
@@ -323,7 +323,8 @@ export class ImportService {
       const cells = rows[index] ?? [];
       const value = (column: string) => (cells[header.indexOf(column)] ?? "").trim();
 
-      const sku = value("sku");
+      // F9-SUPPCAT-01: en MAYÚSCULAS antes de buscar el existente, o `abc` duplicaría a `ABC`.
+      const sku = normalizeCode(value("sku"));
       const name = value("nombre");
 
       // Todo error de esta fila lleva su código, si lo hay: es lo que permite

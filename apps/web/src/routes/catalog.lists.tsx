@@ -1,3 +1,4 @@
+import { normalizeCode } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -419,7 +420,7 @@ function RecordForm({
         label={t("catalogs.records.code")}
         hint={t("catalogs.records.codeHint")}
         value={code}
-        onChange={(event) => setCode(event.target.value)}
+        onChange={(event) => setCode(normalizeCode(event.target.value))}
       />
 
       <DynamicForm

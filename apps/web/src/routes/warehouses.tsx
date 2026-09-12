@@ -4,6 +4,7 @@ import {
   formatAddress,
   ISO_COUNTRY_CODES,
   isPostalCode,
+  normalizeCode,
   normalizePostalCode,
   resolveAddressFormat,
   splitE164,
@@ -442,7 +443,7 @@ function WarehouseForm({ warehouse, onDone }: { warehouse?: Warehouse; onDone: (
         label={t("warehouses.form.code")}
         hint={t("warehouses.form.codeHint")}
         value={code}
-        onChange={(event) => setCode(event.target.value)}
+        onChange={(event) => setCode(normalizeCode(event.target.value))}
       />
       <TextField
         label={t("warehouses.form.name")}
