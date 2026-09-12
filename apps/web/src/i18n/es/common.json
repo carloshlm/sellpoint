@@ -547,6 +547,12 @@
     "postalCodeInvalid": "Escribe un código postal válido para tu país, como {{example}}",
     "regionLockedHint": "Se cambia en Impuestos: de ahí salen tus tasas de venta."
   },
+  "import": {
+    "rowError": "Fila {{row}}: {{message}}",
+    "rowErrorWithCode": "Fila {{row}} ({{code}}): {{message}}",
+    "rowErrorWithColumn": "Fila {{row}}, columna «{{column}}»: {{message}}",
+    "rowErrorWithCodeAndColumn": "Fila {{row}} ({{code}}), columna «{{column}}»: {{message}}"
+  },
   "tax": {
     "selectLabel": "Impuesto",
     "selectDefault": "Predeterminado del negocio ({{name}})",

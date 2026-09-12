@@ -547,6 +547,12 @@
     "postalCodeInvalid": "Enter a valid postal code for your country, like {{example}}",
     "regionLockedHint": "Change it under Taxes: your sales tax rates come from it."
   },
+  "import": {
+    "rowError": "Row {{row}}: {{message}}",
+    "rowErrorWithCode": "Row {{row}} ({{code}}): {{message}}",
+    "rowErrorWithColumn": "Row {{row}}, column \u201c{{column}}\u201d: {{message}}",
+    "rowErrorWithCodeAndColumn": "Row {{row}} ({{code}}), column \u201c{{column}}\u201d: {{message}}"
+  },
   "tax": {
     "selectLabel": "Tax",
     "selectDefault": "Business default ({{name}})",

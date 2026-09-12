@@ -535,7 +535,7 @@ describe("campos dinámicos del servicio (2026-08-26)", () => {
     );
 
     expect(await screen.findByTestId("service-import-report")).toHaveTextContent(
-      "Fila 2: DUP-01 - Ese código se repite en el archivo.",
+      "Fila 2 (DUP-01), columna «codigo»: Ese código se repite en el archivo.",
     );
   });
 });

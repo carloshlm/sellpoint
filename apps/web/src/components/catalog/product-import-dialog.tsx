@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
+import { rowErrorText } from "@/lib/import/row-error";
 import {
   downloadImportTemplate,
   type ImportFormat,
@@ -166,18 +167,9 @@ function ProductImportDialog({ onClose }: { onClose: () => void }) {
               <ul className="max-h-40 overflow-y-auto text-xs text-muted-foreground">
                 {report.errors.map((rowError) => (
                   <li key={`${rowError.row}-${rowError.message}`}>
-                    {/* Con el código interno al lado, la fila se encuentra
-                        en el Excel con un Ctrl+F (Carlos, 2026-09-01). */}
-                    {t(
-                      rowError.itemCode
-                        ? "products.import.rowErrorWithCode"
-                        : "products.import.rowError",
-                      {
-                        row: rowError.row,
-                        code: rowError.itemCode,
-                        message: t(rowError.message),
-                      },
-                    )}
+                    {/* Fila, código y COLUMNA: el error se ubica en el Excel
+                        sin adivinar (Carlos, 2026-09-01 y 2026-09-12). */}
+                    {rowErrorText(t, rowError, t(rowError.message))}
                   </li>
                 ))}
               </ul>

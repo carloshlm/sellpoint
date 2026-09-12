@@ -109,8 +109,6 @@
     "valid": "{{count}} valid rows",
     "failed": "{{count}} with errors",
     "breakdown": "{{created}} to create · {{updated}} to update",
-    "rowError": "Row {{row}}: {{message}}",
-    "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
     "skipErrors": "Import only valid rows and skip the ones with errors",
     "confirm": "Import {{count}}",
     "done": "{{count}} products imported.",

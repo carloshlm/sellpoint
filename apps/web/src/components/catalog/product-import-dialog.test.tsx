@@ -119,20 +119,35 @@ describe("ProductImportDialog (F2-IMPORT-04)", () => {
   /**
    * Carlos (2026-09-01): «Fila 2: esa unidad no existe» manda a contar
    * renglones en el Excel. Con el código interno al lado, la fila se
-   * encuentra con un Ctrl+F.
+   * encuentra con un Ctrl+F. Y (2026-09-12) con la COLUMNA se encuentra la
+   * celda: dieciséis «Este campo es obligatorio» sin decir cuál campo no
+   * llevan a ningún lado.
    */
-  it("cada error de fila nombra el código interno del producto", async () => {
+  it("cada error de fila nombra el código interno y la columna que falló", async () => {
     const user = userEvent.setup();
     mockedApi.runImport.mockResolvedValue({
       ...emptyReport,
       valid: 0,
-      failed: 2,
+      failed: 3,
       // `message` llega YA traducido del API (el backend traduce; ver
       // import.service). La clave cruda viaja aparte en `code`.
       errors: [
-        { row: 2, message: "Esa unidad de medida no existe.", itemCode: "CODINT001" },
-        // Sin código (la fila vino sin sku): no se pinta un «undefined -».
+        {
+          row: 2,
+          field: "unidad_base",
+          message: "Esa unidad de medida no existe.",
+          itemCode: "CODINT001",
+        },
+        // Sin código (la fila vino sin sku) ni columna (el mensaje ya las
+        // nombra a las dos): no se pinta un «undefined».
         { row: 3, message: "Faltan el código o el nombre." },
+        // El caso de Carlos: un campo propio del catálogo sin llenar.
+        {
+          row: 4,
+          field: "laboratorio",
+          message: "Este campo es obligatorio.",
+          itemCode: "CODINT004",
+        },
       ],
     });
     renderDialog();
@@ -140,8 +155,13 @@ describe("ProductImportDialog (F2-IMPORT-04)", () => {
     await subirExcel(user);
 
     const reporte = await screen.findByTestId("import-report");
-    expect(reporte).toHaveTextContent("Fila 2: CODINT001 - Esa unidad de medida no existe.");
+    expect(reporte).toHaveTextContent(
+      "Fila 2 (CODINT001), columna «unidad_base»: Esa unidad de medida no existe.",
+    );
     expect(reporte).toHaveTextContent("Fila 3: Faltan el código o el nombre.");
+    expect(reporte).toHaveTextContent(
+      "Fila 4 (CODINT004), columna «laboratorio»: Este campo es obligatorio.",
+    );
     expect(reporte).not.toHaveTextContent("undefined");
   });
 

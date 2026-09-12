@@ -13,8 +13,6 @@
         "noFile": "No file chosen",
         "confirm": "Import",
         "report": "{{valid}} valid rows ({{created}} created, {{updated}} updated) · {{failed}} with errors",
-        "rowError": "Row {{row}}: {{message}}",
-        "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
         "skipErrors": "Import the valid ones and skip the rows with errors",
         "done": "{{count}} studies imported."
       }
@@ -32,8 +30,6 @@
         "noFile": "No file chosen",
         "confirm": "Import",
         "report": "{{valid}} valid rows ({{created}} created, {{updated}} updated) · {{failed}} with errors",
-        "rowError": "Row {{row}}: {{message}}",
-        "rowErrorWithCode": "Row {{row}}: {{code}} - {{message}}",
         "skipErrors": "Import the valid ones and skip the rows with errors",
         "done": "{{count}} studies imported."
       }

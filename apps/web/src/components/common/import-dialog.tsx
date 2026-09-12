@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { SuccessNotice } from "@/components/ui/success-notice";
 import type { ApiError } from "@/lib/api";
 import { readFileAsBase64 } from "@/lib/import/read-file";
+import { rowErrorText } from "@/lib/import/row-error";
 import type { ImportReport, ImportRunInput } from "@/lib/import/types";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +17,9 @@ interface ImportDialogProps {
   testIdPrefix: string;
   /**
    * Prefijo de las claves i18n. Debajo tienen que existir: title, step1,
-   * downloadXlsx, step2, chooseFile, noFile, report, rowError,
-   * rowErrorWithCode, skipErrors, confirm, done.
+   * downloadXlsx, step2, chooseFile, noFile, report, skipErrors, confirm,
+   * done. Las líneas de error del reporte NO son de este prefijo: viven en
+   * `common.import` porque el texto es el mismo para todo catálogo.
    */
   i18nPrefix: string;
   /** F9-COSTMODE-10: una aclaración bajo el paso 1 (en qué base va la columna «costo»). */
@@ -179,13 +181,9 @@ function ImportDialog({
               <ul className="flex flex-col gap-1 text-destructive text-xs">
                 {report.errors.slice(0, 10).map((rowError) => (
                   <li key={`${rowError.row}-${rowError.field ?? ""}`}>
-                    {/* Con el código al lado, la fila se encuentra en el
-                        Excel con un Ctrl+F (Carlos, 2026-09-01). */}
-                    {t(rowError.itemCode ? k("rowErrorWithCode") : k("rowError"), {
-                      row: rowError.row,
-                      code: rowError.itemCode,
-                      message: rowError.translated ?? rowError.message,
-                    })}
+                    {/* Fila, código y COLUMNA: el error se ubica en el Excel
+                        sin adivinar (Carlos, 2026-09-01 y 2026-09-12). */}
+                    {rowErrorText(t, rowError, rowError.translated ?? rowError.message)}
                   </li>
                 ))}
               </ul>
