@@ -86,7 +86,7 @@ describe("modelo de datos de Compras (F9-PURCH-02)", () => {
           data: { tenantId, code: "ALM-001", name: "Central" },
         });
         const supplier = await tx.supplier.create({
-          data: { tenantId, name: "Distribuidora Norte" },
+          data: { tenantId, code: "DISTRIBUIDORA-NORTE-4", name: "Distribuidora Norte" },
         });
         const product = await tx.product.create({
           data: { tenantId, sku: `P-${stamp}-${sufijo}`, name: "Paracetamol" },

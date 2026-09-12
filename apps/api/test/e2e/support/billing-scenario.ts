@@ -120,7 +120,9 @@ export async function crearProducto(
     .set("Authorization", bearer(token))
     .send({ sku, name: "Paracetamol 500mg", baseUnit: "unit", price: precio })
     .expect(201);
-  return { id: (creado.body as { id: string }).id, sku };
+  // F9-SUPPCAT-01: el API guarda el sku en MAYÚSCULAS; se devuelve el que quedó guardado.
+  const cuerpo = creado.body as { id: string; sku: string };
+  return { id: cuerpo.id, sku: cuerpo.sku };
 }
 
 /** Carga stock por el camino real: documento de entrada confirmado. */

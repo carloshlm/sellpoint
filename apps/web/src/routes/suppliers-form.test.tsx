@@ -35,6 +35,7 @@ const demoUser = (country: string | null): AuthUser =>
 
 const guardado: suppliersApi.Supplier = {
   id: "s1",
+  code: "PROV-001",
   name: "Distribuidora Norte",
   taxId: "DNO900101AB1",
   contactName: null,
@@ -106,11 +107,14 @@ describe("alta y edición de proveedor (F9-SUPPL-07)", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Este campo es obligatorio.");
     expect(mocked.createSupplier).not.toHaveBeenCalled();
 
+    // F9-SUPPCAT-04: el código se teclea en minúsculas y viaja en MAYÚSCULAS.
+    await user.type(screen.getByLabelText("Código"), "norte-01");
     await user.type(screen.getByLabelText(/Nombre o razón social/), "Distribuidora Norte");
     await user.type(screen.getByLabelText("Registro fiscal (RFC)"), "dno900101ab1");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() =>
       expect(mocked.createSupplier).toHaveBeenCalledWith({
+        code: "NORTE-01",
         name: "Distribuidora Norte",
         taxId: "DNO900101AB1",
       }),

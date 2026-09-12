@@ -116,7 +116,11 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
     await api(negocio.token).patch("/tenants/me", { usesPurchaseOrders: true }).expect(200);
     const semilla = await prisma.withTenantContext(negocio.tenantId, async (tx) => {
       const proveedor = await tx.supplier.create({
-        data: { tenantId: negocio.tenantId, name: "Distribuidora Norte" },
+        data: {
+          tenantId: negocio.tenantId,
+          code: "DISTRIBUIDORA-NORTE-11",
+          name: "Distribuidora Norte",
+        },
       });
       const producto = await tx.product.create({
         data: {

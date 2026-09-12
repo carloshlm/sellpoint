@@ -38,7 +38,12 @@ describe("modelo de datos de proveedores (F9-SUPPL-01)", () => {
     for (const tenantId of [tenantA, tenantB]) {
       await prisma.withTenantContext(tenantId, (tx) =>
         tx.supplier.create({
-          data: { tenantId, name: "Distribuidora Norte", taxId: "DNO900101AB1" },
+          data: {
+            tenantId,
+            code: "DISTRIBUIDORA-NORTE-5",
+            name: "Distribuidora Norte",
+            taxId: "DNO900101AB1",
+          },
         }),
       );
     }
@@ -65,7 +70,12 @@ describe("modelo de datos de proveedores (F9-SUPPL-01)", () => {
     await expect(
       prisma.withTenantContext(tenantA, (tx) =>
         tx.supplier.create({
-          data: { tenantId: tenantA, name: "Papelera Sur", phone: "5512345678" },
+          data: {
+            tenantId: tenantA,
+            code: "PAPELERA-SUR-6",
+            name: "Papelera Sur",
+            phone: "5512345678",
+          },
         }),
       ),
     ).rejects.toThrow();
@@ -74,14 +84,16 @@ describe("modelo de datos de proveedores (F9-SUPPL-01)", () => {
   it("un nombre en blanco rebota en el CHECK", async () => {
     await expect(
       prisma.withTenantContext(tenantA, (tx) =>
-        tx.supplier.create({ data: { tenantId: tenantA, name: "   " } }),
+        tx.supplier.create({ data: { tenantId: tenantA, code: "PROV-7", name: "   " } }),
       ),
     ).rejects.toThrow();
   });
 
   it("nace activo", async () => {
     const creado = await prisma.withTenantContext(tenantA, (tx) =>
-      tx.supplier.create({ data: { tenantId: tenantA, name: "Ferretera Centro" } }),
+      tx.supplier.create({
+        data: { tenantId: tenantA, code: "FERRETERA-CENTRO-8", name: "Ferretera Centro" },
+      }),
     );
     expect(creado.isActive).toBe(true);
     expect(creado.attributes).toEqual({});

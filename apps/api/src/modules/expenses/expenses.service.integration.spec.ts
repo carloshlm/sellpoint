@@ -276,7 +276,7 @@ describe("ExpensesService (F9-EXP-05/06)", () => {
 
     it("un proveedor y un beneficiario se excluyen: poner uno limpia al otro", async () => {
       const proveedor = await prisma.withTenantContext(tenantId, (tx) =>
-        tx.supplier.create({ data: { tenantId, name: "Inmobiliaria" } }),
+        tx.supplier.create({ data: { tenantId, code: "INMOBILIARIA-2", name: "Inmobiliaria" } }),
       );
       const gasto = await service.create(user, SCOPE, { ...base(), beneficiary: "Don Pepe" }, META);
       const conProveedor = await service.update(user, gasto.id, { supplierId: proveedor.id }, META);

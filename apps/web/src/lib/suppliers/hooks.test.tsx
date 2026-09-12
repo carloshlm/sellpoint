@@ -24,6 +24,7 @@ describe("hooks de proveedores (F9-SUPPL-06)", () => {
     mocked.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
     mocked.createSupplier.mockResolvedValue({
       id: "s1",
+      code: "PROV-001",
       name: "Norte",
       taxId: null,
       contactName: null,

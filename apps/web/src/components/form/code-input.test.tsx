@@ -21,10 +21,11 @@ const INPUTS_DE_CODIGO = [
   ["routes/warehouses.tsx", "setCode("],
   ["routes/catalog.lists.tsx", "setCode("],
   ["components/medical-clinic/study-form.tsx", "setCode("],
+  ["components/suppliers/supplier-form.tsx", "setCode("],
 ] as const;
 
 describe("el código de catálogo se normaliza al teclear", () => {
-  it("los cinco inputs existen (la barrera no se salta por un barrido vacío)", () => {
+  it("los seis inputs existen (la barrera no se salta por un barrido vacío)", () => {
     for (const [ruta, setter] of INPUTS_DE_CODIGO) {
       expect(readFileSync(join(SRC, ruta), "utf8")).toContain(setter);
     }

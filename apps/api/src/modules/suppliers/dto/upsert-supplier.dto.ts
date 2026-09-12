@@ -1,4 +1,4 @@
-import { isE164 } from "@sellpoint/shared";
+import { isE164, normalizeCode } from "@sellpoint/shared";
 import { z } from "zod";
 
 /**
@@ -10,6 +10,9 @@ import { z } from "zod";
  * que el DTO no conoce — va en el service (`SuppliersService`), como hace
  * `TenantProfileService` con el del propio negocio.
  */
+// F9-SUPPCAT-03: la llave visible, en MAYÚSCULAS. Opcional en el API: si el
+// alta no lo trae, el service genera `PROV-NNN` (molde del almacén).
+const codigo = z.string().trim().min(1).max(64).transform(normalizeCode);
 const nombre = z.string().trim().min(1).max(200);
 const registroFiscal = z.string().trim().max(32);
 const contacto = z.string().trim().min(1).max(120);
@@ -19,6 +22,7 @@ const direccion = z.string().trim().max(500);
 const notas = z.string().trim().max(2000);
 
 export const createSupplierSchema = z.object({
+  code: codigo.optional(),
   name: nombre,
   taxId: registroFiscal.optional(),
   contactName: contacto.optional(),
@@ -30,6 +34,7 @@ export const createSupplierSchema = z.object({
 
 export const updateSupplierSchema = z
   .object({
+    code: codigo.optional(),
     name: nombre.optional(),
     taxId: registroFiscal.nullable().optional(),
     contactName: contacto.nullable().optional(),

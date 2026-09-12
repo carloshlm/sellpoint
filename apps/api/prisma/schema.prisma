@@ -2066,6 +2066,8 @@ model Customer {
 model Supplier {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId    String   @map("tenant_id") @db.Uuid
+  /// F9-SUPPCAT-03: la llave visible, única por negocio y en MAYÚSCULAS (`PROV-NNN` si el alta no trae uno).
+  code        String   @db.VarChar(64)
   name        String
   taxId       String?  @map("tax_id") @db.VarChar(32)
   contactName String?  @map("contact_name") @db.VarChar(120)
@@ -2088,6 +2090,7 @@ model Supplier {
 
   purchaseOrders PurchaseOrder[]
 
+  @@unique([tenantId, code])
   @@index([tenantId, name])
   @@index([tenantId, taxId])
   @@index([attributes(ops: JsonbPathOps)], type: Gin)

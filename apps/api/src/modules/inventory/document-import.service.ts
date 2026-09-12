@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
-import { type InventoryDocumentType, type Locale, normalizeLotCode } from "@sellpoint/shared";
+import {
+  type InventoryDocumentType,
+  type Locale,
+  normalizeCode,
+  normalizeLotCode,
+} from "@sellpoint/shared";
 import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
 import { canonicalHeader, localizeHeaders } from "../../common/spreadsheet/import-headers";
 import {
@@ -113,7 +118,10 @@ export class DocumentImportService {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const document = await this.documents.assertDraft(tx, user.tenantId, documentId);
 
-      const skus = [...new Set(body.map((r) => (r[idx("sku")] ?? "").trim()).filter(Boolean))];
+      // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; una planilla con `abc` tiene que encontrar a `ABC`.
+      const skus = [
+        ...new Set(body.map((r) => normalizeCode(r[idx("sku")] ?? "")).filter(Boolean)),
+      ];
       const productos = await tx.product.findMany({
         where: { tenantId: user.tenantId, sku: { in: skus } },
         select: { id: true, sku: true },
@@ -156,7 +164,7 @@ export class DocumentImportService {
         // +2: la fila 1 es el encabezado y Excel cuenta desde 1 — el número
         // que se reporta tiene que ser el que la persona ve en su pantalla.
         const row = index + 2;
-        const sku = (raw[idx("sku")] ?? "").trim();
+        const sku = normalizeCode(raw[idx("sku")] ?? "");
         const productId = porSku.get(sku.toLowerCase()) ?? null;
         const nombrePresentacion = texto(raw[idx("presentacion")]);
         const lote = texto(raw[idx("lote")]);

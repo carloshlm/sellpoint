@@ -4,6 +4,7 @@ import { normalizeCode } from "@sellpoint/shared";
 import { createStudySchema } from "../medical-clinic/dto/upsert-study.dto";
 import { createProductSchema } from "../products/dto/upsert-product.dto";
 import { createServiceSchema } from "../services/dto/upsert-service.dto";
+import { createSupplierSchema } from "../suppliers/dto/upsert-supplier.dto";
 import { createWarehouseSchema } from "../warehouses/dto/upsert-warehouse.dto";
 import { createRecordSchema } from "./dto/upsert-record.dto";
 
@@ -32,6 +33,7 @@ describe("los códigos de catálogo se normalizan en el borde del API", () => {
     expect(createWarehouseSchema.parse({ code: "alm 1", name: "Central" }).code).toBe("ALM 1");
     expect(createRecordSchema.parse({ code: "kg", attributes: {} }).code).toBe("KG");
     expect(createStudySchema.parse({ code: "bh", name: "Biometría", price: 1 }).code).toBe("BH");
+    expect(createSupplierSchema.parse({ code: "acme", name: "Acme" }).code).toBe("ACME");
   });
 
   it("un código que se queda vacío al limpiarlo se RECHAZA", () => {
@@ -47,6 +49,7 @@ describe("los códigos de catálogo se normalizan en el borde del API", () => {
       "../services/dto/upsert-service.dto.ts",
       "../warehouses/dto/upsert-warehouse.dto.ts",
       "../medical-clinic/dto/upsert-study.dto.ts",
+      "../suppliers/dto/upsert-supplier.dto.ts",
     ];
     const crudos = archivos.filter((archivo) => {
       const fuente = readFileSync(join(__dirname, archivo), "utf8");

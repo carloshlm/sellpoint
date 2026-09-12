@@ -139,7 +139,7 @@ describe("modelo de datos de Órdenes de compra (F9-PO-03)", () => {
           data: { tenantId, code: "ALM-001", name: "Central" },
         });
         const supplier = await tx.supplier.create({
-          data: { tenantId, name: "Distribuidora Norte" },
+          data: { tenantId, code: "DISTRIBUIDORA-NORTE-3", name: "Distribuidora Norte" },
         });
         const product = await tx.product.create({
           data: { tenantId, sku: `P-${stamp}-${sufijo}`, name: "Paracetamol" },

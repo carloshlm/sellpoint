@@ -19,6 +19,7 @@ type Mock = jest.Mock;
 const fila = (extra: Record<string, unknown> = {}) => ({
   id: "s-1",
   tenantId: TENANT,
+  code: "PROV-001",
   name: "Distribuidora Norte",
   taxId: null,
   contactName: null,
@@ -48,6 +49,8 @@ describe("SuppliersService (F9-SUPPL-03)", () => {
       delete: Mock;
     };
     tenant: { findUniqueOrThrow: Mock };
+    /** F9-SUPPCAT-03: la serie PROV-NNN se lee con SQL crudo (MAX de la serie). */
+    $queryRaw: Mock;
   };
   let prisma: { withTenantContext: Mock };
   let audit: { record: Mock };
@@ -64,6 +67,7 @@ describe("SuppliersService (F9-SUPPL-03)", () => {
         delete: jest.fn().mockResolvedValue(fila()),
       },
       tenant: { findUniqueOrThrow: jest.fn().mockResolvedValue({ country: "MX" }) },
+      $queryRaw: jest.fn().mockResolvedValue([{ max: null }]),
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
@@ -71,6 +75,40 @@ describe("SuppliersService (F9-SUPPL-03)", () => {
     audit = { record: jest.fn() };
     // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
     service = new SuppliersService(prisma as any, audit as any);
+  });
+
+  /**
+   * F9-SUPPCAT-03 — el código: `PROV-NNN` por el MAYOR usado si el alta no lo
+   * trae; si lo trae, se comprueba que esté libre ANTES del insert.
+   */
+  describe("el código", () => {
+    it("sin código genera el siguiente de la serie por MAX, no por conteo", async () => {
+      tx.$queryRaw.mockResolvedValue([{ max: 4 }]);
+      await service.create(USER, { name: "Norte" }, META);
+      expect(tx.supplier.create.mock.calls[0][0].data.code).toBe("PROV-005");
+      // Sin código propio no hay nada que comprobar: `findFirst` no se toca.
+      expect(tx.supplier.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("con código propio lo comprueba libre y no consulta la serie", async () => {
+      tx.supplier.findFirst.mockResolvedValue(null);
+      await service.create(USER, { code: "ACME", name: "Acme" }, META);
+      expect(tx.supplier.findFirst.mock.calls[0][0].where).toEqual({
+        tenantId: TENANT,
+        code: "ACME",
+      });
+      expect(tx.$queryRaw).not.toHaveBeenCalled();
+      expect(tx.supplier.create.mock.calls[0][0].data.code).toBe("ACME");
+    });
+
+    it("un código ya usado es 409 suppliers.code_taken", async () => {
+      await expect(
+        service.create(USER, { code: "PROV-001", name: "Dup" }, META),
+      ).rejects.toMatchObject({
+        response: { message: "suppliers.code_taken" },
+      });
+      expect(tx.supplier.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("listar", () => {
@@ -86,8 +124,9 @@ describe("SuppliersService (F9-SUPPL-03)", () => {
       await service.list(USER, { query: "norte", page: 1, pageSize: 20 });
       const where = tx.supplier.findMany.mock.calls[0][0].where;
       const campos = where.OR.map((c: Record<string, unknown>) => Object.keys(c)[0]);
-      expect(campos.sort()).toEqual(["contactName", "email", "name", "phone", "taxId"]);
-      expect(where.OR[0].name.mode).toBe("insensitive");
+      // F9-SUPPCAT-03: también por código.
+      expect(campos.sort()).toEqual(["code", "contactName", "email", "name", "phone", "taxId"]);
+      expect(where.OR[0].code.mode).toBe("insensitive");
     });
 
     it("`isActive` filtra; sin él salen activos e inactivos", async () => {

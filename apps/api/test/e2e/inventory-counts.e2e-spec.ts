@@ -80,7 +80,8 @@ describe("Inventario físico (F3-COUNT)", () => {
   async function escenario() {
     const { token, tenantId } = await registerAndLogin();
     const datos = await prisma.withTenantContext(tenantId, async (tx) => {
-      const stamp = randomUUID().slice(0, 6);
+      // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; el hex del uuid es minúsculo.
+      const stamp = randomUUID().slice(0, 6).toUpperCase();
       const warehouse = await tx.warehouse.create({
         data: {
           tenantId,
@@ -498,7 +499,8 @@ describe("Inventario físico (F3-COUNT)", () => {
   describe("la plantilla se ordena por ubicación", () => {
     it("agrupa por recorrido del almacén y deja al final lo que no tiene ubicación", async () => {
       const { token, tenantId, warehouseId } = await escenario();
-      const stamp = randomUUID().slice(0, 6);
+      // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; el hex del uuid es minúsculo.
+      const stamp = randomUUID().slice(0, 6).toUpperCase();
       // El orden por recorrido es del negocio que USA ubicaciones: para el
       // resto, ordenar por una columna vacía sería barajar la hoja sin motivo.
       await prisma.tenant.update({ where: { id: tenantId }, data: { usesLocations: true } });
@@ -528,7 +530,8 @@ describe("Inventario físico (F3-COUNT)", () => {
 
     it("con el interruptor APAGADO manda el NOMBRE, no el código", async () => {
       const { token, tenantId, warehouseId } = await escenario();
-      const stamp = randomUUID().slice(0, 6);
+      // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; el hex del uuid es minúsculo.
+      const stamp = randomUUID().slice(0, 6).toUpperCase();
       // Los nombres van al REVÉS que los códigos a propósito: si alguien
       // ordenara por SKU, este escenario lo delata. Con nombres "naturales"
       // los dos órdenes coinciden y el test no probaría nada.
@@ -552,7 +555,8 @@ describe("Inventario físico (F3-COUNT)", () => {
 
     it("dentro de una misma ubicación también manda el nombre", async () => {
       const { token, tenantId, warehouseId } = await escenario();
-      const stamp = randomUUID().slice(0, 6);
+      // F9-SUPPCAT-01: los sku viven en MAYÚSCULAS; el hex del uuid es minúsculo.
+      const stamp = randomUUID().slice(0, 6).toUpperCase();
       await prisma.tenant.update({ where: { id: tenantId }, data: { usesLocations: true } });
       await prisma.withTenantContext(tenantId, async (tx) => {
         await tx.product.create({

@@ -1,4 +1,5 @@
 {
+  "code_taken": "Ya tienes un proveedor con ese código.",
   "not_found": "El proveedor no existe.",
   "invalid_body": "Revisa los datos del formulario.",
   "invalid_query": "Los filtros de búsqueda no son válidos.",

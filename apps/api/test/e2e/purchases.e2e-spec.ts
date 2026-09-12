@@ -80,7 +80,11 @@ describe("Compras (F9-PURCH)", () => {
     const semilla = await prisma.withTenantContext(negocio.tenantId, async (tx) => {
       const almacen = await tx.warehouse.findFirstOrThrow({ select: { id: true } });
       const proveedor = await tx.supplier.create({
-        data: { tenantId: negocio.tenantId, name: "Distribuidora Norte" },
+        data: {
+          tenantId: negocio.tenantId,
+          code: "DISTRIBUIDORA-NORTE-12",
+          name: "Distribuidora Norte",
+        },
       });
       const producto = await tx.product.create({
         data: {

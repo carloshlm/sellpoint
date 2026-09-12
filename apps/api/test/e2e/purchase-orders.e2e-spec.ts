@@ -92,7 +92,12 @@ describe("Órdenes de compra (F9-PO)", () => {
     await setTenantMarket(prisma, negocio.tenantId, "MX");
     const semilla = await prisma.withTenantContext(negocio.tenantId, async (tx) => {
       const proveedor = await tx.supplier.create({
-        data: { tenantId: negocio.tenantId, name: "Distribuidora Norte", taxId: "DNO900101AB1" },
+        data: {
+          tenantId: negocio.tenantId,
+          code: "DISTRIBUIDORA-NORTE-10",
+          name: "Distribuidora Norte",
+          taxId: "DNO900101AB1",
+        },
       });
       const producto = await tx.product.create({
         data: {

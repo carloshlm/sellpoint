@@ -2,6 +2,7 @@ import {
   COUNTRY_DIAL_CODES,
   type CountryCode,
   ISO_COUNTRY_CODES,
+  normalizeCode,
   normalizeTaxId,
   splitE164,
   taxIdExample,
@@ -62,6 +63,7 @@ export function SupplierForm({
   const { t } = useTranslation();
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const tenantCountry = useAuthStore((state) => state.user?.tenant.country ?? null);
+  const [code, setCode] = useState(supplier?.code ?? "");
   const [name, setName] = useState(supplier?.name ?? "");
   const [taxId, setTaxId] = useState(supplier?.taxId ?? "");
   const [contactName, setContactName] = useState(supplier?.contactName ?? "");
@@ -98,6 +100,7 @@ export function SupplierForm({
     event.preventDefault();
     setErrorApi(null);
     const parsed = schema.safeParse({
+      code,
       name,
       taxId: normalizeTaxId(tenantCountry, taxId),
       contactName,
@@ -136,6 +139,7 @@ export function SupplierForm({
 
     if (!supplier) {
       const input: CreateSupplierInput = {
+        ...(valores.code ? { code: valores.code } : {}),
         name: valores.name,
         ...(valores.taxId ? { taxId: valores.taxId } : {}),
         ...(valores.contactName ? { contactName: valores.contactName } : {}),
@@ -150,6 +154,7 @@ export function SupplierForm({
 
     // Solo lo que cambió: vacío pasa a null (se limpia), igual no viaja.
     const cambios: UpdateSupplierInput = {};
+    if (valores.code && valores.code !== supplier.code) cambios.code = valores.code;
     if (valores.name !== supplier.name) cambios.name = valores.name;
     const fiscal = valores.taxId || null;
     if (fiscal !== supplier.taxId) cambios.taxId = fiscal;
@@ -180,6 +185,14 @@ export function SupplierForm({
       )}
       {/* De a pares, como Servicios: el ancho lo da la tarjeta, no el form. */}
       <div className="grid gap-4 sm:grid-cols-2">
+        {/* F9-SUPPCAT-04: el código PRIMERO, como en los demás catálogos. Se
+            sube a mayúsculas al teclear; vacío al crear = lo genera el API. */}
+        <TextField
+          label={t("suppliers.form.code")}
+          value={code}
+          hint={supplier ? undefined : t("suppliers.form.codeHint")}
+          onChange={(event) => setCode(normalizeCode(event.target.value))}
+        />
         <TextField
           label={t("suppliers.form.name")}
           value={name}

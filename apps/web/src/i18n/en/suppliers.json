@@ -3,9 +3,10 @@
     "title": "Suppliers",
     "new": "New",
     "search": "Search supplier",
-    "searchPlaceholder": "Name, tax ID, contact, phone or email…",
+    "searchPlaceholder": "Code, name, tax ID, contact, phone or email…",
     "empty": "You haven't registered any suppliers yet.",
     "columns": {
+      "code": "Code",
       "name": "Supplier",
       "taxId": "Tax ID",
       "contact": "Contact",
@@ -28,6 +29,8 @@
   "form": {
     "createTitle": "Register supplier",
     "editTitle": "Edit supplier",
+    "code": "Code",
+    "codeHint": "Leave it empty and it is generated: PROV-001, PROV-002…",
     "name": "Name or legal name",
     "taxId": "Tax ID",
     "taxIdWithAbbr": "Tax ID ({{abbr}})",

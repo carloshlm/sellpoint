@@ -87,12 +87,11 @@ export function SupplierPicker({ value, onChange, disabled = false, label }: Sup
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{fila.name}</span>
-                  {(fila.taxId || fila.contactName) && (
-                    <span className="flex flex-wrap gap-2 text-muted-foreground text-xs">
-                      {fila.taxId && <span className="font-mono">{fila.taxId}</span>}
-                      {fila.contactName && <span>{fila.contactName}</span>}
-                    </span>
-                  )}
+                  <span className="flex flex-wrap gap-2 text-muted-foreground text-xs">
+                    <span className="font-mono">{fila.code}</span>
+                    {fila.taxId && <span className="font-mono">{fila.taxId}</span>}
+                    {fila.contactName && <span>{fila.contactName}</span>}
+                  </span>
                 </span>
               </Button>
             </li>

@@ -19,6 +19,8 @@ import type {
 /** Lo que sale al cliente: el espejo plano de la fila. */
 export interface SupplierSummary {
   id: string;
+  /** F9-SUPPCAT-03: la llave visible, única por negocio, en mayúsculas. */
+  code: string;
   name: string;
   taxId: string | null;
   contactName: string | null;
@@ -33,6 +35,7 @@ export interface SupplierSummary {
 
 type SupplierRow = {
   id: string;
+  code: string;
   name: string;
   taxId: string | null;
   contactName: string | null;
@@ -77,6 +80,7 @@ export class SuppliersService {
       ...(texto
         ? {
             OR: [
+              { code: { contains: texto, mode: "insensitive" as const } },
               { name: { contains: texto, mode: "insensitive" as const } },
               { taxId: { contains: texto, mode: "insensitive" as const } },
               { contactName: { contains: texto, mode: "insensitive" as const } },
@@ -120,9 +124,16 @@ export class SuppliersService {
   ): Promise<SupplierSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const taxId = await this.registroFiscalValidado(tx, user.tenantId, input.taxId);
+      // El código lo trae la persona o lo pone el sistema (`PROV-NNN`); si lo
+      // trae, se comprueba ANTES del insert para que el 409 diga qué chocó.
+      const code = input.code ?? (await this.nextCode(tx, user.tenantId));
+      if (input.code !== undefined) {
+        await this.assertCodeFree(tx, user.tenantId, code);
+      }
       const creado = await tx.supplier.create({
         data: {
           tenantId: user.tenantId,
+          code,
           name: input.name,
           taxId,
           contactName: input.contactName ?? null,
@@ -140,7 +151,7 @@ export class SuppliersService {
         action: "supplier.created",
         resourceType: "supplier",
         resourceId: creado.id,
-        after: { name: creado.name, taxId: creado.taxId },
+        after: { code: creado.code, name: creado.name, taxId: creado.taxId },
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
@@ -159,7 +170,11 @@ export class SuppliersService {
       if (!actual) {
         throw new NotFoundException({ message: "suppliers.not_found" });
       }
+      if (input.code !== undefined && input.code !== actual.code) {
+        await this.assertCodeFree(tx, user.tenantId, input.code);
+      }
       const data: Prisma.SupplierUpdateInput = {
+        ...(input.code !== undefined ? { code: input.code } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.taxId !== undefined
           ? { taxId: await this.registroFiscalValidado(tx, user.tenantId, input.taxId) }
@@ -180,7 +195,12 @@ export class SuppliersService {
         action: "supplier.updated",
         resourceType: "supplier",
         resourceId: id,
-        before: { name: actual.name, taxId: actual.taxId, isActive: actual.isActive },
+        before: {
+          code: actual.code,
+          name: actual.name,
+          taxId: actual.taxId,
+          isActive: actual.isActive,
+        },
         after: cambios as Prisma.InputJsonValue,
         ip: meta.ip,
         userAgent: meta.userAgent,
@@ -218,6 +238,38 @@ export class SuppliersService {
     });
   }
 
+  private async assertCodeFree(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    code: string,
+  ): Promise<void> {
+    const repetido = await tx.supplier.findFirst({
+      where: { tenantId, code },
+      select: { id: true },
+    });
+    if (repetido !== null) {
+      throw new ConflictException({ message: "suppliers.code_taken" });
+    }
+  }
+
+  /**
+   * El siguiente código de la serie `PROV-NNN` del negocio (F9-SUPPCAT-03,
+   * molde `WarehousesService#nextCode`). Se mira el MAYOR número ya usado y
+   * no la cantidad de proveedores: si alguien borró el PROV-002, contar daría
+   * otra vez PROV-002 y chocaría con el índice único de un PROV-003 que sí
+   * existe. Los códigos capturados a mano que no siguen el patrón no cuentan
+   * para la serie — son de la persona, no del sistema.
+   */
+  private async nextCode(tx: Prisma.TransactionClient, tenantId: string): Promise<string> {
+    const [fila] = await tx.$queryRaw<{ max: number | null }[]>`
+      SELECT MAX(substring(code FROM '^PROV-(\\d+)$')::int) AS max
+        FROM suppliers
+       WHERE tenant_id = ${tenantId}::uuid
+         AND code ~ '^PROV-\\d+$'`;
+    const siguiente = (fila?.max ?? 0) + 1;
+    return `PROV-${String(siguiente).padStart(3, "0")}`;
+  }
+
   /**
    * El registro fiscal, normalizado a la forma canónica de su país y validado
    * contra su patrón. `null`/vacío limpia el campo; sin país del negocio,
@@ -250,6 +302,7 @@ function isForeignKeyViolation(error: unknown): boolean {
 function toSummary(row: SupplierRow): SupplierSummary {
   return {
     id: row.id,
+    code: row.code,
     name: row.name,
     taxId: row.taxId,
     contactName: row.contactName,

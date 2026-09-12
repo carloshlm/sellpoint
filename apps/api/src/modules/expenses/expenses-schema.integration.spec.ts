@@ -77,7 +77,7 @@ describe("modelo de datos de Gastos (F9-EXP-02/04)", () => {
           data: { tenantId, code: "rent", name: "Renta", createdBy: user.id },
         });
         const proveedor = await tx.supplier.create({
-          data: { tenantId, name: "Inmobiliaria Centro" },
+          data: { tenantId, code: "INMOBILIARIA-CENTRO-1", name: "Inmobiliaria Centro" },
         });
         if (tenantId === tenantA) {
           userA = user.id;

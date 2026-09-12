@@ -3,6 +3,8 @@ import { api } from "@/lib/api";
 /** Espejo del `SupplierSummary` del API (F9-SUPPL-03). */
 export interface Supplier {
   id: string;
+  /** F9-SUPPCAT-03: la llave visible, única por negocio, en mayúsculas. */
+  code: string;
   name: string;
   taxId: string | null;
   contactName: string | null;
@@ -16,6 +18,8 @@ export interface Supplier {
 }
 
 export interface CreateSupplierInput {
+  /** Opcional: si no viaja, el API genera `PROV-NNN`. */
+  code?: string;
   name: string;
   taxId?: string;
   contactName?: string;
@@ -27,6 +31,7 @@ export interface CreateSupplierInput {
 
 /** Presente = cambia; `null` = se limpia; ausente = no se toca. */
 export interface UpdateSupplierInput {
+  code?: string;
   name?: string;
   taxId?: string | null;
   contactName?: string | null;

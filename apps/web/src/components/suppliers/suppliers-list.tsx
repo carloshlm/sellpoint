@@ -126,6 +126,7 @@ export function SuppliersList() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="px-2">{t("suppliers.list.columns.code")}</TableHead>
               <TableHead className="px-2">{t("suppliers.list.columns.name")}</TableHead>
               <TableHead className="px-2">{t("suppliers.list.columns.taxId")}</TableHead>
               <TableHead className="px-2">{t("suppliers.list.columns.contact")}</TableHead>
@@ -138,6 +139,8 @@ export function SuppliersList() {
           <TableBody>
             {rows.map((supplier) => (
               <TableRow key={supplier.id} data-testid={`supplier-${supplier.id}`}>
+                {/* `nowrap`: «PROV-001» partido en dos líneas no se lee como un código. */}
+                <TableCell className="whitespace-nowrap px-2 font-mono">{supplier.code}</TableCell>
                 <TableCell className="px-2 font-medium">{supplier.name}</TableCell>
                 <TableCell className="px-2 font-mono">{supplier.taxId ?? "—"}</TableCell>
                 <TableCell className="px-2">{supplier.contactName ?? "—"}</TableCell>

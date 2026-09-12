@@ -10,6 +10,8 @@ import { composePhone } from "@/lib/reception/schemas";
  */
 export function supplierFormSchema(country: string | null) {
   return z.object({
+    // F9-SUPPCAT-04: vacío = el API lo genera (PROV-NNN); el input ya lo sube a mayúsculas.
+    code: z.string().trim().max(64).default(""),
     name: z.string().trim().min(1, "suppliers.form.errors.required").max(200),
     taxId: z
       .string()

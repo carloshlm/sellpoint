@@ -142,6 +142,66 @@ describe("Proveedores (F9-SUPPL-05)", () => {
       .expect(404);
   });
 
+  /**
+   * F9-SUPPCAT-03 (Carlos, 2026-09-12): el proveedor tiene su código como los
+   * demás catálogos. Lo trae la persona (en MAYÚSCULAS, único por negocio) o
+   * lo pone el sistema: `PROV-001`, `PROV-002`… por el MAYOR usado, no por
+   * conteo, para que borrar uno intermedio no repita un código vivo.
+   */
+  it("el código: PROV-NNN si no viene, en mayúsculas si viene, único por negocio y buscable", async () => {
+    const codigos = await registerTenant(app, "codigos");
+    const primero = (await crear(codigos.token, { name: "Sin código uno" }).expect(201)).body as {
+      id: string;
+      code: string;
+    };
+    expect(primero.code).toMatch(/^PROV-\d{3}$/);
+    const segundo = (await crear(codigos.token, { name: "Sin código dos" }).expect(201)).body as {
+      id: string;
+      code: string;
+    };
+    expect(Number(segundo.code.slice(5))).toBe(Number(primero.code.slice(5)) + 1);
+
+    const acme = (await crear(codigos.token, { code: " acme ", name: "Acme" }).expect(201))
+      .body as {
+      code: string;
+    };
+    expect(acme.code).toBe("ACME");
+    const rebote = await crear(codigos.token, { code: "acme", name: "Acme otra vez" }).expect(409);
+    expect((rebote.body as { code: string }).code).toBe("suppliers.code_taken");
+
+    const porCodigo = await request(app.getHttpServer())
+      .get(`/suppliers?query=${primero.code}`)
+      .set("Authorization", bearer(codigos.token))
+      .expect(200);
+    expect((porCodigo.body as { rows: { id: string }[] }).rows.map((r) => r.id)).toEqual([
+      primero.id,
+    ]);
+
+    // Borrar el último y crear otro: la serie sigue por el MAYOR, no por el conteo.
+    await request(app.getHttpServer())
+      .delete(`/suppliers/${segundo.id}`)
+      .set("Authorization", bearer(codigos.token))
+      .expect(204);
+    const tercero = (await crear(codigos.token, { name: "Sin código tres" }).expect(201)).body as {
+      code: string;
+    };
+    // Con PROV-001 vivo y PROV-002 borrado, el siguiente es PROV-002 (MAX+1 = 2).
+    expect(Number(tercero.code.slice(5))).toBe(Number(primero.code.slice(5)) + 1);
+
+    // Editar el código: normalizado y único.
+    await request(app.getHttpServer())
+      .patch(`/suppliers/${primero.id}`)
+      .set("Authorization", bearer(codigos.token))
+      .send({ code: "acme" })
+      .expect(409);
+    const renombrado = await request(app.getHttpServer())
+      .patch(`/suppliers/${primero.id}`)
+      .set("Authorization", bearer(codigos.token))
+      .send({ code: "norte-01" })
+      .expect(200);
+    expect(renombrado.body).toMatchObject({ code: "NORTE-01" });
+  });
+
   it("sin módulos pactados el catálogo responde igual: es core, no lleva @RequiresModule", async () => {
     // `otro` no pactó nada y no tiene país: el trial trae Compras/Gastos, pero
     // aunque no los trajera el catálogo seguiría respondiendo 200.

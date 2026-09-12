@@ -17,6 +17,7 @@ const mocked = vi.mocked(suppliersApi);
 
 const norte: suppliersApi.Supplier = {
   id: "s1",
+  code: "PROV-001",
   name: "Distribuidora Norte",
   taxId: "DNO900101AB1",
   contactName: "Rosa Luna",

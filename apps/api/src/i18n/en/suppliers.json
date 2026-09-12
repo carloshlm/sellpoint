@@ -1,4 +1,5 @@
 {
+  "code_taken": "You already have a supplier with that code.",
   "not_found": "The supplier does not exist.",
   "invalid_body": "Check the form data.",
   "invalid_query": "The search filters are not valid.",

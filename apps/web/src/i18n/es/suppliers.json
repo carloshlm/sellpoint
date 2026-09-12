@@ -3,9 +3,10 @@
     "title": "Proveedores",
     "new": "Nuevo",
     "search": "Buscar proveedor",
-    "searchPlaceholder": "Nombre, registro fiscal, contacto, teléfono o correo…",
+    "searchPlaceholder": "Código, nombre, registro fiscal, contacto, teléfono o correo…",
     "empty": "Todavía no registraste proveedores.",
     "columns": {
+      "code": "Código",
       "name": "Proveedor",
       "taxId": "Registro fiscal",
       "contact": "Contacto",
@@ -28,6 +29,8 @@
   "form": {
     "createTitle": "Registrar proveedor",
     "editTitle": "Editar proveedor",
+    "code": "Código",
+    "codeHint": "Si lo dejas vacío, se genera solo: PROV-001, PROV-002…",
     "name": "Nombre o razón social",
     "taxId": "Registro fiscal",
     "taxIdWithAbbr": "Registro fiscal ({{abbr}})",

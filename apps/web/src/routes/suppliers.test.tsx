@@ -30,6 +30,7 @@ const demoUser = (permissions: string[]): AuthUser =>
 
 const proveedor = (over: Partial<suppliersApi.Supplier> = {}): suppliersApi.Supplier => ({
   id: "s1",
+  code: "PROV-001",
   name: "Distribuidora Norte",
   taxId: "DNO900101AB1",
   contactName: "Rosa Luna",
@@ -101,6 +102,13 @@ describe("Proveedores (F9-SUPPL-08)", () => {
     await screen.findByTestId("supplier-s1");
     expect(screen.queryByRole("link", { name: "Nuevo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
+  });
+
+  it("la tabla muestra el CÓDIGO del proveedor, primero (F9-SUPPCAT-04)", async () => {
+    await renderSuppliers(["suppliers:read"]);
+    const fila = await screen.findByTestId("supplier-s1");
+    expect(within(fila).getAllByRole("cell")[0]).toHaveTextContent("PROV-001");
+    expect(screen.getByRole("columnheader", { name: "Código" })).toBeInTheDocument();
   });
 
   it("«Eliminar» pide confirmación y solo entonces llama al API", async () => {
