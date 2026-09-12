@@ -52,7 +52,7 @@
     "declaredHint": "Opcional. Si no cuadra con las líneas, te avisamos y la compra se confirma igual.",
     "taxMode": "Los costos de la factura",
     "taxModeExcluded": "NO incluyen impuesto (se suma aparte)",
-    "taxModeIncluded": "ya incluyen impuesto",
+    "taxModeIncluded": "YA incluyen impuesto",
     "taxModeDefault": "(ajuste del negocio)",
     "notes": "Notas",
     "confirm": "Confirmar compra",

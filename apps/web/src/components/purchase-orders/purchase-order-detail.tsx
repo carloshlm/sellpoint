@@ -83,6 +83,9 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
   const puedeAnular =
     has("purchases:cancel") && canWrite && (order.status === "draft" || order.status === "open");
   const hayPendiente = order.lines.some((l) => !l.closedShort && Number(l.pending) > 0);
+  // Una sola recepción abierta a la vez: con un borrador vivo no se abre otro
+  // folio, se continúa ese (Carlos, 2026-09-12).
+  const borradorAbierto = order.receipts.find((r) => r.status === "draft") ?? null;
   const sinFactura = order.receipts.filter(
     (r) => r.status === "confirmed" && (r.purchase === null || r.purchase.status === "canceled"),
   );
@@ -163,7 +166,17 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
               {t("purchaseOrders.detail.issue")}
             </Button>
           )}
-          {viva && puedeEditar && hayPendiente && (
+          {viva && puedeEditar && borradorAbierto !== null && (
+            <Button asChild data-testid="continue-receipt">
+              <Link
+                to="/purchase-orders/$orderId/receipts/$receiptId"
+                params={{ orderId: order.id, receiptId: borradorAbierto.id }}
+              >
+                {t("purchaseOrders.receipts.continue", { folio: borradorAbierto.folio })}
+              </Link>
+            </Button>
+          )}
+          {viva && puedeEditar && hayPendiente && borradorAbierto === null && (
             <Button
               type="button"
               disabled={recibir.isPending}

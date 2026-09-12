@@ -52,7 +52,7 @@
     "declaredHint": "Optional. If it doesn't match the lines we'll tell you, and the purchase is confirmed anyway.",
     "taxMode": "The invoice costs",
     "taxModeExcluded": "do NOT include tax (added separately)",
-    "taxModeIncluded": "already include tax",
+    "taxModeIncluded": "ALREADY include tax",
     "taxModeDefault": "(business setting)",
     "notes": "Notes",
     "confirm": "Confirm purchase",

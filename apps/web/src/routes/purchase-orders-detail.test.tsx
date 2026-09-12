@@ -194,6 +194,27 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     await waitFor(() => expect(mocked.closePurchaseOrder).toHaveBeenCalledWith("po1"));
   });
 
+  it("con una recepción en borrador ofrece continuarla, no abrir otra", async () => {
+    const conBorrador = buildPurchaseOrder();
+    conBorrador.receipts = [
+      {
+        id: "r9",
+        folio: "RCP-000009",
+        status: "draft",
+        receivedDate: "2026-09-12",
+        packingSlip: null,
+        purchase: null,
+      },
+    ];
+    mocked.getPurchaseOrder.mockResolvedValue(conBorrador);
+    await renderFicha(GESTOR);
+    expect(screen.queryByRole("button", { name: "Registrar recepción" })).not.toBeInTheDocument();
+    const continuar = screen.getByTestId("continue-receipt");
+    expect(continuar).toHaveTextContent("Continuar recepción RCP-000009");
+    expect(continuar).toHaveAttribute("href", "/purchase-orders/po1/receipts/r9");
+    expect(mocked.createPurchaseReceipt).not.toHaveBeenCalled();
+  });
+
   it("recibida completa, no ofrece «Registrar recepción»", async () => {
     const completa = buildPurchaseOrder({ status: "received" });
     completa.lines = [
@@ -413,7 +434,7 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
       "excluded",
     );
     expect(
-      within(selector).getByRole("option", { name: /ya incluyen impuesto/ }),
+      within(selector).getByRole("option", { name: /YA incluyen impuesto/ }),
     ).not.toHaveTextContent("ajuste del negocio");
   });
 

@@ -183,6 +183,23 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
     await api(negocio.token).post(`/purchase-orders/${borrador.id}/receipts`).expect(409);
   });
 
+  it("con una recepción en borrador no se abre otro folio: 409 nombrando la abierta", async () => {
+    // Carlos, 2026-09-12: cada clic en «Registrar recepción» dejaba un RCP- huérfano.
+    const orden = await ordenEmitida(100);
+    const abierta = await nuevaRecepcion(orden.id);
+    const rebote = await api(negocio.token)
+      .post(`/purchase-orders/${orden.id}/receipts`)
+      .expect(409);
+    expect((rebote.body as { message: string }).message).toContain(abierta.folio);
+    // Anulada la abierta, vuelve a poder abrirse una.
+    await api(negocio.token)
+      .post(`/purchase-orders/${orden.id}/receipts/${abierta.id}/cancel`, {
+        reason: "papel equivocado",
+      })
+      .expect(200);
+    await api(negocio.token).post(`/purchase-orders/${orden.id}/receipts`).expect(201);
+  });
+
   it("60 de 100 → parcialmente recibida; los otros 40 → recibida; anular la de 40 vuelve atrás", async () => {
     const orden = await ordenEmitida(100);
     const primera = await recibir(orden, 60, { lotCode: "l-a", expiresAt: "2027-01-31" });
@@ -234,7 +251,32 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
   it("la carrera del andén: dos borradores de 60 sobre 100 — el segundo rebota aunque se capturó antes", async () => {
     const orden = await ordenEmitida(100);
     const a = await recibir(orden, 60, { lotCode: "L-D" });
-    const b = await recibir(orden, 60, { lotCode: "L-E" });
+    // Desde 2026-09-12 el API no abre un segundo borrador (409); el que llegue a
+    // existir (dos POST en el mismo instante, o un dato viejo) lo frena el `confirm`,
+    // que es la validación que MANDA. Se inserta directo para fijar esa segunda barrera.
+    const b = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+      tx.purchaseReceipt.create({
+        data: {
+          tenantId: negocio.tenantId,
+          folio: "RCP-CARRERA",
+          purchaseOrderId: orden.id,
+          receivedDate: new Date("2026-09-10"),
+          createdBy: negocio.userId,
+          lines: {
+            create: [
+              {
+                tenantId: negocio.tenantId,
+                lineNo: 1,
+                purchaseOrderLineId: orden.lines[0]?.id ?? "",
+                quantity: 60,
+                lotCode: "L-E",
+              },
+            ],
+          },
+        },
+        select: { id: true },
+      }),
+    );
     await confirmar(orden, a).expect(200);
     const rebote = await confirmar(orden, b).expect(422);
     expect((rebote.body as { message: string }).message).toContain("Línea 1");

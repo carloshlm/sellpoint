@@ -831,12 +831,29 @@ export class PurchasesService {
 
       const porCodigo = await gruposPorCodigo(tx, user.tenantId);
       const lineaDeOrden = new Map(orden.lines.map((l) => [l.id, l]));
+      // Dos recepciones del MISMO artículo (producto, presentación, lote, caducidad
+      // y costo acordado) se facturan en UNA línea con las cantidades sumadas: la
+      // factura del proveedor no repite el renglón por cada entrega (Carlos,
+      // 2026-09-12). Lote o caducidad distintos siguen siendo líneas aparte.
       const partidas: LineaLista[] = [];
+      const porArticulo = new Map<string, LineaLista>();
       for (const recepcion of recepciones) {
         for (const linea of recepcion?.lines ?? []) {
           const deOrden = lineaDeOrden.get(linea.purchaseOrderLineId);
           if (deOrden === undefined) continue;
-          partidas.push({
+          const clave = [
+            deOrden.productId,
+            deOrden.presentationId ?? "",
+            linea.lotCode ?? "",
+            linea.expiresAt?.toISOString() ?? "",
+            deOrden.unitCost?.toString() ?? "",
+          ].join("|");
+          const previa = porArticulo.get(clave);
+          if (previa !== undefined) {
+            previa.quantity = (previa.quantity ?? new Prisma.Decimal(0)).plus(linea.quantity);
+            continue;
+          }
+          const partida: LineaLista = {
             productId: deOrden.productId,
             presentationId: deOrden.presentationId,
             quantity: linea.quantity,
@@ -848,7 +865,9 @@ export class PurchasesService {
             expiresAt: linea.expiresAt,
             description: deOrden.description,
             purchaseOrderLineId: deOrden.id,
-          });
+          };
+          porArticulo.set(clave, partida);
+          partidas.push(partida);
         }
       }
       const folio = await nextFolio(

@@ -242,6 +242,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
             />
             <TextField
               label={t("purchaseOrders.receipt.packingSlip")}
+              hint={t("purchaseOrders.receipt.packingSlipHint")}
               value={packingSlip}
               disabled={!borrador || !puedeEditar}
               onChange={(event) => {

@@ -114,7 +114,10 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     const cantidad = within(screen.getByTestId("receipt-line-0")).getByLabelText("Llegó");
     await user.clear(cantidad);
     await user.type(cantidad, "6");
-    await user.type(screen.getByLabelText("Remisión o packing slip"), "REM-889");
+    const remision = screen.getByLabelText("Remisión o packing slip");
+    // Carlos, 2026-09-12: el usuario debe saber qué papel es.
+    expect(remision).toHaveAccessibleDescription(/viaja con la mercancía/);
+    await user.type(remision, "REM-889");
     await waitFor(() => expect(mocked.updatePurchaseReceipt).toHaveBeenCalled());
     // La recepción volvió del API con la remisión: la tabla conserva el 6.
     expect(cantidad).toHaveValue("6");

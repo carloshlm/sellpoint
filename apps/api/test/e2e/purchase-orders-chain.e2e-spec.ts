@@ -283,6 +283,22 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
     expect((lista.body as { total: number }).total).toBe(2);
   });
 
+  it("dos recepciones del mismo artículo, lote y caducidad se facturan en UNA línea sumada", async () => {
+    // Carlos, 2026-09-12: la factura del proveedor no repite el renglón por entrega.
+    const orden = await ordenEmitida(100);
+    const primera = await recibirYConfirmar(orden, 30, "L-M");
+    const segunda = await recibirYConfirmar(orden, 20, "L-M");
+    const tercera = await recibirYConfirmar(orden, 10, "L-N");
+    const compra = (await compraDe(orden, [primera.id, segunda.id, tercera.id]).expect(201))
+      .body as Compra;
+    expect(compra.lines.map((l) => ({ quantity: l.quantity, lotCode: l.lotCode }))).toEqual([
+      { quantity: "50", lotCode: "L-M" },
+      { quantity: "10", lotCode: "L-N" },
+    ]);
+    expect(compra.lines.every((l) => l.purchaseOrderLineId === orden.lines[0]?.id)).toBe(true);
+    expect(compra.receipts.map((r) => r.id)).toEqual([primera.id, segunda.id, tercera.id]);
+  });
+
   it("una recepción se factura UNA vez; anular la compra la libera; sin confirmar no se factura", async () => {
     const orden = await ordenEmitida(10);
     const recepcion = await recibirYConfirmar(orden, 10, "L-C");

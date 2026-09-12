@@ -30,5 +30,6 @@
   "over_receipt": "Line {line}: more than what is pending ({pending}) is arriving. Receive up to the pending amount and note the rest.",
   "receipt_date_in_future": "{field}: the receipt date can't be after today. A receipt is a fact.",
   "receipt_invoiced": "This receipt is already invoiced in a purchase: cancel that purchase first.",
-  "receipt_already_canceled": "This receipt is already canceled."
+  "receipt_already_canceled": "This receipt is already canceled.",
+  "receipt_open": "This order already has receipt {folio} in draft: finish or cancel it before opening another."
 }

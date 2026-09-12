@@ -30,5 +30,6 @@
   "over_receipt": "Línea {line}: llega más de lo pendiente ({pending}). Recibe hasta lo pendiente y anota el resto en las notas.",
   "receipt_date_in_future": "{field}: la fecha de recepción no puede ser posterior a hoy. Una recepción es un hecho.",
   "receipt_invoiced": "Esta recepción ya está facturada en una compra: anula esa compra primero.",
-  "receipt_already_canceled": "Esta recepción ya está anulada."
+  "receipt_already_canceled": "Esta recepción ya está anulada.",
+  "receipt_open": "Esta orden ya tiene la recepción {folio} en borrador: termínala o anúlala antes de abrir otra."
 }

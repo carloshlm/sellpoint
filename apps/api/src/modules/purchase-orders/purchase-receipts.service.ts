@@ -124,6 +124,18 @@ export class PurchaseReceiptsService {
       if (!(RECIBIBLES as readonly string[]).includes(orden.status)) {
         throw new ConflictException({ message: "purchase_orders.not_receivable" });
       }
+      // Una sola recepción abierta por orden: un segundo borrador solo suma
+      // folios huérfanos y confunde qué papel se está capturando (Carlos, 2026-09-12).
+      const abierta = await tx.purchaseReceipt.findFirst({
+        where: { tenantId: user.tenantId, purchaseOrderId: orderId, status: "draft" },
+        select: { folio: true },
+      });
+      if (abierta !== null) {
+        throw new ConflictException({
+          message: "purchase_orders.receipt_open",
+          args: { folio: abierta.folio },
+        });
+      }
       const folio = await nextFolio(
         tx,
         user.tenantId,
