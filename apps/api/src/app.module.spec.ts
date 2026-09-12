@@ -38,6 +38,8 @@ describe("Smoke: AppModule", () => {
       status: "ok",
       db: "ok",
       redis: "ok",
+      version: "0.0.0",
+      build: "local",
     });
   });
 });
