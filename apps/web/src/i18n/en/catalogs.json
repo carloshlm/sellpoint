@@ -54,8 +54,8 @@
       "title": "Delete field",
       "body": "{{count}} records have data in \"{{label}}\". The field will be deactivated, but its values aren't deleted and you can reactivate it.",
       "confirm": "Deactivate field",
-      "bodyEmpty": "You are about to delete the \"{{label}}\" field. It has no data yet, so it will be removed entirely. This can not be undone.",
-      "confirmEmpty": "Delete field"
+      "bodyUnknown": "You are about to delete the \"{{label}}\" field. This action cannot be undone.",
+      "confirmUnknown": "Delete field"
     },
     "optionalBadge": "Optional",
     "optionalLabel": "{{label}} (optional)",

@@ -269,11 +269,16 @@ function CatalogSchemaContent() {
               <ConfirmDialog
                 data-testid="remove-field-dialog"
                 title={t("catalogs.fields.removeDialog.title")}
-                // Dos textos para dos situaciones distintas: sin datos el campo
-                // se BORRA; con datos se oculta y sus valores se conservan.
+                /* Dos textos para dos MOMENTOS, no para dos situaciones: en
+                   el primero todavía no se sabe si el campo tiene datos —el
+                   conteo lo trae el 409— así que solo se avisa lo irreversible;
+                   si resulta que los tiene, el segundo explica que se oculta y
+                   que sus valores se conservan. El texto viejo afirmaba «todavía
+                   no tiene datos cargados» sin haberlo verificado, y por eso lo
+                   decía SIEMPRE (Carlos, 2026-09-12). */
                 body={
                   pendingRemoval.recordCount === null
-                    ? t("catalogs.fields.removeDialog.bodyEmpty", {
+                    ? t("catalogs.fields.removeDialog.bodyUnknown", {
                         label: pendingRemoval.field.label,
                       })
                     : t("catalogs.fields.removeDialog.body", {
@@ -283,7 +288,7 @@ function CatalogSchemaContent() {
                 }
                 confirmLabel={
                   pendingRemoval.recordCount === null
-                    ? t("catalogs.fields.removeDialog.confirmEmpty")
+                    ? t("catalogs.fields.removeDialog.confirmUnknown")
                     : t("catalogs.fields.removeDialog.confirm")
                 }
                 cancelLabel={t("common.form.cancel")}

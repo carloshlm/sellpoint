@@ -206,7 +206,14 @@ describe("Editor de campos (F2-SCHEMA)", () => {
 
     await user.click(await screen.findByRole("button", { name: "Eliminar" }));
 
-    expect(await screen.findByTestId("remove-field-dialog")).toHaveTextContent("Sustancia Activa");
+    const dialogo = await screen.findByTestId("remove-field-dialog");
+    expect(dialogo).toHaveTextContent(
+      "Vas a eliminar el campo «Sustancia Activa». Esta acción no se puede deshacer.",
+    );
+    // Carlos (2026-09-12): el texto viejo afirmaba «todavía no tiene datos
+    // cargados» en el PRIMER paso, cuando el conteo todavía no se pidió — así
+    // que lo decía siempre, incluso sobre un campo con 847 registros.
+    expect(dialogo).not.toHaveTextContent(/datos cargados/);
     expect(mockedApi.removeField).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Eliminar campo" }));
