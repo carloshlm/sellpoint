@@ -27,8 +27,8 @@
     "costHintExcluded": "What it costs you to provide it, before tax. Never shown to the customer.",
     "costHintIncluded": "What it costs you to provide it, tax included. Never shown to the customer.",
     "price": "Price",
-    "price_included": "Selling price (tax included)",
-    "price_excluded": "Selling price (before tax)",
+    "price_included": "Price (tax included)",
+    "price_excluded": "Price (before tax)",
     "priceHint": "What you charge for this service.",
     "priceHintIncluded": "What the customer pays, tax already included: the number on the receipt.",
     "priceHintExcluded": "What you charge before tax: the receipt adds it at the end."
