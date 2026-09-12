@@ -8,6 +8,7 @@ import type { ApiError } from "@/lib/api";
 import type { Study, StudyKind } from "@/lib/medical-clinic/api";
 import { useCreateStudy, useUpdateStudy } from "@/lib/medical-clinic/hooks";
 import { moneyInitialValue, moneyInputError } from "@/lib/money";
+import { useAuthStore } from "@/stores/auth.store";
 
 /**
  * F9-CLINIC-WEB-04 — el formulario de un estudio (laboratorio o
@@ -26,6 +27,8 @@ export function StudyForm({
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation();
+  // F9-COSTMODE-10: el costo se captura en la base del negocio; la etiqueta lo dice.
+  const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
   const [code, setCode] = useState(study?.code ?? "");
   const [name, setName] = useState(study?.name ?? "");
   const [description, setDescription] = useState(study?.description ?? "");
@@ -99,7 +102,12 @@ export function StudyForm({
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <MoneyField
-          label={t("medicalClinic.studies.form.cost")}
+          label={t("medicalClinic.studies.form.cost", { context: costTaxMode })}
+          hint={t(
+            costTaxMode === "included"
+              ? "medicalClinic.studies.form.costHintIncluded"
+              : "medicalClinic.studies.form.costHintExcluded",
+          )}
           error={costErrorKey ? t(costErrorKey) : undefined}
           value={cost}
           onChange={setCost}

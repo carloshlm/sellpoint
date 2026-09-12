@@ -5,7 +5,9 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { netUnitCost } from "../cost/cost-tax";
 import { WeightedCostService } from "../cost/weighted-cost.service";
+import { contextoFiscal, grupoDe, snapshotDeTasas } from "../pos/tax-resolver";
 import { findCompositionCycle } from "./composition-graph";
 import type { ReplaceCompositionDto } from "./dto/replace-composition.dto";
 
@@ -309,6 +311,7 @@ export class CompositionService {
               id: true,
               sku: true,
               name: true,
+              taxGroupId: true,
               presentations: {
                 where: { isPurchasable: true, isActive: true, cost: { not: null } },
                 orderBy: [{ isDefaultSale: "desc" }, { factor: "asc" }],
@@ -326,6 +329,14 @@ export class CompositionService {
         user.tenantId,
         lines.map((line) => line.component.id),
       );
+      // F9-COSTMODE-09: el promedio ya es neto; el costo de LISTA está en la
+      // base del negocio y se desimpuesta con el grupo del COMPONENTE para no
+      // mezclar bases en la misma suma.
+      const fiscal = await contextoFiscal(
+        tx,
+        user.tenantId,
+        lines.map((line) => line.component.taxGroupId),
+      );
 
       let total = 0;
       const detail = lines.map((line) => {
@@ -341,7 +352,11 @@ export class CompositionService {
           ponderado !== undefined
             ? Number(ponderado)
             : presentation
-              ? Number(presentation.cost) / Number(presentation.factor)
+              ? netUnitCost(
+                  new Prisma.Decimal(presentation.cost ?? 0),
+                  snapshotDeTasas(grupoDe(fiscal, line.component.taxGroupId)),
+                  fiscal.costMode,
+                ).toNumber() / Number(presentation.factor)
               : 0;
         // La merma multiplica la CANTIDAD. Aritméticamente daría igual ponerla
         // sobre el costo unitario —una contraprueba lo confirmó: mover el

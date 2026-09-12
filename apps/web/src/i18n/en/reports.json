@@ -64,6 +64,7 @@
     "product": "Product",
     "quantity": "Quantity",
     "value": "Value",
+    "valueNet": "Value (before tax)",
     "warehouse": "Warehouse"
   },
   "table": {

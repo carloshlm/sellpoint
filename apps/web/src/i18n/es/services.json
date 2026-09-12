@@ -22,6 +22,10 @@
     "name": "Nombre",
     "description": "Descripción",
     "cost": "Costo",
+    "cost_excluded": "Costo (sin impuesto)",
+    "cost_included": "Costo (con impuesto incluido)",
+    "costHintExcluded": "Lo que te cuesta darlo, antes del impuesto. No se le muestra al cliente.",
+    "costHintIncluded": "Lo que te cuesta darlo, con el impuesto adentro. No se le muestra al cliente.",
     "price": "Precio de venta",
     "priceHint": "Lo que cobras por este servicio."
   },
@@ -42,6 +46,8 @@
   "import": {
     "title": "Importar servicios",
     "step1": "1. Descarga la plantilla: trae los campos de tu catálogo y los servicios que ya diste de alta.",
+    "costBasisExcluded": "La columna «costo» va SIN impuesto: es el ajuste de tu negocio en Mi perfil › Impuestos.",
+    "costBasisIncluded": "La columna «costo» va CON el impuesto incluido: es el ajuste de tu negocio en Mi perfil › Impuestos.",
     "step2": "2. Edítala y súbela (Excel).",
     "downloadXlsx": "Plantilla Excel",
     "chooseFile": "Elegir archivo",

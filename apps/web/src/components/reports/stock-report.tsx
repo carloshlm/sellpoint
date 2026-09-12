@@ -65,7 +65,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         { key: "quantity", header: t("reports.stock.quantity"), numeric: true },
         { key: "stockMin", header: t("reports.stock.min"), numeric: true },
         { key: "avgCost", header: t("reports.stock.avgCost"), numeric: true },
-        { key: "totalValue", header: t("reports.stock.value"), numeric: true },
+        { key: "totalValue", header: t("reports.stock.valueNet"), numeric: true },
       ];
 
   /**

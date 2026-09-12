@@ -42,6 +42,7 @@ import {
 } from "@/lib/services/hooks";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import { useWarehouses } from "@/lib/warehouses/hooks";
+import { useAuthStore } from "@/stores/auth.store";
 
 export const Route = createFileRoute("/catalog/services")({
   component: ServicesPage,
@@ -277,6 +278,8 @@ function ServiceForm({
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation();
+  // F9-COSTMODE-10: el costo se captura en la base del negocio; la etiqueta lo dice.
+  const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
   // El form vive ARRIBA de la tabla: quien editó desde la fila 15 no lo ve
   // aparecer. El scroll es la respuesta visible al clic, y el foco queda en
   // el primer campo — quien edita viene a escribir.
@@ -392,7 +395,12 @@ function ServiceForm({
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <MoneyField
-          label={t("services.form.cost")}
+          label={t("services.form.cost", { context: costTaxMode })}
+          hint={t(
+            costTaxMode === "included"
+              ? "services.form.costHintIncluded"
+              : "services.form.costHintExcluded",
+          )}
           error={costErrorKey ? t(costErrorKey) : undefined}
           value={cost}
           onChange={setCost}

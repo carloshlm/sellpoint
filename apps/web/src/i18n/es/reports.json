@@ -64,6 +64,7 @@
     "product": "Producto",
     "quantity": "Cantidad",
     "value": "Valor",
+    "valueNet": "Valor (sin impuesto)",
     "warehouse": "Almacén"
   },
   "table": {

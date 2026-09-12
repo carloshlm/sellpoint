@@ -53,7 +53,9 @@ describe("código de barras en el formulario de producto", () => {
     // que renombraba la etiqueta seguía encontrando el hint al lado — el test
     // pasaba con el orden roto. Medir el prefijo es medir al vecino.
     const posicion = (clave: string) => {
-      const indice = codigo.indexOf(`label={t("products.form.${clave}")}`);
+      // Con o sin argumentos (`{ context }`): lo que importa es que la clave
+      // termine ahí — `cost"` no casa con `costHint"`.
+      const indice = codigo.indexOf(`label={t("products.form.${clave}"`);
       if (indice === -1) {
         throw new Error(`el formulario no tiene el campo ${clave}`);
       }

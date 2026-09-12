@@ -301,6 +301,57 @@ describe("El snapshot de costo en la venta (F5-DASH-01)", () => {
     expect(await costosGuardados(tenantId)).toEqual(["12"]);
   });
 
+  /**
+   * F9-COSTMODE-08 — el negocio captura el costo CON impuesto: el catálogo
+   * dice 116 (con IVA adentro) y la venta congela 100, el neto; la utilidad
+   * del tablero resta precio y costo en la MISMA base (200 − 100, no 200 − 116).
+   */
+  it("capturando el costo CON impuesto, la venta congela el NETO y la utilidad lo usa", async () => {
+    const { token, tenantId } = await registerAndLogin();
+    const { productoId, almacenId } = await producto(tenantId);
+    await comprar(token, almacenId, productoId, 5, 100);
+    await request(app.getHttpServer())
+      .put("/tenants/me/taxes")
+      .set("Authorization", bearer(token))
+      .send({
+        costMode: "included",
+        groups: [
+          {
+            code: "VAT16",
+            name: "IVA 16%",
+            isDefault: true,
+            isActive: true,
+            rates: [{ code: "IVA", name: "IVA 16%", rate: "16" }],
+          },
+        ],
+      })
+      .expect(200);
+    await prisma.withTenantContext(tenantId, (tx) =>
+      tx.productPresentation.updateMany({
+        where: { productId: productoId },
+        data: { cost: "116", price: "232" },
+      }),
+    );
+    await request(app.getHttpServer())
+      .post("/pos/session")
+      .set("Authorization", bearer(token))
+      .send({})
+      .expect(201);
+
+    await vender(token, {
+      paymentMethod: "cash",
+      lines: [{ productId: productoId, quantity: 1 }],
+    }).expect(201);
+
+    expect(await costosGuardados(tenantId)).toEqual(["100"]);
+    const kpis = await request(app.getHttpServer())
+      .get("/reports/dashboard/kpis")
+      .set("Authorization", bearer(token))
+      .expect(200);
+    // 232 con el IVA adentro (el precio va `included`) → base 200; 200 − 100.
+    expect((kpis.body as { profit: { month: string | null } }).profit.month).toBe("100");
+  });
+
   it("la entrada por FACTURA actualiza el costo del catálogo", async () => {
     const { token, tenantId } = await registerAndLogin();
     const { productoId, almacenId } = await producto(tenantId);

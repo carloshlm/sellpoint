@@ -22,6 +22,10 @@
     "name": "Name",
     "description": "Description",
     "cost": "Cost",
+    "cost_excluded": "Cost (before tax)",
+    "cost_included": "Cost (tax included)",
+    "costHintExcluded": "What it costs you to provide it, before tax. Never shown to the customer.",
+    "costHintIncluded": "What it costs you to provide it, tax included. Never shown to the customer.",
     "price": "Price",
     "priceHint": "What you charge for this service."
   },
@@ -42,6 +46,8 @@
   "import": {
     "title": "Import services",
     "step1": "1. Download the template: it brings your catalog fields and the services you already created.",
+    "costBasisExcluded": "The «cost» column goes BEFORE tax: that is your business setting under My profile › Taxes.",
+    "costBasisIncluded": "The «cost» column goes WITH tax included: that is your business setting under My profile › Taxes.",
     "step2": "2. Edit it and upload it (Excel).",
     "downloadXlsx": "Excel template",
     "chooseFile": "Choose file",

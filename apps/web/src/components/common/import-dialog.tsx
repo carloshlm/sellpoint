@@ -20,6 +20,8 @@ interface ImportDialogProps {
    * rowErrorWithCode, skipErrors, confirm, done.
    */
   i18nPrefix: string;
+  /** F9-COSTMODE-10: una aclaración bajo el paso 1 (en qué base va la columna «costo»). */
+  note?: string;
   downloadTemplate: () => Promise<void>;
   run: (input: ImportRunInput) => Promise<ImportReport>;
   /** Cómo se lee el archivo; por defecto, a base64 (lo que todo importador espera). */
@@ -44,6 +46,7 @@ interface ImportDialogProps {
 function ImportDialog({
   testIdPrefix,
   i18nPrefix,
+  note,
   downloadTemplate,
   run,
   readFile = readFileAsBase64,
@@ -116,6 +119,7 @@ function ImportDialog({
 
         <div className="flex flex-col gap-2">
           <p className="text-sm">{t(k("step1"))}</p>
+          {note !== undefined && <p className="text-muted-foreground text-xs">{note}</p>}
           <Button
             variant="outline"
             size="sm"

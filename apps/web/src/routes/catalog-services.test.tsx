@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { buildWarehouse } from "@/test/warehouse-fixture";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
@@ -86,7 +87,10 @@ const ALMACENES: warehousesApi.Warehouse[] = [
   buildWarehouse({ id: "w2", code: "ALM-002", name: "Bodega Norte" }),
 ];
 
-const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
+const demoUser = (
+  permissions: string[],
+  costTaxMode: "included" | "excluded" = "excluded",
+): AuthUser => buildAuthUser({ permissions, tenant: buildTenantBlock({ costTaxMode }) });
 
 const servicio = (over: Partial<servicesApi.Service> = {}): servicesApi.Service => ({
   id: "s1",
@@ -102,8 +106,11 @@ const servicio = (over: Partial<servicesApi.Service> = {}): servicesApi.Service 
   ...over,
 });
 
-async function renderServices(permissions = ["services:read", "services:manage"]) {
-  useAuthStore.getState().setAuth("jwt", demoUser(permissions));
+async function renderServices(
+  permissions = ["services:read", "services:manage"],
+  costTaxMode: "included" | "excluded" = "excluded",
+) {
+  useAuthStore.getState().setAuth("jwt", demoUser(permissions, costTaxMode));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/catalog/services"] }),
@@ -202,6 +209,15 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
     expect(precio).toHaveValue("6.00");
     expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
     expect(mockedApi.createService).not.toHaveBeenCalled();
+  });
+
+  it("la etiqueta del costo dice la base del negocio (F9-COSTMODE-10)", async () => {
+    const user = userEvent.setup();
+    await renderServices(undefined, "included");
+    await screen.findByText("Corte de cabello");
+    await user.click(screen.getByRole("button", { name: "Nuevo servicio" }));
+    expect(screen.getByLabelText("Costo (con impuesto incluido)")).toBeInTheDocument();
+    expect(screen.getByText(/con el impuesto adentro/)).toBeInTheDocument();
   });
 
   it("desactivar manda isActive:false y no borra nada", async () => {

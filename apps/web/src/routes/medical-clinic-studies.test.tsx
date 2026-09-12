@@ -10,6 +10,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-CLINIC-WEB-04/05 — los dos catálogos de estudios sobre la misma
@@ -57,9 +58,13 @@ vi.mock("@/lib/tenant/tax-api", () => ({
 }));
 const mocked = vi.mocked(clinicApi);
 
-const demoUser = (permissions: string[]): AuthUser =>
+const demoUser = (
+  permissions: string[],
+  costTaxMode: "included" | "excluded" = "excluded",
+): AuthUser =>
   buildAuthUser({
     permissions,
+    tenant: buildTenantBlock({ costTaxMode }),
     subscription: { ...SUBSCRIPTION_PLUS, modules: ["medical_clinic"] },
   });
 
@@ -77,8 +82,12 @@ const estudio = (over: Partial<clinicApi.Study> = {}): clinicApi.Study => ({
   ...over,
 });
 
-async function renderRuta(path: string, permissions: string[]) {
-  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions));
+async function renderRuta(
+  path: string,
+  permissions: string[],
+  costTaxMode: "included" | "excluded" = "excluded",
+) {
+  useAuthStore.getState().setAuth("jwt-demo", demoUser(permissions, costTaxMode));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -150,7 +159,7 @@ describe.each([
 
     await user.type(screen.getByLabelText("Código"), "RX");
     await user.type(screen.getByLabelText("Nombre"), "Rayos X de tórax");
-    await user.type(screen.getByLabelText("Costo"), "120");
+    await user.type(screen.getByLabelText("Costo (sin impuesto)"), "120");
     await user.type(screen.getByLabelText("Precio de venta"), "350");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
@@ -169,13 +178,21 @@ describe.each([
   // Mismo criterio que servicios (Carlos, 2026-09-07): el campo ya es texto
   // con teclado decimal, así que lo que no es un importe se marca acá y no
   // en un 422 del API; y al salir del campo queda a dos decimales.
+  it("la etiqueta del costo dice la base del negocio (F9-COSTMODE-10)", async () => {
+    await renderRuta(path, ["medical_clinic:read", "medical_clinic:manage"], "included");
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Agregar" }));
+    expect(screen.getByLabelText("Costo (con impuesto incluido)")).toBeInTheDocument();
+    expect(screen.getByText(/con el impuesto adentro/)).toBeInTheDocument();
+  });
+
   it("un costo con coma se marca y bloquea Guardar; al corregirlo queda a dos decimales", async () => {
     await renderRuta(path, ["medical_clinic:read", "medical_clinic:manage"]);
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "Agregar" }));
     await user.type(screen.getByLabelText("Código"), "RX");
     await user.type(screen.getByLabelText("Nombre"), "Rayos X de tórax");
-    const costo = screen.getByLabelText("Costo");
+    const costo = screen.getByLabelText("Costo (sin impuesto)");
 
     await user.type(costo, "1,500");
     expect(screen.getByText(/punto decimal/)).toBeInTheDocument();

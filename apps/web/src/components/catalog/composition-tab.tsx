@@ -225,7 +225,10 @@ function CompositionTab({ productId, canManage }: CompositionTabProps) {
         className="flex flex-col gap-1 rounded-md border border-border bg-muted/30 p-3 text-sm"
       >
         <p>
-          {t("products.composition.costEstimate")}: <strong>{cost?.total ?? "—"}</strong>
+          {t("products.composition.costEstimate")}: <strong>{cost?.total ?? "—"}</strong>{" "}
+          <span className="text-muted-foreground text-xs">
+            {t("products.composition.costEstimateNet")}
+          </span>
         </p>
         {/* El "alcanza para N" de Carlos, calculado contra el stock real. */}
         <p data-testid="composition-availability">

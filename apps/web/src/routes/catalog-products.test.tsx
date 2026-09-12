@@ -7,6 +7,7 @@ import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { createI18n } from "../i18n";
 import * as catalogsApi from "../lib/catalogs/api";
 import * as productsApi from "../lib/products/api";
@@ -76,7 +77,10 @@ vi.mock("@/lib/tenant/tax-api", () => ({
 const mockedProducts = vi.mocked(productsApi);
 const mockedCatalogs = vi.mocked(catalogsApi);
 
-const demoUser = (permissions: string[]): AuthUser => buildAuthUser({ permissions });
+const demoUser = (
+  permissions: string[],
+  costTaxMode: "included" | "excluded" = "excluded",
+): AuthUser => buildAuthUser({ permissions, tenant: buildTenantBlock({ costTaxMode }) });
 
 const PRODUCT: productsApi.ProductDetail = {
   id: "prod-1",
@@ -92,8 +96,10 @@ const PRODUCT: productsApi.ProductDetail = {
   presentations: [],
 };
 
-async function openProduct() {
-  useAuthStore.getState().setAuth("jwt", demoUser(["products:read", "products:manage"]));
+async function openProduct(costTaxMode: "included" | "excluded" = "excluded") {
+  useAuthStore
+    .getState()
+    .setAuth("jwt", demoUser(["products:read", "products:manage"], costTaxMode));
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/catalog/products"] }),
@@ -293,6 +299,44 @@ describe("Desactivar y reactivar un producto", () => {
     );
 
     expect(await screen.findByText("Inactivo")).toBeInTheDocument();
+  });
+});
+
+/**
+ * F9-COSTMODE-10 — la etiqueta del costo dice en qué base captura el negocio
+ * (`tenants.cost_tax_mode`), y lo tecleado viaja tal cual: el web no convierte.
+ */
+describe("la base del costo en la ficha (F9-COSTMODE-10)", () => {
+  it("capturando «con impuesto» la etiqueta lo dice y el número viaja sin convertir", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    mockedProducts.updateProduct.mockResolvedValue({ ...PRODUCT });
+    const user = await openProduct("included");
+    const costo = await screen.findByLabelText("Costo (con impuesto incluido)");
+    expect(screen.getByText(/con el impuesto adentro/)).toBeInTheDocument();
+    await user.clear(costo);
+    await user.type(costo, "116");
+    await user.click(screen.getByRole("button", { name: /Guardar/ }));
+    await waitFor(() =>
+      expect(mockedProducts.updateProduct).toHaveBeenCalledWith(
+        "prod-1",
+        expect.objectContaining({ cost: 116 }),
+      ),
+    );
+  });
+
+  it("capturando «sin impuesto» (el default) la etiqueta dice sin impuesto", async () => {
+    mockedProducts.getProduct.mockResolvedValue({
+      ...PRODUCT,
+      tracksLots: false,
+      hasLotStock: false,
+    });
+    await openProduct();
+    expect(await screen.findByLabelText("Costo (sin impuesto)")).toBeInTheDocument();
+    expect(screen.getByText(/antes del impuesto/)).toBeInTheDocument();
   });
 });
 

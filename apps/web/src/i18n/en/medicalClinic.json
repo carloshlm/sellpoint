@@ -5,6 +5,8 @@
       "import": {
         "title": "Import lab studies",
         "step1": "1. Download the template: it brings the studies you already created.",
+        "costBasisExcluded": "The «cost» column goes BEFORE tax: that is your business setting under My profile › Taxes.",
+        "costBasisIncluded": "The «cost» column goes WITH tax included: that is your business setting under My profile › Taxes.",
         "step2": "2. Edit it and upload it (Excel).",
         "downloadXlsx": "Excel template",
         "chooseFile": "Choose file",
@@ -22,6 +24,8 @@
       "import": {
         "title": "Import diagnostic studies",
         "step1": "1. Download the template: it brings the studies you already created.",
+        "costBasisExcluded": "The «cost» column goes BEFORE tax: that is your business setting under My profile › Taxes.",
+        "costBasisIncluded": "The «cost» column goes WITH tax included: that is your business setting under My profile › Taxes.",
         "step2": "2. Edit it and upload it (Excel).",
         "downloadXlsx": "Excel template",
         "chooseFile": "Choose file",
@@ -55,6 +59,10 @@
       "name": "Name",
       "description": "Description",
       "cost": "Cost",
+      "cost_excluded": "Cost (before tax)",
+      "cost_included": "Cost (tax included)",
+      "costHintExcluded": "What the study costs you, before tax. Never shown to the patient.",
+      "costHintIncluded": "What the study costs you, tax included. Never shown to the patient.",
       "price": "Price",
       "priceHint": "What you charge for this study.",
       "saveFailed": "We could not save the study."

@@ -25,6 +25,7 @@ import { REDIS_CLIENT } from "../../infrastructure/redis/redis.tokens";
 import type { AuthUser } from "../auth/types/auth-user";
 import { EntitlementsService } from "../billing/entitlements.service";
 import { SalesPlanGate } from "../billing/sales-plan.gate";
+import { netUnitCost } from "../cost/cost-tax";
 import { WeightedCostService } from "../cost/weighted-cost.service";
 import { expandComposition } from "../inventory/composition-expander";
 import { nextFolio, nextSequenceValue } from "../inventory/folio";
@@ -37,7 +38,7 @@ import type { CreateSaleDto, SaleLineDto } from "./dto/create-sale.dto";
 import type { CancelSaleDto, ListSalesQuery } from "./dto/list-sales.dto";
 import { buildSalesWhere } from "./sales-where";
 import { allowNegativeStock } from "./stock-policy";
-import { contextoFiscal, grupoCongelado, grupoDe } from "./tax-resolver";
+import { contextoFiscal, grupoCongelado, grupoDe, snapshotDeTasas } from "./tax-resolver";
 import { armarTotales, type GrupoResuelto, type LineaTotalizada } from "./totals";
 
 /** Lo que el catálogo dice que cuesta una línea. NUNCA lo que mandó el POST. */
@@ -391,13 +392,25 @@ export class SalesService {
                 // quantity — exacto, porque quantityBase nació de esa
                 // multiplicación). Sin ninguno: null, jamás 0.
                 const costoPromedio = line.productId ? costosBase.get(line.productId) : undefined;
+                // F9-COSTMODE-08: `sale_items.unit_cost` es NETO por construcción.
+                // El catálogo guarda el costo como se captura (la base del
+                // negocio, `cost_tax_mode`); si el negocio captura «con
+                // impuesto», se desimpuesta con el grupo del ítem ANTES de
+                // congelarlo — la utilidad resta el impuesto del precio y
+                // necesita el costo en la misma base. El promedio ponderado ya
+                // es neto (viene de `stock_movements`): no se toca.
                 const costoBase =
-                  precio.catalogCost ??
-                  (costoPromedio !== undefined
-                    ? costoPromedio
-                        .times(precio.quantityBase)
-                        .dividedBy(new Prisma.Decimal(line.quantity))
-                    : undefined);
+                  precio.catalogCost !== null
+                    ? netUnitCost(
+                        precio.catalogCost,
+                        snapshotDeTasas(grupoDe(fiscal, precio.taxGroupId)),
+                        fiscal.costMode,
+                      )
+                    : costoPromedio !== undefined
+                      ? costoPromedio
+                          .times(precio.quantityBase)
+                          .dividedBy(new Prisma.Decimal(line.quantity))
+                      : undefined;
                 return {
                   tenantId: user.tenantId,
                   lineNo: i + 1,

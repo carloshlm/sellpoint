@@ -817,6 +817,40 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
     });
 
     /**
+     * F9-COSTMODE-09 — el negocio captura el costo CON impuesto: el costo de
+     * lista del azúcar (40 con IVA adentro) se desimpuesta con el grupo del
+     * COMPONENTE antes de sumarse — el promedio ponderado ya es neto y las
+     * dos fuentes tienen que hablar la misma base. 40 / 1.16 = 34.48 → × 20.
+     */
+    it("capturando el costo CON impuesto, el estimado usa el neto del componente", async () => {
+      const { token, tenantId } = await registerAndLogin();
+      const { cafeId } = await setupCafe(token, tenantId);
+      await request(app.getHttpServer())
+        .put("/tenants/me/taxes")
+        .set("Authorization", bearer(token))
+        .send({
+          costMode: "included",
+          groups: [
+            {
+              code: "VAT16",
+              name: "IVA 16%",
+              isDefault: true,
+              isActive: true,
+              rates: [{ code: "IVA", name: "IVA 16%", rate: "16" }],
+            },
+          ],
+        })
+        .expect(200);
+
+      const estimate = await request(app.getHttpServer())
+        .get(`/products/${cafeId}/cost-estimate`)
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      expect(estimate.body).toMatchObject({ total: "689.60" });
+    });
+
+    /**
      * F5-COST-02 — el origen del número viaja POR COMPONENTE.
      *
      * Sin esto, «$800» es un número sin procedencia: quien lo lee no sabe si

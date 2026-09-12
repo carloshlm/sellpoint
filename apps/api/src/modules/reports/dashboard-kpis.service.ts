@@ -211,7 +211,9 @@ export class DashboardKpisService {
    * F4-TAX-20: la utilidad va sobre la BASE — el impuesto que viaja dentro
    * del `line_total` no es ingreso del negocio, se lo lleva el fisco. Los KPIs
    * de venta, la meta y la caja siguen en bruto (Carlos, 2026-09-06): son lo
-   * que entró a la caja.
+   * que entró a la caja. Y `unit_cost` es NETO por construcción (F9-COSTMODE-08):
+   * la venta desimpuesta el catálogo al congelar si el negocio captura «con
+   * impuesto», así que precio y costo se restan en la MISMA base.
    */
   private async utilidadDelMes(
     tenantId: string,

@@ -1600,6 +1600,8 @@ model SaleItem {
   /// Lo que el cajero tecleó, en la presentación elegida.
   quantity           Decimal  @db.Decimal(14, 4)
   unitPrice          Decimal  @map("unit_price") @db.Decimal(14, 2)
+  /// F9-COSTMODE-08: NETO por construcción — el catálogo se desimpuesta con el
+  /// grupo del ítem si el negocio captura «con impuesto»; el promedio ya es neto.
   /// F5-DASH-01: el costo promedio ponderado CONGELADO al cobrar, en la misma
   /// unidad que unitPrice (la presentación vendida) — así la utilidad es
   /// `(unitPrice − unitCost) × quantity` sin saber de factores. NULL cuando el

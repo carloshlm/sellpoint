@@ -502,6 +502,9 @@ function ProductForm({
   const [stockMin, setStockMin] = useState(product?.stockMin ?? "0");
   const [location, setLocation] = useState(product?.location ?? "");
   const usaUbicaciones = useAuthStore((state) => state.user?.tenant?.usesLocations === true);
+  // F9-COSTMODE-10: el costo se captura en la base del negocio; la etiqueta y
+  // la ayuda lo dicen (context de i18next: `cost_excluded` / `cost_included`).
+  const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
   const [isComposite, setIsComposite] = useState(product?.isComposite ?? false);
   const [tracksLots, setTracksLots] = useState(product?.tracksLots ?? false);
   const [price, setPrice] = useState(moneyInitialValue(basePresentation?.price));
@@ -668,8 +671,12 @@ function ProductForm({
       {/* Costo y precio editan la presentación base: el usuario los ve como
           "el costo y el precio del producto" y los carga acá mismo. */}
       <MoneyField
-        label={t("products.form.cost")}
-        hint={t("products.form.costHint")}
+        label={t("products.form.cost", { context: costTaxMode })}
+        hint={t(
+          costTaxMode === "included"
+            ? "products.form.costHintIncluded"
+            : "products.form.costHintExcluded",
+        )}
         error={costError}
         value={cost}
         disabled={!canManage}

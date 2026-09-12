@@ -454,6 +454,15 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 > (= NULL) y los grupos activos del negocio; guardar sin tocarlo manda `null`. La misma
 > columna `impuesto` (EN `tax`) viaja en las plantillas de Excel: vacío hereda el default,
 > un código lo fija, uno desconocido es error de fila.
+>
+> **La base del costo (F9-COSTMODE-10, 2026-09-11):** la etiqueta del costo en producto,
+> servicio y estudio dice en qué base captura el negocio — «Costo (sin impuesto)» o
+> «Costo (con impuesto incluido)», según el ajuste de Mi perfil › Impuestos— con una ayuda
+> que lo explica; el número viaja tal cual (el web no convierte). Los diálogos de
+> importación aclaran bajo el paso 1 en qué base va la columna «costo». La entrada manual
+> lo dice en el encabezado de «Costo unitario» y, confirmada, muestra «Costo sin impuesto»
+> cuando difiere. El estimado del compuesto y el valor del reporte de existencias llevan
+> la nota «sin impuesto».
 
 #### Tab "Presentaciones" — tabla inline simple
 

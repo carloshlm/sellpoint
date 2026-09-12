@@ -15,6 +15,7 @@ import {
   runImport,
 } from "@/lib/products/import-api";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth.store";
 
 /**
  * F2-IMPORT-04. Flujo de dos pasos obligatorio: se sube el archivo, se ve el
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
  */
 function ProductImportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
+  const costTaxMode = useAuthStore((state) => state.user?.tenant?.costTaxMode ?? "excluded");
   const queryClient = useQueryClient();
   const [content, setContent] = useState<string | null>(null);
   const [format, setFormat] = useState<ImportFormat>("csv");
@@ -92,6 +94,13 @@ function ProductImportDialog({ onClose }: { onClose: () => void }) {
 
         <div className="flex flex-col gap-2">
           <p className="text-sm">{t("products.import.step1")}</p>
+          <p className="text-muted-foreground text-xs">
+            {t(
+              costTaxMode === "included"
+                ? "products.import.costBasisIncluded"
+                : "products.import.costBasisExcluded",
+            )}
+          </p>
           <div className="flex gap-2">
             {/* Solo Excel (Carlos, 2026-09-01): dos formatos era una decisión
                 que nadie necesitaba tomar, y el CSV rompía acentos en Excel
