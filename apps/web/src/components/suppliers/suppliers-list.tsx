@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ImportDialog } from "@/components/common/import-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import type { Supplier } from "@/lib/suppliers/api";
 import { useRemoveSupplier, useSuppliers, useUpdateSupplier } from "@/lib/suppliers/hooks";
+import { downloadSupplierImportTemplate, runSupplierImport } from "@/lib/suppliers/import-api";
 
 const BOTON_PRIMARIO =
   "inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-ring";
@@ -51,6 +53,8 @@ export function SuppliersList() {
   // El 409 recuerda a QUIÉN no se pudo borrar, para ofrecer desactivarlo.
   const [enUso, setEnUso] = useState<Supplier | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Importar por Excel (Carlos, 2026-09-12): el mismo flujo de almacenes.
+  const [importing, setImporting] = useState(false);
   const removeSupplier = useRemoveSupplier();
   const updateSupplier = useUpdateSupplier();
 
@@ -61,11 +65,28 @@ export function SuppliersList() {
       <div className="flex items-center justify-between gap-2">
         <h1 className="font-semibold text-xl">{t("suppliers.list.title")}</h1>
         {canManage && (
-          <Link to="/suppliers/new" className={BOTON_PRIMARIO}>
-            {t("suppliers.list.new")}
-          </Link>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              {t("suppliers.import.button")}
+            </Button>
+            <Link to="/suppliers/new" className={BOTON_PRIMARIO}>
+              {t("suppliers.list.new")}
+            </Link>
+          </div>
         )}
       </div>
+
+      {importing && (
+        <ImportDialog
+          testIdPrefix="supplier-import"
+          i18nPrefix="suppliers.import"
+          note={t("suppliers.import.note")}
+          downloadTemplate={downloadSupplierImportTemplate}
+          run={runSupplierImport}
+          invalidate={[["suppliers"]]}
+          onClose={() => setImporting(false)}
+        />
+      )}
 
       {deleted !== null && (
         <SuccessNotice testId="supplier-deleted">

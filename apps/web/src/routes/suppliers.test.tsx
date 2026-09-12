@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import { createQueryClient } from "@/lib/query-client";
 import * as suppliersApi from "@/lib/suppliers/api";
+import * as importApi from "@/lib/suppliers/import-api";
 import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
@@ -16,6 +17,10 @@ import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
  * «Nuevo» solo con `suppliers:manage`, y el borrado con confirmación. Un 409
  * (el proveedor tiene compras o gastos) se pinta y OFRECE desactivarlo.
  */
+vi.mock("@/lib/suppliers/import-api", () => ({
+  downloadSupplierImportTemplate: vi.fn(),
+  runSupplierImport: vi.fn(),
+}));
 vi.mock("@/lib/suppliers/api", () => ({
   listSuppliers: vi.fn(),
   getSupplier: vi.fn(),
@@ -146,5 +151,62 @@ describe("Proveedores (F9-SUPPL-08)", () => {
     await waitFor(() =>
       expect(mocked.updateSupplier).toHaveBeenCalledWith("s1", { isActive: false }),
     );
+  });
+});
+
+/**
+ * Importar proveedores por Excel (Carlos, 2026-09-12): el mismo flujo de dos
+ * pasos de almacenes, con el diálogo común de la casa.
+ */
+describe("importar proveedores (2026-09-12)", () => {
+  it("dry-run con reporte y aplicar solo tras verlo; al final, el cuadro verde", async () => {
+    await renderSuppliers(["suppliers:read", "suppliers:manage"]);
+    const user = userEvent.setup();
+    const mockedRun = vi.mocked(importApi.runSupplierImport);
+    mockedRun.mockResolvedValue({
+      valid: 2,
+      failed: 0,
+      created: 1,
+      updated: 1,
+      errors: [],
+      applied: false,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Importar proveedores" }));
+    expect(screen.getByText(/El código es la llave/)).toBeInTheDocument();
+    await user.upload(
+      screen.getByLabelText("Elegir archivo"),
+      new File([new Uint8Array([0x50, 0x4b])], "proveedores.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+    );
+
+    // Primero el reporte SIN escribir: dry-run obligatorio.
+    await waitFor(() =>
+      expect(mockedRun).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true })),
+    );
+    expect(await screen.findByTestId("supplier-import-report")).toHaveTextContent("1 altas");
+
+    mockedRun.mockResolvedValue({
+      valid: 2,
+      failed: 0,
+      created: 1,
+      updated: 1,
+      errors: [],
+      applied: true,
+    });
+    await user.click(screen.getByRole("button", { name: "Importar" }));
+    await waitFor(() =>
+      expect(mockedRun).toHaveBeenLastCalledWith(expect.objectContaining({ skipErrors: false })),
+    );
+    const listo = await screen.findByTestId("supplier-import-done");
+    expect(listo).toHaveTextContent("2 proveedores");
+    expect(listo).toHaveFocus();
+  });
+
+  it("sin suppliers:manage no hay botón de importar", async () => {
+    await renderSuppliers(["suppliers:read"]);
+    await screen.findByTestId("supplier-s1");
+    expect(screen.queryByRole("button", { name: "Importar proveedores" })).not.toBeInTheDocument();
   });
 });

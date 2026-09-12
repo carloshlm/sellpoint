@@ -26,6 +26,20 @@
       "done": "Supplier \u201c{{name}}\u201d deleted."
     }
   },
+  "import": {
+    "button": "Import suppliers",
+    "title": "Import suppliers",
+    "step1": "1. Download the template: it brings your catalog fields and the suppliers you already created.",
+    "note": "The code is the key: a row with an existing code UPDATES that supplier; a row without a code creates a new one with the next PROV-…",
+    "step2": "2. Edit it and upload it (Excel).",
+    "downloadXlsx": "Excel template",
+    "chooseFile": "Choose file",
+    "noFile": "No file chosen",
+    "confirm": "Import",
+    "report": "{{valid}} valid rows ({{created}} new, {{updated}} updates) · {{failed}} with errors",
+    "skipErrors": "Import the valid ones and skip rows with errors",
+    "done": "{{count}} suppliers imported."
+  },
   "form": {
     "createTitle": "Register supplier",
     "editTitle": "Edit supplier",

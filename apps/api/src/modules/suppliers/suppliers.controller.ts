@@ -9,13 +9,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
+import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { type ImportSuppliersDto, importSuppliersSchema } from "./dto/import-suppliers.dto";
 import {
   type CreateSupplierDto,
   createSupplierSchema,
@@ -25,6 +28,7 @@ import {
   updateSupplierSchema,
 } from "./dto/upsert-supplier.dto";
 import { SuppliersService } from "./suppliers.service";
+import { SuppliersImportService } from "./suppliers-import.service";
 
 function metaFrom(request: Request) {
   return { ip: request.ip, userAgent: request.headers["user-agent"] };
@@ -40,7 +44,53 @@ function metaFrom(request: Request) {
 @ApiTags("suppliers")
 @Controller("suppliers")
 export class SuppliersController {
-  constructor(private readonly suppliers: SuppliersService) {}
+  constructor(
+    private readonly suppliers: SuppliersService,
+    private readonly importService: SuppliersImportService,
+  ) {}
+
+  /**
+   * Importar por Excel (Carlos, 2026-09-12) — mismo contrato que almacenes:
+   * la plantilla trae lo ya dado de alta y el match es por código.
+   * Va ANTES de las rutas con `:id`: `import/template` no es un identificador.
+   */
+  @Get("import/template")
+  @RequirePermissions("suppliers:manage")
+  async importTemplate(
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const { body, contentType, filename } = await this.importService.template(
+      user,
+      getLocale(request as Request & RequestWithLocale),
+    );
+    response
+      .setHeader("Content-Type", contentType)
+      .setHeader("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(body);
+  }
+
+  @Post("import")
+  @HttpCode(200)
+  @RequirePermissions("suppliers:manage")
+  import(
+    @Body(new ZodValidationPipe(importSuppliersSchema, "suppliers.invalid_body"))
+    dto: ImportSuppliersDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.importService.run(
+      user,
+      dto.content,
+      {
+        dryRun: dto.dryRun,
+        skipErrors: dto.skipErrors,
+        locale: getLocale(request as Request & RequestWithLocale),
+      },
+      metaFrom(request),
+    );
+  }
 
   @Get()
   @RequirePermissions("suppliers:read")

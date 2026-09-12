@@ -8,5 +8,11 @@
   "empty_update": "There are no changes to save.",
   "invalid_phone": "The phone must include the country code, for example +1 555 123 4567.",
   "invalid_tax_id": "The tax ID is not valid for your business's country.",
-  "in_use": "This supplier has purchases or expenses on record and cannot be deleted. You can deactivate it instead."
+  "in_use": "This supplier has purchases or expenses on record and cannot be deleted. You can deactivate it instead.",
+  "import_too_large": "The file exceeds the 2 MB limit",
+  "import_unreadable": "The file could not be read. Is it a valid Excel?",
+  "import_empty": "The file has no data rows",
+  "import_missing_required": "Name is missing",
+  "import_duplicate_code": "The code is repeated within the file",
+  "invalid_email": "That email doesn't look valid."
 }

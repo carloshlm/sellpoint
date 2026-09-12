@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { SuppliersController } from "./suppliers.controller";
 import { SuppliersService } from "./suppliers.service";
+import { SuppliersImportService } from "./suppliers-import.service";
 
 /**
  * F9-SUPPL — el catálogo de proveedores. Core, sin módulo que lo encienda:
@@ -10,7 +11,7 @@ import { SuppliersService } from "./suppliers.service";
 @Module({
   imports: [AuditModule],
   controllers: [SuppliersController],
-  providers: [SuppliersService],
+  providers: [SuppliersService, SuppliersImportService],
   exports: [SuppliersService],
 })
 export class SuppliersModule {}
