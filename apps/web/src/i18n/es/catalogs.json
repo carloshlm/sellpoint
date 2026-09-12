@@ -27,12 +27,15 @@
     "address": "Dirección",
     "phone": "Teléfono",
     "email": "Email",
-    "description": "Descripción"
+    "description": "Descripción",
+    "taxId": "Registro fiscal",
+    "contactName": "Persona de contacto"
   },
   "system": {
     "products": "Catálogo de Productos",
     "warehouses": "Catálogo de Almacenes",
-    "services": "Catálogo de Servicios"
+    "services": "Catálogo de Servicios",
+    "suppliers": "Catálogo de Proveedores"
   },
   "fields": {
     "add": "Agregar campo",

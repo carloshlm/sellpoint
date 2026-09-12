@@ -35,6 +35,7 @@ const SYSTEM_CATALOG_NAME_KEYS: Readonly<Record<string, string>> = {
   products: "catalogs.system.products",
   warehouses: "catalogs.system.warehouses",
   services: "catalogs.system.services",
+  suppliers: "catalogs.system.suppliers",
 };
 
 export function catalogDisplayName(

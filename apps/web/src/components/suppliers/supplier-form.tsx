@@ -10,6 +10,7 @@ import {
 } from "@sellpoint/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { PhonePartsField } from "@/components/form/phone-parts-field";
 import { TextField } from "@/components/form/text-field";
 import { DuplicateSupplierCard } from "@/components/suppliers/duplicate-supplier-card";
@@ -17,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
+import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
+import { fieldErrorsOf } from "@/lib/field-errors";
 import type { CreateSupplierInput, Supplier, UpdateSupplierInput } from "@/lib/suppliers/api";
 import { useCreateSupplier, useUpdateSupplier } from "@/lib/suppliers/hooks";
 import { composeSupplierPhone, supplierFormSchema } from "@/lib/suppliers/schemas";
@@ -76,6 +79,14 @@ export function SupplierForm({
   const [isActive, setIsActive] = useState(supplier?.isActive ?? true);
   const [errores, setErrores] = useState<Errores>({});
   const [errorApi, setErrorApi] = useState<string | null>(null);
+  // F9-SUPPCAT-06: los campos propios del catálogo `suppliers` (mismo motor que
+  // almacenes). Se resuelve por `systemKey`, nunca por `isSystem`.
+  const [attributes, setAttributes] = useState<Record<string, unknown>>(supplier?.attributes ?? {});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const { data: catalogs } = useCatalogs();
+  const suppliersCatalog = catalogs?.find((c) => c.systemKey === "suppliers");
+  const { data: dynamicFields } = useCatalogFields(suppliersCatalog?.id);
+  const hayCamposPropios = (dynamicFields ?? []).some((field) => !field.isArchived);
   // El registro fiscal que se COMPRUEBA contra otros (al salir del campo).
   const [fiscalComprobado, setFiscalComprobado] = useState<string | null>(supplier?.taxId ?? null);
 
@@ -99,6 +110,7 @@ export function SupplierForm({
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorApi(null);
+    setFieldErrors({});
     const parsed = schema.safeParse({
       code,
       name,
@@ -135,7 +147,15 @@ export function SupplierForm({
     }
 
     const valores = parsed.data;
-    const onError = (apiError: ApiError) => setErrorApi(apiError.message);
+    const onError = (apiError: ApiError) => {
+      // Un error POR CAMPO propio se pinta bajo su input, no como mensaje suelto.
+      const byField = fieldErrorsOf(apiError);
+      if (byField.size > 0) {
+        setFieldErrors(Object.fromEntries([...byField].map(([key, msg]) => [key, t(msg)])));
+        return;
+      }
+      setErrorApi(apiError.message);
+    };
 
     if (!supplier) {
       const input: CreateSupplierInput = {
@@ -147,6 +167,9 @@ export function SupplierForm({
         ...(valores.email ? { email: valores.email } : {}),
         ...(valores.address ? { address: valores.address } : {}),
         ...(valores.notes ? { notes: valores.notes } : {}),
+        // Con campos propios definidos viajan siempre: así el API exige los
+        // requeridos y el error llega bajo el input correcto.
+        ...(hayCamposPropios ? { attributes } : {}),
       };
       createSupplier.mutate(input, { onSuccess: onDone, onError });
       return;
@@ -168,6 +191,9 @@ export function SupplierForm({
     const notas = valores.notes || null;
     if (notas !== supplier.notes) cambios.notes = notas;
     if (isActive !== supplier.isActive) cambios.isActive = isActive;
+    if (JSON.stringify(attributes) !== JSON.stringify(supplier.attributes)) {
+      cambios.attributes = attributes;
+    }
 
     if (Object.keys(cambios).length === 0) {
       onDone();
@@ -249,6 +275,12 @@ export function SupplierForm({
         label={t("suppliers.form.notes")}
         value={notes}
         onChange={(event) => setNotes(event.target.value)}
+      />
+      <DynamicForm
+        fields={dynamicFields ?? []}
+        values={attributes}
+        errors={fieldErrors}
+        onChange={(key, value) => setAttributes((previous) => ({ ...previous, [key]: value }))}
       />
       {/* Solo al editar: un proveedor nuevo nace activo, no hay nada que decidir. */}
       {supplier && (

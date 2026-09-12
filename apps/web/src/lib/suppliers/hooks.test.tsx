@@ -32,6 +32,7 @@ describe("hooks de proveedores (F9-SUPPL-06)", () => {
       email: null,
       address: null,
       notes: null,
+      attributes: {},
       isActive: true,
       createdAt: "2026-09-10T18:00:00.000Z",
       updatedAt: "2026-09-10T18:00:00.000Z",

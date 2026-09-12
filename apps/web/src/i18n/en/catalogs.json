@@ -27,12 +27,15 @@
     "address": "Address",
     "phone": "Phone",
     "email": "Email",
-    "description": "Description"
+    "description": "Description",
+    "taxId": "Tax ID",
+    "contactName": "Contact person"
   },
   "system": {
     "products": "Product catalog",
     "warehouses": "Warehouse catalog",
-    "services": "Service catalog"
+    "services": "Service catalog",
+    "suppliers": "Supplier catalog"
   },
   "fields": {
     "add": "Add field",

@@ -202,6 +202,63 @@ describe("Proveedores (F9-SUPPL-05)", () => {
     expect(renombrado.body).toMatchObject({ code: "NORTE-01" });
   });
 
+  /**
+   * F9-SUPPCAT-05 (Carlos, 2026-09-12): proveedores es un catálogo de primera
+   * clase — nace con su catálogo de sistema y sus `attributes` se validan con
+   * el MISMO motor que almacenes, productos y servicios.
+   */
+  it("campos propios: el catálogo `suppliers` existe y sus attributes se validan", async () => {
+    const propio = await registerTenant(app, "suppl-campos");
+    const catalogos = (
+      await request(app.getHttpServer())
+        .get("/catalogs")
+        .set("Authorization", bearer(propio.token))
+        .expect(200)
+    ).body as { id: string; systemKey: string | null; isSystem: boolean }[];
+    const deProveedores = catalogos.find((c) => c.systemKey === "suppliers");
+    expect(deProveedores).toMatchObject({ isSystem: true });
+
+    await request(app.getHttpServer())
+      .post(`/catalogs/${deProveedores?.id}/fields`)
+      .set("Authorization", bearer(propio.token))
+      .send({ label: "Días de crédito", fieldType: "number", required: true })
+      .expect(201);
+
+    // Sin el campo requerido: rebota nombrando el campo.
+    const sinCampo = await crear(propio.token, { name: "Acme", attributes: {} }).expect(400);
+    expect(sinCampo.body).toMatchObject({
+      code: "suppliers.invalid_attributes",
+      errors: [{ key: "dias_de_credito", code: "catalogs.field_required" }],
+    });
+    // Con el tipo equivocado: rebota por tipo.
+    const malTipo = await crear(propio.token, {
+      name: "Acme",
+      attributes: { dias_de_credito: "30" },
+    }).expect(400);
+    expect(malTipo.body).toMatchObject({
+      errors: [{ key: "dias_de_credito", code: "catalogs.field_must_be_number" }],
+    });
+    // Bien: se guarda y vuelve.
+    const creado = await crear(propio.token, {
+      name: "Acme",
+      attributes: { dias_de_credito: 30 },
+    }).expect(201);
+    expect(creado.body).toMatchObject({ attributes: { dias_de_credito: 30 } });
+    const leido = await request(app.getHttpServer())
+      .get(`/suppliers/${(creado.body as { id: string }).id}`)
+      .set("Authorization", bearer(propio.token))
+      .expect(200);
+    expect(leido.body).toMatchObject({ attributes: { dias_de_credito: 30 } });
+    // Sin `attributes` en el alta no se exige nada: el JSONB queda vacío (como en almacenes).
+    await crear(propio.token, { name: "Sin atributos" }).expect(201);
+    // Editarlos también valida.
+    await request(app.getHttpServer())
+      .patch(`/suppliers/${(creado.body as { id: string }).id}`)
+      .set("Authorization", bearer(propio.token))
+      .send({ attributes: { dias_de_credito: "x" } })
+      .expect(400);
+  });
+
   it("sin módulos pactados el catálogo responde igual: es core, no lleva @RequiresModule", async () => {
     // `otro` no pactó nada y no tiene país: el trial trae Compras/Gastos, pero
     // aunque no los trajera el catálogo seguiría respondiendo 200.

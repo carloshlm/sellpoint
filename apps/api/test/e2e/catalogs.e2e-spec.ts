@@ -189,11 +189,12 @@ describe("Motor de catálogos (F2-CAT)", () => {
 
       const catalogs = await prisma.withTenantContext(tenantId, (tx) => tx.catalog.findMany());
 
-      // Desde 2026-08-26 el tenant nace con TRES catálogos del sistema:
-      // products, warehouses y services.
-      expect(catalogs).toHaveLength(3);
+      // Desde 2026-08-26 el tenant nace con tres catálogos del sistema y desde
+      // el 2026-09-12 (F9-SUPPCAT-05) con CUATRO: products, warehouses,
+      // services y suppliers.
+      expect(catalogs).toHaveLength(4);
       const claves = catalogs.map((c) => c.systemKey).sort();
-      expect(claves).toEqual(["products", "services", "warehouses"]);
+      expect(claves).toEqual(["products", "services", "suppliers", "warehouses"]);
       expect(catalogs.every((c) => c.isSystem)).toBe(true);
     });
 
@@ -211,8 +212,8 @@ describe("Motor de catálogos (F2-CAT)", () => {
         tx.catalog.findMany(),
       );
 
-      expect(firstCatalogs).toHaveLength(3);
-      expect(secondCatalogs).toHaveLength(3);
+      expect(firstCatalogs).toHaveLength(4);
+      expect(secondCatalogs).toHaveLength(4);
       const firstIds = new Set(firstCatalogs.map((c) => c.id));
       expect(secondCatalogs.some((c) => firstIds.has(c.id))).toBe(false);
     });
@@ -356,12 +357,12 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .expect(200);
 
       const catalogs = response.body as { isSystem: boolean; name: string }[];
-      // 3 del sistema + el subcatálogo recién creado.
-      expect(catalogs).toHaveLength(4);
+      // 4 del sistema (F9-SUPPCAT-05: proveedores) + el subcatálogo recién creado.
+      expect(catalogs).toHaveLength(5);
       // Aunque el subcatálogo gane por nombre, los del sistema van primero:
       // son los que el usuario viene a editar el 90% de las veces.
-      expect(catalogs.slice(0, 3).every((c) => c.isSystem)).toBe(true);
-      expect(catalogs[3]?.isSystem).toBe(false);
+      expect(catalogs.slice(0, 4).every((c) => c.isSystem)).toBe(true);
+      expect(catalogs[4]?.isSystem).toBe(false);
     });
 
     it("crea un subcatálogo y lo renombra", async () => {
@@ -439,7 +440,7 @@ describe("Motor de catálogos (F2-CAT)", () => {
         .get("/catalogs")
         .set("Authorization", bearer(second.token))
         .expect(200);
-      expect(listB.body).toHaveLength(3);
+      expect(listB.body).toHaveLength(4);
 
       // Y tocar el de A por id es 404, no 403: no se confirma que exista.
       await request(app.getHttpServer())

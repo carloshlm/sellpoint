@@ -12,6 +12,8 @@ export interface Supplier {
   email: string | null;
   address: string | null;
   notes: string | null;
+  /** F9-SUPPCAT-05: los campos propios del catálogo de proveedores. */
+  attributes: Record<string, unknown>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +29,7 @@ export interface CreateSupplierInput {
   email?: string;
   address?: string;
   notes?: string;
+  attributes?: Record<string, unknown>;
 }
 
 /** Presente = cambia; `null` = se limpia; ausente = no se toca. */
@@ -39,6 +42,7 @@ export interface UpdateSupplierInput {
   email?: string | null;
   address?: string | null;
   notes?: string | null;
+  attributes?: Record<string, unknown>;
   isActive?: boolean;
 }
 

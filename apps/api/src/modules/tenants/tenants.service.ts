@@ -16,6 +16,8 @@ import {
   resolveRolePermissionCodes,
   SERVICES_CATALOG_KEY,
   SERVICES_CATALOG_NAME,
+  SUPPLIERS_CATALOG_KEY,
+  SUPPLIERS_CATALOG_NAME,
   TENANT_ROLE_NAMES,
   WAREHOUSES_CATALOG_KEY,
   WAREHOUSES_CATALOG_NAME,
@@ -123,12 +125,14 @@ export class TenantsService {
       // El catálogo del sistema NO se renombra ni se archiva (F2-CAT-02): es
       // la referencia estable que ve todo el equipo y que nombran los docs y
       // el soporte. Los subcatálogos sí son libres.
-      // Los TRES catálogos del sistema (products F2-CAT; warehouses y services
-      // 2026-08-26): cada uno ancla los campos dinámicos de su entidad.
+      // Los CUATRO catálogos del sistema (products F2-CAT; warehouses y services
+      // 2026-08-26; suppliers F9-SUPPCAT-05): cada uno ancla los campos
+      // dinámicos de su entidad.
       for (const sistema of [
         { name: PRODUCTS_CATALOG_NAME, systemKey: PRODUCTS_CATALOG_KEY },
         { name: WAREHOUSES_CATALOG_NAME, systemKey: WAREHOUSES_CATALOG_KEY },
         { name: SERVICES_CATALOG_NAME, systemKey: SERVICES_CATALOG_KEY },
+        { name: SUPPLIERS_CATALOG_NAME, systemKey: SUPPLIERS_CATALOG_KEY },
       ]) {
         await tx.catalog.create({
           data: {

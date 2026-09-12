@@ -47,6 +47,9 @@ export const WAREHOUSES_CATALOG_KEY = "warehouses";
 export const WAREHOUSES_CATALOG_NAME = "Catálogo de Almacenes";
 export const SERVICES_CATALOG_KEY = "services";
 export const SERVICES_CATALOG_NAME = "Catálogo de Servicios";
+/** F9-SUPPCAT-05 (Carlos, 2026-09-12): proveedores es un catálogo de primera clase, con campos propios. */
+export const SUPPLIERS_CATALOG_KEY = "suppliers";
+export const SUPPLIERS_CATALOG_NAME = "Catálogo de Proveedores";
 
 /**
  * F3-HOME-03. El nombre del almacén con el que nace un tenant, por idioma del

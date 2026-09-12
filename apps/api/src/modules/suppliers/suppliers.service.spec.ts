@@ -27,6 +27,7 @@ const fila = (extra: Record<string, unknown> = {}) => ({
   email: null,
   address: null,
   notes: null,
+  attributes: {},
   isActive: true,
   createdBy: "u-1",
   updatedBy: "u-1",

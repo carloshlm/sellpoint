@@ -38,6 +38,7 @@ const proveedor = (over: Partial<suppliersApi.Supplier> = {}): suppliersApi.Supp
   email: "ventas@norte.mx",
   address: null,
   notes: null,
+  attributes: {},
   isActive: true,
   createdAt: "2026-09-10T18:00:00.000Z",
   updatedAt: "2026-09-10T18:00:00.000Z",

@@ -169,7 +169,8 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
 
     // products (F2-CAT) + warehouses y services (2026-08-26): cada uno es el
     // ancla de los campos dinámicos de su entidad.
-    expect(tx.catalog.create).toHaveBeenCalledTimes(3);
+    // F9-SUPPCAT-05: el cuarto es el de proveedores.
+    expect(tx.catalog.create).toHaveBeenCalledTimes(4);
     for (const systemKey of ["products", "warehouses", "services"]) {
       expect(tx.catalog.create).toHaveBeenCalledWith({
         data: expect.objectContaining({

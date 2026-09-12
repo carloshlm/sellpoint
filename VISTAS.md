@@ -1894,18 +1894,20 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 
 ## 13. Proveedores
 
-> F9-SUPPL (2026-09-10). El catálogo de proveedores es **core**: lo comparten Compras y Gastos, y el enlace del menú aparece una sola vez bajo el primero de los dos grupos que el negocio tenga (`useModuleNav` deduplica por ruta). Se lee con `suppliers:read`; alta, edición y baja con `suppliers:manage`. No hay candado de módulo: sin Compras ni Gastos no hay enlace, pero la ruta `/suppliers` responde.
+> **F9-SUPPCAT (2026-09-12):** Proveedores es un catálogo de primera clase. Vive en el grupo **Catálogos** del menú (Almacenes, Productos, Servicios, Proveedores; Campos y Subcatálogos van aparte en «Catálogos personalizados»), tiene **código** (`PROV-NNN` si el alta no lo trae; único, en MAYÚSCULAS, primero en la ficha y en la tabla, buscable, visible en el selector de compras/órdenes/gastos) y **campos propios** como Almacenes: el catálogo de sistema `suppliers` aparece en «Campos del catálogo» con sus siete estándar (código, nombre, registro fiscal, persona de contacto, teléfono, email, dirección) y lo que se defina ahí se pinta en la ficha con `DynamicForm` y viaja en `attributes`.
+>
+> F9-SUPPL (2026-09-10). El catálogo de proveedores es **core**: lo comparten Compras y Gastos. *(Hasta el 2026-09-12 el enlace del menú aparecía bajo el primero de los dos grupos que el negocio tuviera (`useModuleNav` deduplica por ruta). Se lee con `suppliers:read`; alta, edición y baja con `suppliers:manage`. No hay candado de módulo: sin Compras ni Gastos no hay enlace, pero la ruta `/suppliers` responde.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Proveedores                                              [ Nuevo ]  │
-│ Buscar proveedor [ Nombre, registro fiscal, contacto… ]             │
-│ ┌──────────────────┬──────────────┬────────────┬──────────┬───────┐ │
-│ │ Proveedor        │ Registro f.  │ Contacto   │ Teléfono │ Estado│ │
-│ ├──────────────────┼──────────────┼────────────┼──────────┼───────┤ │
-│ │ Abarrotes Centro │ —            │ Luis Gómez │ —        │Inactivo│ Editar · Eliminar
-│ │ Distribuidora N. │ DNO900101AB1 │ Rosa Luna  │ +52 55…  │ Activo│ Editar · Eliminar
-│ └──────────────────┴──────────────┴────────────┴──────────┴───────┘ │
+│ Buscar proveedor [ Código, nombre, registro fiscal, contacto… ]     │
+│ ┌──────────┬──────────────────┬──────────────┬────────────┬───────┐ │
+│ │ Código   │ Proveedor        │ Registro f.  │ Contacto   │ Estado│ │
+│ ├──────────┼──────────────────┼──────────────┼────────────┼───────┤ │
+│ │ PROV-002 │ Abarrotes Centro │ —            │ Luis Gómez │Inactivo│ Editar · Eliminar
+│ │ PROV-001 │ Distribuidora N. │ DNO900101AB1 │ Rosa Luna  │ Activo│ Editar · Eliminar
+│ └──────────┴──────────────────┴──────────────┴────────────┴───────┘ │
 │ ⚠ Este proveedor tiene compras o gastos registrados… [Desactivar]   │  ← el 409 al borrar
 └─────────────────────────────────────────────────────────────────────┘
 ```

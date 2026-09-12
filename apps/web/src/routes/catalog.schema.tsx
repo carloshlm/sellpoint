@@ -102,6 +102,16 @@ function CatalogSchemaContent() {
       t("catalogs.standard.cost"),
       t("catalogs.standard.price"),
     ],
+    // F9-SUPPCAT-06: el cuarto catálogo del sistema, con lo que ya trae la ficha.
+    suppliers: [
+      t("catalogs.standard.code"),
+      t("catalogs.standard.name"),
+      t("catalogs.standard.taxId"),
+      t("catalogs.standard.contactName"),
+      t("catalogs.standard.phone"),
+      t("catalogs.standard.email"),
+      t("catalogs.standard.address"),
+    ],
   };
   const standardLabels = (catalog?.systemKey != null
     ? standardLabelsBySystemKey[catalog.systemKey]

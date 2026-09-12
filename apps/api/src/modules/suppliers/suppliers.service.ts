@@ -10,6 +10,8 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { assertSystemCatalogAttributes } from "../catalogs/attribute-assertions";
+import { SUPPLIERS_CATALOG_KEY } from "../tenants/role-catalog";
 import type {
   CreateSupplierDto,
   ListSuppliersQuery,
@@ -28,6 +30,8 @@ export interface SupplierSummary {
   email: string | null;
   address: string | null;
   notes: string | null;
+  /** F9-SUPPCAT-05: los campos propios del catálogo de proveedores. */
+  attributes: Record<string, unknown>;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +47,7 @@ type SupplierRow = {
   email: string | null;
   address: string | null;
   notes: string | null;
+  attributes: unknown;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -123,6 +128,12 @@ export class SuppliersService {
     meta: RequestMeta,
   ): Promise<SupplierSummary> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
+      if (input.attributes !== undefined) {
+        await assertSystemCatalogAttributes(tx, user, SUPPLIERS_CATALOG_KEY, input.attributes, {
+          invalid: "suppliers.invalid_attributes",
+          catalogMissing: "suppliers.catalog_missing",
+        });
+      }
       const taxId = await this.registroFiscalValidado(tx, user.tenantId, input.taxId);
       // El código lo trae la persona o lo pone el sistema (`PROV-NNN`); si lo
       // trae, se comprueba ANTES del insert para que el 409 diga qué chocó.
@@ -141,6 +152,9 @@ export class SuppliersService {
           email: input.email ?? null,
           address: input.address ?? null,
           notes: input.notes ?? null,
+          ...(input.attributes !== undefined
+            ? { attributes: input.attributes as Prisma.InputJsonValue }
+            : {}),
           createdBy: user.userId,
           updatedBy: user.userId,
         },
@@ -170,6 +184,12 @@ export class SuppliersService {
       if (!actual) {
         throw new NotFoundException({ message: "suppliers.not_found" });
       }
+      if (input.attributes !== undefined) {
+        await assertSystemCatalogAttributes(tx, user, SUPPLIERS_CATALOG_KEY, input.attributes, {
+          invalid: "suppliers.invalid_attributes",
+          catalogMissing: "suppliers.catalog_missing",
+        });
+      }
       if (input.code !== undefined && input.code !== actual.code) {
         await this.assertCodeFree(tx, user.tenantId, input.code);
       }
@@ -184,6 +204,9 @@ export class SuppliersService {
         ...(input.email !== undefined ? { email: input.email } : {}),
         ...(input.address !== undefined ? { address: input.address } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.attributes !== undefined
+          ? { attributes: input.attributes as Prisma.InputJsonValue }
+          : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         updater: { connect: { id: user.userId } },
       };
@@ -310,6 +333,7 @@ function toSummary(row: SupplierRow): SupplierSummary {
     email: row.email,
     address: row.address,
     notes: row.notes,
+    attributes: (row.attributes ?? {}) as Record<string, unknown>,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

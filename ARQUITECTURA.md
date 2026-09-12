@@ -193,6 +193,12 @@ catalogs           id, tenant_id, name, system_key NULL, is_system, is_active, t
                    UNIQUE(tenant_id, name)
                    El Catálogo de Productos: system_key='products', is_system=true —
                    se crea en TenantsService.provision(), no se borra ni renombra.
+                   Desde el 2026-08-26 nacen también 'warehouses' y 'services', y desde
+                   el 2026-09-12 (F9-SUPPCAT) 'suppliers': CUATRO catálogos de sistema,
+                   uno por tabla de primera clase con JSONB propio
+                   (SYSTEM_ATTRIBUTE_TABLES en catalogs/system-catalogs.ts, lista
+                   cerrada porque se interpola en SQL crudo). Los tenants viejos los
+                   reciben por migración de backfill (WHERE NOT EXISTS).
 
 catalog_fields     id, tenant_id, catalog_id, key, label,
                    field_type ENUM('text','number','lookup'), lookup_catalog_id NULL,
@@ -204,6 +210,19 @@ catalog_records    id, tenant_id, catalog_id, code, attributes JSONB, is_active,
                    UNIQUE(catalog_id, code) · GIN(attributes)
                    ← SOLO filas de subcatálogos. Los productos NO viven acá.
 ```
+
+**LEY del código (F9-SUPPCAT, 2026-09-12):** todo código que escribe una persona
+(`products.sku`, `services.code`, `warehouses.code`, `suppliers.code`,
+`catalog_records.code`, el de los estudios) se guarda en **MAYÚSCULAS**. Sus índices
+únicos distinguen mayúsculas, así que `abc` y `ABC` serían dos registros y una
+planilla con `abc` duplicaría a `ABC`. La regla vive en `shared/code.ts#normalizeCode`
+(recorta, colapsa espacios y sube; NO translitera ni filtra —a diferencia del lote—
+porque el negocio elige su vocabulario), entra por el borde del API (`.transform`
+en cada DTO, barrera `catalogs/code-contract.spec.ts`) y se repite en cada input
+del web (barrera `components/form/code-input.test.tsx`). Los datos que existían
+subieron una vez por migración (`20260923100000_f9_suppcat_codes_uppercase`):
+una colisión deja el sufijo `-2` en la fila más nueva y un renglón en `audit_logs`.
+`expense_categories.code` queda fuera: es snake_case interno y ya no se muestra.
 
 #### Productos: tabla de primera clase que USA el motor
 

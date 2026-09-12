@@ -44,6 +44,14 @@ const PRODUCTS_CATALOG = {
   isActive: true,
 };
 
+const SUPPLIERS_CATALOG = {
+  id: "cat-suppliers",
+  name: "Catálogo de Proveedores",
+  systemKey: "suppliers",
+  isSystem: true,
+  isActive: true,
+};
+
 const UNITS_CATALOG = {
   id: "cat-units",
   name: "Unidad de Medida",
@@ -323,6 +331,29 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     const preview = await screen.findByTestId("schema-preview");
     expect(await within(preview).findByLabelText("Sustancia Activa (opcional)")).toBeDisabled();
     expect(within(preview).getByLabelText("Laboratorio *")).toBeDisabled();
+  });
+
+  /** F9-SUPPCAT-06: el catálogo de proveedores lista sus siete estándar, en el orden de la ficha. */
+  it("el catálogo de proveedores trae sus siete campos estándar", async () => {
+    mockedApi.listCatalogs.mockResolvedValue([PRODUCTS_CATALOG, SUPPLIERS_CATALOG]);
+    mockedApi.listFields.mockResolvedValue([]);
+    await renderSchema();
+    const user = userEvent.setup();
+    await user.selectOptions(await screen.findByLabelText("Catálogo"), "cat-suppliers");
+    const estandar = await screen.findByLabelText("Campos estándar");
+    expect(
+      within(estandar)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual([
+      "Código",
+      "Nombre",
+      "Registro fiscal",
+      "Persona de contacto",
+      "Teléfono",
+      "Email",
+      "Dirección",
+    ]);
   });
 
   it("el preview refleja los campos vigentes del catálogo elegido", async () => {

@@ -21,9 +21,14 @@ const correo = z.string().trim().max(254).pipe(z.email());
 const direccion = z.string().trim().max(500);
 const notas = z.string().trim().max(2000);
 
+// F9-SUPPCAT-05: los campos propios del catálogo `suppliers`; el service los
+// valida contra sus definiciones (`assertSystemCatalogAttributes`).
+const atributos = z.record(z.string(), z.unknown());
+
 export const createSupplierSchema = z.object({
   code: codigo.optional(),
   name: nombre,
+  attributes: atributos.optional(),
   taxId: registroFiscal.optional(),
   contactName: contacto.optional(),
   phone: telefono.optional(),
@@ -36,6 +41,7 @@ export const updateSupplierSchema = z
   .object({
     code: codigo.optional(),
     name: nombre.optional(),
+    attributes: atributos.optional(),
     taxId: registroFiscal.nullable().optional(),
     contactName: contacto.nullable().optional(),
     phone: telefono.nullable().optional(),

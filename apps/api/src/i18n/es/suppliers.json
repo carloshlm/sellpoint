@@ -1,4 +1,6 @@
 {
+  "invalid_attributes": "Revisa los campos marcados.",
+  "catalog_missing": "Este negocio no tiene catálogo de proveedores. Contacta a soporte.",
   "code_taken": "Ya tienes un proveedor con ese código.",
   "not_found": "El proveedor no existe.",
   "invalid_body": "Revisa los datos del formulario.",

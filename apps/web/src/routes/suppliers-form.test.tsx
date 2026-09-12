@@ -4,6 +4,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
+import * as catalogsApi from "@/lib/catalogs/api";
 import { createQueryClient } from "@/lib/query-client";
 import * as suppliersApi from "@/lib/suppliers/api";
 import { routeTree } from "@/routeTree.gen";
@@ -17,6 +18,20 @@ import { buildTenantBlock } from "@/test/tenant-fixture";
  * `sellpoint-forms`), la etiqueta del registro fiscal según el país del
  * negocio, y un registro repetido que AVISA sin bloquear.
  */
+// F9-SUPPCAT-06: la ficha lee los campos propios del catálogo `suppliers`.
+vi.mock("@/lib/catalogs/api", () => ({
+  listCatalogs: vi.fn().mockResolvedValue([
+    {
+      id: "cat-suppliers",
+      name: "Catálogo de Proveedores",
+      systemKey: "suppliers",
+      isSystem: true,
+      isActive: true,
+    },
+  ]),
+  listFields: vi.fn().mockResolvedValue([]),
+  listLookupOptions: vi.fn().mockResolvedValue([]),
+}));
 vi.mock("@/lib/suppliers/api", () => ({
   listSuppliers: vi.fn(),
   getSupplier: vi.fn(),
@@ -43,6 +58,7 @@ const guardado: suppliersApi.Supplier = {
   email: null,
   address: null,
   notes: null,
+  attributes: {},
   isActive: true,
   createdAt: "2026-09-10T18:00:00.000Z",
   updatedAt: "2026-09-10T18:00:00.000Z",
@@ -175,5 +191,51 @@ describe("alta y edición de proveedor (F9-SUPPL-07)", () => {
       }),
     );
     await waitFor(() => expect(router.state.location.pathname).toBe("/suppliers"));
+  });
+
+  /**
+   * F9-SUPPCAT-06 (Carlos, 2026-09-12): proveedores es personalizable como
+   * almacenes. Un campo propio del catálogo `suppliers` se pinta en la ficha,
+   * viaja en `attributes`, y un error POR CAMPO del API cae bajo su input.
+   */
+  it("pinta el campo propio del catálogo de proveedores, lo manda en attributes y pinta su error", async () => {
+    vi.mocked(catalogsApi.listFields).mockResolvedValue([
+      {
+        id: "f-credito",
+        catalogId: "cat-suppliers",
+        key: "dias_de_credito",
+        label: "Días de crédito",
+        fieldType: "number",
+        lookupCatalogId: null,
+        required: true,
+        position: 0,
+        isArchived: false,
+      },
+    ]);
+    mocked.createSupplier.mockRejectedValueOnce({
+      statusCode: 400,
+      message: "Revisa los campos marcados.",
+      error: "Bad Request",
+      errors: [{ key: "dias_de_credito", message: "catalogs.field_required" }],
+    });
+    await renderEn("/suppliers/new");
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText(/Nombre o razón social/), "Acme");
+    const credito = await screen.findByLabelText("Días de crédito *");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.createSupplier).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Acme", attributes: {} }),
+      ),
+    );
+    await waitFor(() => expect(credito).toBeInvalid());
+
+    await user.type(credito, "30");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.createSupplier).toHaveBeenLastCalledWith(
+        expect.objectContaining({ attributes: { dias_de_credito: 30 } }),
+      ),
+    );
   });
 });
