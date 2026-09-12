@@ -94,7 +94,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       .expect(200);
     return recepcion;
   };
-  const confirmar = (orden: Orden, recepcion: Recepcion) =>
+  const confirmar = (orden: Orden, recepcion: Pick<Recepcion, "id">) =>
     api(negocio.token).post(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/confirm`);
   const estadoDe = async (orden: Orden) =>
     (await api(negocio.token).get(`/purchase-orders/${orden.id}`).expect(200)).body as {
