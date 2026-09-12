@@ -1,6 +1,7 @@
 {
   "nav": {
-    "group": "Catálogo",
+    "group": "Catálogos",
+    "customGroup": "Catálogos personalizados",
     "products": "Productos",
     "lists": "Subcatálogos",
     "schema": "Campos"

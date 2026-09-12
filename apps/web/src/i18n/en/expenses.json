@@ -8,7 +8,6 @@
     "empty": "There are no categories yet.",
     "columns": {
       "name": "Category",
-      "code": "Code",
       "status": "Status"
     },
     "status": {

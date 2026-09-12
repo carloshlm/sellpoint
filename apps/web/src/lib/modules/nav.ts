@@ -48,13 +48,22 @@ export interface ModuleNavGroup {
  * tiene el módulo — sin candado, porque el candado abre el modal de planes y
  * el modal no vende módulos (se pactan uno a uno desde el backoffice).
  */
-/** F9-SUPPL-09 — el enlace compartido por Compras y Gastos (uno solo: se deduplica por `to`). */
-const SUPPLIERS_LINK: ModuleNavLink = {
+/**
+ * Proveedores es un CATÁLOGO (Carlos, 2026-09-12): vive en el grupo Catálogos
+ * del layout, junto a Almacenes, Productos y Servicios, y no dentro de Compras
+ * ni de Gastos. Sigue dependiendo de que el negocio tenga alguno de los dos
+ * módulos: sin compras ni gastos no hay a quién comprarle. Exportado para que
+ * el layout lo pinte con el mismo icono y la misma etiqueta de siempre.
+ */
+export const SUPPLIERS_LINK: ModuleNavLink = {
   to: "/suppliers",
   labelKey: "common.layout.nav.suppliers",
   permission: "suppliers:read",
   icon: Truck,
 };
+
+/** Los módulos que le dan sentido a Proveedores: con cualquiera de los dos, se ve. */
+export const SUPPLIERS_MODULES: readonly ModuleKey[] = ["purchases", "expenses"];
 
 export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
   reception: {
@@ -108,13 +117,9 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
       },
     ],
   },
-  // F9-PLANMOD-01 — Compras (desde Pro) y Gastos (desde Basic). Sus rutas
-  // propias llegan con F9-PURCH-10 y F9-EXP-14; mientras, el único enlace es
-  // Proveedores (F9-SUPPL-09), el catálogo CORE que los dos comparten: va en
-  // los dos grupos con la MISMA clave i18n y `useModuleNav` lo deduplica por
-  // ruta, así que se ve una vez, bajo el primer grupo que el negocio tenga.
-  // F9-PURCH-10 — Compras ya tiene sus rutas; Proveedores es el catálogo que
-  // comparte con Gastos (se deduplica por ruta).
+  // F9-PLANMOD-01 — Compras (desde Pro) y Gastos (desde Basic). Proveedores
+  // vivió acá (F9-SUPPL-09) hasta el 2026-09-12: ahora es un catálogo más del
+  // grupo Catálogos (`SUPPLIERS_LINK`).
   purchases: {
     labelKey: "common.layout.nav.modules.purchases.group",
     icon: ShoppingCart,
@@ -132,11 +137,9 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         icon: ClipboardList,
         when: (tenant) => tenant.usesPurchaseOrders,
       },
-      SUPPLIERS_LINK,
     ],
   },
-  // F9-EXP-14 — Gastos ya tiene sus rutas: el listado, las categorías y el
-  // catálogo compartido de proveedores.
+  // F9-EXP-14 — Gastos: el listado y las categorías.
   expenses: {
     labelKey: "common.layout.nav.modules.expenses.group",
     icon: Receipt,
@@ -153,7 +156,6 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         permission: "expenses:read",
         icon: Tags,
       },
-      SUPPLIERS_LINK,
     ],
   },
 };

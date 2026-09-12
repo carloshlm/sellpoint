@@ -73,10 +73,10 @@ describe("ExpenseCategoriesService (F9-EXP-03)", () => {
     service = new ExpenseCategoriesService(prisma as any, audit as any);
   });
 
-  it("lista por sort_order y nombre, busca por código y nombre, y filtra activas", async () => {
+  it("lista por nombre, busca por código y nombre, y filtra activas", async () => {
     await service.list(USER, { query: "ren", isActive: true, page: 1, pageSize: 50 });
     const args = tx.expenseCategory.findMany.mock.calls[0][0];
-    expect(args.orderBy).toEqual([{ sortOrder: "asc" }, { name: "asc" }, { id: "asc" }]);
+    expect(args.orderBy).toEqual([{ name: "asc" }, { id: "asc" }]);
     expect(args.where.isActive).toBe(true);
     expect(args.where.OR.map((c: Record<string, unknown>) => Object.keys(c)[0]).sort()).toEqual([
       "code",

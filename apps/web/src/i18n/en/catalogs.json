@@ -1,6 +1,7 @@
 {
   "nav": {
-    "group": "Catalog",
+    "group": "Catalogs",
+    "customGroup": "Custom catalogs",
     "products": "Products",
     "lists": "Sub-catalogs",
     "schema": "Fields"

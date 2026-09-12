@@ -31,6 +31,7 @@ import { OfflineBanner } from "@/components/layout/offline-banner";
 import { useLogout } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
+import { SUPPLIERS_LINK, SUPPLIERS_MODULES } from "@/lib/modules/nav";
 import { useModuleNav } from "@/lib/modules/use-module-nav";
 import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
@@ -93,7 +94,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // incluye. Lo que el plan no incluye se muestra CON CANDADO (no se
   // oculta): un SaaS que quiere upsell deja ver lo que te pierdes — el
   // click abre el modal de planes.
-  const { hasFeature } = usePlan();
+  const { hasFeature, hasModule } = usePlan();
   // F9-RECEP-18: el menú de los módulos llega RESUELTO (módulo, permiso y
   // configuración del negocio); el layout no sabe de ningún módulo.
   const modulos = useModuleNav();
@@ -142,14 +143,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const canSeeSchemaNav = has("catalogs:manage");
   const canSeeServicesNav = has("services:read");
   const canSeeWarehousesNav = has("warehouses:read");
-  // Almacenes vive DENTRO del grupo Catálogo (Carlos, 2026-09-01): es un
-  // catálogo más, con su código y su importación, y va primero.
+  // Almacenes vive DENTRO del grupo Catálogos (Carlos, 2026-09-01): es un
+  // catálogo más, con su código y su importación, y va primero. Proveedores
+  // también (Carlos, 2026-09-12): sale de Compras/Gastos y entra acá, cuarto,
+  // mientras el negocio tenga alguno de los dos módulos que le dan sentido.
+  const canSeeSuppliersNav =
+    has(SUPPLIERS_LINK.permission) && SUPPLIERS_MODULES.some((key) => hasModule(key));
   const canSeeCatalogNav =
-    canSeeWarehousesNav ||
-    canSeeProductsNav ||
-    canSeeServicesNav ||
-    canSeeListsNav ||
-    canSeeSchemaNav;
+    canSeeWarehousesNav || canSeeProductsNav || canSeeServicesNav || canSeeSuppliersNav;
+  // Campos y Subcatálogos son el MOTOR (lo que el negocio define), no un
+  // catálogo: van en su propio grupo, «Catálogos personalizados».
+  const canSeeCustomCatalogNav = canSeeListsNav || canSeeSchemaNav;
   // F3-NAV-02: los cinco listados de movimientos se ven con `inventory:read`.
   // El botón de CREAR, que exige `inventory:movement`, vive dentro de cada
   // pantalla: quien audita tiene que poder mirar sin poder mover.
@@ -295,6 +299,31 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                   <Wrench className="size-4 shrink-0" aria-hidden="true" />
                   {expanded && <span className="truncate">{t("services.nav.item")}</span>}
                 </Link>
+              )}
+              {canSeeSuppliersNav && (
+                <Link
+                  to={SUPPLIERS_LINK.to as LinkProps["to"]}
+                  aria-label={t(SUPPLIERS_LINK.labelKey)}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <SUPPLIERS_LINK.icon className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t(SUPPLIERS_LINK.labelKey)}</span>}
+                </Link>
+              )}
+            </fieldset>
+          )}
+          {canSeeCustomCatalogNav && (
+            <fieldset
+              aria-label={t("catalogs.nav.customGroup")}
+              className="m-0 flex flex-col gap-1 border-0 p-0"
+            >
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("catalogs.nav.customGroup")}
+                </span>
               )}
               {canSeeSchemaNav &&
                 !hasFeature("custom_fields") &&

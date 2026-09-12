@@ -135,7 +135,6 @@ function CategoriesContent() {
           <TableHeader>
             <TableRow>
               <TableHead className="px-2">{t("expenses.categories.columns.name")}</TableHead>
-              <TableHead className="px-2">{t("expenses.categories.columns.code")}</TableHead>
               <TableHead className="px-2">{t("expenses.categories.columns.status")}</TableHead>
               {canManage && <TableHead className="px-2" />}
             </TableRow>
@@ -143,10 +142,11 @@ function CategoriesContent() {
           <TableBody>
             {rows.map((category) => (
               <TableRow key={category.id} data-testid={`expense-category-${category.id}`}>
+                {/* El código sigue existiendo (es la identidad estable de la
+                    categoría y por él se busca), pero no se muestra: para quien
+                    captura gastos «rent» no dice nada que «Renta» no diga ya
+                    (Carlos, 2026-09-12). */}
                 <TableCell className="px-2 font-medium">{category.name}</TableCell>
-                <TableCell className="px-2 font-mono text-muted-foreground">
-                  {category.code}
-                </TableCell>
                 <TableCell className="px-2">
                   <Badge variant={category.isActive ? "success" : "default"}>
                     {t(

@@ -459,8 +459,8 @@ describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
   });
 });
 
-describe("el menú CATÁLOGO (Carlos, 2026-09-01)", () => {
-  it("ordena Almacenes, Productos, Servicios, Campos y Subcatálogos", async () => {
+describe("el menú CATÁLOGOS (Carlos, 2026-09-01 y 2026-09-12)", () => {
+  it("Catálogos ordena Almacenes, Productos y Servicios; Campos y Subcatálogos van en Catálogos personalizados", async () => {
     mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
     mockedCatalogs.listFields.mockResolvedValue([]);
     mockedApi.listWarehouses.mockResolvedValue([almacen({})]);
@@ -472,11 +472,18 @@ describe("el menú CATÁLOGO (Carlos, 2026-09-01)", () => {
       "catalogs:manage",
     ]);
 
-    const grupo = await screen.findByRole("group", { name: "Catálogo" });
+    const grupo = await screen.findByRole("group", { name: "Catálogos" });
     const enlaces = within(grupo)
       .getAllByRole("link")
       .map((enlace) => enlace.textContent);
-    expect(enlaces).toEqual(["Almacenes", "Productos", "Servicios", "Campos", "Subcatálogos"]);
+    // Sin `suppliers:read` (y sin Compras ni Gastos) Proveedores no aparece.
+    expect(enlaces).toEqual(["Almacenes", "Productos", "Servicios"]);
+    const motor = screen.getByRole("group", { name: "Catálogos personalizados" });
+    expect(
+      within(motor)
+        .getAllByRole("link")
+        .map((enlace) => enlace.textContent),
+    ).toEqual(["Campos", "Subcatálogos"]);
   });
 });
 

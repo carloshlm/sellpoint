@@ -71,7 +71,9 @@ export class ExpenseCategoriesService {
         tx.expenseCategory.count({ where }),
         tx.expenseCategory.findMany({
           where,
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { id: "asc" }],
+          // Alfabético por nombre (Carlos, 2026-09-12): con 18 sembradas más
+          // las propias, el orden de siembra ya no ayuda a encontrar nada.
+          orderBy: [{ name: "asc" }, { id: "asc" }],
           skip: (page - 1) * pageSize,
           take: pageSize,
         }),

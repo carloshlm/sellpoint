@@ -659,14 +659,14 @@ describe("el menú tiene su grupo Backoffice", () => {
    * negocios, no a vender. El grupo va ANTES de «Catálogo» y «Negocios» es
    * su primer enlace; «Cobros» va debajo.
    */
-  it("va antes de «Catálogo», con «Negocios» arriba y «Cobros» abajo", async () => {
+  it("va antes de «Catálogos», con «Negocios» arriba y «Cobros» abajo", async () => {
     await renderAdmin(true, ["tenants:manage", "products:read"]);
 
     const backoffice = await screen.findByRole("group", { name: "Backoffice" });
-    const catalogo = screen.getByRole("group", { name: "Catálogo" });
+    const catalogo = screen.getByRole("group", { name: "Catálogos" });
     expect(
       backoffice.compareDocumentPosition(catalogo) & Node.DOCUMENT_POSITION_FOLLOWING,
-      "el grupo Backoffice debe ir antes que Catálogo",
+      "el grupo Backoffice debe ir antes que Catálogos",
     ).toBeTruthy();
     expect(
       within(backoffice)
