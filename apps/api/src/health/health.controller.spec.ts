@@ -29,6 +29,8 @@ describe("HealthController", () => {
 
     await expect(controller.getHealth()).resolves.toEqual({
       status: "ok",
+      version: "0.0.0",
+      build: "local",
       db: "ok",
       redis: "ok",
     });
@@ -43,6 +45,8 @@ describe("HealthController", () => {
     expect(error).toBeInstanceOf(ServiceUnavailableException);
     expect((error as ServiceUnavailableException).getResponse()).toEqual({
       status: "error",
+      version: "0.0.0",
+      build: "local",
       db: "error",
       redis: "ok",
     });
@@ -57,6 +61,8 @@ describe("HealthController", () => {
     expect(error).toBeInstanceOf(ServiceUnavailableException);
     expect((error as ServiceUnavailableException).getResponse()).toEqual({
       status: "error",
+      version: "0.0.0",
+      build: "local",
       db: "ok",
       redis: "error",
     });

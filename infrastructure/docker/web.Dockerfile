@@ -22,6 +22,10 @@ ENV VITE_API_URL=$VITE_API_URL
 # DSN de Sentry (publico por diseno: vive en el JS del cliente); vacio = apagado. F6-WATCH-02.
 ARG VITE_SENTRY_DSN=
 ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+# F6-RELEASE-04: versión y build bakeados en el bundle (pie del menú, Sentry release).
+ARG VITE_APP_VERSION=0.0.0
+ARG VITE_APP_BUILD=local
+ENV VITE_APP_VERSION=${VITE_APP_VERSION} VITE_APP_BUILD=${VITE_APP_BUILD}
 
 RUN pnpm --filter web build
 

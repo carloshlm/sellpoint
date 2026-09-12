@@ -35,6 +35,9 @@ import { useModuleNav } from "@/lib/modules/use-module-nav";
 import { useAuthStore } from "@/stores/auth.store";
 import { useBillingStore } from "@/stores/billing.store";
 
+// F6-RELEASE-04: versión y build bakeados por el Dockerfile del web; en local, 0.0.0/local.
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "0.0.0";
+const APP_BUILD = import.meta.env.VITE_APP_BUILD ?? "local";
 /**
  * F1-WEB-AUTH-09: shell autenticado — sidebar colapsable + header con menú de
  * usuario. Reemplaza al nav placeholder de F0. SOLO tokens de marca
@@ -520,6 +523,18 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               <CreditCard className="size-4 shrink-0" aria-hidden="true" />
               {expanded && <span className="truncate">{t("common.billing.me.title")}</span>}
             </Link>
+          )}
+
+          {/* F6-RELEASE-04: qué versión corre (package.json raíz, bakeada en el
+              build); el sha corto va en el title para quien reporta un bug. */}
+          {expanded && (
+            <p
+              data-testid="app-version"
+              className="px-3 py-2 text-muted-foreground text-xs"
+              title={t("common.layout.build", { build: APP_BUILD })}
+            >
+              v{APP_VERSION}
+            </p>
           )}
         </nav>
       </aside>

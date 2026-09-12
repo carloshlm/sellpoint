@@ -24,6 +24,24 @@ pnpm dev       # levanta las apps en modo desarrollo (vía Turborepo)
 | `pnpm format` | Formatea el repo con Biome |
 | `pnpm lint:packages` | Pipeline `lint` de turbo (lints propios de cada paquete) |
 
+## Releases (F6-RELEASE)
+
+El deploy es continuo: cada push a `main` pasa checks → imágenes → sandbox → producción, y el
+server arranca por el **sha** (`IMAGE_TAG`: inmutable, es la llave del rollback). La **versión** es
+un alias legible que cortas tú cuando hay algo que contar (`feat` sube minor, `fix` sube patch,
+`BREAKING CHANGE` sube major — sale de los commits):
+
+```bash
+pnpm release:dry                 # ¿qué versión propone y qué entra al CHANGELOG? (no toca nada)
+pnpm release                     # bumpea package.json, escribe CHANGELOG.md, commit chore(release) y tag vX.Y.Z
+git push --follow-tags origin main   # SIN --follow-tags no viaja el tag y el pipeline no publica el release
+```
+
+La primera vez: `pnpm release:first` (fija 1.0.0). El pipeline, con producción verde, ve el tag en
+HEAD, etiqueta las tres imágenes con `:X.Y.Z` (alias del mismo digest que `:sha`) y crea la GitHub
+Release con la sección del CHANGELOG. Qué versión corre: `GET /api/health` (`version` y `build`), el
+pie del menú lateral, o la Release.
+
 ## Estructura
 
 ```

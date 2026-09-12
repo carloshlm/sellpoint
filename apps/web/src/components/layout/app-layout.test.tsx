@@ -121,6 +121,16 @@ afterEach(() => {
   useAuthStore.getState().clearAuth();
 });
 
+/** F6-RELEASE-04 — el pie del menú dice qué versión corre; el build va en el title. */
+describe("la versión al pie del menú (F6-RELEASE-04)", () => {
+  it("expandido muestra v<versión> del build (0.0.0 en local) con la compilación en el title", async () => {
+    const sidebar = await renderLayout();
+    const version = within(sidebar).getByTestId("app-version");
+    expect(version).toHaveTextContent("v0.0.0");
+    expect(version).toHaveAttribute("title", "Compilación local");
+  });
+});
+
 describe("el logotipo del sidebar", () => {
   it("expandido: la palabra «SellPointy» y el logotipo a la derecha del recuadro", async () => {
     const sidebar = await renderLayout();

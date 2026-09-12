@@ -33,7 +33,7 @@ describe("AppModule (e2e smoke)", () => {
     return request(app.getHttpServer())
       .get("/health")
       .expect(200)
-      .expect({ status: "ok", db: "ok", redis: "ok" });
+      .expect({ status: "ok", db: "ok", redis: "ok", version: "0.0.0", build: "local" });
   });
 
   it("GET /hello (ruta @Public()) responde sin necesitar JWT", () => {

@@ -99,6 +99,8 @@ describe.runIf(probe)("api /health (integración)", () => {
   it("el frontend puede consumir /health", async () => {
     const { data } = await api.get("/health", { adapter: ["xhr", "http"] });
 
-    expect(data).toEqual({ status: "ok", db: "ok", redis: "ok" });
+    // F6-RELEASE-04: además del estado, la versión y el build que corren.
+    expect(data).toMatchObject({ status: "ok", db: "ok", redis: "ok" });
+    expect(data).toMatchObject({ version: expect.any(String), build: expect.any(String) });
   });
 });

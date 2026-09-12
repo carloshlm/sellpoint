@@ -27,6 +27,11 @@ RUN pnpm --filter api deploy --prod --legacy /prod/api
 # --- Etapa de runtime: imagen mínima solo con dist + deps de producción ---
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
+# F6-RELEASE-04: la versión (package.json raíz) y el build (sha corto) que
+# corren, para /health y Sentry. Default local: 0.0.0 / local.
+ARG APP_VERSION=0.0.0
+ARG APP_BUILD=local
+ENV APP_VERSION=${APP_VERSION} APP_BUILD=${APP_BUILD}
 
 # El runtime solo ejecuta `node dist/main`: npm, npx y corepack sobran, y el
 # node-tar embebido del npm de la imagen base fue el único CRITICAL del primer
@@ -51,6 +56,9 @@ CMD ["node", "dist/main"]
 # Versión pineada = la misma que apps/api/package.json (mantener en sync).
 FROM base AS migrate
 WORKDIR /app
+ARG APP_VERSION=0.0.0
+ARG APP_BUILD=local
+ENV APP_VERSION=${APP_VERSION} APP_BUILD=${APP_BUILD}
 
 RUN npm install --no-save --no-audit --no-fund prisma@7.9.0 dotenv@17.4.2
 

@@ -15,7 +15,12 @@ async function bootstrap() {
   // tracing/profiling apagados — la LEY de la Fase 6 no paga observabilidad
   // de lujo con 2-3 clientes.
   if (process.env.SENTRY_DSN) {
-    Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0 });
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      tracesSampleRate: 0,
+      // F6-RELEASE-04: los errores se agrupan por versión desplegada.
+      release: `sellpoint@${process.env.APP_VERSION ?? "0.0.0"}`,
+    });
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });

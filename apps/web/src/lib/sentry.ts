@@ -32,6 +32,8 @@ export function installSentry(): void {
       dsn,
       // Solo captura de errores: nada de transacciones.
       tracesSampleRate: 0,
+      // F6-RELEASE-04: los errores se agrupan por versión desplegada.
+      release: `sellpoint@${import.meta.env.VITE_APP_VERSION ?? "0.0.0"}`,
     });
   });
 }

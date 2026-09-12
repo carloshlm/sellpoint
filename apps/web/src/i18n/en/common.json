@@ -45,6 +45,7 @@
     "label": "Language"
   },
   "layout": {
+    "build": "Build {{build}}",
     "nav": {
       "dashboard": "Dashboard",
       "profile": "My profile",

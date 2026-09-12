@@ -10,6 +10,10 @@ export interface HealthReport {
   status: CheckResult;
   db: CheckResult;
   redis: CheckResult;
+  /** F6-RELEASE-04: la versión del package.json raíz bakeada en la imagen (`0.0.0` en local). */
+  version: string;
+  /** El sha corto del build (`local` fuera del pipeline). */
+  build: string;
 }
 
 @Controller("health")
@@ -31,6 +35,8 @@ export class HealthController {
       status: db === "ok" && redis === "ok" ? "ok" : "error",
       db,
       redis,
+      version: process.env.APP_VERSION ?? "0.0.0",
+      build: process.env.APP_BUILD ?? "local",
     };
 
     if (report.status !== "ok") {
