@@ -2,6 +2,11 @@
 
 Lo que cambió en cada versión de SellPointy, escrito desde los commits (`feat` → Novedades, `fix` → Correcciones, `perf` → Rendimiento). Se corta con `pnpm release` (F6-RELEASE-03). La historia anterior a 1.0.0 vive en los tags de fase (`v0.2.0-fase1` … `v0.6.0-fase5`) y en IMPLEMENTACION.md.
 
+## [1.0.2](https://github.com/carloshlm/sellpoint/compare/v1.0.1...v1.0.2) (2026-09-12)
+
+### Correcciones
+
+* **purchases:** agregar un producto sin historial con el proveedor ya no tumba la ficha ([c62b8af](https://github.com/carloshlm/sellpoint/commit/c62b8af014ed7ff6b5ceda8ef5c0179eb9b0af48))
 ## [1.0.1](https://github.com/carloshlm/sellpoint/compare/v1.0.0...v1.0.1) (2026-09-12)
 
 ### Correcciones
