@@ -39,6 +39,13 @@ jobs:
 
   # `latest` se etiqueta aquí, ANTES del gate del sandbox: es informativo —
   # ningún deploy lo usa, los dos stacks arrancan por el tag del sha.
+  #
+  # F6-RELEASE-01 — `provenance: false` y `sbom: false` en los tres builds:
+  # por defecto buildx empuja, además de la imagen, un índice y una
+  # atestación de provenance → TRES versiones por paquete y por deploy en
+  # GHCR (así llegó `sellpoint-api` a 1,446 versiones con una retención que
+  # borraba 100 por corrida). Nadie verifica esas atestaciones aquí; una
+  # imagen por deploy es lo que la retención de `ghcr-retention.yml` cuenta.
   build-push:
     name: build y push imagenes a GHCR
     needs: checks
@@ -67,6 +74,8 @@ jobs:
           file: infrastructure/docker/api.Dockerfile
           target: runtime
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ghcr.io/carloshlm/sellpoint-api:latest
             ghcr.io/carloshlm/sellpoint-api:${{ github.sha }}
@@ -80,6 +89,8 @@ jobs:
           file: infrastructure/docker/api.Dockerfile
           target: migrate
           push: true
+          provenance: false
+          sbom: false
           tags: |
             ghcr.io/carloshlm/sellpoint-migrate:latest
             ghcr.io/carloshlm/sellpoint-migrate:${{ github.sha }}
@@ -92,6 +103,8 @@ jobs:
           context: .
           file: infrastructure/docker/web.Dockerfile
           push: true
+          provenance: false
+          sbom: false
           # URL relativa: web y api quedan detrás del mismo origen nginx-edge
           # (D8 del proposal). El default local del ARG en el Dockerfile no
           # se toca — este override es SOLO de este workflow.

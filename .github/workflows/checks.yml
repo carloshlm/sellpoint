@@ -86,6 +86,12 @@ jobs:
       - name: lint (biome)
         run: pnpm lint
 
+      # F6-RELEASE-02: el script de retención de GHCR se prueba con un `gh`
+      # falso (fixture con fechas e ids que no ordenan igual): sin esto, un
+      # cleanup que deja de borrar vuelve a pasar en verde sin que nadie lo vea.
+      - name: test del script de retención de GHCR
+        run: bash infrastructure/scripts/ghcr-retention.test.sh
+
       # F6-TYPECHECK-TESTS. `pnpm build` NO chequea los tests: `tsconfig.build`
       # los excluye y los runners transpilan sin tipos (vitest usa esbuild,
       # ts-jest usa isolatedModules). Sin este paso, un mock puede quedarse con

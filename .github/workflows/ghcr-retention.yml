@@ -1,36 +1,49 @@
-# F6-SUPPLY-01 — Retención de imágenes en GHCR (verify W4: hoy crecen sin
-# techo). Hermano del F6-DISK-RETENTION ya cerrado: aquel limpia el disco del
-# VPS (24 h), este limpia el REGISTRY.
+# F6-RELEASE-02 — Retención de imágenes en GHCR que se MIDE.
 #
-# 30 versiones por paquete ≈ los últimos ~10 deploys (cada uno empuja
-# api+web+migrate con :sha y :latest). El rollback del server solo mira 24 h
-# atrás, así que 30 versiones en el registry son colchón de sobra — lo demás
-# es almacenamiento pagando renta a nadie.
+# La versión anterior (F6-SUPPLY-01, 2026-08-27, `actions/delete-package-
+# versions` con «30 versiones») corrió en verde cada domingo y nunca retuvo:
+# la acción borra como máximo 100 versiones por corrida («Total versions
+# deleted till now: 100» en cada log) mientras cada deploy dejaba TRES
+# versiones por paquete (índice + manifiesto + atestación de buildx). Así
+# `sellpoint-api` llegó a 1,446 versiones. Un cleanup sin una métrica que lo
+# verifique es una línea decorativa.
 #
-# Corre semanal (domingo 08:00 UTC, antes del backup de las 09:15 que no
-# tiene nada que ver pero así todo lo programado queda en la misma mañana)
-# y a demanda por workflow_dispatch. Cero recursos del server: vive en
-# GitHub (LEY de la Fase 6).
+# Ahora: un script propio, paginado (`gh api --paginate`), que conserva las
+# 20 versiones ETIQUETADAS más nuevas por paquete (Carlos, 2026-09-11), nunca
+# borra una de menos de 48 h, borra todo lo sin etiqueta, imprime cuántas
+# borró y cuántas quedan, y falla si un borrado falló. Corre DIARIO (08:00
+# UTC) para que nunca se acumule un backlog, y a demanda con `dry_run`. Cero
+# recursos del server: vive en GitHub (LEY de la Fase 6). El primer deploy
+# tras F6-RELEASE-01 (`provenance: false`) deja UNA versión por paquete.
 name: GHCR Retention
 
 on:
   schedule:
-    - cron: "0 8 * * 0"
+    - cron: "0 8 * * *"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Solo imprimir el plan, sin borrar"
+        type: boolean
+        default: false
 
 jobs:
   limpiar:
-    name: conservar las ultimas 30 versiones por paquete
+    name: conservar las ultimas 20 versiones etiquetadas por paquete
     runs-on: ubuntu-latest
     permissions:
       packages: write
-    strategy:
-      matrix:
-        paquete: [sellpoint-api, sellpoint-web, sellpoint-migrate]
     steps:
-      - name: borrar versiones viejas de ${{ matrix.paquete }}
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ matrix.paquete }}
-          package-type: container
-          min-versions-to-keep: 30
+      - name: checkout
+        uses: actions/checkout@v4
+
+      # `gh` viene en el runner; `GH_TOKEN` es lo que lee para autenticarse.
+      # `GITHUB_TOKEN` con `packages: write` ya borraba versiones en la
+      # versión anterior: mismo permiso, ahora sin el tope de 100.
+      - name: borrar lo que sobra y medir
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
+          KEEP_TAGGED: "20"
+          MIN_AGE_HOURS: "48"
+        run: bash infrastructure/scripts/ghcr-retention.sh
