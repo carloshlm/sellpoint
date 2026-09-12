@@ -390,8 +390,10 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
     await user.type(screen.getByLabelText("Código"), "SUC-02");
     await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
-    await user.type(await screen.findByLabelText("Encargado"), "Rosa");
-    expect(screen.getByLabelText("Encargado")).toHaveValue("Rosa");
+    // Un campo opcional lo DICE: la ausencia de asterisco era una
+    // adivinanza (Carlos, 2026-09-12).
+    await user.type(await screen.findByLabelText("Encargado (opcional)"), "Rosa");
+    expect(screen.getByLabelText("Encargado (opcional)")).toHaveValue("Rosa");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {

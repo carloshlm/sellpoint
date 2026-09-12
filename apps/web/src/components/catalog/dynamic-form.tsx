@@ -58,7 +58,13 @@ interface DynamicFieldProps {
 
 function DynamicField({ field, value, error, disabled, onChange }: DynamicFieldProps) {
   const { t } = useTranslation();
-  const label = field.required ? `${field.label} *` : field.label;
+  // Un campo sin marca es ambiguo: ¿es opcional, o alguien olvidó el asterisco?
+  // Cada campo dice de qué lado está (Carlos, 2026-09-12). El asterisco se
+  // queda porque es la convención que ya leía todo el mundo; lo que faltaba
+  // era el otro lado.
+  const label = field.required
+    ? `${field.label} *`
+    : t("catalogs.fields.optionalLabel", { label: field.label });
 
   if (field.fieldType === "lookup") {
     return (

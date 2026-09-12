@@ -93,8 +93,23 @@ function FieldList({
                 className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-md border border-border px-3 py-2"
               >
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                    <span className="truncate">{field.label}</span>
+                  {/* La CAJA baja de línea, el nombre no se parte: con
+                      `truncate` la tarjeta angosta dejaba «Sustan…», y
+                      dejando encoger el nombre quedaba «Sustanci/a Activa».
+                      Con `flex-wrap` y sin `min-w-0` en el nombre, su ancho
+                      mínimo es su palabra más larga, así que lo que se mueve
+                      es la caja (verificado en el navegador, 2026-09-12). */}
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+                    <span className="break-words">{field.label}</span>
+                    {/* Obligatorio u opcional, SIEMPRE: leer la ausencia de
+                        una marca es adivinar (Carlos, 2026-09-12). */}
+                    <Badge variant="default" data-testid={`field-${field.key}-requirement`}>
+                      {t(
+                        field.required
+                          ? "catalogs.fields.requiredBadge"
+                          : "catalogs.fields.optionalBadge",
+                      )}
+                    </Badge>
                     {field.isArchived && (
                       <Badge variant="warning" data-testid={`field-${field.key}-archived`}>
                         {t("catalogs.fields.archivedBadge")}
@@ -104,7 +119,6 @@ function FieldList({
                   <span className="truncate text-xs text-muted-foreground">
                     {t(`catalogs.fields.types.${field.fieldType}`)}
                     {field.fieldType === "lookup" && ` → ${catalogName(field.lookupCatalogId)}`}
-                    {field.required && ` · ${t("catalogs.fields.requiredBadge")}`}
                   </span>
                 </div>
 

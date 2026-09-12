@@ -57,7 +57,9 @@
       "bodyEmpty": "You are about to delete the \"{{label}}\" field. It has no data yet, so it will be removed entirely. This can not be undone.",
       "confirmEmpty": "Delete field"
     },
-    "requiredBadge": "required",
+    "optionalBadge": "Optional",
+    "optionalLabel": "{{label}} (optional)",
+    "requiredBadge": "Required",
     "standardHint": "They come with the catalog and can't be removed.",
     "standardTitle": "Standard fields",
     "title": "Fields",

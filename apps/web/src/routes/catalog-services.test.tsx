@@ -445,7 +445,7 @@ describe("campos dinámicos del servicio (2026-08-26)", () => {
     await user.click(await screen.findByRole("button", { name: "Nuevo servicio" }));
     await user.type(screen.getByLabelText("Código"), "TINTE");
     await user.type(screen.getByLabelText("Nombre"), "Tinte");
-    await user.type(await screen.findByLabelText("Duración (min)"), "45");
+    await user.type(await screen.findByLabelText("Duración (min) (opcional)"), "45");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {

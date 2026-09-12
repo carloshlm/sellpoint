@@ -57,7 +57,9 @@
       "bodyEmpty": "Vas a eliminar el campo «{{label}}». Todavía no tiene datos cargados, así que se borra por completo. Esta acción no se puede deshacer.",
       "confirmEmpty": "Eliminar campo"
     },
-    "requiredBadge": "requerido",
+    "optionalBadge": "Opcional",
+    "optionalLabel": "{{label}} (opcional)",
+    "requiredBadge": "Obligatorio",
     "standardHint": "Vienen con el catálogo y no se pueden quitar.",
     "standardTitle": "Campos estándar",
     "title": "Campos",

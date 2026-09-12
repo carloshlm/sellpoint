@@ -276,6 +276,48 @@ describe("Editor de campos (F2-SCHEMA)", () => {
     }
   });
 
+  /**
+   * Carlos (2026-09-12): un campo sin marca obliga a adivinar si es opcional o
+   * si alguien olvidó el asterisco. Cada campo dice de qué lado está, en la
+   * lista (una caja gris) y en el formulario (la etiqueta).
+   */
+  it("la lista marca cada campo como obligatorio u opcional, siempre", async () => {
+    mockedApi.listFields.mockResolvedValue([
+      textField(),
+      textField({
+        id: "f2",
+        key: "laboratorio",
+        label: "Laboratorio",
+        required: true,
+        position: 1,
+      }),
+    ]);
+    await renderSchema();
+
+    expect(await screen.findByTestId("field-sustancia_activa-requirement")).toHaveTextContent(
+      "Opcional",
+    );
+    expect(screen.getByTestId("field-laboratorio-requirement")).toHaveTextContent("Obligatorio");
+  });
+
+  it("el preview dice «(opcional)» en lo opcional y deja el asterisco en lo obligatorio", async () => {
+    mockedApi.listFields.mockResolvedValue([
+      textField(),
+      textField({
+        id: "f2",
+        key: "laboratorio",
+        label: "Laboratorio",
+        required: true,
+        position: 1,
+      }),
+    ]);
+    await renderSchema();
+
+    const preview = await screen.findByTestId("schema-preview");
+    expect(await within(preview).findByLabelText("Sustancia Activa (opcional)")).toBeDisabled();
+    expect(within(preview).getByLabelText("Laboratorio *")).toBeDisabled();
+  });
+
   it("el preview refleja los campos vigentes del catálogo elegido", async () => {
     mockedApi.listFields.mockResolvedValue([textField({ label: "Origen del Grano" })]);
     await renderSchema();
