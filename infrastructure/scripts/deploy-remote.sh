@@ -53,7 +53,26 @@ docker network create sellpoint-edge-sandbox >/dev/null 2>&1 || true
 # El rollback REAL es el de los primeros minutos —el deploy salió mal, se
 # vuelve al anterior— y para eso 24h sobran: conserva todos los deploys del
 # día, que son los únicos a los que volver es seguro.
-IMAGE_RETENTION="24h"
+# Cuántos DEPLOYS se conservan por repositorio (api, web, migrate).
+#
+# ── Por qué se cuenta y ya no se mide en horas (2026-09-12) ──────────────
+#
+# La retención era `24h` con este razonamiento, que sigue siendo correcto: al
+# único deploy al que se puede volver sin peligro es al de hoy, porque la base
+# ya tiene aplicadas las migraciones de los siguientes. Lo que falló fue el
+# DIMENSIONAMIENTO. «24 horas» no acota el disco: acota el tiempo, y cuántos
+# GB caben en un día depende del ritmo de deploys, que es variable.
+#
+# Ese día llegó: quince deploys en una jornada × ~3 GB cada uno = ~45 GB de
+# imágenes que la limpieza por horas NO podía tocar (ninguna llegaba a 24h) en
+# un disco de 47 GB. El deploy abortó por 183 MB con el mensaje correcto y sin
+# tocar nada —la guarda hizo su trabajo—, pero la limpieza había vuelto a ser
+# decorativa. Es la misma lección que GHCR (F6-RELEASE-02): un cleanup se mide
+# en lo que acota, y lo que hay que acotar es el DISCO, no el calendario.
+#
+# Contar deploys sí lo acota: 4 × 3 imágenes × ~1 GB ≈ 12 GB pase lo que pase.
+# Y cubre el rollback real, que es al deploy anterior, no al de ayer.
+KEEP_DEPLOYS=4
 # Lo que ocupan las 3 imágenes de un deploy, con holgura.
 MIN_FREE_MB=3000
 
@@ -93,30 +112,28 @@ MIN_FREE_MB=3000
 #
 # Sin `|| true` un fallo de la limpieza abortaría un deploy que probablemente
 # habría funcionado igual: es higiene, no un requisito.
-echo "Limpiando NUESTRAS imágenes de más de ${IMAGE_RETENTION}..."
+echo "Conservando las ${KEEP_DEPLOYS} imágenes más nuevas de cada repositorio..."
 limpiar_imagenes_viejas() {
-  # `date -d "-24h"` (GNU) — el server es Debian; en un macOS de dev fallaría,
-  # y por eso el `|| return 0`: sin corte no se borra nada, que es lo seguro.
-  local corte
-  corte="$(date -u -d "-${IMAGE_RETENTION%h} hours" +%s 2>/dev/null)" || return 0
-
-  local repo id creado ts
+  local repo
   for repo in sellpoint-api sellpoint-web sellpoint-migrate; do
-    while IFS='|' read -r id creado; do
-      [ -n "${id}" ] || continue
-      # `{{.CreatedAt}}` sale como "2026-08-21 20:55:21 +0000 UTC"; el sufijo
-      # "UTC" al final es lo único que `date -d` no sabe leer.
-      ts="$(date -u -d "${creado% UTC}" +%s 2>/dev/null)" || continue
-      if [ "${ts}" -lt "${corte}" ]; then
-        # Una imagen en uso hace fallar el rmi. Es la red que reemplaza al
-        # "las en uso se conservan solas" que daba `prune`.
+    # `{{.CreatedAt}}` sale como "2026-08-21 20:55:21 +0000 UTC": mismo ancho y
+    # mismo huso en todas, así que el orden ALFABÉTICO descendente es el
+    # cronológico. `tail -n +N` deja pasar de la N-ésima en adelante, o sea
+    # todo lo que sobra después de las que se conservan.
+    docker images "ghcr.io/${GHCR_OWNER}/${repo}" --format '{{.CreatedAt}}|{{.ID}}' |
+      sort -r |
+      tail -n "+$((KEEP_DEPLOYS + 1))" |
+      cut -d'|' -f2 |
+      while read -r id; do
+        [ -n "${id}" ] || continue
+        # Una imagen EN USO hace fallar el rmi, y ese fallo es la red de
+        # seguridad: si producción se quedó atrás y su imagen ya no está entre
+        # las más nuevas, igual sobrevive. No hay forma de borrar lo que corre.
         docker rmi "${id}" >/dev/null 2>&1 || true
-      fi
-    done <<EOF
-$(docker images "ghcr.io/${GHCR_OWNER}/${repo}" --format '{{.ID}}|{{.CreatedAt}}')
-EOF
+      done
   done
 }
+
 limpiar_imagenes_viejas || true
 
 # Las "dangling" (`<none>`) son capas huérfanas de builds, no imágenes de nadie:

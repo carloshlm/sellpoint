@@ -93,6 +93,7 @@ jobs:
         run: |
           bash infrastructure/scripts/ghcr-retention.test.sh
           bash infrastructure/scripts/changelog-section.test.sh
+          bash infrastructure/scripts/deploy-retention.test.sh
 
       # F6-TYPECHECK-TESTS. `pnpm build` NO chequea los tests: `tsconfig.build`
       # los excluye y los runners transpilan sin tipos (vitest usa esbuild,
