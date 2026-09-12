@@ -15,6 +15,12 @@
 # UTC) para que nunca se acumule un backlog, y a demanda con `dry_run`. Cero
 # recursos del server: vive en GitHub (LEY de la Fase 6). El primer deploy
 # tras F6-RELEASE-01 (`provenance: false`) deja UNA versión por paquete.
+#
+# Ojo con el tope: `GITHUB_TOKEN` en Actions tiene 1,000 peticiones/hora por
+# repo, y cada borrado es una. En régimen son ~12 al día (una por deploy y
+# paquete, las que salen de las 20): cabe de sobra. El backlog inicial de
+# ~3,800 se limpió el 2026-09-11 a mano con el MISMO script y un PAT
+# (5,000/h); si algún día vuelve a acumularse, es eso otra vez, no otro workflow.
 name: GHCR Retention
 
 on:
