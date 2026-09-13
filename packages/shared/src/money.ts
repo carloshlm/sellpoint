@@ -146,17 +146,28 @@ export function currencyName(currency: Currency, locale: Locale = DEFAULT_LOCALE
 }
 
 /**
- * Formats a monetary amount for display (presentation-only helper).
+ * Un importe para mostrar, con el símbolo CORTO de su moneda: «$1,234.56»,
+ * «€1,234.56», «£1,234.56».
  *
- * Uses `Intl.NumberFormat` with `currencyDisplay: "symbol"` (the default):
- * the native pair (MXN/es, USD/en) renders the shared `"$"` symbol, while a
- * foreign pair gets ICU's own disambiguation (e.g. `"MX$"`, or an ISO-code
- * fallback like `"USD "` when no narrow symbol exists for that locale).
+ * ── Por qué `narrowSymbol` y no el `symbol` por defecto ──────────────────
  *
- * Rounding uses ICU's default `halfExpand` behavior — this function does not
- * reimplement monetary rounding, which belongs to the domain layer.
+ * Carlos (2026-09-13) vio un ticket de un negocio de Canadá con «CA$16.00» en
+ * cada renglón: saturado, y distinto del «$16.00» que imprime cualquier ticket
+ * de México. La causa no estaba en el ticket: el idioma del usuario se traduce
+ * a UNA región fija (`en` → `en-US`, `es` → `es-MX`), así que ICU cree que un
+ * canadiense en inglés es un lector de Estados Unidos y le desambigua el dólar
+ * («CA$»), y a un lector en español le pone el código ISO («CAD 1,234.56»).
  *
- * @throws {RangeError} if `amount` is not finite (NaN, Infinity, -Infinity).
+ * Esa desambiguación sirve cuando en una misma pantalla conviven dos monedas.
+ * En SellPointy un negocio tiene UNA, la suya, y nunca la compara con otra: el
+ * prefijo solo es ruido. El símbolo corto es el que la gente ve en su propio
+ * país. Cuando la moneda se tiene que NOMBRAR (Mi perfil, el encabezado de un
+ * PDF), para eso está `currencyName`.
+ *
+ * El redondeo es el `halfExpand` de ICU: esta función no reimplementa el
+ * redondeo monetario, que pertenece al dominio.
+ *
+ * @throws {RangeError} si `amount` no es finito (NaN, Infinity, -Infinity).
  */
 export function formatMoney(
   amount: number,
@@ -170,6 +181,7 @@ export function formatMoney(
   return new Intl.NumberFormat(localeToBcp47(locale), {
     style: "currency",
     currency,
+    currencyDisplay: "narrowSymbol",
   }).format(amount);
 }
 

@@ -81,41 +81,33 @@ describe("formatMoney", () => {
     expect(formatMoney(1234.56, "USD", "en")).toBe("$1,234.56");
   });
 
-  it("formats the foreign pair USD/es with the ICU ISO-code fallback (pinned against Node 22)", () => {
-    // es-MX has no narrow symbol mapping for USD in this ICU version, so it
-    // falls back to the ISO code + NBSP (U+00A0), NOT "US$".
-    expect(formatMoney(1234.56, "USD", "es")).toBe("USD\u00A01,234.56");
+  /**
+   * Carlos (2026-09-13): un negocio tiene UNA moneda y nunca la compara con
+   * otra, así que el prefijo con el que ICU desambigua para un lector de otro
+   * país («CA$», «MX$», «USD 1,234.56») es ruido. Se fija el símbolo corto
+   * para los tres dólares en los dos idiomas: lo que ve la gente en su país.
+   */
+  it.each([
+    ["CAD", "en"],
+    ["CAD", "es"],
+    ["USD", "es"],
+    ["MXN", "en"],
+  ] as const)(
+    "formats %s/%s with the plain '$' symbol, never a country prefix or ISO code",
+    (currency, locale) => {
+      expect(formatMoney(1234.56, currency, locale)).toBe("$1,234.56");
+    },
+  );
+
+  it.each([
+    ["EUR", "en", "€1,234.56"],
+    ["EUR", "es", "€1,234.56"],
+    ["GBP", "en", "£1,234.56"],
+    ["GBP", "es", "£1,234.56"],
+  ] as const)("formats %s/%s with its own sign", (currency, locale, expected) => {
+    expect(formatMoney(1234.56, currency, locale)).toBe(expected);
   });
 
-  it("formats the foreign pair MXN/en with the disambiguating 'MX$' prefix (pinned against Node 22)", () => {
-    expect(formatMoney(1234.56, "MXN", "en")).toBe("MX$1,234.56");
-  });
-
-  it("formats the foreign pair CAD/en with the disambiguating 'CA$' prefix (pinned against Node 22)", () => {
-    expect(formatMoney(1234.56, "CAD", "en")).toBe("CA$1,234.56");
-  });
-
-  it("formats the foreign pair CAD/es with the ICU ISO-code fallback (pinned against Node 22)", () => {
-    // Same fallback shape as USD/es: ISO code + NBSP (U+00A0).
-    expect(formatMoney(1234.56, "CAD", "es")).toBe("CAD\u00A01,234.56");
-  });
-
-  it("formats the foreign pair EUR/en with the euro sign (pinned against Node 22)", () => {
-    expect(formatMoney(1234.56, "EUR", "en")).toBe("€1,234.56");
-  });
-
-  it("formats the foreign pair EUR/es with the ICU ISO-code fallback (pinned against Node 22)", () => {
-    // Same fallback shape as USD/es and CAD/es: ISO code + NBSP (U+00A0).
-    expect(formatMoney(1234.56, "EUR", "es")).toBe("EUR\u00A01,234.56");
-  });
-  it("formats the foreign pair GBP/en with the pound sign (pinned against Node 22)", () => {
-    expect(formatMoney(1234.56, "GBP", "en")).toBe("£1,234.56");
-  });
-
-  it("formats the foreign pair GBP/es with the ICU ISO-code fallback (pinned against Node 22)", () => {
-    // Same fallback shape as USD/es, CAD/es and EUR/es: ISO code + NBSP (U+00A0).
-    expect(formatMoney(1234.56, "GBP", "es")).toBe("GBP\u00A01,234.56");
-  });
   it("defaults to DEFAULT_CURRENCY/DEFAULT_LOCALE (MXN/es) when called with only an amount", () => {
     expect(formatMoney(1234.56)).toBe("$1,234.56");
   });

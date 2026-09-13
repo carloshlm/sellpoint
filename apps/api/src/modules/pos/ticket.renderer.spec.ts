@@ -253,16 +253,26 @@ describe("buildTicketDefinition (F4-TICKET-01)", () => {
 
   describe("el dinero y el idioma", () => {
     /**
-     * Gotcha del 2026-07-16: ICU de Node 22 renderiza USD en locale `es` como
-     * `USD 1,234.56` (código ISO + NBSP), no como `US$`. El expected se fija
-     * empíricamente en vez de asumir el símbolo.
+     * Carlos (2026-09-13): el ticket de un negocio de Canadá decía «CA$16.00»
+     * en cada renglón. El negocio tiene UNA moneda: va el símbolo corto, como
+     * en cualquier ticket de México, en los dos idiomas y para los tres
+     * dólares. La moneda se NOMBRA en Mi perfil, no en cada renglón.
      */
-    it("una moneda extranjera se renderiza como la da ICU, sin inventar el símbolo", () => {
-      const json = textos(buildTicketDefinition({ ...base, currency: "USD" }, t));
+    it.each([
+      ["CAD", "en"],
+      ["CAD", "es"],
+      ["USD", "es"],
+      ["MXN", "en"],
+    ] as const)(
+      "%s en %s: el dinero lleva «$» a secas, sin prefijo de país ni código ISO",
+      (currency, locale) => {
+        const json = textos(buildTicketDefinition({ ...base, currency, locale }, t));
 
-      expect(json).toContain("USD");
-      expect(json).not.toContain("US$");
-    });
+        expect(json).toContain("$");
+        expect(json).not.toMatch(/CA\$|MX\$|US\$/);
+        expect(json).not.toContain(`${currency}\u00A0`);
+      },
+    );
 
     it("en inglés la unidad se nombra en inglés", () => {
       const json = textos(buildTicketDefinition({ ...base, locale: "en" }, t));
