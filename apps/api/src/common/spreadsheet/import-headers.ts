@@ -34,6 +34,12 @@ const ENGLISH_LABELS: Record<string, string> = {
   telefono: "phone",
   email: "email",
   descripcion: "description",
+  // F9-SUPPCAT (2026-09-12): las tres de proveedores. Faltaban y la
+  // plantilla de un negocio canadiense salía con «registro_fiscal»,
+  // «contacto» y «notas» en medio de columnas en inglés.
+  registro_fiscal: "tax_id",
+  contacto: "contact",
+  notas: "notes",
   unidad: "unit",
   lote: "lot",
   caducidad: "expiry",

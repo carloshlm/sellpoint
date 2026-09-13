@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type { Locale } from "@sellpoint/shared";
 import { hasValidMoneyScale, MONEY_MAX, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
-import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
@@ -98,7 +98,7 @@ export class ServicesImportService {
             ],
           ];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
-      sheetName: "Servicios",
+      sheetName: spreadsheetSheetName("Servicios", locale),
       filenameBase: spreadsheetFilenameBase("servicios", locale),
     });
   }

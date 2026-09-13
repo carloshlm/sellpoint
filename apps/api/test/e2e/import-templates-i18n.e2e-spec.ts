@@ -4,7 +4,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import type { App } from "supertest/types";
 import { AppModule } from "../../src/app.module";
-import { parseSpreadsheet } from "../../src/common/spreadsheet/spreadsheet";
+import { parseSpreadsheet, serializeSpreadsheet } from "../../src/common/spreadsheet/spreadsheet";
 import { PrismaService } from "../../src/infrastructure/prisma/prisma.service";
 import { MAILER } from "../../src/modules/mail/mailer.port";
 import { NoopMailer } from "../../src/modules/mail/noop.mailer";
@@ -173,6 +173,50 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
     ]);
   });
 
+  /**
+   * Carlos (2026-09-12) bajó esta plantilla con una cuenta en Canadá: el
+   * archivo se llamaba «proveedores» y en medio de columnas traducidas venían
+   * `registro_fiscal`, `contacto` y `notas` en español.
+   */
+  it("proveedores: encabezados, nombre de archivo y pestaña en inglés", async () => {
+    expect(await encabezado("/suppliers/import/template", "en", "xlsx")).toEqual([
+      "code",
+      "name",
+      "tax_id",
+      "contact",
+      "phone",
+      "email",
+      "address",
+      "notes",
+    ]);
+    expect(await encabezado("/suppliers/import/template", "es", "xlsx")).toEqual([
+      "codigo",
+      "nombre",
+      "registro_fiscal",
+      "contacto",
+      "telefono",
+      "email",
+      "direccion",
+      "notas",
+    ]);
+    // Y lo que entra en inglés se reconoce igual: `canonicalHeader` lo devuelve
+    // a su clave, así que una planilla bajada en inglés se reimporta.
+    const planilla = await serializeSpreadsheet(
+      [
+        ["code", "name", "tax_id", "contact", "phone", "email", "address", "notes"],
+        ["IDIOMA-1", "Acme", "", "Rosa", "+525512345678", "a@b.mx", "Calle 1", "Nota"],
+      ],
+      "xlsx",
+    );
+    const reporte = await request(app.getHttpServer())
+      .post("/suppliers/import")
+      .set("Authorization", `Bearer ${tokens.en}`)
+      .set("Accept-Language", "en")
+      .send({ content: planilla.body.toString("base64"), dryRun: true })
+      .expect(200);
+    expect(reporte.body).toMatchObject({ valid: 1, failed: 0 });
+  });
+
   it("inventario: la plantilla de entrada y la de conteo físico", async () => {
     expect(
       await encabezado("/inventory/documents/template?type=entry&format=csv", "en", "csv"),
@@ -245,6 +289,8 @@ describe("plantillas de importación en el idioma de quien las descarga", () => 
     expect(await nombre("/products/import/template", "en")).toBe("products.csv");
     expect(await nombre("/products/import/template", "es")).toBe("productos.csv");
     expect(await nombre("/services/import/template", "en")).toBe("services.xlsx");
+    expect(await nombre("/suppliers/import/template", "en")).toBe("suppliers.xlsx");
+    expect(await nombre("/suppliers/import/template", "es")).toBe("proveedores.xlsx");
     expect(await nombre("/medical-clinic/lab-studies/import/template", "en")).toBe(
       "lab-studies.xlsx",
     );

@@ -9,7 +9,7 @@ import {
   normalizePostalCode,
 } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
-import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
 import { localizeHeaders } from "../../common/spreadsheet/import-headers";
 import { serializeSpreadsheet } from "../../common/spreadsheet/spreadsheet";
 import { Prisma } from "../../generated/prisma/client";
@@ -121,7 +121,7 @@ export class WarehousesImportService {
             ],
           ];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
-      sheetName: "Almacenes",
+      sheetName: spreadsheetSheetName("Almacenes", locale),
       filenameBase: spreadsheetFilenameBase("almacenes", locale),
     });
   }

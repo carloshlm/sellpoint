@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, PayloadTooLargeException } from "@nestjs/common";
 import { getUnit, type Locale, normalizeCode } from "@sellpoint/shared";
 import { I18nService } from "nestjs-i18n";
-import { spreadsheetFilenameBase } from "../../common/spreadsheet/filenames";
+import { spreadsheetFilenameBase, spreadsheetSheetName } from "../../common/spreadsheet/filenames";
 import {
   canonicalHeader,
   localizeHeaders,
@@ -189,6 +189,9 @@ export class ImportService {
           ];
 
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], format, {
+      // Sin esto caía en el nombre de hoja por defecto, que es «Productos»
+      // para todo el mundo (Carlos, 2026-09-12).
+      sheetName: spreadsheetSheetName("Productos", locale),
       filenameBase: spreadsheetFilenameBase("productos", locale),
     });
   }

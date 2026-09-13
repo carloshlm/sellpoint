@@ -26,8 +26,30 @@ const ENGLISH: Record<string, string> = {
   "en-transito": "in-transit",
   "cierres-de-turno": "shift-closes",
   impuestos: "taxes",
+  proveedores: "suppliers",
 };
 
 export function spreadsheetFilenameBase(key: string, locale: Locale): string {
   return locale === "en" ? (ENGLISH[key] ?? key) : key;
+}
+
+/**
+ * El nombre de la PESTAÑA del Excel, también en el idioma de quien descarga
+ * (Carlos, 2026-09-12: bajó la plantilla con una cuenta en Canadá y la hoja
+ * decía «Proveedores»). Va aparte del nombre de archivo porque no es el mismo
+ * texto: el archivo es `suppliers.xlsx` y la hoja, «Suppliers» — con
+ * mayúscula, espacios y acentos donde toque. Una clave desconocida vuelve tal
+ * cual, para no inventar nombres.
+ */
+const SHEET_NAMES: Record<string, string> = {
+  Productos: "Products",
+  Servicios: "Services",
+  Almacenes: "Warehouses",
+  Proveedores: "Suppliers",
+  "Estudios de laboratorio": "Lab studies",
+  "Estudios diagnósticos": "Diagnostic studies",
+};
+
+export function spreadsheetSheetName(nombreEnEspanol: string, locale: Locale): string {
+  return locale === "en" ? (SHEET_NAMES[nombreEnEspanol] ?? nombreEnEspanol) : nombreEnEspanol;
 }
