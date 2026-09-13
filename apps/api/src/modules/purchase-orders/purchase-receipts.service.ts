@@ -5,13 +5,13 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { PURCHASE_FOLIO_PREFIXES, pendingQuantity } from "@sellpoint/shared";
+import { hoyDelNegocio } from "../../common/business-today";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
-import { hoyDelNegocio } from "../purchases/business-today";
 import { aplicarReglasDeLote } from "../purchases/lot-rules";
 import type {
   CancelPurchaseReceiptDto,

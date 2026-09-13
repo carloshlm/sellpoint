@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from "@nestjs/common";
 import { EXPENSE_FOLIO_PREFIXES, type TaxMode } from "@sellpoint/shared";
+import { hoyDelNegocio } from "../../common/business-today";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -121,6 +122,10 @@ export class ExpensesService {
       await assertActiveWarehouse(tx, user.tenantId, warehouseId);
       await this.assertCategoriaActiva(tx, user.tenantId, input.categoryId);
       await this.assertProveedor(tx, user.tenantId, input.supplierId);
+      await this.assertFechasCoherentes(tx, user.tenantId, {
+        expenseDate: input.expenseDate,
+        dueDate: input.dueDate ?? null,
+      });
 
       const { totales, fiscal, grupo } = await this.totalizar(
         tx,
@@ -395,6 +400,13 @@ export class ExpensesService {
       if (input.supplierId != null) {
         await this.assertProveedor(tx, user.tenantId, input.supplierId);
       }
+      // La pareja EFECTIVA, no solo lo que viene: editar UNA de las dos fechas
+      // tiene que medirse contra la que ya está guardada, o mover el gasto al
+      // futuro «por partes» pasaría sin que nadie lo note.
+      await this.assertFechasCoherentes(tx, user.tenantId, {
+        expenseDate: input.expenseDate ?? (fechaIso(actual.expenseDate) as string),
+        dueDate: input.dueDate === undefined ? fechaIso(actual.dueDate) : input.dueDate,
+      });
       // A quién se le pagó es UNA respuesta: poner uno limpia al otro.
       const data: Prisma.ExpenseUncheckedUpdateInput = {
         ...(input.expenseDate !== undefined && { expenseDate: new Date(input.expenseDate) }),
@@ -551,6 +563,35 @@ export class ExpensesService {
     }
     if (!categoria.isActive) {
       throw new UnprocessableEntityException({ message: "expenses.category_inactive" });
+    }
+  }
+
+  /**
+   * Las dos fechas de un gasto, en orden (Carlos, 2026-09-13).
+   *
+   * «Fecha del gasto» es CUÁNDO ocurrió: un gasto es un papel que ya existe,
+   * así que no puede ser de mañana — una fecha futura corre el resumen del
+   * rango y el total del mes a un período que todavía no pasó. Es la misma
+   * regla que Compras y Órdenes de compra (2026-09-11) y usa el MISMO «hoy»:
+   * el del calendario del negocio, no el UTC del servidor, porque a las 11 de
+   * la noche en Ciudad de México «hoy» en UTC ya es mañana.
+   *
+   * «Vence» es CUÁNDO hay que pagarlo, así que no puede ser ANTERIOR al
+   * gasto: se debe después de gastar, nunca antes. El MISMO día sí vale
+   * (Carlos, 2026-09-13): una factura que se recibe y vence el mismo día es
+   * un caso real, y rebotarla sería un rechazo falso.
+   */
+  private async assertFechasCoherentes(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    fechas: { expenseDate: string; dueDate: string | null },
+  ): Promise<void> {
+    // ISO `YYYY-MM-DD`: el orden lexicográfico ES el cronológico.
+    if (fechas.expenseDate > (await hoyDelNegocio(tx, tenantId))) {
+      throw new UnprocessableEntityException({ message: "expenses.date_in_future" });
+    }
+    if (fechas.dueDate !== null && fechas.dueDate < fechas.expenseDate) {
+      throw new UnprocessableEntityException({ message: "expenses.due_before_expense" });
     }
   }
 

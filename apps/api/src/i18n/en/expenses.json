@@ -16,6 +16,8 @@
   "session_not_open": "That cash shift is not open or does not belong to the expense's warehouse.",
   "session_needs_cash": "Only a cash expense can come out of a cash shift.",
   "discount_exceeds_amount": "The discount exceeds the expense amount.",
+  "date_in_future": "The expense date can't be after today. An expense is a document that already exists.",
+  "due_before_expense": "The due date can't be before the expense date. It comes due after you spend, not before.",
   "cancel_reason_required": "Write the reason for the cancellation (at least 3 characters).",
   "payee_conflict": "Choose a supplier or write a payee, not both.",
   "invalid_amount": "The amount must be greater than zero with up to two decimals.",

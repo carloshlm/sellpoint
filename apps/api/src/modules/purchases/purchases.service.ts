@@ -15,6 +15,7 @@ import {
   purchaseViewStatus,
   totalMismatch,
 } from "@sellpoint/shared";
+import { hoyDelNegocio } from "../../common/business-today";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -27,7 +28,6 @@ import {
   assertActiveWarehouse,
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
-import { hoyDelNegocio } from "./business-today";
 import type {
   CancelPurchaseDto,
   CreatePurchaseDto,

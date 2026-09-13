@@ -127,6 +127,60 @@ describe("Gastos (F9-EXP)", () => {
         .expect(400);
     });
 
+    /**
+     * Carlos (2026-09-13): las dos fechas del gasto, en orden. El «hoy» que
+     * manda es el del calendario del NEGOCIO, así que el caso se arma desde
+     * él y no desde el reloj del runner.
+     */
+    it("la fecha del gasto no puede ser de mañana y el vencimiento no puede ser anterior a ella", async () => {
+      // La zona sale del negocio, no de una constante: si mañana el harness
+      // siembra otra, el test sigue midiendo lo que dice medir.
+      const { timezone } = await prisma.withTenantContext(negocio.tenantId, (tx) =>
+        tx.tenant.findUniqueOrThrow({
+          where: { id: negocio.tenantId },
+          select: { timezone: true },
+        }),
+      );
+      const dia = (delta: number): string => {
+        const hoy = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+        const d = new Date(`${hoy}T12:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + delta);
+        return d.toISOString().slice(0, 10);
+      };
+
+      // Mañana rebota; hoy entra (el límite es inclusivo).
+      await api(negocio.token)
+        .post("/expenses", gasto({ expenseDate: dia(1) }))
+        .expect(422);
+      await api(negocio.token)
+        .post("/expenses", gasto({ expenseDate: dia(0) }))
+        .expect(201);
+
+      // El vencimiento ANTERIOR al gasto rebota; el MISMO día vale.
+      await api(negocio.token)
+        .post("/expenses", gasto({ expenseDate: "2026-09-10", dueDate: "2026-09-09" }))
+        .expect(422);
+      const mismoDia = await api(negocio.token)
+        .post("/expenses", gasto({ expenseDate: "2026-09-10", dueDate: "2026-09-10" }))
+        .expect(201);
+      expect(mismoDia.body).toMatchObject({ dueDate: "2026-09-10" });
+
+      // Y al EDITAR se mide la pareja efectiva: mover solo el gasto por
+      // delante de un vencimiento ya guardado tiene que rebotar igual.
+      const conVence = await api(negocio.token)
+        .post("/expenses", gasto({ expenseDate: "2026-09-10", dueDate: "2026-09-12" }))
+        .expect(201);
+      const id = (conVence.body as { id: string }).id;
+      await api(negocio.token).patch(`/expenses/${id}`, { expenseDate: "2026-09-13" }).expect(422);
+      await api(negocio.token).patch(`/expenses/${id}`, { dueDate: "2026-09-09" }).expect(422);
+      await api(negocio.token).patch(`/expenses/${id}`, { expenseDate: "2026-09-11" }).expect(200);
+    });
+
     it("las rutas fijas van antes de `:id`: summary, accounts y export responden por su nombre", async () => {
       await api(negocio.token)
         .post("/expenses", gasto({ paymentMethod: "transfer", accountRef: "BBVA", amount: 58 }))

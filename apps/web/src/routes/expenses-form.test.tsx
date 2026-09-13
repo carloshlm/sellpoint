@@ -161,6 +161,52 @@ describe("Gastos — formulario (F9-EXP-14)", () => {
     expect(screen.getByRole("option", { name: "Mi turno abierto (Central)" })).toBeInTheDocument();
   });
 
+  /**
+   * Carlos (2026-09-13): las dos fechas en orden. El navegador ya lo dice sin
+   * viaje al server, y los topes del calendario nativo ni ofrecen los días
+   * imposibles.
+   */
+  it("el gasto no puede ser de mañana y el vencimiento no puede ser anterior a él", async () => {
+    await renderNuevo();
+    const user = userEvent.setup();
+    const fecha = await screen.findByLabelText("Fecha del gasto");
+    const vence = screen.getByLabelText("Vence");
+
+    // Los topes del propio calendario: hasta hoy, y desde el día del gasto.
+    const hoy = new Date().toISOString().slice(0, 10);
+    expect(fecha).toHaveAttribute("max", hoy);
+    expect(vence).toHaveAttribute("min", hoy);
+
+    await user.selectOptions(screen.getByLabelText("Categoría"), "c1");
+    await user.type(screen.getByLabelText("Monto"), "116");
+    await user.type(screen.getByLabelText("Descripción"), "Renta de septiembre");
+
+    await user.clear(fecha);
+    await user.type(fecha, "2030-01-01");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(await screen.findByText(/No puede ser posterior a hoy/)).toBeInTheDocument();
+    expect(mocked.createExpense).not.toHaveBeenCalled();
+
+    await user.clear(fecha);
+    await user.type(fecha, "2026-09-10");
+    await user.type(vence, "2026-09-09");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(
+      await screen.findByText(/No puede ser anterior a la fecha del gasto/),
+    ).toBeInTheDocument();
+    expect(mocked.createExpense).not.toHaveBeenCalled();
+
+    // El MISMO día vale: una factura que se recibe y vence hoy es real.
+    await user.clear(vence);
+    await user.type(vence, "2026-09-10");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocked.createExpense).toHaveBeenCalledWith(
+        expect.objectContaining({ expenseDate: "2026-09-10", dueDate: "2026-09-10" }),
+      ),
+    );
+  });
+
   it("un beneficiario deshabilita el picker de proveedor", async () => {
     await renderNuevo();
     const user = userEvent.setup();

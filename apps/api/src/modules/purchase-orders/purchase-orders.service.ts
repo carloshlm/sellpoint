@@ -14,6 +14,7 @@ import {
   purchaseOrderViewStatus,
   receivedPercent,
 } from "@sellpoint/shared";
+import { hoyDelNegocio } from "../../common/business-today";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -26,7 +27,6 @@ import {
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
 import { contextoFiscal } from "../pos/tax-resolver";
-import { hoyDelNegocio } from "../purchases/business-today";
 import {
   armarCompraConGrupos,
   gruposPorCodigo,

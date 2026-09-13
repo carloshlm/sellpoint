@@ -134,7 +134,9 @@
     "errors": {
       "required": "Este campo es obligatorio.",
       "date": "La fecha no es válida.",
-      "amount": "Escribe un importe válido, mayor a cero."
+      "amount": "Escribe un importe válido, mayor a cero.",
+      "dateInFuture": "No puede ser posterior a hoy: un gasto es un papel que ya existe.",
+      "dueBeforeExpense": "No puede ser anterior a la fecha del gasto."
     }
   }
 }

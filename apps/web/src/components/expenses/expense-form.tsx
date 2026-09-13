@@ -15,6 +15,7 @@ import type { CreateExpenseInput, Expense, UpdateExpenseInput } from "@/lib/expe
 import { useExpenseCategories } from "@/lib/expenses/categories-hooks";
 import { useCreateExpense, useExpenseAccounts, useUpdateExpense } from "@/lib/expenses/hooks";
 import { expenseFormSchema } from "@/lib/expenses/schemas";
+import { businessToday } from "@/lib/inventory/format-date";
 import { moneyInitialValue, moneyInputError } from "@/lib/money";
 import { useSession } from "@/lib/pos/hooks";
 import { useShiftsReport } from "@/lib/reports/hooks";
@@ -53,7 +54,10 @@ export function ExpenseForm({
   const { has } = usePermissions();
   const formRef = useScrollIntoView<HTMLFormElement>({ focusFirstField: true, block: "start" });
   const userId = useAuthStore((s) => s.user?.id ?? null);
-  const hoy = new Date().toISOString().slice(0, 10);
+  // El «hoy» del calendario del NEGOCIO: con el del navegador, a las 6 de la
+  // tarde en Ciudad de México el UTC ya es mañana y el formulario proponía
+  // una fecha que el server rechaza (Carlos, 2026-09-13).
+  const hoy = businessToday(useAuthStore((s) => s.user?.tenant.timezone));
 
   const [expenseDate, setExpenseDate] = useState(expense?.expenseDate ?? hoy);
   const [categoryId, setCategoryId] = useState(expense?.categoryId ?? "");
@@ -99,7 +103,7 @@ export function ExpenseForm({
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorApi(null);
-    const parsed = expenseFormSchema.safeParse({
+    const parsed = expenseFormSchema(hoy).safeParse({
       expenseDate,
       categoryId,
       description,
@@ -190,6 +194,7 @@ export function ExpenseForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <DateField
           label={t("expenses.form.date")}
+          max={hoy}
           value={expenseDate}
           onChange={(e) => setExpenseDate(e.target.value)}
           error={errores.expenseDate}
@@ -268,6 +273,7 @@ export function ExpenseForm({
           {pago === "" ? (
             <DateField
               label={t("expenses.form.dueDate")}
+              min={expenseDate || undefined}
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               error={errores.dueDate}
@@ -335,6 +341,7 @@ export function ExpenseForm({
           {!pagado && (
             <DateField
               label={t("expenses.form.dueDate")}
+              min={expenseDate || undefined}
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               error={errores.dueDate}

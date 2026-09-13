@@ -1,11 +1,13 @@
 import { localCalendarDate } from "@sellpoint/shared";
-import type { Prisma } from "../../generated/prisma/client";
+import type { Prisma } from "../generated/prisma/client";
 
 /**
  * El «hoy» del calendario del NEGOCIO (`tenants.timezone`), nunca el UTC del
  * servidor: a las 11 de la noche en Ciudad de México, «hoy» en UTC ya es
- * mañana y una factura del día rebotaría sin razón. Lo comparten Compras y
- * Órdenes de compra para «esta fecha no puede ser de mañana».
+ * mañana y una factura del día rebotaría sin razón. Lo comparten Compras,
+ * Órdenes de compra y Gastos para «esta fecha no puede ser de mañana»; vive en
+ * `common` porque saber qué día es hoy no es asunto de ningún módulo en
+ * particular.
  */
 export async function hoyDelNegocio(
   tx: Prisma.TransactionClient,
