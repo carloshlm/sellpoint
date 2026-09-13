@@ -348,6 +348,27 @@ describe("Compras (F9-PURCH)", () => {
         .expect(422);
     });
 
+    /** Carlos (2026-09-13): media caja no se factura, y la escala son 4 decimales. */
+    it("una presentación que no se parte exige cantidad entera también al facturar", async () => {
+      const compra = await nuevaCompra();
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [{ productId: productoId, presentationId: cajaId, quantity: 2.5, unitCost: 10 }],
+        })
+        .expect(422);
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [{ productId: productoId, presentationId: cajaId, quantity: 2, unitCost: 10 }],
+        })
+        .expect(200);
+      // Una línea SIN cantidad sigue siendo un borrador válido: la regla no la toca.
+      await api(negocio.token)
+        .put(`/purchases/${compra.id}/lines`, {
+          lines: [{ productId: productoId, presentationId: cajaId, unitCost: 10 }],
+        })
+        .expect(200);
+    });
+
     it("un cargo suma al total con su impuesto y NO cambia el costo de las líneas", async () => {
       const compra = await nuevaCompra();
       await api(negocio.token)

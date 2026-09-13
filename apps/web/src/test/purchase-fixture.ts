@@ -70,8 +70,20 @@ export function buildPurchase(over: Partial<Purchase> = {}): Purchase {
         baseUnit: "pieza",
         tracksLots: false,
         presentations: [
-          { id: "pres-caja", name: "Caja ×12", factor: "12", isPurchasable: true },
-          { id: "pres-pieza", name: "Pieza", factor: "1", isPurchasable: true },
+          {
+            id: "pres-caja",
+            name: "Caja ×12",
+            factor: "12",
+            isPurchasable: true,
+            allowFractionalInput: false,
+          },
+          {
+            id: "pres-pieza",
+            name: "Pieza",
+            factor: "1",
+            isPurchasable: true,
+            allowFractionalInput: false,
+          },
         ],
       },
     ],

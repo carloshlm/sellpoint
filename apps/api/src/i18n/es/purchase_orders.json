@@ -31,5 +31,9 @@
   "receipt_date_in_future": "{field}: la fecha de recepción no puede ser posterior a hoy. Una recepción es un hecho.",
   "receipt_invoiced": "Esta recepción ya está facturada en una compra: anula esa compra primero.",
   "receipt_already_canceled": "Esta recepción ya está anulada.",
-  "receipt_open": "Esta orden ya tiene la recepción {folio} en borrador: termínala o anúlala antes de abrir otra."
+  "receipt_open": "Esta orden ya tiene la recepción {folio} en borrador: termínala o anúlala antes de abrir otra.",
+  "quantity_integer_only": "«{presentationName}» no se parte: la cantidad de la línea {line} tiene que ser entera.",
+  "quantity_too_many_decimals": "La cantidad de la línea {line} admite hasta {decimals} decimales.",
+  "expected_before_order": "{field}: la entrega esperada no puede ser anterior a la fecha del pedido.",
+  "receipt_before_order": "{field}: la recepción no puede ser anterior a la fecha del pedido ({orderDate})."
 }

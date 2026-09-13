@@ -101,7 +101,14 @@
     "progress": "{{received}} de {{ordered}}",
     "closedShort": "Cerrada con faltante",
     "closeShort": "Cerrar con faltante",
-    "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla."
+    "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla.",
+    "errors": {
+      "quantityNaN": "Escribe una cantidad.",
+      "quantityComma": "Usa punto para los decimales, no coma.",
+      "quantityInteger": "«{{presentation}}» no se parte: usa una cantidad entera.",
+      "quantityDecimals": "Demasiados decimales: hasta 4.",
+      "quantityTooLarge": "Cantidad demasiado grande."
+    }
   },
   "receipts": {
     "title": "Recepciones",

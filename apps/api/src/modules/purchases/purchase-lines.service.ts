@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, UnprocessableEntityException } from "@nestjs/common";
+import { assertQuantityFitsPresentation } from "../../common/quantity-rules";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -6,6 +7,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { contextoFiscal } from "../pos/tax-resolver";
 import type { GrupoResuelto } from "../pos/totals";
+import { derivesFractionalInput } from "../products/products.service";
 import type {
   PurchaseChargeDto,
   PurchaseLineDto,
@@ -323,7 +325,10 @@ export class PurchaseLinesService {
       select: {
         id: true,
         name: true,
-        presentations: { select: { id: true, name: true, isActive: true } },
+        baseUnit: true,
+        presentations: {
+          select: { id: true, name: true, isActive: true, allowFractionalInput: true },
+        },
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
@@ -355,6 +360,23 @@ export class PurchaseLinesService {
           throw new UnprocessableEntityException({ message: "purchases.presentation_invalid" });
         }
         presentationId = presentacion.id;
+      }
+      // Media pieza no se factura, y un quinto decimal lo redondearía Postgres
+      // (Carlos, 2026-09-13). La cantidad de una compra puede venir VACÍA —un
+      // borrador a medias— y eso no es asunto de esta regla.
+      if (linea.quantity != null) {
+        const presentacionElegida =
+          presentationId === null
+            ? null
+            : (producto.presentations.find((p) => p.id === presentationId) ?? null);
+        assertQuantityFitsPresentation(new Prisma.Decimal(linea.quantity), {
+          allowFractionalInput:
+            presentacionElegida?.allowFractionalInput ?? derivesFractionalInput(producto.baseUnit),
+          presentationName: presentacionElegida?.name ?? producto.baseUnit,
+          integerMessage: "purchases.quantity_integer_only",
+          scaleMessage: "purchases.quantity_too_many_decimals",
+          args: { field: `lines.${index + 1}.quantity`, line: index + 1 },
+        });
       }
       const grupo =
         linea.taxGroupId === null

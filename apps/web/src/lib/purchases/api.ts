@@ -80,6 +80,8 @@ export interface PurchaseProduct {
     name: string;
     factor: string;
     isPurchasable: boolean;
+    /** `false` = la cantidad tiene que ser entera: media pieza no existe. */
+    allowFractionalInput: boolean;
     cost?: string | null;
   }[];
 }
@@ -92,8 +94,10 @@ export interface Purchase extends PurchaseRow {
   /** La entrada de inventario VIVA que nació de esta compra, si ya se pidió. */
   entry: { id: string; folio: string; status: string } | null;
   /** F9-PO-09: la orden de la que nació y las recepciones que factura. */
-  order: { id: string; folio: string } | null;
-  receipts: { id: string; folio: string }[];
+  /** De qué pedido nació. `orderDate` es el piso de las fechas de la compra. */
+  order: { id: string; folio: string; orderDate: string } | null;
+  /** Las recepciones que factura; la ÚLTIMA es el piso de `receivedDate`. */
+  receipts: { id: string; folio: string; receivedDate: string }[];
   /** DERIVADO: alguna línea factura más de lo recibido. Avisa, no bloquea. */
   quantityVariance: boolean;
 }

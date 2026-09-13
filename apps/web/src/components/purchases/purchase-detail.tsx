@@ -63,6 +63,20 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
   // Ni la factura ni la recepción son de mañana: el API lo rebota
   // (`purchases.date_in_future`) y el calendario no lo ofrece.
   const hoy = businessToday(timeZone);
+  /**
+   * Los PISOS de las dos fechas, cuando la compra viene de un pedido: la
+   * factura no es anterior al pedido, y la recepción tampoco es anterior a la
+   * última entrega ya registrada (Carlos, 2026-09-13). Una compra suelta no
+   * tiene piso: su único tope es hoy.
+   */
+  const fechaDelPedido = purchase.order?.orderDate;
+  const pisoDeRecepcion =
+    purchase.receipts.length > 0
+      ? purchase.receipts.reduce(
+          (mayor, r) => (r.receivedDate > mayor ? r.receivedDate : mayor),
+          "",
+        )
+      : fechaDelPedido;
 
   const borrador = purchase.status === "draft";
   const confirmada = purchase.status === "confirmed" || purchase.status === "stocked";
@@ -301,8 +315,12 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
               </span>
               <span className="font-medium">{purchase.warehouseName}</span>
             </div>
+            {/* Nacida de un pedido, ninguna de las dos fechas cae antes de
+                él; y la recepción tampoco antes de la última entrega ya
+                registrada (Carlos, 2026-09-13). */}
             <DateField
               label={t("purchases.detail.date")}
+              min={fechaDelPedido}
               max={hoy}
               value={purchaseDate}
               disabled={!borrador || !puedeEditar}
@@ -313,6 +331,7 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
             />
             <DateField
               label={t("purchases.detail.receivedDate")}
+              min={pisoDeRecepcion}
               max={hoy}
               value={receivedDate}
               disabled={!puedeEditar || purchase.status === "canceled"}

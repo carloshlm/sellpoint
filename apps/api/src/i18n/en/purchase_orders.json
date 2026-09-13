@@ -31,5 +31,9 @@
   "receipt_date_in_future": "{field}: the receipt date can't be after today. A receipt is a fact.",
   "receipt_invoiced": "This receipt is already invoiced in a purchase: cancel that purchase first.",
   "receipt_already_canceled": "This receipt is already canceled.",
-  "receipt_open": "This order already has receipt {folio} in draft: finish or cancel it before opening another."
+  "receipt_open": "This order already has receipt {folio} in draft: finish or cancel it before opening another.",
+  "quantity_integer_only": "\"{presentationName}\" can't be split: the quantity on line {line} must be a whole number.",
+  "quantity_too_many_decimals": "The quantity on line {line} accepts up to {decimals} decimals.",
+  "expected_before_order": "{field}: the expected delivery can't be earlier than the order date.",
+  "receipt_before_order": "{field}: the receipt can't be earlier than the order date ({orderDate})."
 }

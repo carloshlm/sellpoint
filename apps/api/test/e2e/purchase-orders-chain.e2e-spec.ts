@@ -339,6 +339,38 @@ describe("La cadena orden → recepciones → compras → entradas (F9-PO-09/10)
     }
   });
 
+  /**
+   * Carlos (2026-09-13): la compra que nace de un pedido hereda sus pisos. La
+   * factura no es anterior AL PEDIDO (sí puede serlo a la entrega: un
+   * proveedor factura el lunes y entrega el miércoles), y la fecha de
+   * recepción no es anterior a la ÚLTIMA recepción que se está facturando,
+   * porque eso negaría una entrega ya registrada.
+   */
+  it("la compra de un pedido no se fecha antes del pedido ni antes de la última recepción", async () => {
+    const orden = await ordenEmitida(10);
+    const recepcion = await recibirYConfirmar(orden, 10, "L-PISO");
+    const compra = (await compraDe(orden, [recepcion.id]).expect(201)).body as Compra & {
+      receivedDate: string;
+      order: { orderDate: string };
+      receipts: { receivedDate: string }[];
+    };
+    // Nace con la fecha de la ÚLTIMA recepción, no con una inventada.
+    expect(compra.receivedDate).toBe(compra.receipts[0]?.receivedDate);
+    expect(compra.order.orderDate).toBe("2026-09-10");
+
+    // El pedido es del 10: la factura del 9 rebota, la del 10 entra.
+    await api(negocio.token)
+      .patch(`/purchases/${compra.id}`, { purchaseDate: "2026-09-09" })
+      .expect(422);
+    await api(negocio.token)
+      .patch(`/purchases/${compra.id}`, { purchaseDate: "2026-09-10" })
+      .expect(200);
+    // Y la recepción no puede retroceder antes de la entrega ya registrada.
+    await api(negocio.token)
+      .patch(`/purchases/${compra.id}`, { receivedDate: "2026-09-10" })
+      .expect(422);
+  });
+
   it("la cantidad facturada por encima de lo recibido se VE y no bloquea; la compra sin orden sigue igual", async () => {
     const orden = await ordenEmitida(10);
     const recepcion = await recibirYConfirmar(orden, 6, "L-D");

@@ -212,6 +212,62 @@ describe("Órdenes de compra (F9-PO)", () => {
         .expect(422);
     });
 
+    /** Carlos (2026-09-13): nadie entrega lo que todavía no se pidió. */
+    it("la entrega esperada puede ser de mañana, pero no de antes del pedido", async () => {
+      await api(negocio.token)
+        .post("/purchase-orders", {
+          supplierId: proveedorId,
+          orderDate: "2026-09-10",
+          expectedDate: "2026-09-09",
+        })
+        .expect(422);
+      // El MISMO día vale: se pide y se entrega en el acto.
+      const mismoDia = await api(negocio.token)
+        .post("/purchase-orders", {
+          supplierId: proveedorId,
+          orderDate: "2026-09-10",
+          expectedDate: "2026-09-10",
+        })
+        .expect(201);
+      // Y al EDITAR se mide la pareja efectiva contra lo ya guardado.
+      const id = (mismoDia.body as { id: string }).id;
+      await api(negocio.token)
+        .patch(`/purchase-orders/${id}`, { expectedDate: "2026-09-08" })
+        .expect(422);
+      await api(negocio.token)
+        .patch(`/purchase-orders/${id}`, { orderDate: "2026-09-11" })
+        .expect(422);
+      await api(negocio.token)
+        .patch(`/purchase-orders/${id}`, { orderDate: "2026-09-09" })
+        .expect(200);
+    });
+
+    /**
+     * Carlos (2026-09-13) mandó capturas con `sst2` y `91dsad` tecleados donde
+     * va una cantidad. El campo ya filtra las letras, pero la puerta que
+     * protege los datos es esta: media «Caja ×12» no existe, y un quinto
+     * decimal lo redondearía Postgres en silencio.
+     */
+    it("una presentación que no se parte exige cantidad entera, y la escala son 4 decimales", async () => {
+      const orden = await nuevaOrden();
+      await api(negocio.token)
+        .put(`/purchase-orders/${orden.id}/lines`, {
+          lines: [{ productId: productoId, presentationId: cajaId, quantity: 2.5, unitCost: 10 }],
+        })
+        .expect(422);
+      await api(negocio.token)
+        .put(`/purchase-orders/${orden.id}/lines`, {
+          lines: [{ productId: productoId, presentationId: cajaId, quantity: 3, unitCost: 10 }],
+        })
+        .expect(200);
+      // Sin presentación la cantidad va en unidad base, y `unit` es `count`.
+      await api(negocio.token)
+        .put(`/purchase-orders/${orden.id}/lines`, {
+          lines: [{ productId: productoId, quantity: 1.5, unitCost: 10 }],
+        })
+        .expect(422);
+    });
+
     it("dos líneas suman el total esperado y dejan UNA fila de impuesto por componente", async () => {
       const orden = await nuevaOrden();
       const conLineas = await api(negocio.token)

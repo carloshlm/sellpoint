@@ -15,6 +15,7 @@ import {
   receivedPercent,
 } from "@sellpoint/shared";
 import { hoyDelNegocio } from "../../common/business-today";
+import { assertQuantityFitsPresentation } from "../../common/quantity-rules";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { UserScope } from "../../infrastructure/warehouse-scope/request-warehouse-scope";
@@ -27,6 +28,7 @@ import {
   assertWarehouseInScope,
 } from "../inventory/warehouse-scope.helpers";
 import { contextoFiscal } from "../pos/tax-resolver";
+import { derivesFractionalInput } from "../products/products.service";
 import {
   armarCompraConGrupos,
   gruposPorCodigo,
@@ -96,7 +98,14 @@ export interface PurchaseOrderProductView {
   sku: string;
   name: string;
   baseUnit: string;
-  presentations: { id: string; name: string; factor: string; isPurchasable: boolean }[];
+  presentations: {
+    id: string;
+    name: string;
+    factor: string;
+    isPurchasable: boolean;
+    /** Si NO admite fracciones, la cantidad tecleada tiene que ser entera. */
+    allowFractionalInput: boolean;
+  }[];
 }
 
 export interface PurchaseOrderReceiptView {
@@ -151,11 +160,17 @@ const DETALLE = {
           presentations: {
             where: { isActive: true },
             orderBy: { factor: "asc" },
-            select: { id: true, name: true, factor: true, isPurchasable: true },
+            select: {
+              id: true,
+              name: true,
+              factor: true,
+              isPurchasable: true,
+              allowFractionalInput: true,
+            },
           },
         },
       },
-      presentation: { select: { name: true } },
+      presentation: { select: { name: true, allowFractionalInput: true } },
     },
   },
   taxes: { orderBy: { sortOrder: "asc" } },
@@ -223,6 +238,7 @@ export class PurchaseOrdersService {
       await assertActiveWarehouse(tx, user.tenantId, warehouseId);
       await this.assertProveedor(tx, user.tenantId, input.supplierId);
       await this.assertFechaDelPedido(tx, user.tenantId, input.orderDate);
+      this.assertEntregaEsperada(input.orderDate, input.expectedDate);
 
       const folio = await nextFolio(
         tx,
@@ -345,6 +361,10 @@ export class PurchaseOrdersService {
       if (input.orderDate !== undefined) {
         await this.assertFechaDelPedido(tx, user.tenantId, input.orderDate);
       }
+      this.assertEntregaEsperada(
+        input.orderDate ?? (fechaIso(actual.orderDate) as string),
+        input.expectedDate === undefined ? fechaIso(actual.expectedDate) : input.expectedDate,
+      );
       const data: Prisma.PurchaseOrderUncheckedUpdateInput = {
         ...(input.supplierId !== undefined && { supplierId: input.supplierId }),
         ...(input.warehouseId !== undefined && { warehouseId: input.warehouseId }),
@@ -752,7 +772,10 @@ export class PurchaseOrdersService {
       select: {
         id: true,
         name: true,
-        presentations: { select: { id: true, isActive: true } },
+        baseUnit: true,
+        presentations: {
+          select: { id: true, name: true, isActive: true, allowFractionalInput: true },
+        },
       },
     });
     const porId = new Map(productos.map((p) => [p.id, p]));
@@ -776,6 +799,21 @@ export class PurchaseOrdersService {
         }
         presentationId = presentacion.id;
       }
+      // Media pieza no existe, y un quinto decimal lo redondearía Postgres.
+      // Sin presentación la cantidad va en unidad base, y ahí manda la
+      // categoría de la unidad (F9-PO, Carlos 2026-09-13).
+      const presentacionElegida =
+        presentationId === null
+          ? null
+          : (producto.presentations.find((p) => p.id === presentationId) ?? null);
+      assertQuantityFitsPresentation(new Prisma.Decimal(linea.quantity), {
+        allowFractionalInput:
+          presentacionElegida?.allowFractionalInput ?? derivesFractionalInput(producto.baseUnit),
+        presentationName: presentacionElegida?.name ?? producto.baseUnit,
+        integerMessage: "purchase_orders.quantity_integer_only",
+        scaleMessage: "purchase_orders.quantity_too_many_decimals",
+        args: { field: "quantity", product: producto.name },
+      });
       const grupo =
         linea.taxGroupId === null
           ? null
@@ -812,6 +850,26 @@ export class PurchaseOrdersService {
       throw new UnprocessableEntityException({
         message: "purchase_orders.date_in_future",
         args: { field: "orderDate" },
+      });
+    }
+  }
+
+  /**
+   * La entrega esperada sigue pudiendo ser FUTURA —es la promesa del
+   * proveedor, la única fecha del sistema que mira hacia adelante— pero no
+   * puede caer ANTES del pedido: nadie entrega lo que todavía no se pidió
+   * (Carlos, 2026-09-13).
+   *
+   * Se mide sobre la pareja EFECTIVA. Editar solo una de las dos fechas tiene
+   * que compararse contra la que ya está guardada, o el desorden entraría por
+   * partes.
+   */
+  private assertEntregaEsperada(orderDate: string, expectedDate: string | null | undefined): void {
+    // ISO `YYYY-MM-DD`: el orden lexicográfico ES el cronológico.
+    if (typeof expectedDate === "string" && expectedDate < orderDate) {
+      throw new UnprocessableEntityException({
+        message: "purchase_orders.expected_before_order",
+        args: { field: "expectedDate" },
       });
     }
   }
@@ -870,6 +928,7 @@ export class PurchaseOrdersService {
             name: pr.name,
             factor: pr.factor.toString(),
             isPurchasable: pr.isPurchasable,
+            allowFractionalInput: pr.allowFractionalInput,
           })),
         }),
       ),

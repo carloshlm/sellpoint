@@ -89,10 +89,13 @@ function NewPurchaseOrderContent() {
               onChange={(event) => setOrderDate(event.target.value)}
               required
             />
-            {/* La ÚNICA fecha sin tope: es la promesa del proveedor. */}
+            {/* La única que mira hacia ADELANTE: es la promesa del proveedor.
+                Pero no puede caer antes del pedido — nadie entrega lo que
+                todavía no se encargó (Carlos, 2026-09-13). */}
             <DateField
               label={t("purchaseOrders.new.expectedDate")}
               hint={t("purchaseOrders.detail.expectedHint")}
+              min={orderDate || undefined}
               value={expectedDate}
               onChange={(event) => setExpectedDate(event.target.value)}
             />

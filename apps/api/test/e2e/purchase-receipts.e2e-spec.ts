@@ -341,6 +341,37 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       .expect(422);
   });
 
+  /**
+   * Carlos (2026-09-13): la cadena va en orden. No llega lo que todavía no se
+   * pidió, y lo que llegó obedece la presentación que se pidió.
+   */
+  it("la recepción no puede ser anterior al pedido, y media caja no llega", async () => {
+    const orden = await ordenEmitida(10);
+    const recepcion = await nuevaRecepcion(orden.id);
+    // El pedido es del 2026-09-10 (ver `ordenEmitida`).
+    await api(negocio.token)
+      .patch(`/purchase-orders/${orden.id}/receipts/${recepcion.id}`, {
+        receivedDate: "2026-09-09",
+      })
+      .expect(422);
+    // El MISMO día vale: se pide y llega en el acto.
+    await api(negocio.token)
+      .patch(`/purchase-orders/${orden.id}/receipts/${recepcion.id}`, {
+        receivedDate: "2026-09-10",
+      })
+      .expect(200);
+    await api(negocio.token)
+      .put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
+        lines: [{ purchaseOrderLineId: orden.lines[0]?.id, quantity: 2.5 }],
+      })
+      .expect(422);
+    await api(negocio.token)
+      .put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
+        lines: [{ purchaseOrderLineId: orden.lines[0]?.id, quantity: 2 }],
+      })
+      .expect(200);
+  });
+
   it("una recepción NO mueve existencias; y una facturada no se anula", async () => {
     const antes = await prisma.withTenantContext(negocio.tenantId, async (tx) => [
       await tx.stockMovement.count(),

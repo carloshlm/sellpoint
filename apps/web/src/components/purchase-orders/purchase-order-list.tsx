@@ -206,9 +206,17 @@ export function PurchaseOrderList() {
                     {/* Carlos, 2026-09-12: cuánto llegó, de un vistazo. */}
                     <td className="p-2 text-right tabular-nums">
                       <span data-testid={`received-pct-${orden.id}`}>{orden.receivedPercent}%</span>
+                      {/*
+                        `ml-auto`, no `text-right`: la celda alinea TEXTO, y una
+                        barra es un bloque de ancho fijo — sin el margen
+                        automático se queda pegada a la izquierda mientras el
+                        porcentaje se va a la derecha, y las dos cosas que
+                        dicen lo mismo aparecen en lados opuestos de la celda
+                        (Carlos, 2026-09-13).
+                      */}
                       <span
                         aria-hidden="true"
-                        className="mt-1 block h-1.5 w-20 overflow-hidden rounded bg-muted"
+                        className="mt-1 ml-auto block h-1.5 w-20 overflow-hidden rounded bg-muted"
                       >
                         <span
                           className="block h-full rounded bg-primary"

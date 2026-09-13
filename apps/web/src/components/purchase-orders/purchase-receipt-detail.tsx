@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DateField } from "@/components/form/date-field";
+import { QuantityInput } from "@/components/form/quantity-input";
 import { TextField } from "@/components/form/text-field";
 import { LotCells } from "@/components/inventory/lot-cells";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,7 @@ import {
   useReplacePurchaseReceiptLines,
   useUpdatePurchaseReceipt,
 } from "@/lib/purchase-orders/hooks";
+import { quantityInputError } from "@/lib/quantity";
 import { useAutosave } from "@/lib/use-autosave";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -33,6 +35,9 @@ interface LineaEditable {
   sku: string;
   description: string;
   presentationName: string | null;
+  /** `false` = lo que llegó tiene que ser entero. Viaja en la línea: en una
+   * recepción la presentación no se elige, se hereda de la orden. */
+  allowFractionalInput: boolean;
   tracksLots: boolean;
   quantityOrdered: string;
   quantityReceived: string;
@@ -50,6 +55,7 @@ const aEditable = (r: PurchaseReceipt): LineaEditable[] =>
     sku: l.productSku,
     description: l.description,
     presentationName: l.presentationName,
+    allowFractionalInput: l.allowFractionalInput,
     tracksLots: l.tracksLots,
     quantityOrdered: l.quantityOrdered,
     quantityReceived: l.quantityReceived,
@@ -123,6 +129,11 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
       new Date(iso),
     );
 
+  /** Lo que LLEGÓ obedece la presentación de la línea: media pieza no llega. */
+  const errorDeCantidad = (linea: { quantity: string; allowFractionalInput: boolean }) =>
+    quantityInputError(linea.quantity, { allowsDecimals: linea.allowFractionalInput });
+  const hayCantidadInvalida = (): boolean => lineas.some((l) => errorDeCantidad(l) !== null);
+
   const armarPayload = (): PurchaseReceiptLineInput[] =>
     lineas.map((l) => ({
       purchaseOrderLineId: l.purchaseOrderLineId,
@@ -132,6 +143,8 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
     }));
   const guardar = () => {
     setError(null);
+    // El error ya está pintado bajo el campo: acá solo se frena el envío.
+    if (hayCantidadInvalida()) return;
     guardarLineas.mutate({ ...ids, lines: armarPayload() }, { onError });
   };
   // Confirmar GUARDA primero lo tecleado (cantidad, lote, caducidad): sin esto,
@@ -144,6 +157,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
       setConfirmando(true);
       return;
     }
+    if (hayCantidadInvalida()) return;
     guardarLineas
       .mutateAsync({ ...ids, lines: armarPayload() })
       .then(() => setConfirmando(true))
@@ -230,8 +244,10 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* No llega lo que todavía no se pidió (Carlos, 2026-09-13). */}
             <DateField
               label={t("purchaseOrders.receipt.receivedDate")}
+              min={receipt.orderDate}
               max={hoy}
               value={receivedDate}
               disabled={!borrador || !puedeEditar}
@@ -309,14 +325,27 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                     <td className="p-2 text-right tabular-nums">{linea.pending}</td>
                     <td className="p-2 text-right">
                       {borrador ? (
-                        <Input
-                          aria-label={t("purchaseOrders.receipt.quantity")}
-                          className="ml-auto w-24 text-right tabular-nums"
-                          inputMode="decimal"
-                          value={linea.quantity}
-                          disabled={!puedeEditar}
-                          onChange={(event) => cambiar(index, "quantity", event.target.value)}
-                        />
+                        <>
+                          <QuantityInput
+                            aria-label={t("purchaseOrders.receipt.quantity")}
+                            allowsDecimals={linea.allowFractionalInput}
+                            invalid={errorDeCantidad(linea) !== null}
+                            value={linea.quantity}
+                            disabled={!puedeEditar}
+                            onChange={(valor) => cambiar(index, "quantity", valor)}
+                          />
+                          {errorDeCantidad(linea) !== null && (
+                            <span
+                              role="alert"
+                              className="mt-1 block text-destructive text-xs"
+                              data-testid={`quantity-error-${index}`}
+                            >
+                              {t(errorDeCantidad(linea) as string, {
+                                presentation: linea.presentationName ?? "",
+                              })}
+                            </span>
+                          )}
+                        </>
                       ) : (
                         <span className="tabular-nums">{linea.quantity}</span>
                       )}

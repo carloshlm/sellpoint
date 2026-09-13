@@ -150,6 +150,10 @@ describe("Órdenes de compra — listado (F9-PO-11)", () => {
     expect(within(fila).getByText("Facturada")).toBeInTheDocument();
     expect(screen.getByTestId("received-pct-po4")).toHaveTextContent("95%");
     expect(screen.getByTestId("received-pct-po1")).toHaveTextContent("0%");
+    // La barra va BAJO su porcentaje, no en la otra punta de la celda: es un
+    // bloque, y `text-right` no mueve bloques (Carlos, 2026-09-13).
+    const barra = screen.getByTestId("received-pct-po4").nextElementSibling;
+    expect(barra).toHaveClass("ml-auto");
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText("Estado"), "invoiced");
     await waitFor(() =>

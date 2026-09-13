@@ -225,8 +225,8 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     const deOrden = buildPurchase({
       status: "draft",
       confirmedAt: null,
-      order: { id: "po1", folio: "OCO-000007" },
-      receipts: [{ id: "r1", folio: "RCP-000003" }],
+      order: { id: "po1", folio: "OCO-000007", orderDate: "2026-09-01" },
+      receipts: [{ id: "r1", folio: "RCP-000003", receivedDate: "2026-09-05" }],
       quantityVariance: true,
     });
     deOrden.lines = [

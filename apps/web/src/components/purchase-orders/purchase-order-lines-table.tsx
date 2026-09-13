@@ -1,11 +1,11 @@
 import type { TaxMode } from "@sellpoint/shared";
-import { type Currency, formatMoney } from "@sellpoint/shared";
+import { type Currency, formatMoney, unitName } from "@sellpoint/shared";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoneyInput } from "@/components/form/money-input";
+import { QuantityInput } from "@/components/form/quantity-input";
 import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { getProduct } from "@/lib/products/api";
@@ -19,6 +19,7 @@ import {
   useReplacePurchaseOrderLines,
 } from "@/lib/purchase-orders/hooks";
 import { getLastCost, type LastCost } from "@/lib/purchases/api";
+import { lineaAdmiteDecimales, quantityInputError } from "@/lib/quantity";
 import { useAuthStore } from "@/stores/auth.store";
 
 interface LineaEditable {
@@ -54,12 +55,13 @@ async function fichaDe(producto: {
     id: producto.id,
     sku: producto.sku,
     name: producto.name,
-    baseUnit: "",
+    baseUnit: detalle.baseUnit,
     presentations: detalle.presentations.map((p) => ({
       id: p.id,
       name: p.name,
       factor: p.factor,
       isPurchasable: p.isPurchasable,
+      allowFractionalInput: p.allowFractionalInput,
       cost: p.cost ?? null,
     })),
   };
@@ -234,13 +236,27 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
     const sucia = JSON.stringify(lineas) !== JSON.stringify(aEditable(order));
     useImperativeHandle(ref, () => ({
       guardarSiHayCambios: async () => {
-        if (!editable || !sucia) return;
+        if (!editable || !sucia || lineasConCantidadInvalida().length > 0) return;
         await guardar.mutateAsync({ id: order.id, lines: armarPayload() });
       },
     }));
 
+    /** Las líneas cuya cantidad no cabe en su presentación, por número de línea. */
+    const lineasConCantidadInvalida = (): number[] =>
+      lineas
+        .map((linea, i) =>
+          quantityInputError(linea.quantity, {
+            allowsDecimals: lineaAdmiteDecimales(productoDe(linea.productId), linea.presentationId),
+          }) === null
+            ? null
+            : i + 1,
+        )
+        .filter((n): n is number => n !== null);
+
     const guardarLineas = () => {
       setError(null);
+      // El error ya está pintado bajo cada campo: acá solo se frena el envío.
+      if (lineasConCantidadInvalida().length > 0) return;
       const payload: PurchaseOrderLineInput[] = lineas.map((linea) => ({
         productId: linea.productId,
         presentationId: linea.presentationId === "" ? null : linea.presentationId,
@@ -307,6 +323,9 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                   const presentacion = producto?.presentations.find(
                     (p) => p.id === linea.presentationId,
                   );
+                  const errorCantidad = quantityInputError(linea.quantity, {
+                    allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
+                  });
                   const porcentaje =
                     Number(linea.quantity) > 0
                       ? Math.min(
@@ -366,13 +385,28 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                       </td>
                       <td className="p-2 text-right tabular-nums">
                         {editable ? (
-                          <Input
-                            aria-label={t("purchaseOrders.lines.quantity")}
-                            className="ml-auto w-24 text-right tabular-nums"
-                            inputMode="decimal"
-                            value={linea.quantity}
-                            onChange={(event) => cambiar(index, "quantity", event.target.value)}
-                          />
+                          <>
+                            <QuantityInput
+                              aria-label={t("purchaseOrders.lines.quantity")}
+                              allowsDecimals={lineaAdmiteDecimales(producto, linea.presentationId)}
+                              invalid={errorCantidad !== null}
+                              value={linea.quantity}
+                              onChange={(valor) => cambiar(index, "quantity", valor)}
+                            />
+                            {errorCantidad !== null && (
+                              <span
+                                role="alert"
+                                className="mt-1 block text-destructive text-xs"
+                                data-testid={`quantity-error-${index}`}
+                              >
+                                {t(errorCantidad, {
+                                  presentation:
+                                    presentacion?.name ??
+                                    (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),
+                                })}
+                              </span>
+                            )}
+                          </>
                         ) : (
                           linea.quantity
                         )}

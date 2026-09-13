@@ -101,7 +101,14 @@
     "progress": "{{received}} of {{ordered}}",
     "closedShort": "Closed with shortage",
     "closeShort": "Close with shortage",
-    "notPurchasable": "That presentation isn't marked as purchasable, but you can use it."
+    "notPurchasable": "That presentation isn't marked as purchasable, but you can use it.",
+    "errors": {
+      "quantityNaN": "Enter a quantity.",
+      "quantityComma": "Use a dot for decimals, not a comma.",
+      "quantityInteger": "\"{{presentation}}\" can't be split: use a whole quantity.",
+      "quantityDecimals": "Too many decimals: up to 4.",
+      "quantityTooLarge": "Quantity is too large."
+    }
   },
   "receipts": {
     "title": "Receipts",

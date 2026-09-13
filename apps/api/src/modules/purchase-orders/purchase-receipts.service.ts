@@ -6,12 +6,14 @@ import {
 } from "@nestjs/common";
 import { PURCHASE_FOLIO_PREFIXES, pendingQuantity } from "@sellpoint/shared";
 import { hoyDelNegocio } from "../../common/business-today";
+import { assertQuantityFitsPresentation } from "../../common/quantity-rules";
 import { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { nextFolio } from "../inventory/folio";
+import { derivesFractionalInput } from "../products/products.service";
 import { aplicarReglasDeLote } from "../purchases/lot-rules";
 import type {
   CancelPurchaseReceiptDto,
@@ -29,6 +31,12 @@ export interface PurchaseReceiptLineView {
   productSku: string;
   description: string;
   presentationName: string | null;
+  /**
+   * Si NO admite fracciones, lo que llegó tiene que ser entero. Viaja en la
+   * LÍNEA y no en un catálogo aparte porque en una recepción la presentación
+   * no se elige: la hereda de la línea de la orden.
+   */
+  allowFractionalInput: boolean;
   tracksLots: boolean;
   quantityOrdered: string;
   /** Lo recibido en la orden HOY (con esta recepción, si ya se confirmó). */
@@ -47,6 +55,8 @@ export interface PurchaseReceiptDetail {
   status: string;
   purchaseOrderId: string;
   orderFolio: string;
+  /** La fecha del PEDIDO: el piso de la fecha de recepción. */
+  orderDate: string;
   orderStatus: string;
   receivedDate: string;
   packingSlip: string | null;
@@ -61,15 +71,15 @@ export interface PurchaseReceiptDetail {
 }
 
 const DETALLE = {
-  purchaseOrder: { select: { folio: true, status: true } },
+  purchaseOrder: { select: { folio: true, status: true, orderDate: true } },
   purchase: { select: { id: true, folio: true, status: true } },
   lines: {
     orderBy: { lineNo: "asc" },
     include: {
       purchaseOrderLine: {
         include: {
-          product: { select: { id: true, sku: true, tracksLots: true } },
-          presentation: { select: { name: true } },
+          product: { select: { id: true, sku: true, tracksLots: true, baseUnit: true } },
+          presentation: { select: { name: true, allowFractionalInput: true } },
         },
       },
     },
@@ -203,13 +213,23 @@ export class PurchaseReceiptsService {
     meta: RequestMeta,
   ): Promise<PurchaseReceiptDetail> {
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
-      await this.assertDraft(tx, user.tenantId, orderId, receiptId);
+      const recepcion = await this.assertDraft(tx, user.tenantId, orderId, receiptId);
       if (input.receivedDate !== undefined) {
         // Una recepción es un HECHO: de hoy para atrás, con el hoy del negocio.
         if (input.receivedDate > (await hoyDelNegocio(tx, user.tenantId))) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.receipt_date_in_future",
             args: { field: "receivedDate" },
+          });
+        }
+        // Y tampoco antes del PEDIDO: no llega lo que todavía no se pidió
+        // (Carlos, 2026-09-13). ISO `YYYY-MM-DD`: el orden lexicográfico ES
+        // el cronológico.
+        const pedido = recepcion.purchaseOrder.orderDate.toISOString().slice(0, 10);
+        if (input.receivedDate < pedido) {
+          throw new UnprocessableEntityException({
+            message: "purchase_orders.receipt_before_order",
+            args: { field: "receivedDate", orderDate: pedido },
           });
         }
       }
@@ -265,6 +285,19 @@ export class PurchaseReceiptsService {
             args: { field: `lines.${index + 1}.quantity` },
           });
         }
+        // Lo que LLEGÓ obedece la misma presentación que se pidió: media pieza
+        // no llega, y un quinto decimal lo redondearía Postgres en silencio
+        // (Carlos, 2026-09-13). Se mide acá, al GUARDAR: el confirm de más
+        // abajo ya trabaja sobre líneas que pasaron por esta puerta.
+        assertQuantityFitsPresentation(new Prisma.Decimal(linea.quantity), {
+          allowFractionalInput:
+            deOrden.presentation?.allowFractionalInput ??
+            derivesFractionalInput(deOrden.product.baseUnit),
+          presentationName: deOrden.presentation?.name ?? deOrden.product.baseUnit,
+          integerMessage: "purchase_orders.quantity_integer_only",
+          scaleMessage: "purchase_orders.quantity_too_many_decimals",
+          args: { field: `lines.${index + 1}.quantity`, line: index + 1 },
+        });
         const pendiente = deOrden.quantityOrdered.minus(deOrden.quantityReceived);
         if (new Prisma.Decimal(linea.quantity).greaterThan(pendiente)) {
           throw new UnprocessableEntityException({
@@ -487,6 +520,7 @@ export class PurchaseReceiptsService {
       status: r.status,
       purchaseOrderId: r.purchaseOrderId,
       orderFolio: r.purchaseOrder.folio,
+      orderDate: r.purchaseOrder.orderDate.toISOString().slice(0, 10),
       orderStatus: r.purchaseOrder.status,
       receivedDate: fecha(r.receivedDate) as string,
       packingSlip: r.packingSlip,
@@ -501,6 +535,11 @@ export class PurchaseReceiptsService {
         productSku: l.purchaseOrderLine.product.sku,
         description: l.purchaseOrderLine.description,
         presentationName: l.purchaseOrderLine.presentation?.name ?? null,
+        // Sin presentación la cantidad va en unidad base, y ahí manda la
+        // categoría de la unidad: `count` no admite medias piezas.
+        allowFractionalInput:
+          l.purchaseOrderLine.presentation?.allowFractionalInput ??
+          derivesFractionalInput(l.purchaseOrderLine.product.baseUnit),
         tracksLots: l.purchaseOrderLine.product.tracksLots,
         quantityOrdered: l.purchaseOrderLine.quantityOrdered.toString(),
         quantityReceived: l.purchaseOrderLine.quantityReceived.toString(),

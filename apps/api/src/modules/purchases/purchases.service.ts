@@ -113,7 +113,14 @@ export interface PurchaseProductView {
   name: string;
   baseUnit: string;
   tracksLots: boolean;
-  presentations: { id: string; name: string; factor: string; isPurchasable: boolean }[];
+  presentations: {
+    id: string;
+    name: string;
+    factor: string;
+    isPurchasable: boolean;
+    /** Si NO admite fracciones, la cantidad tecleada tiene que ser entera. */
+    allowFractionalInput: boolean;
+  }[];
 }
 
 /** Una página del listado con el resumen del RANGO filtrado (sin anuladas). */
@@ -142,8 +149,10 @@ export interface PurchaseDetail extends PurchaseRow {
   /** La entrada de inventario VIVA que nació de esta compra, si ya se pidió. */
   entry: { id: string; folio: string; status: string } | null;
   /** F9-PO-09: la orden de la que nació y las recepciones que factura. */
-  order: { id: string; folio: string } | null;
-  receipts: { id: string; folio: string }[];
+  /** De qué pedido nació. `orderDate` es el piso de las fechas de la compra. */
+  order: { id: string; folio: string; orderDate: string } | null;
+  /** Las recepciones que factura; la ÚLTIMA es el piso de `receivedDate`. */
+  receipts: { id: string; folio: string; receivedDate: string }[];
   /** DERIVADO: alguna línea factura MÁS de lo recibido en su línea de orden. Avisa, no bloquea. */
   quantityVariance: boolean;
 }
@@ -174,7 +183,13 @@ const DETALLE = {
           presentations: {
             where: { isActive: true },
             orderBy: { factor: "asc" },
-            select: { id: true, name: true, factor: true, isPurchasable: true },
+            select: {
+              id: true,
+              name: true,
+              factor: true,
+              isPurchasable: true,
+              allowFractionalInput: true,
+            },
           },
         },
       },
@@ -184,12 +199,13 @@ const DETALLE = {
   },
   charges: { orderBy: { lineNo: "asc" } },
   taxes: { orderBy: { sortOrder: "asc" } },
-  purchaseOrder: { select: { id: true, folio: true } },
+  purchaseOrder: { select: { id: true, folio: true, orderDate: true } },
   receipts: {
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
       folio: true,
+      receivedDate: true,
       lines: { select: { purchaseOrderLineId: true, quantity: true } },
     },
   },
@@ -378,7 +394,10 @@ export class PurchasesService {
       if (input.supplierId !== undefined) {
         await this.assertProveedor(tx, user.tenantId, input.supplierId);
       }
-      await this.assertFechasNoFuturas(tx, user.tenantId, input);
+      await this.assertFechasNoFuturas(tx, user.tenantId, input, {
+        orderDate: actual.purchaseOrder?.orderDate ?? null,
+        ultimaRecepcion: ultimaRecepcionDe(actual.receipts),
+      });
       const data: Prisma.PurchaseUncheckedUpdateInput = {
         ...(input.supplierId !== undefined && { supplierId: input.supplierId }),
         ...(input.warehouseId !== undefined && { warehouseId: input.warehouseId }),
@@ -431,7 +450,10 @@ export class PurchasesService {
       if (actual.status !== "confirmed") {
         throw new ConflictException({ message: "purchases.not_confirmed" });
       }
-      await this.assertFechasNoFuturas(tx, user.tenantId, input);
+      await this.assertFechasNoFuturas(tx, user.tenantId, input, {
+        orderDate: actual.purchaseOrder?.orderDate ?? null,
+        ultimaRecepcion: ultimaRecepcionDe(actual.receipts),
+      });
       await tx.purchase.update({
         where: { id },
         data: {
@@ -991,6 +1013,7 @@ export class PurchasesService {
             // Como toda cantidad del API: texto decimal, no number.
             factor: pr.factor.toString(),
             isPurchasable: pr.isPurchasable,
+            allowFractionalInput: pr.allowFractionalInput,
           })),
         }),
       ),
@@ -1012,8 +1035,19 @@ export class PurchasesService {
         amount: t.amount.toString(),
       })),
       entry,
-      order: compra.purchaseOrder,
-      receipts: compra.receipts.map((r) => ({ id: r.id, folio: r.folio })),
+      order:
+        compra.purchaseOrder === null
+          ? null
+          : {
+              id: compra.purchaseOrder.id,
+              folio: compra.purchaseOrder.folio,
+              orderDate: compra.purchaseOrder.orderDate.toISOString().slice(0, 10),
+            },
+      receipts: compra.receipts.map((r) => ({
+        id: r.id,
+        folio: r.folio,
+        receivedDate: r.receivedDate.toISOString().slice(0, 10),
+      })),
       quantityVariance: hayVariacionDeCantidad(compra),
     };
   }
@@ -1030,6 +1064,11 @@ export class PurchasesService {
     tx: Prisma.TransactionClient,
     tenantId: string,
     fechas: { purchaseDate?: string; receivedDate?: string | null },
+    /**
+     * De dónde viene la compra, cuando viene de algún lado. Una compra suelta
+     * —sin orden y sin recepciones— no tiene piso: su único tope es hoy.
+     */
+    origen?: { orderDate: Date | null; ultimaRecepcion: Date | null },
   ): Promise<void> {
     const candidatas: [string, string][] = [];
     if (typeof fechas.purchaseDate === "string") {
@@ -1048,6 +1087,40 @@ export class PurchasesService {
           args: { field: campo },
         });
       }
+    }
+    if (origen === undefined) return;
+    const iso = (d: Date | null): string | null =>
+      d === null ? null : d.toISOString().slice(0, 10);
+    const pedido = iso(origen.orderDate);
+    const llegada = iso(origen.ultimaRecepcion);
+    // La factura de un pedido no puede ser anterior AL PEDIDO: no se factura
+    // lo que todavía no se encargó. Sí puede ser anterior a la entrega —un
+    // proveedor factura el lunes y entrega el miércoles (Carlos, 2026-09-13).
+    if (
+      pedido !== null &&
+      typeof fechas.purchaseDate === "string" &&
+      fechas.purchaseDate < pedido
+    ) {
+      throw new UnprocessableEntityException({
+        message: "purchases.date_before_order",
+        args: { field: "purchaseDate", orderDate: pedido },
+      });
+    }
+    if (typeof fechas.receivedDate !== "string") return;
+    // La recepción de la compra dice cuándo llegó lo que se está facturando.
+    // Con recepciones, el piso es la ÚLTIMA: ponerla antes sería negar una
+    // entrega que ya se registró. Sin recepciones, el piso es el pedido.
+    if (llegada !== null && fechas.receivedDate < llegada) {
+      throw new UnprocessableEntityException({
+        message: "purchases.received_before_receipts",
+        args: { field: "receivedDate", receiptDate: llegada },
+      });
+    }
+    if (llegada === null && pedido !== null && fechas.receivedDate < pedido) {
+      throw new UnprocessableEntityException({
+        message: "purchases.received_before_order",
+        args: { field: "receivedDate", orderDate: pedido },
+      });
     }
   }
 
@@ -1136,5 +1209,18 @@ function hayVariacionDeCantidad(compra: FilaDetallada): boolean {
   }
   return [...facturado].some(([lineaId, cantidad]) =>
     cantidad.greaterThan(recibido.get(lineaId) ?? new Prisma.Decimal(0)),
+  );
+}
+
+/**
+ * La fecha de la ÚLTIMA recepción que una compra factura, o `null` si no
+ * factura ninguna. Es el piso de su fecha de recepción: ponerla antes negaría
+ * una entrega ya registrada (Carlos, 2026-09-13).
+ */
+function ultimaRecepcionDe(receipts: { receivedDate: Date }[]): Date | null {
+  if (receipts.length === 0) return null;
+  return receipts.reduce(
+    (mayor, r) => (r.receivedDate > mayor ? r.receivedDate : mayor),
+    receipts[0]?.receivedDate as Date,
   );
 }

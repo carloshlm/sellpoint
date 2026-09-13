@@ -67,6 +67,8 @@ export interface PurchaseOrderProduct {
     name: string;
     factor: string;
     isPurchasable: boolean;
+    /** `false` = la cantidad tiene que ser entera: media pieza no existe. */
+    allowFractionalInput: boolean;
     cost?: string | null;
   }[];
 }
@@ -143,6 +145,8 @@ export interface PurchaseReceiptLine {
   productSku: string;
   description: string;
   presentationName: string | null;
+  /** `false` = lo que llegó tiene que ser entero: media pieza no llega. */
+  allowFractionalInput: boolean;
   tracksLots: boolean;
   quantityOrdered: string;
   quantityReceived: string;
@@ -159,6 +163,8 @@ export interface PurchaseReceipt {
   status: PurchaseReceiptStatus;
   purchaseOrderId: string;
   orderFolio: string;
+  /** La fecha del PEDIDO: el piso de la fecha de recepción. */
+  orderDate: string;
   orderStatus: PurchaseOrderViewStatus;
   receivedDate: string;
   packingSlip: string | null;
