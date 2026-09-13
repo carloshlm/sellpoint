@@ -82,6 +82,66 @@ describe("SupplierPicker (F9-SUPPL-07)", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
+  /**
+   * Carlos (2026-09-13): una orden de compra y una compra son un compromiso
+   * con ALGUIEN. Ahí el proveedor se cambia, pero no se suelta — y el botón
+   * no puede desaparecer, porque con uno elegido el buscador se esconde y
+   * quien se equivocó quedaría atrapado en su borrador.
+   */
+  describe("sin poder quitarlo (clearable=false)", () => {
+    it("el botón dice «Cambiar» y NO suelta al proveedor: abre el buscador", async () => {
+      mocked.getSupplier.mockResolvedValue(norte);
+      mocked.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
+      const onChange = renderPicker({ value: "s1", clearable: false });
+      const user = userEvent.setup();
+      await waitFor(() =>
+        expect(screen.getByTestId("supplier-picker-selected")).toHaveTextContent(
+          "Distribuidora Norte",
+        ),
+      );
+      expect(screen.queryByRole("button", { name: "Quitar" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Cambiar" }));
+      expect(onChange).not.toHaveBeenCalled();
+      expect(screen.getByLabelText("Proveedor")).toBeInTheDocument();
+    });
+
+    it("se puede volver al que ya estaba sin haber elegido otro", async () => {
+      mocked.getSupplier.mockResolvedValue(norte);
+      const onChange = renderPicker({ value: "s1", clearable: false });
+      const user = userEvent.setup();
+      await waitFor(() =>
+        expect(screen.getByTestId("supplier-picker-selected")).toHaveTextContent(
+          "Distribuidora Norte",
+        ),
+      );
+      await user.click(screen.getByRole("button", { name: "Cambiar" }));
+      await user.click(screen.getByRole("button", { name: "Conservar el actual" }));
+      expect(onChange).not.toHaveBeenCalled();
+      expect(screen.getByTestId("supplier-picker-selected")).toHaveTextContent(
+        "Distribuidora Norte",
+      );
+    });
+
+    it("elegir un reemplazo devuelve el NUEVO proveedor y cierra el buscador", async () => {
+      const sur: suppliersApi.Supplier = { ...norte, id: "s2", code: "PROV-002", name: "Sur SA" };
+      mocked.getSupplier.mockResolvedValue(norte);
+      mocked.listSuppliers.mockResolvedValue({ rows: [sur], total: 1, page: 1, pageSize: 20 });
+      const onChange = renderPicker({ value: "s1", clearable: false });
+      const user = userEvent.setup();
+      await waitFor(() =>
+        expect(screen.getByTestId("supplier-picker-selected")).toHaveTextContent(
+          "Distribuidora Norte",
+        ),
+      );
+      await user.click(screen.getByRole("button", { name: "Cambiar" }));
+      await user.type(screen.getByLabelText("Proveedor"), "sur");
+      const opcion = await screen.findByTestId("supplier-option-s2");
+      await user.click(within(opcion).getByRole("button"));
+      expect(onChange).toHaveBeenCalledWith(sur);
+    });
+  });
+
   it("sin coincidencias lo dice en palabras", async () => {
     mocked.listSuppliers.mockResolvedValue({ rows: [], total: 0, page: 1, pageSize: 20 });
     renderPicker();

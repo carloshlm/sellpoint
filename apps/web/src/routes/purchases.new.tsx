@@ -76,8 +76,11 @@ function NewPurchaseContent() {
           {error !== null && <ErrorNotice>{error}</ErrorNotice>}
           <p className="text-muted-foreground text-sm">{t("purchases.new.intro")}</p>
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Una factura es de ALGUIEN: se cambia, no se quita
+                (Carlos, 2026-09-13). */}
             <SupplierPicker
               value={supplierId}
+              clearable={false}
               onChange={(s) => setSupplierId(s?.id ?? null)}
               label={t("purchases.new.supplier")}
             />

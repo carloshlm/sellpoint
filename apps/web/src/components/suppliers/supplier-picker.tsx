@@ -9,30 +9,54 @@ import { useDebouncedValue } from "@/lib/use-debounced-value";
 interface SupplierPickerProps {
   /** El id elegido; null sin proveedor. */
   value: string | null;
-  /** El proveedor elegido (null al quitar). */
+  /** El proveedor elegido (null al quitar, solo si `clearable`). */
   onChange: (supplier: Supplier | null) => void;
   disabled?: boolean;
   label?: string;
+  /**
+   * ¿Se puede dejar SIN proveedor? (Carlos, 2026-09-13.)
+   *
+   * Un filtro de listado sí —quitarlo es «todos»— y un gasto también, porque
+   * puede pagarse a un beneficiario suelto. Una orden de compra y una compra
+   * NO: son un compromiso con alguien, y el API las exige con proveedor desde
+   * que nacen. Ahí el botón pasa a ser «Cambiar»: muestra el buscador sin
+   * soltar al que ya está, y el documento nunca queda huérfano.
+   */
+  clearable?: boolean;
 }
 
 /**
  * F9-SUPPL-07 — el buscador de proveedores, UNO para Compras y Gastos (molde:
  * `medication-picker.tsx`). Busca solo ACTIVOS con debounce, un clic en el
- * renglón elige, y con uno elegido muestra su nombre con «Quitar». Con solo
- * el id (una ficha que se abre después) trae el nombre por su cuenta.
+ * renglón elige. Con solo el id (una ficha que se abre después) trae el
+ * nombre por su cuenta.
+ *
+ * Con uno elegido el buscador se esconde, así que el botón de al lado es la
+ * ÚNICA salida: por eso donde no se puede quitar tampoco se puede borrar el
+ * botón —quien se equivocó de proveedor quedaría atrapado en su borrador— y
+ * lo que cambia es lo que el botón hace.
  */
-export function SupplierPicker({ value, onChange, disabled = false, label }: SupplierPickerProps) {
+export function SupplierPicker({
+  value,
+  onChange,
+  disabled = false,
+  label,
+  clearable = true,
+}: SupplierPickerProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
+  /** Buscando un reemplazo, con el actual todavía puesto. */
+  const [cambiando, setCambiando] = useState(false);
   const termino = useDebouncedValue(query.trim());
   const elegido = useSupplier(value);
+  const buscando = value === null || cambiando;
   const busqueda = useSuppliers(
     { query: termino, isActive: true, pageSize: 20 },
-    { enabled: value === null && termino !== "" },
+    { enabled: buscando && termino !== "" },
   );
   const filas = busqueda.data?.rows ?? [];
 
-  if (value !== null) {
+  if (value !== null && !cambiando) {
     return (
       <div className="flex flex-col gap-2" data-testid="supplier-picker">
         <span className="font-medium text-sm">{label ?? t("suppliers.picker.label")}</span>
@@ -45,9 +69,16 @@ export function SupplierPicker({ value, onChange, disabled = false, label }: Sup
             variant="ghost"
             size="sm"
             disabled={disabled}
-            onClick={() => onChange(null)}
+            onClick={() => {
+              if (clearable) {
+                onChange(null);
+                return;
+              }
+              setQuery("");
+              setCambiando(true);
+            }}
           >
-            {t("suppliers.picker.clear")}
+            {clearable ? t("suppliers.picker.clear") : t("suppliers.picker.change")}
           </Button>
         </div>
       </div>
@@ -64,6 +95,24 @@ export function SupplierPicker({ value, onChange, disabled = false, label }: Sup
         disabled={disabled}
         onChange={(event) => setQuery(event.target.value)}
       />
+      {/* Buscando un reemplazo: se puede volver al que ya estaba, o el
+          borrador quedaría a medio cambiar hasta recargar la pantalla. */}
+      {cambiando && (
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={disabled}
+            onClick={() => {
+              setQuery("");
+              setCambiando(false);
+            }}
+          >
+            {t("suppliers.picker.cancelChange")}
+          </Button>
+        </div>
+      )}
       {termino === "" ? null : busqueda.isError ? (
         <p role="alert" className="text-destructive text-sm">
           {t("suppliers.picker.searchFailed")}
@@ -83,6 +132,7 @@ export function SupplierPicker({ value, onChange, disabled = false, label }: Sup
                 onClick={() => {
                   onChange(fila);
                   setQuery("");
+                  setCambiando(false);
                 }}
               >
                 <span className="flex min-w-0 flex-col">

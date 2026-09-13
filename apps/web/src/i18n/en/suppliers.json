@@ -23,7 +23,7 @@
       "title": "Delete “{{name}}”",
       "body": "The supplier is deleted and cannot be recovered. If it already has purchases or expenses on record it cannot be deleted: deactivate it instead and it keeps its history.",
       "confirm": "Delete supplier",
-      "done": "Supplier \u201c{{name}}\u201d deleted."
+      "done": "Supplier “{{name}}” deleted."
     }
   },
   "import": {
@@ -77,6 +77,8 @@
     "placeholder": "Search by name or tax ID…",
     "noResults": "No active supplier matches.",
     "searchFailed": "We couldn't search suppliers. Try again.",
-    "clear": "Remove"
+    "clear": "Remove",
+    "change": "Change",
+    "cancelChange": "Keep current"
   }
 }

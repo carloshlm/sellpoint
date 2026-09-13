@@ -263,6 +263,7 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
             {borrador ? (
               <SupplierPicker
                 value={supplierId}
+                clearable={false}
                 onChange={(proveedor) => {
                   if (proveedor === null) return;
                   setSupplierId(proveedor.id);

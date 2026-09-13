@@ -77,6 +77,8 @@
     "placeholder": "Busca por nombre o registro fiscal…",
     "noResults": "Ningún proveedor activo coincide.",
     "searchFailed": "No pudimos buscar proveedores. Intenta de nuevo.",
-    "clear": "Quitar"
+    "clear": "Quitar",
+    "change": "Cambiar",
+    "cancelChange": "Conservar el actual"
   }
 }

@@ -77,8 +77,11 @@ function NewPurchaseOrderContent() {
           {error !== null && <ErrorNotice>{error}</ErrorNotice>}
           <p className="text-muted-foreground text-sm">{t("purchaseOrders.new.intro")}</p>
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Un pedido es un compromiso con ALGUIEN: se cambia, no se
+                quita (Carlos, 2026-09-13). */}
             <SupplierPicker
               value={supplierId}
+              clearable={false}
               onChange={(s) => setSupplierId(s?.id ?? null)}
               label={t("purchaseOrders.new.supplier")}
             />

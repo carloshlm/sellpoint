@@ -294,6 +294,7 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
             {borrador ? (
               <SupplierPicker
                 value={supplierId}
+                clearable={false}
                 onChange={(proveedor) => {
                   if (proveedor === null) return;
                   setSupplierId(proveedor.id);
