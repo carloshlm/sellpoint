@@ -16,7 +16,8 @@
       "invoice": "Invoice",
       "lines": "Lines",
       "total": "Total",
-      "status": "Status"
+      "status": "Status",
+      "warehouse": "Warehouse"
     },
     "summary": {
       "count": "{{count}} purchase",
@@ -38,7 +39,11 @@
     "supplier": "Supplier",
     "date": "Invoice date",
     "create": "Create draft",
-    "supplierRequired": "Choose the supplier on the invoice."
+    "supplierRequired": "Choose the supplier on the invoice.",
+    "warehouse": "Warehouse",
+    "warehouseHint": "Where the invoiced goods go.",
+    "warehouseRequired": "Choose the warehouse the purchase goes into.",
+    "warehouseEmpty": "You have no warehouses available. Ask an administrator to give you access to one."
   },
   "detail": {
     "title": "Purchase {{folio}}",

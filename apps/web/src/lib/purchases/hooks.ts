@@ -50,7 +50,9 @@ export function usePurchase(id: string | null) {
 
 export function useCreatePurchase() {
   const queryClient = useQueryClient();
-  return useMutation<Purchase, ApiError, { supplierId: string; purchaseDate: string }>({
+  // El tipo sale de `createPurchase`, no se copia a mano: copiado se quedó sin
+  // `warehouseId` aunque el API ya lo aceptaba (Carlos, 2026-09-13).
+  return useMutation<Purchase, ApiError, Parameters<typeof createPurchase>[0]>({
     mutationFn: (input) => createPurchase(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: PURCHASES_QUERY_KEY });

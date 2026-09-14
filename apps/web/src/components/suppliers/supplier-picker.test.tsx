@@ -78,6 +78,11 @@ describe("SupplierPicker (F9-SUPPL-07)", () => {
       ),
     );
     expect(mocked.listSuppliers).not.toHaveBeenCalled();
+    // Carlos (2026-09-13): el proveedor compartía fila con una fecha y quedaba
+    // más abajo. Mide lo mismo que `Label` + `Input`: jsdom no calcula layout,
+    // así que se fijan las clases; la altura real se mira en el navegador.
+    expect(screen.getByTestId("supplier-picker-label")).toHaveClass("leading-none");
+    expect(screen.getByTestId("supplier-picker-selected").parentElement).toHaveClass("h-9");
     await user.click(screen.getByRole("button", { name: "Quitar" }));
     expect(onChange).toHaveBeenCalledWith(null);
   });

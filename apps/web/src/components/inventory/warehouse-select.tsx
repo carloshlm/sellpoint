@@ -17,6 +17,11 @@ interface WarehouseSelectProps {
   excludeIds?: string[];
   id?: string;
   disabled?: boolean;
+  /**
+   * Qué decir sin almacenes. El de fábrica habla de «registrar movimientos»,
+   * que en una orden de compra o una compra no es lo que la persona intenta.
+   */
+  emptyMessage?: string;
 }
 
 /**
@@ -36,6 +41,7 @@ export function WarehouseSelect({
   excludeIds = [],
   id,
   disabled = false,
+  emptyMessage,
 }: WarehouseSelectProps) {
   const { t } = useTranslation();
   const todos = useWarehouses();
@@ -83,13 +89,17 @@ export function WarehouseSelect({
   }
 
   if (opciones.length === 0) {
-    return <p className="text-muted-foreground text-sm">{t("inventory.warehouse.empty")}</p>;
+    return (
+      <p className="text-muted-foreground text-sm">
+        {emptyMessage ?? t("inventory.warehouse.empty")}
+      </p>
+    );
   }
 
   return (
     <select
       id={id}
-      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
       value={value ?? ""}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}

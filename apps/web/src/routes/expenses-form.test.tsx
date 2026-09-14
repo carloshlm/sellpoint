@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import { createI18n } from "@/i18n";
 import * as expensesApi from "@/lib/expenses/api";
 import * as categoriesApi from "@/lib/expenses/categories-api";
+import { businessToday } from "@/lib/inventory/format-date";
 import * as posApi from "@/lib/pos/api";
 import { createQueryClient } from "@/lib/query-client";
 import * as reportsApi from "@/lib/reports/api";
@@ -15,6 +16,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 /**
  * F9-EXP-14 — el formulario de gasto (skill `sellpoint-forms`): en tarjeta;
@@ -173,7 +175,11 @@ describe("Gastos — formulario (F9-EXP-14)", () => {
     const vence = screen.getByLabelText("Vence");
 
     // Los topes del propio calendario: hasta hoy, y desde el día del gasto.
-    const hoy = new Date().toISOString().slice(0, 10);
+    // El «hoy» del NEGOCIO, el mismo helper del formulario. Calcularlo en UTC
+    // —como hacía esta prueba— la rompía todos los días entre las 6 de la
+    // tarde y la medianoche de Ciudad de México: UTC ya es mañana y el campo,
+    // correctamente, no (Carlos, 2026-09-13).
+    const hoy = businessToday(buildTenantBlock().timezone);
     expect(fecha).toHaveAttribute("max", hoy);
     expect(vence).toHaveAttribute("min", hoy);
 

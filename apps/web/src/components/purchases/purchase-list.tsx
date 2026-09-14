@@ -140,6 +140,7 @@ export function PurchaseList() {
                 <th className="p-2">{t("purchases.list.columns.folio")}</th>
                 <th className="p-2">{t("purchases.list.columns.date")}</th>
                 <th className="p-2">{t("purchases.list.columns.supplier")}</th>
+                <th className="p-2">{t("purchases.list.columns.warehouse")}</th>
                 <th className="p-2">{t("purchases.list.columns.invoice")}</th>
                 <th className="p-2 text-right">{t("purchases.list.columns.lines")}</th>
                 <th className="p-2 text-right">{t("purchases.list.columns.total")}</th>
@@ -163,6 +164,9 @@ export function PurchaseList() {
                       {formatCalendarDate(compra.purchaseDate, i18n.language)}
                     </td>
                     <td className="p-2">{compra.supplierName}</td>
+                    <td className="p-2" data-testid={`warehouse-${compra.id}`}>
+                      {compra.warehouseName}
+                    </td>
                     <td className="p-2">{compra.supplierInvoice ?? "—"}</td>
                     <td className="p-2 text-right tabular-nums">{compra.lineCount}</td>
                     <td className="p-2 text-right tabular-nums">

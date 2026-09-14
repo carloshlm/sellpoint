@@ -18,7 +18,8 @@
       "received": "Recibido",
       "supplier": "Proveedor",
       "total": "Total esperado",
-      "status": "Estado"
+      "status": "Estado",
+      "warehouse": "Almacén"
     },
     "summary": {
       "count": "{{count}} orden",
@@ -49,7 +50,11 @@
     "date": "Fecha del pedido",
     "expectedDate": "Entrega esperada",
     "create": "Crear borrador",
-    "supplierRequired": "Elige el proveedor del pedido."
+    "supplierRequired": "Elige el proveedor del pedido.",
+    "warehouse": "Almacén",
+    "warehouseHint": "Donde se recibirá la mercancía.",
+    "warehouseRequired": "Elige el almacén donde se recibirá la orden.",
+    "warehouseEmpty": "No tienes almacenes disponibles. Pídele a un administrador que te dé acceso a uno."
   },
   "detail": {
     "title": "Orden {{folio}}",

@@ -59,8 +59,17 @@ export function SupplierPicker({
   if (value !== null && !cambiando) {
     return (
       <div className="flex flex-col gap-2" data-testid="supplier-picker">
-        <span className="font-medium text-sm">{label ?? t("suppliers.picker.label")}</span>
-        <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+        {/*
+          Misma medida que `Label` + `Input` (Carlos, 2026-09-13): el título
+          era un `span` con la altura de línea normal y la caja tenía `py-2`
+          alrededor de un botón `sm`. El `Label` de al lado usa `leading-none`
+          y el `Input` mide `h-9`, así que el proveedor quedaba unos píxeles
+          más abajo y más alto que la fecha con la que comparte fila.
+        */}
+        <span className="font-medium text-sm leading-none" data-testid="supplier-picker-label">
+          {label ?? t("suppliers.picker.label")}
+        </span>
+        <div className="flex h-9 items-center justify-between gap-2 rounded-md border px-3 text-sm">
           <span className="truncate font-medium" data-testid="supplier-picker-selected">
             {elegido.data?.name ?? "…"}
           </span>

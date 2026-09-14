@@ -99,6 +99,9 @@ describe("Compras — listado (F9-PURCH-10/13)", () => {
     const filas = await screen.findAllByTestId(/^purchase-p/);
     expect(filas).toHaveLength(2);
     expect(within(filas[0] as HTMLElement).getByText("COM-000001")).toBeInTheDocument();
+    // Carlos (2026-09-13): cada compra dice a qué almacén entra.
+    expect(screen.getByRole("columnheader", { name: "Almacén" })).toBeInTheDocument();
+    expect(screen.getByTestId("warehouse-p1")).toHaveTextContent("Central");
     expect(screen.queryByTestId("mismatch-p1")).not.toBeInTheDocument();
     // La bandera viaja por fila: quien revisa el mes ve cuáles no cuadraban.
     expect(screen.getByTestId("mismatch-p2")).toBeInTheDocument();

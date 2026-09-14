@@ -112,6 +112,9 @@ describe("Órdenes de compra — listado (F9-PO-11)", () => {
     const filas = await screen.findAllByTestId(/^purchase-order-po/);
     expect(filas).toHaveLength(4);
     expect(within(filas[0] as HTMLElement).getByText("OCO-000001")).toBeInTheDocument();
+    // Carlos (2026-09-13): cada orden dice en qué almacén se recibe.
+    expect(screen.getByRole("columnheader", { name: "Almacén" })).toBeInTheDocument();
+    expect(screen.getByTestId("warehouse-po1")).toHaveTextContent("Central");
     expect(screen.getByTestId("overdue-po2")).toBeInTheDocument();
     // Cerrada con fecha vieja: ya no espera nada, no está vencida.
     expect(screen.queryByTestId("overdue-po3")).not.toBeInTheDocument();

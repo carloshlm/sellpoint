@@ -16,7 +16,8 @@
       "invoice": "Factura",
       "lines": "Líneas",
       "total": "Total",
-      "status": "Estado"
+      "status": "Estado",
+      "warehouse": "Almacén"
     },
     "summary": {
       "count": "{{count}} compra",
@@ -38,7 +39,11 @@
     "supplier": "Proveedor",
     "date": "Fecha de la factura",
     "create": "Crear borrador",
-    "supplierRequired": "Elige el proveedor de la factura."
+    "supplierRequired": "Elige el proveedor de la factura.",
+    "warehouse": "Almacén",
+    "warehouseHint": "A dónde entra la mercancía de la factura.",
+    "warehouseRequired": "Elige el almacén al que entra la compra.",
+    "warehouseEmpty": "No tienes almacenes disponibles. Pídele a un administrador que te dé acceso a uno."
   },
   "detail": {
     "title": "Compra {{folio}}",

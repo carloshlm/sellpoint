@@ -172,6 +172,7 @@ export function PurchaseOrderList() {
                 <th className="p-2">{t("purchaseOrders.list.columns.date")}</th>
                 <th className="p-2">{t("purchaseOrders.list.columns.expected")}</th>
                 <th className="p-2">{t("purchaseOrders.list.columns.supplier")}</th>
+                <th className="p-2">{t("purchaseOrders.list.columns.warehouse")}</th>
                 <th className="p-2 text-right">{t("purchaseOrders.list.columns.total")}</th>
                 <th className="p-2 text-right">{t("purchaseOrders.list.columns.received")}</th>
                 <th className="p-2">{t("purchaseOrders.list.columns.status")}</th>
@@ -188,9 +189,18 @@ export function PurchaseOrderList() {
                     data-testid={`purchase-order-${orden.id}`}
                     className={`border-b last:border-0 ${TABLE_ROW_HOVER}`}
                   >
-                    <td className="p-2 font-mono">{orden.folio}</td>
-                    <td className="p-2">{formatCalendarDate(orden.orderDate, i18n.language)}</td>
-                    <td className={`p-2 ${vencida ? "text-destructive" : ""}`}>
+                    {/*
+                      `whitespace-nowrap` en folio y fechas, como el listado de
+                      Compras: con la columna Almacén (Carlos, 2026-09-13) la
+                      tabla ya no cabe en una laptop y el folio se partía en
+                      «OCO–» / «000003». El folio es la identidad de la fila:
+                      la tabla se desplaza de lado, el folio no se rompe.
+                    */}
+                    <td className="p-2 font-mono whitespace-nowrap">{orden.folio}</td>
+                    <td className="p-2 whitespace-nowrap">
+                      {formatCalendarDate(orden.orderDate, i18n.language)}
+                    </td>
+                    <td className={`p-2 whitespace-nowrap ${vencida ? "text-destructive" : ""}`}>
                       {orden.expectedDate === null
                         ? "—"
                         : formatCalendarDate(orden.expectedDate, i18n.language)}
@@ -202,6 +212,9 @@ export function PurchaseOrderList() {
                       )}
                     </td>
                     <td className="p-2">{orden.supplierName}</td>
+                    <td className="p-2" data-testid={`warehouse-${orden.id}`}>
+                      {orden.warehouseName}
+                    </td>
                     <td className="p-2 text-right tabular-nums">{dinero(orden.total)}</td>
                     {/* Carlos, 2026-09-12: cuánto llegó, de un vistazo. */}
                     <td className="p-2 text-right tabular-nums">

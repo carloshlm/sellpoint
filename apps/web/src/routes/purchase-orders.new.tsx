@@ -1,15 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { DateField } from "@/components/form/date-field";
+import { WarehouseSelect } from "@/components/inventory/warehouse-select";
 import { AppLayout } from "@/components/layout/app-layout";
 import { SupplierPicker } from "@/components/suppliers/supplier-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { Label } from "@/components/ui/label";
 import { businessToday } from "@/lib/inventory/format-date";
 import { useCreatePurchaseOrder } from "@/lib/purchase-orders/hooks";
 import { useAuthStore } from "@/stores/auth.store";
@@ -43,6 +45,9 @@ function NewPurchaseOrderContent() {
   const [supplierId, setSupplierId] = useState<string | null>(null);
   const [orderDate, setOrderDate] = useState(hoy);
   const [expectedDate, setExpectedDate] = useState("");
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
+  const [warehouseError, setWarehouseError] = useState<string | null>(null);
+  const almacenId = useId();
   const [error, setError] = useState<string | null>(null);
   const crear = useCreatePurchaseOrder();
 
@@ -64,8 +69,17 @@ function NewPurchaseOrderContent() {
               setError(t("purchaseOrders.new.supplierRequired"));
               return;
             }
+            if (warehouseId === null) {
+              setWarehouseError(t("purchaseOrders.new.warehouseRequired"));
+              return;
+            }
             crear.mutate(
-              { supplierId, orderDate, expectedDate: expectedDate === "" ? null : expectedDate },
+              {
+                supplierId,
+                warehouseId,
+                orderDate,
+                expectedDate: expectedDate === "" ? null : expectedDate,
+              },
               {
                 onSuccess: (orden) =>
                   navigate({ to: "/purchase-orders/$orderId", params: { orderId: orden.id } }),
@@ -85,6 +99,35 @@ function NewPurchaseOrderContent() {
               onChange={(s) => setSupplierId(s?.id ?? null)}
               label={t("purchaseOrders.new.supplier")}
             />
+            {/*
+              El almacén ASIGNADO viene puesto; sin asignado, se elige
+              (Carlos, 2026-09-13). Antes no había campo y el API respondía
+              «elige en cuál se recibirá» a una pantalla sin nada que elegir:
+              quien no tenía almacén asignado no podía crear nada. Solo los del
+              ALCANCE del usuario — lo que el API aceptará.
+            */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor={almacenId}>{t("purchaseOrders.new.warehouse")}</Label>
+              <WarehouseSelect
+                id={almacenId}
+                scoped
+                value={warehouseId}
+                emptyMessage={t("purchaseOrders.new.warehouseEmpty")}
+                onChange={(id) => {
+                  setWarehouseId(id);
+                  setWarehouseError(null);
+                }}
+              />
+              {warehouseError !== null ? (
+                <p role="alert" className="text-destructive text-xs">
+                  {warehouseError}
+                </p>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  {t("purchaseOrders.new.warehouseHint")}
+                </p>
+              )}
+            </div>
             <DateField
               label={t("purchaseOrders.new.date")}
               max={hoy}
