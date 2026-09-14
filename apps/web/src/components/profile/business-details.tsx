@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AddressFields } from "@/components/form/address-fields";
 import { MoneyField } from "@/components/form/money-field";
+import { ReadOnlyField } from "@/components/form/read-only-field";
 import { SelectField } from "@/components/form/select-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
@@ -271,15 +272,13 @@ function BusinessDetails({ user }: { user: AuthUser }) {
           )}
           {/* El país quedó FIJO: los impuestos por país dependerán de él,
               mismo criterio que la moneda. */}
-          <div className="flex flex-col gap-2">
-            <Label>{t("common.profile.business.country")}</Label>
-            <p data-testid="business-country" className="text-sm">
-              {countryName}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t("common.profile.business.countryHint")}
-            </p>
-          </div>
+          <ReadOnlyField
+            label={t("common.profile.business.country")}
+            hint={t("common.profile.business.countryHint")}
+            testId="business-country"
+          >
+            {countryName}
+          </ReadOnlyField>
           <TextField
             label={t("common.profile.business.name")}
             autoComplete="organization"
@@ -358,15 +357,13 @@ function BusinessDetails({ user }: { user: AuthUser }) {
           />
           {/* La moneda SOLO se muestra: se congela con la operación y
               editarla prometería una conversión que el sistema no hace. */}
-          <div className="flex flex-col gap-2">
-            <Label>{t("common.profile.business.currency")}</Label>
-            <p data-testid="business-currency" className="text-sm">
-              {t(`onboarding.step1.currencyOptions.${user.tenant.currency}`)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t("common.profile.business.currencyHint")}
-            </p>
-          </div>
+          <ReadOnlyField
+            label={t("common.profile.business.currency")}
+            hint={t("common.profile.business.currencyHint")}
+            testId="business-currency"
+          >
+            {t(`onboarding.step1.currencyOptions.${user.tenant.currency}`)}
+          </ReadOnlyField>
           <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
             <SelectField
               className="sm:w-56 sm:shrink-0"

@@ -3,10 +3,10 @@ import { asksSecondSurname } from "@sellpoint/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { ReadOnlyField } from "@/components/form/read-only-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import type { UpdateMyProfileInput } from "@/lib/auth/api";
 import { useUpdateMyProfile } from "@/lib/auth/hooks";
@@ -147,13 +147,13 @@ function ProfileDetails({ user }: { user: AuthUser }) {
               {...register("secondLastName")}
             />
           )}
-          <div className="flex flex-col gap-2">
-            <Label>{t("common.profile.details.email")}</Label>
-            <p data-testid="profile-email" className="text-sm">
-              {user.email}
-            </p>
-            <p className="text-xs text-muted-foreground">{t("common.profile.details.emailHint")}</p>
-          </div>
+          <ReadOnlyField
+            label={t("common.profile.details.email")}
+            hint={t("common.profile.details.emailHint")}
+            testId="profile-email"
+          >
+            {user.email}
+          </ReadOnlyField>
           <Button type="submit" disabled={!isDirty || updateProfile.isPending}>
             {updateProfile.isPending
               ? t("common.form.submitting")
