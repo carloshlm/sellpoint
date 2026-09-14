@@ -187,3 +187,20 @@ describe("El service worker NO cachea el API (F4-PWA-01)", () => {
     expect(serviceWorker()).not.toContain("sellpoint-shell-v1");
   });
 });
+
+/**
+ * Carlos (2026-09-14): con el service worker controlando la página, Chrome
+ * avisaba «A preload for … is not used because it is a cross-world service
+ * worker resource mismatch». La precarga y la carga real del mismo chunk se
+ * resolvían por caminos distintos (red y Cache Storage) y el archivo se pedía
+ * dos veces. Sin precargas no hay nada que pueda chocar con el service worker.
+ *
+ * Se lee `vite.config.ts` como TEXTO a propósito: importarlo metería la
+ * configuración de Node en el código de la app.
+ */
+describe("el build no emite precargas que choquen con el service worker", () => {
+  it("vite.config.ts desactiva `modulePreload`", () => {
+    const config = readFileSync(join(__dirname, "..", "..", "..", "vite.config.ts"), "utf8");
+    expect(config).toMatch(/\bmodulePreload:\s*false\b/);
+  });
+});
