@@ -641,6 +641,22 @@ describe("F1-WEB-AUTH-10 — /profile", () => {
     expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeInTheDocument();
   });
 
+  /**
+   * Carlos (2026-09-14): Chrome avisaba «Password forms should have username
+   * fields». El formulario lleva el usuario de la cuenta OCULTO, como pide
+   * Chromium para cambiar contraseña: el administrador de contraseñas sabe a
+   * qué cuenta pertenece la nueva, y no se ve ni se lee en pantalla.
+   */
+  it("cambiar contraseña lleva el usuario de la cuenta, oculto, para el administrador de contraseñas", async () => {
+    useAuthStore.getState().setAuth("jwt-demo", demoUser);
+    await renderRoute("/profile");
+
+    const usuario = await screen.findByTestId("change-password-username");
+    expect(usuario).toHaveAttribute("autocomplete", "username");
+    expect(usuario).toHaveValue("ana@acme.mx");
+    expect(usuario).not.toBeVisible();
+  });
+
   it("lista las sesiones activas y marca SOLO la actual como 'Esta sesión'", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser);
     await renderRoute("/profile");

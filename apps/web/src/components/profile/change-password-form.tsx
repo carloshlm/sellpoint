@@ -25,6 +25,7 @@ import { useAuthStore } from "@/stores/auth.store";
 function ChangePasswordForm() {
   const { t } = useTranslation();
   const setToken = useAuthStore((state) => state.setToken);
+  const email = useAuthStore((state) => state.user?.email ?? "");
   const queryClient = useQueryClient();
   const changePassword = useChangePassword();
   const [apiError, setApiError] = useState<string | null>(null);
@@ -93,6 +94,24 @@ function ChangePasswordForm() {
               {t("auth.changePassword.success")}
             </p>
           )}
+          {/*
+            El usuario de la cuenta, OCULTO (Carlos, 2026-09-14). Chrome avisaba
+            en consola «Password forms should have username fields»: sin él, el
+            administrador de contraseñas no sabe a qué cuenta pertenece la
+            contraseña nueva, y con varias cuentas en el sitio la guarda en la
+            equivocada. Es la receta textual de Chromium para formularios de
+            cambio de contraseña: el dato es obvio para la persona, no para el
+            administrador. `hidden` lo saca de la vista y del lector de pantalla.
+          */}
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value={email}
+            readOnly
+            hidden
+            data-testid="change-password-username"
+          />
           <TextField
             label={t("auth.changePassword.current")}
             type="password"

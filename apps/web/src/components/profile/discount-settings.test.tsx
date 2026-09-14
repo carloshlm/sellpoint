@@ -53,6 +53,21 @@ describe("Descuentos en caja en Mi perfil (F4-DISC)", () => {
     expect(screen.queryByTestId("discount-settings")).not.toBeInTheDocument();
   });
 
+  /**
+   * Carlos (2026-09-14): Chrome avisaba en consola que el formulario tenía
+   * contraseñas sin usuario. El código no es la contraseña de la cuenta: se
+   * marca como código, igual que en caja, y ningún administrador de
+   * contraseñas lo guarda como login ni ofrece generarle una contraseña larga.
+   */
+  it("el código se marca como código, nunca como contraseña nueva de la cuenta", () => {
+    renderCard(demoUser(["tenants:manage"]));
+    for (const etiqueta of ["Código de autorización (4 a 8 dígitos)", "Repite el código"]) {
+      const campo = screen.getByLabelText(etiqueta);
+      expect(campo).toHaveAttribute("type", "password");
+      expect(campo).toHaveAttribute("autocomplete", "one-time-code");
+    }
+  });
+
   it("sin código dice que los descuentos están apagados y no ofrece quitar nada", () => {
     renderCard(demoUser(["tenants:manage"]));
 

@@ -118,13 +118,24 @@ export function DiscountSettings({ user }: { user: AuthUser }) {
         {saved === "removed" && (
           <SuccessNotice testId="discount-settings-success">{k("removedNotice")}</SuccessNotice>
         )}
+        {/*
+          El código NO es una contraseña de la cuenta (Carlos, 2026-09-14): es
+          un PIN del negocio que autoriza descuentos. Con `new-password`, Chrome
+          lo trataba como credencial —avisaba en consola que faltaba el usuario
+          y ofrecía generar una contraseña larga que el PIN ni acepta— y un
+          administrador podía guardarlo como la contraseña del login. Chromium
+          pide para secretos que no son contraseñas conservar `type="password"`
+          con el `autocomplete` que les corresponde: `one-time-code`, el MISMO
+          con el que el cajero lo teclea en caja. Inventarle un usuario oculto
+          con el correo lo haría pisar la contraseña real.
+        */}
         <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
             <TextField
               label={k(setAt ? "codeReplace" : "code")}
               type="password"
               inputMode="numeric"
-              autoComplete="new-password"
+              autoComplete="one-time-code"
               maxLength={8}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
@@ -135,7 +146,7 @@ export function DiscountSettings({ user }: { user: AuthUser }) {
               label={k("confirm")}
               type="password"
               inputMode="numeric"
-              autoComplete="new-password"
+              autoComplete="one-time-code"
               maxLength={8}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ""))}
