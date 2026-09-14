@@ -2,6 +2,35 @@
 
 Lo que cambió en cada versión de SellPointy, escrito desde los commits (`feat` → Novedades, `fix` → Correcciones, `perf` → Rendimiento). Se corta con `pnpm release` (F6-RELEASE-03). La historia anterior a 1.0.0 vive en los tags de fase (`v0.2.0-fase1` … `v0.6.0-fase5`) y en IMPLEMENTACION.md.
 
+## [1.0.4](https://github.com/carloshlm/sellpoint/compare/v1.0.3...v1.0.4) (2026-09-14)
+
+### Novedades
+
+* **catalog:** bloque «Impuesto, costo y precio»: impuesto primero, regla y desglose en vivo ([af74361](https://github.com/carloshlm/sellpoint/commit/af74361c3d645d2d70ea73c85736de54da632ae0))
+* **catalogs:** cada campo dice si es obligatorio u opcional, en la lista y en el formulario ([92cedc2](https://github.com/carloshlm/sellpoint/commit/92cedc2ea66098b32054d5c000dcb291fa5574b8))
+* **catalogs:** códigos en mayúsculas en el API, el web y los datos existentes (F9-SUPPCAT-01/02) ([c205662](https://github.com/carloshlm/sellpoint/commit/c20566294978aa61251d50afde46ecc3a79529e5))
+* **catalogs:** eliminar un registro se confirma en verde en las ocho listas ([6eed414](https://github.com/carloshlm/sellpoint/commit/6eed4142c269d9e42ebc906997b3b944f47efde6))
+* **dashboard:** el panel de quien vende, y el filtro de período solo si gobierna algo ([37c4545](https://github.com/carloshlm/sellpoint/commit/37c4545201c7610ec31a96cb7ced1754012c22da))
+* **expenses:** las dos fechas del gasto van en orden y ninguna es de mañana ([dcc8726](https://github.com/carloshlm/sellpoint/commit/dcc8726e8441b1f0fe714bf91d68c565b1e98a41))
+* **nav:** «Catálogos» con Proveedores y «Catálogos personalizados»; categorías por nombre ([0a348fb](https://github.com/carloshlm/sellpoint/commit/0a348fbfef430150840961fe0b90eb352a72dc29))
+* **nav:** reportes es su propio grupo, con «reportes generales» adentro ([5160b5b](https://github.com/carloshlm/sellpoint/commit/5160b5b2f7473c077da4d9c403a3a1953097424b))
+* **purchases:** la orden y la compra muestran su almacén y lo dejan elegir ([aa61a4f](https://github.com/carloshlm/sellpoint/commit/aa61a4f64a8a01c891ae0f6f579d6341eafd6277))
+* **purchases:** las cantidades son números y las fechas de la cadena van en orden ([5c7ab5a](https://github.com/carloshlm/sellpoint/commit/5c7ab5aab24dff8babe66e69859e78f6c53cc6cf))
+* **suppliers:** código de proveedor PROV-NNN, único, en mayúsculas y buscable (F9-SUPPCAT-03/04) ([4681242](https://github.com/carloshlm/sellpoint/commit/4681242aa74966ef8c6273cb0ae19d44310d9ae6))
+* **suppliers:** importación de proveedores por planilla Excel, con el molde de almacenes ([117bd43](https://github.com/carloshlm/sellpoint/commit/117bd43c512315b07424557afa1284cf06791478))
+* **suppliers:** proveedores con catálogo de sistema y campos propios (F9-SUPPCAT-05/07) ([2795b76](https://github.com/carloshlm/sellpoint/commit/2795b768e9885fc8c33cbdea92fb7ae9c1e1bb9f))
+
+### Correcciones
+
+* **catalogs:** eliminar un campo ya no afirma «todavía no tiene datos» sin saberlo ([cefc823](https://github.com/carloshlm/sellpoint/commit/cefc82336dc516dad024bf7a355f6f3aa0f3863e))
+* **deploy:** la limpieza del server cuenta deploys, no horas: acota el disco ([654e819](https://github.com/carloshlm/sellpoint/commit/654e819d4d028d38fc84c9d4b094fe29baa47575))
+* **i18n:** el hint del código dice lo mismo en almacenes, servicios y proveedores ([2f2f2cd](https://github.com/carloshlm/sellpoint/commit/2f2f2cd1cc68999c0516b5916d30e5bf248b699b))
+* **i18n:** en inglés el precio es «Price», sin «Selling»: la ley de copy de MX/CA/US ([ebaa894](https://github.com/carloshlm/sellpoint/commit/ebaa89410af0fc22194a1b132b1073d80b564811))
+* **import:** cada error de fila dice qué columna falló, no solo el mensaje ([0c87cc1](https://github.com/carloshlm/sellpoint/commit/0c87cc15f72eac0a54deefde8b34ee128b66eb22))
+* **import:** la columna propia se llama como la persona la renombró, no con su key ([4d23214](https://github.com/carloshlm/sellpoint/commit/4d23214d5636fbb68efd81427908e038be1137a8))
+* **import:** la plantilla habla entera el idioma de quien la descarga ([900c9ae](https://github.com/carloshlm/sellpoint/commit/900c9aef32c8db804e00cd26965d21b82cc153a1))
+* **money:** el dinero lleva el símbolo corto, sin prefijo de país ni código iso ([24b3180](https://github.com/carloshlm/sellpoint/commit/24b3180267be6c4362bb5484f1a4b13f430f6f02))
+* **purchases:** el proveedor de un documento se cambia, no se quita ([0943c96](https://github.com/carloshlm/sellpoint/commit/0943c96b43b4c5f8408c1cdbadd176632df4c7f8))
 ## [1.0.3](https://github.com/carloshlm/sellpoint/compare/v1.0.2...v1.0.3) (2026-09-12)
 
 ### Novedades
