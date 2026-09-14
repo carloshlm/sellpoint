@@ -84,8 +84,24 @@ export function WarehouseSelect({
     onChangeRef.current(inicial);
   }, [inicial, value]);
 
+  // Mientras carga, un desplegable DESHABILITADO con el mismo `id`, no un
+  // texto suelto (Carlos, 2026-09-14). Las pantallas lo rotulan con
+  // `<label htmlFor={id}>`: con un `<p>` en su lugar, la etiqueta apuntaba por
+  // un instante a un id que no existía y Chrome lo reportaba como «Incorrect
+  // use of <label for=FORM_ELEMENT>» — pasajero, según qué tan rápido
+  // respondiera la lista. De paso la pantalla ya no brinca al terminar.
   if (query.isPending) {
-    return <p className="text-muted-foreground text-sm">{t("inventory.warehouse.loading")}</p>;
+    return (
+      <select
+        id={id}
+        disabled
+        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+        value=""
+        onChange={() => {}}
+      >
+        <option value="">{t("inventory.warehouse.loading")}</option>
+      </select>
+    );
   }
 
   if (opciones.length === 0) {

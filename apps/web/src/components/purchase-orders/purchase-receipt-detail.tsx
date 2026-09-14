@@ -328,6 +328,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                         <>
                           <QuantityInput
                             aria-label={t("purchaseOrders.receipt.quantity")}
+                            name={`lines.${index}.quantity`}
                             allowsDecimals={linea.allowFractionalInput}
                             invalid={errorDeCantidad(linea) !== null}
                             value={linea.quantity}

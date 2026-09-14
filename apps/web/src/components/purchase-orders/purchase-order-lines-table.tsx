@@ -349,6 +349,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                         {editable ? (
                           <select
                             aria-label={t("purchaseOrders.lines.presentation")}
+                            name={`lines.${index}.presentationId`}
                             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                             value={linea.presentationId}
                             onChange={(event) => {
@@ -388,6 +389,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                           <>
                             <QuantityInput
                               aria-label={t("purchaseOrders.lines.quantity")}
+                              name={`lines.${index}.quantity`}
                               allowsDecimals={lineaAdmiteDecimales(producto, linea.presentationId)}
                               invalid={errorCantidad !== null}
                               value={linea.quantity}
@@ -416,6 +418,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                           <>
                             <MoneyInput
                               aria-label={t("purchaseOrders.lines.unitCost")}
+                              name={`lines.${index}.unitCost`}
                               value={linea.unitCost}
                               onChange={(valor) => cambiar(index, "unitCost", valor)}
                             />
@@ -446,6 +449,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                         {editable ? (
                           <MoneyInput
                             aria-label={t("purchaseOrders.lines.discount")}
+                            name={`lines.${index}.discount`}
                             value={linea.discount}
                             onChange={(valor) => cambiar(index, "discount", valor)}
                           />

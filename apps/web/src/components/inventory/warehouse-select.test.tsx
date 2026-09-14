@@ -147,12 +147,35 @@ describe("WarehouseSelect (F3-NAV-01)", () => {
     expect(screen.queryByRole("option", { name: "Central" })).not.toBeInTheDocument();
   });
 
+  /**
+   * Carlos (2026-09-14): la etiqueta de la pantalla apunta al `id` del
+   * selector. Si mientras carga no existe, Chrome reporta una etiqueta que
+   * apunta a nada. El `id` tiene que estar desde el primer render.
+   */
+  it("mientras carga ya existe el desplegable con su id, deshabilitado", () => {
+    mocked.mockReturnValue(new Promise(() => {}));
+
+    renderSelect({ id: "almacen-de-prueba", scoped: true });
+
+    const select = screen.getByRole("combobox");
+    expect(select).toHaveAttribute("id", "almacen-de-prueba");
+    expect(select).toBeDisabled();
+    expect(screen.getByRole("option", { name: "Cargando almacenes…" })).toBeInTheDocument();
+  });
+
   it("sin almacenes muestra un estado vacío en vez de un desplegable inútil", async () => {
     mocked.mockResolvedValue({ data: [] });
 
     renderSelect();
 
-    expect(await screen.findByText(/almac/i)).toBeInTheDocument();
+    // El mensaje EXACTO del vacío, no `/almac/i`: desde que la carga también es
+    // un desplegable («Cargando almacenes…»), un pedazo de palabra coincidía
+    // con el estado de carga y la prueba miraba antes de tiempo (2026-09-14).
+    expect(
+      await screen.findByText(
+        "No hay almacenes disponibles. Crea uno antes de registrar movimientos.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });

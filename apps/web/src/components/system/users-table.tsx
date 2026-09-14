@@ -143,6 +143,8 @@ function UsersTable({
       <div className="max-w-sm">
         <Input
           aria-label={t("users.table.searchLabel")}
+          id="users-search"
+          name="q"
           placeholder={t("users.table.searchPlaceholder")}
           value={globalFilter}
           onChange={(event) => setGlobalFilter(event.target.value)}

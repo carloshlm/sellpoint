@@ -203,7 +203,10 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
       mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "transfer" }));
       await renderDoc();
 
-      const destino = await screen.findByLabelText(/almacén destino/i);
+      // Mientras carga, el destino ya es un desplegable deshabilitado con su id
+      // (2026-09-14): se espera a que lleguen las opciones REALES antes de leerlas.
+      await screen.findByRole("option", { name: "Bodega Norte" });
+      const destino = screen.getByLabelText(/almacén destino/i);
       const opciones = within(destino)
         .getAllByRole("option")
         .map((o) => o.textContent);
@@ -227,7 +230,10 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
       mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "transfer" }));
       await renderDoc();
 
-      await user.selectOptions(await screen.findByLabelText(/almacén destino/i), "w2");
+      // Se elige cuando el destino ya cargó: el desplegable de carga está
+      // deshabilitado y no tiene la opción (2026-09-14).
+      await waitFor(() => expect(screen.getByLabelText(/almacén destino/i)).toBeEnabled());
+      await user.selectOptions(screen.getByLabelText(/almacén destino/i), "w2");
 
       await waitFor(() => {
         expect(mocked.updateDocumentHeader).toHaveBeenCalledWith(

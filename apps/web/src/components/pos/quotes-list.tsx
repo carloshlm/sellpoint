@@ -67,6 +67,8 @@ export function QuotesList() {
         <label className="flex flex-col gap-1 text-sm">
           {t("pos.quote.folio")}
           <input
+            id="quotes-folio"
+            name="folio"
             className="h-9 rounded-md border bg-background px-2"
             value={folio}
             placeholder="COT-000001"
@@ -76,6 +78,8 @@ export function QuotesList() {
         <label className="flex flex-col gap-1 text-sm">
           {t("pos.history.status")}
           <select
+            id="quotes-status"
+            name="status"
             className="h-9 rounded-md border bg-background px-2"
             value={estado}
             onChange={(e) => setEstado(e.target.value as typeof estado)}

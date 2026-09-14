@@ -327,6 +327,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       <td className="p-2">
                         <select
                           aria-label={t("purchases.lines.presentation")}
+                          name={`lines.${index}.presentationId`}
                           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                           value={linea.presentationId}
                           disabled={!editable}
@@ -362,6 +363,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       <td className="p-2 text-right">
                         <QuantityInput
                           aria-label={t("purchases.lines.quantity")}
+                          name={`lines.${index}.quantity`}
                           allowsDecimals={lineaAdmiteDecimales(producto, linea.presentationId)}
                           invalid={errorCantidad !== null}
                           value={linea.quantity}
@@ -385,6 +387,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       <td className="p-2 text-right">
                         <MoneyInput
                           aria-label={t("purchases.lines.unitCost")}
+                          name={`lines.${index}.unitCost`}
                           value={linea.unitCost}
                           disabled={!editable}
                           onChange={(valor) => cambiar(index, "unitCost", valor)}
@@ -419,6 +422,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       <td className="p-2 text-right">
                         <MoneyInput
                           aria-label={t("purchases.lines.discount")}
+                          name={`lines.${index}.discount`}
                           value={linea.discount}
                           disabled={!editable}
                           onChange={(valor) => cambiar(index, "discount", valor)}

@@ -65,6 +65,7 @@ export function LotCells({
       <td className="p-2">
         <Input
           aria-label={lotLabel ?? t("inventory.document.lotCode")}
+          name="lotCode"
           className="w-28 uppercase"
           value={lotCode}
           disabled={!editable}

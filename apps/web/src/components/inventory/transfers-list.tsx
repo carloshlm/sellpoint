@@ -146,6 +146,8 @@ export function TransfersList() {
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-muted-foreground">{t("inventory.list.searchFolio")}</span>
               <input
+                id="transfers-folio"
+                name="folio"
                 type="search"
                 value={folioInput}
                 onChange={(event) => setFolioInput(event.target.value)}

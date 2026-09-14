@@ -147,6 +147,8 @@ export function CartSearch({ warehouseId }: CartSearchProps = {}) {
   return (
     <section className="flex flex-col gap-3" data-testid="cart-search">
       <input
+        id="pos-cart-search"
+        name="q"
         className="h-12 w-full rounded-md border bg-background px-3 text-lg"
         value={texto}
         placeholder={t("pos.cart.searchPlaceholder")}
