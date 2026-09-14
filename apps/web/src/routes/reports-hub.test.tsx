@@ -182,7 +182,7 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     it("con `reports:read` aparece la entrada de Reportes", async () => {
       await renderRuta("/reports", ["reports:read"]);
 
-      expect(await screen.findByRole("link", { name: "Reportes" })).toBeInTheDocument();
+      expect(await screen.findByRole("link", { name: "Reportes generales" })).toBeInTheDocument();
     });
 
     /**
@@ -195,7 +195,7 @@ describe("Hub de reportes (F5-HUB-02)", () => {
 
       // El nav está: se ve otro grupo.
       expect(await screen.findByRole("link", { name: /vencer/i })).toBeInTheDocument();
-      expect(screen.queryByRole("link", { name: "Reportes" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Reportes generales" })).not.toBeInTheDocument();
     });
   });
 });

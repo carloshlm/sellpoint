@@ -116,5 +116,9 @@
     "net": "Neto",
     "taxTotal": "Impuesto",
     "totalsLabel": "Totales del período"
+  },
+  "nav": {
+    "group": "Reportes",
+    "general": "Reportes generales"
   }
 }

@@ -454,18 +454,32 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             </fieldset>
           )}
 
+          {/*
+            Reportes es su PROPIO grupo, con encabezado, como Catálogos (Carlos,
+            2026-09-13). Antes era un fieldset sin título pegado a Punto de
+            venta, y en el menú se leía como un item más de la caja. El grupo
+            deja lugar para los reportes que vengan después de «generales».
+          */}
           {canSeeReportsNav && (
             <fieldset
-              aria-label={t("reports.hub.title")}
+              aria-label={t("reports.nav.group")}
               className="m-0 flex flex-col gap-1 border-0 p-0"
             >
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("reports.nav.group")}
+                </span>
+              )}
               <Link
                 to="/reports"
-                aria-label={t("reports.hub.title")}
+                aria-label={t("reports.nav.general")}
                 className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
               >
                 <BarChart3 className="size-4 shrink-0" aria-hidden="true" />
-                {expanded && <span className="truncate">{t("reports.hub.title")}</span>}
+                {expanded && <span className="truncate">{t("reports.nav.general")}</span>}
               </Link>
             </fieldset>
           )}

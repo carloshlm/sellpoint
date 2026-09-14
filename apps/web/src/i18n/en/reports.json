@@ -116,5 +116,9 @@
     "net": "Net",
     "taxTotal": "Tax",
     "totalsLabel": "Period totals"
+  },
+  "nav": {
+    "group": "Reports",
+    "general": "General reports"
   }
 }
