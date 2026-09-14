@@ -9,6 +9,11 @@
     <meta name="theme-color" content="#0a0a0a" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SellPointy</title>
+    <!--
+      Zod nace sin compilación en caliente: tiene que correr ANTES que el
+      módulo principal. Script clásico, sin defer ni async. Ver el archivo.
+    -->
+    <script src="/zod-jitless.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,3 @@
-// PRIMERO, antes que cualquier módulo que valide: ver `lib/zod-config.ts`.
-import "./lib/zod-config";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
