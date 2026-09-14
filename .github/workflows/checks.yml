@@ -89,11 +89,18 @@ jobs:
       # F6-RELEASE-02: el script de retención de GHCR se prueba con un `gh`
       # falso (fixture con fechas e ids que no ordenan igual): sin esto, un
       # cleanup que deja de borrar vuelve a pasar en verde sin que nadie lo vea.
-      - name: test de los scripts de release (retención de GHCR, sección del CHANGELOG)
+      # 2026-09-14: la CSP de nginx y el DSN de Sentry viven separados —uno en
+      # el repo, el otro en una variable de GitHub— y durante 18 días la CSP
+      # bloqueó cada reporte del front sin que nada lo detectara. Este paso
+      # los cruza; sin la variable, en el CI falla en vez de saltarse.
+      - name: test de los scripts de release y de la CSP (GHCR, CHANGELOG, disco, Sentry)
+        env:
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
         run: |
           bash infrastructure/scripts/ghcr-retention.test.sh
           bash infrastructure/scripts/changelog-section.test.sh
           bash infrastructure/scripts/deploy-retention.test.sh
+          bash infrastructure/scripts/csp-sentry.test.sh
 
       # F6-TYPECHECK-TESTS. `pnpm build` NO chequea los tests: `tsconfig.build`
       # los excluye y los runners transpilan sin tipos (vitest usa esbuild,
