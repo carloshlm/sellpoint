@@ -414,7 +414,44 @@ describe("Compras (F9-PURCH)", () => {
         })
         .expect(200);
       const rebote = await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(422);
-      expect((rebote.body as { message: string }).message).toContain("lines.1.unitCost");
+      expect((rebote.body as { message: string }).message).toContain("Línea 1");
+    });
+
+    /**
+     * Carlos (2026-09-15): un producto controlado por lote no se confirma sin
+     * su lote y su caducidad. Guardar a medias sigue permitido; confirmar es
+     * la puerta, y el mensaje nombra la línea.
+     */
+    it("con control por lote, confirmar exige lote y caducidad nombrando la línea", async () => {
+      const compra = await nuevaCompra();
+      const conLinea = (extra: object) =>
+        api(negocio.token)
+          .put(`/purchases/${compra.id}/lines`, {
+            lines: [
+              {
+                productId: productoId,
+                presentationId: piezaId,
+                quantity: 2,
+                unitCost: 10,
+                ...extra,
+              },
+            ],
+          })
+          .expect(200);
+
+      await conLinea({});
+      const sinLote = await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(422);
+      expect(sinLote.body).toMatchObject({ code: "purchases.lot_required" });
+      expect((sinLote.body as { message: string }).message).toContain("Línea 1");
+
+      await conLinea({ lotCode: "NUEVO-07" });
+      const sinCaducidad = await api(negocio.token)
+        .post(`/purchases/${compra.id}/confirm`)
+        .expect(422);
+      expect(sinCaducidad.body).toMatchObject({ code: "purchases.expiry_required" });
+
+      await conLinea({ lotCode: "NUEVO-07", expiresAt: "2029-01-01" });
+      await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
     });
 
     it("confirmar sella, materializa el costo NETO y congela las líneas", async () => {
@@ -427,6 +464,8 @@ describe("Compras (F9-PURCH)", () => {
               presentationId: cajaId,
               quantity: 3,
               unitCost: 120,
+              lotCode: "E2E-LOTE-01",
+              expiresAt: "2029-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -457,6 +496,8 @@ describe("Compras (F9-PURCH)", () => {
               presentationId: cajaId,
               quantity: 3,
               unitCost: 139.2,
+              lotCode: "E2E-LOTE-01",
+              expiresAt: "2029-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -476,7 +517,16 @@ describe("Compras (F9-PURCH)", () => {
       const compra = await nuevaCompra();
       await api(negocio.token)
         .put(`/purchases/${compra.id}/lines`, {
-          lines: [{ productId: productoId, presentationId: piezaId, quantity: 1, unitCost: 50 }],
+          lines: [
+            {
+              productId: productoId,
+              presentationId: piezaId,
+              quantity: 1,
+              unitCost: 50,
+              lotCode: "E2E-LOTE-01",
+              expiresAt: "2029-12-31",
+            },
+          ],
         })
         .expect(200);
       const antes = await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
@@ -525,6 +575,8 @@ describe("Compras (F9-PURCH)", () => {
               presentationId: piezaId,
               quantity: 4,
               unitCost: 25,
+              lotCode: "E2E-LOTE-01",
+              expiresAt: "2029-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -841,6 +893,8 @@ describe("Compras (F9-PURCH)", () => {
               presentationId: piezaId,
               quantity: 1,
               unitCost,
+              lotCode: "E2E-LOTE-01",
+              expiresAt: "2029-12-31",
               taxGroupId: ivaId,
             },
           ],
@@ -908,7 +962,7 @@ describe("Compras (F9-PURCH)", () => {
           ],
         })
         .expect(422);
-      expect((rebote.body as { message: string }).message).toContain("lines.2.lotCode");
+      expect((rebote.body as { message: string }).message).toContain("Línea 2");
 
       // Solo la caducidad también es «lote»: no hay caducidad sin lote.
       await api(negocio.token)
@@ -980,7 +1034,16 @@ describe("Compras (F9-PURCH)", () => {
 
       await api(negocio.token)
         .put(`/purchases/${compra.id}/lines`, {
-          lines: [{ productId: productoId, presentationId: piezaId, quantity: 1, unitCost: 10 }],
+          lines: [
+            {
+              productId: productoId,
+              presentationId: piezaId,
+              quantity: 1,
+              unitCost: 10,
+              lotCode: "E2E-LOTE-01",
+              expiresAt: "2029-12-31",
+            },
+          ],
         })
         .expect(200);
       await api(negocio.token).post(`/purchases/${compra.id}/confirm`).expect(200);
@@ -1037,7 +1100,7 @@ describe("Compras (F9-PURCH)", () => {
           ],
         })
         .expect(422);
-      expect((rebote.body as { message: string }).message).toContain("lines.1.expiresAt");
+      expect((rebote.body as { message: string }).message).toContain("Línea 1");
 
       // Con LA MISMA fecha: pasa.
       await api(negocio.token)

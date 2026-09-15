@@ -442,7 +442,7 @@ export class PurchaseOrdersService {
         if (linea.unitCost === null) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.line_needs_cost",
-            args: { field: `lines.${linea.lineNo}.unitCost` },
+            args: { field: `lines.${linea.lineNo}.unitCost`, line: linea.lineNo },
           });
         }
       }

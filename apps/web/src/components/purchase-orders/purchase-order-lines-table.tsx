@@ -102,6 +102,11 @@ function aEditable(orden: PurchaseOrder): LineaEditable[] {
 export interface LineasHandle {
   /** Guarda las líneas SOLO si hay cambios sin guardar; resuelve cuando el servidor respondió. */
   guardarSiHayCambios: () => Promise<void>;
+  /**
+   * Revisa lo que CONFIRMAR exige y lo dice con su línea (Carlos, 2026-09-15).
+   * Opcional: solo la compra lo implementa; la orden valida al guardar.
+   */
+  validarParaConfirmar?: () => boolean;
 }
 
 /**

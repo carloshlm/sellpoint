@@ -316,7 +316,7 @@ export class PurchaseLinesService {
       if (l.purchaseOrderLineId != null && !lineasDeOrden.has(l.purchaseOrderLineId)) {
         throw new UnprocessableEntityException({
           message: "purchases.order_line_foreign",
-          args: { field: `lines.${index + 1}.purchaseOrderLineId` },
+          args: { field: `lines.${index + 1}.purchaseOrderLineId`, line: index + 1 },
         });
       }
     });

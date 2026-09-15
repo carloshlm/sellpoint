@@ -189,25 +189,56 @@ describe("Compras — la ficha (F9-PURCH-11)", () => {
     expect(screen.getByRole("button", { name: "Imprimir" })).toBeInTheDocument();
   });
 
-  it("un producto por lote sin lote avisa, y la compra se confirma igual", async () => {
+  /**
+   * Carlos (2026-09-15): antes el lote era un aviso y la compra se confirmaba
+   * igual; la entrada que nacía de ella rebotaba después. Ahora lote y
+   * caducidad se marcan obligatorios desde que la línea nace, y confirmar sin
+   * ellos no pregunta: dice la línea y la columna de lo que falta.
+   */
+  it("un producto por lote sin lote NO se confirma: marca los dos campos y dice la línea", async () => {
     const base = buildPurchase({ status: "draft", confirmedAt: null });
     mocked.getPurchase.mockResolvedValue({
       ...base,
       products: [{ ...(base.products[0] as (typeof base.products)[0]), tracksLots: true }],
     });
     await renderFicha(GESTOR);
+    const user = userEvent.setup();
 
-    expect(screen.getByText(/se controla por lote/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirmar compra" })).toBeEnabled();
+    expect(screen.getByText("Obligatorio: se controla por lote")).toBeInTheDocument();
+    expect(screen.getByText("Obligatoria: caducidad del lote")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Confirmar compra" }));
+    expect(await screen.findByText(/^Línea 1 · Lote: Falta el lote\./)).toHaveAttribute(
+      "role",
+      "alert",
+    );
+    expect(screen.getByText(/Línea 1 · Caducidad: Falta la caducidad\./)).toBeInTheDocument();
+    expect(screen.queryByTestId("confirm-purchase")).not.toBeInTheDocument();
+    expect(mocked.replacePurchaseLines).not.toHaveBeenCalled();
 
     // Mismas reglas que Entradas (Carlos, 2026-09-11): el lote se normaliza a
     // MAYÚSCULAS al teclear, y si ya existe, su caducidad se pone sola.
-    const user = userEvent.setup();
     const lote = screen.getByLabelText("Lote");
     await user.type(lote, "st m 01");
     expect(lote).toHaveValue("STM01");
     await waitFor(() => expect(screen.getByLabelText("Caducidad")).toHaveValue("2027-03-31"));
     await waitFor(() => expect(mockedLots).toHaveBeenCalledWith("prod-1"));
+    expect(screen.queryByText(/^Obligatori/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Confirmar compra" }));
+    await screen.findByTestId("confirm-purchase");
+  });
+
+  it("confirmar con la cantidad vacía dice «Línea 1 · Cantidad» y no pregunta", async () => {
+    await renderFicha(GESTOR);
+    const user = userEvent.setup();
+    await user.clear(within(screen.getByTestId("purchase-line-0")).getByLabelText("Cantidad"));
+    await user.click(screen.getByRole("button", { name: "Confirmar compra" }));
+
+    expect(await screen.findByText("Línea 1 · Cantidad: Falta la cantidad.")).toBeInTheDocument();
+    expect(screen.getByTestId("quantity-error-0")).toHaveTextContent("Falta la cantidad.");
+    expect(screen.queryByTestId("confirm-purchase")).not.toBeInTheDocument();
+    expect(mocked.replacePurchaseLines).not.toHaveBeenCalled();
   });
 
   it("un producto que NO se controla por lote no ofrece lote ni caducidad", async () => {

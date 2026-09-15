@@ -168,6 +168,8 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
                 // (Carlos, 2026-09-11): confirmar con cambios sin guardar
                 // sellaría un papel distinto del que se ve en pantalla.
                 setError(null);
+                // Lo que falta se dice ANTES de guardar y preguntar, con su línea.
+                if (lineasRef.current?.validarParaConfirmar?.() === false) return;
                 Promise.resolve()
                   .then(() => lineasRef.current?.guardarSiHayCambios())
                   .then(() => cargosRef.current?.guardarSiHayCambios())

@@ -320,7 +320,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
         lines: [{ purchaseOrderLineId: sinLotes.lines[0]?.id, quantity: 5, lotCode: "ST1" }],
       })
       .expect(422);
-    expect((rebote.body as { message: string }).message).toContain("lines.1.lotCode");
+    expect((rebote.body as { message: string }).message).toContain("Línea 1");
   });
 
   /**

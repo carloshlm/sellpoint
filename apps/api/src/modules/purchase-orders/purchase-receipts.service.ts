@@ -276,13 +276,13 @@ export class PurchaseReceiptsService {
         if (deOrden === undefined) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.receipt_line_foreign",
-            args: { field: `lines.${index + 1}.purchaseOrderLineId` },
+            args: { field: `lines.${index + 1}.purchaseOrderLineId`, line: index + 1 },
           });
         }
         if (deOrden.closedShort) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.line_closed_short",
-            args: { field: `lines.${index + 1}.quantity` },
+            args: { field: `lines.${index + 1}.quantity`, line: index + 1 },
           });
         }
         // Lo que LLEGÓ obedece la misma presentación que se pidió: media pieza
@@ -402,7 +402,7 @@ export class PurchaseReceiptsService {
         if (deOrden === undefined || deOrden.closedShort) {
           throw new UnprocessableEntityException({
             message: "purchase_orders.line_closed_short",
-            args: { field: `lines.${index + 1}.quantity` },
+            args: { field: `lines.${index + 1}.quantity`, line: index + 1 },
           });
         }
         const pendiente = deOrden.quantityOrdered.minus(deOrden.quantityReceived);

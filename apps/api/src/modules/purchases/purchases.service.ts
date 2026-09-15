@@ -501,7 +501,7 @@ export class PurchasesService {
         if (linea.quantity === null || linea.quantity.lessThanOrEqualTo(0)) {
           throw new UnprocessableEntityException({
             message: "purchases.line_needs_quantity",
-            args: { field: `lines.${linea.lineNo}.quantity` },
+            args: { field: `lines.${linea.lineNo}.quantity`, line: linea.lineNo },
           });
         }
         if (linea.unitCost === null) {
@@ -510,8 +510,26 @@ export class PurchasesService {
           // entraría mercancía sin saber cuánto costó.
           throw new UnprocessableEntityException({
             message: "purchases.line_needs_cost",
-            args: { field: `lines.${linea.lineNo}.unitCost` },
+            args: { field: `lines.${linea.lineNo}.unitCost`, line: linea.lineNo },
           });
+        }
+        // Un producto que se controla por lote se compra CON su lote y su
+        // caducidad (Carlos, 2026-09-15): las mismas reglas con las que la
+        // recepción y la entrada confirman. Sin esto la compra se sellaba y la
+        // entrada que nace de ella rebotaba después por un lote que nadie anotó.
+        if (linea.product.tracksLots) {
+          if ((linea.lotCode ?? "") === "") {
+            throw new UnprocessableEntityException({
+              message: "purchases.lot_required",
+              args: { field: `lines.${linea.lineNo}.lotCode`, line: linea.lineNo },
+            });
+          }
+          if (linea.expiresAt === null) {
+            throw new UnprocessableEntityException({
+              message: "purchases.expiry_required",
+              args: { field: `lines.${linea.lineNo}.expiresAt`, line: linea.lineNo },
+            });
+          }
         }
       }
 

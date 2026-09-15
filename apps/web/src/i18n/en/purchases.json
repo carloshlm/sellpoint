@@ -104,7 +104,12 @@
     "lotHint": "This product is tracked by lot: the inventory entry will ask for it.",
     "notPurchasable": "That presentation isn't marked as purchasable, but you can still use it.",
     "netCost": "Cost without tax: {{cost}}",
-    "agreedCost": "Agreed: {{cost}}"
+    "agreedCost": "Agreed: {{cost}}",
+    "lotRequired": "Required: tracked by lot",
+    "expiresRequired": "Required: lot expiry date",
+    "lotMissing": "The lot is missing.",
+    "expiresMissing": "The expiry date is missing.",
+    "costMissing": "The cost is missing."
   },
   "charges": {
     "title": "Additional charges",

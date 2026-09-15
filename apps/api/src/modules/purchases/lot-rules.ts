@@ -63,7 +63,7 @@ export async function aplicarReglasDeLote(
     if (traeLote && controla.get(partida.productId) !== true) {
       throw new UnprocessableEntityException({
         message: "purchases.lot_not_tracked",
-        args: { field: `${campo(index)}.lotCode` },
+        args: { field: `${campo(index)}.lotCode`, line: index + 1 },
       });
     }
     let expiresAt = partida.expiresAt === null ? null : new Date(partida.expiresAt);
@@ -75,7 +75,7 @@ export async function aplicarReglasDeLote(
       if (pedida !== null && conocida !== null && pedida !== conocida) {
         throw new UnprocessableEntityException({
           message: "purchases.lot_expiry_mismatch",
-          args: { field: `${campo(index)}.expiresAt`, lotCode: partida.lotCode },
+          args: { field: `${campo(index)}.expiresAt`, lotCode: partida.lotCode, line: index + 1 },
         });
       }
       if (pedida === null) expiresAt = guardada;

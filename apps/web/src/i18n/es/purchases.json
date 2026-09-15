@@ -104,7 +104,12 @@
     "lotHint": "Este producto se controla por lote: la entrada de inventario va a pedirlo.",
     "notPurchasable": "Esa presentación no está marcada como comprable, pero puedes usarla.",
     "netCost": "Costo sin impuesto: {{cost}}",
-    "agreedCost": "Acordado: {{cost}}"
+    "agreedCost": "Acordado: {{cost}}",
+    "lotRequired": "Obligatorio: se controla por lote",
+    "expiresRequired": "Obligatoria: caducidad del lote",
+    "lotMissing": "Falta el lote.",
+    "expiresMissing": "Falta la caducidad.",
+    "costMissing": "Falta el costo."
   },
   "charges": {
     "title": "Cargos adicionales",

@@ -359,7 +359,7 @@ describe("Órdenes de compra (F9-PO)", () => {
       const rebote = await api(negocio.token)
         .post(`/purchase-orders/${orden.id}/issue`)
         .expect(422);
-      expect((rebote.body as { message: string }).message).toContain("lines.2.unitCost");
+      expect((rebote.body as { message: string }).message).toContain("Línea 2");
     });
 
     it("emitida, las líneas y el proveedor se congelan; la fecha esperada y las notas siguen vivas", async () => {

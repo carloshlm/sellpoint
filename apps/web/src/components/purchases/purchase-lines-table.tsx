@@ -124,6 +124,9 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
     const [lineas, setLineas] = useState<LineaEditable[]>(() => aEditable(purchase));
     const [catalogo, setCatalogo] = useState<PurchaseProduct[]>(purchase.products);
     const [error, setError] = useState<string | null>(null);
+    // Hasta el primer intento de confirmar, lo vacío no se marca bajo el campo:
+    // el borrador se captura por partes.
+    const [intentado, setIntentado] = useState(false);
     const guardar = useReplacePurchaseLines();
 
     // La compra vuelve del API con sus totales ya hechos: la tabla se rehace
@@ -149,6 +152,8 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
     const productoDe = (id: string) => catalogo.find((p) => p.id === id);
 
     const cambiar = (index: number, campo: keyof LineaEditable, valor: string) => {
+      // El aviso de arriba describe lo que se intentó: al corregir, ya no aplica.
+      setError(null);
       setLineas((previas) =>
         previas.map((linea, i) => (i === index ? { ...linea, [campo]: valor } : linea)),
       );
@@ -219,6 +224,14 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
       }));
     const sucia = JSON.stringify(lineas) !== JSON.stringify(aEditable(purchase));
     useImperativeHandle(ref, () => ({
+      validarParaConfirmar: () => {
+        if (!editable) return true;
+        setIntentado(true);
+        const problemas = problemasParaConfirmar();
+        if (problemas.length === 0) return true;
+        setError(describeLineIssues(problemas, t, etiquetas));
+        return false;
+      },
       guardarSiHayCambios: async () => {
         if (!editable || !sucia) return;
         // Frenar Y avisar con la línea (Carlos, 2026-09-15): antes volvía en
@@ -268,6 +281,47 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
       setError(describeLineIssues(problemas, t, etiquetas));
       return false;
     };
+    /**
+     * Lo que CONFIRMAR exige, por línea (Carlos, 2026-09-15): cantidad y costo,
+     * y lote y caducidad si el producto se controla por lote. El API vuelve a
+     * cerrar la misma puerta; esto la dice antes, con la línea y la columna.
+     */
+    const problemasParaConfirmar = (): LineIssue[] =>
+      lineas.flatMap((linea, i) => {
+        const producto = productoDe(linea.productId);
+        const presentacion = producto?.presentations.find((p) => p.id === linea.presentationId);
+        const line = i + 1;
+        const problemas: LineIssue[] = [];
+        const claveCantidad =
+          linea.quantity.trim() === "" || Number(linea.quantity) === 0
+            ? "purchaseOrders.lines.errors.quantityRequired"
+            : quantityInputError(linea.quantity, {
+                allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
+              });
+        if (claveCantidad !== null) {
+          problemas.push({
+            line,
+            field: "quantity",
+            message: t(claveCantidad, {
+              presentation: presentacion?.name ?? producto?.baseUnit ?? "",
+            }),
+          });
+        }
+        if (linea.unitCost.trim() === "") {
+          problemas.push({ line, field: "unitCost", message: t("purchases.lines.costMissing") });
+        }
+        if (producto?.tracksLots === true && linea.lotCode.trim() === "") {
+          problemas.push({ line, field: "lotCode", message: t("purchases.lines.lotMissing") });
+        }
+        if (producto?.tracksLots === true && linea.expiresAt === "") {
+          problemas.push({
+            line,
+            field: "expiresAt",
+            message: t("purchases.lines.expiresMissing"),
+          });
+        }
+        return problemas;
+      });
     /** Un 400 del API trae la RUTA de cada campo: se lee por línea antes que el mensaje general. */
     const mensajeDelApi = (apiError: ApiError): string =>
       describeLineIssues(lineIssuesOf(apiError), t, etiquetas) ?? apiError.message;
@@ -345,9 +399,12 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                   const presentacion = producto?.presentations.find(
                     (p) => p.id === linea.presentationId,
                   );
-                  const errorCantidad = quantityInputError(linea.quantity, {
-                    allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
-                  });
+                  const errorCantidad =
+                    intentado && (linea.quantity.trim() === "" || Number(linea.quantity) === 0)
+                      ? "purchaseOrders.lines.errors.quantityRequired"
+                      : quantityInputError(linea.quantity, {
+                          allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
+                        });
                   return (
                     <tr
                       key={linea.uid}
@@ -357,11 +414,13 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                       <td className="p-2">
                         <span className="block font-medium">{linea.description}</span>
                         <span className="font-mono text-muted-foreground text-xs">{linea.sku}</span>
-                        {producto?.tracksLots === true && linea.lotCode.trim() === "" && (
-                          <span className="block text-warning text-xs">
-                            {t("purchases.lines.lotHint")}
-                          </span>
-                        )}
+                        {!editable &&
+                          producto?.tracksLots === true &&
+                          linea.lotCode.trim() === "" && (
+                            <span className="block text-warning text-xs">
+                              {t("purchases.lines.lotHint")}
+                            </span>
+                          )}
                       </td>
                       <td className="p-2">
                         <select
@@ -477,6 +536,18 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
                         onExpiresAt={(valor) => cambiar(index, "expiresAt", valor)}
                         lotLabel={t("purchases.lines.lot")}
                         expiresLabel={t("purchases.lines.expiresAt")}
+                        // Mismo trato que la recepción: en el borrador, lo que
+                        // confirmar va a exigir se dice desde que la línea nace.
+                        lotError={
+                          editable && producto?.tracksLots === true && linea.lotCode.trim() === ""
+                            ? t("purchases.lines.lotRequired")
+                            : undefined
+                        }
+                        expiresError={
+                          editable && producto?.tracksLots === true && linea.expiresAt === ""
+                            ? t("purchases.lines.expiresRequired")
+                            : undefined
+                        }
                       />
                       <td className="p-2 text-right tabular-nums">
                         {linea.lineTotal === null ? "—" : dinero(linea.lineTotal)}
