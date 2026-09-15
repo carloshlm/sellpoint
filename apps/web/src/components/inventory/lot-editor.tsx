@@ -1,6 +1,6 @@
 import { normalizeLotCode } from "@sellpoint/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import type { ApiError } from "@/lib/api";
@@ -29,6 +29,9 @@ export function LotEditor({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  // Ids por instancia y no literales: un id fijo se repite en cuanto hay dos
+  // editores en la página, y la etiqueta apunta al campo equivocado.
+  const id = useId();
   const [lotCode, setLotCode] = useState(lot.lotCode);
   const [expiresAt, setExpiresAt] = useState(lot.expiresAt?.slice(0, 10) ?? "");
   const [confirmando, setConfirmando] = useState(false);
@@ -60,11 +63,12 @@ export function LotEditor({
     <div className="flex flex-col gap-3 rounded-md border border-input p-3">
       <div className="flex flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor="lot-code" className="font-medium text-sm">
+          <label htmlFor={`${id}-code`} className="font-medium text-sm">
             {t("inventory.kardex.lotCode")}
           </label>
           <input
-            id="lot-code"
+            id={`${id}-code`}
+            name="lotCode"
             type="text"
             value={lotCode}
             onChange={(event) =>
@@ -77,11 +81,12 @@ export function LotEditor({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="lot-expires" className="font-medium text-sm">
+          <label htmlFor={`${id}-expires`} className="font-medium text-sm">
             {t("inventory.kardex.expiresAt")}
           </label>
           <input
-            id="lot-expires"
+            id={`${id}-expires`}
+            name="expiresAt"
             type="date"
             value={expiresAt}
             onChange={(event) => setExpiresAt(event.target.value)}

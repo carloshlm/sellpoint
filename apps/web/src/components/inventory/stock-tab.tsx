@@ -1,14 +1,24 @@
 import { formatQuantity, formatQuantityWithUnit } from "@sellpoint/shared";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { resolveUiLocale } from "@/lib/accept-language";
 import { usePermissions } from "@/lib/auth/permissions";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
+import type { StockLotRow } from "@/lib/inventory/kardex-api";
 import { useInTransit, useStock } from "@/lib/inventory/kardex-hooks";
 import { LotEditor } from "./lot-editor";
+
+/**
+ * Lo que identifica un RENGLÓN de lote: lote + almacén + ubicación, la misma
+ * clave única de `stock_lots`. El `lotId` solo no alcanza: el mismo lote vive
+ * en varios almacenes y ubicaciones (Carlos, 2026-09-14: abrir uno abría un
+ * editor bajo cada renglón de ese lote).
+ */
+const claveDeRenglon = (warehouseId: string, lot: StockLotRow) =>
+  `${warehouseId}|${lot.lotId}|${lot.location}`;
 
 /**
  * F3-KARDEX-05 — dónde está el stock de un producto.
@@ -74,7 +84,7 @@ export function StockTab({ productId }: { productId: string }) {
           </thead>
           <tbody>
             {data.rows.map((row) => (
-              <>
+              <Fragment key={row.warehouseId}>
                 {/* Encabezado de GRUPO, no una fila más (Carlos, 2026-08-24):
                     con varios almacenes y sus lotes intercalados, «Almacén
                     Sur» y «ST1» pesaban lo mismo y la tabla era una lista
@@ -82,7 +92,6 @@ export function StockTab({ productId }: { productId: string }) {
                     un almacén y empieza el siguiente; los lotes cuelgan
                     debajo, claros e indentados. */}
                 <tr
-                  key={row.warehouseId}
                   data-testid={`warehouse-row-${row.warehouseId}`}
                   className="border-b bg-muted/60 font-medium last:border-0"
                 >
@@ -99,68 +108,73 @@ export function StockTab({ productId }: { productId: string }) {
                         }).format(new Date(row.updatedAt))}
                   </td>
                 </tr>
-                {(row.lots ?? []).map((lot, index) => (
-                  <tr key={lot.lotId} className="border-b border-dashed last:border-0 text-xs">
-                    <td className="py-1 pl-6">
-                      {lot.lotCode}
-                      {lot.location !== "" && (
-                        <span className="ml-2 text-muted-foreground">{lot.location}</span>
+                {(row.lots ?? []).map((lot, index) => {
+                  const clave = claveDeRenglon(row.warehouseId, lot);
+                  return (
+                    <Fragment key={clave}>
+                      <tr className="border-b border-dashed last:border-0 text-xs">
+                        <td className="py-1 pl-6">
+                          {lot.lotCode}
+                          {lot.location !== "" && (
+                            <span className="ml-2 text-muted-foreground">{lot.location}</span>
+                          )}
+                          {/* El primero FEFO es el que el sistema va a descontar. */}
+                          {index === 0 && (
+                            <Badge data-testid="fefo-first" variant="default" className="ml-2">
+                              {t("inventory.kardex.fefoFirst")}
+                            </Badge>
+                          )}
+                          {/*
+                            Vencido y por-vencer son estados EXCLUYENTES y con
+                            colores distintos: el amarillo dice «apúrate», el rojo
+                            dice «no lo vendas». Pintar de amarillo algo que ya
+                            venció invita a dejarlo salir — y FEFO lo despacha
+                            primero, así que es justo el que más urge distinguir.
+                          */}
+                          {lot.expired && (
+                            <Badge data-testid="expired" variant="destructive" className="ml-2">
+                              {t("inventory.kardex.expired")}
+                            </Badge>
+                          )}
+                          {lot.expiringSoon && (
+                            <Badge data-testid="expiring-soon" variant="warning" className="ml-2">
+                              {t("inventory.kardex.expiringSoon")}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-1">{formatQuantity(lot.quantity, data.baseUnit)}</td>
+                        <td className="py-1 text-muted-foreground">
+                          {lot.expiresAt === null
+                            ? "—"
+                            : formatCalendarDate(lot.expiresAt, resolveUiLocale(i18n))}
+                          {puedeEditar && (
+                            <button
+                              type="button"
+                              onClick={() => setEditando(editando === clave ? null : clave)}
+                              className="ml-2 underline"
+                            >
+                              {t("inventory.kardex.editLot")}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Justo debajo del renglón que se tocó: el lote se corrige en
+                      todos sus almacenes, pero se edita desde donde se miró. */}
+                      {editando === clave && (
+                        <tr>
+                          <td colSpan={3} className="py-2">
+                            <LotEditor
+                              productId={productId}
+                              lot={lot}
+                              onClose={() => setEditando(null)}
+                            />
+                          </td>
+                        </tr>
                       )}
-                      {/* El primero FEFO es el que el sistema va a descontar. */}
-                      {index === 0 && (
-                        <Badge data-testid="fefo-first" variant="default" className="ml-2">
-                          {t("inventory.kardex.fefoFirst")}
-                        </Badge>
-                      )}
-                      {/*
-                        Vencido y por-vencer son estados EXCLUYENTES y con
-                        colores distintos: el amarillo dice «apúrate», el rojo
-                        dice «no lo vendas». Pintar de amarillo algo que ya
-                        venció invita a dejarlo salir — y FEFO lo despacha
-                        primero, así que es justo el que más urge distinguir.
-                      */}
-                      {lot.expired && (
-                        <Badge data-testid="expired" variant="destructive" className="ml-2">
-                          {t("inventory.kardex.expired")}
-                        </Badge>
-                      )}
-                      {lot.expiringSoon && (
-                        <Badge data-testid="expiring-soon" variant="warning" className="ml-2">
-                          {t("inventory.kardex.expiringSoon")}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="py-1">{formatQuantity(lot.quantity, data.baseUnit)}</td>
-                    <td className="py-1 text-muted-foreground">
-                      {lot.expiresAt === null
-                        ? "—"
-                        : formatCalendarDate(lot.expiresAt, resolveUiLocale(i18n))}
-                      {puedeEditar && (
-                        <button
-                          type="button"
-                          onClick={() => setEditando(editando === lot.lotId ? null : lot.lotId)}
-                          className="ml-2 underline"
-                        >
-                          {t("inventory.kardex.editLot")}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {(row.lots ?? [])
-                  .filter((lot) => lot.lotId === editando)
-                  .map((lot) => (
-                    <tr key={`${lot.lotId}-editor`}>
-                      <td colSpan={3} className="py-2">
-                        <LotEditor
-                          productId={productId}
-                          lot={lot}
-                          onClose={() => setEditando(null)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-              </>
+                    </Fragment>
+                  );
+                })}
+              </Fragment>
             ))}
           </tbody>
           <tfoot>

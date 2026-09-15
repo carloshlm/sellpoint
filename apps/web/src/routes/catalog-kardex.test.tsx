@@ -697,6 +697,60 @@ describe("Editar un lote (F3-LOTS-04)", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/ya lo usa otro lote/i);
   });
+
+  /**
+   * Reportado por Carlos (2026-09-14): el renglón de stock es lote + almacén +
+   * ubicación, y el MISMO lote aparece en varios. «Editar lote» en uno abría un
+   * editor bajo CADA renglón de ese lote —tres a la vez— y Chrome marcaba seis
+   * `id` repetidos.
+   */
+  it("el mismo lote en varios renglones abre UN editor, bajo el renglón tocado", async () => {
+    const st11 = {
+      lotId: "l1",
+      lotCode: "ST11",
+      expiresAt: "2026-08-23",
+      quantity: "5",
+      expired: false,
+      expiringSoon: false,
+    };
+    mocked.getStock.mockResolvedValue(
+      resumen({
+        rows: [
+          {
+            warehouseId: "w1",
+            name: "Central",
+            quantity: "410",
+            updatedAt: "2026-09-12T10:00:00.000Z",
+            lots: [
+              { ...st11, location: "" },
+              { ...st11, location: "A-03-45", quantity: "405" },
+            ],
+          },
+          {
+            warehouseId: "w2",
+            name: "Sur",
+            quantity: "30",
+            updatedAt: "2026-09-13T10:00:00.000Z",
+            lots: [{ ...st11, location: "", quantity: "30" }],
+          },
+        ],
+      }),
+    );
+    const user = renderTab(<StockTab productId="p1" />, ["inventory:read", "inventory:movement"]);
+    await screen.findByText("A-03-45");
+
+    // El PRIMERO de Central: el editor tiene que quedar entre él y el de A-03-45.
+    const tocado = screen.getAllByText("ST11")[0]?.closest("tr") as HTMLElement;
+    await user.click(within(tocado).getByRole("button", { name: /editar lote/i }));
+
+    expect(await screen.findAllByRole("button", { name: /^guardar$/i })).toHaveLength(1);
+    // Debajo del renglón que se tocó, no del primero que comparte el lote.
+    const editor = screen.getByLabelText(/código de lote/i).closest("tr") as HTMLElement;
+    expect(tocado.nextElementSibling).toBe(editor);
+
+    const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+  });
 });
 
 /**
