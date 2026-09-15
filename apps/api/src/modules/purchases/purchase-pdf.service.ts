@@ -5,6 +5,7 @@ import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { FONTS } from "../medical-clinic/medical-pdf-blocks";
+import { derivesFractionalInput } from "../products/products.service";
 import { buildPurchaseDefinition } from "./purchase-pdf.renderer";
 import { PurchasesService } from "./purchases.service";
 
@@ -100,6 +101,8 @@ export class PurchasePdfService {
               description: l.description,
               presentationName: l.presentation?.name ?? null,
               quantity: l.quantity?.toString() ?? null,
+              fractional:
+                l.presentation?.allowFractionalInput ?? derivesFractionalInput(l.product.baseUnit),
               unitCost: l.unitCost?.toString() ?? null,
               discount: l.discount.toString(),
               taxAmount: l.taxAmount.toString(),

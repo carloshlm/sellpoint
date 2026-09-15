@@ -598,6 +598,8 @@ describe("Compras (F9-PURCH)", () => {
       expect(pdf.headers["content-type"]).toContain("application/pdf");
       const texto = textoDelPdf(pdf.body as Buffer);
       expect(texto).toContain("COM-");
+      // Carlos (2026-09-15): una presentación que no se parte imprime enteros, sin «.000».
+      expect(texto).not.toMatch(/\b\d+\.000\b/);
       expect(texto).toContain("Distribuidora Norte");
       // El papel dice 120 y las líneas suman 116: el descuadre se IMPRIME.
       expect(texto).toContain("116.00");

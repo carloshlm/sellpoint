@@ -53,6 +53,7 @@ const base: PdfPurchaseInput = {
       description: "Paracetamol 500 mg",
       presentationName: "Caja ×12",
       quantity: "10",
+      fractional: false,
       unitCost: "100",
       discount: "0",
       taxAmount: "160",
@@ -149,6 +150,17 @@ describe("buildPurchaseDefinition (F9-PURCH-09)", () => {
 
     const confirmada = buildPurchaseDefinition(base, t) as { watermark?: unknown };
     expect(confirmada.watermark).toBeUndefined();
+  });
+
+  /** Carlos (2026-09-15): «10.000» en una pieza que no se parte es ruido. */
+  it("la cantidad va entera si la presentación no se parte, y con 3 decimales si se parte", () => {
+    const linea = base.lines[0] as PdfPurchaseInput["lines"][number];
+    const entera = papel({ ...base, lines: [{ ...linea, quantity: "10.0000" }] });
+    expect(entera).toContain(" | 10 | ");
+    expect(entera).not.toContain("10.000");
+
+    const granel = papel({ ...base, lines: [{ ...linea, quantity: "2.5000", fractional: true }] });
+    expect(granel).toContain("2.500");
   });
 
   it("con lotes la tabla gana sus dos columnas; sin lotes, no las pinta", () => {

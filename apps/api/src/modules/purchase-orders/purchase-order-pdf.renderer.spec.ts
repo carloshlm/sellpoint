@@ -54,6 +54,7 @@ const base: PdfPurchaseOrderInput = {
       description: "Paracetamol 500 mg",
       presentationName: "Caja ×12",
       quantityOrdered: "10",
+      fractional: false,
       unitCost: "100",
       discount: "0",
       taxAmount: "160",
@@ -116,6 +117,20 @@ describe("el papel de la orden de compra (F9-PO-06)", () => {
     expect(definicion("partially_received").watermark).toBeUndefined();
     expect(definicion("closed").watermark?.text).toBe("pdf.purchaseOrder.closed");
     expect(definicion("canceled").watermark?.text).toBe("pdf.purchaseOrder.canceled");
+  });
+
+  /** Carlos (2026-09-15): «10.000» en una caja que no se parte es ruido. */
+  it("la cantidad va entera si la presentación no se parte, y con 3 decimales si se parte", () => {
+    const linea = base.lines[0] as PdfPurchaseOrderInput["lines"][number];
+    const entera = papel({ ...base, lines: [{ ...linea, quantityOrdered: "10.0000" }] });
+    expect(entera).toContain(" | 10 | ");
+    expect(entera).not.toContain("10.000");
+
+    const granel = papel({
+      ...base,
+      lines: [{ ...linea, quantityOrdered: "2.5000", fractional: true }],
+    });
+    expect(granel).toContain("2.500");
   });
 
   it("los importes van sin símbolo y la moneda se dice al pie", () => {

@@ -51,6 +51,17 @@ export function quantityDecimals(baseUnit: string): number {
  * solo mirar dónde está el punto — así que no se hacen.
  */
 export function formatQuantity(value: string | number, baseUnit: string): string {
+  return formatQuantityWithDecimals(value, quantityDecimals(baseUnit));
+}
+
+/**
+ * La misma regla que `formatQuantity`, cuando los decimales NO los decide la
+ * unidad base sino la PRESENTACIÓN (Carlos, 2026-09-15): en una orden o una
+ * compra se piden 10 «Caja ×12», y si esa presentación no se parte, «10.000»
+ * es ruido. La válvula de seguridad no cambia: un decimal que no encaja se
+ * muestra igual.
+ */
+export function formatQuantityWithDecimals(value: string | number, decimales: number): string {
   const texto = typeof value === "number" ? String(value) : value.trim();
   if (texto === "") {
     return "";
@@ -60,7 +71,6 @@ export function formatQuantity(value: string | number, baseUnit: string): string
   const sinSigno = negativo ? texto.slice(1) : texto;
   const [entero = "0", fraccion = ""] = sinSigno.split(".");
 
-  const decimales = quantityDecimals(baseUnit);
   // Los ceros de la derecha no son información: `2.5000` y `2.5` son el mismo
   // peso. Lo que importa es cuántos dígitos SIGNIFICATIVOS hay.
   const significativa = fraccion.replace(/0+$/, "");

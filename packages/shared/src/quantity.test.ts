@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addQuantities,
   formatQuantity,
+  formatQuantityWithDecimals,
   formatQuantityWithUnit,
   formatSoldQuantity,
   multiplyQuantities,
@@ -14,6 +15,25 @@ import {
  * un producto que se cuenta en piezas. Cuatro dígitos que no pueden ser otra
  * cosa que cero.
  */
+describe("formatQuantityWithDecimals (Carlos, 2026-09-15)", () => {
+  it("una presentación que no se parte imprime enteros: «10», no «10.000»", () => {
+    expect(formatQuantityWithDecimals("10.0000", 0)).toBe("10");
+    expect(formatQuantityWithDecimals("5", 0)).toBe("5");
+  });
+
+  it("una que se parte conserva su precisión fija", () => {
+    expect(formatQuantityWithDecimals("2.5000", 3)).toBe("2.500");
+  });
+
+  it("la válvula de seguridad sigue: un decimal que no encaja se ve", () => {
+    expect(formatQuantityWithDecimals("2.5000", 0)).toBe("2.5");
+  });
+
+  it("formatQuantity es la misma regla con los decimales de la unidad", () => {
+    expect(formatQuantity("12.0000", "unit")).toBe(formatQuantityWithDecimals("12.0000", 0));
+  });
+});
+
 describe("formatQuantity", () => {
   describe("lo que se cuenta en piezas no tiene decimales", () => {
     it("un saldo entero se muestra entero", () => {

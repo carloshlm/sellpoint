@@ -2,7 +2,7 @@ import {
   type Currency,
   currencyName,
   formatAmount,
-  formatQuantity,
+  formatQuantityWithDecimals,
   type Locale,
   localeToBcp47,
   taxIdLabel,
@@ -20,6 +20,11 @@ export interface PdfPurchaseOrderLine {
   description: string;
   presentationName: string | null;
   quantityOrdered: string;
+  /**
+   * ¿La cantidad admite decimales? La decide la PRESENTACIÓN (y sin ella, la
+   * unidad base): 10 «Caja ×12» se imprime «10», no «10.000» (Carlos, 2026-09-15).
+   */
+  fractional: boolean;
   unitCost: string | null;
   discount: string;
   taxAmount: string;
@@ -91,7 +96,7 @@ export function buildPurchaseOrderDefinition(input: PdfPurchaseOrderInput, t: Tr
     line.sku,
     line.description,
     line.presentationName ?? "",
-    formatQuantity(line.quantityOrdered, ""),
+    formatQuantityWithDecimals(line.quantityOrdered, line.fractional ? 3 : 0),
     line.unitCost === null ? "" : dinero(line.unitCost),
     Number(line.discount) > 0 ? `-${dinero(line.discount)}` : "",
     dinero(line.taxAmount),

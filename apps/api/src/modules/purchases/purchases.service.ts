@@ -193,7 +193,7 @@ const DETALLE = {
           },
         },
       },
-      presentation: { select: { name: true } },
+      presentation: { select: { name: true, allowFractionalInput: true } },
       purchaseOrderLine: { select: { unitCost: true } },
     },
   },

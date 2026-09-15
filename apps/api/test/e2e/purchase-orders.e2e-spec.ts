@@ -485,6 +485,8 @@ describe("Órdenes de compra (F9-PO)", () => {
         .expect(200)
         .expect("Content-Type", /application\/pdf/);
       const texto = await textoDelPdf(respuesta.body as Buffer);
+      // Carlos (2026-09-15): una presentación que no se parte imprime enteros, sin «.000».
+      expect(texto).not.toMatch(/\b\d+\.000\b/);
       expect(texto).toContain(orden.folio);
       expect(texto).toContain("Distribuidora Norte");
       expect(texto).toContain("ORDEN DE COMPRA");
