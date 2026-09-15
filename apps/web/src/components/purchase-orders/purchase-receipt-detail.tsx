@@ -14,8 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { SuccessNotice } from "@/components/ui/success-notice";
+import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
+import { describeLineIssues, type LineIssue, lineIssuesOf } from "@/lib/field-errors";
 import { businessToday } from "@/lib/inventory/format-date";
 import type { PurchaseReceipt, PurchaseReceiptLineInput } from "@/lib/purchase-orders/api";
 import {
@@ -104,7 +106,17 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const guardarLineas = useReplacePurchaseReceiptLines();
   const confirmar = useConfirmPurchaseReceipt();
   const anular = useCancelPurchaseReceipt();
-  const onError = (apiError: { message: string }) => setError(apiError.message);
+  /** Las MISMAS etiquetas de las columnas: el aviso nombra el campo como lo ve la persona. */
+  const etiquetas: Record<string, string> = {
+    purchaseOrderLineId: t("purchaseOrders.lines.product"),
+    quantity: t("purchaseOrders.receipt.quantity"),
+    lotCode: t("purchaseOrders.receipt.lot"),
+    expiresAt: t("purchaseOrders.receipt.expiresAt"),
+  };
+  // Un 400 del API trae la RUTA de cada campo: se lee por línea antes que el
+  // mensaje general (Carlos, 2026-09-15). Los rechazos de negocio ya la nombran.
+  const onError = (apiError: ApiError) =>
+    setError(describeLineIssues(lineIssuesOf(apiError), t, etiquetas) ?? apiError.message);
   const ids = { orderId: receipt.purchaseOrderId, receiptId: receipt.id };
 
   const firmaDeLineas = JSON.stringify([receipt.status, receipt.lines]);
@@ -130,9 +142,29 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
     );
 
   /** Lo que LLEGÓ obedece la presentación de la línea: media pieza no llega. */
+  // Vacía también es error: viajaba como `0` y rebotaba sin nombre de línea.
   const errorDeCantidad = (linea: { quantity: string; allowFractionalInput: boolean }) =>
-    quantityInputError(linea.quantity, { allowsDecimals: linea.allowFractionalInput });
-  const hayCantidadInvalida = (): boolean => lineas.some((l) => errorDeCantidad(l) !== null);
+    linea.quantity.trim() === "" || Number(linea.quantity) === 0
+      ? "purchaseOrders.lines.errors.quantityRequired"
+      : quantityInputError(linea.quantity, { allowsDecimals: linea.allowFractionalInput });
+  /** Frena el envío y dice QUÉ línea: bajo el campo y en el aviso de arriba. */
+  const validar = (): boolean => {
+    const problemas: LineIssue[] = lineas.flatMap((linea, i) => {
+      const clave = errorDeCantidad(linea);
+      return clave === null
+        ? []
+        : [
+            {
+              line: i + 1,
+              field: "quantity",
+              message: t(clave, { presentation: linea.presentationName ?? "" }),
+            },
+          ];
+    });
+    if (problemas.length === 0) return true;
+    setError(describeLineIssues(problemas, t, etiquetas));
+    return false;
+  };
   // Carlos (2026-09-15): un producto controlado por lote no se confirma sin su
   // lote y su caducidad. Se dice bajo cada campo desde que la línea nace, y
   // «Confirmar recepción» se apaga hasta que estén: guardar a medias sigue
@@ -151,7 +183,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const guardar = () => {
     setError(null);
     // El error ya está pintado bajo el campo: acá solo se frena el envío.
-    if (hayCantidadInvalida()) return;
+    if (!validar()) return;
     guardarLineas.mutate({ ...ids, lines: armarPayload() }, { onError });
   };
   // Confirmar GUARDA primero lo tecleado (cantidad, lote, caducidad): sin esto,
@@ -165,7 +197,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
       setConfirmando(true);
       return;
     }
-    if (hayCantidadInvalida()) return;
+    if (!validar()) return;
     guardarLineas
       .mutateAsync({ ...ids, lines: armarPayload() })
       .then(() => setConfirmando(true))
@@ -230,7 +262,10 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
         </SuccessNotice>
       )}
       {error !== null && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm">
+        <p
+          role="alert"
+          className="whitespace-pre-line rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
+        >
           {error}
         </p>
       )}

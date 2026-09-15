@@ -7,6 +7,8 @@ import { QuantityInput } from "@/components/form/quantity-input";
 import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import type { ApiError } from "@/lib/api";
+import { describeLineIssues, type LineIssue, lineIssuesOf } from "@/lib/field-errors";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { getProduct } from "@/lib/products/api";
 import type {
@@ -145,6 +147,8 @@ export function costoInicial(
   return delCatalogo;
 }
 
+const CANTIDAD_REQUERIDA = "purchaseOrders.lines.errors.quantityRequired";
+
 export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: PurchaseOrder }>(
   function PurchaseOrderLinesTable({ order }, ref) {
     const { t, i18n } = useTranslation();
@@ -158,6 +162,9 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
     const [lineas, setLineas] = useState<LineaEditable[]>(() => aEditable(order));
     const [catalogo, setCatalogo] = useState<PurchaseOrderProduct[]>(order.products);
     const [error, setError] = useState<string | null>(null);
+    // Hasta el primer intento de guardar, una línea recién agregada sin cantidad
+    // no se marca: todavía la están llenando.
+    const [intentado, setIntentado] = useState(false);
     const guardar = useReplacePurchaseOrderLines();
     const cerrarCorta = useClosePurchaseOrderLineShort();
 
@@ -181,6 +188,8 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
     const dinero = (valor: string) => formatMoney(Number(valor), currency, locale);
     const productoDe = (id: string) => catalogo.find((p) => p.id === id);
     const cambiar = (index: number, campo: keyof LineaEditable, valor: string) => {
+      // El aviso de arriba describe lo que se intentó guardar: al corregir, ya no aplica.
+      setError(null);
       setLineas((previas) =>
         previas.map((linea, i) => (i === index ? { ...linea, [campo]: valor } : linea)),
       );
@@ -236,27 +245,74 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
     const sucia = JSON.stringify(lineas) !== JSON.stringify(aEditable(order));
     useImperativeHandle(ref, () => ({
       guardarSiHayCambios: async () => {
-        if (!editable || !sucia || lineasConCantidadInvalida().length > 0) return;
-        await guardar.mutateAsync({ id: order.id, lines: armarPayload() });
+        if (!editable || !sucia) return;
+        // Frenar Y avisar: antes volvía en silencio y «Emitir orden» abría el
+        // diálogo con una línea sin cantidad. `handled` le dice al detalle que
+        // la tabla ya lo contó, con su línea.
+        if (!validar()) throw Object.assign(new Error(""), { handled: true });
+        await guardar
+          .mutateAsync({ id: order.id, lines: armarPayload() })
+          .catch((apiError: ApiError) => {
+            const mensaje = mensajeDelApi(apiError);
+            setError(mensaje);
+            throw Object.assign(new Error(mensaje), { handled: true });
+          });
       },
     }));
 
-    /** Las líneas cuya cantidad no cabe en su presentación, por número de línea. */
-    const lineasConCantidadInvalida = (): number[] =>
-      lineas
-        .map((linea, i) =>
-          quantityInputError(linea.quantity, {
+    /**
+     * Carlos (2026-09-15): «Revisa los datos de la orden de compra.» no decía
+     * qué fila. Una orden no lleva líneas en cero, así que la cantidad VACÍA
+     * también es un error — antes viajaba como `0` y rebotaba en el API sin
+     * nombre de línea.
+     */
+    const errorDeCantidad = (linea: LineaEditable): string | null =>
+      linea.quantity.trim() === "" || Number(linea.quantity) === 0
+        ? CANTIDAD_REQUERIDA
+        : quantityInputError(linea.quantity, {
             allowsDecimals: lineaAdmiteDecimales(productoDe(linea.productId), linea.presentationId),
-          }) === null
-            ? null
-            : i + 1,
-        )
-        .filter((n): n is number => n !== null);
+          });
+    const nombreDePresentacion = (linea: LineaEditable): string => {
+      const producto = productoDe(linea.productId);
+      const presentacion = producto?.presentations.find((p) => p.id === linea.presentationId);
+      return presentacion?.name ?? (producto?.baseUnit ? unitName(producto.baseUnit, locale) : "");
+    };
+    /** Las MISMAS etiquetas de las columnas: el aviso nombra el campo como lo ve la persona. */
+    const etiquetas: Record<string, string> = {
+      productId: t("purchaseOrders.lines.product"),
+      presentationId: t("purchaseOrders.lines.presentation"),
+      quantity: t("purchaseOrders.lines.quantity"),
+      unitCost: t("purchaseOrders.lines.unitCost"),
+      discount: t("purchaseOrders.lines.discount"),
+    };
+    const problemasLocales = (): LineIssue[] =>
+      lineas.flatMap((linea, i) => {
+        const clave = errorDeCantidad(linea);
+        return clave === null
+          ? []
+          : [
+              {
+                line: i + 1,
+                field: "quantity",
+                message: t(clave, { presentation: nombreDePresentacion(linea) }),
+              },
+            ];
+      });
+    /** Frena el envío y dice QUÉ línea: bajo el campo y en el aviso de arriba. */
+    const validar = (): boolean => {
+      const problemas = problemasLocales();
+      if (problemas.length === 0) return true;
+      setIntentado(true);
+      setError(describeLineIssues(problemas, t, etiquetas));
+      return false;
+    };
+    /** Un 400 del API trae la RUTA de cada campo: se lee por línea antes que el mensaje general. */
+    const mensajeDelApi = (apiError: ApiError): string =>
+      describeLineIssues(lineIssuesOf(apiError), t, etiquetas) ?? apiError.message;
 
     const guardarLineas = () => {
       setError(null);
-      // El error ya está pintado bajo cada campo: acá solo se frena el envío.
-      if (lineasConCantidadInvalida().length > 0) return;
+      if (!validar()) return;
       const payload: PurchaseOrderLineInput[] = lineas.map((linea) => ({
         productId: linea.productId,
         presentationId: linea.presentationId === "" ? null : linea.presentationId,
@@ -266,7 +322,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
       }));
       guardar.mutate(
         { id: order.id, lines: payload },
-        { onError: (apiError) => setError(apiError.message) },
+        { onError: (apiError) => setError(mensajeDelApi(apiError)) },
       );
     };
 
@@ -294,7 +350,7 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
         {error !== null && (
           <p
             role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
+            className="whitespace-pre-line rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
           >
             {error}
           </p>
@@ -323,9 +379,9 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                   const presentacion = producto?.presentations.find(
                     (p) => p.id === linea.presentationId,
                   );
-                  const errorCantidad = quantityInputError(linea.quantity, {
-                    allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
-                  });
+                  const errorCantidad = errorDeCantidad(linea);
+                  const mostrarErrorCantidad =
+                    errorCantidad !== null && (intentado || errorCantidad !== CANTIDAD_REQUERIDA);
                   const porcentaje =
                     Number(linea.quantity) > 0
                       ? Math.min(
@@ -391,17 +447,17 @@ export const PurchaseOrderLinesTable = forwardRef<LineasHandle, { order: Purchas
                               aria-label={t("purchaseOrders.lines.quantity")}
                               name={`lines.${index}.quantity`}
                               allowsDecimals={lineaAdmiteDecimales(producto, linea.presentationId)}
-                              invalid={errorCantidad !== null}
+                              invalid={mostrarErrorCantidad}
                               value={linea.quantity}
                               onChange={(valor) => cambiar(index, "quantity", valor)}
                             />
-                            {errorCantidad !== null && (
+                            {mostrarErrorCantidad && (
                               <span
                                 role="alert"
                                 className="mt-1 block text-destructive text-xs"
                                 data-testid={`quantity-error-${index}`}
                               >
-                                {t(errorCantidad, {
+                                {t(errorCantidad ?? "", {
                                   presentation:
                                     presentacion?.name ??
                                     (producto?.baseUnit ? unitName(producto.baseUnit, locale) : ""),

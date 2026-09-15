@@ -12,6 +12,8 @@ import {
 import { ProductSearch } from "@/components/purchases/product-search";
 import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import type { ApiError } from "@/lib/api";
+import { describeLineIssues, type LineIssue, lineIssuesOf } from "@/lib/field-errors";
 import { formatCalendarDate } from "@/lib/inventory/format-date";
 import { getProduct } from "@/lib/products/api";
 import type { Purchase, PurchaseLineInput, PurchaseProduct } from "@/lib/purchases/api";
@@ -218,24 +220,61 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
     const sucia = JSON.stringify(lineas) !== JSON.stringify(aEditable(purchase));
     useImperativeHandle(ref, () => ({
       guardarSiHayCambios: async () => {
-        if (!editable || !sucia || hayCantidadInvalida()) return;
-        await guardar.mutateAsync({ id: purchase.id, lines: armarPayload() });
+        if (!editable || !sucia) return;
+        // Frenar Y avisar con la línea (Carlos, 2026-09-15): antes volvía en
+        // silencio y «Confirmar compra» seguía con una cantidad inválida.
+        if (!validar()) throw Object.assign(new Error(""), { handled: true });
+        await guardar
+          .mutateAsync({ id: purchase.id, lines: armarPayload() })
+          .catch((apiError: ApiError) => {
+            const mensaje = mensajeDelApi(apiError);
+            setError(mensaje);
+            throw Object.assign(new Error(mensaje), { handled: true });
+          });
       },
     }));
 
-    /** ¿Alguna línea tiene una cantidad que no cabe en su presentación? */
-    const hayCantidadInvalida = (): boolean =>
-      lineas.some(
-        (linea) =>
-          quantityInputError(linea.quantity, {
-            allowsDecimals: lineaAdmiteDecimales(productoDe(linea.productId), linea.presentationId),
-          }) !== null,
-      );
+    /** Las MISMAS etiquetas de las columnas: el aviso nombra el campo como lo ve la persona. */
+    const etiquetas: Record<string, string> = {
+      productId: t("purchases.lines.product"),
+      presentationId: t("purchases.lines.presentation"),
+      quantity: t("purchases.lines.quantity"),
+      unitCost: t("purchases.lines.unitCost"),
+      discount: t("purchases.lines.discount"),
+      lotCode: t("purchases.lines.lot"),
+      expiresAt: t("purchases.lines.expiresAt"),
+    };
+    /** Las cantidades que no caben en su presentación, con su línea (vacía se permite en el borrador). */
+    const problemasLocales = (): LineIssue[] =>
+      lineas.flatMap((linea, i) => {
+        const producto = productoDe(linea.productId);
+        const clave = quantityInputError(linea.quantity, {
+          allowsDecimals: lineaAdmiteDecimales(producto, linea.presentationId),
+        });
+        const presentacion = producto?.presentations.find((p) => p.id === linea.presentationId);
+        return clave === null
+          ? []
+          : [
+              {
+                line: i + 1,
+                field: "quantity",
+                message: t(clave, { presentation: presentacion?.name ?? producto?.baseUnit ?? "" }),
+              },
+            ];
+      });
+    const validar = (): boolean => {
+      const problemas = problemasLocales();
+      if (problemas.length === 0) return true;
+      setError(describeLineIssues(problemas, t, etiquetas));
+      return false;
+    };
+    /** Un 400 del API trae la RUTA de cada campo: se lee por línea antes que el mensaje general. */
+    const mensajeDelApi = (apiError: ApiError): string =>
+      describeLineIssues(lineIssuesOf(apiError), t, etiquetas) ?? apiError.message;
 
     const guardarLineas = () => {
       setError(null);
-      // El error ya está pintado bajo cada campo: acá solo se frena el envío.
-      if (hayCantidadInvalida()) return;
+      if (!validar()) return;
       const payload: PurchaseLineInput[] = lineas.map((linea) => ({
         productId: linea.productId,
         presentationId: linea.presentationId === "" ? null : linea.presentationId,
@@ -248,7 +287,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
       }));
       guardar.mutate(
         { id: purchase.id, lines: payload },
-        { onError: (apiError) => setError(apiError.message) },
+        { onError: (apiError) => setError(mensajeDelApi(apiError)) },
       );
     };
 
@@ -276,7 +315,7 @@ export const PurchaseLinesTable = forwardRef<LineasHandle, { purchase: Purchase 
         {error !== null && (
           <p
             role="alert"
-            className="rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
+            className="whitespace-pre-line rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
           >
             {error}
           </p>

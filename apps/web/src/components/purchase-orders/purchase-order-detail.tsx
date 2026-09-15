@@ -160,7 +160,10 @@ export function PurchaseOrderDetail({ order }: { order: PurchaseOrder }) {
                 lineasRef.current
                   ?.guardarSiHayCambios()
                   .then(() => setEmitiendo(true))
-                  .catch((apiError: { message: string }) => setError(apiError.message));
+                  .catch((apiError: { message: string; handled?: boolean }) => {
+                    // La tabla ya lo dijo junto a sus líneas, con el número de cada una.
+                    if (!apiError.handled) setError(apiError.message);
+                  });
               }}
             >
               {t("purchaseOrders.detail.issue")}

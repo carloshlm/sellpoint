@@ -24,7 +24,8 @@
     "loading": "Loading…",
     "add": "Add",
     "remove": "Remove",
-    "search": "Search"
+    "search": "Search",
+    "lineIssue": "Line {{line}} · {{field}}: {{message}}"
   },
   "name": {
     "firstName": "First name",

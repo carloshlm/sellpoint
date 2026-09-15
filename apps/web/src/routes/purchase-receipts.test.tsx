@@ -129,6 +129,17 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     );
   });
 
+  /** Carlos (2026-09-15): si falta la cantidad, el aviso dice la línea y la columna. */
+  it("«Guardar líneas» con «Llegó» vacío no envía y dice «Línea 1 · Llegó»", async () => {
+    await renderRecepcion(GESTOR);
+    const user = userEvent.setup();
+    await user.clear(within(screen.getByTestId("receipt-line-0")).getByLabelText("Llegó"));
+    await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+
+    expect(await screen.findByText("Línea 1 · Llegó: Falta la cantidad.")).toBeInTheDocument();
+    expect(mocked.replacePurchaseReceiptLines).not.toHaveBeenCalled();
+  });
+
   it("el rebote del API por recibir de más se ve junto a la tabla", async () => {
     mocked.replacePurchaseReceiptLines.mockRejectedValue({
       message:

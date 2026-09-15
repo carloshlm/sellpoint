@@ -172,7 +172,10 @@ export function PurchaseDetail({ purchase }: { purchase: Purchase }) {
                   .then(() => lineasRef.current?.guardarSiHayCambios())
                   .then(() => cargosRef.current?.guardarSiHayCambios())
                   .then(() => setConfirmando(true))
-                  .catch((apiError: { message: string }) => setError(apiError.message));
+                  .catch((apiError: { message: string; handled?: boolean }) => {
+                    // La tabla ya lo dijo junto a sus líneas, con el número de cada una.
+                    if (!apiError.handled) setError(apiError.message);
+                  });
               }}
             >
               {t("purchases.detail.confirm")}

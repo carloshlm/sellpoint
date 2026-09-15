@@ -328,6 +328,75 @@ describe("Órdenes de compra — la ficha (F9-PO-12/13)", () => {
     expect(mocked.replacePurchaseOrderLines).not.toHaveBeenCalled();
   });
 
+  /**
+   * Carlos (2026-09-15): «Revisa los datos de la orden de compra.» no decía
+   * qué fila tenía la cantidad vacía. Ahora se frena antes de enviar, se marca
+   * bajo el campo y el aviso nombra la línea y la columna.
+   */
+  describe("si falta un campo, el aviso dice la línea", () => {
+    const vaciarCantidad = async (user: ReturnType<typeof userEvent.setup>) => {
+      const cantidad = within(screen.getByTestId("purchase-order-line-0")).getByLabelText(
+        "Cantidad",
+      );
+      await user.clear(cantidad);
+    };
+
+    it("«Guardar líneas» con la cantidad vacía no envía y dice «Línea 1 · Cantidad»", async () => {
+      mocked.getPurchaseOrder.mockResolvedValue(
+        buildPurchaseOrder({ status: "draft", issuedAt: null }),
+      );
+      await renderFicha(GESTOR);
+      const user = userEvent.setup();
+      await vaciarCantidad(user);
+      await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+
+      expect(await screen.findByText("Línea 1 · Cantidad: Falta la cantidad.")).toHaveAttribute(
+        "role",
+        "alert",
+      );
+      expect(screen.getByTestId("quantity-error-0")).toHaveTextContent("Falta la cantidad.");
+      expect(mocked.replacePurchaseOrderLines).not.toHaveBeenCalled();
+    });
+
+    it("«Emitir orden» con la cantidad vacía tampoco abre el diálogo", async () => {
+      mocked.getPurchaseOrder.mockResolvedValue(
+        buildPurchaseOrder({ status: "draft", issuedAt: null }),
+      );
+      await renderFicha(GESTOR);
+      const user = userEvent.setup();
+      await vaciarCantidad(user);
+      await user.click(screen.getByRole("button", { name: "Emitir orden" }));
+
+      expect(await screen.findByText("Línea 1 · Cantidad: Falta la cantidad.")).toBeInTheDocument();
+      expect(screen.queryByTestId("issue-order")).not.toBeInTheDocument();
+      expect(mocked.replacePurchaseOrderLines).not.toHaveBeenCalled();
+    });
+
+    it("un 400 del API se lee por línea y columna, no con el mensaje general", async () => {
+      mocked.getPurchaseOrder.mockResolvedValue(
+        buildPurchaseOrder({ status: "draft", issuedAt: null }),
+      );
+      mocked.replacePurchaseOrderLines.mockRejectedValue({
+        statusCode: 400,
+        message: "Revisa los datos de la orden de compra.",
+        errors: [{ key: "lines.0.unitCost", message: "Debe ser 0 o más." }],
+      });
+      await renderFicha(GESTOR);
+      const user = userEvent.setup();
+      const cantidad = within(screen.getByTestId("purchase-order-line-0")).getByLabelText(
+        "Cantidad",
+      );
+      await user.clear(cantidad);
+      await user.type(cantidad, "7");
+      await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
+
+      expect(
+        await screen.findByText("Línea 1 · Costo acordado: Debe ser 0 o más."),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Revisa los datos de la orden de compra.")).not.toBeInTheDocument();
+    });
+  });
+
   it("al agregar un producto, el costo del catálogo se precarga (el de la presentación comprable)", async () => {
     mocked.getPurchaseOrder.mockResolvedValue(
       buildPurchaseOrder({ status: "draft", issuedAt: null }),

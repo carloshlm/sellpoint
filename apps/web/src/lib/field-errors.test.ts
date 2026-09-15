@@ -1,5 +1,5 @@
 import type { ApiError } from "@/lib/api";
-import { fieldErrorsOf } from "./field-errors";
+import { describeLineIssues, fieldErrorsOf, lineIssuesOf } from "./field-errors";
 
 /**
  * El API devuelve `errors: [{ key, message, code }]` con la RUTA del campo
@@ -66,5 +66,49 @@ describe("fieldErrorsOf", () => {
   it("`errors` que no es un arreglo se ignora", () => {
     // El reporte de importación viaja en `errors` con OTRA forma (row/field).
     expect(fieldErrorsOf(apiError({ errors: "no soy un arreglo" })).size).toBe(0);
+  });
+});
+
+/**
+ * Carlos (2026-09-15): «Revisa los datos de la orden de compra.» no decía qué
+ * fila. Estos dos helpers convierten la ruta del API en la línea que la
+ * persona ve.
+ */
+describe("los errores de una FILA nombran su línea", () => {
+  const conErrores = apiError({
+    errors: [
+      { key: "lines.2.unitCost", message: "Debe ser 0 o más.", code: "validation.min" },
+      {
+        key: "lines.0.quantity",
+        message: "Debe ser mayor que 0.",
+        code: "validation.greater_than",
+      },
+      { key: "supplierId", message: "Falta este dato.", code: "validation.required" },
+    ],
+  });
+
+  it("lineIssuesOf cuenta desde 1, ordena por línea e ignora lo que no es de una fila", () => {
+    expect(lineIssuesOf(conErrores)).toEqual([
+      { line: 1, field: "quantity", message: "Debe ser mayor que 0." },
+      { line: 3, field: "unitCost", message: "Debe ser 0 o más." },
+    ]);
+  });
+
+  it("describeLineIssues escribe un renglón por línea con la etiqueta de la columna", () => {
+    const t = (key: string, options?: Record<string, unknown>) =>
+      `${key}|${options?.line}|${options?.field}|${options?.message}`;
+    expect(
+      describeLineIssues(lineIssuesOf(conErrores), t, { quantity: "Cantidad", unitCost: "Costo" }),
+    ).toBe(
+      "common.form.lineIssue|1|Cantidad|Debe ser mayor que 0.\ncommon.form.lineIssue|3|Costo|Debe ser 0 o más.",
+    );
+  });
+
+  it("sin errores de fila responde null, y un campo sin etiqueta se nombra por su clave", () => {
+    const t = (_key: string, options?: Record<string, unknown>) => String(options?.field);
+    expect(describeLineIssues(lineIssuesOf(apiError()), t, {})).toBeNull();
+    expect(describeLineIssues([{ line: 1, field: "taxGroupId", message: "x" }], t, {})).toBe(
+      "taxGroupId",
+    );
   });
 });

@@ -108,6 +108,7 @@
     "closeShort": "Close with shortage",
     "notPurchasable": "That presentation isn't marked as purchasable, but you can use it.",
     "errors": {
+      "quantityRequired": "Quantity is missing.",
       "quantityNaN": "Enter a quantity.",
       "quantityComma": "Use a dot for decimals, not a comma.",
       "quantityInteger": "\"{{presentation}}\" can't be split: use a whole quantity.",

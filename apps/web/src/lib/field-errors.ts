@@ -38,3 +38,52 @@ export function fieldErrorsOf(error: ApiError): Map<string, string> {
 
   return found;
 }
+
+/** Un problema de UNA fila de un documento: número de línea (desde 1), campo y motivo ya traducido. */
+export interface LineIssue {
+  line: number;
+  field: string;
+  message: string;
+}
+
+const RUTA_DE_LINEA = /^lines\.(\d+)\.([A-Za-z]+)$/;
+
+/**
+ * Los errores del 400 que caen en una FILA (`lines.0.quantity`), con la línea
+ * contada desde 1 como la ve la persona.
+ *
+ * Carlos (2026-09-15): la orden de compra respondía «Revisa los datos de la
+ * orden de compra.» y había que adivinar qué fila tenía la cantidad vacía. El
+ * API ya mandaba la ruta; faltaba que la pantalla la leyera.
+ */
+export function lineIssuesOf(error: ApiError): LineIssue[] {
+  return [...fieldErrorsOf(error)]
+    .flatMap(([key, message]) => {
+      const ruta = RUTA_DE_LINEA.exec(key);
+      return ruta ? [{ line: Number(ruta[1]) + 1, field: ruta[2] as string, message }] : [];
+    })
+    .sort((a, b) => a.line - b.line);
+}
+
+/**
+ * «Línea 2 · Cantidad: Falta la cantidad.», una por renglón. `labels` traduce
+ * el nombre del campo con las MISMAS etiquetas de las columnas de la tabla;
+ * un campo sin etiqueta se nombra por su clave antes que desaparecer.
+ * Sin problemas, `null`: el que llama decide su mensaje de respaldo.
+ */
+export function describeLineIssues(
+  issues: readonly LineIssue[],
+  t: (key: string, options?: Record<string, unknown>) => string,
+  labels: Readonly<Record<string, string>>,
+): string | null {
+  if (issues.length === 0) return null;
+  return issues
+    .map((issue) =>
+      t("common.form.lineIssue", {
+        line: issue.line,
+        field: labels[issue.field] ?? issue.field,
+        message: issue.message,
+      }),
+    )
+    .join("\n");
+}
