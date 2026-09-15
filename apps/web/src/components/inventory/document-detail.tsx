@@ -438,8 +438,11 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         <ConfirmDialog
           title={t("inventory.document.cancelTitle", { folio: document.folio })}
           body={t("inventory.document.cancelBody", { folio: document.folio })}
-          confirmLabel={t("inventory.document.cancel")}
-          cancelLabel={t("common.form.cancel")}
+          // Carlos (2026-09-15): «Cancelar» junto a «Cancelar» obligaba a adivinar
+          // cuál anula el folio y cuál cierra el diálogo. Los botones nombran lo
+          // que pasa: anular ESE folio, o conservar el borrador.
+          confirmLabel={t("inventory.document.cancelConfirm", { folio: document.folio })}
+          cancelLabel={t("inventory.document.keepDraft")}
           busy={cancelDocument.isPending}
           onCancel={() => setDialog(null)}
           onConfirm={() => {

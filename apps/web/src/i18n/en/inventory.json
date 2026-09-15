@@ -130,7 +130,9 @@
     "lotExpiresAt": "Expiry",
     "location": "Location",
     "locationPlaceholder": "A-1",
-    "purchaseHint": "This entry was created from purchase {{folio}}: its reason and warehouse are set by the purchase."
+    "purchaseHint": "This entry was created from purchase {{folio}}: its reason and warehouse are set by the purchase.",
+    "cancelConfirm": "Yes, void {{folio}}",
+    "keepDraft": "Keep the draft"
   },
   "document_not_found": "This movement doesn't exist.",
   "document_not_draft": "This movement is no longer a draft: someone confirmed or voided it. Refresh the screen to see how it ended up.",

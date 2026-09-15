@@ -605,6 +605,34 @@ describe("el diálogo de confirmar habla en plural o singular", () => {
 });
 
 /**
+ * Carlos, 2026-09-15: al anular un borrador el diálogo mostraba «Cancelar» al
+ * lado de «Cancelar» — uno anulaba el folio y el otro cerraba el diálogo, y
+ * había que adivinar cuál. Los botones nombran lo que pasa, con el folio.
+ */
+describe("el diálogo de anular nombra sus dos salidas", () => {
+  it("«Sí, anular <folio>» y «Conservar el borrador», nunca dos «Cancelar»", async () => {
+    const user = userEvent.setup();
+    await renderDoc();
+    await screen.findByText("PAR-500");
+
+    await user.click(screen.getByRole("button", { name: /^anular$/i }));
+
+    const dialogo = screen.getByRole("alertdialog", { name: /^Anular / });
+    expect(
+      within(dialogo).getByRole("button", { name: /^Sí, anular [A-Z]+-\d+$/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialogo).getByRole("button", { name: "Conservar el borrador" }),
+    ).toBeInTheDocument();
+    expect(within(dialogo).queryByRole("button", { name: /^cancelar$/i })).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Conservar el borrador" }));
+    expect(screen.queryByRole("alertdialog", { name: /^Anular / })).not.toBeInTheDocument();
+    expect(mocked.cancelDocument).not.toHaveBeenCalled();
+  });
+});
+
+/**
  * Carlos, 2026-09-08: «en las entradas por factura dale formato al Costo
  * unitario como a los demás inputs de moneda». Es el único importe de la
  * pantalla y el que alimenta el costo del inventario, así que va con la
