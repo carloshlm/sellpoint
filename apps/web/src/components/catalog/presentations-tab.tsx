@@ -347,6 +347,7 @@ function EditPresentationRow({
     <TableRow data-testid={`presentation-${presentation.id}-editing`}>
       <TableCell>
         <Input
+          name="name"
           aria-label={t("products.presentations.name")}
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -354,6 +355,7 @@ function EditPresentationRow({
       </TableCell>
       <TableCell>
         <Input
+          name="factor"
           aria-label={t("products.presentations.factorShort")}
           type="number"
           step="any"
@@ -366,6 +368,7 @@ function EditPresentationRow({
       <TableCell colSpan={4} />
       <TableCell>
         <Input
+          name="barcode"
           aria-label={t("products.presentations.barcode")}
           value={barcode}
           onChange={(event) => setBarcode(event.target.value)}

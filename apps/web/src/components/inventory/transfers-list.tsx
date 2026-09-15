@@ -186,6 +186,7 @@ export function TransfersList() {
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
+              name="onlyStale"
               checked={soloDemorados}
               onChange={(event) => setSoloDemorados(event.target.checked)}
             />

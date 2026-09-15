@@ -305,6 +305,7 @@ function SaleRowView({
               <label className="flex flex-col gap-1 text-sm">
                 {t("pos.history.reason")}
                 <input
+                  name="reason"
                   className="h-9 rounded-md border bg-background px-2"
                   value={motivo}
                   placeholder={t("pos.history.reasonPlaceholder")}

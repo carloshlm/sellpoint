@@ -163,6 +163,7 @@ export function OrderFormShell({
                 <TableCell>
                   {line.kind === "medication" ? (
                     <Input
+                      name="quantity"
                       aria-label={t("medicalClinic.orders.lines.quantity")}
                       type="number"
                       inputMode={line.allowFractionalInput ? "decimal" : "numeric"}
@@ -188,6 +189,7 @@ export function OrderFormShell({
                   <TableCell>
                     {line.kind === "medication" ? (
                       <Input
+                        name="dosage"
                         aria-label={t("medicalClinic.orders.lines.dosage")}
                         value={line.dosage}
                         maxLength={300}

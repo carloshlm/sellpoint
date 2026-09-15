@@ -37,6 +37,8 @@ export function Numpad({ value, onChange, allowFractional, hint, onHint }: Numpa
   return (
     <div className="flex flex-col gap-2" data-testid="numpad">
       <input
+        id="pos-numpad-quantity"
+        name="quantity"
         inputMode="decimal"
         className="h-12 rounded-md border bg-background px-3 text-right text-2xl tabular-nums"
         value={value}

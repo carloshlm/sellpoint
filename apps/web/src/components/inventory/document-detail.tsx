@@ -307,6 +307,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         <label className="flex w-fit items-center gap-2 text-sm">
           <input
             type="checkbox"
+            name="onlyDiscrepancies"
             checked={soloDiscrepancias}
             onChange={(event) => setSoloDiscrepancias(event.target.checked)}
           />

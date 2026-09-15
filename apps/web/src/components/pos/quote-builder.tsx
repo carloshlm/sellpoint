@@ -71,6 +71,7 @@ export function QuoteBuilder({
           <label className="flex flex-col gap-1 text-sm">
             {t("pos.quote.note")}
             <input
+              name="note"
               className="h-10 rounded-md border bg-background px-2"
               value={nota}
               placeholder={t("pos.quote.notePlaceholder")}

@@ -269,6 +269,7 @@ function LineField({
   return (
     <div className="flex flex-col gap-1">
       <Input
+        name="quantity"
         type="number"
         step="any"
         aria-label={label}

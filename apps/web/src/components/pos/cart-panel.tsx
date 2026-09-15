@@ -220,6 +220,7 @@ function CartLineRow({
 
       {line.type === "product" && line.presentations.length > 1 && (
         <select
+          name="presentationId"
           className="h-9 rounded-md border bg-background px-2 text-sm"
           aria-label={t("pos.cart.presentation")}
           value={line.presentationId}

@@ -125,6 +125,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         <label className="flex items-center gap-2 pb-2 text-sm">
           <input
             type="checkbox"
+            name="belowMin"
             checked={belowMin}
             onChange={(e) => alFiltrar(() => setBelowMin(e.target.checked))}
           />
@@ -134,6 +135,7 @@ export function StockReport({ initialBelowMin = false }: { initialBelowMin?: boo
         <label className="flex items-center gap-2 pb-2 text-sm">
           <input
             type="checkbox"
+            name="byLot"
             checked={detalle}
             onChange={(e) => alFiltrar(() => setDetalle(e.target.checked))}
           />
