@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { FeatureGate } from "@/components/billing/feature-gate";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { ImportDialog } from "@/components/common/import-dialog";
@@ -59,9 +60,11 @@ function CatalogListsPage() {
     <ProtectedRoute>
       <OnboardingGate>
         <AppLayout>
-          <PermissionGate need="catalogs:read">
-            <CatalogListsContent />
-          </PermissionGate>
+          <FeatureGate feature="custom_fields">
+            <PermissionGate need="catalogs:read">
+              <CatalogListsContent />
+            </PermissionGate>
+          </FeatureGate>
         </AppLayout>
       </OnboardingGate>
     </ProtectedRoute>

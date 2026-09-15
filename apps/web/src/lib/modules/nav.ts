@@ -1,4 +1,4 @@
-import { MODULE_KEYS, type ModuleKey } from "@sellpoint/shared";
+import { MODULE_KEYS, type ModuleKey, type PlanFeatures } from "@sellpoint/shared";
 import {
   ClipboardList,
   ConciergeBell,
@@ -33,6 +33,12 @@ export interface ModuleNavLink {
    * órdenes de compra se encienden en Mi perfil). Ausente = siempre.
    */
   when?: (tenant: TenantBlock) => boolean;
+  /**
+   * F9-PLANLIST-04: un enlace que además exige un flag del PLAN. A diferencia
+   * del módulo (que oculta el grupo entero), el flag pinta el enlace con
+   * candado: es lo que la vitrina vende, y el candado abre la vitrina.
+   */
+  feature?: keyof PlanFeatures;
 }
 
 export interface ModuleNavGroup {
@@ -136,6 +142,7 @@ export const MODULE_NAV: Record<ModuleKey, ModuleNavGroup> = {
         permission: "purchases:read",
         icon: ClipboardList,
         when: (tenant) => tenant.usesPurchaseOrders,
+        feature: "purchase_orders",
       },
     ],
   },

@@ -5,6 +5,7 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { CatalogsService } from "./catalogs.service";
 import { type CreateCatalogDto, createCatalogSchema } from "./dto/create-catalog.dto";
 import { type UpdateCatalogDto, updateCatalogSchema } from "./dto/update-catalog.dto";
@@ -23,6 +24,10 @@ function metaFrom(request: Request) {
  * un catálogo se llevaría sus registros y los lookups que apuntan a ellos.
  */
 @ApiTags("catalogs")
+// F9-PLANLIST-03: los catálogos personalizados (subcatálogos y campos
+// propios) son de Plus. El guard solo lo aplica a mutaciones: un Basic que
+// los estrenó en el trial sigue leyendo sus registros y sus campos.
+@RequiresFeature("custom_fields")
 @Controller("catalogs")
 export class CatalogsController {
   constructor(private readonly catalogsService: CatalogsService) {}

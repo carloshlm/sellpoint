@@ -97,8 +97,11 @@ function BusinessDetails({ user }: { user: AuthUser }) {
   // F9-PO-02: el interruptor solo tiene sentido con el módulo Compras. Sin
   // él no hay «Compras» en el menú y encenderlo sería prometer una pantalla
   // que no existe.
-  const { hasModule } = usePlan();
+  const { hasModule, hasFeature } = usePlan();
   const ofreceOrdenes = hasModule("purchases");
+  // F9-PLANLIST-04: con Compras pero sin órdenes en el plan, el interruptor
+  // se ve y no se enciende: dice qué falta en vez de desaparecer.
+  const ordenesEnPlan = hasFeature("purchase_orders");
   const [succeeded, setSucceeded] = useState(false);
 
   const {
@@ -488,12 +491,17 @@ function BusinessDetails({ user }: { user: AuthUser }) {
                 <p className="text-muted-foreground text-xs">
                   {t("common.profile.business.usesPurchaseOrdersHint")}
                 </p>
+                {!ordenesEnPlan && (
+                  <p className="text-muted-foreground text-xs">
+                    {t("common.profile.business.usesPurchaseOrdersLocked")}
+                  </p>
+                )}
               </div>
               <Checkbox
                 id="uses-purchase-orders"
                 aria-label={t("common.profile.business.usesPurchaseOrders")}
                 checked={usesPurchaseOrders}
-                disabled={updateTenant.isPending}
+                disabled={updateTenant.isPending || !ordenesEnPlan}
                 onCheckedChange={(checked) => {
                   const next = checked === true;
                   setUsesPurchaseOrders(next);

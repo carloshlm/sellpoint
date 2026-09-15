@@ -18,6 +18,7 @@ import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { CatalogRecordsService } from "./catalog-records.service";
 import { CatalogRecordsImportService } from "./catalog-records-import.service";
 import { type ImportRecordsDto, importRecordsSchema } from "./dto/import-records.dto";
@@ -41,6 +42,8 @@ function metaFrom(request: Request) {
  * subcatálogo y, con `?query=`, el picker de un lookup que apunta acá.
  */
 @ApiTags("catalogs")
+// F9-PLANLIST-03: ver `CatalogsController`.
+@RequiresFeature("custom_fields")
 @Controller("catalogs/:catalogId/records")
 export class CatalogRecordsController {
   constructor(

@@ -22,6 +22,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { RequiresModule } from "../billing/decorators/requires-module.decorator";
 import { PurchasesService } from "../purchases/purchases.service";
 import {
@@ -52,6 +53,11 @@ function metaFrom(request: Request) {
  * («Usar órdenes de compra») lo exige el service, solo para crear.
  */
 @ApiTags("purchase-orders")
+// F9-PLANLIST-01: el módulo Compras abre la puerta (Pro); planear con
+// órdenes y recibir en partes es de Plus. Los dos en AND: sin módulo, 402
+// hasta para leer; con módulo y sin el flag, se lee lo que hubo y no se
+// crea nada nuevo.
+@RequiresFeature("purchase_orders")
 @RequiresModule("purchases")
 @Controller("purchase-orders")
 export class PurchaseOrdersController {

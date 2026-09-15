@@ -5,6 +5,7 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { type CreateRoleDto, createRoleSchema } from "./dto/create-role.dto";
 import { type UpdateRoleDto, updateRoleSchema } from "./dto/update-role.dto";
 import { RolesService } from "./roles.service";
@@ -17,6 +18,11 @@ function metaFrom(request: Request) {
 // (PermissionsGuard global, F1-RBAC-01) además del JwtAuthGuard secure by
 // default (f1-auth AD-8) — ningún endpoint acá lleva @Public().
 @ApiTags("roles")
+// F9-PLANLIST-03: los roles personalizados son de Plus. Va en la CLASE y no
+// solo en `create`: editar o borrar un rol también es administrarlos. Leer
+// la lista sigue abierto (el guard no toca los GET): asignar los roles del
+// sistema a un usuario es de todos los planes.
+@RequiresFeature("custom_roles")
 @Controller("roles")
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}

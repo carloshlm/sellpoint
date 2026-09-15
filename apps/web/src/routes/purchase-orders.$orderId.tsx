@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { FeatureGate } from "@/components/billing/feature-gate";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PurchaseOrderDetail } from "@/components/purchase-orders/purchase-order-detail";
 import { usePurchaseOrder } from "@/lib/purchase-orders/hooks";
@@ -17,9 +18,11 @@ function PurchaseOrderPage() {
     <ProtectedRoute>
       <OnboardingGate>
         <AppLayout>
-          <PermissionGate need="purchases:read">
-            <PurchaseOrderContent />
-          </PermissionGate>
+          <FeatureGate feature="purchase_orders">
+            <PermissionGate need="purchases:read">
+              <PurchaseOrderContent />
+            </PermissionGate>
+          </FeatureGate>
         </AppLayout>
       </OnboardingGate>
     </ProtectedRoute>

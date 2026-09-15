@@ -135,7 +135,8 @@
       "monthlySalesGoal": "Monthly sales goal",
       "monthlySalesGoalHint": "The number your dashboard measures the month against. Leave it empty if you don't want to chase a goal.",
       "posShowsStock": "Show stock in the point of sale",
-      "posShowsStockHint": "With this off, the seller does not see how much there is: no “N available” when searching, no “more than in stock” warning in the cart. The rule for selling without stock does not change."
+      "posShowsStockHint": "With this off, the seller does not see how much there is: no “N available” when searching, no “more than in stock” warning in the cart. The rule for selling without stock does not change.",
+      "usesPurchaseOrdersLocked": "Purchase orders come with a higher plan."
     },
     "discounts": {
       "title": "Register discounts",
@@ -295,7 +296,7 @@
         "free": "Free mode: read-only and up to 10 sales a day",
         "basic": "Full POS without inventory control",
         "pro": "Full inventory, quotes and transfers",
-        "plus": "Everything: lots and expiry dates, deep customization",
+        "plus": "Lots and expiry dates, purchase orders and deep customization",
         "premium": "Plus without limits plus custom development"
       },
       "writeUs": "write to us",
@@ -509,16 +510,25 @@
     },
     "capabilities": {
       "pos": "Point of sale and receipts",
+      "cashShift": "Cash shift with till count",
+      "ticket": "Receipt with your logo, 58 or 80 mm",
+      "reports": "Reports",
+      "reports_export": "Export reports",
       "stockControl": "Inventory control",
       "movements": "Entries, exits and stock ledger",
       "transfers": "Transfers between warehouses",
       "quotes": "Quotes",
-      "compositions": "Presentations and recipes",
+      "compositions": "Composite products: recipes and kits",
       "lots": "Lots and expiration dates",
       "custom_fields": "Subcatalogs and custom fields",
       "custom_roles": "Custom roles",
-      "reports": "Reports",
-      "reports_export": "Export reports"
+      "purchase_orders": "Purchase orders and partial receipts",
+      "custom_modules": "Modules tailored to your business"
+    },
+    "gate": {
+      "title": "{{feature}} is not in your plan",
+      "body": "It comes with a higher plan. Compare the plans and pick the one that includes it.",
+      "cta": "See plans"
     }
   },
   "birthDate": {
@@ -550,8 +560,8 @@
   "import": {
     "rowError": "Row {{row}}: {{message}}",
     "rowErrorWithCode": "Row {{row}} ({{code}}): {{message}}",
-    "rowErrorWithColumn": "Row {{row}}, column \u201c{{column}}\u201d: {{message}}",
-    "rowErrorWithCodeAndColumn": "Row {{row}} ({{code}}), column \u201c{{column}}\u201d: {{message}}"
+    "rowErrorWithColumn": "Row {{row}}, column “{{column}}”: {{message}}",
+    "rowErrorWithCodeAndColumn": "Row {{row}} ({{code}}), column “{{column}}”: {{message}}"
   },
   "tax": {
     "selectLabel": "Tax",

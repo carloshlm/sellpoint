@@ -1,8 +1,8 @@
 import {
   formatMoney,
-  MODULE_KEYS,
-  MODULE_MIN_PLAN,
+  type ModuleKey,
   type PlanCode,
+  type PlanFeatures,
   planIncludesModule,
 } from "@sellpoint/shared";
 import { useQuery } from "@tanstack/react-query";
@@ -39,41 +39,65 @@ import { useBillingStore } from "@/stores/billing.store";
  */
 
 /**
- * El orden es deliberado: de lo que todos tienen a lo que solo trae el plan
- * más alto. Leído de arriba abajo, cuenta la historia de cuánto crece el
- * sistema con cada escalón.
+ * La lista comercial (Carlos, 2026-09-15), contada como escalera: primero
+ * todo lo de Basic, luego lo que agrega Pro, luego Plus, y al final lo que
+ * solo Premium trae. Leída de arriba abajo, cada bloque es un plan.
+ *
+ * Tres clases de línea, y las tres se pintan igual (palomita o guion):
+ *  · `feature`: un flag de `plan.features` (o la columna `stockControl`).
+ *  · `module`: un módulo de plan (`MODULE_MIN_PLAN`), con su etiqueta de menú.
+ *  · `always`: algo que TODOS los planes traen (turno de caja, el ticket con
+ *    logo) y que hasta hoy no se decía; `premium`: lo que solo él ofrece.
  */
-const CAPACIDADES = [
-  "pos",
-  "stockControl",
-  "movements",
-  "transfers",
-  "quotes",
-  "compositions",
-  "lots",
-  "custom_fields",
-  "custom_roles",
-  "reports",
-  "reports_export",
-] as const;
+type Linea =
+  | { key: keyof PlanFeatures | "stockControl"; kind: "feature" }
+  | { key: ModuleKey; kind: "module" }
+  | { key: "cashShift" | "ticket"; kind: "always" }
+  | { key: "custom_modules"; kind: "premium" };
 
-type Capacidad = (typeof CAPACIDADES)[number];
+const LINEAS: readonly Linea[] = [
+  { key: "pos", kind: "feature" },
+  { key: "cashShift", kind: "always" },
+  { key: "ticket", kind: "always" },
+  { key: "reports", kind: "feature" },
+  { key: "reports_export", kind: "feature" },
+  { key: "expenses", kind: "module" },
+  { key: "stockControl", kind: "feature" },
+  { key: "movements", kind: "feature" },
+  { key: "transfers", kind: "feature" },
+  { key: "quotes", kind: "feature" },
+  { key: "compositions", kind: "feature" },
+  { key: "purchases", kind: "module" },
+  { key: "lots", kind: "feature" },
+  { key: "custom_fields", kind: "feature" },
+  { key: "custom_roles", kind: "feature" },
+  { key: "purchase_orders", kind: "feature" },
+  { key: "custom_modules", kind: "premium" },
+];
 
 /**
- * F9-PLANMOD-06 — los módulos DE PLAN (Gastos desde Basic, Compras desde
- * Pro) se listan tras las capacidades, derivados de `MODULE_MIN_PLAN` y no
- * de `plan.features`: la matriz de features es un `strictObject` sin
- * defaults y un módulo no es un feature. Los pactados (`minPlan: null`)
- * no se venden en la vitrina: se acuerdan uno a uno desde el backoffice.
+ * Los módulos de plan se derivan de `MODULE_MIN_PLAN` y no de `plan.features`
+ * (F9-PLANMOD-06): la matriz es un `strictObject` sin defaults y un módulo no
+ * es un feature. Los pactados (`minPlan: null`) no se venden en la vitrina:
+ * se acuerdan uno a uno desde el backoffice — es la línea «a la medida».
  */
-const MODULOS_DE_PLAN = MODULE_KEYS.filter((key) => MODULE_MIN_PLAN[key] !== null);
-
-/** `stockControl` es columna dura; el resto vive en la matriz `features`. */
-function incluye(plan: PublicPlan, capacidad: Capacidad): boolean {
-  if (capacidad === "stockControl") {
-    return plan.stockControl;
+function incluye(plan: PublicPlan, linea: Linea): boolean {
+  switch (linea.kind) {
+    case "always":
+      return true;
+    case "premium":
+      return plan.code === "premium";
+    case "module":
+      return planIncludesModule(plan.code as PlanCode, linea.key);
+    default:
+      return linea.key === "stockControl" ? plan.stockControl : plan.features[linea.key] === true;
   }
-  return plan.features[capacidad] === true;
+}
+
+function nombreDe(linea: Linea, t: (key: string) => string): string {
+  return linea.kind === "module"
+    ? t(MODULE_NAV[linea.key].labelKey)
+    : t(`common.billing.capabilities.${linea.key}`);
 }
 
 export function PlansModal() {
@@ -190,40 +214,22 @@ export function PlansModal() {
             </ul>
 
             {/*
-              Las once capacidades SIEMPRE, en el mismo orden en cada tarjeta:
-              es lo que permite comparar de un vistazo en vez de leer tres
-              listas de distinto largo. El `aria-hidden` en el símbolo y el
-              texto "No incluido" en el título dejan la misma información
-              disponible para quien no ve el color ni la palomita.
+              Las mismas líneas SIEMPRE, en el mismo orden en cada tarjeta: es
+              lo que permite comparar de un vistazo en vez de leer tres listas
+              de distinto largo. El `aria-hidden` en el símbolo y el texto "No
+              incluido" en el título dejan la misma información disponible
+              para quien no ve el color ni la palomita.
             */}
             <ul className="mb-4 space-y-1 text-sm">
-              {CAPACIDADES.map((capacidad) => {
-                const tiene = incluye(plan, capacidad);
-                const nombre = t(`common.billing.capabilities.${capacidad}`);
+              {LINEAS.map((linea) => {
+                const tiene = incluye(plan, linea);
+                const nombre = nombreDe(linea, t);
                 return (
                   <li
-                    key={capacidad}
+                    key={linea.key}
                     className={`flex gap-2 ${tiene ? "" : "text-muted-foreground"}`}
                     title={tiene ? nombre : t("common.billing.plans.notIncluded", { item: nombre })}
-                  >
-                    <span aria-hidden="true" className={tiene ? "text-primary" : ""}>
-                      {tiene ? "✓" : "—"}
-                    </span>
-                    <span className={tiene ? "" : "line-through decoration-muted-foreground/40"}>
-                      {nombre}
-                    </span>
-                  </li>
-                );
-              })}
-              {MODULOS_DE_PLAN.map((key) => {
-                const tiene = planIncludesModule(plan.code as PlanCode, key);
-                const nombre = t(MODULE_NAV[key].labelKey);
-                return (
-                  <li
-                    key={key}
-                    className={`flex gap-2 ${tiene ? "" : "text-muted-foreground"}`}
-                    title={tiene ? nombre : t("common.billing.plans.notIncluded", { item: nombre })}
-                    data-testid={`plan-${plan.code}-module-${key}`}
+                    data-testid={`plan-${plan.code}-${linea.kind === "module" ? "module-" : ""}${linea.key}`}
                   >
                     <span aria-hidden="true" className={tiene ? "text-primary" : ""}>
                       {tiene ? "✓" : "—"}

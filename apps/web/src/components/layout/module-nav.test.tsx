@@ -9,6 +9,7 @@ import { routeTree } from "@/routeTree.gen";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 
 vi.mock("@/lib/reception/settings-api", () => ({
   getReceptionSettings: vi.fn(),
@@ -136,5 +137,44 @@ describe("grupo de menú de un módulo avanzado (F9-MOD-08)", () => {
     await renderCon(["reception"], ["reception:read", "reception:manage"]);
     await screen.findByRole("heading", { level: 1 });
     expect(screen.queryByRole("group", { name: "Recepción" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * F9-PLANLIST-04 — sin `purchase_orders` en el plan, «Órdenes de compra» se
+   * pinta con candado (un BOTÓN que abre la vitrina), no como link, y no
+   * desaparece: es lo que se vende.
+   */
+  it("con Compras y el ajuste de órdenes, pero sin el flag, «Órdenes de compra» es un candado", async () => {
+    useAuthStore.getState().setAuth(
+      "jwt-demo",
+      buildAuthUser({
+        permissions: ["purchases:read"],
+        tenant: buildTenantBlock({ usesPurchaseOrders: true }),
+        subscription: {
+          ...SUBSCRIPTION_PLUS,
+          modules: ["purchases"],
+          features: { ...SUBSCRIPTION_PLUS.features, purchase_orders: false },
+        },
+      }),
+    );
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+
+    expect(await screen.findByRole("link", { name: "Compras" })).toHaveAttribute(
+      "href",
+      "/purchases",
+    );
+    expect(screen.queryByRole("link", { name: "Órdenes de compra" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Órdenes de compra" })).toBeInTheDocument();
   });
 });

@@ -181,6 +181,7 @@ function buildService(overrides?: {
         lots: true,
         custom_fields: true,
         custom_roles: true,
+        purchase_orders: true,
         reports: true,
         reports_export: true,
       },

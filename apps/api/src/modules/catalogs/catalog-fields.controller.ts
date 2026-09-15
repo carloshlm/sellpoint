@@ -17,6 +17,7 @@ import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { CatalogFieldsService } from "./catalog-fields.service";
 import { type CreateFieldDto, createFieldSchema } from "./dto/create-field.dto";
 import { type UpdateFieldDto, updateFieldSchema } from "./dto/update-field.dto";
@@ -38,6 +39,8 @@ const confirmQuerySchema = z
  * necesita para renderizarse); tocarla es `catalogs:manage`, solo Admin.
  */
 @ApiTags("catalogs")
+// F9-PLANLIST-03: ver `CatalogsController`.
+@RequiresFeature("custom_fields")
 @Controller("catalogs/:catalogId/fields")
 export class CatalogFieldsController {
   constructor(private readonly fieldsService: CatalogFieldsService) {}

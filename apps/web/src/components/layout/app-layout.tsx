@@ -503,6 +503,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               )}
               {grupo.links.map((link) => {
                 const Icon = link.icon;
+                if (link.locked) {
+                  return navLock(link.label, Icon);
+                }
                 return (
                   <Link
                     key={link.to}

@@ -163,6 +163,27 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
       useAuthStore.getState().clearAuth();
     });
 
+    /** F9-PLANLIST-04: con Compras pero sin órdenes en el plan, se ve y no se enciende. */
+    it("sin `purchase_orders` en el plan, el interruptor está deshabilitado y dice por qué", () => {
+      const proSinOrdenes = buildAuthUser({
+        permissions: ["tenants:manage"],
+        tenant: buildTenantBlock(),
+        subscription: {
+          ...SUBSCRIPTION_PLUS,
+          modules: ["purchases"],
+          features: { ...SUBSCRIPTION_PLUS.features, purchase_orders: false },
+        },
+      });
+      useAuthStore.getState().setAuth("jwt-demo", proSinOrdenes);
+      renderCard(proSinOrdenes);
+
+      expect(screen.getByRole("checkbox", { name: "Usar órdenes de compra" })).toBeDisabled();
+      expect(
+        screen.getByText("Las órdenes de compra son de un plan superior."),
+      ).toBeInTheDocument();
+      useAuthStore.getState().clearAuth();
+    });
+
     it("sin el módulo Compras, el interruptor de órdenes no existe", () => {
       renderCard(demoUser(["tenants:manage"]));
       expect(

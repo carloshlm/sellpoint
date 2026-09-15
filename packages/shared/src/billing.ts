@@ -75,6 +75,12 @@ export const planFeaturesSchema = z.strictObject({
   lots: z.boolean(),
   custom_fields: z.boolean(),
   custom_roles: z.boolean(),
+  /**
+   * F9-PLANLIST-01 (Carlos, 2026-09-15): Compras (el módulo, desde Pro) es la
+   * compra directa con factura; planear con órdenes y recibir en partes es de
+   * Plus. El módulo abre la puerta y este flag la del pasillo de órdenes.
+   */
+  purchase_orders: z.boolean(),
   reports: z.boolean(),
   reports_export: z.boolean(),
 });

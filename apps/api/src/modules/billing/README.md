@@ -45,6 +45,16 @@ La matriz vive en `plans.features` (JSONB validado con `planFeaturesSchema`)
 más columnas calientes duras (`max_users`, `daily_sales_limit`, …). Se edita
 **sin migración** desde el backoffice — ver runbook §5.8.
 
+Un flag NUEVO en la matriz sí es migración (F9-PLANLIST, 2026-09-15): el
+`strictObject` exige la key en las cinco filas, y el caché de entitlements
+lleva la versión en la llave (`entitlements:v2:{tenantId}`) para que lo
+cacheado antes del deploy no lea el flag nuevo como apagado durante el TTL.
+Los flags que SÍ bloquean en el servidor: `movements`, `transfers`, `quotes`,
+`lots`, `compositions` (armar el compuesto), `custom_fields` (subcatálogos,
+campos y registros), `custom_roles` (crear, editar y borrar roles) y
+`purchase_orders` (órdenes y recepciones, en AND con el módulo Compras).
+`reports`/`reports_export` y `pos` son de vitrina: nada los exige.
+
 ## 2. La máquina de estados
 
 ```

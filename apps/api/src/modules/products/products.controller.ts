@@ -20,6 +20,7 @@ import type { UserScope } from "../../infrastructure/warehouse-scope/request-war
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
+import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
 import { CompositionService } from "./composition.service";
 import { type ImportProductsDto, importProductsSchema } from "./dto/import-products.dto";
 import {
@@ -223,6 +224,10 @@ export class ProductsController {
     return this.compositionService.get(user, id);
   }
 
+  // F9-PLANLIST-03: armar un compuesto es de Pro. Leerlo no se bloquea (LEY
+  // del guard: la historia propia siempre se ve); un Basic con un compuesto
+  // heredado del trial lo sigue viendo y vendiendo, pero no lo edita.
+  @RequiresFeature("compositions")
   @Post(":id/composition")
   @HttpCode(200)
   @RequirePermissions("products:manage")

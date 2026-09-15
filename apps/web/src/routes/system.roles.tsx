@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { FeatureLockCard } from "@/components/billing/feature-gate";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { TextField } from "@/components/form/text-field";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
 import { usePermissions } from "@/lib/auth/permissions";
+import { usePlan } from "@/lib/billing/use-plan";
 import type { RoleSummary } from "@/lib/rbac/api";
 import {
   useCreateRole,
@@ -52,7 +54,12 @@ function SystemRolesPage() {
 function SystemRolesContent() {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const canManage = has("roles:manage");
+  const { hasFeature } = usePlan();
+  // F9-PLANLIST-03: el PERMISO dice si el rol puede; el PLAN, si los roles
+  // propios están incluidos. Sin el flag, la página queda de solo lectura y
+  // la tarjeta de arriba dice por qué: asignar los roles del sistema sigue.
+  const rolesPropios = hasFeature("custom_roles");
+  const canManage = has("roles:manage") && rolesPropios;
   const actorPermissionCodes = useAuthStore((state) => state.user?.permissions ?? []);
 
   const { data: roles } = useRoles();
@@ -231,6 +238,8 @@ function SystemRolesContent() {
       {/* Sobre tarjeta, como Mi perfil (Carlos, 2026-08-25): la lista y el
           editor pintaban sus controles directo sobre el fondo. `self-start`:
           cada tarjeta mide su contenido, no la altura de la otra columna. */}
+      {has("roles:manage") && !rolesPropios && <FeatureLockCard feature="custom_roles" />}
+
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <Card className="self-start">
           <CardContent className="py-4">
@@ -270,7 +279,7 @@ function SystemRolesContent() {
                 ) : (
                   <h2 className="text-lg font-semibold">{selectedRole.name}</h2>
                 )}
-                {!canManage && (
+                {!has("roles:manage") && (
                   <p className="text-sm text-muted-foreground">
                     {t("users.roles.editor.readOnlyHint")}
                   </p>

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { FeatureGate } from "@/components/billing/feature-gate";
 import { DocumentDetail } from "@/components/inventory/document-detail";
 import { AppLayout } from "@/components/layout/app-layout";
 
@@ -19,9 +20,11 @@ function DocumentRoute() {
     <ProtectedRoute>
       <OnboardingGate>
         <AppLayout>
-          <PermissionGate need="inventory:read">
-            <DocumentDetail documentId={documentId} />
-          </PermissionGate>
+          <FeatureGate feature="movements">
+            <PermissionGate need="inventory:read">
+              <DocumentDetail documentId={documentId} />
+            </PermissionGate>
+          </FeatureGate>
         </AppLayout>
       </OnboardingGate>
     </ProtectedRoute>

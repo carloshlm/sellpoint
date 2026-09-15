@@ -52,7 +52,8 @@
     "location": "Location in the warehouse",
     "locationHint": "Where it usually sits: aisle, shelf or rack. Helps you find it and sorts the stock count sheet by walking route instead of by name. It updates itself with every entry and stock count. It does not track stock per location.",
     "tracksLotsHint": "Turn it on if the product carries a lot number and an expiry date (medicines, food). Entries will ask for lot and expiry, and exits will take what expires first. If it does not apply, leave it off.",
-    "isCompositeHint": "Turn it on if this product is prepared from others in your catalog (a bundle, a recipe, a combo). Selling it deducts the stock of its components. If you buy it ready-made, leave it off."
+    "isCompositeHint": "Turn it on if this product is prepared from others in your catalog (a bundle, a recipe, a combo). Selling it deducts the stock of its components. If you buy it ready-made, leave it off.",
+    "isCompositeLocked": "Composite products come with a higher plan."
   },
   "presentations": {
     "add": "Add presentation",

@@ -21,6 +21,7 @@ const FEATURES_PLUS: PlanFeatures = {
   lots: true,
   custom_fields: true,
   custom_roles: true,
+  purchase_orders: true,
   reports: true,
   reports_export: true,
 };
@@ -34,6 +35,7 @@ const FEATURES_FREE: PlanFeatures = {
   lots: false,
   custom_fields: false,
   custom_roles: false,
+  purchase_orders: false,
   reports: false,
   reports_export: false,
 };
@@ -217,7 +219,7 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
       conSuscripcion("active");
       const primera = await service.resolve(TENANT);
       expect(redis.set).toHaveBeenCalledWith(
-        `entitlements:${TENANT}`,
+        `entitlements:v2:${TENANT}`,
         expect.any(String),
         "EX",
         300,
@@ -231,7 +233,7 @@ describe("EntitlementsService (F7-CORE-01/02)", () => {
 
     it("invalidate borra la key y la siguiente lectura vuelve a la base", async () => {
       await service.invalidate(TENANT);
-      expect(redis.del).toHaveBeenCalledWith(`entitlements:${TENANT}`);
+      expect(redis.del).toHaveBeenCalledWith(`entitlements:v2:${TENANT}`);
     });
 
     it("con Redis caído resuelve desde Postgres — fail-open a la BASE, no a 'todo permitido'", async () => {

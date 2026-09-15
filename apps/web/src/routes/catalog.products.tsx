@@ -378,10 +378,12 @@ function ProductDetailPanel({
 }) {
   const { t } = useTranslation();
   const { has } = usePermissions();
+  const { hasFeature } = usePlan();
   const { data: product, isPending } = useProduct(productId);
   // `inventory:read` y no `products:read`: ver el catálogo no implica ver
-  // cuánto hay ni cómo se movió.
-  const canReadInventory = has("inventory:read");
+  // cuánto hay ni cómo se movió. Y el PLAN también cuenta (F9-PLANLIST-04):
+  // un Basic vende sin inventario, así que stock y kardex no son suyos.
+  const canReadInventory = has("inventory:read") && hasFeature("movements");
   // Al abrir, lo que entra a la vista es el PANEL con sus pestañas arriba
   // (Carlos, 2026-09-02): el formulario de «Información» se desplazaba a su
   // primer campo y las pestañas quedaban fuera. Antes del return temprano:
@@ -462,7 +464,13 @@ function ProductDetailPanel({
           canManage={canManage}
         />
       )}
-      {tab === "composition" && <CompositionTab productId={product.id} canManage={canManage} />}
+      {tab === "composition" && (
+        <CompositionTab
+          productId={product.id}
+          // F9-PLANLIST-03: armar el compuesto es de Pro; verlo, de todos.
+          canManage={canManage && hasFeature("compositions")}
+        />
+      )}
       {tab === "stock" && <StockTab productId={product.id} />}
       {tab === "kardex" && (
         <KardexTab
@@ -499,8 +507,11 @@ function ProductForm({
   });
   const uiLocale = resolveUiLocale(i18n);
   const { has } = usePermissions();
-  const { canWrite } = usePlan();
+  const { canWrite, hasFeature } = usePlan();
   const canManage = has("products:manage") && canWrite;
+  // F9-PLANLIST-03: sin compuestos en el plan, el interruptor se ve apagado y
+  // dice por qué; un compuesto heredado del trial conserva su marca.
+  const puedeArmar = hasFeature("compositions");
   const { data: catalogs } = useCatalogs();
   // Por systemKey, NUNCA `find(isSystem)`: hay TRES catálogos del sistema y
   // el de Almacenes ordena primero — bindearía los campos equivocados.
@@ -779,12 +790,15 @@ function ProductForm({
           id="is-composite"
           className="mt-0.5"
           checked={isComposite}
-          disabled={!canManage}
+          disabled={!canManage || !puedeArmar}
           onCheckedChange={(checked) => setIsComposite(checked === true)}
         />
         <div className="space-y-1">
           <Label htmlFor="is-composite">{t("products.form.isComposite")}</Label>
           <p className="text-muted-foreground text-xs">{t("products.form.isCompositeHint")}</p>
+          {!puedeArmar && (
+            <p className="text-muted-foreground text-xs">{t("products.form.isCompositeLocked")}</p>
+          )}
         </div>
       </div>
 

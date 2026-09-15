@@ -966,3 +966,88 @@ describe("el selector «Impuesto» del producto (F4-TAX-15)", () => {
     );
   });
 });
+
+/**
+ * F9-PLANLIST-03/04 (Carlos, 2026-09-15) — lo que el plan no incluye no se
+ * ofrece: un Basic no arma compuestos (el interruptor se ve apagado y dice
+ * por qué) y no tiene stock ni kardex (vende sin inventario).
+ */
+describe("el plan decide qué se ofrece del producto", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAuthStore.getState().clearAuth();
+    mockedProducts.listProducts.mockResolvedValue({
+      items: [{ ...PRODUCT, price: "0.02" }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    mockedProducts.getProduct.mockResolvedValue(PRODUCT);
+    mockedProducts.listPresentations.mockResolvedValue([]);
+    mockedCatalogs.listCatalogs.mockResolvedValue([]);
+    mockedCatalogs.listFields.mockResolvedValue([]);
+  });
+
+  async function abrirComo(features: Partial<typeof SUBSCRIPTION_PLUS.features>) {
+    useAuthStore.getState().setAuth(
+      "jwt",
+      buildAuthUser({
+        permissions: ["products:read", "products:manage", "inventory:read"],
+        subscription: {
+          ...SUBSCRIPTION_PLUS,
+          features: { ...SUBSCRIPTION_PLUS.features, ...features },
+        },
+      }),
+    );
+    const router = createRouter({
+      routeTree,
+      history: createMemoryHistory({ initialEntries: ["/catalog/products?open=prod-1"] }),
+    });
+    await router.load();
+    render(
+      <I18nextProvider i18n={createI18n()}>
+        <QueryClientProvider client={createQueryClient()}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </I18nextProvider>,
+    );
+  }
+
+  it("sin `compositions`: el interruptor de compuesto está deshabilitado y dice que es de otro plan", async () => {
+    await abrirComo({ compositions: false });
+
+    const casilla = await screen.findByRole("checkbox", {
+      name: "Se arma a partir de otros productos del catálogo",
+    });
+    expect(casilla).toBeDisabled();
+    expect(
+      screen.getByText("Los productos compuestos son de un plan superior."),
+    ).toBeInTheDocument();
+  });
+
+  it("con `compositions`: el interruptor se puede encender y no hay aviso", async () => {
+    await abrirComo({ compositions: true });
+
+    expect(
+      await screen.findByRole("checkbox", {
+        name: "Se arma a partir de otros productos del catálogo",
+      }),
+    ).toBeEnabled();
+    expect(screen.queryByText(/de un plan superior/)).not.toBeInTheDocument();
+  });
+
+  it("sin `movements`: las pestañas de stock y kardex no existen aunque tenga inventory:read", async () => {
+    await abrirComo({ movements: false });
+
+    await screen.findByRole("button", { name: "Información" });
+    expect(screen.queryByRole("button", { name: "Stock por almacén" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kardex" })).not.toBeInTheDocument();
+  });
+
+  it("con `movements`: las dos pestañas están", async () => {
+    await abrirComo({ movements: true });
+
+    expect(await screen.findByRole("button", { name: "Stock por almacén" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kardex" })).toBeInTheDocument();
+  });
+});

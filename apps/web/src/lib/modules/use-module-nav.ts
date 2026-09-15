@@ -9,7 +9,7 @@ import { MODULE_NAV_ENTRIES, type ModuleNavLink } from "./nav";
 export interface ResolvedModuleNavGroup {
   key: ModuleKey;
   label: string;
-  links: { to: string; label: string; icon: ModuleNavLink["icon"] }[];
+  links: { to: string; label: string; icon: ModuleNavLink["icon"]; locked: boolean }[];
 }
 
 /**
@@ -24,7 +24,7 @@ export interface ResolvedModuleNavGroup {
 export function useModuleNav(): ResolvedModuleNavGroup[] {
   const { t } = useTranslation();
   const { has } = usePermissions();
-  const { hasModule } = usePlan();
+  const { hasModule, hasFeature } = usePlan();
   const recepcion = useReceptionEntity();
   const ocultas = hiddenReceptionRoutes(recepcion.settings);
   // F9-PO-11: un enlace puede depender de un ajuste del negocio (`when`).
@@ -53,6 +53,8 @@ export function useModuleNav(): ResolvedModuleNavGroup[] {
           to: link.to,
           icon: link.icon,
           label: t(link.labelKey, variablesDe(key)),
+          // F9-PLANLIST-04: el flag no esconde el enlace, lo pone con candado.
+          locked: link.feature !== undefined && !hasFeature(link.feature),
         })),
     }))
     .filter((grupo) => grupo.links.length > 0);

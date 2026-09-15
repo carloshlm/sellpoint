@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { FeatureGate } from "@/components/billing/feature-gate";
 import { DynamicForm } from "@/components/catalog/dynamic-form";
 import { FieldForm, type FieldFormValues } from "@/components/catalog/field-form";
 import { FieldList, ordenarCampos } from "@/components/catalog/field-list";
@@ -42,9 +43,11 @@ function CatalogSchemaPage() {
     <ProtectedRoute>
       <OnboardingGate>
         <AppLayout>
-          <PermissionGate need="catalogs:manage">
-            <CatalogSchemaContent />
-          </PermissionGate>
+          <FeatureGate feature="custom_fields">
+            <PermissionGate need="catalogs:manage">
+              <CatalogSchemaContent />
+            </PermissionGate>
+          </FeatureGate>
         </AppLayout>
       </OnboardingGate>
     </ProtectedRoute>

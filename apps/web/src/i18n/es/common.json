@@ -135,7 +135,8 @@
       "monthlySalesGoal": "Meta mensual de ventas",
       "monthlySalesGoalHint": "El número contra el que el panel mide tu avance del mes. Déjala vacía si no quieres perseguir una meta.",
       "posShowsStock": "Mostrar existencias en el punto de venta",
-      "posShowsStockHint": "Con esto apagado, el vendedor no ve cuánto hay: ni «N disponibles» al buscar, ni el aviso de «más de lo que hay» en el carrito. La regla para cobrar sin existencias no cambia."
+      "posShowsStockHint": "Con esto apagado, el vendedor no ve cuánto hay: ni «N disponibles» al buscar, ni el aviso de «más de lo que hay» en el carrito. La regla para cobrar sin existencias no cambia.",
+      "usesPurchaseOrdersLocked": "Las órdenes de compra son de un plan superior."
     },
     "discounts": {
       "title": "Descuentos en caja",
@@ -295,7 +296,7 @@
         "free": "Modo gratuito: consulta y hasta 10 ventas al día",
         "basic": "POS completo sin control de inventario",
         "pro": "Inventario completo, cotizaciones y traspasos",
-        "plus": "Todo: lotes y caducidades, personalización profunda",
+        "plus": "Lotes y caducidades, órdenes de compra y personalización profunda",
         "premium": "Plus sin límites más desarrollo a la medida"
       },
       "writeUs": "escríbenos",
@@ -509,16 +510,25 @@
     },
     "capabilities": {
       "pos": "Punto de venta y tickets",
+      "cashShift": "Turno de caja con arqueo",
+      "ticket": "Ticket con tu logo, en 58 u 80 mm",
+      "reports": "Reportes",
+      "reports_export": "Exportar reportes",
       "stockControl": "Control de inventario",
       "movements": "Entradas, salidas y kardex",
       "transfers": "Traspasos entre almacenes",
       "quotes": "Cotizaciones",
-      "compositions": "Presentaciones y recetas",
+      "compositions": "Productos compuestos: recetas y kits",
       "lots": "Lotes y caducidades",
       "custom_fields": "Subcatálogos y campos propios",
       "custom_roles": "Roles personalizados",
-      "reports": "Reportes",
-      "reports_export": "Exportar reportes"
+      "purchase_orders": "Órdenes de compra y recepciones parciales",
+      "custom_modules": "Módulos a la medida de tu giro"
+    },
+    "gate": {
+      "title": "{{feature}} no está en tu plan",
+      "body": "Es parte de un plan superior. Compara los planes y elige el que la incluye.",
+      "cta": "Ver planes"
     }
   },
   "birthDate": {

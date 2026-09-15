@@ -6,6 +6,7 @@ import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
+import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
 import { createI18n } from "../i18n";
 import * as authApi from "../lib/auth/api";
 import { createQueryClient } from "../lib/query-client";
@@ -115,6 +116,35 @@ describe("/system/roles", () => {
     expect(screen.queryByRole("button", { name: "Guardar cambios" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Nuevo rol" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * F9-PLANLIST-03 — los roles personalizados son de Plus. Con el permiso pero
+   * sin el flag, la página queda de solo lectura y dice por qué; la lista
+   * sigue (asignar los roles del sistema es de todos los planes).
+   */
+  it("con roles:manage pero sin `custom_roles` en el plan: tarjeta de candado, sin Nuevo rol ni Guardar, y sin el aviso de permisos", async () => {
+    const user = userEvent.setup();
+    const sinRolesPropios = buildAuthUser({
+      permissions: ["roles:read", "roles:manage"],
+      subscription: {
+        ...SUBSCRIPTION_PLUS,
+        features: { ...SUBSCRIPTION_PLUS.features, custom_roles: false },
+      },
+    });
+    mockedGetMe.mockResolvedValue(sinRolesPropios);
+    useAuthStore.getState().setAuth("jwt-demo", sinRolesPropios);
+    await renderRoute("/system/roles");
+
+    expect(await screen.findByTestId("feature-lock-custom_roles")).toHaveTextContent(
+      "Roles personalizados no está en tu plan",
+    );
+    await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
+    expect(await screen.findByRole("checkbox", { name: "sales:read" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Nuevo rol" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Guardar cambios" })).not.toBeInTheDocument();
+    // El aviso de PERMISOS no aplica: el permiso lo tiene, lo que falta es el plan.
+    expect(screen.queryByText(/no tienes permiso para modificar roles/i)).not.toBeInTheDocument();
   });
 
   // W2 (verify-report #341): el escenario "Cambio de idioma" tampoco tenía

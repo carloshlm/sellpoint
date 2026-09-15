@@ -49,6 +49,7 @@ describe("contratos de billing (F7-SHARED-01)", () => {
     lots: true,
     custom_fields: true,
     custom_roles: true,
+    purchase_orders: true,
     reports: true,
     reports_export: true,
   };

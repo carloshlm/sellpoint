@@ -37,7 +37,7 @@ const PLANES = [
     maxWarehouses: 1,
     stockControl: false,
     dailySalesLimit: null,
-    features: { pos: true, quotes: false, movements: false, lots: false },
+    features: { pos: true, quotes: false, movements: false, lots: false, reports: true },
     price: { currency: "MXN", monthly: "199.00", yearly: "1990.00" },
   },
   {
@@ -57,6 +57,7 @@ const PLANES = [
       lots: true,
       custom_fields: true,
       custom_roles: true,
+      purchase_orders: true,
       reports: true,
       reports_export: true,
     },
@@ -192,6 +193,78 @@ describe("el listado de lo que incluye cada plan", () => {
     const plus = screen.getByTestId("plan-plus");
     expect(within(plus).getByTestId("plan-plus-module-purchases")).toHaveTextContent("✓Compras");
     expect(within(plus).getByTestId("plan-plus-module-expenses")).toHaveTextContent("✓Gastos");
+  });
+
+  /**
+   * F9-PLANLIST (Carlos, 2026-09-15) — la lista comercial, contada como
+   * escalera: el bloque de Basic primero, luego lo que agrega Pro, luego Plus
+   * y al final lo que solo Premium trae. Y lo que TODOS traen y nadie decía
+   * (turno de caja, ticket con logo) ahora se dice en cada tarjeta.
+   */
+  describe("la escalera de la lista comercial", () => {
+    const lineas = (tarjeta: HTMLElement) =>
+      [...tarjeta.querySelectorAll("li[data-testid]")].map((li) => li.textContent);
+
+    it("las líneas van en el orden de los planes: Basic, Pro, Plus, Premium", async () => {
+      renderModal();
+      const basic = await screen.findByTestId("plan-basic");
+      expect(lineas(basic)).toEqual([
+        "✓Punto de venta y tickets",
+        "✓Turno de caja con arqueo",
+        "✓Ticket con tu logo, en 58 u 80 mm",
+        "✓Reportes",
+        "—Exportar reportes",
+        "✓Gastos",
+        "—Control de inventario",
+        "—Entradas, salidas y kardex",
+        "—Traspasos entre almacenes",
+        "—Cotizaciones",
+        "—Productos compuestos: recetas y kits",
+        "—Compras",
+        "—Lotes y caducidades",
+        "—Subcatálogos y campos propios",
+        "—Roles personalizados",
+        "—Órdenes de compra y recepciones parciales",
+        "—Módulos a la medida de tu giro",
+      ]);
+    });
+
+    it("el ticket con logo y el turno de caja se dicen en TODAS las tarjetas, incluidas", async () => {
+      renderModal();
+      for (const code of ["basic", "plus", "premium"]) {
+        const tarjeta = await screen.findByTestId(`plan-${code}`);
+        expect(within(tarjeta).getByTestId(`plan-${code}-ticket`)).toHaveTextContent("✓");
+        expect(within(tarjeta).getByTestId(`plan-${code}-cashShift`)).toHaveTextContent("✓");
+      }
+    });
+
+    it("las órdenes de compra son de Plus: Plus ✓, Basic —", async () => {
+      renderModal();
+      const plus = await screen.findByTestId("plan-plus");
+      expect(within(plus).getByTestId("plan-plus-purchase_orders")).toHaveTextContent(
+        "✓Órdenes de compra y recepciones parciales",
+      );
+      expect(
+        within(screen.getByTestId("plan-basic")).getByTestId("plan-basic-purchase_orders"),
+      ).toHaveAttribute("title", "No incluido: Órdenes de compra y recepciones parciales");
+    });
+
+    it("los módulos a la medida solo los trae Premium", async () => {
+      renderModal();
+      const premium = await screen.findByTestId("plan-premium");
+      expect(within(premium).getByTestId("plan-premium-custom_modules")).toHaveTextContent("✓");
+      expect(
+        within(screen.getByTestId("plan-plus")).getByTestId("plan-plus-custom_modules"),
+      ).toHaveTextContent("—");
+    });
+
+    it("en inglés, la misma escalera con sus nombres", async () => {
+      renderModal("en");
+      const plus = await screen.findByTestId("plan-plus");
+      expect(plus).toHaveTextContent("Receipt with your logo, 58 or 80 mm");
+      expect(plus).toHaveTextContent("Composite products: recipes and kits");
+      expect(plus).toHaveTextContent("Purchase orders and partial receipts");
+    });
   });
 
   /** Vender sin existencias es una VENTAJA del mostrador sin inventario. */

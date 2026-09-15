@@ -71,12 +71,21 @@ type PlanRow = {
  *
  * ── El caché ────────────────────────────────────────────────────────────
  *
- * Redis `entitlements:{tenantId}`, TTL 300s, con DEL explícito en todo
+ * Redis `entitlements:v2:{tenantId}`, TTL 300s, con DEL explícito en todo
  * cambio de plan/estado/pago (BillingService y el cron). NO va en el JWT: un
  * access token de 15 minutos conservaría el plan viejo después de la
  * degradación de las 3 AM. Y si Redis se cae, el fallback es POSTGRES —
  * mismo criterio que PermEpochService: jamás "todo permitido".
  */
+/**
+ * La versión va en la llave (F9-PLANLIST-02): cuando la matriz gana un flag
+ * por migración, lo cacheado antes del deploy no lo trae y el guard lo lee
+ * como `undefined` —apagado— hasta que el TTL vence: cinco minutos de 402 en
+ * órdenes de compra para un Plus. Subir la versión deja esas entradas
+ * huérfanas en vez de vigentes. Redis las expira solo.
+ */
+const cacheKey = (tenantId: string) => `entitlements:v2:${tenantId}`;
+
 @Injectable()
 export class EntitlementsService {
   private readonly logger = new Logger(EntitlementsService.name);
@@ -87,7 +96,7 @@ export class EntitlementsService {
   ) {}
 
   async resolve(tenantId: string): Promise<Entitlements> {
-    const key = `entitlements:${tenantId}`;
+    const key = cacheKey(tenantId);
 
     try {
       const cached = await this.redis.get(key);
@@ -112,9 +121,9 @@ export class EntitlementsService {
   /** DEL explícito: lo llama todo cambio de plan/estado/pago y el cron. */
   async invalidate(tenantId: string): Promise<void> {
     try {
-      await this.redis.del(`entitlements:${tenantId}`);
+      await this.redis.del(cacheKey(tenantId));
     } catch (error) {
-      this.warnRedis("invalidar", `entitlements:${tenantId}`, error);
+      this.warnRedis("invalidar", cacheKey(tenantId), error);
     }
   }
 

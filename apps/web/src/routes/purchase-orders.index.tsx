@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { FeatureGate } from "@/components/billing/feature-gate";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PurchaseOrderList } from "@/components/purchase-orders/purchase-order-list";
 
@@ -15,9 +16,11 @@ function PurchaseOrdersPage() {
     <ProtectedRoute>
       <OnboardingGate>
         <AppLayout>
-          <PermissionGate need="purchases:read">
-            <PurchaseOrderList />
-          </PermissionGate>
+          <FeatureGate feature="purchase_orders">
+            <PermissionGate need="purchases:read">
+              <PurchaseOrderList />
+            </PermissionGate>
+          </FeatureGate>
         </AppLayout>
       </OnboardingGate>
     </ProtectedRoute>

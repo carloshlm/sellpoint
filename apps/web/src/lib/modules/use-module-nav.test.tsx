@@ -6,6 +6,7 @@ import { createI18n } from "@/i18n";
 import { type AuthUser, useAuthStore } from "@/stores/auth.store";
 import { buildAuthUser } from "@/test/auth-fixture";
 import { SUBSCRIPTION_PLUS } from "@/test/subscription-fixture";
+import { buildTenantBlock } from "@/test/tenant-fixture";
 import { useModuleNav } from "./use-module-nav";
 
 /**
@@ -70,5 +71,37 @@ describe("useModuleNav — Proveedores ya no es de Compras ni de Gastos (2026-09
       "/reception/turns",
     ]);
     expect(resultado[1]?.links.map((l) => l.to)).toEqual(["/purchases"]);
+  });
+
+  /**
+   * F9-PLANLIST-04 — las órdenes de compra son de Plus. Con el módulo Compras
+   * y el ajuste encendido pero sin el flag, el enlace no desaparece: sale con
+   * candado, que es lo que abre la vitrina.
+   */
+  describe("el flag del plan pone candado, no esconde", () => {
+    const conOrdenes = (purchase_orders: boolean): AuthUser =>
+      buildAuthUser({
+        permissions: ["purchases:read"],
+        tenant: buildTenantBlock({ usesPurchaseOrders: true }),
+        subscription: {
+          ...SUBSCRIPTION_PLUS,
+          modules: ["purchases"],
+          features: { ...SUBSCRIPTION_PLUS.features, purchase_orders },
+        },
+      });
+
+    it("sin `purchase_orders`, «Órdenes de compra» sale bloqueado y «Compras» no", () => {
+      useAuthStore.getState().setAuth("jwt", conOrdenes(false));
+      const links = grupos()[0]?.links ?? [];
+      expect(links.map((l) => [l.to, l.locked])).toEqual([
+        ["/purchases", false],
+        ["/purchase-orders", true],
+      ]);
+    });
+
+    it("con el flag, los dos abren", () => {
+      useAuthStore.getState().setAuth("jwt", conOrdenes(true));
+      expect((grupos()[0]?.links ?? []).every((l) => !l.locked)).toBe(true);
+    });
   });
 });
