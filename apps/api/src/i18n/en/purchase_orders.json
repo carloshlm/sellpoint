@@ -25,6 +25,8 @@
   "receipt_not_found": "The receipt does not exist.",
   "receipt_not_draft": "This receipt is already confirmed or canceled: its lines can't be edited.",
   "receipt_needs_lines": "Add at least one line before confirming the receipt.",
+  "lot_required": "Line {line}: this product is tracked by lot and the lot that arrived is missing.",
+  "expiry_required": "Line {line}: this product is tracked by lot and the lot's expiry date is missing.",
   "receipt_line_foreign": "{field}: that line does not belong to this order.",
   "line_closed_short": "{field}: that line was closed short; the supplier will no longer deliver it. If it arrived, reopen the order with a new line.",
   "over_receipt": "Line {line}: more than what is pending ({pending}) is arriving. Receive up to the pending amount and note the rest.",

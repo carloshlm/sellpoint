@@ -30,6 +30,8 @@ export function LotCells({
   onExpiresAt,
   lotLabel,
   expiresLabel,
+  lotError,
+  expiresError,
 }: {
   productId: string;
   controlaLote: boolean;
@@ -40,6 +42,9 @@ export function LotCells({
   onExpiresAt: (valor: string) => void;
   lotLabel: string;
   expiresLabel: string;
+  /** Errores YA traducidos bajo cada campo (la recepción exige lote y caducidad al confirmar). */
+  lotError?: string;
+  expiresError?: string;
 }) {
   const { t } = useTranslation();
   const codigo = lotCode.trim();
@@ -69,8 +74,14 @@ export function LotCells({
           className="w-28 uppercase"
           value={lotCode}
           disabled={!editable}
+          aria-invalid={lotError ? true : undefined}
           onChange={(event) => onLotCode(normalizeLotCode(event.target.value))}
         />
+        {lotError && (
+          <span role="alert" className="mt-1 block text-destructive text-xs">
+            {lotError}
+          </span>
+        )}
       </td>
       <td className="p-2">
         <DateField
@@ -78,6 +89,7 @@ export function LotCells({
           className="[&>label]:sr-only"
           value={expiresAt}
           disabled={!editable}
+          error={expiresError}
           onChange={(event) => onExpiresAt(event.target.value)}
         />
       </td>

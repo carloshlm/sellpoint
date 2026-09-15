@@ -25,6 +25,8 @@
   "receipt_not_found": "La recepción no existe.",
   "receipt_not_draft": "Esta recepción ya se confirmó o se anuló: sus líneas no se editan.",
   "receipt_needs_lines": "Agrega al menos una línea antes de confirmar la recepción.",
+  "lot_required": "Línea {line}: este producto se controla por lote y falta indicar cuál llegó.",
+  "expiry_required": "Línea {line}: este producto se controla por lote y falta la fecha de caducidad del lote.",
   "receipt_line_foreign": "{field}: esa línea no es de esta orden.",
   "line_closed_short": "{field}: esa línea se cerró corta; el proveedor ya no la surtirá. Si llegó, reabre la orden con una línea nueva.",
   "over_receipt": "Línea {line}: llega más de lo pendiente ({pending}). Recibe hasta lo pendiente y anota el resto en las notas.",

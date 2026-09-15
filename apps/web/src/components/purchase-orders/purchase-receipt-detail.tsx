@@ -133,6 +133,13 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const errorDeCantidad = (linea: { quantity: string; allowFractionalInput: boolean }) =>
     quantityInputError(linea.quantity, { allowsDecimals: linea.allowFractionalInput });
   const hayCantidadInvalida = (): boolean => lineas.some((l) => errorDeCantidad(l) !== null);
+  // Carlos (2026-09-15): un producto controlado por lote no se confirma sin su
+  // lote y su caducidad. Se dice bajo cada campo desde que la línea nace, y
+  // «Confirmar recepción» se apaga hasta que estén: guardar a medias sigue
+  // permitido, confirmar es la puerta (el API la vuelve a cerrar).
+  const faltaLote = (l: LineaEditable) => l.tracksLots && l.lotCode.trim() === "";
+  const faltaCaducidad = (l: LineaEditable) => l.tracksLots && l.expiresAt === "";
+  const incompleta = lineas.some((l) => faltaLote(l) || faltaCaducidad(l));
 
   const armarPayload = (): PurchaseReceiptLineInput[] =>
     lineas.map((l) => ({
@@ -153,6 +160,7 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
   const sucia = JSON.stringify(lineas) !== JSON.stringify(aEditable(receipt));
   const pedirConfirmar = () => {
     setError(null);
+    if (incompleta) return;
     if (!sucia) {
       setConfirmando(true);
       return;
@@ -192,7 +200,12 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
         </div>
         <div className="flex flex-wrap gap-2">
           {borrador && puedeEditar && (
-            <Button type="button" onClick={pedirConfirmar}>
+            <Button
+              type="button"
+              onClick={pedirConfirmar}
+              disabled={incompleta}
+              title={incompleta ? t("purchaseOrders.receipt.confirmBlocked") : undefined}
+            >
               {t("purchaseOrders.receipt.confirm")}
             </Button>
           )}
@@ -361,6 +374,16 @@ export function PurchaseReceiptDetail({ receipt }: { receipt: PurchaseReceipt })
                       onExpiresAt={(valor) => cambiar(index, "expiresAt", valor)}
                       lotLabel={t("purchaseOrders.receipt.lot")}
                       expiresLabel={t("purchaseOrders.receipt.expiresAt")}
+                      lotError={
+                        borrador && faltaLote(linea)
+                          ? t("purchaseOrders.receipt.lotRequired")
+                          : undefined
+                      }
+                      expiresError={
+                        borrador && faltaCaducidad(linea)
+                          ? t("purchaseOrders.receipt.expiresRequired")
+                          : undefined
+                      }
                     />
                     {borrador && (
                       <td className="p-2 text-right">

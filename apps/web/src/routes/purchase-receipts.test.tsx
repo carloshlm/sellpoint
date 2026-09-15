@@ -140,8 +140,11 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     await user.clear(cantidad);
     await user.type(cantidad, "170");
     await user.click(screen.getByRole("button", { name: "Guardar líneas" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Línea 1: llega más de lo pendiente",
+    // `findByText` y no `findByRole("alert")`: la fila con control por lote ya
+    // trae sus dos avisos de obligatorio, también con role=alert.
+    expect(await screen.findByText(/^Línea 1: llega más de lo pendiente/)).toHaveAttribute(
+      "role",
+      "alert",
     );
   });
 
@@ -173,11 +176,14 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     await renderRecepcion(GESTOR);
     const user = userEvent.setup();
     const fila = screen.getByTestId("receipt-line-0");
-    await user.type(within(fila).getByLabelText("Lote"), "st1");
+    // HIST-01 es un lote conocido: su caducidad se pone sola y la línea queda
+    // completa; sin caducidad, confirmar ni se ofrece (ver la prueba de abajo).
+    await user.type(within(fila).getByLabelText("Lote"), "hist-01");
+    await waitFor(() => expect(within(fila).getByLabelText("Caducidad")).toHaveValue("2028-05-31"));
     await user.click(screen.getByRole("button", { name: "Confirmar recepción" }));
     await waitFor(() =>
       expect(mocked.replacePurchaseReceiptLines).toHaveBeenCalledWith("po1", "rcp1", [
-        expect.objectContaining({ lotCode: "ST1" }),
+        expect.objectContaining({ lotCode: "HIST-01", expiresAt: "2028-05-31" }),
       ]),
     );
     const dialogo = await screen.findByTestId("confirm-receipt");
@@ -188,7 +194,47 @@ describe("Recepción de una orden (F9-PO-13)", () => {
     expect(aviso).toHaveAttribute("role", "status");
   });
 
+  /**
+   * Carlos (2026-09-15): un producto controlado por lote no se confirma sin su
+   * lote y su caducidad. Se dice bajo cada campo y el botón se apaga.
+   */
+  it("con control por lote y sin lote ni caducidad, «Confirmar recepción» está apagado y cada campo dice que falta", async () => {
+    await renderRecepcion(GESTOR);
+    const user = userEvent.setup();
+    const fila = screen.getByTestId("receipt-line-0");
+    const confirmar = screen.getByRole("button", { name: "Confirmar recepción" });
+
+    expect(confirmar).toBeDisabled();
+    expect(within(fila).getByText("Obligatorio: se controla por lote")).toBeInTheDocument();
+    expect(within(fila).getByText("Obligatoria: caducidad del lote")).toBeInTheDocument();
+
+    await user.type(within(fila).getByLabelText("Lote"), "hist-01");
+    await waitFor(() => expect(within(fila).getByLabelText("Caducidad")).toHaveValue("2028-05-31"));
+    expect(confirmar).toBeEnabled();
+    expect(within(fila).queryByText(/^Obligatori/)).not.toBeInTheDocument();
+  });
+
+  it("un producto SIN control por lote no pide nada: confirmar está disponible desde que nace", async () => {
+    mocked.getPurchaseReceipt.mockResolvedValue(
+      buildPurchaseReceipt({
+        lines: buildPurchaseReceipt().lines.map((l) => ({ ...l, tracksLots: false })),
+      }),
+    );
+    await renderRecepcion(GESTOR);
+    expect(screen.getByRole("button", { name: "Confirmar recepción" })).toBeEnabled();
+    expect(screen.queryByText(/^Obligatori/)).not.toBeInTheDocument();
+  });
+
   it("confirmar pide confirmación; una facturada no ofrece anular", async () => {
+    mocked.getPurchaseReceipt.mockResolvedValue(
+      buildPurchaseReceipt({
+        lines: buildPurchaseReceipt().lines.map((l) => ({
+          ...l,
+          lotCode: "HIST-01",
+          expiresAt: "2028-05-31",
+        })),
+      }),
+    );
     await renderRecepcion(GESTOR);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Confirmar recepción" }));

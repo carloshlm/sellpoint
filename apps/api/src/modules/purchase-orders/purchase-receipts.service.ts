@@ -365,6 +365,26 @@ export class PurchaseReceiptsService {
       if (!(RECIBIBLES as readonly string[]).includes(recepcion.purchaseOrder.status)) {
         throw new ConflictException({ message: "purchase_orders.not_receivable" });
       }
+      // Un producto que se controla por lote se recibe CON su lote y su
+      // caducidad (Carlos, 2026-09-15): son las mismas dos reglas con las que
+      // la entrada confirma (`line-resolver`). Exigirlas aquí y no allá evita
+      // la carga que se descubre tarde — la recepción confirmada, la compra
+      // registrada, y la entrada rebotando por un lote que nadie anotó.
+      recepcion.lines.forEach((linea, index) => {
+        if (!linea.purchaseOrderLine.product.tracksLots) return;
+        if ((linea.lotCode ?? "") === "") {
+          throw new UnprocessableEntityException({
+            message: "purchase_orders.lot_required",
+            args: { field: `lines.${index + 1}.lotCode`, line: index + 1 },
+          });
+        }
+        if (linea.expiresAt === null) {
+          throw new UnprocessableEntityException({
+            message: "purchase_orders.expiry_required",
+            args: { field: `lines.${index + 1}.expiresAt`, line: index + 1 },
+          });
+        }
+      });
       const bloqueadas = new Map((await lineasBloqueadas(tx, orderId)).map((l) => [l.id, l]));
       // Varias líneas de la recepción pueden apuntar a la misma línea de la
       // orden (dos lotes): se suma por línea de orden antes de comparar.

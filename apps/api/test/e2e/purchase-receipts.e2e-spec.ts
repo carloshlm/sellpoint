@@ -236,7 +236,10 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
 
   it("más de lo pendiente rebota nombrando la línea, al guardar y al confirmar", async () => {
     const orden = await ordenEmitida(100);
-    await confirmar(orden, await recibir(orden, 60, { lotCode: "L-C" })).expect(200);
+    await confirmar(
+      orden,
+      await recibir(orden, 60, { lotCode: "L-C", expiresAt: "2029-01-01" }),
+    ).expect(200);
     const recepcion = await nuevaRecepcion(orden.id);
     const rebote = await api(negocio.token)
       .put(`/purchase-orders/${orden.id}/receipts/${recepcion.id}/lines`, {
@@ -254,7 +257,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
 
   it("la carrera del andén: dos borradores de 60 sobre 100 — el segundo rebota aunque se capturó antes", async () => {
     const orden = await ordenEmitida(100);
-    const a = await recibir(orden, 60, { lotCode: "L-D" });
+    const a = await recibir(orden, 60, { lotCode: "L-D", expiresAt: "2029-01-01" });
     // Desde 2026-09-12 el API no abre un segundo borrador (409); el que llegue a
     // existir (dos POST en el mismo instante, o un dato viejo) lo frena el `confirm`,
     // que es la validación que MANDA. Se inserta directo para fijar esa segunda barrera.
@@ -274,6 +277,7 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
                 purchaseOrderLineId: orden.lines[0]?.id ?? "",
                 quantity: 60,
                 lotCode: "L-E",
+                expiresAt: new Date("2029-01-01"),
               },
             ],
           },
@@ -317,6 +321,41 @@ describe("Recepciones de una orden de compra (F9-PO-07/08)", () => {
       })
       .expect(422);
     expect((rebote.body as { message: string }).message).toContain("lines.1.lotCode");
+  });
+
+  /**
+   * Carlos (2026-09-15): un producto controlado por lote no se confirma sin su
+   * lote y su caducidad. Guardar la línea a medias sigue permitido (se captura
+   * por partes); confirmar es la puerta.
+   */
+  it("con control por lote, confirmar exige lote y caducidad, y nombra la línea", async () => {
+    const orden = await ordenEmitida(10);
+    const sinLote = await recibir(orden, 5);
+    const rebote = await confirmar(orden, sinLote).expect(422);
+    expect(rebote.body).toMatchObject({ code: "purchase_orders.lot_required" });
+    expect((rebote.body as { message: string }).message).toContain("1");
+
+    await api(negocio.token)
+      .put(`/purchase-orders/${orden.id}/receipts/${sinLote.id}/lines`, {
+        lines: [{ purchaseOrderLineId: orden.lines[0]?.id, quantity: 5, lotCode: "NUEVO-01" }],
+      })
+      .expect(200);
+    const sinCaducidad = await confirmar(orden, sinLote).expect(422);
+    expect(sinCaducidad.body).toMatchObject({ code: "purchase_orders.expiry_required" });
+
+    await api(negocio.token)
+      .put(`/purchase-orders/${orden.id}/receipts/${sinLote.id}/lines`, {
+        lines: [
+          {
+            purchaseOrderLineId: orden.lines[0]?.id,
+            quantity: 5,
+            lotCode: "NUEVO-01",
+            expiresAt: "2029-01-01",
+          },
+        ],
+      })
+      .expect(200);
+    await confirmar(orden, sinLote).expect(200);
   });
 
   it("la fecha de recepción es de hoy para atrás; una línea de otra orden rebota", async () => {
