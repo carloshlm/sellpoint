@@ -46,10 +46,13 @@ trap 'rm -rf "${TRABAJO}"' EXIT
 # ── Parámetros por ambiente ──────────────────────────────────────────────
 # Mismos nombres que usa deploy-remote.sh. El sandbox tiene su propio
 # contenedor de Postgres; prod usa el histórico `sellpoint-postgres`.
+# El host SSH es el MISMO para los dos ambientes remotos: sandbox y producción
+# comparten servidor (216.238.73.144) y se distinguen por contenedor y base.
+# El alias `sellpoint-prod` y la llave viven en ~/.ssh/config.
 case "${AMBIENTE}" in
-  local)   SSH_HOST=""             CONTENEDOR="sellpoint-postgres"         BASE="sellpoint_dev" ;;
-  sandbox) SSH_HOST="sellpoint"    CONTENEDOR="sellpoint-sandbox-postgres" BASE="sellpoint_sandbox" ;;
-  prod)    SSH_HOST="sellpoint"    CONTENEDOR="sellpoint-postgres"         BASE="sellpoint_prod" ;;
+  local)   SSH_HOST=""                CONTENEDOR="sellpoint-postgres"         BASE="sellpoint_dev" ;;
+  sandbox) SSH_HOST="sellpoint-prod"  CONTENEDOR="sellpoint-sandbox-postgres" BASE="sellpoint_sandbox" ;;
+  prod)    SSH_HOST="sellpoint-prod"  CONTENEDOR="sellpoint-postgres"         BASE="sellpoint_prod" ;;
   *) echo "Ambiente desconocido: ${AMBIENTE} (local | sandbox | prod)" >&2; exit 2 ;;
 esac
 
