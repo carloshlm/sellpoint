@@ -21,11 +21,15 @@ describe("QuickAddService", () => {
     product: { findMany: findManyProductos, create: createProducto },
   };
 
+  const aportar = jest.fn();
+
   const service = new QuickAddService(
     // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
     { withTenantContext: (_t: string, cb: (tx: unknown) => unknown) => cb(tx) } as any,
     // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
     { record: auditar } as any,
+    // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
+    { contribute: aportar } as any,
   );
 
   const usuario = { tenantId: "t-1", userId: "u-1", locale: "es" } as never;
@@ -40,12 +44,13 @@ describe("QuickAddService", () => {
     createProducto.mockReset().mockResolvedValue({ id: "p-nuevo", sku: "X", name: "X" });
     createPresentacion.mockReset().mockResolvedValue({});
     auditar.mockReset().mockResolvedValue(undefined);
+    aportar.mockReset().mockResolvedValue(0);
   });
 
   it("un código nuevo crea el producto y su presentación base, sin costo", async () => {
     const reporte = await correr([{ code: "7501055300013", name: "Coca 600", price: 18.5 }]);
 
-    expect(reporte).toEqual({ created: 1, updated: 0 });
+    expect(reporte).toEqual({ created: 1, updated: 0, contributed: 0 });
     expect(createProducto).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ sku: "7501055300013", name: "Coca 600", baseUnit: "unit" }),
@@ -73,7 +78,7 @@ describe("QuickAddService", () => {
       { code: "07501055300013", name: "Otro nombre que no debe pisar", price: 21 },
     ]);
 
-    expect(reporte).toEqual({ created: 0, updated: 1 });
+    expect(reporte).toEqual({ created: 0, updated: 1, contributed: 0 });
     expect(updatePresentacion).toHaveBeenCalledWith({
       where: { id: "pres-1" },
       data: { price: 21 },
@@ -138,5 +143,43 @@ describe("QuickAddService", () => {
         after: { created: 2, updated: 0, lines: 2 },
       }),
     );
+  });
+  it("solo se aporta lo que se CREA, y nunca una etiqueta de bascula", async () => {
+    findManyPresentaciones.mockResolvedValue([
+      { id: "pres-1", barcode: "7509999000006", productId: "prod-1" },
+    ]);
+    aportar.mockResolvedValue(1);
+
+    const reporte = await correr([
+      // Nuevo y con prefijo GS1: se aporta.
+      { code: "7501055300013", name: "Coca 600", price: 18.5 },
+      // El negocio ya lo tiene: no se aporta, solo se actualiza el precio.
+      { code: "7509999000006", name: "Ya estaba", price: 10 },
+      // Etiqueta de báscula (RCN-8): vale para este negocio, jamás para todos.
+      { code: "00000390", name: "Carne al peso", price: 120 },
+      // No es un GTIN: no tiene prefijo que consultar.
+      { code: "INTERNO-42", name: "Cosa interna", price: 5 },
+    ]);
+
+    expect(reporte).toEqual({ created: 3, updated: 1, contributed: 1 });
+    expect(aportar).toHaveBeenCalledWith("t-1", [
+      { gtin14: "07501055300013", prefix: "750", name: "Coca 600" },
+    ]);
+  });
+
+  it("el aporte va DESPUES del alta: nunca dentro de la transacción del negocio", async () => {
+    const orden: string[] = [];
+    createProducto.mockImplementation(async () => {
+      orden.push("alta");
+      return { id: "p-nuevo", sku: "X", name: "X" };
+    });
+    aportar.mockImplementation(async () => {
+      orden.push("aporte");
+      return 1;
+    });
+
+    await correr([{ code: "7501055300013", name: "Coca 600", price: 18.5 }]);
+
+    expect(orden).toEqual(["alta", "aporte"]);
   });
 });

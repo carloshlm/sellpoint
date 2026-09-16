@@ -1468,6 +1468,11 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
     const EN_CATALOGO = "7509999000006";
     const NUEVO_PARA_TODOS = "7509999000013";
     const BASCULA = "2000000000015";
+    // Cada prueba que APORTA usa el suyo: el aporte solo inserta, así que dos
+    // pruebas sobre el mismo código se pisarían por orden de ejecución.
+    const PARA_ALTA = "7509999000037";
+    const PARA_RECHAZO = "7509999000044";
+    const PARA_APORTE = "7509999000051";
 
     const lookup = (token: string, code: string) =>
       request(app.getHttpServer())
@@ -1492,8 +1497,15 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
     });
 
     afterAll(async () => {
+      // Por rango y no por lista: cada prueba usa su propio código del bloque
+      // 07509999xxxxxx y agregar una no puede olvidarse de limpiar el suyo.
       await prisma.globalBarcodeCatalog.deleteMany({
-        where: { gtin14: { in: ["07509999000006", "07509999000013", "02000000000015"] } },
+        where: {
+          OR: [
+            { gtin14: { startsWith: "07509999" } },
+            { gtin14: { in: ["02000000000015", "00000000000390"] } },
+          ],
+        },
       });
     });
 
@@ -1559,17 +1571,17 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       const { token } = await registerAndLogin();
 
       const alta = await quick(token, [
-        { code: NUEVO_PARA_TODOS, name: "Galletas de prueba", price: 24.9 },
+        { code: PARA_ALTA, name: "Galletas de prueba", price: 24.9 },
         { code: EN_CATALOGO, name: "Refresco de prueba 600 ml", price: 18.5 },
       ]).expect(200);
 
-      expect(alta.body).toEqual({ created: 2, updated: 0 });
+      expect(alta.body).toEqual({ created: 2, updated: 0, contributed: 1 });
 
       // Lo que se dio de alta se encuentra escaneando, con su precio.
-      const encontrado = await lookup(token, NUEVO_PARA_TODOS).expect(200);
+      const encontrado = await lookup(token, PARA_ALTA).expect(200);
       expect(encontrado.body).toMatchObject({
         status: "tenant",
-        tenant: { sku: NUEVO_PARA_TODOS, name: "Galletas de prueba", price: "24.9" },
+        tenant: { sku: PARA_ALTA, name: "Galletas de prueba", price: "24.9" },
       });
     });
 
@@ -1584,7 +1596,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         { code: `0${EN_CATALOGO}`, name: "Refresco de prueba 600 ml", price: 21 },
       ]).expect(200);
 
-      expect(segunda.body).toEqual({ created: 0, updated: 1 });
+      expect(segunda.body).toEqual({ created: 0, updated: 1, contributed: 0 });
       const encontrado = await lookup(token, EN_CATALOGO).expect(200);
       expect(encontrado.body).toMatchObject({
         tenant: { name: "Refresco como lo llamo yo", price: "21" },
@@ -1595,12 +1607,12 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       const { token } = await registerAndLogin();
 
       const rechazo = await quick(token, [
-        { code: NUEVO_PARA_TODOS, name: "Galletas de prueba", price: 24.9 },
-        { code: `0${NUEVO_PARA_TODOS}`, name: "Las mismas galletas", price: 25 },
+        { code: PARA_RECHAZO, name: "Galletas de prueba", price: 24.9 },
+        { code: `0${PARA_RECHAZO}`, name: "Las mismas galletas", price: 25 },
       ]).expect(422);
 
       expect(rechazo.body).toMatchObject({
-        errors: [{ line: 2, itemCode: `0${NUEVO_PARA_TODOS}`, field: "code" }],
+        errors: [{ line: 2, itemCode: `0${PARA_RECHAZO}`, field: "code" }],
       });
       // El mensaje llega TRADUCIDO y nombra la línea donde ya estaba.
       expect((rechazo.body as { errors: { message: string }[] }).errors[0]?.message).toContain(
@@ -1608,8 +1620,62 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       );
 
       // Ni la línea buena se guardó.
-      const encontrado = await lookup(token, NUEVO_PARA_TODOS).expect(200);
+      const encontrado = await lookup(token, PARA_RECHAZO).expect(200);
       expect(encontrado.body).toMatchObject({ status: "unknown", tenant: null });
+    });
+
+    it("lo que nadie conocía se le regala al catálogo global, sellado y ubicado", async () => {
+      const { token, tenantId } = await registerAndLogin();
+
+      const alta = await quick(token, [
+        { code: PARA_APORTE, name: "Galletas de prueba", price: 24.9 },
+        // Etiqueta de báscula: el producto SÍ se crea, el aporte NUNCA ocurre.
+        { code: BASCULA, name: "Carne al peso", price: 180 },
+        // RCN-8: lo mismo, por la otra puerta.
+        { code: "00000390", name: "Marca blanca de la tienda", price: 35 },
+      ]).expect(200);
+
+      expect(alta.body).toEqual({ created: 3, updated: 0, contributed: 1 });
+
+      const aportado = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${PARA_APORTE}` },
+      });
+      expect(aportado).toMatchObject({
+        productName: "Galletas de prueba",
+        // Sin acentos ni mayúsculas: es lo que se compara al buscar.
+        search: "galletas de prueba",
+        source: "tenant_contributed",
+        // El país se sella desde el prefijo GS1 (750 = México), no desde TS.
+        countryCode: "MX",
+        confirmations: 1,
+        contributedByTenantId: tenantId,
+      });
+
+      // Lo restringido no entró por ninguna de las dos puertas.
+      const restringidos = await prisma.globalBarcodeCatalog.count({
+        where: { gtin14: { in: ["02000000000015", "00000000000390"] } },
+      });
+      expect(restringidos).toBe(0);
+    });
+
+    it("un código que el catálogo global YA tenía no se edita: ni el nombre ni el contador", async () => {
+      const { token } = await registerAndLogin();
+
+      const alta = await quick(token, [
+        { code: EN_CATALOGO, name: "Como lo llamo yo en mi tienda", price: 18.5 },
+      ]).expect(200);
+
+      expect(alta.body).toEqual({ created: 1, updated: 0, contributed: 0 });
+
+      const global = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: "07509999000006" },
+      });
+      expect(global).toMatchObject({
+        productName: "Refresco de prueba 600 ml",
+        confirmations: 3,
+        source: "open_food_facts",
+        contributedByTenantId: null,
+      });
     });
 
     it("un código interno del negocio se busca literal, con su guion y todo", async () => {

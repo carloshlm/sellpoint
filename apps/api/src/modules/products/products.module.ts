@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { CostModule } from "../cost/cost.module";
 import { BarcodeCatalogService } from "./barcode-catalog.service";
+import { BarcodeContributionService } from "./barcode-contribution.service";
 import { CompositionService } from "./composition.service";
 import { ImportService } from "./import.service";
 import { PresentationsService } from "./presentations.service";
@@ -20,6 +21,7 @@ import { QuickAddService } from "./quick-add.service";
     CompositionService,
     ImportService,
     BarcodeCatalogService,
+    BarcodeContributionService,
     QuickAddService,
   ],
   // `ImportService` sale del módulo desde F5-CAT-03: el reporte de catálogo
