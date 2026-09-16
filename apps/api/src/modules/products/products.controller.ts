@@ -25,6 +25,7 @@ import { BarcodeCatalogService } from "./barcode-catalog.service";
 import { CompositionService } from "./composition.service";
 import { type BarcodeLookupQuery, barcodeLookupQuerySchema } from "./dto/barcode-lookup.dto";
 import { type ImportProductsDto, importProductsSchema } from "./dto/import-products.dto";
+import { type QuickAddDto, quickAddSchema } from "./dto/quick-add.dto";
 import {
   type ReplaceCompositionDto,
   replaceCompositionSchema,
@@ -45,6 +46,7 @@ import {
 import { ImportService } from "./import.service";
 import { PresentationsService } from "./presentations.service";
 import { ProductsService } from "./products.service";
+import { QuickAddService } from "./quick-add.service";
 
 function metaFrom(request: Request) {
   return { ip: request.ip, userAgent: request.headers["user-agent"] };
@@ -64,6 +66,7 @@ export class ProductsController {
     private readonly compositionService: CompositionService,
     private readonly importService: ImportService,
     private readonly barcodeCatalogService: BarcodeCatalogService,
+    private readonly quickAddService: QuickAddService,
   ) {}
 
   /**
@@ -120,6 +123,26 @@ export class ProductsController {
       },
       metaFrom(request),
     );
+  }
+
+  /**
+   * F10-QUICKCAT-04. `POST /products/quick` — el borrador de la carga rápida
+   * completo: se da de alta TODO o no se da de alta nada.
+   *
+   * Los errores vuelven por línea, con el código de barras del renglón para
+   * encontrarlo de un vistazo. Un 409 suelto en medio de 60 productos no dice
+   * cuál falló, y esta pantalla existe justamente para no hacer trabajo a mano.
+   */
+  @Post("quick")
+  @HttpCode(200)
+  @RequirePermissions("products:manage")
+  quickAdd(
+    @Body(new ZodValidationPipe(quickAddSchema, "products.invalid_body"))
+    dto: QuickAddDto,
+    @CurrentUser() user: AuthUser,
+    @Req() request: Request,
+  ) {
+    return this.quickAddService.run(user, dto, metaFrom(request));
   }
 
   @Get()

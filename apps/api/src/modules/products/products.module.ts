@@ -7,6 +7,7 @@ import { ImportService } from "./import.service";
 import { PresentationsService } from "./presentations.service";
 import { ProductsController } from "./products.controller";
 import { ProductsService } from "./products.service";
+import { QuickAddService } from "./quick-add.service";
 
 // F2-PROD / F2-PRESENT / F2-BOM viven en el MISMO módulo: presentaciones y
 // composición no existen sin un producto y sus rutas cuelgan de él.
@@ -19,6 +20,7 @@ import { ProductsService } from "./products.service";
     CompositionService,
     ImportService,
     BarcodeCatalogService,
+    QuickAddService,
   ],
   // `ImportService` sale del módulo desde F5-CAT-03: el reporte de catálogo
   // reusa su `catalogRows` para que las columnas no diverjan de la plantilla.

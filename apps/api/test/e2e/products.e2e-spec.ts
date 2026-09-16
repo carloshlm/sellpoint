@@ -1549,6 +1549,69 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       });
     });
 
+    const quick = (token: string, lines: Record<string, unknown>[]) =>
+      request(app.getHttpServer())
+        .post("/products/quick")
+        .set("Authorization", bearer(token))
+        .send({ lines });
+
+    it("el borrador completo se da de alta y queda listo para vender", async () => {
+      const { token } = await registerAndLogin();
+
+      const alta = await quick(token, [
+        { code: NUEVO_PARA_TODOS, name: "Galletas de prueba", price: 24.9 },
+        { code: EN_CATALOGO, name: "Refresco de prueba 600 ml", price: 18.5 },
+      ]).expect(200);
+
+      expect(alta.body).toEqual({ created: 2, updated: 0 });
+
+      // Lo que se dio de alta se encuentra escaneando, con su precio.
+      const encontrado = await lookup(token, NUEVO_PARA_TODOS).expect(200);
+      expect(encontrado.body).toMatchObject({
+        status: "tenant",
+        tenant: { sku: NUEVO_PARA_TODOS, name: "Galletas de prueba", price: "24.9" },
+      });
+    });
+
+    it("volver a escanear lo mismo actualiza el PRECIO y respeta el nombre del negocio", async () => {
+      const { token } = await registerAndLogin();
+      await quick(token, [
+        { code: EN_CATALOGO, name: "Refresco como lo llamo yo", price: 18.5 },
+      ]).expect(200);
+
+      const segunda = await quick(token, [
+        // El catálogo global lo llama distinto: el nombre del negocio gana.
+        { code: `0${EN_CATALOGO}`, name: "Refresco de prueba 600 ml", price: 21 },
+      ]).expect(200);
+
+      expect(segunda.body).toEqual({ created: 0, updated: 1 });
+      const encontrado = await lookup(token, EN_CATALOGO).expect(200);
+      expect(encontrado.body).toMatchObject({
+        tenant: { name: "Refresco como lo llamo yo", price: "21" },
+      });
+    });
+
+    it("una línea mala no guarda NINGUNA, y el error dice cuál y por qué", async () => {
+      const { token } = await registerAndLogin();
+
+      const rechazo = await quick(token, [
+        { code: NUEVO_PARA_TODOS, name: "Galletas de prueba", price: 24.9 },
+        { code: `0${NUEVO_PARA_TODOS}`, name: "Las mismas galletas", price: 25 },
+      ]).expect(422);
+
+      expect(rechazo.body).toMatchObject({
+        errors: [{ line: 2, itemCode: `0${NUEVO_PARA_TODOS}`, field: "code" }],
+      });
+      // El mensaje llega TRADUCIDO y nombra la línea donde ya estaba.
+      expect((rechazo.body as { errors: { message: string }[] }).errors[0]?.message).toContain(
+        "línea 1",
+      );
+
+      // Ni la línea buena se guardó.
+      const encontrado = await lookup(token, NUEVO_PARA_TODOS).expect(200);
+      expect(encontrado.body).toMatchObject({ status: "unknown", tenant: null });
+    });
+
     it("un código interno del negocio se busca literal, con su guion y todo", async () => {
       const { token } = await registerAndLogin();
       await createProduct(token, {

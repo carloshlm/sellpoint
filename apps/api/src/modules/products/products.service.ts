@@ -520,12 +520,22 @@ function assertKnownUnit(code: string): void {
  * dos unique distintos, dos mensajes distintos.
  */
 function traducirConflicto(error: unknown): unknown {
+  const clave = claveDeConflicto(error);
+  return clave === null ? error : new ConflictException({ message: clave });
+}
+
+/**
+ * La CLAVE del conflicto, sin envolverla en una excepción.
+ *
+ * La carga rápida (F10-QUICKCAT-04) necesita el mismo veredicto pero para
+ * pegarlo a una LÍNEA, no para lanzarlo: un 409 suelto en medio de un lote de
+ * 60 productos no dice cuál falló. Devuelve `null` si el error no es una
+ * violación de unicidad, y entonces no es asunto de esta traducción.
+ */
+export function claveDeConflicto(error: unknown): string | null {
   const restriccion = restriccionViolada(error);
   if (restriccion === null) {
-    return error;
+    return null;
   }
-  if (restriccion.includes("barcode")) {
-    return new ConflictException({ message: "products.barcode_taken" });
-  }
-  return new ConflictException({ message: "products.sku_taken" });
+  return restriccion.includes("barcode") ? "products.barcode_taken" : "products.sku_taken";
 }

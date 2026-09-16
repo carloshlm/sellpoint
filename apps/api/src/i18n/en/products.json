@@ -26,6 +26,8 @@
   "presentation_in_use": "This presentation already has recorded movements: it cannot be deleted. Deactivate it so it stops being offered without losing history.",
   "presentation_name_taken": "A presentation with that name already exists for this product.",
   "presentation_not_found": "This presentation doesn't exist.",
+  "quick_duplicate_line": "This code is already on line {line}.",
+  "quick_has_errors": "Check the highlighted lines. No product was created.",
   "sku_taken": "You already have a product with that code.",
   "stock_in_warehouses": "Cannot deactivate: the product still has stock in {count} warehouse(s). Remove or adjust it to zero first.",
   "too_many_decimals": "Amounts allow at most 2 decimal places.",

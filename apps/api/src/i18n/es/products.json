@@ -26,6 +26,8 @@
   "presentation_in_use": "Esta presentación ya tiene movimientos registrados: no se puede borrar. Desactívala para que deje de ofrecerse sin perder el historial.",
   "presentation_name_taken": "Ya existe una presentación con ese nombre en este producto.",
   "presentation_not_found": "La presentación no existe.",
+  "quick_duplicate_line": "Este código ya está en la línea {line}.",
+  "quick_has_errors": "Revisa las líneas marcadas. No se dio de alta ningún producto.",
   "sku_taken": "Ya tienes un producto con ese código.",
   "stock_in_warehouses": "No se puede desactivar: el producto todavía tiene existencias en {count} almacén(es). Sácalas o ajústalas a cero primero.",
   "too_many_decimals": "El importe admite como máximo 2 decimales.",
