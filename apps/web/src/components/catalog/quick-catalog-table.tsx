@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ApiError } from "@/lib/api";
+import { usePlan } from "@/lib/billing/use-plan";
 import { quickLineErrorsOf } from "@/lib/field-errors";
 import { moneyInputError } from "@/lib/money";
 import { lookupBarcode } from "@/lib/products/api";
@@ -57,6 +58,10 @@ import {
  */
 export function QuickCatalogTable({ owner }: { owner: string }) {
   const { t } = useTranslation();
+  // Misma regla que el resto de las pantallas de alta: un plan vencido o
+  // suspendido no escribe. El botón de esta pantalla ya vive detrás de la
+  // misma condición en el listado; esto cubre a quien llega por la URL.
+  const { canWrite } = usePlan();
   const lines = useQuickCatalogStore((s) => s.lines);
   const storageFailed = useQuickCatalogStore((s) => s.storageFailed);
   const claim = useQuickCatalogStore((s) => s.claim);
@@ -430,7 +435,11 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={enviar} disabled={lines.length === 0 || guardar.isPending}>
+        <Button
+          type="button"
+          onClick={enviar}
+          disabled={lines.length === 0 || guardar.isPending || !canWrite}
+        >
           {guardar.isPending
             ? t("common.form.submitting")
             : t("products.quick.submit", { count: lines.length })}
