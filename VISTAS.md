@@ -22,7 +22,8 @@
    - 6.2 Producto — Detalle / Form
    - 6.3 Editor de Schema
    - 6.4 Importar desde Excel
-   - 6.5 Servicios — Lista y alta
+   - 6.5 Carga rápida (escanear el anaquel)
+   - 6.6 Servicios — Lista y alta
 7. [Almacenes](#7-almacenes)
 8. [Movimientos](#8-movimientos)
    - 8.1 Entrada
@@ -629,7 +630,67 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 
 ---
 
-### 6.5 Servicios — Lista y alta
+### 6.5 Carga rápida (escanear el anaquel)
+
+**Ruta:** `/catalog/products/quick` · **Permiso:** `products:manage`
+
+> **Nuevo en F10-QUICKCAT (2026-09-16):** el tercer camino para cargar el catálogo inicial, entre el formulario (uno por uno) y la planilla (fuera de la app). Se escanea, el sistema pone el nombre desde el **catálogo global de códigos de barras** (953,969 productos) y la persona solo pone el precio. Lo que el catálogo no conozca se captura a mano y **se aporta**, sellado con el negocio que lo registró, para que el siguiente ya lo encuentre.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Carga rápida                            [Volver a Productos]  │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │  Escanea, pon el precio y da de alta                       │ │
+│ │                                                            │ │
+│ │  Código de barras                                          │ │
+│ │  ┌──────────────────────────────────┐   [📷] con la cámara │ │
+│ │  │ Escanea o teclea y presiona Enter│                      │ │
+│ │  └──────────────────────────────────┘                      │ │
+│ │  Cada código agrega una línea. En el precio, Enter te      │ │
+│ │  devuelve aquí para el siguiente.                          │ │
+│ │                                                            │ │
+│ │  │ Código          │ Nombre del producto │ Precio de venta │ │
+│ │  ├─────────────────┼─────────────────────┼─────────────────┤ │
+│ │  │ 7509999000105   │ [Jabón de lavanda ] │ [$ 35.00   MXN] │ │
+│ │  │ «Nuevo para     │                     │                 │ │
+│ │  │  todos»         │                     │                 │ │
+│ │  │ Se sumará al    │                     │                 │ │
+│ │  │ catálogo compar.│                     │                 │ │
+│ │  ├─────────────────┼─────────────────────┼─────────────────┤ │
+│ │  │ 7501011167650   │ [Sabritas 110 G   ] │ [$ 19.00   MXN] │ │
+│ │  │ «Nombre         │                     │                 │ │
+│ │  │  sugerido»      │                     │                 │ │
+│ │  │ Sabritas,PepsiCo│                     │                 │ │
+│ │  └─────────────────┴─────────────────────┴─────────────────┘ │
+│ │                                                            │ │
+│ │  [Dar de alta 2 productos] [Descartar]  2 de 100 líneas    │ │
+│ │  Los nombres sugeridos provienen de Open Food Facts,       │ │
+│ │  bajo licencia ODbL.                                       │ │
+│ └────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**La regla que ordena el diseño:** el escaneo nunca espera a la pantalla, y la pantalla nunca le roba el foco a quien está tecleando.
+
+| Comportamiento | Por qué |
+|---|---|
+| La fila se pinta en el mismo tick del Enter, **arriba** | Un escaneo que desaparece no deja rastro: la persona sigue escaneando y se entera al final, contando |
+| Cola serial de consultas | Dos en vuelo se pisan y una línea se pierde; misma lección que el buscador del mostrador |
+| El foco va al **precio** si hubo nombre, al **nombre** si no | Lo único que falta en cada caso |
+| El foco NO se mueve si alguien escribe, **ni siquiera en el campo de escaneo** | Con la pistola en la mano el siguiente código ya está entrando; robar el cursor lo parte en dos campos |
+| Enter en el precio devuelve al escáner | Es lo que hace viable escanear 80 productos seguidos |
+| El mismo código dos veces no duplica | Lleva el foco a su precio: volver a escanear es corregir, no agregar |
+| Los faltantes se marcan recién al intentar dar de alta | Una línea recién escaneada no está mal; pintar rojo mientras se escanea entrena a ignorarlo |
+
+**Estados de línea:** buscando · nombre sugerido (del catálogo global, editable) · **ya lo tienes** (nombre de solo lectura, solo el precio se edita, y al guardar **solo se actualiza el precio**) · nuevo para todos · no se pudo consultar.
+
+**El borrador vive en el navegador** (`sellpoint.quickCatalog`), sobrevive a salir de la pantalla y a recargar, y está sellado con `tenantId:userId`: un mostrador con dos cuentas no da de alta el catálogo del vecino. Tope de 100 líneas, el mismo del API.
+
+**Qué NO pide esta pantalla:** existencias (entran por una Entrada, que es donde el sistema pide almacén, lote y caducidad), costo (se descubre al recibir mercancía; inventarlo envenena los márgenes), unidad e impuesto (piezas y el default del negocio).
+
+---
+
+### 6.6 Servicios — Lista y alta
 
 **Ruta:** `/catalog/services` · **Permiso:** `services:read`
 
