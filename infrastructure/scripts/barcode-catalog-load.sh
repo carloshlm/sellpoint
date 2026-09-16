@@ -69,19 +69,39 @@ echo "→ Ambiente ${AMBIENTE}: ${BASE} en ${CONTENEDOR}${SSH_HOST:+ (vía ssh $
 #
 # `BARCODE_VOLCADO` sigue existiendo por si alguien SÍ tiene el archivo bajado
 # y quiere ahorrarse la descarga entre regiones.
-CSV="${TRABAJO}/catalogo.csv"
-echo "→ Generando la región ${REGION} (criterio ${CRITERIO})…"
-if [[ -n "${BARCODE_VOLCADO:-}" && -f "${BARCODE_VOLCADO}" ]]; then
-  echo "  (leyendo el volcado local ${BARCODE_VOLCADO})"
-  python3 "${GENERADOR}" csv "${CSV}" --region "${REGION}" \
-    --criterio "${CRITERIO}" --volcado "${BARCODE_VOLCADO}"
+# ── El CSV ya generado se REUSA entre ambientes ──────────────────────────
+#
+# Cargar dos regiones en local, sandbox y producción son seis corridas, y sin
+# esto serían seis descargas de 12.9 GB — hora y media de red para generar seis
+# veces exactamente el mismo archivo. Con `BARCODE_CSV` apuntando a una ruta
+# persistente, la primera corrida lo genera y las otras cinco lo reusan:
+#
+#   export BARCODE_CSV=~/catalogo-canada.csv.gz
+#   barcode-catalog-load.sh local   canada --criterio venta   # descarga
+#   barcode-catalog-load.sh sandbox canada --criterio venta   # reusa
+#   barcode-catalog-load.sh prod    canada --criterio venta   # reusa
+#
+# ⚠️ Es POR REGIÓN: usar el mismo archivo para «canada» y «latam» cargaría
+# Canadá dos veces. Una variable por región, o borrarla entre una y otra.
+CSV="${BARCODE_CSV:-${TRABAJO}/catalogo.csv.gz}"
+if [[ -f "${CSV}" ]]; then
+  echo "→ Reusando el CSV ya generado: ${CSV} ($(du -h "${CSV}" | cut -f1))"
+  echo "  ⚠️  Tiene que ser el de la región ${REGION}. Si no, bórralo."
 else
-  echo "  (transmitiendo 12.9 GB desde Open Food Facts, sin guardarlos)"
-  python3 "${GENERADOR}" csv "${CSV}" --region "${REGION}" --criterio "${CRITERIO}"
+  echo "→ Generando la región ${REGION} (criterio ${CRITERIO})…"
+  SIN_COMPRIMIR="${CSV%.gz}"
+  if [[ -n "${BARCODE_VOLCADO:-}" && -f "${BARCODE_VOLCADO}" ]]; then
+    echo "  (leyendo el volcado local ${BARCODE_VOLCADO})"
+    python3 "${GENERADOR}" csv "${SIN_COMPRIMIR}" --region "${REGION}" \
+      --criterio "${CRITERIO}" --volcado "${BARCODE_VOLCADO}"
+  else
+    echo "  (transmitiendo 12.9 GB desde Open Food Facts, sin guardarlos)"
+    python3 "${GENERADOR}" csv "${SIN_COMPRIMIR}" --region "${REGION}" \
+      --criterio "${CRITERIO}"
+  fi
+  gzip -f "${SIN_COMPRIMIR}"
+  echo "→ CSV comprimido: $(du -h "${CSV}" | cut -f1)"
 fi
-
-gzip -f "${CSV}"
-echo "→ CSV comprimido: $(du -h "${CSV}.gz" | cut -f1)"
 
 # ── 2. Cargar ────────────────────────────────────────────────────────────
 # Tabla temporal + INSERT … ON CONFLICT, y NO un COPY directo: el COPY no sabe
@@ -143,12 +163,12 @@ SQL
 
 echo "→ Cargando en ${BASE}…"
 if [[ -z "${SSH_HOST}" ]]; then
-  { printf '%s\n' "${CARGA_SQL}"; gzip -dc "${CSV}.gz"; printf '%s\n' "${FIN_SQL}"; } \
+  { printf '%s\n' "${CARGA_SQL}"; gzip -dc "${CSV}"; printf '%s\n' "${FIN_SQL}"; } \
     | docker exec -i "${CONTENEDOR}" psql -U sellpoint -d "${BASE}"
 else
   # Se manda comprimido por la red y se descomprime del otro lado: son
   # ~20 MB en vez de ~60. `ssh -n` no aplica acá porque stdin ES el dato.
-  { printf '%s\n' "${CARGA_SQL}"; gzip -dc "${CSV}.gz"; printf '%s\n' "${FIN_SQL}"; } \
+  { printf '%s\n' "${CARGA_SQL}"; gzip -dc "${CSV}"; printf '%s\n' "${FIN_SQL}"; } \
     | ssh "${SSH_HOST}" "docker exec -i ${CONTENEDOR} psql -U sellpoint -d ${BASE}"
 fi
 
