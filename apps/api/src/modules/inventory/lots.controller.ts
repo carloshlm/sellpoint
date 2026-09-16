@@ -49,6 +49,9 @@ const updateLotSchema = z.object({
   expiresAt: z.iso.date().nullish(),
 });
 
+/** Un interruptor que viaja por la URL: `?onlyExpired=true` o `=1`. */
+const esVerdadero = (valor?: string): boolean => valor === "true" || valor === "1";
+
 @ApiTags("inventory")
 @Controller()
 export class LotsController {
@@ -90,6 +93,7 @@ export class LotsController {
     @Query("days") days?: string,
     @Query("warehouseId") warehouseId?: string,
     @Query("format") format?: string,
+    @Query("onlyExpired") onlyExpired?: string,
   ) {
     const parsed = Number(days);
     const file = await this.exports.expiring(
@@ -98,6 +102,7 @@ export class LotsController {
       {
         days: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 30,
         ...(warehouseId !== undefined && warehouseId !== "" ? { warehouseId } : {}),
+        ...(esVerdadero(onlyExpired) ? { onlyExpired: true } : {}),
       },
       format === "csv" ? "csv" : "xlsx",
       getLocale(request),
@@ -115,6 +120,7 @@ export class LotsController {
     @CurrentUserScope() scope: UserScope,
     @Query("days") days?: string,
     @Query("warehouseId") warehouseId?: string,
+    @Query("onlyExpired") onlyExpired?: string,
   ) {
     const parsed = Number(days);
     return this.lots.listExpiring(user, scope, {
@@ -122,6 +128,8 @@ export class LotsController {
       // 500: pedir "próximos a vencer" sin decir cuántos días es razonable.
       days: Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 30,
       warehouseId: warehouseId === "" ? undefined : warehouseId,
+      // Solo lo YA vencido: su propio filtro, no un plazo (ver `listExpiring`).
+      ...(esVerdadero(onlyExpired) ? { onlyExpired: true } : {}),
     });
   }
 

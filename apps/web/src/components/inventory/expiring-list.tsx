@@ -22,6 +22,15 @@ import type { ExpiringRow } from "@/lib/inventory/types";
 const PLAZOS = [7, 30, 90] as const;
 
 /**
+ * Lo YA vencido es su propio filtro y va PRIMERO (Carlos, 2026-09-15): no es
+ * un plazo más corto, es la otra pregunta — «¿qué tengo que sacar hoy del
+ * estante?». Se dice «Vencido» y no «Expirado»: en español «expirar» es de
+ * plazos y contratos, la norma sanitaria habla de caducidad, y la tabla ya
+ * marca «Vencido» en su etiqueta. En inglés sí es «Expired».
+ */
+type Filtro = "expired" | (typeof PLAZOS)[number];
+
+/**
  * F3-LOTS-03 — qué está por vencerse, y qué hacer al respecto.
  *
  * **Lo ya vencido no se esconde.** Aparece junto a lo que está por vencer y se
@@ -35,24 +44,38 @@ const PLAZOS = [7, 30, 90] as const;
  */
 export function ExpiringList() {
   const { t } = useTranslation();
-  const [days, setDays] = useState<number>(30);
+  // 30 días al entrar: el plazo con el que se planea la semana. Lo vencido se
+  // pide a propósito, no se impone al abrir.
+  const [filtro, setFiltro] = useState<Filtro>(30);
+  const soloVencidos = filtro === "expired";
+  const consulta = soloVencidos ? { days: 0, onlyExpired: true } : { days: filtro };
   const [exportando, setExportando] = useState(false);
   const [errorExport, setErrorExport] = useState<string | null>(null);
-  const { data, isPending } = useExpiring({ days });
+  const { data, isPending } = useExpiring(consulta);
 
   return (
     <section className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-semibold text-xl">{t("inventory.expiring.title")}</h1>
         <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setFiltro("expired")}
+            aria-pressed={soloVencidos}
+            className={`rounded-md border border-input px-3 py-1.5 text-sm ${
+              soloVencidos ? "bg-primary text-primary-foreground" : ""
+            }`}
+          >
+            {t("inventory.expiring.expiredOnly")}
+          </button>
           {PLAZOS.map((plazo) => (
             <button
               key={plazo}
               type="button"
-              onClick={() => setDays(plazo)}
-              aria-pressed={days === plazo}
+              onClick={() => setFiltro(plazo)}
+              aria-pressed={filtro === plazo}
               className={`rounded-md border border-input px-3 py-1.5 text-sm ${
-                days === plazo ? "bg-primary text-primary-foreground" : ""
+                filtro === plazo ? "bg-primary text-primary-foreground" : ""
               }`}
             >
               {t(`inventory.expiring.days${plazo}`)}
@@ -75,7 +98,7 @@ export function ExpiringList() {
               setErrorExport(null);
               setExportando(true);
               try {
-                await downloadExpiring({ days });
+                await downloadExpiring(consulta);
               } catch {
                 setErrorExport(t("reports.hub.downloadFailed"));
               } finally {
@@ -98,7 +121,9 @@ export function ExpiringList() {
       {isPending ? (
         <p className="text-muted-foreground text-sm">{t("common.form.loading")}</p>
       ) : (data?.length ?? 0) === 0 ? (
-        <p className="text-muted-foreground text-sm">{t("inventory.expiring.empty")}</p>
+        <p className="text-muted-foreground text-sm">
+          {t(soloVencidos ? "inventory.expiring.emptyExpired" : "inventory.expiring.empty")}
+        </p>
       ) : (
         <ScrollableTable>
           <table className="w-full text-sm">

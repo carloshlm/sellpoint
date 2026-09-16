@@ -159,6 +159,32 @@ describe("Próximos a vencer (F3-LOTS-03)", () => {
   });
 
   /**
+   * Carlos (2026-09-15): «Vencidos» es su propio filtro y va PRIMERO, delante
+   * de los plazos. Al entrar sigue mandando 30 días.
+   */
+  it("«Vencidos» va primero y pide solo lo vencido, y el export baja lo mismo", async () => {
+    const { user } = await renderExpiring();
+    await screen.findByText("YOG-1");
+
+    const filtros = screen
+      .getAllByRole("button")
+      .map((b) => b.textContent)
+      // Exacto: el aviso de la prueba del plan también dice «días».
+      .filter((texto) => texto !== null && /^(Vencidos|\d+ días)$/.test(texto));
+    expect(filtros).toEqual(["Vencidos", "7 días", "30 días", "90 días"]);
+
+    await user.click(screen.getByRole("button", { name: "Vencidos" }));
+
+    await waitFor(() => {
+      expect(mocked.listExpiring).toHaveBeenCalledWith({ days: 0, onlyExpired: true });
+    });
+    await user.click(screen.getByRole("button", { name: /exportar/i }));
+    await waitFor(() => {
+      expect(mocked.downloadExpiring).toHaveBeenCalledWith({ days: 0, onlyExpired: true });
+    });
+  });
+
+  /**
    * Lo vencido no se esconde: es lo MÁS urgente. Y se distingue por dato
    * (`expired`), no por el signo de un número que hay que interpretar.
    */

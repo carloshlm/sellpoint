@@ -555,6 +555,26 @@ describe("Lotes y ubicaciones (F3-LOTS-02)", () => {
       expect(filas[0]?.daysLeft).toBe(-1);
     });
 
+    /**
+     * Carlos (2026-09-15): «Vencidos» es su propio filtro, delante de los
+     * plazos. Lo que caduca HOY todavía se vende: no entra acá.
+     */
+    it("con `onlyExpired` trae SOLO lo vencido, sin lo que está por vencer", async () => {
+      const { token } = await conCaducidades();
+
+      const res = await request(app.getHttpServer())
+        .get("/inventory/expiring?onlyExpired=true")
+        .set("Authorization", bearer(token))
+        .expect(200);
+
+      const filas = res.body as { lot: { lotCode: string }; expired: boolean }[];
+      expect(filas.length).toBeGreaterThan(0);
+      expect(filas.every((f) => f.expired)).toBe(true);
+      const codigos = filas.map((f) => f.lot.lotCode);
+      expect(codigos).toContain("zzz-ayer");
+      expect(codigos).not.toContain("bbb-en10");
+    });
+
     it("un lote sin saldo no aparece: no hay nada que se eche a perder", async () => {
       const { token } = await conCaducidades();
 

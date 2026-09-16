@@ -180,10 +180,12 @@
   "reason_required": "The movement reason is missing.",
   "expiring": {
     "title": "Expiring soon",
+    "expiredOnly": "Expired",
     "days7": "7 days",
     "days30": "30 days",
     "days90": "90 days",
     "empty": "Nothing expiring within this window.",
+    "emptyExpired": "Nothing expired in the warehouse.",
     "expired": "Expired",
     "daysLeft": "{{count}} days",
     "daysLeft_one": "{{count}} day",

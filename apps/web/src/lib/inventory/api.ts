@@ -14,6 +14,8 @@ import type {
 export async function listExpiring(params: {
   days: number;
   warehouseId?: string;
+  /** Solo lo que YA caducó: su propio filtro, no un plazo de cero días. */
+  onlyExpired?: boolean;
 }): Promise<ExpiringRow[]> {
   const { data } = await api.get<ExpiringRow[]>("/inventory/expiring", { params });
   return data;
@@ -133,7 +135,7 @@ export async function printDocumentPdf(id: string, folio: string): Promise<void>
  * está viendo, en otro formato.
  */
 export async function downloadExpiring(
-  filtros: { days: number; warehouseId?: string },
+  filtros: { days: number; warehouseId?: string; onlyExpired?: boolean },
   format: "csv" | "xlsx" = "xlsx",
 ): Promise<void> {
   const { data, headers } = await api.get<Blob>("/inventory/expiring/export", {

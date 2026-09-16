@@ -40,7 +40,7 @@ export class InventoryExportService {
   async expiring(
     user: AuthUser,
     scope: UserScope,
-    options: { days: number; warehouseId?: string },
+    options: { days: number; warehouseId?: string; onlyExpired?: boolean },
     format: SpreadsheetFormat,
     locale: Locale = "es",
   ) {

@@ -180,10 +180,12 @@
   "reason_required": "Falta elegir el motivo del movimiento.",
   "expiring": {
     "title": "Próximos a vencer",
+    "expiredOnly": "Vencidos",
     "days7": "7 días",
     "days30": "30 días",
     "days90": "90 días",
     "empty": "No hay nada por vencer en este plazo.",
+    "emptyExpired": "No hay nada vencido en el almacén.",
     "expired": "Vencido",
     "daysLeft": "{{count}} días",
     "daysLeft_one": "{{count}} día",

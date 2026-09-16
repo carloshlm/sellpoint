@@ -22,7 +22,7 @@ export const EXPIRING_QUERY_KEY = ["inventory", "expiring"] as const;
 
 /** Lo que está por vencerse. Sin cron: se consulta al abrir la pantalla. */
 export function useExpiring(
-  params: { days: number; warehouseId?: string },
+  params: { days: number; warehouseId?: string; onlyExpired?: boolean },
   options?: { enabled?: boolean },
 ) {
   return useQuery<ExpiringRow[], ApiError>({

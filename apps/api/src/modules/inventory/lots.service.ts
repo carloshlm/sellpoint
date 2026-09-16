@@ -275,7 +275,7 @@ export class LotsService {
   async listExpiring(
     user: AuthUser,
     scope: UserScope,
-    options: { days: number; warehouseId?: string },
+    options: { days: number; warehouseId?: string; onlyExpired?: boolean },
   ): Promise<ExpiringRow[]> {
     if (options.warehouseId !== undefined) {
       assertWarehouseInScope(scope, options.warehouseId);
@@ -287,6 +287,11 @@ export class LotsService {
     hoy.setUTCHours(0, 0, 0, 0);
     const limite = new Date(hoy);
     limite.setUTCDate(limite.getUTCDate() + options.days);
+    // `onlyExpired` es su propio filtro, no un plazo de cero días (Carlos,
+    // 2026-09-15): lo vencido es lo que caducó ANTES de hoy, y el que caduca
+    // HOY todavía se puede vender. Por eso `lt` y no `lte`, y por eso el plazo
+    // se ignora: son dos preguntas distintas, no la misma con otro número.
+    const ventana = options.onlyExpired === true ? { lt: hoy } : { lte: limite };
 
     return this.prisma.withTenantContext(user.tenantId, async (tx) => {
       const rows = await tx.stockLot.findMany({
@@ -294,7 +299,7 @@ export class LotsService {
           tenantId: user.tenantId,
           quantity: { gt: 0 },
           ...this.stockWhere(scope, options.warehouseId),
-          lot: { expiresAt: { not: null, lte: limite } },
+          lot: { expiresAt: { not: null, ...ventana } },
         },
         select: {
           location: true,
