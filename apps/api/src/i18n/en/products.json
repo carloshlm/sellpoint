@@ -18,6 +18,7 @@
   "import_unreadable": "We couldn't read the file. Make sure it's the Excel template.",
   "invalid_attributes": "Check the highlighted fields.",
   "invalid_body": "The submitted data isn't valid.",
+  "invalid_query": "The barcode we received isn't valid.",
   "is_component": "Can't delete it: this product is a component of another one.",
   "last_presentation": "This is the product's only presentation: without it there would be no way to sell it. Add another one before deleting this.",
   "lots_in_stock": "Lot tracking cannot be turned off: there is still stock assigned to lots. Move it out or consume it first.",

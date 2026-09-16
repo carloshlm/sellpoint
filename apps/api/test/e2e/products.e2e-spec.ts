@@ -1456,4 +1456,113 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         .expect(200);
     });
   });
+  /**
+   * F10-QUICKCAT-02 — la consulta de la carga rápida contra los dos catálogos.
+   *
+   * El catálogo global NO viaja en el repositorio (son 953,969 filas que se
+   * cargan por ambiente), así que esta prueba siembra las suyas y las borra.
+   * Lo que sí está sembrado por migración es `gs1_prefix_ranges`, y por eso el
+   * caso de la etiqueta de báscula prueba el filtro REAL.
+   */
+  describe("F10-QUICKCAT — consulta de código de barras", () => {
+    const EN_CATALOGO = "7509999000006";
+    const NUEVO_PARA_TODOS = "7509999000013";
+    const BASCULA = "2000000000015";
+
+    const lookup = (token: string, code: string) =>
+      request(app.getHttpServer())
+        .get(`/products/barcode-lookup?code=${encodeURIComponent(code)}`)
+        .set("Authorization", bearer(token));
+
+    beforeAll(async () => {
+      await prisma.globalBarcodeCatalog.upsert({
+        where: { gtin14: "07509999000006" },
+        update: {},
+        create: {
+          gtin14: "07509999000006",
+          productName: "Refresco de prueba 600 ml",
+          brand: "Marca Prueba",
+          unitSize: "600 ml",
+          countryCode: "MX",
+          search: "refresco de prueba 600 ml",
+          source: "open_food_facts",
+          confirmations: 3,
+        },
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.globalBarcodeCatalog.deleteMany({
+        where: { gtin14: { in: ["07509999000006", "07509999000013", "02000000000015"] } },
+      });
+    });
+
+    it("la ruta NO la atrapa `:id`: responde la consulta, no un uuid inválido", async () => {
+      const { token } = await registerAndLogin();
+      await lookup(token, NUEVO_PARA_TODOS).expect(200);
+    });
+
+    it("lo que el catálogo global conoce vuelve con su nombre sugerido", async () => {
+      const { token } = await registerAndLogin();
+      const encontrado = await lookup(token, EN_CATALOGO).expect(200);
+
+      expect(encontrado.body).toMatchObject({
+        status: "global",
+        gtin14: "07509999000006",
+        global: { name: "Refresco de prueba 600 ml", brand: "Marca Prueba" },
+        contributable: false,
+      });
+    });
+
+    it("lo que el negocio YA tiene gana, aunque se escanee con otra longitud", async () => {
+      const { token } = await registerAndLogin();
+      await createProduct(token, {
+        sku: "REFRESCO-1",
+        name: "Refresco como lo llamo yo",
+        price: 18.5,
+        barcode: EN_CATALOGO,
+      }).expect(201);
+
+      // Se escanea la forma de 14 dígitos: es el MISMO producto.
+      const encontrado = await lookup(token, `0${EN_CATALOGO}`).expect(200);
+
+      expect(encontrado.body).toMatchObject({
+        status: "tenant",
+        tenant: { name: "Refresco como lo llamo yo", price: "18.5" },
+        global: null,
+      });
+    });
+
+    it("lo que nadie conoce se puede aportar; la etiqueta de báscula, nunca", async () => {
+      const { token } = await registerAndLogin();
+
+      const nuevo = await lookup(token, NUEVO_PARA_TODOS).expect(200);
+      expect(nuevo.body).toMatchObject({ status: "unknown", contributable: true });
+
+      // Prefijo 200-299: circulación restringida. El código vale para este
+      // negocio y no significa nada en el de enfrente.
+      const bascula = await lookup(token, BASCULA).expect(200);
+      expect(bascula.body).toMatchObject({
+        status: "unknown",
+        gtin14: "02000000000015",
+        contributable: false,
+      });
+    });
+
+    it("un código interno del negocio se busca literal, con su guion y todo", async () => {
+      const { token } = await registerAndLogin();
+      await createProduct(token, {
+        sku: "INTERNO-1",
+        name: "Producto sin código de barras",
+        barcode: "INTERNO-42",
+      }).expect(201);
+
+      const encontrado = await lookup(token, "INTERNO-42").expect(200);
+      expect(encontrado.body).toMatchObject({
+        status: "tenant",
+        gtin14: null,
+        tenant: { name: "Producto sin código de barras" },
+      });
+    });
+  });
 });

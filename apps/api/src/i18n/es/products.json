@@ -18,6 +18,7 @@
   "import_unreadable": "No pudimos leer el archivo. Verifica que sea el Excel de la plantilla.",
   "invalid_attributes": "Revisa los campos marcados.",
   "invalid_body": "Los datos enviados no son válidos.",
+  "invalid_query": "El código de barras que llegó no es válido.",
   "is_component": "No se puede eliminar: este producto es componente de otro.",
   "last_presentation": "Es la única presentación del producto: sin ella no habría forma de venderlo. Agrega otra antes de eliminar esta.",
   "lots_in_stock": "No se puede quitar el control por lote: todavía hay existencias asignadas a lotes. Sácalas o consúmelas primero.",

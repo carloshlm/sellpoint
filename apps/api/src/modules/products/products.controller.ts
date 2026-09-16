@@ -21,7 +21,9 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { RequirePermissions } from "../auth/decorators/require-permissions.decorator";
 import type { AuthUser } from "../auth/types/auth-user";
 import { RequiresFeature } from "../billing/decorators/requires-feature.decorator";
+import { BarcodeCatalogService } from "./barcode-catalog.service";
 import { CompositionService } from "./composition.service";
+import { type BarcodeLookupQuery, barcodeLookupQuerySchema } from "./dto/barcode-lookup.dto";
 import { type ImportProductsDto, importProductsSchema } from "./dto/import-products.dto";
 import {
   type ReplaceCompositionDto,
@@ -61,6 +63,7 @@ export class ProductsController {
     private readonly presentationsService: PresentationsService,
     private readonly compositionService: CompositionService,
     private readonly importService: ImportService,
+    private readonly barcodeCatalogService: BarcodeCatalogService,
   ) {}
 
   /**
@@ -132,6 +135,26 @@ export class ProductsController {
         .map(([key, value]) => [key.slice("attr.".length), value]),
     );
     return this.productsService.list(user, query, attributeFilters);
+  }
+
+  /**
+   * F10-QUICKCAT-02. `GET /products/barcode-lookup?code=` — lo que el lector
+   * manda en la carga rápida: primero el catálogo del negocio, y solo si no
+   * está, el catálogo global de códigos de barras.
+   *
+   * ⚠️ Va ANTES de `@Get(":id")` a propósito: Nest resuelve por orden de
+   * declaración y «barcode-lookup» caería en `findOne` como si fuera un uuid.
+   *
+   * Es `products:manage` porque solo la usa quien está dando de alta catálogo.
+   */
+  @Get("barcode-lookup")
+  @RequirePermissions("products:manage")
+  barcodeLookup(
+    @Query(new ZodValidationPipe(barcodeLookupQuerySchema, "products.invalid_query"))
+    query: BarcodeLookupQuery,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.barcodeCatalogService.lookup(user, query.code);
   }
 
   @Get(":id")

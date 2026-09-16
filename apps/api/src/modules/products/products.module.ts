@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { CostModule } from "../cost/cost.module";
+import { BarcodeCatalogService } from "./barcode-catalog.service";
 import { CompositionService } from "./composition.service";
 import { ImportService } from "./import.service";
 import { PresentationsService } from "./presentations.service";
@@ -12,7 +13,13 @@ import { ProductsService } from "./products.service";
 @Module({
   imports: [AuditModule, CostModule],
   controllers: [ProductsController],
-  providers: [ProductsService, PresentationsService, CompositionService, ImportService],
+  providers: [
+    ProductsService,
+    PresentationsService,
+    CompositionService,
+    ImportService,
+    BarcodeCatalogService,
+  ],
   // `ImportService` sale del módulo desde F5-CAT-03: el reporte de catálogo
   // reusa su `catalogRows` para que las columnas no diverjan de la plantilla.
   exports: [ProductsService, CompositionService, ImportService],
