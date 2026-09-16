@@ -32,7 +32,7 @@ vi.mock("../lib/inventory/api", () => ({
   removeDocumentLine: vi.fn(),
   confirmDocument: vi.fn(),
   cancelDocument: vi.fn(),
-  downloadDocumentPdf: vi.fn(),
+  printDocumentPdf: vi.fn(),
   listDocuments: vi.fn(),
   createDocument: vi.fn(),
   addDocumentLine: vi.fn(),
@@ -448,26 +448,32 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
     });
   });
 
-  describe("el PDF", () => {
+  describe("el papel", () => {
     /** Carlos (2026-09-02): un borrador no se imprime. El botón ni aparece. */
-    it("en borrador NO hay botón de PDF", async () => {
+    it("en borrador NO hay botón de imprimir", async () => {
       await renderDoc();
       await screen.findByText("PAR-500");
 
-      expect(screen.queryByRole("button", { name: /pdf/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /imprimir/i })).not.toBeInTheDocument();
     });
 
-    it("confirmado, se baja con el folio de nombre", async () => {
+    /**
+     * Carlos (2026-09-15): un movimiento confirmado se imprime para archivarlo,
+     * como la orden de compra y la compra. Y el botón vive UNA vez: antes había
+     * dos «Descargar PDF» iguales, el de la cabecera y el del aviso verde.
+     */
+    it("confirmado, un SOLO botón manda el papel al cuadro de impresión", async () => {
       const user = userEvent.setup();
-      mocked.downloadDocumentPdf.mockResolvedValue(undefined);
+      mocked.printDocumentPdf.mockResolvedValue(undefined);
       mocked.getDocument.mockResolvedValue(detalle({ status: "confirmed" }));
       await renderDoc();
       await screen.findByText("PAR-500");
 
-      await user.click(screen.getByRole("button", { name: /pdf/i }));
+      expect(screen.getAllByRole("button", { name: /imprimir/i })).toHaveLength(1);
+      await user.click(screen.getByRole("button", { name: /imprimir/i }));
 
       await waitFor(() => {
-        expect(mocked.downloadDocumentPdf).toHaveBeenCalledWith("doc-1", "ENT-000042");
+        expect(mocked.printDocumentPdf).toHaveBeenCalledWith("doc-1", "ENT-000042");
       });
     });
   });
@@ -479,8 +485,8 @@ describe("Pantalla del documento (F3-DOC-09)", () => {
       await screen.findByText("PAR-500");
       expect(screen.queryByLabelText(/cantidad/i)).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /confirmar/i })).not.toBeInTheDocument();
-      // Y en un borrador tampoco hay PDF: eso no es un permiso, es el estado.
-      expect(screen.queryByRole("button", { name: /pdf/i })).not.toBeInTheDocument();
+      // Y en un borrador tampoco hay papel: eso no es un permiso, es el estado.
+      expect(screen.queryByRole("button", { name: /imprimir/i })).not.toBeInTheDocument();
     });
   });
 });

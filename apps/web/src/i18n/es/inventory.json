@@ -65,7 +65,7 @@
     "canceled": "Cancelados"
   },
   "document": {
-    "downloadPdf": "Descargar PDF",
+    "print": "Imprimir",
     "openedAt": "Abierto {{date}}",
     "postedAt": "Confirmado {{date}}",
     "canceledAt": "Cancelado {{date}}",

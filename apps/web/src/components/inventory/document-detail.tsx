@@ -36,7 +36,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { AddLineForm } from "./add-line-form";
 import { CountPanel, CountSummary } from "./count-panel";
 import { DocumentHeaderForm } from "./document-header-form";
-import { DownloadDocumentButton } from "./download-document-button";
+import { PrintDocumentButton } from "./print-document-button";
 
 const DEBOUNCE_MS = 400;
 
@@ -209,7 +209,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         <div className="flex items-start gap-2">
           {/* Un borrador no tiene PDF (Carlos, 2026-09-02): el botón ni aparece. */}
           {document.status !== "draft" && (
-            <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+            <PrintDocumentButton documentId={documentId} folio={document.folio} />
           )}
           {puedeConfirmar && (
             <>
@@ -260,9 +260,9 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                 {t("inventory.document.goToTransfers")}
               </Link>
             )}
-            {/* Sin gate por estado: este panel SOLO existe tras confirmar, y el
-                detalle puede tardar un instante en refrescar a «confirmado». */}
-            <DownloadDocumentButton documentId={documentId} folio={document.folio} />
+            {/* El botón de imprimir vive UNA vez, en la cabecera (Carlos,
+                2026-09-15): repetirlo acá daba dos botones iguales a un palmo
+                de distancia y ninguno decía por qué eran dos. */}
           </div>
         </div>
       )}

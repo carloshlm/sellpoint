@@ -33,7 +33,7 @@ vi.mock("../lib/inventory/api", () => ({
   removeDocumentLine: vi.fn(),
   confirmDocument: vi.fn(),
   cancelDocument: vi.fn(),
-  downloadDocumentPdf: vi.fn(),
+  printDocumentPdf: vi.fn(),
   downloadCountTemplate: vi.fn(),
   listDocuments: vi.fn(),
   listExpiring: vi.fn(),

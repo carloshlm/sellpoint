@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { descargarBlob, nombreDeDescarga } from "@/lib/download";
+import { descargarBlob, imprimirPdf, nombreDeDescarga } from "@/lib/download";
 import type {
   DocumentDetail,
   DocumentPage,
@@ -110,16 +110,20 @@ export async function importDocumentLines(
 }
 
 /**
- * Baja el PDF. Con axios y `responseType: 'blob'` —no con un `<a href>`—
- * porque el endpoint exige el Bearer y un link plano iría sin token: mismo
- * motivo que `downloadImportTemplate` de productos.
+ * F3-DOC-09 — el papel de un movimiento, DIRECTO al cuadro de impresión
+ * (Carlos, 2026-09-15): es lo que hacen la orden de compra y la compra, y lo
+ * que se quiere hacer con una entrada recién confirmada — llevarla al archivo
+ * en papel. Bajar el archivo y buscarlo en Descargas era un paso de más.
+ *
+ * Va por axios con `responseType: 'blob'` y no por un `<a href>`: el endpoint
+ * exige el Bearer y un link plano iría sin token, con un 401 sin explicación.
  */
-export async function downloadDocumentPdf(id: string, folio: string): Promise<void> {
+export async function printDocumentPdf(id: string, folio: string): Promise<void> {
   const { data } = await api.get<Blob>(`/inventory/documents/${id}/pdf`, {
     responseType: "blob",
   });
 
-  await descargarBlob(data, `${folio}.pdf`);
+  imprimirPdf(data, `${folio}.pdf`);
 }
 
 /**

@@ -31,7 +31,7 @@ vi.mock("../lib/inventory/api", () => ({
   removeDocumentLine: vi.fn(),
   confirmDocument: vi.fn(),
   cancelDocument: vi.fn(),
-  downloadDocumentPdf: vi.fn(),
+  printDocumentPdf: vi.fn(),
   listDocuments: vi.fn(),
   createDocument: vi.fn(),
   addDocumentLine: vi.fn(),
@@ -721,11 +721,20 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
   });
 
   describe("el panel de éxito", () => {
-    it("tras confirmar muestra el folio y deja bajar el PDF", async () => {
+    /**
+     * Carlos (2026-09-15): el aviso verde ya no repite el botón. Imprimir vive
+     * UNA vez, en la cabecera, como en la orden de compra y en la compra.
+     */
+    it("tras confirmar muestra el folio, y el botón de imprimir es UNO y está en la cabecera", async () => {
       const user = userEvent.setup();
       mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "invoice", reference: "F-8891" }));
-      mocked.confirmDocument.mockResolvedValue({
-        document: detalle({ status: "confirmed", reasonCode: "invoice" }),
+      mocked.confirmDocument.mockImplementation(async () => {
+        // Como el servidor real: tras confirmar, la consulta del documento ya
+        // lo devuelve confirmado, y la cabecera puede ofrecer su papel.
+        mocked.getDocument.mockResolvedValue(
+          detalle({ status: "confirmed", reasonCode: "invoice" }),
+        );
+        return { document: detalle({ status: "confirmed", reasonCode: "invoice" }) };
       });
       await renderDoc();
       await screen.findByText("PAR-500");
@@ -736,7 +745,8 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       const panel = await screen.findByRole("status");
 
       expect(within(panel).getByText(/ENT-000042/)).toBeInTheDocument();
-      expect(within(panel).getByRole("button", { name: /pdf/i })).toBeInTheDocument();
+      expect(within(panel).queryByRole("button", { name: /imprimir/i })).not.toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /imprimir/i })).toHaveLength(1);
     });
   });
 });

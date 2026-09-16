@@ -65,7 +65,7 @@
     "canceled": "Voided"
   },
   "document": {
-    "downloadPdf": "Download PDF",
+    "print": "Print",
     "openedAt": "Opened {{date}}",
     "postedAt": "Confirmed {{date}}",
     "canceledAt": "Canceled {{date}}",
