@@ -295,8 +295,12 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       // Food Facts solo tiene en francés. Se sugiere igual —con la marca al
       // lado alcanza para reconocer la botella— pero se dice en qué idioma
       // está, en vez de disfrazarlo de sugerencia como cualquier otra.
+      // Truthy y no `!== null`: un borrador guardado por una versión anterior
+      // puede traer el campo ausente, y `undefined !== null` es verdadero.
+      // La versión del store descarta esos borradores, pero el cinturón vale:
+      // una insignia vacía es peor que no tener insignia.
       const otroIdioma =
-        linea.nameLang !== null && linea.nameLang !== idiomaDelUsuario ? linea.nameLang : null;
+        linea.nameLang && linea.nameLang !== idiomaDelUsuario ? linea.nameLang : null;
       if (otroIdioma !== null) {
         return (
           <Badge variant="warning">

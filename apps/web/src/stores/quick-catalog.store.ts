@@ -41,8 +41,16 @@ export interface QuickLine {
  */
 export const QUICK_MAX_LINES = QUICK_ADD_MAX_LINES;
 
-/** La versión de la FORMA del borrador. Ver `migrate`. */
-const VERSION = 1;
+/**
+ * La versión de la FORMA del borrador. Ver `migrate`.
+ *
+ * **Agregar un campo a `QuickLine` ES un cambio de forma.** La 2 salió de
+ * olvidarlo: `nameLang` se sumó sin subir la versión, un borrador guardado
+ * antes revivió sin ese campo, y como el guardia comparaba contra `null` y lo
+ * que había era `undefined`, la insignia se pintó vacía — «Nombre en » sin
+ * idioma. El síntoma no se parecía en nada a la causa.
+ */
+const VERSION = 2;
 
 interface QuickCatalogState {
   /**

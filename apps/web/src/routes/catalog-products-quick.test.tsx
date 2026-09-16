@@ -196,6 +196,37 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(screen.getByText("Se sumará al catálogo compartido")).toBeInTheDocument();
   });
 
+  /**
+   * El defecto que costó una insignia vacía en pantalla: `nameLang` se agregó
+   * a `QuickLine` sin subir la versión del borrador, un borrador guardado
+   * antes revivió sin ese campo, y el guardia comparaba contra `null` cuando
+   * lo que había era `undefined`. Resultado: «Nombre en » sin idioma.
+   */
+  it("una línea guardada SIN el campo del idioma no pinta una insignia vacía", async () => {
+    useQuickCatalogStore.setState({
+      owner: `${USUARIO.tenant.id}:${USUARIO.id}`,
+      lines: [
+        // A propósito sin `nameLang`: así quedaban las líneas de la versión
+        // anterior del borrador.
+        {
+          code: "7501008042984",
+          status: "known",
+          name: "Zucaritas",
+          price: "19",
+          brand: "Kellogg's",
+          contributable: false,
+        } as unknown as ReturnType<typeof useQuickCatalogStore.getState>["lines"][number],
+      ],
+      storageFailed: false,
+    });
+
+    await abrir();
+
+    expect(await screen.findByDisplayValue("Zucaritas")).toBeInTheDocument();
+    expect(screen.getByText("Nombre sugerido")).toBeInTheDocument();
+    expect(screen.queryByText(/Nombre en\s*$/)).not.toBeInTheDocument();
+  });
+
   it("el mismo código dos veces NO duplica la línea", async () => {
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
     const user = await abrir();
