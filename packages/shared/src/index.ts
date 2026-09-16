@@ -8,6 +8,7 @@ export * from "./decimal-text";
 export * from "./discount";
 export * from "./document-date";
 export * from "./expenses";
+export * from "./gtin";
 export * from "./i18n";
 export * from "./icd10";
 export * from "./inventory";
