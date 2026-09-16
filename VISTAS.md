@@ -682,7 +682,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 | El mismo código dos veces no duplica | Lleva el foco a su precio: volver a escanear es corregir, no agregar |
 | Los faltantes se marcan recién al intentar dar de alta | Una línea recién escaneada no está mal; pintar rojo mientras se escanea entrena a ignorarlo |
 
-**Estados de línea:** buscando · nombre sugerido (del catálogo global, editable) · **ya lo tienes** (nombre de solo lectura, solo el precio se edita, y al guardar **solo se actualiza el precio**) · nuevo para todos · no se pudo consultar.
+**Estados de línea:** buscando · nombre sugerido (del catálogo global, editable) · **nombre en {idioma}** · **ya lo tienes** (nombre de solo lectura, solo el precio se edita, y al guardar **solo se actualiza el precio**) · nuevo para todos · no se pudo consultar.
+
+> **El idioma del nombre (F10-LANG, 2026-09-16).** El catálogo global guarda el nombre en español y en inglés cuando Open Food Facts los tiene, y la consulta elige el del usuario. Cuando solo existe en otro idioma —pasa con dos de cada tres productos canadienses, que solo están en francés— **se sugiere igual, y la insignia lo dice**: «Nombre en francés» en vez de «Nombre sugerido». Con la marca al lado alcanza para reconocer el producto que se tiene en la mano; lo que no se hace es disfrazarlo de sugerencia como cualquier otra. En cuanto la persona reescribe el nombre, el aviso desaparece: lo que hay ahora lo escribió ella, en el suyo — **y ese nombre llena la casilla vacía del catálogo compartido**, así que el siguiente negocio en ese idioma ya lo encuentra bien.
 
 **El borrador vive en el navegador** (`sellpoint.quickCatalog`), sobrevive a salir de la pantalla y a recargar, y está sellado con `tenantId:userId`: un mostrador con dos cuentas no da de alta el catálogo del vecino. Tope de 100 líneas, el mismo del API.
 

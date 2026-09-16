@@ -204,6 +204,65 @@ no de un pie de página genérico.
 
 ---
 
+## 6.5 El idioma del nombre (F10-LANG, 2026-09-16)
+
+Carlos escaneó una botella de aceite de oliva en Canadá y la pantalla le
+sugirió **«Huile d'olive vierge extra»**. En la etiqueta, en letras grandes,
+dice **«Extra Virgin Olive Oil»**.
+
+**La causa estaba en el volcado, no en el código.** El CSV
+`en.openfoodfacts.org.products.csv.gz` tiene exactamente tres campos de nombre
+—`product_name`, `abbreviated_product_name` y `generic_name`— y **ninguno por
+idioma**. `product_name` es el nombre en el idioma de quien cargó el producto,
+que no tiene por qué ser el del mercado donde se vende. Ese aceite es tunecino
+(prefijo 619), entró por el volcado canadiense y lo había cargado alguien de
+Quebec.
+
+El volcado **JSONL** sí publica `lang`, `product_name_en`, `product_name_fr` y
+`product_name_es`. Ese mismo producto tiene los dos nombres allá. Desde
+F10-LANG el sembrador lee el JSONL.
+
+| | CSV | JSONL |
+|---|---|---|
+| Tamaño | 1.2 GB | **12.9 GB** |
+| Campos de nombre | 1, sin idioma | uno por idioma, más `lang` |
+| País de venta | `countries_en` («Canada, France») | `countries_tags` (`en:canada`) |
+
+**Se transmite y nunca se guarda.** 12.9 GB no caben cómodos en el disco de un
+portátil, y no hace falta: `gzip.open` sobre la respuesta HTTP descomprime al
+vuelo, línea a línea, y solo se escribe el CSV de salida (unos 30 MB). A
+15 MB/s cada región tarda unos 15 minutos de red.
+
+**Solo dos columnas de idioma, y es a propósito.** `name_es` y `name_en` son
+los dos idiomas que habla SellPointy, o sea los dos únicos en los que una
+sugerencia puede llegarle al usuario *en su idioma*. El francés, el portugués y
+los demás viajan en `product_name` con `name_lang` diciendo cuál es — que es
+exactamente lo que la pantalla necesita para marcarlos («Nombre en francés» en
+vez de «Nombre sugerido»). Una columna `name_fr` sería una columna que nadie
+consulta.
+
+**Cuánto arregla, medido sobre el volcado real** (2,056 productos canadienses):
+
+| | |
+|---|---|
+| Con nombre en inglés | 1,139 |
+| Con nombre en francés | 907 |
+| De esos 907, **con el inglés también disponible** | **329 (36%)** |
+
+Los otros 578 no tienen nombre en inglés en ningún lado, y eso no lo resuelve
+ningún cambio de código. Los va a teclear el negocio que los venda — ver §7.
+
+**Una guarda que se escribió y se quitó.** Descartaba el nombre traducido
+cuando medía menos del 60% del original, para atajar un caso real: un producto
+cuyo `product_name` era «Salt and pepper calamari» y cuyo `product_name_en` era
+«calmar». Se quitó porque tiraba traducciones **correctas**: «Boulettes de
+viande à la suédoise» traduce a «Swedish Meatballs», que mide la mitad y es
+perfecto. Entre confiar en el campo que el propio volcado etiquetó con el
+idioma y confiar en una regla de longitud, gana el campo. El ruido de Open Food
+Facts se corrige por el otro lado: el negocio edita la sugerencia.
+
+---
+
 ## 7. Cómo se llena solo
 
 **Implementado en F10-QUICKCAT (2026-09-16).** La primera —y hasta hoy única—
@@ -227,13 +286,19 @@ los valores que decide el Python.
 
 **Reglas:**
 
-- Se **sugiere**, nunca se autocompleta en silencio. El nombre llega editable.
+- Se **sugiere**, nunca se autocompleta en silencio. El nombre llega editable, y
+  con el IDIOMA en el que está: si no es el del negocio, la línea lo dice.
 - Si el negocio teclea el nombre de un código desconocido, se inserta con
-  `source = 'tenant_contributed'`, `confirmations = 1` y el sello de quién lo
-  aportó (`contributed_by_tenant_id`).
-- **Solo se inserta. Un registro existente NUNCA se edita** — ni su nombre, ni
-  su marca, ni su contador (regla de Carlos). El `ON CONFLICT DO NOTHING` es
-  esa regla escrita en SQL.
+  `source = 'tenant_contributed'`, `confirmations = 1`, el sello de quién lo
+  aportó (`contributed_by_tenant_id`) y el nombre en la casilla de **su**
+  idioma.
+- **Nunca se edita una casilla que ya tenga algo** — ni el nombre, ni la marca,
+  ni el contador. Desde F10-LANG la regla de Carlos se mudó de nivel: de la
+  FILA a la CASILLA. Una casilla de idioma **vacía** sí se llena, y ese es el
+  camino que más vale de todo el módulo: de los productos canadienses en
+  francés, dos tercios no tienen inglés en Open Food Facts, y los teclea el
+  negocio que los vende. Sin esto, ese trabajo se quedaba en su catálogo
+  privado y el siguiente negocio volvía a ver el francés.
 - El filtro de lo que nunca entra **es el JOIN contra `gs1_prefix_ranges`, no
   un `if`**: así ningún llamador futuro puede olvidarse de aplicarlo. Quedan
   fuera los rangos de circulación restringida, cupones, ISBN/ISSN y RCN-8.
@@ -344,6 +409,9 @@ Cosas que ya costaron un rato y no hay que volver a descubrir:
 | `COPY` directo a la tabla final | No sabe de conflictos y muere con el primer GTIN repetido. Va a una tabla temporal y de ahí un `INSERT ... ON CONFLICT DO NOTHING` |
 | Poner `DEFAULT` a `updated_at` | La convención del repo lo deja sin default (lo pone Prisma con `@updatedAt`). Ponérselo crea deriva contra el schema; las cargas deben escribir `now()` explícito |
 | Acceder al CSV por posición de columna | El orden ha cambiado entre versiones del volcado. Siempre por nombre (`DictReader`) |
+| Creer que `product_name` está en el idioma del mercado | **No lo está.** Es el idioma de quien cargó el producto. Un aceite vendido en Canadá llegó en francés durante un mes. El CSV no publica los nombres por idioma; el JSONL sí (§6.5) |
+| Buscar `countries_en` en el JSONL | No existe. El JSONL trae `countries_tags` con etiquetas normalizadas y prefijo de idioma (`en:canada`), no el texto libre del CSV |
+| Filtrar el idioma con la API de búsqueda de Open Food Facts | `?lang=fr` y `?lang=en` devuelven **el mismo `count`**: el filtro se ignora en silencio. Para medir idiomas hay que mirar el volcado |
 
 ---
 
