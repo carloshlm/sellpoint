@@ -133,6 +133,19 @@ def etiqueta_de_pais(nombre_en: str) -> str:
     return nombre_en.lower().replace(" ", "-")
 
 
+def idioma_de(fila: dict) -> str:
+    """El idioma de `product_name`, en ISO 639-1, o cadena vacía.
+
+    Se valida la FORMA aquí y no solo en la base: la columna tiene un CHECK de
+    dos letras minúsculas, y un `lang` raro del volcado —vacío, «zh-CN», una
+    sola letra— haría rebotar el INSERT y tiraría abajo una carga de 110,000
+    filas que tardó quince minutos en generarse. El idioma es un dato para
+    MOSTRAR: si viene mal, se pierde esa etiqueta, no la fila entera.
+    """
+    crudo = (fila.get("lang") or "").strip().lower()[:2]
+    return crudo if len(crudo) == 2 and crudo.isascii() and crudo.isalpha() else ""
+
+
 def nombre_en_idioma(fila: dict, idioma: str) -> str:
     """El nombre del producto en `idioma`, o cadena vacía si no lo hay.
 
@@ -226,7 +239,7 @@ def leer_productos(quiero: set[str], volcado: Path | None = None,
                 nombre_en_idioma(fila, "en"),
                 # El idioma de `nombre`. Es lo que deja a la pantalla decir
                 # «Nombre en francés» en vez de disimularlo.
-                (fila.get("lang") or "").lower()[:2],
+                idioma_de(fila),
                 recortar(fila.get("brands") or "", 120),
                 recortar(fila.get("quantity") or "", 60),
                 pais,
