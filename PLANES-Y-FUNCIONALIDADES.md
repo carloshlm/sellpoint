@@ -61,13 +61,13 @@ Es la lista comercial que Carlos cerró el 2026-09-15, en el orden en que la ven
 | Cotizaciones | — | — | ✅ | ✅ | ✅ |
 | Productos compuestos: recetas y kits | — | — | ✅ | ✅ | ✅ |
 | **Compras** (módulo: la compra directa con factura) | — | — | ✅ | ✅ | ✅ |
+| Órdenes de compra y recepciones parciales | — | — | — | ✅ | ✅ |
 | Lotes y caducidades | — | — | — | ✅ | ✅ |
 | Subcatálogos y campos propios | — | — | — | ✅ | ✅ |
 | Roles personalizados | — | — | — | ✅ | ✅ |
-| Órdenes de compra y recepciones parciales | — | — | — | ✅ | ✅ |
-| Módulos a la medida de tu giro (Recepción, Consultorio médico…) | — | — | — | — | ✅ pactado |
+| Módulos a la medida de tu negocio (Recepción, Consultorio médico…) | — | — | — | — | ✅ pactado |
 
-Turno de caja y ticket con logo no suben de plan: se listan porque son argumento de venta y hasta el 2026-09-15 no se decían. Las órdenes de compra dejaron de ir dentro de Compras: son el escalón de Plus (flag `purchase_orders`, en AND con el módulo).
+Turno de caja y ticket con logo no suben de plan: se listan porque son argumento de venta y hasta el 2026-09-15 no se decían. Las órdenes de compra dejaron de ir dentro de Compras: son el escalón de Plus (flag `purchase_orders`, en AND con el módulo), y se listan PEGADAS a Compras aunque rompan la escalera — se leen juntas (Carlos, 2026-09-15).
 
 **Cómo funcionan los módulos.** Hay dos clases:
 

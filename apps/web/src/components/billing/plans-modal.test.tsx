@@ -221,11 +221,11 @@ describe("el listado de lo que incluye cada plan", () => {
         "—Cotizaciones",
         "—Productos compuestos: recetas y kits",
         "—Compras",
+        "—Órdenes de compra y recepciones parciales",
         "—Lotes y caducidades",
         "—Subcatálogos y campos propios",
         "—Roles personalizados",
-        "—Órdenes de compra y recepciones parciales",
-        "—Módulos a la medida de tu giro",
+        "—Módulos a la medida de tu negocio",
       ]);
     });
 

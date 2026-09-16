@@ -68,10 +68,13 @@ const LINEAS: readonly Linea[] = [
   { key: "quotes", kind: "feature" },
   { key: "compositions", kind: "feature" },
   { key: "purchases", kind: "module" },
+  // Carlos (2026-09-15): las órdenes van PEGADAS a Compras aunque sean de un
+  // plan más alto. Se leen juntas —comprar y planear la compra— y separarlas
+  // por el escalón obligaba a buscar la segunda seis renglones más abajo.
+  { key: "purchase_orders", kind: "feature" },
   { key: "lots", kind: "feature" },
   { key: "custom_fields", kind: "feature" },
   { key: "custom_roles", kind: "feature" },
-  { key: "purchase_orders", kind: "feature" },
   { key: "custom_modules", kind: "premium" },
 ];
 

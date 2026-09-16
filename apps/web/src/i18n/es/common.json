@@ -524,7 +524,7 @@
       "custom_fields": "Subcatálogos y campos propios",
       "custom_roles": "Roles personalizados",
       "purchase_orders": "Órdenes de compra y recepciones parciales",
-      "custom_modules": "Módulos a la medida de tu giro"
+      "custom_modules": "Módulos a la medida de tu negocio"
     },
     "gate": {
       "title": "{{feature}} no está en tu plan",
