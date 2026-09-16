@@ -198,3 +198,48 @@ export async function getCostEstimate(productId: string): Promise<CostEstimate> 
   const { data } = await api.get<CostEstimate>(`/products/${productId}/cost-estimate`);
   return data;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// F10-QUICKCAT — la carga rápida
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Espejo de `BarcodeLookupResult` (apps/api/src/modules/products). */
+export interface BarcodeLookup {
+  /**
+   * `tenant`: el negocio ya lo tiene · `global`: lo conoce el catálogo
+   * compartido · `unknown`: nadie lo conoce todavía.
+   */
+  status: "tenant" | "global" | "unknown";
+  /** El código con el que hay que dar de alta, ya limpio si es un GTIN. */
+  code: string;
+  gtin14: string | null;
+  tenant: {
+    productId: string;
+    presentationId: string;
+    sku: string;
+    name: string;
+    price: string | null;
+  } | null;
+  global: { name: string; brand: string | null; unitSize: string | null } | null;
+  contributable: boolean;
+}
+
+export async function lookupBarcode(code: string): Promise<BarcodeLookup> {
+  const { data } = await api.get<BarcodeLookup>("/products/barcode-lookup", { params: { code } });
+  return data;
+}
+
+export interface QuickAddInput {
+  lines: { code: string; name: string; price: number }[];
+}
+
+export interface QuickAddReport {
+  created: number;
+  updated: number;
+  contributed: number;
+}
+
+export async function quickAddProducts(input: QuickAddInput): Promise<QuickAddReport> {
+  const { data } = await api.post<QuickAddReport>("/products/quick", input);
+  return data;
+}

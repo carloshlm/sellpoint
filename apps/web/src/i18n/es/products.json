@@ -116,6 +116,44 @@
     "doneBreakdown": "{{created}} nuevos · {{updated}} actualizados",
     "close": "Cerrar"
   },
+  "quick": {
+    "open": "Carga rápida",
+    "title": "Carga rápida",
+    "cardTitle": "Escanea, pon el precio y da de alta",
+    "back": "Volver a Productos",
+    "scanLabel": "Código de barras",
+    "scanPlaceholder": "Escanea o teclea el código y presiona Enter",
+    "scanHint": "Cada código agrega una línea. En el precio, Enter te devuelve aquí para el siguiente.",
+    "empty": "Todavía no escaneas nada. El primer código abre la lista.",
+    "namePlaceholder": "Escribe el nombre del producto",
+    "columns": {
+      "code": "Código",
+      "name": "Nombre del producto",
+      "price": "Precio de venta"
+    },
+    "status": {
+      "searching": "Buscando…",
+      "known": "Nombre sugerido",
+      "owned": "Ya lo tienes",
+      "new": "Nuevo para todos",
+      "failed": "No se pudo consultar"
+    },
+    "willContribute": "Se sumará al catálogo compartido",
+    "alreadyInDraft": "El código {{code}} ya está en la lista. Te llevamos a su precio.",
+    "tooManyLines": "Llegaste al máximo de {{max}} líneas. Da de alta estas y sigue con las siguientes.",
+    "nameRequired": "Escribe el nombre del producto.",
+    "priceRequired": "Escribe el precio de venta.",
+    "stillSearching": "Espera a que terminen las consultas en curso.",
+    "fixLines": "Revisa las líneas marcadas antes de dar de alta.",
+    "saveFailed": "No pudimos dar de alta los productos. Intenta de nuevo.",
+    "saved": "Listo: {{created}} productos nuevos y {{updated}} con precio actualizado.",
+    "submit": "Dar de alta {{count}} productos",
+    "discard": "Descartar la lista",
+    "counter": "{{count}} de {{max}} líneas",
+    "removeLine": "Quitar la línea del código {{code}}",
+    "storageFailed": "Tu navegador no deja guardar la lista. Sigue aquí mientras no cierres la pantalla, pero no sobrevive a una recarga.",
+    "attribution": "Los nombres sugeridos provienen de Open Food Facts, bajo licencia ODbL."
+  },
   "removeDialog": {
     "title": "Eliminar producto",
     "body": "Vas a eliminar «{{name}}» con todas sus presentaciones, códigos de barras y su composición. Esta acción no se puede deshacer.",

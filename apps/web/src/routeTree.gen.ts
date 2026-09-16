@@ -61,6 +61,7 @@ import { Route as SystemRolesRouteImport } from './routes/system.roles'
 import { Route as SystemUsersRouteImport } from './routes/system.users'
 import { Route as AdminTenantsIndexRouteImport } from './routes/admin.tenants.index'
 import { Route as AdminTenantsTenantIdRouteImport } from './routes/admin.tenants.$tenantId'
+import { Route as CatalogProductsQuickRouteImport } from './routes/catalog.products_.quick'
 import { Route as MedicalClinicPatientsNewRouteImport } from './routes/medical-clinic.patients.new'
 import { Route as MedicalClinicRecordsIndexRouteImport } from './routes/medical-clinic.records.index'
 import { Route as MovementsDocumentsDocumentIdRouteImport } from './routes/movements.documents.$documentId'
@@ -337,6 +338,11 @@ const AdminTenantsTenantIdRoute = AdminTenantsTenantIdRouteImport.update({
   path: '/admin/tenants/$tenantId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CatalogProductsQuickRoute = CatalogProductsQuickRouteImport.update({
+  id: '/catalog/products_/quick',
+  path: '/catalog/products/quick',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MedicalClinicPatientsNewRoute =
   MedicalClinicPatientsNewRouteImport.update({
     id: '/medical-clinic/patients/new',
@@ -470,6 +476,7 @@ export interface FileRoutesByFullPath {
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
+  '/catalog/products/quick': typeof CatalogProductsQuickRoute
   '/medical-clinic/patients/new': typeof MedicalClinicPatientsNewRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
@@ -538,6 +545,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsIndexRoute
   '/suppliers': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
+  '/catalog/products/quick': typeof CatalogProductsQuickRoute
   '/medical-clinic/patients/new': typeof MedicalClinicPatientsNewRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
@@ -607,6 +615,7 @@ export interface FileRoutesById {
   '/reports/': typeof ReportsIndexRoute
   '/suppliers/': typeof SuppliersIndexRoute
   '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
+  '/catalog/products_/quick': typeof CatalogProductsQuickRoute
   '/medical-clinic/patients/new': typeof MedicalClinicPatientsNewRoute
   '/movements/documents/$documentId': typeof MovementsDocumentsDocumentIdRoute
   '/pos/quotes/new': typeof PosQuotesNewRoute
@@ -677,6 +686,7 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/suppliers/'
     | '/admin/tenants/$tenantId'
+    | '/catalog/products/quick'
     | '/medical-clinic/patients/new'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
@@ -745,6 +755,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/suppliers'
     | '/admin/tenants/$tenantId'
+    | '/catalog/products/quick'
     | '/medical-clinic/patients/new'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
@@ -813,6 +824,7 @@ export interface FileRouteTypes {
     | '/reports/'
     | '/suppliers/'
     | '/admin/tenants/$tenantId'
+    | '/catalog/products_/quick'
     | '/medical-clinic/patients/new'
     | '/movements/documents/$documentId'
     | '/pos/quotes/new'
@@ -882,6 +894,7 @@ export interface RootRouteChildren {
   ReportsIndexRoute: typeof ReportsIndexRoute
   SuppliersIndexRoute: typeof SuppliersIndexRoute
   AdminTenantsTenantIdRoute: typeof AdminTenantsTenantIdRoute
+  CatalogProductsQuickRoute: typeof CatalogProductsQuickRoute
   MedicalClinicPatientsNewRoute: typeof MedicalClinicPatientsNewRoute
   MovementsDocumentsDocumentIdRoute: typeof MovementsDocumentsDocumentIdRoute
   PosQuotesNewRoute: typeof PosQuotesNewRoute
@@ -1265,6 +1278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTenantsTenantIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/catalog/products_/quick': {
+      id: '/catalog/products_/quick'
+      path: '/catalog/products/quick'
+      fullPath: '/catalog/products/quick'
+      preLoaderRoute: typeof CatalogProductsQuickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/medical-clinic/patients/new': {
       id: '/medical-clinic/patients/new'
       path: '/medical-clinic/patients/new'
@@ -1418,6 +1438,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsIndexRoute: ReportsIndexRoute,
   SuppliersIndexRoute: SuppliersIndexRoute,
   AdminTenantsTenantIdRoute: AdminTenantsTenantIdRoute,
+  CatalogProductsQuickRoute: CatalogProductsQuickRoute,
   MedicalClinicPatientsNewRoute: MedicalClinicPatientsNewRoute,
   MovementsDocumentsDocumentIdRoute: MovementsDocumentsDocumentIdRoute,
   PosQuotesNewRoute: PosQuotesNewRoute,

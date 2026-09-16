@@ -19,6 +19,9 @@ import {
   type Presentation,
   type ProductDetail,
   type ProductPage,
+  type QuickAddInput,
+  type QuickAddReport,
+  quickAddProducts,
   replaceComposition,
   type UpsertPresentationInput,
   type UpsertProductInput,
@@ -161,5 +164,22 @@ export function useCostEstimate(productId: string | undefined, enabled = true) {
     queryKey: ["products", productId ?? "", "cost-estimate"],
     queryFn: () => getCostEstimate(productId as string),
     enabled: Boolean(productId) && enabled,
+  });
+}
+
+/**
+ * F10-QUICKCAT — el alta en lote de la carga rápida.
+ *
+ * Invalida el catálogo entero porque el lote pudo crear decenas de productos y
+ * actualizar el precio de otros tantos: reconciliar fila por fila sería más
+ * código para el mismo resultado.
+ */
+export function useQuickAddProducts() {
+  const queryClient = useQueryClient();
+  return useMutation<QuickAddReport, ApiError, QuickAddInput>({
+    mutationFn: quickAddProducts,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+    },
   });
 }

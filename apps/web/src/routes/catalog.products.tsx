@@ -165,6 +165,13 @@ function ProductsContent() {
             <Button variant="outline" onClick={() => setImporting(true)}>
               {t("products.import.open")}
             </Button>
+            {/* F10-QUICKCAT-07 — entre «Importar» y «Nuevo producto» porque
+                ese es su lugar en la escala: la planilla para un catálogo que
+                ya existe en Excel, el formulario para un producto suelto, y
+                esta para el anaquel que hay que escanear. */}
+            <Button variant="outline" onClick={() => navigate({ to: "/catalog/products/quick" })}>
+              {t("products.quick.open")}
+            </Button>
             <Button onClick={() => setCreating(true)}>{t("products.add")}</Button>
           </div>
         )}

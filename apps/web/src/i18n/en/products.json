@@ -116,6 +116,44 @@
     "doneBreakdown": "{{created}} new · {{updated}} updated",
     "close": "Close"
   },
+  "quick": {
+    "open": "Quick load",
+    "title": "Quick load",
+    "cardTitle": "Scan it, price it, add it",
+    "back": "Back to Products",
+    "scanLabel": "Barcode",
+    "scanPlaceholder": "Scan or type the code and press Enter",
+    "scanHint": "Each code adds a line. From the price field, Enter brings you back here for the next one.",
+    "empty": "Nothing scanned yet. The first code opens the list.",
+    "namePlaceholder": "Type the product name",
+    "columns": {
+      "code": "Code",
+      "name": "Product name",
+      "price": "Price"
+    },
+    "status": {
+      "searching": "Looking up…",
+      "known": "Suggested name",
+      "owned": "You already have it",
+      "new": "New to everyone",
+      "failed": "Lookup failed"
+    },
+    "willContribute": "Will be added to the shared catalog",
+    "alreadyInDraft": "Code {{code}} is already on the list. We took you to its price.",
+    "tooManyLines": "You reached the limit of {{max}} lines. Add these and continue with the next ones.",
+    "nameRequired": "Type the product name.",
+    "priceRequired": "Type the price.",
+    "stillSearching": "Wait for the lookups in progress to finish.",
+    "fixLines": "Check the highlighted lines before adding them.",
+    "saveFailed": "We couldn't add the products. Please try again.",
+    "saved": "Done: {{created}} new products and {{updated}} with an updated price.",
+    "submit": "Add {{count}} products",
+    "discard": "Discard the list",
+    "counter": "{{count}} of {{max}} lines",
+    "removeLine": "Remove the line for code {{code}}",
+    "storageFailed": "Your browser won't let us save the list. It stays here while this screen is open, but it won't survive a reload.",
+    "attribution": "Suggested names come from Open Food Facts, under the ODbL license."
+  },
   "removeDialog": {
     "title": "Delete product",
     "body": "You are about to delete \"{{name}}\" with all its presentations, barcodes and composition. This can not be undone.",

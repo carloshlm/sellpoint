@@ -87,3 +87,32 @@ export function describeLineIssues(
     )
     .join("\n");
 }
+
+/**
+ * Los errores del 422 de la carga rápida, indexados por CÓDIGO DE BARRAS.
+ *
+ * Por código y no por número de línea a propósito: en esa pantalla la fila
+ * nueva se pinta ARRIBA, así que el índice visual no coincide con el del
+ * envío. El código de barras sí es la identidad de la fila, y no cambia
+ * porque alguien quite un renglón de en medio.
+ *
+ * Mismo molde tolerante que `fieldErrorsOf`: una respuesta sin `errors`
+ * —un 500, un 409 de negocio— devuelve vacío y el mensaje general basta.
+ */
+export function quickLineErrorsOf(error: ApiError): Map<string, string> {
+  const crudo = (error as unknown as { errors?: unknown }).errors;
+  const encontrados = new Map<string, string>();
+  if (!Array.isArray(crudo)) {
+    return encontrados;
+  }
+  for (const entrada of crudo) {
+    if (entrada === null || typeof entrada !== "object") {
+      continue;
+    }
+    const { itemCode, message } = entrada as { itemCode?: unknown; message?: unknown };
+    if (typeof itemCode === "string" && itemCode && typeof message === "string" && message) {
+      encontrados.set(itemCode, message);
+    }
+  }
+  return encontrados;
+}
