@@ -2991,9 +2991,22 @@ model GlobalBarcodeCatalog {
   source       String   @db.VarChar(24)
   /// Cuántos tenants DISTINTOS confirmaron este nombre: la señal de calidad.
   confirmations Int     @default(0)
+  /// F10-QUICKCAT-03 — qué negocio aportó este código, cuando `source` es
+  /// 'tenant_contributed'. El CHECK que exige el sello vive en la migración.
+  ///
+  /// NO se llama `tenant_id` a propósito: `purge_tenant` borra en caliente de
+  /// toda tabla base que tenga una columna con ese nombre, y eliminar un
+  /// negocio se llevaría filas del catálogo que usan todos los demás. Tampoco
+  /// lleva llave foránea: es procedencia para auditar, no una relación que se
+  /// recorra, y una purga no puede quedar bloqueada por el catálogo compartido.
+  contributedByTenantId String?   @map("contributed_by_tenant_id") @db.Uuid
+  contributedAt         DateTime? @map("contributed_at") @db.Timestamptz(6)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // El índice de `contributed_by_tenant_id` es PARCIAL (solo las filas con
+  // sello) y vive en la migración: de 953,969 filas casi ninguna lo tiene, y
+  // Prisma no sabe declarar índices parciales.
   @@map("global_barcode_catalog")
 }
 
