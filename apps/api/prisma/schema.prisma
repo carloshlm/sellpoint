@@ -2943,3 +2943,74 @@ model MedicalClinicSettings {
 
   @@map("medical_clinic_settings")
 }
+
+/// Catálogo GLOBAL de códigos de barras: GTIN → nombre del producto. Sin
+/// tenant y sin RLS, como `permissions` y el catálogo CIE-10 — un código de
+/// barras significa lo mismo en todos los negocios. Lo que SÍ es de cada
+/// tenant (su precio, su existencia) sigue en `product_presentations`.
+///
+/// Sirve para SUGERIR el nombre al dar de alta un producto: el cajero escanea
+/// y no teclea. Sugiere, no autocompleta en silencio — el tenant confirma, y
+/// esa confirmación sube `confirmations`. Un nombre que confirmaron 40
+/// negocios vale más que cualquier base de pago.
+///
+/// La clave es el GTIN-14, no el código tal como se escaneó: el mismo
+/// producto llega como UPC-A de 12 desde un lector y como EAN-13 con cero al
+/// frente desde otro. Rellenar a 14 los vuelve una sola clave. La
+/// normalización y el dígito verificador viven en
+/// prisma/seed/barcode-catalog/gtin.py.
+///
+/// Los CHECK de formato del GTIN, de `source` y de `confirmations >= 0` viven
+/// en la migración. Los datos entran por región, en migraciones generadas por
+/// prisma/seed/barcode-catalog/build-migration.py; sumar Estados Unidos o
+/// Canadá no toca este modelo.
+model GlobalBarcodeCatalog {
+  gtin14       String   @id @db.Char(14)
+  productName  String   @map("product_name") @db.VarChar(300)
+  brand        String?  @db.VarChar(120)
+  unitSize     String?  @map("unit_size") @db.VarChar(60)
+  /// País que EMITIÓ el prefijo GS1, no donde se fabricó el producto: una
+  /// empresa mexicana puede licenciar su prefijo en cualquier organización
+  /// GS1. Sirve para importar y depurar por región, jamás para decir
+  /// «hecho en» en una pantalla.
+  countryCode  String?  @map("country_code") @db.Char(2)
+  /// El MERCADO por el que entró la fila: dónde se VENDE, según el volcado.
+  /// NULL si entró por prefijo GS1 y no por mercado.
+  ///
+  /// Es un hecho distinto de `countryCode` y por eso va aparte. En Canadá el
+  /// prefijo no dice nada: 177 productos del volcado llevan prefijo canadiense
+  /// contra 126,467 que se venden ahí, porque las empresas canadienses sacan
+  /// sus códigos con GS1 Estados Unidos. Una fila con `countryCode = 'US'` y
+  /// `marketCode = 'CA'` no se contradice: se registró allá y se vende acá.
+  marketCode   String?  @map("market_code") @db.Char(2)
+  /// Nombre sin acentos y en minúsculas: se busca «jabon» y aparece «jabón».
+  search       String   @db.VarChar(300)
+  /// 'open_food_facts' arrastra la obligación ODbL (atribución y share-alike
+  /// sobre la base derivada); 'tenant_contributed' es nuestro y no la hereda.
+  /// Separarlos es lo que deja exportar o licenciar lo propio algún día.
+  source       String   @db.VarChar(24)
+  /// Cuántos tenants DISTINTOS confirmaron este nombre: la señal de calidad.
+  confirmations Int     @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("global_barcode_catalog")
+}
+
+/// Rangos de prefijos GS1 → país emisor. En la base y no en una constante de
+/// TypeScript porque el API la necesita en caliente: cuando un negocio aporta
+/// un código que nadie conocía hay que sellarle su `country_code` sin volver a
+/// desplegar.
+///
+/// `isImportable` en false marca lo que NUNCA debe entrar al catálogo
+/// compartido: los rangos de circulación restringida (etiquetas de báscula,
+/// códigos que la propia tienda imprime), que significan cosas distintas en
+/// cada negocio, más cupones, ISBN y recibos de reembolso.
+model Gs1PrefixRange {
+  prefixFrom   String  @id @map("prefix_from") @db.Char(3)
+  prefixTo     String  @map("prefix_to") @db.Char(3)
+  countryCode  String? @map("country_code") @db.Char(2)
+  isImportable Boolean @map("is_importable")
+
+  @@map("gs1_prefix_ranges")
+}
