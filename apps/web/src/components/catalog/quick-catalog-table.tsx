@@ -322,7 +322,10 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       )}
       {guardado !== null && (
         <p role="status" className="rounded-md bg-success/10 px-3 py-2 text-sm">
-          {t("products.quick.saved", { created: guardado.created, updated: guardado.updated })}
+          {t("products.quick.saved", {
+            count: guardado.created,
+            updated: guardado.updated,
+          })}
         </p>
       )}
 
@@ -442,7 +445,9 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
         >
           {guardar.isPending
             ? t("common.form.submitting")
-            : t("products.quick.submit", { count: lines.length })}
+            : // Plural real: «Dar de alta 1 productos» es de los detalles que
+              // hacen que una pantalla se sienta a medio hacer.
+              t("products.quick.submit", { count: lines.length })}
         </Button>
         {lines.length > 0 && (
           <Button type="button" variant="outline" onClick={clear} disabled={guardar.isPending}>
