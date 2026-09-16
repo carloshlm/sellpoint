@@ -157,7 +157,7 @@ export class QuickAddService {
     // después y no puede tumbarlo. Si el aporte falla, el negocio se queda con
     // sus 60 productos y la plataforma pierde una fila de un catálogo que se
     // llena solo. Al revés sería indefendible en el mostrador.
-    const contributed = await this.contribution.contribute(user.tenantId, aportables);
+    const contributed = await this.contribution.contribute(user.tenantId, user.locale, aportables);
     return { ...reporte, contributed };
   }
 

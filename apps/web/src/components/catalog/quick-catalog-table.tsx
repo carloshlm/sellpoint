@@ -56,8 +56,25 @@ import {
  * 80 productos seguidos: escanear, teclear el precio, Enter, escanear. Sin
  * ese Enter habría que ir al campo con el mouse ochenta veces.
  */
+/**
+ * «fr» → «francés» / «French», en el idioma de quien lee.
+ *
+ * `Intl.DisplayNames` lo trae el navegador: mantener a mano una lista de
+ * idiomas traducida sería copiar algo que la plataforma ya sabe, y el volcado
+ * tiene decenas. Si el navegador no lo conoce, se muestra el código tal cual
+ * antes que una etiqueta vacía.
+ */
+function nombreDeIdioma(codigo: string, locale: string): string {
+  try {
+    return new Intl.DisplayNames([locale], { type: "language" }).of(codigo) ?? codigo;
+  } catch {
+    return codigo;
+  }
+}
+
 export function QuickCatalogTable({ owner }: { owner: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const idiomaDelUsuario = i18n.language.slice(0, 2);
   // Misma regla que el resto de las pantallas de alta: un plan vencido o
   // suspendido no escribe. El botón de esta pantalla ya vive detrás de la
   // misma condición en el listado; esto cubre a quien llega por la URL.
@@ -168,6 +185,7 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
           status: "known",
           name: encontrado.global.name,
           brand: encontrado.global.brand,
+          nameLang: encontrado.global.lang,
           contributable: false,
         });
       } else {
@@ -273,6 +291,21 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       return <Badge variant="destructive">{t("products.quick.status.failed")}</Badge>;
     }
     if (linea.status === "known") {
+      // El caso que originó F10-LANG: un aceite vendido en Canadá que Open
+      // Food Facts solo tiene en francés. Se sugiere igual —con la marca al
+      // lado alcanza para reconocer la botella— pero se dice en qué idioma
+      // está, en vez de disfrazarlo de sugerencia como cualquier otra.
+      const otroIdioma =
+        linea.nameLang !== null && linea.nameLang !== idiomaDelUsuario ? linea.nameLang : null;
+      if (otroIdioma !== null) {
+        return (
+          <Badge variant="warning">
+            {t("products.quick.status.otherLanguage", {
+              language: nombreDeIdioma(otroIdioma, idiomaDelUsuario),
+            })}
+          </Badge>
+        );
+      }
       return <Badge variant="success">{t("products.quick.status.known")}</Badge>;
     }
     return <Badge>{t("products.quick.status.new")}</Badge>;
@@ -386,7 +419,12 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
                       readOnly={linea.status === "owned"}
                       aria-label={t("products.quick.columns.name")}
                       placeholder={t("products.quick.namePlaceholder")}
-                      onChange={(event) => patch(linea.code, { name: event.target.value })}
+                      onChange={(event) =>
+                        // Al editar el nombre, la insignia del idioma deja de
+                        // aplicar: lo que hay ahora lo escribió la persona, en
+                        // el suyo.
+                        patch(linea.code, { name: event.target.value, nameLang: null })
+                      }
                       onKeyDown={(event) => {
                         if (event.key === "Enter") {
                           event.preventDefault();

@@ -220,7 +220,13 @@ export interface BarcodeLookup {
     name: string;
     price: string | null;
   } | null;
-  global: { name: string; brand: string | null; unitSize: string | null } | null;
+  global: {
+    name: string;
+    /** ISO 639-1 del nombre sugerido, o `null` si el catálogo no lo sabe. */
+    lang: string | null;
+    brand: string | null;
+    unitSize: string | null;
+  } | null;
   contributable: boolean;
 }
 

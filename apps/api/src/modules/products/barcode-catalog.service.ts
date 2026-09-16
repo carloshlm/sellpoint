@@ -16,6 +16,17 @@ export interface BarcodeTenantHit {
 /** El nombre que el catálogo compartido sugiere para ese código. */
 export interface BarcodeGlobalHit {
   name: string;
+  /**
+   * En qué idioma está `name`, en ISO 639-1, o `null` si no se sabe.
+   *
+   * Viaja porque la pantalla lo necesita para no mentir. Un aceite vendido en
+   * Canadá suele estar en Open Food Facts solo en francés, y sugerirle «Huile
+   * d'olive vierge extra» a un negocio que trabaja en inglés con la MISMA
+   * insignia que un nombre en su idioma es disimular el problema. Con el
+   * idioma a la vista, la línea dice «Nombre en francés» y la persona sabe de
+   * un vistazo que eso hay que traducirlo.
+   */
+  lang: string | null;
   brand: string | null;
   unitSize: string | null;
 }
@@ -69,6 +80,42 @@ export interface BarcodeLookupResult {
  * pantalla deja capturar el nombre y el producto se crea. Lo único que ese
  * código nunca hace es entrar al catálogo que comparten todos.
  */
+/** Lo que el catálogo compartido guarda de un producto, en los dos idiomas. */
+interface FilaGlobal {
+  productName: string;
+  nameEs: string | null;
+  nameEn: string | null;
+  nameLang: string | null;
+  brand: string | null;
+  unitSize: string | null;
+}
+
+/**
+ * El nombre a sugerir y EN QUÉ IDIOMA está, para quien escanea.
+ *
+ * ── Por qué hay un respaldo y no un «no lo conozco» ─────────────────────
+ *
+ * Medido sobre el volcado real: de los productos canadienses con nombre en
+ * francés, solo un tercio tiene además el nombre en inglés. Para los otros dos
+ * tercios, la alternativa a sugerir el francés es no sugerir nada — y el
+ * nombre en francés, con su marca al lado, alcanza para reconocer el producto
+ * que se tiene en la mano. Se sugiere, y se DICE en qué idioma está (decisión
+ * de Carlos, 2026-09-16).
+ */
+function sugerencia(fila: FilaGlobal, locale: string): BarcodeGlobalHit {
+  const enSuIdioma = locale === "es" ? fila.nameEs : fila.nameEn;
+  return {
+    name: enSuIdioma ?? fila.productName,
+    // Si salió de la columna del idioma pedido, está en ese idioma por
+    // construcción. Si es el respaldo, está en el idioma que diga la fila —
+    // y `null` cuando el volcado viejo no lo dijo, que la pantalla trata como
+    // «no lo marco» en vez de inventar.
+    lang: enSuIdioma !== null ? locale : fila.nameLang,
+    brand: fila.brand,
+    unitSize: fila.unitSize,
+  };
+}
+
 @Injectable()
 export class BarcodeCatalogService {
   constructor(private readonly prisma: PrismaService) {}
@@ -126,7 +173,14 @@ export class BarcodeCatalogService {
 
     const compartido = await this.prisma.globalBarcodeCatalog.findUnique({
       where: { gtin14: gtin.gtin14 },
-      select: { productName: true, brand: true, unitSize: true },
+      select: {
+        productName: true,
+        nameEs: true,
+        nameEn: true,
+        nameLang: true,
+        brand: true,
+        unitSize: true,
+      },
     });
 
     const contributable =
@@ -137,14 +191,7 @@ export class BarcodeCatalogService {
       code,
       gtin14: gtin.gtin14,
       tenant: null,
-      global:
-        compartido === null
-          ? null
-          : {
-              name: compartido.productName,
-              brand: compartido.brand,
-              unitSize: compartido.unitSize,
-            },
+      global: compartido === null ? null : sugerencia(compartido, user.locale),
       contributable,
     };
   }

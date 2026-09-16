@@ -134,6 +134,7 @@
     "status": {
       "searching": "Buscando…",
       "known": "Nombre sugerido",
+      "otherLanguage": "Nombre en {{language}}",
       "owned": "Ya lo tienes",
       "new": "Nuevo para todos",
       "failed": "No se pudo consultar"

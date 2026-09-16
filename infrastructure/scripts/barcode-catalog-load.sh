@@ -62,32 +62,39 @@ echo "→ Ambiente ${AMBIENTE}: ${BASE} en ${CONTENEDOR}${SSH_HOST:+ (vía ssh $
 # En CSV y no en INSERT porque `COPY` mete un millón de filas en segundos y
 # el archivo pesa la mitad. El volcado se baja una vez (1.2 GB) y se reusa si
 # se piden varias regiones seguidas.
-VOLCADO="${BARCODE_VOLCADO:-${TRABAJO}/volcado.csv.gz}"
-if [[ ! -f "${VOLCADO}" ]]; then
-  echo "→ Descargando el volcado de Open Food Facts (1.2 GB)…"
-  curl -sL --retry 2 -o "${VOLCADO}" \
-    "https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz"
-fi
-
+# Desde F10-LANG el volcado es el JSONL (12.9 GB), que es el único que trae
+# los nombres por idioma, y NO se guarda en disco: el generador lo transmite.
+# Un portátil con 23 GB libres no tiene por qué aguantar 12.9 GB para quedarse
+# con 200,000 filas. A 15 MB/s cada región tarda unos 15 minutos de red.
+#
+# `BARCODE_VOLCADO` sigue existiendo por si alguien SÍ tiene el archivo bajado
+# y quiere ahorrarse la descarga entre regiones.
 CSV="${TRABAJO}/catalogo.csv"
 echo "→ Generando la región ${REGION} (criterio ${CRITERIO})…"
-python3 "${GENERADOR}" csv "${CSV}" --region "${REGION}" \
-  --criterio "${CRITERIO}" --volcado "${VOLCADO}"
+if [[ -n "${BARCODE_VOLCADO:-}" && -f "${BARCODE_VOLCADO}" ]]; then
+  echo "  (leyendo el volcado local ${BARCODE_VOLCADO})"
+  python3 "${GENERADOR}" csv "${CSV}" --region "${REGION}" \
+    --criterio "${CRITERIO}" --volcado "${BARCODE_VOLCADO}"
+else
+  echo "  (transmitiendo 12.9 GB desde Open Food Facts, sin guardarlos)"
+  python3 "${GENERADOR}" csv "${CSV}" --region "${REGION}" --criterio "${CRITERIO}"
+fi
 
 gzip -f "${CSV}"
 echo "→ CSV comprimido: $(du -h "${CSV}.gz" | cut -f1)"
 
 # ── 2. Cargar ────────────────────────────────────────────────────────────
-# Tabla temporal + INSERT … ON CONFLICT DO NOTHING, y NO un COPY directo:
-# el COPY no sabe de conflictos y reventaría con el primer GTIN repetido.
-# El DO NOTHING es deliberado — un nombre que un negocio confirmó a mano
-# jamás se pisa con uno de Open Food Facts.
+# Tabla temporal + INSERT … ON CONFLICT, y NO un COPY directo: el COPY no sabe
+# de conflictos y reventaría con el primer GTIN repetido. Qué hace el conflicto
+# y por qué, en el comentario del propio SQL.
 CARGA_SQL=$(cat <<'SQL'
 \set ON_ERROR_STOP on
 BEGIN;
 CREATE TEMP TABLE carga (
-  gtin14 CHAR(14), product_name VARCHAR(300), brand VARCHAR(120),
-  unit_size VARCHAR(60), country_code CHAR(2), market_code CHAR(2),
+  gtin14 CHAR(14), product_name VARCHAR(300),
+  name_es VARCHAR(300), name_en VARCHAR(300), name_lang CHAR(2),
+  brand VARCHAR(120), unit_size VARCHAR(60),
+  country_code CHAR(2), market_code CHAR(2),
   search VARCHAR(300), source VARCHAR(24)
 ) ON COMMIT DROP;
 COPY carga FROM STDIN WITH (FORMAT csv);
@@ -96,14 +103,38 @@ SQL
 FIN_SQL=$(cat <<'SQL'
 \.
 INSERT INTO global_barcode_catalog
-  (gtin14, product_name, brand, unit_size, country_code, market_code,
-   search, source, updated_at)
+  (gtin14, product_name, name_es, name_en, name_lang, brand, unit_size,
+   country_code, market_code, search, source, updated_at)
 SELECT gtin14, product_name,
+       nullif(name_es,''), nullif(name_en,''), nullif(name_lang,''),
        nullif(brand,''), nullif(unit_size,''),
        nullif(country_code,''), nullif(market_code,''),
        search, source, now()
 FROM carga
-ON CONFLICT (gtin14) DO NOTHING;
+-- ── Por qué esto ya no es DO NOTHING (F10-LANG, 2026-09-16) ─────────────
+--
+-- Con DO NOTHING, volver a correr esto no corregiría UNA SOLA fila: las
+-- 953,969 ya existen, y los nombres por idioma nunca llegarían. Se actualiza,
+-- pero con dos candados:
+--
+-- 1. El WHERE de abajo: una fila que aportó un NEGOCIO no se toca jamás, ni
+--    por una recarga nuestra. Es la LEY de Carlos escrita en SQL.
+-- 2. Los COALESCE de los nombres por idioma: se LLENA la casilla vacía, nunca
+--    se pisa una escrita. Un negocio canadiense que tecleó «Extra Virgin Olive
+--    Oil» no lo pierde porque Open Food Facts publique un volcado nuevo.
+--
+-- El resto de los campos sí se refrescan desde el volcado: son de Open Food
+-- Facts y nadie más los escribe.
+ON CONFLICT (gtin14) DO UPDATE SET
+  product_name = EXCLUDED.product_name,
+  name_es      = COALESCE(global_barcode_catalog.name_es, EXCLUDED.name_es),
+  name_en      = COALESCE(global_barcode_catalog.name_en, EXCLUDED.name_en),
+  name_lang    = EXCLUDED.name_lang,
+  brand        = EXCLUDED.brand,
+  unit_size    = EXCLUDED.unit_size,
+  search       = EXCLUDED.search,
+  updated_at   = now()
+WHERE global_barcode_catalog.source = 'open_food_facts';
 COMMIT;
 ANALYZE global_barcode_catalog;
 SELECT count(*) AS productos_en_el_catalogo FROM global_barcode_catalog;

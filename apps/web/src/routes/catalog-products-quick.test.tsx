@@ -53,12 +53,16 @@ const desconocido = (code: string): productsApi.BarcodeLookup => ({
   contributable: true,
 });
 
-const enCatalogoGlobal = (code: string, name: string): productsApi.BarcodeLookup => ({
+const enCatalogoGlobal = (
+  code: string,
+  name: string,
+  lang: string | null = "es",
+): productsApi.BarcodeLookup => ({
   status: "global",
   code,
   gtin14: `0${code}`,
   tenant: null,
-  global: { name, brand: "Marca", unitSize: "600 ml" },
+  global: { name, lang, brand: "Marca", unitSize: "600 ml" },
   contributable: false,
 });
 
@@ -119,6 +123,53 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
 
     expect(await screen.findByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
     expect(screen.getByText("Nombre sugerido")).toBeInTheDocument();
+  });
+
+  /**
+   * F10-LANG — el caso que lo originó: Carlos escaneó un aceite de oliva en
+   * Canadá y la pantalla le sugirió «Huile d'olive vierge extra» con la misma
+   * insignia que cualquier nombre en su idioma.
+   */
+  it("un nombre en otro idioma se sugiere igual, pero la insignia lo dice", async () => {
+    mocked.lookupBarcode.mockResolvedValue(
+      enCatalogoGlobal("6191509903627", "Huile d'olive vierge extra", "fr"),
+    );
+    const user = await abrir();
+
+    await escanear(user, "6191509903627");
+
+    // Se sugiere: con la marca al lado alcanza para reconocer la botella.
+    expect(await screen.findByDisplayValue("Huile d'olive vierge extra")).toBeInTheDocument();
+    // Y se dice en qué idioma está, en el idioma de quien lee.
+    expect(screen.getByText("Nombre en francés")).toBeInTheDocument();
+    expect(screen.queryByText("Nombre sugerido")).not.toBeInTheDocument();
+  });
+
+  it("el nombre en tu propio idioma no lleva aviso de idioma", async () => {
+    mocked.lookupBarcode.mockResolvedValue(
+      enCatalogoGlobal("7501055300013", "Refresco 600 ml", "es"),
+    );
+    const user = await abrir();
+
+    await escanear(user, "7501055300013");
+
+    expect(await screen.findByText("Nombre sugerido")).toBeInTheDocument();
+  });
+
+  it("al reescribir el nombre, el aviso de idioma desaparece", async () => {
+    mocked.lookupBarcode.mockResolvedValue(
+      enCatalogoGlobal("6191509903627", "Huile d'olive vierge extra", "fr"),
+    );
+    const user = await abrir();
+    await escanear(user, "6191509903627");
+    await screen.findByText("Nombre en francés");
+
+    const nombre = screen.getByLabelText("Nombre del producto");
+    await user.clear(nombre);
+    await user.type(nombre, "Aceite de oliva extra virgen");
+
+    // Lo que hay ahora lo escribió la persona, en el suyo.
+    expect(screen.queryByText("Nombre en francés")).not.toBeInTheDocument();
   });
 
   it("lo que el negocio ya tiene no se renombra desde acá: el nombre es de solo lectura", async () => {
@@ -203,6 +254,7 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
           name: "Del vecino",
           price: "10",
           brand: null,
+          nameLang: null,
           contributable: false,
         },
       ],

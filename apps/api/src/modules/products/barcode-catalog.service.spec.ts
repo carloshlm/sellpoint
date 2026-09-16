@@ -17,7 +17,8 @@ describe("BarcodeCatalogService", () => {
     // biome-ignore lint/suspicious/noExplicitAny: mock parcial a propósito
   } as any);
 
-  const usuario = { tenantId: "t-1" } as never;
+  const usuario = { tenantId: "t-1", locale: "es" } as never;
+  const enIngles = { tenantId: "t-1", locale: "en" } as never;
 
   beforeEach(() => {
     findFirstPresentacion.mockReset().mockResolvedValue(null);
@@ -75,6 +76,9 @@ describe("BarcodeCatalogService", () => {
   it("el catálogo global sugiere el nombre, y lo ya conocido no se vuelve a aportar", async () => {
     findUniqueGlobal.mockResolvedValue({
       productName: "Coca-Cola Original 600 ml",
+      nameEs: "Coca-Cola Original 600 ml",
+      nameEn: null,
+      nameLang: "es",
       brand: "Coca-Cola",
       unitSize: "600 ml",
     });
@@ -83,8 +87,60 @@ describe("BarcodeCatalogService", () => {
 
     expect(resultado.status).toBe("global");
     expect(resultado.global?.name).toBe("Coca-Cola Original 600 ml");
+    expect(resultado.global?.lang).toBe("es");
     expect(resultado.contributable).toBe(false);
     expect(findFirstRango).not.toHaveBeenCalled();
+  });
+
+  /**
+   * F10-LANG — el caso que lo originó: Carlos escaneó un aceite en Canadá y la
+   * pantalla le sugirió el francés.
+   */
+  it("con el nombre en tu idioma, ese gana y se anuncia como tuyo", async () => {
+    findUniqueGlobal.mockResolvedValue({
+      productName: "Huile d'olive vierge extra",
+      nameEs: null,
+      nameEn: "Extra Virgin Olive Oil",
+      nameLang: "fr",
+      brand: "Terra Delyssa",
+      unitSize: "1 L",
+    });
+
+    const resultado = await service.lookup(enIngles, "6191509903627");
+
+    expect(resultado.global).toMatchObject({ name: "Extra Virgin Olive Oil", lang: "en" });
+  });
+
+  it("sin nombre en tu idioma se sugiere el que hay, DICIENDO en qué idioma está", async () => {
+    findUniqueGlobal.mockResolvedValue({
+      productName: "Huile d'olive vierge extra",
+      nameEs: null,
+      nameEn: null,
+      nameLang: "fr",
+      brand: "Terra Delyssa",
+      unitSize: "1 L",
+    });
+
+    const resultado = await service.lookup(enIngles, "6191509903627");
+
+    // Se sugiere igual: con su marca al lado alcanza para reconocer la botella
+    // que se tiene en la mano. Lo que no se hace es disimular el idioma.
+    expect(resultado.global).toMatchObject({ name: "Huile d'olive vierge extra", lang: "fr" });
+  });
+
+  it("una fila del volcado viejo no dice su idioma, y eso no se inventa", async () => {
+    findUniqueGlobal.mockResolvedValue({
+      productName: "Zucaritas",
+      nameEs: null,
+      nameEn: null,
+      nameLang: null,
+      brand: "Kellogg's",
+      unitSize: null,
+    });
+
+    const resultado = await service.lookup(usuario, "7501008042984");
+
+    expect(resultado.global).toMatchObject({ name: "Zucaritas", lang: null });
   });
 
   it("la etiqueta de báscula se busca y se da de alta, pero no se aporta", async () => {

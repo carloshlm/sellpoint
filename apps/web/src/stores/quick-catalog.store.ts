@@ -24,6 +24,12 @@ export interface QuickLine {
   price: string;
   /** Qué marca sugirió el catálogo compartido, si sugirió alguna. */
   brand: string | null;
+  /**
+   * En qué idioma está el nombre sugerido, o `null` si no se sabe o si lo
+   * escribió la persona. Lo usa la insignia para no disimular un nombre en un
+   * idioma que el negocio no habla.
+   */
+  nameLang: string | null;
   /** Si al guardarse este código se le va a regalar al catálogo de todos. */
   contributable: boolean;
 }
@@ -113,7 +119,15 @@ export const useQuickCatalogStore = create<QuickCatalogState>()(
         // ubican por CÓDIGO, nunca por índice.
         set({
           lines: [
-            { code, status: "searching", name: "", price: "", brand: null, contributable: false },
+            {
+              code,
+              status: "searching",
+              name: "",
+              price: "",
+              brand: null,
+              nameLang: null,
+              contributable: false,
+            },
             ...lines,
           ],
         });

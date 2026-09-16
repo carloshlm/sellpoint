@@ -162,7 +162,8 @@ describe("QuickAddService", () => {
     ]);
 
     expect(reporte).toEqual({ created: 3, updated: 1, contributed: 1 });
-    expect(aportar).toHaveBeenCalledWith("t-1", [
+    // El idioma del negocio viaja: decide en qué casilla cae el nombre.
+    expect(aportar).toHaveBeenCalledWith("t-1", "es", [
       { gtin14: "07501055300013", prefix: "750", name: "Coca 600" },
     ]);
   });

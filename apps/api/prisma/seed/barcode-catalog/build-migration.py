@@ -18,17 +18,15 @@ Uso:
   python3 build-migration.py datos --region norteamerica <carpeta>
   python3 build-migration.py datos --region MX           <carpeta>
 
-  # Varias regiones sin volver a descargar 1.2 GB cada vez
-  curl -L -o volcado.csv.gz \\
-    https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz
-  python3 build-migration.py datos --region canada --volcado volcado.csv.gz <carpeta>
-
 `--region` acepta un grupo de gs1-prefixes.py (latam, norteamerica, usa,
 canada, iberia) o un país ISO suelto. Añadir Canadá y Estados Unidos más
 adelante NO toca el esquema: es correr el comando otra vez con otra región.
 
-Solo biblioteca estándar. Descarga en streaming: nunca escribe los 9 GB del
-volcado a disco.
+Solo biblioteca estándar. **Transmite y nunca guarda**: el volcado JSONL pesa
+12.9 GB y el disco de un portátil no tiene por qué aguantarlo para quedarse con
+200,000 filas. A 15 MB/s cada pasada tarda unos 15 minutos de red, así que dos
+regiones son dos pasadas y no hace falta guardar nada en medio. `--volcado`
+existe por si alguien SÍ tiene el archivo a mano.
 
 Como el de CIE-10, es un generador de UN SOLO USO por región y por versión
 del volcado: el SQL que sale es la fuente de verdad y viaja en
@@ -41,13 +39,29 @@ import argparse
 import csv
 import gzip
 import importlib.util
+import json
 import sys
 import unicodedata
 import urllib.request
 from pathlib import Path
 
-URL = "https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz"
+# El volcado JSONL y NO el CSV, desde F10-LANG (2026-09-16). El CSV tiene un
+# solo campo de nombre —`product_name`, el que cargó quien contribuyó el
+# producto— y por eso un aceite vendido en Canadá llegaba como «Huile d'olive
+# vierge extra». El JSONL publica `lang`, `product_name_en`, `product_name_fr`
+# y `product_name_es`, que es de donde sale el nombre en el idioma del negocio.
+# Cuesta 12.9 GB contra 1.2 GB: por eso se transmite y nunca se guarda.
+URL = "https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz"
 LOTE = 500
+# Los idiomas que habla SellPointy, y por lo tanto los únicos en los que una
+# sugerencia puede llegarle al usuario EN SU IDIOMA. El francés y los demás no
+# tienen columna propia: viajan en `product_name` con su `name_lang`, que es lo
+# que la pantalla necesita para marcarlos.
+IDIOMAS = ("es", "en")
+# Posiciones dentro de la tupla de registro. Con diez campos, un 7 suelto en
+# medio del código no dice nada y se corre solo cuando se agrega una columna.
+INDICE_PAIS = 7
+INDICE_MERCADO = 8
 TABLA = "global_barcode_catalog"
 TABLA_PREFIJOS = "gs1_prefix_ranges"
 
@@ -97,9 +111,9 @@ def paises_de(region: str) -> set[str]:
 def abrir_volcado(volcado: Path | None):
     """Devuelve el volcado listo para leer, de un archivo local o de la red.
 
-    Con `--volcado` se genera región tras región sin volver a bajar 1.2 GB
-    cada vez: se descarga una sola vez y se reusa para LATAM, Canadá y
-    Estados Unidos.
+    Sin `--volcado` se transmite desde Open Food Facts y NO se guarda: son
+    12.9 GB y `gzip.open` sobre la respuesta los descomprime al vuelo, línea a
+    línea. Con `--volcado` se lee un archivo que ya esté en disco.
     """
     if volcado is not None:
         return gzip.open(volcado, "rt", encoding="utf-8", errors="replace")
@@ -108,26 +122,68 @@ def abrir_volcado(volcado: Path | None):
                      encoding="utf-8", errors="replace")
 
 
+def etiqueta_de_pais(nombre_en: str) -> str:
+    """«United States» → «united-states»: el formato de `countries_tags`.
+
+    El JSONL no tiene la columna `countries_en` que traía el CSV; en su lugar
+    publica `countries_tags`, una lista de etiquetas normalizadas con prefijo
+    de idioma (`en:canada`). Se compara contra la etiqueta y no contra el texto
+    libre de `countries`, que viene en el idioma de quien cargó el producto.
+    """
+    return nombre_en.lower().replace(" ", "-")
+
+
+def nombre_en_idioma(fila: dict, idioma: str) -> str:
+    """El nombre del producto en `idioma`, o cadena vacía si no lo hay.
+
+    ── Por qué se toma el campo tal cual, sin heurísticas ──────────────────
+
+    Una versión de esta función descartaba el nombre traducido cuando medía
+    menos del 60% del original, para atajar un caso real: un producto con
+    `product_name = "Salt and pepper calamari"` cuyo `product_name_en` era
+    «calmar», una palabra francesa. Los campos de ese producto están cruzados
+    en Open Food Facts.
+
+    La guarda se quitó porque tiraba traducciones CORRECTAS: «Boulettes de
+    viande à la suédoise» (33 caracteres) traduce a «Swedish Meatballs» (17),
+    que es la mitad y es perfecto. Un nombre corto no es un nombre malo — el
+    inglés es más compacto que el francés casi siempre.
+
+    Entre confiar en el campo que el propio volcado etiquetó con el idioma y
+    confiar en una regla de longitud, gana el campo. El ruido de Open Food
+    Facts es real y se corrige por el otro lado: el negocio edita la sugerencia
+    y ese nombre llena la casilla.
+    """
+    return recortar(fila.get(f"product_name_{idioma}") or "", 300)
+
+
 def leer_productos(quiero: set[str], volcado: Path | None = None,
                    criterio: str = "prefijo") -> tuple[list[tuple], dict[str, int]]:
-    """Recorre el volcado y devuelve las filas de los países pedidos.
+    """Recorre el volcado JSONL y devuelve las filas de los países pedidos.
 
-    El volcado es un CSV con TABs cuyos campos de ingredientes traen saltos de
-    línea dentro de las comillas: hay que leerlo con un parser de CSV de
-    verdad. Procesarlo por líneas (awk, grep) parte registros a la mitad.
+    Un objeto JSON completo por línea, así que se lee línea a línea y se
+    descarta lo que no sirve sin construir nada más. Es lo que permite
+    transmitir 12.9 GB sin guardarlos: el disco de un portátil no tiene por
+    qué aguantar el volcado entero para quedarse con 200,000 filas.
     """
-    csv.field_size_limit(10**9)
     registros: dict[str, tuple] = {}
-    conteo = {"leidos": 0, "sin_nombre": 0, "gtin_invalido": 0,
+    conteo = {"leidos": 0, "sin_nombre": 0, "gtin_invalido": 0, "ilegible": 0,
               "no_importable": 0, "otra_region": 0, "duplicados": 0}
-    # Con criterio «venta» se busca el nombre del país en `countries_en`.
-    mercados = {prefijos.NOMBRES_EN[p]: p for p in quiero if p in prefijos.NOMBRES_EN}
+    # Con criterio «venta» se busca la ETIQUETA del país en `countries_tags`.
+    mercados = {etiqueta_de_pais(prefijos.NOMBRES_EN[p]): p
+                for p in quiero if p in prefijos.NOMBRES_EN}
     if criterio == "venta" and not mercados:
         sys.exit("Ningún país de la región tiene nombre en NOMBRES_EN (gs1-prefixes.py).")
 
     with abrir_volcado(volcado) as entrada:
-        for fila in csv.DictReader(entrada, delimiter="\t"):
+        for linea in entrada:
             conteo["leidos"] += 1
+            try:
+                fila = json.loads(linea)
+            except ValueError:
+                # Una línea truncada no puede tumbar una carga de doce horas.
+                conteo["ilegible"] += 1
+                continue
 
             nombre = recortar(fila.get("product_name") or "", 300)
             if not nombre:
@@ -145,9 +201,11 @@ def leer_productos(quiero: set[str], volcado: Path | None = None,
                 continue
 
             if criterio == "venta":
-                # `countries_en` viene separado por comas: «Canada, France».
-                vendidos = {c.strip() for c in (fila.get("countries_en") or "").split(",")}
-                mercado = next((mercados[n] for n in vendidos if n in mercados), None)
+                etiquetas = fila.get("countries_tags") or []
+                # «en:canada» → «canada»: el prefijo es del idioma de la
+                # etiqueta, no del país.
+                vendidos = {e.split(":", 1)[-1] for e in etiquetas if isinstance(e, str)}
+                mercado = next((mercados[e] for e in vendidos if e in mercados), None)
                 if mercado is None:
                     conteo["otra_region"] += 1
                     continue
@@ -164,6 +222,11 @@ def leer_productos(quiero: set[str], volcado: Path | None = None,
             registros[gtin14] = (
                 gtin14,
                 nombre,
+                nombre_en_idioma(fila, "es"),
+                nombre_en_idioma(fila, "en"),
+                # El idioma de `nombre`. Es lo que deja a la pantalla decir
+                # «Nombre en francés» en vez de disimularlo.
+                (fila.get("lang") or "").lower()[:2],
                 recortar(fila.get("brands") or "", 120),
                 recortar(fila.get("quantity") or "", 60),
                 pais,
@@ -311,12 +374,14 @@ def escribir_csv(destino: Path, registros: list[tuple], conteo: dict[str, int],
         # de psql, la carga muere con «unquoted newline found in data» en la
         # última línea — y el mensaje apunta al sitio equivocado.
         escritor = csv.writer(salida, lineterminator="\n")
-        for gtin14, nombre, marca, medida, pais, mercado, busqueda in registros:
-            escritor.writerow([gtin14, nombre, marca or "", medida or "",
+        for (gtin14, nombre, nombre_es, nombre_en, idioma,
+             marca, medida, pais, mercado, busqueda) in registros:
+            escritor.writerow([gtin14, nombre, nombre_es or "", nombre_en or "",
+                               idioma or "", marca or "", medida or "",
                                pais or "", mercado or "", busqueda,
                                "open_food_facts"])
     por_pais: dict[str, int] = {}
-    indice = 5 if criterio == "venta" else 4
+    indice = INDICE_MERCADO if criterio == "venta" else INDICE_PAIS
     for r in registros:
         por_pais[r[indice] or "??"] = por_pais.get(r[indice] or "??", 0) + 1
     resumen = ", ".join(f"{p} {n}" for p, n in sorted(por_pais.items(), key=lambda x: -x[1]))
@@ -332,7 +397,7 @@ def escribir_datos(carpeta: Path, region: str, volcado: Path | None = None,
     if not registros:
         sys.exit(f"Ningún producto para la región {region!r}. Nada que escribir.")
 
-    indice = 5 if criterio == "venta" else 4
+    indice = INDICE_MERCADO if criterio == "venta" else INDICE_PAIS
     por_pais: dict[str, int] = {}
     for r in registros:
         por_pais[r[indice] or "??"] = por_pais.get(r[indice] or "??", 0) + 1
@@ -366,16 +431,20 @@ def escribir_datos(carpeta: Path, region: str, volcado: Path | None = None,
 """)
         for i in range(0, len(registros), LOTE):
             out.write(
-                f'INSERT INTO "{TABLA}" ("gtin14", "product_name", "brand", '
-                '"unit_size", "country_code", "market_code", "search", "source", '
-                '"updated_at") VALUES\n'
+                f'INSERT INTO "{TABLA}" ("gtin14", "product_name", "name_es", '
+                '"name_en", "name_lang", "brand", "unit_size", "country_code", '
+                '"market_code", "search", "source", "updated_at") VALUES\n'
             )
             lineas = []
-            for gtin14, nombre, marca, medida, pais, mercado, busqueda in registros[i:i + LOTE]:
+            for (gtin14, nombre, nombre_es, nombre_en, idioma,
+                 marca, medida, pais, mercado, busqueda) in registros[i:i + LOTE]:
                 lineas.append(
                     "  (" + ", ".join([
                         sql(gtin14),
                         sql(nombre),
+                        sql(nombre_es) if nombre_es else "NULL",
+                        sql(nombre_en) if nombre_en else "NULL",
+                        sql(idioma) if idioma else "NULL",
                         sql(marca) if marca else "NULL",
                         sql(medida) if medida else "NULL",
                         sql(pais) if pais else "NULL",

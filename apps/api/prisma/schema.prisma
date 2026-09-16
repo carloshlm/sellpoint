@@ -2966,7 +2966,18 @@ model MedicalClinicSettings {
 /// Canadá no toca este modelo.
 model GlobalBarcodeCatalog {
   gtin14       String   @id @db.Char(14)
+  /// El nombre TAL COMO vino, en el idioma que diga `nameLang`. Es el
+  /// respaldo cuando el producto no tiene nombre en el idioma del usuario.
   productName  String   @map("product_name") @db.VarChar(300)
+  /// F10-LANG — el nombre en cada idioma que habla SellPointy, cuando Open
+  /// Food Facts lo tiene o cuando un negocio lo aportó. El francés y los demás
+  /// idiomas NO tienen columna: viajan en `productName` con `nameLang`, que es
+  /// lo que la pantalla necesita para marcarlos.
+  nameEs       String?  @map("name_es") @db.VarChar(300)
+  nameEn       String?  @map("name_en") @db.VarChar(300)
+  /// ISO 639-1 de `productName`. NULL en las filas cargadas antes de F10-LANG:
+  /// el volcado CSV no lo decía y adivinarlo sería inventar.
+  nameLang     String?  @map("name_lang") @db.Char(2)
   brand        String?  @db.VarChar(120)
   unitSize     String?  @map("unit_size") @db.VarChar(60)
   /// País que EMITIÓ el prefijo GS1, no donde se fabricó el producto: una

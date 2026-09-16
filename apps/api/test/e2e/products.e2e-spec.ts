@@ -34,7 +34,9 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
     await app.close();
   });
 
-  async function registerAndLogin(): Promise<{ token: string; tenantId: string }> {
+  async function registerAndLogin(
+    locale: "es" | "en" = "es",
+  ): Promise<{ token: string; tenantId: string }> {
     const email = `owner-${randomUUID()}@example.com`;
     const registered = await request(app.getHttpServer())
       .post("/auth/register-tenant")
@@ -44,7 +46,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         password: OWNER_PASSWORD,
         firstName: "Ana",
         lastName: "Pérez",
-        locale: "es",
+        locale,
       })
       .expect(201);
 
@@ -1473,6 +1475,8 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
     const PARA_ALTA = "7509999000037";
     const PARA_RECHAZO = "7509999000044";
     const PARA_APORTE = "7509999000051";
+    /** Un producto que el catálogo global solo tiene en francés. */
+    const SOLO_FRANCES = "7509999000112";
 
     const lookup = (token: string, code: string) =>
       request(app.getHttpServer())
@@ -1492,6 +1496,25 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
           search: "refresco de prueba 600 ml",
           source: "open_food_facts",
           confirmations: 3,
+          nameEs: "Refresco de prueba 600 ml",
+          nameEn: "Test soft drink 600 ml",
+          nameLang: "es",
+        },
+      });
+      // F10-LANG — el caso de Carlos: un producto que Open Food Facts SOLO
+      // tiene en francés. Es el que decide si la pantalla disimula o avisa.
+      await prisma.globalBarcodeCatalog.upsert({
+        where: { gtin14: "07509999000112" },
+        update: {},
+        create: {
+          gtin14: "07509999000112",
+          productName: "Huile d'olive vierge extra",
+          brand: "Terra Prueba",
+          countryCode: "MX",
+          search: "huile d'olive vierge extra",
+          source: "open_food_facts",
+          confirmations: 1,
+          nameLang: "fr",
         },
       });
     });
@@ -1676,6 +1699,88 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
         source: "open_food_facts",
         contributedByTenantId: null,
       });
+    });
+
+    /**
+     * F10-LANG (2026-09-16) — Carlos escaneó un aceite en Canadá y la pantalla
+     * le sugirió el francés. El nombre correcto existía en Open Food Facts; el
+     * volcado CSV del que salió el catálogo no lo publicaba.
+     */
+    it("cada negocio recibe el nombre en SU idioma", async () => {
+      const espanol = await registerAndLogin("es");
+      const ingles = await registerAndLogin("en");
+
+      const enEspanol = await lookup(espanol.token, EN_CATALOGO).expect(200);
+      expect(enEspanol.body).toMatchObject({
+        global: { name: "Refresco de prueba 600 ml", lang: "es" },
+      });
+
+      const enIngles = await lookup(ingles.token, EN_CATALOGO).expect(200);
+      expect(enIngles.body).toMatchObject({
+        global: { name: "Test soft drink 600 ml", lang: "en" },
+      });
+    });
+
+    it("sin nombre en tu idioma se sugiere el que hay, diciendo cuál es", async () => {
+      const { token } = await registerAndLogin("en");
+
+      const encontrado = await lookup(token, SOLO_FRANCES).expect(200);
+
+      expect(encontrado.body).toMatchObject({
+        status: "global",
+        global: { name: "Huile d'olive vierge extra", lang: "fr", brand: "Terra Prueba" },
+      });
+    });
+
+    /**
+     * El camino que más vale de F10-LANG: de los productos canadienses en
+     * francés, solo un tercio tiene inglés en Open Food Facts. Los otros dos
+     * tercios los teclea el negocio que los vende — y ese tecleo se queda.
+     */
+    it("lo que teclea un negocio llena la casilla VACÍA de su idioma", async () => {
+      const { token, tenantId } = await registerAndLogin("en");
+
+      const alta = await quick(token, [
+        { code: SOLO_FRANCES, name: "Extra Virgin Olive Oil", price: 240 },
+      ]).expect(200);
+      expect(alta.body).toMatchObject({ created: 1 });
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${SOLO_FRANCES}` },
+      });
+      // La casilla vacía se llenó…
+      expect(fila?.nameEn).toBe("Extra Virgin Olive Oil");
+      // …y NADA de lo que ya estaba escrito se movió: ni el nombre original,
+      // ni la fuente, ni el contador. La fila sigue siendo de Open Food Facts.
+      expect(fila).toMatchObject({
+        productName: "Huile d'olive vierge extra",
+        nameEs: null,
+        source: "open_food_facts",
+        confirmations: 1,
+        contributedByTenantId: null,
+      });
+
+      // Y desde ese momento, el siguiente negocio en inglés ya lo ve bien.
+      const otro = await registerAndLogin("en");
+      const encontrado = await lookup(otro.token, SOLO_FRANCES).expect(200);
+      expect(encontrado.body).toMatchObject({
+        global: { name: "Extra Virgin Olive Oil", lang: "en" },
+      });
+      expect(tenantId).toBeTruthy();
+    });
+
+    it("una casilla que ya tiene nombre no la pisa nadie", async () => {
+      const { token } = await registerAndLogin("es");
+
+      await quick(token, [{ code: EN_CATALOGO, name: "Como lo llamo yo", price: 18.5 }]).expect(
+        200,
+      );
+
+      const fila = await prisma.globalBarcodeCatalog.findUnique({
+        where: { gtin14: `0${EN_CATALOGO}` },
+      });
+      // `name_es` ya tenía valor: se queda el que estaba.
+      expect(fila?.nameEs).toBe("Refresco de prueba 600 ml");
     });
 
     it("un código interno del negocio se busca literal, con su guion y todo", async () => {
