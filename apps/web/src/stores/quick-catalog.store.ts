@@ -1,3 +1,4 @@
+import { QUICK_ADD_MAX_LINES } from "@sellpoint/shared";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -28,11 +29,11 @@ export interface QuickLine {
 }
 
 /**
- * El tope de líneas. **Es el mismo del API** (`QUICK_ADD_MAX_LINES`): que la
- * pantalla permita más de lo que el servidor acepta sería una pared al final
- * del trabajo, después de escanear.
+ * El tope de líneas, tomado de `@sellpoint/shared`: es literalmente el mismo
+ * valor que valida el API. Escribirlo dos veces invitaría a que un día digan
+ * números distintos, y el síntoma sería una pared al final del trabajo.
  */
-export const QUICK_MAX_LINES = 100;
+export const QUICK_MAX_LINES = QUICK_ADD_MAX_LINES;
 
 /** La versión de la FORMA del borrador. Ver `migrate`. */
 const VERSION = 1;

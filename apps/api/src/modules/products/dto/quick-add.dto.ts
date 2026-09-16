@@ -1,3 +1,4 @@
+import { QUICK_ADD_MAX_LINES } from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../money";
 
@@ -10,13 +11,9 @@ import { moneyAmount } from "../money";
  * existencia entra por una Entrada, que es donde el sistema pide almacén,
  * lote y caducidad.
  *
- * El tope de 100 líneas es el MISMO de la pantalla. Que el navegador permita
- * más de lo que el servidor acepta sería una pared al final del trabajo, y son
- * 200 escrituras en una sola transacción: un lote de 800 se comería el tiempo
- * límite y reventaría recién al final, con todo por rehacer.
+ * El tope de líneas sale de `@sellpoint/shared` y no de una constante local:
+ * la pantalla lee el MISMO número. Ver `QUICK_ADD_MAX_LINES`.
  */
-export const QUICK_ADD_MAX_LINES = 100;
-
 export const quickAddSchema = z.object({
   lines: z
     .array(

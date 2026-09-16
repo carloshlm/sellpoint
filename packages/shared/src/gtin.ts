@@ -24,6 +24,17 @@
  * lo que entra mal, se queda mal.
  */
 
+/**
+ * F10-QUICKCAT — cuántas líneas admite una carga rápida.
+ *
+ * Vive en `shared` y no en cada lado porque el API y la pantalla **tienen que
+ * decir el mismo número**: que el navegador permita más de lo que el servidor
+ * acepta es una pared al final del trabajo, después de escanear. Y son dos
+ * escrituras por línea en una sola transacción, así que el número también
+ * protege el tiempo límite.
+ */
+export const QUICK_ADD_MAX_LINES = 100;
+
 /** Las longitudes que son un GTIN: EAN-8, UPC-A, EAN-13 y GTIN-14. */
 export const GTIN_LENGTHS = [8, 12, 13, 14] as const;
 
