@@ -825,7 +825,39 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(screen.getAllByLabelText("Precio de venta")[1]).toHaveValue("");
   });
 
-  it("una persona tecleando los mismos dígitos en el precio NO crea una línea", async () => {
+  /**
+   * El lector Bluetooth de Carlos, MEDIDO en su equipo el 2026-09-17: doce
+   * dígitos en 660 ms, 60 de promedio. Con el techo único de 50 el presupuesto
+   * era 600 y se pasaba por 60 ms, así que su escaneo desde el precio se
+   * descartaba como si lo hubiera tecleado él.
+   */
+  it("el lector de Carlos, a 60 ms por tecla, SÍ dispara desde el precio", async () => {
+    mocked.lookupBarcode
+      .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Primero"))
+      .mockResolvedValueOnce(enCatalogoGlobal("7509999000006", "Segundo"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
+    await user.click(precio);
+    fireEvent.input(precio, { target: { value: "600" } });
+
+    teclearComo(precio, "7509999000006", 60);
+
+    expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Precio de venta")[1]).toHaveValue("600");
+  });
+
+  /**
+   * El otro lado de la moneda, y la razón por la que el techo NO es uno solo.
+   *
+   * Un precio de seis dígitos es un código de barras válido para
+   * `isScannableBarcode`, así que lo único que lo salva es el reloj — y ahí el
+   * techo se queda apretado en 50. Si se aflojara parejo, un precio tecleado
+   * rápido se convertiría en una línea nueva y el importe se perdería.
+   */
+  it("un precio de seis dígitos tecleado rápido sigue siendo un precio", async () => {
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Primero"));
     const user = await abrir();
     await escanear(user, "7501055300013");
@@ -834,8 +866,24 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
     await user.click(precio);
 
-    // Los mismos dígitos, con pausas de persona: es un precio, no un escaneo.
-    teclearComo(precio, "7509999000006", 120);
+    // 110 ms por tecla: rápido para una persona, pero es un precio.
+    teclearComo(precio, "150000", 110);
+
+    expect(mocked.lookupBarcode).toHaveBeenCalledTimes(1);
+    expect(precio).toHaveValue("150000");
+  });
+
+  it("una persona tecleando un código completo en el precio NO crea una línea", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Primero"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
+    await user.click(precio);
+
+    // Trece dígitos a 200 ms: ningún lector tarda tanto, es alguien tecleando.
+    teclearComo(precio, "7509999000006", 200);
 
     expect(mocked.lookupBarcode).toHaveBeenCalledTimes(1);
     expect(screen.queryByDisplayValue("Segundo")).not.toBeInTheDocument();
