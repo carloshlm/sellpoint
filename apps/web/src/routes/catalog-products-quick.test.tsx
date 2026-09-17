@@ -397,6 +397,36 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     });
   });
 
+  /**
+   * Carlos (2026-09-17): «debe haber una opción de agregar el producto sin
+   * escanear, es decir tecleándolo desde un celular también donde no existe el
+   * Enter». En un teclado de teléfono la tecla de retorno a veces es «Listo»,
+   * a veces cierra el teclado y a veces no está.
+   */
+  it("el botón Agregar hace lo mismo que el Enter", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    const user = await abrir();
+
+    const campo = screen.getByLabelText("Código de barras");
+    await user.click(campo);
+    await user.type(campo, "7501055300013");
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+    expect(await screen.findByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
+  });
+
+  it("sin nada tecleado, Agregar está deshabilitado", async () => {
+    await abrir();
+
+    expect(screen.getByRole("button", { name: "Agregar" })).toBeDisabled();
+  });
+
+  it("el campo del código pide el teclado numérico del teléfono", async () => {
+    await abrir();
+
+    expect(screen.getByLabelText("Código de barras")).toHaveAttribute("inputmode", "numeric");
+  });
+
   it("el mismo código dos veces NO duplica la línea", async () => {
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
     const user = await abrir();

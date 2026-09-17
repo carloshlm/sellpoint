@@ -131,7 +131,8 @@
     "back": "Back to Products",
     "scanLabel": "Barcode",
     "scanPlaceholder": "Scan or type the code and press Enter",
-    "scanHint": "Each code adds a line. From the price field, Enter brings you back here for the next one.",
+    "addLine": "Add",
+    "scanHint": "Each code adds a line: press Enter or tap «Add». From the price field, Enter brings you back here for the next one.",
     "empty": "Nothing scanned yet. The first code opens the list.",
     "namePlaceholder": "e.g. Cheetos 82 g",
     "columns": {

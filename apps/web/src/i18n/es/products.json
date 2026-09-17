@@ -131,7 +131,8 @@
     "back": "Volver a Productos",
     "scanLabel": "Código de barras",
     "scanPlaceholder": "Escanea o teclea el código y presiona Enter",
-    "scanHint": "Cada código agrega una línea. En el precio, Enter te devuelve aquí para el siguiente.",
+    "addLine": "Agregar",
+    "scanHint": "Cada código agrega una línea: presiona Enter o toca «Agregar». En el precio, Enter te devuelve aquí para el siguiente.",
     "empty": "Todavía no escaneas nada. El primer código abre la lista.",
     "namePlaceholder": "Ej.: Cheetos 82 g",
     "columns": {

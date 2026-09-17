@@ -536,7 +536,17 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       // no pasa nada. Carlos llegó con uno enfocado y el texto seleccionado,
       // que es la peor señal posible — parece estar esperando que escribas.
       readOnly={linea.status === "owned"}
-      className={linea.status === "owned" ? "bg-muted text-muted-foreground" : undefined}
+      // ── Tres cosas que se veían iguales, y no lo son ──────────────────
+      //
+      // Carlos (2026-09-17): «el placeholder se ve muy parecido a un registro
+      // real». Tenía razón, y la causa era doble: el nombre bloqueado salía
+      // en gris (texto REAL disfrazado de ayuda) y el texto de ejemplo salía
+      // del mismo gris (ayuda disfrazada de dato).
+      //
+      // Ahora cada uno tiene su seña. Bloqueado: fondo gris, texto NEGRO —
+      // es contenido de verdad, lo que no se puede es editarlo. Vacío: fondo
+      // blanco, ejemplo en un gris claramente más tenue.
+      className={linea.status === "owned" ? "bg-muted" : "placeholder:text-muted-foreground/55"}
       aria-label={t("products.quick.columns.name")}
       placeholder={t("products.quick.namePlaceholder")}
       onChange={(event) =>
@@ -659,42 +669,65 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
             parte del texto de adentro. */}
         <div className="flex flex-1 flex-col gap-2">
           <Label htmlFor="quick-scan">{t("products.quick.scanLabel")}</Label>
-          <Input
-            id="quick-scan"
-            name="quickScan"
-            ref={escanerRef}
-            value={texto}
-            autoComplete="off"
-            // biome-ignore lint/a11y/noAutofocus: el cursor tiene que estar donde apunta la pistola
-            autoFocus
-            placeholder={t("products.quick.scanPlaceholder")}
-            onChange={(event) => setTexto(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                // ── El valor sale del DOM, NO del estado de React ──────────
-                //
-                // Carlos (2026-09-17), con un lector Bluetooth: escaneaba el
-                // segundo producto y no se agregaba la línea; el código se
-                // quedaba escrito en el campo y el foco aparecía en el nombre
-                // de la línea anterior.
-                //
-                // Un lector es un teclado que escribe doce caracteres y el
-                // Enter en el mismo suspiro. React agrupa los `onChange` y los
-                // aplica después, así que cuando llegaba el Enter la variable
-                // `texto` todavía traía lo de ANTES —vacío, casi siempre— y la
-                // función se salía por la puerta del «no hay nada que
-                // escanear». El campo conservaba el código porque nunca se
-                // llegó a limpiar, y el foco que se veía en el nombre era la
-                // respuesta del escaneo ANTERIOR llegando tarde.
-                //
-                // `currentTarget.value` es lo que el campo tiene AHORA, sin
-                // esperar a ningún render. Con un teclado humano las dos
-                // lecturas coinciden siempre; con un lector, solo esta sirve.
-                escanear(event.currentTarget.value);
-              }
-            }}
-          />
+          {/* ── Agregar sin Enter ─────────────────────────────────────────
+              Carlos (2026-09-17): «debe haber una opción de agregar el
+              producto sin escanear, es decir tecleándolo desde un celular
+              también donde no existe el Enter». En un teclado de teléfono la
+              tecla de retorno a veces es «Listo», a veces cierra el teclado y
+              a veces no está: quien teclea el código a mano se quedaba sin
+              forma de agregarlo. El botón es esa forma, y lee el valor del
+              DOM por la misma razón que el Enter. */}
+          <div className="flex gap-2">
+            <Input
+              id="quick-scan"
+              name="quickScan"
+              ref={escanerRef}
+              value={texto}
+              autoComplete="off"
+              // El teclado del teléfono abre en números: un código de barras
+              // son dígitos, y buscar la tecla de cambio en cada producto es un
+              // impuesto que no tiene por qué pagarse.
+              inputMode="numeric"
+              className="flex-1"
+              // biome-ignore lint/a11y/noAutofocus: el cursor tiene que estar donde apunta la pistola
+              autoFocus
+              placeholder={t("products.quick.scanPlaceholder")}
+              onChange={(event) => setTexto(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  // ── El valor sale del DOM, NO del estado de React ──────────
+                  //
+                  // Carlos (2026-09-17), con un lector Bluetooth: escaneaba el
+                  // segundo producto y no se agregaba la línea; el código se
+                  // quedaba escrito en el campo y el foco aparecía en el nombre
+                  // de la línea anterior.
+                  //
+                  // Un lector es un teclado que escribe doce caracteres y el
+                  // Enter en el mismo suspiro. React agrupa los `onChange` y los
+                  // aplica después, así que cuando llegaba el Enter la variable
+                  // `texto` todavía traía lo de ANTES —vacío, casi siempre— y la
+                  // función se salía por la puerta del «no hay nada que
+                  // escanear». El campo conservaba el código porque nunca se
+                  // llegó a limpiar, y el foco que se veía en el nombre era la
+                  // respuesta del escaneo ANTERIOR llegando tarde.
+                  //
+                  // `currentTarget.value` es lo que el campo tiene AHORA, sin
+                  // esperar a ningún render. Con un teclado humano las dos
+                  // lecturas coinciden siempre; con un lector, solo esta sirve.
+                  escanear(event.currentTarget.value);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={texto.trim() === ""}
+              onClick={() => escanear(escanerRef.current?.value ?? "")}
+            >
+              {t("products.quick.addLine")}
+            </Button>
+          </div>
           <p className="text-muted-foreground text-xs">{t("products.quick.scanHint")}</p>
         </div>
         {camaraALaMano && <BarcodeScanner onScan={escanear} />}
