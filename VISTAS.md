@@ -687,11 +687,21 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 | Descartar y dar de alta **preguntan**, y el aviso se enfoca solo | Descartar pierde media hora de escaneo. Dar de alta no borra nada, pero deshacer 60 productos es borrarlos de a uno: en la práctica no hay vuelta atrás, y el diálogo se gana el lugar diciendo cuántos crea y a cuántos les cambia el precio |
 | Los faltantes se marcan recién al intentar dar de alta | Una línea recién escaneada no está mal; pintar rojo mientras se escanea entrena a ignorarlo |
 
-**Estados de línea:** buscando · nombre sugerido (del catálogo global, editable) · **nombre en {idioma}** · **ya lo tienes** (nombre de solo lectura, solo el precio se edita, y al guardar **solo se actualiza el precio**) · nuevo para todos · no se pudo consultar.
+**Estados de línea:** buscando · nombre sugerido (del catálogo global, editable) · **nombre en {idioma}** · **ya lo tienes** (nombre de solo lectura **y con fondo gris para que se vea que lo es**, solo el precio se edita, y al guardar **solo se actualiza el precio**) · **escribe el nombre** · no se pudo consultar.
+
+> **La insignia dice qué hacer, no de dónde sale el dato (Carlos, 2026-09-17).** Se llamaba «Nuevo para todos», que contaba que el nombre tecleado alimenta el catálogo compartido. Para quien está cargando su catálogo eso no le sirve de nada — lo único que necesita saber es que ese nombre lo escribe él. El aporte al catálogo global sigue ocurriendo; lo que se quitó es contarlo en cada renglón.
 
 > **El idioma del nombre (F10-LANG, 2026-09-16).** El catálogo global guarda el nombre en español y en inglés cuando Open Food Facts los tiene, y la consulta elige en tres escalones: **tu idioma, el otro que hablamos, y el original en el que venga**. El segundo escalón importa: un aceite con «Extra Virgin Olive Oil» guardado seguía sugiriendo el francés a un usuario en español porque el respaldo saltaba directo al original. Cuando solo existe en otro idioma —pasa con dos de cada tres productos canadienses, que solo están en francés— **se sugiere igual, y la insignia lo dice**: «Nombre en francés» en vez de «Nombre sugerido». Con la marca al lado alcanza para reconocer el producto que se tiene en la mano; lo que no se hace es disfrazarlo de sugerencia como cualquier otra. En cuanto la persona reescribe el nombre, el aviso desaparece: lo que hay ahora lo escribió ella, en el suyo — **y ese nombre llena la casilla vacía del catálogo compartido**, así que el siguiente negocio en ese idioma ya lo encuentra bien.
 
 **El borrador vive en el navegador** (`sellpoint.quickCatalog`), sobrevive a salir de la pantalla y a recargar, y está sellado con `tenantId:userId`: un mostrador con dos cuentas no da de alta el catálogo del vecino. Tope de 100 líneas, el mismo del API.
+
+**Las tres líneas de ayuda, arriba de todo.** Tres y no un manual: quien llega quiere escanear, no leer. Cada una contesta una pregunta que la pantalla provocaba.
+
+| Dice | Porque |
+|---|---|
+| Para productos con código de barras **del fabricante** | Los que solo tienen un código interno del negocio entran por la plantilla de Excel o por «Nuevo producto». Esta pantalla solo acepta dígitos de 6 a 14 y no explicarlo dejaba a la persona chocando con el rechazo |
+| **Puedes volver cuando quieras** | Un cliente nuevo no sabe si esto es de una sola vez. Se dice además qué pasa con lo que ya tiene: solo se le actualiza el precio |
+| El nombre es el que verás **en tu catálogo y en el ticket** | Y conviene incluir la presentación, con el ejemplo que lo explica solo: «Cheetos 82 g» y «Cheetos 44 g» son dos productos distintos. El campo del nombre lo repite en su texto de ayuda («Ej.: Cheetos 82 g») |
 
 **Qué NO pide esta pantalla:** existencias (entran por una Entrada, que es donde el sistema pide almacén, lote y caducidad), costo (se descubre al recibir mercancía; inventarlo envenena los márgenes), unidad e impuesto (piezas y el default del negocio).
 

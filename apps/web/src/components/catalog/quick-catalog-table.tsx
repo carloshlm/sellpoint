@@ -407,11 +407,6 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       <span className="font-mono text-sm tabular-nums">{linea.code}</span>
       {insignia(linea)}
       {linea.brand !== null && <span className="text-muted-foreground text-xs">{linea.brand}</span>}
-      {/* Lo que este código le va a dejar al catálogo de todos. Se dice acá y
-          no en un aviso aparte: es una consecuencia de ESTA línea. */}
-      {linea.contributable && (
-        <span className="text-muted-foreground text-xs">{t("products.quick.willContribute")}</span>
-      )}
     </div>
   );
 
@@ -423,7 +418,13 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       value={linea.name}
       // El nombre del negocio NO se pisa desde acá: ya decidió cómo se llama
       // su producto. Solo el precio se edita.
+      //
+      // Y se NOTA que no se puede: un campo de solo lectura con el mismo
+      // aspecto que los demás invita a teclear en él y a no entender por qué
+      // no pasa nada. Carlos llegó con uno enfocado y el texto seleccionado,
+      // que es la peor señal posible — parece estar esperando que escribas.
       readOnly={linea.status === "owned"}
+      className={linea.status === "owned" ? "bg-muted text-muted-foreground" : undefined}
       aria-label={t("products.quick.columns.name")}
       placeholder={t("products.quick.namePlaceholder")}
       onChange={(event) =>
@@ -511,6 +512,35 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* ── Las tres cosas que un cliente nuevo necesita saber ───────────
+          Tres líneas y no un manual: quien llega acá quiere escanear, no
+          leer. Cada una contesta una pregunta que la pantalla provocaba
+          —«¿y mis productos sin código?», «¿puedo volver después?», «¿qué
+          nombre pongo?»— y ninguna explica lo que ya se entiende solo. */}
+      <ul className="flex flex-col gap-1 rounded-md bg-muted/50 px-3 py-2 text-muted-foreground text-xs">
+        {/* Las claves van LITERALES y no armadas con una plantilla: la barrera
+            de i18n solo puede verificar las literales, y una clave que se
+            renombra sin que nadie avise sale en pantalla como texto crudo. */}
+        <li>
+          <strong className="font-medium text-foreground">
+            {t("products.quick.help.barcodeOnlyTitle")}
+          </strong>{" "}
+          {t("products.quick.help.barcodeOnly")}
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">
+            {t("products.quick.help.comeBackTitle")}
+          </strong>{" "}
+          {t("products.quick.help.comeBack")}
+        </li>
+        <li>
+          <strong className="font-medium text-foreground">
+            {t("products.quick.help.namingTitle")}
+          </strong>{" "}
+          {t("products.quick.help.naming")}
+        </li>
+      </ul>
+
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
         {/* `gap-2` es el mismo espacio que `TextField` le da a toda etiqueta de
             la casa. Sin él, la etiqueta queda pegada al campo y se lee como

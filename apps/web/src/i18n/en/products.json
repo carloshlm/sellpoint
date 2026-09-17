@@ -120,12 +120,20 @@
     "open": "Quick load",
     "title": "Quick load",
     "cardTitle": "Scan it, price it, add it",
+    "help": {
+      "barcodeOnlyTitle": "For products with a manufacturer barcode.",
+      "barcodeOnly": "Ones that only have your own internal code go in through the Excel template or «New product».",
+      "comeBackTitle": "You can come back anytime.",
+      "comeBack": "Codes you don't have yet are created as new products; the ones you already have only get their price updated.",
+      "namingTitle": "The name is what you'll see in your catalog and on the receipt.",
+      "naming": "Include the size: «Cheetos 82 g» and «Cheetos 44 g» are two different products."
+    },
     "back": "Back to Products",
     "scanLabel": "Barcode",
     "scanPlaceholder": "Scan or type the code and press Enter",
     "scanHint": "Each code adds a line. From the price field, Enter brings you back here for the next one.",
     "empty": "Nothing scanned yet. The first code opens the list.",
-    "namePlaceholder": "Type the product name",
+    "namePlaceholder": "e.g. Cheetos 82 g",
     "columns": {
       "code": "Code",
       "name": "Product name",
@@ -136,10 +144,9 @@
       "known": "Suggested name",
       "otherLanguage": "Name in {{language}}",
       "owned": "You already have it",
-      "new": "New to everyone",
+      "new": "Type the name",
       "failed": "Lookup failed"
     },
-    "willContribute": "Will be added to the shared catalog",
     "alreadyInDraft": "Code {{code}} is already on the list. We took you to its price.",
     "invalidBarcode": "«{{code}}» isn't a barcode: it must be 6 to 14 digits, with no letters or symbols.",
     "tooManyLines": "You reached the limit of {{max}} lines. Add these and continue with the next ones.",

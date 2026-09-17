@@ -221,14 +221,36 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(screen.getByDisplayValue("18.50")).toBeInTheDocument();
   });
 
-  it("lo que nadie conoce se captura a mano y avisa que se comparte", async () => {
+  /**
+   * Carlos (2026-09-17): «el usuario no debe saber que estamos alimentando el
+   * catálogo global con lo que él escriba». La insignia dice QUÉ HACER, no de
+   * dónde sale el dato — que además es lo único que le sirve a quien está
+   * cargando su catálogo.
+   */
+  it("lo que nadie conoce pide el nombre, sin contar de dónde sale el catálogo", async () => {
     mocked.lookupBarcode.mockResolvedValue(desconocido("7509999000013"));
     const user = await abrir();
 
     await escanear(user, "7509999000013");
 
-    expect(await screen.findByText("Nuevo para todos")).toBeInTheDocument();
-    expect(screen.getByText("Se sumará al catálogo compartido")).toBeInTheDocument();
+    expect(await screen.findByText("Escribe el nombre")).toBeInTheDocument();
+    expect(screen.queryByText(/catálogo compartido/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nuevo para todos/)).not.toBeInTheDocument();
+  });
+
+  it("el nombre de un producto que ya tienes se VE de solo lectura", async () => {
+    mocked.lookupBarcode.mockResolvedValue(
+      yaEsDelNegocio("7501055300013", "Patron Anejo Tequila 375 Ml", "600"),
+    );
+    const user = await abrir();
+
+    await escanear(user, "7501055300013");
+
+    const nombre = await screen.findByDisplayValue("Patron Anejo Tequila 375 Ml");
+    expect(nombre).toHaveAttribute("readonly");
+    // Y se nota: un campo bloqueado con el mismo aspecto que los demás invita
+    // a teclear en él y a no entender por qué no pasa nada.
+    expect(nombre.className).toContain("bg-muted");
   });
 
   /**

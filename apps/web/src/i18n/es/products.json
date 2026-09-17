@@ -120,12 +120,20 @@
     "open": "Carga rápida",
     "title": "Carga rápida",
     "cardTitle": "Escanea, pon el precio y da de alta",
+    "help": {
+      "barcodeOnlyTitle": "Para productos con código de barras del fabricante.",
+      "barcodeOnly": "Los que solo tienen un código interno tuyo se dan de alta desde la plantilla de Excel o desde «Nuevo producto».",
+      "comeBackTitle": "Puedes volver cuando quieras.",
+      "comeBack": "Los códigos que todavía no tengas se crean como productos nuevos; a los que ya tienes solo se les actualiza el precio de venta.",
+      "namingTitle": "El nombre es el que verás en tu catálogo y en el ticket.",
+      "naming": "Conviene incluir la presentación: «Cheetos 82 g» y «Cheetos 44 g» son dos productos distintos."
+    },
     "back": "Volver a Productos",
     "scanLabel": "Código de barras",
     "scanPlaceholder": "Escanea o teclea el código y presiona Enter",
     "scanHint": "Cada código agrega una línea. En el precio, Enter te devuelve aquí para el siguiente.",
     "empty": "Todavía no escaneas nada. El primer código abre la lista.",
-    "namePlaceholder": "Escribe el nombre del producto",
+    "namePlaceholder": "Ej.: Cheetos 82 g",
     "columns": {
       "code": "Código",
       "name": "Nombre del producto",
@@ -136,10 +144,9 @@
       "known": "Nombre sugerido",
       "otherLanguage": "Nombre en {{language}}",
       "owned": "Ya lo tienes",
-      "new": "Nuevo para todos",
+      "new": "Escribe el nombre",
       "failed": "No se pudo consultar"
     },
-    "willContribute": "Se sumará al catálogo compartido",
     "alreadyInDraft": "El código {{code}} ya está en la lista. Te llevamos a su precio.",
     "invalidBarcode": "«{{code}}» no es un código de barras: tiene que ser de 6 a 14 dígitos, sin letras ni símbolos.",
     "tooManyLines": "Llegaste al máximo de {{max}} líneas. Da de alta estas y sigue con las siguientes.",
