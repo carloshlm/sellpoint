@@ -24,6 +24,7 @@ import { quickLineErrorsOf } from "@/lib/field-errors";
 import { moneyInputError } from "@/lib/money";
 import { lookupBarcode } from "@/lib/products/api";
 import { useQuickAddProducts } from "@/lib/products/hooks";
+import { useScannerBurst } from "@/lib/scanner/use-scanner-burst";
 import {
   QUICK_MAX_LINES,
   type QuickLine,
@@ -58,60 +59,6 @@ import {
  * 80 productos seguidos: escanear, teclear el precio, Enter, escanear. Sin
  * ese Enter habría que ir al campo con el mouse ochenta veces.
  */
-/**
- * El PROMEDIO de milisegundos por tecla que puede tener una ráfaga y seguir
- * pareciendo un lector.
- *
- * ── Por qué el promedio y no la pausa entre cada par ─────────────────────
- *
- * La primera versión medía tecla contra tecla, y se le escapaba el lector de
- * Carlos: basta UN hipo —el sistema ocupado, una pestaña que pide atención—
- * para que un par de teclas se separe y toda la ráfaga se parta en dos. El
- * promedio sobre la ráfaga entera aguanta ese hipo sin perder la señal.
- *
- * ── Por qué hay DOS techos y no uno ──────────────────────────────────────
- *
- * Este umbral existe para una sola cosa: distinguir un código de barras de un
- * PRECIO tecleado. Y un precio tiene seis o siete dígitos como mucho — nadie
- * cobra ocho cifras por un refresco. Así que la longitud de la ráfaga ya dice
- * cuánto hay que desconfiar del reloj:
- *
- * - 6 o 7 dígitos: podría ser un precio de verdad. El techo se queda apretado.
- * - 8 o más: no es un precio en ninguna moneda que manejemos. El techo se
- *   afloja, porque lo único que queda del otro lado es un lector.
- *
- * Un techo único obliga a elegir entre dos males: apretado se pierden lectores
- * lentos, flojo se come el precio de alguien. Separarlos por longitud no elige.
- *
- * ── De dónde salen los números ───────────────────────────────────────────
- *
- * El lector Bluetooth de Carlos, MEDIDO en su equipo el 2026-09-17: 12 dígitos
- * en 660 ms, 60 de promedio. Con el techo viejo de 50 el presupuesto era 600 y
- * se pasaba por 60 ms, así que su escaneo desde el precio se descartaba como si
- * lo hubiera tecleado él. No era un error de lógica: el umbral estaba calibrado
- * con un lector imaginario de 20 ms por tecla.
- *
- * Una persona sostiene difícilmente menos de 150 ms por dígito en el teclado
- * numérico. 120 deja el doble de margen sobre el lector medido y sigue por
- * debajo del mecanógrafo más rápido.
- */
-const MAX_PROMEDIO_POR_TECLA_MS = 50;
-
-/** El techo para una ráfaga que ya es demasiado larga para ser un precio. */
-const MAX_PROMEDIO_LECTOR_LARGO_MS = 120;
-
-/** A partir de aquí, la ráfaga dejó de poder ser un precio. */
-const LARGO_QUE_YA_NO_ES_PRECIO = 8;
-
-/**
- * La pausa que da por TERMINADA una ráfaga.
- *
- * Sin esto, dos tecleos separados por minutos se sumarían en el mismo búfer y
- * cualquier cosa parecería un código. Con 300 ms, dos capturas distintas nunca
- * se mezclan y un lector nunca se corta a la mitad.
- */
-const PAUSA_QUE_CIERRA_LA_RAFAGA_MS = 300;
-
 /**
  * «fr» → «francés» / «French», en el idioma de quien lee.
  *
@@ -200,18 +147,6 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
    * se vería como ráfaga y el foco no se movería nunca.
    */
   const esperandoTurnoRef = useRef(0);
-  /**
-   * La ráfaga de teclas que puede ser un lector, y qué campo estaba recibiendo
-   * sus caracteres para poder devolvérselos.
-   */
-  const rafagaRef = useRef<{
-    texto: string;
-    /** Cuándo llegó la PRIMERA tecla: con esto se saca el promedio. */
-    primeraTecla: number;
-    ultimaTecla: number;
-    origen: { code: string; campo: "name" | "price"; valor: string } | null;
-  } | null>(null);
-
   const guardar = useQuickAddProducts();
 
   // El sello de dueño: si el borrador guardado es de otra cuenta, se descarta.
@@ -335,104 +270,45 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
   // lector hacen falta varias teclas, y para entonces las primeras ya
   // aterrizaron. Deshacer es posible; adivinar antes de tiempo, no.
   const escanearRef = useRef<(code: string) => void>(() => undefined);
-  const confirmandoRef = useRef<typeof confirmando>(null);
-  confirmandoRef.current = confirmando;
 
-  useEffect(() => {
-    /** En qué campo de qué línea está el cursor, y qué tenía antes del disparo. */
-    const origenDe = (activo: Element | null) => {
-      if (!(activo instanceof HTMLInputElement)) {
-        return null;
+  /** De un input a la línea y campo a los que pertenece. */
+  const lineaDelCampo = (campo: HTMLInputElement) => {
+    for (const [code, campos] of camposRef.current) {
+      if (campos.name === campo) {
+        return { code, campo: "name" as const };
       }
-      for (const [code, campos] of camposRef.current) {
-        if (campos.name === activo) {
-          return { code, campo: "name" as const, valor: activo.value };
-        }
-        if (campos.price === activo) {
-          return { code, campo: "price" as const, valor: activo.value };
-        }
+      if (campos.price === campo) {
+        return { code, campo: "price" as const };
       }
-      return null;
-    };
+    }
+    return null;
+  };
 
-    const alTeclear = (evento: KeyboardEvent) => {
-      const activo = document.activeElement;
-      // El campo de escaneo ya tiene su propio camino, y con un diálogo
-      // abierto no se agregan líneas por la espalda.
-      if (activo === escanerRef.current || confirmandoRef.current !== null) {
-        rafagaRef.current = null;
-        return;
+  useScannerBurst({
+    looksLikeBarcode: isScannableBarcode,
+    // El campo de escaneo ya tiene su propio camino, y con un diálogo abierto
+    // no se agregan líneas por la espalda.
+    enabled: confirmando === null,
+    ignore: (activo) => activo === escanerRef.current,
+    onScan: (codigo, origen) => {
+      // El foco se mueve ANTES de restaurar, y el orden importa: al salir del
+      // precio, `MoneyInput` formatea con el valor de su último render —el
+      // código recién tecleado— y lo guarda. Si la restauración fuera primero,
+      // ese formateo la pisaba y el precio quedaba como «721733000968.00».
+      // Solo pasaba con códigos que caben como importe (doce dígitos o menos
+      // sobre un precio vacío), por eso parecía depender de si el campo estaba
+      // vacío.
+      escanerRef.current?.focus();
+      const destino = origen === null ? null : lineaDelCampo(origen.campo);
+      if (destino !== null) {
+        patch(
+          destino.code,
+          destino.campo === "name" ? { name: origen?.valor } : { price: origen?.valor },
+        );
       }
-
-      if (evento.key === "Enter") {
-        const rafaga = rafagaRef.current;
-        rafagaRef.current = null;
-        if (rafaga === null || !isScannableBarcode(rafaga.texto)) {
-          return;
-        }
-        // Las dos condiciones juntas: lo escrito es un código válido Y llegó a
-        // velocidad de máquina. Ninguna alcanza sola — un precio de seis
-        // dígitos es un código válido, y «600.00» llega rápido pero no es uno.
-        const duracion = rafaga.ultimaTecla - rafaga.primeraTecla;
-        const techo =
-          rafaga.texto.length >= LARGO_QUE_YA_NO_ES_PRECIO
-            ? MAX_PROMEDIO_LECTOR_LARGO_MS
-            : MAX_PROMEDIO_POR_TECLA_MS;
-        if (duracion > rafaga.texto.length * techo) {
-          return;
-        }
-        evento.preventDefault();
-        evento.stopPropagation();
-        // El foco se mueve ANTES de restaurar, y el orden importa: al salir
-        // del precio, `MoneyInput` formatea con el valor de su último render
-        // —el código recién tecleado— y lo guarda. Si la restauración fuera
-        // primero, ese formateo la pisaba y el precio quedaba como
-        // «721733000968.00». Solo pasaba con códigos que caben como importe
-        // (doce dígitos o menos sobre un precio vacío), por eso parecía
-        // depender de si el campo estaba vacío.
-        escanerRef.current?.focus();
-        if (rafaga.origen !== null) {
-          patch(
-            rafaga.origen.code,
-            rafaga.origen.campo === "name"
-              ? { name: rafaga.origen.valor }
-              : { price: rafaga.origen.valor },
-          );
-        }
-        escanearRef.current(rafaga.texto);
-        return;
-      }
-
-      // Solo caracteres imprimibles: las flechas, Tab y los modificadores no
-      // forman parte de lo que escribe un lector.
-      if (evento.key.length !== 1) {
-        return;
-      }
-      // ── El reloj sale del EVENTO, no de `Date.now()` ──────────────────
-      //
-      // `timeStamp` lo pone el navegador cuando NACE la tecla, antes de que
-      // corra una línea de JavaScript. `Date.now()` se lee cuando el manejador
-      // alcanza a ejecutarse, y entre tecla y tecla React repinta la tabla
-      // entera: ese repintado se sumaba a la medición y hacía que un lector
-      // rapidísimo pareciera una persona escribiendo despacio. Es la razón por
-      // la que a Carlos no se le disparaba el escaneo desde el precio.
-      const ahora = evento.timeStamp;
-      const previa = rafagaRef.current;
-      const sigueLaMisma =
-        previa !== null && ahora - previa.ultimaTecla <= PAUSA_QUE_CIERRA_LA_RAFAGA_MS;
-      rafagaRef.current = sigueLaMisma
-        ? { ...previa, texto: previa.texto + evento.key, ultimaTecla: ahora }
-        : {
-            texto: evento.key,
-            primeraTecla: ahora,
-            ultimaTecla: ahora,
-            origen: origenDe(activo),
-          };
-    };
-
-    document.addEventListener("keydown", alTeclear, true);
-    return () => document.removeEventListener("keydown", alTeclear, true);
-  }, [patch]);
+      escanearRef.current(codigo);
+    },
+  });
 
   const escanear = (code: string) => {
     const limpio = code.trim();
