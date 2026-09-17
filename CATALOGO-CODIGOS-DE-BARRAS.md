@@ -252,6 +252,30 @@ consulta.
 Los otros 578 no tienen nombre en inglés en ningún lado, y eso no lo resuelve
 ningún cambio de código. Los va a teclear el negocio que los venda — ver §7.
 
+**LATAM NO se recargó, y es una decisión medida.** El plan era recargar Canadá
+y LATAM. Se cargó LATAM en local, se miró el resultado y se revirtió: de 18,296
+filas mexicanas el nombre en español de Open Food Facts cambiaba 576, y **la
+mitad quedaban peor**.
+
+| Antes | Después de preferir `product_name_es` |
+|---|---|
+| «Corona Extra 3.2%» | «Corona øl» (danés) |
+| «Chicharrón de cerdo (salsa negra)» | «Chicharrón» |
+| «Yoplait Griego Sin Azúcar Añadida» | «Yogurt Griego Sin Azúcar Añadía» |
+| «800» | «Cubitos De Atún Aleta Amarilla» ✔ |
+| «Giant pecans» | «Nuez pecana» ✔ |
+
+Una moneda al aire en el mercado principal no es una mejora. Y hay algo peor
+que el empate: **un nombre malo en la casilla del idioma queda atrapado**,
+porque la regla de «solo se llena la casilla vacía» impide que un negocio lo
+corrija después. En Canadá el cálculo era otro —el francés no le sirve a un
+negocio que opera en inglés, así que casi cualquier cambio suma— y por eso ahí
+sí se recargó.
+
+Si algún día se quiere reconsiderar: la carga ya está resuelta
+(`barcode-catalog-load.sh local latam`) y lo que falta no es código sino una
+manera de corregir una casilla que quedó mal.
+
 **Una guarda que se escribió y se quitó.** Descartaba el nombre traducido
 cuando medía menos del 60% del original, para atajar un caso real: un producto
 cuyo `product_name` era «Salt and pepper calamari» y cuyo `product_name_en` era
