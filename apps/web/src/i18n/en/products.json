@@ -126,7 +126,7 @@
       "comeBackTitle": "You can come back anytime.",
       "comeBack": "Codes you don't have yet are created as new products; the ones you already have only get their price updated.",
       "namingTitle": "The name is what you'll see in your catalog and on the receipt.",
-      "naming": "Include the size: «Cheetos 82 g» and «Cheetos 44 g» are two different products."
+      "naming": "Write it the way you'll search for it: brand, product and size. «Bottled water 1 L» and «Bottled water 600 ml» are two different products."
     },
     "back": "Back to Products",
     "scanLabel": "Barcode",
@@ -134,7 +134,7 @@
     "addLine": "Add",
     "scanHint": "Each code adds a line: press Enter or tap «Add». From the price field, Enter brings you back here for the next one.",
     "empty": "Nothing scanned yet. The first code opens the list.",
-    "namePlaceholder": "e.g. Cheetos 82 g",
+    "namePlaceholder": "e.g. Bottled water 1 L",
     "columns": {
       "code": "Code",
       "name": "Product name",

@@ -704,7 +704,7 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 |---|---|
 | Para productos con código de barras **del fabricante** | Los que solo tienen un código interno del negocio entran por la plantilla de Excel o por «Nuevo producto». Esta pantalla solo acepta dígitos de 6 a 14 y no explicarlo dejaba a la persona chocando con el rechazo |
 | **Puedes volver cuando quieras** | Un cliente nuevo no sabe si esto es de una sola vez. Se dice además qué pasa con lo que ya tiene: solo se le actualiza el precio |
-| El nombre es el que verás **en tu catálogo y en el ticket** | Y conviene incluir la presentación, con el ejemplo que lo explica solo: «Cheetos 82 g» y «Cheetos 44 g» son dos productos distintos. El campo del nombre lo repite en su texto de ayuda («Ej.: Cheetos 82 g») |
+| El nombre es el que verás **en tu catálogo y en el ticket** | Se dice la regla con palabras —marca, producto y presentación— y el ejemplo la ilustra: «Agua natural 1 L» y «Agua natural 600 ml» son dos productos distintos. El campo del nombre lo repite en su texto de ayuda («Ej.: Agua natural 1 L»). **El ejemplo es genérico a propósito** (Carlos, 2026-09-17): antes decía «Cheetos», que es marca registrada de un tercero dentro de nuestra interfaz, y además es botana — una farmacia o una ferretería veían el ejemplo del negocio de otro |
 
 **Qué NO pide esta pantalla:** existencias (entran por una Entrada, que es donde el sistema pide almacén, lote y caducidad), costo (se descubre al recibir mercancía; inventarlo envenena los márgenes), unidad e impuesto (piezas y el default del negocio).
 

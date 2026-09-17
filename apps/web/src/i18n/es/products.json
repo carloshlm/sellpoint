@@ -126,7 +126,7 @@
       "comeBackTitle": "Puedes volver cuando quieras.",
       "comeBack": "Los códigos que todavía no tengas se crean como productos nuevos; a los que ya tienes solo se les actualiza el precio de venta.",
       "namingTitle": "El nombre es el que verás en tu catálogo y en el ticket.",
-      "naming": "Conviene incluir la presentación: «Cheetos 82 g» y «Cheetos 44 g» son dos productos distintos."
+      "naming": "Escríbelo como lo vas a buscar: marca, producto y presentación. «Agua natural 1 L» y «Agua natural 600 ml» son dos productos distintos."
     },
     "back": "Volver a Productos",
     "scanLabel": "Código de barras",
@@ -134,7 +134,7 @@
     "addLine": "Agregar",
     "scanHint": "Cada código agrega una línea: presiona Enter o toca «Agregar». En el precio, Enter te devuelve aquí para el siguiente.",
     "empty": "Todavía no escaneas nada. El primer código abre la lista.",
-    "namePlaceholder": "Ej.: Cheetos 82 g",
+    "namePlaceholder": "Ej.: Agua natural 1 L",
     "columns": {
       "code": "Código",
       "name": "Nombre del producto",
