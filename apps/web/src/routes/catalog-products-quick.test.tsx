@@ -395,18 +395,27 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
    * por 200 ms son lo normal.
    */
   it("dos escaneos seguidos, sin esperar al primero, dejan DOS líneas", async () => {
+    // La primera consulta se resuelve CUANDO ESTA PRUEBA QUIERE, no cuando
+    // vence un temporizador. Con `setTimeout(30)` el CI la resolvía en la
+    // ventana entre el clic y la primera tecla del segundo escaneo —campo
+    // enfocado y vacío— y la prueba fallaba solo allá. Un reloj no es una
+    // manera de ordenar los hechos que la prueba quiere fijar.
+    let resolverPrimera: (valor: productsApi.BarcodeLookup) => void = () => undefined;
     mocked.lookupBarcode
       .mockImplementationOnce(
         () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve(enCatalogoGlobal("7501055300013", "Primero")), 30),
-          ),
+          new Promise<productsApi.BarcodeLookup>((resolve) => {
+            resolverPrimera = resolve;
+          }),
       )
       .mockResolvedValueOnce(enCatalogoGlobal("7509999000006", "Segundo"));
     const user = await abrir();
 
     await escanear(user, "7501055300013");
+    // El segundo se encola con el primero TODAVÍA en vuelo, que es lo que esta
+    // prueba existe para fijar.
     await escanear(user, "7509999000006");
+    resolverPrimera(enCatalogoGlobal("7501055300013", "Primero"));
 
     expect(await screen.findByDisplayValue("Primero")).toBeInTheDocument();
     expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
