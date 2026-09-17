@@ -850,6 +850,34 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
   });
 
   /**
+   * Carlos (2026-09-17): con el precio VACÍO, el código del siguiente producto
+   * se quedaba en el precio como «721733000968.00»; con «600» escrito, no.
+   *
+   * No era el vacío: era que doce dígitos CABEN como importe. Al mandar el foco
+   * al campo de escaneo, el precio pierde el foco y `MoneyInput` formatea al
+   * salir con el valor de su último render —el código— y lo guardaba DESPUÉS
+   * de la restauración, pisándola. Con «600» delante eran quince dígitos, que
+   * no caben, el formateo no hacía nada y la restauración sobrevivía. La prueba
+   * vieja usaba un código de trece dígitos, que tampoco cabe, y no lo veía.
+   */
+  it("con el precio vacío, un código de doce dígitos no se queda en el precio", async () => {
+    mocked.lookupBarcode
+      .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Primero"))
+      .mockResolvedValueOnce(enCatalogoGlobal("721733000968", "Segundo"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
+    await user.click(precio);
+
+    teclearComo(precio, "721733000968", 60);
+
+    expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Precio de venta")[1]).toHaveValue("");
+  });
+
+  /**
    * El otro lado de la moneda, y la razón por la que el techo NO es uno solo.
    *
    * Un precio de seis dígitos es un código de barras válido para

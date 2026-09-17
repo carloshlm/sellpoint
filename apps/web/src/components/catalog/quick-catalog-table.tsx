@@ -383,6 +383,14 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
         }
         evento.preventDefault();
         evento.stopPropagation();
+        // El foco se mueve ANTES de restaurar, y el orden importa: al salir
+        // del precio, `MoneyInput` formatea con el valor de su último render
+        // —el código recién tecleado— y lo guarda. Si la restauración fuera
+        // primero, ese formateo la pisaba y el precio quedaba como
+        // «721733000968.00». Solo pasaba con códigos que caben como importe
+        // (doce dígitos o menos sobre un precio vacío), por eso parecía
+        // depender de si el campo estaba vacío.
+        escanerRef.current?.focus();
         if (rafaga.origen !== null) {
           patch(
             rafaga.origen.code,
@@ -392,7 +400,6 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
           );
         }
         escanearRef.current(rafaga.texto);
-        escanerRef.current?.focus();
         return;
       }
 
