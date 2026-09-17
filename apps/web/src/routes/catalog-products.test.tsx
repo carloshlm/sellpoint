@@ -718,6 +718,106 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
       expect(screen.getByText("Nombre en inglés")).toBeInTheDocument();
     });
 
+    const rafagaSobre = (campo: HTMLInputElement, codigo: string) => {
+      let momento = 1_000;
+      const tecla = (key: string) => {
+        momento += 60;
+        const evento = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+        Object.defineProperty(evento, "timeStamp", { value: momento });
+        campo.dispatchEvent(evento);
+      };
+      for (const caracter of codigo) {
+        tecla(caracter);
+        fireEvent.input(campo, { target: { value: campo.value + caracter } });
+      }
+      tecla("Enter");
+    };
+
+    /**
+     * Carlos (2026-09-17): «deben ser iguales al momento de escanear».
+     *
+     * El código interno nace del de barras y se puede editar después. Antes
+     * había que teclearlo o dejarlo vacío para que el API lo adoptara al
+     * guardar; ahora se ve desde el escaneo, que es cuando se sabe.
+     */
+    it("el escaneo llena el código interno junto con el de barras", async () => {
+      mockedProducts.lookupBarcode.mockResolvedValue({
+        status: "global",
+        code: "776455320351",
+        gtin14: "00776455320351",
+        tenant: null,
+        global: { name: "Onion Powder", lang: "en", brand: null, unitSize: null },
+        contributable: true,
+      });
+      await abrirAlta();
+
+      escanearCodigo("776455320351");
+
+      expect(await screen.findByDisplayValue("Onion Powder")).toBeInTheDocument();
+      expect(screen.getByLabelText(/código de barras/i)).toHaveValue("776455320351");
+      expect(screen.getByLabelText(/código interno/i)).toHaveValue("776455320351");
+    });
+
+    /**
+     * El bug del pantallazo de Carlos: el código interno quedó como
+     * «633148100099776455320351», los DOS escaneos pegados. La ráfaga aterrizó
+     * en ese campo y la restauración no surtió efecto — asignar `.value` a un
+     * input controlado no alcanza, porque React lleva su propio rastreador y
+     * ve el `input` posterior como «no cambió nada».
+     */
+    it("escanear con el cursor en el código interno no encadena los códigos", async () => {
+      mockedProducts.lookupBarcode.mockResolvedValue({
+        status: "global",
+        code: "776455320351",
+        gtin14: "00776455320351",
+        tenant: null,
+        global: { name: "Onion Powder", lang: "en", brand: null, unitSize: null },
+        contributable: true,
+      });
+      const user = await abrirAlta();
+
+      const interno = screen.getByLabelText(/código interno/i) as HTMLInputElement;
+      await user.click(interno);
+      fireEvent.input(interno, { target: { value: "633148100099" } });
+
+      rafagaSobre(interno, "776455320351");
+
+      expect(await screen.findByDisplayValue("Onion Powder")).toBeInTheDocument();
+      expect(interno).toHaveValue("776455320351");
+    });
+
+    /**
+     * La otra mitad de lo que pidió Carlos: «si el producto ya existe y es
+     * edición no debes editar el código interno al cambiar el código de
+     * barras». Ese código es el identificador con el que el negocio YA nombra
+     * el producto —vive en sus planillas y en sus etiquetas— y cambiar el
+     * código de barras no es motivo para pisarlo.
+     */
+    it("en la EDICIÓN, escanear no toca el código interno", async () => {
+      mockedProducts.listProducts.mockResolvedValue({
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        items: [{ ...PRODUCT, price: "0.02" }],
+      });
+      mockedProducts.getProduct.mockResolvedValue({
+        ...PRODUCT,
+        tracksLots: false,
+        hasLotStock: false,
+      });
+      await openProduct();
+
+      const interno = await screen.findByLabelText(/código interno/i);
+      expect(interno).toHaveValue("AZUCAR1GR001");
+
+      const codigo = screen.getByLabelText(/código de barras/i) as HTMLInputElement;
+      codigo.value = "776455320351";
+      fireEvent.keyDown(codigo, { key: "Enter" });
+
+      await waitFor(() => expect(mockedProducts.lookupBarcode).not.toHaveBeenCalled());
+      expect(interno).toHaveValue("AZUCAR1GR001");
+    });
+
     /**
      * Con el cursor en «Nombre», la pistola escribe el código AHÍ. Esos
      * caracteres entran antes de que nadie pueda saber que era un escaneo:

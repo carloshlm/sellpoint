@@ -195,3 +195,27 @@ export function useScannerBurst({
     return () => document.removeEventListener("keydown", alTeclear, true);
   }, [enabled]);
 }
+
+/**
+ * Le devuelve a un input controlado por React el valor que tenía.
+ *
+ * ── Por qué no alcanza con `campo.value = valor` ─────────────────────────
+ *
+ * React lleva su PROPIO rastreador del valor de cada input. Al asignar
+ * `.value` a mano, ese rastreador se actualiza de paso, así que el evento
+ * `input` que se dispara después se ve como «no cambió nada»: React no llama
+ * al `onChange` y el estado se queda con lo que la ráfaga escribió.
+ *
+ * El síntoma exacto que dejó: Carlos escaneó dos productos con el cursor en el
+ * código interno y el campo quedó con los dos códigos PEGADOS
+ * («633148100099776455320351»). La pantalla parecía restaurada un instante y
+ * el estado nunca lo estuvo.
+ *
+ * Usar el `set` del prototipo esquiva el rastreador: React ve una diferencia
+ * real y procesa el evento como si lo hubiera escrito una persona.
+ */
+export function restoreInputValue(campo: HTMLInputElement, valor: string): void {
+  const asignar = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  asignar?.call(campo, valor);
+  campo.dispatchEvent(new Event("input", { bubbles: true }));
+}

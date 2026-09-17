@@ -50,7 +50,7 @@ import {
   useProducts,
   useUpdateProduct,
 } from "@/lib/products/hooks";
-import { useScannerBurst } from "@/lib/scanner/use-scanner-burst";
+import { restoreInputValue, useScannerBurst } from "@/lib/scanner/use-scanner-burst";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -583,6 +583,17 @@ function ProductForm({
       return;
     }
     setBarcode(limpio);
+    // ── Los dos códigos se llenan JUNTOS al escanear (Carlos, 2026-09-17) ──
+    //
+    // «Deben ser iguales al momento de escanear, con la posibilidad de que el
+    // usuario pueda editarlo si quiere.» El API ya adoptaba el código de
+    // barras como interno al guardar cuando el interno iba vacío, pero eso
+    // pasaba a espaldas del usuario: verlo escrito es poder corregirlo.
+    //
+    // Solo en el ALTA. En la edición, el código interno es el identificador
+    // con el que el negocio YA nombra ese producto —está en sus planillas y en
+    // sus etiquetas— y cambiar el código de barras no es motivo para pisarlo.
+    setSku(normalizeCode(limpio));
     setSugerencia(null);
     try {
       const hallazgo = await lookupBarcode(limpio);
@@ -608,8 +619,7 @@ function ProductForm({
       // Lo que la ráfaga alcanzó a escribir en otro campo se devuelve: un
       // código de barras dentro de «Nombre» no es un nombre.
       if (origen !== null) {
-        origen.campo.value = origen.valor;
-        origen.campo.dispatchEvent(new Event("input", { bubbles: true }));
+        restoreInputValue(origen.campo, origen.valor);
       }
       void consultarCodigo(codigo);
     },
