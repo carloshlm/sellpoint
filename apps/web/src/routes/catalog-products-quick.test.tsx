@@ -132,23 +132,26 @@ const darDeAlta = async (user: ReturnType<typeof userEvent.setup>) => {
 
 /**
  * Teclea `texto` y un Enter sobre `campo`, con una pausa CONTROLADA entre
- * teclas. El reloj es falso a propósito: la detección del lector mide tiempos,
- * y un `setTimeout` real haría que la prueba dependa de lo rápido que ande la
- * máquina — que es justo como el CI tumbó otra prueba de este archivo.
+ * teclas.
+ *
+ * El reloj se pone en el `timeStamp` de cada evento, que es exactamente lo que
+ * mide la detección del lector: el navegador lo estampa cuando NACE la tecla,
+ * antes de que corra una línea de JavaScript. Medir con `Date.now()` sumaba el
+ * tiempo de repintado de React y hacía que un lector pareciera una persona.
  */
-function teclearComo(
-  campo: HTMLInputElement,
-  texto: string,
-  pausaMs: number,
-  reloj: { ahora: number },
-) {
+function teclearComo(campo: HTMLInputElement, texto: string, pausaMs: number, desde = 1_000) {
+  let momento = desde;
+  const tecla = (key: string) => {
+    momento += pausaMs;
+    const evento = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    Object.defineProperty(evento, "timeStamp", { value: momento });
+    campo.dispatchEvent(evento);
+  };
   for (const caracter of texto) {
-    reloj.ahora += pausaMs;
-    fireEvent.keyDown(campo, { key: caracter });
+    tecla(caracter);
     fireEvent.input(campo, { target: { value: campo.value + caracter } });
   }
-  reloj.ahora += pausaMs;
-  fireEvent.keyDown(campo, { key: "Enter" });
+  tecla("Enter");
 }
 
 const escanear = async (user: ReturnType<typeof userEvent.setup>, code: string) => {
@@ -764,8 +767,6 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
    * EN EL PRECIO. Con un lector de mano pasa seguido.
    */
   it("el lector dispara aunque el cursor esté en el precio, y el precio no se ensucia", async () => {
-    const reloj = { ahora: 1_000 };
-    vi.spyOn(Date, "now").mockImplementation(() => reloj.ahora);
     mocked.lookupBarcode
       .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Primero"))
       .mockResolvedValueOnce(enCatalogoGlobal("7509999000006", "Segundo"));
@@ -778,16 +779,53 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     fireEvent.input(precio, { target: { value: "18.50" } });
 
     // La pistola dispara sobre el campo de precio: sin pausas de persona.
-    teclearComo(precio, "7509999000006", 8, reloj);
+    teclearComo(precio, "7509999000006", 8);
 
     expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
     // Y el precio que ya estaba escrito vuelve intacto.
     expect(screen.getAllByLabelText("Precio de venta")[1]).toHaveValue("18.50");
   });
 
+  /**
+   * El caso que se le escapaba a la primera versión, y por el que a Carlos no
+   * se le disparaba el escaneo desde el precio: medía tecla contra tecla, así
+   * que UN hipo —el sistema ocupado, React repintando la tabla— partía la
+   * ráfaga en dos y el búfer llegaba al Enter con una sola tecla dentro.
+   *
+   * El promedio sobre la ráfaga entera aguanta el hipo sin perder la señal.
+   */
+  it("una ráfaga con un hipo en medio sigue siendo un lector", async () => {
+    mocked.lookupBarcode
+      .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Primero"))
+      .mockResolvedValueOnce(enCatalogoGlobal("7509999000006", "Segundo"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
+    await user.click(precio);
+
+    // Doce teclas a 10 ms y UNA pausa de 200 en medio: 310 ms para 13 golpes,
+    // unos 24 de promedio. Ningún par supera los 300 que cierran la ráfaga.
+    let momento = 1_000;
+    const tecla = (key: string, pausa: number) => {
+      momento += pausa;
+      const evento = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      Object.defineProperty(evento, "timeStamp", { value: momento });
+      precio.dispatchEvent(evento);
+    };
+    const codigo = "7509999000006";
+    for (const [indice, caracter] of [...codigo].entries()) {
+      tecla(caracter, indice === 6 ? 200 : 10);
+      fireEvent.input(precio, { target: { value: precio.value + caracter } });
+    }
+    tecla("Enter", 10);
+
+    expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Precio de venta")[1]).toHaveValue("");
+  });
+
   it("una persona tecleando los mismos dígitos en el precio NO crea una línea", async () => {
-    const reloj = { ahora: 1_000 };
-    vi.spyOn(Date, "now").mockImplementation(() => reloj.ahora);
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Primero"));
     const user = await abrir();
     await escanear(user, "7501055300013");
@@ -797,7 +835,7 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     await user.click(precio);
 
     // Los mismos dígitos, con pausas de persona: es un precio, no un escaneo.
-    teclearComo(precio, "7509999000006", 120, reloj);
+    teclearComo(precio, "7509999000006", 120);
 
     expect(mocked.lookupBarcode).toHaveBeenCalledTimes(1);
     expect(screen.queryByDisplayValue("Segundo")).not.toBeInTheDocument();
@@ -805,8 +843,6 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
   });
 
   it("una ráfaga que NO es un código de barras se deja pasar tal cual", async () => {
-    const reloj = { ahora: 1_000 };
-    vi.spyOn(Date, "now").mockImplementation(() => reloj.ahora);
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Primero"));
     const user = await abrir();
     await escanear(user, "7501055300013");
@@ -816,7 +852,7 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     await user.click(nombre);
     fireEvent.input(nombre, { target: { value: "" } });
     // Rápido, pero no es un código: son letras.
-    teclearComo(nombre, "Refresco", 8, reloj);
+    teclearComo(nombre, "Refresco", 8);
 
     expect(mocked.lookupBarcode).toHaveBeenCalledTimes(1);
     expect(nombre).toHaveValue("Refresco");

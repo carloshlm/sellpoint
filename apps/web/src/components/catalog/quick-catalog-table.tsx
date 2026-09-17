@@ -59,17 +59,31 @@ import {
  * ese Enter habría que ir al campo con el mouse ochenta veces.
  */
 /**
- * Cuánto puede tardar una tecla respecto de la anterior y seguir siendo el
- * mismo disparo de un lector.
+ * El PROMEDIO de milisegundos por tecla que puede tener una ráfaga y seguir
+ * pareciendo un lector.
  *
- * Un lector en modo teclado manda sus caracteres cada 5 a 20 ms. Una persona
- * rápida baja a 60 u 80 ms en un arranque, pero no sostiene doce dígitos
- * seguidos por debajo de 50 sin una sola pausa. El umbral no decide solo: para
- * tomarlo por escaneo, la ráfaga ENTERA tiene que ser además un código válido
- * (`isScannableBarcode`), y eso es lo que vuelve un falso positivo casi
- * imposible.
+ * ── Por qué el promedio y no la pausa entre cada par ─────────────────────
+ *
+ * La primera versión medía tecla contra tecla, y se le escapaba el lector de
+ * Carlos: basta UN hipo —el sistema ocupado, una pestaña que pide atención—
+ * para que un par de teclas se separe y toda la ráfaga se parta en dos. El
+ * promedio sobre la ráfaga entera aguanta ese hipo sin perder la señal.
+ *
+ * Un lector manda 12 dígitos en unos 240 ms (20 por tecla). Una persona tarda
+ * más de un segundo y medio en los mismos 12. La frontera en 50 de promedio
+ * deja pasar hasta un lector lento y sigue dejando afuera al mecanógrafo más
+ * rápido.
  */
-const MAX_PAUSA_ENTRE_TECLAS_MS = 50;
+const MAX_PROMEDIO_POR_TECLA_MS = 50;
+
+/**
+ * La pausa que da por TERMINADA una ráfaga.
+ *
+ * Sin esto, dos tecleos separados por minutos se sumarían en el mismo búfer y
+ * cualquier cosa parecería un código. Con 300 ms, dos capturas distintas nunca
+ * se mezclan y un lector nunca se corta a la mitad.
+ */
+const PAUSA_QUE_CIERRA_LA_RAFAGA_MS = 300;
 
 /**
  * «fr» → «francés» / «French», en el idioma de quien lee.
@@ -165,6 +179,8 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
    */
   const rafagaRef = useRef<{
     texto: string;
+    /** Cuándo llegó la PRIMERA tecla: con esto se saca el promedio. */
+    primeraTecla: number;
     ultimaTecla: number;
     origen: { code: string; campo: "name" | "price"; valor: string } | null;
   } | null>(null);
@@ -327,6 +343,13 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
         if (rafaga === null || !isScannableBarcode(rafaga.texto)) {
           return;
         }
+        // Las dos condiciones juntas: lo escrito es un código válido Y llegó a
+        // velocidad de máquina. Ninguna alcanza sola — un precio de seis
+        // dígitos es un código válido, y «600.00» llega rápido pero no es uno.
+        const duracion = rafaga.ultimaTecla - rafaga.primeraTecla;
+        if (duracion > rafaga.texto.length * MAX_PROMEDIO_POR_TECLA_MS) {
+          return;
+        }
         evento.preventDefault();
         evento.stopPropagation();
         if (rafaga.origen !== null) {
@@ -347,13 +370,26 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       if (evento.key.length !== 1) {
         return;
       }
-      const ahora = Date.now();
+      // ── El reloj sale del EVENTO, no de `Date.now()` ──────────────────
+      //
+      // `timeStamp` lo pone el navegador cuando NACE la tecla, antes de que
+      // corra una línea de JavaScript. `Date.now()` se lee cuando el manejador
+      // alcanza a ejecutarse, y entre tecla y tecla React repinta la tabla
+      // entera: ese repintado se sumaba a la medición y hacía que un lector
+      // rapidísimo pareciera una persona escribiendo despacio. Es la razón por
+      // la que a Carlos no se le disparaba el escaneo desde el precio.
+      const ahora = evento.timeStamp;
       const previa = rafagaRef.current;
       const sigueLaMisma =
-        previa !== null && ahora - previa.ultimaTecla <= MAX_PAUSA_ENTRE_TECLAS_MS;
+        previa !== null && ahora - previa.ultimaTecla <= PAUSA_QUE_CIERRA_LA_RAFAGA_MS;
       rafagaRef.current = sigueLaMisma
         ? { ...previa, texto: previa.texto + evento.key, ultimaTecla: ahora }
-        : { texto: evento.key, ultimaTecla: ahora, origen: origenDe(activo) };
+        : {
+            texto: evento.key,
+            primeraTecla: ahora,
+            ultimaTecla: ahora,
+            origen: origenDe(activo),
+          };
     };
 
     document.addEventListener("keydown", alTeclear, true);
