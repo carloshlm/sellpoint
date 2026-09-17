@@ -530,11 +530,30 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                escanear(texto);
+                // ── El valor sale del DOM, NO del estado de React ──────────
+                //
+                // Carlos (2026-09-17), con un lector Bluetooth: escaneaba el
+                // segundo producto y no se agregaba la línea; el código se
+                // quedaba escrito en el campo y el foco aparecía en el nombre
+                // de la línea anterior.
+                //
+                // Un lector es un teclado que escribe doce caracteres y el
+                // Enter en el mismo suspiro. React agrupa los `onChange` y los
+                // aplica después, así que cuando llegaba el Enter la variable
+                // `texto` todavía traía lo de ANTES —vacío, casi siempre— y la
+                // función se salía por la puerta del «no hay nada que
+                // escanear». El campo conservaba el código porque nunca se
+                // llegó a limpiar, y el foco que se veía en el nombre era la
+                // respuesta del escaneo ANTERIOR llegando tarde.
+                //
+                // `currentTarget.value` es lo que el campo tiene AHORA, sin
+                // esperar a ningún render. Con un teclado humano las dos
+                // lecturas coinciden siempre; con un lector, solo esta sirve.
+                escanear(event.currentTarget.value);
               }
             }}
           />
-          <p className="mt-1 text-muted-foreground text-xs">{t("products.quick.scanHint")}</p>
+          <p className="text-muted-foreground text-xs">{t("products.quick.scanHint")}</p>
         </div>
         {camaraALaMano && <BarcodeScanner onScan={escanear} />}
       </div>

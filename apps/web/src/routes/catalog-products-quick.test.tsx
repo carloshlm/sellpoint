@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { useAuthStore } from "@/stores/auth.store";
@@ -309,6 +309,49 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
 
     expect(await screen.findByText(/no es un código de barras/)).toBeInTheDocument();
     expect(mocked.quickAddProducts).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Carlos (2026-09-17), con un lector Bluetooth: «si tengo un producto ya
+   * agregado en una línea y luego escaneo otro producto no me agrega una línea
+   * nueva y me da el foco en el product Name del producto anterior».
+   *
+   * Un lector es un teclado que escribe doce caracteres y el Enter en el mismo
+   * suspiro. React agrupa los `onChange` y los aplica después, así que al
+   * llegar el Enter la variable del estado todavía traía lo de ANTES y la
+   * función se salía por «no hay nada que escanear». Acá se reproduce eso: el
+   * valor llega al DOM y el Enter se dispara sin que React haya procesado
+   * ningún cambio.
+   */
+  it("un lector que escribe y manda Enter de un golpe SÍ agrega la línea", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    await abrir();
+    const campo = screen.getByLabelText("Código de barras") as HTMLInputElement;
+
+    campo.value = "7501055300013";
+    fireEvent.keyDown(campo, { key: "Enter" });
+
+    expect(await screen.findByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
+    expect(mocked.lookupBarcode).toHaveBeenCalledWith("7501055300013");
+  });
+
+  it("y con una línea ya puesta, el segundo escaneo del lector agrega OTRA", async () => {
+    mocked.lookupBarcode
+      .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Primero"))
+      .mockResolvedValueOnce(enCatalogoGlobal("7509999000006", "Segundo"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const campo = screen.getByLabelText("Código de barras") as HTMLInputElement;
+    campo.value = "7509999000006";
+    fireEvent.keyDown(campo, { key: "Enter" });
+
+    expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
+    // Y el campo queda limpio para el siguiente, no con el código pegado.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Código de barras")).toHaveValue("");
+    });
   });
 
   it("el mismo código dos veces NO duplica la línea", async () => {
