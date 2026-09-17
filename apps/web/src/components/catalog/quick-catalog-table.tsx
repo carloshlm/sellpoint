@@ -21,6 +21,7 @@ import {
 import type { ApiError } from "@/lib/api";
 import { usePlan } from "@/lib/billing/use-plan";
 import { quickLineErrorsOf } from "@/lib/field-errors";
+import { languageName } from "@/lib/language-name";
 import { moneyInputError } from "@/lib/money";
 import { lookupBarcode } from "@/lib/products/api";
 import { useQuickAddProducts } from "@/lib/products/hooks";
@@ -59,22 +60,6 @@ import {
  * 80 productos seguidos: escanear, teclear el precio, Enter, escanear. Sin
  * ese Enter habría que ir al campo con el mouse ochenta veces.
  */
-/**
- * «fr» → «francés» / «French», en el idioma de quien lee.
- *
- * `Intl.DisplayNames` lo trae el navegador: mantener a mano una lista de
- * idiomas traducida sería copiar algo que la plataforma ya sabe, y el volcado
- * tiene decenas. Si el navegador no lo conoce, se muestra el código tal cual
- * antes que una etiqueta vacía.
- */
-function nombreDeIdioma(codigo: string, locale: string): string {
-  try {
-    return new Intl.DisplayNames([locale], { type: "language" }).of(codigo) ?? codigo;
-  } catch {
-    return codigo;
-  }
-}
-
 export function QuickCatalogTable({ owner }: { owner: string }) {
   const { t, i18n } = useTranslation();
   const idiomaDelUsuario = i18n.language.slice(0, 2);
@@ -552,7 +537,7 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
         return (
           <Badge variant="warning">
             {t("products.quick.status.otherLanguage", {
-              language: nombreDeIdioma(otroIdioma, idiomaDelUsuario),
+              language: languageName(otroIdioma, idiomaDelUsuario),
             })}
           </Badge>
         );

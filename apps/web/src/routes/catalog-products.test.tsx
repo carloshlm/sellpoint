@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import type { AuthUser } from "@/stores/auth.store";
@@ -33,6 +33,7 @@ vi.mock("../lib/products/api", () => ({
   replaceComposition: vi.fn(),
   getAvailability: vi.fn(),
   getCostEstimate: vi.fn(),
+  lookupBarcode: vi.fn(),
 }));
 
 vi.mock("../lib/catalogs/api", () => ({
@@ -635,6 +636,124 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
     await user.click(await screen.findByRole("button", { name: "Nuevo producto" }));
     return user;
   }
+
+  /**
+   * ── El escáner llena el nombre (Carlos, 2026-09-17) ─────────────────
+   *
+   * «Al escanear el código de barras quiero que también agregues el nombre del
+   * producto y dejes el foco ahí en Nombre.» La insignia dice de dónde salió
+   * ese nombre: de tu propio catálogo, del compartido —y en qué idioma— o de
+   * ningún lado.
+   */
+  describe("el escáner en el alta", () => {
+    const escanearCodigo = (codigo: string) => {
+      const campo = screen.getByLabelText(/código de barras/i) as HTMLInputElement;
+      // Como escribe un lector: el valor al DOM y el Enter en el mismo suspiro.
+      campo.value = codigo;
+      fireEvent.keyDown(campo, { key: "Enter" });
+      return campo;
+    };
+
+    it("un código que ya es tuyo llena el nombre y lo marca «Ya lo tienes»", async () => {
+      mockedProducts.lookupBarcode.mockResolvedValue({
+        status: "tenant",
+        code: "7501011167650",
+        gtin14: "07501011167650",
+        tenant: {
+          productId: "p9",
+          presentationId: "pr9",
+          sku: "SAB-110",
+          name: "Sabritas 110 G",
+          price: "21.50",
+        },
+        global: null,
+        contributable: false,
+      });
+      await abrirAlta();
+
+      escanearCodigo("7501011167650");
+
+      expect(await screen.findByDisplayValue("Sabritas 110 G")).toBeInTheDocument();
+      expect(screen.getByText("Ya lo tienes")).toBeInTheDocument();
+      // Y el foco queda en el nombre, listo para seguir editando.
+      await waitFor(() => expect(screen.getByLabelText(/^nombre/i)).toHaveFocus());
+    });
+
+    it("el Enter del lector NO da de alta el producto a medias", async () => {
+      mockedProducts.lookupBarcode.mockResolvedValue({
+        status: "unknown",
+        code: "7501011167650",
+        gtin14: "07501011167650",
+        tenant: null,
+        global: null,
+        contributable: true,
+      });
+      await abrirAlta();
+
+      escanearCodigo("7501011167650");
+
+      expect(await screen.findByText("Escribe el nombre")).toBeInTheDocument();
+      expect(mockedProducts.createProduct).not.toHaveBeenCalled();
+    });
+
+    it("una sugerencia en otro idioma lo dice", async () => {
+      mockedProducts.lookupBarcode.mockResolvedValue({
+        status: "global",
+        code: "060383158132",
+        gtin14: "00060383158132",
+        tenant: null,
+        global: {
+          name: "California Pistachios",
+          lang: "en",
+          brand: "PC Blue Menu",
+          unitSize: null,
+        },
+        contributable: true,
+      });
+      await abrirAlta();
+
+      escanearCodigo("060383158132");
+
+      expect(await screen.findByDisplayValue("California Pistachios")).toBeInTheDocument();
+      expect(screen.getByText("Nombre en inglés")).toBeInTheDocument();
+    });
+
+    /**
+     * Con el cursor en «Nombre», la pistola escribe el código AHÍ. Esos
+     * caracteres entran antes de que nadie pueda saber que era un escaneo:
+     * deshacerlo es posible, adivinarlo antes de tiempo no.
+     */
+    it("escanear con el cursor en el nombre no deja el código dentro del nombre", async () => {
+      mockedProducts.lookupBarcode.mockResolvedValue({
+        status: "global",
+        code: "7501011167650",
+        gtin14: "07501011167650",
+        tenant: null,
+        global: { name: "Sabritas 110 G", lang: "es", brand: null, unitSize: null },
+        contributable: true,
+      });
+      const user = await abrirAlta();
+
+      const nombre = screen.getByLabelText(/^nombre/i) as HTMLInputElement;
+      await user.click(nombre);
+
+      let momento = 1_000;
+      const tecla = (key: string) => {
+        momento += 60;
+        const evento = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+        Object.defineProperty(evento, "timeStamp", { value: momento });
+        nombre.dispatchEvent(evento);
+      };
+      for (const caracter of "7501011167650") {
+        tecla(caracter);
+        fireEvent.input(nombre, { target: { value: nombre.value + caracter } });
+      }
+      tecla("Enter");
+
+      expect(await screen.findByDisplayValue("Sabritas 110 G")).toBeInTheDocument();
+      expect(screen.getByLabelText(/código de barras/i)).toHaveValue("7501011167650");
+    });
+  });
 
   /**
    * Carlos (2026-09-01): la unidad base guarda su CÓDIGO (`unit`, `gr`) y ese

@@ -1,6 +1,6 @@
-import { normalizeCode, UNIT_CODES, unitName } from "@sellpoint/shared";
+import { isScannableBarcode, normalizeCode, UNIT_CODES, unitName } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
 import { PermissionGate } from "@/components/auth/permission-gate";
@@ -39,8 +39,9 @@ import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
 import { useCatalogFields, useCatalogs } from "@/lib/catalogs/hooks";
 import { fieldErrorsOf } from "@/lib/field-errors";
+import { languageName } from "@/lib/language-name";
 import { moneyInitialValue, moneyInputError } from "@/lib/money";
-import type { ProductDetail } from "@/lib/products/api";
+import { type BarcodeLookup, lookupBarcode, type ProductDetail } from "@/lib/products/api";
 import {
   useAvailability,
   useCreateProduct,
@@ -49,6 +50,7 @@ import {
   useProducts,
   useUpdateProduct,
 } from "@/lib/products/hooks";
+import { useScannerBurst } from "@/lib/scanner/use-scanner-burst";
 import { useScrollIntoView } from "@/lib/use-scroll-into-view";
 import { useAuthStore } from "@/stores/auth.store";
 
@@ -555,6 +557,87 @@ function ProductForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  /**
+   * ── El escáner llena el nombre (Carlos, 2026-09-17) ──────────────────
+   *
+   * Al escanear el código, el alta consulta el catálogo —primero el TUYO,
+   * después el compartido— y escribe el nombre que encontró, dejando el foco
+   * ahí para seguir editando. La insignia dice de dónde salió ese nombre: si
+   * el producto ya es tuyo, si la sugerencia viene en otro idioma, o si el
+   * código es nuevo y hay que escribirlo a mano.
+   *
+   * Solo en el ALTA: en la edición, un escaneo que pisara el nombre guardado
+   * sería una pérdida silenciosa de lo que alguien ya escribió.
+   */
+  const esAlta = product === undefined;
+  const [sugerencia, setSugerencia] = useState<{
+    estado: BarcodeLookup["status"];
+    lang: string | null;
+  } | null>(null);
+  const codigoRef = useRef<HTMLInputElement | null>(null);
+  const nombreRef = useRef<HTMLInputElement | null>(null);
+
+  const consultarCodigo = async (codigo: string) => {
+    const limpio = codigo.trim();
+    if (!esAlta || !isScannableBarcode(limpio)) {
+      return;
+    }
+    setBarcode(limpio);
+    setSugerencia(null);
+    try {
+      const hallazgo = await lookupBarcode(limpio);
+      const sugerido = hallazgo.tenant?.name ?? hallazgo.global?.name ?? null;
+      if (sugerido !== null) {
+        setName(sugerido);
+      }
+      setSugerencia({ estado: hallazgo.status, lang: hallazgo.global?.lang ?? null });
+    } catch {
+      // Un catálogo que no responde no puede frenar un alta a mano.
+      setSugerencia(null);
+    } finally {
+      nombreRef.current?.focus();
+    }
+  };
+
+  useScannerBurst({
+    looksLikeBarcode: isScannableBarcode,
+    enabled: esAlta && canManage,
+    // El campo del código ya tiene su propio camino por el Enter.
+    ignore: (activo) => activo === codigoRef.current,
+    onScan: (codigo, origen) => {
+      // Lo que la ráfaga alcanzó a escribir en otro campo se devuelve: un
+      // código de barras dentro de «Nombre» no es un nombre.
+      if (origen !== null) {
+        origen.campo.value = origen.valor;
+        origen.campo.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      void consultarCodigo(codigo);
+    },
+  });
+
+  const insigniaDelCodigo = () => {
+    if (sugerencia === null) {
+      return null;
+    }
+    if (sugerencia.estado === "tenant") {
+      return <Badge variant="warning">{t("products.quick.status.owned")}</Badge>;
+    }
+    if (sugerencia.estado === "unknown") {
+      return <Badge>{t("products.quick.status.new")}</Badge>;
+    }
+    const idioma = sugerencia.lang;
+    if (idioma && idioma !== uiLocale) {
+      return (
+        <Badge variant="warning">
+          {t("products.quick.status.otherLanguage", {
+            language: languageName(idioma, uiLocale),
+          })}
+        </Badge>
+      );
+    }
+    return <Badge variant="success">{t("products.quick.status.known")}</Badge>;
+  };
+
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -658,8 +741,20 @@ function ProductForm({
         label={t("products.form.barcode")}
         hint={t("products.form.barcodeHint")}
         value={barcode}
+        ref={codigoRef}
         disabled={!canManage}
         onChange={(event) => setBarcode(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") {
+            return;
+          }
+          // Sin esto el Enter del lector ENVIARÍA el formulario y daría de
+          // alta un producto sin nombre ni precio. Y el valor sale del DOM:
+          // un lector escribe el código y el Enter en el mismo suspiro, así
+          // que el estado de React todavía trae lo de antes.
+          event.preventDefault();
+          void consultarCodigo(event.currentTarget.value);
+        }}
       />
       <TextField
         label={t("products.form.sku")}
@@ -682,9 +777,15 @@ function ProductForm({
       <TextField
         label={t("products.form.name")}
         value={name}
+        ref={nombreRef}
         disabled={!canManage}
-        onChange={(event) => setName(event.target.value)}
+        onChange={(event) => {
+          setName(event.target.value);
+          // Editado a mano, el nombre ya no es una sugerencia de nadie.
+          setSugerencia(null);
+        }}
       />
+      {insigniaDelCodigo() !== null && <div>{insigniaDelCodigo()}</div>}
       {/* Se elige por NOMBRE ("Kilogramo") y se guarda el CÓDIGO (`kg`): nadie
           que no sea del oficio reconoce `oz` en un desplegable, pero el código
           es lo que viaja a la DB y a la planilla de importación. */}
