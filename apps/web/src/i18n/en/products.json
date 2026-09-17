@@ -28,6 +28,8 @@
   "form": {
     "barcode": "Barcode",
     "barcodeHint": "The one printed on the supplier's package: it is what the scanner reads at the point of sale. If the product has none, leave it empty and use only the internal code.",
+    "barcodeLocked": "Locked so a scan can't change it by accident. Tap «Change» if you need to fix it.",
+    "barcodeUnlock": "Change",
     "baseUnit": "Base unit",
     "codesRequired": "Enter at least one of the two codes: the barcode (if the package has one) or the internal code.",
     "cost": "Cost",

@@ -1,5 +1,6 @@
 import { isScannableBarcode, normalizeCode, UNIT_CODES, unitName } from "@sellpoint/shared";
 import { createFileRoute } from "@tanstack/react-router";
+import { Lock } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { OnboardingGate } from "@/components/auth/onboarding-gate";
@@ -570,6 +571,24 @@ function ProductForm({
    * sería una pérdida silenciosa de lo que alguien ya escribió.
    */
   const esAlta = product === undefined;
+  /**
+   * ── El código de barras nace BLOQUEADO en la edición (Carlos, 2026-09-17) ──
+   *
+   * Estando en la ficha, la pistola escribe en el campo que tenga el cursor, y
+   * un producto que deja de escanear en caja no avisa: se descubre cuando la
+   * fila no aparece y hay alguien esperando para pagar.
+   *
+   * Bloquear NO es prohibir, y la diferencia importa. Un código mal capturado
+   * en el alta —un dígito de menos, el código equivocado del empaque— pasa
+   * seguido, y si no se pudiera corregir la única salida sería duplicar el
+   * producto y perder su historia. El candado frena el accidente y deja la
+   * corrección a un clic.
+   *
+   * El caso que sí destruye datos —el código saltando a OTRO producto— ya lo
+   * frena el API con `products.barcode_taken`.
+   */
+  const [codigoDesbloqueado, setCodigoDesbloqueado] = useState(false);
+  const codigoBloqueado = !esAlta && !codigoDesbloqueado;
   const [sugerencia, setSugerencia] = useState<{
     estado: BarcodeLookup["status"];
     lang: string | null;
@@ -749,9 +768,12 @@ function ProductForm({
           como propio: son campos distintos que a veces valen lo mismo. */}
       <TextField
         label={t("products.form.barcode")}
-        hint={t("products.form.barcodeHint")}
+        hint={codigoBloqueado ? t("products.form.barcodeLocked") : t("products.form.barcodeHint")}
         value={barcode}
         ref={codigoRef}
+        // `readOnly` y no `disabled`: el valor tiene que seguir viajando al
+        // guardar, y quien lo necesite tiene que poder copiarlo.
+        readOnly={codigoBloqueado}
         disabled={!canManage}
         onChange={(event) => setBarcode(event.target.value)}
         onKeyDown={(event) => {
@@ -766,6 +788,25 @@ function ProductForm({
           void consultarCodigo(event.currentTarget.value);
         }}
       />
+      {codigoBloqueado && canManage && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-fit"
+          onClick={() => {
+            setCodigoDesbloqueado(true);
+            codigoRef.current?.focus();
+          }}
+        >
+          {/* El candado hace visible lo que el texto explica: sin él, el campo
+              se ve igual que los editables y quien teclee no entiende por qué
+              no pasa nada. `--muted` y `--background` son casi el mismo color
+              en este tema, así que pintar el fondo no alcanzaba. */}
+          <Lock className="size-3.5" aria-hidden="true" />
+          {t("products.form.barcodeUnlock")}
+        </Button>
+      )}
       <TextField
         label={t("products.form.sku")}
         hint={t("products.form.skuHint")}

@@ -1,4 +1,5 @@
 import { unitName } from "@sellpoint/shared";
+import { Lock } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
@@ -319,6 +320,9 @@ function EditPresentationRow({
   const [name, setName] = useState(presentation.name);
   const [factor, setFactor] = useState(presentation.factor);
   const [barcode, setBarcode] = useState(presentation.barcode ?? "");
+  // El mismo candado que en la ficha: editar una presentación no es motivo
+  // para dejar su código de barras expuesto a la pistola (Carlos, 2026-09-17).
+  const [codigoDesbloqueado, setCodigoDesbloqueado] = useState(false);
   const [price, setPrice] = useState(moneyInitialValue(presentation.price));
   const updatePresentation = useUpdatePresentation(productId);
 
@@ -367,12 +371,27 @@ function EditPresentationRow({
           acá para no tener el mismo control dos veces. */}
       <TableCell colSpan={4} />
       <TableCell>
-        <Input
-          name="barcode"
-          aria-label={t("products.presentations.barcode")}
-          value={barcode}
-          onChange={(event) => setBarcode(event.target.value)}
-        />
+        <div className="flex items-center gap-1">
+          <Input
+            name="barcode"
+            aria-label={t("products.presentations.barcode")}
+            value={barcode}
+            // `readOnly` y no `disabled`: el valor sigue viajando al guardar.
+            readOnly={!codigoDesbloqueado}
+            onChange={(event) => setBarcode(event.target.value)}
+          />
+          {!codigoDesbloqueado && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setCodigoDesbloqueado(true)}
+            >
+              <Lock className="size-3.5" aria-hidden="true" />
+              {t("products.form.barcodeUnlock")}
+            </Button>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         <MoneyInput

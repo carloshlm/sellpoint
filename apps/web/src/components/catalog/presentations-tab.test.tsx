@@ -159,6 +159,10 @@ describe("PresentationsTab — la fila se puede operar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Editar" }));
+    // El campo nace bloqueado: la pistola no puede cambiarlo sin querer
+    // (Carlos, 2026-09-17). Corregirlo a propósito sigue costando un clic.
+    expect(screen.getByLabelText("Código de barras")).toHaveAttribute("readonly");
+    await user.click(screen.getByRole("button", { name: "Cambiar" }));
     await user.clear(screen.getByLabelText("Código de barras"));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 

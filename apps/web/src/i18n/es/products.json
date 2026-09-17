@@ -28,6 +28,8 @@
   "form": {
     "barcode": "Código de barras",
     "barcodeHint": "El que viene impreso en el empaque del proveedor: es lo que lee el escáner en el punto de venta. Si el producto no tiene, déjalo vacío y usa solo el código interno.",
+    "barcodeLocked": "Bloqueado para que un escaneo no lo cambie sin querer. Toca «Cambiar» si necesitas corregirlo.",
+    "barcodeUnlock": "Cambiar",
     "baseUnit": "Unidad base",
     "codesRequired": "Captura al menos uno de los dos códigos: el de barras (si el empaque lo trae) o el interno.",
     "cost": "Costo",

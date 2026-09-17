@@ -787,6 +787,48 @@ describe("Los dos códigos del alta (F2-PROD)", () => {
     });
 
     /**
+     * Carlos (2026-09-17), tras cambiarle sin querer el código a un producto
+     * que ya vendía: «debemos prohibir la edición del código de barras de los
+     * productos ya registrados».
+     *
+     * Bloquear y no prohibir, porque un código mal capturado en el alta pasa
+     * seguido y si no se pudiera corregir la única salida sería duplicar el
+     * producto y perder su historia. El candado frena el accidente —la pistola
+     * escribiendo en el campo que tenga el cursor— y deja la corrección a un
+     * clic.
+     */
+    it("en la EDICIÓN el código de barras nace bloqueado, y «Cambiar» lo abre", async () => {
+      mockedProducts.listProducts.mockResolvedValue({
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        items: [{ ...PRODUCT, price: "0.02" }],
+      });
+      mockedProducts.getProduct.mockResolvedValue({
+        ...PRODUCT,
+        tracksLots: false,
+        hasLotStock: false,
+      });
+      const user = await openProduct();
+
+      const codigo = (await screen.findByLabelText(/código de barras/i)) as HTMLInputElement;
+      expect(codigo).toHaveAttribute("readonly");
+
+      await user.click(screen.getByRole("button", { name: "Cambiar" }));
+
+      expect(codigo).not.toHaveAttribute("readonly");
+      // Y el botón se va: el candado ya está abierto.
+      expect(screen.queryByRole("button", { name: "Cambiar" })).not.toBeInTheDocument();
+    });
+
+    it("en el ALTA no hay candado que estorbe", async () => {
+      await abrirAlta();
+
+      expect(screen.getByLabelText(/código de barras/i)).not.toHaveAttribute("readonly");
+      expect(screen.queryByRole("button", { name: "Cambiar" })).not.toBeInTheDocument();
+    });
+
+    /**
      * La otra mitad de lo que pidió Carlos: «si el producto ya existe y es
      * edición no debes editar el código interno al cambiar el código de
      * barras». Ese código es el identificador con el que el negocio YA nombra
