@@ -415,6 +415,45 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(await screen.findByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
   });
 
+  /**
+   * Carlos (2026-09-17), en su teléfono: el código se quedaba escrito en el
+   * campo sin agregar la línea, incluso ya leyendo el valor del DOM.
+   *
+   * En Android, con el teclado activo, el navegador reporta las teclas de
+   * hardware como `keyCode 229` / `key: "Unidentified"` — el 229 del IME. Un
+   * `onKeyDown` que compara contra «Enter» nunca se entera. El envío del
+   * formulario sí se dispara, y eso es lo que esta prueba fija.
+   */
+  it("agrega aunque la tecla llegue irreconocible: lo que manda es el formulario", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    await abrir();
+    const campo = screen.getByLabelText("Código de barras") as HTMLInputElement;
+
+    campo.value = "7501055300013";
+    // Así reporta Android la tecla de un lector con el teclado abierto.
+    fireEvent.keyDown(campo, { key: "Unidentified", keyCode: 229 });
+    fireEvent.submit(campo.form as HTMLFormElement);
+
+    expect(await screen.findByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
+  });
+
+  it("el Enter del escritorio no agrega la línea dos veces", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    await abrir();
+    const campo = screen.getByLabelText("Código de barras") as HTMLInputElement;
+
+    campo.value = "7501055300013";
+    fireEvent.keyDown(campo, { key: "Enter" });
+    fireEvent.submit(campo.form as HTMLFormElement);
+    // Dos redes, y conviene decir cuál sostiene qué: en el navegador el
+    // `preventDefault` del teclado corta el envío, y si alguna vez no lo
+    // cortara, el mismo código no se duplica porque la línea ya está. Lo que
+    // esta prueba fija es lo que el usuario ve: un Enter, una línea.
+
+    expect(await screen.findByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Nombre del producto")).toHaveLength(1);
+  });
+
   it("sin nada tecleado, Agregar está deshabilitado", async () => {
     await abrir();
 

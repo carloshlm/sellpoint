@@ -677,7 +677,29 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
               a veces no está: quien teclea el código a mano se quedaba sin
               forma de agregarlo. El botón es esa forma, y lee el valor del
               DOM por la misma razón que el Enter. */}
-          <div className="flex gap-2">
+          {/* ── Un FORMULARIO, y ese es todo el arreglo ──────────────────
+              Carlos (2026-09-17), en su teléfono: escaneaba y el código se
+              quedaba escrito en el campo sin agregar la línea, incluso después
+              de leer el valor del DOM en vez del estado.
+
+              La causa está un nivel más abajo. En Android, mientras un campo de
+              texto tiene el teclado activo, el navegador reporta las teclas de
+              hardware como `keyCode 229` / `key: "Unidentified"` — el famoso
+              229 del IME. Un `onKeyDown` que compara contra «Enter» nunca se
+              entera, y no hay forma de arreglarlo comparando mejor.
+
+              Lo que SÍ funciona en todos lados es el envío del formulario: el
+              navegador lo dispara con el Enter aunque el evento de tecla llegue
+              irreconocible, y el teclado del teléfono muestra su tecla de
+              acción. El `onKeyDown` se queda para el escritorio y corta el
+              envío con `preventDefault`, así que nunca se agregan dos líneas. */}
+          <form
+            className="flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              escanear(escanerRef.current?.value ?? "");
+            }}
+          >
             <Input
               id="quick-scan"
               name="quickScan"
@@ -688,6 +710,9 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
               // son dígitos, y buscar la tecla de cambio en cada producto es un
               // impuesto que no tiene por qué pagarse.
               inputMode="numeric"
+              // La tecla de acción del teclado del teléfono dice «Listo» en vez
+              // de un retorno de carro que en un teclado numérico ni existe.
+              enterKeyHint="done"
               className="flex-1"
               // biome-ignore lint/a11y/noAutofocus: el cursor tiene que estar donde apunta la pistola
               autoFocus
@@ -719,15 +744,10 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
                 }
               }}
             />
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={texto.trim() === ""}
-              onClick={() => escanear(escanerRef.current?.value ?? "")}
-            >
+            <Button type="submit" variant="secondary" disabled={texto.trim() === ""}>
               {t("products.quick.addLine")}
             </Button>
-          </div>
+          </form>
           <p className="text-muted-foreground text-xs">{t("products.quick.scanHint")}</p>
         </div>
         {camaraALaMano && <BarcodeScanner onScan={escanear} />}
