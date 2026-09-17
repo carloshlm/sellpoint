@@ -137,6 +137,36 @@ export function gtinVariants(gtin14: string): string[] {
     .sort((a, b) => b.length - a.length);
 }
 
+/**
+ * Lo que un lector puede entregar: **solo dígitos, de 6 a 14**.
+ *
+ * ── Por qué esta regla y no otra ────────────────────────────────────────
+ *
+ * Es la MISMA que el mostrador usa desde F4 para decidir si un texto es un
+ * código de barras (`pareceCodigoDeBarras` en `pos/lookup.strategies.ts`). Un
+ * producto dado de alta con un código que el mostrador no reconoce como tal no
+ * se encuentra escaneando: se encuentra por búsqueda de texto, que es otra
+ * cosa y más lenta. Dos reglas distintas para «qué es un código de barras»
+ * terminan en un producto que se puede crear pero no cobrar.
+ *
+ * Las cuatro longitudes de GTIN (8, 12, 13, 14) caben de sobra. El piso de 6
+ * deja pasar el UPC-E y los códigos cortos que imprime la propia tienda; el
+ * techo de 14 es la forma canónica más larga que existe.
+ *
+ * ── Qué NO entra, y por qué importa ─────────────────────────────────────
+ *
+ * Carlos (2026-09-16) llegó con tres líneas en el borrador: un número de 24
+ * dígitos, «adsadasdsad» y una consulta SQL entera. Los tres se habían dado de
+ * alta como códigos de barras. Nada de eso se puede escanear nunca, así que
+ * crearía productos que solo estorban en el catálogo.
+ */
+export function isScannableBarcode(code: string | null | undefined): boolean {
+  if (code === null || code === undefined) {
+    return false;
+  }
+  return /^\d{6,14}$/.test(cleanGtin(code));
+}
+
 /** Un código de barras ya entendido: la clave, su prefijo y sus escrituras. */
 export interface GtinInfo {
   /** La clave canónica de 14 dígitos. */

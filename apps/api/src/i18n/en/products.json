@@ -17,6 +17,7 @@
   "import_too_large": "The file is over 5 MB. Please split it into smaller parts.",
   "import_unreadable": "We couldn't read the file. Make sure it's the Excel template.",
   "invalid_attributes": "Check the highlighted fields.",
+  "invalid_barcode": "The barcode must be 6 to 14 digits, with no letters or symbols.",
   "invalid_body": "The submitted data isn't valid.",
   "invalid_query": "The barcode we received isn't valid.",
   "is_component": "Can't delete it: this product is a component of another one.",

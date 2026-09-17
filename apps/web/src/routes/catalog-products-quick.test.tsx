@@ -227,6 +227,55 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(screen.queryByText(/Nombre en\s*$/)).not.toBeInTheDocument();
   });
 
+  /**
+   * Carlos (2026-09-16) llegó con tres líneas en su borrador dadas de alta
+   * como códigos de barras: un número de 24 dígitos, «adsadasdsad» y una
+   * consulta SQL entera.
+   */
+  it.each([
+    ["658723675843268975432785", "24 dígitos"],
+    ["adsadasdsad", "letras"],
+    ["SELECT * FROM global_barcode_catalog", "una consulta SQL"],
+    ["12345", "demasiado corto"],
+  ])("no crea línea con %s (%s)", async (codigo) => {
+    const user = await abrir();
+
+    await escanear(user, codigo);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("no es un código de barras");
+    // Ni se consulta: no hay nada que buscar con eso.
+    expect(mocked.lookupBarcode).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Todavía no escaneas nada. El primer código abre la lista."),
+    ).toBeInTheDocument();
+    // Lo tecleado se queda a la vista para poder corregirlo.
+    expect(screen.getByLabelText("Código de barras")).toHaveValue(codigo);
+  });
+
+  it("una línea vieja con un código imposible frena el alta y lo dice", async () => {
+    useQuickCatalogStore.setState({
+      owner: `${USUARIO.tenant.id}:${USUARIO.id}`,
+      lines: [
+        {
+          code: "adsadasdsad",
+          status: "new",
+          name: "Producto Error 2",
+          price: "10.00",
+          brand: null,
+          nameLang: null,
+          contributable: false,
+        },
+      ],
+      storageFailed: false,
+    });
+    const user = await abrir();
+
+    await user.click(await screen.findByRole("button", { name: /Dar de alta/ }));
+
+    expect(await screen.findByText(/no es un código de barras/)).toBeInTheDocument();
+    expect(mocked.quickAddProducts).not.toHaveBeenCalled();
+  });
+
   it("el mismo código dos veces NO duplica la línea", async () => {
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
     const user = await abrir();
@@ -261,6 +310,30 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
 
     expect(await screen.findByDisplayValue("Primero")).toBeInTheDocument();
     expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
+    // Y el segundo código NO terminó dentro del precio del primero, que es
+    // como se rompía: el foco se movía en la ventana entre el clic y la
+    // primera tecla del segundo escaneo.
+    for (const precio of screen.getAllByLabelText("Precio de venta")) {
+      expect(precio).toHaveValue("");
+    }
+  });
+
+  /**
+   * El otro lado de la moneda de la ráfaga: con UN escaneo suelto el foco SÍ
+   * tiene que ir al precio, que es lo que hace posible el bucle «escanear,
+   * precio, Enter». Un guardia demasiado celoso lo rompería sin que ninguna
+   * otra prueba se diera cuenta.
+   */
+  it("tras un escaneo suelto, el foco va al precio de esa línea", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco"));
+    const user = await abrir();
+
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Refresco");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Precio de venta")).toHaveFocus();
+    });
   });
 
   it("el borrador sobrevive a salir de la pantalla y volver", async () => {

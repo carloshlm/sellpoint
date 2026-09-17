@@ -141,6 +141,7 @@
     },
     "willContribute": "Se sumará al catálogo compartido",
     "alreadyInDraft": "El código {{code}} ya está en la lista. Te llevamos a su precio.",
+    "invalidBarcode": "«{{code}}» no es un código de barras: tiene que ser de 6 a 14 dígitos, sin letras ni símbolos.",
     "tooManyLines": "Llegaste al máximo de {{max}} líneas. Da de alta estas y sigue con las siguientes.",
     "nameRequired": "Escribe el nombre del producto.",
     "priceRequired": "Escribe el precio de venta.",

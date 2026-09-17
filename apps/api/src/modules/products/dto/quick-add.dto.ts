@@ -1,4 +1,4 @@
-import { QUICK_ADD_MAX_LINES } from "@sellpoint/shared";
+import { isScannableBarcode, QUICK_ADD_MAX_LINES } from "@sellpoint/shared";
 import { z } from "zod";
 import { moneyAmount } from "../money";
 
@@ -18,7 +18,23 @@ export const quickAddSchema = z.object({
   lines: z
     .array(
       z.object({
-        code: z.string().trim().min(1).max(64),
+        /**
+         * Dígitos, de 6 a 14. La misma regla con la que el mostrador reconoce
+         * un código de barras (`isScannableBarcode`).
+         *
+         * Carlos (2026-09-16) llegó con tres líneas en su borrador: un número
+         * de 24 dígitos, «adsadasdsad» y una consulta SQL entera, las tres
+         * dadas de alta como códigos de barras. Nada de eso se puede escanear
+         * nunca, así que crearía productos que solo estorban en el catálogo.
+         * La pantalla ya no las deja entrar; esto es el borde, que es donde la
+         * regla tiene que vivir.
+         */
+        code: z
+          .string()
+          .trim()
+          .min(1)
+          .max(64)
+          .refine(isScannableBarcode, { message: "products.invalid_barcode" }),
         name: z.string().trim().min(1).max(200),
         /**
          * Obligatorio: esta pantalla existe para ponerle precio a lo que se

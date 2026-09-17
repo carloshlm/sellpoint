@@ -1783,6 +1783,29 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(fila?.nameEs).toBe("Refresco de prueba 600 ml");
     });
 
+    /**
+     * El borde. La pantalla ya no deja entrar estos códigos, pero la regla
+     * tiene que vivir también acá: los tres los encontró Carlos dados de alta
+     * en su borrador el 2026-09-16.
+     */
+    it.each([
+      "658723675843268975432785",
+      "adsadasdsad",
+      "SELECT * FROM global_barcode_catalog",
+      "12345",
+    ])("el alta rechaza «%s»: no es un código de barras", async (codigo) => {
+      const { token } = await registerAndLogin();
+
+      const rechazo = await quick(token, [
+        { code: codigo, name: "Producto Error", price: 10 },
+      ]).expect(400);
+
+      // El filtro sube la clave ESPECÍFICA al mensaje principal, así que quien
+      // lo recibe lee qué pasó y no un «los datos no son válidos».
+      expect(rechazo.body).toMatchObject({ code: "products.invalid_barcode" });
+      expect(rechazo.body.message).toContain("6 y 14 dígitos");
+    });
+
     it("un código interno del negocio se busca literal, con su guion y todo", async () => {
       const { token } = await registerAndLogin();
       await createProduct(token, {

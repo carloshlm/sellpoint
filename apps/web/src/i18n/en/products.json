@@ -141,6 +141,7 @@
     },
     "willContribute": "Will be added to the shared catalog",
     "alreadyInDraft": "Code {{code}} is already on the list. We took you to its price.",
+    "invalidBarcode": "«{{code}}» isn't a barcode: it must be 6 to 14 digits, with no letters or symbols.",
     "tooManyLines": "You reached the limit of {{max}} lines. Add these and continue with the next ones.",
     "nameRequired": "Type the product name.",
     "priceRequired": "Type the price.",

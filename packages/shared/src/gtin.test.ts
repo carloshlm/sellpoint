@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { classifyGtin, gs1Prefix, gtinCheckDigit, gtinVariants, normalizeGtin14 } from "./gtin";
+import {
+  classifyGtin,
+  gs1Prefix,
+  gtinCheckDigit,
+  gtinVariants,
+  isScannableBarcode,
+  normalizeGtin14,
+} from "./gtin";
 
 /**
  * F10-QUICKCAT-01 — los mismos valores que decide `gtin.py` al sembrar.
@@ -67,6 +74,29 @@ describe("gtin", () => {
     ]);
     // El EAN-13 mexicano no se puede escribir como UPC-A: el `7` se perdería.
     expect(gtinVariants("07501055300013")).toEqual(["07501055300013", "7501055300013"]);
+  });
+
+  /**
+   * Los tres que Carlos encontró en su borrador el 2026-09-16, dados de alta
+   * como códigos de barras: un número de 24 dígitos, letras sueltas y una
+   * consulta SQL entera.
+   */
+  it("solo se escanea lo que un lector puede entregar: dígitos, de 6 a 14", () => {
+    expect(isScannableBarcode("7501055300013")).toBe(true);
+    expect(isScannableBarcode("75000011")).toBe(true);
+    // Un dedazo en el verificador SIGUE siendo escaneable: lo que se valida
+    // acá es la FORMA, no que el código sea un GTIN de verdad.
+    expect(isScannableBarcode("7501055300014")).toBe(true);
+    // Con espacios y guiones, como los imprime una etiqueta.
+    expect(isScannableBarcode(" 750105-5300013 ")).toBe(true);
+
+    expect(isScannableBarcode("658723675843268975432785")).toBe(false);
+    expect(isScannableBarcode("adsadasdsad")).toBe(false);
+    expect(isScannableBarcode("SELECT * FROM global_barcode_catalog")).toBe(false);
+    expect(isScannableBarcode("INTERNO-42")).toBe(false);
+    expect(isScannableBarcode("12345")).toBe(false);
+    expect(isScannableBarcode("")).toBe(false);
+    expect(isScannableBarcode(null)).toBe(false);
   });
 
   it("clasificar entrega la clave, el prefijo y las variantes de una vez", () => {

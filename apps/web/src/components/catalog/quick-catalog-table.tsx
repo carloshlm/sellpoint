@@ -1,4 +1,4 @@
-import { parseMoneyInput } from "@sellpoint/shared";
+import { isScannableBarcode, parseMoneyInput } from "@sellpoint/shared";
 import { Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -109,6 +109,17 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
     new Map<string, { name?: HTMLInputElement; price?: HTMLInputElement }>(),
   );
   const colaRef = useRef<Promise<void>>(Promise.resolve());
+  /**
+   * Cuántos escaneos esperan su TURNO, sin contar el que se está procesando.
+   *
+   * Es lo que distingue «escaneó uno y ahora va a teclear el precio» de «está
+   * pasando la pistola por el anaquel». En el primero el foco tiene que ir al
+   * precio; en el segundo, quedarse donde la pistola escribe.
+   *
+   * Sin contar el propio a propósito: contándolo, un escaneo suelto también
+   * se vería como ráfaga y el foco no se movería nunca.
+   */
+  const esperandoTurnoRef = useRef(0);
 
   const guardar = useQuickAddProducts();
 
@@ -138,6 +149,20 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
    */
   const enfocarSiNadieEscribe = (destino: HTMLInputElement | undefined) => {
     if (destino === undefined) {
+      return;
+    }
+    // ── La ráfaga manda ─────────────────────────────────────────────────
+    //
+    // Con otro escaneo en la cola, el foco NO se mueve. Lo destapó la prueba
+    // de dos escaneos seguidos: la respuesta del primero llegaba en la ventana
+    // entre el clic y la primera tecla del segundo —campo enfocado y vacío,
+    // que es justo lo que este guardia consideraba «nadie escribe»— y mandaba
+    // el cursor al precio. El segundo código entero terminaba dentro del
+    // campo de precio de la primera línea.
+    //
+    // Mirar la cola en vez del reloj: si hay algo esperando, la persona está
+    // pasando la pistola y el foco no es suyo para moverlo.
+    if (esperandoTurnoRef.current > 0) {
       return;
     }
     const activo = document.activeElement;
@@ -206,19 +231,38 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
     if (limpio === "") {
       return;
     }
-    setTexto("");
+    // Se rechaza ANTES de crear la fila: una línea con un código que ningún
+    // lector puede entregar no es una línea a medio llenar, es basura que
+    // después hay que quitar a mano. El campo se queda con lo tecleado para
+    // que se vea qué entró y se pueda corregir.
+    if (!isScannableBarcode(limpio)) {
+      setAviso(t("products.quick.invalidBarcode", { code: limpio }));
+      return;
+    }
     setGuardado(null);
     // Seguir escaneando es seguir capturando: el rojo de un intento anterior
     // deja de aplicar en cuanto la lista cambia.
     setIntentado(false);
     setErrores(new Map());
     setErrorGeneral(null);
-    colaRef.current = colaRef.current.then(() => procesar(limpio));
+    setTexto("");
+    esperandoTurnoRef.current += 1;
+    colaRef.current = colaRef.current.then(() => {
+      // Se descuenta al empezar, no al terminar: desde acá el que espera es
+      // otro, y es la cuenta de los OTROS la que decide si el foco se mueve.
+      esperandoTurnoRef.current -= 1;
+      return procesar(limpio);
+    });
   };
 
   const problemaDe = (linea: QuickLine): string | null => {
     if (linea.status === "searching") {
       return null;
+    }
+    // Las líneas que entraron antes de que existiera esta validación: el
+    // borrador vive en el navegador y puede traerlas.
+    if (!isScannableBarcode(linea.code)) {
+      return t("products.quick.invalidBarcode", { code: linea.code });
     }
     if (linea.name.trim() === "") {
       return t("products.quick.nameRequired");
