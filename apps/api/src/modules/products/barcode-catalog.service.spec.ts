@@ -128,6 +128,27 @@ describe("BarcodeCatalogService", () => {
     expect(resultado.global).toMatchObject({ name: "Huile d'olive vierge extra", lang: "fr" });
   });
 
+  /**
+   * Carlos (2026-09-16): «aún me sale el nombre en francés y no en inglés para
+   * ese producto que sí tiene valor en su nombre en inglés». Tenía razón — el
+   * respaldo saltaba del español al original y se saltaba el inglés, que es
+   * uno de los dos idiomas que la aplicación habla.
+   */
+  it("sin nombre en tu idioma gana el OTRO que hablamos, no el original", async () => {
+    findUniqueGlobal.mockResolvedValue({
+      productName: "Huile d'olive vierge extra",
+      nameEs: null,
+      nameEn: "Extra Virgin Olive Oil",
+      nameLang: "fr",
+      brand: "Terra Delyssa",
+      unitSize: "1 L",
+    });
+
+    const resultado = await service.lookup(usuario, "6191509903627");
+
+    expect(resultado.global).toMatchObject({ name: "Extra Virgin Olive Oil", lang: "en" });
+  });
+
   it("una fila del volcado viejo no dice su idioma, y eso no se inventa", async () => {
     findUniqueGlobal.mockResolvedValue({
       productName: "Zucaritas",

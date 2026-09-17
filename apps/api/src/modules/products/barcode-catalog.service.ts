@@ -93,24 +93,44 @@ interface FilaGlobal {
 /**
  * El nombre a sugerir y EN QUÉ IDIOMA está, para quien escanea.
  *
+ * ── La escalera, en orden ───────────────────────────────────────────────
+ *
+ * 1. El nombre en TU idioma.
+ * 2. El nombre en el OTRO idioma que habla SellPointy.
+ * 3. El nombre tal como vino, en el idioma que sea.
+ *
+ * El escalón 2 lo pidió Carlos (2026-09-16) con un caso concreto: un aceite
+ * que tiene «Extra Virgin Olive Oil» guardado seguía sugiriendo «Huile d'olive
+ * vierge extra» a un usuario en español, porque no había nombre en español y
+ * el respaldo era el original. Entre un nombre en inglés y uno en francés,
+ * cualquiera de los dos es «otro idioma» — pero el inglés es uno de los que la
+ * aplicación habla, así que el usuario ya lo tiene medio aprendido y hay
+ * muchísima más gente que lo lee en este continente. Saltárselo para caer en el
+ * francés es tirar a la basura un dato mejor que sí teníamos.
+ *
  * ── Por qué hay un respaldo y no un «no lo conozco» ─────────────────────
  *
  * Medido sobre el volcado real: de los productos canadienses con nombre en
  * francés, solo un tercio tiene además el nombre en inglés. Para los otros dos
  * tercios, la alternativa a sugerir el francés es no sugerir nada — y el
  * nombre en francés, con su marca al lado, alcanza para reconocer el producto
- * que se tiene en la mano. Se sugiere, y se DICE en qué idioma está (decisión
- * de Carlos, 2026-09-16).
+ * que se tiene en la mano. Se sugiere, y se DICE en qué idioma está.
  */
 function sugerencia(fila: FilaGlobal, locale: string): BarcodeGlobalHit {
-  const enSuIdioma = locale === "es" ? fila.nameEs : fila.nameEn;
+  const otro = locale === "es" ? "en" : "es";
+  const escalones: { name: string | null; lang: string | null }[] = [
+    { name: locale === "es" ? fila.nameEs : fila.nameEn, lang: locale },
+    { name: otro === "es" ? fila.nameEs : fila.nameEn, lang: otro },
+    // El original, con el idioma que diga la fila. `null` cuando el volcado
+    // viejo no lo dijo, que la pantalla trata como «no lo marco» en vez de
+    // inventar.
+    { name: fila.productName, lang: fila.nameLang },
+  ];
+  const elegido = escalones.find((e) => e.name !== null && e.name !== "");
+
   return {
-    name: enSuIdioma ?? fila.productName,
-    // Si salió de la columna del idioma pedido, está en ese idioma por
-    // construcción. Si es el respaldo, está en el idioma que diga la fila —
-    // y `null` cuando el volcado viejo no lo dijo, que la pantalla trata como
-    // «no lo marco» en vez de inventar.
-    lang: enSuIdioma !== null ? locale : fila.nameLang,
+    name: elegido?.name ?? fila.productName,
+    lang: elegido?.lang ?? fila.nameLang,
     brand: fila.brand,
     unitSize: fila.unitSize,
   };
