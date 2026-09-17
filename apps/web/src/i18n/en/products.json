@@ -153,6 +153,20 @@
     "submit": "Add 1 product",
     "submit_other": "Add {{count}} products",
     "discard": "Discard the list",
+    "discarded": "1 line was discarded.",
+    "discarded_other": "{{count}} lines were discarded.",
+    "confirmAdd": {
+      "title": "Add these products?",
+      "body": "1 line: {{created}} new products and {{updated}} with an updated price. Undoing it later means deleting them one by one.",
+      "body_other": "{{count}} lines: {{created}} new products and {{updated}} with an updated price. Undoing it later means deleting them one by one.",
+      "confirm": "Add them"
+    },
+    "confirmDiscard": {
+      "title": "Discard the list?",
+      "body": "You lose the line you scanned. This can't be undone.",
+      "body_other": "You lose the {{count}} lines you scanned. This can't be undone.",
+      "confirm": "Discard the list"
+    },
     "counter": "1 of {{max}} lines",
     "counter_other": "{{count}} of {{max}} lines",
     "removeLine": "Remove the line for code {{code}}",

@@ -153,6 +153,20 @@
     "submit": "Dar de alta 1 producto",
     "submit_other": "Dar de alta {{count}} productos",
     "discard": "Descartar la lista",
+    "discarded": "Se descartó 1 línea.",
+    "discarded_other": "Se descartaron {{count}} líneas.",
+    "confirmAdd": {
+      "title": "¿Dar de alta estos productos?",
+      "body": "1 línea: {{created}} productos nuevos y {{updated}} con precio actualizado. Deshacerlo después es borrarlos uno por uno.",
+      "body_other": "{{count}} líneas: {{created}} productos nuevos y {{updated}} con precio actualizado. Deshacerlo después es borrarlos uno por uno.",
+      "confirm": "Dar de alta"
+    },
+    "confirmDiscard": {
+      "title": "¿Descartar la lista?",
+      "body": "Se pierde la línea que escaneaste. No se puede deshacer.",
+      "body_other": "Se pierden las {{count}} líneas que escaneaste. No se puede deshacer.",
+      "confirm": "Descartar la lista"
+    },
     "counter": "1 de {{max}} líneas",
     "counter_other": "{{count}} de {{max}} líneas",
     "removeLine": "Quitar la línea del código {{code}}",

@@ -2,12 +2,14 @@ import { isScannableBarcode, parseMoneyInput } from "@sellpoint/shared";
 import { Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { MoneyInput } from "@/components/form/money-input";
 import { BarcodeScanner } from "@/components/pos/barcode-scanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SuccessNotice } from "@/components/ui/success-notice";
 import {
   Table,
   TableBody,
@@ -57,6 +59,23 @@ import {
  * ese Enter habría que ir al campo con el mouse ochenta veces.
  */
 /**
+ * ¿El dedo es el puntero principal de este aparato?
+ *
+ * Decide si se ofrece escanear con la cámara. En una laptop la cámara apunta
+ * a la cara, no al anaquel: el botón está de adorno y ocupa el lugar donde se
+ * espera algo útil. `(pointer: coarse)` pregunta por la CAPACIDAD —el puntero
+ * principal es grueso, o sea un dedo— y no por el ancho de la ventana, que es
+ * lo que se suele usar mal: una laptop con la ventana angosta sigue siendo una
+ * laptop.
+ *
+ * `?.` y el respaldo en `false` por jsdom, que no implementa `matchMedia`: sin
+ * eso las pruebas revientan antes de llegar a lo que prueban.
+ */
+function conCamaraDeMano(): boolean {
+  return window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+}
+
+/**
  * «fr» → «francés» / «French», en el idioma de quien lee.
  *
  * `Intl.DisplayNames` lo trae el navegador: mantener a mano una lista de
@@ -103,6 +122,33 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
    */
   const [intentado, setIntentado] = useState(false);
   const [guardado, setGuardado] = useState<{ created: number; updated: number } | null>(null);
+  const [descartado, setDescartado] = useState<number | null>(null);
+  /** Qué acción está esperando confirmación. */
+  const [confirmando, setConfirmando] = useState<"guardar" | "descartar" | null>(null);
+  // Se calcula UNA vez y no en cada render: la capacidad del aparato no cambia
+  // mientras la pantalla está abierta.
+  const [camaraALaMano] = useState(conCamaraDeMano);
+  /**
+   * Si la pantalla da para la tabla de cuatro columnas.
+   *
+   * Es una decisión en JavaScript y no en CSS a propósito: los dos diseños
+   * pintan los MISMOS `id` en sus campos, así que esconder uno con `hidden`
+   * dejaría ids duplicados en el documento — el defecto que ya arreglamos en
+   * el editor de lotes. Solo uno de los dos existe a la vez.
+   */
+  const [enPantallaAncha, setEnPantallaAncha] = useState(
+    () => window.matchMedia?.("(min-width: 768px)")?.matches ?? true,
+  );
+
+  useEffect(() => {
+    const consulta = window.matchMedia?.("(min-width: 768px)");
+    if (consulta === undefined) {
+      return;
+    }
+    const alCambiar = (evento: MediaQueryListEvent) => setEnPantallaAncha(evento.matches);
+    consulta.addEventListener("change", alCambiar);
+    return () => consulta.removeEventListener("change", alCambiar);
+  }, []);
 
   const escanerRef = useRef<HTMLInputElement | null>(null);
   const camposRef = useRef(
@@ -240,6 +286,7 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       return;
     }
     setGuardado(null);
+    setDescartado(null);
     // Seguir escaneando es seguir capturando: el rojo de un intento anterior
     // deja de aplicar en cuanto la lista cambia.
     setIntentado(false);
@@ -298,6 +345,12 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       return;
     }
 
+    setConfirmando("guardar");
+  };
+
+  /** El alta de verdad, ya confirmada. */
+  const darDeAlta = () => {
+    setConfirmando(null);
     guardar.mutate(
       {
         // Se manda en el orden en que se escanearon, no como se ven: la fila
@@ -323,6 +376,103 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       },
     );
   };
+
+  /** Cuántas líneas crean un producto; el resto solo le cambian el precio. */
+  const porCrear = lines.filter((linea) => linea.status !== "owned").length;
+
+  // ── Las piezas de una línea, compartidas por los dos diseños ───────────
+  //
+  // La tabla y la lista apilada pintan lo MISMO con otra caja alrededor.
+  // Escribirlo una vez es lo único que impide que un día el campo de precio
+  // del celular deje de devolver el foco al escáner y nadie se entere.
+
+  /** Guarda el nodo del campo para poder moverle el foco después. */
+  const registrarCampo =
+    (code: string, campo: "name" | "price") => (nodo: HTMLInputElement | null) => {
+      const actual = camposRef.current.get(code) ?? {};
+      if (nodo === null) {
+        delete actual[campo];
+      } else {
+        actual[campo] = nodo;
+      }
+      camposRef.current.set(code, actual);
+    };
+
+  /** Lo que dice el servidor se muestra siempre; lo que falta, tras intentar. */
+  const problemaVisible = (linea: QuickLine): string | null =>
+    errorDelApi(linea.code) ?? (intentado ? problemaDe(linea) : null);
+
+  const identidad = (linea: QuickLine) => (
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-sm tabular-nums">{linea.code}</span>
+      {insignia(linea)}
+      {linea.brand !== null && <span className="text-muted-foreground text-xs">{linea.brand}</span>}
+      {/* Lo que este código le va a dejar al catálogo de todos. Se dice acá y
+          no en un aviso aparte: es una consecuencia de ESTA línea. */}
+      {linea.contributable && (
+        <span className="text-muted-foreground text-xs">{t("products.quick.willContribute")}</span>
+      )}
+    </div>
+  );
+
+  const campoNombre = (linea: QuickLine) => (
+    <Input
+      id={`quick-name-${linea.code}`}
+      name={`quickName-${linea.code}`}
+      ref={registrarCampo(linea.code, "name")}
+      value={linea.name}
+      // El nombre del negocio NO se pisa desde acá: ya decidió cómo se llama
+      // su producto. Solo el precio se edita.
+      readOnly={linea.status === "owned"}
+      aria-label={t("products.quick.columns.name")}
+      placeholder={t("products.quick.namePlaceholder")}
+      onChange={(event) =>
+        // Al editar el nombre, la insignia del idioma deja de aplicar: lo que
+        // hay ahora lo escribió la persona, en el suyo.
+        patch(linea.code, { name: event.target.value, nameLang: null })
+      }
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          camposRef.current.get(linea.code)?.price?.focus();
+        }
+      }}
+    />
+  );
+
+  const campoPrecio = (linea: QuickLine) => (
+    <MoneyInput
+      id={`quick-price-${linea.code}`}
+      name={`quickPrice-${linea.code}`}
+      ref={registrarCampo(linea.code, "price")}
+      value={linea.price}
+      aria-label={t("products.quick.columns.price")}
+      onChange={(valor) => patch(linea.code, { price: valor })}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          // De vuelta a la pistola: esto es lo que hace que escanear ochenta
+          // productos seguidos sea posible.
+          escanerRef.current?.focus();
+        }
+      }}
+    />
+  );
+
+  const botonQuitar = (linea: QuickLine) => (
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      aria-label={t("products.quick.removeLine", { code: linea.code })}
+      onClick={() => {
+        remove(linea.code);
+        camposRef.current.delete(linea.code);
+      }}
+    >
+      <Trash2 className="size-4" />
+    </Button>
+  );
 
   const insignia = (linea: QuickLine) => {
     if (linea.status === "searching") {
@@ -362,7 +512,10 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
-        <div className="flex-1">
+        {/* `gap-2` es el mismo espacio que `TextField` le da a toda etiqueta de
+            la casa. Sin él, la etiqueta queda pegada al campo y se lee como
+            parte del texto de adentro. */}
+        <div className="flex flex-1 flex-col gap-2">
           <Label htmlFor="quick-scan">{t("products.quick.scanLabel")}</Label>
           <Input
             id="quick-scan"
@@ -383,7 +536,7 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
           />
           <p className="mt-1 text-muted-foreground text-xs">{t("products.quick.scanHint")}</p>
         </div>
-        <BarcodeScanner onScan={escanear} />
+        {camaraALaMano && <BarcodeScanner onScan={escanear} />}
       </div>
 
       {aviso !== null && (
@@ -401,126 +554,93 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
           {errorGeneral}
         </p>
       )}
+      {/* `SuccessNotice` se enfoca solo al montarse, y eso es lo que trae la
+          pantalla hasta el aviso: el autoscroll que pidió Carlos no es código
+          nuevo, es el cuadro que ya usan las tres importaciones de la casa. */}
       {guardado !== null && (
-        <p role="status" className="rounded-md bg-success/10 px-3 py-2 text-sm">
-          {t("products.quick.saved", {
-            count: guardado.created,
-            updated: guardado.updated,
-          })}
-        </p>
+        <SuccessNotice testId="quick-saved">
+          {t("products.quick.saved", { count: guardado.created, updated: guardado.updated })}
+        </SuccessNotice>
+      )}
+      {descartado !== null && (
+        <SuccessNotice testId="quick-discarded">
+          {t("products.quick.discarded", { count: descartado })}
+        </SuccessNotice>
       )}
 
-      {lines.length === 0 ? (
+      {lines.length === 0 && (
         <p className="text-muted-foreground text-sm">{t("products.quick.empty")}</p>
-      ) : (
+      )}
+
+      {lines.length > 0 && enPantallaAncha && (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("products.quick.columns.code")}</TableHead>
-              <TableHead>{t("products.quick.columns.name")}</TableHead>
-              <TableHead className="w-44">{t("products.quick.columns.price")}</TableHead>
+              <TableHead className="w-36">{t("products.quick.columns.code")}</TableHead>
+              <TableHead className="min-w-56">{t("products.quick.columns.name")}</TableHead>
+              <TableHead className="w-32">{t("products.quick.columns.price")}</TableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lines.map((linea) => {
-              // Lo que dice el servidor se muestra siempre; lo que falta, recién
-              // cuando se intentó guardar.
-              const problema = errorDelApi(linea.code) ?? (intentado ? problemaDe(linea) : null);
-              const registrar = (campo: "name" | "price") => (nodo: HTMLInputElement | null) => {
-                const actual = camposRef.current.get(linea.code) ?? {};
-                if (nodo === null) {
-                  delete actual[campo];
-                } else {
-                  actual[campo] = nodo;
-                }
-                camposRef.current.set(linea.code, actual);
-              };
-
-              return (
-                <TableRow key={linea.code} data-testid={`quick-line-${linea.code}`}>
-                  <TableCell className="align-top">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-mono text-sm tabular-nums">{linea.code}</span>
-                      {insignia(linea)}
-                      {linea.brand !== null && (
-                        <span className="text-muted-foreground text-xs">{linea.brand}</span>
-                      )}
-                      {/* Lo que este código le va a dejar al catálogo de
-                          todos. Se dice acá y no en un aviso aparte: es una
-                          consecuencia de ESTA línea. */}
-                      {linea.contributable && (
-                        <span className="text-muted-foreground text-xs">
-                          {t("products.quick.willContribute")}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Input
-                      id={`quick-name-${linea.code}`}
-                      name={`quickName-${linea.code}`}
-                      ref={registrar("name")}
-                      value={linea.name}
-                      // El nombre del negocio NO se pisa desde acá: ya decidió
-                      // cómo se llama su producto. Solo el precio se edita.
-                      readOnly={linea.status === "owned"}
-                      aria-label={t("products.quick.columns.name")}
-                      placeholder={t("products.quick.namePlaceholder")}
-                      onChange={(event) =>
-                        // Al editar el nombre, la insignia del idioma deja de
-                        // aplicar: lo que hay ahora lo escribió la persona, en
-                        // el suyo.
-                        patch(linea.code, { name: event.target.value, nameLang: null })
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          camposRef.current.get(linea.code)?.price?.focus();
-                        }
-                      }}
-                    />
-                    {problema !== null && (
-                      <p className="mt-1 text-destructive text-xs">{problema}</p>
-                    )}
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <MoneyInput
-                      id={`quick-price-${linea.code}`}
-                      name={`quickPrice-${linea.code}`}
-                      ref={registrar("price")}
-                      value={linea.price}
-                      aria-label={t("products.quick.columns.price")}
-                      onChange={(valor) => patch(linea.code, { price: valor })}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          // De vuelta a la pistola: esto es lo que hace que
-                          // escanear ochenta productos seguidos sea posible.
-                          escanerRef.current?.focus();
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      aria-label={t("products.quick.removeLine", { code: linea.code })}
-                      onClick={() => {
-                        remove(linea.code);
-                        camposRef.current.delete(linea.code);
-                      }}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {lines.map((linea) => (
+              <TableRow key={linea.code} data-testid={`quick-line-${linea.code}`}>
+                <TableCell className="align-top">{identidad(linea)}</TableCell>
+                <TableCell className="align-top">
+                  {campoNombre(linea)}
+                  {problemaVisible(linea) !== null && (
+                    <p className="mt-1 text-destructive text-xs">{problemaVisible(linea)}</p>
+                  )}
+                </TableCell>
+                <TableCell className="align-top">{campoPrecio(linea)}</TableCell>
+                <TableCell className="align-top">{botonQuitar(linea)}</TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
+      )}
+
+      {/* ── En un celular la línea se APILA, no se desplaza de lado ────────
+          Carlos pidió agrandar la columna del nombre, y agrandarla sola no
+          alcanzaba: con cuatro columnas en 390 px la tabla se desplaza, y como
+          el foco salta al precio después de cada escaneo, el navegador arrastra
+          la vista hasta el precio y el nombre desaparece. Se veía UNA columna a
+          la vez, nunca las dos que hacen falta.
+          
+          Apilada, la línea entera cabe sin desplazar nada. Es un render
+          DISTINTO y no la misma tabla escondida con CSS: los dos a la vez
+          duplicarían los `id` de cada campo, que es justo el defecto que
+          arreglamos en el editor de lotes. */}
+      {lines.length > 0 && !enPantallaAncha && (
+        <ul className="flex flex-col gap-3">
+          {lines.map((linea) => (
+            <li
+              key={linea.code}
+              data-testid={`quick-line-${linea.code}`}
+              className="flex flex-col gap-2 rounded-md border p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                {identidad(linea)}
+                {botonQuitar(linea)}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`quick-name-${linea.code}`}>
+                  {t("products.quick.columns.name")}
+                </Label>
+                {campoNombre(linea)}
+                {problemaVisible(linea) !== null && (
+                  <p className="text-destructive text-xs">{problemaVisible(linea)}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`quick-price-${linea.code}`}>
+                  {t("products.quick.columns.price")}
+                </Label>
+                {campoPrecio(linea)}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
@@ -536,7 +656,12 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
               t("products.quick.submit", { count: lines.length })}
         </Button>
         {lines.length > 0 && (
-          <Button type="button" variant="outline" onClick={clear} disabled={guardar.isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setConfirmando("descartar")}
+            disabled={guardar.isPending}
+          >
             {t("products.quick.discard")}
           </Button>
         )}
@@ -544,6 +669,53 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
           {t("products.quick.counter", { count: lines.length, max: QUICK_MAX_LINES })}
         </span>
       </div>
+
+      {/* ── Por qué el alta TAMBIÉN pregunta ────────────────────────────
+          La regla de `ConfirmDialog` dice que solo se pregunta donde no hay
+          vuelta atrás, y crear no borra nada. Pero deshacer un alta de 60
+          productos es borrarlos de a uno, con su propia confirmación cada uno:
+          en la práctica no hay vuelta atrás. Y el diálogo se gana el lugar
+          diciendo qué va a pasar —cuántos nuevos y a cuántos les cambia el
+          precio— que es justo lo que no se ve mirando la tabla. */}
+      {confirmando === "guardar" && (
+        <ConfirmDialog
+          data-testid="quick-confirm-add"
+          title={t("products.quick.confirmAdd.title")}
+          body={t("products.quick.confirmAdd.body", {
+            count: lines.length,
+            created: porCrear,
+            updated: lines.length - porCrear,
+          })}
+          confirmLabel={t("products.quick.confirmAdd.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          busy={guardar.isPending}
+          onConfirm={darDeAlta}
+          onCancel={() => setConfirmando(null)}
+        />
+      )}
+
+      {confirmando === "descartar" && (
+        <ConfirmDialog
+          data-testid="quick-confirm-discard"
+          title={t("products.quick.confirmDiscard.title")}
+          body={t("products.quick.confirmDiscard.body", { count: lines.length })}
+          confirmLabel={t("products.quick.confirmDiscard.confirm")}
+          cancelLabel={t("common.form.cancel")}
+          onConfirm={() => {
+            const cuantas = lines.length;
+            clear();
+            setConfirmando(null);
+            setErrores(new Map());
+            setErrorGeneral(null);
+            setIntentado(false);
+            // Cuántas se perdieron, no un «listo» a secas: media hora de
+            // escaneo merece que se diga qué se fue.
+            setDescartado(cuantas);
+            escanerRef.current?.focus();
+          }}
+          onCancel={() => setConfirmando(null)}
+        />
+      )}
 
       {/*
         Atribución ODbL. Los nombres que sugiere el catálogo compartido vienen

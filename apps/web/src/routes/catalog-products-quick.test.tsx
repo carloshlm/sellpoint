@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nextProvider } from "react-i18next";
 import { useAuthStore } from "@/stores/auth.store";
@@ -37,10 +37,34 @@ vi.mock("../lib/products/api", () => ({
   quickAddProducts: vi.fn(),
 }));
 
-// La cámara no existe en jsdom y este componente no es lo que se prueba acá.
+// La cámara no existe en jsdom. Se reemplaza por una marca para poder afirmar
+// CUÁNDO se ofrece, que sí es parte de esta pantalla.
 vi.mock("@/components/pos/barcode-scanner", () => ({
-  BarcodeScanner: () => null,
+  BarcodeScanner: () => <div data-testid="scanner-de-camara" />,
 }));
+
+/**
+ * Finge las capacidades del aparato: `matchMedia` no existe en jsdom.
+ *
+ * `puntero` decide si se ofrece la cámara; `ancho`, si la línea se pinta como
+ * fila de tabla o apilada.
+ */
+function fingirAparato({ puntero, ancho }: { puntero: "grueso" | "fino"; ancho: boolean }) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (consulta: string) => ({
+      matches: consulta.includes("pointer: coarse") ? puntero === "grueso" : ancho,
+      media: consulta,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      onchange: null,
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 const mocked = vi.mocked(productsApi);
 
@@ -97,6 +121,13 @@ async function abrir(user = USUARIO) {
   return userEvent.setup();
 }
 
+/** Dar de alta pasa por su confirmación desde 2026-09-17. */
+const darDeAlta = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(screen.getByRole("button", { name: /Dar de alta/ }));
+  const dialogo = await screen.findByTestId("quick-confirm-add");
+  await user.click(within(dialogo).getByRole("button", { name: "Dar de alta" }));
+};
+
 const escanear = async (user: ReturnType<typeof userEvent.setup>, code: string) => {
   const campo = screen.getByLabelText("Código de barras");
   await user.click(campo);
@@ -109,6 +140,10 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     // que deja uno sin consumir se lo presta a la siguiente, y el síntoma —un
     // nombre de otra prueba— no se parece en nada a la causa.
     vi.resetAllMocks();
+    // `fingirAparato` define `window.matchMedia`, que jsdom no trae. Se quita
+    // entre pruebas para que ninguna herede el aparato de la anterior: una
+    // dependencia de orden es de las que fallan lejos de donde se causan.
+    Reflect.deleteProperty(window, "matchMedia");
     localStorage.clear();
     useQuickCatalogStore.setState({ owner: null, lines: [], storageFailed: false });
     useAuthStore.getState().clearAuth();
@@ -392,7 +427,7 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     await screen.findByDisplayValue("Refresco 600 ml");
     await user.type(screen.getByLabelText("Precio de venta"), "18.50");
 
-    await user.click(screen.getByRole("button", { name: /Dar de alta/ }));
+    await darDeAlta(user);
 
     expect(await screen.findByText("Ese código ya está en uso.")).toBeInTheDocument();
     // La media hora de escaneo sigue en pie.
@@ -416,7 +451,7 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     await user.type(precios[0] as HTMLElement, "10");
     await user.type(precios[1] as HTMLElement, "20");
 
-    await user.click(screen.getByRole("button", { name: /Dar de alta/ }));
+    await darDeAlta(user);
 
     await waitFor(() => {
       // El segundo argumento es el contexto que react-query le pasa a toda
@@ -457,6 +492,132 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     await user.type(precio, "18.50{Enter}");
 
     expect(screen.getByLabelText("Código de barras")).toHaveFocus();
+  });
+
+  /**
+   * Carlos (2026-09-17): «el botón Descartar lista es muy peligroso si se
+   * presiona sin querer ya que pierdes el trabajo de las líneas que ya
+   * registraste».
+   */
+  it("descartar PREGUNTA, y al cancelar no se pierde nada", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Refresco 600 ml");
+
+    await user.click(screen.getByRole("button", { name: "Descartar la lista" }));
+    const dialogo = await screen.findByTestId("quick-confirm-discard");
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.getByDisplayValue("Refresco 600 ml")).toBeInTheDocument();
+  });
+
+  it("recién al confirmar se descarta, y el aviso dice cuántas se fueron", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Refresco 600 ml");
+
+    await user.click(screen.getByRole("button", { name: "Descartar la lista" }));
+    const dialogo = await screen.findByTestId("quick-confirm-discard");
+    await user.click(within(dialogo).getByRole("button", { name: "Descartar la lista" }));
+
+    expect(screen.queryByDisplayValue("Refresco 600 ml")).not.toBeInTheDocument();
+    // El aviso se enfoca solo, y ese foco es el que trae la pantalla hasta él.
+    const aviso = await screen.findByTestId("quick-discarded");
+    expect(aviso).toHaveTextContent("Se descartó 1 línea");
+    expect(aviso).toHaveFocus();
+  });
+
+  it("el alta PREGUNTA y dice cuántos crea y a cuántos les cambia el precio", async () => {
+    mocked.lookupBarcode
+      .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Nuevo"))
+      .mockResolvedValueOnce(yaEsDelNegocio("7509999000006", "Ya lo tengo", "10"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Nuevo");
+    await escanear(user, "7509999000006");
+    await screen.findByDisplayValue("Ya lo tengo");
+    await user.type(screen.getAllByLabelText("Precio de venta")[1] as HTMLElement, "20");
+
+    await user.click(screen.getByRole("button", { name: /Dar de alta/ }));
+
+    const dialogo = await screen.findByTestId("quick-confirm-add");
+    expect(dialogo).toHaveTextContent("1 productos nuevos");
+    expect(dialogo).toHaveTextContent("1 con precio actualizado");
+    expect(mocked.quickAddProducts).not.toHaveBeenCalled();
+  });
+
+  it("el aviso de alta se enfoca solo: es el autoscroll hasta el resultado", async () => {
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    mocked.quickAddProducts.mockResolvedValue({ created: 1, updated: 0, contributed: 1 });
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Refresco 600 ml");
+    await user.type(screen.getByLabelText("Precio de venta"), "18.50");
+
+    await darDeAlta(user);
+
+    const aviso = await screen.findByTestId("quick-saved");
+    expect(aviso).toHaveTextContent("1 producto nuevo");
+    expect(aviso).toHaveFocus();
+  });
+
+  /**
+   * Carlos (2026-09-17): «el logo de escanear con la cámara no debe aparecer
+   * en dispositivos como laptops, sólo en tablets y celulares».
+   *
+   * Se pregunta por la CAPACIDAD del puntero y no por el ancho de la ventana:
+   * una laptop con la ventana angosta sigue siendo una laptop, y su cámara
+   * apunta a la cara, no al anaquel.
+   */
+  it("la cámara se ofrece con el dedo como puntero, y no con el ratón", async () => {
+    fingirAparato({ puntero: "grueso", ancho: false });
+    await abrir();
+    expect(await screen.findByTestId("scanner-de-camara")).toBeInTheDocument();
+  });
+
+  it("con ratón no aparece el botón de la cámara", async () => {
+    fingirAparato({ puntero: "fino", ancho: true });
+    await abrir();
+    await waitFor(() => {
+      expect(screen.queryByTestId("scanner-de-camara")).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Carlos (2026-09-17): «la columna Nombre del producto se ve muy pequeña en
+   * celular». Agrandarla sola no alcanzaba — con cuatro columnas en 390 px la
+   * tabla se desplaza de lado, y como el foco salta al precio tras cada
+   * escaneo, el navegador arrastraba la vista hasta el precio y el nombre
+   * desaparecía. Se veía UNA columna a la vez.
+   */
+  it("en pantalla angosta la línea se apila y no hay tabla que desplazar", async () => {
+    fingirAparato({ puntero: "grueso", ancho: false });
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    const user = await abrir();
+
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Refresco 600 ml");
+
+    // El nombre y el precio conviven sin desplazar nada.
+    expect(screen.getByLabelText("Nombre del producto")).toBeVisible();
+    expect(screen.getByLabelText("Precio de venta")).toBeVisible();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    // Y los `id` no se duplican: solo existe UNO de los dos diseños.
+    expect(document.querySelectorAll("#quick-name-7501055300013")).toHaveLength(1);
+  });
+
+  it("en pantalla ancha sigue siendo la tabla de siempre", async () => {
+    fingirAparato({ puntero: "fino", ancho: true });
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
+    const user = await abrir();
+
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Refresco 600 ml");
+
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(document.querySelectorAll("#quick-name-7501055300013")).toHaveLength(1);
   });
 
   it("quitar una línea la saca del borrador", async () => {

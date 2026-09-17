@@ -682,6 +682,9 @@ Wizard de 4 pasos. Indicador de progreso arriba.
 | El mismo código dos veces no duplica | Lleva el foco a su precio: volver a escanear es corregir, no agregar |
 | Solo entra lo que un lector puede entregar: **dígitos, de 6 a 14** | Es la misma regla con la que el mostrador reconoce un código de barras. Un producto dado de alta con un código que el mostrador no reconoce no se encuentra escaneando. Lo rechazado se queda en el campo para corregirlo |
 | Con otro escaneo en la cola, el foco **no se mueve** | Con la pistola en la mano el siguiente código ya está entrando; moverlo mandaría ese código dentro de un campo de precio |
+| **En celular la línea se apila**, no hay tabla que desplazar | Con cuatro columnas en 390 px la tabla se corre de lado, y como el foco salta al precio tras cada escaneo, la vista se iba al precio y el nombre desaparecía. Son dos renders DISTINTOS y no el mismo escondido con CSS: los dos a la vez duplicarían los `id` de cada campo |
+| La cámara solo se ofrece con el **dedo** como puntero | `(pointer: coarse)`, no el ancho de la ventana: una laptop con la ventana angosta sigue siendo una laptop, y su cámara apunta a la cara |
+| Descartar y dar de alta **preguntan**, y el aviso se enfoca solo | Descartar pierde media hora de escaneo. Dar de alta no borra nada, pero deshacer 60 productos es borrarlos de a uno: en la práctica no hay vuelta atrás, y el diálogo se gana el lugar diciendo cuántos crea y a cuántos les cambia el precio |
 | Los faltantes se marcan recién al intentar dar de alta | Una línea recién escaneada no está mal; pintar rojo mientras se escanea entrena a ignorarlo |
 
 **Estados de línea:** buscando · nombre sugerido (del catálogo global, editable) · **nombre en {idioma}** · **ya lo tienes** (nombre de solo lectura, solo el precio se edita, y al guardar **solo se actualiza el precio**) · nuevo para todos · no se pudo consultar.
