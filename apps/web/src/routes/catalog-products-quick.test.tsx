@@ -128,6 +128,27 @@ const darDeAlta = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(within(dialogo).getByRole("button", { name: "Dar de alta" }));
 };
 
+/**
+ * Teclea `texto` y un Enter sobre `campo`, con una pausa CONTROLADA entre
+ * teclas. El reloj es falso a propósito: la detección del lector mide tiempos,
+ * y un `setTimeout` real haría que la prueba dependa de lo rápido que ande la
+ * máquina — que es justo como el CI tumbó otra prueba de este archivo.
+ */
+function teclearComo(
+  campo: HTMLInputElement,
+  texto: string,
+  pausaMs: number,
+  reloj: { ahora: number },
+) {
+  for (const caracter of texto) {
+    reloj.ahora += pausaMs;
+    fireEvent.keyDown(campo, { key: caracter });
+    fireEvent.input(campo, { target: { value: campo.value + caracter } });
+  }
+  reloj.ahora += pausaMs;
+  fireEvent.keyDown(campo, { key: "Enter" });
+}
+
 const escanear = async (user: ReturnType<typeof userEvent.setup>, code: string) => {
   const campo = screen.getByLabelText("Código de barras");
   await user.click(campo);
@@ -692,6 +713,71 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
 
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(document.querySelectorAll("#quick-name-7501055300013")).toHaveLength(1);
+  });
+
+  /**
+   * Carlos eligió detectar el lector (2026-09-17) sobre dejar el foco quieto o
+   * aceptar la pérdida: al escanear, el foco va al precio, y si en vez de
+   * teclearlo se pasa la pistola por el siguiente producto, ese código entraba
+   * EN EL PRECIO. Con un lector de mano pasa seguido.
+   */
+  it("el lector dispara aunque el cursor esté en el precio, y el precio no se ensucia", async () => {
+    const reloj = { ahora: 1_000 };
+    vi.spyOn(Date, "now").mockImplementation(() => reloj.ahora);
+    mocked.lookupBarcode
+      .mockResolvedValueOnce(enCatalogoGlobal("7501055300013", "Primero"))
+      .mockResolvedValueOnce(enCatalogoGlobal("7509999000006", "Segundo"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
+    await user.click(precio);
+    fireEvent.input(precio, { target: { value: "18.50" } });
+
+    // La pistola dispara sobre el campo de precio: sin pausas de persona.
+    teclearComo(precio, "7509999000006", 8, reloj);
+
+    expect(await screen.findByDisplayValue("Segundo")).toBeInTheDocument();
+    // Y el precio que ya estaba escrito vuelve intacto.
+    expect(screen.getAllByLabelText("Precio de venta")[1]).toHaveValue("18.50");
+  });
+
+  it("una persona tecleando los mismos dígitos en el precio NO crea una línea", async () => {
+    const reloj = { ahora: 1_000 };
+    vi.spyOn(Date, "now").mockImplementation(() => reloj.ahora);
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Primero"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const precio = screen.getByLabelText("Precio de venta") as HTMLInputElement;
+    await user.click(precio);
+
+    // Los mismos dígitos, con pausas de persona: es un precio, no un escaneo.
+    teclearComo(precio, "7509999000006", 120, reloj);
+
+    expect(mocked.lookupBarcode).toHaveBeenCalledTimes(1);
+    expect(screen.queryByDisplayValue("Segundo")).not.toBeInTheDocument();
+    expect(precio).toHaveValue("7509999000006");
+  });
+
+  it("una ráfaga que NO es un código de barras se deja pasar tal cual", async () => {
+    const reloj = { ahora: 1_000 };
+    vi.spyOn(Date, "now").mockImplementation(() => reloj.ahora);
+    mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Primero"));
+    const user = await abrir();
+    await escanear(user, "7501055300013");
+    await screen.findByDisplayValue("Primero");
+
+    const nombre = screen.getByLabelText("Nombre del producto") as HTMLInputElement;
+    await user.click(nombre);
+    fireEvent.input(nombre, { target: { value: "" } });
+    // Rápido, pero no es un código: son letras.
+    teclearComo(nombre, "Refresco", 8, reloj);
+
+    expect(mocked.lookupBarcode).toHaveBeenCalledTimes(1);
+    expect(nombre).toHaveValue("Refresco");
   });
 
   it("quitar una línea la saca del borrador", async () => {

@@ -71,6 +71,19 @@ import {
  * `?.` y el respaldo en `false` por jsdom, que no implementa `matchMedia`: sin
  * eso las pruebas revientan antes de llegar a lo que prueban.
  */
+/**
+ * Cuánto puede tardar una tecla respecto de la anterior y seguir siendo el
+ * mismo disparo de un lector.
+ *
+ * Un lector en modo teclado manda sus caracteres cada 5 a 20 ms. Una persona
+ * rápida baja a 60 u 80 ms en un arranque, pero no sostiene doce dígitos
+ * seguidos por debajo de 50 sin una sola pausa. El umbral no decide solo: para
+ * tomarlo por escaneo, la ráfaga ENTERA tiene que ser además un código válido
+ * (`isScannableBarcode`), y eso es lo que vuelve un falso positivo casi
+ * imposible.
+ */
+const MAX_PAUSA_ENTRE_TECLAS_MS = 50;
+
 function conCamaraDeMano(): boolean {
   return window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
 }
@@ -166,6 +179,15 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
    * se vería como ráfaga y el foco no se movería nunca.
    */
   const esperandoTurnoRef = useRef(0);
+  /**
+   * La ráfaga de teclas que puede ser un lector, y qué campo estaba recibiendo
+   * sus caracteres para poder devolvérselos.
+   */
+  const rafagaRef = useRef<{
+    texto: string;
+    ultimaTecla: number;
+    origen: { code: string; campo: "name" | "price"; valor: string } | null;
+  } | null>(null);
 
   const guardar = useQuickAddProducts();
 
@@ -272,6 +294,92 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
     }
   };
 
+  // ── El lector dispara aunque el cursor esté en otro campo ─────────────
+  //
+  // Carlos eligió detectar el lector (2026-09-17) sobre las otras dos salidas.
+  // El problema: al escanear, el foco va al precio para que lo teclees; si en
+  // vez de teclearlo pasas la pistola por el siguiente producto, ese código
+  // entra EN EL PRECIO. Con un lector de mano pasa seguido — se escanea el
+  // anaquel de corrido y los precios se ponen después.
+  //
+  // Un lector es un teclado que escribe muy rápido y termina en Enter. Se
+  // escucha en el documento, en fase de captura, y al llegar el Enter se
+  // pregunta: ¿todas las teclas vinieron sin pausas de persona, y lo que
+  // escribieron es un código de barras válido? Si sí, el campo recupera lo que
+  // tenía y el código entra por donde debía.
+  //
+  // Se devuelve el valor en vez de impedir que entre: para saber que es un
+  // lector hacen falta varias teclas, y para entonces las primeras ya
+  // aterrizaron. Deshacer es posible; adivinar antes de tiempo, no.
+  const escanearRef = useRef<(code: string) => void>(() => undefined);
+  const confirmandoRef = useRef<typeof confirmando>(null);
+  confirmandoRef.current = confirmando;
+
+  useEffect(() => {
+    /** En qué campo de qué línea está el cursor, y qué tenía antes del disparo. */
+    const origenDe = (activo: Element | null) => {
+      if (!(activo instanceof HTMLInputElement)) {
+        return null;
+      }
+      for (const [code, campos] of camposRef.current) {
+        if (campos.name === activo) {
+          return { code, campo: "name" as const, valor: activo.value };
+        }
+        if (campos.price === activo) {
+          return { code, campo: "price" as const, valor: activo.value };
+        }
+      }
+      return null;
+    };
+
+    const alTeclear = (evento: KeyboardEvent) => {
+      const activo = document.activeElement;
+      // El campo de escaneo ya tiene su propio camino, y con un diálogo
+      // abierto no se agregan líneas por la espalda.
+      if (activo === escanerRef.current || confirmandoRef.current !== null) {
+        rafagaRef.current = null;
+        return;
+      }
+
+      if (evento.key === "Enter") {
+        const rafaga = rafagaRef.current;
+        rafagaRef.current = null;
+        if (rafaga === null || !isScannableBarcode(rafaga.texto)) {
+          return;
+        }
+        evento.preventDefault();
+        evento.stopPropagation();
+        if (rafaga.origen !== null) {
+          patch(
+            rafaga.origen.code,
+            rafaga.origen.campo === "name"
+              ? { name: rafaga.origen.valor }
+              : { price: rafaga.origen.valor },
+          );
+        }
+        escanearRef.current(rafaga.texto);
+        escanerRef.current?.focus();
+        return;
+      }
+
+      // Solo caracteres imprimibles: las flechas, Tab y los modificadores no
+      // forman parte de lo que escribe un lector.
+      if (evento.key.length !== 1) {
+        return;
+      }
+      const ahora = Date.now();
+      const previa = rafagaRef.current;
+      const sigueLaMisma =
+        previa !== null && ahora - previa.ultimaTecla <= MAX_PAUSA_ENTRE_TECLAS_MS;
+      rafagaRef.current = sigueLaMisma
+        ? { ...previa, texto: previa.texto + evento.key, ultimaTecla: ahora }
+        : { texto: evento.key, ultimaTecla: ahora, origen: origenDe(activo) };
+    };
+
+    document.addEventListener("keydown", alTeclear, true);
+    return () => document.removeEventListener("keydown", alTeclear, true);
+  }, [patch]);
+
   const escanear = (code: string) => {
     const limpio = code.trim();
     if (limpio === "") {
@@ -301,6 +409,10 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
       return procesar(limpio);
     });
   };
+
+  // El oyente del documento se instala una sola vez; `escanear` se rehace en
+  // cada render. El ref es lo que los mantiene conectados sin reinstalar nada.
+  escanearRef.current = escanear;
 
   const problemaDe = (linea: QuickLine): string | null => {
     if (linea.status === "searching") {
