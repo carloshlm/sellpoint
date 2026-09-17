@@ -90,6 +90,24 @@ function renderScanner(onScan = vi.fn()) {
 
 const encender = () => userEvent.click(screen.getByRole("button", { name: /Escanear/ }));
 
+/** Finge el puntero principal del aparato: jsdom no implementa `matchMedia`. */
+function fingirPuntero(tipo: "grueso" | "fino") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (consulta: string) => ({
+      matches: consulta.includes("pointer: coarse") ? tipo === "grueso" : tipo === "fino",
+      media: consulta,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      onchange: null,
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 describe("BarcodeScanner (F4-CART-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -104,6 +122,10 @@ describe("BarcodeScanner (F4-CART-04)", () => {
       value: { getUserMedia },
       configurable: true,
     });
+    // Ni `matchMedia`. Estas pruebas son sobre un aparato que SÍ tiene la
+    // cámara en la mano; sin esto, el componente no pinta nada y todas fallan
+    // por la razón equivocada.
+    fingirPuntero("grueso");
     Reflect.deleteProperty(window, "BarcodeDetector");
   });
 
@@ -113,6 +135,30 @@ describe("BarcodeScanner (F4-CART-04)", () => {
    * lo pidió: era el cleanup del efecto disparándose por un cambio de estado
    * interno.
    */
+  /**
+   * Carlos (2026-09-17), primero en la Carga rápida y después en el mostrador:
+   * «quita el botón de escanear con cámara para computadoras y sólo déjalo
+   * para celulares». En una laptop la cámara apunta a la cara, no al anaquel.
+   *
+   * Se pregunta por la CAPACIDAD del puntero y no por el ancho de la ventana:
+   * una laptop con la ventana angosta sigue siendo una laptop.
+   */
+  it("con el dedo como puntero se ofrece la cámara", () => {
+    fingirPuntero("grueso");
+    renderScanner();
+
+    expect(screen.getByTestId("barcode-scanner")).toBeInTheDocument();
+  });
+
+  it("con ratón NO se pinta nada: ni el botón ni el aviso", () => {
+    fingirPuntero("fino");
+    renderScanner();
+
+    expect(screen.queryByTestId("barcode-scanner")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("scanner-unavailable")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
   it("tras encender, NADIE apaga la cámara", async () => {
     renderScanner();
 

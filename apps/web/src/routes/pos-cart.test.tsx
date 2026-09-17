@@ -429,6 +429,32 @@ describe("El carrito del POS (F4-CART)", () => {
   });
 
   describe("el escáner (F4-CART-04)", () => {
+    beforeEach(() => {
+      // Desde 2026-09-17 la cámara solo se OFRECE donde el dedo es el puntero
+      // principal: en una laptop apunta a la cara, no al anaquel. jsdom no
+      // trae `matchMedia`, así que sin esto el componente no pinta nada y la
+      // prueba falla por la razón equivocada — la premisa de este bloque es un
+      // teléfono, que es donde el botón existe.
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: (consulta: string) => ({
+          matches: consulta.includes("pointer: coarse"),
+          media: consulta,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          onchange: null,
+          dispatchEvent: () => false,
+        }),
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(window, "matchMedia");
+    });
+
     /**
      * jsdom no tiene cámara: `decodeFromVideoDevice` falla y el componente cae
      * en su rama de degradación. Eso es exactamente lo que hay que probar —

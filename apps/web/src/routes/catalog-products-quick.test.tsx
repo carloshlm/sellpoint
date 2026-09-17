@@ -44,17 +44,19 @@ vi.mock("@/components/pos/barcode-scanner", () => ({
 }));
 
 /**
- * Finge las capacidades del aparato: `matchMedia` no existe en jsdom.
+ * Finge el ancho de la pantalla: `matchMedia` no existe en jsdom. Decide si la
+ * línea se pinta como fila de tabla o apilada.
  *
- * `puntero` decide si se ofrece la cámara; `ancho`, si la línea se pinta como
- * fila de tabla o apilada.
+ * Que se ofrezca o no la cámara NO se decide acá: esa regla vive dentro de
+ * `BarcodeScanner`, que en este archivo está simulado, y se prueba en
+ * `barcode-scanner.test.tsx`.
  */
-function fingirAparato({ puntero, ancho }: { puntero: "grueso" | "fino"; ancho: boolean }) {
+function fingirAncho(ancho: boolean) {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     configurable: true,
     value: (consulta: string) => ({
-      matches: consulta.includes("pointer: coarse") ? puntero === "grueso" : ancho,
+      matches: ancho,
       media: consulta,
       addEventListener: () => undefined,
       removeEventListener: () => undefined,
@@ -727,37 +729,8 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
     expect(aviso).toHaveFocus();
   });
 
-  /**
-   * Carlos (2026-09-17): «el logo de escanear con la cámara no debe aparecer
-   * en dispositivos como laptops, sólo en tablets y celulares».
-   *
-   * Se pregunta por la CAPACIDAD del puntero y no por el ancho de la ventana:
-   * una laptop con la ventana angosta sigue siendo una laptop, y su cámara
-   * apunta a la cara, no al anaquel.
-   */
-  it("la cámara se ofrece con el dedo como puntero, y no con el ratón", async () => {
-    fingirAparato({ puntero: "grueso", ancho: false });
-    await abrir();
-    expect(await screen.findByTestId("scanner-de-camara")).toBeInTheDocument();
-  });
-
-  it("con ratón no aparece el botón de la cámara", async () => {
-    fingirAparato({ puntero: "fino", ancho: true });
-    await abrir();
-    await waitFor(() => {
-      expect(screen.queryByTestId("scanner-de-camara")).not.toBeInTheDocument();
-    });
-  });
-
-  /**
-   * Carlos (2026-09-17): «la columna Nombre del producto se ve muy pequeña en
-   * celular». Agrandarla sola no alcanzaba — con cuatro columnas en 390 px la
-   * tabla se desplaza de lado, y como el foco salta al precio tras cada
-   * escaneo, el navegador arrastraba la vista hasta el precio y el nombre
-   * desaparecía. Se veía UNA columna a la vez.
-   */
   it("en pantalla angosta la línea se apila y no hay tabla que desplazar", async () => {
-    fingirAparato({ puntero: "grueso", ancho: false });
+    fingirAncho(false);
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
     const user = await abrir();
 
@@ -773,7 +746,7 @@ describe("Carga rápida de catálogo (F10-QUICKCAT)", () => {
   });
 
   it("en pantalla ancha sigue siendo la tabla de siempre", async () => {
-    fingirAparato({ puntero: "fino", ancho: true });
+    fingirAncho(true);
     mocked.lookupBarcode.mockResolvedValue(enCatalogoGlobal("7501055300013", "Refresco 600 ml"));
     const user = await abrir();
 

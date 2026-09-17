@@ -59,19 +59,6 @@ import {
  * ese Enter habría que ir al campo con el mouse ochenta veces.
  */
 /**
- * ¿El dedo es el puntero principal de este aparato?
- *
- * Decide si se ofrece escanear con la cámara. En una laptop la cámara apunta
- * a la cara, no al anaquel: el botón está de adorno y ocupa el lugar donde se
- * espera algo útil. `(pointer: coarse)` pregunta por la CAPACIDAD —el puntero
- * principal es grueso, o sea un dedo— y no por el ancho de la ventana, que es
- * lo que se suele usar mal: una laptop con la ventana angosta sigue siendo una
- * laptop.
- *
- * `?.` y el respaldo en `false` por jsdom, que no implementa `matchMedia`: sin
- * eso las pruebas revientan antes de llegar a lo que prueban.
- */
-/**
  * Cuánto puede tardar una tecla respecto de la anterior y seguir siendo el
  * mismo disparo de un lector.
  *
@@ -83,10 +70,6 @@ import {
  * imposible.
  */
 const MAX_PAUSA_ENTRE_TECLAS_MS = 50;
-
-function conCamaraDeMano(): boolean {
-  return window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
-}
 
 /**
  * «fr» → «francés» / «French», en el idioma de quien lee.
@@ -138,9 +121,6 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
   const [descartado, setDescartado] = useState<number | null>(null);
   /** Qué acción está esperando confirmación. */
   const [confirmando, setConfirmando] = useState<"guardar" | "descartar" | null>(null);
-  // Se calcula UNA vez y no en cada render: la capacidad del aparato no cambia
-  // mientras la pantalla está abierta.
-  const [camaraALaMano] = useState(conCamaraDeMano);
   /**
    * Si la pantalla da para la tabla de cuatro columnas.
    *
@@ -750,7 +730,7 @@ export function QuickCatalogTable({ owner }: { owner: string }) {
           </form>
           <p className="text-muted-foreground text-xs">{t("products.quick.scanHint")}</p>
         </div>
-        {camaraALaMano && <BarcodeScanner onScan={escanear} />}
+        <BarcodeScanner onScan={escanear} />
       </div>
 
       {aviso !== null && (

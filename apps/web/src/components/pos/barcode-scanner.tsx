@@ -169,6 +169,27 @@ interface BarcodeScannerProps {
 }
 
 /**
+ * ¿El dedo es el puntero principal de este aparato?
+ *
+ * Decide si se OFRECE escanear con la cámara. En una laptop la cámara apunta a
+ * la cara, no al anaquel: el botón está de adorno y ocupa el lugar donde se
+ * espera algo útil (Carlos, 2026-09-17, primero en la Carga rápida y después
+ * en el mostrador).
+ *
+ * `(pointer: coarse)` pregunta por la CAPACIDAD —el puntero principal es
+ * grueso, o sea un dedo— y no por el ancho de la ventana, que es lo que se
+ * suele usar mal: una laptop con la ventana angosta sigue siendo una laptop.
+ *
+ * La regla vive ACÁ y no en cada pantalla porque las dos que lo usan la
+ * quieren igual, y la tercera que venga también.
+ *
+ * `?.` y el respaldo en `false` por jsdom, que no implementa `matchMedia`.
+ */
+function conCamaraDeMano(): boolean {
+  return window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+}
+
+/**
  * Lo que se MUESTRA. Deliberadamente separado de la INTENCIÓN (`encendida`):
  * ver la nota del efecto, abajo.
  */
@@ -176,6 +197,9 @@ type Fase = "apagado" | "encendiendo" | "leyendo" | "sin-camara";
 
 export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   const { t } = useTranslation();
+  // Se resuelve UNA vez: la capacidad del aparato no cambia mientras la
+  // pantalla está abierta.
+  const [camaraALaMano] = useState(conCamaraDeMano);
 
   /**
    * ── La INTENCIÓN, y por qué está separada de la fase (2026-08-22) ──────
@@ -461,6 +485,13 @@ export function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   };
 
   const estado = fase;
+
+  // Sin cámara de mano no se ofrece nada: ni el botón ni el aviso. Va DESPUÉS
+  // de los hooks —React exige que corran siempre y en el mismo orden— y por
+  // eso es un `return` tardío y no una guarda al principio.
+  if (!camaraALaMano) {
+    return null;
+  }
 
   if (estado === "sin-camara") {
     return (
