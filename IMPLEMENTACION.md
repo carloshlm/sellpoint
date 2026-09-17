@@ -5658,6 +5658,13 @@ Pago tardío: `periodStart = servicePeriodEnd ?? paidAt` — no se regalan días
 
 **Verificado:** carga completa contra la base local con una fila marcada `tenant_contributed` sembrada a propósito, que quedó intacta; 2,054 filas canadienses con `name_lang` y 1,465 con `name_en`; e2e que crea un producto desde un nombre francés en un negocio en inglés y comprueba que el siguiente negocio en inglés ya lo ve traducido. **Total ~12 h.**
 
+**Dos correcciones que reportó Carlos el mismo día, probando:**
+
+- [x] **F10-LANG-07** — «aún me sale el nombre en francés y no en inglés para ese producto que sí tiene valor en su nombre en inglés». La escalera saltaba del español al original y se brincaba el inglés. Queda en tres escalones: tu idioma, el OTRO que hablamos, el original. Entre inglés y francés los dos son «otro idioma», pero el inglés es uno de los que la aplicación habla.
+- [x] **F10-LANG-08** — «no debes permitir agregar un código de barras que no cumpla con la norma». Llegó con tres líneas en el borrador: 24 dígitos, «adsadasdsad» y una consulta SQL entera. La regla no era nueva —es la misma con la que el mostrador reconoce un código desde F4, `/^\d{6,14}$/`— y subió a `shared` como `isScannableBarcode` para que la usen las dos fronteras.
+
+**Un defecto que destapó la prueba de esa validación, y era el peor de todos.** Al reordenar el escaneo se vio que en una ráfaga el SEGUNDO código entero terminaba dentro del campo de PRECIO de la primera línea: la respuesta del primero llegaba en la ventana entre el clic y la primera tecla del segundo —campo enfocado y vacío, que el guardia leía como «nadie escribe»— y mandaba el cursor al precio. Se arregló mirando la COLA en vez del reloj: con otro escaneo esperando turno, el foco no se mueve. Y se agregó la prueba del otro lado, que no existía: con un escaneo suelto el foco SÍ tiene que ir al precio, o el bucle «escanear, precio, Enter» se rompe sin que nada se ponga rojo.
+
 **Pospuestos con nombre:** `search` sigue derivándose solo de `product_name`, así que una búsqueda por nombre (que todavía no existe) no encontraría por el nombre traducido · detección del idioma de lo que teclea un negocio: si escribe en francés con el sistema en inglés, ese nombre queda como `name_en` y no se va a inventar un detector · recargar Estados Unidos, donde el 0.7% en francés no justifica las horas.
 
 ### Orden de ejecución entre los cuatro módulos
