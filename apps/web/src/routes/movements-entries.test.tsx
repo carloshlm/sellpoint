@@ -708,6 +708,134 @@ describe("La cara de entrada del documento (F3-ENTRY-02)", () => {
       });
     });
 
+    /**
+     * Teclea `texto` y un Enter sobre `campo`, con una pausa CONTROLADA entre
+     * teclas. El reloj se pone en el `timeStamp` de cada evento, que es lo que
+     * mide la detección del lector.
+     */
+    function teclearComo(campo: HTMLInputElement, texto: string, pausaMs: number) {
+      let momento = 1_000;
+      const tecla = (key: string) => {
+        momento += pausaMs;
+        const evento = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+        Object.defineProperty(evento, "timeStamp", { value: momento });
+        campo.dispatchEvent(evento);
+      };
+      for (const caracter of texto) {
+        tecla(caracter);
+        fireEvent.input(campo, { target: { value: campo.value + caracter } });
+      }
+      tecla("Enter");
+    }
+
+    const soloIbuprofeno = () => {
+      mockedProducts.mockResolvedValue({
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        items: [
+          {
+            id: "p2",
+            sku: "IBU-400",
+            name: "Ibuprofeno 400mg",
+            baseUnit: "unit",
+            isComposite: false,
+            isActive: true,
+            attributes: {},
+            price: null,
+            taxGroupId: null,
+          },
+        ],
+      });
+    };
+
+    /**
+     * Carlos (2026-09-17): con la pistola, el único camino era hacer clic en el
+     * resultado, así que escanear dejaba el producto colgado en el buscador.
+     */
+    it("el Enter agrega el producto cuando el código resuelve a uno solo", async () => {
+      const user = userEvent.setup();
+      soloIbuprofeno();
+      mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const campo = screen.getByLabelText(/buscar producto/i) as HTMLInputElement;
+      await user.click(campo);
+      fireEvent.input(campo, { target: { value: "7501055300013" } });
+      fireEvent.submit(campo.form as HTMLFormElement);
+
+      await waitFor(() => {
+        expect(mocked.addDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          expect.objectContaining({ productId: "p2" }),
+        );
+      });
+    });
+
+    it("el botón Agregar hace lo mismo que el Enter", async () => {
+      const user = userEvent.setup();
+      soloIbuprofeno();
+      mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      await user.type(screen.getByLabelText(/buscar producto/i), "ibu");
+      await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+      await waitFor(() => {
+        expect(mocked.addDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          expect.objectContaining({ productId: "p2" }),
+        );
+      });
+    });
+
+    /**
+     * El caso que Carlos pidió por nombre: tras agregar una línea el foco
+     * aterriza en la CANTIDAD, así que la siguiente pasada de pistola dispara
+     * desde ahí. Esos dígitos entran en el campo antes de que nadie pueda saber
+     * que era un escaneo — deshacerlo es posible, adivinarlo antes no.
+     */
+    it("escanear con el cursor en la cantidad agrega la línea y deja la cantidad intacta", async () => {
+      const user = userEvent.setup();
+      soloIbuprofeno();
+      mocked.addDocumentLine.mockResolvedValue({ id: "line-2" });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const cantidad = screen.getByLabelText(/cantidad/i) as HTMLInputElement;
+      await user.click(cantidad);
+      expect(cantidad).toHaveValue(3);
+
+      teclearComo(cantidad, "7501055300013", 60);
+
+      await waitFor(() => {
+        expect(mocked.addDocumentLine).toHaveBeenCalledWith(
+          "doc-1",
+          expect.objectContaining({ productId: "p2" }),
+        );
+      });
+      // La cantidad vuelve a lo que tenía, y NO se guarda el código.
+      expect(cantidad).toHaveValue(3);
+      expect(mocked.updateDocumentLine).not.toHaveBeenCalled();
+    });
+
+    it("un código que no está en el catálogo avisa y no agrega nada", async () => {
+      const user = userEvent.setup();
+      mockedProducts.mockResolvedValue({ total: 0, page: 1, pageSize: 20, items: [] });
+      await renderDoc();
+      await screen.findByText("PAR-500");
+
+      const campo = screen.getByLabelText(/buscar producto/i) as HTMLInputElement;
+      await user.click(campo);
+      fireEvent.input(campo, { target: { value: "7501055300013" } });
+      fireEvent.submit(campo.form as HTMLFormElement);
+
+      expect(await screen.findByRole("status")).toHaveTextContent("7501055300013");
+      expect(mocked.addDocumentLine).not.toHaveBeenCalled();
+    });
+
     it("un confirmado no ofrece el buscador", async () => {
       mocked.getDocument.mockResolvedValue(
         detalle({ status: "confirmed", reasonCode: "invoice", reference: "F-1" }),

@@ -105,6 +105,27 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
   const [drifted, setDrifted] = useState(0);
   const [soloDiscrepancias, setSoloDiscrepancias] = useState(false);
 
+  /**
+   * Los campos de todas las líneas, con cómo devolverle a cada uno su valor.
+   *
+   * Cuando la pistola dispara con el cursor parado en una cantidad, un lote o
+   * una ubicación, esos dígitos aterrizan ahí: para saber que era un escaneo
+   * hacen falta varias teclas, y para entonces las primeras ya entraron.
+   * Deshacerlo es posible; adivinarlo antes de tiempo, no.
+   */
+  const camposDeLineas = useRef(new Map<HTMLInputElement, (valor: string) => void>());
+  const registrarCampo =
+    (restaurar: (valor: string) => void) => (campo: HTMLInputElement | null) => {
+      if (campo === null) {
+        return;
+      }
+      const mapa = camposDeLineas.current;
+      mapa.set(campo, restaurar);
+      // React 19 llama a esta limpieza al desmontar: sin ella el mapa
+      // guardaría para siempre los campos de cada línea borrada.
+      return () => mapa.delete(campo);
+    };
+
   const confirmDocument = useConfirmDocument(documentId);
   const cancelDocument = useCancelDocument(documentId);
 
@@ -301,7 +322,14 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
         </p>
       )}
 
-      {editable && !esConteo && <AddLineForm documentId={documentId} onAdded={setFocusLineId} />}
+      {editable && !esConteo && (
+        <AddLineForm
+          documentId={documentId}
+          onAdded={setFocusLineId}
+          camposDeLineas={camposDeLineas}
+          escaneoActivo={editable}
+        />
+      )}
 
       {esConteo && !sinLineas && (
         <label className="flex w-fit items-center gap-2 text-sm">
@@ -401,6 +429,7 @@ export function DocumentDetail({ documentId }: DocumentDetailProps) {
                     conUbicacion={conUbicacion}
                     esSalida={document.type === "exit"}
                     esConteo={esConteo}
+                    registrarCampo={registrarCampo}
                   />
                 ))}
             </tbody>
@@ -475,6 +504,7 @@ function LineRow({
   esSalida,
   esConteo,
   autoFocusQuantity,
+  registrarCampo,
 }: {
   documentId: string;
   row: DocumentRow;
@@ -486,6 +516,8 @@ function LineRow({
   esSalida: boolean;
   esConteo: boolean;
   autoFocusQuantity: boolean;
+  /** Deja este campo en el mapa del padre, con cómo devolverle su valor. */
+  registrarCampo: (restaurar: (valor: string) => void) => (campo: HTMLInputElement | null) => void;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -510,6 +542,16 @@ function LineRow({
   const primeraCargaUbicacion = useRef(true);
   const primeraCargaContado = useRef(true);
   const quantityRef = useRef<HTMLInputElement | null>(null);
+  /**
+   * El campo de la cantidad lleva DOS refs: el del foco —que aterriza ahí al
+   * agregar la línea— y el del registro, que es lo que permite devolverle su
+   * valor cuando la pistola dispara con el cursor parado encima.
+   */
+  const refDeCantidad =
+    (restaurar: (valor: string) => void) => (campo: HTMLInputElement | null) => {
+      quantityRef.current = campo;
+      return registrarCampo(restaurar)(campo);
+    };
   /**
    * El stock del producto se consulta PEREZOSO: recién cuando el usuario
    * enfoca el campo de lote. Un documento de 80 líneas no tiene por qué
@@ -749,7 +791,7 @@ function LineRow({
                 </label>
                 <input
                   id={`line-${row.lineNo}-counted`}
-                  ref={quantityRef}
+                  ref={refDeCantidad(setCounted)}
                   type="number"
                   min={0}
                   step="0.0001"
@@ -827,7 +869,7 @@ function LineRow({
                 </label>
                 <input
                   id={`line-${row.lineNo}-quantity`}
-                  ref={quantityRef}
+                  ref={refDeCantidad(setQuantity)}
                   type="number"
                   step="0.0001"
                   value={quantity}
@@ -859,6 +901,7 @@ function LineRow({
               </label>
               <MoneyInput
                 id={`line-${row.lineNo}-unit-cost`}
+                ref={registrarCampo(setUnitCost)}
                 className="w-40"
                 aria-invalid={costoInvalido ? true : undefined}
                 value={unitCost}
@@ -899,6 +942,7 @@ function LineRow({
                   </label>
                   <input
                     id={`line-${row.lineNo}-lot`}
+                    ref={registrarCampo(setLotCode)}
                     type="text"
                     value={lotCode}
                     onFocus={() => setLotTocado(true)}
@@ -929,6 +973,7 @@ function LineRow({
                   </label>
                   <input
                     id={`line-${row.lineNo}-expires`}
+                    ref={registrarCampo(setExpiresAt)}
                     type="date"
                     value={expiresAt}
                     onChange={(event) => setExpiresAt(event.target.value)}
@@ -962,6 +1007,7 @@ function LineRow({
               </label>
               <input
                 id={`line-${row.lineNo}-location`}
+                ref={registrarCampo(setLocation)}
                 type="text"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
