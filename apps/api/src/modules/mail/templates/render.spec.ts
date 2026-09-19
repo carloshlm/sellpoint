@@ -74,6 +74,39 @@ describe("renderMailTemplate", () => {
   });
 
   /**
+   * Los avisos al backoffice (prospecto del sitio, solicitud de plan) traen
+   * el cuerpo en varios renglones. En HTML un salto de línea es un espacio:
+   * sin esto, el aviso llegaba a Gmail como UN solo renglón corrido
+   * (visto en la prueba de INFRA-05, 2026-09-19).
+   */
+  it("los renglones del cuerpo se conservan en el HTML", () => {
+    const i18n = fakeI18n();
+    (i18n.translate as jest.Mock).mockImplementation((key: string) =>
+      key === "emails.siteLead.body" ? "Ana escribió.\n\nPaís: MX\nPlan: pro" : "",
+    );
+
+    const { html, text } = renderMailTemplate(i18n, "site-lead", {}, "es");
+
+    expect(html).toContain(`<p style="margin:0 0 24px;">Ana escribió.</p>`);
+    expect(html).toContain(`<p style="margin:0 0 24px;">País: MX<br />Plan: pro</p>`);
+    expect(html).not.toMatch(/MX\nPlan/);
+    // El texto plano ya los respetaba: no se toca.
+    expect(text).toBe("Ana escribió.\n\nPaís: MX\nPlan: pro");
+  });
+
+  it("un renglón con HTML se sigue ESCAPANDO al partir el cuerpo", () => {
+    const i18n = fakeI18n();
+    (i18n.translate as jest.Mock).mockImplementation((key: string) =>
+      key === "emails.siteLead.body" ? "Mensaje:\n<b>hola</b>" : "",
+    );
+
+    const { html } = renderMailTemplate(i18n, "site-lead", {}, "es");
+
+    expect(html).toContain("Mensaje:<br />&lt;b&gt;hola&lt;/b&gt;");
+    expect(html).not.toContain("<b>");
+  });
+
+  /**
    * F11-SITE-LEAD-05: la respuesta automática al prospecto va en SU idioma, y
    * el sitio habla tres — el francés incluido, que la aplicación todavía no
    * habla. El tipo de locale se ensanchó solo para eso; las plantillas de

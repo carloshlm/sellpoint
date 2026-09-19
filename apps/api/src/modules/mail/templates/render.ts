@@ -51,6 +51,20 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
+// En HTML un salto de línea es un espacio: los cuerpos de varios renglones
+// (los avisos al backoffice) llegaban como un solo renglón corrido. Una línea
+// en blanco abre párrafo y un salto simple es <br />; se escapa renglón por
+// renglón para que el marcado lo ponga SOLO este código.
+function bodyToHtml(body: string): string {
+  return body
+    .split(/\n{2,}/)
+    .map(
+      (paragraph) =>
+        `<p style="margin:0 0 24px;">${paragraph.split("\n").map(escapeHtml).join("<br />")}</p>`,
+    )
+    .join("\n");
+}
+
 export function renderMailTemplate(
   i18n: I18nService,
   template: MailTemplate,
@@ -85,7 +99,7 @@ export function renderMailTemplate(
   const html = [
     `<div style="margin:0 auto;max-width:520px;padding:24px;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2430;">`,
     greeting ? `<p style="margin:0 0 16px;">${escapeHtml(greeting)}</p>` : "",
-    body ? `<p style="margin:0 0 24px;">${escapeHtml(body)}</p>` : "",
+    body ? bodyToHtml(body) : "",
     link && cta
       ? `<table role="presentation" style="margin:0 auto 24px;border-collapse:collapse;"><tr><td style="border-radius:8px;background-color:${BRAND_BLUE};">` +
         `<a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 28px;border-radius:8px;background-color:${BRAND_BLUE};color:#ffffff;font-weight:600;text-decoration:none;">${escapeHtml(cta)}</a>` +
