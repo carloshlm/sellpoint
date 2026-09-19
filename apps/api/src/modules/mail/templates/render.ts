@@ -1,5 +1,6 @@
 import type { I18nService } from "nestjs-i18n";
-import type { MailLocale, MailTemplate } from "../mailer.port";
+import { isCommercialTemplate, type MailLocale, type MailTemplate } from "../mailer.port";
+import { SENDER_ADDRESS, SENDER_LEGAL_NAME } from "./sender-identity";
 
 export interface RenderedMail {
   subject: string;
@@ -65,7 +66,12 @@ export function renderMailTemplate(
   const expiry = i18n.translate(`${key}.expiry`, { lang: locale, args: vars });
   const linkFallback = i18n.translate("emails.linkFallback", { lang: locale, args: vars });
 
-  const text = [greeting, body, vars.link, cta, expiry].filter(Boolean).join("\n\n");
+  // F11-SITE-LEGAL-04: el pie va SOLO en los comerciales, y en esos es
+  // obligatorio. Se calcula antes de armar los dos cuerpos para que el error
+  // salte ANTES de gastar trabajo en un correo que no se va a poder mandar.
+  const footer = buildCommercialFooter(i18n, template, vars, locale);
+
+  const text = [greeting, body, vars.link, cta, expiry, footer?.text].filter(Boolean).join("\n\n");
 
   // La versión HTML (Carlos, 2026-08-25): el CTA como botón azul centrado y
   // el enlace COPIABLE como alternativa — hay clientes que bloquean botones y
@@ -90,10 +96,60 @@ export function renderMailTemplate(
         `<p style="margin:0 0 24px;word-break:break-all;font-size:13px;"><a href="${escapeHtml(link)}" style="color:${BRAND_BLUE};">${escapeHtml(link)}</a></p>`
       : "",
     expiry ? `<p style="margin:0;color:#5b6472;font-size:13px;">${escapeHtml(expiry)}</p>` : "",
+    footer?.html ?? "",
     `</div>`,
   ]
     .filter(Boolean)
     .join("\n");
 
   return { subject, text, html };
+}
+
+/**
+ * F11-SITE-LEGAL-04 — quién envía y cómo dejar de recibir.
+ *
+ * Devuelve `null` para todo lo TRANSACCIONAL: un aviso de que tu plan vence no
+ * lleva baja porque no se puede uno dar de baja de eso, y un pie legal ahí
+ * sería ruido que hace menos claro el mensaje.
+ *
+ * Para lo comercial, en cambio, THROWEA si falta el enlace. Es a propósito y
+ * es la garantía entera del requisito: una plantilla comercial nueva no puede
+ * nacer sin su pie, porque no llega a renderizarse. Que reviente en el
+ * servidor es infinitamente mejor que un correo comercial sin salida saliendo
+ * a producción — el que revienta se ve en Sentry y se arregla; el otro se
+ * descubre con una queja.
+ */
+function buildCommercialFooter(
+  i18n: I18nService,
+  template: MailTemplate,
+  vars: Record<string, string>,
+  locale: MailLocale,
+): { text: string; html: string } | null {
+  if (!isCommercialTemplate(template)) {
+    return null;
+  }
+
+  const unsubscribeUrl = vars.unsubscribeUrl;
+  if (!unsubscribeUrl) {
+    throw new Error(
+      `La plantilla comercial "${template}" exige un \`unsubscribeUrl\` en sus vars ` +
+        "(F11-SITE-LEGAL-04): un correo comercial sin enlace de baja no se manda.",
+    );
+  }
+
+  const args = { ...vars, legalName: SENDER_LEGAL_NAME, address: SENDER_ADDRESS };
+  const sender = i18n.translate("emails.commercialFooter.sender", { lang: locale, args });
+  const unsubscribe = i18n.translate("emails.commercialFooter.unsubscribe", { lang: locale, args });
+
+  return {
+    text: `${sender}\n${unsubscribe}\n${unsubscribeUrl}`,
+    // Separado por una línea y en gris chico: es información legal, no el
+    // mensaje. El enlace es un enlace de verdad — nadie copia y pega una URL
+    // de 120 caracteres para dejar de recibir correos.
+    html:
+      `<hr style="margin:24px 0 16px;border:0;border-top:1px solid #e2e5ea;" />` +
+      `<p style="margin:0 0 4px;color:#8a93a2;font-size:12px;line-height:1.5;">${escapeHtml(sender)}</p>` +
+      `<p style="margin:0;color:#8a93a2;font-size:12px;line-height:1.5;">${escapeHtml(unsubscribe)} ` +
+      `<a href="${escapeHtml(unsubscribeUrl)}" style="color:#8a93a2;">${escapeHtml(unsubscribeUrl)}</a></p>`,
+  };
 }

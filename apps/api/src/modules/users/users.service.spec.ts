@@ -1,5 +1,6 @@
 import type { AuditService } from "../audit/audit.service";
 import type { AuthUser } from "../auth/types/auth-user";
+import { TermsService } from "../legal/terms.service";
 import { UsersService } from "./users.service";
 
 const CURRENT_USER: AuthUser = {
@@ -13,6 +14,8 @@ function buildService(overrides?: {
   currentUser?: Record<string, unknown> | null;
   updatedUser?: Record<string, unknown>;
   tenantRow?: Record<string, unknown>;
+  /** F11-SITE-LEGAL-03: `null` (el default) = todo dormido. */
+  termsVersion?: string | null;
 }) {
   const currentUser = overrides?.currentUser ?? {
     id: "user-1",
@@ -92,7 +95,13 @@ function buildService(overrides?: {
     }),
   };
 
-  const service = new UsersService(prisma as never, auditService, entitlements as never);
+  // El TermsService de VERDAD: su lógica es la que decide `mustAcceptTerms`, y
+  // probarla contra un doble sería probar el doble.
+  const terms = new TermsService(overrides?.termsVersion ?? null, prisma as never, auditService, {
+    now: () => new Date("2026-10-05T12:00:00.000Z"),
+  } as never);
+
+  const service = new UsersService(prisma as never, auditService, entitlements as never, terms);
   return { service, prisma, auditService, tx };
 }
 
@@ -115,6 +124,7 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         locale: true,
         defaultWarehouseId: true,
         isPlatformAdmin: true,
+        termsVersion: true,
       },
     });
     expect(result).toEqual({
@@ -149,8 +159,51 @@ describe("UsersService.getMe (GET /me, F1-WEB-AUTH bootstrap)", () => {
         daysLeft: null,
         writeAccess: true,
       }),
+      // F11-SITE-LEGAL-03: dormido es SIEMPRE false.
+      mustAcceptTerms: false,
     });
     expect(result).not.toHaveProperty("passwordHash");
+  });
+
+  /**
+   * F11-SITE-LEGAL-03 — el aviso del bootstrap, en sus DOS estados. Es el
+   * mismo cálculo que hace login (patrón A1): si estos dos emisores se
+   * separaran, el diálogo aparecería al recargar y no al entrar, o al revés.
+   */
+  it("dormido: `mustAcceptTerms` es false aunque el usuario nunca haya aceptado", async () => {
+    const { service } = buildService({ termsVersion: null });
+
+    await expect(service.getMe(CURRENT_USER)).resolves.toMatchObject({
+      mustAcceptTerms: false,
+    });
+  });
+
+  it("encendido: quien nunca aceptó recibe `mustAcceptTerms` en true", async () => {
+    const { service } = buildService({ termsVersion: "2026-10-01" });
+
+    await expect(service.getMe(CURRENT_USER)).resolves.toMatchObject({
+      mustAcceptTerms: true,
+    });
+  });
+
+  it("encendido: quien ya aceptó la versión vigente no ve el diálogo", async () => {
+    const { service } = buildService({
+      termsVersion: "2026-10-01",
+      currentUser: {
+        id: "user-1",
+        email: "owner@example.com",
+        firstName: "Ana",
+        lastName: "Pérez",
+        secondLastName: null,
+        status: "active",
+        locale: "es",
+        termsVersion: "2026-10-01",
+      },
+    });
+
+    await expect(service.getMe(CURRENT_USER)).resolves.toMatchObject({
+      mustAcceptTerms: false,
+    });
   });
 
   it("el locale sale de la DB, no del claim del JWT (PATCH /me pudo cambiarlo con el token ya emitido)", async () => {

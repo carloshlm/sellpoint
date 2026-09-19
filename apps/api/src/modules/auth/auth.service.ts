@@ -20,6 +20,7 @@ import { REDIS_CLIENT } from "../../infrastructure/redis/redis.module";
 import { AuditService } from "../audit/audit.service";
 import { EntitlementsService } from "../billing/entitlements.service";
 import { type SubscriptionBlock, toSubscriptionBlock } from "../billing/subscription.types";
+import { TermsService } from "../legal/terms.service";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
 import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
 import { TenantsService } from "../tenants/tenants.service";
@@ -54,6 +55,12 @@ export interface RegisterTenantInput {
   lastName: string;
   secondLastName?: string;
   locale?: "es" | "en";
+  /**
+   * F11-SITE-LEGAL-02: la casilla del formulario. Solo se EXIGE cuando hay
+   * una versión vigente de los términos; mientras siga dormida, lo que llegue
+   * acá se ignora por completo.
+   */
+  acceptTerms?: boolean;
 }
 
 export interface RequestMeta {
@@ -90,6 +97,7 @@ export class AuthService implements OnModuleInit {
     configService: ConfigService<Env, true>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly entitlements: EntitlementsService,
+    private readonly terms: TermsService,
   ) {
     this.appUrl = configService.get("APP_URL", { infer: true });
     this.accessTtlSeconds = configService.get("JWT_ACCESS_TTL_MIN", { infer: true }) * 60;
@@ -103,6 +111,12 @@ export class AuthService implements OnModuleInit {
     input: RegisterTenantInput,
     meta: RequestMeta,
   ): Promise<{ tenantId: string; userId: string }> {
+    // F11-SITE-LEGAL-02: el portero va ANTES del hash. Rechazar un alta sin
+    // la casilla no debe costar los ~100ms de argon2 (AD-1) que un robot
+    // podría gastarnos en serie. Dormido, esto no hace absolutamente nada.
+    this.terms.requireAcceptance(input.acceptTerms);
+    const termsAcceptance = this.terms.acceptanceForRegistration();
+
     // AD-1: argon2 (~80-150ms) SIEMPRE fuera de cualquier $transaction —
     // retenerlo adentro agota el pool de conexiones bajo concurrencia.
     const passwordHash = await this.hasher.hash(input.password);
@@ -118,6 +132,7 @@ export class AuthService implements OnModuleInit {
         lastName: input.lastName,
         secondLastName: input.secondLastName,
         locale: input.locale,
+        termsAcceptance,
         ip: meta.ip,
         userAgent: meta.userAgent,
       });
@@ -331,6 +346,10 @@ export class AuthService implements OnModuleInit {
             await this.entitlements.resolve(tenantId),
             tenantRow.timezone,
           ),
+          // F11-SITE-LEGAL-03: un BOOLEANO, no la versión. El front no tiene
+          // que saber comparar etiquetas de versión: solo si abre el diálogo.
+          // Dormido es siempre `false`, así que el front de hoy no cambia.
+          mustAcceptTerms: this.terms.mustAccept(user.termsVersion),
         },
       };
     });
@@ -866,6 +885,12 @@ export interface LoginResult {
     tenant: TenantBlock;
     /** F7-WEB-01: mismo shape que `MeProfile.subscription` (patrón A1). */
     subscription: SubscriptionBlock;
+    /**
+     * F11-SITE-LEGAL-03: mismo campo que `MeProfile` (patrón A1) — el store
+     * del front lo lee igual venga del login o del bootstrap. Dormido es
+     * siempre `false`.
+     */
+    mustAcceptTerms: boolean;
   };
 }
 

@@ -7,6 +7,9 @@ import type { Env } from "../../config/env.schema";
 import { CLOCK, type ClockPort } from "../../infrastructure/clock/clock.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { MAILER, type MailerPort } from "../mail/mailer.port";
+// Importación de VALOR: Nest resuelve la dependencia por el metadato de diseño
+// del constructor, que un `import type` borraría.
+import { SiteUnsubscribeService } from "./site-unsubscribe.service";
 
 /**
  * A dónde lleva el botón de la respuesta automática. Es la aplicación, no el
@@ -54,6 +57,7 @@ export class SiteLeadsService {
     @Inject(MAILER) private readonly mailer: MailerPort,
     private readonly configService: ConfigService<Env, true>,
     @Inject(CLOCK) private readonly clock: ClockPort,
+    private readonly unsubscribes: SiteUnsubscribeService,
   ) {}
 
   async submit(input: SiteLeadInput): Promise<SiteLeadAccepted> {
@@ -83,7 +87,7 @@ export class SiteLeadsService {
     });
 
     await this.notifyPlatform(lead.id, input, ahora);
-    await this.replyToLead(input);
+    await this.replyToLead(lead.id, input);
 
     return { received: true };
   }
@@ -147,13 +151,26 @@ export class SiteLeadsService {
   /**
    * F11-SITE-LEAD-05 — el acuse al prospecto, en SU idioma (es, en o fr).
    *
+   * Es el ÚNICO correo comercial que existe hoy (`COMMERCIAL_MAIL_TEMPLATES`),
+   * y por eso es el único que lleva pie con enlace de baja — que el renderi-
+   * zador exige: sin `unsubscribeUrl` esta plantilla ni se renderiza.
+   *
    * La condición del consentimiento va EXPLÍCITA aunque el schema ya lo exija:
    * escribirle a alguien que no dijo que sí es justo lo que el aviso de
    * privacidad promete que no hacemos, y esa promesa no puede depender de que
    * nadie relaje la validación algún día.
    */
-  private async replyToLead(input: SiteLeadInput): Promise<void> {
+  private async replyToLead(leadId: string, input: SiteLeadInput): Promise<void> {
     if (input.consent !== true) {
+      return;
+    }
+
+    // F11-SITE-LEGAL-04: quien ya se dio de baja no vuelve a recibir un
+    // comercial, aunque hoy nos escriba de nuevo. Se mira por CORREO y no por
+    // fila: el prospecto que escribe dos veces es la misma persona, y la
+    // segunda fila no borra el «no me escriban» de la primera.
+    if (await this.hasUnsubscribed(input.email)) {
+      this.logger.log("Acuse omitido: el prospecto se dio de baja de los correos comerciales");
       return;
     }
 
@@ -162,7 +179,12 @@ export class SiteLeadsService {
         to: input.email,
         template: "site-lead-reply",
         locale: input.locale,
-        vars: { name: input.name, email: input.email, link: REGISTER_URL },
+        vars: {
+          name: input.name,
+          email: input.email,
+          link: REGISTER_URL,
+          unsubscribeUrl: this.unsubscribes.urlFor(leadId, input.locale),
+        },
       });
     } catch (error) {
       // Un acuse que rebota es molesto, no grave: el prospecto está guardado y
@@ -173,5 +195,14 @@ export class SiteLeadsService {
         }`,
       );
     }
+  }
+
+  /** ¿Este correo pidió alguna vez dejar de recibir correos comerciales? */
+  private async hasUnsubscribed(email: string): Promise<boolean> {
+    const baja = await this.prisma.siteLead.findFirst({
+      where: { email, unsubscribedAt: { not: null } },
+      select: { id: true },
+    });
+    return baja !== null;
   }
 }

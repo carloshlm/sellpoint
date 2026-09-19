@@ -8,6 +8,7 @@ import {
 } from "@sellpoint/shared";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import type { TermsAcceptanceStamp } from "../legal/terms.service";
 import {
   INITIAL_WAREHOUSE_NAME,
   PRODUCTS_CATALOG_KEY,
@@ -34,6 +35,12 @@ export interface ProvisionTenantInput {
   lastName: string;
   secondLastName?: string;
   locale?: "es" | "en";
+  /**
+   * F11-SITE-LEGAL-02: lo que el owner aceptó al registrarse, ya resuelto por
+   * `TermsService`. `null` = no había nada vigente que aceptar (el estado
+   * dormido) y el usuario nace con las dos columnas en NULL.
+   */
+  termsAcceptance?: TermsAcceptanceStamp | null;
   ip?: string;
   userAgent?: string;
 }
@@ -78,6 +85,12 @@ export class TenantsService {
           secondLastName: input.secondLastName,
           locale: input.locale ?? "es",
           status: "invited",
+          // F11-SITE-LEGAL-02: el sello va en el MISMO insert que el usuario.
+          // Una escritura aparte podría fallar dejando una cuenta creada sin
+          // constancia de haber aceptado nada — que es el único estado que
+          // estas columnas existen para impedir.
+          termsVersion: input.termsAcceptance?.termsVersion ?? null,
+          termsAcceptedAt: input.termsAcceptance?.termsAcceptedAt ?? null,
         },
       });
 

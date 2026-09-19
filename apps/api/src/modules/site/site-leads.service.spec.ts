@@ -33,8 +33,12 @@ function entrada(overrides: Partial<SiteLeadInput> = {}): SiteLeadInput {
 }
 
 describe("SiteLeadsService (F11-SITE-LEAD)", () => {
-  let prisma: { siteLead: { create: jest.Mock; update: jest.Mock } };
+  let prisma: {
+    siteLead: { create: jest.Mock; update: jest.Mock; findFirst: jest.Mock };
+  };
   let mailer: { send: jest.Mock };
+  // F11-SITE-LEGAL-04: el enlace de baja del pie del acuse.
+  let unsubscribes: { urlFor: jest.Mock };
   let service: SiteLeadsService;
 
   const config = (admins: string) =>
@@ -48,6 +52,8 @@ describe("SiteLeadsService (F11-SITE-LEAD)", () => {
       mailer as any,
       config(admins),
       { now: () => AHORA },
+      // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
+      unsubscribes as any,
     );
   }
 
@@ -56,9 +62,14 @@ describe("SiteLeadsService (F11-SITE-LEAD)", () => {
       siteLead: {
         create: jest.fn().mockResolvedValue({ id: "lead-1", email: "ana@example.com" }),
         update: jest.fn().mockResolvedValue({ id: "lead-1" }),
+        // Nadie dado de baja por default.
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
     mailer = { send: jest.fn().mockResolvedValue(undefined) };
+    unsubscribes = {
+      urlFor: jest.fn().mockReturnValue("https://app.example.com/api/public/unsubscribe?token=t"),
+    };
     service = build();
   });
 
@@ -172,6 +183,50 @@ describe("SiteLeadsService (F11-SITE-LEAD)", () => {
           link: "https://app.sellpointy.com/register",
         }),
       });
+    });
+
+    /**
+     * F11-SITE-LEGAL-04 — el acuse es el ÚNICO correo COMERCIAL del sistema:
+     * lleva pie con enlace de baja, y ese enlace es de ESTE prospecto.
+     */
+    it("lleva su enlace de baja, armado con el id de la fila recién creada", async () => {
+      await service.submit(entrada());
+
+      expect(unsubscribes.urlFor).toHaveBeenCalledWith("lead-1", "es");
+      const acuse = mailer.send.mock.calls
+        .map(([m]: [{ template: string; vars: Record<string, string> }]) => m)
+        .find((m: { template: string }) => m.template === "site-lead-reply");
+      expect(acuse?.vars.unsubscribeUrl).toBe(
+        "https://app.example.com/api/public/unsubscribe?token=t",
+      );
+    });
+
+    it("quien ya se dio de baja NO recibe el acuse, aunque vuelva a escribir", async () => {
+      jest.spyOn(Logger.prototype, "log").mockImplementation();
+      prisma.siteLead.findFirst.mockResolvedValue({ id: "lead-viejo" });
+
+      await expect(service.submit(entrada())).resolves.toEqual({ received: true });
+
+      expect(prisma.siteLead.findFirst).toHaveBeenCalledWith({
+        where: { email: "ana@example.com", unsubscribedAt: { not: null } },
+        select: { id: true },
+      });
+      const acuse = mailer.send.mock.calls
+        .map(([m]: [{ template: string }]) => m)
+        .find((m: { template: string }) => m.template === "site-lead-reply");
+      expect(acuse).toBeUndefined();
+    });
+
+    it("pero el aviso INTERNO al backoffice sí sale: eso no es comercial", async () => {
+      jest.spyOn(Logger.prototype, "log").mockImplementation();
+      prisma.siteLead.findFirst.mockResolvedValue({ id: "lead-viejo" });
+
+      await service.submit(entrada());
+
+      const aviso = mailer.send.mock.calls
+        .map(([m]: [{ template: string }]) => m)
+        .find((m: { template: string }) => m.template === "site-lead");
+      expect(aviso).toBeDefined();
     });
 
     it("un fallo del acuse tampoco rompe el 202 ni desarma el aviso ya sellado", async () => {

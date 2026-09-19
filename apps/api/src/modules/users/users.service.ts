@@ -6,6 +6,7 @@ import type { RequestMeta } from "../auth/auth.service";
 import type { AuthUser } from "../auth/types/auth-user";
 import { EntitlementsService } from "../billing/entitlements.service";
 import { type SubscriptionBlock, toSubscriptionBlock } from "../billing/subscription.types";
+import { TermsService } from "../legal/terms.service";
 import { TENANT_SELECT, type TenantBlock, toTenantBlock } from "../tenants/tenant.types";
 import type { UpdateMeDto } from "./dto/update-me.dto";
 
@@ -44,6 +45,13 @@ export interface MeProfile {
   tenant: TenantBlock;
   /** F7-WEB-01: mismo shape que `LoginResult.user.subscription` (patrón A1). */
   subscription: SubscriptionBlock;
+  /**
+   * F11-SITE-LEGAL-03: si este usuario tiene que aceptar los términos antes de
+   * seguir. MISMO campo que `LoginResult.user` (patrón A1): el front lo lee del
+   * store sin importar si llegó por login o por bootstrap. Dormido es siempre
+   * `false`.
+   */
+  mustAcceptTerms: boolean;
 }
 
 /**
@@ -58,6 +66,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly entitlements: EntitlementsService,
+    private readonly terms: TermsService,
   ) {}
 
   /**
@@ -82,6 +91,10 @@ export class UsersService {
           // los movimientos, y el POS de F4 para abrir el turno.
           defaultWarehouseId: true,
           isPlatformAdmin: true,
+          // F11-SITE-LEGAL-03: qué versión de los términos aceptó. No viaja al
+          // front tal cual — se compara acá y sale como el booleano
+          // `mustAcceptTerms`.
+          termsVersion: true,
         },
       });
       const tenantRow = await tx.tenant.findUniqueOrThrow({
@@ -107,6 +120,8 @@ export class UsersService {
         await this.entitlements.resolve(user.tenantId),
         tenantRow.timezone,
       ),
+      // F11-SITE-LEGAL-03: el MISMO cálculo que login (patrón A1).
+      mustAcceptTerms: this.terms.mustAccept(row.termsVersion),
     };
   }
 

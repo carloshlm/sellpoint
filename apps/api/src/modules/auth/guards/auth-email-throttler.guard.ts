@@ -47,8 +47,14 @@ const EMAIL_TRACKED_HANDLERS = new Set(["login", "forgotPassword"]);
  * cuyo token es aleatorio de 256 bits, y el reuso ya revoca la familia
  * entera (AD-6). Sigue cubierto por el throttler global (100/60s por IP), que
  * es el que corresponde para volumen, no el presupuesto de credenciales.
+ *
+ * `acceptTerms` (F11-SITE-LEGAL-03) entra por la misma razón que
+ * `listSessions`: exige un JWT válido, no adivina credenciales y lo dispara
+ * un diálogo que NO se puede ignorar. Una oficina detrás de un mismo NAT
+ * donde seis personas aceptan el mismo día dejaría a la sexta atrapada entre
+ * un diálogo obligatorio y un 429 del que no puede salir.
  */
-const IP_THROTTLE_EXEMPT_HANDLERS = new Set(["listSessions", "refresh"]);
+const IP_THROTTLE_EXEMPT_HANDLERS = new Set(["listSessions", "refresh", "acceptTerms"]);
 
 /**
  * f1-auth AD-7 / U6-02: throttling de `/auth/*` — combina DOS dimensiones

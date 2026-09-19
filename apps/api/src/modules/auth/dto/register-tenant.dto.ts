@@ -22,6 +22,12 @@ export const registerTenantSchema = z.object({
   lastName: z.string().trim().min(1),
   secondLastName: z.string().trim().min(1).optional(),
   locale: z.enum(["es", "en"]).optional(),
+  // F11-SITE-LEGAL-02: la casilla de «Acepto los Términos y el Aviso de
+  // privacidad». OPCIONAL en el schema a propósito: quien decide si es
+  // obligatoria es `TermsService`, que sabe si hay una versión vigente. Un
+  // `.literal(true)` acá volvería obligatoria la casilla HOY, con los textos
+  // legales todavía sin publicar, y rompería todas las altas.
+  acceptTerms: z.boolean().optional(),
 });
 
 export type RegisterTenantDto = z.infer<typeof registerTenantSchema>;

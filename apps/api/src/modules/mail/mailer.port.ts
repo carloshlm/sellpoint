@@ -5,26 +5,64 @@
 // loguea (la cola con reintentos es F6).
 export const MAILER = Symbol("MAILER");
 
-// F7: "payment-received" entra con F7-CORE-04 (lo dispara recordPayment);
-// los 5 avisos del cron de billing llegan con F7-MAIL-01.
-export type MailTemplate =
-  | "verify-email"
-  | "reset-password"
-  | "invite-user"
-  | "payment-received"
-  | "trial-ending"
-  | "trial-ended"
-  | "payment-due-soon"
-  | "payment-past-due"
-  | "plan-downgraded"
+/**
+ * F11-SITE-LEGAL-04 — los correos TRANSACCIONALES: los que salen porque algo
+ * pasó en la cuenta de quien los recibe.
+ *
+ * NO llevan pie comercial ni enlace de baja, y eso no es un descuido: nadie
+ * puede darse de baja de que le avisen que su servicio vence o que alguien
+ * pidió restablecer su contraseña. Ensuciarlos con un pie legal los haría
+ * menos claros, no más honestos.
+ *
+ * `site-lead` está acá y no entre los comerciales porque lo lee el BACKOFFICE
+ * —somos nosotros avisándonos de un prospecto—, no el prospecto.
+ *
+ * F7: "payment-received" entra con F7-CORE-04 (lo dispara recordPayment);
+ * los 5 avisos del cron de billing llegan con F7-MAIL-01.
+ */
+export const TRANSACTIONAL_MAIL_TEMPLATES = [
+  "verify-email",
+  "reset-password",
+  "invite-user",
+  "payment-received",
+  "trial-ending",
+  "trial-ended",
+  "payment-due-soon",
+  "payment-past-due",
+  "plan-downgraded",
   // F7-CONTACT: «escríbenos para activar tu plan» — al backoffice y el acuse al negocio.
-  | "plan-request"
-  | "plan-request-received"
-  // F11-SITE-LEAD-04/05: el sitio público. `site-lead` avisa al backoffice (en
-  // español, que es su idioma) y `site-lead-reply` le contesta al prospecto en
-  // el suyo — que puede ser francés, ver `MailLocale`.
-  | "site-lead"
-  | "site-lead-reply";
+  "plan-request",
+  "plan-request-received",
+  // F11-SITE-LEAD-04: el aviso INTERNO de un prospecto, en español porque es el
+  // idioma de quien lo lee.
+  "site-lead",
+] as const;
+
+/**
+ * F11-SITE-LEGAL-04 — los correos COMERCIALES: los que salen a promocionar
+ * SellPointy a alguien que todavía no es cliente.
+ *
+ * ⚠️ AGREGAR UNA PLANTILLA ACÁ TIENE CONSECUENCIAS, y ese es el punto. Toda
+ * plantilla de esta lista está OBLIGADA a llevar su pie —quién envía y cómo
+ * dejar de recibir— y `renderMailTemplate` la rechaza si le falta el enlace de
+ * baja. La lista es una tupla `as const` y no un booleano suelto para que
+ * `render.spec.ts` pueda recorrerla: una plantilla comercial nueva queda
+ * cubierta por las pruebas sin escribir una sola línea de test.
+ *
+ * Hoy hay UNA: la respuesta automática al prospecto del sitio (F11-SITE-LEAD-05).
+ */
+export const COMMERCIAL_MAIL_TEMPLATES = ["site-lead-reply"] as const;
+
+export type TransactionalMailTemplate = (typeof TRANSACTIONAL_MAIL_TEMPLATES)[number];
+export type CommercialMailTemplate = (typeof COMMERCIAL_MAIL_TEMPLATES)[number];
+export type MailTemplate = TransactionalMailTemplate | CommercialMailTemplate;
+
+const COMMERCIAL_SET = new Set<string>(COMMERCIAL_MAIL_TEMPLATES);
+
+/** El único lugar que decide si un correo lleva pie comercial. */
+export function isCommercialTemplate(template: MailTemplate): template is CommercialMailTemplate {
+  return COMMERCIAL_SET.has(template);
+}
 
 /**
  * El idioma de un correo. Incluye `fr` SOLO por `site-lead-reply`: el sitio
@@ -39,6 +77,12 @@ export type MailLocale = "es" | "en" | "fr";
 export interface MailMessage {
   to: string;
   template: MailTemplate;
+  /**
+   * F11-SITE-LEGAL-04: una plantilla COMERCIAL exige acá un `unsubscribeUrl`
+   * — `renderMailTemplate` la rechaza sin él. No está en el tipo como campo
+   * obligatorio porque `vars` es el mismo saco para las catorce plantillas;
+   * la obligación vive donde se puede verificar de verdad, en el render.
+   */
   vars: Record<string, string>;
   locale: MailLocale;
   /**

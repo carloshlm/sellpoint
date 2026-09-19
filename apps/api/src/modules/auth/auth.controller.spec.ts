@@ -1,6 +1,7 @@
 import type { ConfigService } from "@nestjs/config";
 import type { Response } from "express";
 import type { Env } from "../../config/env.schema";
+import type { TermsService } from "../legal/terms.service";
 import { AuthController } from "./auth.controller";
 import type { AuthService } from "./auth.service";
 
@@ -29,12 +30,21 @@ function buildConfigService(): ConfigService<Env, true> {
   return { get: (key: string) => ENV_DEFAULTS[key] } as unknown as ConfigService<Env, true>;
 }
 
+/** F11-SITE-LEGAL-03: el doble del servicio de términos, dormido por default. */
+function buildTermsService(
+  accept: TermsService["accept"] = jest
+    .fn()
+    .mockResolvedValue({ termsVersion: null, acceptedAt: null }),
+): TermsService {
+  return { accept } as unknown as TermsService;
+}
+
 describe("AuthController.registerTenant — F1-LOCALE-09 (fallback de Accept-Language)", () => {
   function buildController() {
     const authService = {
       registerTenant: jest.fn().mockResolvedValue({ tenantId: "tenant-1", userId: "user-1" }),
     } as unknown as AuthService;
-    const controller = new AuthController(authService, buildConfigService());
+    const controller = new AuthController(authService, buildConfigService(), buildTermsService());
     return { controller, authService };
   }
 
@@ -98,7 +108,7 @@ describe("AuthController.login/refresh/logout — cookie builder (AD-5)", () => 
       resetPassword: jest.fn().mockResolvedValue(undefined),
       ...authServiceOverrides,
     } as unknown as AuthService;
-    const controller = new AuthController(authService, buildConfigService());
+    const controller = new AuthController(authService, buildConfigService(), buildTermsService());
     return { controller, authService };
   }
 
@@ -192,7 +202,7 @@ describe("AuthController.forgotPassword/resetPassword — U5 (AUTH-REQ-08/09)", 
       resetPassword: jest.fn().mockResolvedValue(undefined),
       ...authServiceOverrides,
     } as unknown as AuthService;
-    const controller = new AuthController(authService, buildConfigService());
+    const controller = new AuthController(authService, buildConfigService(), buildTermsService());
     return { controller, authService };
   }
 
@@ -236,7 +246,7 @@ describe("AuthController.changePassword/listSessions — F1-WEB-AUTH-10 (W1 f1-a
       listSessions: jest.fn().mockResolvedValue([]),
       ...authServiceOverrides,
     } as unknown as AuthService;
-    const controller = new AuthController(authService, buildConfigService());
+    const controller = new AuthController(authService, buildConfigService(), buildTermsService());
     return { controller, authService };
   }
 
@@ -297,5 +307,49 @@ describe("AuthController.changePassword/listSessions — F1-WEB-AUTH-10 (W1 f1-a
 
     await expect(controller.listSessions(authUser, request)).resolves.toEqual(sessions);
     expect(authService.listSessions).toHaveBeenCalledWith(authUser, "raw-refresh-1");
+  });
+});
+
+/**
+ * F11-SITE-LEGAL-03 — aceptar los términos desde una sesión ya viva.
+ *
+ * El controller no decide nada: delega en `TermsService`, que es quien sabe
+ * si hay una versión vigente. Lo que este archivo custodia es que el user
+ * autenticado y la huella de la petición lleguen enteros.
+ */
+describe("AuthController.acceptTerms — F11-SITE-LEGAL-03", () => {
+  const authUser = {
+    userId: "user-1",
+    tenantId: "tenant-1",
+    permissions: [],
+    locale: "es" as const,
+  };
+
+  it("delega en TermsService con el user y la huella de la petición", async () => {
+    const accept = jest
+      .fn()
+      .mockResolvedValue({ termsVersion: "2026-10-01", acceptedAt: "2026-10-05T12:00:00.000Z" });
+    const controller = new AuthController(
+      {} as never,
+      buildConfigService(),
+      buildTermsService(accept),
+    );
+    const request = { ip: "1.2.3.4", headers: { "user-agent": "jest" } } as never;
+
+    await expect(controller.acceptTerms(authUser, request)).resolves.toEqual({
+      termsVersion: "2026-10-01",
+      acceptedAt: "2026-10-05T12:00:00.000Z",
+    });
+    expect(accept).toHaveBeenCalledWith(authUser, { ip: "1.2.3.4", userAgent: "jest" });
+  });
+
+  it("dormido: responde un OBJETO con los dos campos en null, nunca un cuerpo vacío", async () => {
+    const controller = new AuthController({} as never, buildConfigService(), buildTermsService());
+    const request = { ip: "1.2.3.4", headers: {} } as never;
+
+    await expect(controller.acceptTerms(authUser, request)).resolves.toEqual({
+      termsVersion: null,
+      acceptedAt: null,
+    });
   });
 });

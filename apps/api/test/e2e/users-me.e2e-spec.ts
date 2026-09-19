@@ -142,6 +142,9 @@ describe("/me (e2e)", () => {
         writeAccess: true,
         stockControl: true,
       }),
+      // F11-SITE-LEGAL-03: `CURRENT_TERMS_VERSION` está dormida, así que acá
+      // es SIEMPRE false. Ver `legal-terms.e2e-spec.ts` para el encendido.
+      mustAcceptTerms: false,
     });
     expect(response.body).not.toHaveProperty("passwordHash");
   });

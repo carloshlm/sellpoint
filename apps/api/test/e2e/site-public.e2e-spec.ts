@@ -192,6 +192,111 @@ describe("Los endpoints públicos del sitio (F11-SITE)", () => {
     });
   });
 
+  /**
+   * F11-SITE-LEGAL-04 — la baja de los correos COMERCIALES.
+   *
+   * El acuse al prospecto es el único correo comercial que existe, y desde
+   * aquí se comprueba el círculo completo: el pie trae un enlace, el enlace
+   * da de baja, y la baja apaga el siguiente acuse.
+   */
+  describe("GET /public/unsubscribe", () => {
+    /** El enlace tal como viaja en el pie del correo comercial. */
+    async function altaConEnlaceDeBaja(overrides: Record<string, unknown> = {}) {
+      const antes = mailer.sent.length;
+      const body = cuerpo(overrides);
+
+      await request(app.getHttpServer())
+        .post("/public/leads")
+        .set("X-Forwarded-For", ipUnica())
+        .send(body)
+        .expect(202);
+
+      const acuse = mailer.sent.slice(antes).find((m) => m.template === "site-lead-reply");
+      const url = new URL(acuse?.vars.unsubscribeUrl as string);
+      return { email: body.email as string, token: url.searchParams.get("token") as string };
+    }
+
+    it("el acuse comercial trae SIEMPRE su enlace de baja", async () => {
+      const { token } = await altaConEnlaceDeBaja();
+
+      expect(token).toBeTruthy();
+    });
+
+    it("token válido: 200 con una página HTML y la baja sellada", async () => {
+      const { email, token } = await altaConEnlaceDeBaja();
+
+      const response = await request(app.getHttpServer())
+        .get("/public/unsubscribe")
+        .query({ token })
+        .set("X-Forwarded-For", ipUnica())
+        .expect(200);
+
+      expect(response.headers["content-type"]).toContain("text/html");
+      expect(response.text).toContain("<!doctype html>");
+
+      const fila = await prisma.siteLead.findFirst({ where: { email } });
+      expect(fila?.unsubscribedAt).not.toBeNull();
+    });
+
+    it("la página sale en el idioma del prospecto", async () => {
+      const { token } = await altaConEnlaceDeBaja({ locale: "fr", route: "fr-ca", country: "CA" });
+
+      const response = await request(app.getHttpServer())
+        .get("/public/unsubscribe")
+        .query({ token })
+        .set("X-Forwarded-For", ipUnica())
+        .expect(200);
+
+      expect(response.text).toContain('lang="fr"');
+    });
+
+    it("quien se dio de baja no vuelve a recibir el acuse comercial, aunque escriba otra vez", async () => {
+      const { email, token } = await altaConEnlaceDeBaja();
+      await request(app.getHttpServer())
+        .get("/public/unsubscribe")
+        .query({ token })
+        .set("X-Forwarded-For", ipUnica())
+        .expect(200);
+
+      const antes = mailer.sent.length;
+      await request(app.getHttpServer())
+        .post("/public/leads")
+        .set("X-Forwarded-For", ipUnica())
+        .send(cuerpo({ email }))
+        .expect(202);
+
+      const nuevos = mailer.sent.slice(antes);
+      expect(nuevos.find((m) => m.template === "site-lead-reply")).toBeUndefined();
+      // El aviso INTERNO sí sale: no es comercial, y el backoffice tiene que
+      // enterarse de que esa persona volvió a escribir.
+      expect(nuevos.find((m) => m.template === "site-lead")).toBeDefined();
+    });
+
+    it("token inválido: 400 con una página, y sin decir si ese correo existe", async () => {
+      const { email } = await altaConEnlaceDeBaja();
+
+      const response = await request(app.getHttpServer())
+        .get("/public/unsubscribe")
+        .query({ token: "11111111-2222-3333-4444-555555555555.es.firma-inventada" })
+        .set("X-Forwarded-For", ipUnica())
+        .expect(400);
+
+      expect(response.headers["content-type"]).toContain("text/html");
+      expect(response.text).not.toContain(email);
+
+      // Y no dio de baja a nadie.
+      const fila = await prisma.siteLead.findFirst({ where: { email } });
+      expect(fila?.unsubscribedAt).toBeNull();
+    });
+
+    it("sin token: 400, igual que con uno inventado", async () => {
+      await request(app.getHttpServer())
+        .get("/public/unsubscribe")
+        .set("X-Forwarded-For", ipUnica())
+        .expect(400);
+    });
+  });
+
   describe("POST /public/site-events", () => {
     it("acepta el beacon como text/plain, que es lo que manda sendBeacon sin preflight", async () => {
       await request(app.getHttpServer())

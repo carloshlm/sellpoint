@@ -33,5 +33,6 @@ export * from "./tax";
 export * from "./tax-defaults";
 export * from "./tax-id";
 export * from "./tenant-lifecycle";
+export * from "./terms";
 export * from "./ticket-settings";
 export * from "./units";

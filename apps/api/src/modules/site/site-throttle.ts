@@ -25,6 +25,14 @@ export const SITE_THROTTLES = {
    * ensuciar los conteos, no a la gente.
    */
   event: { name: "site-event", limit: 120, ttlSec: 60 },
+  /**
+   * F11-SITE-LEGAL-04: la baja de los correos comerciales. Un clic por
+   * persona, pero el balde no puede ser de uno: los escáneres de enlaces de
+   * Outlook y Gmail hacen prefetch, y varios correos leídos desde la misma
+   * oficina comparten IP. Veinte por hora frena a quien quisiera probar
+   * firmas en serie sin estorbarle a nadie real.
+   */
+  unsubscribe: { name: "site-unsubscribe", limit: 20, ttlSec: 3_600 },
 } as const satisfies Record<string, SiteThrottle>;
 
 export const SITE_THROTTLE_KEY = "siteThrottle";

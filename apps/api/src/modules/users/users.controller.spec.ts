@@ -35,6 +35,8 @@ const ME: MeProfile = {
   defaultWarehouseId: null,
   permissions: [],
   isPlatformAdmin: false,
+  // F11-SITE-LEGAL-03: dormido es siempre false.
+  mustAcceptTerms: false,
   subscription: {
     planCode: "plus",
     planName: "Plus",

@@ -11,6 +11,7 @@ import type { ClockPort } from "../../infrastructure/clock/clock.port";
 import type { HashPort } from "../../infrastructure/crypto/hash.port";
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service";
 import type { AuditService } from "../audit/audit.service";
+import { TermsService } from "../legal/terms.service";
 import type { MailerPort } from "../mail/mailer.port";
 import type { TenantsService } from "../tenants/tenants.service";
 import { AuthService } from "./auth.service";
@@ -46,6 +47,11 @@ function buildService(overrides?: {
   tenantRow?: Record<string, unknown>;
   /** F7-LIFECYCLE-04: el negocio del usuario está desactivado desde… */
   tenantSuspendedAt?: Date | null;
+  /**
+   * F11-SITE-LEGAL-02: la versión vigente de los términos. `null` (el
+   * default, y lo que corre en producción hoy) = todo dormido.
+   */
+  termsVersion?: string | null;
 }) {
   const tenantsService = {
     provision: overrides?.provisionError
@@ -191,6 +197,16 @@ function buildService(overrides?: {
     }),
   };
 
+  // El TermsService es el de VERDAD (no un doble): su lógica es la que decide
+  // si el registro exige la casilla, y probarla contra un mock sería probar el
+  // mock. Lo único inyectado es la versión vigente.
+  const termsService = new TermsService(
+    overrides?.termsVersion ?? null,
+    prisma,
+    auditService,
+    clock,
+  );
+
   const service = new AuthService(
     tenantsService,
     hasher,
@@ -205,11 +221,13 @@ function buildService(overrides?: {
     configService,
     redis as never,
     entitlements as never,
+    termsService,
   );
 
   return {
     service,
     tenantsService,
+    termsService,
     hasher,
     oneTimeTokenService,
     authRepository,
@@ -306,6 +324,70 @@ describe("AuthService.registerTenant (AUTH-REQ-01)", () => {
       tenantId: "tenant-1",
       userId: "user-1",
     });
+  });
+});
+
+/**
+ * F11-SITE-LEGAL-02 — la casilla del registro, en sus DOS estados.
+ *
+ * El estado DORMIDO es el que corre en producción hoy, así que va primero: un
+ * alta sin `acceptTerms` tiene que comportarse EXACTAMENTE como antes de que
+ * existiera este código.
+ */
+describe("AuthService.registerTenant y la aceptación de términos (F11-SITE-LEGAL-02)", () => {
+  it("dormido: el alta sin casilla pasa y no sella nada en el usuario", async () => {
+    const { service, tenantsService } = buildService({ termsVersion: null });
+
+    await expect(service.registerTenant(registerInput, {})).resolves.toEqual({
+      tenantId: "tenant-1",
+      userId: "user-1",
+    });
+    expect(tenantsService.provision).toHaveBeenCalledWith(
+      expect.objectContaining({ termsAcceptance: null }),
+    );
+  });
+
+  it("dormido: un `acceptTerms` que llegue igual se IGNORA, no se sella", async () => {
+    const { service, tenantsService } = buildService({ termsVersion: null });
+
+    await service.registerTenant({ ...registerInput, acceptTerms: true }, {});
+
+    expect(tenantsService.provision).toHaveBeenCalledWith(
+      expect.objectContaining({ termsAcceptance: null }),
+    );
+  });
+
+  it("encendido: sin `acceptTerms` responde 400 con su clave y NO crea el negocio", async () => {
+    const { service, tenantsService, hasher } = buildService({ termsVersion: "2026-10-01" });
+
+    const error = await service.registerTenant(registerInput, {}).catch((e) => e);
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect(error).toMatchObject({ response: { message: "auth.terms_not_accepted" } });
+    expect(tenantsService.provision).not.toHaveBeenCalled();
+    // El portero va ANTES del hash: rechazar un alta no debe costar los
+    // ~100ms de argon2 que un robot podría gastar en serie.
+    expect(hasher.hash).not.toHaveBeenCalled();
+  });
+
+  it("encendido: `acceptTerms: false` tampoco alcanza — se exige el true literal", async () => {
+    const { service } = buildService({ termsVersion: "2026-10-01" });
+
+    await expect(
+      service.registerTenant({ ...registerInput, acceptTerms: false }, {}),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("encendido: con la casilla marcada, el owner nace con versión y fecha selladas", async () => {
+    const { service, tenantsService } = buildService({ termsVersion: "2026-10-01" });
+
+    await service.registerTenant({ ...registerInput, acceptTerms: true }, {});
+
+    expect(tenantsService.provision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        termsAcceptance: { termsVersion: "2026-10-01", termsAcceptedAt: NOW },
+      }),
+    );
   });
 });
 
@@ -568,8 +650,41 @@ describe("AuthService.login (AUTH-REQ-03/04 — a prueba de enumeración)", () =
           daysLeft: null,
           writeAccess: true,
         }),
+        // F11-SITE-LEGAL-03: dormido es SIEMPRE false — el front no pinta
+        // ningún diálogo mientras no haya una versión vigente.
+        mustAcceptTerms: false,
       },
     });
+  });
+});
+
+/**
+ * F11-SITE-LEGAL-03 — el aviso que viaja en la sesión. Es un booleano y no la
+ * versión: el front no tiene que saber comparar nada, solo si abre el diálogo.
+ */
+describe("AuthService.login y mustAcceptTerms (F11-SITE-LEGAL-03)", () => {
+  async function loginCon(termsVersion: string | null, userTermsVersion: string | null) {
+    const { service } = await initService({
+      termsVersion,
+      userRow: activeUser({ termsVersion: userTermsVersion }),
+    });
+    return service.login({ email: "owner@acme.test", password: "twelve-characters" }, {});
+  }
+
+  it("dormido: nunca pide aceptar, ni a quien nunca aceptó", async () => {
+    expect((await loginCon(null, null)).user.mustAcceptTerms).toBe(false);
+  });
+
+  it("encendido: quien nunca aceptó tiene que aceptar", async () => {
+    expect((await loginCon("2026-10-01", null)).user.mustAcceptTerms).toBe(true);
+  });
+
+  it("encendido: quien aceptó una versión VIEJA vuelve a aceptar", async () => {
+    expect((await loginCon("2026-10-01", "2026-09-01")).user.mustAcceptTerms).toBe(true);
+  });
+
+  it("encendido: quien ya aceptó la vigente entra sin diálogo", async () => {
+    expect((await loginCon("2026-10-01", "2026-10-01")).user.mustAcceptTerms).toBe(false);
   });
 });
 

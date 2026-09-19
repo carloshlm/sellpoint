@@ -1,6 +1,10 @@
 {
   "greeting": "Hola",
   "linkFallback": "Si el botón no funciona, copia y pega este enlace en tu navegador:",
+  "commercialFooter": {
+    "sender": "Te escribe SellPointy ({legalName}), con domicilio en {address}.",
+    "unsubscribe": "Recibes este correo porque nos escribiste desde nuestro sitio. Si no quieres recibir más correos como este, date de baja aquí:"
+  },
   "verifyEmail": {
     "subject": "Verifica tu cuenta de SellPointy",
     "greeting": "Hola {firstName},",

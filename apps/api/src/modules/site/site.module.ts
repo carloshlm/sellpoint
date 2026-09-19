@@ -10,6 +10,7 @@ import { SiteCronRegistrar } from "./site-cron.registrar";
 import { SiteEventsService } from "./site-events.service";
 import { SiteLeadsService } from "./site-leads.service";
 import { SiteLeadsRetentionJob } from "./site-leads-retention.job";
+import { SiteUnsubscribeService } from "./site-unsubscribe.service";
 
 /**
  * F11 — el sitio público `sellpointy.com` visto desde el API.
@@ -34,6 +35,7 @@ import { SiteLeadsRetentionJob } from "./site-leads-retention.job";
   controllers: [PublicSiteController, AdminSiteController],
   providers: [
     SiteLeadsService,
+    SiteUnsubscribeService,
     SiteEventsService,
     AdminSiteService,
     SiteLeadsRetentionJob,

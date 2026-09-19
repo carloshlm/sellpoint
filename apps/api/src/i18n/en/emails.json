@@ -1,6 +1,10 @@
 {
   "greeting": "Hello",
   "linkFallback": "If the button does not work, copy and paste this link into your browser:",
+  "commercialFooter": {
+    "sender": "This email is from SellPointy ({legalName}), located at {address}.",
+    "unsubscribe": "You are getting this email because you wrote to us from our website. If you would rather not receive emails like this one, unsubscribe here:"
+  },
   "verifyEmail": {
     "subject": "Verify your SellPointy account",
     "greeting": "Hi {firstName},",

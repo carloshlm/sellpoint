@@ -226,6 +226,12 @@ model User {
   // updateUserSchema (un PATCH jamás lo escribe) y NUNCA viaja en el JWT —
   // se consulta por PK solo en /admin/*, para que revocarlo sea inmediato.
   isPlatformAdmin    Boolean    @default(false) @map("is_platform_admin")
+  /// F11-SITE-LEGAL-02/03: la versión de los términos que este usuario aceptó,
+  /// y cuándo. NULL en las dos = nunca aceptó — el estado de todos mientras
+  /// `CURRENT_TERMS_VERSION` siga dormido. El CHECK que las obliga a viajar
+  /// juntas vive en la migración.
+  termsVersion       String?    @map("terms_version") @db.VarChar(32)
+  termsAcceptedAt    DateTime?  @map("terms_accepted_at") @db.Timestamptz(6)
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -3047,30 +3053,33 @@ model Gs1PrefixRange {
 /// daño sería silencioso y total — la migración lo explica y un test de
 /// integración ejecuta la purga de verdad para comprobarlo.
 model SiteLead {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name         String    @db.VarChar(120)
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String    @db.VarChar(120)
   /// Siempre en minúsculas: la retención lo compara contra `users.email`.
-  email        String    @db.VarChar(254)
+  email          String    @db.VarChar(254)
   /// ISO 3166-1 alpha-2, cualquiera — no solo los tres mercados.
-  country      String    @db.Char(2)
+  country        String    @db.Char(2)
   /// El idioma del SITIO (es|en|fr): incluye el francés, que la aplicación
   /// todavía no habla. El CHECK vive en la migración.
-  locale       String    @db.Char(2)
+  locale         String    @db.Char(2)
   /// El segmento de la URL desde donde escribió: `es-mx`, `fr-ca`.
-  route        String    @db.VarChar(8)
+  route          String    @db.VarChar(8)
   /// basic|pro|plus|custom|undecided — CHECK en la migración.
-  planInterest String    @map("plan_interest") @db.VarChar(16)
-  businessType String?   @map("business_type") @db.VarChar(80)
-  message      String?   @db.VarChar(2000)
-  sourceUrl    String?   @map("source_url") @db.VarChar(500)
-  consentAt    DateTime  @map("consent_at") @db.Timestamptz(6)
+  planInterest   String    @map("plan_interest") @db.VarChar(16)
+  businessType   String?   @map("business_type") @db.VarChar(80)
+  message        String?   @db.VarChar(2000)
+  sourceUrl      String?   @map("source_url") @db.VarChar(500)
+  consentAt      DateTime  @map("consent_at") @db.Timestamptz(6)
   /// El texto EXACTO que aceptó. Si mañana cambia la casilla, esta columna es
   /// la única prueba de qué aceptó quien aceptó ayer.
-  consentText  String    @map("consent_text") @db.VarChar(600)
+  consentText    String    @map("consent_text") @db.VarChar(600)
   /// NULL = está en la base pero el aviso a la plataforma no salió. Se guarda
   /// primero y se avisa después: un Resend caído no pierde un prospecto.
-  notifiedAt   DateTime? @map("notified_at") @db.Timestamptz(6)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  notifiedAt     DateTime? @map("notified_at") @db.Timestamptz(6)
+  /// F11-SITE-LEGAL-04: cuándo pidió dejar de recibir correos COMERCIALES.
+  /// NULL = los sigue aceptando. Los transaccionales no miran esta columna.
+  unsubscribedAt DateTime? @map("unsubscribed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([createdAt(sort: Desc)])
   @@map("site_leads")

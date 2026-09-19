@@ -1,5 +1,9 @@
 {
   "linkFallback": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur\u00a0:",
+  "commercialFooter": {
+    "sender": "Ce courriel vous est envoyé par SellPointy ({legalName}), dont l'adresse est {address}.",
+    "unsubscribe": "Vous recevez ce courriel parce que vous nous avez écrit depuis notre site. Pour ne plus en recevoir de semblables, utilisez le lien de désabonnement ci-dessous."
+  },
   "siteLeadReply": {
     "subject": "Nous avons bien reçu votre message",
     "greeting": "",

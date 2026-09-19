@@ -15,6 +15,8 @@ import type { Request, Response } from "express";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import type { Env } from "../../config/env.schema";
 import { getLocale, type RequestWithLocale } from "../../i18n/request-locale";
+import { AllowedInFreeTier } from "../billing/decorators/allowed-in-free-tier.decorator";
+import { type TermsAcceptance, TermsService } from "../legal/terms.service";
 import { AuthService } from "./auth.service";
 import {
   buildClearedRefreshCookieOptions,
@@ -49,6 +51,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     configService: ConfigService<Env, true>,
+    private readonly termsService: TermsService,
   ) {
     this.cookieEnv = {
       NODE_ENV: configService.get("NODE_ENV", { infer: true }),
@@ -229,6 +232,31 @@ export class AuthController {
    * `AuthEmailThrottlerGuard` (`IP_THROTTLE_EXEMPT_HANDLERS`); si se renombra,
    * el guard vuelve a aplicarle 5/900s por IP y el test de allá lo grita.
    */
+  /**
+   * F11-SITE-LEGAL-03: aceptar los términos desde una sesión ya viva — para
+   * quien creó su cuenta ANTES de que los textos existieran.
+   *
+   * Sin `@Public()`: es un acto identificado, y sin saber quién acepta no hay
+   * nada que sellar. Con `@AllowedInFreeTier()` porque aceptar no es operar:
+   * un negocio con el plan vencido tiene que poder decir que sí — si no,
+   * quedaría atrapado entre un diálogo que no se puede ignorar y un 402.
+   *
+   * Devuelve un OBJETO siempre (nunca `null` suelto, que deja el cuerpo
+   * vacío): dormido, los dos campos vienen en null.
+   *
+   * El nombre del método es el contrato del exento de throttle en
+   * `AuthEmailThrottlerGuard` — ver `IP_THROTTLE_EXEMPT_HANDLERS`.
+   */
+  @AllowedInFreeTier()
+  @Post("accept-terms")
+  @HttpCode(HttpStatus.OK)
+  acceptTerms(@CurrentUser() user: AuthUser, @Req() request: Request): Promise<TermsAcceptance> {
+    return this.termsService.accept(user, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
+  }
+
   @Get("sessions")
   listSessions(@CurrentUser() user: AuthUser, @Req() request: Request) {
     return this.authService.listSessions(
