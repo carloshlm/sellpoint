@@ -1,0 +1,235 @@
+# Sitio público (F11-SITE-INFRA-04): construir `apps/site` y publicarlo en
+# sellpointy.com como archivos, sin imágenes de Docker y sin tocar la app.
+#
+# checks → build (pnpm, hash de la CSP, candado legal, tar) → deploy (ssh,
+# release atómica, prueba de humo, rollback si falla).
+#
+# ⚠️ EL JOB DE DEPLOY NACE APAGADO. Está detrás de la variable de repositorio
+# `SITE_DEPLOY_ENABLED`: mientras no valga exactamente `true`, el job se SALTA
+# (no falla, no queda en rojo). El motivo es F11-SITE-LEGAL-01 —los textos
+# legales tienen huecos que solo el dueño puede llenar— y que el vhost del apex
+# todavía vive en `infrastructure/nginx/pending/`, fuera del alcance del
+# pipeline. El paso a paso para encender las dos cosas, en ese orden, está en
+# `infrastructure/nginx/pending/README.md`.
+#
+# Por qué un workflow aparte y no un job dentro de `deploy.yml`: el sitio es
+# HTML en disco, se publica en segundos y no toca la base ni las imágenes.
+# Colgarlo del pipeline de la app le costaría ~18 minutos a cada corrección de
+# una coma, y un fallo suyo pondría en rojo un deploy de producción con el que
+# no tiene nada que ver.
+#
+# Secrets: los MISMOS de `deploy.yml` (DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER).
+# No hay credenciales nuevas que cargar.
+name: Sitio
+
+on:
+  push:
+    branches: [main]
+    # Lista EXPLÍCITA, no `paths-ignore`: este pipeline solo tiene sentido
+    # cuando cambia el sitio o lo que lo publica.
+    paths:
+      - "apps/site/**"
+      # El sitio lee de acá los planes que muestra la vitrina (F11-SITE-PLANS):
+      # un cambio de precio tiene que republicar el sitio aunque `apps/site/`
+      # no se haya tocado.
+      - "packages/shared/src/plan-showcase.ts"
+      - "infrastructure/scripts/site-*.sh"
+      - "infrastructure/nginx/pending/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+# Grupo propio: una publicación del sitio no debe cancelar ni esperar a un
+# deploy de la aplicación, y viceversa. `cancel-in-progress: false` por la
+# misma razón que en `deploy.yml`: cancelar a mitad de un despliegue deja el
+# server en un estado que nadie eligió.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  # La misma única fuente de verdad de «el código está sano» que usan `ci.yml`
+  # y `deploy.yml`. Incluye los tests del sitio (`pnpm test` corre su vitest).
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  build:
+    name: construir el sitio y empaquetarlo
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      # Estos dos no necesitan node ni dependencias: son bash puro y revisan
+      # decisiones que `nginx -t` no ve (que el apex no sea una puerta al API,
+      # que el vhost no esté en conf.d todavía, que el enlace de release se
+      # mueva atómicamente). Van primero porque fallan en segundos.
+      - name: tests de los scripts y los vhosts del sitio
+        run: |
+          bash infrastructure/scripts/site-vhost.test.sh
+          bash infrastructure/scripts/site-deploy-remote.test.sh
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: instalar dependencias
+        run: pnpm install --frozen-lockfile --ignore-scripts=false
+
+      # `site...` con los tres puntos = el paquete Y SUS DEPENDENCIAS. El sitio
+      # importa `@sellpoint/shared`, y con `--filter site` a secas el build
+      # corre sin `shared/dist` y muere con "Cannot find module
+      # '@sellpoint/shared'" — en local pasa igual solo porque el dist quedó de
+      # una corrida anterior.
+      - name: construir el sitio (y shared antes)
+        run: pnpm --filter site... build
+
+      # La CSP del vhost autoriza por HASH el único guion en línea del sitio
+      # (el del tema). Si alguien le cambia una coma, el navegador deja de
+      # ejecutarlo y el tema guardado deja de aplicarse: no lo ve ningún test
+      # ni ningún build, solo un cliente. Esta barrera recalcula el hash desde
+      # el HTML construido y compara contra los dos vhosts.
+      - name: el hash del guion del tema coincide con la CSP
+        run: bash infrastructure/scripts/site-csp-hash.sh
+
+      # F11-SITE-LEGAL-01 — el candado. El texto legal se lee de
+      # `SITIO-WEB-LEGAL.md` al construir y todavía trae huecos `[[…]]` que
+      # solo el dueño puede llenar. Uno solo que llegue a producción es un
+      # documento legal incompleto publicado con nuestro nombre, y eso no lo
+      # arregla un hotfix.
+      #
+      # ⚠️ Se busca el hueco COMPLETO (`[[` … `]]`) y NO la cadena `[[` a
+      # secas: un bundle minificado tiene arreglos anidados y hoy mismo
+      # `MarketNotice…js` contiene `u=[[`. Un candado que se pone rojo por una
+      # razón falsa es un candado que alguien termina apagando.
+      # `-I` salta los binarios (las fuentes y los PNG).
+      #
+      # Bloquea PUBLICAR, no construir: mientras el despliegue esté apagado
+      # (`SITE_DEPLOY_ENABLED`), los huecos son un AVISO y el workflow sigue en
+      # verde — un rojo permanente es un rojo que todos aprenden a ignorar, y el
+      # día que fallara por algo real nadie lo vería. Con el despliegue
+      # prendido, un solo hueco detiene todo antes de empaquetar.
+      - name: candado legal (ningún hueco sin llenar puede publicarse)
+        env:
+          DEPLOY_ENABLED: ${{ vars.SITE_DEPLOY_ENABLED }}
+        run: |
+          if grep -RIlE '\[\[[^]]*\]\]' apps/site/dist; then
+            echo ""
+            echo "Las páginas de arriba traen huecos legales sin llenar (F11-SITE-LEGAL-01)."
+            echo "Se llenan en SITIO-WEB-LEGAL.md, que es de donde el build lee el texto."
+            if [ "$DEPLOY_ENABLED" = "true" ]; then
+              echo "FALLA: el despliegue está prendido y el sitio NO es publicable."
+              exit 1
+            fi
+            echo "::warning title=Sitio no publicable::Quedan huecos [[…]] en las páginas legales. El despliegue está apagado, así que solo se avisa."
+            exit 0
+          fi
+          echo "OK: no quedan huecos [[…]] en apps/site/dist."
+
+      # F11-SITE-SEO-03 — el presupuesto de rendimiento, como prueba que FALLA:
+      # rendimiento ≥ 95, accesibilidad = 100, titular pintado < 2.5 s, salto de
+      # diseño < 0.1, menos de 50 KB de JavaScript y cero recursos de terceros
+      # (`apps/site/lighthouserc.json`). Un presupuesto que no rompe la
+      # construcción es una intención.
+      - name: presupuesto de rendimiento (Lighthouse)
+        run: pnpm --filter site lighthouse
+
+      # El contrato del paquete: el CONTENIDO de dist en la raíz del tar. Es lo
+      # que `site-deploy-remote.sh` espera, y por eso verifica que exista
+      # `index.html` arriba de todo antes de mover nada.
+      - name: empaquetar
+        run: tar -czf sitio.tgz -C apps/site/dist .
+
+      - name: subir el paquete
+        uses: actions/upload-artifact@v4
+        with:
+          name: sitio
+          path: sitio.tgz
+          retention-days: 7
+
+  deploy:
+    name: publicar el sitio via ssh + prueba de humo
+    # ⚠️ El interruptor. Sin la variable de repositorio en `true`, este job se
+    # SALTA — no falla. Ver el docblock de arriba y pending/README.md.
+    if: vars.SITE_DEPLOY_ENABLED == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: bajar el paquete
+        uses: actions/download-artifact@v4
+        with:
+          name: sitio
+
+      - name: configurar ssh
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: copiar el paquete y el script al server
+        run: |
+          # `mkdir` COMO deploy ANTES de cualquier bind-mount (R9 del proposal
+          # vps-multidominio): si lo crea Docker, queda owner root y `deploy`
+          # (que no tiene sudo) no puede escribir adentro nunca más.
+          # `/opt/sites` es justamente un bind-mount de nginx-edge.
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mkdir -p /opt/sites/sellpointy.com/releases /opt/sellpoint/scripts"
+          scp -i ~/.ssh/deploy_key sitio.tgz \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/sitio-${{ github.sha }}.tgz"
+          scp -i ~/.ssh/deploy_key infrastructure/scripts/site-deploy-remote.sh \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/scripts/site-deploy-remote.sh"
+
+      # El script se ejecuta por RUTA, nunca por stdin/heredoc, y con `ssh -n`:
+      # es la misma regla dura de `deploy.yml` (C1/C2 del verify
+      # vps-multidominio), donde un heredoc drenado hizo que el reload y el
+      # smoke no corrieran nunca mientras el job reportaba verde.
+      - name: publicar la release (enlace atómico)
+        run: |
+          ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "bash /opt/sellpoint/scripts/site-deploy-remote.sh '${{ github.sha }}' '/tmp/sitio-${{ github.sha }}.tgz'"
+
+      # `--resolve` contra el origen y no a través de Cloudflare (S5 de f0): se
+      # ejercita el vhost real y el TLS real, y una caída del edge ajeno no
+      # dispara un rollback espurio.
+      #
+      # Las cinco rutas, no solo una: cada mercado es una página distinta y un
+      # build a medias puede dejar una sola rota. La comprobación de `hreflang`
+      # va incluida porque F11-SITE-SEO-01 ya está en el árbol (las páginas
+      # construidas declaran `<link rel="alternate" hreflang=…>` y su
+      # `x-default`): si alguien lo quita, el sitio deja de decirle a Google
+      # qué versión mostrarle a quién, y eso no lo nota un 200.
+      - name: prueba de humo (las cinco rutas + hreflang)
+        run: |
+          ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
+            for ruta in /es-mx/ /en-us/ /es-us/ /en-ca/ /fr-ca/; do
+              codigo=$(curl -s -o /tmp/humo.html -w "%{http_code}" \
+                --resolve sellpointy.com:443:127.0.0.1 "https://sellpointy.com${ruta}")
+              if [ "$codigo" != "200" ]; then
+                echo "FALLA: ${ruta} respondió ${codigo}"
+                exit 1
+              fi
+              if ! grep -q "hreflang=\"x-default\"" /tmp/humo.html; then
+                echo "FALLA: ${ruta} respondió 200 pero no declara hreflang (F11-SITE-SEO-01)"
+                exit 1
+              fi
+              echo "OK ${ruta}"
+            done
+          '
+
+      # Si la publicación o el humo fallaron, el enlace vuelve a la release
+      # anterior. Es barato porque volver atrás es mover un enlace: no hay
+      # migraciones que deshacer ni imágenes que bajar.
+      - name: rollback si algo falló
+        if: failure()
+        run: |
+          ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "bash /opt/sellpoint/scripts/site-deploy-remote.sh --rollback"

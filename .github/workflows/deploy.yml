@@ -24,9 +24,22 @@ on:
     # validarlo es tiempo de runner tirado. Si el push mezcla docs con código,
     # GitHub evalúa el conjunto y corre completo. `workflow_dispatch` sigue
     # disponible para forzar un deploy a mano.
+    #
+    # El sitio público tiene su propio pipeline (`site.yml`, F11-SITE-INFRA-04):
+    # es HTML en disco, se publica en segundos y no toca la base, las imágenes
+    # ni los contenedores. Un cambio de una coma en el copy no vale los ~18
+    # minutos del deploy de la aplicación.
+    #
+    # ⚠️ Efecto conocido, el mismo de arriba: GitHub evalúa el CONJUNTO de
+    # archivos del push. Un push que mezcle sitio y aplicación SÍ dispara este
+    # workflow (y también `site.yml`), que es lo correcto — la app cambió.
+    # Y `checks.yml` corre en los dos workflows: se duplica el gasto de runner
+    # en esos pushes mezclados, a cambio de que ninguno de los dos pueda
+    # desplegar sin que el código esté sano.
     paths-ignore:
       - "**.md"
       - ".claude/**"
+      - "apps/site/**"
   workflow_dispatch:
 
 concurrency:
