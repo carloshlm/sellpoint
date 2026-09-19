@@ -10,9 +10,9 @@
 
 - **Qué es:** HTML estático armado con Astro. Sin servidor de Node, sin React y
   con unos 6 KB de JavaScript. Lo sirve el `nginx-edge` que ya existe.
-- **Dónde vive:** `https://website-sandbox.sellpointy.com` (el sitio completo,
-  de ensayo, con `noindex`) y `https://sellpointy.com` (hoy, la página «en
-  construcción»).
+- **Dónde vive:** `https://sellpointy.com` (el sitio completo, publicado el
+  2026-09-19) y `https://website-sandbox.sellpointy.com` (el mismo sitio, de
+  ensayo, con `noindex` y contra el API del sandbox).
 - **Qué le pide al servidor:** dos endpoints del API propio —el formulario y la
   medición—, llamados en SU MISMO dominio (`/api/public/…`). Sin terceros, sin
   cookies y sin CORS.
@@ -145,22 +145,25 @@ Y comprobar, en `/tmp/sitio-con-precios/es-mx/index.html`:
 
 ## Publicar el sitio completo en producción
 
-Hoy `sellpointy.com` sirve la página «en construcción» porque **el sitio completo
-todavía no es publicable**: `SITIO-WEB-LEGAL.md` conserva huecos `[[…]]` que solo
-Carlos puede llenar — la razón social real (hoy «SellPointy, S.A. de C.V.»,
-provisional), el domicilio, la ciudad de jurisdicción y los correos del dominio.
+**Ya está publicado** (2026-09-19): los huecos `[[…]]` de `SITIO-WEB-LEGAL.md`
+se llenaron —el responsable es una persona física con SellPointy como nombre
+comercial— y la variable de repositorio `SITE_PUBLISH_FULL` está en `true`.
 
-1. Llena los huecos en `SITIO-WEB-LEGAL.md`. Se ven en amarillo en
-   `website-sandbox.sellpointy.com/es-mx/privacidad/`.
-2. `pnpm --filter site build && pnpm --filter site check:publishable` tiene que
-   responder «Publicable».
-3. `gh variable set SITE_PUBLISH_FULL --body true` y corre el workflow «Sitio».
-   Con esa variable prendida, **un solo hueco detiene todo** antes de empaquetar.
+Lo que decide qué sirve `sellpointy.com`:
+
+1. **El candado legal.** Con `SITE_PUBLISH_FULL` en `true`, **un solo hueco
+   `[[…]]` detiene todo** antes de empaquetar. Un hueco nuevo se ve en amarillo
+   en `website-sandbox.sellpointy.com/es-mx/privacidad/`, y se comprueba con
+   `pnpm --filter site build && pnpm --filter site check:publishable` (tiene que
+   responder «Publicable»).
+2. **Volver a «en construcción»:** `gh variable set SITE_PUBLISH_FULL --body
+   false` y correr el workflow «Sitio». Regresar, la misma variable en `true`.
+3. **Si cambia el responsable** (por ejemplo, al constituir una sociedad):
+   P1 y T1 de `SITIO-WEB-LEGAL.md` en los tres idiomas, y la identidad del
+   remitente en `apps/api/src/modules/mail/templates/sender-identity.ts`.
 4. Aparte, y cuando quieras: la aceptación de términos DENTRO de la aplicación
    está construida y dormida. Se enciende poniéndole una fecha a
    `CURRENT_TERMS_VERSION` en `packages/shared/src/terms.ts`.
-
-Volver a «en construcción»: la misma variable en `false`.
 
 ## Las barreras, y qué cuida cada una
 
@@ -188,11 +191,13 @@ titular pintado en menos de 2.5 s, menos de 50 KB de JavaScript, cero terceros).
 
 ## Lo que sigue pendiente
 
-- **De Carlos:** los huecos legales · un correo de `sellpointy.com` y su DNS en
-  Resend (destraba el soporte, el contacto del pie, el correo de privacidad y que
-  los avisos lleguen a la bandeja) · confirmar que su correo está en
-  `BILLING_ADMIN_EMAILS` de producción · decidir si el sitio de ensayo —abierto a
-  internet, solo con `noindex`— necesita contraseña.
+- **De Carlos:** confirmar el dominio «Verified» en Resend y pasar el remitente
+  a `no-reply@sellpointy.com` (que los avisos lleguen a la bandeja y no a
+  correo no deseado) · poner `PLATFORM_NOTIFY_EMAILS=contact@sellpointy.com` en
+  el `.env` de producción y del sandbox: es A QUIÉN se le avisa de un prospecto,
+  y es distinta de `BILLING_ADMIN_EMAILS`, que decide QUIÉN ENTRA al backoffice
+  (vacía, los avisos caen en esa otra) · decidir si el sitio de ensayo —abierto
+  a internet, solo con `noindex`— necesita contraseña.
 - **De una persona, no de una herramienta:** el sitio en aparatos de verdad
   (Safari de iPhone, Chrome de Android), la lectura de cada idioma por alguien
   que lo hable como lengua materna, y el recorrido con lector de pantalla.
