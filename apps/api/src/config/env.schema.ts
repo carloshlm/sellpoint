@@ -78,6 +78,17 @@ const baseEnvSchema = z.object({
     .transform((value) => value === "true"),
   BILLING_CRON_TZ: z.string().default("America/Mexico_City"),
   BILLING_CRON_HOUR: z.coerce.number().int().min(0).max(23).default(3),
+
+  // --- Sitio público (F11-SITE-LEAD-10) ---
+  // El barrido que borra los prospectos de más de 24 meses. Mismo criterio que
+  // BILLING_CRON_ENABLED y por la misma razón, con más fuerza: esto BORRA
+  // filas. Apagado por default — en tests jamás corre solo. La hora y la zona
+  // NO son variables: viven como constantes en `site-cron.registrar.ts`,
+  // porque nadie va a querer mover a qué hora se purgan prospectos.
+  SITE_LEADS_RETENTION_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export const envSchema = baseEnvSchema.superRefine((config, ctx) => {

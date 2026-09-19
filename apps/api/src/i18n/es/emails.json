@@ -77,5 +77,19 @@
     "body": "Gracias por escribirnos. Pronto nos comunicaremos contigo para activar el plan de tu preferencia para {tenantName}.",
     "cta": "",
     "expiry": ""
+  },
+  "siteLead": {
+    "subject": "Prospecto del sitio: {name} ({country})",
+    "greeting": "Hola,",
+    "body": "{name} ({email}) escribió desde el sitio público.\n\nPaís: {country}\nPlan de interés: {planInterest}\nGiro: {businessType}\nVersión del sitio: {route}\nPágina de origen: {sourceUrl}\n\nMensaje:\n{message}",
+    "cta": "",
+    "expiry": ""
+  },
+  "siteLeadReply": {
+    "subject": "Recibimos tu mensaje",
+    "greeting": "",
+    "body": "¡Listo, {name}! Recibimos tu mensaje y te escribimos a {email}. Mientras tanto, puedes empezar tu prueba gratis — son 14 días con todo.",
+    "cta": "Empieza tu prueba gratis",
+    "expiry": ""
   }
 }

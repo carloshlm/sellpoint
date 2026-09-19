@@ -40,6 +40,7 @@ import { ReceptionModule } from "./modules/reception/reception.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { ServicesModule } from "./modules/services/services.module";
+import { SiteModule } from "./modules/site/site.module";
 import { SuppliersModule } from "./modules/suppliers/suppliers.module";
 import { TenantsModule } from "./modules/tenants/tenants.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -146,6 +147,9 @@ import { WarehousesModule } from "./modules/warehouses/warehouses.module";
     PermissionsModule,
     // F5: los reportes. Estrena `reports:read`, que vivía sin puerta.
     ReportsModule,
+    // F11: el sitio público `sellpointy.com` — el formulario de interés, la
+    // medición propia y lo que el backoffice ve de ambos.
+    SiteModule,
   ],
   controllers: [HealthController, I18nDemoController],
   providers: [

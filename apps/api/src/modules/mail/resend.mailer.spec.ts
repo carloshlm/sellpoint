@@ -77,6 +77,36 @@ describe("ResendMailer (f1-auth AD-9, rule: nunca rompe el request)", () => {
     errorSpy.mockRestore();
   });
 
+  /**
+   * F11-SITE-LEAD-04: el aviso de un prospecto del sitio llega con el correo
+   * del prospecto en `Reply-To`, para contestarle con un clic. Es el ÚNICO
+   * mensaje que lo lleva hoy, así que el campo es opcional y no puede
+   * aparecer en el payload de los demás (Resend rechaza un `reply_to` vacío).
+   */
+  it("con replyTo lo manda como reply_to; sin él, el payload ni lo menciona", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "" });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const mailer = new ResendMailer(fakeI18n(), fakeConfig());
+
+    await mailer.send({
+      to: "carls.hlm@gmail.com",
+      template: "site-lead",
+      vars: { name: "Ana" },
+      locale: "es",
+      replyTo: "ana@example.com",
+    });
+    await mailer.send({
+      to: "owner@example.com",
+      template: "verify-email",
+      vars: { link: "https://app.example.com/verify" },
+      locale: "es",
+    });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).reply_to).toBe("ana@example.com");
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).not.toHaveProperty("reply_to");
+  });
+
   it("una respuesta no-ok (dominio no verificado, 4xx/5xx de Resend) tampoco rompe el request", async () => {
     const errorSpy = jest.spyOn(Logger.prototype, "error").mockImplementation();
     global.fetch = jest.fn().mockResolvedValue({

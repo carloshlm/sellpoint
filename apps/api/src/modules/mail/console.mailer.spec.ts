@@ -39,6 +39,24 @@ describe("ConsoleMailer", () => {
     logSpy.mockRestore();
   });
 
+  /** F11-SITE-LEAD-04: en dev hay que poder ver a quién contestaría el clic. */
+  it("cuando el mensaje lleva replyTo, el log lo dice", async () => {
+    const logSpy = jest.spyOn(Logger.prototype, "log").mockImplementation();
+    const mailer = new ConsoleMailer(fakeI18n());
+
+    await mailer.send({
+      to: "carls.hlm@gmail.com",
+      template: "site-lead",
+      vars: { name: "Ana" },
+      locale: "es",
+      replyTo: "ana@example.com",
+    });
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("reply-to=ana@example.com"));
+
+    logSpy.mockRestore();
+  });
+
   it("el subject conmuta de idioma según locale", async () => {
     const logSpy = jest.spyOn(Logger.prototype, "log").mockImplementation();
     const i18n = fakeI18n();

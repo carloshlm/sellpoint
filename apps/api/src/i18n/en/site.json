@@ -1,0 +1,4 @@
+{
+  "invalid_body": "Check the form fields.",
+  "too_many_requests": "We received several messages from this connection. Try again in a while, or write to us by email."
+}

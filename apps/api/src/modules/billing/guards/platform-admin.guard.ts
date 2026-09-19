@@ -5,6 +5,7 @@ import {
   Injectable,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { platformAdminEmails } from "../../../common/config/platform-admin-emails";
 import type { Env } from "../../../config/env.schema";
 import { PrismaService } from "../../../infrastructure/prisma/prisma.service";
 import type { AuthUser } from "../../auth/types/auth-user";
@@ -39,10 +40,7 @@ export class PlatformAdminGuard implements CanActivate {
       throw new ForbiddenException({ message: "billing.not_platform_admin" });
     }
 
-    const whitelist = (this.configService.get("BILLING_ADMIN_EMAILS", { infer: true }) ?? "")
-      .split(",")
-      .map((email: string) => email.trim().toLowerCase())
-      .filter((email: string) => email.length > 0);
+    const whitelist = platformAdminEmails(this.configService);
 
     const fila = await this.prisma.withTenantContext(user.tenantId, (tx) =>
       tx.user.findUnique({

@@ -22,6 +22,10 @@ export class ConsoleMailer implements MailerPort {
       message.locale,
     );
 
-    this.logger.log(`[mail:console] to=${message.to} subject="${subject}"\n${text}`);
+    // F11-SITE-LEAD-04: el `reply-to` se loguea cuando existe — en dev hay
+    // que poder ver a quién le contestaría el clic de «Responder».
+    const replyTo = message.replyTo ? ` reply-to=${message.replyTo}` : "";
+
+    this.logger.log(`[mail:console] to=${message.to}${replyTo} subject="${subject}"\n${text}`);
   }
 }

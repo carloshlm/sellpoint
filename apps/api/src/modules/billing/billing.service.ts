@@ -25,6 +25,7 @@ import {
   shortName,
   startOfDayUtc,
 } from "@sellpoint/shared";
+import { platformAdminEmails } from "../../common/config/platform-admin-emails";
 import type { Env } from "../../config/env.schema";
 import type { Prisma } from "../../generated/prisma/client";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -124,10 +125,7 @@ export class BillingService {
       return { tenant, autor };
     });
 
-    const admins = (this.configService.get("BILLING_ADMIN_EMAILS", { infer: true }) ?? "")
-      .split(",")
-      .map((email: string) => email.trim().toLowerCase())
-      .filter((email: string) => email.length > 0);
+    const admins = platformAdminEmails(this.configService);
     if (admins.length === 0) {
       this.logger.warn("Solicitud de plan sin destinatario: BILLING_ADMIN_EMAILS está vacío");
     }

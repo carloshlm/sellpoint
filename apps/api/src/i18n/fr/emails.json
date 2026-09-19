@@ -1,0 +1,10 @@
+{
+  "linkFallback": "Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur\u00a0:",
+  "siteLeadReply": {
+    "subject": "Nous avons bien reçu votre message",
+    "greeting": "",
+    "body": "C'est noté, {name}\u202f! Nous avons bien reçu votre message et vous écrirons à {email}. En attendant, vous pouvez commencer votre essai gratuit\u00a0: 14 jours avec toutes les fonctionnalités.",
+    "cta": "Commencer l'essai gratuit",
+    "expiry": ""
+  }
+}

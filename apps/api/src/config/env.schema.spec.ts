@@ -184,4 +184,20 @@ describe("validateEnv", () => {
       expect(result.BILLING_ADMIN_EMAILS).toBe("");
     });
   });
+
+  describe("F11-SITE-LEAD-10: la retención de prospectos", () => {
+    it("apagada por DEFAULT: borrar filas solo se prende a propósito", () => {
+      expect(validateEnv(validEnv).SITE_LEADS_RETENTION_ENABLED).toBe(false);
+    });
+
+    it("se prende con la cadena 'true' y se apaga con cualquier otra del enum", () => {
+      expect(
+        validateEnv({ ...validEnv, SITE_LEADS_RETENTION_ENABLED: "true" })
+          .SITE_LEADS_RETENTION_ENABLED,
+      ).toBe(true);
+      expect(() => validateEnv({ ...validEnv, SITE_LEADS_RETENTION_ENABLED: "sí" })).toThrow(
+        /SITE_LEADS_RETENTION_ENABLED/,
+      );
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import type { I18nService } from "nestjs-i18n";
-import type { MailTemplate } from "../mailer.port";
+import type { MailLocale, MailTemplate } from "../mailer.port";
 
 export interface RenderedMail {
   subject: string;
@@ -29,6 +29,9 @@ const TEMPLATE_KEYS: Record<MailTemplate, string> = {
   "plan-downgraded": "emails.planDowngraded",
   "plan-request": "emails.planRequest",
   "plan-request-received": "emails.planRequestReceived",
+  // F11-SITE-LEAD-04/05: el prospecto del sitio público.
+  "site-lead": "emails.siteLead",
+  "site-lead-reply": "emails.siteLeadReply",
 };
 
 // El azul primario de la marca, FIJO en hex a propósito: un correo se lee en
@@ -51,7 +54,7 @@ export function renderMailTemplate(
   i18n: I18nService,
   template: MailTemplate,
   vars: Record<string, string>,
-  locale: "es" | "en",
+  locale: MailLocale,
 ): RenderedMail {
   const key = TEMPLATE_KEYS[template];
 

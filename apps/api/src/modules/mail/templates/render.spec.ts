@@ -67,4 +67,30 @@ describe("renderMailTemplate", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  /**
+   * F11-SITE-LEAD-05: la respuesta automática al prospecto va en SU idioma, y
+   * el sitio habla tres — el francés incluido, que la aplicación todavía no
+   * habla. El tipo de locale se ensanchó solo para eso; las plantillas de
+   * siempre siguen siendo es/en.
+   */
+  it("una plantilla del sitio se puede renderizar en francés", () => {
+    const i18n = fakeI18n();
+    renderMailTemplate(i18n, "site-lead-reply", { name: "Ana", link: LINK }, "fr");
+
+    expect(i18n.translate).toHaveBeenCalledWith(
+      "emails.siteLeadReply.subject",
+      expect.objectContaining({ lang: "fr" }),
+    );
+  });
+
+  it("el aviso al backoffice de un prospecto tiene su propia clave", () => {
+    const i18n = fakeI18n();
+    renderMailTemplate(i18n, "site-lead", { name: "Ana" }, "es");
+
+    expect(i18n.translate).toHaveBeenCalledWith(
+      "emails.siteLead.subject",
+      expect.objectContaining({ lang: "es" }),
+    );
+  });
 });

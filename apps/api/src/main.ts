@@ -8,6 +8,7 @@ import helmet from "helmet";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { JSON_BODY_LIMIT } from "./common/http/body-limits";
+import { resolveCorsOptions } from "./common/http/cors";
 import { Env } from "./config/env.schema";
 
 async function bootstrap() {
@@ -49,15 +50,13 @@ async function bootstrap() {
   // El costo de subirlo es acotado: el throttler global (100 req/min por IP)
   // y el `client_max_body_size` de nginx siguen siendo el techo real.
   app.useBodyParser("json", { limit: JSON_BODY_LIMIT });
-  app.enableCors({
-    origin: configService.get("CORS_ORIGINS", { infer: true }),
-    // credentials: la SPA (f1-web-auth) necesita mandar/recibir la cookie
-    // sp_refresh en requests same-site a /api/auth/* (design AD-5).
-    credentials: true,
-    // El nombre del archivo que se descarga lo decide el API (en el idioma
-    // del usuario); el web lo lee de este encabezado. Same-origin no lo
-    // necesita; el dev server cross-origin sí.
-    exposedHeaders: ["Content-Disposition"],
+  // F11-SITE-LEAD-06: CORS por RUTA (delegate de `cors`, sin hacks). La
+  // aplicación conserva su trato de siempre; los dos endpoints del sitio
+  // público van sin credenciales y solo con POST/OPTIONS. El porqué, en
+  // `common/http/cors.ts`.
+  const corsOrigins = configService.get("CORS_ORIGINS", { infer: true });
+  app.enableCors((request, callback) => {
+    callback(null, resolveCorsOptions(request.url, corsOrigins));
   });
 
   const openApiConfig = new DocumentBuilder()

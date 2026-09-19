@@ -44,7 +44,16 @@ export class ResendMailer implements MailerPort {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ from, to: [message.to], subject, text, html }),
+        // `reply_to` solo cuando lo hay: Resend rechaza el campo vacío, así
+        // que no puede viajar en los mensajes que no lo usan.
+        body: JSON.stringify({
+          from,
+          to: [message.to],
+          subject,
+          text,
+          html,
+          ...(message.replyTo ? { reply_to: message.replyTo } : {}),
+        }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
 

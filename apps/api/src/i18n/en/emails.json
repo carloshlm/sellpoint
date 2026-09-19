@@ -77,5 +77,19 @@
     "body": "Thanks for writing to us. We will contact you soon to activate the plan of your choice for {tenantName}.",
     "cta": "",
     "expiry": ""
+  },
+  "siteLead": {
+    "subject": "Site lead: {name} ({country})",
+    "greeting": "Hello,",
+    "body": "{name} ({email}) wrote from the public site.\n\nCountry: {country}\nPlan of interest: {planInterest}\nBusiness type: {businessType}\nSite version: {route}\nSource page: {sourceUrl}\n\nMessage:\n{message}",
+    "cta": "",
+    "expiry": ""
+  },
+  "siteLeadReply": {
+    "subject": "We received your message",
+    "greeting": "",
+    "body": "All set, {name}! We got your message and will write to {email}. Meanwhile, you can start your free trial — 14 days with everything.",
+    "cta": "Start your free trial",
+    "expiry": ""
   }
 }

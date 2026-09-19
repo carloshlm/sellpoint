@@ -2965,26 +2965,26 @@ model MedicalClinicSettings {
 /// prisma/seed/barcode-catalog/build-migration.py; sumar Estados Unidos o
 /// Canadá no toca este modelo.
 model GlobalBarcodeCatalog {
-  gtin14       String   @id @db.Char(14)
+  gtin14                String    @id @db.Char(14)
   /// El nombre TAL COMO vino, en el idioma que diga `nameLang`. Es el
   /// respaldo cuando el producto no tiene nombre en el idioma del usuario.
-  productName  String   @map("product_name") @db.VarChar(300)
+  productName           String    @map("product_name") @db.VarChar(300)
   /// F10-LANG — el nombre en cada idioma que habla SellPointy, cuando Open
   /// Food Facts lo tiene o cuando un negocio lo aportó. El francés y los demás
   /// idiomas NO tienen columna: viajan en `productName` con `nameLang`, que es
   /// lo que la pantalla necesita para marcarlos.
-  nameEs       String?  @map("name_es") @db.VarChar(300)
-  nameEn       String?  @map("name_en") @db.VarChar(300)
+  nameEs                String?   @map("name_es") @db.VarChar(300)
+  nameEn                String?   @map("name_en") @db.VarChar(300)
   /// ISO 639-1 de `productName`. NULL en las filas cargadas antes de F10-LANG:
   /// el volcado CSV no lo decía y adivinarlo sería inventar.
-  nameLang     String?  @map("name_lang") @db.Char(2)
-  brand        String?  @db.VarChar(120)
-  unitSize     String?  @map("unit_size") @db.VarChar(60)
+  nameLang              String?   @map("name_lang") @db.Char(2)
+  brand                 String?   @db.VarChar(120)
+  unitSize              String?   @map("unit_size") @db.VarChar(60)
   /// País que EMITIÓ el prefijo GS1, no donde se fabricó el producto: una
   /// empresa mexicana puede licenciar su prefijo en cualquier organización
   /// GS1. Sirve para importar y depurar por región, jamás para decir
   /// «hecho en» en una pantalla.
-  countryCode  String?  @map("country_code") @db.Char(2)
+  countryCode           String?   @map("country_code") @db.Char(2)
   /// El MERCADO por el que entró la fila: dónde se VENDE, según el volcado.
   /// NULL si entró por prefijo GS1 y no por mercado.
   ///
@@ -2993,15 +2993,15 @@ model GlobalBarcodeCatalog {
   /// contra 126,467 que se venden ahí, porque las empresas canadienses sacan
   /// sus códigos con GS1 Estados Unidos. Una fila con `countryCode = 'US'` y
   /// `marketCode = 'CA'` no se contradice: se registró allá y se vende acá.
-  marketCode   String?  @map("market_code") @db.Char(2)
+  marketCode            String?   @map("market_code") @db.Char(2)
   /// Nombre sin acentos y en minúsculas: se busca «jabon» y aparece «jabón».
-  search       String   @db.VarChar(300)
+  search                String    @db.VarChar(300)
   /// 'open_food_facts' arrastra la obligación ODbL (atribución y share-alike
   /// sobre la base derivada); 'tenant_contributed' es nuestro y no la hereda.
   /// Separarlos es lo que deja exportar o licenciar lo propio algún día.
-  source       String   @db.VarChar(24)
+  source                String    @db.VarChar(24)
   /// Cuántos tenants DISTINTOS confirmaron este nombre: la señal de calidad.
-  confirmations Int     @default(0)
+  confirmations         Int       @default(0)
   /// F10-QUICKCAT-03 — qué negocio aportó este código, cuando `source` es
   /// 'tenant_contributed'. El CHECK que exige el sello vive en la migración.
   ///
@@ -3012,8 +3012,8 @@ model GlobalBarcodeCatalog {
   /// recorra, y una purga no puede quedar bloqueada por el catálogo compartido.
   contributedByTenantId String?   @map("contributed_by_tenant_id") @db.Uuid
   contributedAt         DateTime? @map("contributed_at") @db.Timestamptz(6)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // El índice de `contributed_by_tenant_id` es PARCIAL (solo las filas con
   // sello) y vive en la migración: de 953,969 filas casi ninguna lo tiene, y
@@ -3037,4 +3037,66 @@ model Gs1PrefixRange {
   isImportable Boolean @map("is_importable")
 
   @@map("gs1_prefix_ranges")
+}
+
+/// F11-SITE-LEAD-01 — quién nos escribió desde el sitio público.
+///
+/// SIN `tenant_id` y SIN RLS, a propósito: un prospecto todavía no es un
+/// negocio, y `purge_tenant` borra de TODA tabla que tenga una columna con ese
+/// nombre. El día que alguien «normalice» el nombre de una columna aquí, el
+/// daño sería silencioso y total — la migración lo explica y un test de
+/// integración ejecuta la purga de verdad para comprobarlo.
+model SiteLead {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String    @db.VarChar(120)
+  /// Siempre en minúsculas: la retención lo compara contra `users.email`.
+  email        String    @db.VarChar(254)
+  /// ISO 3166-1 alpha-2, cualquiera — no solo los tres mercados.
+  country      String    @db.Char(2)
+  /// El idioma del SITIO (es|en|fr): incluye el francés, que la aplicación
+  /// todavía no habla. El CHECK vive en la migración.
+  locale       String    @db.Char(2)
+  /// El segmento de la URL desde donde escribió: `es-mx`, `fr-ca`.
+  route        String    @db.VarChar(8)
+  /// basic|pro|plus|custom|undecided — CHECK en la migración.
+  planInterest String    @map("plan_interest") @db.VarChar(16)
+  businessType String?   @map("business_type") @db.VarChar(80)
+  message      String?   @db.VarChar(2000)
+  sourceUrl    String?   @map("source_url") @db.VarChar(500)
+  consentAt    DateTime  @map("consent_at") @db.Timestamptz(6)
+  /// El texto EXACTO que aceptó. Si mañana cambia la casilla, esta columna es
+  /// la única prueba de qué aceptó quien aceptó ayer.
+  consentText  String    @map("consent_text") @db.VarChar(600)
+  /// NULL = está en la base pero el aviso a la plataforma no salió. Se guarda
+  /// primero y se avisa después: un Resend caído no pierde un prospecto.
+  notifiedAt   DateTime? @map("notified_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt(sort: Desc)])
+  @@map("site_leads")
+}
+
+/// F11-SITE-SEO-06 — la medición del sitio público, sin terceros.
+///
+/// SIN `tenant_id`, SIN IP, SIN agente de usuario y SIN identificador de
+/// visitante: desde esta tabla no se reconstruye a una persona, y por eso el
+/// sitio no pone cookies ni pide consentimiento. Se cede a sabiendas el
+/// «visitante único»: aquí solo hay conteos.
+model SiteEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Los cinco de `SITE_EVENT_NAMES` — CHECK en la migración.
+  event          String   @db.VarChar(24)
+  /// mx|us|ca
+  market         String   @db.Char(2)
+  /// es|en|fr
+  locale         String   @db.Char(2)
+  section        String?  @db.VarChar(40)
+  plan           String?  @db.VarChar(16)
+  /// SOLO el dominio (`google.com`), nunca la URL: la recorta el servidor.
+  referrerDomain String?  @map("referrer_domain") @db.VarChar(120)
+
+  @@index([createdAt])
+  @@index([event, createdAt])
+  @@map("site_events")
 }
