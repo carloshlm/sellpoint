@@ -209,8 +209,17 @@ describe("preguntas frecuentes (PAGE-06)", () => {
     expect([...section.matchAll(/<details\b/g)]).toHaveLength(FAQ_ORDER[route].length);
   });
 
-  it("las ocho comunes van en todas; las de impuestos y personal, solo donde aplican", () => {
-    expect(FAQ_ORDER["es-mx"]).toHaveLength(8);
+  it("la impresora va justo después del lector: son las dos dudas de equipo", () => {
+    for (const route of ROUTES) {
+      const order = FAQ_ORDER[route];
+      expect(order.indexOf("printer"), route).toBe(order.indexOf("scanner") + 1);
+    }
+    // Se imprime por el navegador: prometer una marca o un sistema sería mentir.
+    expect(getMessages("es-mx").faq.items.printer.a).not.toMatch(/android|windows|epson/i);
+  });
+
+  it("las nueve comunes van en todas; las de impuestos y personal, solo donde aplican", () => {
+    expect(FAQ_ORDER["es-mx"]).toHaveLength(9);
     expect(FAQ_ORDER["es-mx"]).not.toContain("salesTax");
     expect(FAQ_ORDER["en-us"]).toEqual(expect.arrayContaining(["staffLanguage", "salesTax"]));
     expect(FAQ_ORDER["es-us"]).toEqual(expect.arrayContaining(["staffLanguage", "salesTax"]));

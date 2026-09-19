@@ -254,6 +254,10 @@ export const en: Messages = {
         q: "What barcode scanner do I need?",
         a: "Any of them: USB scanners and Bluetooth guns work as soon as you plug them in. And if you don't have one, your phone or tablet camera scans too.",
       },
+      printer: {
+        q: "What receipt printer do I need?",
+        a: "Any 58 or 80 mm thermal printer your computer, tablet or phone recognizes: USB, Bluetooth or network. SellPointy builds the receipt to fit the paper and prints it from the browser, with nothing to install. And if you don't hand out receipts, you don't need a printer: the sale is recorded either way.",
+      },
       spreadsheet: {
         q: "Can I upload the products I already have in a spreadsheet?",
         a: "Yes. Download the template, paste your products and upload them in one go. Anything with a barcode you can also add just by scanning it.",

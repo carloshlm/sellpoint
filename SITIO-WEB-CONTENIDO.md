@@ -748,6 +748,7 @@ compartido de productos** en los términos.
 |---|---|:-:|
 | **¿Tengo que instalar algo?** | No. SellPointy funciona en el navegador de tu computadora, tablet o celular. Entras con tu correo y listo. | ✅ |
 | **¿Qué lector de códigos necesito?** | Cualquiera: los lectores USB y las pistolas Bluetooth funcionan al conectarlos. Y si no tienes uno, la cámara de tu celular o tablet también escanea. | ✅ |
+| **¿Qué impresora de tickets necesito?** *(2026-09-19, pedida por Carlos)* | Cualquier impresora térmica de 58 u 80 mm que tu computadora, tablet o celular reconozca: por USB, Bluetooth o red. SellPointy arma el ticket a la medida del papel y lo manda a imprimir desde el navegador, sin instalar programas. Y si no entregas tickets, no necesitas impresora: la venta queda registrada igual. — *No nombra Android ni ninguna marca a propósito: el ticket es un PDF que imprime el navegador, así que sirve lo que el equipo reconozca; hay barrera.* | ✅ |
 | **¿Puedo subir los productos que ya tengo en Excel?** | Sí. Descargas la plantilla, pegas tus productos y los subes de una vez. Y los que tengan código de barras los puedes dar de alta escaneándolos. | ✅ |
 | **¿Qué pasa cuando terminan los 14 días?** | Eliges el plan que te convenga. Si todavía no te decides, tu información no se borra: sigue ahí esperándote. | ✅ |
 | **¿Cómo se paga?** | Por transferencia, cada mes o por año. Si pagas el año completo, pagas 10 meses y usas 12. | ✅ |

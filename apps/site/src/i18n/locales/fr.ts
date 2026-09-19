@@ -260,6 +260,10 @@ export const fr: Messages = {
         q: "De quel lecteur de codes-barres ai-je besoin\u202f?",
         a: "N'importe lequel\u00a0: les lecteurs USB et Bluetooth fonctionnent dès qu'ils sont branchés. Et si vous n'en avez pas, l'appareil photo de votre téléphone ou de votre tablette fait aussi l'affaire.",
       },
+      printer: {
+        q: "De quelle imprimante de reçus ai-je besoin\u202f?",
+        a: "N'importe quelle imprimante thermique de 58 ou 80 mm reconnue par votre ordinateur, votre tablette ou votre téléphone\u00a0: USB, Bluetooth ou réseau. SellPointy met le reçu au format du papier et l'imprime depuis le navigateur, sans rien installer. Et si vous ne remettez pas de reçus, vous n'avez pas besoin d'imprimante\u00a0: la vente est enregistrée de toute façon.",
+      },
       spreadsheet: {
         q: "Puis-je importer les produits que j'ai déjà dans Excel\u202f?",
         a: "Oui. Téléchargez le modèle, collez vos produits et importez-les en une seule fois. Ceux qui ont un code-barres peuvent aussi être ajoutés en les scannant.",

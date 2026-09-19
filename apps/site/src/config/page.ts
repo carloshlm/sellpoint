@@ -43,6 +43,7 @@ export const BENEFIT_ORDER: Record<Route, BenefitId[]> = {
 export const FAQ_IDS = [
   "install",
   "scanner",
+  "printer",
   "spreadsheet",
   "trialEnd",
   "payment",
@@ -58,6 +59,7 @@ export type FaqId = (typeof FAQ_IDS)[number];
 const COMMON_FAQ: FaqId[] = [
   "install",
   "scanner",
+  "printer",
   "spreadsheet",
   "trialEnd",
   "payment",
@@ -67,7 +69,7 @@ const COMMON_FAQ: FaqId[] = [
 ];
 
 /**
- * Las ocho comunes, más las que SOLO van en un mercado (§11): en Estados
+ * Las nueve comunes, más las que SOLO van en un mercado (§11): en Estados
  * Unidos, el idioma del personal y la tasa estatal; en Canadá, los impuestos
  * de la provincia. En México no va ninguna de impuestos: el IVA se configura
  * solo y nadie lo pregunta.

@@ -275,6 +275,10 @@ export const es = {
         q: "¿Qué lector de códigos necesito?",
         a: "Cualquiera: los lectores USB y las pistolas Bluetooth funcionan al conectarlos. Y si no tienes uno, la cámara de tu celular o tablet también escanea.",
       },
+      printer: {
+        q: "¿Qué impresora de tickets necesito?",
+        a: "Cualquier impresora térmica de 58 u 80 mm que tu computadora, tablet o celular reconozca: por USB, Bluetooth o red. SellPointy arma el ticket a la medida del papel y lo manda a imprimir desde el navegador, sin instalar programas. Y si no entregas tickets, no necesitas impresora: la venta queda registrada igual.",
+      },
       spreadsheet: {
         q: "¿Puedo subir los productos que ya tengo en Excel?",
         a: "Sí. Descargas la plantilla, pegas tus productos y los subes de una vez. Y los que tengan código de barras los puedes dar de alta escaneándolos.",
