@@ -1,8 +1,62 @@
-# `pending/` — vhosts escritos y probados, todavía apagados
+# El sitio público de sellpointy.com — operación
 
-Esta carpeta guarda configuración de nginx **lista pero deliberadamente no
-publicada**. Es el lugar donde vive un vhost cuando el archivo ya está bien y
-lo que falta es una decisión o un trámite de fuera del repo.
+> **Estado (2026-09-19, por decisión de Carlos):** los dos vhosts están
+> ENCENDIDOS en `conf.d/`. El de ensayo sirve el sitio completo; el apex sirve
+> la página **«en construcción»** hasta que los textos legales estén listos.
+> El apex ya NO redirige a la aplicación: `/login`, `/register` y las demás
+> rutas viejas siguen llegando a ella por 301 desde su vhost.
+
+## Qué sirve cada dominio, y quién lo decide
+
+| Dominio | Qué sirve | Lo decide |
+|---|---|---|
+| `website-sandbox.sellpointy.com` | El sitio COMPLETO, huecos legales incluidos, con `X-Robots-Tag: noindex` | Siempre: para eso existe |
+| `sellpointy.com` | La página «en construcción» (`SITE_MODE=construction`) | La variable de repositorio `SITE_PUBLISH_FULL` |
+
+Los dos los publica `.github/workflows/site.yml` (job `deploy`, detrás de
+`SITE_DEPLOY_ENABLED`). nginx solo sirve lo que encuentre en
+`/opt/sites/<dominio>/public`, que es un enlace **relativo** a `releases/<sha>`.
+
+> ⚠️ **El enlace es relativo a propósito.** `nginx-edge` monta `/opt/sites` como
+> `/var/www/sites`: un enlace absoluto del host no existe dentro del contenedor
+> y el sitio entero da 404 con los archivos perfectamente publicados.
+
+## Publicar el sitio COMPLETO en producción (el día que lo legal esté listo)
+
+1. Llenar TODOS los huecos `[[…]]` de `SITIO-WEB-LEGAL.md` —la razón social
+   real, el domicilio, la ciudad de jurisdicción, los correos del dominio—.
+   `pnpm --filter site build && pnpm --filter site check:publishable` tiene
+   que responder «Publicable».
+2. `gh variable set SITE_PUBLISH_FULL --body true`.
+3. Correr el workflow «Sitio» (un push que toque `apps/site`, o a mano desde
+   Actions). Con esa variable prendida, **un solo hueco detiene todo** antes de
+   empaquetar; sin huecos, producción recibe el sitio completo.
+4. Si además se quiere la aceptación de términos en la aplicación: ponerle una
+   fecha a `CURRENT_TERMS_VERSION` en `packages/shared/src/terms.ts`.
+
+Volver a «en construcción»: `gh variable set SITE_PUBLISH_FULL --body false` y
+correr el workflow. Volver a la release anterior sin reconstruir:
+
+```bash
+ssh deploy@<DEPLOY_HOST> "SITE_ROOT=/opt/sites/sellpointy.com bash /opt/sellpoint/scripts/site-deploy-remote.sh --rollback"
+```
+
+## El certificado
+
+Un solo lineage, `app.sellpointy.com`, con estos nombres: `app`, `sandbox`, el
+apex y —desde el 2026-09-19— `website-sandbox`. Agregar otro nombre es repetir
+el `certonly` de abajo con TODOS los `-d` (los de antes más el nuevo) y el mismo
+`--cert-name`; sin él, certbot crea un lineage aparte y los vhosts siguen
+leyendo el viejo. Siempre primero con `--dry-run`: Let's Encrypt limita las
+emisiones duplicadas.
+
+---
+
+# Anexo — cómo se preparó y se encendió (histórico)
+
+> Lo que sigue se escribió ANTES del encendido, cuando los vhosts vivían en un
+> directorio `pending/` que el pipeline no copiaba. Se conserva porque explica
+> el porqué de cada decisión y el orden seguro para repetirlo en otro dominio.
 
 ## Por qué existe
 
@@ -24,7 +78,7 @@ compose. Mover un archivo de acá a `conf.d/` **es** el interruptor, y es el
 | Archivo | Qué sirve | Qué le falta para encenderse |
 |---|---|---|
 | `sellpointy.com.conf` | El sitio público en el apex | Que los textos legales no tengan huecos (F11-SITE-LEGAL-01) |
-| `sitio-sandbox.sellpointy.com.conf` | El mismo sitio, en pruebas | Un registro DNS **y** reemitir el certificado con ese SAN |
+| `website-sandbox.sellpointy.com.conf` | El mismo sitio, en pruebas | Un registro DNS **y** reemitir el certificado con ese SAN |
 
 Los dos están validados: `nginx -t` pasa con ellos dentro de `conf.d/`, y
 `infrastructure/scripts/site-vhost.test.sh` revisa en cada corrida que sigan
@@ -202,7 +256,7 @@ viejo.
 
 ---
 
-## 4. El sitio en pruebas (`sitio-sandbox.sellpointy.com`)
+## 4. El sitio en pruebas (`website-sandbox.sellpointy.com`)
 
 ### Por qué un nombre nuevo
 
@@ -211,17 +265,17 @@ sitio necesita el suyo.
 
 ### Qué falta (las dos cosas son del dueño)
 
-1. **DNS**: un registro `sitio-sandbox.sellpointy.com` al server.
+1. **DNS**: un registro `website-sandbox.sellpointy.com` al server.
 2. **Certificado**: agregar ese nombre como SAN del mismo lineage, con el mismo
-   comando de la sección 3 sumándole `-d sitio-sandbox.sellpointy.com`.
+   comando de la sección 3 sumándole `-d website-sandbox.sellpointy.com`.
 
 Mientras falte el certificado, **no muevas este archivo a `conf.d/`**: nginx
 arranca igual (apunta a un lineage que sí existe, justamente para no poder
 abortar un deploy de producción), pero cualquier navegador vería un error de
 certificado antes de ver una letra del sitio.
 
-Después, igual que el apex: `mkdir -p /opt/sites/sitio-sandbox.sellpointy.com/releases`,
-primera release con `SITE_ROOT=/opt/sites/sitio-sandbox.sellpointy.com bash site-deploy-remote.sh …`,
+Después, igual que el apex: `mkdir -p /opt/sites/website-sandbox.sellpointy.com/releases`,
+primera release con `SITE_ROOT=/opt/sites/website-sandbox.sellpointy.com bash site-deploy-remote.sh …`,
 y recién entonces mover el vhost.
 
 ### ⚠️ Qué protección tiene hoy el sandbox — ninguna

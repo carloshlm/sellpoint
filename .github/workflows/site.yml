@@ -4,13 +4,19 @@
 # checks → build (pnpm, hash de la CSP, candado legal, tar) → deploy (ssh,
 # release atómica, prueba de humo, rollback si falla).
 #
-# ⚠️ EL JOB DE DEPLOY NACE APAGADO. Está detrás de la variable de repositorio
-# `SITE_DEPLOY_ENABLED`: mientras no valga exactamente `true`, el job se SALTA
-# (no falla, no queda en rojo). El motivo es F11-SITE-LEGAL-01 —los textos
-# legales tienen huecos que solo el dueño puede llenar— y que el vhost del apex
-# todavía vive en `infrastructure/nginx/pending/`, fuera del alcance del
-# pipeline. El paso a paso para encender las dos cosas, en ese orden, está en
-# `infrastructure/nginx/pending/README.md`.
+# DOS DESTINOS, y lo que recibe cada uno lo decide este workflow, no nginx:
+#
+#   · ensayo      → `website-sandbox.sellpointy.com`: SIEMPRE el sitio completo
+#                   (con `noindex` desde su vhost). Para eso existe.
+#   · producción  → `sellpointy.com`: la página «en construcción» hasta que el
+#                   dueño prenda la variable `SITE_PUBLISH_FULL`. Con ella
+#                   prendida, el candado legal (F11-SITE-LEGAL-01) detiene todo
+#                   si `SITIO-WEB-LEGAL.md` conserva un solo hueco `[[…]]`.
+#
+# El job de deploy entero está detrás de `SITE_DEPLOY_ENABLED`: mientras no
+# valga exactamente `true`, se SALTA (no falla). La operación —primer
+# despliegue, certificados, cómo publicar el sitio completo, cómo volver
+# atrás— está en `infrastructure/nginx/SITIO-PUBLICO.md`.
 #
 # Por qué un workflow aparte y no un job dentro de `deploy.yml`: el sitio es
 # HTML en disco, se publica en segundos y no toca la base ni las imágenes.
@@ -34,7 +40,8 @@ on:
       # no se haya tocado.
       - "packages/shared/src/plan-showcase.ts"
       - "infrastructure/scripts/site-*.sh"
-      - "infrastructure/nginx/pending/**"
+      - "infrastructure/nginx/conf.d/sellpointy.com.conf"
+      - "infrastructure/nginx/conf.d/website-sandbox.sellpointy.com.conf"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 
@@ -116,17 +123,17 @@ jobs:
       # prendido, un solo hueco detiene todo antes de empaquetar.
       - name: candado legal (ningún hueco sin llenar puede publicarse)
         env:
-          DEPLOY_ENABLED: ${{ vars.SITE_DEPLOY_ENABLED }}
+          PUBLISH_FULL: ${{ vars.SITE_PUBLISH_FULL }}
         run: |
           if grep -RIlE '\[\[[^]]*\]\]' apps/site/dist; then
             echo ""
             echo "Las páginas de arriba traen huecos legales sin llenar (F11-SITE-LEGAL-01)."
             echo "Se llenan en SITIO-WEB-LEGAL.md, que es de donde el build lee el texto."
-            if [ "$DEPLOY_ENABLED" = "true" ]; then
-              echo "FALLA: el despliegue está prendido y el sitio NO es publicable."
+            if [ "$PUBLISH_FULL" = "true" ]; then
+              echo "FALLA: SITE_PUBLISH_FULL está prendida y el sitio completo NO es publicable."
               exit 1
             fi
-            echo "::warning title=Sitio no publicable::Quedan huecos [[…]] en las páginas legales. El despliegue está apagado, así que solo se avisa."
+            echo "::warning title=Sitio completo no publicable::Quedan huecos [[…]] en las páginas legales. Producción sirve la página «en construcción»; el sitio completo solo va al de ensayo."
             exit 0
           fi
           echo "OK: no quedan huecos [[…]] en apps/site/dist."
@@ -139,31 +146,70 @@ jobs:
       - name: presupuesto de rendimiento (Lighthouse)
         run: pnpm --filter site lighthouse
 
-      # El contrato del paquete: el CONTENIDO de dist en la raíz del tar. Es lo
-      # que `site-deploy-remote.sh` espera, y por eso verifica que exista
-      # `index.html` arriba de todo antes de mover nada.
-      - name: empaquetar
-        run: tar -czf sitio.tgz -C apps/site/dist .
+      # Lo que sirve PRODUCCIÓN mientras lo legal no esté listo (Carlos,
+      # 2026-09-19): una sola página, «sitio en construcción», con las dos
+      # puertas de la aplicación. Se construye SIEMPRE, para que el día que haga
+      # falta volver a ella esté probada. Esta sí tiene candado duro: es justo lo
+      # que se publica mientras existan los huecos, así que no puede traer ninguno.
+      - name: construir la página «en construcción»
+        run: pnpm --filter site exec astro build --silent --outDir dist-construction
+        env:
+          SITE_MODE: construction
 
-      - name: subir el paquete
+      - name: la página en construcción no trae huecos y su guion coincide con la CSP
+        run: |
+          if grep -RIlE '\[\[[^]]*\]\]' apps/site/dist-construction; then
+            echo "FALLA: la página «en construcción» trae huecos legales."
+            exit 1
+          fi
+          bash infrastructure/scripts/site-csp-hash.sh apps/site/dist-construction
+
+      # El contrato de cada paquete: el CONTENIDO de la carpeta en la raíz del
+      # tar. Es lo que `site-deploy-remote.sh` espera, y por eso verifica que
+      # exista `index.html` arriba de todo antes de mover nada.
+      - name: empaquetar los dos
+        run: |
+          tar -czf sitio-completo.tgz -C apps/site/dist .
+          tar -czf sitio-construccion.tgz -C apps/site/dist-construction .
+
+      - name: subir los paquetes
         uses: actions/upload-artifact@v4
         with:
           name: sitio
-          path: sitio.tgz
+          path: |
+            sitio-completo.tgz
+            sitio-construccion.tgz
           retention-days: 7
 
   deploy:
-    name: publicar el sitio via ssh + prueba de humo
+    name: publicar en ${{ matrix.target }} via ssh + prueba de humo
     # ⚠️ El interruptor. Sin la variable de repositorio en `true`, este job se
-    # SALTA — no falla. Ver el docblock de arriba y pending/README.md.
+    # SALTA — no falla.
     if: vars.SITE_DEPLOY_ENABLED == 'true'
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      # Primero el de ensayo: si su humo falla, producción no se toca.
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        include:
+          # El sitio de ENSAYO recibe siempre el sitio completo, huecos incluidos:
+          # para eso existe. Va con `noindex` desde su vhost.
+          - target: ensayo
+            domain: website-sandbox.sellpointy.com
+            package: completo
+          # PRODUCCIÓN sirve la página «en construcción» hasta que Carlos prenda
+          # `SITE_PUBLISH_FULL` — y con ella prendida, el candado legal del job
+          # `build` ya detuvo todo si quedaba un solo hueco.
+          - target: produccion
+            domain: sellpointy.com
+            package: ${{ vars.SITE_PUBLISH_FULL == 'true' && 'completo' || 'construccion' }}
     steps:
       - name: checkout
         uses: actions/checkout@v7
 
-      - name: bajar el paquete
+      - name: bajar los paquetes
         uses: actions/download-artifact@v4
         with:
           name: sitio
@@ -182,9 +228,9 @@ jobs:
           # (que no tiene sudo) no puede escribir adentro nunca más.
           # `/opt/sites` es justamente un bind-mount de nginx-edge.
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "mkdir -p /opt/sites/sellpointy.com/releases /opt/sellpoint/scripts"
-          scp -i ~/.ssh/deploy_key sitio.tgz \
-            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/sitio-${{ github.sha }}.tgz"
+            "mkdir -p /opt/sites/${{ matrix.domain }}/releases /opt/sellpoint/scripts"
+          scp -i ~/.ssh/deploy_key "sitio-${{ matrix.package }}.tgz" \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/sitio-${{ matrix.target }}-${{ github.sha }}.tgz"
           scp -i ~/.ssh/deploy_key infrastructure/scripts/site-deploy-remote.sh \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/sellpoint/scripts/site-deploy-remote.sh"
 
@@ -192,37 +238,43 @@ jobs:
       # es la misma regla dura de `deploy.yml` (C1/C2 del verify
       # vps-multidominio), donde un heredoc drenado hizo que el reload y el
       # smoke no corrieran nunca mientras el job reportaba verde.
+      # La release se nombra con el sha Y el paquete: pasar de «construcción» al
+      # sitio completo en el mismo commit tiene que ser una release distinta.
       - name: publicar la release (enlace atómico)
         run: |
           ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "bash /opt/sellpoint/scripts/site-deploy-remote.sh '${{ github.sha }}' '/tmp/sitio-${{ github.sha }}.tgz'"
+            "SITE_ROOT=/opt/sites/${{ matrix.domain }} bash /opt/sellpoint/scripts/site-deploy-remote.sh '${{ github.sha }}-${{ matrix.package }}' '/tmp/sitio-${{ matrix.target }}-${{ github.sha }}.tgz'"
 
       # `--resolve` contra el origen y no a través de Cloudflare (S5 de f0): se
       # ejercita el vhost real y el TLS real, y una caída del edge ajeno no
       # dispara un rollback espurio.
       #
-      # Las cinco rutas, no solo una: cada mercado es una página distinta y un
-      # build a medias puede dejar una sola rota. La comprobación de `hreflang`
-      # va incluida porque F11-SITE-SEO-01 ya está en el árbol (las páginas
-      # construidas declaran `<link rel="alternate" hreflang=…>` y su
-      # `x-default`): si alguien lo quita, el sitio deja de decirle a Google
-      # qué versión mostrarle a quién, y eso no lo nota un 200.
-      - name: prueba de humo (las cinco rutas + hreflang)
+      # Sitio completo: las cinco rutas, cada una con su `hreflang` — cada
+      # mercado es una página distinta y un build a medias puede dejar una sola
+      # rota. En construcción: la raíz, con las puertas de la aplicación, y las
+      # rutas viejas que los clientes tienen guardadas siguen llegando a ella.
+      - name: prueba de humo
         run: |
           ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
-            for ruta in /es-mx/ /en-us/ /es-us/ /en-ca/ /fr-ca/; do
-              codigo=$(curl -s -o /tmp/humo.html -w "%{http_code}" \
-                --resolve sellpointy.com:443:127.0.0.1 "https://sellpointy.com${ruta}")
-              if [ "$codigo" != "200" ]; then
-                echo "FALLA: ${ruta} respondió ${codigo}"
-                exit 1
-              fi
-              if ! grep -q "hreflang=\"x-default\"" /tmp/humo.html; then
-                echo "FALLA: ${ruta} respondió 200 pero no declara hreflang (F11-SITE-SEO-01)"
-                exit 1
-              fi
-              echo "OK ${ruta}"
-            done
+            dominio="${{ matrix.domain }}"
+            pedir() { curl -s -o /tmp/humo.html -w "%{http_code}" --resolve "${dominio}:443:127.0.0.1" "https://${dominio}$1"; }
+            if [ "${{ matrix.package }}" = "completo" ]; then
+              for ruta in /es-mx/ /en-us/ /es-us/ /en-ca/ /fr-ca/; do
+                codigo=$(pedir "$ruta")
+                [ "$codigo" = "200" ] || { echo "FALLA: ${ruta} respondió ${codigo}"; exit 1; }
+                grep -q "hreflang=\"x-default\"" /tmp/humo.html || { echo "FALLA: ${ruta} no declara hreflang (F11-SITE-SEO-01)"; exit 1; }
+                echo "OK ${ruta}"
+              done
+            else
+              codigo=$(pedir /)
+              [ "$codigo" = "200" ] || { echo "FALLA: / respondió ${codigo}"; exit 1; }
+              grep -q "app.sellpointy.com/login" /tmp/humo.html || { echo "FALLA: la página en construcción no enlaza a la aplicación"; exit 1; }
+              echo "OK / (en construcción)"
+            fi
+            codigo=$(pedir /login)
+            case "$dominio" in
+              sellpointy.com) [ "$codigo" = "301" ] || { echo "FALLA: /login respondió ${codigo}, y tenía que seguir llegando a la aplicación"; exit 1; }; echo "OK /login → aplicación" ;;
+            esac
           '
 
       # Si la publicación o el humo fallaron, el enlace vuelve a la release
@@ -232,4 +284,4 @@ jobs:
         if: failure()
         run: |
           ssh -n -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "bash /opt/sellpoint/scripts/site-deploy-remote.sh --rollback"
+            "SITE_ROOT=/opt/sites/${{ matrix.domain }} bash /opt/sellpoint/scripts/site-deploy-remote.sh --rollback"

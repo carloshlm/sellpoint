@@ -26,8 +26,8 @@ CONFD="$RAIZ/infrastructure/nginx/conf.d"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-APEX="$PENDING/sellpointy.com.conf"
-SANDBOX="$PENDING/sitio-sandbox.sellpointy.com.conf"
+APEX="$CONFD/sellpointy.com.conf"
+SANDBOX="$CONFD/website-sandbox.sellpointy.com.conf"
 
 # sin_comentario LÍNEA → la línea sin lo que venga después de `#`.
 # Hace falta para contar llaves: un `{` dentro de un comentario descuadraría
@@ -227,37 +227,21 @@ esperar() { # esperar DESCRIPCIÓN ESPERADO(0|1) COMANDO...
   fi
 }
 
-# ── 1. El candado: nada del sitio en conf.d/ ────────────────────────────────
+# ── 1. El apex tiene UN solo dueño ──────────────────────────────────────────
 #
-# `deploy.yml` copia conf.d/ y snippets/ COMPLETOS a producción en cada push a
-# main. Mientras los textos legales tengan huecos, el vhost del sitio no puede
-# estar ahí. Se busca por el `root` del sitio y no por el server_name, porque
-# `conf.d/app.sellpointy.com.conf` legítimamente declara `sellpointy.com` (es
-# el 301 al apex que sigue vigente hasta el encendido).
-sitio_en_confd() {
-  local archivo
-  for archivo in "$CONFD"/*.conf; do
-    if [[ "$(texto "$archivo")" == *"/var/www/sites/sellpointy.com"* ]]; then
-      echo "  ✗ $(basename "$archivo") sirve el sitio y vive en conf.d/: viaja a producción en el próximo push" >&2
-      return 0
-    fi
-  done
-  return 1
-}
-esperar "ningún vhost de conf.d/ sirve el sitio todavía" 1 sitio_en_confd
-
-# El 301 del apex a la app SIGUE en pie: quitarlo antes de mover el vhost
-# dejaría el apex sin nada durante la ventana.
-apex_sigue_redirigiendo() {
+# Los vhosts del sitio viven en `conf.d/` desde el 2026-09-19 (Carlos): el de
+# ensayo sirve el sitio completo y el del apex, la página «en construcción»
+# hasta que los textos legales estén listos. Lo que se publica en cada uno lo
+# decide `site.yml`, no nginx.
+#
+# Dos archivos declarando `sellpointy.com` NO hacen fallar `nginx -t`: solo
+# avisa, y gana el primero por orden alfabético — `app.sellpointy.com.conf`,
+# que REDIRIGÍA. El sitio quedaría escondido detrás de un 301 sin que nada se
+# ponga rojo. Por eso se comprueba aquí.
+apex_duplicado() {
   [[ "$(texto "$CONFD/app.sellpointy.com.conf")" == *"server_name sellpointy.com;"* ]]
 }
-esperar "el apex sigue redirigiendo a app mientras el sitio no se enciende" 0 apex_sigue_redirigiendo
-
-# Y el pipeline no copia pending/ — si alguien agrega ese scp, esto se pone rojo.
-pipeline_copia_pending() {
-  [[ "$(texto "$RAIZ/.github/workflows/deploy.yml")" == *pending* ]]
-}
-esperar "deploy.yml NO copia pending/ al server" 1 pipeline_copia_pending
+esperar "el vhost de la app ya NO declara el apex" 1 apex_duplicado
 
 # ── 2. Los dos vhosts reales cumplen el contrato ────────────────────────────
 esperar "el vhost del apex cumple el contrato" 0 verificar_vhost "$APEX"
@@ -288,7 +272,7 @@ sandbox_ok() {
   [[ "$t" == *"sandbox-api"* ]] || { echo "  ✗ el sitio en pruebas no apunta al API del sandbox" >&2; return 1; }
   [[ "$t" != *"http://api:3000"* ]] || { echo "  ✗ el sitio en pruebas apunta al API de PRODUCCIÓN" >&2; return 1; }
   [[ "$t" == *"resolver 127.0.0.11"* ]] || { echo "  ✗ el sitio en pruebas no usa resolución diferida: un sandbox caído haría fallar el nginx -t de producción" >&2; return 1; }
-  [[ "$t" == *"root /var/www/sites/sitio-sandbox.sellpointy.com/public;"* ]] || { echo "  ✗ el sitio en pruebas no tiene su root propio" >&2; return 1; }
+  [[ "$t" == *"root /var/www/sites/website-sandbox.sellpointy.com/public;"* ]] || { echo "  ✗ el sitio en pruebas no tiene su root propio" >&2; return 1; }
   return 0
 }
 esperar "el sitio en pruebas: noindex, API del sandbox y resolución diferida" 0 sandbox_ok

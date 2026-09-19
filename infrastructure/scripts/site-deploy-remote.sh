@@ -80,16 +80,34 @@ releases_recientes() {
 # SIGUE el enlace viejo y deja el nuevo DENTRO del directorio de la release
 # (`releases/<sha viejo>/public`): el sitio se queda servido por la versión
 # anterior y el error no se nota hasta el despliegue siguiente.
+#
+# El enlace se escribe RELATIVO a SITE_ROOT (`releases/<sha>`), nunca absoluto:
+# `nginx-edge` monta `/opt/sites` como `/var/www/sites`, así que una ruta
+# absoluta del host no existe dentro del contenedor y el sitio entero daría 404
+# con los archivos perfectamente publicados. Relativo se resuelve desde donde
+# esté montada la carpeta.
 apuntar_public() {
   local destino="$1" tmp="${SITE_ROOT}/.public.nuevo.$$"
   rm -f "${tmp}"
-  ln -s "${destino}" "${tmp}"
+  ln -s "${destino#"${SITE_ROOT}"/}" "${tmp}"
   if mv -T "${tmp}" "${PUBLIC}" 2>/dev/null; then return 0; fi
   if mv -h "${tmp}" "${PUBLIC}" 2>/dev/null; then return 0; fi
   rm -f "${tmp}"
   echo "ABORTA: este 'mv' no acepta ni -T (GNU) ni -h (BSD), así que no hay forma" >&2
   echo "        de reemplazar el enlace sin seguirlo. Nada fue modificado." >&2
   return 1
+}
+
+# enlace_vivo → la release a la que apunta `public`, como ruta ABSOLUTA (el
+# enlace es relativo; ver `apuntar_public`). Vacío si no hay enlace.
+enlace_vivo() {
+  local destino
+  destino="$(readlink "${PUBLIC}" 2>/dev/null || true)"
+  [ -n "${destino}" ] || return 0
+  case "${destino}" in
+    /*) printf '%s' "${destino}" ;;
+    *) printf '%s' "${SITE_ROOT}/${destino}" ;;
+  esac
 }
 
 # limpiar_releases → conserva las KEEP_RELEASES más nuevas y borra el resto.
@@ -101,7 +119,7 @@ apuntar_public() {
 # acá `rm -rf` no falla solo, hay que decirlo.
 limpiar_releases() {
   local viva n=0 r
-  viva="$(readlink "${PUBLIC}" 2>/dev/null || true)"
+  viva="$(enlace_vivo)"
   while IFS= read -r r; do
     n=$((n + 1))
     [ "${n}" -le "${KEEP_RELEASES}" ] && continue
@@ -116,7 +134,7 @@ limpiar_releases() {
 
 rollback() {
   local actual objetivo="" visto=0 r
-  actual="$(readlink "${PUBLIC}" 2>/dev/null || true)"
+  actual="$(enlace_vivo)"
   if [ -z "${actual}" ]; then
     echo "ABORTA: ${PUBLIC} no es un enlace simbólico — no hay a qué volver." >&2
     exit 1
@@ -169,7 +187,7 @@ desplegar() {
   fi
 
   if [ -d "${destino}" ]; then
-    if [ "$(readlink "${PUBLIC}" 2>/dev/null || true)" = "${destino}" ]; then
+    if [ "$(enlace_vivo)" = "${destino}" ]; then
       # IDEMPOTENCIA: la release ya existe Y es la que se está sirviendo.
       # Borrarla para reemplazarla dejaría el enlace colgando, aunque fuera un
       # instante. Y no hace falta: el mismo sha es el mismo commit, o sea el

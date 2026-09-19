@@ -52,6 +52,13 @@ bash "$SCRIPT" sha1 "$(paquete sha1 uno)" >/dev/null
 comparar "el primer despliegue deja public apuntando a la release" "sha1" "$(vigente)"
 comparar "el sitio se lee a través del enlace" "<!doctype html>uno" "$(cat "$PUBLIC/index.html")"
 
+# EL ENLACE ES RELATIVO, y no es un detalle: `nginx-edge` monta `/opt/sites` como
+# `/var/www/sites`. Un enlace ABSOLUTO (`/opt/sites/…/releases/sha1`) apunta a
+# una ruta que dentro del contenedor no existe, y el sitio entero da 404 con los
+# archivos perfectamente publicados. Relativo (`releases/sha1`) se resuelve
+# desde donde esté montada la carpeta.
+comparar "el enlace public es RELATIVO (se resuelve dentro del contenedor)" "releases/sha1" "$(readlink "$PUBLIC")"
+
 # El gotcha del `mv`: si `mv` hubiera SEGUIDO el enlace, `public` seguiría
 # siendo el enlace viejo y habría un `releases/sha1/public` de regalo.
 if [[ -L "$PUBLIC" ]]; then ok "public es un enlace simbólico, no un directorio"; else mal "public dejó de ser un enlace"; fi

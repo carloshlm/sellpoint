@@ -37,14 +37,13 @@ AQUI="$(cd "$(dirname "$0")" && pwd)"
 RAIZ="$(cd "$AQUI/../.." && pwd)"
 
 # El build de referencia y los vhosts que declaran el hash. Los dos vhosts del
-# sitio viven en `pending/` porque el sitio todavía no se publica (ver
-# `infrastructure/nginx/pending/README.md`); cuando se muevan a `conf.d/`, acá
-# se cambia la ruta y nada más.
+# sitio viven en `conf.d/` desde el 2026-09-19 (ver
+# `infrastructure/nginx/SITIO-PUBLICO.md`).
 DIST_POR_OMISION="$RAIZ/apps/site/dist"
 HTML_POR_OMISION="$DIST_POR_OMISION/index.html"
 VHOSTS_POR_OMISION=(
-  "$RAIZ/infrastructure/nginx/pending/sellpointy.com.conf"
-  "$RAIZ/infrastructure/nginx/pending/sitio-sandbox.sellpointy.com.conf"
+  "$RAIZ/infrastructure/nginx/conf.d/sellpointy.com.conf"
+  "$RAIZ/infrastructure/nginx/conf.d/website-sandbox.sellpointy.com.conf"
 )
 
 # guion_en_linea ARCHIVO → el CONTENIDO del único `<script>` sin atributos.
@@ -207,7 +206,7 @@ done
 if [[ "$falla" != 0 ]]; then
   echo "" >&2
   echo "Cómo se arregla: pegá el hash esperado en el script-src de los vhosts de" >&2
-  echo "infrastructure/nginx/pending/. Para obtenerlo suelto:" >&2
+  echo "infrastructure/nginx/conf.d/. Para obtenerlo suelto:" >&2
   echo "  pnpm --filter site... build && infrastructure/scripts/site-csp-hash.sh --print" >&2
 fi
 
