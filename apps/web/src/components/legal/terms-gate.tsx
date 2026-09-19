@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LegalAcceptanceText } from "@/components/legal/legal-links";
+import { LegalConsentFields } from "@/components/legal/legal-links";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useAcceptTerms, useLogout } from "@/lib/auth/hooks";
@@ -37,6 +37,8 @@ export function TermsGate() {
   const aceptar = useAcceptTerms();
   const logout = useLogout();
   const [error, setError] = useState(false);
+  // Las mismas dos casillas del registro: sin las DOS, «Acepto» no se prende.
+  const [consent, setConsent] = useState({ terms: false, privacy: false });
 
   const abierto = termsEnabled() && user?.mustAcceptTerms === true;
 
@@ -81,9 +83,11 @@ export function TermsGate() {
     >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">{t("auth.legal.gate.body")}</p>
-        <p className="text-sm">
-          <LegalAcceptanceText />
-        </p>
+        <LegalConsentFields
+          terms={consent.terms}
+          privacy={consent.privacy}
+          onChange={(which, checked) => setConsent((actual) => ({ ...actual, [which]: checked }))}
+        />
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {t("auth.legal.gate.error")}
@@ -93,7 +97,10 @@ export function TermsGate() {
           <Button variant="outline" onClick={onCerrarSesion} disabled={aceptar.isPending}>
             {t("auth.legal.gate.logout")}
           </Button>
-          <Button onClick={onAceptar} disabled={aceptar.isPending}>
+          <Button
+            onClick={onAceptar}
+            disabled={aceptar.isPending || !consent.terms || !consent.privacy}
+          >
             {aceptar.isPending ? t("auth.legal.gate.accepting") : t("auth.legal.gate.accept")}
           </Button>
         </div>

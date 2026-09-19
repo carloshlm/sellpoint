@@ -53,8 +53,8 @@ describe("TermsService dormido (CURRENT_TERMS_VERSION = null)", () => {
   it("el registro NO exige la casilla: un alta sin `acceptTerms` pasa", () => {
     const { service } = buildService(null);
 
-    expect(() => service.requireAcceptance(undefined)).not.toThrow();
-    expect(() => service.requireAcceptance(false)).not.toThrow();
+    expect(() => service.requireAcceptance(undefined, undefined)).not.toThrow();
+    expect(() => service.requireAcceptance(false, false)).not.toThrow();
   });
 
   it("el registro no sella nada: el usuario nace con las dos columnas en NULL", () => {
@@ -93,9 +93,9 @@ describe("TermsService encendido (CURRENT_TERMS_VERSION = '2026-10-01')", () => 
   it("el registro SIN la casilla muere con su propia clave i18n, no con la genérica", () => {
     const { service } = buildService(VERSION);
 
-    expect(() => service.requireAcceptance(undefined)).toThrow(BadRequestException);
+    expect(() => service.requireAcceptance(undefined, undefined)).toThrow(BadRequestException);
     try {
-      service.requireAcceptance(false);
+      service.requireAcceptance(false, false);
     } catch (error) {
       expect((error as BadRequestException).getResponse()).toEqual({
         message: "auth.terms_not_accepted",
@@ -103,10 +103,24 @@ describe("TermsService encendido (CURRENT_TERMS_VERSION = '2026-10-01')", () => 
     }
   });
 
-  it("el registro CON la casilla pasa y devuelve el sello para el INSERT", () => {
+  /**
+   * Son DOS consentimientos (Carlos, 2026-09-19): los términos se aceptan y el
+   * aviso de privacidad se reconoce leído, cada uno con su casilla. Una sola
+   * marcada no alcanza, sea cual sea.
+   */
+  it("con UNA sola de las dos casillas el registro muere igual", () => {
     const { service } = buildService(VERSION);
 
-    expect(() => service.requireAcceptance(true)).not.toThrow();
+    expect(() => service.requireAcceptance(true, undefined)).toThrow(BadRequestException);
+    expect(() => service.requireAcceptance(true, false)).toThrow(BadRequestException);
+    expect(() => service.requireAcceptance(undefined, true)).toThrow(BadRequestException);
+    expect(() => service.requireAcceptance(false, true)).toThrow(BadRequestException);
+  });
+
+  it("el registro CON las dos casillas pasa y devuelve el sello para el INSERT", () => {
+    const { service } = buildService(VERSION);
+
+    expect(() => service.requireAcceptance(true, true)).not.toThrow();
     expect(service.acceptanceForRegistration()).toEqual({
       termsVersion: VERSION,
       termsAcceptedAt: AHORA,

@@ -48,3 +48,10 @@ if (!process.env.JWT_PRIVATE_KEY_BASE64 || !process.env.JWT_PUBLIC_KEY_BASE64) {
     publicKey.export({ type: "spki", format: "pem" }),
   ).toString("base64");
 }
+
+// F11-SITE-LEGAL (2026-09-19): los términos ya están ENCENDIDOS en producción
+// y el alta exige sus dos casillas. Las ~50 suites que registran negocios no
+// prueban lo legal, así que para ellas siguen dormidos —igual que el
+// throttling de arriba—; `legal-terms.e2e-spec.ts` los prende sobrescribiendo
+// el provider. `legal.module.ts` solo respeta esta variable con NODE_ENV=test.
+process.env.TERMS_DORMANT_IN_TESTS ??= "true";

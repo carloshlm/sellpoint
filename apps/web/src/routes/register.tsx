@@ -5,10 +5,8 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
 import { TextField } from "@/components/form/text-field";
-import { LegalAcceptanceText } from "@/components/legal/legal-links";
+import { LegalConsentFields } from "@/components/legal/legal-links";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import { useRegisterTenant } from "@/lib/auth/hooks";
 import {
@@ -54,6 +52,7 @@ function RegisterPage() {
   const passwordValue = watch("password") ?? "";
   const passwordMet = passwordValue.length >= 12;
   const acceptTerms = watch("acceptTerms") === true;
+  const acceptPrivacy = watch("acceptPrivacy") === true;
 
   const onSubmit = handleSubmit((values) => {
     setApiError(null);
@@ -144,28 +143,23 @@ function RegisterPage() {
           error={errors.password?.message ? t(errors.password.message) : undefined}
           {...register("password")}
         />
-        {/* F11-SITE-LEGAL-02: la casilla nace SIN marcar y sin ella no se
-            envía. Dormida no existe: ni el elemento, ni el schema que la
-            exige — el registro se ve exactamente como antes. */}
+        {/* F11-SITE-LEGAL-02: las dos casillas nacen SIN marcar y sin las dos
+            no se envía. Dormidas no existen: ni los elementos, ni el schema
+            que las exige — el registro se ve exactamente como antes. */}
         {pideTerminos && (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="accept-terms"
-                className="mt-0.5"
-                checked={acceptTerms}
-                onCheckedChange={(checked) =>
-                  setValue("acceptTerms", checked === true, { shouldValidate: true })
-                }
-              />
-              <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug">
-                <LegalAcceptanceText />
-              </Label>
-            </div>
-            {errors.acceptTerms?.message && (
-              <p className="text-sm text-destructive">{t(errors.acceptTerms.message)}</p>
-            )}
-          </div>
+          <LegalConsentFields
+            terms={acceptTerms}
+            privacy={acceptPrivacy}
+            onChange={(consent, checked) =>
+              setValue(consent === "terms" ? "acceptTerms" : "acceptPrivacy", checked, {
+                shouldValidate: true,
+              })
+            }
+            errors={{
+              terms: errors.acceptTerms?.message,
+              privacy: errors.acceptPrivacy?.message,
+            }}
+          />
         )}
         <Button type="submit" size="lg" disabled={registerMutation.isPending}>
           {registerMutation.isPending ? t("common.form.submitting") : t("auth.register.submit")}

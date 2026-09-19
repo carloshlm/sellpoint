@@ -27,6 +27,7 @@ export interface RegisterTenantInput {
    * según lo que mande el navegador.
    */
   acceptTerms?: boolean;
+  acceptPrivacy?: boolean;
 }
 
 export interface RegisterTenantResponse {

@@ -61,6 +61,7 @@ export interface RegisterTenantInput {
    * acá se ignora por completo.
    */
   acceptTerms?: boolean;
+  acceptPrivacy?: boolean;
 }
 
 export interface RequestMeta {
@@ -114,7 +115,7 @@ export class AuthService implements OnModuleInit {
     // F11-SITE-LEGAL-02: el portero va ANTES del hash. Rechazar un alta sin
     // la casilla no debe costar los ~100ms de argon2 (AD-1) que un robot
     // podría gastarnos en serie. Dormido, esto no hace absolutamente nada.
-    this.terms.requireAcceptance(input.acceptTerms);
+    this.terms.requireAcceptance(input.acceptTerms, input.acceptPrivacy);
     const termsAcceptance = this.terms.acceptanceForRegistration();
 
     // AD-1: argon2 (~80-150ms) SIEMPRE fuera de cualquier $transaction —

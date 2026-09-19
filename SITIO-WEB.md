@@ -163,9 +163,12 @@ Lo que decide qué sirve `sellpointy.com`:
 3. **Si cambia el responsable** (por ejemplo, al constituir una sociedad):
    P1 y T1 de `SITIO-WEB-LEGAL.md` en los tres idiomas, y la identidad del
    remitente en `apps/api/src/modules/mail/templates/sender-identity.ts`.
-4. Aparte, y cuando quieras: la aceptación de términos DENTRO de la aplicación
-   está construida y dormida. Se enciende poniéndole una fecha a
-   `CURRENT_TERMS_VERSION` en `packages/shared/src/terms.ts`.
+4. **La aceptación DENTRO de la aplicación está encendida** desde el 2026-09-19
+   (`CURRENT_TERMS_VERSION` en `packages/shared/src/terms.ts`): el registro pide
+   dos casillas —términos y aviso de privacidad— y quien ya tenía cuenta las
+   acepta al entrar. **Si un texto legal cambia de fondo, pon ahí la fecha
+   nueva:** todos vuelven a aceptar. Un retoque de redacción NO pide fecha
+   nueva, porque cada cambio le pone la pared a todos los usuarios.
 
 ## Las barreras, y qué cuida cada una
 

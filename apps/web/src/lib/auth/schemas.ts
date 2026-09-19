@@ -59,15 +59,17 @@ export const registerSchema = z.object({
    * registro inservible antes de que los textos existan.
    */
   acceptTerms: z.boolean().optional(),
+  acceptPrivacy: z.boolean().optional(),
 });
 
 /**
- * F11-SITE-LEGAL-02 — el MISMO registro, con la casilla obligatoria. Lo elige
+ * F11-SITE-LEGAL-02 — el MISMO registro, con las DOS casillas obligatorias. Lo elige
  * el formulario según `termsEnabled()`, y el API vuelve a exigirla por su
  * cuenta: lo que llega de un navegador no se cree nunca.
  */
 export const registerWithTermsSchema = registerSchema.extend({
   acceptTerms: z.literal(true, "validation.acceptTermsRequired"),
+  acceptPrivacy: z.literal(true, "validation.acceptPrivacyRequired"),
 });
 
 export const forgotPasswordSchema = z.object({

@@ -66,15 +66,23 @@ export class TermsService {
   }
 
   /**
-   * El portero del registro. Dormido deja pasar cualquier cosa —el campo se
-   * ignora por completo—; encendido exige el `true` LITERAL: un `"true"` de
+   * El portero del registro. Dormido deja pasar cualquier cosa —los campos se
+   * ignoran por completo—; encendido exige el `true` LITERAL: un `"true"` de
    * texto o un `1` no son un consentimiento, son un descuido de quien llama.
+   *
+   * Son DOS consentimientos y hacen falta los dos (Carlos, 2026-09-19): los
+   * términos se ACEPTAN y el aviso de privacidad se reconoce LEÍDO, cada uno
+   * con su casilla. Comparten una sola clave de error a propósito: a quien le
+   * falta cualquiera de las dos hay que decirle lo mismo.
    */
-  requireAcceptance(accepted: boolean | undefined): void {
+  requireAcceptance(
+    acceptedTerms: boolean | undefined,
+    acceptedPrivacy: boolean | undefined,
+  ): void {
     if (this.version === null) {
       return;
     }
-    if (accepted !== true) {
+    if (acceptedTerms !== true || acceptedPrivacy !== true) {
       throw new BadRequestException({ message: "auth.terms_not_accepted" });
     }
   }

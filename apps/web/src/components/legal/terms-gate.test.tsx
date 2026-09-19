@@ -94,7 +94,7 @@ describe("TermsGate", () => {
 
       expect(screen.getByRole("dialog", { name: "Antes de seguir" })).toBeInTheDocument();
 
-      const terminos = screen.getByRole("link", { name: "Términos" });
+      const terminos = screen.getByRole("link", { name: "Términos y condiciones" });
       const privacidad = screen.getByRole("link", { name: "Aviso de privacidad" });
       for (const enlace of [terminos, privacidad]) {
         expect(enlace).toHaveAttribute("target", "_blank");
@@ -116,10 +116,28 @@ describe("TermsGate", () => {
       expect(screen.queryByRole("button", { name: "Cerrar" })).not.toBeInTheDocument();
     });
 
+    /** Las mismas DOS casillas del registro: sin las dos, no hay botón. */
+    it("«Acepto» nace apagado y solo se prende con las DOS casillas marcadas", async () => {
+      sesionCon(true);
+      renderGate();
+      const [terminos, privacidad] = screen.getAllByRole("checkbox");
+      const aceptar = screen.getByRole("button", { name: "Acepto" });
+
+      expect(aceptar).toBeDisabled();
+      await userEvent.click(terminos as HTMLElement);
+      expect(aceptar).toBeDisabled();
+      await userEvent.click(privacidad as HTMLElement);
+      expect(aceptar).toBeEnabled();
+      await userEvent.click(terminos as HTMLElement);
+      expect(aceptar).toBeDisabled();
+      expect(acceptTermsMock).not.toHaveBeenCalled();
+    });
+
     it("aceptar sella en el API, cierra la pared y no vuelve", async () => {
       sesionCon(true);
       renderGate();
 
+      for (const casilla of screen.getAllByRole("checkbox")) await userEvent.click(casilla);
       await userEvent.click(screen.getByRole("button", { name: "Acepto" }));
 
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -132,6 +150,7 @@ describe("TermsGate", () => {
       sesionCon(true);
       renderGate();
 
+      for (const casilla of screen.getAllByRole("checkbox")) await userEvent.click(casilla);
       await userEvent.click(screen.getByRole("button", { name: "Acepto" }));
 
       expect(await screen.findByRole("alert")).toHaveTextContent(

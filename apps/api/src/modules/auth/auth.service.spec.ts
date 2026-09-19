@@ -370,6 +370,19 @@ describe("AuthService.registerTenant y la aceptación de términos (F11-SITE-LEG
     expect(hasher.hash).not.toHaveBeenCalled();
   });
 
+  it("encendido: con UNA sola de las dos casillas responde 400 y NO crea el negocio", async () => {
+    const { service, tenantsService } = buildService({ termsVersion: "2026-10-01" });
+
+    for (const parcial of [{ acceptTerms: true }, { acceptPrivacy: true }]) {
+      const error = await service
+        .registerTenant({ ...registerInput, ...parcial }, {})
+        .catch((e) => e);
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect(error).toMatchObject({ response: { message: "auth.terms_not_accepted" } });
+    }
+    expect(tenantsService.provision).not.toHaveBeenCalled();
+  });
+
   it("encendido: `acceptTerms: false` tampoco alcanza — se exige el true literal", async () => {
     const { service } = buildService({ termsVersion: "2026-10-01" });
 
@@ -381,7 +394,7 @@ describe("AuthService.registerTenant y la aceptación de términos (F11-SITE-LEG
   it("encendido: con la casilla marcada, el owner nace con versión y fecha selladas", async () => {
     const { service, tenantsService } = buildService({ termsVersion: "2026-10-01" });
 
-    await service.registerTenant({ ...registerInput, acceptTerms: true }, {});
+    await service.registerTenant({ ...registerInput, acceptTerms: true, acceptPrivacy: true }, {});
 
     expect(tenantsService.provision).toHaveBeenCalledWith(
       expect.objectContaining({

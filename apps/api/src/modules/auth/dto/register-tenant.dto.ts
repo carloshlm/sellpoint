@@ -28,6 +28,8 @@ export const registerTenantSchema = z.object({
   // `.literal(true)` acá volvería obligatoria la casilla HOY, con los textos
   // legales todavía sin publicar, y rompería todas las altas.
   acceptTerms: z.boolean().optional(),
+  // La segunda casilla: el aviso de privacidad, leído. Opcional por lo mismo.
+  acceptPrivacy: z.boolean().optional(),
 });
 
 export type RegisterTenantDto = z.infer<typeof registerTenantSchema>;

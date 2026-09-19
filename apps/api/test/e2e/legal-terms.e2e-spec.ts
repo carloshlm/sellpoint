@@ -149,7 +149,7 @@ describe("Los términos ENCENDIDOS (F11-SITE-LEGAL-02/03)", () => {
       .expect(400);
 
     expect(response.body.message).toBe(
-      "Para crear tu cuenta necesitas aceptar los Términos y el Aviso de privacidad",
+      "Para crear tu cuenta necesitas aceptar los Términos y condiciones y confirmar que leíste el Aviso de privacidad",
     );
     // Lo importante del 400: el correo queda LIBRE. Si el alta hubiera creado
     // el negocio antes de rechazar, el segundo intento chocaría con un 409.
@@ -157,8 +157,26 @@ describe("Los términos ENCENDIDOS (F11-SITE-LEGAL-02/03)", () => {
     expect(huerfano).toBeNull();
   });
 
+  it("el alta con UNA sola de las dos casillas también responde 400", async () => {
+    for (const parcial of [{ acceptTerms: true }, { acceptPrivacy: true }]) {
+      const email = `owner-${randomUUID()}@example.com`;
+      await request(app.getHttpServer())
+        .post("/auth/register-tenant")
+        .send({
+          email,
+          password: PASSWORD,
+          firstName: "Ana",
+          lastName: "Pérez",
+          locale: "es",
+          ...parcial,
+        })
+        .expect(400);
+      expect(await prisma.user.findFirst({ where: { email } })).toBeNull();
+    }
+  });
+
   it("el alta CON la casilla crea el negocio y sella versión y fecha", async () => {
-    const user = await registerActiveUser(app, { acceptTerms: true });
+    const user = await registerActiveUser(app, { acceptTerms: true, acceptPrivacy: true });
 
     const fila = await prisma.withTenantContext(user.tenantId, (tx) =>
       tx.user.findUniqueOrThrow({
@@ -172,7 +190,7 @@ describe("Los términos ENCENDIDOS (F11-SITE-LEGAL-02/03)", () => {
   });
 
   it("quien se registró CON la casilla no vuelve a ver el diálogo", async () => {
-    const user = await registerActiveUser(app, { acceptTerms: true });
+    const user = await registerActiveUser(app, { acceptTerms: true, acceptPrivacy: true });
 
     const login = await request(app.getHttpServer())
       .post("/auth/login")

@@ -383,7 +383,7 @@ describe("F1-WEB-AUTH-04 — /register", () => {
    * exactamente como antes. Los tres casos de arriba ya lo comprueban sin
    * saberlo; este lo dice en voz alta para que nadie lo rompa sin enterarse.
    */
-  it("dormido: no hay casilla de términos y el alta no manda `acceptTerms`", async () => {
+  it("dormido: no hay casillas legales y el alta no manda `acceptTerms` ni `acceptPrivacy`", async () => {
     registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
     await renderRoute("/register");
     await screen.findByRole("button", { name: "Crear cuenta" });
@@ -395,6 +395,7 @@ describe("F1-WEB-AUTH-04 — /register", () => {
 
     await screen.findByTestId("register-success");
     expect(registerTenantMock.mock.calls[0]?.[0]).not.toHaveProperty("acceptTerms");
+    expect(registerTenantMock.mock.calls[0]?.[0]).not.toHaveProperty("acceptPrivacy");
   });
 
   describe("con los términos ENCENDIDOS", () => {
@@ -406,13 +407,23 @@ describe("F1-WEB-AUTH-04 — /register", () => {
       legal.terminosEncendidos = false;
     });
 
-    it("la casilla nace SIN marcar, con sus dos enlaces en pestaña nueva", async () => {
+    /**
+     * Son DOS casillas (Carlos, 2026-09-19): los términos se aceptan y el aviso
+     * de privacidad se reconoce leído. Cada una con su enlace y su error.
+     */
+    it("las dos casillas nacen SIN marcar, cada una con su enlace en pestaña nueva", async () => {
       await renderRoute("/register");
       await screen.findByRole("button", { name: "Crear cuenta" });
 
-      expect(screen.getByRole("checkbox")).not.toBeChecked();
+      const casillas = screen.getAllByRole("checkbox");
+      expect(casillas).toHaveLength(2);
+      for (const casilla of casillas) expect(casilla).not.toBeChecked();
+      expect(screen.getByLabelText(/Acepto los Términos y condiciones/)).toBe(casillas[0]);
+      expect(screen.getByLabelText(/Confirmo que leí y acepto el Aviso de privacidad/)).toBe(
+        casillas[1],
+      );
 
-      const terminos = screen.getByRole("link", { name: "Términos" });
+      const terminos = screen.getByRole("link", { name: "Términos y condiciones" });
       const privacidad = screen.getByRole("link", { name: "Aviso de privacidad" });
       for (const enlace of [terminos, privacidad]) {
         expect(enlace).toHaveAttribute("target", "_blank");
@@ -422,7 +433,7 @@ describe("F1-WEB-AUTH-04 — /register", () => {
       expect(privacidad).toHaveAttribute("href", "https://sellpointy.com/es-mx/privacidad/");
     });
 
-    it("sin marcarla no se envía: el API ni se entera", async () => {
+    it("sin marcarlas no se envía y cada una dice lo suyo: el API ni se entera", async () => {
       await renderRoute("/register");
       await screen.findByRole("button", { name: "Crear cuenta" });
 
@@ -430,23 +441,40 @@ describe("F1-WEB-AUTH-04 — /register", () => {
       await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
       expect(
-        await screen.findByText("Necesitas aceptar los Términos y el Aviso de privacidad"),
+        await screen.findByText("Necesitas aceptar los Términos y condiciones"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Necesitas confirmar que leíste y aceptas el Aviso de privacidad"),
       ).toBeInTheDocument();
       expect(registerTenantMock).not.toHaveBeenCalled();
     });
 
-    it("marcándola, el alta viaja con `acceptTerms: true`", async () => {
+    it("con UNA sola marcada tampoco se envía", async () => {
+      await renderRoute("/register");
+      await screen.findByRole("button", { name: "Crear cuenta" });
+
+      const user = await fillRegisterForm();
+      await user.click(screen.getByLabelText(/Acepto los Términos y condiciones/));
+      await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+      expect(
+        await screen.findByText("Necesitas confirmar que leíste y aceptas el Aviso de privacidad"),
+      ).toBeInTheDocument();
+      expect(registerTenantMock).not.toHaveBeenCalled();
+    });
+
+    it("marcando las dos, el alta viaja con `acceptTerms` y `acceptPrivacy` en true", async () => {
       registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
       await renderRoute("/register");
       await screen.findByRole("button", { name: "Crear cuenta" });
 
       const user = await fillRegisterForm();
-      await user.click(screen.getByRole("checkbox"));
+      for (const casilla of screen.getAllByRole("checkbox")) await user.click(casilla);
       await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
       await screen.findByTestId("register-success");
       expect(registerTenantMock).toHaveBeenCalledWith(
-        expect.objectContaining({ acceptTerms: true }),
+        expect.objectContaining({ acceptTerms: true, acceptPrivacy: true }),
         expect.anything(),
       );
     });
