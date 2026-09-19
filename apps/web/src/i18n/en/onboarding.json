@@ -80,13 +80,13 @@
     "error": "We couldn't save your business details."
   },
   "step2": {
-    "title": "Your warehouse",
+    "title": "Your store",
     "subtitle": "We already created one. If your business calls it something else, rename it.",
     "continue": "Continue",
     "error": "We couldn't move forward. Please try again.",
-    "name": "Warehouse name",
+    "name": "Store name",
     "nameHint": "For example: Main, North Branch, Distribution Center.",
-    "existing": "You already have the warehouse {{name}}."
+    "existing": "You already have the store {{name}}."
   },
   "step3": {
     "title": "Pick a theme",

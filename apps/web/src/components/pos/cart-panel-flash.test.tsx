@@ -92,7 +92,7 @@ describe("destello del carrito (F4-CART-02)", () => {
 });
 
 /**
- * F4-POSVIS: el aviso «Más de lo que hay en este almacén» solo existe cuando
+ * F4-POSVIS: el aviso «Más de lo que hay en esta sucursal» solo existe cuando
  * el API mandó la existencia. Con «Mostrar existencias» apagado viaja en
  * null, y el carrito no tiene con qué (ni debe) avisar.
  */
@@ -106,7 +106,7 @@ describe("el aviso de faltante y «Mostrar existencias» (F4-POSVIS)", () => {
     act(() => {
       useCartStore.getState().add(AVENA, { quantity: "999" });
     });
-    expect(screen.getByText("Más de lo que hay en este almacén")).toBeInTheDocument();
+    expect(screen.getByText("Más de lo que hay en esta sucursal")).toBeInTheDocument();
   });
 
   it("sin el dato (available null) no hay aviso, aunque se pida mucho", () => {
@@ -116,6 +116,6 @@ describe("el aviso de faltante y «Mostrar existencias» (F4-POSVIS)", () => {
         .getState()
         .add({ ...AVENA, available: null, expired: null }, { quantity: "999" });
     });
-    expect(screen.queryByText("Más de lo que hay en este almacén")).not.toBeInTheDocument();
+    expect(screen.queryByText("Más de lo que hay en esta sucursal")).not.toBeInTheDocument();
   });
 });

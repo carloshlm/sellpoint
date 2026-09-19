@@ -86,7 +86,7 @@ export class CatalogExportService {
           ESTADOS[u.status] ?? u.status,
         ]);
       },
-      header: ["Nombre", "Correo", "Roles", "Almacenes", "Estado"],
+      header: ["Nombre", "Correo", "Roles", "Sucursales", "Estado"],
       format,
       sheetName: "Usuarios",
       filenameBase: spreadsheetFilenameBase("usuarios", locale),
@@ -161,8 +161,8 @@ export class CatalogExportService {
       },
       header: ["Nombre", "Dirección", "Estado", "Productos con stock"],
       format,
-      sheetName: "Almacenes",
-      filenameBase: spreadsheetFilenameBase("almacenes", locale),
+      sheetName: "Sucursales",
+      filenameBase: spreadsheetFilenameBase("sucursales", locale),
     });
   }
 

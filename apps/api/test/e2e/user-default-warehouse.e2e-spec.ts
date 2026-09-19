@@ -314,7 +314,7 @@ describe("El tenant nace con su almacén (F3-HOME-03)", () => {
     };
   }
 
-  it("en español nace «Almacén Central» y queda asignado al owner", async () => {
+  it("en español nace «Sucursal Principal» y queda asignado al owner", async () => {
     const { token, userId } = await registrar("es");
 
     const almacenes = await request(app.getHttpServer())
@@ -323,7 +323,7 @@ describe("El tenant nace con su almacén (F3-HOME-03)", () => {
       .expect(200);
     const lista = almacenes.body as { id: string; name: string }[];
     expect(lista).toHaveLength(1);
-    expect(lista[0]?.name).toBe("Almacén Central");
+    expect(lista[0]?.name).toBe("Sucursal Principal");
 
     const detalle = await request(app.getHttpServer())
       .get(`/users/${userId}`)
@@ -335,14 +335,14 @@ describe("El tenant nace con su almacén (F3-HOME-03)", () => {
   });
 
   /** Neutro por LEY: un distribuidor lo renombra a CEDIS en un clic. */
-  it("en inglés nace «Main Warehouse»", async () => {
+  it("en inglés nace «Main Store»", async () => {
     const { token } = await registrar("en");
 
     const almacenes = await request(app.getHttpServer())
       .get("/warehouses")
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
-    expect((almacenes.body as { name: string }[])[0]?.name).toBe("Main Warehouse");
+    expect((almacenes.body as { name: string }[])[0]?.name).toBe("Main Store");
   });
 
   /** Y se puede renombrar: el nombre inicial es una sugerencia, no una ley. */

@@ -99,7 +99,7 @@ describe("«Configuración del ticket» en Mi perfil (F4-TICKETCFG-08)", () => {
     expect(screen.getByLabelText("RFC")).not.toBeChecked();
     expect(screen.getByLabelText("Dirección")).toBeChecked();
     expect(screen.getByLabelText("Teléfono")).toBeChecked();
-    expect(screen.getByLabelText("Nombre del almacén")).toBeChecked();
+    expect(screen.getByLabelText("Nombre de la sucursal")).toBeChecked();
     expect(screen.getByLabelText("Mensaje del pie")).toHaveValue("Vuelva pronto");
   });
 

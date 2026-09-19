@@ -16,9 +16,9 @@
     "expired": "Caducado",
     "physical_count": "Inventario físico"
   },
-  "warehouse": "Almacén",
-  "origin": "Almacén origen",
-  "destination": "Almacén destino",
+  "warehouse": "Sucursal",
+  "origin": "Sucursal origen",
+  "destination": "Sucursal destino",
   "reasonLabel": "Motivo",
   "date": "Fecha",
   "openedAt": "Capturado",

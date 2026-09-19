@@ -11,7 +11,7 @@
   "supplier_not_found": "El proveedor no existe.",
   "product_not_found": "Uno de los productos de la orden no existe.",
   "presentation_invalid": "Esa presentación no es de ese producto o está desactivada.",
-  "warehouse_required": "No tienes un almacén asignado: elige en cuál se recibirá la orden.",
+  "warehouse_required": "No tienes una sucursal asignada: elige en cuál se recibirá la orden.",
   "needs_lines": "Agrega al menos un producto antes de emitir la orden.",
   "line_needs_cost": "Línea {line}: escribe el costo acordado; es contra lo que se cotejará la factura.",
   "not_closable": "Solo se cierra una orden emitida que todavía espera mercancía.",

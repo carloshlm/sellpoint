@@ -101,7 +101,7 @@ function botonEstado(nombre: string) {
  * el motivo no podía aparecer nunca: parecía un botón muerto. Ahora el
  * `title` avisa al hover y el 409 del server cuenta el mismo motivo al clic.
  */
-describe("Almacenes: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
+describe("Sucursales: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
@@ -125,7 +125,7 @@ describe("Almacenes: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
 
     await waitFor(() => expect(botonEstado("Central")).toBeEnabled());
     // Si los dos motivos dijeran lo mismo, el usuario no sabría qué hacer:
-    // vaciar el almacén no destraba un traspaso en camino.
+    // vaciar la sucursal no destraba un traspaso en camino.
     expect(botonEstado("Central").title).toContain("camino");
   });
 
@@ -172,17 +172,17 @@ describe("Almacenes: la guarda se ve antes del clic (F3-GUARDS-03)", () => {
 });
 
 /**
- * Eliminar un almacén (Carlos, 2026-08-25): solo uno que nunca operó. El 409
+ * Eliminar una sucursal (Carlos, 2026-08-25): solo una que nunca operó. El 409
  * del API (has_history) se muestra — la salida no destructiva es desactivar.
  */
-describe("Eliminar un almacén (2026-08-25)", () => {
+describe("Eliminar una sucursal (2026-08-25)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
     mockedApi.listWarehouses.mockResolvedValue([almacen({ id: "w1", name: "Central" })]);
   });
 
-  it("el primer clic PREGUNTA nombrando el almacén; nada viaja todavía", async () => {
+  it("el primer clic PREGUNTA nombrando la sucursal; nada viaja todavía", async () => {
     const user = userEvent.setup();
     await renderWarehouses();
     await screen.findByText("Central");
@@ -200,12 +200,12 @@ describe("Eliminar un almacén (2026-08-25)", () => {
     await screen.findByText("Central");
 
     await user.click(screen.getByRole("button", { name: "Eliminar" }));
-    await user.click(await screen.findByRole("button", { name: "Eliminar almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar sucursal" }));
 
     await waitFor(() => expect(mockedApi.deleteWarehouse.mock.calls[0]?.[0]).toBe("w1"));
     // El éxito se VE (Carlos, 2026-09-12): verde y con el foco.
     const aviso = await screen.findByTestId("warehouse-deleted");
-    expect(aviso).toHaveTextContent("Se eliminó el almacén «Central».");
+    expect(aviso).toHaveTextContent("Se eliminó la sucursal «Central».");
     expect(aviso).toHaveFocus();
   });
 
@@ -219,7 +219,7 @@ describe("Eliminar un almacén (2026-08-25)", () => {
     await screen.findByText("Central");
 
     await user.click(screen.getByRole("button", { name: "Eliminar" }));
-    await user.click(await screen.findByRole("button", { name: "Eliminar almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Eliminar sucursal" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("operaciones registradas");
     expect(screen.queryByTestId("delete-warehouse-dialog")).not.toBeInTheDocument();
@@ -232,10 +232,10 @@ describe("Eliminar un almacén (2026-08-25)", () => {
  * negocio), email, y el DynamicForm del catálogo de sistema "warehouses".
  */
 /**
- * Importar almacenes por Excel (Carlos, 2026-09-01): el mismo flujo de dos
+ * Importar sucursales por Excel (Carlos, 2026-09-01): el mismo flujo de dos
  * pasos de productos y servicios, con el diálogo común de la casa.
  */
-describe("importar almacenes (2026-09-01)", () => {
+describe("importar sucursales (2026-09-01)", () => {
   beforeEach(() => {
     mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
     mockedCatalogs.listFields.mockResolvedValue([]);
@@ -255,7 +255,7 @@ describe("importar almacenes (2026-09-01)", () => {
     });
     await renderWarehouses();
 
-    await user.click(await screen.findByRole("button", { name: "Importar almacenes" }));
+    await user.click(await screen.findByRole("button", { name: "Importar sucursales" }));
     await user.upload(
       screen.getByLabelText("Elegir archivo"),
       new File([new Uint8Array([0x50, 0x4b])], "almacenes.xlsx", {
@@ -283,12 +283,12 @@ describe("importar almacenes (2026-09-01)", () => {
       expect(mockedRun).toHaveBeenLastCalledWith(expect.objectContaining({ skipErrors: false })),
     );
     const listo = await screen.findByTestId("warehouse-import-done");
-    expect(listo).toHaveTextContent("2 almacenes");
+    expect(listo).toHaveTextContent("2 sucursales");
     expect(listo).toHaveFocus();
   });
 });
 
-describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
+describe("contacto y campos dinámicos de la sucursal (2026-08-26)", () => {
   beforeEach(() => {
     // vi.mock persiste llamadas entre tests: sin el reset, `calls[0]` del
     // tercer test apuntaba al payload del primero.
@@ -303,14 +303,14 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
     await renderWarehouses();
 
-    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Nueva sucursal" }));
 
     // El país del NEGOCIO preselecciona el dial, como en Datos del negocio.
     expect(screen.getByLabelText("Código de país")).toHaveValue("MX");
 
     // El código es obligatorio desde 2026-09-01: sin él, Guardar no enciende.
     await user.type(screen.getByLabelText("Código"), "SUC-01");
-    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Nombre de la sucursal"), "Sucursal");
     await user.type(screen.getByLabelText(/Teléfono/), "55 9988 7766");
     await user.type(screen.getByLabelText(/Email/), "sucursal@negocio.mx");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
@@ -338,8 +338,8 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     await renderWarehouses();
 
     expect(await screen.findByText("NORTE-01")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Nuevo almacén" }));
-    await user.type(screen.getByLabelText("Nombre del almacén"), "Sur");
+    await user.click(screen.getByRole("button", { name: "Nueva sucursal" }));
+    await user.type(screen.getByLabelText("Nombre de la sucursal"), "Sur");
     // Con nombre pero SIN código, Guardar sigue apagado.
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
 
@@ -373,7 +373,7 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     expect(screen.getByLabelText(/Email/)).toHaveValue("central@negocio.mx");
   });
 
-  it("pinta los campos dinámicos del catálogo de almacenes y los manda en attributes", async () => {
+  it("pinta los campos dinámicos del catálogo de sucursales y los manda en attributes", async () => {
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([]);
     mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
@@ -391,9 +391,9 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
     ] as catalogsApi.CatalogField[]);
     await renderWarehouses();
 
-    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Nueva sucursal" }));
     await user.type(screen.getByLabelText("Código"), "SUC-02");
-    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Nombre de la sucursal"), "Sucursal");
     // Un campo opcional lo DICE: la ausencia de asterisco era una
     // adivinanza (Carlos, 2026-09-12).
     await user.type(await screen.findByLabelText("Encargado (opcional)"), "Rosa");
@@ -406,12 +406,12 @@ describe("contacto y campos dinámicos del almacén (2026-08-26)", () => {
       });
     });
 
-    // Solo pide los campos del catálogo de ALMACENES, no el primero isSystem.
+    // Solo pide los campos del catálogo de SUCURSALES, no el primero isSystem.
     expect(mockedCatalogs.listFields).toHaveBeenCalledWith("cat-wh");
   });
 });
 
-describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
+describe("buscador de sucursales (Carlos, 2026-09-01)", () => {
   beforeEach(() => {
     mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
     mockedCatalogs.listFields.mockResolvedValue([]);
@@ -427,7 +427,7 @@ describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
     const user = userEvent.setup();
     expect(await screen.findByText("Almacén Norte")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/buscar almacén/i), "norte");
+    await user.type(screen.getByLabelText(/buscar sucursal/i), "norte");
 
     expect(screen.getByText("Almacén Norte")).toBeInTheDocument();
     expect(screen.queryByText("Almacén Central")).not.toBeInTheDocument();
@@ -437,7 +437,7 @@ describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
   it("también encuentra por código y por dirección", async () => {
     await renderWarehouses();
     const user = userEvent.setup();
-    const campo = await screen.findByLabelText(/buscar almacén/i);
+    const campo = await screen.findByLabelText(/buscar sucursal/i);
 
     await user.type(campo, "alm-003");
     expect(screen.getByText("Almacén Sur")).toBeInTheDocument();
@@ -449,10 +449,10 @@ describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
     expect(screen.queryByText("Almacén Sur")).not.toBeInTheDocument();
   });
 
-  it("sin coincidencias lo dice, sin confundirlo con «no hay almacenes»", async () => {
+  it("sin coincidencias lo dice, sin confundirlo con «no hay sucursales»", async () => {
     await renderWarehouses();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/buscar almacén/i), "zzz");
+    await user.type(await screen.findByLabelText(/buscar sucursal/i), "zzz");
 
     expect(screen.getByTestId("warehouses-no-matches")).toBeInTheDocument();
     expect(screen.queryByTestId("warehouses-empty")).not.toBeInTheDocument();
@@ -460,7 +460,7 @@ describe("buscador de almacenes (Carlos, 2026-09-01)", () => {
 });
 
 describe("el menú CATÁLOGOS (Carlos, 2026-09-01 y 2026-09-12)", () => {
-  it("Catálogos ordena Almacenes, Productos y Servicios; Campos y Subcatálogos van en Catálogos personalizados", async () => {
+  it("Catálogos ordena Sucursales, Productos y Servicios; Campos y Subcatálogos van en Catálogos personalizados", async () => {
     mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
     mockedCatalogs.listFields.mockResolvedValue([]);
     mockedApi.listWarehouses.mockResolvedValue([almacen({})]);
@@ -477,7 +477,7 @@ describe("el menú CATÁLOGOS (Carlos, 2026-09-01 y 2026-09-12)", () => {
       .getAllByRole("link")
       .map((enlace) => enlace.textContent);
     // Sin `suppliers:read` (y sin Compras ni Gastos) Proveedores no aparece.
-    expect(enlaces).toEqual(["Almacenes", "Productos", "Servicios"]);
+    expect(enlaces).toEqual(["Sucursales", "Productos", "Servicios"]);
     const motor = screen.getByRole("group", { name: "Catálogos personalizados" });
     expect(
       within(motor)
@@ -488,11 +488,11 @@ describe("el menú CATÁLOGOS (Carlos, 2026-09-01 y 2026-09-12)", () => {
 });
 
 /**
- * F1-ADDR-08 — la dirección del almacén en los campos del país del NEGOCIO
- * (un almacén hereda `tenants.country`), opcional como siempre, y la tabla
+ * F1-ADDR-08 — la dirección de la sucursal en los campos del país del NEGOCIO
+ * (una sucursal hereda `tenants.country`), opcional como siempre, y la tabla
  * la muestra formateada.
  */
-describe("almacenes — dirección por país (F1-ADDR-08)", () => {
+describe("sucursales — dirección por país (F1-ADDR-08)", () => {
   beforeEach(() => {
     mockedCatalogs.listCatalogs.mockResolvedValue(CATALOGOS_SISTEMA);
     mockedCatalogs.listFields.mockResolvedValue([]);
@@ -504,10 +504,10 @@ describe("almacenes — dirección por país (F1-ADDR-08)", () => {
     mockedApi.listWarehouses.mockResolvedValue([]);
     mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
     await renderWarehouses();
-    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Nueva sucursal" }));
 
     await user.type(screen.getByLabelText("Código"), "SUC-01");
-    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Nombre de la sucursal"), "Sucursal");
     await user.type(screen.getByLabelText("Calle y número"), "Av. Juárez 10");
     await user.type(screen.getByLabelText("Colonia"), "Centro");
     await user.type(screen.getByLabelText("Código postal"), " 44100 ");
@@ -531,10 +531,10 @@ describe("almacenes — dirección por país (F1-ADDR-08)", () => {
     mockedApi.listWarehouses.mockResolvedValue([]);
     mockedApi.createWarehouse.mockResolvedValue(almacen({ name: "Sucursal" }));
     await renderWarehouses();
-    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Nueva sucursal" }));
 
     await user.type(screen.getByLabelText("Código"), "SUC-01");
-    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Nombre de la sucursal"), "Sucursal");
     await user.type(screen.getByLabelText("Calle y número"), "Av. Juárez 10");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
@@ -550,10 +550,10 @@ describe("almacenes — dirección por país (F1-ADDR-08)", () => {
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([]);
     await renderWarehouses();
-    await user.click(await screen.findByRole("button", { name: "Nuevo almacén" }));
+    await user.click(await screen.findByRole("button", { name: "Nueva sucursal" }));
 
     await user.type(screen.getByLabelText("Código"), "SUC-01");
-    await user.type(screen.getByLabelText("Nombre del almacén"), "Sucursal");
+    await user.type(screen.getByLabelText("Nombre de la sucursal"), "Sucursal");
     await user.type(screen.getByLabelText("Código postal"), "4410");
 
     expect(

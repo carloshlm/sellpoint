@@ -132,7 +132,7 @@ describe("Datos del negocio en Mi perfil (2026-08-25)", () => {
       expect(screen.getAllByRole("checkbox").map((c) => c.getAttribute("aria-label"))).toEqual([
         "Vender sin existencias",
         "Mostrar existencias en el punto de venta",
-        "Usar ubicaciones de almacén",
+        "Usar ubicaciones de sucursal",
       ]);
     });
 

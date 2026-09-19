@@ -21,7 +21,7 @@
   "order_already_charged": "Esa orden ya se cobró en caja. Lo que hay que anular es la venta.",
   "order_already_canceled": "Esa orden ya está cancelada.",
   "order_needs_lines": "La orden necesita al menos una línea.",
-  "no_default_warehouse": "No tienes un almacén asignado. Pídele a un administrador que te asigne uno.",
+  "no_default_warehouse": "No tienes una sucursal asignada. Pídele a un administrador que te asigne una.",
   "study_not_available": "Uno de los estudios ya no está disponible.",
   "import_too_large": "El archivo supera el límite de 2 MB",
   "import_unreadable": "No se pudo leer el archivo. ¿Es un Excel válido?",

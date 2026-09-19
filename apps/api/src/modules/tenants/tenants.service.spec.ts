@@ -193,7 +193,7 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
     await service.provision(baseInput);
 
     expect(tx.warehouse.create).toHaveBeenCalledWith({
-      data: { tenantId: "tenant-1", code: "ALM-001", name: "Almacén Central" },
+      data: { tenantId: "tenant-1", code: "ALM-001", name: "Sucursal Principal" },
     });
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
@@ -202,13 +202,13 @@ describe("TenantsService.provision (f1-auth design §4)", () => {
   });
 
   /** El nombre sale del idioma del owner. Neutro por LEY en los dos. */
-  it("en inglés el almacén inicial se llama «Main Warehouse»", async () => {
+  it("en inglés el almacén inicial se llama «Main Store»", async () => {
     const { service, tx } = buildService();
 
     await service.provision({ ...baseInput, locale: "en" });
 
     expect(tx.warehouse.create).toHaveBeenCalledWith({
-      data: { tenantId: "tenant-1", code: "ALM-001", name: "Main Warehouse" },
+      data: { tenantId: "tenant-1", code: "ALM-001", name: "Main Store" },
     });
   });
 

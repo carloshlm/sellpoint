@@ -121,8 +121,8 @@ export class WarehousesImportService {
             ],
           ];
     return serializeSpreadsheet([localizeHeaders(header, locale), ...body], "xlsx", {
-      sheetName: spreadsheetSheetName("Almacenes", locale),
-      filenameBase: spreadsheetFilenameBase("almacenes", locale),
+      sheetName: spreadsheetSheetName("Sucursales", locale),
+      filenameBase: spreadsheetFilenameBase("sucursales", locale),
     });
   }
 

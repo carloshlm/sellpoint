@@ -232,7 +232,7 @@ describe("Kardex (F3-KARDEX-01)", () => {
           "Motivo",
           "Lote",
           "Ubicación",
-          "Almacén",
+          "Sucursal",
           "Unidad",
           "Solo enteros",
           "Cantidad",

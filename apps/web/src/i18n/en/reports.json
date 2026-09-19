@@ -3,12 +3,12 @@
     "title": "Reports",
     "downloadFailed": "We couldn't generate the file. Please try again.",
     "stock": {
-      "title": "Stock by warehouse",
+      "title": "Stock by store",
       "detail": "Valued inventory, with detail by lot and location."
     },
     "sales": {
       "title": "Sales",
-      "detail": "Sales for the period by seller, warehouse and payment method."
+      "detail": "Sales for the period by seller, store and payment method."
     },
     "kardex": {
       "title": "Ledger",
@@ -20,11 +20,11 @@
     },
     "users": {
       "title": "Users",
-      "detail": "Who has access, with which role and to which warehouses."
+      "detail": "Who has access, with which role and to which stores."
     },
     "warehouses": {
-      "title": "Warehouses",
-      "detail": "Your warehouses and how many products each one holds."
+      "title": "Stores",
+      "detail": "Your stores and how many products each one holds."
     },
     "expiring": {
       "title": "Expiring",
@@ -32,7 +32,7 @@
     },
     "inTransit": {
       "title": "In transit",
-      "detail": "Goods that left a warehouse and haven't arrived yet."
+      "detail": "Goods that left a store and haven't arrived yet."
     },
     "shifts": {
       "title": "Shift closes",
@@ -51,7 +51,7 @@
     "seller": "Sold by",
     "status": "Status",
     "total": "Total",
-    "warehouse": "Warehouse"
+    "warehouse": "Store"
   },
   "stock": {
     "avgCost": "Average cost",
@@ -65,7 +65,7 @@
     "quantity": "Quantity",
     "value": "Value",
     "valueNet": "Value (before tax)",
-    "warehouse": "Warehouse"
+    "warehouse": "Store"
   },
   "table": {
     "empty": "There is no data to show with these filters.",
@@ -78,7 +78,7 @@
     "title": "Shift closes",
     "closedAt": "Closed",
     "openedAt": "Opened",
-    "warehouse": "Warehouse",
+    "warehouse": "Store",
     "closedBy": "Closed by",
     "openedBy": "Opened by",
     "employee": "Employee",
@@ -106,7 +106,7 @@
   },
   "taxes": {
     "title": "Taxes collected",
-    "warehouse": "Warehouse",
+    "warehouse": "Store",
     "tax": "Tax",
     "rate": "Rate",
     "base": "Base",

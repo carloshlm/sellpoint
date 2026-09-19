@@ -7,8 +7,8 @@
   },
   "session": {
     "openTitle": "Open shift",
-    "openHint": "Pick the warehouse you'll sell from. If you have one assigned, it's already set.",
-    "warehouse": "Warehouse",
+    "openHint": "Pick the store you'll sell from. If you have one assigned, it's already set.",
+    "warehouse": "Store",
     "open": "Open shift",
     "openSince": "Shift open since {{time}}",
     "openFailed": "We couldn't open the shift.",
@@ -43,8 +43,8 @@
     "hideNumpad": "Hide keypad",
     "integersOnly": "This presentation only takes whole numbers.",
     "maxDecimals": "Up to four decimals.",
-    "noResults": "We found nothing sellable from this warehouse.",
-    "outOfStock": "More than what's in this warehouse",
+    "noResults": "We found nothing sellable from this store.",
+    "outOfStock": "More than what's in this store",
     "presentation": "Presentation",
     "quantity": "Quantity",
     "rejectedLine": "The server rejected this line",
@@ -87,9 +87,9 @@
       "loaded": "Already loaded into a sale",
       "open": "Open"
     },
-    "unavailable": "No longer sold from this warehouse",
-    "warehouse": "Warehouse",
-    "warehouseHint": "Prices and availability are calculated from this warehouse. Quoting needs no open shift."
+    "unavailable": "No longer sold from this store",
+    "warehouse": "Store",
+    "warehouseHint": "Prices and availability are calculated from this store. Quoting needs no open shift."
   },
   "checkout": {
     "change": "Change",
@@ -106,7 +106,7 @@
     "all": "All",
     "barcode": "Barcode",
     "cancel": "Cancel",
-    "cancelBody": "Sale {{folio}} gets reversed: the stock returns to the warehouse and the opposite movement stays in the ledger. Nothing is deleted — it can be audited later.",
+    "cancelBody": "Sale {{folio}} gets reversed: the stock returns to the store and the opposite movement stays in the ledger. Nothing is deleted — it can be audited later.",
     "cancelFailed": "We couldn't cancel the sale.",
     "cancelConfirm": "Cancel the sale",
     "cancelTitle": "Cancel sale {{folio}}",

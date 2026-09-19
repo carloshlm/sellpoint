@@ -11,7 +11,7 @@ const ENCABEZADOS: Record<Locale, string[]> = {
   es: [
     "Apertura",
     "Cierre",
-    "Almacén",
+    "Sucursal",
     "Abrió",
     "Cerró",
     "Efectivo",
@@ -27,7 +27,7 @@ const ENCABEZADOS: Record<Locale, string[]> = {
   en: [
     "Opened",
     "Closed",
-    "Warehouse",
+    "Store",
     "Opened by",
     "Closed by",
     "Cash",

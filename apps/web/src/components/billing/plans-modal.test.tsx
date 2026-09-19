@@ -217,7 +217,7 @@ describe("el listado de lo que incluye cada plan", () => {
         "✓Gastos",
         "—Control de inventario",
         "—Entradas, salidas y kardex",
-        "—Traspasos entre almacenes",
+        "—Traspasos entre sucursales",
         "—Cotizaciones",
         "—Productos compuestos: recetas y kits",
         "—Compras",
@@ -275,18 +275,18 @@ describe("el listado de lo que incluye cada plan", () => {
     expect(basic).toHaveTextContent(/Vende aunque no tengas existencias/);
   });
 
-  it("los límites de usuarios y almacenes se leen en palabras", async () => {
+  it("los límites de usuarios y sucursales se leen en palabras", async () => {
     renderModal();
 
     const basic = await screen.findByTestId("plan-basic");
     expect(basic).toHaveTextContent("3 usuarios");
-    expect(basic).toHaveTextContent("1 almacén");
+    expect(basic).toHaveTextContent("1 sucursal");
     // ⚠ El texto COMPLETO, no una subcadena: la versión anterior afirmaba
     // /Sin límite/ y pasaba mientras la pantalla decía «Sin límite · 2
     // usuarios». Lo cazó una captura de Playwright, no la suite.
     const premium = screen.getByTestId("plan-premium");
     expect(premium).toHaveTextContent("Usuarios ilimitados");
-    expect(premium).toHaveTextContent("Almacenes ilimitados");
+    expect(premium).toHaveTextContent("Sucursales ilimitadas");
     expect(premium).not.toHaveTextContent("2 usuarios");
   });
 

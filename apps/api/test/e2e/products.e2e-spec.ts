@@ -1383,7 +1383,7 @@ describe("Productos, presentaciones y composición (F2-PROD/PRESENT/BOM)", () =>
       expect(rechazo.body).toMatchObject({ code: "products.stock_in_warehouses" });
       // El TEXTO, no solo el código: sin `args` el mensaje mostraría la llave
       // "{count}" cruda y un aserto por `code` no lo delataría.
-      expect((rechazo.body as { message: string }).message).toContain("1 almacén");
+      expect((rechazo.body as { message: string }).message).toContain("1 sucursal");
       expect((rechazo.body as { message: string }).message).not.toContain("{");
       // El dato, no solo el texto: sin saber DÓNDE está, el usuario no sabe
       // qué salida capturar para poder desactivarlo.

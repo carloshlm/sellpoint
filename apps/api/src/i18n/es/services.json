@@ -5,7 +5,7 @@
   "invalid_body": "El cuerpo de la importación no es válido",
   "invalid_query": "Los filtros de búsqueda no son válidos.",
   "not_found": "El servicio no existe.",
-  "warehouses_invalid": "Alguno de los almacenes no existe, no es tuyo o está desactivado.",
+  "warehouses_invalid": "Alguna de las sucursales no existe, no es tuya o está desactivada.",
   "invalid_attributes": "Revisa los campos marcados.",
   "catalog_missing": "Este negocio no tiene catálogo de servicios. Contacta a soporte.",
   "import_too_large": "El archivo supera el límite de 2 MB",

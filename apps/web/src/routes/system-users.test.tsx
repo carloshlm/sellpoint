@@ -707,7 +707,7 @@ describe("/system/users", () => {
 
   /**
    * F3-NAV-03 (CU-SYS-04) — deuda de F2-SCOPE-03: el API existe desde F2 y
-   * la cara nunca se construyó, así que "el Encargado solo ve su almacén" no
+   * la cara nunca se construyó, así que "el Encargado solo ve su sucursal" no
    * se podía configurar desde la app.
    *
    * Los estados salen de DATOS (permisos de los roles marcados, filas del
@@ -729,13 +729,13 @@ describe("/system/users", () => {
   }
 
   /**
-   * F3-HOME-02 — el almacén ASIGNADO, distinto del alcance.
+   * F3-HOME-02 — la sucursal ASIGNADA, distinta del alcance.
    *
    * Alcance = dónde PUEDE operar (una lista, vacío = todos).
    * Asignado = desde dónde opera POR DEFECTO (uno solo). El POS de F4 no puede
-   * vender desde una lista: necesita un almacén concreto.
+   * vender desde una lista: necesita una sucursal concreta.
    */
-  describe("Almacén asignado en el form de usuario (F3-HOME-02)", () => {
+  describe("Sucursal asignada en el form de usuario (F3-HOME-02)", () => {
     it("viaja en el ALTA, a diferencia del alcance", async () => {
       const user = userEvent.setup();
       useAuthStore
@@ -750,7 +750,7 @@ describe("/system/users", () => {
       await user.type(screen.getByLabelText("Nombre"), "Nuevo");
       await user.type(screen.getByLabelText("Apellido paterno"), "Usuario");
       await user.click(screen.getByRole("checkbox", { name: "Cajero" }));
-      await user.selectOptions(screen.getByLabelText("Almacén asignado"), "w2");
+      await user.selectOptions(screen.getByLabelText("Sucursal asignada"), "w2");
       await user.click(screen.getByRole("button", { name: "Crear usuario" }));
 
       // Es una COLUMNA, no otro recurso: entra en el mismo POST y no hay
@@ -769,7 +769,7 @@ describe("/system/users", () => {
       const user = userEvent.setup();
       await abrirEdicionDe(user, "Ana García");
 
-      const select = await screen.findByLabelText("Almacén asignado");
+      const select = await screen.findByLabelText("Sucursal asignada");
       expect(
         within(select as HTMLElement).getByRole("option", { name: "Sin asignar" }),
       ).toBeInTheDocument();
@@ -781,7 +781,7 @@ describe("/system/users", () => {
       mockedApi.updateUser.mockResolvedValue(USERS[0] as rbacApi.UserDetail);
       await abrirEdicionDe(user, "Ana García");
 
-      await user.selectOptions(await screen.findByLabelText("Almacén asignado"), "w1");
+      await user.selectOptions(await screen.findByLabelText("Sucursal asignada"), "w1");
       await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
       await waitFor(() =>
@@ -793,16 +793,16 @@ describe("/system/users", () => {
     });
 
     /**
-     * La regla que cose las dos cosas: con alcance marcado, un almacén fuera de
-     * él no se puede asignar — el API lo rechaza con 409 y la UI no debería
+     * La regla que cose las dos cosas: con alcance marcado, una sucursal fuera
+     * de él no se puede asignar — el API lo rechaza con 409 y la UI no debería
      * dejar llegar hasta ahí.
      */
-    it("con alcance marcado, los almacenes fuera de él no se pueden asignar", async () => {
+    it("con alcance marcado, las sucursales fuera de él no se pueden asignar", async () => {
       const user = userEvent.setup();
       mockedApi.getWarehouseScope.mockResolvedValue(["w1"]);
       await abrirEdicionDe(user, "Ana García");
 
-      const select = (await screen.findByLabelText("Almacén asignado")) as HTMLSelectElement;
+      const select = (await screen.findByLabelText("Sucursal asignada")) as HTMLSelectElement;
       const fuera = within(select).getByRole("option", {
         name: "Bodega Norte",
       }) as HTMLOptionElement;
@@ -813,8 +813,8 @@ describe("/system/users", () => {
     });
   });
 
-  describe("Alcance por almacén en el form de usuario (F3-NAV-03)", () => {
-    it("lista un checkbox por almacén, marcando los que el usuario ya tiene", async () => {
+  describe("Alcance por sucursal en el form de usuario (F3-NAV-03)", () => {
+    it("lista un checkbox por sucursal, marcando los que el usuario ya tiene", async () => {
       const user = userEvent.setup();
       mockedApi.getWarehouseScope.mockResolvedValue(["w2"]);
 

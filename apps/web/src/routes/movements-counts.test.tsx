@@ -152,7 +152,7 @@ afterEach(() => {
 });
 
 describe("Inventario físico: captura (F3-COUNT-04)", () => {
-  it("la plantilla se pide para el almacén del documento", async () => {
+  it("la plantilla se pide para la sucursal del documento", async () => {
     mocked.downloadCountTemplate.mockResolvedValue(undefined);
     const { user } = await renderCount();
     await screen.findByText("INV-000007");

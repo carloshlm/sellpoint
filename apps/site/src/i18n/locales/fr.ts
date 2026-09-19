@@ -10,7 +10,7 @@ export const fr: Messages = {
   meta: {
     title: "SellPointy — Point de vente, stocks et achats au même endroit",
     description:
-      "Le point de vente avec une vraie gestion des stocks — lots, dates de péremption et plusieurs entrepôts — sans le prix d'un système d'entreprise. 14 jours d'essai, sans carte bancaire.",
+      "Le point de vente avec une vraie gestion des stocks — lots, dates de péremption et plusieurs succursales — sans le prix d'un système d'entreprise. 14 jours d'essai, sans carte bancaire.",
   },
   a11y: {
     skipToContent: "Aller au contenu",
@@ -65,7 +65,7 @@ export const fr: Messages = {
       },
       track: {
         title: "Contrôlez",
-        text: "Entrées, sorties, transferts et inventaires physiques. L'historique de chaque produit, dans tous vos entrepôts.",
+        text: "Entrées, sorties, transferts et inventaires physiques. L'historique de chaque produit, dans toutes vos succursales.",
       },
       buy: {
         title: "Achetez",
@@ -175,8 +175,8 @@ export const fr: Messages = {
     lead: "Pendant les 14 premiers jours, vous profitez de tout le forfait Plus. Ensuite, vous choisissez.",
     recommended: "Recommandé",
     users: "{count} utilisateurs",
-    warehouseOne: "{count} entrepôt",
-    warehouseMany: "{count} entrepôts",
+    warehouseOne: "{count} succursale",
+    warehouseMany: "{count} succursales",
     cards: {
       basic: {
         tagline: "Pour encaisser avec méthode",
@@ -196,7 +196,7 @@ export const fr: Messages = {
       },
     },
     premium: {
-      text: "Besoin d'une solution sur mesure\u202f? Des modules conçus pour votre activité, avec utilisateurs et entrepôts illimités.",
+      text: "Besoin d'une solution sur mesure\u202f? Des modules conçus pour votre activité, avec utilisateurs et succursales illimités.",
       cta: "Écrivez-nous",
     },
     // La línea de honestidad (§8.4), a la vista y no escondida en las
@@ -222,7 +222,7 @@ export const fr: Messages = {
       expenses: "Dépenses",
       stockControl: "Gestion des stocks",
       movements: "Entrées, sorties et historique",
-      transfers: "Transferts entre entrepôts",
+      transfers: "Transferts entre succursales",
       quotes: "Devis",
       compositions: "Produits composés\u00a0: recettes et kits",
       purchases: "Achats",

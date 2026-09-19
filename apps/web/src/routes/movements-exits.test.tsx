@@ -199,14 +199,14 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
   });
 
   describe("el traspaso es esta misma salida con destino", () => {
-    it("elegir traspaso muestra el almacén destino y EXCLUYE el origen", async () => {
+    it("elegir traspaso muestra la sucursal destino y EXCLUYE el origen", async () => {
       mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "transfer" }));
       await renderDoc();
 
       // Mientras carga, el destino ya es un desplegable deshabilitado con su id
       // (2026-09-14): se espera a que lleguen las opciones REALES antes de leerlas.
       await screen.findByRole("option", { name: "Bodega Norte" });
-      const destino = screen.getByLabelText(/almacén destino/i);
+      const destino = screen.getByLabelText(/sucursal destino/i);
       const opciones = within(destino)
         .getAllByRole("option")
         .map((o) => o.textContent);
@@ -232,8 +232,8 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
 
       // Se elige cuando el destino ya cargó: el desplegable de carga está
       // deshabilitado y no tiene la opción (2026-09-14).
-      await waitFor(() => expect(screen.getByLabelText(/almacén destino/i)).toBeEnabled());
-      await user.selectOptions(screen.getByLabelText(/almacén destino/i), "w2");
+      await waitFor(() => expect(screen.getByLabelText(/sucursal destino/i)).toBeEnabled());
+      await user.selectOptions(screen.getByLabelText(/sucursal destino/i), "w2");
 
       await waitFor(() => {
         expect(mocked.updateDocumentHeader).toHaveBeenCalledWith(
@@ -247,7 +247,7 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
       mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "transfer" }));
       await renderDoc();
 
-      await screen.findByLabelText(/almacén destino/i);
+      await screen.findByLabelText(/sucursal destino/i);
       expect(screen.getByRole("button", { name: /^confirmar$/i })).toBeDisabled();
     });
 
@@ -280,12 +280,12 @@ describe("La cara de salida del documento (F3-EXIT-02)", () => {
      * null aunque el campo esté ahí. La primera versión de este test pasaba
      * con el destino renderizado SIEMPRE — no tenía dientes.
      */
-    it("una merma no muestra almacén destino", async () => {
+    it("una merma no muestra sucursal destino", async () => {
       mocked.getDocument.mockResolvedValue(detalle({ reasonCode: "loss" }));
       await renderDoc();
 
       await screen.findByLabelText(/nota/i);
-      expect(screen.queryByText(/almacén destino/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/sucursal destino/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/en tránsito/i)).not.toBeInTheDocument();
     });
   });

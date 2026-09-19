@@ -33,7 +33,7 @@
   },
   "system": {
     "products": "Product catalog",
-    "warehouses": "Warehouse catalog",
+    "warehouses": "Store catalog",
     "services": "Service catalog",
     "suppliers": "Supplier catalog"
   },

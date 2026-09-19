@@ -16,7 +16,7 @@ import * as warehousesApi from "../lib/warehouses/api";
 import { routeTree } from "../routeTree.gen";
 
 /**
- * El wizard de 3 pasos (Carlos, 2026-08-25): negocio → almacén → tema. Los
+ * El wizard de 3 pasos (Carlos, 2026-08-25): negocio → sucursal → tema. Los
  * pasos de campos del catálogo y de invitar al equipo se quitaron para
  * agilizar el registro. Mismo arnés que `system-users.test.tsx`: routeTree
  * REAL, `createQueryClient()` (nunca `new QueryClient()`), API mockeada.
@@ -83,8 +83,8 @@ describe("/onboarding", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
-    // El piso del paso 2 depende de si ya hay almacenes. Default "ya tiene
-    // uno" para que los tests de otros pasos no caigan al 2.
+    // El piso del paso 2 depende de si ya hay sucursales. Default "ya tiene
+    // una" para que los tests de otros pasos no caigan al 2.
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([
       buildWarehouse({ id: "w-1", code: "ALM-w-1" }),
     ]);
@@ -132,7 +132,7 @@ describe("/onboarding", () => {
   });
 
   // W1 (verify-report #357): entrar a /onboarding SIN `?step=` retoma en el
-  // paso DERIVADO del tenant, no fijo en 1. Con negocio completo y almacén
+  // paso DERIVADO del tenant, no fijo en 1. Con negocio completo y sucursal
   // existente, el piso es el paso 3 (tema).
   it("W1: entrar a /onboarding SIN ?step= retoma en el paso derivado del tenant (no fijo en 1)", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
@@ -303,7 +303,7 @@ describe("/onboarding", () => {
     expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
   });
 
-  it("con negocio completo y SIN almacén, renderiza el paso 2 (tu almacén)", async () => {
+  it("con negocio completo y SIN sucursal, renderiza el paso 2 (tu sucursal)", async () => {
     useAuthStore.getState().setAuth("jwt-demo", demoUser(tenantWithBusinessDone()));
     vi.mocked(warehousesApi.listWarehouses).mockResolvedValue([]);
 

@@ -161,7 +161,7 @@ describe("Turno de caja (F4-CASHBOX-01)", () => {
 
       const res = await abrir(token).expect(404);
 
-      expect((res.body as { message: string }).message).toContain("almacén asignado");
+      expect((res.body as { message: string }).message).toContain("sucursal asignada");
     });
 
     /**

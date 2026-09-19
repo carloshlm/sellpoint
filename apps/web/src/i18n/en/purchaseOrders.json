@@ -19,7 +19,7 @@
       "supplier": "Supplier",
       "total": "Expected total",
       "status": "Status",
-      "warehouse": "Warehouse"
+      "warehouse": "Store"
     },
     "summary": {
       "count": "{{count}} order",
@@ -51,10 +51,10 @@
     "expectedDate": "Expected delivery",
     "create": "Create draft",
     "supplierRequired": "Choose the order's supplier.",
-    "warehouse": "Warehouse",
+    "warehouse": "Store",
     "warehouseHint": "Where the goods will be received.",
-    "warehouseRequired": "Choose the warehouse that will receive the order.",
-    "warehouseEmpty": "You have no warehouses available. Ask an administrator to give you access to one."
+    "warehouseRequired": "Choose the store that will receive the order.",
+    "warehouseEmpty": "You have no stores available. Ask an administrator to give you access to one."
   },
   "detail": {
     "title": "Order {{folio}}",

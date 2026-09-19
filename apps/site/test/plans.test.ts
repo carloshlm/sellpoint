@@ -40,7 +40,7 @@ describe("tarjetas de plan (PLANS-02)", () => {
   );
 
   it.each([...ROUTES])(
-    "/%s/: cada tarjeta dice sus usuarios, sus almacenes y SOLO lo que su escalón agrega",
+    "/%s/: cada tarjeta dice sus usuarios, sus sucursales y SOLO lo que su escalón agrega",
     (route) => {
       const { plans } = getMessages(route);
       const section = plansOf(route);

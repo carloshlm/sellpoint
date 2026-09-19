@@ -171,7 +171,7 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     ]);
   });
 
-  describe("stock por almacén (F5-STK-04)", () => {
+  describe("stock por sucursal (F5-STK-04)", () => {
     it("muestra el stock con su costo y su valor", async () => {
       await renderRuta("/reports/stock");
 
@@ -194,12 +194,12 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       expect(screen.queryByText("↑")).not.toBeInTheDocument();
     });
 
-    it("filtrar por almacén viaja al API", async () => {
+    it("filtrar por sucursal viaja al API", async () => {
       await renderRuta("/reports/stock");
       await screen.findByText("Café");
       const user = userEvent.setup();
 
-      await user.selectOptions(screen.getByLabelText(/almacén/i), "w2");
+      await user.selectOptions(screen.getByLabelText(/sucursal/i), "w2");
 
       await waitFor(() =>
         expect(mocked.getStockReport).toHaveBeenLastCalledWith(
@@ -267,7 +267,7 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
       await screen.findByText("Café");
       const user = userEvent.setup();
 
-      await user.selectOptions(screen.getByLabelText(/almacén/i), "w2");
+      await user.selectOptions(screen.getByLabelText(/sucursal/i), "w2");
       await user.click(screen.getByRole("button", { name: /exportar/i }));
 
       await waitFor(() =>
@@ -386,12 +386,12 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
    * La diferencia se pinta en color y «Ver» despliega las ventas del turno.
    */
   describe("cierres de turno (F5-SHIFT-04)", () => {
-    it("lista cada turno con su almacén, quién cerró, lo contado, la diferencia y la nota", async () => {
+    it("lista cada turno con su sucursal, quién cerró, lo contado, la diferencia y la nota", async () => {
       await renderRuta("/reports/shifts");
 
       expect(await screen.findByText("Faltaron diez pesos")).toBeInTheDocument();
       expect(screen.getByText("Luis Cajero")).toBeInTheDocument();
-      // «Central» también es opción del selector de almacén: se mira la celda.
+      // «Central» también es opción del selector de sucursal: se mira la celda.
       expect(screen.getByRole("cell", { name: "Central" })).toBeInTheDocument();
       expect(screen.getByText(/\$90\.00/)).toBeInTheDocument();
     });
@@ -571,7 +571,7 @@ describe("Pantallas de reporte (F5-STK-04 / F5-SALES-03)", () => {
     it("stock y ventas son enlaces", async () => {
       await renderRuta("/reports");
 
-      expect(await screen.findByRole("link", { name: /stock por almacén/i })).toHaveAttribute(
+      expect(await screen.findByRole("link", { name: /stock por sucursal/i })).toHaveAttribute(
         "href",
         "/reports/stock",
       );

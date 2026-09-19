@@ -40,10 +40,10 @@
     "done": "Service \"{{name}}\" deleted."
   },
   "warehouses": {
-    "legend": "Warehouses where it's offered",
-    "column": "Warehouses",
+    "legend": "Stores where it's offered",
+    "column": "Stores",
     "hint": "Check where this service can be sold.",
-    "emptyHint": "With no warehouses checked, this service CAN'T be sold anywhere.",
+    "emptyHint": "With no stores checked, this service CAN'T be sold anywhere.",
     "selectAll": "Select all",
     "clearAll": "Clear all",
     "count": "{{count}} of {{total}}"

@@ -59,8 +59,8 @@ export const SUPPLIERS_CATALOG_NAME = "Catálogo de Proveedores";
  * sugerencia editable, no una referencia estable.
  */
 export const INITIAL_WAREHOUSE_NAME: Record<"es" | "en", string> = {
-  es: "Almacén Central",
-  en: "Main Warehouse",
+  es: "Sucursal Principal",
+  en: "Main Store",
 };
 
 // F1-WEB-ONBOARD-01 (D4 del design): configurar el negocio (razón social,

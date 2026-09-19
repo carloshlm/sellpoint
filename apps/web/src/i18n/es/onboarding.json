@@ -80,13 +80,13 @@
     "error": "No pudimos guardar los datos del negocio."
   },
   "step2": {
-    "title": "Tu almacén",
-    "subtitle": "Ya te creamos uno. Si tu negocio lo llama distinto, cámbiale el nombre.",
+    "title": "Tu sucursal",
+    "subtitle": "Ya te creamos una. Si tu negocio la llama distinto, cámbiale el nombre.",
     "continue": "Continuar",
     "error": "No pudimos avanzar. Intenta de nuevo.",
-    "name": "Nombre del almacén",
+    "name": "Nombre de la sucursal",
     "nameHint": "Por ejemplo: Central, Sucursal Norte, CEDIS.",
-    "existing": "Ya tienes el almacén «{{name}}»."
+    "existing": "Ya tienes la sucursal «{{name}}»."
   },
   "step3": {
     "title": "Elige un tema",

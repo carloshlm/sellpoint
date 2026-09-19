@@ -41,7 +41,7 @@ export class SalesExportService {
         "Código de barras",
         "Fecha",
         "Vendió",
-        "Almacén",
+        "Sucursal",
         "Estado",
         "Pago",
         // F4-TAX-21: neto e impuesto al lado del total, para que el archivo

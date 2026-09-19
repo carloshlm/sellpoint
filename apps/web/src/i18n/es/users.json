@@ -59,13 +59,13 @@
     "submitEdit": "Guardar cambios",
     "createSuccess": "Se invitó a {{email}}. Va a recibir un correo para activar su cuenta.",
     "editSuccess": "Los cambios se guardaron.",
-    "warehouseScope": "Alcance por almacén",
-    "warehouseScopeHint": "Marca los almacenes que este usuario puede operar.",
-    "warehouseScopeEmptyHint": "Sin almacenes marcados este usuario ve TODOS. Marca al menos uno para limitarlo.",
-    "warehouseScopeAdminHint": "Sus roles administran el negocio, así que ve todos los almacenes. Esta lista no se le aplica.",
-    "defaultWarehouse": "Almacén asignado",
+    "warehouseScope": "Alcance por sucursal",
+    "warehouseScopeHint": "Marca las sucursales que este usuario puede operar.",
+    "warehouseScopeEmptyHint": "Sin sucursales marcadas este usuario ve TODAS. Marca al menos una para limitarlo.",
+    "warehouseScopeAdminHint": "Sus roles administran el negocio, así que ve todas las sucursales. Esta lista no se le aplica.",
+    "defaultWarehouse": "Sucursal asignada",
     "defaultWarehouseNone": "Sin asignar",
-    "defaultWarehouseHint": "Desde dónde opera por defecto. Sin asignar, tendrá que elegir almacén en cada movimiento."
+    "defaultWarehouseHint": "Desde dónde opera por defecto. Sin asignar, tendrá que elegir sucursal en cada movimiento."
   },
   "roles": {
     "page": {

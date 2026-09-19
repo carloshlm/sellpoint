@@ -1301,14 +1301,14 @@ describe("el plan decide qué se ofrece del producto", () => {
     await abrirComo({ movements: false });
 
     await screen.findByRole("button", { name: "Información" });
-    expect(screen.queryByRole("button", { name: "Stock por almacén" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stock por sucursal" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Kardex" })).not.toBeInTheDocument();
   });
 
   it("con `movements`: las dos pestañas están", async () => {
     await abrirComo({ movements: true });
 
-    expect(await screen.findByRole("button", { name: "Stock por almacén" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Stock por sucursal" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Kardex" })).toBeInTheDocument();
   });
 });

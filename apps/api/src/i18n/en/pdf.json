@@ -16,9 +16,9 @@
     "expired": "Expired",
     "physical_count": "Physical count"
   },
-  "warehouse": "Warehouse",
-  "origin": "Origin warehouse",
-  "destination": "Destination warehouse",
+  "warehouse": "Store",
+  "origin": "Origin store",
+  "destination": "Destination store",
   "reasonLabel": "Reason",
   "date": "Date",
   "openedAt": "Opened",

@@ -12,7 +12,7 @@
   "lot_not_tracked": "Line {line}: this product isn't tracked by lot. Remove the lot and expiry, or turn on lot tracking on its catalog card.",
   "date_in_future": "{field}: the date can't be after today. A purchase is a document that already arrived.",
   "lot_expiry_mismatch": "Line {line}: lot “{lotCode}” already exists with a different expiry date. The expiry belongs to the lot: leave it empty and it fills in, or fix the lot code.",
-  "warehouse_required": "You have no assigned warehouse: choose where the purchase goes in.",
+  "warehouse_required": "You have no assigned store: choose where the purchase goes in.",
   "needs_lines": "Add at least one product before confirming the purchase.",
   "line_needs_quantity": "Line {line}: enter the quantity.",
   "line_needs_cost": "Line {line}: enter the cost; it's the one that will stay in the catalog.",

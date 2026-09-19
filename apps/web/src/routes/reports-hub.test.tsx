@@ -61,7 +61,7 @@ async function renderRuta(path: string, permissions: string[]) {
  *
  * Ocho tarjetas, tres comportamientos distintos:
  *  · Las que llevan a una PANTALLA (stock, ventas) navegan.
- *  · Las que son EXPORT DIRECTO (usuarios, almacenes, catálogo) descargan sin
+ *  · Las que son EXPORT DIRECTO (usuarios, sucursales, catálogo) descargan sin
  *    moverse: una tabla acá duplicaría listados que ya existen.
  *  · Las HEREDADAS de F3 (kardex, vencimientos, tránsito) enlazan a su
  *    pantalla, que ya existe y ya sabe filtrar.
@@ -95,11 +95,11 @@ describe("Hub de reportes (F5-HUB-02)", () => {
     await waitFor(() => expect(mocked.downloadUsersReport).toHaveBeenCalledTimes(1));
   });
 
-  it("la de almacenes y la de catálogo también", async () => {
+  it("la de sucursales y la de catálogo también", async () => {
     await renderRuta("/reports", ["reports:read"]);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: /almacenes/i }));
+    await user.click(await screen.findByRole("button", { name: /sucursales/i }));
     await user.click(screen.getByRole("button", { name: /catálogo/i }));
 
     await waitFor(() => {
@@ -116,7 +116,7 @@ describe("Hub de reportes (F5-HUB-02)", () => {
   it("stock y ventas llevan a su pantalla", async () => {
     await renderRuta("/reports", ["reports:read"]);
 
-    expect(await screen.findByRole("link", { name: /stock por almacén/i })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /stock por sucursal/i })).toHaveAttribute(
       "href",
       "/reports/stock",
     );

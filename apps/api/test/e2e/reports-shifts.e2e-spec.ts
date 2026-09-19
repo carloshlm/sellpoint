@@ -235,7 +235,7 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
       .split("\n");
     expect(lineas[0]).toBe(
       // F9-EXP-10: «Gastos en efectivo» antes de «Calculado» (el calculado ya los resta).
-      "Apertura,Cierre,Almacén,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
+      "Apertura,Cierre,Sucursal,Abrió,Cerró,Efectivo,Tarjeta,Transferencia,Ventas,Gastos en efectivo,Calculado,Contado,Diferencia,Nota",
     );
     // Central tiene DOS cierres: el del arqueo y el que abrió y cerró el caso de `status=open`.
     expect(lineas).toHaveLength(3);
@@ -268,7 +268,7 @@ describe("Reporte de cierres de turno (F5-SHIFT)", () => {
         .replace(/^\uFEFF/, "")
         .split("\n")[0],
     ).toBe(
-      "Opened,Closed,Warehouse,Opened by,Closed by,Cash,Card,Transfer,Sales,Cash expenses,Expected,Counted,Difference,Note",
+      "Opened,Closed,Store,Opened by,Closed by,Cash,Card,Transfer,Sales,Cash expenses,Expected,Counted,Difference,Note",
     );
     await request(app.getHttpServer())
       .patch("/me")

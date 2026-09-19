@@ -117,12 +117,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Compras — alta con almacén", () => {
-  it("con almacén asignado, el campo viene puesto con ÉL y la compra lo manda", async () => {
+describe("Compras — alta con sucursal", () => {
+  it("con sucursal asignada, el campo viene puesto con ELLA y la compra lo manda", async () => {
     await renderNueva("w2");
     const user = userEvent.setup();
 
-    const almacen = await screen.findByLabelText("Almacén");
+    const almacen = await screen.findByLabelText("Sucursal");
     await waitFor(() => expect(almacen).toHaveValue("w2"));
     expect(mockedAlmacenes.listWarehouses).toHaveBeenCalledWith({ scoped: true });
 
@@ -135,16 +135,18 @@ describe("Compras — alta con almacén", () => {
     );
   });
 
-  it("sin almacén asignado y con varios, pide elegir y NO manda nada hasta que se elige", async () => {
+  it("sin sucursal asignada y con varias, pide elegir y NO manda nada hasta que se elige", async () => {
     await renderNueva(null);
     const user = userEvent.setup();
 
-    const almacen = await screen.findByLabelText("Almacén");
+    const almacen = await screen.findByLabelText("Sucursal");
     expect(almacen).toHaveValue("");
 
     await elegirProveedor(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
-    expect(await screen.findByText("Elige el almacén al que entra la compra.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Elige la sucursal a la que entra la compra."),
+    ).toBeInTheDocument();
     expect(mocked.createPurchase).not.toHaveBeenCalled();
 
     await user.selectOptions(almacen, "w1");

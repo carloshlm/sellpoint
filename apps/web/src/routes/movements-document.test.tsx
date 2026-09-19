@@ -520,15 +520,15 @@ describe("Cabecera de una recepción de traspaso", () => {
     expect(screen.queryByLabelText(/motivo/i)).not.toBeInTheDocument();
   });
 
-  it("el otro almacén se llama ORIGEN, porque es de donde vino la mercancía", async () => {
+  it("la otra sucursal se llama ORIGEN, porque es de donde vino la mercancía", async () => {
     mocked.getDocument.mockResolvedValue(recepcion());
     await renderDoc();
 
-    expect(await screen.findByText("Almacén origen")).toBeInTheDocument();
-    expect(screen.queryByText("Almacén destino")).not.toBeInTheDocument();
+    expect(await screen.findByText("Sucursal origen")).toBeInTheDocument();
+    expect(screen.queryByText("Sucursal destino")).not.toBeInTheDocument();
   });
 
-  it("no se ofrece el selector de almacén: el traspaso ya lo fijó", async () => {
+  it("no se ofrece el selector de sucursal: el traspaso ya lo fijó", async () => {
     mocked.getDocument.mockResolvedValue(recepcion());
     await renderDoc();
 

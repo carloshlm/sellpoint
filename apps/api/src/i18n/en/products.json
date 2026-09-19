@@ -30,7 +30,7 @@
   "quick_duplicate_line": "This code is already on line {line}.",
   "quick_has_errors": "Check the highlighted lines. No product was created.",
   "sku_taken": "You already have a product with that code.",
-  "stock_in_warehouses": "Cannot deactivate: the product still has stock in {count} warehouse(s). Remove or adjust it to zero first.",
+  "stock_in_warehouses": "Cannot deactivate: the product still has stock in {count} store(s). Remove or adjust it to zero first.",
   "too_many_decimals": "Amounts allow at most 2 decimal places.",
   "unknown_unit": "That unit of measure doesn't exist."
 }

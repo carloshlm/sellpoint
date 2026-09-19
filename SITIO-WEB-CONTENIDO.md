@@ -41,7 +41,7 @@ dinero, y desconfía de «los sistemas» porque ya le vendieron uno que nadie us
 |---|---|---|---|
 | **México** | Libreta, Excel, la calculadora, o un punto de venta viejo instalado en una sola computadora | No saber cuánto tiene ni cuánto gana; las filas; la mercancía que se echa a perder | **«Vende, controla tu inventario y compra mejor desde una sola pantalla — sin instalar nada.»** |
 | **Estados Unidos** | Square o Clover, o nada | Pagar de más por funciones que no usa; un inventario que se queda corto; atender en español y en inglés | **“Point of sale and real inventory in one place — in English or Spanish, at a price a small shop can carry.”** |
-| **Canadá** | Square, Shopify POS, Lightspeed | El precio mensual; que el inventario serio (lotes, caducidades, varios almacenes) cueste un plan superior | **“The point of sale with serious inventory — lots, expiry dates and multiple warehouses — without the enterprise price.”** |
+| **Canadá** | Square, Shopify POS, Lightspeed | El precio mensual; que el inventario serio (lotes, caducidades, varias sucursales) cueste un plan superior | **“The point of sale with serious inventory — lots, expiry dates and multiple stores — without the enterprise price.”** |
 
 La frase de marca es la misma en todos: **«Tus ventas son el punto»** (se traduce
 en DEF-07 y DEF-08; el juego de palabras con «punto» no sobrevive tal cual al
@@ -147,7 +147,7 @@ SellPointy une lo que vendes con lo que tienes y lo que compras.
 | Verbo | Texto | Plan |
 |---|---|---|
 | **Vende** | Cobra con lector de códigos, pistola Bluetooth o la cámara de tu celular. Tickets con tu logo y turno de caja con arqueo, para cerrar el día sin sorpresas. | `[Todos]` |
-| **Controla** | Entradas, salidas, traspasos e inventario físico. El historial de cada producto, en todos tus almacenes. | `[Desde Pro]` |
+| **Controla** | Entradas, salidas, traspasos e inventario físico. El historial de cada producto, en todas tus sucursales. | `[Desde Pro]` |
 | **Compra** | Registra tus compras con su factura y mantén tus costos al día, para que el precio que pones deje la ganancia que esperas. | `[Desde Pro]` |
 | **Decide** | Reportes de ventas y gastos, listos para leer y para exportar. Sin armar nada a mano. | `[Todos]` |
 
@@ -160,7 +160,7 @@ SellPointy une lo que vendes con lo que tienes y lo que compras.
 | Cobra en *segundos*, no en filas. | Escaneas y el producto ya está en la cuenta. Nadie espera mientras buscas un precio. | `[Todos]` |
 | Da de alta tu catálogo en *una tarde*. | Escanea el código y SellPointy reconoce el producto y te sugiere su nombre; tú solo pones el precio. ¿Ya lo tienes en Excel? Súbelo de un jalón. | `[Todos]` |
 | Cierra la caja *sin sorpresas*. | Cada turno abre y cierra con su arqueo. Sabes quién cobró, cuánto y si cuadra. | `[Todos]` |
-| Sabe *cuánto tienes*, sin contar a mano. | Cada venta descuenta del almacén y cada compra lo repone. Tus existencias son un número, no una corazonada. | `[Desde Pro]` |
+| Sabe *cuánto tienes*, sin contar a mano. | Cada venta descuenta del inventario y cada compra lo repone. Tus existencias son un número, no una corazonada. | `[Desde Pro]` |
 | Que nada se te *caduque* en el anaquel. | Lotes con fecha y un aviso claro de lo que está por vencer, para venderlo a tiempo en lugar de tirarlo. | `[En Plus]` |
 | Tu negocio completo, *en tu bolsillo*. | Computadora, tablet o celular. Entras desde donde estés y ves lo mismo que en la caja. | `[Todos]` |
 
@@ -240,12 +240,12 @@ producto) y **Premium va como una franja aparte**, no como cuarta tarjeta.
 |---|---|---|---|
 | **Para** | Empezar a cobrar en orden | Controlar tu inventario | Operar en serio |
 | **Usuarios** | 3 | 6 | 20 |
-| **Almacenes** | 1 | 4 | 10 |
-| **Incluye** | Punto de venta y tickets · Turno de caja con arqueo · Ticket con tu logo · Reportes, con exportación · Gastos | **Todo lo de Basic, más:** Control de inventario · Entradas, salidas y kardex · Traspasos entre almacenes · Cotizaciones · Productos compuestos: recetas y kits · Compras | **Todo lo de Pro, más:** Órdenes de compra y recepciones parciales · Lotes y caducidades · Subcatálogos y campos propios · Roles personalizados |
+| **Sucursales** | 1 | 4 | 10 |
+| **Incluye** | Punto de venta y tickets · Turno de caja con arqueo · Ticket con tu logo · Reportes, con exportación · Gastos | **Todo lo de Basic, más:** Control de inventario · Entradas, salidas y kardex · Traspasos entre sucursales · Cotizaciones · Productos compuestos: recetas y kits · Compras | **Todo lo de Pro, más:** Órdenes de compra y recepciones parciales · Lotes y caducidades · Subcatálogos y campos propios · Roles personalizados |
 | **Botón** | Quiero Basic | Quiero Pro | Quiero Plus |
 
 **La franja de Premium:** «¿Tu negocio necesita algo a la medida? Módulos hechos
-para tu giro —recepción, consultorio médico y más—, con usuarios y almacenes sin
+para tu giro —recepción, consultorio médico y más—, con usuarios y sucursales sin
 límite. **Escríbenos.**»
 
 Debajo: **«Ver todo lo que incluye cada plan»** → la tabla completa con las 17
@@ -341,7 +341,7 @@ Documento **y** configuración: esta tabla es el archivo tipado del que salen la
 | Ticket con tu logo | Receipt with your logo |
 | Control de inventario | Inventory control |
 | Entradas, salidas y kardex | Entries, exits and stock ledger |
-| Traspasos entre almacenes | Transfers between warehouses |
+| Traspasos entre sucursales | Transfers between stores |
 | Cotizaciones | Quotes |
 | Productos compuestos: recetas y kits | Composite products: recipes and kits |
 | Lotes y caducidades | Lots and expiration dates |
@@ -413,7 +413,7 @@ connects what you sell with what you have and what you buy.
 | | Text | Plan |
 |---|---|---|
 | **Sell** | Ring up sales with a barcode scanner, a Bluetooth gun or your phone's camera. Receipts with your logo, and cash shifts with a till count so you close the day with no surprises. | `[All]` |
-| **Track** | Entries, exits, transfers and physical counts. The history of every product, across all your warehouses. | `[From Pro]` |
+| **Track** | Entries, exits, transfers and physical counts. The history of every product, across all your stores. | `[From Pro]` |
 | **Buy** | Record your purchases with their invoice and keep your costs current, so the price you set leaves the margin you expect. | `[From Pro]` |
 | **Decide** | Sales and expense reports, ready to read and ready to export. Nothing to build by hand. | `[All]` |
 
@@ -438,7 +438,7 @@ Basic: *Start ringing up sales the right way* · Pro: *Take control of your inve
 Plus: *Run a serious operation* · Buttons: *I want Basic / Pro / Plus* ·
 Under Basic: *Basic doesn't track stock. If you need to know what you have, Pro is your plan.*
 Premium strip: *Need something built for your business? Custom modules, with
-unlimited users and warehouses. **Get in touch.***
+unlimited users and stores. **Get in touch.***
 
 **Closing** — *Put an end to the mess.* Create your account, scan your first
 products and make your first sale today. Prefer to talk first? Drop us a line.
@@ -480,7 +480,7 @@ Buttons: *Start free · Contact us*
 - **Impuestos, que aquí son un argumento fuerte:** *“SellPointy sets up GST, HST
   or PST for your province when you sign up.”* `[verificado: hay valores sembrados
   para ON, BC, QC, NS, MB y AB]`
-- **La promesa de Canadá** (§1) se apoya en lotes, caducidades y varios almacenes:
+- **La promesa de Canadá** (§1) se apoya en lotes, caducidades y varias sucursales:
   en `/en-ca/` el beneficio de caducidades **sube al segundo lugar**.
 - La línea de confianza dice *“No credit card.”* igual, y los precios, cuando se
   prendan, van en **CAD** con el formato `$1,250.50`.
@@ -537,7 +537,7 @@ Buttons: *Start free · Contact us*
 | Turno de caja con arqueo | Session de caisse avec comptage |
 | Control de inventario | Gestion des stocks |
 | Entradas, salidas e historial | Entrées, sorties et historique |
-| Traspasos entre almacenes | Transferts entre entrepôts |
+| Traspasos entre sucursales | Transferts entre succursales |
 | Cotizaciones | Devis |
 | Productos compuestos: recetas y kits | Produits composés : recettes et kits |
 | Compras · Gastos · Proveedores | Achats · Dépenses · Fournisseurs |
@@ -587,7 +587,7 @@ SellPointy relie ce que vous vendez, ce que vous avez et ce que vous achetez.
 | | Texte | Forfait |
 |---|---|---|
 | **Vendez** | Encaissez avec un lecteur de codes-barres, un lecteur Bluetooth ou l'appareil photo de votre téléphone. Des reçus à votre logo et des sessions de caisse avec comptage, pour terminer la journée sans surprise. | `[Tous]` |
-| **Contrôlez** | Entrées, sorties, transferts et inventaires physiques. L'historique de chaque produit, dans tous vos entrepôts. | `[Dès Pro]` |
+| **Contrôlez** | Entrées, sorties, transferts et inventaires physiques. L'historique de chaque produit, dans toutes vos succursales. | `[Dès Pro]` |
 | **Achetez** | Enregistrez vos achats avec leur facture et gardez vos coûts à jour, pour que votre prix de vente laisse la marge que vous attendez. | `[Dès Pro]` |
 | **Décidez** | Des rapports de ventes et de dépenses, prêts à lire et à exporter. Rien à préparer à la main. | `[Tous]` |
 
@@ -616,7 +616,7 @@ Basic : *Pour encaisser avec méthode* · Pro : *Pour maîtriser vos stocks* · 
 Sous Basic : *Basic ne gère pas les stocks. Si vous avez besoin de savoir ce que
 vous avez, le forfait qu'il vous faut est Pro.* · Bande Premium : *Besoin d'une
 solution sur mesure ? Des modules conçus pour votre activité, avec utilisateurs et
-entrepôts illimités. **Écrivez-nous.***
+succursales illimités. **Écrivez-nous.***
 
 **Taxes** *(pregunta frecuente)* — *« Les taxes sont-elles déjà configurées ? » —
 « À la création de votre compte, SellPointy configure les taxes de votre province :

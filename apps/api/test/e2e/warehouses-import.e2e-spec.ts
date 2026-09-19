@@ -92,7 +92,7 @@ describe("Importación de almacenes (2026-09-01)", () => {
     const token = await ownerToken();
     const contenido = await xlsxBase64([
       ["codigo", "nombre", "direccion", "telefono", "email"],
-      // ALM-001 es el «Almacén Central» que el onboarding ya creó: actualiza.
+      // ALM-001 es la «Sucursal Principal» que el onboarding ya creó: actualiza.
       ["ALM-001", "Central renombrado", "Calle 1", "", ""],
       ["NORTE-01", "Bodega Norte", "Av. Norte 100", "+525512345678", "norte@negocio.mx"],
     ]);

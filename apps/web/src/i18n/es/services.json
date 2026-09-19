@@ -40,12 +40,12 @@
     "done": "Se eliminó el servicio «{{name}}»."
   },
   "warehouses": {
-    "legend": "Almacenes donde se ofrece",
-    "column": "Almacenes",
+    "legend": "Sucursales donde se ofrece",
+    "column": "Sucursales",
     "hint": "Marca dónde se puede vender este servicio.",
-    "emptyHint": "Sin almacenes marcados, este servicio NO se podrá vender en ninguno.",
-    "selectAll": "Seleccionar todos",
-    "clearAll": "Deseleccionar todos",
+    "emptyHint": "Sin sucursales marcadas, este servicio NO se podrá vender en ninguna.",
+    "selectAll": "Seleccionar todas",
+    "clearAll": "Deseleccionar todas",
     "count": "{{count}} de {{total}}"
   },
   "import": {

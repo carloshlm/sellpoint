@@ -3,12 +3,12 @@
     "title": "Reportes",
     "downloadFailed": "No pudimos generar el archivo. Vuelve a intentarlo.",
     "stock": {
-      "title": "Stock por almacén",
+      "title": "Stock por sucursal",
       "detail": "Existencias valorizadas, con detalle por lote y ubicación."
     },
     "sales": {
       "title": "Ventas",
-      "detail": "Ventas del período por vendedor, almacén y forma de pago."
+      "detail": "Ventas del período por vendedor, sucursal y forma de pago."
     },
     "kardex": {
       "title": "Kardex",
@@ -20,11 +20,11 @@
     },
     "users": {
       "title": "Usuarios",
-      "detail": "Quién tiene acceso, con qué rol y a qué almacenes."
+      "detail": "Quién tiene acceso, con qué rol y a qué sucursales."
     },
     "warehouses": {
-      "title": "Almacenes",
-      "detail": "Tus almacenes y cuántos productos guarda cada uno."
+      "title": "Sucursales",
+      "detail": "Tus sucursales y cuántos productos guarda cada una."
     },
     "expiring": {
       "title": "Vencimientos",
@@ -32,7 +32,7 @@
     },
     "inTransit": {
       "title": "En tránsito",
-      "detail": "Mercancía que salió de un almacén y todavía no llega."
+      "detail": "Mercancía que salió de una sucursal y todavía no llega."
     },
     "shifts": {
       "title": "Cierres de turno",
@@ -51,7 +51,7 @@
     "seller": "Vendió",
     "status": "Estado",
     "total": "Total",
-    "warehouse": "Almacén"
+    "warehouse": "Sucursal"
   },
   "stock": {
     "avgCost": "Costo promedio",
@@ -65,7 +65,7 @@
     "quantity": "Cantidad",
     "value": "Valor",
     "valueNet": "Valor (sin impuesto)",
-    "warehouse": "Almacén"
+    "warehouse": "Sucursal"
   },
   "table": {
     "empty": "No hay datos que mostrar con estos filtros.",
@@ -78,7 +78,7 @@
     "title": "Cierres de turno",
     "closedAt": "Cierre",
     "openedAt": "Apertura",
-    "warehouse": "Almacén",
+    "warehouse": "Sucursal",
     "closedBy": "Cerró",
     "openedBy": "Abrió",
     "employee": "Empleado",
@@ -106,7 +106,7 @@
   },
   "taxes": {
     "title": "Impuestos cobrados",
-    "warehouse": "Almacén",
+    "warehouse": "Sucursal",
     "tax": "Impuesto",
     "rate": "Tasa",
     "base": "Base",

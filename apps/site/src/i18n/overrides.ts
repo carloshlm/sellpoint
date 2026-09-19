@@ -59,7 +59,7 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
   "en-ca": {
     meta: {
       description:
-        "The point of sale with serious inventory — lots, expiry dates and multiple warehouses — without the enterprise price. Try every feature for 14 days. No credit card.",
+        "The point of sale with serious inventory — lots, expiry dates and multiple stores — without the enterprise price. Try every feature for 14 days. No credit card.",
     },
     hero: {
       mock: {

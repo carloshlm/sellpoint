@@ -34,7 +34,7 @@
 | | Free | Basic | Pro | Plus | Premium |
 |---|---|---|---|---|---|
 | Usuarios | 1 | 3 | 6 | 20 | Sin límite |
-| Almacenes | 1 | 1 | 4 | 10 | Sin límite |
+| Sucursales | 1 | 1 | 4 | 10 | Sin límite |
 | Ventas por día | 10 | Sin límite | Sin límite | Sin límite | Sin límite |
 | Puede capturar y editar | Solo lectura | Sí | Sí | Sí | Sí |
 | Control de existencias | No | No | Sí | Sí | Sí |
@@ -57,7 +57,7 @@ Es la lista comercial que Carlos cerró el 2026-09-15, en el orden en que la ven
 | **Gastos** (módulo) | — | ✅ | ✅ | ✅ | ✅ |
 | Control de inventario | — | — | ✅ | ✅ | ✅ |
 | Entradas, salidas y kardex | — | — | ✅ | ✅ | ✅ |
-| Traspasos entre almacenes | — | — | ✅ | ✅ | ✅ |
+| Traspasos entre sucursales | — | — | ✅ | ✅ | ✅ |
 | Cotizaciones | — | — | ✅ | ✅ | ✅ |
 | Productos compuestos: recetas y kits | — | — | ✅ | ✅ | ✅ |
 | **Compras** (módulo: la compra directa con factura) | — | — | ✅ | ✅ | ✅ |
@@ -133,12 +133,12 @@ La columna **Hoy** dice el plan mínimo en el que vive cada funcionalidad. «Tod
 | Presentaciones con factor de conversión, costo y precio | Todos |
 | Unidades de medida con conversión (pieza, kilo, litro, metro…) | Todos |
 | Servicios | Todos |
-| Almacenes con dirección y datos de contacto | Todos |
+| Sucursales con dirección y datos de contacto | Todos |
 | Proveedores con código propio (PROV-001) | Todos |
-| Importación y exportación por Excel: productos, servicios, almacenes y proveedores | Todos |
+| Importación y exportación por Excel: productos, servicios, sucursales y proveedores | Todos |
 | Plantilla de importación en el idioma del usuario, con errores que dicen la columna | Todos |
 | Productos compuestos: recetas y kits que descuentan sus componentes | Pro |
-| Campos personalizados en productos, servicios, almacenes y proveedores | Plus |
+| Campos personalizados en productos, servicios, sucursales y proveedores | Plus |
 | Subcatálogos propios (listas que el negocio define) | Plus |
 
 ### Inventario
@@ -146,12 +146,12 @@ La columna **Hoy** dice el plan mínimo en el que vive cada funcionalidad. «Tod
 | Funcionalidad | Hoy |
 |---|---|
 | Entradas y salidas con folio, borrador y PDF | Pro |
-| Traspasos entre almacenes con envío y recepción | Pro |
+| Traspasos entre sucursales con envío y recepción | Pro |
 | Inventario físico: plantilla, conteo, conciliación y aprobación | Pro |
 | Kardex por producto | Todos |
 | Costo promedio ponderado | Pro |
-| Existencias por almacén y valorización | Pro |
-| Ubicación del producto dentro del almacén | Todos |
+| Existencias por sucursal y valorización | Pro |
+| Ubicación del producto dentro de la sucursal | Todos |
 | Lotes y fechas de caducidad | Plus |
 | Pantalla de próximos a vencer | Plus |
 
@@ -194,8 +194,8 @@ La columna **Hoy** dice el plan mínimo en el que vive cada funcionalidad. «Tod
 | Invitación de usuarios por correo | Todos |
 | Roles de fábrica: Admin, Manager, Seller y Viewer | Todos |
 | Roles personalizados con permisos a elegir | Plus |
-| Alcance por almacén: cada usuario opera solo los suyos | Todos |
-| Almacén asignado por usuario | Todos |
+| Alcance por sucursal: cada usuario opera solo las suyas | Todos |
+| Sucursal asignada por usuario | Todos |
 | Verificación de correo y recuperación de contraseña | Todos |
 | Bitácora de auditoría de cada cambio | Todos |
 | Asistente de alta del negocio | Todos |
@@ -248,7 +248,7 @@ Regla de la casa: el flag del plan frena **mutaciones** en el servidor (crear, e
 | Roles personalizados | Plus | 402 al crear, editar o borrar roles; la lista se lee para asignar | Página de solo lectura con la tarjeta de candado |
 | Órdenes de compra y recepciones | Plus | 402 al crear (módulo Compras en AND) | Candado en el enlace del menú y en las cuatro rutas; el ajuste de Mi perfil se ve deshabilitado |
 | Reportes y exportación | Basic | Nada: Free es de solo lectura y no llega | Menú por permiso |
-| Usuarios, almacenes, ventas diarias de Free, solo lectura | Todos | Sí | Sí |
+| Usuarios, sucursales, ventas diarias de Free, solo lectura | Todos | Sí | Sí |
 
 Reportes es el único renglón de la vitrina sin candado propio: Free no puede escribir y Basic ya lo incluye, así que no hay a quién frenar.
 

@@ -17,7 +17,7 @@
       "lines": "Lines",
       "total": "Total",
       "status": "Status",
-      "warehouse": "Warehouse"
+      "warehouse": "Store"
     },
     "summary": {
       "count": "{{count}} purchase",
@@ -40,10 +40,10 @@
     "date": "Invoice date",
     "create": "Create draft",
     "supplierRequired": "Choose the supplier on the invoice.",
-    "warehouse": "Warehouse",
+    "warehouse": "Store",
     "warehouseHint": "Where the invoiced goods go.",
-    "warehouseRequired": "Choose the warehouse the purchase goes into.",
-    "warehouseEmpty": "You have no warehouses available. Ask an administrator to give you access to one."
+    "warehouseRequired": "Choose the store the purchase goes into.",
+    "warehouseEmpty": "You have no stores available. Ask an administrator to give you access to one."
   },
   "detail": {
     "title": "Purchase {{folio}}",
@@ -69,7 +69,7 @@
     "confirmedOn": "Confirmed on {{date}}",
     "canceledOn": "Canceled on {{date}}: {{reason}}",
     "sealed": "This purchase is confirmed: only the reception, invoice and notes can be edited.",
-    "confirmedNotice": "Purchase confirmed. When the goods are in the warehouse, use «Enter into inventory».",
+    "confirmedNotice": "Purchase confirmed. When the goods are in the store, use «Enter into inventory».",
     "origin": "Created from order",
     "originReceipts": "Receipts"
   },

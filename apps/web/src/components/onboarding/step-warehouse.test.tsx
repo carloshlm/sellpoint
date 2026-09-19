@@ -9,7 +9,7 @@ import { buildWarehouse } from "@/test/warehouse-fixture";
 import { StepWarehouse } from "./step-warehouse";
 
 /**
- * F2-ONBOARD-03. El paso 3 dejó de ser un placeholder: crea un almacén REAL
+ * F2-ONBOARD-03. El paso 3 dejó de ser un placeholder: crea una sucursal REAL
  * porque desde F2-DB-07 la tabla existe.
  */
 vi.mock("@/lib/warehouses/api", () => ({
@@ -37,19 +37,19 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     mockedApi.listWarehouses.mockResolvedValue([]);
   });
 
-  it("sin almacenes pide un nombre y NO deja continuar vacío", async () => {
+  it("sin sucursales pide un nombre y NO deja continuar vacío", async () => {
     renderStep();
 
-    expect(await screen.findByLabelText(/almacén/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/sucursal/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /continuar/i })).toBeDisabled();
   });
 
-  it("crea el almacén y recién entonces avanza", async () => {
+  it("crea la sucursal y recién entonces avanza", async () => {
     const user = userEvent.setup();
     mockedApi.createWarehouse.mockResolvedValue(buildWarehouse({ id: "w-1" }));
     const onSubmit = renderStep();
 
-    await user.type(await screen.findByLabelText(/almacén/i), "Central");
+    await user.type(await screen.findByLabelText(/sucursal/i), "Central");
     await user.click(screen.getByRole("button", { name: /continuar/i }));
 
     // React Query v5 suma un segundo argumento de contexto al mutationFn.
@@ -72,7 +72,7 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
     });
     const onSubmit = renderStep();
 
-    await user.type(await screen.findByLabelText(/almacén/i), "Central");
+    await user.type(await screen.findByLabelText(/sucursal/i), "Central");
     await user.click(screen.getByRole("button", { name: /continuar/i }));
 
     expect(await screen.findByTestId("step-warehouse-error")).toHaveTextContent(
@@ -82,10 +82,10 @@ describe("StepWarehouse (F2-ONBOARD-03)", () => {
   });
 
   /**
-   * F3-HOME-03: el tenant NACE con su almacén (`provision()` lo crea), así que
+   * F3-HOME-03: el tenant NACE con su sucursal (`provision()` lo crea), así que
    * este paso pasó de CREAR a RENOMBRAR. El input llega precargado.
    */
-  it("con el almacén ya creado, el input trae su nombre y continuar no crea otro", async () => {
+  it("con la sucursal ya creada, el input trae su nombre y continuar no crea otro", async () => {
     const user = userEvent.setup();
     mockedApi.listWarehouses.mockResolvedValue([
       buildWarehouse({ id: "w-1", name: "Almacén Central" }),

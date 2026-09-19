@@ -148,13 +148,13 @@ describe("Tab Kardex (F3-KARDEX-02)", () => {
    * rango de fechas cierra. Antes las fechas abrían la barra, que es empezar
    * por el filtro más fino sobre el conjunto más grande.
    */
-  it("los filtros van en orden: Almacén, Motivo, Movimiento y al final las fechas", async () => {
+  it("los filtros van en orden: Sucursal, Motivo, Movimiento y al final las fechas", async () => {
     renderTab(<KardexTab productId="p1" tracksLots={false} isComposite={false} baseUnit="unit" />);
 
     const barra = (await screen.findByLabelText(/motivo/i)).closest("div.flex-wrap") as HTMLElement;
     const etiquetas = [...barra.querySelectorAll("label")].map((l) => l.textContent?.trim());
 
-    expect(etiquetas).toEqual(["Almacén", "Motivo", "Movimiento", "Desde", "Hasta"]);
+    expect(etiquetas).toEqual(["Sucursal", "Motivo", "Movimiento", "Desde", "Hasta"]);
   });
 
   /**
@@ -372,8 +372,8 @@ describe("Tab Kardex: la referencia (F3-KARDEX-02)", () => {
   });
 });
 
-describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
-  it("lista los almacenes, incluidos los que están en cero", async () => {
+describe("Tab Stock por sucursal (F3-KARDEX-05)", () => {
+  it("lista las sucursales, incluidas las que están en cero", async () => {
     renderTab(<StockTab productId="p1" />);
 
     expect(await screen.findByText("Central")).toBeInTheDocument();
@@ -391,7 +391,7 @@ describe("Tab Stock por almacén (F3-KARDEX-05)", () => {
    * lotes cuelgan debajo, claros e indentados. Se fija por clases porque
    * jsdom no calcula estilos — lo que se protege es que el contraste exista.
    */
-  it("la fila del almacén se ve como encabezado y la del lote no", async () => {
+  it("la fila de la sucursal se ve como encabezado y la del lote no", async () => {
     mocked.getStock.mockResolvedValue(
       resumen({
         rows: [

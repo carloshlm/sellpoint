@@ -17,7 +17,7 @@
       "lines": "Líneas",
       "total": "Total",
       "status": "Estado",
-      "warehouse": "Almacén"
+      "warehouse": "Sucursal"
     },
     "summary": {
       "count": "{{count}} compra",
@@ -40,10 +40,10 @@
     "date": "Fecha de la factura",
     "create": "Crear borrador",
     "supplierRequired": "Elige el proveedor de la factura.",
-    "warehouse": "Almacén",
+    "warehouse": "Sucursal",
     "warehouseHint": "A dónde entra la mercancía de la factura.",
-    "warehouseRequired": "Elige el almacén al que entra la compra.",
-    "warehouseEmpty": "No tienes almacenes disponibles. Pídele a un administrador que te dé acceso a uno."
+    "warehouseRequired": "Elige la sucursal a la que entra la compra.",
+    "warehouseEmpty": "No tienes sucursales disponibles. Pídele a un administrador que te dé acceso a una."
   },
   "detail": {
     "title": "Compra {{folio}}",
@@ -69,7 +69,7 @@
     "confirmedOn": "Confirmada el {{date}}",
     "canceledOn": "Anulada el {{date}}: {{reason}}",
     "sealed": "Esta compra ya está confirmada: solo se pueden anotar la recepción, la factura y las notas.",
-    "confirmedNotice": "Compra confirmada. Cuando la mercancía esté en el almacén, usa «Ingresar al inventario».",
+    "confirmedNotice": "Compra confirmada. Cuando la mercancía esté en la sucursal, usa «Ingresar al inventario».",
     "origin": "Nació de la orden",
     "originReceipts": "Recepciones"
   },

@@ -219,10 +219,10 @@ describe("Próximos a vencer (F3-LOTS-03)", () => {
   });
 
   /**
-   * El botón crea la Salida con motivo `expired` en el almacén donde ESTÁ el
-   * lote: dar salida por caducado desde otro almacén no tendría sentido.
+   * El botón crea la Salida con motivo `expired` en la sucursal donde ESTÁ el
+   * lote: dar salida por caducado desde otra sucursal no tendría sentido.
    */
-  it("«Dar salida por caducado» crea la salida en el almacén del lote", async () => {
+  it("«Dar salida por caducado» crea la salida en la sucursal del lote", async () => {
     mocked.createDocument.mockResolvedValue({
       id: "doc-9",
       folio: "SAL-000200",

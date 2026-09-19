@@ -21,7 +21,7 @@
   "order_already_charged": "That order was already charged at the register. What must be voided is the sale.",
   "order_already_canceled": "That order is already canceled.",
   "order_needs_lines": "The order needs at least one line.",
-  "no_default_warehouse": "You have no assigned warehouse. Ask an administrator to assign one.",
+  "no_default_warehouse": "You have no assigned store. Ask an administrator to assign one.",
   "study_not_available": "One of the studies is no longer available.",
   "import_too_large": "The file is larger than the 2 MB limit",
   "import_unreadable": "We could not read the file. Is it a valid Excel?",

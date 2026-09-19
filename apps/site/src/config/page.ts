@@ -28,7 +28,7 @@ export const BENEFIT_PLANS: Partial<Record<BenefitId, PlanTag>> = {
 const MASTER_BENEFITS: BenefitId[] = [...BENEFIT_IDS];
 
 /**
- * En Canadá la promesa se apoya en lotes, caducidades y varios almacenes (§1):
+ * En Canadá la promesa se apoya en lotes, caducidades y varias sucursales (§1):
  * ahí las caducidades suben al segundo lugar (§7.5). `/fr-ca/` sigue el orden
  * exacto de su texto aprobado (§8.3).
  */

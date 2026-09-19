@@ -65,7 +65,7 @@ export class InventoryExportService {
         "Lote",
         "Caduca",
         "Días restantes",
-        "Almacén",
+        "Sucursal",
         "Ubicación",
         "Cantidad",
       ],

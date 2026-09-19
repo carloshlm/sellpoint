@@ -13,7 +13,7 @@
   "already_paid": "That expense is already paid.",
   "paid_immutable": "A paid expense does not change its amount, discount or tax. If there is a mistake, cancel it and record it again.",
   "session_closed": "That expense came out of a cash shift that is already closed and cannot be canceled. Record an adjustment expense.",
-  "session_not_open": "That cash shift is not open or does not belong to the expense's warehouse.",
+  "session_not_open": "That cash shift is not open or does not belong to the expense's store.",
   "session_needs_cash": "Only a cash expense can come out of a cash shift.",
   "discount_exceeds_amount": "The discount exceeds the expense amount.",
   "date_in_future": "The expense date can't be after today. An expense is a document that already exists.",
@@ -22,5 +22,5 @@
   "payee_conflict": "Choose a supplier or write a payee, not both.",
   "invalid_amount": "The amount must be greater than zero with up to two decimals.",
   "invalid_payment_method": "The payment method is not valid.",
-  "warehouse_required": "You have no assigned warehouse: choose one for the expense."
+  "warehouse_required": "You have no assigned store: choose one for the expense."
 }

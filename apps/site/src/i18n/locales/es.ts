@@ -72,7 +72,7 @@ export const es = {
       },
       track: {
         title: "Controla",
-        text: "Entradas, salidas, traspasos e inventario físico. El historial de cada producto, en todos tus almacenes.",
+        text: "Entradas, salidas, traspasos e inventario físico. El historial de cada producto, en todas tus sucursales.",
       },
       buy: {
         title: "Compra",
@@ -102,7 +102,7 @@ export const es = {
       },
       stock: {
         title: "Sabe *cuánto tienes*, sin contar a mano.",
-        text: "Cada venta descuenta del almacén y cada compra lo repone. Tus existencias son un número, no una corazonada.",
+        text: "Cada venta descuenta del inventario y cada compra lo repone. Tus existencias son un número, no una corazonada.",
       },
       expiry: {
         title: "Que nada se te *caduque* en el anaquel.",
@@ -188,8 +188,8 @@ export const es = {
     // central del producto: saber cuánto tienes.
     recommended: "Recomendado",
     users: "{count} usuarios",
-    warehouseOne: "{count} almacén",
-    warehouseMany: "{count} almacenes",
+    warehouseOne: "{count} sucursal",
+    warehouseMany: "{count} sucursales",
     cards: {
       basic: {
         tagline: "Para empezar a cobrar en orden",
@@ -211,7 +211,7 @@ export const es = {
       },
     },
     premium: {
-      text: "¿Tu negocio necesita algo a la medida? Módulos hechos para tu giro —recepción, consultorio médico y más—, con usuarios y almacenes sin límite.",
+      text: "¿Tu negocio necesita algo a la medida? Módulos hechos para tu giro —recepción, consultorio médico y más—, con usuarios y sucursales sin límite.",
       cta: "Escríbenos",
     },
     // Solo se muestra en los idiomas que la aplicación todavía no habla
@@ -235,7 +235,7 @@ export const es = {
       expenses: "Gastos",
       stockControl: "Control de inventario",
       movements: "Entradas, salidas y kardex",
-      transfers: "Traspasos entre almacenes",
+      transfers: "Traspasos entre sucursales",
       quotes: "Cotizaciones",
       compositions: "Productos compuestos: recetas y kits",
       purchases: "Compras",

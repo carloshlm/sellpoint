@@ -1,34 +1,34 @@
 {
   "nav": {
-    "group": "Warehouses"
+    "group": "Stores"
   },
   "page": {
-    "title": "Warehouses"
+    "title": "Stores"
   },
-  "add": "New warehouse",
-  "empty": "You haven't registered any warehouses yet.",
-  "search": "Search warehouse",
+  "add": "New store",
+  "empty": "You haven't registered any stores yet.",
+  "search": "Search store",
   "searchPlaceholder": "Code, name or address…",
-  "noMatches": "No warehouse matches your search.",
+  "noMatches": "No store matches your search.",
   "status": "Status",
   "active": "Active",
   "inactive": "Inactive",
   "delete": {
-    "title": "Delete warehouse",
-    "body": "You are about to delete \"{{name}}\". Only a warehouse that never operated can be deleted; this can not be undone.",
-    "confirm": "Delete warehouse",
-    "done": "Warehouse \"{{name}}\" deleted."
+    "title": "Delete store",
+    "body": "You are about to delete \"{{name}}\". Only a store that never operated can be deleted; this can not be undone.",
+    "confirm": "Delete store",
+    "done": "Store \"{{name}}\" deleted."
   },
   "deactivate": "Deactivate",
   "reactivate": "Reactivate",
   "blocked": {
-    "stock": "You can't deactivate it: it still holds stock. Move it to another warehouse first.",
+    "stock": "You can't deactivate it: it still holds stock. Move it to another store first.",
     "transfersInTransit": "You can't deactivate it: it has transfers on the way. Receive them before closing it."
   },
   "import": {
-    "button": "Import warehouses",
-    "title": "Import warehouses",
-    "step1": "1. Download the template: it brings your catalog fields and the warehouses you already created.",
+    "button": "Import stores",
+    "title": "Import stores",
+    "step1": "1. Download the template: it brings your catalog fields and the stores you already created.",
     "step2": "2. Edit it and upload it (Excel).",
     "downloadXlsx": "Excel template",
     "chooseFile": "Choose file",
@@ -36,12 +36,12 @@
     "confirm": "Import",
     "report": "{{valid}} valid rows ({{created}} new, {{updated}} updates) · {{failed}} with errors",
     "skipErrors": "Import the valid ones and skip rows with errors",
-    "done": "{{count}} warehouses imported."
+    "done": "{{count}} stores imported."
   },
   "form": {
     "code": "Code",
-    "codeHint": "The key or short name you identify this warehouse by, unique in your business. It's the one the import template uses.",
-    "name": "Warehouse name",
+    "codeHint": "The key or short name you identify this store by, unique in your business. It's the one the import template uses.",
+    "name": "Store name",
     "address": "Address",
     "phoneCountry": "Country code",
     "phoneCountryPlaceholder": "Choose a country",

@@ -55,7 +55,7 @@ const documento = (
 });
 
 /**
- * F3-HOME-04. Un usuario con almacén ASIGNADO: el store lo lleva y el selector
+ * F3-HOME-04. Un usuario con sucursal ASIGNADA: el store lo lleva y el selector
  * del listado tiene que arrancar ahí.
  */
 async function renderConAsignado(defaultWarehouseId: string | null) {
@@ -236,17 +236,17 @@ describe("Listado de documentos (F3-DOC-08)", () => {
   });
 
   /**
-   * F3-HOME-04. Con DOS almacenes el auto-select de `WarehouseSelect` (que
+   * F3-HOME-04. Con DOS sucursales el auto-select de `WarehouseSelect` (que
    * solo dispara con uno) no aplica: sin asignado había que elegir en cada
    * movimiento, que es la fricción que esto quita.
    */
-  describe("el almacén asignado preselecciona (F3-HOME-04)", () => {
+  describe("la sucursal asignada preselecciona (F3-HOME-04)", () => {
     const DOS = [
       buildWarehouse(),
       buildWarehouse({ id: "w2", code: "ALM-002", name: "Bodega Norte" }),
     ];
 
-    it("con asignado, el documento nuevo sale de ESE almacén", async () => {
+    it("con asignado, el documento nuevo sale de ESA sucursal", async () => {
       const user = userEvent.setup();
       mockedWarehouses.mockResolvedValue(DOS);
       mockedCreate.mockResolvedValue({ ...documento("ENT-000043", "draft"), id: "nuevo-id" });
@@ -272,7 +272,7 @@ describe("Listado de documentos (F3-DOC-08)", () => {
     /**
      * Un asignado que NO está entre sus opciones (fuera de alcance o
      * desactivado) no se fuerza: se degrada al comportamiento de siempre en vez
-     * de mandar un almacén que el API va a rechazar.
+     * de mandar una sucursal que el API va a rechazar.
      */
     it("un asignado fuera de las opciones no se fuerza", async () => {
       mockedWarehouses.mockResolvedValue(DOS);

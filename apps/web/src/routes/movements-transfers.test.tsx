@@ -448,7 +448,7 @@ describe("Recepción ya empezada", () => {
 
 /**
  * Carlos (2026-09-01): la pestaña «Cancelados» lleva los mismos filtros que
- * los otros listados de movimientos —folio, almacén, desde y hasta— y deja
+ * los otros listados de movimientos —folio, sucursal, desde y hasta— y deja
  * de ofrecer «Destino», que era el filtro de lo pendiente.
  */
 describe("los filtros de la pestaña Cancelados", () => {
@@ -463,11 +463,11 @@ describe("los filtros de la pestaña Cancelados", () => {
     return user;
   }
 
-  it("ofrece folio, almacén, desde y hasta; «Destino» solo vive en lo pendiente", async () => {
+  it("ofrece folio, sucursal, desde y hasta; «Destino» solo vive en lo pendiente", async () => {
     await irACancelados();
 
     expect(screen.getByLabelText(/buscar por folio/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^almacén$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^sucursal$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/desde/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/hasta/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^destino$/i)).not.toBeInTheDocument();
@@ -485,10 +485,10 @@ describe("los filtros de la pestaña Cancelados", () => {
     });
   });
 
-  it("el almacén y el rango viajan como `warehouseId`, `from` y `to`", async () => {
+  it("la sucursal y el rango viajan como `warehouseId`, `from` y `to`", async () => {
     const user = await irACancelados();
 
-    await user.selectOptions(screen.getByLabelText(/^almacén$/i), "w2");
+    await user.selectOptions(screen.getByLabelText(/^sucursal$/i), "w2");
     fireEvent.change(screen.getByLabelText(/desde/i), { target: { value: "2026-09-01" } });
     fireEvent.change(screen.getByLabelText(/hasta/i), { target: { value: "2026-09-02" } });
 

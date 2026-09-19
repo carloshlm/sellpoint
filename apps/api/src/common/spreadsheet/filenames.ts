@@ -10,7 +10,7 @@ const ENGLISH: Record<string, string> = {
   productos: "products",
   gastos: "expenses",
   servicios: "services",
-  almacenes: "warehouses",
+  sucursales: "stores",
   registros: "records",
   "estudios-laboratorio": "lab-studies",
   "estudios-diagnosticos": "diagnostic-studies",
@@ -44,7 +44,7 @@ export function spreadsheetFilenameBase(key: string, locale: Locale): string {
 const SHEET_NAMES: Record<string, string> = {
   Productos: "Products",
   Servicios: "Services",
-  Almacenes: "Warehouses",
+  Sucursales: "Stores",
   Proveedores: "Suppliers",
   "Estudios de laboratorio": "Lab studies",
   "Estudios diagnósticos": "Diagnostic studies",

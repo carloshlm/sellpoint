@@ -65,7 +65,7 @@ export const en: Messages = {
       },
       track: {
         title: "Track",
-        text: "Entries, exits, transfers and physical counts. The history of every product, across all your warehouses.",
+        text: "Entries, exits, transfers and physical counts. The history of every product, across all your stores.",
       },
       buy: {
         title: "Buy",
@@ -175,8 +175,8 @@ export const en: Messages = {
     lead: "The first 14 days you get all of Plus. Then you pick.",
     recommended: "Recommended",
     users: "{count} users",
-    warehouseOne: "{count} warehouse",
-    warehouseMany: "{count} warehouses",
+    warehouseOne: "{count} store",
+    warehouseMany: "{count} stores",
     cards: {
       basic: {
         tagline: "Start ringing up sales the right way",
@@ -196,7 +196,7 @@ export const en: Messages = {
       },
     },
     premium: {
-      text: "Need something built for your business? Custom modules, with unlimited users and warehouses.",
+      text: "Need something built for your business? Custom modules, with unlimited users and stores.",
       cta: "Get in touch",
     },
     appLanguageNote: "The app is available in English and Spanish.",
@@ -216,7 +216,7 @@ export const en: Messages = {
       expenses: "Expenses",
       stockControl: "Inventory control",
       movements: "Entries, exits and stock ledger",
-      transfers: "Transfers between warehouses",
+      transfers: "Transfers between stores",
       quotes: "Quotes",
       compositions: "Composite products: recipes and kits",
       purchases: "Purchases",

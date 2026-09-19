@@ -7,8 +7,8 @@
   },
   "session": {
     "openTitle": "Abrir turno",
-    "openHint": "Elige desde qué almacén vas a vender. Si tienes uno asignado, ya viene puesto.",
-    "warehouse": "Almacén",
+    "openHint": "Elige desde qué sucursal vas a vender. Si tienes una asignada, ya viene puesta.",
+    "warehouse": "Sucursal",
     "open": "Abrir turno",
     "openSince": "Turno abierto desde {{time}}",
     "openFailed": "No pudimos abrir el turno.",
@@ -43,8 +43,8 @@
     "hideNumpad": "Ocultar teclado",
     "integersOnly": "Esta presentación solo admite enteros.",
     "maxDecimals": "Hasta cuatro decimales.",
-    "noResults": "No encontramos nada que se pueda vender desde este almacén.",
-    "outOfStock": "Más de lo que hay en este almacén",
+    "noResults": "No encontramos nada que se pueda vender desde esta sucursal.",
+    "outOfStock": "Más de lo que hay en esta sucursal",
     "presentation": "Presentación",
     "quantity": "Cantidad",
     "rejectedLine": "El servidor rechazó esta línea",
@@ -87,9 +87,9 @@
       "loaded": "Ya cargada en una venta",
       "open": "Vigente"
     },
-    "unavailable": "Ya no se vende desde este almacén",
-    "warehouse": "Almacén",
-    "warehouseHint": "Los precios y la disponibilidad se calculan desde este almacén. Cotizar no necesita un turno abierto."
+    "unavailable": "Ya no se vende desde esta sucursal",
+    "warehouse": "Sucursal",
+    "warehouseHint": "Los precios y la disponibilidad se calculan desde esta sucursal. Cotizar no necesita un turno abierto."
   },
   "checkout": {
     "change": "Cambio",
@@ -106,7 +106,7 @@
     "all": "Todas",
     "barcode": "Código de barras",
     "cancel": "Cancelar",
-    "cancelBody": "La venta {{folio}} se revierte: el stock vuelve al almacén y el movimiento contrario queda en el kardex. No se borra — se puede auditar después.",
+    "cancelBody": "La venta {{folio}} se revierte: el stock vuelve a la sucursal y el movimiento contrario queda en el kardex. No se borra — se puede auditar después.",
     "cancelFailed": "No pudimos anular la venta.",
     "cancelConfirm": "Cancelar la venta",
     "cancelTitle": "Cancelar la venta {{folio}}",

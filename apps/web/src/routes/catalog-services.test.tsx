@@ -341,12 +341,12 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
       await screen.findByText("Corte de cabello");
       await user.click(screen.getByRole("button", { name: "Editar" }));
 
-      await user.click(await screen.findByRole("button", { name: "Deseleccionar todos" }));
+      await user.click(await screen.findByRole("button", { name: "Deseleccionar todas" }));
       expect(screen.getByTestId("service-warehouse-w1")).not.toBeChecked();
       expect(screen.getByTestId("service-warehouse-w2")).not.toBeChecked();
 
       // El botón alterna: con cero marcados ofrece seleccionarlos.
-      await user.click(screen.getByRole("button", { name: "Seleccionar todos" }));
+      await user.click(screen.getByRole("button", { name: "Seleccionar todas" }));
       expect(screen.getByTestId("service-warehouse-w1")).toBeChecked();
     });
 
@@ -359,7 +359,7 @@ describe("Catálogo de servicios (F3-SVC-04)", () => {
       await screen.findByText("Corte de cabello");
       await user.click(screen.getByRole("button", { name: "Editar" }));
 
-      await user.click(await screen.findByRole("button", { name: "Deseleccionar todos" }));
+      await user.click(await screen.findByRole("button", { name: "Deseleccionar todas" }));
       expect(screen.getByTestId("service-warehouses-empty-hint")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Guardar" }));

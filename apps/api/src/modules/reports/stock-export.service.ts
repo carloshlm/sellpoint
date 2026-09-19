@@ -31,11 +31,11 @@ export class StockExportService {
       rows: () =>
         esDetalle ? this.filasDeLotes(user, scope, query) : this.filas(user, scope, query),
       header: esDetalle
-        ? ["Producto", "SKU", "Almacén", "Lote", "Caducidad", "Ubicación", "Cantidad", "Unidad"]
+        ? ["Producto", "SKU", "Sucursal", "Lote", "Caducidad", "Ubicación", "Cantidad", "Unidad"]
         : [
             "Producto",
             "SKU",
-            "Almacén",
+            "Sucursal",
             "Cantidad",
             "Unidad",
             "Mínimo",

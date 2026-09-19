@@ -567,9 +567,9 @@ describe("Renombrar el catálogo (F2-SCHEMA)", () => {
 /**
  * Campos estándar POR CATÁLOGO (2026-08-26): cada catálogo del sistema lista
  * los suyos — el ternario `isSystem ? [5 de producto] : [código]` mentía
- * para almacenes y servicios.
+ * para sucursales y servicios.
  */
-describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
+describe("chips estándar de sucursales y servicios (2026-08-26)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().clearAuth();
@@ -604,7 +604,7 @@ describe("chips estándar de almacenes y servicios (2026-08-26)", () => {
     );
   }
 
-  it("almacenes lista su código y su contacto estándar (código desde 2026-09-01)", async () => {
+  it("sucursales lista su código y su contacto estándar (código desde 2026-09-01)", async () => {
     await renderSchema();
     expect(await chipsDe("cat-wh")).toEqual(["Código", "Nombre", "Dirección", "Teléfono", "Email"]);
   });

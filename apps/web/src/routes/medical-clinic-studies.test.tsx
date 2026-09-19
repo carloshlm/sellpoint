@@ -15,7 +15,7 @@ import { buildTenantBlock } from "@/test/tenant-fixture";
 /**
  * F9-CLINIC-WEB-04/05 — los dos catálogos de estudios sobre la misma
  * pantalla: lista, búsqueda, alta en tarjeta con costo y precio de venta,
- * borrado con confirmación, y SIN un solo rastro de almacenes.
+ * borrado con confirmación, y SIN un solo rastro de sucursales.
  */
 vi.mock("@/lib/medical-clinic/api", () => ({
   listStudies: vi.fn(),
@@ -123,7 +123,7 @@ describe.each([
   ["lab", "/medical-clinic/lab-studies", "Estudios de Laboratorio"],
   ["diagnostic", "/medical-clinic/diagnostic-studies", "Estudios Diagnósticos"],
 ] as const)("catálogo %s (F9-CLINIC-WEB-04/05)", (kind, path, titulo) => {
-  it("pinta las filas con costo y precio y consulta SU endpoint; sin almacenes", async () => {
+  it("pinta las filas con costo y precio y consulta SU endpoint; sin sucursales", async () => {
     await renderRuta(path, ["medical_clinic:read", "medical_clinic:manage"]);
     expect(await screen.findByRole("heading", { name: titulo })).toBeInTheDocument();
     await waitFor(() => expect(mocked.listStudies).toHaveBeenCalledWith(kind, expect.anything()));

@@ -183,7 +183,7 @@ describe("Exports directos (F5-CAT)", () => {
       const response = await descargar("/reports/users/export", auth()).expect(200);
       const { rows } = await celdas(response.body as Buffer);
 
-      expect(rows[0]).toEqual(["Nombre", "Correo", "Roles", "Almacenes", "Estado"]);
+      expect(rows[0]).toEqual(["Nombre", "Correo", "Roles", "Sucursales", "Estado"]);
       const ana = rows.find((r) => r[0]?.includes("Ana"));
       expect(ana?.[2]).toContain("Admin");
       expect(ana?.[4]).toBe("Activo");
@@ -242,7 +242,7 @@ describe("Exports directos (F5-CAT)", () => {
       const response = await descargar("/reports/warehouses/export", auth()).expect(200);
 
       const { name, rows } = await celdas(response.body as Buffer);
-      expect(name).toBe("Almacenes");
+      expect(name).toBe("Sucursales");
       expect(rows[0]).toEqual(["Nombre", "Dirección", "Estado", "Productos con stock"]);
 
       const central = rows.find((r) => r[0] === "Central cat");

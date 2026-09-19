@@ -85,7 +85,7 @@ describe("Almacenes (F2-WH)", () => {
       .get("/warehouses")
       .set("Authorization", bearer(token))
       .expect(200);
-    // F3-HOME-03: el tenant NACE con «Almacén Central», así que la lista trae
+    // F3-HOME-03: el tenant NACE con «Sucursal Principal», así que la lista trae
     // dos — el inicial y este. Se busca el creado en vez de comparar la lista
     // entera: afirmar el largo ataría este test al onboarding.
     const creado = (list.body as { id: string; isActive: boolean }[]).find((w) => w.id === id);
@@ -114,7 +114,7 @@ describe("Almacenes (F2-WH)", () => {
     it("sin código, el alta recibe el siguiente de la serie del negocio", async () => {
       const token = await registerAndLogin();
 
-      // El tenant NACE con «Almacén Central» = ALM-001 (onboarding): el
+      // El tenant NACE con «Sucursal Principal» = ALM-001 (onboarding): el
       // siguiente sin código es ALM-002.
       const created = await request(app.getHttpServer())
         .post("/warehouses")

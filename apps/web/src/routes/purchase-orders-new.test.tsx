@@ -129,12 +129,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Órdenes de compra — alta con almacén", () => {
-  it("con almacén asignado, el campo viene puesto con ÉL y la orden lo manda", async () => {
+describe("Órdenes de compra — alta con sucursal", () => {
+  it("con sucursal asignada, el campo viene puesto con ELLA y la orden lo manda", async () => {
     await renderNueva("w2");
     const user = userEvent.setup();
 
-    const almacen = await screen.findByLabelText("Almacén");
+    const almacen = await screen.findByLabelText("Sucursal");
     await waitFor(() => expect(almacen).toHaveValue("w2"));
     // Solo los del alcance: lo que el API aceptará.
     expect(mockedAlmacenes.listWarehouses).toHaveBeenCalledWith({ scoped: true });
@@ -148,17 +148,17 @@ describe("Órdenes de compra — alta con almacén", () => {
     );
   });
 
-  it("sin almacén asignado y con varios, pide elegir y NO manda nada hasta que se elige", async () => {
+  it("sin sucursal asignada y con varias, pide elegir y NO manda nada hasta que se elige", async () => {
     await renderNueva(null);
     const user = userEvent.setup();
 
-    const almacen = await screen.findByLabelText("Almacén");
+    const almacen = await screen.findByLabelText("Sucursal");
     expect(almacen).toHaveValue("");
 
     await elegirProveedor(user);
     await user.click(screen.getByRole("button", { name: "Crear borrador" }));
     expect(
-      await screen.findByText("Elige el almacén donde se recibirá la orden."),
+      await screen.findByText("Elige la sucursal donde se recibirá la orden."),
     ).toBeInTheDocument();
     expect(mocked.createPurchaseOrder).not.toHaveBeenCalled();
 
@@ -171,12 +171,12 @@ describe("Órdenes de compra — alta con almacén", () => {
     );
   });
 
-  it("sin almacenes disponibles lo dice en palabras de compras, no de «movimientos»", async () => {
+  it("sin sucursales disponibles lo dice en palabras de compras, no de «movimientos»", async () => {
     mockedAlmacenes.listWarehouses.mockResolvedValue([]);
     await renderNueva(null);
     expect(
       await screen.findByText(
-        "No tienes almacenes disponibles. Pídele a un administrador que te dé acceso a uno.",
+        "No tienes sucursales disponibles. Pídele a un administrador que te dé acceso a una.",
       ),
     ).toBeInTheDocument();
   });

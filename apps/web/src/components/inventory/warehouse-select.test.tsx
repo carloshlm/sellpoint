@@ -160,20 +160,21 @@ describe("WarehouseSelect (F3-NAV-01)", () => {
     const select = screen.getByRole("combobox");
     expect(select).toHaveAttribute("id", "almacen-de-prueba");
     expect(select).toBeDisabled();
-    expect(screen.getByRole("option", { name: "Cargando almacenes…" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Cargando sucursales…" })).toBeInTheDocument();
   });
 
-  it("sin almacenes muestra un estado vacío en vez de un desplegable inútil", async () => {
+  it("sin sucursales muestra un estado vacío en vez de un desplegable inútil", async () => {
     mocked.mockResolvedValue({ data: [] });
 
     renderSelect();
 
-    // El mensaje EXACTO del vacío, no `/almac/i`: desde que la carga también es
-    // un desplegable («Cargando almacenes…»), un pedazo de palabra coincidía
-    // con el estado de carga y la prueba miraba antes de tiempo (2026-09-14).
+    // El mensaje EXACTO del vacío, no `/sucursal/i`: desde que la carga también
+    // es un desplegable («Cargando sucursales…»), un pedazo de palabra
+    // coincidía con el estado de carga y la prueba miraba antes de tiempo
+    // (2026-09-14).
     expect(
       await screen.findByText(
-        "No hay almacenes disponibles. Crea uno antes de registrar movimientos.",
+        "No hay sucursales disponibles. Crea una antes de registrar movimientos.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();

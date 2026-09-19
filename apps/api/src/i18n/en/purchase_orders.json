@@ -11,7 +11,7 @@
   "supplier_not_found": "The supplier does not exist.",
   "product_not_found": "One of the products in the order does not exist.",
   "presentation_invalid": "That presentation does not belong to that product or is deactivated.",
-  "warehouse_required": "You have no assigned warehouse: choose where the order will be received.",
+  "warehouse_required": "You have no assigned store: choose where the order will be received.",
   "needs_lines": "Add at least one product before issuing the order.",
   "line_needs_cost": "Line {line}: enter the agreed cost; it's what the invoice will be matched against.",
   "not_closable": "Only an issued order that is still waiting for goods can be closed.",

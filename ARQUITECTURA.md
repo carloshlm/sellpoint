@@ -305,6 +305,8 @@ del editor de schema.
 
 ### 3.4 Alcance de usuarios por almacén (multi-sucursal)
 
+> **Vocabulario — «almacén» en el código, «sucursal» en pantalla (2026-09-19).** Carlos habló con clientes de México y Canadá y «Almacén / Warehouse» les sonaba a la bodega de atrás, no al lugar donde venden. Desde ese día lo que LEE una persona dice **Sucursal / Store / Succursale**; lo que lee una máquina NO cambió: la tabla `warehouses`, `warehouse_id`, las rutas `/warehouses`, el permiso `warehouses:manage`, las claves de i18n y la serie de códigos `ALM-001` siguen igual. En este documento, en `CASOS_DE_USO.md`, `FLUJOS.md` y `VISTAS.md`, **«almacén» es el nombre del MODELO**: léelo como «sucursal» cuando hable de una pantalla. Se descartaron «Branch» (suena a banco) y «Location» (choca con «Ubicación», que ya es el lugar DENTRO de la sucursal). Los encabezados de las plantillas de Excel cambiaron también, y **las plantillas viejas dejaron de aceptarse** (decisión de Carlos: sin alias). Los datos ya capturados —un «Almacén Central»— no se tocaron; los negocios nuevos nacen con «Sucursal Principal».
+
 > **Asignación vs. alcance (F3-HOME, 2026-08-19).** Son dos cosas distintas y conviene no confundirlas:
 >
 > | | Qué responde | Forma | Dónde vive |
