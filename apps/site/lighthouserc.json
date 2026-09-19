@@ -1,0 +1,28 @@
+{
+  "ci": {
+    "collect": {
+      "staticDistDir": "./dist",
+      "url": [
+        "http://localhost/es-mx/",
+        "http://localhost/fr-ca/",
+        "http://localhost/es-mx/terminos/"
+      ],
+      "numberOfRuns": 3,
+      "settings": { "chromeFlags": "--headless=new --no-sandbox" }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.95, "aggregationMethod": "median" }],
+        "categories:accessibility": ["error", { "minScore": 1 }],
+        "largest-contentful-paint": [
+          "error",
+          { "maxNumericValue": 2500, "aggregationMethod": "median" }
+        ],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "resource-summary:script:size": ["error", { "maxNumericValue": 51200 }],
+        "resource-summary:third-party:count": ["error", { "maxNumericValue": 0 }]
+      }
+    },
+    "upload": { "target": "filesystem", "outputDir": "./.lighthouseci" }
+  }
+}

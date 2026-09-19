@@ -8,6 +8,8 @@ build/
 
 # Astro (tipos generados de apps/site)
 .astro/
+# Reportes locales de Lighthouse (apps/site)
+.lighthouseci/
 
 # Turborepo
 .turbo/

@@ -1,0 +1,197 @@
+---
+// F11-SITE-LEGAL-01 — el Aviso de privacidad y los Términos, en las cinco
+// rutas. El texto se LEE de `SITIO-WEB-LEGAL.md` (`legal/load.ts`).
+//
+// Es texto largo: ancho de lectura de 65 caracteres —no el de la página de
+// venta—, un índice con anclas por sección y una versión que se puede imprimir
+// (en papel no salen ni el menú ni el pie).
+import type { GetStaticPaths } from "astro";
+import Container from "../../components/Container.astro";
+import { LEGAL_DOCS, LEGAL_SLUGS, type LegalDoc, legalPath } from "../../config/legal";
+import { ANCHORS } from "../../config/links";
+import { DEFAULT_ROUTE, getLocale, ROUTES, type Route } from "../../config/markets";
+import type { Alternates } from "../../config/seo";
+import { getMessages } from "../../i18n";
+import Base from "../../layouts/Base.astro";
+import { loadLegalDocument } from "../../legal/load";
+import SiteFooter from "../../sections/SiteFooter.astro";
+import SiteNav from "../../sections/SiteNav.astro";
+
+export const getStaticPaths = (() =>
+  ROUTES.flatMap((route) =>
+    LEGAL_DOCS.map((doc) => ({
+      params: { route, legal: LEGAL_SLUGS[getLocale(route).language][doc] },
+      props: { doc },
+    })),
+  )) satisfies GetStaticPaths;
+
+interface Props {
+  doc: LegalDoc;
+}
+
+const route = Astro.params.route as Route;
+const { doc } = Astro.props;
+const { legal, meta } = getMessages(route);
+const document = loadLegalDocument(getLocale(route).language, doc);
+const home = `/${route}/`;
+// El MISMO documento en cada versión: el selector y el `hreflang` llevan a él,
+// no a la portada.
+const alternates = Object.fromEntries(
+  ROUTES.map((other) => [other, legalPath(other, doc)]),
+) as Alternates;
+---
+
+<Base
+  route={route}
+  title={`${document.title} — SellPointy`}
+  description={meta.description}
+  path={legalPath(route, doc)}
+  alternates={alternates}
+  xDefault={legalPath(DEFAULT_ROUTE, doc)}
+>
+  <SiteNav route={route} anchorBase={home} paths={alternates} solid />
+  <main id={ANCHORS.main} class="legal">
+    <Container>
+      <article>
+        <h1>{document.title}</h1>
+        <p class="updated" set:html={document.updated} />
+        <p class="actions">
+          <a href={home}>{legal.backHome}</a>
+          <button type="button" data-print>{legal.print}</button>
+        </p>
+        <nav class="toc" aria-labelledby="legal-toc">
+          <h2 id="legal-toc">{legal.toc}</h2>
+          <ol>
+            {document.sections.map((section) => (
+              <li><a href={`#${section.id}`}>{section.title}</a></li>
+            ))}
+          </ol>
+        </nav>
+        <div class="body" set:html={document.html} />
+      </article>
+    </Container>
+  </main>
+  <SiteFooter route={route} anchorBase={home} paths={alternates} />
+</Base>
+
+<script>
+  document.querySelector("[data-print]")?.addEventListener("click", () => window.print());
+</script>
+
+<style>
+  .legal {
+    /* El menú pegado flota encima: aquí no hay hero que le deje su lugar. */
+    padding-top: calc(var(--nav-h) + 48px);
+    padding-bottom: var(--space-section);
+  }
+  article {
+    max-width: 65ch;
+  }
+  h1 {
+    font-size: var(--text-h2);
+    line-height: var(--leading-h2);
+    letter-spacing: var(--tracking-h2);
+  }
+  .updated {
+    color: var(--muted);
+    margin-top: 16px;
+  }
+  .actions {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+  }
+  .actions button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .toc {
+    margin-top: 40px;
+    padding-block: 24px;
+    border-block: 1px solid var(--line);
+  }
+  .toc h2 {
+    font-size: var(--text-eyebrow);
+    font-family: var(--body);
+    font-weight: 600;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--eyebrow);
+  }
+  .toc ol {
+    margin-top: 12px;
+    padding-left: 1.4em;
+    columns: 2;
+    column-gap: 32px;
+  }
+  .toc li {
+    margin-top: 6px;
+    break-inside: avoid;
+  }
+  .body :global(h2) {
+    font-size: var(--text-h3-benefit);
+    line-height: var(--leading-h3-benefit);
+    letter-spacing: var(--tracking-h3);
+    font-weight: 700;
+    margin-top: 48px;
+    scroll-margin-top: calc(var(--nav-h) + 16px);
+  }
+  .body :global(p),
+  .body :global(ul),
+  .body :global(ol),
+  .body :global(table) {
+    margin-top: 16px;
+  }
+  .body :global(li) {
+    margin-top: 8px;
+  }
+  .body :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-small);
+  }
+  .body :global(th),
+  .body :global(td) {
+    text-align: left;
+    vertical-align: top;
+    padding: 10px 12px 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  /* Un hueco que solo Carlos puede llenar. Se ve A PROPÓSITO: con uno solo, el
+     sitio no se publica (`pnpm --filter site check:publishable`). */
+  .body :global(code),
+  .updated :global(code) {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    background: var(--dot);
+    color: var(--on-dot);
+    padding: 1px 6px;
+    border-radius: var(--radius-focus);
+  }
+  @media (max-width: 900px) {
+    .toc ol {
+      columns: 1;
+    }
+  }
+  @media print {
+    :global([data-site-nav]),
+    :global(.mobile-menu),
+    :global(.footer),
+    :global(.skip-link),
+    .actions,
+    .toc {
+      display: none !important;
+    }
+    .legal {
+      padding: 0;
+    }
+    article {
+      max-width: none;
+    }
+  }
+</style>

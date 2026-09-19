@@ -17,25 +17,38 @@ import Container from "../components/Container.astro";
 import MarketSwitcher from "../components/MarketSwitcher.astro";
 import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, BRAND_NAME } from "../config/links";
 import type { Route } from "../config/markets";
+import type { Alternates } from "../config/seo";
 import { getMessages } from "../i18n";
 
 interface Props {
   route: Route;
+  /**
+   * Desde dónde se resuelven las anclas. En la portada, vacío (`#plans`); en una
+   * página legal, la portada de esa versión (`/es-mx/#plans`).
+   */
+  anchorBase?: string;
+  /** Esta misma página en cada versión, para el selector. Por omisión, las portadas. */
+  paths?: Alternates;
+  /**
+   * Siempre con fondo. Para las páginas SIN hero azul (las legales): ahí el menú
+   * transparente dejaría sus textos blancos sobre un fondo claro.
+   */
+  solid?: boolean;
 }
 
-const { route } = Astro.props;
+const { route, anchorBase = "", paths, solid = false } = Astro.props;
 const { nav } = getMessages(route);
 const links = [
-  { href: `#${ANCHORS.whatItDoes}`, label: nav.whatItDoes },
-  { href: `#${ANCHORS.benefits}`, label: nav.benefits },
-  { href: `#${ANCHORS.plans}`, label: nav.plans },
-  { href: `#${ANCHORS.faq}`, label: nav.faq },
+  { href: `${anchorBase}#${ANCHORS.whatItDoes}`, label: nav.whatItDoes },
+  { href: `${anchorBase}#${ANCHORS.benefits}`, label: nav.benefits },
+  { href: `${anchorBase}#${ANCHORS.plans}`, label: nav.plans },
+  { href: `${anchorBase}#${ANCHORS.faq}`, label: nav.faq },
 ];
 ---
 
-<div class="site-nav" data-site-nav>
+<div class="site-nav" data-site-nav data-solid={solid ? "" : undefined}>
   <Container as="nav" class="bar" aria-label={nav.label}>
-    <a class="brand" href="#" aria-label={nav.home}>
+    <a class="brand" href={anchorBase || "#"} aria-label={nav.home}>
       <Logo width={34} height={34} aria-hidden="true" />
       <span>{BRAND_NAME}</span>
     </a>
@@ -44,7 +57,7 @@ const links = [
     </ul>
     <div class="actions">
       <span class="desktop-only switcher-slot">
-        <MarketSwitcher route={route} placement="down" align="end" compact />
+        <MarketSwitcher route={route} placement="down" align="end" compact paths={paths} />
       </span>
       <a class="login desktop-only" href={APP_LOGIN_URL}>{nav.login}</a>
       <Button variant="dot" href={APP_REGISTER_URL} class="cta">
@@ -78,7 +91,7 @@ const links = [
   <div class="mobile-foot">
     <Button variant="dot" href={APP_REGISTER_URL}>{nav.cta}</Button>
     <a class="login" href={APP_LOGIN_URL}>{nav.login}</a>
-    <MarketSwitcher route={route} placement="up" />
+    <MarketSwitcher route={route} placement="up" paths={paths} />
   </div>
 </dialog>
 
@@ -88,7 +101,7 @@ const links = [
   const opener = document.querySelector<HTMLElement>("[data-open-menu]");
 
   // Arriba de todo el menú es transparente; al bajar gana su fondo.
-  if (bar) {
+  if (bar && !bar.hasAttribute("data-solid")) {
     const update = () => bar.toggleAttribute("data-at-top", window.scrollY < 8);
     update();
     window.addEventListener("scroll", update, { passive: true });
@@ -98,7 +111,7 @@ const links = [
     opener.addEventListener("click", () => menu.showModal());
     // Tocar un ancla cierra el menú: si no, la página baja DETRÁS de él.
     menu.addEventListener("click", (event) => {
-      if ((event.target as Element).closest('a[href^="#"]')) menu.close();
+      if ((event.target as Element).closest('a[href*="#"]')) menu.close();
     });
     // Si el celular se gira o la ventana crece, el menú de escritorio vuelve
     // y este ya no tiene sentido abierto.

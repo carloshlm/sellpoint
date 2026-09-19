@@ -9,11 +9,14 @@
     "preview": "astro preview",
     "typecheck": "astro check",
     "typecheck:full": "astro check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:publishable": "node scripts/check-publishable.mjs",
+    "lighthouse": "pnpm dlx @lhci/cli@0.15.x autorun --config=lighthouserc.json"
   },
   "dependencies": {
     "@sellpoint/shared": "workspace:*",
-    "astro": "^7.3.3"
+    "astro": "^7.3.3",
+    "marked": "^18.0.13"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",

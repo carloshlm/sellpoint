@@ -302,6 +302,7 @@ export const es = {
     optional: "opcional",
     consent:
       "Acepto que SellPointy me escriba a este correo sobre mi solicitud. Puedo pedir que dejen de hacerlo cuando quiera.",
+    privacyLink: "Aviso de privacidad",
     submit: "Enviar",
     sending: "Enviando…",
     // {name} y {email} se reemplazan con lo que escribió la persona.
@@ -318,7 +319,19 @@ export const es = {
       consent: "Necesitamos tu permiso para poder escribirte.",
     },
   },
+  notFound: {
+    title: "Esta página no existe.",
+    text: "Puede que la dirección esté mal escrita o que la página haya cambiado de lugar.",
+    cta: "Ir al inicio",
+  },
+  legal: {
+    toc: "Contenido",
+    print: "Imprimir",
+    backHome: "Volver al inicio",
+  },
   footer: {
+    privacy: "Aviso de privacidad",
+    terms: "Términos",
     tagline: "Tus ventas son el punto.",
     navLabel: "Pie de página",
   },

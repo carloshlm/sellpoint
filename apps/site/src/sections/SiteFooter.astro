@@ -2,28 +2,34 @@
 // F11-SITE-PAGE-07 — el pie: las mismas anclas del menú, el selector de país
 // e idioma y el año, calculado al construir.
 //
-// LO QUE FALTA, con nombre: los enlaces a Privacidad y Términos llegan con
-// sus páginas (F11-SITE-LEGAL-01) —un enlace a una página que no existe es un
-// 404 en el pie de todo el sitio—, y el correo de contacto, cuando exista uno
-// de `sellpointy.com` (CONTENIDO §2).
+// LO QUE FALTA, con nombre: el correo de contacto, cuando exista uno de
+// `sellpointy.com` (CONTENIDO §2).
 import Container from "../components/Container.astro";
 import MarketSwitcher from "../components/MarketSwitcher.astro";
+import { legalPath } from "../config/legal";
 import { ANCHORS, BRAND_NAME } from "../config/links";
 import type { Route } from "../config/markets";
+import type { Alternates } from "../config/seo";
 import { getMessages } from "../i18n";
 
 interface Props {
   route: Route;
+  /** Igual que en el menú: vacío en la portada, `/es-mx/` en una página legal. */
+  anchorBase?: string;
+  /** Esta misma página en cada versión, para el selector. Por omisión, las portadas. */
+  paths?: Alternates;
 }
 
-const { route } = Astro.props;
+const { route, anchorBase = "", paths } = Astro.props;
 const { nav, footer } = getMessages(route);
 const year = new Date().getFullYear();
 const links = [
-  { href: `#${ANCHORS.whatItDoes}`, label: nav.whatItDoes },
-  { href: `#${ANCHORS.benefits}`, label: nav.benefits },
-  { href: `#${ANCHORS.plans}`, label: nav.plans },
-  { href: `#${ANCHORS.faq}`, label: nav.faq },
+  { href: `${anchorBase}#${ANCHORS.whatItDoes}`, label: nav.whatItDoes },
+  { href: `${anchorBase}#${ANCHORS.benefits}`, label: nav.benefits },
+  { href: `${anchorBase}#${ANCHORS.plans}`, label: nav.plans },
+  { href: `${anchorBase}#${ANCHORS.faq}`, label: nav.faq },
+  { href: legalPath(route, "privacy"), label: footer.privacy },
+  { href: legalPath(route, "terms"), label: footer.terms },
 ];
 ---
 
@@ -36,7 +42,7 @@ const links = [
   </nav>
   {/* `#footer-market`: a donde lleva «¿Estás en otro país?» de los precios. */}
   <span id="footer-market">
-    <MarketSwitcher route={route} placement="up" align="end" />
+    <MarketSwitcher route={route} placement="up" align="end" paths={paths} />
   </span>
 </Container>
 

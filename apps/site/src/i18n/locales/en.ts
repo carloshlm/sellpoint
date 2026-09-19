@@ -280,6 +280,7 @@ export const en: Messages = {
     optional: "optional",
     consent:
       "I agree to SellPointy emailing me about my request. I can ask them to stop at any time.",
+    privacyLink: "Privacy notice",
     submit: "Send",
     sending: "Sending…",
     successTitle: "All set, {name}!",
@@ -294,7 +295,19 @@ export const en: Messages = {
       consent: "We need your permission to be able to write to you.",
     },
   },
+  notFound: {
+    title: "This page doesn't exist.",
+    text: "The address may be mistyped, or the page may have moved.",
+    cta: "Go to the home page",
+  },
+  legal: {
+    toc: "Contents",
+    print: "Print",
+    backHome: "Back to home",
+  },
   footer: {
+    privacy: "Privacy notice",
+    terms: "Terms",
     tagline: "Sales. That's the point.",
     navLabel: "Footer",
   },

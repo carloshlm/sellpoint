@@ -1,0 +1,52 @@
+---
+// F11-SITE-SEO-02 — los datos estructurados de la portada: qué es SellPointy
+// (`SoftwareApplication`) y sus preguntas frecuentes (`FAQPage`), para que
+// Google pueda enseñarlas tal cual.
+//
+// SIN `offers` mientras los precios estén apagados: declararle a Google un
+// precio que la página no enseña es motivo de penalización. El día que un
+// mercado los prenda, `offers` sale de los mismos `prices` que pintan las
+// tarjetas — y `test/seo.test.ts` se cambia a propósito.
+//
+// Un bloque `application/ld+json` son DATOS, no código: el navegador no lo
+// ejecuta y la CSP no lo bloquea.
+import { BRAND_NAME } from "../config/links";
+import { getLocale, type Route } from "../config/markets";
+import { FAQ_ORDER } from "../config/page";
+import { absoluteUrl } from "../config/seo";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { htmlLang } = getLocale(route);
+const { meta, faq } = getMessages(route);
+
+const application = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: BRAND_NAME,
+  description: meta.description,
+  url: absoluteUrl(`/${route}/`),
+  inLanguage: htmlLang,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+};
+const questions = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  inLanguage: htmlLang,
+  mainEntity: FAQ_ORDER[route].map((id) => ({
+    "@type": "Question",
+    name: faq.items[id].q,
+    acceptedAnswer: { "@type": "Answer", text: faq.items[id].a },
+  })),
+};
+// `<` escapado: un texto con «</script>» no puede cerrar el bloque.
+const json = (data: object) => JSON.stringify(data).replace(/</g, "\\u003c");
+---
+
+<script type="application/ld+json" is:inline set:html={json(application)} />
+<script type="application/ld+json" is:inline set:html={json(questions)} />

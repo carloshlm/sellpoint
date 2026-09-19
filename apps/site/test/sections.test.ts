@@ -241,7 +241,12 @@ describe("cierre y pie (PAGE-07)", () => {
 describe("la página entera", () => {
   it.each([...ROUTES])("/%s/ no deja marcas de énfasis sin convertir", (route) => {
     const html = pageOf(route);
-    const body = textOf(html.slice(html.indexOf("<body"), html.indexOf("</body>")));
+    // Sin los guiones: Astro incrusta los pequeños en la página, y un selector
+    // como `a[href*="#"]` no es texto que alguien lea.
+    const markup = html
+      .slice(html.indexOf("<body"), html.indexOf("</body>"))
+      .replace(/<script[\s\S]*?<\/script>/g, "");
+    const body = textOf(markup);
     expect(body).not.toMatch(/\*/);
   });
 

@@ -16,6 +16,7 @@ import Hero from "../sections/Hero.astro";
 import Plans from "../sections/Plans.astro";
 import SiteFooter from "../sections/SiteFooter.astro";
 import SiteNav from "../sections/SiteNav.astro";
+import StructuredData from "../sections/StructuredData.astro";
 import WhatItDoes from "../sections/WhatItDoes.astro";
 import WhoFor from "../sections/WhoFor.astro";
 
@@ -31,7 +32,7 @@ const { route, isRoot = false } = Astro.props;
 const prices = await loadMarketPrices(getLocale(route).market);
 ---
 
-<Base route={route}>
+<Base route={route} path={isRoot ? "/" : `/${route}/`}>
   <SiteNav route={route} />
   <main id={ANCHORS.main}>
     <Hero route={route} />
@@ -43,5 +44,6 @@ const prices = await loadMarketPrices(getLocale(route).market);
     <Closing route={route} />
   </main>
   <SiteFooter route={route} />
+  <StructuredData route={route} />
   {isRoot && <MarketNotice current={route} />}
 </Base>

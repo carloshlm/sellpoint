@@ -30,10 +30,14 @@ a {
   color: inherit;
 }
 
-/* El foco es amarillo en todo el sitio: es el punto, otra vez. */
+/* El foco es amarillo en todo el sitio: es el punto, otra vez. Pero el amarillo
+   solo no se ve sobre un fondo claro (1.4:1, y hacen falta 3:1), así que lleva
+   un segundo anillo en tinta pegado al elemento: sobre claro contrasta la
+   tinta; sobre el azul del hero, el amarillo. `test/contrast.test.ts` lo cuida. */
 :focus-visible {
   outline: 3px solid var(--dot);
   outline-offset: 3px;
+  box-shadow: 0 0 0 3px var(--ink);
   border-radius: var(--radius-focus);
 }
 

@@ -285,6 +285,7 @@ export const fr: Messages = {
     optional: "facultatif",
     consent:
       "J'accepte que SellPointy m'écrive à cette adresse au sujet de ma demande. Je peux demander l'arrêt de ces envois à tout moment.",
+    privacyLink: "Politique de confidentialité",
     submit: "Envoyer",
     sending: "Envoi…",
     successTitle: "C'est noté, {name}\u202f!",
@@ -300,7 +301,19 @@ export const fr: Messages = {
       consent: "Nous avons besoin de votre accord pour pouvoir vous écrire.",
     },
   },
+  notFound: {
+    title: "Cette page n'existe pas.",
+    text: "L'adresse est peut-être mal saisie, ou la page a été déplacée.",
+    cta: "Retour à l'accueil",
+  },
+  legal: {
+    toc: "Sommaire",
+    print: "Imprimer",
+    backHome: "Retour à l'accueil",
+  },
   footer: {
+    privacy: "Politique de confidentialité",
+    terms: "Conditions générales",
     tagline: "Vos ventes. Un point, c'est tout.",
     navLabel: "Pied de page",
   },

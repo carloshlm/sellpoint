@@ -54,6 +54,8 @@ export function scriptsOf(page: string): string[] {
   };
 
   for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
+    // Los datos estructurados son DATOS: el navegador no los ejecuta.
+    if ((match[1] as string).includes("application/ld+json")) continue;
     const src = (match[1] as string).match(/\bsrc="([^"]+)"/)?.[1];
     if (src) visit(src.replace(/^\//, ""));
     else scripts.push(match[2] as string);

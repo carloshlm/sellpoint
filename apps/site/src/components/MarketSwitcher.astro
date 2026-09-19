@@ -17,6 +17,7 @@ import {
   type MarketId,
   type Route,
 } from "../config/markets";
+import type { Alternates } from "../config/seo";
 import { getMessages } from "../i18n";
 import DotMark from "./DotMark.astro";
 
@@ -33,9 +34,11 @@ interface Props {
    * para el lector de pantalla.
    */
   compact?: boolean;
+  /** A dónde lleva cada versión. Por omisión, a su portada. */
+  paths?: Alternates | undefined;
 }
 
-const { route, placement = "down", align = "start", compact = false } = Astro.props;
+const { route, placement = "down", align = "start", compact = false, paths } = Astro.props;
 const current = getLocale(route);
 const { markets, geo } = getMessages(route);
 const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
@@ -71,7 +74,7 @@ const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
           <span class="languages">
             {country.locales.map((locale) => (
               <a
-                href={`/${locale.route}/`}
+                href={paths?.[locale.route] ?? `/${locale.route}/`}
                 lang={locale.htmlLang}
                 hreflang={locale.htmlLang}
                 aria-current={locale.route === route ? "page" : undefined}

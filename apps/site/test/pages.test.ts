@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LEGAL_DOCS, legalPath } from "../src/config/legal";
 import { DEFAULT_ROUTE, getLocale, ROUTES } from "../src/config/markets";
 import { getMessages } from "../src/i18n";
 import { distPages, readDist, scriptsOf } from "./dist";
@@ -11,8 +12,17 @@ const headOf = (html: string) => html.slice(0, html.indexOf("</head>"));
 const escaped = (text: string) => text.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 
 describe("rutas por mercado e idioma", () => {
-  it("se construyen las cinco, más la raíz — y nada más", () => {
-    const expected = ["index.html", ...ROUTES.map((route) => `${route}/index.html`)];
+  it("se construyen la raíz, las cinco versiones y sus páginas legales — y nada más", () => {
+    // Una página que aparece sin que nadie la pidiera (un borrador, una ruta de
+    // prueba) se publicaría igual que las demás.
+    const expected = [
+      "index.html",
+      "404.html",
+      ...ROUTES.map((route) => `${route}/index.html`),
+      ...ROUTES.flatMap((route) =>
+        LEGAL_DOCS.map((doc) => `${legalPath(route, doc).slice(1)}index.html`),
+      ),
+    ];
     expect(distPages().sort()).toEqual(expected.sort());
   });
 
@@ -58,13 +68,6 @@ describe("plantilla base", () => {
       expect(script?.[2], page).toContain("data-theme");
       // `localStorage` puede tronar (modo privado, datos bloqueados).
       expect(script?.[2], page).toContain("try");
-    }
-  });
-
-  it("mientras sea un andamiaje, ninguna página se deja indexar", () => {
-    // Se quita en F11-SITE-SEO-01, junto con la canónica y el hreflang.
-    for (const page of distPages()) {
-      expect(headOf(readDist(page)), page).toContain('<meta name="robots" content="noindex"');
     }
   });
 

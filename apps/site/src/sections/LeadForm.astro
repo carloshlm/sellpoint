@@ -13,6 +13,7 @@
 // `data-*`: el guion no conoce ningún idioma.
 import { ISO_COUNTRY_CODES } from "@sellpoint/shared";
 import Button from "../components/Button.astro";
+import { legalPath } from "../config/legal";
 import { APP_REGISTER_URL } from "../config/links";
 import { getLocale, MARKETS, type MarketId, type Route } from "../config/markets";
 import { CLINICS_MARKETS } from "../config/page";
@@ -131,7 +132,10 @@ const trades = [
 
     <div class="consent">
       <input id="lead-consent" name="consent" type="checkbox" required />
-      <label for="lead-consent" data-consent-text>{form.consent}</label>
+      <label for="lead-consent">
+        <span data-consent-text>{form.consent}</span>{" "}
+        <a href={legalPath(route, "privacy")}>{form.privacyLink}</a>
+      </label>
     </div>
     <p class="error" id="lead-consent-error" hidden></p>
 

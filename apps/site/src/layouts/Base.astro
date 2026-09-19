@@ -3,7 +3,8 @@
 import "../styles/global.css";
 import { Font } from "astro:assets";
 import { ANCHORS } from "../config/links";
-import { getLocale, type Route } from "../config/markets";
+import { getLocale, ROUTES, type Route } from "../config/markets";
+import { type Alternates, absoluteUrl, HOME_ALTERNATES, HOME_X_DEFAULT } from "../config/seo";
 import { getMessages } from "../i18n";
 import { BRAND_BLUE } from "../styles/tokens";
 
@@ -12,12 +13,29 @@ interface Props {
   /** Por omisión, los de la ruta. Las páginas legales traen los suyos. */
   title?: string;
   description?: string;
+  /** La dirección canónica de ESTA página. Por omisión, la portada de la ruta. */
+  path?: string;
+  /** Esta misma página en cada versión (`hreflang`). Por omisión, las portadas. */
+  alternates?: Alternates;
+  /** A dónde manda Google a quien no encaja en ninguna versión. */
+  xDefault?: string;
+  /** Solo la 404: una página de error no se indexa. */
+  noindex?: boolean;
 }
 
 const { route } = Astro.props;
 const locale = getLocale(route);
 const messages = getMessages(route);
-const { title = messages.meta.title, description = messages.meta.description } = Astro.props;
+const {
+  title = messages.meta.title,
+  description = messages.meta.description,
+  path = `/${route}/`,
+  alternates = HOME_ALTERNATES,
+  xDefault = HOME_X_DEFAULT,
+  noindex = false,
+} = Astro.props;
+const canonical = absoluteUrl(path);
+const ogImage = absoluteUrl(`/og/${locale.language}.png`);
 ---
 
 <!doctype html>
@@ -47,9 +65,36 @@ const { title = messages.meta.title, description = messages.meta.description } =
     </script>
     <title>{title}</title>
     <meta name="description" content={description} />
-    {/* Provisional: mientras el sitio sea un andamiaje no se deja indexar. Se
-        quita en F11-SITE-SEO-01, junto con la canónica y el hreflang. */}
-    <meta name="robots" content="noindex" />
+    {noindex && <meta name="robots" content="noindex" />}
+    {
+      /*
+       * F11-SITE-SEO-01. Cada página es canónica de sí misma y declara a sus
+       * cinco parejas, ella incluida: Google solo le hace caso a un `hreflang`
+       * RECÍPROCO (`test/seo.test.ts` lo comprueba recorriendo el sitio).
+       */
+    }
+    {!noindex && <link rel="canonical" href={canonical} />}
+    {
+      !noindex &&
+        ROUTES.map((other) => (
+          <link
+            rel="alternate"
+            hreflang={getLocale(other).htmlLang}
+            href={absoluteUrl(alternates[other])}
+          />
+        ))
+    }
+    {!noindex && <link rel="alternate" hreflang="x-default" href={absoluteUrl(xDefault)} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SellPointy" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content={locale.htmlLang.replace("-", "_")} />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content={BRAND_BLUE} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />

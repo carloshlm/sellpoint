@@ -1,0 +1,87 @@
+---
+// F11-SITE-SEO-05 — la 404. Es UN solo archivo para todo el sitio (nginx lo
+// sirve ante cualquier dirección que no exista), así que no sabe de antemano en
+// qué idioma viene la persona: trae los tres, y el guion deja a la vista el
+// suyo —por la dirección que intentó abrir o, si no, por su navegador—. Sin
+// JavaScript se ven los tres: torpe, pero nadie se queda sin salida.
+import Button from "../components/Button.astro";
+import Container from "../components/Container.astro";
+import MarketSwitcher from "../components/MarketSwitcher.astro";
+import { ANCHORS } from "../config/links";
+import { DEFAULT_ROUTE, getLocale, type Route } from "../config/markets";
+import { getMessages } from "../i18n";
+import Base from "../layouts/Base.astro";
+
+/** Una versión por idioma: a su portada lleva el botón. */
+const HOMES: Route[] = ["es-mx", "en-us", "fr-ca"];
+const blocks = HOMES.map((route) => ({
+  route,
+  language: getLocale(route).language,
+  htmlLang: getLocale(route).htmlLang,
+  texts: getMessages(route).notFound,
+}));
+---
+
+<Base route={DEFAULT_ROUTE} title={getMessages(DEFAULT_ROUTE).notFound.title} noindex>
+  <main id={ANCHORS.main} class="not-found">
+    <Container>
+      {
+        blocks.map((block) => (
+          <section lang={block.htmlLang} data-language={block.language}>
+            <h1>{block.texts.title}</h1>
+            <p>{block.texts.text}</p>
+            <Button variant="dot" href={`/${block.route}/`}>{block.texts.cta}</Button>
+          </section>
+        ))
+      }
+      <MarketSwitcher route={DEFAULT_ROUTE} placement="down" />
+    </Container>
+  </main>
+</Base>
+
+<script>
+  import { getStorage, readChoice } from "../geo/choice";
+  import { getLocale, isRoute } from "../config/markets";
+  import { suggestMarket } from "../geo/suggest-market";
+
+  // 1. La dirección que intentó abrir (`/fr-ca/lo-que-sea`), 2. lo que eligió
+  // antes, 3. lo que sugiere su navegador.
+  const fromPath = location.pathname.split("/")[1];
+  const route = isRoute(fromPath)
+    ? fromPath
+    : (readChoice(getStorage()) ??
+      suggestMarket({
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        languages: navigator.languages ?? [navigator.language],
+      }).route);
+  const language = getLocale(route).language;
+  for (const block of document.querySelectorAll<HTMLElement>("[data-language]")) {
+    block.hidden = block.dataset.language !== language;
+  }
+  document.documentElement.lang = getLocale(route).htmlLang;
+</script>
+
+<style>
+  .not-found {
+    min-height: 100vh;
+    padding-block: var(--space-section);
+    background: var(--blue);
+    color: var(--on-blue);
+    --mark-color: var(--on-blue);
+  }
+  section {
+    padding-block: 0 48px;
+  }
+  /* Los titulares de los otros dos idiomas son el mismo encabezado, repetido. */
+  h1 {
+    font-size: var(--text-h2);
+    line-height: var(--leading-h2);
+    letter-spacing: var(--tracking-h2);
+  }
+  p {
+    color: var(--on-blue-muted);
+    margin-top: 16px;
+    margin-bottom: 28px;
+    max-width: 34em;
+  }
+</style>
