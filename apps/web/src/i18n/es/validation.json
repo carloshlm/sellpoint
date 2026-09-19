@@ -5,6 +5,7 @@
   "passwordMin": "La contraseña debe tener al menos 12 caracteres",
   "passwordMismatch": "Las contraseñas no coinciden",
   "rolesRequired": "Selecciona al menos un rol",
+  "acceptTermsRequired": "Necesitas aceptar los Términos y el Aviso de privacidad",
   "money": "Escribe un monto válido, con hasta 2 decimales",
   "moneyPositive": "El monto debe ser mayor que cero",
   "number": {

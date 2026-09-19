@@ -5,10 +5,18 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
 import { TextField } from "@/components/form/text-field";
+import { LegalAcceptanceText } from "@/components/legal/legal-links";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import type { ApiError } from "@/lib/api";
 import { useRegisterTenant } from "@/lib/auth/hooks";
-import { type RegisterFormValues, registerSchema } from "@/lib/auth/schemas";
+import {
+  type RegisterFormValues,
+  registerSchema,
+  registerWithTermsSchema,
+} from "@/lib/auth/schemas";
+import { termsEnabled } from "@/lib/legal/terms";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
@@ -25,23 +33,31 @@ function RegisterPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
+  // F11-SITE-LEGAL-02: con los términos dormidos, la casilla NI SE PINTA y el
+  // schema es el de siempre. Se decide una vez por render y no dentro del
+  // JSX para que el schema y la casilla no puedan desincronizarse.
+  const pideTerminos = termsEnabled();
+  const schema = pideTerminos ? registerWithTermsSchema : registerSchema;
+
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(schema),
     mode: "onChange",
   });
 
   // Validación de password EN VIVO: el hint cambia a "cumple" apenas llega a 12.
   const passwordValue = watch("password") ?? "";
   const passwordMet = passwordValue.length >= 12;
+  const acceptTerms = watch("acceptTerms") === true;
 
   const onSubmit = handleSubmit((values) => {
     setApiError(null);
-    const parsed = registerSchema.parse(values);
+    const parsed = schema.parse(values);
     registerMutation.mutate(
       {
         ...parsed,
@@ -128,6 +144,29 @@ function RegisterPage() {
           error={errors.password?.message ? t(errors.password.message) : undefined}
           {...register("password")}
         />
+        {/* F11-SITE-LEGAL-02: la casilla nace SIN marcar y sin ella no se
+            envía. Dormida no existe: ni el elemento, ni el schema que la
+            exige — el registro se ve exactamente como antes. */}
+        {pideTerminos && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="accept-terms"
+                className="mt-0.5"
+                checked={acceptTerms}
+                onCheckedChange={(checked) =>
+                  setValue("acceptTerms", checked === true, { shouldValidate: true })
+                }
+              />
+              <Label htmlFor="accept-terms" className="text-sm font-normal leading-snug">
+                <LegalAcceptanceText />
+              </Label>
+            </div>
+            {errors.acceptTerms?.message && (
+              <p className="text-sm text-destructive">{t(errors.acceptTerms.message)}</p>
+            )}
+          </div>
+        )}
         <Button type="submit" size="lg" disabled={registerMutation.isPending}>
           {registerMutation.isPending ? t("common.form.submitting") : t("auth.register.submit")}
         </Button>

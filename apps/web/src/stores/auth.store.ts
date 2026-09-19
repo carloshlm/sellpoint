@@ -38,6 +38,14 @@ export interface AuthUser {
    * la única fuente. Lo consumen el PlanGate, el banner y el sidebar (F7-WEB).
    */
   subscription: SubscriptionBlock;
+  /**
+   * F11-SITE-LEGAL-03 (A1): si este usuario tiene que aceptar los términos
+   * antes de seguir. MISMO campo en `POST /auth/login` y en `GET /me`, como
+   * `tenant` y `subscription`. Opcional a propósito: su ausencia es «no hay
+   * nada que aceptar», que es lo que responde el API mientras
+   * `CURRENT_TERMS_VERSION` siga dormida.
+   */
+  mustAcceptTerms?: boolean;
 }
 
 interface AuthState {

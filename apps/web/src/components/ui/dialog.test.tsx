@@ -119,3 +119,72 @@ describe("Dialog (F7-WEB-03)", () => {
     expect(screen.getByLabelText("Monto")).toHaveFocus();
   });
 });
+
+/**
+ * F11-SITE-LEGAL-03 — el modo OBLIGATORIO.
+ *
+ * Una pared, no un diálogo: se usa cuando seguir usando la aplicación sin
+ * responder sería el problema. Estas pruebas custodian las cuatro salidas que
+ * tiene que tapar, porque cualquiera de ellas abierta convierte «hay que
+ * aceptar» en «hay que aceptar, salvo que sepas el truco».
+ */
+describe("Dialog obligatorio (dismissible=false)", () => {
+  function Obligatorio({ onClose = () => {} }: { onClose?: () => void }) {
+    return (
+      <I18nextProvider i18n={createI18n()}>
+        <Dialog open onClose={onClose} title="Acepta los términos" dismissible={false}>
+          <button type="button">Aceptar</button>
+          <button type="button">Cerrar sesión</button>
+        </Dialog>
+      </I18nextProvider>
+    );
+  }
+
+  it("Escape NO cierra", async () => {
+    const onClose = vi.fn();
+    render(<Obligatorio onClose={onClose} />);
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("el click en el backdrop NO cierra", async () => {
+    const onClose = vi.fn();
+    render(<Obligatorio onClose={onClose} />);
+
+    await userEvent.click(screen.getByTestId("dialog-backdrop"));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("no hay X: una X que no cierra es peor que ninguna", () => {
+    render(<Obligatorio />);
+
+    expect(screen.queryByRole("button", { name: "Cerrar" })).not.toBeInTheDocument();
+  });
+
+  it("el foco queda ATRAPADO: al llegar al último, Tab vuelve al primero", async () => {
+    render(<Obligatorio />);
+    const user = userEvent.setup();
+
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Aceptar" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Cerrar sesión" })).toHaveFocus();
+    // El tercer Tab saldría de la página en un diálogo normal; acá vuelve.
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Aceptar" })).toHaveFocus();
+  });
+
+  it("Shift+Tab desde el primero va al último, no al fondo de la página", async () => {
+    render(<Obligatorio />);
+    const user = userEvent.setup();
+
+    await user.tab();
+    await user.tab({ shift: true });
+
+    expect(screen.getByRole("button", { name: "Cerrar sesión" })).toHaveFocus();
+  });
+});

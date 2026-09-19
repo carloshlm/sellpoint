@@ -26,6 +26,19 @@ import { createQueryClient } from "./lib/query-client";
 import { routeTree } from "./routeTree.gen";
 import { useAuthStore } from "./stores/auth.store";
 
+/**
+ * F11-SITE-LEGAL-02: el interruptor de los términos. Por defecto DORMIDO, que
+ * es lo que corre en producción hoy — así el resto de este archivo sigue
+ * probando la aplicación tal cual está desplegada. Los casos del encendido lo
+ * levantan ellos mismos y lo devuelven en su `beforeEach`.
+ */
+const legal = vi.hoisted(() => ({ terminosEncendidos: false }));
+
+vi.mock("./lib/legal/terms", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./lib/legal/terms")>();
+  return { ...actual, termsEnabled: () => legal.terminosEncendidos };
+});
+
 vi.mock("./lib/auth/api", () => ({
   login: vi.fn(),
   registerTenant: vi.fn(),
@@ -39,6 +52,10 @@ vi.mock("./lib/auth/api", () => ({
   getSessions: vi.fn(),
   updateMyLocale: vi.fn(),
   updateMyProfile: vi.fn(),
+  // F11-SITE-LEGAL-03: `AppLayout` monta el `TermsGate`, que pide este hook
+  // aunque los términos estén dormidos. Este mock es EXHAUSTIVO (sin
+  // `importOriginal`): lo que no esté acá revienta al renderizar el shell.
+  acceptTerms: vi.fn(),
 }));
 
 const loginMock = vi.mocked(login);
@@ -357,6 +374,82 @@ describe("F1-WEB-AUTH-04 — /register", () => {
 
     expect(await screen.findByText("Ingresa un correo válido")).toBeInTheDocument();
     expect(registerTenantMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * F11-SITE-LEGAL-02 — la casilla de los términos.
+   *
+   * DORMIDA (lo desplegado hoy): la casilla ni se pinta y el registro se ve
+   * exactamente como antes. Los tres casos de arriba ya lo comprueban sin
+   * saberlo; este lo dice en voz alta para que nadie lo rompa sin enterarse.
+   */
+  it("dormido: no hay casilla de términos y el alta no manda `acceptTerms`", async () => {
+    registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
+    await renderRoute("/register");
+    await screen.findByRole("button", { name: "Crear cuenta" });
+
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+
+    const user = await fillRegisterForm();
+    await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    await screen.findByTestId("register-success");
+    expect(registerTenantMock.mock.calls[0]?.[0]).not.toHaveProperty("acceptTerms");
+  });
+
+  describe("con los términos ENCENDIDOS", () => {
+    beforeEach(() => {
+      legal.terminosEncendidos = true;
+    });
+
+    afterEach(() => {
+      legal.terminosEncendidos = false;
+    });
+
+    it("la casilla nace SIN marcar, con sus dos enlaces en pestaña nueva", async () => {
+      await renderRoute("/register");
+      await screen.findByRole("button", { name: "Crear cuenta" });
+
+      expect(screen.getByRole("checkbox")).not.toBeChecked();
+
+      const terminos = screen.getByRole("link", { name: "Términos" });
+      const privacidad = screen.getByRole("link", { name: "Aviso de privacidad" });
+      for (const enlace of [terminos, privacidad]) {
+        expect(enlace).toHaveAttribute("target", "_blank");
+        expect(enlace).toHaveAttribute("rel", "noopener");
+      }
+      expect(terminos).toHaveAttribute("href", "https://sellpointy.com/es-mx/terminos/");
+      expect(privacidad).toHaveAttribute("href", "https://sellpointy.com/es-mx/privacidad/");
+    });
+
+    it("sin marcarla no se envía: el API ni se entera", async () => {
+      await renderRoute("/register");
+      await screen.findByRole("button", { name: "Crear cuenta" });
+
+      const user = await fillRegisterForm();
+      await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+      expect(
+        await screen.findByText("Necesitas aceptar los Términos y el Aviso de privacidad"),
+      ).toBeInTheDocument();
+      expect(registerTenantMock).not.toHaveBeenCalled();
+    });
+
+    it("marcándola, el alta viaja con `acceptTerms: true`", async () => {
+      registerTenantMock.mockResolvedValue({ tenantId: "t1", userId: "u1" });
+      await renderRoute("/register");
+      await screen.findByRole("button", { name: "Crear cuenta" });
+
+      const user = await fillRegisterForm();
+      await user.click(screen.getByRole("checkbox"));
+      await user.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+      await screen.findByTestId("register-success");
+      expect(registerTenantMock).toHaveBeenCalledWith(
+        expect.objectContaining({ acceptTerms: true }),
+        expect.anything(),
+      );
+    });
   });
 });
 

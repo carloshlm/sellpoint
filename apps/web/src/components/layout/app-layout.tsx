@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { BillingBanner } from "@/components/billing/billing-banner";
 import { PlanGate } from "@/components/billing/plan-gate";
 import { OfflineBanner } from "@/components/layout/offline-banner";
+import { TermsGate } from "@/components/legal/terms-gate";
 import { useLogout } from "@/lib/auth/hooks";
 import { usePermissions } from "@/lib/auth/permissions";
 import { usePlan } from "@/lib/billing/use-plan";
@@ -636,6 +637,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <BillingBanner />
         <main className="min-w-0 flex-1 overflow-x-hidden p-3 sm:p-4">{children}</main>
         <PlanGate />
+        {/* F11-SITE-LEGAL-03: acá y no en el root porque es una pared para
+            quien YA entró — en /login no hay a quién pedirle nada. Dormido no
+            pinta nada, así que en el árbol de hoy es un `null`. */}
+        <TermsGate />
       </div>
     </div>
   );

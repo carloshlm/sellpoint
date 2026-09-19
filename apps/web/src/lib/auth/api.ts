@@ -21,11 +21,32 @@ export interface RegisterTenantInput {
   lastName: string;
   secondLastName?: string;
   locale?: "es" | "en";
+  /**
+   * F11-SITE-LEGAL-02: la casilla. Solo viaja cuando los términos están
+   * encendidos; el API la exige o la ignora según su propia constante, no
+   * según lo que mande el navegador.
+   */
+  acceptTerms?: boolean;
 }
 
 export interface RegisterTenantResponse {
   tenantId: string;
   userId: string;
+}
+
+/**
+ * F11-SITE-LEGAL-03: lo que devuelve `POST /auth/accept-terms`. Con los
+ * términos dormidos los dos campos vienen en null — el endpoint existe pero no
+ * hay nada que aceptar.
+ */
+export interface TermsAcceptanceResponse {
+  termsVersion: string | null;
+  acceptedAt: string | null;
+}
+
+export async function acceptTerms(): Promise<TermsAcceptanceResponse> {
+  const { data } = await api.post<TermsAcceptanceResponse>("/auth/accept-terms");
+  return data;
 }
 
 export async function login(input: LoginInput): Promise<LoginResponse> {

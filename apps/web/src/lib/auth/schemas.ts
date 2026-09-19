@@ -52,6 +52,22 @@ export const registerSchema = z.object({
   lastName: requiredString,
   email: emailSchema,
   password: passwordSchema,
+  /**
+   * F11-SITE-LEGAL-02: la casilla de los términos. OPCIONAL acá y obligatoria
+   * en `registerWithTermsSchema` — mientras `CURRENT_TERMS_VERSION` siga en
+   * `null` la casilla ni se pinta, y un schema que la exigiera hoy dejaría el
+   * registro inservible antes de que los textos existan.
+   */
+  acceptTerms: z.boolean().optional(),
+});
+
+/**
+ * F11-SITE-LEGAL-02 — el MISMO registro, con la casilla obligatoria. Lo elige
+ * el formulario según `termsEnabled()`, y el API vuelve a exigirla por su
+ * cuenta: lo que llega de un navegador no se cree nunca.
+ */
+export const registerWithTermsSchema = registerSchema.extend({
+  acceptTerms: z.literal(true, "validation.acceptTermsRequired"),
 });
 
 export const forgotPasswordSchema = z.object({

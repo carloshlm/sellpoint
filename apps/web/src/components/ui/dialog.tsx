@@ -13,16 +13,39 @@ import { useTranslation } from "react-i18next";
  * Cerrado se DESMONTA por completo (no `display:none`): sin foco fantasma,
  * sin lectores anunciando contenido invisible.
  */
+/**
+ * Los elementos que pueden recibir el foco dentro del panel. Se consulta en
+ * caliente en cada Tab: el contenido de un diálogo cambia (un botón que se
+ * deshabilita al enviar, un error que aparece), y una lista calculada al abrir
+ * quedaría vieja.
+ */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function Dialog({
   open,
   onClose,
   title,
   children,
+  dismissible = true,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /**
+   * F11-SITE-LEGAL-03: `false` convierte el diálogo en OBLIGATORIO — sin
+   * Escape, sin cierre por backdrop, sin la X, y con el foco atrapado adentro.
+   *
+   * Se usa con muchísimo cuidado: un diálogo que no se puede cerrar es una
+   * pared, y solo se justifica cuando seguir usando la aplicación sin
+   * responderlo sería el problema. Hoy lo usa UNO: la aceptación de los
+   * términos, que además siempre deja la puerta de cerrar sesión.
+   *
+   * `onClose` sigue existiendo en este modo, pero nadie lo dispara: el
+   * contenido decide qué acción cierra la pared.
+   */
+  dismissible?: boolean;
 }) {
   const { t } = useTranslation();
   const titleId = useId();
@@ -38,7 +61,7 @@ export function Dialog({
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !dismissible) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -48,7 +71,58 @@ export function Dialog({
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
+  }, [open, dismissible]);
+
+  /**
+   * La TRAMPA de foco, solo en el modo obligatorio.
+   *
+   * Un diálogo normal no la necesita: si el foco se escapa detrás del overlay
+   * siempre queda Escape para volver. Uno obligatorio sí — sin trampa, tres
+   * tabuladores dejan a quien navega con teclado o con lector de pantalla
+   * manoteando una página que no puede usar y de la que no puede salir.
+   *
+   * Es un ciclo: del último al primero con Tab, del primero al último con
+   * Shift+Tab. Si no hubiera nada enfocable, el panel se queda el foco.
+   */
+  useEffect(() => {
+    if (!open || dismissible) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+      const panel = panelRef.current;
+      if (!panel) {
+        return;
+      }
+      const focusables = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      const primero = focusables[0];
+      const ultimo = focusables[focusables.length - 1];
+
+      if (!primero || !ultimo) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+      // El foco puede estar FUERA del panel (el navegador lo tenía en la
+      // página al abrir): cualquier Tab lo devuelve adentro.
+      if (!panel.contains(document.activeElement)) {
+        event.preventDefault();
+        primero.focus();
+        return;
+      }
+      if (!event.shiftKey && document.activeElement === ultimo) {
+        event.preventDefault();
+        primero.focus();
+      } else if (event.shiftKey && document.activeElement === primero) {
+        event.preventDefault();
+        ultimo.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, dismissible]);
 
   /**
    * ⚠ El foco entra al panel SOLO al abrir, y por eso este efecto depende
@@ -81,7 +155,7 @@ export function Dialog({
       onClick={(event) => {
         // Solo el click DIRECTO al fondo cierra: un click dentro del panel
         // burbujea hasta acá pero su target no es el backdrop.
-        if (event.target === event.currentTarget) {
+        if (dismissible && event.target === event.currentTarget) {
           onClose();
         }
       }}
@@ -100,15 +174,19 @@ export function Dialog({
           </h2>
           {/* La X existe por el celular (Carlos, 2026-09-01): el panel llena
               la pantalla —no queda backdrop que tocar— y Escape no existe en
-              un teléfono. Sin un botón visible, el diálogo es una trampa. */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("common.dialog.close")}
-            className="-m-2 shrink-0 rounded-md p-2 text-muted-foreground leading-none transition-colors hover:bg-muted hover:text-foreground"
-          >
-            ✕
-          </button>
+              un teléfono. Sin un botón visible, el diálogo es una trampa.
+              En el modo obligatorio no se pinta: no hay nada que cerrar, y
+              una X que no cierra es peor que ninguna. */}
+          {dismissible && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t("common.dialog.close")}
+              className="-m-2 shrink-0 rounded-md p-2 text-muted-foreground leading-none transition-colors hover:bg-muted hover:text-foreground"
+            >
+              ✕
+            </button>
+          )}
         </div>
         {children}
       </div>

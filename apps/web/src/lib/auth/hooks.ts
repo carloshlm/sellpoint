@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ApiError } from "@/lib/api";
 import {
   type ActiveSession,
+  acceptTerms,
   type ChangePasswordInput,
   changePassword,
   forgotPassword,
@@ -16,6 +17,7 @@ import {
   type RegisterTenantResponse,
   registerTenant,
   resetPassword,
+  type TermsAcceptanceResponse,
   type UpdateMyProfileInput,
   updateMyLocale,
   updateMyProfile,
@@ -75,6 +77,11 @@ export function useActiveSessions(enabled = true) {
 
 export function useUpdateLocale() {
   return useMutation<{ locale: string }, ApiError, "es" | "en">({ mutationFn: updateMyLocale });
+}
+
+/** F11-SITE-LEGAL-03: sella la aceptación de quien ya tenía cuenta. */
+export function useAcceptTerms() {
+  return useMutation<TermsAcceptanceResponse, ApiError, void>({ mutationFn: acceptTerms });
 }
 
 /** "Tus datos" editable (2026-08-26): PATCH parcial de nombre y apellidos. */
