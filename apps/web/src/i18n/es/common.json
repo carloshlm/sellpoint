@@ -532,6 +532,72 @@
       "cta": "Ver planes"
     }
   },
+  "site": {
+    "leads": {
+      "title": "Prospectos del sitio",
+      "empty": "Todavía no hay prospectos en este rango.",
+      "loadFailed": "No pudimos cargar los prospectos.",
+      "columns": {
+        "date": "Fecha",
+        "name": "Nombre",
+        "email": "Correo",
+        "country": "País",
+        "plan": "Plan de interés",
+        "businessType": "Giro",
+        "notified": "Aviso"
+      },
+      "notified": "Avisado",
+      "notNotified": "Sin avisar",
+      "planInterest": {
+        "basic": "Basic",
+        "pro": "Pro",
+        "plus": "Plus",
+        "custom": "Algo a la medida",
+        "undecided": "Todavía no sé"
+      }
+    },
+    "metrics": {
+      "title": "Números del sitio",
+      "loadFailed": "No pudimos cargar los números del sitio.",
+      "market": "Mercado",
+      "allMarkets": "Todos",
+      "marketNames": {
+        "mx": "México",
+        "us": "Estados Unidos",
+        "ca": "Canadá"
+      },
+      "events": {
+        "title": "Eventos",
+        "columns": { "event": "Evento", "count": "Conteo" },
+        "names": {
+          "cta_click": "Clic en «Empieza gratis»",
+          "form_open": "Abrió el formulario",
+          "form_submit": "Envió el formulario",
+          "market_change": "Cambió de país o idioma",
+          "plans_expand": "Abrió la comparativa de planes"
+        }
+      },
+      "byMarket": {
+        "title": "Por mercado",
+        "columns": { "market": "Mercado", "count": "Conteo" }
+      },
+      "conversion": {
+        "title": "De cada 100 que abren el formulario, cuántos lo envían",
+        "value": "{{rate}}%",
+        "empty": "Todavía nadie ha abierto el formulario."
+      },
+      "topReferrers": {
+        "title": "De dónde llegan los que convierten",
+        "columns": {
+          "domain": "Dominio",
+          "formSubmit": "Formularios enviados",
+          "ctaClick": "Clics en «Empieza gratis»",
+          "total": "Total"
+        },
+        "empty": "Todavía no hay datos de referencia."
+      }
+    }
+  },
   "birthDate": {
     "day": "Día",
     "month": "Mes",

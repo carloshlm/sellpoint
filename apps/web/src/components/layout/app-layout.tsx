@@ -10,7 +10,9 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
+  Inbox,
   LayoutDashboard,
+  LineChart,
   Lock,
   LogOut,
   Menu,
@@ -254,6 +256,24 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <Wrench className="size-4 shrink-0" aria-hidden="true" />
                 {expanded && <span className="truncate">{t("common.billing.admin.title")}</span>}
+              </Link>
+              {/* F11-SITE-LEAD-08/09: el sitio público también es backoffice,
+                  así que va al final del mismo grupo. */}
+              <Link
+                to="/admin/site/leads"
+                aria-label={t("common.site.leads.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <Inbox className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && <span className="truncate">{t("common.site.leads.title")}</span>}
+              </Link>
+              <Link
+                to="/admin/site/metrics"
+                aria-label={t("common.site.metrics.title")}
+                className="flex items-center gap-3 rounded-md px-3 py-2 font-medium text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+              >
+                <LineChart className="size-4 shrink-0" aria-hidden="true" />
+                {expanded && <span className="truncate">{t("common.site.metrics.title")}</span>}
               </Link>
             </fieldset>
           )}

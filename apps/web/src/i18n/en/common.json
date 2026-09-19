@@ -532,6 +532,72 @@
       "cta": "See plans"
     }
   },
+  "site": {
+    "leads": {
+      "title": "Site leads",
+      "empty": "No leads yet in this range.",
+      "loadFailed": "We couldn't load the leads.",
+      "columns": {
+        "date": "Date",
+        "name": "Name",
+        "email": "Email",
+        "country": "Country",
+        "plan": "Plan interest",
+        "businessType": "Business type",
+        "notified": "Notice"
+      },
+      "notified": "Notified",
+      "notNotified": "Not notified",
+      "planInterest": {
+        "basic": "Basic",
+        "pro": "Pro",
+        "plus": "Plus",
+        "custom": "Something custom",
+        "undecided": "Not sure yet"
+      }
+    },
+    "metrics": {
+      "title": "Site metrics",
+      "loadFailed": "We couldn't load the site metrics.",
+      "market": "Market",
+      "allMarkets": "All",
+      "marketNames": {
+        "mx": "Mexico",
+        "us": "United States",
+        "ca": "Canada"
+      },
+      "events": {
+        "title": "Events",
+        "columns": { "event": "Event", "count": "Count" },
+        "names": {
+          "cta_click": "Clicked \"Start for free\"",
+          "form_open": "Opened the form",
+          "form_submit": "Submitted the form",
+          "market_change": "Changed country or language",
+          "plans_expand": "Opened the plan comparison"
+        }
+      },
+      "byMarket": {
+        "title": "By market",
+        "columns": { "market": "Market", "count": "Count" }
+      },
+      "conversion": {
+        "title": "Out of every 100 who open the form, how many submit it",
+        "value": "{{rate}}%",
+        "empty": "No one has opened the form yet."
+      },
+      "topReferrers": {
+        "title": "Where the ones who convert come from",
+        "columns": {
+          "domain": "Domain",
+          "formSubmit": "Forms submitted",
+          "ctaClick": "\"Start for free\" clicks",
+          "total": "Total"
+        },
+        "empty": "No referrer data yet."
+      }
+    }
+  },
   "birthDate": {
     "day": "Day",
     "month": "Month",

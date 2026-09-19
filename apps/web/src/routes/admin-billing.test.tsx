@@ -658,6 +658,9 @@ describe("el menú tiene su grupo Backoffice", () => {
    * Carlos (2026-09-04): quien administra la plataforma entra a ver
    * negocios, no a vender. El grupo va ANTES de «Catálogo» y «Negocios» es
    * su primer enlace; «Cobros» va debajo.
+   *
+   * F11-SITE-LEAD-08/09: «Prospectos del sitio» y «Números del sitio» se
+   * suman al final del mismo grupo — el sitio público es backoffice también.
    */
   it("va antes de «Catálogos», con «Negocios» arriba y «Cobros» abajo", async () => {
     await renderAdmin(true, ["tenants:manage", "products:read"]);
@@ -672,6 +675,6 @@ describe("el menú tiene su grupo Backoffice", () => {
       within(backoffice)
         .getAllByRole("link")
         .map((link) => link.getAttribute("aria-label")),
-    ).toEqual(["Negocios", "Cobros"]);
+    ).toEqual(["Negocios", "Cobros", "Prospectos del sitio", "Números del sitio"]);
   });
 });

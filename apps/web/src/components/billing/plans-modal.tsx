@@ -1,8 +1,8 @@
 import {
   formatMoney,
-  type ModuleKey,
+  PLAN_LINES,
   type PlanCode,
-  type PlanFeatures,
+  type PlanLine,
   planIncludesModule,
 } from "@sellpoint/shared";
 import { useQuery } from "@tanstack/react-query";
@@ -39,44 +39,14 @@ import { useBillingStore } from "@/stores/billing.store";
  */
 
 /**
- * La lista comercial (Carlos, 2026-09-15), contada como escalera: primero
- * todo lo de Basic, luego lo que agrega Pro, luego Plus, y al final lo que
- * solo Premium trae. Leída de arriba abajo, cada bloque es un plan.
- *
- * Tres clases de línea, y las tres se pintan igual (palomita o guion):
- *  · `feature`: un flag de `plan.features` (o la columna `stockControl`).
- *  · `module`: un módulo de plan (`MODULE_MIN_PLAN`), con su etiqueta de menú.
- *  · `always`: algo que TODOS los planes traen (turno de caja, el ticket con
- *    logo) y que hasta hoy no se decía; `premium`: lo que solo él ofrece.
+ * La lista comercial —qué líneas, en qué orden— vive en `@sellpoint/shared`
+ * (`PLAN_LINES`, F11-SITE-PLANS-01): la leen esta vitrina Y el sitio público,
+ * para que nunca anuncien cosas distintas. Aquí solo se decide si el plan que
+ * llegó del API incluye cada línea: esa respuesta es la verdad, no el
+ * `minPlan` de la lista.
  */
-type Linea =
-  | { key: keyof PlanFeatures | "stockControl"; kind: "feature" }
-  | { key: ModuleKey; kind: "module" }
-  | { key: "cashShift" | "ticket"; kind: "always" }
-  | { key: "custom_modules"; kind: "premium" };
-
-const LINEAS: readonly Linea[] = [
-  { key: "pos", kind: "feature" },
-  { key: "cashShift", kind: "always" },
-  { key: "ticket", kind: "always" },
-  { key: "reports", kind: "feature" },
-  { key: "reports_export", kind: "feature" },
-  { key: "expenses", kind: "module" },
-  { key: "stockControl", kind: "feature" },
-  { key: "movements", kind: "feature" },
-  { key: "transfers", kind: "feature" },
-  { key: "quotes", kind: "feature" },
-  { key: "compositions", kind: "feature" },
-  { key: "purchases", kind: "module" },
-  // Carlos (2026-09-15): las órdenes van PEGADAS a Compras aunque sean de un
-  // plan más alto. Se leen juntas —comprar y planear la compra— y separarlas
-  // por el escalón obligaba a buscar la segunda seis renglones más abajo.
-  { key: "purchase_orders", kind: "feature" },
-  { key: "lots", kind: "feature" },
-  { key: "custom_fields", kind: "feature" },
-  { key: "custom_roles", kind: "feature" },
-  { key: "custom_modules", kind: "premium" },
-];
+type Linea = PlanLine;
+const LINEAS = PLAN_LINES;
 
 /**
  * Los módulos de plan se derivan de `MODULE_MIN_PLAN` y no de `plan.features`
