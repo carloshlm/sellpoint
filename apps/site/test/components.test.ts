@@ -65,8 +65,10 @@ describe("componentes base", () => {
     expect(visibleText("---\n---\n{items.map((item) => (<li>{item.name}</li>))}").trim()).toBe("");
   });
 
-  it("el botón tiene sus tres variantes y el punto sus cuatro (guía §4 y §6)", () => {
-    expect([...BUTTON_VARIANTS]).toEqual(["dot", "ghost", "blue"]);
+  it("el botón tiene sus variantes y el punto sus cuatro (guía §4, §6 y §11)", () => {
+    // Las tres del prototipo, más `outline`: el botón de los planes que no son
+    // el recomendado, que la guía §11 pide con borde en tinta.
+    expect([...BUTTON_VARIANTS]).toEqual(["dot", "ghost", "blue", "outline"]);
     expect([...DOT_MARK_VARIANTS]).toEqual(["full", "ring", "half", "sun"]);
     for (const variant of BUTTON_VARIANTS)
       expect(read("Button.astro")).toContain(`.btn--${variant}`);

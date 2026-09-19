@@ -34,7 +34,10 @@ const links = [
       {links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
     </ul>
   </nav>
-  <MarketSwitcher route={route} placement="up" align="end" />
+  {/* `#footer-market`: a donde lleva «¿Estás en otro país?» de los precios. */}
+  <span id="footer-market">
+    <MarketSwitcher route={route} placement="up" align="end" />
+  </span>
 </Container>
 
 <style>

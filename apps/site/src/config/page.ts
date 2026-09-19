@@ -80,6 +80,14 @@ export const FAQ_ORDER: Record<Route, FaqId[]> = {
   "fr-ca": [...COMMON_FAQ, "canadaTax"],
 };
 
+/**
+ * Los idiomas del sitio que la APLICACIÓN todavía no habla. En ellos la
+ * sección de planes lo dice a la vista (CONTENIDO §8.4): prometer francés en
+ * la portada y entregar inglés adentro es la queja más fácil de evitar. El
+ * día que el francés entre a la aplicación, se quita de aquí.
+ */
+export const APP_MISSING_LANGUAGES: readonly string[] = ["fr"];
+
 /** Los mercados donde «Consultorios» aparece entre los giros, como enlace (§4.4). */
 export const CLINICS_MARKETS: readonly MarketId[] = ["mx"];
 

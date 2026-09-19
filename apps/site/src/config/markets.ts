@@ -94,11 +94,18 @@ export function showPrices(route: Route): boolean {
  * El dinero lo escribe `Intl`, nunca una plantilla: el francés de Canadá pone
  * el signo al final y separa los miles con espacio (`1 250,50 $`).
  */
-export function formatMoney(amount: number, route: Route): string {
+export function formatMoney(
+  amount: number,
+  route: Route,
+  // Un precio de plan es redondo: «$199», no «$199.00». La caja dibujada sí
+  // enseña los centavos, como un ticket.
+  { whole = false }: { whole?: boolean } = {},
+): string {
   const locale = getLocale(route);
   return new Intl.NumberFormat(locale.htmlLang, {
     style: "currency",
     currency: MARKETS[locale.market].currency,
+    ...(whole ? { trailingZeroDisplay: "stripIfInteger" as const } : {}),
     // «$» y no «MX$», «US$» o «CA$»: cada versión habla de SU moneda, y la
     // leyenda «Precios para México» (PLANS-04) es la que dice cuál es.
     currencyDisplay: "narrowSymbol",

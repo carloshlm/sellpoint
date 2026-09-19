@@ -1,0 +1,424 @@
+---
+// F11-SITE-LEAD-07 — el formulario de interés (CONTENIDO §9, guía §11).
+//
+// Vive debajo del bloque azul del cierre, sobre `--surface` con el radio de 24 px
+// del marco de beneficios. Campos con borde de 1.5 px y radio de 12 px; etiquetas
+// ARRIBA del campo y siempre visibles (un `placeholder` desaparece al escribir);
+// un solo botón, el amarillo.
+//
+// Sin teléfono: cada campo de más baja las respuestas. El consentimiento nunca
+// llega marcado (lo exige la ley canadiense).
+//
+// Los textos que el guion necesita —«Enviando…», los errores— viajan en
+// `data-*`: el guion no conoce ningún idioma.
+import { ISO_COUNTRY_CODES } from "@sellpoint/shared";
+import Button from "../components/Button.astro";
+import { APP_REGISTER_URL } from "../config/links";
+import { getLocale, MARKETS, type MarketId, type Route } from "../config/markets";
+import { CLINICS_MARKETS } from "../config/page";
+import { getMessages } from "../i18n";
+import { LEAD_PLANS } from "../lead/form-logic";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { market } = getLocale(route);
+const { leadForm: form, markets, whoFor } = getMessages(route);
+const { htmlLang } = getLocale(route);
+// Los tres mercados primero, con el nombre que ya usa el sitio; después, el
+// resto del mundo. El API pide un país ISO de verdad: «Otro» no es un país, y
+// quien escribe desde Colombia merece decir que es de Colombia.
+const marketCountries = (Object.keys(MARKETS) as MarketId[]).map((id) => ({
+  code: MARKETS[id].country as string,
+  name: markets[id],
+  selected: id === market,
+}));
+const marketCodes = new Set(marketCountries.map((country) => country.code));
+const countryNames = new Intl.DisplayNames([htmlLang], { type: "region" });
+const otherCountries = ISO_COUNTRY_CODES.filter((code) => !marketCodes.has(code))
+  .map((code) => ({ code: code as string, name: countryNames.of(code) ?? code }))
+  .sort((a, b) => a.name.localeCompare(b.name, htmlLang));
+const trades = [
+  ...whoFor.trades,
+  ...(CLINICS_MARKETS.includes(market) ? [whoFor.clinics] : []),
+  form.businessTypeOther,
+];
+---
+
+<div class="frame" id="contact-form">
+  <form
+    novalidate
+    data-lead-form
+    data-route={route}
+    data-text-submit={form.submit}
+    data-text-sending={form.sending}
+    data-text-error={form.error}
+    data-text-too-many={form.tooMany}
+    data-error-required={form.errors.required}
+    data-error-email={form.errors.email}
+    data-error-consent={form.errors.consent}
+    data-success-title={form.successTitle}
+    data-success-text={form.successText}
+  >
+    <h3>{form.title}</h3>
+    <p class="lead">{form.lead}</p>
+
+    <div class="grid">
+      <div class="field">
+        <label for="lead-name">{form.name}</label>
+        <input id="lead-name" name="name" type="text" autocomplete="name" maxlength="120" required />
+        <p class="error" id="lead-name-error" hidden></p>
+      </div>
+      <div class="field">
+        <label for="lead-email">{form.email}</label>
+        <input
+          id="lead-email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          inputmode="email"
+          maxlength="254"
+          required
+        />
+        <p class="error" id="lead-email-error" hidden></p>
+      </div>
+      <div class="field">
+        <label for="lead-country">{form.country}</label>
+        <select id="lead-country" name="country" autocomplete="country" required>
+          {marketCountries.map((country) => (
+            <option value={country.code} selected={country.selected}>{country.name}</option>
+          ))}
+          <optgroup label={form.otherCountry}>
+            {otherCountries.map((country) => (
+              <option value={country.code}>{country.name}</option>
+            ))}
+          </optgroup>
+        </select>
+      </div>
+      <div class="field">
+        <label for="lead-plan">{form.plan}</label>
+        <select id="lead-plan" name="plan" required>
+          {LEAD_PLANS.map((plan) => (
+            <option value={plan} selected={plan === "undecided"}>{form.planOptions[plan]}</option>
+          ))}
+        </select>
+      </div>
+      <div class="field">
+        <label for="lead-business">
+          {form.businessType} <span class="optional">({form.optional})</span>
+        </label>
+        <select id="lead-business" name="businessType">
+          <option value="">{form.businessTypeEmpty}</option>
+          {trades.map((trade) => <option value={trade}>{trade}</option>)}
+        </select>
+      </div>
+      <div class="field field--wide">
+        <label for="lead-message">
+          {form.message} <span class="optional">({form.optional})</span>
+        </label>
+        <textarea id="lead-message" name="message" rows="4" maxlength="2000"></textarea>
+      </div>
+    </div>
+
+    {/* La trampa: fuera de la vista, del teclado y del lector de pantalla. Una
+        persona no la llena; un robot, sí. */}
+    <div class="trap" aria-hidden="true">
+      <label for="lead-website">Website</label>
+      <input id="lead-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="consent">
+      <input id="lead-consent" name="consent" type="checkbox" required />
+      <label for="lead-consent" data-consent-text>{form.consent}</label>
+    </div>
+    <p class="error" id="lead-consent-error" hidden></p>
+
+    <p class="error form-error" role="alert" data-form-error hidden></p>
+    <Button variant="dot" type="submit" data-submit>{form.submit}</Button>
+  </form>
+
+  {/* El éxito REEMPLAZA al formulario, y abre con el punto amarillo que rebota:
+      la segunda y última animación del sitio. */}
+  <div class="success" role="status" tabindex="-1" data-lead-success hidden>
+    <span class="pop" aria-hidden="true"></span>
+    <h3 data-success-title></h3>
+    <p data-success-text></p>
+    <Button variant="dot" href={APP_REGISTER_URL}>{form.successCta}</Button>
+  </div>
+</div>
+
+<script>
+  import { isRoute } from "../config/markets";
+  import { LEADS_URL } from "../lead/api";
+  import {
+    buildLeadPayload,
+    type LeadErrorKind,
+    type LeadFields,
+    planFromSearch,
+    validateLead,
+  } from "../lead/form-logic";
+  import { track } from "../lead/track";
+
+  const loadedAt = performance.now();
+  const form = document.querySelector<HTMLFormElement>("[data-lead-form]");
+  const success = document.querySelector<HTMLElement>("[data-lead-success]");
+
+  if (form && success) {
+    const texts = form.dataset;
+    const field = <T extends HTMLElement>(name: string) =>
+      form.elements.namedItem(name) as unknown as T;
+    const planSelect = field<HTMLSelectElement>("plan");
+    const submit = form.querySelector<HTMLButtonElement>("[data-submit]");
+    const formError = form.querySelector<HTMLElement>("[data-form-error]");
+    let opened = false;
+
+    /** «Se abrió el formulario»: una vez por visita, con el plan que traía. */
+    const markOpened = () => {
+      if (opened) return;
+      opened = true;
+      track("form_open", { section: "contact", plan: planSelect.value });
+    };
+
+    // El botón de una tarjeta trae su plan en la URL (`?plan=pro#contact`).
+    const fromUrl = planFromSearch(location.search);
+    if (fromUrl) planSelect.value = fromUrl;
+
+    // Con JavaScript, esos botones no recargan la página: eligen el plan,
+    // bajan al formulario y dejan el cursor en el primer campo.
+    document.addEventListener("click", (event) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>('a[href^="?plan="]');
+      if (!link) return;
+      const plan = planFromSearch(new URL(link.href).search);
+      if (!plan) return;
+      event.preventDefault();
+      planSelect.value = plan;
+      history.replaceState(null, "", `?plan=${plan}#contact`);
+      form.scrollIntoView({ block: "start" });
+      field<HTMLInputElement>("name").focus({ preventScroll: true });
+      markOpened();
+    });
+    form.addEventListener("focusin", markOpened);
+
+    const showError = (name: "name" | "email" | "consent", kind: LeadErrorKind | undefined) => {
+      const input = field<HTMLInputElement>(name);
+      const message = form.querySelector<HTMLElement>(`#lead-${name}-error`);
+      if (!message) return;
+      const key = kind && (`error${kind[0]?.toUpperCase()}${kind.slice(1)}` as const);
+      message.textContent = key ? (texts[key] ?? "") : "";
+      message.hidden = !kind;
+      input.setAttribute("aria-invalid", kind ? "true" : "false");
+      if (kind) input.setAttribute("aria-describedby", message.id);
+      else input.removeAttribute("aria-describedby");
+    };
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const route = form.dataset.route;
+      if (!isRoute(route) || !submit || !formError) return;
+
+      const fields: LeadFields = {
+        name: field<HTMLInputElement>("name").value,
+        email: field<HTMLInputElement>("email").value,
+        country: field<HTMLSelectElement>("country").value,
+        plan: planSelect.value,
+        businessType: field<HTMLSelectElement>("businessType").value,
+        message: field<HTMLTextAreaElement>("message").value,
+        consent: field<HTMLInputElement>("consent").checked,
+        website: field<HTMLInputElement>("website").value,
+      };
+      const errors = validateLead(fields);
+      for (const name of ["name", "email", "consent"] as const) showError(name, errors[name]);
+      const firstBad = (["name", "email", "consent"] as const).find((name) => errors[name]);
+      if (firstBad) {
+        // El foco va al primer error: el lector de pantalla lo anuncia con su mensaje.
+        field<HTMLInputElement>(firstBad).focus();
+        return;
+      }
+
+      formError.hidden = true;
+      submit.disabled = true;
+      submit.textContent = texts.textSending ?? "";
+      try {
+        const response = await fetch(LEADS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            buildLeadPayload(fields, {
+              route,
+              sourceUrl: location.href,
+              consentText:
+                form.querySelector("[data-consent-text]")?.textContent?.trim() ?? "",
+              elapsedMs: performance.now() - loadedAt,
+            }),
+          ),
+        });
+        if (response.status === 429) throw new Error("too-many");
+        if (!response.ok) throw new Error(String(response.status));
+
+        track("form_submit", { section: "contact", plan: fields.plan });
+        const fill = (template: string | undefined) =>
+          (template ?? "")
+            .replace("{name}", fields.name.trim())
+            .replace("{email}", fields.email.trim());
+        const title = success.querySelector("[data-success-title]");
+        const text = success.querySelector("[data-success-text]");
+        if (title) title.textContent = fill(texts.successTitle);
+        if (text) text.textContent = fill(texts.successText);
+        form.hidden = true;
+        success.hidden = false;
+        success.focus();
+      } catch (error) {
+        // Lo escrito NO se pierde: el formulario queda como estaba.
+        const tooMany = error instanceof Error && error.message === "too-many";
+        formError.textContent = (tooMany ? texts.textTooMany : texts.textError) ?? "";
+        formError.hidden = false;
+        submit.disabled = false;
+        submit.textContent = texts.textSubmit ?? "";
+      }
+    });
+  }
+</script>
+
+<style>
+  .frame {
+    margin-top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-frame);
+    padding: var(--space-cell);
+    scroll-margin-top: calc(var(--nav-h) + 16px);
+  }
+  h3 {
+    font-weight: 800;
+    font-size: var(--text-h3-feature);
+    line-height: var(--leading-h3-feature);
+  }
+  .lead {
+    color: var(--muted);
+    margin-top: 8px;
+    max-width: 38em;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px 24px;
+    margin-top: 28px;
+  }
+  .field--wide {
+    grid-column: 1 / -1;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .optional {
+    font-weight: 400;
+    color: var(--muted);
+  }
+  input[type="text"],
+  input[type="email"],
+  select,
+  textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--ink);
+    background: var(--ground);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-field);
+    padding: 12px 14px;
+  }
+  textarea {
+    resize: vertical;
+  }
+  [aria-invalid="true"] {
+    border-color: var(--ink);
+  }
+  .error {
+    margin-top: 6px;
+    font-size: var(--text-small);
+    font-weight: 600;
+  }
+  /* El error no se dice SOLO con color: lleva delante el punto, en anillo. */
+  .error::before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 8px;
+    border-radius: 50%;
+    border: 3px solid var(--ink);
+  }
+  .trap {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .consent {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    margin-top: 24px;
+  }
+  .consent input {
+    width: 20px;
+    height: 20px;
+    margin-top: 3px;
+    accent-color: var(--blue);
+  }
+  .consent label {
+    font-weight: 400;
+    margin: 0;
+  }
+  .form-error {
+    margin-top: 20px;
+  }
+  .frame :global(.btn) {
+    margin-top: 24px;
+  }
+  .frame :global(.btn[disabled]) {
+    opacity: 0.6;
+    cursor: progress;
+    transform: none;
+  }
+  .success p {
+    color: var(--muted);
+    margin-top: 10px;
+    max-width: 38em;
+  }
+  .success:focus {
+    outline: none;
+  }
+  .pop {
+    display: block;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 20px;
+    border-radius: 50%;
+    background: var(--dot);
+    animation: pop 0.7s var(--ease-pop) both;
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  @media (max-width: 900px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pop {
+      animation: none;
+    }
+  }
+</style>

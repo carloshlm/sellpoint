@@ -21,7 +21,7 @@ const { title = messages.meta.title, description = messages.meta.description } =
 ---
 
 <!doctype html>
-<html lang={locale.htmlLang}>
+<html lang={locale.htmlLang} data-route={route}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -62,5 +62,8 @@ const { title = messages.meta.title, description = messages.meta.description } =
   <body>
     <a class="skip-link" href={`#${ANCHORS.main}`}>{messages.a11y.skipToContent}</a>
     <slot />
+    <script>
+      import "../lead/wire-events";
+    </script>
   </body>
 </html>

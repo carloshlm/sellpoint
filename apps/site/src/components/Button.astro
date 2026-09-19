@@ -11,15 +11,23 @@ type Props = { variant?: ButtonVariant } & (
 
 const { variant = "dot", class: className, ...rest } = Astro.props;
 const classes = ["btn", `btn--${variant}`, className];
+// Los tipos se afinan AQUÍ y no en la plantilla: ahí adentro un `<"button">`
+// se confunde con una etiqueta.
+const linkProps = rest as HTMLAttributes<"a">;
+const buttonProps = rest as HTMLAttributes<"button">;
+const buttonType = buttonProps.type ?? "button";
+// En la plantilla, `type` va DESPUÉS del resto y con su valor por omisión:
+// escrito antes, el `type="submit"` de quien lo usa no lo pisaba y el
+// formulario de interés no se enviaba (lo cazó el navegador, no una prueba).
 ---
 
 {
   rest.href !== undefined ? (
-    <a class:list={classes} {...(rest as HTMLAttributes<"a">)}>
+    <a class:list={classes} {...linkProps}>
       <slot />
     </a>
   ) : (
-    <button type="button" class:list={classes} {...(rest as HTMLAttributes<"button">)}>
+    <button class:list={classes} {...buttonProps} type={buttonType}>
       <slot />
     </button>
   )
@@ -53,6 +61,11 @@ const classes = ["btn", `btn--${variant}`, className];
   .btn--blue {
     background: var(--blue);
     color: var(--on-blue);
+  }
+  .btn--outline {
+    background: transparent;
+    border-color: var(--ink);
+    color: var(--ink);
   }
   @media (prefers-reduced-motion: reduce) {
     .btn {

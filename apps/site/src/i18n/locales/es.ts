@@ -133,6 +133,90 @@ export const es = {
     // única píldora que es un enlace: el módulo es de Premium, a la medida.
     clinics: "Consultorios",
   },
+  plans: {
+    eyebrow: "Planes",
+    title: "Empieza con lo que necesitas. Crece cuando quieras.",
+    lead: "Todos los planes incluyen actualizaciones. Los primeros 14 días pruebas Plus completo, y después eliges.",
+    // «Recomendado», no «El más elegido»: no hay datos de ventas que lo
+    // respalden. Se recomienda Pro porque es el primero que cumple la promesa
+    // central del producto: saber cuánto tienes.
+    recommended: "Recomendado",
+    users: "{count} usuarios",
+    warehouseOne: "{count} almacén",
+    warehouseMany: "{count} almacenes",
+    cards: {
+      basic: {
+        tagline: "Para empezar a cobrar en orden",
+        includes: "Incluye:",
+        cta: "Quiero Basic",
+        // Basic vende aunque el saldo sea negativo. Dicho de frente evita al
+        // cliente enojado y, de paso, empuja a Pro.
+        note: "Basic no lleva existencias. Si necesitas saber cuánto tienes, tu plan es Pro.",
+      },
+      pro: {
+        tagline: "Para controlar tu inventario",
+        includes: "Todo lo de Basic, más:",
+        cta: "Quiero Pro",
+      },
+      plus: {
+        tagline: "Para operar en serio",
+        includes: "Todo lo de Pro, más:",
+        cta: "Quiero Plus",
+      },
+    },
+    premium: {
+      text: "¿Tu negocio necesita algo a la medida? Módulos hechos para tu giro —recepción, consultorio médico y más—, con usuarios y almacenes sin límite.",
+      cta: "Escríbenos",
+    },
+    // Solo se muestra en los idiomas que la aplicación todavía no habla
+    // (`APP_MISSING_LANGUAGES`): hoy, el francés.
+    appLanguageNote: "La aplicación está disponible en español y en inglés.",
+    compare: {
+      toggle: "Ver todo lo que incluye cada plan",
+      feature: "Funcionalidad",
+      planTabs: "Plan que se muestra",
+      included: "Incluido",
+      notIncluded: "No incluido",
+    },
+    // Los nombres de las líneas son LOS DE LA APLICACIÓN, tal cual:
+    // `test/plans.test.ts` los compara con `apps/web/src/i18n`.
+    lines: {
+      pos: "Punto de venta y tickets",
+      cashShift: "Turno de caja con arqueo",
+      ticket: "Ticket con tu logo, en 58 u 80 mm",
+      reports: "Reportes",
+      reports_export: "Exportar reportes",
+      expenses: "Gastos",
+      stockControl: "Control de inventario",
+      movements: "Entradas, salidas y kardex",
+      transfers: "Traspasos entre almacenes",
+      quotes: "Cotizaciones",
+      compositions: "Productos compuestos: recetas y kits",
+      purchases: "Compras",
+      purchase_orders: "Órdenes de compra y recepciones parciales",
+      lots: "Lotes y caducidades",
+      custom_fields: "Subcatálogos y campos propios",
+      custom_roles: "Roles personalizados",
+      custom_modules: "Módulos a la medida de tu negocio",
+    },
+    // Todo esto solo llega a la página con `showPrices` prendido (PLANS-04).
+    prices: {
+      cycleLabel: "Ciclo de pago",
+      monthly: "Mensual",
+      yearly: "Anual",
+      perMonth: "/mes",
+      perYear: "/año",
+      // El anual cuesta diez meses: es una regla de la base, no una promoción.
+      yearlyDeal: "Paga 10 meses, usa 12",
+      pricesFor: {
+        mx: "Precios para México.",
+        us: "Precios para Estados Unidos.",
+        ca: "Precios para Canadá.",
+      },
+      otherCountry: "¿Estás en otro país?",
+      paidByTransfer: "Precios en {currency}. Se paga por transferencia.",
+    },
+  },
   faq: {
     eyebrow: "Preguntas",
     title: "Lo que todos preguntan antes de empezar.",
@@ -191,6 +275,48 @@ export const es = {
     text: "Crea tu cuenta, escanea tus primeros productos y haz tu primera venta hoy mismo. Y si prefieres platicarlo antes, escríbenos.",
     primaryCta: "Empieza gratis",
     secondaryCta: "Escríbenos",
+  },
+  leadForm: {
+    title: "Cuéntanos de tu negocio",
+    // «Normalmente» es la palabra que hace el trabajo: describe cómo se
+    // atiende, no promete un plazo (Carlos, 2026-09-18).
+    lead: "Normalmente te escribimos en un día hábil, para ayudarte a elegir y arrancar.",
+    name: "Nombre",
+    email: "Correo",
+    country: "País",
+    otherCountry: "Otro país",
+    plan: "Plan que te interesa",
+    planOptions: {
+      basic: "Basic",
+      pro: "Pro",
+      plus: "Plus",
+      custom: "Algo a la medida",
+      // A propósito: es el prospecto que más necesita que le escriban, y sin
+      // esta salida elige uno al azar o se va.
+      undecided: "Todavía no sé",
+    },
+    businessType: "Giro de tu negocio",
+    businessTypeEmpty: "Elige uno (opcional)",
+    businessTypeOther: "Otro",
+    message: "¿Algo que debamos saber?",
+    optional: "opcional",
+    consent:
+      "Acepto que SellPointy me escriba a este correo sobre mi solicitud. Puedo pedir que dejen de hacerlo cuando quiera.",
+    submit: "Enviar",
+    sending: "Enviando…",
+    // {name} y {email} se reemplazan con lo que escribió la persona.
+    successTitle: "¡Listo, {name}!",
+    successText:
+      "Recibimos tu mensaje y te escribimos a {email}. Mientras tanto, puedes empezar tu prueba gratis — son 14 días con todo.",
+    successCta: "Empezar mi prueba gratis",
+    // La salida «o escríbenos a…» se agrega cuando exista el correo del dominio.
+    error: "No pudimos enviar tu mensaje. Inténtalo de nuevo.",
+    tooMany: "Recibimos varios mensajes desde tu conexión. Inténtalo de nuevo en un rato.",
+    errors: {
+      required: "Este dato es necesario.",
+      email: "Revisa el correo: parece incompleto.",
+      consent: "Necesitamos tu permiso para poder escribirte.",
+    },
   },
   footer: {
     tagline: "Tus ventas son el punto.",

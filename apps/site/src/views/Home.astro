@@ -3,16 +3,17 @@
 // `/[route]/` —una por mercado e idioma— y `/`, que sirve la de México.
 //
 // El orden es el recorrido de una decisión de compra (CONTENIDO §3): cada
-// sección responde UNA pregunta del visitante. La sección de planes
-// (F11-SITE-PLANS) entra entre «Para quién» y «Preguntas».
+// sección responde UNA pregunta del visitante.
 import MarketNotice from "../components/MarketNotice.astro";
 import { ANCHORS } from "../config/links";
-import type { Route } from "../config/markets";
+import { getLocale, type Route } from "../config/markets";
+import { loadMarketPrices } from "../config/prices";
 import Base from "../layouts/Base.astro";
 import Benefits from "../sections/Benefits.astro";
 import Closing from "../sections/Closing.astro";
 import Faq from "../sections/Faq.astro";
 import Hero from "../sections/Hero.astro";
+import Plans from "../sections/Plans.astro";
 import SiteFooter from "../sections/SiteFooter.astro";
 import SiteNav from "../sections/SiteNav.astro";
 import WhatItDoes from "../sections/WhatItDoes.astro";
@@ -25,6 +26,9 @@ interface Props {
 }
 
 const { route, isRoot = false } = Astro.props;
+// `null` mientras el mercado tenga los precios apagados (hoy, los tres). Si
+// están prendidos y el API no responde, esto TRUENA y la construcción falla.
+const prices = await loadMarketPrices(getLocale(route).market);
 ---
 
 <Base route={route}>
@@ -34,6 +38,7 @@ const { route, isRoot = false } = Astro.props;
     <WhatItDoes route={route} />
     <Benefits route={route} />
     <WhoFor route={route} />
+    <Plans route={route} prices={prices} />
     <Faq route={route} />
     <Closing route={route} />
   </main>

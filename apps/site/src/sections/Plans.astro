@@ -1,0 +1,480 @@
+---
+// F11-SITE-PLANS-02 a 04 — la sección de planes (CONTENIDO §5, guía §11).
+//
+// Tres columnas dentro de UN solo marco con filetes, igual que los beneficios:
+// no tres tarjetas flotando. El plan recomendado no cambia de fondo: lleva
+// arriba una píldora amarilla —el recurso de la insignia «¡Escaneado!»— y su
+// botón es el amarillo. Así el amarillo sigue siendo escaso y señala una cosa.
+//
+// QUÉ incluye cada plan sale de `@sellpoint/shared` (`PLAN_LINES`), la misma
+// lista que lee la vitrina de la aplicación.
+//
+// LOS PRECIOS (PLANS-04): el hueco, el selector mensual/anual y las leyendas
+// existen desde ahora, pero solo se ESCRIBEN en el HTML si llegan `prices`.
+// Con el interruptor apagado el precio no viaja ni escondido con CSS: prender
+// México es cambiar un `false` por un `true` en `config/markets.ts`.
+import {
+  PLAN_LIMITS,
+  PLAN_LINES,
+  PUBLISHED_PLANS,
+  planIncludesLine,
+  planStepLines,
+} from "@sellpoint/shared";
+import Button from "../components/Button.astro";
+import Container from "../components/Container.astro";
+import DotMark from "../components/DotMark.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import { ANCHORS } from "../config/links";
+import { formatMoney, getLocale, MARKETS, type Route } from "../config/markets";
+import { APP_MISSING_LANGUAGES, CUSTOM_PLAN_PARAM } from "../config/page";
+import type { PlanPrices } from "../config/prices";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+  /** `null` = precios apagados en este mercado. */
+  prices: PlanPrices | null;
+}
+
+/** El plan que se destaca (Carlos, 2026-09-18). */
+const RECOMMENDED = "pro";
+const PLAN_NAMES = { basic: "Basic", pro: "Pro", plus: "Plus" } as const;
+
+const { route, prices } = Astro.props;
+const { market, language } = getLocale(route);
+const { plans } = getMessages(route);
+const headingId = `${ANCHORS.plans}-title`;
+const contactHref = (plan: string) => `?plan=${plan}#${ANCHORS.contact}`;
+
+const cards = PUBLISHED_PLANS.map((code) => {
+  const { users, warehouses } = PLAN_LIMITS[code];
+  const price = prices?.[code];
+  return {
+    code,
+    name: PLAN_NAMES[code],
+    texts: plans.cards[code],
+    recommended: code === RECOMMENDED,
+    users: plans.users.replace("{count}", String(users)),
+    warehouses: (warehouses === 1 ? plans.warehouseOne : plans.warehouseMany).replace(
+      "{count}",
+      String(warehouses),
+    ),
+    lines: planStepLines(code).map((line) => plans.lines[line.key]),
+    price: price && {
+      monthly: formatMoney(price.monthly, route, { whole: true }),
+      yearly: formatMoney(price.yearly, route, { whole: true }),
+    },
+  };
+});
+const basicNote = plans.cards.basic.note;
+---
+
+<section id={ANCHORS.plans} aria-labelledby={headingId}>
+  <Container>
+    <SectionHeading id={headingId}>
+      <Fragment slot="eyebrow">{plans.eyebrow}</Fragment>
+      {plans.title}
+      <Fragment slot="sub">{plans.lead}</Fragment>
+    </SectionHeading>
+
+    {
+      prices && (
+        <fieldset class="cycle" data-billing-cycle>
+          <legend class="visually-hidden">{plans.prices.cycleLabel}</legend>
+          <label>
+            <input type="radio" name="billing-cycle" value="monthly" checked />
+            <span>{plans.prices.monthly}</span>
+          </label>
+          <label>
+            <input type="radio" name="billing-cycle" value="yearly" />
+            <span>{plans.prices.yearly}</span>
+          </label>
+          <span class="deal">{plans.prices.yearlyDeal}</span>
+        </fieldset>
+      )
+    }
+
+    <div class="cards">
+      {
+        cards.map((card) => (
+          <article class="card" data-plan={card.code}>
+            <p class="flag">
+              {card.recommended && <span class="recommended">{plans.recommended}</span>}
+            </p>
+            <h3>{card.name}</h3>
+            <p class="tagline">{card.texts.tagline}</p>
+            {card.price && (
+              <p class="price" data-price>
+                <span class="amount amount--monthly">
+                  <b>{card.price.monthly}</b>
+                  {plans.prices.perMonth}
+                </span>
+                <span class="amount amount--yearly">
+                  <b>{card.price.yearly}</b>
+                  {plans.prices.perYear}
+                </span>
+              </p>
+            )}
+            <p class="limits">
+              <span>{card.users}</span>
+              <span>{card.warehouses}</span>
+            </p>
+            <p class="includes">{card.texts.includes}</p>
+            <ul>
+              {card.lines.map((line) => (
+                <li>{line}</li>
+              ))}
+            </ul>
+            <Button
+              variant={card.recommended ? "dot" : "outline"}
+              href={contactHref(card.code)}
+              class="plan-cta"
+            >
+              {card.texts.cta}
+            </Button>
+          </article>
+        ))
+      }
+    </div>
+
+    <p class="note">{basicNote}</p>
+    {APP_MISSING_LANGUAGES.includes(language) && <p class="note">{plans.appLanguageNote}</p>}
+    {
+      prices && (
+        <p class="note">
+          {plans.prices.pricesFor[market]}{" "}
+          <a href="#footer-market">{plans.prices.otherCountry}</a>{" "}
+          {plans.prices.paidByTransfer.replace("{currency}", MARKETS[market].currency)}
+        </p>
+      )
+    }
+
+    {/* Premium: un renglón bajo el marco, con filete arriba, sin caja propia. */}
+    <p class="premium">
+      <span>{plans.premium.text}</span>
+      <a href={contactHref(CUSTOM_PLAN_PARAM)}>{plans.premium.cta}</a>
+    </p>
+
+    <details class="compare" data-plans-compare>
+      <summary>
+        <span>{plans.compare.toggle}</span>
+        <DotMark variant="ring" size="sm" />
+      </summary>
+      {/* En celular se ve UN plan a la vez: una tabla de cuatro columnas se
+          desborda. Las pestañas son radios y el cambio es puro CSS (`:has`). */}
+      <fieldset class="tabs">
+        <legend class="visually-hidden">{plans.compare.planTabs}</legend>
+        {
+          PUBLISHED_PLANS.map((code) => (
+            <label>
+              <input
+                type="radio"
+                name="compare-plan"
+                value={code}
+                checked={code === RECOMMENDED}
+              />
+              <span>{PLAN_NAMES[code]}</span>
+            </label>
+          ))
+        }
+      </fieldset>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{plans.compare.feature}</th>
+            {PUBLISHED_PLANS.map((code) => <th scope="col" data-col={code}>{PLAN_NAMES[code]}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {
+            PLAN_LINES.map((line) => (
+              <tr data-line={line.key}>
+                <th scope="row">{plans.lines[line.key]}</th>
+                {PUBLISHED_PLANS.map((code) =>
+                  planIncludesLine(code, line.key) ? (
+                    <td data-col={code}>
+                      <DotMark variant="full" size="sm" />
+                      <span class="visually-hidden">{plans.compare.included}</span>
+                    </td>
+                  ) : (
+                    <td data-col={code}>
+                      <span aria-hidden="true">—</span>
+                      <span class="visually-hidden">{plans.compare.notIncluded}</span>
+                    </td>
+                  ),
+                )}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </details>
+  </Container>
+</section>
+
+<style>
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin-top: 48px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-frame);
+    background: var(--surface);
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-cell);
+    border-right: 1px solid var(--line);
+  }
+  .card:last-child {
+    border-right: 0;
+  }
+  /* El renglón de la píldora existe en las tres, para que los nombres queden
+     a la misma altura. */
+  .flag {
+    min-height: 34px;
+  }
+  .recommended {
+    display: inline-block;
+    background: var(--dot);
+    color: var(--on-dot);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+  }
+  h3 {
+    font-weight: 800;
+    font-size: var(--text-h3-feature);
+    line-height: var(--leading-h3-feature);
+    margin-top: 10px;
+  }
+  .tagline {
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .price {
+    margin-top: 18px;
+    color: var(--muted);
+  }
+  .price b {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 2.3rem;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    margin-right: 4px;
+  }
+  .limits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    margin-top: 18px;
+    padding-block: 14px;
+    border-block: 1px solid var(--line);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .includes {
+    margin-top: 18px;
+    font-weight: 600;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+    margin-bottom: 28px;
+    color: var(--muted);
+  }
+  /* La viñeta es el punto azul de 8 px: el motivo, otra vez, y no una palomita. */
+  li {
+    position: relative;
+    padding-left: 20px;
+    margin-top: 8px;
+  }
+  li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.62em;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--blue);
+  }
+  .card :global(.plan-cta) {
+    margin-top: auto;
+    justify-content: center;
+  }
+
+  /* El selector mensual/anual: dos radios y CSS. Sin JavaScript. */
+  .cycle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 32px;
+    border: 0;
+    padding: 0;
+  }
+  .cycle label span,
+  .tabs label span {
+    display: block;
+    padding: 8px 18px;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius-pill);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .cycle input,
+  .tabs input {
+    position: absolute;
+    opacity: 0;
+  }
+  .cycle input:checked + span,
+  .tabs input:checked + span {
+    background: var(--ink);
+    color: var(--ground);
+  }
+  .cycle input:focus-visible + span,
+  .tabs input:focus-visible + span {
+    outline: 3px solid var(--dot);
+    outline-offset: 3px;
+  }
+  .deal {
+    color: var(--muted);
+    font-size: var(--text-small);
+    margin-left: 8px;
+  }
+  .amount--yearly {
+    display: none;
+  }
+  section:has(input[name="billing-cycle"][value="yearly"]:checked) .amount--yearly {
+    display: inline;
+  }
+  section:has(input[name="billing-cycle"][value="yearly"]:checked) .amount--monthly {
+    display: none;
+  }
+
+  .note {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: var(--text-small);
+    max-width: 60em;
+  }
+  .premium {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 32px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  .premium span {
+    max-width: 46em;
+    color: var(--muted);
+  }
+  .premium a {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .compare {
+    margin-top: 32px;
+    border-top: 2px solid var(--ink);
+    border-bottom: 1px solid var(--line);
+  }
+  .compare summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-block: 22px;
+    cursor: pointer;
+    list-style: none;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: var(--text-h3-benefit);
+    letter-spacing: var(--tracking-h3);
+  }
+  .compare summary::-webkit-details-marker {
+    display: none;
+  }
+  .compare[open] summary :global(.mark--ring) {
+    background: var(--blue);
+  }
+  .tabs {
+    display: none;
+    gap: 8px;
+    border: 0;
+    padding: 0;
+    margin-bottom: 16px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 28px;
+  }
+  thead th {
+    position: sticky;
+    top: var(--nav-h);
+    background: var(--ground);
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.15rem;
+    padding: 14px 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+  th[scope="row"] {
+    text-align: left;
+    font-weight: 500;
+    padding: 14px 12px 14px 0;
+  }
+  thead th:first-child {
+    text-align: left;
+    padding-left: 0;
+  }
+  td {
+    text-align: center;
+    padding: 14px 12px;
+    color: var(--muted);
+  }
+  td :global(.mark) {
+    margin-inline: auto;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--line);
+  }
+  tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  @media (max-width: 900px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+    .card {
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .card:last-child {
+      border-bottom: 0;
+    }
+    .flag:empty {
+      display: none;
+      min-height: 0;
+    }
+    .tabs {
+      display: flex;
+    }
+    /* Un plan a la vez: se esconden las columnas de los otros dos. */
+    .compare:has(input[value="basic"]:checked) [data-col]:not([data-col="basic"]),
+    .compare:has(input[value="pro"]:checked) [data-col]:not([data-col="pro"]),
+    .compare:has(input[value="plus"]:checked) [data-col]:not([data-col="plus"]) {
+      display: none;
+    }
+  }
+</style>

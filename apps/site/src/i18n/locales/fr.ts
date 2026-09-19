@@ -124,6 +124,85 @@ export const fr: Messages = {
     // No se muestra en Canadá (`CLINICS_MARKETS`).
     clinics: "Cabinets médicaux",
   },
+  plans: {
+    eyebrow: "Forfaits",
+    title: "Commencez avec l'essentiel. Évoluez à votre rythme.",
+    lead: "Pendant les 14 premiers jours, vous profitez de tout le forfait Plus. Ensuite, vous choisissez.",
+    recommended: "Recommandé",
+    users: "{count} utilisateurs",
+    warehouseOne: "{count} entrepôt",
+    warehouseMany: "{count} entrepôts",
+    cards: {
+      basic: {
+        tagline: "Pour encaisser avec méthode",
+        includes: "Comprend\u00a0:",
+        cta: "Je choisis Basic",
+        note: "Basic ne gère pas les stocks. Si vous avez besoin de savoir ce que vous avez, le forfait qu'il vous faut est Pro.",
+      },
+      pro: {
+        tagline: "Pour maîtriser vos stocks",
+        includes: "Tout le forfait Basic, plus\u00a0:",
+        cta: "Je choisis Pro",
+      },
+      plus: {
+        tagline: "Pour une gestion complète",
+        includes: "Tout le forfait Pro, plus\u00a0:",
+        cta: "Je choisis Plus",
+      },
+    },
+    premium: {
+      text: "Besoin d'une solution sur mesure\u202f? Des modules conçus pour votre activité, avec utilisateurs et entrepôts illimités.",
+      cta: "Écrivez-nous",
+    },
+    // La línea de honestidad (§8.4), a la vista y no escondida en las
+    // preguntas. El día que el francés entre a la aplicación, se quita de
+    // `APP_MISSING_LANGUAGES` y deja de mostrarse.
+    appLanguageNote:
+      "L'application est disponible en anglais et en espagnol. Le français sera bientôt disponible.",
+    compare: {
+      toggle: "Voir tout ce que comprend chaque forfait",
+      feature: "Fonctionnalité",
+      planTabs: "Forfait affiché",
+      included: "Compris",
+      notIncluded: "Non compris",
+    },
+    // La aplicación no está en francés: estos nombres NACEN aquí (glosario de
+    // §8.1) y habrá que respetarlos el día que llegue.
+    lines: {
+      pos: "Point de vente et reçus",
+      cashShift: "Session de caisse avec comptage",
+      ticket: "Reçu à votre logo, en 58 ou 80 mm",
+      reports: "Rapports",
+      reports_export: "Exportation des rapports",
+      expenses: "Dépenses",
+      stockControl: "Gestion des stocks",
+      movements: "Entrées, sorties et historique",
+      transfers: "Transferts entre entrepôts",
+      quotes: "Devis",
+      compositions: "Produits composés\u00a0: recettes et kits",
+      purchases: "Achats",
+      purchase_orders: "Bons de commande et réceptions partielles",
+      lots: "Lots et dates de péremption",
+      custom_fields: "Sous-catalogues et champs personnalisés",
+      custom_roles: "Rôles personnalisés",
+      custom_modules: "Modules sur mesure pour votre activité",
+    },
+    prices: {
+      cycleLabel: "Cycle de paiement",
+      monthly: "Mensuel",
+      yearly: "Annuel",
+      perMonth: "/mois",
+      perYear: "/an",
+      yearlyDeal: "Payez 10 mois, utilisez-en 12",
+      pricesFor: {
+        mx: "Prix pour le Mexique.",
+        us: "Prix pour les États-Unis.",
+        ca: "Prix pour le Canada.",
+      },
+      otherCountry: "Vous êtes dans un autre pays\u202f?",
+      paidByTransfer: "Prix en {currency}. Paiement par virement bancaire.",
+    },
+  },
   faq: {
     eyebrow: "Questions",
     title: "Ce que tout le monde demande avant de commencer.",
@@ -183,6 +262,43 @@ export const fr: Messages = {
     text: "Créez votre compte, scannez vos premiers produits et réalisez votre première vente dès aujourd'hui. Vous préférez en parler d'abord\u202f? Écrivez-nous.",
     primaryCta: "Commencer gratuitement",
     secondaryCta: "Nous écrire",
+  },
+  leadForm: {
+    title: "Parlez-nous de votre commerce",
+    lead: "Nous répondons généralement en un jour ouvrable, pour vous aider à choisir et à démarrer.",
+    name: "Nom",
+    email: "Courriel",
+    country: "Pays",
+    otherCountry: "Un autre pays",
+    plan: "Forfait qui vous intéresse",
+    planOptions: {
+      basic: "Basic",
+      pro: "Pro",
+      plus: "Plus",
+      custom: "Une solution sur mesure",
+      undecided: "Je ne sais pas encore",
+    },
+    businessType: "Type de commerce",
+    businessTypeEmpty: "Choisissez (facultatif)",
+    businessTypeOther: "Autre",
+    message: "Quelque chose à nous préciser\u202f?",
+    optional: "facultatif",
+    consent:
+      "J'accepte que SellPointy m'écrive à cette adresse au sujet de ma demande. Je peux demander l'arrêt de ces envois à tout moment.",
+    submit: "Envoyer",
+    sending: "Envoi…",
+    successTitle: "C'est noté, {name}\u202f!",
+    successText:
+      "Nous avons bien reçu votre message et vous écrirons à {email}. En attendant, vous pouvez commencer votre essai gratuit\u00a0: 14 jours avec toutes les fonctionnalités.",
+    successCta: "Commencer mon essai gratuit",
+    error: "Votre message n'a pas pu être envoyé. Veuillez réessayer.",
+    tooMany:
+      "Nous avons reçu plusieurs messages depuis votre connexion. Veuillez réessayer un peu plus tard.",
+    errors: {
+      required: "Ce champ est obligatoire.",
+      email: "Vérifiez le courriel\u00a0: il semble incomplet.",
+      consent: "Nous avons besoin de votre accord pour pouvoir vous écrire.",
+    },
   },
   footer: {
     tagline: "Vos ventes. Un point, c'est tout.",

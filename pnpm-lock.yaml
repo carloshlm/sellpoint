@@ -189,6 +189,9 @@ importers:
 
   apps/site:
     dependencies:
+      '@sellpoint/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       astro:
         specifier: ^7.3.3
         version: 7.3.3(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.8)(yaml@2.9.0)

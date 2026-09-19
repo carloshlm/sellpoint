@@ -57,9 +57,9 @@ describe("navegación (PAGE-01)", () => {
 
   it.each([...ROUTES])("/%s/: toda ancla del menú tiene a dónde llegar", (route) => {
     const html = pageOf(route);
-    // PENDIENTE con nombre: la sección de planes llega con F11-SITE-PLANS-02.
-    // Cuando exista, esta lista queda vacía — y así se queda.
-    const pending: string[] = [ANCHORS.plans];
+    // Sin pendientes: `#plans` tiene destino desde F11-SITE-PLANS-02. Si algún
+    // día vuelve a haber un ancla sin sección, que sea a propósito y con nombre.
+    const pending: string[] = [];
     const targets = new Set([...html.matchAll(/href="#([\w-]+)"/g)].map((m) => m[1] as string));
     for (const id of targets) {
       if (pending.includes(id)) continue;

@@ -2,14 +2,15 @@
 // F11-SITE-PAGE-07 — el cierre: el bloque azul de esquinas de 32 px con el
 // círculo amarillo saliéndose por abajo a la derecha.
 //
-// Es también el destino de `#contact`: el formulario de interés
-// (F11-SITE-LEAD-07) se monta aquí dentro, y «Escríbenos» y la píldora
-// «Consultorios» ya apuntan a este lugar.
+// Es también el destino de `#contact`: debajo del bloque azul va el formulario
+// de interés (`LeadForm`), a donde llevan «Escríbenos», los botones de las
+// tarjetas de plan y la píldora «Consultorios».
 import Button from "../components/Button.astro";
 import Container from "../components/Container.astro";
 import { ANCHORS, APP_REGISTER_URL } from "../config/links";
 import type { Route } from "../config/markets";
 import { getMessages } from "../i18n";
+import LeadForm from "./LeadForm.astro";
 
 interface Props {
   route: Route;
@@ -27,9 +28,10 @@ const headingId = `${ANCHORS.contact}-title`;
       <p>{closing.text}</p>
       <div class="cta-row">
         <Button variant="dot" href={APP_REGISTER_URL}>{closing.primaryCta}</Button>
-        <Button variant="ghost" href={`#${ANCHORS.contact}`}>{closing.secondaryCta}</Button>
+        <Button variant="ghost" href="#contact-form">{closing.secondaryCta}</Button>
       </div>
     </div>
+    <LeadForm route={route} />
   </Container>
 </section>
 
