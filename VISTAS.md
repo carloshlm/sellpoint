@@ -2108,6 +2108,48 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 | **Recepción** (`purchase-receipt-detail.tsx`) | Nace prellenada con lo pendiente; fecha (tope hoy), remisión / *packing slip*, notas; por línea pedido, recibido antes, pendiente, «Llegó», lote y caducidad con `LotCells` (las MISMAS celdas de la compra). | Confirmar suma a la orden y avisa que la mercancía entra al inventario con la compra y su entrada; el 422 por recibir de más se pinta junto a la tabla; facturada no se anula. |
 | **La compra que nace** (`purchase-detail.tsx`) | «Nació de la orden OCO-… · Recepciones RCP-…» con enlaces; por línea «Acordado: $120.00 · +$5.00» en ámbar si difiere; aviso en `role="alert"` si factura más de lo recibido. | Las variaciones **avisan y no bloquean**: Confirmar sigue habilitado. |
 
+## 17. Backoffice — el sitio público
+
+> F11-SITE-LEAD-08 y 09 (2026-09-18). Dos pantallas de SOLO LECTURA del grupo «Backoffice» del menú, visibles para quien administra la plataforma (mismo candado que Negocios y Cobros). Muestran lo que llega desde `sellpointy.com`: quién escribió y qué tanto convence la página. **Se prueban en el sandbox**, donde la cuenta de pruebas es administradora de plataforma.
+
+### 17.1 Prospectos del sitio — `/admin/site/leads`
+
+Es la red para el día que un correo de aviso no llegue: el prospecto se GUARDA primero y se avisa después, así que aquí está siempre.
+
+```
+┌ Prospectos del sitio ──────────────────────── Desde [ ] Hasta [ ] [Limpiar] ┐
+│ Fecha        Nombre                Correo              País  Plan   Giro       Aviso        │
+│ 19 sep 05:07 Ana Torres            ana@ejemplo.com     MX    Pro    Farmacias  [Avisado]    │
+│              Tengo dos sucursales…                                                         │
+│ 18 sep 21:40 Luis Pérez            luis@ejemplo.com    CA    Todavía no sé  —  [Sin avisar] │
+└──────────────────────────────────────────────────────────── ‹ 1 de 3 › ┘
+```
+
+| Elemento | Comportamiento |
+|---|---|
+| **Aviso** | `Badge` verde «Avisado» o **ámbar «Sin avisar»** — este último es el que tiene que saltar a la vista: el correo a `BILLING_ADMIN_EMAILS` falló y a esa persona nadie le ha escrito |
+| Correo | Enlace `mailto:` |
+| Mensaje | Completo, debajo del nombre y atenuado |
+| Plan | Basic · Pro · Plus · «Algo a la medida» · «Todavía no sé» |
+| Filtro | Rango de fechas, opcional. Más nuevo primero, 20 por página |
+| Vacío | «Todavía no hay prospectos en este rango.» |
+
+No se edita ni se borra nada desde aquí. Los prospectos se borran solos a los 24 meses si no se volvieron clientes (lo promete el aviso de privacidad); correr ese barrido a mano es `POST /admin/site/leads/retention/run`, sin botón en pantalla.
+
+### 17.2 Números del sitio — `/admin/site/metrics`
+
+La medición es propia: sin cookies, sin IP y sin terceros, así que **no hay «visitantes únicos», solo conteos**. Para saber si el sitio vende, que es la pregunta, alcanza.
+
+| Bloque | Qué dice |
+|---|---|
+| Filtros | Rango de fechas (por omisión, los últimos 30 días) y mercado: Todos · México · Estados Unidos · Canadá |
+| **De cada 100 que abren el formulario, cuántos lo envían** | La tasa que importa. Si nadie lo ha abierto, lo dice con una frase — nunca «0 %» |
+| Eventos | Clic en «Empieza gratis» · Abrió el formulario · Envió el formulario · Cambió de país o idioma · Abrió la comparativa de planes |
+| Por mercado | Los mismos conteos, repartidos en mx / us / ca |
+| De dónde llegan los que convierten | Los diez DOMINIOS de origen (`google.com`, nunca la dirección completa) con más formularios enviados y clics en «Empieza gratis» |
+
+Cómo leerlo: muchos «Cambió de país o idioma» = la sugerencia automática está adivinando mal · muchos «Abrió la comparativa» = las tarjetas resumidas no alcanzan · muchas aperturas y pocos envíos = el formulario estorba.
+
 ## Apéndice — Documentos Relacionados
 
 - [ARQUITECTURA.md](ARQUITECTURA.md) — Stack, multi-tenancy, seguridad, roadmap
@@ -2115,6 +2157,7 @@ directos: usuarios, almacenes, vencimientos, tránsito).
 - [FLUJOS.md](FLUJOS.md) — Diagramas Mermaid de los flujos críticos
 - [ControlDeInventario.md](ControlDeInventario.md) — Requerimientos originales del cliente
 - [PuntoDeVenta.md](PuntoDeVenta.md) — Requerimientos originales del POS
+- [SITIO-WEB.md](SITIO-WEB.md) — El sitio público de sellpointy.com: cómo se trabaja
 
 ---
 

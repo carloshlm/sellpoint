@@ -114,6 +114,29 @@ Tomadas de [ControlDeInventario.md](ControlDeInventario.md) y [PuntoDeVenta.md](
 | Errores | **Sentry** (frontend + backend con `@sentry/nestjs`) |
 | Secretos | `.env.prod` con permisos 600 en F0 (F0-DEPLOY-07); gestor a revisar en F6 (sin cuenta AWS: sops/age o Infisical). Nunca commitear `.env` plano. |
 
+
+### 2.5 El sitio público (`apps/site`) — el tercer despliegue
+
+> F11-SITE (2026-09-19). La guía de trabajo está en [`SITIO-WEB.md`](SITIO-WEB.md); la del servidor, en [`infrastructure/nginx/SITIO-PUBLICO.md`](infrastructure/nginx/SITIO-PUBLICO.md).
+
+La aplicación es una SPA detrás de un login: Google la ve vacía y carga 1 MB de JavaScript antes de pintar. Una página de producto vive de que la encuentren y de abrir en un segundo en un celular con mala señal. Por eso el sitio es **otra cosa, desplegada aparte**:
+
+| | API | Web | **Sitio** |
+|---|---|---|---|
+| Qué es | NestJS | SPA de React | **HTML estático (Astro), ~6 KB de JS** |
+| Cómo corre | Contenedor | Contenedor (nginx) | **Archivos en `/opt/sites/<dominio>/`**, servidos por el `nginx-edge` que ya existe — sin contenedor nuevo |
+| Pipeline | `deploy.yml` (~18 min, sandbox → producción) | el mismo | **`site.yml`** (minutos; ensayo → producción). Un cambio solo del sitio NO dispara el de la aplicación |
+| Volver atrás | Reescribir `IMAGE_TAG` | el mismo | Mover un enlace (`site-deploy-remote.sh --rollback`) |
+
+Decisiones que lo sostienen:
+
+- **Una URL por mercado e idioma** (`/es-mx/`, `/en-us/`, `/es-us/`, `/en-ca/`, `/fr-ca/`), generadas desde una matriz tipada. La raíz sirve la versión de México. El país se SUGIERE (zona horaria e idioma del navegador, sin IP) y nunca se impone.
+- **Sin terceros y sin cookies.** Fuentes propias; el formulario de interés y la medición son endpoints del API (`/public/leads`, `/public/site-events`), sin IP ni identificador de visitante — por eso no hay aviso de consentimiento.
+- **Mismo origen, a propósito.** El sitio llama a `/api/public/…` en SU dominio y su vhost reenvía SOLO ese prefijo al API; cualquier otro `/api/*` da 404. El apex NO está en `CORS_ORIGINS`: apex y `app.` son el mismo «site» para el navegador, y listarlo le daría al sitio de marketing permiso de hablarle a `/auth/*` con cookies.
+- **Las tablas del sitio no llevan `tenant_id`** (`site_leads`, `site_events`): un prospecto todavía no es un negocio, y `purge_tenant` borra de toda tabla que tenga esa columna.
+- **Qué incluye cada plan vive en `packages/shared`** (`plan-showcase.ts`): lo leen la vitrina de la aplicación y el sitio, y una prueba de integración del API lo amarra a la tabla `plans`.
+- **Lo que publica tiene interruptor.** Producción sirve la página «en construcción» hasta que `SITE_PUBLISH_FULL` esté prendida Y los textos legales no tengan huecos; los precios van apagados por mercado (`showPrices`) y apagados no viajan en el HTML; la aceptación de términos en la aplicación duerme tras `CURRENT_TERMS_VERSION = null`.
+
 ---
 
 ## 3. Modelo Multi-Tenant
