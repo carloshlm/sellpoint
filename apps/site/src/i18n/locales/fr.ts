@@ -35,4 +35,28 @@ export const fr: Messages = {
   footer: {
     tagline: "Vos ventes. Un point, c'est tout.",
   },
+  markets: {
+    mx: "Mexique",
+    us: "États-Unis",
+    ca: "Canada",
+  },
+  geo: {
+    switcher: {
+      label: "Pays et langue",
+    },
+    // Cada país con SU preposición: « au Canada », « aux États-Unis », « au Mexique ».
+    notice: {
+      question: {
+        mx: "Vous êtes au Mexique ?",
+        us: "Vous êtes aux États-Unis ?",
+        ca: "Vous êtes au Canada ?",
+      },
+      link: {
+        mx: "Voir le site pour le Mexique",
+        us: "Voir le site pour les États-Unis",
+        ca: "Voir le site pour le Canada",
+      },
+      close: "Fermer",
+    },
+  },
 };

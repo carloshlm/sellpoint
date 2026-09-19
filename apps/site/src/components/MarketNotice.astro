@@ -1,0 +1,137 @@
+---
+// F11-SITE-GEO-02 — el aviso «¿Estás en Canadá? Ver el sitio para Canadá».
+//
+// Solo va en la raíz: quien abrió `/en-ca/` ya eligió. Trae un aviso por cada
+// OTRA versión, todos escondidos, y el guion descubre a lo sumo uno. Cada
+// aviso habla el idioma de la versión que ofrece: a un canadiense que llega a
+// la versión mexicana no se le pregunta en español.
+//
+// NUNCA redirige. Flota abajo, sobre la página, para no empujar el contenido
+// al aparecer (un aviso que empuja el hero es un salto de diseño que Google
+// cobra en el puntaje de la página).
+import { getLocale, ROUTES, type Route } from "../config/markets";
+import { getMessages } from "../i18n";
+
+interface Props {
+  /** La versión que se está viendo en la raíz. */
+  current: Route;
+}
+
+const { current } = Astro.props;
+const notices = ROUTES.filter((route) => route !== current).map((route) => {
+  const { market, htmlLang } = getLocale(route);
+  const { notice } = getMessages(route).geo;
+  return {
+    route,
+    htmlLang,
+    question: notice.question[market],
+    link: notice.link[market],
+    close: notice.close,
+  };
+});
+---
+
+<div data-market-notices data-current={current}>
+  {
+    notices.map((notice) => (
+      <aside
+        class="notice"
+        data-market-notice
+        data-route={notice.route}
+        lang={notice.htmlLang}
+        aria-labelledby={`notice-${notice.route}`}
+        hidden
+      >
+        <p id={`notice-${notice.route}`}>{notice.question}</p>
+        <a href={`/${notice.route}/`}>{notice.link}</a>
+        <button type="button" aria-label={notice.close} data-close>
+          <span aria-hidden="true">×</span>
+        </button>
+      </aside>
+    ))
+  }
+</div>
+
+<script>
+  import { isRoute } from "../config/markets";
+  import { decideNotice, getStorage, readChoice, saveChoice } from "../geo/choice";
+  import { suggestMarket } from "../geo/suggest-market";
+
+  const container = document.querySelector<HTMLElement>("[data-market-notices]");
+  const current = container?.dataset.current;
+
+  if (container && isRoute(current)) {
+    let timeZone: string | undefined;
+    try {
+      timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      timeZone = undefined;
+    }
+    const storage = getStorage();
+    const target = decideNotice({
+      current,
+      saved: readChoice(storage),
+      suggested: suggestMarket({
+        timeZone,
+        languages: navigator.languages?.length ? navigator.languages : [navigator.language],
+      }).route,
+    });
+    const notice = target
+      ? container.querySelector<HTMLElement>(`[data-route="${target}"]`)
+      : null;
+
+    if (target && notice) {
+      notice.hidden = false;
+      // Ir a la versión sugerida ES elegirla…
+      notice.querySelector("a")?.addEventListener("click", () => saveChoice(storage, target));
+      // …y cerrar el aviso es elegir quedarse: no vuelve a aparecer.
+      notice.querySelector("[data-close]")?.addEventListener("click", () => {
+        saveChoice(storage, current);
+        notice.hidden = true;
+      });
+    }
+  }
+</script>
+
+<style>
+  .notice {
+    position: fixed;
+    z-index: 30;
+    left: var(--gutter);
+    bottom: var(--gutter);
+    max-width: min(560px, 100% - 2 * var(--gutter));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+    padding: 12px 8px 12px 22px;
+    background: var(--ink);
+    color: var(--ground);
+    border-radius: var(--radius-frame);
+  }
+  p {
+    font-weight: 500;
+  }
+  a {
+    font-weight: 600;
+    color: inherit;
+  }
+  button {
+    margin-left: auto;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font: 400 1.5rem/1 var(--body);
+    cursor: pointer;
+  }
+  @media (max-width: 900px) {
+    .notice {
+      right: var(--gutter);
+    }
+  }
+</style>

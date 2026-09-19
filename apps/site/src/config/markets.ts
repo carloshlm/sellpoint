@@ -8,6 +8,17 @@ export const LANGUAGES = ["es", "en", "fr"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 /**
+ * Cada idioma escrito EN SU PROPIO IDIOMA (F11-SITE-GEO-03): quien busca el
+ * francés busca «Français», no «Francés» ni «French». Por eso no se traducen y
+ * viven aquí, no en los textos de cada idioma.
+ */
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  es: "Español",
+  en: "English",
+  fr: "Français",
+};
+
+/**
  * Lo que es del PAÍS y no del idioma. `showPrices` vive aquí a propósito:
  * prender Canadá prende `/en-ca/` y `/fr-ca/` a la vez, y así no hay forma de
  * dejar un mercado con el precio en un idioma y sin él en el otro.
@@ -44,13 +55,20 @@ export type Route = (typeof LOCALES)[number]["route"];
 export const ROUTES: readonly Route[] = LOCALES.map((locale) => locale.route);
 
 /**
+ * Una fila EXACTA de la matriz: a diferencia de `Locale`, su `route` es una
+ * `Route` y no un texto cualquiera, así que lo que salga de aquí se puede
+ * pasar a cualquier función que pida una ruta sin volver a validarla.
+ */
+export type MarketLocale = (typeof LOCALES)[number];
+
+/**
  * La versión de quien llega sin país detectado, la que sirve `/` y el
  * `x-default` de hreflang. Carlos, 2026-09-18: «si el sistema no adivina tu
  * país que muestre México, donde estarán la mayoría de clientes».
  */
 export const DEFAULT_ROUTE: Route = "es-mx";
 
-export function getLocale(route: Route): Locale {
+export function getLocale(route: Route): MarketLocale {
   const locale = LOCALES.find((candidate) => candidate.route === route);
   // Truena a propósito: caer en silencio a otra versión es enseñarle a
   // alguien los textos —y, el día que se prendan, los precios— de otro país.
@@ -59,7 +77,12 @@ export function getLocale(route: Route): Locale {
   return locale;
 }
 
-export function localesOf(market: MarketId): Locale[] {
+/** Si un valor que llega de fuera (la URL, `localStorage`) es una ruta de la matriz. */
+export function isRoute(value: unknown): value is Route {
+  return typeof value === "string" && (ROUTES as readonly string[]).includes(value);
+}
+
+export function localesOf(market: MarketId): MarketLocale[] {
   return LOCALES.filter((locale) => locale.market === market);
 }
 

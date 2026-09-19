@@ -68,6 +68,14 @@ section {
   padding-block: var(--space-section);
 }
 
+/* `hidden` gana SIEMPRE. Sin esto, un componente con `display: flex` le pisa
+   el atributo y el aviso escondido se ve (el `display` de autor pesa más que
+   el del navegador). */
+[hidden] {
+  /* biome-ignore lint/complexity/noImportantStyles: `[hidden]` pesa lo mismo que una clase y los estilos de los componentes cargan después; sin esto, el aviso escondido se vería. */
+  display: none !important;
+}
+
 /* «Saltar al contenido»: fuera de la vista hasta que recibe el foco. */
 .skip-link {
   position: absolute;

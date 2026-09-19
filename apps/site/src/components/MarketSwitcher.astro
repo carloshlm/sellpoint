@@ -1,0 +1,208 @@
+---
+// F11-SITE-GEO-03 — el selector de país e idioma. País primero, idioma después.
+//
+// Es un <details> con enlaces de verdad: funciona sin JavaScript, se abre con
+// el teclado, el lector de pantalla anuncia si está abierto, y cada versión es
+// una URL que se puede compartir. El guion de abajo solo AGREGA: cierra con
+// Escape o al tocar fuera, recuerda la elección (GEO-04) y lleva a la misma
+// sección de la otra versión.
+//
+// Sin banderas: una bandera es un país, y el francés de Quebec no es la
+// bandera de Francia. Los idiomas van en su propio idioma («Français»).
+import {
+  getLocale,
+  LANGUAGE_NAMES,
+  localesOf,
+  MARKETS,
+  type MarketId,
+  type Route,
+} from "../config/markets";
+import { getMessages } from "../i18n";
+import DotMark from "./DotMark.astro";
+
+interface Props {
+  /** La versión que se está viendo. */
+  route: Route;
+  /** Hacia dónde se abre la lista: abajo en el menú, arriba en el pie. */
+  placement?: "down" | "up";
+  /** De qué lado se alinea la lista: `end` si el selector va pegado a la derecha. */
+  align?: "start" | "end";
+}
+
+const { route, placement = "down", align = "start" } = Astro.props;
+const current = getLocale(route);
+const { markets, geo } = getMessages(route);
+const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
+  market,
+  name: markets[market],
+  locales: localesOf(market),
+}));
+---
+
+<details
+  class:list={["switcher", `switcher--${placement}`, `switcher--${align}`]}
+  data-market-switcher
+>
+  <summary>
+    <DotMark variant="ring" size="sm" />
+    <span class="visually-hidden">{geo.switcher.label}:</span>
+    <span>{markets[current.market]}</span>
+    <span aria-hidden="true">·</span>
+    <span lang={current.htmlLang}>{LANGUAGE_NAMES[current.language]}</span>
+  </summary>
+  <ul class="panel">
+    {
+      countries.map((country) => (
+        <li>
+          <span class="country">{country.name}</span>
+          <span class="languages">
+            {country.locales.map((locale) => (
+              <a
+                href={`/${locale.route}/`}
+                lang={locale.htmlLang}
+                hreflang={locale.htmlLang}
+                aria-current={locale.route === route ? "page" : undefined}
+                data-route={locale.route}
+              >
+                {LANGUAGE_NAMES[locale.language]}
+              </a>
+            ))}
+          </span>
+        </li>
+      ))
+    }
+  </ul>
+</details>
+
+<script>
+  import { isRoute } from "../config/markets";
+  import { currentSection, getStorage, saveChoice } from "../geo/choice";
+
+  for (const switcher of document.querySelectorAll<HTMLDetailsElement>(
+    "details[data-market-switcher]",
+  )) {
+    const summary = switcher.querySelector("summary");
+
+    // Escape cierra y devuelve el foco a donde estaba: al botón del selector.
+    switcher.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && switcher.open) {
+        switcher.open = false;
+        summary?.focus();
+      }
+    });
+
+    // Tocar fuera cierra, como cualquier menú.
+    document.addEventListener("click", (event) => {
+      if (switcher.open && !switcher.contains(event.target as Node)) switcher.open = false;
+    });
+
+    switcher.addEventListener("click", (event) => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-route]");
+      if (!link) return;
+      // GEO-04: elegir es recordar. La elección manda sobre la sugerencia.
+      if (isRoute(link.dataset.route)) saveChoice(getStorage(), link.dataset.route);
+      // Y se sigue leyendo donde se iba: la misma sección, en el otro idioma.
+      const sections = [...document.querySelectorAll<HTMLElement>("section[id]")].map(
+        (section) => ({ id: section.id, top: section.getBoundingClientRect().top }),
+      );
+      const id = currentSection(sections, window.innerHeight * 0.3);
+      link.hash = id ? `#${id}` : "";
+    });
+  }
+</script>
+
+<style>
+  .switcher {
+    position: relative;
+    display: inline-block;
+  }
+  summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 500;
+    padding-block: 6px;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  /* El indicador es el punto (guía §11): anillo cerrado, lleno abierto. */
+  .switcher[open] summary :global(.mark--ring) {
+    background: var(--mark-color, var(--blue));
+  }
+
+  .panel {
+    position: absolute;
+    z-index: 20;
+    /* Lo que pida el contenido: el francés («États-Unis») es el más largo. */
+    width: max-content;
+    list-style: none;
+    padding: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-field);
+  }
+  /* En escritorio la lista se ancla al selector. Va dentro de su propio media
+     query a propósito: estas reglas llevan dos clases y, sueltas, le ganarían
+     a la hoja del celular. */
+  @media (min-width: 901px) {
+    .switcher--down .panel {
+      top: calc(100% + 8px);
+    }
+    .switcher--up .panel {
+      bottom: calc(100% + 8px);
+    }
+    .switcher--start .panel {
+      left: 0;
+    }
+    .switcher--end .panel {
+      right: 0;
+    }
+  }
+  /* En celular la lista no se ancla al selector —que puede quedar en cualquier
+     lado según cómo se acomode el renglón—: se abre como una hoja pegada abajo,
+     de orilla a orilla. Así cabe siempre y nunca crea scroll horizontal. */
+  @media (max-width: 900px) {
+    .panel {
+      position: fixed;
+      inset: auto var(--gutter) var(--gutter);
+      width: auto;
+    }
+  }
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 4px 6px 12px;
+  }
+  li + li {
+    border-top: 1px solid var(--line);
+  }
+  .country {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .languages {
+    display: flex;
+    gap: 4px;
+  }
+  .languages a {
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    color: var(--muted);
+  }
+  .languages a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+  .languages a[aria-current="page"] {
+    background: var(--ground);
+    color: var(--ink);
+    font-weight: 600;
+  }
+</style>

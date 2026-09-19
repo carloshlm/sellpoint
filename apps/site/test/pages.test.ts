@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ROUTE, getLocale, ROUTES } from "../src/config/markets";
 import { getMessages } from "../src/i18n";
-import { distPages, readDist } from "./dist";
+import { distPages, readDist, scriptsOf } from "./dist";
 
 // F11-SITE-BASE-04 y BASE-05 — las rutas y la plantilla, leídas del sitio construido.
 
@@ -68,10 +68,13 @@ describe("plantilla base", () => {
     }
   });
 
-  it("el andamiaje no manda JavaScript de más: solo el guion del tema", () => {
+  it("el JavaScript de cada página es el mínimo: el tema, el selector y el aviso", () => {
+    // Presupuesto PROVISIONAL, sin comprimir. F11-SITE-SEO-03 fija el de verdad
+    // (menos de 50 KB) con Lighthouse; este es para enterarse antes de llegar
+    // ahí si alguien mete una librería «por si acaso».
     for (const page of distPages()) {
-      const scripts = [...readDist(page).matchAll(/<script\b/g)];
-      expect(scripts, page).toHaveLength(1);
+      const bytes = scriptsOf(page).reduce((total, script) => total + script.length, 0);
+      expect(bytes, page).toBeLessThan(12_000);
     }
   });
 });

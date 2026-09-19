@@ -36,6 +36,33 @@ export const es = {
   footer: {
     tagline: "Tus ventas son el punto.",
   },
+  /** Los países, como se dicen en ESTE idioma. Los idiomas no: esos van en el suyo. */
+  markets: {
+    mx: "México",
+    us: "Estados Unidos",
+    ca: "Canadá",
+  },
+  geo: {
+    switcher: {
+      // Lo lee el lector de pantalla antes del país y el idioma actuales.
+      label: "País e idioma",
+    },
+    // El aviso de la raíz habla el idioma de la versión que OFRECE, no el de la
+    // página: por eso cada idioma trae la pregunta para los tres países.
+    notice: {
+      question: {
+        mx: "¿Estás en México?",
+        us: "¿Estás en Estados Unidos?",
+        ca: "¿Estás en Canadá?",
+      },
+      link: {
+        mx: "Ver el sitio para México",
+        us: "Ver el sitio para Estados Unidos",
+        ca: "Ver el sitio para Canadá",
+      },
+      close: "Cerrar aviso",
+    },
+  },
 };
 
 /** La forma que todo idioma tiene que cumplir: la del maestro, con texto libre. */

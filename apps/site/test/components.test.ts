@@ -11,14 +11,21 @@ const read = (name: string) => readFileSync(join(COMPONENTS, name), "utf8");
 
 /** Lo que un visitante podría LEER de un componente: su plantilla sin código. */
 function visibleText(source: string): string {
-  return source
+  const withoutMarkup = source
     .replace(/^---[\s\S]*?^---/m, "") // el bloque de código de Astro
     .replace(/<style[\s\S]*?<\/style>/g, "")
     .replace(/<script[\s\S]*?<\/script>/g, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, "") // comentarios {/* … */}
-    .replace(/<[^>]+>/g, " ") // las etiquetas, con sus atributos
-    .replace(/\{[^{}]*\}/g, " "); // las expresiones {…}
+    .replace(/<[^>]+>/g, " "); // las etiquetas, con sus atributos
+  // Las expresiones {…} se quitan de adentro hacia afuera y hasta que no quede
+  // ninguna: un `{items.map((item) => ({item.name}))}` anida llaves.
+  let text = withoutMarkup;
+  for (let previous = ""; previous !== text; ) {
+    previous = text;
+    text = text.replace(/\{[^{}]*\}/g, " ");
+  }
+  return text;
 }
 
 describe("componentes base", () => {
@@ -52,6 +59,10 @@ describe("componentes base", () => {
       /Empieza/,
     );
     expect(visibleText('---\n---\n<a class="btn" {...rest}><slot /></a>').trim()).toBe("");
+    // Un .map() con marcado adentro no es texto visible. LÍMITE CONOCIDO: un
+    // texto escrito DENTRO del .map() tampoco se ve, porque sin un parser de
+    // JSX no hay forma de separarlo del código. Ese caso lo atrapa la revisión.
+    expect(visibleText("---\n---\n{items.map((item) => (<li>{item.name}</li>))}").trim()).toBe("");
   });
 
   it("el botón tiene sus tres variantes y el punto sus cuatro (guía §4 y §6)", () => {

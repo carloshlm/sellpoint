@@ -34,16 +34,22 @@ const { variant = "full", size = "md" } = Astro.props;
     --ring: 4px;
     --half: 2px;
   }
+  /* Azul por omisión. Quien lo pone sobre el azul del hero lo cambia con
+     `--mark-color` (el selector del menú, por ejemplo); el amarillo no cambia. */
   .mark--full {
-    background: var(--blue);
+    background: var(--mark-color, var(--blue));
   }
   .mark--ring {
     background: transparent;
-    border: var(--ring) solid var(--blue);
+    border: var(--ring) solid var(--mark-color, var(--blue));
   }
   .mark--half {
-    background: linear-gradient(90deg, var(--blue) 50%, transparent 50%);
-    border: var(--half) solid var(--blue);
+    background: linear-gradient(
+      90deg,
+      var(--mark-color, var(--blue)) 50%,
+      transparent 50%
+    );
+    border: var(--half) solid var(--mark-color, var(--blue));
   }
   .mark--sun {
     background: var(--dot);

@@ -33,4 +33,27 @@ export const en: Messages = {
   footer: {
     tagline: "Sales. That's the point.",
   },
+  markets: {
+    mx: "Mexico",
+    us: "United States",
+    ca: "Canada",
+  },
+  geo: {
+    switcher: {
+      label: "Country and language",
+    },
+    notice: {
+      question: {
+        mx: "Are you in Mexico?",
+        us: "Are you in the United States?",
+        ca: "Are you in Canada?",
+      },
+      link: {
+        mx: "See the site for Mexico",
+        us: "See the site for the United States",
+        ca: "See the site for Canada",
+      },
+      close: "Dismiss",
+    },
+  },
 };

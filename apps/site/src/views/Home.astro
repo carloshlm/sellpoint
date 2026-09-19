@@ -7,6 +7,8 @@
 // navegación, la caja dibujada y las demás secciones llegan con F11-SITE-PAGE.
 import Button from "../components/Button.astro";
 import Container from "../components/Container.astro";
+import MarketNotice from "../components/MarketNotice.astro";
+import MarketSwitcher from "../components/MarketSwitcher.astro";
 import { ANCHORS, APP_REGISTER_URL } from "../config/links";
 import type { Route } from "../config/markets";
 import { getMessages } from "../i18n";
@@ -14,10 +16,12 @@ import Base from "../layouts/Base.astro";
 
 interface Props {
   route: Route;
+  /** La raíz `/`: la única página que ofrece otra versión con un aviso (GEO-02). */
+  isRoot?: boolean;
 }
 
-const { route } = Astro.props;
-const { hero } = getMessages(route);
+const { route, isRoot = false } = Astro.props;
+const { hero, footer } = getMessages(route);
 const lastLine = hero.headline.length - 1;
 ---
 
@@ -46,6 +50,14 @@ const lastLine = hero.headline.length - 1;
       </Container>
     </header>
   </main>
+  {/* Pie PROVISIONAL: lo que hoy hace falta para el selector. El pie de
+      verdad —anclas, legales, contacto— es F11-SITE-PAGE-07, y el menú con
+      su propio selector (hacia abajo) es F11-SITE-PAGE-01. */}
+  <Container as="footer" class="footer">
+    <span>{footer.tagline}</span>
+    <MarketSwitcher route={route} placement="up" align="end" />
+  </Container>
+  {isRoot && <MarketNotice current={route} />}
 </Base>
 
 <style>
@@ -114,6 +126,16 @@ const lastLine = hero.headline.length - 1;
     margin-top: 16px;
     font-size: var(--text-small);
     color: var(--on-blue-muted);
+  }
+  :global(.footer) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding-block: 40px;
+    color: var(--muted);
+    font-size: var(--text-small);
   }
   @media (max-width: 900px) {
     .hero :global(.hero-grid) {
