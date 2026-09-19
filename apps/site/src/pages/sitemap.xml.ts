@@ -7,6 +7,7 @@
 import type { APIRoute } from "astro";
 import { LEGAL_DOCS, legalPath } from "../config/legal";
 import { getLocale, ROUTES, type Route } from "../config/markets";
+import { UNDER_CONSTRUCTION } from "../config/mode";
 import { absoluteUrl } from "../config/seo";
 
 /** Cada «página» es un grupo: la misma en sus cinco versiones. */
@@ -16,7 +17,7 @@ const groups: ((route: Route) => string)[] = [
 ];
 
 export const GET: APIRoute = () => {
-  const urls = groups.flatMap((pathOf) =>
+  const urls = (UNDER_CONSTRUCTION ? [] : groups).flatMap((pathOf) =>
     ROUTES.map((route) => {
       const alternates = ROUTES.map(
         (other) =>

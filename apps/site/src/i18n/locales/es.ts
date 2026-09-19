@@ -319,6 +319,9 @@ export const es = {
       consent: "Necesitamos tu permiso para poder escribirte.",
     },
   },
+  construction: {
+    text: "Estamos preparando nuestro sitio. Mientras tanto, SellPointy ya funciona: entra a tu cuenta o crea una y pruébalo 14 días.",
+  },
   notFound: {
     title: "Esta página no existe.",
     text: "Puede que la dirección esté mal escrita o que la página haya cambiado de lugar.",

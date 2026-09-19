@@ -3,7 +3,9 @@
 // blanco que redirige (Carlos, 2026-09-18). El aviso «¿Estás en Canadá?» para
 // quien llega de otro país es F11-SITE-GEO-02, y nunca redirige solo.
 import { DEFAULT_ROUTE } from "../config/markets";
+import { UNDER_CONSTRUCTION } from "../config/mode";
+import Construction from "../views/Construction.astro";
 import Home from "../views/Home.astro";
 ---
 
-<Home route={DEFAULT_ROUTE} isRoot />
+{UNDER_CONSTRUCTION ? <Construction /> : <Home route={DEFAULT_ROUTE} isRoot />}

@@ -10,6 +10,7 @@ import Container from "../../components/Container.astro";
 import { LEGAL_DOCS, LEGAL_SLUGS, type LegalDoc, legalPath } from "../../config/legal";
 import { ANCHORS } from "../../config/links";
 import { DEFAULT_ROUTE, getLocale, ROUTES, type Route } from "../../config/markets";
+import { UNDER_CONSTRUCTION } from "../../config/mode";
 import type { Alternates } from "../../config/seo";
 import { getMessages } from "../../i18n";
 import Base from "../../layouts/Base.astro";
@@ -18,7 +19,8 @@ import SiteFooter from "../../sections/SiteFooter.astro";
 import SiteNav from "../../sections/SiteNav.astro";
 
 export const getStaticPaths = (() =>
-  ROUTES.flatMap((route) =>
+  // En construcción lo legal NO se publica: es justo lo que tiene huecos.
+  (UNDER_CONSTRUCTION ? [] : ROUTES).flatMap((route) =>
     LEGAL_DOCS.map((doc) => ({
       params: { route, legal: LEGAL_SLUGS[getLocale(route).language][doc] },
       props: { doc },

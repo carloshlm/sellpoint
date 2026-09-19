@@ -11,6 +11,13 @@ export default defineConfig({
   trailingSlash: "always",
   build: { format: "directory" },
 
+  // La CSP del vhost autoriza UN solo guion en línea —el del tema, por su
+  // hash— y el resto por `'self'`. Astro incrusta en la página los guiones
+  // pequeños (el del menú, el de imprimir): con la CSP puesta, el navegador los
+  // BLOQUEA y el menú del celular no abre. Con el límite en 0 todos salen como
+  // archivo. `test/pages.test.ts` falla si vuelve a aparecer uno incrustado.
+  vite: { build: { assetsInlineLimit: 0 } },
+
   // F11-SITE-BASE-03 — las tres familias de la guía (§3), servidas desde el
   // propio dominio. Los archivos salen de paquetes de npm (`@fontsource*`), no
   // de una descarga al construir: quedan fijados por el lockfile y el CI no

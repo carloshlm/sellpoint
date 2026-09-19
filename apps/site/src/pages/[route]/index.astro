@@ -4,10 +4,14 @@
 // mercado es agregar una fila allá, no un archivo aquí.
 import type { GetStaticPaths } from "astro";
 import { ROUTES, type Route } from "../../config/markets";
+import { UNDER_CONSTRUCTION } from "../../config/mode";
 import Home from "../../views/Home.astro";
 
 export const getStaticPaths = (() =>
-  ROUTES.map((route) => ({ params: { route } }))) satisfies GetStaticPaths;
+  // En construcción no existe ninguna versión: solo la página de la raíz.
+  UNDER_CONSTRUCTION
+    ? []
+    : ROUTES.map((route) => ({ params: { route } }))) satisfies GetStaticPaths;
 
 const route = Astro.params.route as Route;
 ---

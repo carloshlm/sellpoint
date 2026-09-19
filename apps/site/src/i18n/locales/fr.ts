@@ -301,6 +301,9 @@ export const fr: Messages = {
       consent: "Nous avons besoin de votre accord pour pouvoir vous écrire.",
     },
   },
+  construction: {
+    text: "Notre site est en préparation. En attendant, SellPointy fonctionne déjà. Connectez-vous ou créez un compte et essayez-le pendant 14 jours.",
+  },
   notFound: {
     title: "Cette page n'existe pas.",
     text: "L'adresse est peut-être mal saisie, ou la page a été déplacée.",

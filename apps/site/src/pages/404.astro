@@ -9,6 +9,7 @@ import Container from "../components/Container.astro";
 import MarketSwitcher from "../components/MarketSwitcher.astro";
 import { ANCHORS } from "../config/links";
 import { DEFAULT_ROUTE, getLocale, type Route } from "../config/markets";
+import { UNDER_CONSTRUCTION } from "../config/mode";
 import { getMessages } from "../i18n";
 import Base from "../layouts/Base.astro";
 
@@ -30,11 +31,14 @@ const blocks = HOMES.map((route) => ({
           <section lang={block.htmlLang} data-language={block.language}>
             <h1>{block.texts.title}</h1>
             <p>{block.texts.text}</p>
-            <Button variant="dot" href={`/${block.route}/`}>{block.texts.cta}</Button>
+            {/* En construcción las versiones no existen: la salida es la raíz. */}
+            <Button variant="dot" href={UNDER_CONSTRUCTION ? "/" : `/${block.route}/`}>
+              {block.texts.cta}
+            </Button>
           </section>
         ))
       }
-      <MarketSwitcher route={DEFAULT_ROUTE} placement="down" />
+      {!UNDER_CONSTRUCTION && <MarketSwitcher route={DEFAULT_ROUTE} placement="down" />}
     </Container>
   </main>
 </Base>

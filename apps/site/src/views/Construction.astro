@@ -1,0 +1,144 @@
+---
+// «Sitio en construcción» — la única página del modo `SITE_MODE=construction`.
+//
+// Con el diseño del hero —el azul a sangre, el círculo oscuro, el titular con
+// el punto— y SIN una sola promesa del producto: eso lo dice el sitio de
+// verdad. Lo que sí trae son las dos puertas de la aplicación: los clientes
+// teclean sellpointy.com por costumbre, y antes el apex los llevaba directo.
+//
+// Un solo archivo para todos, así que trae los tres idiomas y el guion deja a
+// la vista el de la persona (como la 404). Sin JavaScript se ven los tres.
+import Logo from "../assets/brand/logo-inverted.svg";
+import Button from "../components/Button.astro";
+import Container from "../components/Container.astro";
+import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, BRAND_NAME } from "../config/links";
+import { DEFAULT_ROUTE, getLocale, type Route } from "../config/markets";
+import { getMessages } from "../i18n";
+import Base from "../layouts/Base.astro";
+
+const HOMES: Route[] = ["es-mx", "en-us", "fr-ca"];
+const blocks = HOMES.map((route) => {
+  const messages = getMessages(route);
+  return {
+    language: getLocale(route).language,
+    htmlLang: getLocale(route).htmlLang,
+    headline: messages.hero.headline,
+    texts: messages.construction,
+    login: messages.nav.login,
+    cta: messages.nav.cta,
+  };
+});
+---
+
+<Base route={DEFAULT_ROUTE} title={BRAND_NAME} noindex>
+  <main id={ANCHORS.main} class="construction">
+    <Container>
+      <p class="brand">
+        <Logo width={40} height={40} aria-hidden="true" />
+        <span>{BRAND_NAME}</span>
+      </p>
+      {
+        blocks.map((block) => (
+          <section lang={block.htmlLang} data-language={block.language}>
+            <h1>
+              {block.headline.map((line, index) => (
+                <span class="line">
+                  {line}
+                  {index === block.headline.length - 1 && <span class="dot" aria-hidden="true" />}
+                </span>
+              ))}
+            </h1>
+            <p class="lead">{block.texts.text}</p>
+            <div class="cta-row">
+              <Button variant="dot" href={APP_REGISTER_URL}>{block.cta}</Button>
+              <Button variant="ghost" href={APP_LOGIN_URL}>{block.login}</Button>
+            </div>
+          </section>
+        ))
+      }
+    </Container>
+  </main>
+</Base>
+
+<script>
+  import { getLocale } from "../config/markets";
+  import { suggestMarket } from "../geo/suggest-market";
+
+  let timeZone: string | undefined;
+  try {
+    timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    timeZone = undefined;
+  }
+  const { route } = suggestMarket({
+    timeZone,
+    languages: navigator.languages?.length ? navigator.languages : [navigator.language],
+  });
+  const { language, htmlLang } = getLocale(route);
+  for (const block of document.querySelectorAll<HTMLElement>("[data-language]")) {
+    block.hidden = block.dataset.language !== language;
+  }
+  document.documentElement.lang = htmlLang;
+</script>
+
+<style>
+  .construction {
+    min-height: 100vh;
+    padding-block: 32px var(--space-section);
+    background: var(--blue);
+    color: var(--on-blue);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  .construction::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    right: -18vw;
+    top: -22vw;
+    width: 70vw;
+    height: 70vw;
+    border-radius: 50%;
+    background: var(--blue-deep);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+  }
+  section {
+    padding-block: clamp(48px, 12vh, 140px) 0;
+  }
+  /* Sin JavaScript se ven los tres bloques: el segundo y el tercero, más juntos. */
+  section + section {
+    padding-top: 64px;
+  }
+  .line {
+    display: block;
+  }
+  .dot {
+    display: inline-block;
+    width: 0.6em;
+    height: 0.6em;
+    border-radius: 50%;
+    background: var(--dot);
+    margin-left: 0.06em;
+  }
+  .lead {
+    font-size: var(--text-lead);
+    color: var(--on-blue-muted);
+    max-width: 34em;
+    margin-top: 28px;
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+  }
+</style>

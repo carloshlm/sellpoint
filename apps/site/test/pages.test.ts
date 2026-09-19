@@ -71,6 +71,18 @@ describe("plantilla base", () => {
     }
   });
 
+  it("el ÚNICO guion en línea que se ejecuta es el del tema", () => {
+    // La CSP lo autoriza por su hash; cualquier otro guion incrustado quedaría
+    // bloqueado en producción, en silencio y con todas las pruebas en verde.
+    // (Los datos estructurados `ld+json` no se ejecutan: no cuentan.)
+    for (const page of distPages()) {
+      const inline = [...readDist(page).matchAll(/<script\b([^>]*)>/g)]
+        .map((match) => match[1] as string)
+        .filter((attrs) => !attrs.includes("src=") && !attrs.includes("ld+json"));
+      expect(inline, page).toHaveLength(1);
+    }
+  });
+
   it("el JavaScript de cada página es el mínimo: el tema, el selector y el aviso", () => {
     // Presupuesto PROVISIONAL, sin comprimir. F11-SITE-SEO-03 fija el de verdad
     // (menos de 50 KB) con Lighthouse; este es para enterarse antes de llegar

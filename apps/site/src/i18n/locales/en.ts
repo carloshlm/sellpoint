@@ -295,6 +295,9 @@ export const en: Messages = {
       consent: "We need your permission to be able to write to you.",
     },
   },
+  construction: {
+    text: "Our website is on its way. In the meantime, SellPointy is up and running: log in, or create an account and try it for 14 days.",
+  },
   notFound: {
     title: "This page doesn't exist.",
     text: "The address may be mistyped, or the page may have moved.",

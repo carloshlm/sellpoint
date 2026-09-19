@@ -10,6 +10,8 @@ build/
 .astro/
 # Reportes locales de Lighthouse (apps/site)
 .lighthouseci/
+# El sitio construido en modo «en construcción» (lo arma una prueba)
+dist-construction/
 
 # Turborepo
 .turbo/
