@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+/* La letra de la MARCA (2026-09-19): la misma del sitio sellpointy.com, solo
+   para la palabra «SellPointy» de las pantallas de acceso y del wizard. El
+   resto de la aplicación sigue en Geist. `wght.css` trae un solo eje; el
+   navegador baja únicamente el tramo latino que usa la palabra. */
+@import "@fontsource-variable/bricolage-grotesque/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -374,6 +379,10 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;
+  --font-brand: 'Bricolage Grotesque Variable', 'Geist Variable', sans-serif;
+  /* El azul de la MARCA, fijo: no cambia con el tema del negocio (a
+     diferencia de --primary, que un negocio pinta de terracota o de verde). */
+  --color-brand: #1e3fd8;
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-success-soft: var(--success-soft);

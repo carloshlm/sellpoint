@@ -1,6 +1,7 @@
 import type * as React from "react";
 
 import { LanguageSwitcher } from "@/components/auth/language-switcher";
+import { BrandWordmark } from "@/components/brand/brand-wordmark";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface AuthCardProps {
@@ -27,7 +28,7 @@ function AuthCard({ title, description, children, footer }: AuthCardProps) {
         <div className="flex justify-end">
           <LanguageSwitcher />
         </div>
-        <p className="text-center text-2xl font-semibold text-primary">SellPointy</p>
+        <BrandWordmark />
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">{title}</CardTitle>
