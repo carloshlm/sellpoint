@@ -1,0 +1,51 @@
+---
+// El patrón de dos columnas de la guía (§5): a la izquierda el encabezado,
+// PEGADO al hacer scroll; a la derecha, filas separadas por filetes —2 px en
+// tinta para abrir la lista y 1 px entre filas, sin radios ni cajas—. Lo usan
+// «Qué hace» y, por la regla de §11, las preguntas frecuentes.
+import Container from "./Container.astro";
+
+interface Props {
+  id: string;
+  /** El `id` del titular, para `aria-labelledby`. */
+  labelledBy: string;
+}
+
+const { id, labelledBy } = Astro.props;
+---
+
+<section id={id} aria-labelledby={labelledBy}>
+  <Container class="split">
+    <div class="heading"><slot name="heading" /></div>
+    <div class="rows"><slot /></div>
+  </Container>
+</section>
+
+<style>
+  section :global(.split) {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 64px;
+    align-items: start;
+  }
+  .heading {
+    position: sticky;
+    /* Debajo del menú pegado, con algo de aire. */
+    top: calc(var(--nav-h) + 24px);
+  }
+  .rows {
+    border-top: 2px solid var(--ink);
+  }
+  .rows > :global(*) {
+    border-bottom: 1px solid var(--line);
+  }
+  @media (max-width: 900px) {
+    section :global(.split) {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .heading {
+      position: static;
+    }
+  }
+</style>

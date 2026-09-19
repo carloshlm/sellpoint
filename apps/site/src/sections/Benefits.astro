@@ -1,0 +1,105 @@
+---
+// F11-SITE-PAGE-04 — «Beneficios»: una cuadrícula de 2×3 dentro de UN solo
+// marco con filetes internos — una tabla de seis celdas, no seis tarjetas
+// sueltas. La palabra clave de cada titular lleva el subrayado amarillo (en
+// oscuro, pasa a ser texto amarillo: lo deciden los tokens `--emphasis-*`).
+import Container from "../components/Container.astro";
+import Eyebrow from "../components/Eyebrow.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import { ANCHORS } from "../config/links";
+import type { Route } from "../config/markets";
+import { BENEFIT_ORDER, BENEFIT_PLANS } from "../config/page";
+import { getMessages } from "../i18n";
+import { splitEmphasis } from "../i18n/emphasis";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { benefits, planTags } = getMessages(route);
+const headingId = `${ANCHORS.benefits}-title`;
+const cards = BENEFIT_ORDER[route].map((id) => ({
+  title: splitEmphasis(benefits.items[id].title),
+  text: benefits.items[id].text,
+  plan: BENEFIT_PLANS[id],
+}));
+---
+
+<section class="band" id={ANCHORS.benefits} aria-labelledby={headingId}>
+  <Container>
+    <SectionHeading id={headingId}>
+      <Fragment slot="eyebrow">{benefits.eyebrow}</Fragment>
+      {benefits.title}
+    </SectionHeading>
+    <div class="cards">
+      {
+        cards.map((card) => (
+          <article class="card">
+            <h3>{card.title.map((part) => (part.emphasis ? <em>{part.text}</em> : part.text))}</h3>
+            <p>{card.text}</p>
+            {card.plan && (
+              <p class="plan">
+                <Eyebrow as="span">{planTags[card.plan]}</Eyebrow>
+              </p>
+            )}
+          </article>
+        ))
+      }
+    </div>
+  </Container>
+</section>
+
+<style>
+  .band {
+    background: var(--surface);
+    border-block: 1px solid var(--line);
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    margin-top: 48px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-frame);
+    overflow: hidden;
+  }
+  .card {
+    padding: var(--space-cell);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .card:nth-child(2n) {
+    border-right: 0;
+  }
+  .card:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+  h3 {
+    font-size: var(--text-h3-benefit);
+    line-height: var(--leading-h3-benefit);
+  }
+  em {
+    font-style: normal;
+    color: var(--emphasis-ink);
+    box-shadow: inset 0 -0.38em 0 var(--emphasis-underline);
+  }
+  p {
+    color: var(--muted);
+    margin-top: 12px;
+  }
+  .plan {
+    margin-top: 16px;
+  }
+  @media (max-width: 900px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+    .card {
+      border-right: 0;
+    }
+    .card:nth-last-child(2) {
+      border-bottom: 1px solid var(--line);
+    }
+  }
+</style>

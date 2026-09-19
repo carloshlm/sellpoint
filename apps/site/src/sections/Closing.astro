@@ -1,0 +1,74 @@
+---
+// F11-SITE-PAGE-07 — el cierre: el bloque azul de esquinas de 32 px con el
+// círculo amarillo saliéndose por abajo a la derecha.
+//
+// Es también el destino de `#contact`: el formulario de interés
+// (F11-SITE-LEAD-07) se monta aquí dentro, y «Escríbenos» y la píldora
+// «Consultorios» ya apuntan a este lugar.
+import Button from "../components/Button.astro";
+import Container from "../components/Container.astro";
+import { ANCHORS, APP_REGISTER_URL } from "../config/links";
+import type { Route } from "../config/markets";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { closing } = getMessages(route);
+const headingId = `${ANCHORS.contact}-title`;
+---
+
+<section class="closing" id={ANCHORS.contact} aria-labelledby={headingId}>
+  <Container>
+    <div class="final">
+      <h2 id={headingId}>{closing.title}</h2>
+      <p>{closing.text}</p>
+      <div class="cta-row">
+        <Button variant="dot" href={APP_REGISTER_URL}>{closing.primaryCta}</Button>
+        <Button variant="ghost" href={`#${ANCHORS.contact}`}>{closing.secondaryCta}</Button>
+      </div>
+    </div>
+  </Container>
+</section>
+
+<style>
+  .closing {
+    padding-top: 0;
+  }
+  .final {
+    background: var(--blue);
+    color: var(--on-blue);
+    border-radius: var(--radius-final);
+    padding: var(--space-final);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .final::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    right: -90px;
+    bottom: -130px;
+    width: 360px;
+    height: 360px;
+    border-radius: 50%;
+    background: var(--dot);
+  }
+  h2 {
+    max-width: 12em;
+  }
+  p {
+    color: var(--on-blue-muted);
+    margin-top: 18px;
+    max-width: 30em;
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+  }
+</style>

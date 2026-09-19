@@ -73,6 +73,9 @@
 
   /* ── Espaciado y medidas (§5) ── */
   --wrap: 1180px;
+  /* El alto del menú pegado: el hero se mete debajo de él y las anclas lo
+     descuentan al llegar (`scroll-padding-top`). */
+  --nav-h: 90px;
   --gutter: 16px;
   --space-section: clamp(64px, 9vw, 120px);
   --space-cell: clamp(24px, 3.4vw, 44px);

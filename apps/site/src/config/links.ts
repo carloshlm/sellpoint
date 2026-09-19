@@ -1,3 +1,6 @@
+/** El nombre de la marca. No se traduce, y por eso no vive en los textos. */
+export const BRAND_NAME = "SellPointy";
+
 // A dónde llevan las dos puertas de la aplicación (SITIO-WEB-CONTENIDO.md §0 y §2).
 const APP_ORIGIN = "https://app.sellpointy.com";
 

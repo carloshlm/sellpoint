@@ -3,6 +3,10 @@ import type { Messages } from "./es";
 // El inglés, ADAPTADO y no traducido (SITIO-WEB-CONTENIDO.md §7). La base es la
 // de Estados Unidos; la ortografía y los argumentos de Canadá van en
 // `../overrides.ts`.
+//
+// Reglas del glosario: un «ticket» es «receipt» (en inglés un *ticket* es una
+// multa), el precio es «Price», lo vencido es «Expired», y en el texto de venta
+// se dice «the history of every product», no «stock ledger».
 export const en: Messages = {
   meta: {
     title: "SellPointy — Point of sale, inventory and purchasing in one place",
@@ -21,6 +25,9 @@ export const en: Messages = {
     faq: "FAQ",
     login: "Log in",
     cta: "Start free",
+    ctaShort: "Start free",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
   },
   hero: {
     // El primer punto es tipográfico; el último es el punto amarillo.
@@ -29,9 +36,158 @@ export const en: Messages = {
     primaryCta: "Start free",
     secondaryCta: "See what it does",
     trustLine: "14 days with every feature. No credit card. Nothing to install.",
+    mock: {
+      label: "Example of a sale in SellPointy",
+      badge: "Scanned!",
+      title: "Current sale",
+      register: "Register 1",
+      total: "Total",
+      pay: "Charge",
+      items: {
+        first: { name: "Spring water 1 L", detail: "Qty 2" },
+        second: { name: "Oatmeal cookies 6 oz", detail: "Qty 1" },
+        third: { name: "Olive oil 17 fl oz", detail: "Qty 1" },
+      },
+    },
+  },
+  planTags: {
+    fromPro: "From Pro",
+    onPlus: "On Plus",
+  },
+  whatItDoes: {
+    eyebrow: "What it does",
+    title: "Everything that happens at your counter, on one screen.",
+    sub: "Stop jumping between a notebook, a spreadsheet and a calculator. SellPointy connects what you sell with what you have and what you buy.",
+    items: {
+      sell: {
+        title: "Sell",
+        text: "Ring up sales with a barcode scanner, a Bluetooth gun or your phone's camera. Receipts with your logo, and cash shifts with a till count so you close the day with no surprises.",
+      },
+      track: {
+        title: "Track",
+        text: "Entries, exits, transfers and physical counts. The history of every product, across all your warehouses.",
+      },
+      buy: {
+        title: "Buy",
+        text: "Record your purchases with their invoice and keep your costs current, so the price you set leaves the margin you expect.",
+      },
+      decide: {
+        title: "Decide",
+        text: "Sales and expense reports, ready to read and ready to export. Nothing to build by hand.",
+      },
+    },
+  },
+  benefits: {
+    eyebrow: "Benefits for your business",
+    title: "Less time in the system. More time selling.",
+    items: {
+      fast: {
+        title: "Ring up sales in *seconds*, not lines.",
+        text: "Scan it and it's on the bill. Nobody waits while you look up a price.",
+      },
+      catalog: {
+        title: "Build your catalog in *one afternoon*.",
+        text: "Scan the barcode and SellPointy recognizes the product and suggests its name — you just set the price. Already have it in a spreadsheet? Upload it in one go.",
+      },
+      shift: {
+        title: "Close the register with *no surprises*.",
+        text: "Every shift opens and closes with its own till count. You know who rang up what, how much, and whether it adds up.",
+      },
+      stock: {
+        title: "Know *what you have* without counting by hand.",
+        text: "Every sale comes off the shelf and every purchase goes back on. Your stock is a number, not a hunch.",
+      },
+      expiry: {
+        title: "Let nothing *expire* on the shelf.",
+        text: "Lots with dates, and a clear heads-up on what's about to expire — so you sell it in time instead of throwing it out.",
+      },
+      pocket: {
+        title: "Your whole business, *in your pocket*.",
+        text: "Computer, tablet or phone. Log in from anywhere and see exactly what the register sees.",
+      },
+    },
+  },
+  whoFor: {
+    eyebrow: "Who it's for",
+    title: "Built for the business you run yourself.",
+    // Sin farmacias: en Estados Unidos y Canadá viven bajo una regulación
+    // sanitaria y de recetas que SellPointy no cubre (§7.4).
+    trades: [
+      "Grocery stores",
+      "Convenience stores",
+      "Latin markets",
+      "Hardware stores",
+      "Gift shops",
+      "Boutiques",
+      "Auto parts",
+      "Candy shops",
+      "Health food stores",
+      "Pet supplies",
+    ],
+    // No se muestra en ningún mercado de habla inglesa (`CLINICS_MARKETS`).
+    clinics: "Medical offices",
+  },
+  faq: {
+    eyebrow: "FAQ",
+    title: "What everyone asks before getting started.",
+    items: {
+      install: {
+        q: "Do I need to install anything?",
+        a: "No. SellPointy runs in the browser on your computer, tablet or phone. You log in with your email and that's it.",
+      },
+      scanner: {
+        q: "What barcode scanner do I need?",
+        a: "Any of them: USB scanners and Bluetooth guns work as soon as you plug them in. And if you don't have one, your phone or tablet camera scans too.",
+      },
+      spreadsheet: {
+        q: "Can I upload the products I already have in a spreadsheet?",
+        a: "Yes. Download the template, paste your products and upload them in one go. Anything with a barcode you can also add just by scanning it.",
+      },
+      trialEnd: {
+        q: "What happens when the 14 days are up?",
+        a: "You pick the plan that fits. If you haven't decided yet, your information isn't deleted — it stays right there waiting for you.",
+      },
+      payment: {
+        q: "How do I pay?",
+        a: "By bank transfer, monthly or yearly. Pay for the full year and you pay for 10 months and use 12.",
+      },
+      changePlan: {
+        q: "Can I change plans later?",
+        a: "Yes. Write to us from the “My plan” screen in your account, tell us which plan you want, and we'll activate it.",
+      },
+      data: {
+        q: "Is my information mine?",
+        a: "Yes. Your sales, prices, customers and stock are yours alone: they are never shared or sold. The only thing in common is the barcode catalog — the name printed on the package — which is what lets you add a product just by scanning it.",
+      },
+      languages: {
+        q: "What languages is it in?",
+        a: "English and Spanish. Each person on your team picks their own.",
+      },
+      staffLanguage: {
+        q: "Can my staff use it in Spanish?",
+        a: "Yes. Each person picks their own language, English or Spanish, on the same account.",
+      },
+      // NO se dice «your sales tax is set up for you»: `tax-defaults.ts` siembra
+      // la tasa ESTATAL base, sin la local. Prometer más es un ticket equivocado.
+      salesTax: {
+        q: "Are sales taxes set up for me?",
+        a: "When you create your account, SellPointy starts you off with your state's base sales tax rate. If your city or county adds its own, you adjust it once and you're done.",
+      },
+      canadaTax: {
+        q: "Are taxes set up for me?",
+        a: "SellPointy sets up GST, HST or PST for your province when you sign up. You can adjust them at any time.",
+      },
+    },
+  },
+  closing: {
+    title: "Put an end to the mess.",
+    text: "Create your account, scan your first products and make your first sale today. Prefer to talk first? Drop us a line.",
+    primaryCta: "Start free",
+    secondaryCta: "Contact us",
   },
   footer: {
     tagline: "Sales. That's the point.",
+    navLabel: "Footer",
   },
   markets: {
     mx: "Mexico",

@@ -12,7 +12,7 @@
 html {
   scroll-behavior: smooth;
   /* Que un ancla no deje el titular debajo del menú pegado (PAGE-01). */
-  scroll-padding-top: 96px;
+  scroll-padding-top: calc(var(--nav-h) + 8px);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -101,6 +101,12 @@ section {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --nav-h: 72px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

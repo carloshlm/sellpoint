@@ -1,0 +1,81 @@
+---
+// F11-SITE-PAGE-03 — «Qué hace»: los cuatro verbos, cada uno con su estado del
+// punto. Lo que nace en un plan lo dice (CONTENIDO §4.2): Controla y Compra
+// son de Pro, y el hero lo lee también quien va a comprar Basic.
+import DotMark from "../components/DotMark.astro";
+import Eyebrow from "../components/Eyebrow.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import SplitSection from "../components/SplitSection.astro";
+import type { DotMarkVariant } from "../components/variants";
+import { ANCHORS } from "../config/links";
+import type { Route } from "../config/markets";
+import { FEATURE_IDS, FEATURE_PLANS, type FeatureId } from "../config/page";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+/** Vende, Controla, Compra, Decide: el punto, transformándose (guía §4). */
+const MARKS: Record<FeatureId, DotMarkVariant> = {
+  sell: "full",
+  track: "ring",
+  buy: "half",
+  decide: "sun",
+};
+
+const { route } = Astro.props;
+const { whatItDoes, planTags } = getMessages(route);
+const headingId = `${ANCHORS.whatItDoes}-title`;
+---
+
+<SplitSection id={ANCHORS.whatItDoes} labelledBy={headingId}>
+  <SectionHeading slot="heading" id={headingId}>
+    <Fragment slot="eyebrow">{whatItDoes.eyebrow}</Fragment>
+    {whatItDoes.title}
+    <Fragment slot="sub">{whatItDoes.sub}</Fragment>
+  </SectionHeading>
+  {
+    FEATURE_IDS.map((id) => {
+      const plan = FEATURE_PLANS[id];
+      return (
+        <div class="row">
+          <DotMark variant={MARKS[id]} />
+          <div>
+            <h3>{whatItDoes.items[id].title}</h3>
+            <p>{whatItDoes.items[id].text}</p>
+            {plan && (
+              <p class="plan">
+                <Eyebrow as="span">{planTags[plan]}</Eyebrow>
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    })
+  }
+</SplitSection>
+
+<style>
+  .row {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 20px;
+    padding-block: 30px;
+  }
+  .row :global(.mark) {
+    margin-top: 6px;
+  }
+  h3 {
+    font-size: var(--text-h3-feature);
+    line-height: var(--leading-h3-feature);
+  }
+  p {
+    color: var(--muted);
+    margin-top: 8px;
+    max-width: 38em;
+  }
+  .plan {
+    margin-top: 12px;
+  }
+</style>

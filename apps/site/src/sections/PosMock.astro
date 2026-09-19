@@ -1,0 +1,157 @@
+---
+// La caja DIBUJADA del hero (guía §6): HTML y CSS, no una imagen. Se ve nítida
+// en cualquier pantalla y no hay captura que mantener. Es siempre clara,
+// también en tema oscuro: representa una pantalla del producto.
+//
+// Los productos y la moneda son los del mercado: pesos y «Agua natural 1 L» en
+// México; dólares y otro surtido en Estados Unidos y Canadá.
+import { formatMoney, getLocale, type Route } from "../config/markets";
+import { MOCK_SALE } from "../config/page";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { mock } = getMessages(route).hero;
+const sale = MOCK_SALE[getLocale(route).market];
+const items = [mock.items.first, mock.items.second, mock.items.third].map((item, index) => ({
+  ...item,
+  amount: formatMoney(sale.lines[index] ?? 0, route),
+}));
+---
+
+{/* Para el lector de pantalla es UNA imagen con su descripción: leerle una
+    venta de mentira, renglón por renglón, solo estorba. */}
+<div class="pos" role="img" aria-label={mock.label}>
+  <span class="badge">{mock.badge}</span>
+  <div class="pos-head"><span>{mock.title}</span><span>{mock.register}</span></div>
+  <div class="scan"><span class="bars"></span>{sale.barcode}</div>
+  <ul>
+    {
+      items.map((item) => (
+        <li>
+          <span>
+            {item.name}
+            <small>{item.detail}</small>
+          </span>
+          <span>{item.amount}</span>
+        </li>
+      ))
+    }
+  </ul>
+  <div class="total"><span>{mock.total}</span><b>{formatMoney(sale.total, route)}</b></div>
+  <span class="pay">{mock.pay}</span>
+</div>
+
+<style>
+  .pos {
+    background: var(--mock);
+    color: var(--mock-ink);
+    border-radius: var(--radius-mock);
+    padding: 22px;
+    box-shadow: 0 40px 80px -30px var(--mock-shadow);
+    position: relative;
+  }
+  .pos-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--mock-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .scan {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border: 1.5px dashed var(--mock-line);
+    border-radius: var(--radius-field);
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.85rem;
+  }
+  /* El código de barras, hecho con un degradado repetido. */
+  .bars {
+    width: 46px;
+    height: 26px;
+    flex: none;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--mock-ink) 0 2px,
+      transparent 2px 4px,
+      var(--mock-ink) 4px 7px,
+      transparent 7px 9px,
+      var(--mock-ink) 9px 10px,
+      transparent 10px 13px
+    );
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 8px;
+  }
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 2px;
+    border-bottom: 1px solid var(--mock-line);
+    font-size: 0.98rem;
+  }
+  li span:last-child {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  small {
+    display: block;
+    color: var(--mock-muted);
+    font-size: 0.8rem;
+  }
+  .total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 16px;
+    font-family: var(--display);
+    font-weight: 800;
+  }
+  .total b {
+    font-size: 2.3rem;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pay {
+    margin-top: 14px;
+    display: block;
+    text-align: center;
+    background: var(--blue);
+    color: var(--on-blue);
+    padding: 14px;
+    border-radius: var(--radius-field);
+    font-weight: 600;
+  }
+  .badge {
+    position: absolute;
+    right: -14px;
+    top: -18px;
+    background: var(--dot);
+    color: var(--on-dot);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 9px 14px;
+    border-radius: var(--radius-pill);
+    transform: rotate(5deg);
+  }
+  @media (max-width: 900px) {
+    .badge {
+      right: 8px;
+    }
+  }
+</style>

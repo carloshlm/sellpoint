@@ -2,17 +2,21 @@
 // La página del producto. La arman dos rutas con el mismo contenido:
 // `/[route]/` —una por mercado e idioma— y `/`, que sirve la de México.
 //
-// Hoy es el ESQUELETO del grupo BASE: el arranque del hero, armado con los
-// tokens, las fuentes y los componentes, para poder verlos en el navegador. La
-// navegación, la caja dibujada y las demás secciones llegan con F11-SITE-PAGE.
-import Button from "../components/Button.astro";
-import Container from "../components/Container.astro";
+// El orden es el recorrido de una decisión de compra (CONTENIDO §3): cada
+// sección responde UNA pregunta del visitante. La sección de planes
+// (F11-SITE-PLANS) entra entre «Para quién» y «Preguntas».
 import MarketNotice from "../components/MarketNotice.astro";
-import MarketSwitcher from "../components/MarketSwitcher.astro";
-import { ANCHORS, APP_REGISTER_URL } from "../config/links";
+import { ANCHORS } from "../config/links";
 import type { Route } from "../config/markets";
-import { getMessages } from "../i18n";
 import Base from "../layouts/Base.astro";
+import Benefits from "../sections/Benefits.astro";
+import Closing from "../sections/Closing.astro";
+import Faq from "../sections/Faq.astro";
+import Hero from "../sections/Hero.astro";
+import SiteFooter from "../sections/SiteFooter.astro";
+import SiteNav from "../sections/SiteNav.astro";
+import WhatItDoes from "../sections/WhatItDoes.astro";
+import WhoFor from "../sections/WhoFor.astro";
 
 interface Props {
   route: Route;
@@ -21,132 +25,18 @@ interface Props {
 }
 
 const { route, isRoot = false } = Astro.props;
-const { hero, footer } = getMessages(route);
-const lastLine = hero.headline.length - 1;
 ---
 
 <Base route={route}>
+  <SiteNav route={route} />
   <main id={ANCHORS.main}>
-    <header class="hero">
-      <Container class="hero-grid">
-        <div>
-          <h1>
-            {
-              hero.headline.map((line, index) => (
-                <span class="line">
-                  {line}
-                  {index === lastLine && <span class="dot" aria-hidden="true" />}
-                </span>
-              ))
-            }
-          </h1>
-          <p class="lead">{hero.lead}</p>
-          <div class="cta-row">
-            <Button variant="dot" href={APP_REGISTER_URL}>{hero.primaryCta}</Button>
-            <Button variant="ghost" href={`#${ANCHORS.whatItDoes}`}>{hero.secondaryCta}</Button>
-          </div>
-          <p class="fine">{hero.trustLine}</p>
-        </div>
-      </Container>
-    </header>
+    <Hero route={route} />
+    <WhatItDoes route={route} />
+    <Benefits route={route} />
+    <WhoFor route={route} />
+    <Faq route={route} />
+    <Closing route={route} />
   </main>
-  {/* Pie PROVISIONAL: lo que hoy hace falta para el selector. El pie de
-      verdad —anclas, legales, contacto— es F11-SITE-PAGE-07, y el menú con
-      su propio selector (hacia abajo) es F11-SITE-PAGE-01. */}
-  <Container as="footer" class="footer">
-    <span>{footer.tagline}</span>
-    <MarketSwitcher route={route} placement="up" align="end" />
-  </Container>
+  <SiteFooter route={route} />
   {isRoot && <MarketNotice current={route} />}
 </Base>
-
-<style>
-  /* El azul es la marca, en los dos temas. */
-  .hero {
-    background: var(--blue);
-    color: var(--on-blue);
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    right: -18vw;
-    top: -22vw;
-    width: 70vw;
-    height: 70vw;
-    border-radius: 50%;
-    background: var(--blue-deep);
-  }
-  .hero :global(.hero-grid) {
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: 48px;
-    align-items: center;
-    padding-block: 56px 96px;
-  }
-  /* Cada renglón del titular es un bloque: el inglés y el francés lo parten en
-     dos a propósito («Sales.» / «That's the point»). */
-  .line {
-    display: block;
-  }
-  .dot {
-    display: inline-block;
-    width: 0.6em;
-    height: 0.6em;
-    border-radius: 50%;
-    background: var(--dot);
-    margin-left: 0.06em;
-    transform-origin: center;
-    animation: pop 0.7s var(--ease-pop) 0.35s both;
-  }
-  @keyframes pop {
-    from {
-      transform: scale(0);
-    }
-    to {
-      transform: scale(1);
-    }
-  }
-  .lead {
-    font-size: var(--text-lead);
-    color: var(--on-blue-muted);
-    max-width: 34em;
-    margin-top: 28px;
-  }
-  .cta-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 34px;
-  }
-  .fine {
-    margin-top: 16px;
-    font-size: var(--text-small);
-    color: var(--on-blue-muted);
-  }
-  :global(.footer) {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    padding-block: 40px;
-    color: var(--muted);
-    font-size: var(--text-small);
-  }
-  @media (max-width: 900px) {
-    .hero :global(.hero-grid) {
-      grid-template-columns: 1fr;
-      gap: 40px;
-      padding-block: 32px 72px;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .dot {
-      animation: none;
-    }
-  }
-</style>

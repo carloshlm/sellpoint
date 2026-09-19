@@ -1,0 +1,126 @@
+---
+// F11-SITE-PAGE-02 — el hero. LEY de la guía: azul a sangre, el círculo oscuro
+// saliéndose por la derecha, el titular gigante con el punto amarillo, los dos
+// botones y la caja dibujada con su insignia.
+import Button from "../components/Button.astro";
+import Container from "../components/Container.astro";
+import { ANCHORS, APP_REGISTER_URL } from "../config/links";
+import type { Route } from "../config/markets";
+import { getMessages } from "../i18n";
+import PosMock from "./PosMock.astro";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { hero } = getMessages(route);
+const lastLine = hero.headline.length - 1;
+---
+
+<header class="hero">
+  <Container class="hero-grid">
+    <div>
+      <h1>
+        {
+          hero.headline.map((line, index) => (
+            <span class="line">
+              {line}
+              {index === lastLine && <span class="dot" aria-hidden="true" />}
+            </span>
+          ))
+        }
+      </h1>
+      <p class="lead">{hero.lead}</p>
+      <div class="cta-row">
+        <Button variant="dot" href={APP_REGISTER_URL}>{hero.primaryCta}</Button>
+        <Button variant="ghost" href={`#${ANCHORS.whatItDoes}`}>{hero.secondaryCta}</Button>
+      </div>
+      <p class="fine">{hero.trustLine}</p>
+    </div>
+    <PosMock route={route} />
+  </Container>
+</header>
+
+<style>
+  /* El azul es la marca, en los dos temas. */
+  .hero {
+    background: var(--blue);
+    color: var(--on-blue);
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    /* El menú pegado flota encima: el hero le deja su lugar. */
+    padding-top: var(--nav-h);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    right: -18vw;
+    top: -22vw;
+    width: 70vw;
+    height: 70vw;
+    border-radius: 50%;
+    background: var(--blue-deep);
+  }
+  .hero :global(.hero-grid) {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 48px;
+    align-items: center;
+    padding-block: 56px 96px;
+  }
+  /* Cada renglón del titular es un bloque: el inglés y el francés lo parten en
+     dos a propósito («Sales.» / «That's the point»). */
+  .line {
+    display: block;
+  }
+  .dot {
+    display: inline-block;
+    width: 0.6em;
+    height: 0.6em;
+    border-radius: 50%;
+    background: var(--dot);
+    margin-left: 0.06em;
+    transform-origin: center;
+    animation: pop 0.7s var(--ease-pop) 0.35s both;
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+  .lead {
+    font-size: var(--text-lead);
+    color: var(--on-blue-muted);
+    max-width: 34em;
+    margin-top: 28px;
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+  }
+  .fine {
+    margin-top: 16px;
+    font-size: var(--text-small);
+    color: var(--on-blue-muted);
+  }
+  @media (max-width: 900px) {
+    .hero :global(.hero-grid) {
+      grid-template-columns: 1fr;
+      gap: 40px;
+      padding-block: 32px 72px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot {
+      animation: none;
+    }
+  }
+</style>

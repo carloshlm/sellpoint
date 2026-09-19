@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { LANGUAGES, ROUTES } from "../src/config/markets";
 import { getMessages, LOCALE_MESSAGES, ROUTE_OVERRIDES } from "../src/i18n";
@@ -69,6 +72,19 @@ describe("textos del sitio", () => {
     expect(getMessages("en-ca").meta.description).not.toBe(getMessages("en-us").meta.description);
     // Los ajustes no se filtran al idioma base.
     expect(getMessages("en-us").meta.description).toBe(LOCALE_MESSAGES.en.meta.description);
+  });
+
+  it("ningún espacio invisible va escrito a pelo en el código: siempre con su código", () => {
+    // Un U+202F o un U+00A0 tecleado no se distingue de un espacio normal en
+    // el editor, y el primero que «limpie» el archivo lo rompe sin enterarse.
+    const dir = fileURLToPath(new URL("../src/i18n", import.meta.url));
+    const files = readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((file) =>
+      file.endsWith(".ts"),
+    );
+    expect(files.length).toBeGreaterThan(3);
+    for (const file of files) {
+      expect(readFileSync(join(dir, file), "utf8"), file).not.toMatch(/[\u00a0\u202f\u2009]/);
+    }
   });
 
   it("el francés lleva espacio de no separación antes de ? ! : ; y dentro de « »", () => {

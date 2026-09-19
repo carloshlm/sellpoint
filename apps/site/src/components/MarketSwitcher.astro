@@ -27,9 +27,15 @@ interface Props {
   placement?: "down" | "up";
   /** De qué lado se alinea la lista: `end` si el selector va pegado a la derecha. */
   align?: "start" | "end";
+  /**
+   * En el menú: si el renglón no alcanza, el selector es lo PRIMERO que se
+   * pliega —a solo el punto—, nunca el botón (guía §11). El texto sigue ahí
+   * para el lector de pantalla.
+   */
+  compact?: boolean;
 }
 
-const { route, placement = "down", align = "start" } = Astro.props;
+const { route, placement = "down", align = "start", compact = false } = Astro.props;
 const current = getLocale(route);
 const { markets, geo } = getMessages(route);
 const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
@@ -40,15 +46,22 @@ const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
 ---
 
 <details
-  class:list={["switcher", `switcher--${placement}`, `switcher--${align}`]}
+  class:list={[
+    "switcher",
+    `switcher--${placement}`,
+    `switcher--${align}`,
+    compact && "switcher--compact",
+  ]}
   data-market-switcher
 >
   <summary>
     <DotMark variant="ring" size="sm" />
     <span class="visually-hidden">{geo.switcher.label}:</span>
-    <span>{markets[current.market]}</span>
-    <span aria-hidden="true">·</span>
-    <span lang={current.htmlLang}>{LANGUAGE_NAMES[current.language]}</span>
+    <span class="labels">
+      <span>{markets[current.market]}</span>
+      <span aria-hidden="true">·</span>
+      <span lang={current.htmlLang}>{LANGUAGE_NAMES[current.language]}</span>
+    </span>
   </summary>
   <ul class="panel">
     {
@@ -86,6 +99,8 @@ const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
     // Escape cierra y devuelve el foco a donde estaba: al botón del selector.
     switcher.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && switcher.open) {
+        // Dentro del menú del celular, Escape cierra SOLO la lista, no el menú.
+        event.preventDefault();
         switcher.open = false;
         summary?.focus();
       }
@@ -127,6 +142,20 @@ const countries = (Object.keys(MARKETS) as MarketId[]).map((market) => ({
   }
   summary::-webkit-details-marker {
     display: none;
+  }
+  .labels {
+    display: inline-flex;
+    gap: 8px;
+  }
+  @media (min-width: 901px) and (max-width: 1180px) {
+    .switcher--compact .labels {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
   /* El indicador es el punto (guía §11): anillo cerrado, lleno abierto. */
   .switcher[open] summary :global(.mark--ring) {

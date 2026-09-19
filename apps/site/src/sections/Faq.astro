@@ -1,0 +1,69 @@
+---
+// F11-SITE-PAGE-06 — las preguntas frecuentes, con <details>: funcionan sin
+// JavaScript, se abren con el teclado y Google las puede leer.
+//
+// El diseño es el de «Qué hace» (guía §11): titular pegado a la izquierda y
+// filas con filetes a la derecha, sin radios ni cajas. El indicador de
+// abrir/cerrar es un punto: anillo cerrada, lleno abierta.
+import DotMark from "../components/DotMark.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import SplitSection from "../components/SplitSection.astro";
+import { ANCHORS } from "../config/links";
+import type { Route } from "../config/markets";
+import { FAQ_ORDER } from "../config/page";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { faq } = getMessages(route);
+const headingId = `${ANCHORS.faq}-title`;
+const questions = FAQ_ORDER[route].map((id) => faq.items[id]);
+---
+
+<SplitSection id={ANCHORS.faq} labelledBy={headingId}>
+  <SectionHeading slot="heading" id={headingId}>
+    <Fragment slot="eyebrow">{faq.eyebrow}</Fragment>
+    {faq.title}
+  </SectionHeading>
+  {
+    questions.map((question) => (
+      <details class="question">
+        <summary>
+          <h3>{question.q}</h3>
+          <DotMark variant="ring" size="sm" />
+        </summary>
+        <p>{question.a}</p>
+      </details>
+    ))
+  }
+</SplitSection>
+
+<style>
+  summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-block: 24px;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  h3 {
+    font-size: var(--text-h3-benefit);
+    line-height: var(--leading-h3-benefit);
+  }
+  .question[open] summary :global(.mark--ring) {
+    background: var(--blue);
+  }
+  p {
+    color: var(--muted);
+    max-width: 38em;
+    padding-bottom: 28px;
+  }
+</style>

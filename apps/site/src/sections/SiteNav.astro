@@ -1,0 +1,304 @@
+---
+// F11-SITE-PAGE-01 — la navegación (CONTENIDO §2, guía §11).
+//
+// Se queda pegada arriba. Sobre el hero es transparente —el azul y el círculo
+// pasan por detrás— y al despegarse gana fondo sólido. El estado SEGURO es el
+// sólido: sin JavaScript se ve siempre así; el guion solo lo aclara arriba.
+//
+// En celular quedan logo + botón + menú. El menú es un <dialog> modal: el
+// navegador atrapa el foco, cierra con Escape y lo devuelve al botón, sin una
+// línea de código propio para eso.
+//
+// El único elemento con color es el botón amarillo. El selector e «Iniciar
+// sesión» van como texto.
+import Logo from "../assets/brand/logo-inverted.svg";
+import Button from "../components/Button.astro";
+import Container from "../components/Container.astro";
+import MarketSwitcher from "../components/MarketSwitcher.astro";
+import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, BRAND_NAME } from "../config/links";
+import type { Route } from "../config/markets";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { nav } = getMessages(route);
+const links = [
+  { href: `#${ANCHORS.whatItDoes}`, label: nav.whatItDoes },
+  { href: `#${ANCHORS.benefits}`, label: nav.benefits },
+  { href: `#${ANCHORS.plans}`, label: nav.plans },
+  { href: `#${ANCHORS.faq}`, label: nav.faq },
+];
+---
+
+<div class="site-nav" data-site-nav>
+  <Container as="nav" class="bar" aria-label={nav.label}>
+    <a class="brand" href="#" aria-label={nav.home}>
+      <Logo width={34} height={34} aria-hidden="true" />
+      <span>{BRAND_NAME}</span>
+    </a>
+    <ul class="links">
+      {links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
+    </ul>
+    <div class="actions">
+      <span class="desktop-only switcher-slot">
+        <MarketSwitcher route={route} placement="down" align="end" compact />
+      </span>
+      <a class="login desktop-only" href={APP_LOGIN_URL}>{nav.login}</a>
+      <Button variant="dot" href={APP_REGISTER_URL} class="cta">
+        <span class="cta-full">{nav.cta}</span>
+        <span class="cta-short">{nav.ctaShort}</span>
+      </Button>
+      <button
+        type="button"
+        class="menu-button"
+        aria-label={nav.openMenu}
+        aria-haspopup="dialog"
+        data-open-menu
+      >
+        <span aria-hidden="true"></span>
+      </button>
+    </div>
+  </Container>
+</div>
+
+<dialog class="mobile-menu" aria-label={nav.label} data-mobile-menu>
+  <form method="dialog" class="mobile-head">
+    <span class="brand">
+      <Logo width={34} height={34} aria-hidden="true" />
+      <span>{BRAND_NAME}</span>
+    </span>
+    <button class="close" aria-label={nav.closeMenu}><span aria-hidden="true">×</span></button>
+  </form>
+  <ul class="mobile-links">
+    {links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
+  </ul>
+  <div class="mobile-foot">
+    <Button variant="dot" href={APP_REGISTER_URL}>{nav.cta}</Button>
+    <a class="login" href={APP_LOGIN_URL}>{nav.login}</a>
+    <MarketSwitcher route={route} placement="up" />
+  </div>
+</dialog>
+
+<script>
+  const bar = document.querySelector<HTMLElement>("[data-site-nav]");
+  const menu = document.querySelector<HTMLDialogElement>("[data-mobile-menu]");
+  const opener = document.querySelector<HTMLElement>("[data-open-menu]");
+
+  // Arriba de todo el menú es transparente; al bajar gana su fondo.
+  if (bar) {
+    const update = () => bar.toggleAttribute("data-at-top", window.scrollY < 8);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+  }
+
+  if (menu && opener) {
+    opener.addEventListener("click", () => menu.showModal());
+    // Tocar un ancla cierra el menú: si no, la página baja DETRÁS de él.
+    menu.addEventListener("click", (event) => {
+      if ((event.target as Element).closest('a[href^="#"]')) menu.close();
+    });
+    // Si el celular se gira o la ventana crece, el menú de escritorio vuelve
+    // y este ya no tiene sentido abierto.
+    window.matchMedia("(min-width: 901px)").addEventListener("change", (event) => {
+      if (event.matches && menu.open) menu.close();
+    });
+  }
+</script>
+
+<style>
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--nav-h);
+    /* El hero se mete debajo: el menú no ocupa renglón propio. */
+    margin-bottom: calc(-1 * var(--nav-h));
+    background: var(--blue);
+    color: var(--on-blue);
+    transition: background-color 0.2s ease;
+    --mark-color: var(--on-blue);
+  }
+  .site-nav[data-at-top] {
+    background: transparent;
+  }
+  .site-nav :global(.bar) {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+  .brand :global(svg) {
+    flex: none;
+  }
+  .links {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+    padding: 0;
+    font-weight: 500;
+    font-size: 0.98rem;
+  }
+  .links a,
+  .login,
+  .switcher-slot {
+    text-decoration: none;
+    color: var(--on-blue-muted);
+    font-weight: 500;
+    font-size: 0.98rem;
+  }
+  .links a:hover,
+  .login:hover {
+    color: var(--on-blue);
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  /* El botón trae dos textos y enseña uno: el corto, en celular. Con
+     `display: none` el otro tampoco existe para el lector de pantalla. */
+  .cta-short {
+    display: none;
+  }
+  .menu-button {
+    display: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    place-items: center;
+  }
+  /* Dos rayas dibujadas con CSS: el sitio no usa iconos de librería. */
+  .menu-button span,
+  .menu-button span::after {
+    display: block;
+    width: 22px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+  }
+  .menu-button span {
+    position: relative;
+    top: -4px;
+  }
+  .menu-button span::after {
+    content: "";
+    position: absolute;
+    top: 8px;
+  }
+
+  .mobile-menu {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    padding: 0 var(--gutter) 32px;
+    background: var(--blue);
+    color: var(--on-blue);
+    --mark-color: var(--on-blue);
+  }
+  .mobile-menu[open] {
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-head {
+    height: var(--nav-h);
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .close {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font: 400 2rem/1 var(--body);
+    cursor: pointer;
+  }
+  .mobile-links {
+    list-style: none;
+    padding: 0;
+    margin-top: 16px;
+    border-top: 2px solid var(--on-blue);
+  }
+  .mobile-links a {
+    display: block;
+    padding-block: 18px;
+    border-bottom: 1px solid var(--on-blue-line);
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: var(--text-h3-feature);
+    letter-spacing: var(--tracking-h3);
+    text-decoration: none;
+  }
+  .mobile-foot {
+    margin-top: auto;
+    padding-top: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+  .mobile-foot .login {
+    color: var(--on-blue);
+    font-size: 1rem;
+  }
+
+  @media (max-width: 900px) {
+    .links,
+    .desktop-only {
+      display: none;
+    }
+    .menu-button {
+      display: grid;
+    }
+    .cta-full {
+      display: none;
+    }
+    .cta-short {
+      display: inline;
+    }
+    .actions {
+      gap: 8px;
+    }
+    /* En celular el botón se encoge, pero no se esconde nunca — ni se parte. */
+    .site-nav :global(.cta) {
+      padding: 10px 16px;
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+  }
+  /* A 320 px (los teléfonos más angostos) ya no cabe en ningún idioma. */
+  @media (max-width: 359px) {
+    .site-nav .brand span {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .site-nav {
+      transition: none;
+    }
+  }
+</style>

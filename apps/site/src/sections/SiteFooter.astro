@@ -1,0 +1,65 @@
+---
+// F11-SITE-PAGE-07 — el pie: las mismas anclas del menú, el selector de país
+// e idioma y el año, calculado al construir.
+//
+// LO QUE FALTA, con nombre: los enlaces a Privacidad y Términos llegan con
+// sus páginas (F11-SITE-LEGAL-01) —un enlace a una página que no existe es un
+// 404 en el pie de todo el sitio—, y el correo de contacto, cuando exista uno
+// de `sellpointy.com` (CONTENIDO §2).
+import Container from "../components/Container.astro";
+import MarketSwitcher from "../components/MarketSwitcher.astro";
+import { ANCHORS, BRAND_NAME } from "../config/links";
+import type { Route } from "../config/markets";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { nav, footer } = getMessages(route);
+const year = new Date().getFullYear();
+const links = [
+  { href: `#${ANCHORS.whatItDoes}`, label: nav.whatItDoes },
+  { href: `#${ANCHORS.benefits}`, label: nav.benefits },
+  { href: `#${ANCHORS.plans}`, label: nav.plans },
+  { href: `#${ANCHORS.faq}`, label: nav.faq },
+];
+---
+
+<Container as="footer" class="footer">
+  <span>© {year} {BRAND_NAME}. {footer.tagline}</span>
+  <nav aria-label={footer.navLabel}>
+    <ul>
+      {links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
+    </ul>
+  </nav>
+  <MarketSwitcher route={route} placement="up" align="end" />
+</Container>
+
+<style>
+  :global(.footer) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px 32px;
+    padding-block: 40px;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    list-style: none;
+    padding: 0;
+  }
+  a {
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
+</style>

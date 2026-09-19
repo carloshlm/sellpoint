@@ -1,0 +1,84 @@
+---
+// F11-SITE-PAGE-05 — «Para quién»: las píldoras de giros, con la lista de cada
+// mercado (una tlapalería no existe en Ontario).
+//
+// «Consultorios» —solo en México— es la ÚNICA píldora que es un enlace
+// (Carlos, 2026-09-18): el módulo es de Premium, a la medida, y no aparece en
+// ninguna tarjeta de plan. Lleva al formulario con «Algo a la medida» ya
+// elegido. Se ve igual que las demás: solo reacciona al cursor y al foco.
+import Container from "../components/Container.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import { ANCHORS } from "../config/links";
+import { getLocale, type Route } from "../config/markets";
+import { CLINICS_MARKETS, CUSTOM_PLAN_PARAM } from "../config/page";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { whoFor } = getMessages(route);
+const showClinics = CLINICS_MARKETS.includes(getLocale(route).market);
+const headingId = "who-for-title";
+---
+
+<section id="who-for" aria-labelledby={headingId}>
+  <Container>
+    <SectionHeading id={headingId}>
+      <Fragment slot="eyebrow">{whoFor.eyebrow}</Fragment>
+      {whoFor.title}
+    </SectionHeading>
+    <ul class="trades">
+      {whoFor.trades.map((trade) => <li class="pill">{trade}</li>)}
+      {
+        showClinics && (
+          <li>
+            <a class="pill" href={`?plan=${CUSTOM_PLAN_PARAM}#${ANCHORS.contact}`}>
+              {whoFor.clinics}
+            </a>
+          </li>
+        )
+      }
+    </ul>
+  </Container>
+</section>
+
+<style>
+  .trades {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 36px;
+    list-style: none;
+    padding: 0;
+  }
+  .pill {
+    display: block;
+    border: 1.5px solid var(--ink);
+    border-radius: var(--radius-pill);
+    padding: 10px 20px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  /* Una de cada tres va rellena de tinta. */
+  li:nth-child(3n + 1).pill,
+  li:nth-child(3n + 1) > .pill {
+    background: var(--ink);
+    color: var(--ground);
+  }
+  a.pill {
+    transition: transform 0.15s ease;
+  }
+  a.pill:hover {
+    transform: translateY(-2px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    a.pill {
+      transition: none;
+    }
+    a.pill:hover {
+      transform: none;
+    }
+  }
+</style>
