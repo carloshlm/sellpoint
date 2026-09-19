@@ -28,6 +28,11 @@
  * versiones viejas: sin eso, cada despliegue dejaría un caché huérfano
  * ocupando espacio en el dispositivo para siempre.
  *
+ * **v4 (2026-09-18): la marca cambió de color (F11-SITE-BASE-07).** El mismo
+ * caso que la v3, y por eso vale repetirlo: `/favicon-32.png` pasó de negro a
+ * azul conservando su nombre, así que sin subir la versión los equipos ya
+ * instalados seguirían pintando el icono negro en su pestaña.
+ *
  * **v3 (2026-09-06): el favicon cambió de dibujo sin cambiar de nombre.**
  * `/favicon-32.png` vive en el SHELL, así que un equipo con la caché v2 seguiría
  * pintando el icono viejo en su pestaña para siempre. Subir la versión es lo
@@ -39,7 +44,7 @@
  * seguirían sirviendo stock viejo aunque el código nuevo ya no cachee nada
  * del API.
  */
-const CACHE = "sellpoint-shell-v3";
+const CACHE = "sellpoint-shell-v4";
 
 /** El cascarón mínimo: sin esto la app no arranca. */
 const SHELL = ["/", "/manifest.webmanifest", "/favicon-32.png"];
