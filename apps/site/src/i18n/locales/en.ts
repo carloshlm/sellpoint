@@ -287,7 +287,7 @@ export const en: Messages = {
     successText:
       "We got your message and will write to {email}. Meanwhile, you can start your free trial — 14 days with everything.",
     successCta: "Start my free trial",
-    error: "We couldn't send your message. Please try again.",
+    error: "We couldn't send your message. Please try again, or write to us at {email}.",
     tooMany: "We received several messages from your connection. Please try again in a while.",
     errors: {
       required: "This field is required.",

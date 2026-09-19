@@ -30,7 +30,9 @@ describe("el documento legal", () => {
       for (const doc of LEGAL_DOCS) {
         const { html, sections } = loadLegalDocument(language, doc);
         expect(html).not.toContain("🔴");
-        expect(html).not.toMatch(/Carlos/);
+        // «Carlos» solo puede aparecer como el RESPONSABLE, con su nombre completo.
+        // Suelto («Carlos decidió…») es una nota de edición que se coló.
+        expect(html.replaceAll("Carlos Hernandez Hernandez", "")).not.toMatch(/Carlos/);
         for (const section of sections) expect(section.title).not.toMatch(/^[PT]\d+\./);
       }
     }

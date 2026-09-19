@@ -310,8 +310,9 @@ export const es = {
     successText:
       "Recibimos tu mensaje y te escribimos a {email}. Mientras tanto, puedes empezar tu prueba gratis — son 14 días con todo.",
     successCta: "Empezar mi prueba gratis",
-    // La salida «o escríbenos a…» se agrega cuando exista el correo del dominio.
-    error: "No pudimos enviar tu mensaje. Inténtalo de nuevo.",
+    // `{email}` es el correo de contacto (`CONTACT_EMAIL`): quien no pudo enviar
+    // el formulario no puede quedarse sin forma de escribir.
+    error: "No pudimos enviar tu mensaje. Inténtalo de nuevo o escríbenos a {email}.",
     tooMany: "Recibimos varios mensajes desde tu conexión. Inténtalo de nuevo en un rato.",
     errors: {
       required: "Este dato es necesario.",

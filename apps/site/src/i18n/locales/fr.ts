@@ -292,7 +292,7 @@ export const fr: Messages = {
     successText:
       "Nous avons bien reçu votre message et vous écrirons à {email}. En attendant, vous pouvez commencer votre essai gratuit\u00a0: 14 jours avec toutes les fonctionnalités.",
     successCta: "Commencer mon essai gratuit",
-    error: "Votre message n'a pas pu être envoyé. Veuillez réessayer.",
+    error: "Votre message n'a pas pu être envoyé. Veuillez réessayer ou nous écrire à {email}.",
     tooMany:
       "Nous avons reçu plusieurs messages depuis votre connexion. Veuillez réessayer un peu plus tard.",
     errors: {

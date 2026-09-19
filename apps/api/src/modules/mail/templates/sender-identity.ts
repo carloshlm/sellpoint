@@ -1,10 +1,9 @@
 /**
  * F11-SITE-LEGAL-04 — quién firma los correos comerciales.
  *
- * ⚠️ DOS DE ESTOS TRES VALORES SON PROVISIONALES. Están acá, juntos y con
- * nombre, para que llenarlos el día que el dueño los resuelva sea cambiar DOS
- * líneas y nada más — no salir a buscarlos por el repositorio. Son los huecos
- * 1 y 2 de `SITIO-WEB-LEGAL.md` §1.
+ * Los tres valores, juntos y con nombre: si un día cambia quién opera el
+ * servicio (una sociedad en lugar de una persona física), son DOS líneas — y
+ * las mismas dos que hay que cambiar en `SITIO-WEB-LEGAL.md` (P1 y T1).
  */
 
 /**
@@ -14,17 +13,15 @@
 export const SENDER_BRAND_NAME = "SellPointy";
 
 /**
- * ⚠️ PROVISIONAL — cambiar. Carlos pidió poner «SellPointy, S.A. de C.V.» por
- * ahora y anotar que debe cambiarla (2026-09-18). Sirve para que el pie se lea
- * completo; NO sirve para publicar: un aviso de privacidad sin responsable
- * identificado de verdad no es un aviso.
+ * Quien opera el servicio y responde por él: Carlos, como persona física con
+ * actividad empresarial (decidido por él el 2026-09-19, para poder facturar).
+ * «SellPointy» es su nombre comercial, no una sociedad.
  */
-export const SENDER_LEGAL_NAME = "SellPointy, S.A. de C.V.";
+export const SENDER_LEGAL_NAME = "Carlos Hernandez Hernandez";
 
 /**
- * ⚠️ PROVISIONAL — cambiar. El domicilio puede ser el fiscal, y con ciudad y
- * estado alcanza: es el lugar donde alguien ejerce sus derechos de acceso,
- * rectificación y cancelación. Hoy dice solo dónde vive el servidor, que es lo
- * único confirmado (Carlos, 2026-09-18: la base de datos está en CDMX).
+ * El domicilio donde alguien ejerce sus derechos de acceso, rectificación y
+ * cancelación. Es el MISMO que publica el aviso de privacidad (P1): si cambia
+ * allá, cambia acá.
  */
-export const SENDER_ADDRESS = "Ciudad de México, México";
+export const SENDER_ADDRESS = "San Francisco Chilpan, Tultitlán, Estado de México, México";

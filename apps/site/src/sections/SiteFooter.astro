@@ -2,12 +2,11 @@
 // F11-SITE-PAGE-07 — el pie: las mismas anclas del menú, el selector de país
 // e idioma y el año, calculado al construir.
 //
-// LO QUE FALTA, con nombre: el correo de contacto, cuando exista uno de
-// `sellpointy.com` (CONTENIDO §2).
+// El correo de contacto existe desde el 2026-09-19 (`CONTACT_EMAIL`).
 import Container from "../components/Container.astro";
 import MarketSwitcher from "../components/MarketSwitcher.astro";
 import { legalPath } from "../config/legal";
-import { ANCHORS, BRAND_NAME } from "../config/links";
+import { ANCHORS, BRAND_NAME, CONTACT_EMAIL } from "../config/links";
 import type { Route } from "../config/markets";
 import type { Alternates } from "../config/seo";
 import { getMessages } from "../i18n";
@@ -34,7 +33,10 @@ const links = [
 ---
 
 <Container as="footer" class="footer">
-  <span>© {year} {BRAND_NAME}. {footer.tagline}</span>
+  <span>
+    © {year} {BRAND_NAME}. {footer.tagline}{" "}
+    <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+  </span>
   <nav aria-label={footer.navLabel}>
     <ul>
       {links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}

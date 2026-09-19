@@ -1,4 +1,26 @@
-# SellPointy — aviso de privacidad y términos (borrador)
+# SellPointy — aviso de privacidad y términos
+
+> **ESTADO (2026-09-19): SIN HUECOS — PUBLICABLE.** Carlos decidió operar como
+> **persona física con actividad empresarial** (para poder facturar), así que el
+> responsable ya no es «SellPointy, S.A. de C.V.» —que era provisional— sino
+> **Carlos Hernandez Hernandez**, con «SellPointy» como nombre comercial. Domicilio:
+> San Francisco Chilpan, Tultitlán, Estado de México. Jurisdicción: tribunales del
+> Estado de México. Correos, que ya EXISTEN (Cloudflare Email Routing → su Gmail):
+> `privacy@sellpointy.com` y `contact@sellpointy.com`. Publicado con fecha del
+> 19 de septiembre de 2026.
+>
+> **Dos cosas que cambian con esta decisión y conviene tener presentes:** quien
+> responde ahora es Carlos con su patrimonio personal, no una sociedad — la
+> cláusula de límite de responsabilidad (T12) es la primera que debería ver un
+> abogado —; y el domicilio queda PUBLICADO en el aviso y en el pie de los correos
+> comerciales. Si un día se constituye una sociedad, se cambia aquí (P1 y T1) y en
+> `apps/api/src/modules/mail/templates/sender-identity.ts`.
+>
+> **Sigue fuera, a propósito:** una línea sobre facturas (CFDI) en T4. El plazo
+> para pedirla lo define Carlos con su contador.
+>
+> Lo que sigue de esta cabecera es el registro de cómo se preparó el texto; las
+> tablas de «datos que solo tú puedes darme» quedaron resueltas.
 
 > **Estado (2026-09-18): texto maestro en español APROBADO por Carlos; inglés y
 > francés traducidos de él.** Salida de `F11-SITE-DEF-10`. **No se publica mientras
@@ -79,13 +101,14 @@ Lo que **sí** verifiqué solo, en el código y la infraestructura:
 
 ## AVISO DE PRIVACIDAD
 
-*Última actualización: `[[fecha de publicación]]`*
+*Última actualización: 19 de septiembre de 2026*
 
 ### P1. Quién es responsable de tus datos
 
-**SellPointy, S.A. de C.V.** `[[⚠️ PROVISIONAL — cambiar]]` («**SellPointy**», «nosotros»), con domicilio en
-`[[domicilio]]`, es responsable del tratamiento de tus datos personales. Para
-cualquier asunto de privacidad escríbenos a `[[correo de privacidad]]`.
+**Carlos Hernandez Hernandez**, persona física con actividad empresarial que opera bajo el nombre
+comercial **SellPointy** («**SellPointy**», «nosotros»), con domicilio en
+San Francisco Chilpan, Tultitlán, Estado de México, México, es responsable del tratamiento de tus datos personales. Para
+cualquier asunto de privacidad escríbenos a privacy@sellpointy.com.
 
 ### P2. Qué datos recabamos
 
@@ -111,7 +134,7 @@ legales.
 
 **Finalidad opcional:** escribirte sobre novedades de SellPointy. Solo lo hacemos
 si lo aceptaste, y **puedes negarte o arrepentirte cuando quieras** escribiendo a
-`[[correo de privacidad]]` o desde el enlace de baja de cada correo. Negarte no
+privacy@sellpointy.com o desde el enlace de baja de cada correo. Negarte no
 afecta el servicio.
 
 ### P4. Con quién los compartimos
@@ -143,7 +166,7 @@ aportó cada nombre.
 ### P6. Tus derechos (ARCO)
 
 Puedes **acceder** a tus datos, **rectificarlos**, **cancelarlos** u **oponerte** a
-su uso, y revocar tu consentimiento. Escríbenos a `[[correo de privacidad]]` con tu
+su uso, y revocar tu consentimiento. Escríbenos a privacy@sellpointy.com con tu
 nombre, el correo de tu cuenta y qué necesitas. **Te respondemos en un máximo de
 20 días hábiles**, y si procede lo hacemos efectivo en los 15 días hábiles
 siguientes. Si crees que no te atendimos bien, puedes acudir a la autoridad de
@@ -160,8 +183,8 @@ después se borran de forma automática.
 Además de lo anterior: solo te escribimos con fines comerciales si diste tu
 **consentimiento expreso**, y guardamos cuándo y qué aceptaste; cada correo trae
 una forma de darte de baja que atendemos en **10 días hábiles**. La persona
-responsable de la protección de los datos personales es `[[nombre]]`,
-`[[correo de privacidad]]`. Tus datos pueden tratarse fuera de Canadá y de tu
+responsable de la protección de los datos personales es Carlos Hernandez Hernandez,
+privacy@sellpointy.com. Tus datos pueden tratarse fuera de Canadá y de tu
 provincia.
 
 ### P9. Menores de edad
@@ -178,12 +201,12 @@ importante, te avisamos por correo antes de que entre en vigor.
 
 ## TÉRMINOS Y CONDICIONES
 
-*Última actualización: `[[fecha de publicación]]`*
+*Última actualización: 19 de septiembre de 2026*
 
 ### T1. Qué es esto
 
-Estos términos son el acuerdo entre tú y **SellPointy, S.A. de C.V.** `[[⚠️ PROVISIONAL — cambiar]]`
-(«**SellPointy**») para usar el sitio `sellpointy.com` y la aplicación
+Estos términos son el acuerdo entre tú y **Carlos Hernandez Hernandez**, persona física con actividad
+empresarial que opera bajo el nombre comercial **SellPointy** («**SellPointy**») para usar el sitio `sellpointy.com` y la aplicación
 `app.sellpointy.com` (el «**Servicio**»). **Al crear una cuenta o usar el Servicio
 los aceptas.** Si lo usas en nombre de un negocio, declaras que puedes obligarlo.
 
@@ -297,12 +320,12 @@ Podemos actualizarlos. Si el cambio es importante te avisamos por correo al meno
 ### T15. Ley aplicable
 
 Estos términos se rigen por las leyes de **México**. Cualquier controversia se
-somete a los tribunales de `[[ciudad]]`, salvo que la ley de protección al
+somete a los tribunales del Estado de México, salvo que la ley de protección al
 consumidor de tu país te dé un derecho que no pueda renunciarse.
 
 ### T16. Contacto
 
-`[[correo de contacto]]`
+contact@sellpointy.com
 
 ---
 
@@ -314,11 +337,11 @@ consumidor de tu país te dé un derecho que no pueda renunciarse.
 
 ## PRIVACY NOTICE
 
-*Last updated: `[[publication date]]`*
+*Last updated: September 19, 2026*
 
-**P1. Who is responsible for your data.** **SellPointy, S.A. de C.V.** `[[⚠️ PROVISIONAL — cambiar]]` (“**SellPointy**”, “we”), located
-at `[[address]]`, is responsible for processing your personal data. For any privacy
-matter, write to `[[privacy email]]`.
+**P1. Who is responsible for your data.** **Carlos Hernandez Hernandez**, an individual doing business as **SellPointy** (“**SellPointy**”, “we”), located
+at San Francisco Chilpan, Tultitlán, State of Mexico, Mexico, is responsible for processing your personal data. For any privacy
+matter, write to privacy@sellpointy.com.
 
 **P2. What we collect.** *If you write to us from the website:* your name, email,
 country, the plan you are interested in and, if you provide them, your type of
@@ -335,7 +358,7 @@ and running your account; billing and recording your payments; supporting you;
 telling you about changes to the service or to these documents; and meeting legal
 obligations. *Optional purpose:* writing to you about SellPointy news. We only do so
 if you agreed, and **you can refuse or change your mind at any time** by writing to
-`[[privacy email]]` or using the unsubscribe link in each email. Refusing does not
+privacy@sellpointy.com or using the unsubscribe link in each email. Refusing does not
 affect the service.
 
 **P4. Who we share it with.** **We do not sell or rent your data.** **Your
@@ -357,7 +380,7 @@ anything that identifies your business. The catalog does not say who contributed
 each name.
 
 **P6. Your rights.** You may **access** your data, **correct** it, **delete** it or
-**object** to its use, and withdraw your consent. Write to `[[privacy email]]` with
+**object** to its use, and withdraw your consent. Write to privacy@sellpointy.com with
 your name, your account email and what you need. **We reply within 20 business
 days**, and where the request applies we carry it out within the following 15
 business days. If you feel we did not handle it properly, you may contact the data
@@ -371,7 +394,7 @@ an account, **24 months**, after which it is deleted automatically.
 you gave your **express consent**, and we keep a record of when and what you agreed
 to; every email includes a way to unsubscribe, which we honor within **10 business
 days**. The person responsible for the protection of personal information is
-`[[name]]`, `[[privacy email]]`. Your data may be processed outside Canada and
+Carlos Hernandez Hernandez, privacy@sellpointy.com. Your data may be processed outside Canada and
 outside your province.
 
 **P9. Minors.** SellPointy is for businesses. It is not directed at anyone under 18,
@@ -382,10 +405,10 @@ date. If the change is significant, we tell you by email before it takes effect.
 
 ## TERMS AND CONDITIONS
 
-*Last updated: `[[publication date]]`*
+*Last updated: September 19, 2026*
 
-**T1. What this is.** These terms are the agreement between you and **SellPointy, S.A. de C.V.** `[[⚠️ PROVISIONAL — cambiar]]`
-(“**SellPointy**”) for using the website `sellpointy.com` and the application
+**T1. What this is.** These terms are the agreement between you and **Carlos Hernandez Hernandez**, an individual doing
+business as **SellPointy** (“**SellPointy**”) for using the website `sellpointy.com` and the application
 `app.sellpointy.com` (the “**Service**”). **By creating an account or using the
 Service you accept them.** If you use it on behalf of a business, you confirm you can
 bind it.
@@ -471,10 +494,10 @@ tell you by email at least 15 days ahead. Continuing to use the Service afterwar
 means you accept them.
 
 **T15. Governing law.** These terms are governed by the laws of **Mexico**. Any
-dispute is submitted to the courts of `[[city]]`, unless the consumer protection law
+dispute is submitted to the courts of the State of Mexico, unless the consumer protection law
 of your country gives you a right that cannot be waived.
 
-**T16. Contact.** `[[contact email]]`
+**T16. Contact.** contact@sellpointy.com
 
 ---
 
@@ -487,12 +510,13 @@ of your country gives you a right that cannot be waived.
 
 ## POLITIQUE DE CONFIDENTIALITÉ
 
-*Dernière mise à jour : `[[date de publication]]`*
+*Dernière mise à jour : 19 septembre 2026*
 
-**P1. Qui est responsable de vos données.** **SellPointy, S.A. de C.V.** `[[⚠️ PROVISIONAL — cambiar]]` (« **SellPointy** », « nous »),
-dont l'adresse est `[[adresse]]`, est responsable du traitement de vos données
+**P1. Qui est responsable de vos données.** **Carlos Hernandez Hernandez**, personne physique exerçant une activité commerciale sous le nom
+commercial **SellPointy** (« **SellPointy** », « nous »),
+dont l'adresse est San Francisco Chilpan, Tultitlán, État de Mexico, Mexique, est responsable du traitement de vos données
 personnelles. Pour toute question relative à la confidentialité, écrivez à
-`[[courriel de confidentialité]]`.
+privacy@sellpointy.com.
 
 **P2. Les données que nous recueillons.** *Si vous nous écrivez depuis le site :*
 votre nom, votre courriel, votre pays, le forfait qui vous intéresse et, si vous les
@@ -512,7 +536,7 @@ assister ; vous informer des changements apportés au service ou à ces document
 respecter nos obligations légales. *Finalité facultative :* vous écrire au sujet des
 nouveautés de SellPointy. Nous ne le faisons que si vous l'avez accepté, et **vous
 pouvez refuser ou changer d'avis à tout moment** en écrivant à
-`[[courriel de confidentialité]]` ou au moyen du lien de désabonnement de chaque
+privacy@sellpointy.com ou au moyen du lien de désabonnement de chaque
 courriel. Un refus n'a aucune incidence sur le service.
 
 **P4. Avec qui nous les partageons.** **Nous ne vendons ni ne louons vos données.**
@@ -538,7 +562,7 @@ votre commerce. Le catalogue n'indique pas qui a fourni chaque nom.
 
 **P6. Vos droits.** Vous pouvez **accéder** à vos données, les **rectifier**, les
 **supprimer** ou vous **opposer** à leur utilisation, et retirer votre consentement.
-Écrivez à `[[courriel de confidentialité]]` en indiquant votre nom, le courriel de
+Écrivez à privacy@sellpointy.com en indiquant votre nom, le courriel de
 votre compte et votre demande. **Nous répondons dans un délai de 20 jours
 ouvrables** et, si la demande est recevable, nous y donnons suite dans les 15 jours
 ouvrables suivants. Si vous estimez que votre demande n'a pas été traitée
@@ -555,7 +579,7 @@ des messages commerciaux que si vous avez donné votre **consentement exprès**,
 nous conservons la trace de la date et de l'objet de ce consentement ; chaque
 courriel comporte un moyen de se désabonner, que nous respectons dans un délai de
 **10 jours ouvrables**. La personne responsable de la protection des renseignements
-personnels est `[[nom]]`, `[[courriel de confidentialité]]`. Vos données peuvent être
+personnels est Carlos Hernandez Hernandez, privacy@sellpointy.com. Vos données peuvent être
 traitées à l'extérieur du Canada et de votre province.
 
 **P9. Mineurs.** SellPointy s'adresse aux commerces. Il n'est pas destiné aux
@@ -567,10 +591,10 @@ par courriel avant son entrée en vigueur.
 
 ## CONDITIONS GÉNÉRALES
 
-*Dernière mise à jour : `[[date de publication]]`*
+*Dernière mise à jour : 19 septembre 2026*
 
-**T1. Objet.** Les présentes conditions constituent l'accord entre vous et **SellPointy, S.A. de C.V.** `[[⚠️ PROVISIONAL — cambiar]]`
-(« **SellPointy** ») pour l'utilisation du site `sellpointy.com` et de l'application
+**T1. Objet.** Les présentes conditions constituent l'accord entre vous et **Carlos Hernandez Hernandez**, personne physique
+exerçant une activité commerciale sous le nom commercial **SellPointy** (« **SellPointy** ») pour l'utilisation du site `sellpointy.com` et de l'application
 `app.sellpointy.com` (le « **Service** »). **En créant un compte ou en utilisant le
 Service, vous les acceptez.** Si vous l'utilisez au nom d'un commerce, vous déclarez
 avoir le pouvoir de l'engager.
@@ -667,11 +691,11 @@ est important, nous vous en informons par courriel au moins 15 jours à l'avance
 Continuer d'utiliser le Service par la suite signifie que vous les acceptez.
 
 **T15. Droit applicable.** Les présentes conditions sont régies par les lois du
-**Mexique**. Tout litige est soumis aux tribunaux de `[[ville]]`, sauf si la loi sur
+**Mexique**. Tout litige est soumis aux tribunaux de l'État de Mexico, sauf si la loi sur
 la protection du consommateur de votre pays vous accorde un droit auquel il est
 impossible de renoncer.
 
-**T16. Contact.** `[[courriel de contact]]`
+**T16. Contact.** contact@sellpointy.com
 
 ---
 

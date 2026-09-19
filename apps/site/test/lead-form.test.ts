@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANCHORS, APP_REGISTER_URL } from "../src/config/links";
+import { ANCHORS, APP_REGISTER_URL, CONTACT_EMAIL } from "../src/config/links";
 import { getLocale, MARKETS, ROUTES, type Route } from "../src/config/markets";
 import { getMessages } from "../src/i18n";
 import { referrerDomain } from "../src/lead/track";
@@ -102,6 +102,24 @@ describe("formulario de interés", () => {
     expect(success).toContain(`href="${APP_REGISTER_URL}"`);
     const { leadForm } = getMessages("fr-ca");
     expect(form).toContain(`data-text-sending="${leadForm.sending}"`);
+  });
+
+  it.each([...ROUTES])(
+    "/%s/: si el envío falla, el error ofrece el correo como salida",
+    (route) => {
+      // Esperaba a que existiera un correo del dominio (2026-09-19). Quien no pudo
+      // enviar el formulario no puede quedarse sin forma de escribir.
+      const form = formOf(route);
+      const error = form.match(/data-text-error="([^"]*)"/)?.[1] ?? "";
+      expect(error).toContain(CONTACT_EMAIL);
+      expect(error).not.toContain("{email}");
+    },
+  );
+
+  it.each([...ROUTES])("/%s/: el pie trae el correo de contacto, como enlace", (route) => {
+    const html = readDist(`${route}/index.html`);
+    const footer = html.slice(html.lastIndexOf("<footer"), html.lastIndexOf("</footer>"));
+    expect(footer).toContain(`href="mailto:${CONTACT_EMAIL}"`);
   });
 
   it("los giros del formulario son los de la sección «Para quién», más «Otro»", () => {

@@ -1,6 +1,12 @@
 /** El nombre de la marca. No se traduce, y por eso no vive en los textos. */
 export const BRAND_NAME = "SellPointy";
 
+/**
+ * El correo de contacto público (2026-09-19). Existe de verdad: Cloudflare Email
+ * Routing lo reenvía. El de privacidad, `privacy@`, vive en `SITIO-WEB-LEGAL.md`.
+ */
+export const CONTACT_EMAIL = "contact@sellpointy.com";
+
 // A dónde llevan las dos puertas de la aplicación (SITIO-WEB-CONTENIDO.md §0 y §2).
 const APP_ORIGIN = "https://app.sellpointy.com";
 

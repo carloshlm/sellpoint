@@ -14,7 +14,7 @@
 import { ISO_COUNTRY_CODES } from "@sellpoint/shared";
 import Button from "../components/Button.astro";
 import { legalPath } from "../config/legal";
-import { APP_REGISTER_URL } from "../config/links";
+import { APP_REGISTER_URL, CONTACT_EMAIL } from "../config/links";
 import { getLocale, MARKETS, type MarketId, type Route } from "../config/markets";
 import { CLINICS_MARKETS } from "../config/page";
 import { getMessages } from "../i18n";
@@ -55,7 +55,7 @@ const trades = [
     data-route={route}
     data-text-submit={form.submit}
     data-text-sending={form.sending}
-    data-text-error={form.error}
+    data-text-error={form.error.replace("{email}", CONTACT_EMAIL)}
     data-text-too-many={form.tooMany}
     data-error-required={form.errors.required}
     data-error-email={form.errors.email}
