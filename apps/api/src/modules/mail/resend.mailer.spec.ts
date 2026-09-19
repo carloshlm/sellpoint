@@ -90,7 +90,7 @@ describe("ResendMailer (f1-auth AD-9, rule: nunca rompe el request)", () => {
     const mailer = new ResendMailer(fakeI18n(), fakeConfig());
 
     await mailer.send({
-      to: "carls.hlm@gmail.com",
+      to: "admin@example.com",
       template: "site-lead",
       vars: { name: "Ana" },
       locale: "es",

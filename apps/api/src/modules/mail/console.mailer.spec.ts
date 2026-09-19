@@ -45,7 +45,7 @@ describe("ConsoleMailer", () => {
     const mailer = new ConsoleMailer(fakeI18n());
 
     await mailer.send({
-      to: "carls.hlm@gmail.com",
+      to: "admin@example.com",
       template: "site-lead",
       vars: { name: "Ana" },
       locale: "es",

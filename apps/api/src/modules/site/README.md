@@ -71,7 +71,7 @@ falla, el prospecto ya está en la base con `notified_at` en NULL, el error va a
 log y a Sentry, y la respuesta sigue siendo 202. La lista del backoffice pinta
 ese NULL como «sin avisar»: es la red para el día que un correo no llegue.
 
-El aviso va a `BILLING_ADMIN_EMAILS` —la misma lista que usa «escríbenos para
+El aviso va a `PLATFORM_NOTIFY_EMAILS` (y, si está vacía, a `BILLING_ADMIN_EMAILS`) —la misma lista que usa «escríbenos para
 activar tu plan»— con **`Reply-To` al correo del prospecto**. No hay variable
 nueva ni dirección escrita en el código.
 

@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { isSiteLeadSpam, type SiteLeadInput } from "@sellpoint/shared";
 import * as Sentry from "@sentry/node";
-import { platformAdminEmails } from "../../common/config/platform-admin-emails";
+import { platformNotifyEmails } from "../../common/config/platform-admin-emails";
 import type { Env } from "../../config/env.schema";
 import { CLOCK, type ClockPort } from "../../infrastructure/clock/clock.port";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
@@ -98,11 +98,13 @@ export class SiteLeadsService {
    * con un clic en vez de copiar la dirección a mano.
    */
   private async notifyPlatform(leadId: string, input: SiteLeadInput, ahora: Date): Promise<void> {
-    const admins = platformAdminEmails(this.configService);
+    const admins = platformNotifyEmails(this.configService);
     if (admins.length === 0) {
       // Sin sellar `notified_at`: nadie se enteró, y la lista del backoffice
       // tiene que poder decirlo.
-      this.logger.warn("Prospecto del sitio sin destinatario: BILLING_ADMIN_EMAILS está vacío");
+      this.logger.warn(
+        "Prospecto del sitio sin destinatario: PLATFORM_NOTIFY_EMAILS y BILLING_ADMIN_EMAILS están vacías",
+      );
       return;
     }
 

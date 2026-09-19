@@ -31,7 +31,7 @@ const mockedVoid = vi.mocked(billingApi.voidPayment);
  */
 const demoUser = (isPlatformAdmin: boolean, permissions: string[] = ["tenants:manage"]): AuthUser =>
   buildAuthUser({
-    email: "carls.hlm@gmail.com",
+    email: "admin@example.com",
     firstName: "Carlos",
     lastName: "H",
     permissions,

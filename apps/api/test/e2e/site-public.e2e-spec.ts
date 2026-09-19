@@ -43,7 +43,7 @@ describe("Los endpoints públicos del sitio (F11-SITE)", () => {
 
     prisma = app.get(PrismaService);
     mailer = app.get<NoopMailer>(MAILER);
-    app.get(ConfigService).set("BILLING_ADMIN_EMAILS", "carls.hlm@gmail.com, otro@sellpointy.com");
+    app.get(ConfigService).set("BILLING_ADMIN_EMAILS", "admin@example.com, otro@sellpointy.com");
   });
 
   afterAll(async () => {
@@ -109,10 +109,7 @@ describe("Los endpoints públicos del sitio (F11-SITE)", () => {
 
       const nuevos = mailer.sent.slice(antes);
       const avisos = nuevos.filter((m) => m.template === "site-lead");
-      expect(avisos.map((m) => m.to).sort()).toEqual([
-        "carls.hlm@gmail.com",
-        "otro@sellpointy.com",
-      ]);
+      expect(avisos.map((m) => m.to).sort()).toEqual(["admin@example.com", "otro@sellpointy.com"]);
       expect(avisos[0]).toMatchObject({ locale: "es", replyTo: body.email });
 
       const acuse = nuevos.find((m) => m.template === "site-lead-reply");

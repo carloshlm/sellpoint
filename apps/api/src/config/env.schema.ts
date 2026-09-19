@@ -69,6 +69,10 @@ const baseEnvSchema = z.object({
   // PlatformAdminGuard (en AND con users.is_platform_admin): sin ella,
   // nadie entra a /admin/* — obligatoria en producción (superRefine).
   BILLING_ADMIN_EMAILS: z.string().default(""),
+  // A quién se le AVISA (solicitudes de plan, prospectos del sitio), separado
+  // de quién puede ENTRAR (la lista de arriba) desde el 2026-09-19. Opcional:
+  // vacía, los avisos van a BILLING_ADMIN_EMAILS, como siempre.
+  PLATFORM_NOTIFY_EMAILS: z.string().default(""),
   // F7-CRON-01: el barrido diario. Apagado por DEFAULT (a diferencia del
   // throttle): degradar suscripciones es opt-in explícito del ambiente — los
   // tests y cualquier entorno nuevo jamás registran el cron sin decidirlo.

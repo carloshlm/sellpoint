@@ -28,7 +28,7 @@ describe("«Escríbenos para activar tu plan» (F7-CONTACT)", () => {
     app = moduleFixture.createNestApplication();
     await startTestApp(app);
     mailer = app.get<NoopMailer>(MAILER);
-    app.get(ConfigService).set("BILLING_ADMIN_EMAILS", "carls.hlm@gmail.com, otro@sellpointy.com");
+    app.get(ConfigService).set("BILLING_ADMIN_EMAILS", "admin@example.com, otro@sellpointy.com");
     negocio = await registerTenant(app, "plan-request");
   });
 
@@ -47,7 +47,7 @@ describe("«Escríbenos para activar tu plan» (F7-CONTACT)", () => {
 
     const nuevos = mailer.sent.slice(antes);
     const aAdmins = nuevos.filter((m) => m.template === "plan-request");
-    expect(aAdmins.map((m) => m.to).sort()).toEqual(["carls.hlm@gmail.com", "otro@sellpointy.com"]);
+    expect(aAdmins.map((m) => m.to).sort()).toEqual(["admin@example.com", "otro@sellpointy.com"]);
     expect(aAdmins[0]?.vars).toMatchObject({
       userName: "Ana Pérez",
       userEmail: negocio.email,

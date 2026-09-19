@@ -62,7 +62,7 @@ const mockedShifts = vi.mocked(reportsApi.getShiftsReport);
 
 const demoUser = (isPlatformAdmin: boolean): AuthUser =>
   buildAuthUser({
-    email: "carls.hlm@gmail.com",
+    email: "admin@example.com",
     firstName: "Carlos",
     lastName: "H",
     permissions: ["tenants:manage"],

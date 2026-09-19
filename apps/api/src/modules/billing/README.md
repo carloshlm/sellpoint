@@ -354,7 +354,8 @@ SchedulerRegistry) y lo controla el env:
 | `BILLING_CRON_ENABLED` | **false** | Degradar es opt-in explícito del ambiente |
 | `BILLING_CRON_TZ` | `America/Mexico_City` | Zona del disparo |
 | `BILLING_CRON_HOUR` | `3` | Hora local del disparo |
-| `BILLING_ADMIN_EMAILS` | `""` (obligatoria en prod) | La whitelist del backoffice |
+| `BILLING_ADMIN_EMAILS` | `""` (obligatoria en prod) | La whitelist del backoffice: QUIÉN PUEDE ENTRAR. Ya no decide a quién se le avisa |
+| `PLATFORM_NOTIFY_EMAILS` | `""` | A QUIÉN SE LE AVISA (solicitudes de plan y prospectos del sitio), separado de la whitelist desde el 2026-09-19. Vacía, los avisos van a `BILLING_ADMIN_EMAILS` |
 
 Avisos (dedup por `UNIQUE(subscription, kind, anchor_at)` — INSERT antes del
 mail): `trial-ending` (T-3), `trial-ended`, `payment-due-soon` (T-7 y T-3),

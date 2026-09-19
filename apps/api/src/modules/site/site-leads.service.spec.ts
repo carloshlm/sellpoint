@@ -41,16 +41,25 @@ describe("SiteLeadsService (F11-SITE-LEAD)", () => {
   let unsubscribes: { urlFor: jest.Mock };
   let service: SiteLeadsService;
 
-  const config = (admins: string) =>
-    ({ get: () => admins }) as unknown as ConstructorParameters<typeof SiteLeadsService>[2];
+  // Sensible a la CLAVE: un simulacro que devuelve lo mismo para cualquier
+  // variable no distingue «a quién se avisa» de «quién puede entrar».
+  const config = (admins: string, notify = "") =>
+    ({
+      get: (key: string) =>
+        key === "PLATFORM_NOTIFY_EMAILS"
+          ? notify
+          : key === "BILLING_ADMIN_EMAILS"
+            ? admins
+            : undefined,
+    }) as unknown as ConstructorParameters<typeof SiteLeadsService>[2];
 
-  function build(admins = "carls.hlm@gmail.com, otro@sellpointy.com"): SiteLeadsService {
+  function build(admins = "admin@example.com, otro@sellpointy.com", notify = ""): SiteLeadsService {
     return new SiteLeadsService(
       // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
       prisma as any,
       // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
       mailer as any,
-      config(admins),
+      config(admins, notify),
       { now: () => AHORA },
       // biome-ignore lint/suspicious/noExplicitAny: mocks parciales a propósito
       unsubscribes as any,
@@ -106,6 +115,19 @@ describe("SiteLeadsService (F11-SITE-LEAD)", () => {
     expect(data).not.toHaveProperty("elapsedMs");
   });
 
+  it("con PLATFORM_NOTIFY_EMAILS, el aviso va a ESE buzón y no a quien entra al backoffice", async () => {
+    // Carlos (2026-09-19): los avisos a `contact@sellpointy.com`; él sigue
+    // entrando con su correo personal, que NO tiene por qué recibirlos.
+    service = build("admin@example.com", "contact@sellpointy.com");
+    await service.submit(entrada());
+
+    const destinatarios = mailer.send.mock.calls
+      .map(([m]: [{ template: string; to: string }]) => m)
+      .filter((m: { template: string }) => m.template === "site-lead")
+      .map((m: { to: string }) => m.to);
+    expect(destinatarios).toEqual(["contact@sellpointy.com"]);
+  });
+
   it("avisa a CADA administrador de la plataforma, en español y con Reply-To al prospecto", async () => {
     await service.submit(entrada());
 
@@ -114,7 +136,7 @@ describe("SiteLeadsService (F11-SITE-LEAD)", () => {
       .filter((m: { template: string }) => m.template === "site-lead");
 
     expect(avisos.map((m: { to: string }) => m.to)).toEqual([
-      "carls.hlm@gmail.com",
+      "admin@example.com",
       "otro@sellpointy.com",
     ]);
     expect(avisos[0]).toMatchObject({
