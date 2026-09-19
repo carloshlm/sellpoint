@@ -6,6 +6,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Astro (tipos generados de apps/site)
+.astro/
+
 # Turborepo
 .turbo/
 

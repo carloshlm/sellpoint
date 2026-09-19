@@ -1,0 +1,22 @@
+---
+// El rótulo en mayúsculas pequeñas que abre cada sección. También es el
+// estilo de las etiquetas de plan («Desde Pro»): una nota, no un adorno (§11).
+// Azul en claro y amarillo en oscuro: lo decide el token `--eyebrow`.
+interface Props {
+  as?: "p" | "span";
+}
+
+const { as: Tag = "p" } = Astro.props;
+---
+
+<Tag class="eyebrow"><slot /></Tag>
+
+<style>
+  .eyebrow {
+    font-size: var(--text-eyebrow);
+    font-weight: 600;
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+    color: var(--eyebrow);
+  }
+</style>

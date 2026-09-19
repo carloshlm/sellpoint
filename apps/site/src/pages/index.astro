@@ -1,0 +1,9 @@
+---
+// La raíz sirve la versión de México COMPLETA y rastreable — no una página en
+// blanco que redirige (Carlos, 2026-09-18). El aviso «¿Estás en Canadá?» para
+// quien llega de otro país es F11-SITE-GEO-02, y nunca redirige solo.
+import { DEFAULT_ROUTE } from "../config/markets";
+import Home from "../views/Home.astro";
+---
+
+<Home route={DEFAULT_ROUTE} />

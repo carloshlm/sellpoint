@@ -1,0 +1,51 @@
+---
+// El punto y sus cuatro estados (guía §4). Es decorativo SIEMPRE: el nombre de
+// la función va escrito a su lado, así que se esconde del lector de pantalla.
+import type { DotMarkVariant } from "./variants";
+
+interface Props {
+  variant?: DotMarkVariant;
+  /** 30 px en las filas de «Qué hace»; 18 px en las preguntas frecuentes (§11). */
+  size?: "md" | "sm";
+}
+
+const { variant = "full", size = "md" } = Astro.props;
+---
+
+<span class:list={["mark", `mark--${variant}`, `mark--${size}`]} aria-hidden="true"></span>
+
+<style>
+  .mark {
+    display: block;
+    flex: none;
+    border-radius: 50%;
+    box-sizing: border-box;
+  }
+  .mark--md {
+    width: 30px;
+    height: 30px;
+    --ring: 7px;
+    --half: 3px;
+  }
+  /* A 18 px los bordes se adelgazan en la misma proporción. */
+  .mark--sm {
+    width: 18px;
+    height: 18px;
+    --ring: 4px;
+    --half: 2px;
+  }
+  .mark--full {
+    background: var(--blue);
+  }
+  .mark--ring {
+    background: transparent;
+    border: var(--ring) solid var(--blue);
+  }
+  .mark--half {
+    background: linear-gradient(90deg, var(--blue) 50%, transparent 50%);
+    border: var(--half) solid var(--blue);
+  }
+  .mark--sun {
+    background: var(--dot);
+  }
+</style>

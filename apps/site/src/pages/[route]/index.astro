@@ -1,0 +1,15 @@
+---
+// Una página por mercado e idioma: `/es-mx/`, `/en-us/`, `/es-us/`, `/en-ca/`
+// y `/fr-ca/`. Las rutas salen de la matriz (`config/markets.ts`): agregar un
+// mercado es agregar una fila allá, no un archivo aquí.
+import type { GetStaticPaths } from "astro";
+import { ROUTES, type Route } from "../../config/markets";
+import Home from "../../views/Home.astro";
+
+export const getStaticPaths = (() =>
+  ROUTES.map((route) => ({ params: { route } }))) satisfies GetStaticPaths;
+
+const route = Astro.params.route as Route;
+---
+
+<Home route={route} />

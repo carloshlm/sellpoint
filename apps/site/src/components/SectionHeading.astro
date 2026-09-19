@@ -1,0 +1,29 @@
+---
+// El encabezado de una sección: rótulo, titular y —si la sección la tiene—
+// entradilla. Los tres textos llegan por slots con nombre.
+import Eyebrow from "./Eyebrow.astro";
+
+interface Props {
+  /** El `id` del <h2>, para que la sección lo use en `aria-labelledby`. */
+  id?: string;
+}
+
+const { id } = Astro.props;
+---
+
+<div class="section-heading">
+  {Astro.slots.has("eyebrow") && <Eyebrow><slot name="eyebrow" /></Eyebrow>}
+  <h2 id={id}><slot /></h2>
+  {Astro.slots.has("sub") && <p class="sub"><slot name="sub" /></p>}
+</div>
+
+<style>
+  h2 {
+    margin-top: 14px;
+  }
+  .sub {
+    color: var(--muted);
+    margin-top: 18px;
+    max-width: 30em;
+  }
+</style>

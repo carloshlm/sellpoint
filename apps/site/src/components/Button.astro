@@ -1,0 +1,65 @@
+---
+// El botón en píldora de la guía (§6). Con `href` es un enlace; sin él, un
+// <button>. El texto llega por el slot: aquí no se escribe ninguno.
+import type { HTMLAttributes } from "astro/types";
+import type { ButtonVariant } from "./variants";
+
+type Props = { variant?: ButtonVariant } & (
+  | ({ href: string } & HTMLAttributes<"a">)
+  | ({ href?: undefined } & HTMLAttributes<"button">)
+);
+
+const { variant = "dot", class: className, ...rest } = Astro.props;
+const classes = ["btn", `btn--${variant}`, className];
+---
+
+{
+  rest.href !== undefined ? (
+    <a class:list={classes} {...(rest as HTMLAttributes<"a">)}>
+      <slot />
+    </a>
+  ) : (
+    <button type="button" class:list={classes} {...(rest as HTMLAttributes<"button">)}>
+      <slot />
+    </button>
+  )
+}
+
+<style>
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font: 600 1rem var(--body);
+    padding: 14px 22px;
+    border-radius: var(--radius-pill);
+    text-decoration: none;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+  .btn--dot {
+    background: var(--dot);
+    color: var(--on-dot);
+  }
+  .btn--ghost {
+    background: transparent;
+    border-color: var(--on-blue-line);
+    color: var(--on-blue);
+  }
+  .btn--blue {
+    background: var(--blue);
+    color: var(--on-blue);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn {
+      transition: none;
+    }
+    .btn:hover {
+      transform: none;
+    }
+  }
+</style>

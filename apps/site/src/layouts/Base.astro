@@ -1,0 +1,66 @@
+---
+// La plantilla de TODAS las páginas del sitio (F11-SITE-BASE-05).
+import "../styles/global.css";
+import { Font } from "astro:assets";
+import { ANCHORS } from "../config/links";
+import { getLocale, type Route } from "../config/markets";
+import { getMessages } from "../i18n";
+import { BRAND_BLUE } from "../styles/tokens";
+
+interface Props {
+  route: Route;
+  /** Por omisión, los de la ruta. Las páginas legales traen los suyos. */
+  title?: string;
+  description?: string;
+}
+
+const { route } = Astro.props;
+const locale = getLocale(route);
+const messages = getMessages(route);
+const { title = messages.meta.title, description = messages.meta.description } = Astro.props;
+---
+
+<!doctype html>
+<html lang={locale.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {
+      /*
+       * El tema se decide ANTES del primer pintado: por eso el guion va en línea,
+       * arriba de los estilos y sin `defer`. Si la persona eligió un tema, manda
+       * su elección; si no, no se toca nada y decide `prefers-color-scheme`.
+       * `localStorage` puede tronar (modo privado, datos bloqueados): en ese
+       * caso el sitio se pinta con el tema del sistema y ya.
+       *
+       * OJO (F11-SITE-INFRA-02): al ser un guion en línea, la CSP del vhost
+       * tiene que autorizarlo por su hash. Si este texto cambia, el hash también.
+       */
+    }
+    <script is:inline>
+      try {
+        var theme = localStorage.getItem("theme");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+      } catch (_) {}
+    </script>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {/* Provisional: mientras el sitio sea un andamiaje no se deja indexar. Se
+        quita en F11-SITE-SEO-01, junto con la canónica y el hreflang. */}
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content={BRAND_BLUE} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    {/* Solo se precarga la del titular: es lo más grande de la primera pantalla. */}
+    <Font cssVariable="--font-display" preload />
+    <Font cssVariable="--font-body" />
+    <Font cssVariable="--font-mono" />
+  </head>
+  <body>
+    <a class="skip-link" href={`#${ANCHORS.main}`}>{messages.a11y.skipToContent}</a>
+    <slot />
+  </body>
+</html>

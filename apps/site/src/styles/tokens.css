@@ -1,0 +1,128 @@
+/*
+ * Los tokens de diseño de «El Punto» — SITIO-WEB-DISENO.md §2 a §5.
+ *
+ * ÚNICO archivo del sitio donde se escribe un color: `test/tokens.test.ts`
+ * falla si aparece uno en cualquier otro lado.
+ *
+ * El tema tiene tres estados, y por eso el oscuro va escrito DOS veces:
+ *   1. `:root`                              → claro, el punto de partida.
+ *   2. `prefers-color-scheme: dark`         → oscuro porque lo pide el sistema,
+ *      salvo que la persona haya elegido claro (`[data-theme="light"]`).
+ *   3. `:root[data-theme="dark"]`           → oscuro porque la persona lo eligió.
+ * Los bloques 2 y 3 tienen que decir lo mismo; la prueba los compara.
+ *
+ * El azul y el amarillo SON la marca y no cambian de papel entre temas: lo que
+ * cambia es el fondo, la superficie y la tinta.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* ── Color (§2) ── */
+  --ground: #f4f5fa;
+  --surface: #ffffff;
+  --ink: #0d1233;
+  --muted: #565d80;
+  --line: rgba(13, 18, 51, 0.14);
+  --blue: #1e3fd8;
+  --blue-deep: #15309f;
+  --on-blue: #ffffff;
+  --on-blue-muted: rgba(255, 255, 255, 0.8);
+  --on-blue-line: rgba(255, 255, 255, 0.5);
+  --dot: #ffc42e;
+  --on-dot: #0d1233;
+
+  /* La caja dibujada es SIEMPRE clara: es una pantalla del producto, no una
+     superficie del sitio. Por eso estos cuatro no aparecen en el tema oscuro. */
+  --mock: #ffffff;
+  --mock-ink: #0d1233;
+  --mock-muted: #5f6688;
+  --mock-line: rgba(13, 18, 51, 0.12);
+  --mock-shadow: rgba(3, 8, 40, 0.65);
+
+  /* Papeles que cambian de color con el tema: sobre el fondo oscuro el azul no
+     contrasta, así que el rótulo y el énfasis de los beneficios pasan al
+     amarillo (y el énfasis deja de ser un subrayado). */
+  --eyebrow: var(--blue);
+  --emphasis-ink: inherit;
+  --emphasis-underline: var(--dot);
+
+  /* ── Tipografía (§3). Las familias las define Astro (astro.config.ts). ── */
+  --display: var(--font-display);
+  --body: var(--font-body);
+  --mono: var(--font-mono);
+
+  --text-h1: clamp(3rem, 8.4vw, 6.9rem);
+  --text-h2: clamp(2.1rem, 4.6vw, 3.6rem);
+  --text-h3-feature: clamp(1.6rem, 2.6vw, 2.2rem);
+  --text-h3-benefit: clamp(1.45rem, 2.3vw, 1.95rem);
+  --text-lead: clamp(1.1rem, 1.6vw, 1.3rem);
+  --text-body: 1.0625rem;
+  --text-small: 0.9rem;
+  --text-eyebrow: 0.8rem;
+
+  --leading-h1: 0.92;
+  --leading-h2: 1;
+  --leading-h3-feature: 1.1;
+  --leading-h3-benefit: 1.12;
+  --leading-body: 1.6;
+
+  --tracking-h1: -0.035em;
+  --tracking-h2: -0.03em;
+  --tracking-h3: -0.02em;
+  --tracking-eyebrow: 0.14em;
+
+  /* ── Espaciado y medidas (§5) ── */
+  --wrap: 1180px;
+  --gutter: 16px;
+  --space-section: clamp(64px, 9vw, 120px);
+  --space-cell: clamp(24px, 3.4vw, 44px);
+  --space-final: clamp(40px, 7vw, 96px);
+
+  /* ── Radios (§5). Cada uno está elegido; no se redondea todo igual. ── */
+  --radius-pill: 999px;
+  --radius-field: 12px;
+  --radius-mock: 22px;
+  --radius-frame: 24px;
+  --radius-final: 32px;
+  --radius-focus: 4px;
+
+  /* ── Movimiento (§7) ── */
+  --ease-pop: cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #090c1f;
+    --surface: #121735;
+    --ink: #ecefff;
+    --muted: #a3a9cc;
+    --line: rgba(236, 239, 255, 0.16);
+    --blue: #2747e0;
+    --blue-deep: #16277f;
+    --eyebrow: var(--dot);
+    --emphasis-ink: var(--dot);
+    --emphasis-underline: transparent;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #090c1f;
+  --surface: #121735;
+  --ink: #ecefff;
+  --muted: #a3a9cc;
+  --line: rgba(236, 239, 255, 0.16);
+  --blue: #2747e0;
+  --blue-deep: #16277f;
+  --eyebrow: var(--dot);
+  --emphasis-ink: var(--dot);
+  --emphasis-underline: transparent;
+}
+
+/* `color-scheme` sigue a la elección explícita, para que los controles del
+   navegador (barras de scroll, campos) no se queden en el tema contrario. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}

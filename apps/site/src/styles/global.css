@@ -1,0 +1,102 @@
+/*
+ * La base de «El Punto»: lo que el prototipo aplicaba a la página entera
+ * (SITIO-WEB-DISENO.md, anexo A). Lo de cada pieza vive en su componente.
+ */
+@import "./tokens.css";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Que un ancla no deje el titular debajo del menú pegado (PAGE-01). */
+  scroll-padding-top: 96px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+}
+
+/* El foco es amarillo en todo el sitio: es el punto, otra vez. */
+:focus-visible {
+  outline: 3px solid var(--dot);
+  outline-offset: 3px;
+  border-radius: var(--radius-focus);
+}
+
+/* Titulares apretados y grandes: interlínea bajo 1 y tracking negativo. */
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  text-wrap: balance;
+}
+
+h1 {
+  font-weight: 800;
+  font-size: var(--text-h1);
+  line-height: var(--leading-h1);
+  letter-spacing: var(--tracking-h1);
+}
+
+h2 {
+  font-weight: 800;
+  font-size: var(--text-h2);
+  line-height: var(--leading-h2);
+  letter-spacing: var(--tracking-h2);
+}
+
+h3 {
+  font-weight: 700;
+  letter-spacing: var(--tracking-h3);
+}
+
+section {
+  padding-block: var(--space-section);
+}
+
+/* «Saltar al contenido»: fuera de la vista hasta que recibe el foco. */
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: 0;
+  z-index: 100;
+  transform: translateY(-120%);
+  background: var(--dot);
+  color: var(--on-dot);
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 0 0 var(--radius-field) var(--radius-field);
+  text-decoration: none;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

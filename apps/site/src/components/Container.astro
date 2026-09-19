@@ -1,0 +1,20 @@
+---
+// El contenedor de la guía (§5): 1180 px de ancho máximo y 16 px de margen a
+// cada lado en celular. Todo lo que no va a sangre vive dentro de uno.
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends HTMLAttributes<"div"> {
+  as?: "div" | "section" | "header" | "footer" | "nav";
+}
+
+const { as: Tag = "div", class: className, ...rest } = Astro.props;
+---
+
+<Tag class:list={["wrap", className]} {...rest}><slot /></Tag>
+
+<style>
+  .wrap {
+    width: min(var(--wrap), 100% - 2 * var(--gutter));
+    margin-inline: auto;
+  }
+</style>
