@@ -193,11 +193,14 @@ titular pintado en menos de 2.5 s, menos de 50 KB de JavaScript, cero terceros).
 
 - **De Carlos:** confirmar el dominio «Verified» en Resend y pasar el remitente
   a `no-reply@sellpointy.com` (que los avisos lleguen a la bandeja y no a
-  correo no deseado) · poner `PLATFORM_NOTIFY_EMAILS=contact@sellpointy.com` en
-  el `.env` de producción y del sandbox: es A QUIÉN se le avisa de un prospecto,
-  y es distinta de `BILLING_ADMIN_EMAILS`, que decide QUIÉN ENTRA al backoffice
-  (vacía, los avisos caen en esa otra) · decidir si el sitio de ensayo —abierto
-  a internet, solo con `noindex`— necesita contraseña.
+  correo no deseado) · decidir si el sitio de ensayo —abierto a internet, solo
+  con `noindex`— necesita contraseña.
+- **Ya resuelto, para quien lo busque:** a quién se le avisa de un prospecto lo
+  decide `PLATFORM_NOTIFY_EMAILS` en el `.env` del servidor (hoy,
+  `contact@sellpointy.com`, en producción y en el sandbox). Es distinta de
+  `BILLING_ADMIN_EMAILS`, que decide QUIÉN ENTRA al backoffice; vacía, los avisos
+  caen en esa otra. Cambiarla pide recrear el API (`up -d --force-recreate`): un
+  `restart` no vuelve a leer el `.env`.
 - **De una persona, no de una herramienta:** el sitio en aparatos de verdad
   (Safari de iPhone, Chrome de Android), la lectura de cada idioma por alguien
   que lo hable como lengua materna, y el recorrido con lector de pantalla.
