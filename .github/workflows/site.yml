@@ -162,7 +162,10 @@ jobs:
             echo "FALLA: la página «en construcción» trae huecos legales."
             exit 1
           fi
-          bash infrastructure/scripts/site-csp-hash.sh apps/site/dist-construction
+          # El script recibe un ARCHIVO (una carpeta la da por inexistente). En
+          # este modo hay una sola página con guion: la raíz.
+          bash infrastructure/scripts/site-csp-hash.sh apps/site/dist-construction/index.html \
+            infrastructure/nginx/conf.d/sellpointy.com.conf
 
       # El contrato de cada paquete: el CONTENIDO de la carpeta en la raíz del
       # tar. Es lo que `site-deploy-remote.sh` espera, y por eso verifica que
