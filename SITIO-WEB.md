@@ -41,6 +41,8 @@ vez): lo que importa es lo que llega al navegador, no lo que dice el código.
 | Qué incluye cada plan | `packages/shared/src/plan-showcase.ts` (lo lee también la aplicación) |
 | Un color, un tamaño, un radio | `src/styles/tokens.css` — el ÚNICO lugar con colores |
 | Una sección de la página | `src/sections/` |
+| Una foto | `src/assets/images/` (NUNCA `public/`: ahí no se optimiza) y `<Picture>` como en `sections/InAction.astro` |
+| Los números del panel dibujado | `MOCK_DASHBOARD` en `src/config/page.ts` |
 | El texto legal | `SITIO-WEB-LEGAL.md` — el sitio lo LEE de ahí al construir |
 | A dónde sugiere ir a cada visitante | `src/geo/suggest-market.ts` y su tabla de casos |
 
@@ -178,6 +180,7 @@ darse cuenta. Si una se pone roja, **no se apaga: se lee el comentario que trae*
 | `fonts` | se pide una fuente a un tercero, o se precarga más de una |
 | `i18n` | a un idioma le falta una clave, o hay un espacio invisible tecleado |
 | `components` | un componente trae un texto escrito dentro |
+| `sections` | una imagen pesa más de 250 KB, los números del panel no cuadran, o el panel —que es de todos los planes— habla de existencias |
 | `pages` | aparece una página que nadie pidió, o un guion incrustado en el HTML (la CSP lo bloquearía) |
 | `seo` | el `hreflang` deja de ser recíproco, o se declara un precio con los precios apagados |
 | `plans` | el sitio y la aplicación llaman distinto a una línea de plan, o un precio apagado viaja en el HTML |

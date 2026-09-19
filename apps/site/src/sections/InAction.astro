@@ -1,0 +1,151 @@
+---
+// F11-SITE-PAGE-08 — «En tu mostrador»: la foto de una venta, con los tres
+// pasos que se ven en ella. Va después de «Qué hace» para ponerle cara a los
+// cuatro verbos antes de los beneficios.
+//
+// La foto es la ÚNICA imagen de contenido del sitio, y por eso pasa por el
+// optimizador de Astro: el original pesa 2 MB y lo que viaja son versiones en
+// AVIF y WebP a tres anchos (hay barrera: ninguna imagen pasa de 250 KB). El
+// JPEG de respaldo es a propósito: el respaldo por omisión de un PNG es otro
+// PNG, y una foto en PNG pesa diez veces más.
+import { Picture } from "astro:assets";
+import photo from "../assets/images/pos-checkout-counter.png";
+import Container from "../components/Container.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import { ANCHORS } from "../config/links";
+import type { Route } from "../config/markets";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { inAction } = getMessages(route);
+const headingId = `${ANCHORS.inAction}-title`;
+const steps = [inAction.steps.scan, inAction.steps.charge, inAction.steps.ticket];
+---
+
+<section id={ANCHORS.inAction} aria-labelledby={headingId}>
+  <Container class="in-action">
+    <figure>
+      <div class="frame">
+        <Picture
+          src={photo}
+          alt={inAction.imageAlt}
+          formats={["avif", "webp"]}
+          fallbackFormat="jpeg"
+          widths={[480, 800, 1200]}
+          sizes="(max-width: 900px) 100vw, 600px"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <figcaption>{inAction.caption}</figcaption>
+    </figure>
+    <div>
+      <SectionHeading id={headingId}>
+        <Fragment slot="eyebrow">{inAction.eyebrow}</Fragment>
+        {inAction.title}
+        <Fragment slot="sub">{inAction.sub}</Fragment>
+      </SectionHeading>
+      <ol>
+        {
+          steps.map((step, index) => (
+            <li>
+              <span class="number" aria-hidden="true">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </Container>
+</section>
+
+<style>
+  section {
+    padding-top: 0;
+  }
+  section :global(.in-action) {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 64px;
+    align-items: center;
+  }
+  figure {
+    margin: 0;
+  }
+  /* El punto, asomado detrás de la foto: el mismo gesto del hero y del cierre. */
+  .frame {
+    position: relative;
+    isolation: isolate;
+  }
+  .frame::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: -28px;
+    bottom: -28px;
+    width: 38%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--dot);
+  }
+  .frame :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-frame);
+    box-shadow: 0 30px 60px -30px var(--mock-shadow);
+  }
+  figcaption {
+    margin-top: 14px;
+    font-size: var(--text-small);
+    color: var(--muted);
+    text-align: right;
+  }
+  ol {
+    list-style: none;
+    padding: 0;
+    margin-top: 36px;
+    border-top: 2px solid var(--ink);
+  }
+  li {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 20px;
+    padding-block: 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .number {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: var(--text-small);
+    color: var(--eyebrow);
+    padding-top: 0.45em;
+  }
+  h3 {
+    font-size: var(--text-h3-benefit);
+    line-height: var(--leading-h3-benefit);
+  }
+  li p {
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  @media (max-width: 900px) {
+    section :global(.in-action) {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .frame::before {
+      left: -14px;
+      bottom: -18px;
+    }
+  }
+</style>

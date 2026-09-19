@@ -13,6 +13,8 @@ import Benefits from "../sections/Benefits.astro";
 import Closing from "../sections/Closing.astro";
 import Faq from "../sections/Faq.astro";
 import Hero from "../sections/Hero.astro";
+import InAction from "../sections/InAction.astro";
+import Insights from "../sections/Insights.astro";
 import Plans from "../sections/Plans.astro";
 import SiteFooter from "../sections/SiteFooter.astro";
 import SiteNav from "../sections/SiteNav.astro";
@@ -37,7 +39,9 @@ const prices = await loadMarketPrices(getLocale(route).market);
   <main id={ANCHORS.main}>
     <Hero route={route} />
     <WhatItDoes route={route} />
+    <InAction route={route} />
     <Benefits route={route} />
+    <Insights route={route} />
     <WhoFor route={route} />
     <Plans route={route} prices={prices} />
     <Faq route={route} />

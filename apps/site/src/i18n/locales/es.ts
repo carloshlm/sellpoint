@@ -114,6 +114,52 @@ export const es = {
       },
     },
   },
+  // La foto del mostrador (PAGE-08). Promete solo lo que «Vende» ya dice:
+  // escanear, cobrar y el ticket con tu logo.
+  inAction: {
+    eyebrow: "En tu mostrador",
+    title: "Escanea, cobra y entrega el ticket.",
+    sub: "Así se ve una venta con SellPointy: pasas el producto por el lector, aparece en pantalla con su precio y cobras. Sin teclear precios ni buscar en una lista.",
+    steps: {
+      scan: { title: "Escanea", text: "El producto entra a la cuenta con su nombre y su precio." },
+      charge: { title: "Cobra", text: "El total se suma solo. Tú solo confirmas." },
+      ticket: { title: "Entrega el ticket", text: "Con tu logo, listo para tu cliente." },
+    },
+    imageAlt:
+      "Una cajera escanea una botella de agua con un lector de códigos; a su lado, una tablet muestra la venta en SellPointy y una impresora entrega el ticket.",
+    caption: "Imagen ilustrativa.",
+  },
+  // El panel dibujado (PAGE-09). Es de TODOS los planes, y por eso no habla de
+  // existencias: Basic no las lleva. Los importes viven en `config/page.ts`.
+  insights: {
+    eyebrow: "Tu panel",
+    title: "Abre SellPointy y ve cómo va tu día.",
+    sub: "Ventas, utilidad y tickets al momento, desde la caja o desde tu celular. Sin esperar al corte y sin armar un reporte.",
+    points: [
+      "Lo que vendiste hoy y en el mes, contra tu meta.",
+      "Tu utilidad: lo que vendiste menos lo que te costó.",
+      "Tus productos más vendidos y a qué hora vendes más.",
+    ],
+    note: "Incluido en todos los planes.",
+    mock: {
+      label: "Ejemplo del panel de SellPointy con las ventas del día y del mes",
+      badge: "Al momento",
+      title: "Panel",
+      tabs: { today: "Hoy", week: "Esta semana", month: "Este mes" },
+      today: "Ventas de hoy",
+      month: "Ventas del mes",
+      goal: "{percent}% de la meta",
+      profit: "Utilidad del mes",
+      tickets: "Tickets de hoy",
+      average: "{amount} promedio",
+      trend: "Ventas: mes actual vs. anterior",
+      current: "Este mes",
+      previous: "Mes anterior",
+      hourly: "Ventas de hoy por hora",
+      top: "Más vendidos",
+      units: "{count} unidades",
+    },
+  },
   whoFor: {
     eyebrow: "Para quién",
     title: "Hecho para el negocio que atiendes tú.",

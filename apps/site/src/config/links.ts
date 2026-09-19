@@ -19,7 +19,9 @@ export const APP_LOGIN_URL = `${APP_ORIGIN}/login`;
 export const ANCHORS = {
   main: "main",
   whatItDoes: "what-it-does",
+  inAction: "in-action",
   benefits: "benefits",
+  insights: "insights",
   plans: "plans",
   faq: "faq",
   contact: "contact",

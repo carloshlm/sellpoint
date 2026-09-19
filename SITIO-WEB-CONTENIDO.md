@@ -105,12 +105,14 @@ que no responde una pregunta se quita.**
 |---|---|---|---|
 | 1 | **Hero** | «¿Qué es esto y es para mí?» | Empieza gratis |
 | 2 | **Qué hace** | «¿Qué puedo hacer con esto?» | — (sigue leyendo) |
-| 3 | **Beneficios** | «¿Y eso a mí qué me deja?» | — |
-| 4 | **Para quién** | «¿Sirve para un negocio como el mío?» | — |
-| 5 | **Planes** | «¿Qué incluye y cuál me toca?» | Quiero este plan → formulario |
-| 6 | **Preguntas** | «¿Y si…?» — las objeciones | — |
-| 7 | **Cierre + formulario** | «Está bien, ¿qué hago ahora?» | Empieza gratis · o escríbenos |
-| 8 | **Pie** | «¿Quiénes son? ¿Es serio?» | — |
+| 3 | **En tu mostrador** *(2026-09-19)* | «¿Cómo se ve usarlo?» — la foto de una venta | — |
+| 4 | **Beneficios** | «¿Y eso a mí qué me deja?» | — |
+| 5 | **Tu panel** *(2026-09-19)* | «¿Y cómo sé cómo va mi negocio?» — el panel, dibujado | — |
+| 6 | **Para quién** | «¿Sirve para un negocio como el mío?» | — |
+| 7 | **Planes** | «¿Qué incluye y cuál me toca?» | Quiero este plan → formulario |
+| 8 | **Preguntas** | «¿Y si…?» — las objeciones | — |
+| 9 | **Cierre + formulario** | «Está bien, ¿qué hago ahora?» | Empieza gratis · o escríbenos |
+| 10 | **Pie** | «¿Quiénes son? ¿Es serio?» | — |
 
 Lo que **no** lleva el sitio, a propósito: carrusel, video de fondo, contador de
 clientes, logos de «confían en nosotros», testimonios, ventana emergente, chat.
@@ -193,6 +195,34 @@ Boutiques · Refaccionarias · Dulcerías · Tiendas naturistas · Consultorios
 - **Texto:** Crea tu cuenta, escanea tus primeros productos y haz tu primera venta
   hoy mismo. Y si prefieres platicarlo antes, escríbenos.
 - **Botones:** Empieza gratis · Escríbenos
+
+### 4.6 En tu mostrador y Tu panel — agregadas el 2026-09-19
+
+Carlos pidió integrar dos imágenes sin tocar el hero. Los textos en inglés y en
+francés están en `apps/site/src/i18n/locales/` (claves `inAction` e `insights`).
+
+**En tu mostrador** (la foto; va después de «Qué hace»). Promete solo lo que
+«Vende» ya decía: escanear, cobrar y el ticket con tu logo.
+
+- **Titular:** Escanea, cobra y entrega el ticket.
+- **Entradilla:** Así se ve una venta con SellPointy: pasas el producto por el
+  lector, aparece en pantalla con su precio y cobras. Sin teclear precios ni
+  buscar en una lista.
+- **Pasos:** Escanea · Cobra · Entrega el ticket.
+- **Bajo la foto:** «Imagen ilustrativa.» — es una imagen de estudio, no un
+  cliente, y se dice.
+
+**Tu panel** (va después de «Beneficios», en banda azul profundo). El panel es
+de **todos los planes**, y por eso la sección **no habla de existencias** —Basic
+no las lleva—; hay barrera.
+
+- **Titular:** Abre SellPointy y ve cómo va tu día.
+- **Entradilla:** Ventas, utilidad y tickets al momento, desde la caja o desde tu
+  celular. Sin esperar al corte y sin armar un reporte.
+- **Puntos:** lo vendido hoy y en el mes contra tu meta · tu utilidad · tus más
+  vendidos y a qué hora vendes más. **Nota:** Incluido en todos los planes.
+- El panel es un **dibujo** (HTML y SVG), no una captura: mismas razones que la
+  caja del hero, y además una captura real enseña datos de un negocio real.
 
 ## 5. La sección de planes — `F11-SITE-DEF-05`
 

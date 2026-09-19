@@ -1,9 +1,20 @@
+import { statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL } from "../src/config/links";
 import { formatMoney, getLocale, ROUTES, type Route } from "../src/config/markets";
-import { BENEFIT_ORDER, FAQ_ORDER, MOCK_SALE, mockTotal } from "../src/config/page";
+import {
+  BENEFIT_ORDER,
+  FAQ_ORDER,
+  MOCK_DASHBOARD,
+  MOCK_SALE,
+  MOCK_SALE_QUANTITIES,
+  mockAverageTicket,
+  mockTopSellers,
+  mockTotal,
+} from "../src/config/page";
 import { getMessages } from "../src/i18n";
-import { readDist } from "./dist";
+import { DIST, distFiles, readDist } from "./dist";
 
 // F11-SITE-PAGE — las secciones, leídas del sitio construido.
 
@@ -238,6 +249,104 @@ describe("cierre y pie (PAGE-07)", () => {
   });
 });
 
+describe("en tu mostrador: la foto (PAGE-08)", () => {
+  it.each([...ROUTES])("/%s/ tiene la foto con su texto alterno y sus tres pasos", (route) => {
+    const { inAction } = getMessages(route);
+    const section = sectionOf(pageOf(route), ANCHORS.inAction);
+    expect(textOf(section)).toContain(inAction.title);
+    const steps = [...section.matchAll(/<h3\b[^>]*>([\s\S]*?)<\/h3>/g)].map((m) =>
+      textOf(m[1] as string),
+    );
+    expect(steps).toEqual(
+      [inAction.steps.scan, inAction.steps.charge, inAction.steps.ticket].map((s) => s.title),
+    );
+    const img = section.match(/<img\b[^>]*>/)?.[0] ?? "";
+    expect(img).toContain(`alt="${inAction.imageAlt.replace(/"/g, "&quot;")}"`);
+    // La imagen es de estudio, no de un cliente: se dice.
+    expect(textOf(section)).toContain(inAction.caption);
+  });
+
+  it("la foto no hace saltar la página ni estorba al titular", () => {
+    const section = sectionOf(pageOf("es-mx"), ANCHORS.inAction);
+    const img = section.match(/<img\b[^>]*>/)?.[0] ?? "";
+    // Con ancho y alto el navegador aparta el hueco antes de bajarla.
+    expect(img).toMatch(/\bwidth="\d+"/);
+    expect(img).toMatch(/\bheight="\d+"/);
+    // Va debajo del primer pantallazo: no compite con el titular por la red.
+    expect(img).toContain('loading="lazy"');
+    expect(section).toMatch(/<source\b[^>]*type="image\/avif"/);
+    expect(section).toMatch(/<source\b[^>]*type="image\/webp"/);
+  });
+
+  it("ninguna imagen del sitio pesa más de 250 KB: el original de 2 MB no viaja", () => {
+    const images = distFiles().filter((file) => /\.(png|jpe?g|webp|avif)$/.test(file));
+    expect(images.length).toBeGreaterThan(0);
+    for (const file of images) {
+      expect(statSync(join(DIST, file)).size, file).toBeLessThan(250 * 1024);
+    }
+  });
+});
+
+describe("tu panel: el tablero dibujado (PAGE-09)", () => {
+  it.each([...ROUTES])("/%s/ dibuja el panel con SU moneda y SUS productos", (route) => {
+    const { market } = getLocale(route);
+    const { insights, hero } = getMessages(route);
+    const data = MOCK_DASHBOARD[market];
+    const section = sectionOf(pageOf(route), ANCHORS.insights);
+    expect(textOf(section)).toContain(insights.title);
+    for (const point of insights.points) expect(textOf(section)).toContain(point);
+    for (const amount of [data.today, data.month, data.profit, mockAverageTicket(market)]) {
+      expect(section, String(amount)).toContain(formatMoney(amount, route));
+    }
+    // Los más vendidos son los MISMOS productos de la caja del hero.
+    for (const item of Object.values(hero.mock.items)) {
+      expect(section).toContain(escaped(item.name));
+    }
+    for (const seller of mockTopSellers(market)) {
+      expect(section).toContain(formatMoney(seller.amount, route));
+    }
+  });
+
+  it("el panel es HTML y SVG, no una captura", () => {
+    const section = sectionOf(pageOf("es-mx"), ANCHORS.insights);
+    expect(section).not.toMatch(/<img\b/);
+    expect(section).toMatch(/role="img"/);
+    expect(section).toContain(`aria-label="${getMessages("es-mx").insights.mock.label}"`);
+    expect(section).toMatch(/<svg\b/);
+  });
+
+  it("los números del panel cuadran entre sí: un tablero no puede mentir", () => {
+    for (const market of Object.keys(MOCK_DASHBOARD) as (keyof typeof MOCK_DASHBOARD)[]) {
+      const data = MOCK_DASHBOARD[market];
+      expect(data.goalPercent).toBeGreaterThan(0);
+      expect(data.goalPercent).toBeLessThanOrEqual(100);
+      // La utilidad es una parte de lo vendido, y hoy es una parte del mes.
+      expect(data.profit).toBeLessThan(data.month);
+      expect(data.today).toBeLessThan(data.month);
+      // El promedio se redondea a centavos: la diferencia no pasa de medio
+      // centavo por ticket.
+      expect(Math.abs(mockAverageTicket(market) * data.tickets - data.today)).toBeLessThan(
+        data.tickets * 0.005 + 0.001,
+      );
+      // Cada «más vendido» cuesta lo mismo que en la caja del hero.
+      const sale = MOCK_SALE[market];
+      mockTopSellers(market).forEach((seller, index) => {
+        const unitPrice = (sale.lines[index] ?? 0) / (MOCK_SALE_QUANTITIES[index] ?? 1);
+        expect(Math.round(seller.amount * 100)).toBe(Math.round(unitPrice * seller.units * 100));
+        expect(seller.amount).toBeLessThan(data.today);
+      });
+    }
+  });
+
+  it("el panel no promete existencias: Basic no las lleva y el panel es de todos los planes", () => {
+    for (const route of ROUTES) {
+      const text = textOf(sectionOf(pageOf(route), ANCHORS.insights));
+      expect(text, route).not.toMatch(/agotad|out of stock|rupture/i);
+      expect(text).toContain(getMessages(route).insights.note);
+    }
+  });
+});
+
 describe("la página entera", () => {
   it.each([...ROUTES])("/%s/ no deja marcas de énfasis sin convertir", (route) => {
     const html = pageOf(route);
@@ -255,7 +364,9 @@ describe("la página entera", () => {
     expect([...html.matchAll(/<h1\b/g)]).toHaveLength(1);
     const order = [
       ANCHORS.whatItDoes,
+      ANCHORS.inAction,
       ANCHORS.benefits,
+      ANCHORS.insights,
       "who-for",
       ANCHORS.faq,
       ANCHORS.contact,

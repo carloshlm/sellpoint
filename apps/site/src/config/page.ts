@@ -106,6 +106,83 @@ export const MOCK_SALE: Record<MarketId, { barcode: string; lines: number[]; tot
   ca: { barcode: "055000123457", lines: [4.58, 4.99, 14.99], total: 24.56 },
 };
 
+/** Cuántas piezas lleva cada renglón de la caja («2 piezas», «1 pieza», «1 pieza»). */
+export const MOCK_SALE_QUANTITIES: readonly number[] = [2, 1, 1];
+
+/**
+ * El panel dibujado («Tu panel»). Como en la caja, aquí va lo que es del PAÍS
+ * —los importes, en su moneda— y los textos viven en los idiomas. Los «más
+ * vendidos» son los MISMOS tres productos de la caja del hero, al mismo
+ * precio: `units` es cuántos se vendieron hoy, en el orden de la caja.
+ * `test/sections.test.ts` comprueba que los números cuadren entre sí.
+ */
+export const MOCK_DASHBOARD: Record<
+  MarketId,
+  {
+    today: number;
+    month: number;
+    goalPercent: number;
+    profit: number;
+    tickets: number;
+    units: number[];
+  }
+> = {
+  mx: {
+    today: 8420.5,
+    month: 184350,
+    goalPercent: 78,
+    profit: 61240,
+    tickets: 96,
+    units: [64, 31, 9],
+  },
+  us: {
+    today: 1284.5,
+    month: 28940,
+    goalPercent: 78,
+    profit: 9610,
+    tickets: 74,
+    units: [58, 27, 8],
+  },
+  ca: {
+    today: 1412.75,
+    month: 31480,
+    goalPercent: 78,
+    profit: 10390,
+    tickets: 71,
+    units: [55, 26, 8],
+  },
+};
+
+/**
+ * La FORMA de las gráficas, igual en todos los mercados: proporciones de 0 a
+ * 100, sin moneda. El mes va por día; el día, por hora de las 8 a las 21.
+ */
+export const DASHBOARD_TREND = {
+  current: [38, 44, 41, 52, 61, 74, 58, 47, 55, 63, 71, 86, 92, 69, 60, 72, 81, 95, 88],
+  previous: [
+    34, 36, 40, 43, 50, 62, 55, 41, 44, 52, 57, 66, 73, 60, 49, 55, 61, 70, 76, 64, 58, 63, 69, 78,
+    84, 71, 62, 66, 73, 80,
+  ],
+} as const;
+export const DASHBOARD_HOURLY: readonly number[] = [
+  18, 34, 52, 61, 78, 96, 84, 57, 49, 63, 82, 100, 71, 38,
+];
+
+/** El ticket promedio de hoy, a centavos. */
+export function mockAverageTicket(market: MarketId): number {
+  const { today, tickets } = MOCK_DASHBOARD[market];
+  return Math.round((today / tickets) * 100) / 100;
+}
+
+/** Los más vendidos de hoy: piezas e importe, al precio de la caja del hero. */
+export function mockTopSellers(market: MarketId): { units: number; amount: number }[] {
+  const sale = MOCK_SALE[market];
+  return MOCK_DASHBOARD[market].units.map((units, index) => {
+    const unitPrice = (sale.lines[index] ?? 0) / (MOCK_SALE_QUANTITIES[index] ?? 1);
+    return { units, amount: Math.round(unitPrice * units * 100) / 100 };
+  });
+}
+
 export function mockTotal(market: MarketId): number {
   return MOCK_SALE[market].total;
 }

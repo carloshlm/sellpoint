@@ -1,0 +1,113 @@
+---
+// F11-SITE-PAGE-09 — «Tu panel»: el tablero del negocio, dibujado. Va después
+// de los beneficios y es la única banda oscura entre el hero y el cierre: el
+// panel —siempre claro— resalta sobre el azul profundo igual que la caja sobre
+// el azul del hero.
+//
+// El panel es de TODOS los planes (PLANES-Y-FUNCIONALIDADES.md), y la sección
+// lo dice: por eso aquí no se habla de existencias, que Basic no lleva.
+import Container from "../components/Container.astro";
+import SectionHeading from "../components/SectionHeading.astro";
+import { ANCHORS } from "../config/links";
+import type { Route } from "../config/markets";
+import { getMessages } from "../i18n";
+import DashboardMock from "./DashboardMock.astro";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { insights } = getMessages(route);
+const headingId = `${ANCHORS.insights}-title`;
+---
+
+<section class="band" id={ANCHORS.insights} aria-labelledby={headingId}>
+  <Container>
+    <div class="intro">
+      <SectionHeading id={headingId}>
+        <Fragment slot="eyebrow">{insights.eyebrow}</Fragment>
+        {insights.title}
+        <Fragment slot="sub">{insights.sub}</Fragment>
+      </SectionHeading>
+      <div>
+        <ul>
+          {insights.points.map((point) => <li>{point}</li>)}
+        </ul>
+        <p class="note">{insights.note}</p>
+      </div>
+    </div>
+    <div class="stage">
+      <DashboardMock route={route} />
+    </div>
+  </Container>
+</section>
+
+<style>
+  /* Azul profundo en los dos temas: sobre él, el rótulo y la entradilla toman
+     los colores «sobre azul», igual que en el hero. */
+  .band {
+    --eyebrow: var(--dot);
+    --muted: var(--on-blue-muted);
+    background: var(--blue-deep);
+    color: var(--on-blue);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  /* El círculo del hero, de regreso y al otro lado. */
+  .band::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: -20vw;
+    bottom: -30vw;
+    width: 70vw;
+    height: 70vw;
+    border-radius: 50%;
+    background: var(--blue);
+  }
+  .intro {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 64px;
+    align-items: end;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    border-top: 2px solid var(--on-blue);
+  }
+  li {
+    position: relative;
+    padding: 16px 0 16px 28px;
+    border-bottom: 1px solid var(--on-blue-line);
+  }
+  li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 1.55em;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--dot);
+  }
+  .note {
+    margin-top: 16px;
+    font-size: var(--text-small);
+    color: var(--on-blue-muted);
+  }
+  .stage {
+    margin-top: 64px;
+  }
+  @media (max-width: 900px) {
+    .intro {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .stage {
+      margin-top: 48px;
+    }
+  }
+</style>

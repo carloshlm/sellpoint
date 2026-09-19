@@ -32,8 +32,10 @@
   --on-dot: #0d1233;
 
   /* La caja dibujada es SIEMPRE clara: es una pantalla del producto, no una
-     superficie del sitio. Por eso estos cuatro no aparecen en el tema oscuro. */
+     superficie del sitio. Por eso los `--mock-*` no aparecen en el tema oscuro. */
   --mock: #ffffff;
+  /* El fondo del panel dibujado: sus tarjetas blancas necesitan dónde apoyarse. */
+  --mock-ground: #f1f3fb;
   --mock-ink: #0d1233;
   --mock-muted: #5f6688;
   --mock-line: rgba(13, 18, 51, 0.12);

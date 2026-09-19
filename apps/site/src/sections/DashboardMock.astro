@@ -1,0 +1,434 @@
+---
+// El panel DIBUJADO (PAGE-09): HTML, CSS y un SVG, no una captura — la misma
+// decisión que la caja del hero (guía §6). Se ve nítido en cualquier pantalla,
+// habla el idioma de la página y cobra en la moneda del mercado; una captura
+// habría que rehacerla quince veces y envejece con cada cambio del producto.
+// Es siempre claro, también en tema oscuro: representa una pantalla.
+//
+// Los importes son del PAÍS y viven en `config/page.ts`; las gráficas son
+// proporciones sin moneda. Los «más vendidos» son los productos de la caja.
+import { formatMoney, getLocale, type Route } from "../config/markets";
+import {
+  DASHBOARD_HOURLY,
+  DASHBOARD_TREND,
+  MOCK_DASHBOARD,
+  mockAverageTicket,
+  mockTopSellers,
+} from "../config/page";
+import { getMessages } from "../i18n";
+
+interface Props {
+  route: Route;
+}
+
+const { route } = Astro.props;
+const { market } = getLocale(route);
+const messages = getMessages(route);
+const { mock } = messages.insights;
+const data = MOCK_DASHBOARD[market];
+
+const products = messages.hero.mock.items;
+const sellers = mockTopSellers(market).map((seller, index) => ({
+  name: [products.first, products.second, products.third][index]?.name ?? "",
+  units: mock.units.replace("{count}", String(seller.units)),
+  amount: formatMoney(seller.amount, route),
+}));
+
+// ── La gráfica del mes ──
+const WIDTH = 600;
+const HEIGHT = 200;
+const FLOOR = HEIGHT - 12;
+const DAYS = DASHBOARD_TREND.previous.length;
+const pointsOf = (values: readonly number[]) =>
+  values.map((value, index): [number, number] => [
+    (index / (DAYS - 1)) * WIDTH,
+    FLOOR - (value / 100) * (FLOOR - 14),
+  ]);
+/** Una curva suave que pasa por todos los puntos (Catmull-Rom → Bézier). */
+function smoothPath(points: [number, number][]): string {
+  return points
+    .map(([x, y], index) => {
+      if (index === 0) return `M${x.toFixed(1)} ${y.toFixed(1)}`;
+      const p0 = points[index - 2] ?? points[index - 1] ?? [x, y];
+      const p1 = points[index - 1] ?? [x, y];
+      const p3 = points[index + 1] ?? [x, y];
+      const c1 = [p1[0] + (x - p0[0]) / 6, p1[1] + (y - p0[1]) / 6];
+      const c2 = [x - (p3[0] - p1[0]) / 6, y - (p3[1] - p1[1]) / 6];
+      return `C${c1[0]?.toFixed(1)} ${c1[1]?.toFixed(1)} ${c2[0]?.toFixed(1)} ${c2[1]?.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+const currentPoints = pointsOf(DASHBOARD_TREND.current);
+const currentPath = smoothPath(currentPoints);
+const previousPath = smoothPath(pointsOf(DASHBOARD_TREND.previous));
+const today = currentPoints[currentPoints.length - 1] ?? [0, 0];
+const areaPath = `${currentPath} L${today[0].toFixed(1)} ${FLOOR} L0 ${FLOOR} Z`;
+const gridLines = [0.25, 0.5, 0.75].map((step) => 14 + (FLOOR - 14) * step);
+
+// ── Las barras del día: la hora pico lleva el amarillo ──
+const peak = Math.max(...DASHBOARD_HOURLY);
+---
+
+{/* Para el lector de pantalla es UNA imagen con su descripción, como la caja. */}
+<div class="panel" role="img" aria-label={mock.label}>
+  <span class="badge">{mock.badge}</span>
+  <div class="head">
+    <b>{mock.title}</b>
+    <div class="tabs">
+      <span class="tab on">{mock.tabs.today}</span>
+      <span class="tab">{mock.tabs.week}</span>
+      <span class="tab">{mock.tabs.month}</span>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <span>{mock.today}</span>
+      <b>{formatMoney(data.today, route)}</b>
+    </div>
+    <div class="kpi">
+      <span>{mock.month}</span>
+      <b>{formatMoney(data.month, route)}</b>
+      <i class="meter"><i style={`width:${data.goalPercent}%`}></i></i>
+      <small>{mock.goal.replace("{percent}", String(data.goalPercent))}</small>
+    </div>
+    <div class="kpi">
+      <span>{mock.profit}</span>
+      <b>{formatMoney(data.profit, route)}</b>
+    </div>
+    <div class="kpi">
+      <span>{mock.tickets}</span>
+      <b>{data.tickets}</b>
+      <small>{mock.average.replace("{amount}", formatMoney(mockAverageTicket(market), route))}</small>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="card">
+      <div class="card-head">
+        <span>{mock.trend}</span>
+        <span class="legend">
+          <i class="key current"></i>{mock.current}
+          <i class="key previous"></i>{mock.previous}
+        </span>
+      </div>
+      <div class="plot">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop class="fill-top" offset="0"></stop>
+            <stop class="fill-bottom" offset="1"></stop>
+          </linearGradient>
+        </defs>
+        {gridLines.map((y) => <line class="grid" x1="0" x2={WIDTH} y1={y} y2={y} />)}
+        <line class="grid base" x1="0" x2={WIDTH} y1={FLOOR} y2={FLOOR}></line>
+        <path class="previous" d={previousPath}></path>
+        <path class="area" d={areaPath}></path>
+        <path class="current" d={currentPath}></path>
+      </svg>
+      {/* El punto de HOY va fuera del SVG: dentro se estiraría con él. */}
+      <i
+        class="now"
+        style={`left:${((today[0] / WIDTH) * 100).toFixed(2)}%;top:${((today[1] / HEIGHT) * 100).toFixed(2)}%`}
+      ></i>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span>{mock.hourly}</span></div>
+      <div class="bars">
+        {
+          DASHBOARD_HOURLY.map((value) => (
+            <i class:list={{ peak: value === peak }} style={`height:${value}%`} />
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card top">
+    <div class="card-head"><span>{mock.top}</span></div>
+    <ol>
+      {
+        sellers.map((seller, index) => (
+          <li>
+            <span class="rank">{index + 1}</span>
+            <span class="name">{seller.name}</span>
+            <span class="units">{seller.units}</span>
+            <b>{seller.amount}</b>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</div>
+
+<style>
+  .panel {
+    position: relative;
+    background: var(--mock-ground);
+    color: var(--mock-ink);
+    border-radius: var(--radius-mock);
+    padding: 22px;
+    box-shadow: 0 50px 90px -30px var(--mock-shadow);
+    display: grid;
+    gap: 14px;
+    font-size: 0.9rem;
+  }
+  .badge {
+    position: absolute;
+    right: -14px;
+    top: -18px;
+    background: var(--dot);
+    color: var(--on-dot);
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 9px 14px;
+    border-radius: var(--radius-pill);
+    transform: rotate(5deg);
+  }
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .head b {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 1.35rem;
+    letter-spacing: var(--tracking-h3);
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+  }
+  .tab {
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--mock-line);
+    background: var(--mock);
+    color: var(--mock-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tab.on {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: var(--on-blue);
+  }
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .kpi,
+  .card {
+    background: var(--mock);
+    border: 1px solid var(--mock-line);
+    border-radius: var(--radius-field);
+    padding: 16px;
+    min-width: 0;
+  }
+  .kpi span,
+  .card-head {
+    color: var(--mock-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .kpi b {
+    display: block;
+    margin-top: 6px;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(1.15rem, 2vw, 1.6rem);
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .kpi small {
+    display: block;
+    margin-top: 6px;
+    color: var(--mock-muted);
+    font-size: 0.75rem;
+  }
+  .meter {
+    display: block;
+    margin-top: 10px;
+    height: 6px;
+    border-radius: var(--radius-pill);
+    background: var(--mock-line);
+    overflow: hidden;
+  }
+  .meter i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--blue);
+  }
+  .charts {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 12px;
+  }
+  .card {
+    position: relative;
+  }
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px 16px;
+    flex-wrap: wrap;
+  }
+  .legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+  .key {
+    display: inline-block;
+    width: 14px;
+    height: 0;
+    border-top: 3px solid var(--blue);
+    border-radius: 2px;
+  }
+  .key.previous {
+    margin-left: 8px;
+    border-top: 2px dashed var(--mock-muted);
+  }
+  /* Las dos gráficas miden lo mismo: el SVG y las barras comparten el alto. */
+  .plot,
+  .bars {
+    position: relative;
+    width: 100%;
+    height: 170px;
+    margin-top: 14px;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .grid {
+    stroke: var(--mock-line);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  path {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .previous {
+    stroke: var(--mock-muted);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 5;
+    opacity: 0.7;
+  }
+  .current {
+    stroke: var(--blue);
+    stroke-width: 3;
+  }
+  .area {
+    fill: url(#trend-fill);
+  }
+  .fill-top {
+    stop-color: var(--blue);
+    stop-opacity: 0.28;
+  }
+  .fill-bottom {
+    stop-color: var(--blue);
+    stop-opacity: 0;
+  }
+  /* HOY: el punto amarillo de la marca, al final de la línea del mes. */
+  .now {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: var(--dot);
+    border: 3px solid var(--blue);
+  }
+  .bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    border-bottom: 1px solid var(--mock-line);
+  }
+  .bars i {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    background: var(--blue);
+    opacity: 0.85;
+  }
+  .bars i.peak {
+    background: var(--dot);
+    opacity: 1;
+  }
+  .top ol {
+    list-style: none;
+    padding: 0;
+    margin-top: 6px;
+  }
+  .top li {
+    display: grid;
+    grid-template-columns: 22px 1fr auto auto;
+    gap: 12px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--mock-line);
+  }
+  .top li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .rank,
+  .units {
+    color: var(--mock-muted);
+    font-size: 0.8rem;
+  }
+  .units {
+    white-space: nowrap;
+  }
+  .top b {
+    font-variant-numeric: tabular-nums;
+    min-width: 5.5em;
+    text-align: right;
+  }
+  @media (max-width: 900px) {
+    .badge {
+      right: 8px;
+    }
+    .kpis {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .charts {
+      grid-template-columns: 1fr;
+    }
+    .plot,
+    .bars {
+      height: 130px;
+    }
+  }
+  @media (max-width: 480px) {
+    .panel {
+      padding: 14px;
+    }
+    .kpi,
+    .card {
+      padding: 12px;
+    }
+    .top li {
+      grid-template-columns: 18px 1fr auto;
+    }
+    .units {
+      display: none;
+    }
+  }
+</style>
