@@ -44,12 +44,14 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
       // mercados latinos.
       trades: [
         "Tiendas de abarrotes",
+        "Restaurantes",
         "Tiendas de conveniencia",
         "Mercados latinos",
         "Ferreterías",
         "Tiendas de regalos",
         "Boutiques",
         "Refaccionarias",
+        "Cafeterías",
         "Dulcerías",
         "Tiendas naturistas",
         "Tiendas para mascotas",
@@ -88,6 +90,7 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
     whoFor: {
       trades: [
         "Convenience stores",
+        "Restaurants",
         "Grocery stores",
         "Hardware stores",
         "Health food stores",
@@ -95,6 +98,7 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
         "Boutiques",
         "Pet supplies",
         "Bakeries",
+        "Coffee shops",
         "Candy shops",
       ],
     },

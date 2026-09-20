@@ -157,6 +157,7 @@ export const fr: Messages = {
     title: "Conçu pour le commerce que vous tenez vous-même.",
     trades: [
       "Commerces de proximité",
+      "Restaurants",
       "Épiceries",
       "Quincailleries",
       "Magasins de produits naturels",
@@ -164,6 +165,7 @@ export const fr: Messages = {
       "Boutiques de vêtements",
       "Animaleries",
       "Boulangeries",
+      "Cafés",
       "Confiseries",
     ],
     // No se muestra en Canadá (`CLINICS_MARKETS`).

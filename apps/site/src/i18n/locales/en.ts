@@ -156,12 +156,14 @@ export const en: Messages = {
     // sanitaria y de recetas que SellPointy no cubre (§7.4).
     trades: [
       "Grocery stores",
+      "Restaurants",
       "Convenience stores",
       "Latin markets",
       "Hardware stores",
       "Gift shops",
       "Boutiques",
       "Auto parts",
+      "Coffee shops",
       "Candy shops",
       "Health food stores",
       "Pet supplies",
