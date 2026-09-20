@@ -165,6 +165,7 @@ export const es = {
     title: "Hecho para el negocio que atiendes tú.",
     trades: [
       "Abarrotes",
+      "Restaurantes",
       "Farmacias",
       "Minisúper",
       "Ferreterías",
@@ -172,6 +173,7 @@ export const es = {
       "Papelerías",
       "Boutiques",
       "Refaccionarias",
+      "Cafeterías",
       "Dulcerías",
       "Tiendas naturistas",
     ],
