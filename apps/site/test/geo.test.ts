@@ -106,10 +106,35 @@ describe("el aviso «¿Estás en…?» (GEO-02)", () => {
     expect(readDist(`${route}/index.html`)).not.toContain("data-market-notice");
   });
 
-  it("la raíz nunca redirige sola", () => {
+  /**
+   * GEO-05 (Carlos, 2026-09-19): la raíz SÍ manda sola a la versión del
+   * visitante, pero con guantes. Lo que esta barrera cuida es que siga siendo
+   * una decisión de `decideAutoRoute` —con sus tres frenos— y no un redirect
+   * a secas: nada de `http-equiv="refresh"`, que se dispara antes de que
+   * corra guion alguno y se lleva por delante al robot de Google y a quien ya
+   * eligió; y `replace` y no `assign`, para no encerrar a nadie contra el
+   * botón de «atrás».
+   */
+  it("la raíz manda sola SOLO por `decideAutoRoute`, y con `replace`", () => {
     expect(root).not.toMatch(/http-equiv="refresh"/i);
-    for (const script of scriptsOf("index.html")) {
-      expect(script).not.toMatch(/location\.(replace|assign)|location\.href\s*=|location\s*=/);
+    const guiones = scriptsOf("index.html");
+    const conRedirect = guiones.filter((script) =>
+      /location\.(replace|assign)|location\.href\s*=/.test(script),
+    );
+    expect(conRedirect).toHaveLength(1);
+    expect(conRedirect[0]).not.toMatch(/location\.assign|location\.href\s*=/);
+    // El empaquetador renombra las funciones, así que la barrera mira las
+    // CONDICIONES, que son datos y sobreviven al minificado: lo guardado, la
+    // sugerencia y la confianza en la zona horaria tienen que entrar las tres
+    // en la decisión, y el destino tiene que ser el que ella devuelve.
+    expect(conRedirect[0]).toMatch(/saved:/);
+    expect(conRedirect[0]).toMatch(/confident:/);
+    expect(conRedirect[0]).toMatch(/location\.replace\(`\/\$\{\w+\}\/`\)/);
+  });
+
+  it.each(ROUTES)("/%s/ NO manda a nadie a ningún lado: ahí ya se eligió", (route) => {
+    for (const script of scriptsOf(`${route}/index.html`)) {
+      expect(script).not.toMatch(/location\.(replace|assign)|location\.href\s*=/);
     }
   });
 });

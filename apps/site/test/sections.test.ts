@@ -1,7 +1,7 @@
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL } from "../src/config/links";
+import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, appUrl } from "../src/config/links";
 import { formatMoney, getLocale, ROUTES, type Route } from "../src/config/markets";
 import {
   BENEFIT_ORDER,
@@ -54,8 +54,27 @@ describe("navegación (PAGE-01)", () => {
     ]) {
       expect(navMarkup).toMatch(new RegExp(`href="#${anchor}"[^>]*>\\s*${label}\\s*<`));
     }
-    expect(html).toContain(`href="${APP_LOGIN_URL}"`);
-    expect(html).toContain(`href="${APP_REGISTER_URL}"`);
+    expect(html).toContain(`href="${appUrl(APP_LOGIN_URL, route)}"`);
+    expect(html).toContain(`href="${appUrl(APP_REGISTER_URL, route)}"`);
+  });
+
+  /**
+   * El idioma viaja con la persona (Carlos, 2026-09-19): quien leyó el sitio
+   * en español entra a la aplicación en español, no en inglés —que es como
+   * arranca la aplicación cuando nadie eligió nada—.
+   */
+  it.each([...ROUTES])("/%s/: las dos puertas de la aplicación llevan su idioma", (route) => {
+    const { language } = getLocale(route);
+    const html = pageOf(route);
+    // El francés todavía no existe DENTRO de la aplicación: va en inglés, que
+    // es lo que esa persona va a ver de verdad.
+    const esperado = language === "fr" ? "en" : language;
+
+    for (const puerta of [APP_LOGIN_URL, APP_REGISTER_URL]) {
+      expect(appUrl(puerta, route)).toBe(`${puerta}?lang=${esperado}`);
+      expect(html).toContain(`href="${appUrl(puerta, route)}"`);
+    }
+    expect(html).not.toContain(`href="${APP_REGISTER_URL}"`);
   });
 
   it("máximo cinco entradas en el centro del menú (CONTENIDO §2)", () => {
@@ -240,7 +259,7 @@ describe("cierre y pie (PAGE-07)", () => {
     const { closing } = getMessages(route);
     const section = sectionOf(pageOf(route), ANCHORS.contact);
     expect(section).toContain(escaped(closing.title));
-    expect(section).toContain(`href="${APP_REGISTER_URL}"`);
+    expect(section).toContain(`href="${appUrl(APP_REGISTER_URL, route)}"`);
     expect(textOf(section)).toContain(closing.secondaryCta);
   });
 

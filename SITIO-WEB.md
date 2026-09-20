@@ -45,6 +45,8 @@ vez): lo que importa es lo que llega al navegador, no lo que dice el código.
 | Los números del panel dibujado | `MOCK_DASHBOARD` en `src/config/page.ts` |
 | El texto legal | `SITIO-WEB-LEGAL.md` — el sitio lo LEE de ahí al construir |
 | A dónde sugiere ir a cada visitante | `src/geo/suggest-market.ts` y su tabla de casos |
+| Si la raíz manda sola a otra versión, y cuándo NO | `decideAutoRoute` en `src/geo/choice.ts` |
+| El idioma con el que se entra a la aplicación | `appUrl()` en `src/config/links.ts` (`?lang=`) |
 
 ## Cambiar un texto
 
@@ -67,6 +69,30 @@ vez): lo que importa es lo que llega al navegador, no lo que dice el código.
 
 Un componente de `src/components/` **no puede llevar un texto escrito dentro**
 (ni en un `aria-label`): todo llega por propiedades o por *slots*. Hay barrera.
+
+## A quién le toca qué versión
+
+Quien abre `sellpointy.com` **va solo** a la versión de su país: un canadiense
+aterriza en `/en-ca/`, un mexicano se queda en la raíz. No hay IP —el sitio es
+estático y Cloudflare está en «solo DNS»—: lo decide la **zona horaria**, que
+para México, Estados Unidos y Canadá dice lo mismo.
+
+`decideAutoRoute` (`src/geo/choice.ts`) **no mueve a nadie** en tres casos, y
+los tres son a propósito:
+
+1. **Ya eligió** en el selector: viaja o usa VPN, y su elección manda siempre.
+2. **La zona horaria no identifica el mercado** (Madrid, UTC…): ahí la
+   sugerencia sale del idioma del navegador y es una corazonada. **Es lo que
+   protege el SEO:** el robot de Google renderiza en UTC, así que para él la
+   raíz nunca se mueve y sigue siendo la `x-default`.
+3. **Ya está donde le toca.**
+
+Quien no se mueve, pero podría querer otra versión, sigue viendo el aviso de
+abajo (`MarketNotice`), que solo existe en la raíz.
+
+Y al pasar a la aplicación, **el idioma va con la persona**: los botones
+llevan `?lang=` (`appUrl`). Sin eso aterrizaría en inglés, que es como arranca
+la aplicación mientras nadie haya elegido idioma en ese navegador.
 
 ## Agregar un idioma
 

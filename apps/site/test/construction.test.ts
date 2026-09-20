@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { APP_LOGIN_URL, APP_REGISTER_URL } from "../src/config/links";
+import { APP_LOGIN_URL, APP_REGISTER_URL, appUrl } from "../src/config/links";
 import { findHoles } from "../src/legal/load";
 
 // El modo «en construcción» (Carlos, 2026-09-19): lo que sirve PRODUCCIÓN
@@ -44,8 +44,8 @@ describe("sitio en construcción", () => {
     // Los clientes actuales teclean sellpointy.com por costumbre: tienen que
     // encontrar la entrada en un segundo, como cuando el apex redirigía.
     const html = readFileSync(join(OUT, "index.html"), "utf8");
-    expect(html).toContain(`href="${APP_LOGIN_URL}"`);
-    expect(html).toContain(`href="${APP_REGISTER_URL}"`);
+    expect(html).toContain(`href="${appUrl(APP_LOGIN_URL, "es-mx")}"`);
+    expect(html).toContain(`href="${appUrl(APP_REGISTER_URL, "es-mx")}"`);
     expect([...html.matchAll(/<h1\b/g)].length).toBeGreaterThanOrEqual(1);
   });
 

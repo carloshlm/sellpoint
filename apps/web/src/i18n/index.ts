@@ -170,8 +170,18 @@ export function createI18n(options: CreateI18nOptions = {}): I18nInstance {
     detection: withDetector
       ? {
           // `navigator` queda FUERA a propósito — ver `INITIAL_LOCALE`.
-          order: ["localStorage"],
+          //
+          // `querystring` va PRIMERO y es el puente con el sitio público
+          // (Carlos, 2026-09-19): sellpointy.com manda a `/register?lang=es`
+          // con el idioma de la versión que la persona venía leyendo, y sin
+          // esto aterrizaría en inglés después de leer todo en español. Solo
+          // pesa cuando viene en la dirección; el resto de las visitas siguen
+          // mandándose por lo que la persona eligió a mano.
+          order: ["querystring", "localStorage"],
+          lookupQuerystring: "lang",
           lookupLocalStorage: "sellpoint.locale",
+          // Lo que llega en la dirección se recuerda, así que navegar de
+          // `/register` a `/login` no vuelve a inglés.
           caches: ["localStorage"],
         }
       : undefined,

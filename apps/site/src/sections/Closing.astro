@@ -7,7 +7,7 @@
 // tarjetas de plan y la píldora «Consultorios».
 import Button from "../components/Button.astro";
 import Container from "../components/Container.astro";
-import { ANCHORS, APP_REGISTER_URL } from "../config/links";
+import { ANCHORS, APP_REGISTER_URL, appUrl } from "../config/links";
 import type { Route } from "../config/markets";
 import { getMessages } from "../i18n";
 import LeadForm from "./LeadForm.astro";
@@ -27,7 +27,7 @@ const headingId = `${ANCHORS.contact}-title`;
       <h2 id={headingId}>{closing.title}</h2>
       <p>{closing.text}</p>
       <div class="cta-row">
-        <Button variant="dot" href={APP_REGISTER_URL}>{closing.primaryCta}</Button>
+        <Button variant="dot" href={appUrl(APP_REGISTER_URL, route)}>{closing.primaryCta}</Button>
         <Button variant="ghost" href="#contact-form">{closing.secondaryCta}</Button>
       </div>
     </div>

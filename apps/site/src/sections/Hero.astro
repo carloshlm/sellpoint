@@ -4,7 +4,7 @@
 // botones y la caja dibujada con su insignia.
 import Button from "../components/Button.astro";
 import Container from "../components/Container.astro";
-import { ANCHORS, APP_REGISTER_URL } from "../config/links";
+import { ANCHORS, APP_REGISTER_URL, appUrl } from "../config/links";
 import type { Route } from "../config/markets";
 import { getMessages } from "../i18n";
 import PosMock from "./PosMock.astro";
@@ -33,7 +33,7 @@ const lastLine = hero.headline.length - 1;
       </h1>
       <p class="lead">{hero.lead}</p>
       <div class="cta-row">
-        <Button variant="dot" href={APP_REGISTER_URL}>{hero.primaryCta}</Button>
+        <Button variant="dot" href={appUrl(APP_REGISTER_URL, route)}>{hero.primaryCta}</Button>
         <Button variant="ghost" href={`#${ANCHORS.whatItDoes}`}>{hero.secondaryCta}</Button>
       </div>
       <p class="fine">{hero.trustLine}</p>

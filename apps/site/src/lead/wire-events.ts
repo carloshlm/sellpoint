@@ -14,7 +14,9 @@ document.addEventListener("click", (event) => {
   const link = (event.target as Element).closest<HTMLAnchorElement>("a[href]");
   if (!link) return;
   // La conversión principal: un clic en «Empieza gratis», esté donde esté.
-  if (link.href === APP_REGISTER_URL) track("cta_click", { section: sectionOf(link) });
+  // `startsWith` y no `===`: desde GEO-05 la puerta lleva `?lang=` (ver
+  // `appUrl`), y una comparación exacta dejó de contar los clics.
+  if (link.href.startsWith(APP_REGISTER_URL)) track("cta_click", { section: sectionOf(link) });
   // Muchos cambios de país o idioma = la sugerencia está adivinando mal.
   const switched = link.closest("[data-market-switcher]") && link.dataset.route !== undefined;
   if (switched || link.closest("[data-market-notice]")) {

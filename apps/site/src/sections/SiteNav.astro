@@ -15,7 +15,7 @@ import Logo from "../assets/brand/logo-inverted.svg";
 import Button from "../components/Button.astro";
 import Container from "../components/Container.astro";
 import MarketSwitcher from "../components/MarketSwitcher.astro";
-import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, BRAND_NAME } from "../config/links";
+import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, appUrl, BRAND_NAME } from "../config/links";
 import type { Route } from "../config/markets";
 import type { Alternates } from "../config/seo";
 import { getMessages } from "../i18n";
@@ -59,8 +59,8 @@ const links = [
       <span class="desktop-only switcher-slot">
         <MarketSwitcher route={route} placement="down" align="end" compact paths={paths} />
       </span>
-      <a class="login desktop-only" href={APP_LOGIN_URL}>{nav.login}</a>
-      <Button variant="dot" href={APP_REGISTER_URL} class="cta">
+      <a class="login desktop-only" href={appUrl(APP_LOGIN_URL, route)}>{nav.login}</a>
+      <Button variant="dot" href={appUrl(APP_REGISTER_URL, route)} class="cta">
         <span class="cta-full">{nav.cta}</span>
         <span class="cta-short">{nav.ctaShort}</span>
       </Button>
@@ -89,8 +89,8 @@ const links = [
     {links.map((link) => <li><a href={link.href}>{link.label}</a></li>)}
   </ul>
   <div class="mobile-foot">
-    <Button variant="dot" href={APP_REGISTER_URL}>{nav.cta}</Button>
-    <a class="login" href={APP_LOGIN_URL}>{nav.login}</a>
+    <Button variant="dot" href={appUrl(APP_REGISTER_URL, route)}>{nav.cta}</Button>
+    <a class="login" href={appUrl(APP_LOGIN_URL, route)}>{nav.login}</a>
     <MarketSwitcher route={route} placement="up" paths={paths} />
   </div>
 </dialog>

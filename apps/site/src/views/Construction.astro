@@ -11,7 +11,7 @@
 import Logo from "../assets/brand/logo-inverted.svg";
 import Button from "../components/Button.astro";
 import Container from "../components/Container.astro";
-import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, BRAND_NAME } from "../config/links";
+import { ANCHORS, APP_LOGIN_URL, APP_REGISTER_URL, appUrl, BRAND_NAME } from "../config/links";
 import { DEFAULT_ROUTE, getLocale, type Route } from "../config/markets";
 import { getMessages } from "../i18n";
 import Base from "../layouts/Base.astro";
@@ -50,8 +50,8 @@ const blocks = HOMES.map((route) => {
             </h1>
             <p class="lead">{block.texts.text}</p>
             <div class="cta-row">
-              <Button variant="dot" href={APP_REGISTER_URL}>{block.cta}</Button>
-              <Button variant="ghost" href={APP_LOGIN_URL}>{block.login}</Button>
+              <Button variant="dot" href={appUrl(APP_REGISTER_URL, DEFAULT_ROUTE)}>{block.cta}</Button>
+              <Button variant="ghost" href={appUrl(APP_LOGIN_URL, DEFAULT_ROUTE)}>{block.login}</Button>
             </div>
           </section>
         ))

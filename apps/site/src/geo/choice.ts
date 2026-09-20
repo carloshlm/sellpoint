@@ -58,6 +58,41 @@ export function decideNotice(input: {
   return target === input.current ? null : target;
 }
 
+/**
+ * GEO-05 — a qué versión MANDAR sola a la raíz, o `null` para quedarse.
+ *
+ * Carlos lo pidió el 2026-09-19 con la IP («si es de Canadá, la versión de
+ * Canadá»). La IP no está disponible —el sitio es HTML estático servido por
+ * el `nginx-edge`, que no trae geolocalización, y Cloudflare está en modo
+ * «solo DNS», así que no llega el país; un servicio de terceros está
+ * descartado—. Manda la ZONA HORARIA, que para México, Estados Unidos y
+ * Canadá acierta lo mismo y no depende de nadie.
+ *
+ * Tres frenos, y los tres importan:
+ * 1. **`saved`**: quien eligió a mano NUNCA se mueve. Va de viaje o usa VPN.
+ * 2. **`confident`**: solo cuando la zona horaria IDENTIFICA el mercado. Si
+ *    la sugerencia salió del idioma del navegador es una corazonada, y con
+ *    una corazonada no se mueve a nadie de página. Esto es además lo que
+ *    protege el SEO: el robot de Google renderiza en UTC —zona neutra—, así
+ *    que para él la raíz se queda quieta y sigue siendo la `x-default`.
+ * 3. **`suggested === current`**: nadie se manda a donde ya está.
+ *
+ * La elección NO se guarda al mandar: la persona no eligió nada. Si vuelve
+ * por la raíz se vuelve a decidir, y el selector del menú sigue a un clic.
+ */
+export function decideAutoRoute(input: {
+  current: Route;
+  saved: Route | null;
+  suggested: Route;
+  /** ¿La zona horaria, por sí sola, dice en qué mercado está? */
+  confident: boolean;
+}): Route | null {
+  if (input.saved !== null || !input.confident) {
+    return null;
+  }
+  return input.suggested === input.current ? null : input.suggested;
+}
+
 export interface SectionPosition {
   id: string;
   /** Distancia del borde superior de la sección al de la ventana, en px. */

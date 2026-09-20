@@ -54,8 +54,9 @@ const notices = ROUTES.filter((route) => route !== current).map((route) => {
 
 <script>
   import { isRoute } from "../config/markets";
-  import { decideNotice, getStorage, readChoice, saveChoice } from "../geo/choice";
+  import { decideAutoRoute, decideNotice, getStorage, readChoice, saveChoice } from "../geo/choice";
   import { suggestMarket } from "../geo/suggest-market";
+  import { marketOfTimeZone } from "../geo/zones";
 
   const container = document.querySelector<HTMLElement>("[data-market-notices]");
   const current = container?.dataset.current;
@@ -68,14 +69,28 @@ const notices = ROUTES.filter((route) => route !== current).map((route) => {
       timeZone = undefined;
     }
     const storage = getStorage();
-    const target = decideNotice({
+    const saved = readChoice(storage);
+    const suggested = suggestMarket({
+      timeZone,
+      languages: navigator.languages?.length ? navigator.languages : [navigator.language],
+    }).route;
+
+    // GEO-05: quien llega a la raíz desde otro país va DERECHO a su versión,
+    // sin pasar por el aviso. Solo cuando la zona horaria lo identifica y
+    // nunca por encima de una elección guardada (ver `decideAutoRoute`).
+    // `replace` y no `assign`: el botón de «atrás» tiene que devolver a quien
+    // venía de fuera, no encerrarlo en un rebote contra la raíz.
+    const auto = decideAutoRoute({
       current,
-      saved: readChoice(storage),
-      suggested: suggestMarket({
-        timeZone,
-        languages: navigator.languages?.length ? navigator.languages : [navigator.language],
-      }).route,
+      saved,
+      suggested,
+      confident: marketOfTimeZone(timeZone) !== null,
     });
+    if (auto) {
+      window.location.replace(`/${auto}/`);
+    }
+
+    const target = decideNotice({ current, saved, suggested });
     const notice = target
       ? container.querySelector<HTMLElement>(`[data-route="${target}"]`)
       : null;

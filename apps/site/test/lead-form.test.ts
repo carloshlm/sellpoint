@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANCHORS, APP_REGISTER_URL, CONTACT_EMAIL } from "../src/config/links";
+import { ANCHORS, APP_REGISTER_URL, appUrl, CONTACT_EMAIL } from "../src/config/links";
 import { getLocale, MARKETS, ROUTES, type Route } from "../src/config/markets";
 import { getMessages } from "../src/i18n";
 import { referrerDomain } from "../src/lead/track";
@@ -99,7 +99,7 @@ describe("formulario de interés", () => {
     const form = formOf("fr-ca");
     const success = form.slice(form.indexOf("data-lead-success"));
     expect(tag(form, /<div\b[^>]*data-lead-success[^>]*>/)).toMatch(/\bhidden\b/);
-    expect(success).toContain(`href="${APP_REGISTER_URL}"`);
+    expect(success).toContain(`href="${appUrl(APP_REGISTER_URL, "fr-ca")}"`);
     const { leadForm } = getMessages("fr-ca");
     expect(form).toContain(`data-text-sending="${leadForm.sending}"`);
   });
