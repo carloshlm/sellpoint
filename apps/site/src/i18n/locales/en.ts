@@ -163,6 +163,7 @@ export const en: Messages = {
       "Gift shops",
       "Boutiques",
       "Auto parts",
+      "Bakeries",
       "Coffee shops",
       "Candy shops",
       "Health food stores",

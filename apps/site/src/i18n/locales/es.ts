@@ -169,7 +169,7 @@ export const es = {
       "Farmacias",
       "Minisúper",
       "Ferreterías",
-      "Tlapalerías",
+      "Panaderías",
       "Papelerías",
       "Boutiques",
       "Refaccionarias",

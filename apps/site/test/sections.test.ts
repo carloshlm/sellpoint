@@ -210,9 +210,9 @@ describe("para quién (PAGE-05)", () => {
     }
   });
 
-  it("una tlapalería no existe en Ontario", () => {
-    expect(pageOf("es-mx")).toContain("Tlapalerías");
-    expect(pageOf("en-ca")).not.toMatch(/Tlapaler/);
+  it("una papelería no existe en Ontario", () => {
+    expect(pageOf("es-mx")).toContain("Papelerías");
+    expect(pageOf("en-ca")).not.toMatch(/Papeler/);
     expect(pageOf("en-us")).not.toMatch(/Pharmac/);
   });
 });

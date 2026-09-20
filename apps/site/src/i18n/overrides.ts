@@ -51,6 +51,7 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
         "Tiendas de regalos",
         "Boutiques",
         "Refaccionarias",
+        "Panaderías",
         "Cafeterías",
         "Dulcerías",
         "Tiendas naturistas",

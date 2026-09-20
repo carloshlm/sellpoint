@@ -124,7 +124,7 @@ describe("formulario de interés", () => {
 
   it("los giros del formulario son los de la sección «Para quién», más «Otro»", () => {
     const select = tag(formOf("es-mx"), /<select\b[^>]*name="businessType"[\s\S]*?<\/select>/);
-    expect(select).toContain("Tlapalerías");
+    expect(select).toContain("Papelerías");
     expect(select).toContain("Consultorios");
     expect(select).toContain(getMessages("es-mx").leadForm.businessTypeOther);
     expect(
