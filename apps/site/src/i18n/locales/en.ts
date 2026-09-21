@@ -79,29 +79,36 @@ export const en: Messages = {
   },
   benefits: {
     eyebrow: "Benefits for your business",
-    title: "Less time in the system. More time selling.",
+    title: "What you do by hand today costs you time and money.",
+    painLabel: "Today",
     items: {
       fast: {
+        pain: "You key in every price or look it up on a list while the line grows. And a price charged from memory is money that slips away unnoticed.",
         title: "Ring up sales in *seconds*, not lines.",
         text: "Scan it and it's on the bill. Nobody waits while you look up a price.",
       },
       catalog: {
+        pain: "Your price list lives in a notebook or a spreadsheet nobody updates, and everyone charges what they remember.",
         title: "Build your catalog in *one afternoon*.",
         text: "Scan the barcode and SellPointy recognizes the product and suggests its name — you just set the price. Already have it in a spreadsheet? Upload it in one go.",
       },
       shift: {
+        pain: "You count the till with a calculator at the end of the day. If money is missing, you don't know when it went or on whose shift.",
         title: "Close the register with *no surprises*.",
         text: "Every shift opens and closes with its own till count. You know who rang up what, how much, and whether it adds up.",
       },
       stock: {
+        pain: "You find out something ran out when a customer asks for it — that sale is already lost. And to know what to reorder, you count shelf by shelf.",
         title: "Know *what you have* without counting by hand.",
         text: "Every sale comes off the shelf and every purchase goes back on. Your stock is a number, not a hunch.",
       },
       expiry: {
+        pain: "You find expired product at the back of the shelf. What you throw out is money you already paid.",
         title: "Let nothing *expire* on the shelf.",
         text: "Lots with dates, and a clear heads-up on what's about to expire — so you sell it in time instead of throwing it out.",
       },
       pocket: {
+        pain: "To know how the day is going you have to be at the store, or call and trust what you're told.",
         title: "Your whole business, *in your pocket*.",
         text: "Computer, tablet or phone. Log in from anywhere and see exactly what the register sees.",
       },

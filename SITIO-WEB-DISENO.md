@@ -165,8 +165,11 @@ imagen:** se ve nítida en cualquier pantalla y no hay captura que mantener.
 **Filas de funciones** — rejilla `44px / 1fr`. Filete superior de 2 px en tinta
 para abrir la lista y filetes de 1 px entre filas.
 
-**Celdas de beneficios** — relleno `clamp(24px, 3.4vw, 44px)`. Titular + un
-párrafo. Sin iconos.
+**Celdas de beneficios** — relleno `clamp(24px, 3.4vw, 44px)`. Desde el
+2026-09-21 (PAGE-10): etiqueta «Hoy» (el mismo rótulo `.eyebrow`) + la escena del
+dolor en texto atenuado, un filete `--line` con 20 px arriba y abajo, y después
+titular + un párrafo. El dolor no lleva énfasis ni color propio: el titular
+sigue siendo lo más fuerte de la celda. Sin iconos.
 
 **Píldoras de giros** — borde de 1.5 px en tinta; `:nth-child(3n+1)` rellena.
 
@@ -207,7 +210,7 @@ seis. Se conservan aquí solo como registro de lo que se aprobó visualmente:
 - Botones: «Empieza gratis» · «Ver qué hace». Debajo: «Sin instalar nada. Sin
   tarjeta para probarlo.»
 - Qué hace: «Todo lo que pasa en tu mostrador, en una sola pantalla.»
-- Beneficios: «Menos tiempo en el sistema. Más tiempo vendiendo.» — *Cobra en
+- Beneficios: «Lo que hoy haces a mano te cuesta tiempo y dinero.» — *Cobra en
   segundos, no en filas* · *Da de alta tu catálogo en una tarde* · *Que nada se
   te caduque en el anaquel* · *Tu negocio completo, en tu bolsillo*
 - Para quién: «Hecho para el negocio que atiendes tú.»

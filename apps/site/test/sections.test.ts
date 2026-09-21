@@ -173,6 +173,37 @@ describe("beneficios (PAGE-04)", () => {
     },
   );
 
+  // PAGE-10 — antes del beneficio va lo que el negocio hace HOY a mano: el
+  // visitante se reconoce en el dolor y lee el titular como la respuesta.
+  it.each([...ROUTES])(
+    "/%s/: cada celda abre con el dolor de «Hoy», ANTES de su titular",
+    (route) => {
+      const { benefits } = getMessages(route);
+      const section = sectionOf(pageOf(route), ANCHORS.benefits);
+      const cells = [...section.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/g)].map(
+        (m) => m[1] as string,
+      );
+      expect(cells).toHaveLength(6);
+      BENEFIT_ORDER[route].forEach((id, index) => {
+        const cell = cells[index] as string;
+        const { pain } = benefits.items[id];
+        expect(pain.length, `${route}/${id} sin dolor`).toBeGreaterThan(20);
+        const text = textOf(cell);
+        expect(text.startsWith(`${benefits.painLabel} ${pain}`), `${route}/${id}: ${text}`).toBe(
+          true,
+        );
+        expect(cell.indexOf(escaped(pain))).toBeLessThan(cell.indexOf("<h3"));
+      });
+    },
+  );
+
+  it.each([...ROUTES])("/%s/: un dolor es una escena, no una estadística inventada", (route) => {
+    const { benefits } = getMessages(route);
+    for (const id of BENEFIT_ORDER[route]) {
+      expect(benefits.items[id].pain, `${route}/${id}`).not.toMatch(/\d|%/);
+    }
+  });
+
   it("en Canadá las caducidades suben al segundo lugar (CONTENIDO §7.5)", () => {
     expect(BENEFIT_ORDER["en-ca"][1]).toBe("expiry");
     expect(BENEFIT_ORDER["fr-ca"][1]).toBe("expiry");

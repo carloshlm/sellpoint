@@ -3,6 +3,11 @@
 // marco con filetes internos — una tabla de seis celdas, no seis tarjetas
 // sueltas. La palabra clave de cada titular lleva el subrayado amarillo (en
 // oscuro, pasa a ser texto amarillo: lo deciden los tokens `--emphasis-*`).
+//
+// F11-SITE-PAGE-10 — cada celda abre con «Hoy»: lo que el negocio hace a mano y
+// lo que le cuesta. El visitante se reconoce ahí, y el titular llega como la
+// respuesta. El dolor va en voz baja (texto atenuado, tamaño de párrafo): quien
+// manda en la celda sigue siendo el titular.
 import Container from "../components/Container.astro";
 import Eyebrow from "../components/Eyebrow.astro";
 import SectionHeading from "../components/SectionHeading.astro";
@@ -20,6 +25,7 @@ const { route } = Astro.props;
 const { benefits, planTags } = getMessages(route);
 const headingId = `${ANCHORS.benefits}-title`;
 const cards = BENEFIT_ORDER[route].map((id) => ({
+  pain: benefits.items[id].pain,
   title: splitEmphasis(benefits.items[id].title),
   text: benefits.items[id].text,
   plan: BENEFIT_PLANS[id],
@@ -36,6 +42,10 @@ const cards = BENEFIT_ORDER[route].map((id) => ({
       {
         cards.map((card) => (
           <article class="card">
+            <p class="pain">
+              <Eyebrow as="span">{benefits.painLabel}</Eyebrow>{" "}
+              {card.pain}
+            </p>
             <h3>{card.title.map((part) => (part.emphasis ? <em>{part.text}</em> : part.text))}</h3>
             <p>{card.text}</p>
             {card.plan && (
@@ -87,6 +97,17 @@ const cards = BENEFIT_ORDER[route].map((id) => ({
   p {
     color: var(--muted);
     margin-top: 12px;
+  }
+  /* El dolor y su respuesta, separados por un filete corto: dos momentos. */
+  .pain {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .pain :global(.eyebrow) {
+    display: block;
+    margin-bottom: 6px;
   }
   .plan {
     margin-top: 16px;

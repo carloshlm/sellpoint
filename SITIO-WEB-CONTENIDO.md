@@ -153,7 +153,28 @@ SellPointy une lo que vendes con lo que tienes y lo que compras.
 
 ### 4.3 Beneficios
 
-**Rótulo:** Beneficios para tu negocio · **Titular:** Menos tiempo en el sistema. Más tiempo vendiendo.
+**Rótulo:** Beneficios para tu negocio · **Titular:** Lo que hoy haces a mano te cuesta tiempo y dinero.
+*(hasta el 2026-09-21: «Menos tiempo en el sistema. Más tiempo vendiendo.»)*
+
+> **«Hoy» — agregado el 2026-09-21 (PAGE-10), pedido por Carlos:** que el visitante
+> se reconozca en lo que hace a mano antes de leer el beneficio. Cada celda abre
+> con la etiqueta **«Hoy»** y una escena; debajo, tras un filete, el titular llega
+> como la respuesta. Tres reglas: **una escena, nunca una cifra** (no hay datos que
+> respalden un «pierdes 20 %», y una barrera en los tests lo impide); **solo duele
+> lo que la función de esa celda resuelve** (no se habla del fiado: no existe); y
+> el dolor va en voz baja, porque quien manda en la celda es el titular.
+>
+> | Celda | Hoy |
+> |---|---|
+> | Cobra en segundos | Tecleas cada precio o lo buscas en una lista mientras la fila crece. Y un precio cobrado de memoria es dinero que se va sin que lo notes. |
+> | Catálogo en una tarde | Tu lista de precios vive en una libreta o en un Excel que nadie actualiza, y cada quien cobra lo que recuerda. |
+> | Caja sin sorpresas | Haces el corte con calculadora al final del día. Si falta dinero, no sabes cuándo se fue ni en el turno de quién. |
+> | Sabe cuánto tienes | Te enteras de que algo se acabó cuando el cliente lo pide: esa venta ya se perdió. Y para saber qué comprar, cuentas anaquel por anaquel. |
+> | Que nada se caduque | Encuentras producto caducado al fondo del anaquel. Lo que tiras es dinero que ya pagaste. |
+> | En tu bolsillo | Para saber cómo va el día tienes que estar en el local, o llamar y confiar en lo que te digan. |
+>
+> Inglés («Today») y francés («Aujourd'hui») dicen lo mismo; el texto vivo está en
+> `apps/site/src/i18n/locales/`.
 
 | Titular (la palabra subrayada va en *cursiva*) | Texto | Plan |
 |---|---|---|
@@ -417,7 +438,7 @@ connects what you sell with what you have and what you buy.
 | **Buy** | Record your purchases with their invoice and keep your costs current, so the price you set leaves the margin you expect. | `[From Pro]` |
 | **Decide** | Sales and expense reports, ready to read and ready to export. Nothing to build by hand. | `[All]` |
 
-**Benefits** — *Less time in the system. More time selling.*
+**Benefits** — *What you do by hand today costs you time and money.* (each cell opens with a «Today» scene — see §4.3)
 
 | Headline (underlined word in *italics*) | Text | Plan |
 |---|---|---|
@@ -591,7 +612,7 @@ SellPointy relie ce que vous vendez, ce que vous avez et ce que vous achetez.
 | **Achetez** | Enregistrez vos achats avec leur facture et gardez vos coûts à jour, pour que votre prix de vente laisse la marge que vous attendez. | `[Dès Pro]` |
 | **Décidez** | Des rapports de ventes et de dépenses, prêts à lire et à exporter. Rien à préparer à la main. | `[Tous]` |
 
-**Avantages** — *Moins de temps dans le système. Plus de temps pour vendre.*
+**Avantages** — *Ce que vous faites à la main aujourd'hui vous coûte du temps et de l'argent.* (chaque cellule s'ouvre sur une scène «Aujourd'hui» — voir §4.3)
 
 | Titre (le mot souligné en *italique*) | Texte | Forfait |
 |---|---|---|

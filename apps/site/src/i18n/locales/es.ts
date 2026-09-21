@@ -86,29 +86,40 @@ export const es = {
   },
   benefits: {
     eyebrow: "Beneficios para tu negocio",
-    title: "Menos tiempo en el sistema. Más tiempo vendiendo.",
+    title: "Lo que hoy haces a mano te cuesta tiempo y dinero.",
+    // PAGE-10 — cada celda abre con lo que el negocio hace HOY a mano (`pain`) y
+    // el titular llega como la respuesta. Un dolor es una escena que el visitante
+    // reconoce, nunca una cifra: no hay datos que la respalden (CONTENIDO §3).
+    // Y solo duele lo que la función de esa celda de verdad resuelve.
+    painLabel: "Hoy",
     items: {
       fast: {
+        pain: "Tecleas cada precio o lo buscas en una lista mientras la fila crece. Y un precio cobrado de memoria es dinero que se va sin que lo notes.",
         title: "Cobra en *segundos*, no en filas.",
         text: "Escaneas y el producto ya está en la cuenta. Nadie espera mientras buscas un precio.",
       },
       catalog: {
+        pain: "Tu lista de precios vive en una libreta o en un Excel que nadie actualiza, y cada quien cobra lo que recuerda.",
         title: "Da de alta tu catálogo en *una tarde*.",
         text: "Escanea el código y SellPointy reconoce el producto y te sugiere su nombre; tú solo pones el precio. ¿Ya lo tienes en Excel? Súbelo de un jalón.",
       },
       shift: {
+        pain: "Haces el corte con calculadora al final del día. Si falta dinero, no sabes cuándo se fue ni en el turno de quién.",
         title: "Cierra la caja *sin sorpresas*.",
         text: "Cada turno abre y cierra con su arqueo. Sabes quién cobró, cuánto y si cuadra.",
       },
       stock: {
+        pain: "Te enteras de que algo se acabó cuando el cliente lo pide: esa venta ya se perdió. Y para saber qué comprar, cuentas anaquel por anaquel.",
         title: "Sabe *cuánto tienes*, sin contar a mano.",
         text: "Cada venta descuenta del inventario y cada compra lo repone. Tus existencias son un número, no una corazonada.",
       },
       expiry: {
+        pain: "Encuentras producto caducado al fondo del anaquel. Lo que tiras es dinero que ya pagaste.",
         title: "Que nada se te *caduque* en el anaquel.",
         text: "Lotes con fecha y un aviso claro de lo que está por vencer, para venderlo a tiempo en lugar de tirarlo.",
       },
       pocket: {
+        pain: "Para saber cómo va el día tienes que estar en el local, o llamar y confiar en lo que te digan.",
         title: "Tu negocio completo, *en tu bolsillo*.",
         text: "Computadora, tablet o celular. Entras desde donde estés y ves lo mismo que en la caja.",
       },

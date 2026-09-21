@@ -79,29 +79,36 @@ export const fr: Messages = {
   },
   benefits: {
     eyebrow: "Avantages pour votre commerce",
-    title: "Moins de temps dans le système. Plus de temps pour vendre.",
+    title: "Ce que vous faites à la main aujourd'hui vous coûte du temps et de l'argent.",
+    painLabel: "Aujourd'hui",
     items: {
       fast: {
+        pain: "Vous saisissez chaque prix ou le cherchez dans une liste pendant que la file s'allonge. Et un prix facturé de mémoire, c'est de l'argent qui s'en va sans que vous le remarquiez.",
         title: "Encaissez en *quelques secondes*.",
         text: "Vous scannez, et le produit est déjà sur le reçu. Personne n'attend pendant que vous cherchez un prix.",
       },
       catalog: {
+        pain: "Votre liste de prix vit dans un carnet ou dans un fichier Excel que personne ne met à jour, et chacun facture ce dont il se souvient.",
         title: "Créez votre catalogue en *un après-midi*.",
         text: "Scannez le code-barres\u00a0: SellPointy reconnaît le produit et propose son nom, il ne vous reste qu'à fixer le prix. Vos produits sont déjà dans Excel\u202f? Importez-les en une seule fois.",
       },
       shift: {
+        pain: "Vous faites la caisse à la calculatrice en fin de journée. S'il manque de l'argent, vous ne savez ni quand il a disparu ni pendant le quart de qui.",
         title: "Fermez la caisse *sans surprise*.",
         text: "Chaque session s'ouvre et se ferme avec son comptage. Vous savez qui a encaissé quoi, combien, et si le compte est juste.",
       },
       stock: {
+        pain: "Vous apprenez qu'un produit est épuisé quand un client le demande\u00a0: cette vente est déjà perdue. Et pour savoir quoi commander, vous comptez étagère par étagère.",
         title: "Sachez *ce que vous avez*, sans compter à la main.",
         text: "Chaque vente sort du stock et chaque achat le réapprovisionne. Votre inventaire est un chiffre, pas une impression.",
       },
       expiry: {
+        pain: "Vous trouvez des produits périmés au fond de l'étagère. Ce que vous jetez, c'est de l'argent que vous avez déjà payé.",
         title: "Que rien ne *périme* sur vos étagères.",
         text: "Des lots avec leur date et une alerte claire sur ce qui arrive à échéance, pour le vendre à temps plutôt que de le jeter.",
       },
       pocket: {
+        pain: "Pour savoir comment va la journée, vous devez être sur place, ou appeler et vous fier à ce qu'on vous dit.",
         title: "Tout votre commerce, *dans votre poche*.",
         text: "Ordinateur, tablette ou téléphone. Connectez-vous de n'importe où et voyez exactement ce que voit la caisse.",
       },
