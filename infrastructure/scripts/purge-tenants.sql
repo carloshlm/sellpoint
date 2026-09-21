@@ -27,10 +27,15 @@
 --
 -- USO (en el servidor, como admin de la base):
 --
---   ENSAYO:
+--   ANTES, los nombres VIVOS (nunca copies la lista de este comentario ni de
+--   memoria: un negocio que falte en KEEP se BORRA):
+--   docker exec sellpoint-postgres psql -U sellpoint -d sellpoint_prod \
+--     -c "SELECT name FROM tenants ORDER BY created_at"
+--
+--   ENSAYO (los nombres son de ejemplo):
 --   docker exec -i sellpoint-postgres psql -U sellpoint -d sellpoint_prod \
 --     -v ON_ERROR_STOP=1 -v modo=ensayo \
---     -v keep='Negocio Cinco|BACKOFFICE|Siete SA de CV' < purge-tenants.sql
+--     -v keep='Negocio A|Negocio B' < purge-tenants.sql
 --
 --   BORRAR (mismo comando, modo=borrar). Revisa el NOTICE final: dice qué
 --   quedó.
