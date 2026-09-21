@@ -9,6 +9,7 @@ import {
   MOCK_DASHBOARD,
   MOCK_SALE,
   MOCK_SALE_QUANTITIES,
+  MOCK_SALE_WEIGHT,
   mockAverageTicket,
   mockTopSellers,
   mockTotal,
@@ -388,6 +389,28 @@ describe("tu panel: el tablero dibujado (PAGE-09)", () => {
     expect(section).toMatch(/role="img"/);
     expect(section).toContain(`aria-label="${getMessages("es-mx").insights.mock.label}"`);
     expect(section).toMatch(/<svg\b/);
+  });
+
+  // Lo que se vende por peso se cuenta por peso: «31 unidades» de queso no le
+  // dice nada a quien lo despacha por kilo (Carlos, 2026-09-21).
+  it.each([
+    ["es-mx", "7.75 kg"],
+    ["en-us", "13.5 lb"],
+    ["es-us", "13.5 lb"],
+    ["en-ca", "6.5 kg"],
+    ["fr-ca", "6,5 kg"],
+  ] as const)("/%s/: el queso de «Más vendidos» dice %s, no unidades", (route, peso) => {
+    const { market } = getLocale(route);
+    const [, queso] = mockTopSellers(market);
+    const text = textOf(sectionOf(pageOf(route), ANCHORS.insights)).replace(/\u00a0|\u202f/g, " ");
+    expect(text).toContain(peso);
+    const unidades = getMessages(route).insights.mock.units.replace(
+      "{count}",
+      String(queso?.units),
+    );
+    expect(text).not.toContain(unidades);
+    // Y el peso es el de la caja del hero: cada venta del panel es una porción de esas.
+    expect(queso?.weight?.value).toBe((queso?.units ?? 0) * MOCK_SALE_WEIGHT[market].perSale);
   });
 
   it("los números del panel cuadran entre sí: un tablero no puede mentir", () => {

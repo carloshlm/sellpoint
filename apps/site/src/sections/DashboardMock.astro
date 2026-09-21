@@ -22,7 +22,7 @@ interface Props {
 }
 
 const { route } = Astro.props;
-const { market } = getLocale(route);
+const { market, htmlLang } = getLocale(route);
 const messages = getMessages(route);
 const { mock } = messages.insights;
 const data = MOCK_DASHBOARD[market];
@@ -30,7 +30,10 @@ const data = MOCK_DASHBOARD[market];
 const products = messages.hero.mock.items;
 const sellers = mockTopSellers(market).map((seller, index) => ({
   name: [products.first, products.second, products.third][index]?.name ?? "",
-  units: mock.units.replace("{count}", String(seller.units)),
+  // El número lo escribe `Intl`: en francés el decimal es coma («6,5 kg»).
+  units: seller.weight
+    ? `${new Intl.NumberFormat(htmlLang).format(seller.weight.value)} ${seller.weight.unit}`
+    : mock.units.replace("{count}", String(seller.units)),
   amount: formatMoney(seller.amount, route),
 }));
 

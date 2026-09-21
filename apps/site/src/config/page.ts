@@ -181,12 +181,35 @@ export function mockAverageTicket(market: MarketId): number {
   return Math.round((today / tickets) * 100) / 100;
 }
 
-/** Los más vendidos de hoy: piezas e importe, al precio de la caja del hero. */
-export function mockTopSellers(market: MarketId): { units: number; amount: number }[] {
+/**
+ * El renglón de la caja que se vende POR PESO (el queso) y cuánto pesa cada
+ * venta, en la unidad con la que ese mercado lleva la cuenta: los 250 g del
+ * hero son 0.25 kg, y las 8 oz de Estados Unidos, media libra.
+ */
+export const MOCK_WEIGHED_LINE = 1;
+export const MOCK_SALE_WEIGHT: Record<MarketId, { perSale: number; unit: "kg" | "lb" }> = {
+  mx: { perSale: 0.25, unit: "kg" },
+  us: { perSale: 0.5, unit: "lb" },
+  ca: { perSale: 0.25, unit: "kg" },
+};
+
+/**
+ * Los más vendidos de hoy: piezas e importe, al precio de la caja del hero.
+ * Lo que se vende por peso lleva además `weight`: «31 unidades» de queso no le
+ * dice nada a quien lo despacha por kilo; «7.75 kg», sí.
+ */
+export function mockTopSellers(
+  market: MarketId,
+): { units: number; amount: number; weight?: { value: number; unit: "kg" | "lb" } }[] {
   const sale = MOCK_SALE[market];
+  const { perSale, unit } = MOCK_SALE_WEIGHT[market];
   return MOCK_DASHBOARD[market].units.map((units, index) => {
     const unitPrice = (sale.lines[index] ?? 0) / (MOCK_SALE_QUANTITIES[index] ?? 1);
-    return { units, amount: Math.round(unitPrice * units * 100) / 100 };
+    return {
+      units,
+      amount: Math.round(unitPrice * units * 100) / 100,
+      ...(index === MOCK_WEIGHED_LINE ? { weight: { value: units * perSale, unit } } : {}),
+    };
   });
 }
 
