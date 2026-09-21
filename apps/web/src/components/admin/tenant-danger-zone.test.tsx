@@ -40,6 +40,7 @@ const activo: adminApi.TenantLifecycleView = {
   suspendedBy: null,
   reason: null,
   suspendedDays: 0,
+  retentionYears: null,
   deletableAt: null,
   deletable: false,
 };
@@ -48,6 +49,7 @@ const hace3dias: adminApi.TenantLifecycleView = {
   suspendedBy: { id: "admin-1", name: "Carlos H" },
   reason: "Impago reiterado",
   suspendedDays: 3,
+  retentionYears: null,
   deletableAt: "2026-10-01T15:00:00.000Z",
   deletable: false,
 };
@@ -57,6 +59,15 @@ const hace31dias: adminApi.TenantLifecycleView = {
   suspendedDays: 31,
   deletableAt: "2026-09-03T15:00:00.000Z",
   deletable: true,
+};
+
+/** F7-LIFECYCLE-10 — un CLIENTE: tiene pagos reales, lo ampara la retención legal. */
+const clienteActivo: adminApi.TenantLifecycleView = { ...activo, retentionYears: 7 };
+const clienteHace31dias: adminApi.TenantLifecycleView = {
+  ...hace31dias,
+  retentionYears: 10,
+  deletableAt: "2036-08-04T15:00:00.000Z",
+  deletable: false,
 };
 
 function renderZona(lifecycle: adminApi.TenantLifecycleView, tenantId = "t1") {
@@ -168,5 +179,39 @@ describe("«Zona de peligro» del expediente (F7-LIFECYCLE-08)", () => {
     renderZona(activo, "backoffice");
     expect(screen.queryByText("Zona de peligro")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desactivar negocio" })).not.toBeInTheDocument();
+  });
+
+  it("quien nunca pagó no ve ningún aviso de retención", () => {
+    renderZona(hace3dias);
+    expect(screen.queryByText(/es cliente/)).not.toBeInTheDocument();
+  });
+
+  it("un API viejo que aún no manda `retentionYears` no rompe la tarjeta", () => {
+    const { retentionYears: _sinCampo, ...viejo } = hace3dias;
+    renderZona(viejo as adminApi.TenantLifecycleView);
+    expect(screen.getByRole("button", { name: "Reactivar" })).toBeInTheDocument();
+    expect(screen.queryByText(/es cliente/)).not.toBeInTheDocument();
+  });
+
+  it("un cliente ACTIVO avisa cuánto se conservará ANTES de desactivarlo (F7-LIFECYCLE-10)", () => {
+    renderZona(clienteActivo);
+    expect(
+      screen.getByText(
+        "Este negocio es cliente (tiene pagos registrados). Si lo desactivas, la ley obliga a conservar sus datos 7 años antes de poder eliminarlo.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desactivar negocio" })).toBeEnabled();
+  });
+
+  it("un cliente con 31 días desactivado: «Eliminar» sigue apagado, con el porqué y la fecha a 10 años", () => {
+    renderZona(clienteHace31dias);
+    expect(screen.getByRole("button", { name: "Eliminar negocio" })).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Este negocio es cliente (tiene pagos registrados): la ley obliga a conservar sus datos 10 años desde que se desactivó.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Se podrá eliminar a partir del 4/8/36.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reactivar" })).toBeEnabled();
   });
 });

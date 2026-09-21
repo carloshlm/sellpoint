@@ -26,7 +26,7 @@ describe("AdminTenantsService (F9-ADMIN-02)", () => {
     tenantSubscription: { findUnique: Mock };
     tenantModule: { findMany: Mock };
   };
-  let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock } };
+  let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock }; $queryRaw: Mock };
   let service: AdminTenantsService;
 
   beforeEach(() => {
@@ -54,6 +54,8 @@ describe("AdminTenantsService (F9-ADMIN-02)", () => {
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
+      // `tenant_retention_years()`: NULL = nunca pagó, no es cliente.
+      $queryRaw: jest.fn().mockResolvedValue([{ anios: null }]),
       tenant: {
         findUnique: jest.fn().mockResolvedValue({
           suspendedAt: null,
@@ -134,6 +136,7 @@ describe("AdminTenantsService (F9-ADMIN-02)", () => {
       suspendedBy: null,
       reason: null,
       suspendedDays: 0,
+      retentionYears: null,
       deletableAt: null,
       deletable: false,
     });
@@ -166,6 +169,7 @@ describe("AdminTenantsService (F9-ADMIN-02)", () => {
       suspendedBy: { id: "admin-1", name: "Carlos H" },
       reason: "Impago reiterado",
       suspendedDays: 40,
+      retentionYears: null,
       deletableAt: "2026-08-25T18:00:00.000Z",
       deletable: true,
     });
@@ -177,6 +181,42 @@ describe("AdminTenantsService (F9-ADMIN-02)", () => {
       timezone: "America/Mexico_City",
       onboarded: true,
     });
+  });
+
+  it("un CLIENTE mexicano desactivado hace 40 días NO es eliminable: 10 años de retención (F7-LIFECYCLE-10)", async () => {
+    prisma.tenant.findUnique.mockResolvedValue({
+      name: "Acme",
+      country: "MX",
+      currency: "MXN",
+      timezone: "America/Mexico_City",
+      onboarded: true,
+      suspendedAt: new Date("2026-07-26T18:00:00.000Z"),
+      suspendedById: null,
+      suspendedReason: "Baja del cliente",
+    });
+    prisma.$queryRaw.mockResolvedValue([{ anios: 10 }]);
+    const { lifecycle } = await service.overview(TENANT, VIEWER);
+    expect(lifecycle.retentionYears).toBe(10);
+    expect(lifecycle.deletable).toBe(false);
+    expect(lifecycle.deletableAt).toBe("2036-07-26T18:00:00.000Z");
+  });
+
+  it("un CLIENTE canadiense: 7 años, y activo ya lo sabe aunque no corra el plazo", async () => {
+    prisma.tenant.findUnique.mockResolvedValue({
+      name: "Who Cut the Cheese",
+      country: "CA",
+      currency: "CAD",
+      timezone: "America/Toronto",
+      onboarded: true,
+      suspendedAt: null,
+      suspendedById: null,
+      suspendedReason: null,
+    });
+    prisma.$queryRaw.mockResolvedValue([{ anios: 7 }]);
+    const { lifecycle } = await service.overview(TENANT, VIEWER);
+    expect(lifecycle.retentionYears).toBe(7);
+    expect(lifecycle.deletableAt).toBeNull();
+    expect(lifecycle.deletable).toBe(false);
   });
 });
 
@@ -201,7 +241,7 @@ describe("AdminTenantsService — ciclo de vida (F7-LIFECYCLE-03)", () => {
     user: { findUnique: Mock };
     $executeRaw: Mock;
   };
-  let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock } };
+  let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock }; $queryRaw: Mock };
   let audit: { record: Mock };
   let service: AdminTenantsService;
 
@@ -226,6 +266,8 @@ describe("AdminTenantsService — ciclo de vida (F7-LIFECYCLE-03)", () => {
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
+      // `tenant_retention_years()`: NULL = nunca pagó, no es cliente.
+      $queryRaw: jest.fn().mockResolvedValue([{ anios: null }]),
       tenant: { findUnique: jest.fn().mockResolvedValue(activo) },
     };
     audit = { record: jest.fn() };
@@ -349,7 +391,7 @@ describe("AdminTenantsService — eliminar (F7-LIFECYCLE-05)", () => {
     $queryRaw: Mock;
     $executeRaw: Mock;
   };
-  let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock } };
+  let prisma: { withTenantContext: Mock; tenant: { findUnique: Mock }; $queryRaw: Mock };
   let audit: { record: Mock };
   let hasher: { verify: Mock };
   let redis: { get: Mock; incr: Mock; expire: Mock; del: Mock };
@@ -369,6 +411,8 @@ describe("AdminTenantsService — eliminar (F7-LIFECYCLE-05)", () => {
     };
     prisma = {
       withTenantContext: jest.fn((_t: string, fn: (t: typeof tx) => unknown) => fn(tx)),
+      // `tenant_retention_years()`: NULL = nunca pagó, no es cliente.
+      $queryRaw: jest.fn().mockResolvedValue([{ anios: null }]),
       tenant: {
         findUnique: jest.fn().mockResolvedValue({
           id: TENANT,
@@ -440,6 +484,46 @@ describe("AdminTenantsService — eliminar (F7-LIFECYCLE-05)", () => {
     });
     expect(hasher.verify).not.toHaveBeenCalled();
     expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it("candado 2 bis: un CLIENTE con 40 días desactivado → 409 con su retención, sin llegar a la base (F7-LIFECYCLE-10)", async () => {
+    prisma.tenant.findUnique.mockResolvedValue({
+      id: TENANT,
+      name: "Acme",
+      legalName: "Acme SA",
+      country: "MX",
+      suspendedAt: HACE_40_DIAS,
+      suspendedReason: "Baja del cliente",
+    });
+    prisma.$queryRaw.mockResolvedValue([{ anios: 10 }]);
+    await expect(service.purge(ADMIN, TENANT, cuerpo, META)).rejects.toMatchObject({
+      status: 409,
+      // Código propio: «30 días desactivado» sería mentira para un cliente.
+      response: {
+        message: "admin.tenant_under_retention",
+        args: { years: 10 },
+        deletableAt: "2036-07-26T18:00:00.000Z",
+        retentionYears: 10,
+      },
+    });
+    expect(hasher.verify).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it("un cliente de Estados Unidos con su retención cumplida (7 años) sí se elimina", async () => {
+    prisma.tenant.findUnique.mockResolvedValue({
+      id: TENANT,
+      name: "Acme",
+      legalName: null,
+      country: "US",
+      suspendedAt: new Date("2019-09-04T18:00:00.000Z"),
+      suspendedReason: "Baja del cliente",
+    });
+    prisma.$queryRaw.mockResolvedValue([{ anios: 7 }]);
+    await expect(service.purge(ADMIN, TENANT, cuerpo, META)).resolves.toEqual({
+      purged: true,
+      name: "Acme",
+    });
   });
 
   it("candado 3: el nombre no coincide EXACTO → 422, sin pedir la contraseña", async () => {

@@ -476,6 +476,8 @@
           "reactivate": "Reactivate",
           "delete": "Delete business",
           "deleteAfter": "It can be deleted starting {{date}}.",
+          "retentionActive": "This business is a customer (it has recorded payments). If you deactivate it, the law requires keeping its data for {{years}} years before it can be deleted.",
+          "retentionNotice": "This business is a customer (it has recorded payments): the law requires keeping its data for {{years}} years after deactivation.",
           "deleteTitle": "Delete {{name}}",
           "deleteBody": "Users, catalogs, stock, sales, quotes, turns and records are erased. There is no way back.",
           "confirmNameLabel": "Type the exact name: {{name}}",

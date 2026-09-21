@@ -476,6 +476,8 @@
           "reactivate": "Reactivar",
           "delete": "Eliminar negocio",
           "deleteAfter": "Se podrá eliminar a partir del {{date}}.",
+          "retentionActive": "Este negocio es cliente (tiene pagos registrados). Si lo desactivas, la ley obliga a conservar sus datos {{years}} años antes de poder eliminarlo.",
+          "retentionNotice": "Este negocio es cliente (tiene pagos registrados): la ley obliga a conservar sus datos {{years}} años desde que se desactivó.",
           "deleteTitle": "Eliminar {{name}}",
           "deleteBody": "Se borran usuarios, catálogos, existencias, ventas, cotizaciones, turnos y expedientes. No hay vuelta atrás.",
           "confirmNameLabel": "Escribe el nombre exacto: {{name}}",

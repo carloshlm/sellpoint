@@ -23,7 +23,12 @@
 --  3. No puede vaciar la base: si la lista cubre TODOS los negocios, aborta.
 --  4. Primero en modo `ensayo`: lista lo que se borraría, con usuarios y
 --     ventas de cada uno, y NO toca nada. Solo `modo=borrar` borra.
---  5. Requiere el rol admin de la base (dueño de `purge_tenant`); con un rol
+--  5. RETENCIÓN LEGAL (F7-LIFECYCLE-10): un CLIENTE —al menos un pago real
+--     registrado— no se borra antes de su plazo (México 10 años, Canadá y
+--     Estados Unidos 7, desde que se desactivó). El ensayo lo dice con nombre
+--     y fecha, y aborta. Si el pago era de prueba, se ANULA en el backoffice
+--     (queda el rastro) y el negocio vuelve a ser borrable.
+--  6. Requiere el rol admin de la base (dueño de `purge_tenant`); con un rol
 --     menor falla ANTES de tocar nada, con un error claro.
 --
 -- USO (en el servidor, como admin de la base):
@@ -59,6 +64,7 @@ DECLARE
   pedidos int;
   encontrados int;
   total_negocios int;
+  clientes int := 0;
   modo text := coalesce(current_setting('purge.modo', true), 'ensayo');
 BEGIN
   IF modo NOT IN ('ensayo', 'borrar') THEN
@@ -99,6 +105,32 @@ BEGIN
   IF array_length(ids, 1) >= total_negocios THEN
     RAISE EXCEPTION 'La lista cubre TODOS los negocios de la base (%). Eso no es una limpieza: no se hace.',
       total_negocios;
+  END IF;
+
+
+  -- Cinturón de retención (F7-LIFECYCLE-10): un CLIENTE —al menos un pago
+  -- real— se conserva lo que pide la ley de su país (MX 10 años, CA y US 7)
+  -- desde que se desactivó. `purge_tenant()` se negaría de todos modos; aquí
+  -- se dice ANTES, en el ensayo, y con todos los nombres de una vez.
+  FOR fila IN
+    SELECT t.name, tenant_retention_years(t.id) AS anios, t.suspended_at
+    FROM tenants t
+    WHERE t.id = ANY(ids) AND tenant_retention_years(t.id) IS NOT NULL
+      AND (t.suspended_at IS NULL
+        OR t.suspended_at + make_interval(years => tenant_retention_years(t.id)) > now())
+    ORDER BY t.created_at
+  LOOP
+    clientes := clientes + 1;
+    RAISE NOTICE '  NO SE PUEDE: % es CLIENTE (tiene pagos reales): retención legal de % años, %',
+      fila.name, fila.anios,
+      CASE WHEN fila.suspended_at IS NULL
+        THEN 'y ni siquiera está desactivado: el plazo no ha empezado a correr'
+        ELSE 'hasta el ' || to_char(fila.suspended_at + make_interval(years => fila.anios), 'YYYY-MM-DD')
+      END;
+  END LOOP;
+  IF clientes > 0 THEN
+    RAISE EXCEPTION '% negocio(s) de la lista son CLIENTES bajo retención legal. No se borra nada. Si el pago era de prueba, anúlalo desde el backoffice y vuelve a correr el ensayo.',
+      clientes;
   END IF;
 
   FOR fila IN

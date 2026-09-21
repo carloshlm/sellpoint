@@ -34,6 +34,8 @@ export interface TenantLifecycleView {
   suspendedBy: { id: string; name: string } | null;
   reason: string | null;
   suspendedDays: number;
+  /** F7-LIFECYCLE-10 — años de retención legal si es CLIENTE; `null` si nunca pagó. */
+  retentionYears: number | null;
   deletableAt: string | null;
   deletable: boolean;
 }

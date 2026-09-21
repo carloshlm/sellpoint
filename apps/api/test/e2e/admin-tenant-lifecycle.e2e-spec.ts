@@ -251,6 +251,76 @@ describe("Ciclo de vida del negocio desde el backoffice (F7-LIFECYCLE-06)", () =
     expect(rechazo.body).toMatchObject({ code: "admin.cannot_touch_own_tenant" });
   });
 
+  it("un CLIENTE (con un pago real) no se elimina a los 31 días: 409 con su retención; anulado el pago, queda libre (F7-LIFECYCLE-10)", async () => {
+    // El negocio ya lleva 31 días desactivado (prueba anterior): sin pagos
+    // pasaría el candado 2. Con UN pago real ya no: es cliente.
+    const pagoId = await prisma.withTenantContext(negocioB.tenantId, async (tx) => {
+      const sub = await tx.tenantSubscription.findUniqueOrThrow({
+        where: { tenantId: negocioB.tenantId },
+      });
+      const { id } = await tx.subscriptionPayment.create({
+        data: {
+          tenantId: negocioB.tenantId,
+          subscriptionId: sub.id,
+          planId: sub.planId,
+          planCode: "plus",
+          billingCycle: "monthly",
+          grossAmount: "499.00",
+          amount: "499.00",
+          method: "transfer",
+          paidAt: new Date(),
+          periodStart: new Date("2026-08-05"),
+          periodEnd: new Date("2026-09-05"),
+        },
+      });
+      return id;
+    });
+
+    const rechazo = await eliminar({
+      password: BILLING_TEST_PASSWORD,
+      confirmName: nombreB,
+    }).expect(409);
+    expect(rechazo.body).toMatchObject({
+      code: "admin.tenant_under_retention",
+      retentionYears: expect.any(Number),
+    });
+    expect((rechazo.body as { message: string }).message).toMatch(
+      /conservar sus datos (7|10) años/,
+    );
+    const { retentionYears, deletableAt } = rechazo.body as {
+      retentionYears: number;
+      deletableAt: string;
+    };
+    expect([7, 10]).toContain(retentionYears);
+    // Faltan AÑOS, no días.
+    expect(new Date(deletableAt).getTime()).toBeGreaterThan(Date.now() + 6 * 365 * DIA_MS);
+    expect(await prisma.tenant.findUnique({ where: { id: negocioB.tenantId } })).not.toBeNull();
+
+    // Y el resumen del backoffice lo explica.
+    const overview = await request(app.getHttpServer())
+      .get(ruta("/overview"))
+      .set("Authorization", bearer(admin.token))
+      .expect(200);
+    expect(
+      (overview.body as { lifecycle: { retentionYears: number | null } }).lifecycle,
+    ).toMatchObject({ retentionYears, deletable: false });
+
+    // La salida legítima de un pago de prueba: anularlo, con su razón.
+    await prisma.withTenantContext(negocioB.tenantId, (tx) =>
+      tx.subscriptionPayment.update({
+        where: { id: pagoId },
+        data: { status: "voided", voidedAt: new Date(), voidReason: "Era una prueba" },
+      }),
+    );
+    const libre = await request(app.getHttpServer())
+      .get(ruta("/overview"))
+      .set("Authorization", bearer(admin.token))
+      .expect(200);
+    expect(
+      (libre.body as { lifecycle: { retentionYears: number | null } }).lifecycle,
+    ).toMatchObject({ retentionYears: null, deletable: true });
+  });
+
   it("eliminar de verdad: no queda nada del negocio, la auditoría lo recuerda y el otro sigue", async () => {
     const antes = await filasDelNegocio(negocioB.tenantId);
     expect(antes.users).toBeGreaterThanOrEqual(1);

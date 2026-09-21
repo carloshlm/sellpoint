@@ -111,6 +111,7 @@ const overview: adminApi.TenantOverview = {
     suspendedBy: null,
     reason: null,
     suspendedDays: 0,
+    retentionYears: null,
     deletableAt: null,
     deletable: false,
   },

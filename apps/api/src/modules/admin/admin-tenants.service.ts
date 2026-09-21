@@ -35,6 +35,8 @@ export interface TenantLifecycleView {
   suspendedBy: { id: string; name: string } | null;
   reason: string | null;
   suspendedDays: number;
+  /** F7-LIFECYCLE-10 — años de retención legal si es CLIENTE; `null` si nunca pagó. */
+  retentionYears: number | null;
   deletableAt: string | null;
   deletable: boolean;
 }
@@ -103,7 +105,7 @@ export class AdminTenantsService {
     }
     const { suspendedAt, suspendedById, suspendedReason, ...tenant } = fila;
     const lifecycle = await this.lifecycleDe(
-      { suspendedAt, suspendedById, suspendedReason },
+      { id: tenantId, country: fila.country, suspendedAt, suspendedById, suspendedReason },
       viewer,
     );
 
@@ -165,13 +167,15 @@ export class AdminTenantsService {
 
   private async lifecycleDe(
     fila: {
+      id: string;
+      country: string | null;
       suspendedAt: Date | null;
       suspendedById: string | null;
       suspendedReason: string | null;
     },
     viewer: AuthUser,
   ): Promise<TenantLifecycleView> {
-    const ciclo = tenantLifecycle({ suspendedAt: fila.suspendedAt }, this.clock.now());
+    const ciclo = await this.cicloDe(fila);
     const quien =
       fila.suspendedById === null
         ? null
@@ -186,9 +190,37 @@ export class AdminTenantsService {
       suspendedBy: quien ? { id: quien.id, name: shortName(quien) } : null,
       reason: fila.suspendedReason,
       suspendedDays: ciclo.suspendedDays,
+      retentionYears: ciclo.retentionYears,
       deletableAt: ciclo.deletableAt?.toISOString() ?? null,
       deletable: ciclo.deletable,
     };
+  }
+
+  /**
+   * F7-LIFECYCLE-10 — la regla completa de UN negocio: los 30 días de siempre
+   * si nunca pagó, o la retención legal de su país si es cliente.
+   */
+  private async cicloDe(negocio: { id: string; country: string | null; suspendedAt: Date | null }) {
+    return tenantLifecycle(
+      {
+        suspendedAt: negocio.suspendedAt,
+        country: negocio.country,
+        hasRealPayments: await this.esCliente(negocio.id),
+      },
+      this.clock.now(),
+    );
+  }
+
+  /**
+   * ¿Tiene al menos un pago REAL? Lo responde la base
+   * (`tenant_retention_years()`), que es la misma pregunta que se hace
+   * `purge_tenant()` antes de borrar: UNA sola definición de «pago real», y
+   * `SECURITY DEFINER` porque los pagos de otro negocio están tras RLS.
+   */
+  private async esCliente(tenantId: string): Promise<boolean> {
+    const [fila] = await this.prisma.$queryRaw<{ anios: number | null }[]>`
+      SELECT tenant_retention_years(${tenantId}::uuid) AS anios`;
+    return fila?.anios !== null && fila?.anios !== undefined;
   }
 
   /**
@@ -224,7 +256,13 @@ export class AdminTenantsService {
       });
     });
     return this.lifecycleDe(
-      { suspendedAt: now, suspendedById: admin.userId, suspendedReason: input.reason },
+      {
+        id: tenantId,
+        country: negocio.country,
+        suspendedAt: now,
+        suspendedById: admin.userId,
+        suspendedReason: input.reason,
+      },
       admin,
     );
   }
@@ -253,7 +291,13 @@ export class AdminTenantsService {
       });
     });
     return this.lifecycleDe(
-      { suspendedAt: null, suspendedById: null, suspendedReason: null },
+      {
+        id: tenantId,
+        country: negocio.country,
+        suspendedAt: null,
+        suspendedById: null,
+        suspendedReason: null,
+      },
       admin,
     );
   }
@@ -262,8 +306,10 @@ export class AdminTenantsService {
    * Eliminar = irreversible. Cuatro candados EN ORDEN, cada uno con su
    * código y cada uno dejando la base intacta:
    *  1. no es el propio negocio;
-   *  2. lleva ≥ 30 días desactivado (`tenantLifecycle`; el 409 dice desde
-   *     cuándo sí);
+   *  2. ya pasó su plazo desactivado (`tenantLifecycle`): 30 días si nunca
+   *     pagó; si es CLIENTE, la retención legal de su país (F7-LIFECYCLE-10:
+   *     MX 10 años, CA y US 7). El 409 dice desde cuándo sí y por qué. La
+   *     base repite este candado dentro de `purge_tenant()`;
    *  3. el nombre escrito es EXACTO (lo que evita borrar el de al lado);
    *  4. la contraseña del PROPIO administrador, verificada contra su hash —
    *     no un «secreto de borrado» compartido que nadie rota — con tope de
@@ -278,11 +324,15 @@ export class AdminTenantsService {
     meta: RequestMeta,
   ): Promise<{ purged: true; name: string }> {
     const negocio = await this.cargarAjeno(admin, tenantId);
-    const ciclo = tenantLifecycle({ suspendedAt: negocio.suspendedAt }, this.clock.now());
+    const ciclo = await this.cicloDe(negocio);
     if (!ciclo.deletable) {
+      // Un cliente lleva su propio código: «30 días desactivado» sería mentira.
       throw new ConflictException({
-        message: "admin.tenant_not_deletable",
+        ...(ciclo.retentionYears === null
+          ? { message: "admin.tenant_not_deletable" }
+          : { message: "admin.tenant_under_retention", args: { years: ciclo.retentionYears } }),
         deletableAt: ciclo.deletableAt?.toISOString() ?? null,
+        retentionYears: ciclo.retentionYears,
       });
     }
     if (input.confirmName !== negocio.name) {
@@ -361,7 +411,14 @@ export class AdminTenantsService {
     }
     const negocio = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
-      select: { id: true, name: true, legalName: true, suspendedAt: true, suspendedReason: true },
+      select: {
+        id: true,
+        name: true,
+        legalName: true,
+        country: true,
+        suspendedAt: true,
+        suspendedReason: true,
+      },
     });
     if (!negocio) {
       throw new NotFoundException({ message: "billing.tenant_not_found" });

@@ -85,18 +85,26 @@ export function TenantDangerZone({
           </p>
         )}
         {lifecycle.suspendedAt === null ? (
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={suspend.isPending}
-              onClick={() => {
-                setError(null);
-                setDialogo("suspend");
-              }}
-            >
-              {k("suspend")}
-            </Button>
+          <div className="flex flex-col gap-3">
+            {/* F7-LIFECYCLE-10 — se avisa ANTES de desactivar: después ya no hay botón que lo borre. */}
+            {typeof lifecycle.retentionYears === "number" && (
+              <p className="text-muted-foreground text-sm">
+                {k("retentionActive", { years: lifecycle.retentionYears })}
+              </p>
+            )}
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={suspend.isPending}
+                onClick={() => {
+                  setError(null);
+                  setDialogo("suspend");
+                }}
+              >
+                {k("suspend")}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -117,6 +125,11 @@ export function TenantDangerZone({
                 <p className="text-muted-foreground">{k("reason", { reason: lifecycle.reason })}</p>
               )}
             </div>
+            {typeof lifecycle.retentionYears === "number" && (
+              <p className="text-muted-foreground text-sm">
+                {k("retentionNotice", { years: lifecycle.retentionYears })}
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 type="button"
