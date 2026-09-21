@@ -116,7 +116,7 @@ describe("hero y la caja dibujada (PAGE-02)", () => {
   });
 
   it("México cobra en pesos los productos del prototipo", () => {
-    expect(pageOf("es-mx")).toContain("$269.50");
+    expect(pageOf("es-mx")).toContain("$241.90");
     expect(pageOf("es-mx")).toContain("Agua natural 1 L");
   });
 

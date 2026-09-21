@@ -103,7 +103,7 @@ export const CUSTOM_PLAN_PARAM = "custom";
  * importes. `test/sections.test.ts` comprueba que el total sea la suma.
  */
 export const MOCK_SALE: Record<MarketId, { barcode: string; lines: number[]; total: number }> = {
-  mx: { barcode: "7501055300013", lines: [28, 52.5, 189], total: 269.5 },
+  mx: { barcode: "7501055300013", lines: [28, 52.5, 161.4], total: 241.9 },
   us: { barcode: "036000291452", lines: [3.98, 4.49, 12.99], total: 21.46 },
   ca: { barcode: "055000123457", lines: [4.58, 4.99, 14.99], total: 24.56 },
 };
