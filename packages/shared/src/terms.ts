@@ -25,8 +25,15 @@ import type { Locale } from "./i18n";
  * vuelva a aceptar. Un cambio de redacción que no altera derechos ni
  * obligaciones NO pide fecha nueva: cada cambio de fecha le pone la pared a
  * todos los usuarios.
+ *
+ * **2026-09-21 — segunda versión.** Cambian derechos y obligaciones: el cliente
+ * responde por la información que captura (T5), se reparte con detalle quién
+ * hace qué como responsable y como encargado (T7), entra la indemnización
+ * (T14) y nace el Anexo A del módulo de Consultorio médico (A1–A11), que la T8
+ * anterior daba por hecho y no existía. Por eso la fecha nueva: todos vuelven a
+ * aceptar.
  */
-export const CURRENT_TERMS_VERSION: string | null = "2026-09-19";
+export const CURRENT_TERMS_VERSION: string | null = "2026-09-21";
 
 /**
  * Los textos viven en el sitio público (`apps/site`), no en la aplicación: son

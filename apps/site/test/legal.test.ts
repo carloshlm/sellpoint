@@ -11,17 +11,68 @@ import { distPages, readDist } from "./dist";
 
 describe("el documento legal", () => {
   it.each(["es", "en", "fr"] as const)(
-    "%s trae el aviso (P1–P10) y los términos (T1–T16)",
+    "%s trae el aviso (P1–P11), los términos (T1–T18) y el anexo de consultorio (A1–A11)",
     (language) => {
       const privacy = loadLegalDocument(language, "privacy");
       const terms = loadLegalDocument(language, "terms");
       expect(privacy.sections.map((s) => s.id)).toEqual(
-        Array.from({ length: 10 }, (_, i) => `p${i + 1}`),
+        Array.from({ length: 11 }, (_, i) => `p${i + 1}`),
       );
-      expect(terms.sections.map((s) => s.id)).toEqual(
-        Array.from({ length: 16 }, (_, i) => `t${i + 1}`),
-      );
+      // El anexo vive DENTRO de los términos: se acepta con ellos y los anclajes
+      // son los mismos en los tres idiomas.
+      expect(terms.sections.map((s) => s.id)).toEqual([
+        ...Array.from({ length: 18 }, (_, i) => `t${i + 1}`),
+        ...Array.from({ length: 11 }, (_, i) => `a${i + 1}`),
+      ]);
       expect(privacy.title.length).toBeGreaterThan(5);
+    },
+  );
+
+  // 2026-09-21 — lo que protege a SellPointy de lo que capturan sus clientes.
+  // Si una de estas cláusulas desaparece en una edición, que se note.
+  it.each([
+    [
+      "es",
+      /único responsable de esa información/,
+      /sacas en paz y a salvo/,
+      /NOM-024-SSA3-2012/,
+      /no está certificado/,
+    ],
+    [
+      "en",
+      /solely responsible for that information/,
+      /hold us harmless/,
+      /NOM-024-SSA3-2012/,
+      /is not certified/,
+    ],
+    [
+      "fr",
+      /seul responsable de ces informations/,
+      /dégagez de toute responsabilité/,
+      /NOM-024-SSA3-2012/,
+      /n'est pas certifié/,
+    ],
+  ] as const)(
+    "%s: el cliente responde por su información y el anexo dice la verdad sobre la NOM-024",
+    (language, responsable, indemniza, norma, sinCertificar) => {
+      const text = loadLegalDocument(language, "terms")
+        .html.replace(/<[^>]+>/g, "")
+        .replace(/&#39;/g, "'")
+        // El documento parte los renglones a 85 columnas: una frase puede venir cortada.
+        .replace(/\s+/g, " ");
+      expect(text).toMatch(responsable);
+      expect(text).toMatch(indemniza);
+      expect(text).toMatch(norma);
+      expect(text).toMatch(sinCertificar);
+    },
+  );
+
+  it.each(["es", "en", "fr"] as const)(
+    "%s: el aviso dice quién responde por los datos que capturan los clientes",
+    (language) => {
+      const { sections } = loadLegalDocument(language, "privacy");
+      expect(sections[2]?.id).toBe("p3");
+      expect(sections[2]?.title).toMatch(/clientes capturan|customers enter|clients saisissent/);
     },
   );
 
@@ -33,7 +84,7 @@ describe("el documento legal", () => {
         // «Carlos» solo puede aparecer como el RESPONSABLE, con su nombre completo.
         // Suelto («Carlos decidió…») es una nota de edición que se coló.
         expect(html.replaceAll("Carlos Hernandez Hernandez", "")).not.toMatch(/Carlos/);
-        for (const section of sections) expect(section.title).not.toMatch(/^[PT]\d+\./);
+        for (const section of sections) expect(section.title).not.toMatch(/^[PTA]\d+\./);
       }
     }
   });

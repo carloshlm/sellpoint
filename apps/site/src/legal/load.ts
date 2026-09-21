@@ -30,7 +30,7 @@ const BOUNDS: Record<Language, Record<LegalDoc, [start: string, end: string]>> =
 };
 
 export interface LegalSection {
-  /** `p1`…`p10`, `t1`…`t16`: el ancla, igual en los tres idiomas. */
+  /** `p1`…`p11`, `t1`…`t18` y `a1`…`a11` (el anexo de consultorio): el ancla, igual en los tres idiomas. */
   id: string;
   title: string;
 }
@@ -74,7 +74,7 @@ export function loadLegalDocument(language: Language, doc: LegalDoc): LegalDocum
     .map((line) => {
       // `### P5. 🔴 El catálogo compartido` → un <h2 id="p5"> sin la numeración
       // interna ni la marca de riesgo, que son para quien edita.
-      const heading = line.match(/^###\s+([PT])(\d+)\.\s*(?:🔴\s*)?(.+)$/u);
+      const heading = line.match(/^###\s+([PTA])(\d+)\.\s*(?:🔴\s*)?(.+)$/u);
       if (heading) {
         const id = `${(heading[1] as string).toLowerCase()}${heading[2]}`;
         const text = (heading[3] as string).trim();
@@ -83,7 +83,7 @@ export function loadLegalDocument(language: Language, doc: LegalDoc): LegalDocum
       }
       // El inglés y el francés van compactos: `**P2. What we collect.** texto…`
       // en el mismo párrafo. Se parte en encabezado y texto.
-      const inline = line.match(/^\*\*([PT])(\d+)\.\s*(?:🔴\s*)?(.+?)\.?\*\*\s*(.*)$/u);
+      const inline = line.match(/^\*\*([PTA])(\d+)\.\s*(?:🔴\s*)?(.+?)\.?\*\*\s*(.*)$/u);
       if (inline) {
         const id = `${(inline[1] as string).toLowerCase()}${inline[2]}`;
         const text = (inline[3] as string).trim();

@@ -52,10 +52,13 @@ Eso ya es un hueco hoy, con o sin sitio, por dos razones:
 2. 🔴 **El módulo de Consultorio médico guarda historias clínicas.** Son **datos
    personales sensibles** (LFPDPPP, art. 3), la categoría con más protección: piden
    consentimiento **expreso y por escrito** del paciente, y en México el expediente
-   clínico electrónico tiene además su propia norma (NOM-024-SSA3). **Este borrador
-   NO cubre eso.** Lo deja fuera a propósito, remitiéndolo a un acuerdo aparte (§T8),
-   porque es el punto donde improvisar es más peligroso. **Si ese módulo ya lo usa
-   un médico con pacientes reales, esto es lo primero que debería ver un abogado.**
+   clínico electrónico tiene además su propia norma (NOM-024-SSA3). La primera
+   versión (2026-09-19) lo dejó fuera, remitiéndolo a un «acuerdo aparte» que nunca
+   se escribió. **Desde el 2026-09-21 ese acuerdo existe: es el Anexo A (A1–A11),
+   dentro de los Términos.** Reparte las obligaciones —el médico es el responsable,
+   SellPointy el encargado— y dice con honestidad que SellPointy NO está certificado
+   conforme a la NOM-024 (A6). **Un texto no sustituye a esa certificación: sigue
+   PENDIENTE, y sigue siendo lo primero que debería ver un abogado.**
 
 Por eso estos documentos **no son «los del sitio»: son los de SellPointy**, y se
 enlazan desde el sitio **y desde el registro de la aplicación**, con una casilla de
@@ -101,7 +104,7 @@ Lo que **sí** verifiqué solo, en el código y la infraestructura:
 
 ## AVISO DE PRIVACIDAD
 
-*Última actualización: 19 de septiembre de 2026*
+*Última actualización: 21 de septiembre de 2026*
 
 ### P1. Quién es responsable de tus datos
 
@@ -125,7 +128,20 @@ saber si el sitio funciona contamos eventos —un clic, un formulario enviado—
 guardar tu dirección IP, tu navegador ni nada que te identifique.** No recabamos
 datos personales sensibles a través del sitio.
 
-### P3. Para qué los usamos
+### P3. Los datos que nuestros clientes capturan sobre otras personas
+
+Los negocios que usan SellPointy capturan datos de sus propios clientes,
+empleados, proveedores y —en el módulo de Consultorio médico— pacientes. **De esos
+datos el responsable es ese negocio o ese profesional, no SellPointy**: nosotros
+solo los guardamos y los procesamos por su cuenta, como encargado, y no los usamos
+para nada propio.
+
+Si eres cliente o paciente de alguien que usa SellPointy y quieres ver, corregir o
+borrar tus datos, **pídeselo a ese negocio o a ese profesional**: es quien decide
+sobre ellos y quien tiene su propio aviso de privacidad. Si nos escribes a
+nosotros, le hacemos llegar tu solicitud.
+
+### P4. Para qué los usamos
 
 **Finalidades necesarias** (sin ellas no podemos atenderte): responder a tu
 solicitud; crear y operar tu cuenta; cobrar y registrar tus pagos; darte soporte;
@@ -137,7 +153,7 @@ si lo aceptaste, y **puedes negarte o arrepentirte cuando quieras** escribiendo 
 privacy@sellpointy.com o desde el enlace de baja de cada correo. Negarte no
 afecta el servicio.
 
-### P4. Con quién los compartimos
+### P5. Con quién los compartimos
 
 **No vendemos ni rentamos tus datos.** **Tu información se guarda en servidores
 ubicados en la Ciudad de México.** Para prestarte el servicio nos apoyamos en
@@ -150,7 +166,7 @@ necesaria para que el servicio funcione y para que tu información esté respald
 
 También podemos entregarlos cuando una autoridad competente lo exija conforme a la ley.
 
-### P5. 🔴 El catálogo compartido de productos
+### P6. 🔴 El catálogo compartido de productos
 
 SellPointy mantiene un catálogo común de **códigos de barras con el nombre del
 producto** —el que viene impreso en el empaque— para que cualquier negocio pueda
@@ -163,7 +179,7 @@ jamás: tus precios, tus costos, tus ventas, tus existencias, tus proveedores, t
 clientes ni dato alguno que identifique a tu negocio. El catálogo no dice quién
 aportó cada nombre.
 
-### P6. Tus derechos (ARCO)
+### P7. Tus derechos (ARCO)
 
 Puedes **acceder** a tus datos, **rectificarlos**, **cancelarlos** u **oponerte** a
 su uso, y revocar tu consentimiento. Escríbenos a privacy@sellpointy.com con tu
@@ -172,13 +188,13 @@ nombre, el correo de tu cuenta y qué necesitas. **Te respondemos en un máximo 
 siguientes. Si crees que no te atendimos bien, puedes acudir a la autoridad de
 protección de datos de tu país.
 
-### P7. Cuánto tiempo los guardamos
+### P8. Cuánto tiempo los guardamos
 
 Los datos de tu cuenta, mientras la tengas y el tiempo que la ley fiscal nos
 obligue después. Si nos escribiste y nunca creaste una cuenta, **24 meses**, y
 después se borran de forma automática.
 
-### P8. Si eres residente de Canadá
+### P9. Si eres residente de Canadá
 
 Además de lo anterior: solo te escribimos con fines comerciales si diste tu
 **consentimiento expreso**, y guardamos cuándo y qué aceptaste; cada correo trae
@@ -187,12 +203,12 @@ responsable de la protección de los datos personales es Carlos Hernandez Hernan
 privacy@sellpointy.com. Tus datos pueden tratarse fuera de Canadá y de tu
 provincia.
 
-### P9. Menores de edad
+### P10. Menores de edad
 
 SellPointy es para negocios. No está dirigido a menores de 18 años y no recabamos
 sus datos a sabiendas.
 
-### P10. Cambios a este aviso
+### P11. Cambios a este aviso
 
 Si lo cambiamos, publicamos la nueva versión aquí con su fecha. Si el cambio es
 importante, te avisamos por correo antes de que entre en vigor.
@@ -201,7 +217,7 @@ importante, te avisamos por correo antes de que entre en vigor.
 
 ## TÉRMINOS Y CONDICIONES
 
-*Última actualización: 19 de septiembre de 2026*
+*Última actualización: 21 de septiembre de 2026*
 
 ### T1. Qué es esto
 
@@ -242,13 +258,19 @@ entró sin tu permiso.
 - **Impuestos:** los precios no incluyen los impuestos que correspondan en tu país,
   salvo que se indique lo contrario.
 
-### T5. Tu información es tuya
+### T5. Tu información es tuya, y es tu responsabilidad
 
 **Todo lo que captures en SellPointy es tuyo**: tus productos, precios, ventas,
-existencias, proveedores y clientes. Nos das permiso de almacenarlo y procesarlo
-**solo para prestarte el Servicio**. No lo vendemos, no lo compartimos y no lo
-usamos para nada más, con la única salvedad de la cláusula T6. Puedes exportar tus
-reportes cuando quieras.
+existencias, proveedores, clientes y cualquier otro registro. Nos das permiso de
+almacenarlo y procesarlo **solo para prestarte el Servicio**. No lo vendemos, no lo
+compartimos y no lo usamos para nada más, con la única salvedad de la cláusula T6.
+Puedes exportar tus reportes cuando quieras.
+
+Por lo mismo, **tú eres el único responsable de esa información**: de que sea
+verdadera y esté completa, de tener derecho a capturarla, y del uso que tú y las
+personas a las que les des acceso hagan de ella. SellPointy no revisa, valida ni
+corrige lo que capturas, y no responde por las decisiones que tomes con base en
+ello.
 
 ### T6. 🔴 El catálogo compartido de productos
 
@@ -263,41 +285,65 @@ catálogo.
 
 ### T7. Los datos personales de TUS clientes
 
-Si capturas datos de tus clientes o empleados, **tú eres el responsable de esos
-datos** ante ellos y ante la ley —incluido tener tu propio aviso de privacidad— y
-SellPointy actúa solo como **encargado**, tratándolos por tu cuenta y conforme a
-tus instrucciones. Nos comprometemos a mantenerlos confidenciales, a protegerlos
-con medidas razonables y a no usarlos para fines propios.
+Si capturas datos de tus clientes, pacientes, proveedores o empleados, **tú eres el
+responsable de esos datos** ante ellos y ante la ley, y SellPointy actúa solo como
+**encargado**: los trata por tu cuenta y conforme a tus instrucciones, que son usar
+el Servicio como está construido.
 
-### T8. 🔴 Módulos a la medida
+**Lo que te toca a ti:** tener tu propio aviso de privacidad y dárselo a esas
+personas; obtener su consentimiento cuando la ley lo pida, y en la forma en que lo
+pida; atender sus solicitudes de acceso, rectificación, cancelación y oposición; y
+capturar solo los datos que de verdad necesitas.
 
-Los módulos hechos a la medida —como Recepción o Consultorio médico— se rigen por
-un **acuerdo por separado**, que prevalece sobre estos términos en lo que difiera.
-En particular, **el tratamiento de datos de salud no está cubierto por este
-documento**: requiere ese acuerdo, y es responsabilidad de quien los capture cumplir
-las normas sanitarias y de protección de datos de su país.
+**Lo que nos toca a nosotros:** mantener esos datos confidenciales; protegerlos con
+medidas de seguridad administrativas, técnicas y físicas razonables; no usarlos
+para fines propios; usar proveedores de infraestructura (como el alojamiento) que
+queden obligados a lo mismo; avisarte sin demora injustificada si sabemos de una
+vulneración que los afecte; y, si una de esas personas nos escribe a nosotros,
+remitirte su solicitud para que la atiendas.
 
-### T9. Uso aceptable
+### T8. Tus usuarios y sus accesos
+
+Tú decides quién entra a tu cuenta y qué puede ver. Eres responsable de lo que
+haga cada persona a la que le des acceso, de que cada quien use su propio usuario
+y no uno compartido, de cuidar las contraseñas y de **quitar el acceso a quien
+deje de trabajar contigo**. Lo que se haga con un usuario de tu cuenta se entiende
+hecho por ti.
+
+### T9. 🔴 Módulos especializados
+
+Algunos módulos —como Recepción o Consultorio médico— sirven para actividades que
+tienen sus propias leyes. Esos módulos se rigen, **además de estas cláusulas, por
+su Anexo**, que forma parte de estos términos y prevalece en lo que difiera. Si tu
+actividad está regulada, **cumplir esa regulación es tu responsabilidad**, no de
+SellPointy: nosotros te damos una herramienta de registro, no asesoría legal,
+fiscal, médica ni de ningún otro tipo.
+
+### T10. Uso aceptable
 
 No puedes usar SellPointy para algo ilegal; intentar entrar a cuentas o datos
 ajenos; interferir con el Servicio o sobrecargarlo; copiarlo, revenderlo o hacerle
 ingeniería inversa; ni capturar contenido que infrinja derechos de otros. Podemos
 suspender una cuenta que lo haga.
 
-### T10. Disponibilidad y respaldos
+Tampoco puedes capturar datos que no tengas derecho a tener, ni **guardar datos de
+salud u otros datos sensibles fuera de un módulo hecho para eso** (por ejemplo, en
+las notas de una venta o en la ficha de un cliente del punto de venta).
+
+### T11. Disponibilidad y respaldos
 
 Trabajamos para que el Servicio esté siempre disponible y respaldamos tu
 información todos los días. Aun así, **se ofrece «tal cual»**: no garantizamos que
 nunca falle ni que esté libre de errores. Puede haber interrupciones por
 mantenimiento o por causas fuera de nuestro control.
 
-### T11. Propiedad intelectual
+### T12. Propiedad intelectual
 
 El software, la marca y el diseño de SellPointy son nuestros. Estos términos te dan
 un derecho de uso mientras tengas una cuenta activa, no la propiedad de nada de eso.
 Tu información es tuya (T5).
 
-### T12. 🔴 Límite de responsabilidad
+### T13. 🔴 Límite de responsabilidad
 
 Hasta donde la ley lo permita: SellPointy no responde por ganancias no obtenidas,
 pérdida de datos ni daños indirectos derivados del uso del Servicio; y nuestra
@@ -306,26 +352,136 @@ anteriores** al hecho que la origine. SellPointy es una herramienta de gestión:
 sustituye a tu contador** ni te releva de tus obligaciones fiscales, y los impuestos
 que configura son un punto de partida que debes verificar.
 
-### T13. Terminar
+SellPointy tampoco sustituye a tu abogado ni a ningún otro profesional. Nada de lo
+que el Servicio muestra, calcula o imprime es una recomendación profesional.
+
+### T14. 🔴 Si alguien nos reclama por tu información
+
+Si un tercero —un cliente tuyo, un paciente, un empleado, una autoridad— nos
+reclama, nos demanda o nos sanciona por la información que capturaste, por el uso
+que le diste o porque incumpliste una ley que te tocaba cumplir a ti, **tú te haces
+cargo**: nos sacas en paz y a salvo y cubres los gastos razonables que eso nos
+cause, incluidos los de defensa. Esto no aplica a lo que sea culpa nuestra.
+
+### T15. Terminar
 
 Puedes dejar de usar SellPointy cuando quieras. Nosotros podemos suspender o cerrar
-una cuenta que incumpla estos términos. Al cerrar tu cuenta puedes pedirnos que
-**borremos tu información**; lo hacemos salvo lo que la ley nos obligue a conservar.
+una cuenta que incumpla estos términos. **Antes de cerrar tu cuenta, exporta lo que
+necesites conservar**: si la ley te obliga a guardar ciertos registros, esa
+obligación es tuya y sigue contigo aunque ya no uses el Servicio.
 
-### T14. Cambios a estos términos
+Al cerrar tu cuenta dejamos de usar tu información y puedes pedirnos que la
+**borremos**; lo hacemos salvo lo que la ley nos obligue a conservar, que mantenemos
+bloqueado —sin usarlo y sin que nadie entre a la cuenta— durante ese plazo, y
+después lo eliminamos.
+
+### T16. Cambios a estos términos
 
 Podemos actualizarlos. Si el cambio es importante te avisamos por correo al menos
 15 días antes. Seguir usando el Servicio después significa que los aceptas.
 
-### T15. Ley aplicable
+### T17. Ley aplicable
 
 Estos términos se rigen por las leyes de **México**. Cualquier controversia se
 somete a los tribunales del Estado de México, salvo que la ley de protección al
 consumidor de tu país te dé un derecho que no pueda renunciarse.
 
-### T16. Contacto
+### T18. Contacto
 
 contact@sellpointy.com
+
+### A1. Anexo A — Módulo de Consultorio médico (México)
+
+Este Anexo forma parte de estos términos. Aplica a quien use el módulo de
+Consultorio médico, que se ofrece solo en México. En lo que difiera de las
+cláusulas anteriores, manda este Anexo.
+
+### A2. Qué es este módulo, y qué no es
+
+Es una **herramienta de registro** para tu consulta: expedientes, notas, recetas,
+órdenes y el cobro de lo que atiendes. **No es un dispositivo médico.** No
+diagnostica, no recomienda tratamientos y **no verifica dosis, interacciones,
+alergias ni contraindicaciones**. Todo lo que quede escrito en un expediente, en una
+receta o en una orden es una decisión profesional tuya, no del sistema.
+
+### A3. Quién puede usarlo
+
+Solo profesionales de la salud que puedan ejercer legalmente en México, y el
+personal que trabaje bajo su responsabilidad. **Tú garantizas** que cada persona
+que atienda pacientes con tu cuenta tiene su título y su cédula profesional
+vigentes, y que los datos profesionales que captures son verdaderos.
+
+### A4. Los datos de tus pacientes son datos sensibles, y tú eres el responsable
+
+Los datos de salud son **datos personales sensibles**, la categoría que la ley de
+protección de datos personales más protege. Frente a tus pacientes y frente a la
+autoridad, **el responsable de esos datos eres tú**; SellPointy es solo el
+encargado (cláusula T7). Eso quiere decir que, **antes de capturar el primer dato
+de un paciente**, te toca a ti:
+
+- darle tu **aviso de privacidad integral**, que diga que tratas datos de salud;
+- obtener su **consentimiento expreso y por escrito** para tratarlos, y guardarlo;
+- si es menor de edad o no puede decidir por sí mismo, obtenerlo de quien lo
+  represente;
+- atender tú sus solicitudes sobre sus datos.
+
+Por nuestra parte, los datos de tus pacientes **no entran al catálogo compartido,
+no se usan para estadísticas que identifiquen a nadie y no se usan para ningún fin
+propio.**
+
+### A5. El expediente clínico es tu obligación
+
+Integrar el expediente, que tenga el contenido que pide la **NOM-004-SSA3-2012** y
+**conservarlo al menos cinco años desde el último acto médico** son obligaciones
+tuyas como prestador del servicio. SellPointy no revisa que un expediente esté
+completo ni que cumpla la norma.
+
+Por eso: **antes de cerrar tu cuenta o de dejar de pagar, exporta tus
+expedientes.** Si dejas de usar SellPointy, la obligación de conservarlos sigue
+siendo tuya, y no garantizamos que puedas consultarlos después de cerrar la cuenta.
+
+### A6. 🔴 Sobre la NOM-024-SSA3-2012
+
+La NOM-024-SSA3-2012 regula los sistemas de expediente clínico electrónico en
+México y prevé su certificación. **SellPointy no está certificado conforme a esa
+norma.** Decidir si una herramienta sin esa certificación es adecuada para tu
+práctica, y para las obligaciones que tú tengas, es tu responsabilidad. Si tu
+institución o tu autoridad sanitaria te exige un sistema certificado, no uses este
+módulo como tu expediente oficial.
+
+### A7. Recetas y órdenes
+
+La receta y la orden que imprimes las **emites tú**, con tu nombre, tu cédula y tu
+firma. Tú respondes de su contenido. El módulo **no genera recetarios especiales**
+ni los formatos que la autoridad sanitaria exige para medicamentos controlados: si
+recetas uno, hazlo por el medio que la ley pide, no con SellPointy.
+
+### A8. No es para urgencias
+
+El Servicio puede fallar o no estar disponible (cláusula T11). **No dependas de
+SellPointy para atender una urgencia** ni para una decisión que no pueda esperar:
+ten siempre una forma de atender a tus pacientes sin el sistema.
+
+### A9. Secreto profesional y accesos
+
+El secreto profesional es tuyo. Tú decides quién de tu equipo puede ver
+expedientes, con los roles y permisos del Servicio; cada persona entra con su
+propio usuario; y le quitas el acceso a quien deje de trabajar contigo (cláusula
+T8). Nuestro personal no consulta expedientes, salvo que tú lo pidas para resolver
+un problema o que una autoridad competente lo ordene por escrito.
+
+### A10. Si hay una vulneración
+
+Si sabemos de una vulneración de seguridad que afecte los datos de tus pacientes,
+**te avisamos sin demora injustificada** y te damos la información que tengamos.
+**Avisar a tus pacientes te toca a ti**, como responsable de sus datos.
+
+### A11. Si alguien reclama
+
+La cláusula T14 aplica por completo a este módulo: si un paciente, un familiar o
+una autoridad nos reclama por la atención que diste, por lo que escribiste en un
+expediente o en una receta, o porque no tenías el consentimiento o el aviso de
+privacidad que la ley te pide, **tú te haces cargo** y nos sacas en paz y a salvo.
 
 ---
 
@@ -337,7 +493,7 @@ contact@sellpointy.com
 
 ## PRIVACY NOTICE
 
-*Last updated: September 19, 2026*
+*Last updated: September 21, 2026*
 
 **P1. Who is responsible for your data.** **Carlos Hernandez Hernandez**, an individual doing business as **SellPointy** (“**SellPointy**”, “we”), located
 at San Francisco Chilpan, Tultitlán, State of Mexico, Mexico, is responsible for processing your personal data. For any privacy
@@ -353,7 +509,16 @@ cookies. To learn whether the website works we count events — a click, a form 
 **without storing your IP address, your browser or anything that identifies you.**
 We collect no sensitive personal data through the website.
 
-**P3. What we use it for.** *Necessary purposes:* answering your request; creating
+**P3. Data our customers enter about other people.** The businesses that use
+SellPointy enter data about their own customers, employees, suppliers and — in the
+Medical practice module — patients. **That business or professional is responsible
+for that data, not SellPointy**: we only store and process it on their behalf, as a
+processor, and we do not use it for anything of our own. If you are a customer or a
+patient of someone who uses SellPointy and you want to see, correct or delete your
+data, **ask that business or professional**: they decide about it and they have
+their own privacy notice. If you write to us, we pass your request on to them.
+
+**P4. What we use it for.** *Necessary purposes:* answering your request; creating
 and running your account; billing and recording your payments; supporting you;
 telling you about changes to the service or to these documents; and meeting legal
 obligations. *Optional purpose:* writing to you about SellPointy news. We only do so
@@ -361,7 +526,7 @@ if you agreed, and **you can refuse or change your mind at any time** by writing
 privacy@sellpointy.com or using the unsubscribe link in each email. Refusing does not
 affect the service.
 
-**P4. Who we share it with.** **We do not sell or rent your data.** **Your
+**P5. Who we share it with.** **We do not sell or rent your data.** **Your
 information is stored on servers located in Mexico City.** To provide the service we
 rely on providers that process it on our behalf and under a duty of confidentiality:
 server hosting (Vultr, in Mexico), daily backups (Cloudflare), email delivery
@@ -370,7 +535,7 @@ Mexico**, mainly in the United States; by using SellPointy you consent to that
 transfer, which is necessary for the service to work and for your information to be
 backed up. We may also disclose data when a competent authority lawfully requires it.
 
-**P5. 🔴 The shared product catalog.** SellPointy maintains a common catalog of
+**P6. 🔴 The shared product catalog.** SellPointy maintains a common catalog of
 **barcodes with the product name** — the one printed on the package — so any business
 can add a product just by scanning it. **When you type the name of a product whose
 barcode is not yet in that catalog, that name and its barcode may be added to it**
@@ -379,33 +544,33 @@ catalog, and never shared: your prices, costs, sales, stock, suppliers, customer
 anything that identifies your business. The catalog does not say who contributed
 each name.
 
-**P6. Your rights.** You may **access** your data, **correct** it, **delete** it or
+**P7. Your rights.** You may **access** your data, **correct** it, **delete** it or
 **object** to its use, and withdraw your consent. Write to privacy@sellpointy.com with
 your name, your account email and what you need. **We reply within 20 business
 days**, and where the request applies we carry it out within the following 15
 business days. If you feel we did not handle it properly, you may contact the data
 protection authority in your country.
 
-**P7. How long we keep it.** Your account data, for as long as you have the account
+**P8. How long we keep it.** Your account data, for as long as you have the account
 and for as long afterwards as tax law requires. If you wrote to us and never created
 an account, **24 months**, after which it is deleted automatically.
 
-**P8. If you live in Canada.** In addition: we only send you commercial messages if
+**P9. If you live in Canada.** In addition: we only send you commercial messages if
 you gave your **express consent**, and we keep a record of when and what you agreed
 to; every email includes a way to unsubscribe, which we honor within **10 business
 days**. The person responsible for the protection of personal information is
 Carlos Hernandez Hernandez, privacy@sellpointy.com. Your data may be processed outside Canada and
 outside your province.
 
-**P9. Minors.** SellPointy is for businesses. It is not directed at anyone under 18,
+**P10. Minors.** SellPointy is for businesses. It is not directed at anyone under 18,
 and we do not knowingly collect their data.
 
-**P10. Changes.** If we change this notice we publish the new version here with its
+**P11. Changes.** If we change this notice we publish the new version here with its
 date. If the change is significant, we tell you by email before it takes effect.
 
 ## TERMS AND CONDITIONS
 
-*Last updated: September 19, 2026*
+*Last updated: September 21, 2026*
 
 **T1. What this is.** These terms are the agreement between you and **Carlos Hernandez Hernandez**, an individual doing
 business as **SellPointy** (“**SellPointy**”) for using the website `sellpointy.com` and the application
@@ -437,11 +602,17 @@ corresponding to the time affected. Before paying, you had 14 days to try it in 
 at no cost. *Taxes:* prices do not include any taxes that apply in your country,
 unless stated otherwise.
 
-**T5. Your information is yours.** **Everything you enter in SellPointy is yours**:
-your products, prices, sales, stock, suppliers and customers. You give us permission
-to store and process it **only to provide the Service**. We do not sell it, share it
-or use it for anything else, with the sole exception of clause T6. You can export
-your reports whenever you want.
+**T5. Your information is yours, and it is your responsibility.** **Everything you
+enter in SellPointy is yours**: your products, prices, sales, stock, suppliers,
+customers and any other record. You give us permission to store and process it
+**only to provide the Service**. We do not sell it, share it or use it for anything
+else, with the sole exception of clause T6. You can export your reports whenever you
+want.
+
+For the same reason, **you are solely responsible for that information**: that it is
+true and complete, that you have the right to enter it, and for the use that you and
+the people you give access to make of it. SellPointy does not review, validate or
+correct what you enter, and is not liable for the decisions you make based on it.
 
 **T6. 🔴 The shared product catalog.** To make adding a product as fast as scanning
 it, SellPointy maintains a common catalog of barcodes with their trade name. **By
@@ -451,53 +622,162 @@ no cost. That permission is permanent for names already added, **and it is limit
 that**: the barcode and the product name, which are public information printed on its
 package. Nothing else from your business enters that catalog.
 
-**T7. Your customers' personal data.** If you enter data about your customers or
-employees, **you are responsible for that data** to them and under the law —
-including having your own privacy notice — and SellPointy acts only as a
-**processor**, handling it on your behalf and on your instructions. We commit to
-keeping it confidential, protecting it with reasonable measures and not using it for
-our own purposes.
+**T7. Your customers' personal data.** If you enter data about your customers,
+patients, suppliers or employees, **you are responsible for that data** to them and
+under the law, and SellPointy acts only as a **processor**: it handles the data on
+your behalf and on your instructions, which are to use the Service as it is built.
 
-**T8. 🔴 Custom modules.** Custom-built modules — such as Reception or Medical
-practice — are governed by a **separate agreement**, which prevails over these terms
-wherever they differ. In particular, **the processing of health data is not covered
-by this document**: it requires that agreement, and whoever enters such data is
-responsible for complying with the health and data-protection rules of their country.
+**Your part:** having your own privacy notice and giving it to those people;
+obtaining their consent when the law requires it, in the form it requires; handling
+their requests to access, correct, delete or object; and entering only the data you
+really need.
 
-**T9. Acceptable use.** You may not use SellPointy for anything illegal; try to
+**Our part:** keeping that data confidential; protecting it with reasonable
+administrative, technical and physical security measures; not using it for our own
+purposes; using infrastructure providers (such as hosting) bound to the same; telling
+you without undue delay if we learn of a breach that affects it; and, if one of those
+people writes to us, passing the request on to you so you can handle it.
+
+**T8. Your users and their access.** You decide who gets into your account and what
+they can see. You are responsible for what each person you give access to does, for
+each person using their own user and not a shared one, for keeping passwords safe and
+for **removing access from anyone who stops working with you**. Whatever is done with
+a user of your account is deemed done by you.
+
+**T9. 🔴 Specialized modules.** Some modules — such as Reception or Medical
+practice — serve activities that have their own laws. Those modules are governed,
+**in addition to these clauses, by their Annex**, which is part of these terms and
+prevails wherever they differ. If your activity is regulated, **complying with that
+regulation is your responsibility**, not SellPointy's: we give you a record-keeping
+tool, not legal, tax, medical or any other kind of advice.
+
+**T10. Acceptable use.** You may not use SellPointy for anything illegal; try to
 access other people's accounts or data; interfere with or overload the Service; copy,
 resell or reverse-engineer it; or enter content that infringes someone else's rights.
 We may suspend an account that does.
 
-**T10. Availability and backups.** We work to keep the Service available at all times
+Nor may you enter data you have no right to hold, or **keep health data or other
+sensitive data outside a module built for it** (for example, in the notes of a sale
+or in a point-of-sale customer record).
+
+**T11. Availability and backups.** We work to keep the Service available at all times
 and we back up your information every day. Even so, **it is provided “as is”**: we do
 not guarantee it will never fail or be free of errors. There may be interruptions for
 maintenance or for reasons beyond our control.
 
-**T11. Intellectual property.** SellPointy's software, brand and design are ours.
+**T12. Intellectual property.** SellPointy's software, brand and design are ours.
 These terms give you a right to use them while your account is active, not ownership
 of any of it. Your information is yours (T5).
 
-**T12. 🔴 Limitation of liability.** To the extent the law allows: SellPointy is not
+**T13. 🔴 Limitation of liability.** To the extent the law allows: SellPointy is not
 liable for lost profits, loss of data or indirect damages arising from use of the
 Service; and our total liability is limited to **what you paid us in the 12 months
 before** the event giving rise to it. SellPointy is a management tool: **it does not
 replace your accountant** or relieve you of your tax obligations, and the taxes it
 sets up are a starting point that you must verify.
 
-**T13. Ending.** You may stop using SellPointy whenever you want. We may suspend or
-close an account that breaches these terms. When you close your account you may ask
-us to **delete your information**; we do so except for what the law requires us to keep.
+SellPointy does not replace your lawyer or any other professional either. Nothing the
+Service shows, calculates or prints is professional advice.
 
-**T14. Changes to these terms.** We may update them. If the change is significant we
+**T14. 🔴 If someone makes a claim against us over your information.** If a third
+party — a customer of yours, a patient, an employee, an authority — makes a claim
+against us, sues us or fines us because of the information you entered, the use you
+made of it, or a law that was yours to comply with, **you take care of it**: you
+hold us harmless and cover the reasonable costs it causes us, including defense
+costs. This does not apply to what is our fault.
+
+**T15. Ending.** You may stop using SellPointy whenever you want. We may suspend or
+close an account that breaches these terms. **Before closing your account, export
+what you need to keep**: if the law requires you to keep certain records, that
+obligation is yours and stays with you even after you stop using the Service.
+
+When you close your account we stop using your information and you may ask us to
+**delete it**; we do so except for what the law requires us to keep, which we hold
+blocked — unused, and with no one able to enter the account — for that period, and
+then delete.
+
+**T16. Changes to these terms.** We may update them. If the change is significant we
 tell you by email at least 15 days ahead. Continuing to use the Service afterwards
 means you accept them.
 
-**T15. Governing law.** These terms are governed by the laws of **Mexico**. Any
+**T17. Governing law.** These terms are governed by the laws of **Mexico**. Any
 dispute is submitted to the courts of the State of Mexico, unless the consumer protection law
 of your country gives you a right that cannot be waived.
 
-**T16. Contact.** contact@sellpointy.com
+**T18. Contact.** contact@sellpointy.com
+
+**A1. Annex A — Medical practice module (Mexico).** This Annex is part of these
+terms. It applies to anyone who uses the Medical practice module, which is offered
+only in Mexico. Wherever it differs from the clauses above, this Annex prevails.
+
+**A2. What this module is, and what it is not.** It is a **record-keeping tool** for
+your practice: patient records, notes, prescriptions, orders and charging for what
+you provide. **It is not a medical device.** It does not diagnose, does not recommend
+treatments and **does not check doses, interactions, allergies or
+contraindications**. Everything written in a record, a prescription or an order is
+your professional decision, not the system's.
+
+**A3. Who may use it.** Only health professionals who may legally practice in Mexico,
+and staff working under their responsibility. **You guarantee** that every person who
+sees patients with your account holds a valid degree and professional license
+(cédula profesional), and that the professional details you enter are true.
+
+**A4. Your patients' data is sensitive data, and you are responsible for it.** Health
+data is **sensitive personal data**, the category that data-protection law protects
+most. To your patients and to the authority, **you are the one responsible for that
+data**; SellPointy is only the processor (clause T7). That means that, **before
+entering a patient's first piece of data**, it is up to you to:
+
+- give them your **full privacy notice**, stating that you process health data;
+- obtain their **express written consent** to process it, and keep it;
+- if they are a minor or cannot decide for themselves, obtain it from whoever
+  represents them;
+- handle their requests about their data yourself.
+
+For our part, your patients' data **does not enter the shared catalog, is not used
+for statistics that identify anyone, and is not used for any purpose of our own.**
+
+**A5. The clinical record is your obligation.** Putting the record together, making
+sure it has the content required by **NOM-004-SSA3-2012** and **keeping it for at
+least five years from the last medical act** are your obligations as the provider of
+the service. SellPointy does not check that a record is complete or that it meets the
+standard. So: **before closing your account or stopping payment, export your
+records.** If you stop using SellPointy, the obligation to keep them is still yours,
+and we do not guarantee that you will be able to consult them after the account is
+closed.
+
+**A6. 🔴 About NOM-024-SSA3-2012.** NOM-024-SSA3-2012 regulates electronic clinical
+record systems in Mexico and provides for their certification. **SellPointy is not
+certified under that standard.** Deciding whether a tool without that certification
+is suitable for your practice, and for the obligations you have, is your
+responsibility. If your institution or your health authority requires a certified
+system, do not use this module as your official record.
+
+**A7. Prescriptions and orders.** The prescription and the order you print are
+**issued by you**, with your name, your license number and your signature. You answer
+for their content. The module **does not produce special prescription forms** or the
+formats the health authority requires for controlled medicines: if you prescribe
+one, do it by the means the law requires, not with SellPointy.
+
+**A8. Not for emergencies.** The Service may fail or be unavailable (clause T11). **Do
+not depend on SellPointy to handle an emergency** or a decision that cannot wait:
+always have a way to see your patients without the system.
+
+**A9. Professional secrecy and access.** Professional secrecy is yours. You decide who
+on your team can see records, with the Service's roles and permissions; each person
+signs in with their own user; and you remove access from anyone who stops working
+with you (clause T8). Our staff do not look at records, unless you ask us to in order
+to solve a problem or a competent authority orders it in writing.
+
+**A10. If there is a breach.** If we learn of a security breach that affects your
+patients' data, **we tell you without undue delay** and give you the information we
+have. **Telling your patients is up to you**, as the one responsible for their data.
+
+**A11. If someone makes a claim.** Clause T14 applies in full to this module: if a
+patient, a relative or an authority makes a claim against us over the care you gave,
+what you wrote in a record or a prescription, or because you did not have the consent
+or the privacy notice the law requires of you, **you take care of it** and hold us
+harmless.
 
 ---
 
@@ -510,7 +790,7 @@ of your country gives you a right that cannot be waived.
 
 ## POLITIQUE DE CONFIDENTIALITÉ
 
-*Dernière mise à jour : 19 septembre 2026*
+*Dernière mise à jour : 21 septembre 2026*
 
 **P1. Qui est responsable de vos données.** **Carlos Hernandez Hernandez**, personne physique exerçant une activité commerciale sous le nom
 commercial **SellPointy** (« **SellPointy** », « nous »),
@@ -530,7 +810,18 @@ publicitaire ni de suivi. Pour savoir si le site fonctionne, nous comptons des
 navigateur ni aucun élément permettant de vous identifier.** Nous ne recueillons
 aucune donnée personnelle sensible par l'intermédiaire du site.
 
-**P3. À quoi elles servent.** *Finalités nécessaires :* répondre à votre demande ;
+**P3. Les données que nos clients saisissent sur d'autres personnes.** Les commerces
+qui utilisent SellPointy saisissent des données sur leurs propres clients, employés,
+fournisseurs et — dans le module Cabinet médical — patients. **C'est ce commerce ou
+ce professionnel qui est responsable de ces données, et non SellPointy** : nous ne
+faisons que les conserver et les traiter pour son compte, à titre de sous-traitant,
+et nous ne les utilisons à aucune fin propre. Si vous êtes client ou patient d'une
+personne qui utilise SellPointy et que vous souhaitez consulter, corriger ou
+supprimer vos données, **adressez-vous à ce commerce ou à ce professionnel** : c'est
+lui qui en décide et qui dispose de sa propre politique de confidentialité. Si vous
+nous écrivez, nous lui transmettons votre demande.
+
+**P4. À quoi elles servent.** *Finalités nécessaires :* répondre à votre demande ;
 créer et exploiter votre compte ; facturer et enregistrer vos paiements ; vous
 assister ; vous informer des changements apportés au service ou à ces documents ; et
 respecter nos obligations légales. *Finalité facultative :* vous écrire au sujet des
@@ -539,7 +830,7 @@ pouvez refuser ou changer d'avis à tout moment** en écrivant à
 privacy@sellpointy.com ou au moyen du lien de désabonnement de chaque
 courriel. Un refus n'a aucune incidence sur le service.
 
-**P4. Avec qui nous les partageons.** **Nous ne vendons ni ne louons vos données.**
+**P5. Avec qui nous les partageons.** **Nous ne vendons ni ne louons vos données.**
 **Vos informations sont conservées sur des serveurs situés à Mexico.** Pour fournir
 le service, nous faisons appel à des fournisseurs qui les traitent pour notre compte
 et sous obligation de confidentialité : l'hébergement du serveur (Vultr, au
@@ -550,7 +841,7 @@ SellPointy, vous consentez à ce transfert, nécessaire au fonctionnement du ser
 à la sauvegarde de vos informations. Nous pouvons aussi communiquer des données
 lorsqu'une autorité compétente l'exige conformément à la loi.
 
-**P5. 🔴 Le catalogue de produits partagé.** SellPointy tient un catalogue commun de
+**P6. 🔴 Le catalogue de produits partagé.** SellPointy tient un catalogue commun de
 **codes-barres accompagnés du nom du produit** — celui qui est imprimé sur
 l'emballage — afin que tout commerce puisse ajouter un produit simplement en le
 scannant. **Lorsque vous saisissez le nom d'un produit dont le code-barres ne figure
@@ -560,7 +851,7 @@ partie du catalogue, et ne sont jamais partagés : vos prix, vos coûts, vos ven
 vos stocks, vos fournisseurs, vos clients, ni aucun élément permettant d'identifier
 votre commerce. Le catalogue n'indique pas qui a fourni chaque nom.
 
-**P6. Vos droits.** Vous pouvez **accéder** à vos données, les **rectifier**, les
+**P7. Vos droits.** Vous pouvez **accéder** à vos données, les **rectifier**, les
 **supprimer** ou vous **opposer** à leur utilisation, et retirer votre consentement.
 Écrivez à privacy@sellpointy.com en indiquant votre nom, le courriel de
 votre compte et votre demande. **Nous répondons dans un délai de 20 jours
@@ -569,12 +860,12 @@ ouvrables suivants. Si vous estimez que votre demande n'a pas été traitée
 correctement, vous pouvez vous adresser à l'autorité de protection des données de
 votre pays.
 
-**P7. Durée de conservation.** Les données de votre compte, tant que vous le
+**P8. Durée de conservation.** Les données de votre compte, tant que vous le
 conservez et aussi longtemps que la législation fiscale l'exige par la suite. Si vous
 nous avez écrit sans jamais créer de compte, **24 mois**, après quoi elles sont
 supprimées automatiquement.
 
-**P8. Si vous résidez au Canada.** En plus de ce qui précède : nous ne vous envoyons
+**P9. Si vous résidez au Canada.** En plus de ce qui précède : nous ne vous envoyons
 des messages commerciaux que si vous avez donné votre **consentement exprès**, et
 nous conservons la trace de la date et de l'objet de ce consentement ; chaque
 courriel comporte un moyen de se désabonner, que nous respectons dans un délai de
@@ -582,16 +873,16 @@ courriel comporte un moyen de se désabonner, que nous respectons dans un délai
 personnels est Carlos Hernandez Hernandez, privacy@sellpointy.com. Vos données peuvent être
 traitées à l'extérieur du Canada et de votre province.
 
-**P9. Mineurs.** SellPointy s'adresse aux commerces. Il n'est pas destiné aux
+**P10. Mineurs.** SellPointy s'adresse aux commerces. Il n'est pas destiné aux
 personnes de moins de 18 ans et nous ne recueillons pas sciemment leurs données.
 
-**P10. Modifications.** Si nous modifions cette politique, nous publions ici la
+**P11. Modifications.** Si nous modifions cette politique, nous publions ici la
 nouvelle version avec sa date. Si le changement est important, nous vous en informons
 par courriel avant son entrée en vigueur.
 
 ## CONDITIONS GÉNÉRALES
 
-*Dernière mise à jour : 19 septembre 2026*
+*Dernière mise à jour : 21 septembre 2026*
 
 **T1. Objet.** Les présentes conditions constituent l'accord entre vous et **Carlos Hernandez Hernandez**, personne physique
 exerçant une activité commerciale sous le nom commercial **SellPointy** (« **SellPointy** ») pour l'utilisation du site `sellpointy.com` et de l'application
@@ -625,12 +916,18 @@ la durée touchée. Avant de payer, vous avez eu 14 jours pour l'essayer en enti
 sans frais. *Taxes :* les prix n'incluent pas les taxes applicables dans votre pays,
 sauf indication contraire.
 
-**T5. Vos informations vous appartiennent.** **Tout ce que vous saisissez dans
-SellPointy vous appartient** : vos produits, prix, ventes, stocks, fournisseurs et
-clients. Vous nous autorisez à les conserver et à les traiter **uniquement pour
-fournir le Service**. Nous ne les vendons pas, ne les partageons pas et ne les
-utilisons à aucune autre fin, à la seule exception de la clause T6. Vous pouvez
-exporter vos rapports à tout moment.
+**T5. Vos informations vous appartiennent, et vous en êtes responsable.** **Tout ce
+que vous saisissez dans SellPointy vous appartient** : vos produits, prix, ventes,
+stocks, fournisseurs, clients et tout autre enregistrement. Vous nous autorisez à les
+conserver et à les traiter **uniquement pour fournir le Service**. Nous ne les
+vendons pas, ne les partageons pas et ne les utilisons à aucune autre fin, à la seule
+exception de la clause T6. Vous pouvez exporter vos rapports à tout moment.
+
+Pour la même raison, **vous êtes le seul responsable de ces informations** : de leur
+exactitude et de leur caractère complet, de votre droit de les saisir, et de l'usage
+que vous et les personnes à qui vous donnez accès en faites. SellPointy ne révise, ne
+valide et ne corrige pas ce que vous saisissez, et ne répond pas des décisions que
+vous prenez sur cette base.
 
 **T6. 🔴 Le catalogue de produits partagé.** Pour qu'ajouter un produit soit aussi
 rapide que de le scanner, SellPointy tient un catalogue commun de codes-barres avec
@@ -642,38 +939,61 @@ code-barres et le nom du produit, qui sont des renseignements publics imprimés 
 son emballage. Rien d'autre de votre commerce n'entre dans ce catalogue.
 
 **T7. Les données personnelles de VOS clients.** Si vous saisissez des données sur
-vos clients ou vos employés, **vous êtes responsable de ces données** envers eux et
-devant la loi — y compris pour disposer de votre propre politique de
-confidentialité — et SellPointy n'agit qu'à titre de **sous-traitant**, en les
-traitant pour votre compte et selon vos instructions. Nous nous engageons à les
-garder confidentielles, à les protéger par des mesures raisonnables et à ne pas les
-utiliser à nos propres fins.
+vos clients, patients, fournisseurs ou employés, **vous êtes responsable de ces
+données** envers eux et devant la loi, et SellPointy n'agit qu'à titre de
+**sous-traitant** : il les traite pour votre compte et selon vos instructions, qui
+consistent à utiliser le Service tel qu'il est conçu.
 
-**T8. 🔴 Modules sur mesure.** Les modules conçus sur mesure — comme Réception ou
-Cabinet médical — sont régis par un **accord distinct**, qui prévaut sur les
-présentes conditions en cas de divergence. En particulier, **le traitement de données
-de santé n'est pas couvert par ce document** : il exige cet accord, et la personne
-qui saisit ces données est responsable du respect des règles sanitaires et de
-protection des données de son pays.
+**Ce qui vous revient :** disposer de votre propre politique de confidentialité et la
+remettre à ces personnes ; obtenir leur consentement lorsque la loi l'exige, et dans
+la forme qu'elle exige ; traiter leurs demandes d'accès, de rectification, de
+suppression et d'opposition ; et ne saisir que les données réellement nécessaires.
 
-**T9. Utilisation acceptable.** Vous ne pouvez pas utiliser SellPointy à des fins
+**Ce qui nous revient :** garder ces données confidentielles ; les protéger par des
+mesures de sécurité administratives, techniques et physiques raisonnables ; ne pas
+les utiliser à nos propres fins ; recourir à des fournisseurs d'infrastructure (comme
+l'hébergement) tenus aux mêmes obligations ; vous aviser sans retard injustifié si
+nous apprenons qu'un incident les touche ; et, si l'une de ces personnes nous écrit,
+vous transmettre sa demande pour que vous la traitiez.
+
+**T8. Vos utilisateurs et leurs accès.** Vous décidez qui entre dans votre compte et
+ce que chacun peut voir. Vous êtes responsable de ce que fait chaque personne à qui
+vous donnez accès, du fait que chacun utilise son propre utilisateur et non un
+utilisateur partagé, de la protection des mots de passe et du **retrait de l'accès à
+toute personne qui cesse de travailler avec vous**. Ce qui est fait avec un
+utilisateur de votre compte est réputé fait par vous.
+
+**T9. 🔴 Modules spécialisés.** Certains modules — comme Réception ou Cabinet
+médical — servent à des activités qui ont leurs propres lois. Ces modules sont régis,
+**en plus des présentes clauses, par leur Annexe**, qui fait partie des présentes
+conditions et prévaut en cas de divergence. Si votre activité est réglementée, **le
+respect de cette réglementation relève de votre responsabilité**, et non de celle de
+SellPointy : nous vous fournissons un outil de tenue de dossiers, et non des conseils
+juridiques, fiscaux, médicaux ou de toute autre nature.
+
+**T10. Utilisation acceptable.** Vous ne pouvez pas utiliser SellPointy à des fins
 illégales ; tenter d'accéder aux comptes ou aux données d'autrui ; perturber ou
 surcharger le Service ; le copier, le revendre ou en faire l'ingénierie inverse ; ni
 saisir un contenu portant atteinte aux droits d'autrui. Nous pouvons suspendre un
 compte qui le fait.
 
-**T10. Disponibilité et sauvegardes.** Nous faisons en sorte que le Service soit
+Vous ne pouvez pas non plus saisir des données que vous n'avez pas le droit de
+détenir, ni **conserver des données de santé ou d'autres données sensibles hors d'un
+module conçu pour cela** (par exemple, dans les notes d'une vente ou dans la fiche
+d'un client du point de vente).
+
+**T11. Disponibilité et sauvegardes.** Nous faisons en sorte que le Service soit
 toujours accessible et nous sauvegardons vos informations chaque jour. Néanmoins,
 **il est fourni « tel quel »** : nous ne garantissons pas qu'il ne tombera jamais en
 panne ni qu'il sera exempt d'erreurs. Des interruptions peuvent survenir pour
 maintenance ou pour des raisons indépendantes de notre volonté.
 
-**T11. Propriété intellectuelle.** Le logiciel, la marque et le design de SellPointy
+**T12. Propriété intellectuelle.** Le logiciel, la marque et le design de SellPointy
 nous appartiennent. Les présentes conditions vous accordent un droit d'utilisation
 tant que votre compte est actif, et non la propriété de ces éléments. Vos
 informations vous appartiennent (T5).
 
-**T12. 🔴 Limitation de responsabilité.** Dans la mesure permise par la loi :
+**T13. 🔴 Limitation de responsabilité.** Dans la mesure permise par la loi :
 SellPointy ne répond pas des pertes de profits, des pertes de données ni des dommages
 indirects découlant de l'utilisation du Service ; et notre responsabilité totale se
 limite à **ce que vous nous avez payé au cours des 12 mois précédant** le fait
@@ -681,21 +1001,122 @@ générateur. SellPointy est un outil de gestion : **il ne remplace pas votre
 comptable** et ne vous dégage pas de vos obligations fiscales, et les taxes qu'il
 configure sont un point de départ que vous devez vérifier.
 
-**T13. Fin de l'utilisation.** Vous pouvez cesser d'utiliser SellPointy à tout moment.
-Nous pouvons suspendre ou fermer un compte qui enfreint ces conditions. À la
-fermeture de votre compte, vous pouvez nous demander de **supprimer vos
-informations** ; nous le faisons, sauf pour ce que la loi nous oblige à conserver.
+SellPointy ne remplace pas non plus votre avocat ni aucun autre professionnel. Rien
+de ce que le Service affiche, calcule ou imprime ne constitue un conseil
+professionnel.
 
-**T14. Modifications.** Nous pouvons mettre ces conditions à jour. Si le changement
+**T14. 🔴 Si quelqu'un nous met en cause au sujet de vos informations.** Si un tiers —
+l'un de vos clients, un patient, un employé, une autorité — nous adresse une
+réclamation, nous poursuit ou nous sanctionne en raison des informations que vous
+avez saisies, de l'usage que vous en avez fait ou d'une loi qu'il vous appartenait de
+respecter, **vous en assumez la charge** : vous nous dégagez de toute responsabilité
+et couvrez les frais raisonnables que cela nous occasionne, y compris les frais de
+défense. Cela ne s'applique pas à ce qui relève de notre faute.
+
+**T15. Fin de l'utilisation.** Vous pouvez cesser d'utiliser SellPointy à tout moment.
+Nous pouvons suspendre ou fermer un compte qui enfreint ces conditions. **Avant de
+fermer votre compte, exportez ce que vous devez conserver** : si la loi vous oblige à
+garder certains documents, cette obligation est la vôtre et vous suit même après la
+fin de votre utilisation du Service.
+
+À la fermeture de votre compte, nous cessons d'utiliser vos informations et vous
+pouvez nous demander de les **supprimer** ; nous le faisons, sauf pour ce que la loi
+nous oblige à conserver, que nous gardons bloqué — sans l'utiliser et sans que
+personne puisse entrer dans le compte — pendant ce délai, puis que nous supprimons.
+
+**T16. Modifications.** Nous pouvons mettre ces conditions à jour. Si le changement
 est important, nous vous en informons par courriel au moins 15 jours à l'avance.
 Continuer d'utiliser le Service par la suite signifie que vous les acceptez.
 
-**T15. Droit applicable.** Les présentes conditions sont régies par les lois du
+**T17. Droit applicable.** Les présentes conditions sont régies par les lois du
 **Mexique**. Tout litige est soumis aux tribunaux de l'État de Mexico, sauf si la loi sur
 la protection du consommateur de votre pays vous accorde un droit auquel il est
 impossible de renoncer.
 
-**T16. Contact.** contact@sellpointy.com
+**T18. Contact.** contact@sellpointy.com
+
+**A1. Annexe A — Module Cabinet médical (Mexique).** La présente Annexe fait partie
+des présentes conditions. Elle s'applique à toute personne qui utilise le module
+Cabinet médical, offert uniquement au Mexique. En cas de divergence avec les clauses
+qui précèdent, la présente Annexe prévaut.
+
+**A2. Ce qu'est ce module, et ce qu'il n'est pas.** C'est un **outil de tenue de
+dossiers** pour votre cabinet : dossiers, notes, ordonnances, prescriptions d'examens
+et facturation de vos actes. **Ce n'est pas un dispositif médical.** Il ne pose pas de
+diagnostic, ne recommande pas de traitement et **ne vérifie ni les doses, ni les
+interactions, ni les allergies, ni les contre-indications**. Tout ce qui est écrit
+dans un dossier, une ordonnance ou une prescription est votre décision
+professionnelle, et non celle du système.
+
+**A3. Qui peut l'utiliser.** Uniquement les professionnels de la santé autorisés à
+exercer légalement au Mexique, et le personnel qui travaille sous leur
+responsabilité. **Vous garantissez** que chaque personne qui reçoit des patients avec
+votre compte détient un diplôme et un permis d'exercice (cédula profesional) en
+vigueur, et que les renseignements professionnels que vous saisissez sont exacts.
+
+**A4. Les données de vos patients sont des données sensibles, et vous en êtes responsable.** Les données de santé sont des **données personnelles sensibles**, la
+catégorie que la loi sur la protection des données protège le plus. Envers vos
+patients et devant l'autorité, **le responsable de ces données, c'est vous** ;
+SellPointy n'est que le sous-traitant (clause T7). Cela signifie que, **avant de
+saisir la première donnée d'un patient**, il vous revient de :
+
+- lui remettre votre **politique de confidentialité complète**, indiquant que vous
+  traitez des données de santé ;
+- obtenir son **consentement exprès et écrit** pour les traiter, et le conserver ;
+- s'il est mineur ou ne peut pas décider par lui-même, l'obtenir de la personne qui
+  le représente ;
+- traiter vous-même ses demandes concernant ses données.
+
+Pour notre part, les données de vos patients **n'entrent pas dans le catalogue
+partagé, ne servent pas à des statistiques permettant d'identifier qui que ce soit
+et ne servent à aucune fin propre.**
+
+**A5. Le dossier clinique est votre obligation.** Constituer le dossier, veiller à ce
+qu'il ait le contenu exigé par la **NOM-004-SSA3-2012** et **le conserver au moins
+cinq ans à compter du dernier acte médical** sont vos obligations à titre de
+prestataire du service. SellPointy ne vérifie pas qu'un dossier est complet ni qu'il
+respecte la norme. Par conséquent : **avant de fermer votre compte ou de cesser de
+payer, exportez vos dossiers.** Si vous cessez d'utiliser SellPointy, l'obligation de
+les conserver reste la vôtre, et nous ne garantissons pas que vous pourrez les
+consulter après la fermeture du compte.
+
+**A6. 🔴 À propos de la NOM-024-SSA3-2012.** La NOM-024-SSA3-2012 encadre les
+systèmes de dossier clinique électronique au Mexique et prévoit leur certification.
+**SellPointy n'est pas certifié selon cette norme.** Décider si un outil sans cette
+certification convient à votre pratique, et aux obligations qui sont les vôtres,
+relève de votre responsabilité. Si votre établissement ou votre autorité sanitaire
+exige un système certifié, n'utilisez pas ce module comme dossier officiel.
+
+**A7. Ordonnances et prescriptions.** L'ordonnance et la prescription que vous
+imprimez sont **émises par vous**, avec votre nom, votre numéro de permis et votre
+signature. Vous répondez de leur contenu. Le module **ne produit pas d'ordonnanciers
+spéciaux** ni les formulaires que l'autorité sanitaire exige pour les médicaments
+contrôlés : si vous en prescrivez un, faites-le par le moyen que la loi exige, et non
+avec SellPointy.
+
+**A8. Pas pour les urgences.** Le Service peut tomber en panne ou être indisponible
+(clause T11). **Ne dépendez pas de SellPointy pour traiter une urgence** ni pour une
+décision qui ne peut pas attendre : ayez toujours un moyen de recevoir vos patients
+sans le système.
+
+**A9. Secret professionnel et accès.** Le secret professionnel est le vôtre. Vous
+décidez qui, dans votre équipe, peut voir les dossiers, à l'aide des rôles et des
+permissions du Service ; chaque personne se connecte avec son propre utilisateur ; et
+vous retirez l'accès à toute personne qui cesse de travailler avec vous (clause T8).
+Notre personnel ne consulte pas les dossiers, sauf si vous le demandez pour résoudre
+un problème ou si une autorité compétente l'ordonne par écrit.
+
+**A10. En cas d'incident de sécurité.** Si nous apprenons qu'un incident de sécurité
+touche les données de vos patients, **nous vous avisons sans retard injustifié** et
+vous communiquons les renseignements dont nous disposons. **Aviser vos patients vous
+revient**, à titre de responsable de leurs données.
+
+**A11. Si quelqu'un nous met en cause.** La clause T14 s'applique intégralement à ce
+module : si un patient, un proche ou une autorité nous met en cause en raison des
+soins que vous avez donnés, de ce que vous avez écrit dans un dossier ou une
+ordonnance, ou parce que vous n'aviez pas le consentement ou la politique de
+confidentialité que la loi exige de vous, **vous en assumez la charge** et nous
+dégagez de toute responsabilité.
 
 ---
 
@@ -705,24 +1126,38 @@ impossible de renoncer.
 |---|---|---|
 | **LFPDPPP** (México) | Responsable y domicilio | P1 |
 | | Datos que se recaban; si hay sensibles | P2 |
-| | Finalidades, separando necesarias de opcionales | P3 |
-| | Transferencias | P4, P5 |
-| | Medio para derechos ARCO y para revocar | P6 |
-| | Cómo se avisan los cambios | P10 |
-| **CASL** (Canadá) | Consentimiento expreso, registrado | P8 + la casilla del formulario, nunca marcada |
-| | Identificar al remitente y forma de baja | P8 + pie de cada correo |
-| **Ley 25** (Quebec) | Responsable de datos nombrado | P8 |
-| | Aviso de transferencia fuera de la provincia | P8 |
+| | De quién son los datos que capturan los clientes (responsable vs. encargado) | P3, T7, A4 |
+| | Finalidades, separando necesarias de opcionales | P4 |
+| | Transferencias | P5, P6 |
+| | Medio para derechos ARCO y para revocar | P7 |
+| | Cómo se avisan los cambios | P11 |
+| **CASL** (Canadá) | Consentimiento expreso, registrado | P9 + la casilla del formulario, nunca marcada |
+| | Identificar al remitente y forma de baja | P9 + pie de cada correo |
+| **Ley 25** (Quebec) | Responsable de datos nombrado | P9 |
+| | Aviso de transferencia fuera de la provincia | P9 |
 | | El aviso, **en francés y de la misma calidad** | ✅ Sección FRANÇAIS, completa y con las mismas cláusulas |
 
 ## Lo que este borrador NO resuelve
 
-1. 🔴 **Los datos de salud del módulo de Consultorio.** Fuera de alcance a propósito (§0, T8).
-2. 🔴 **Si en Quebec se puede vender una aplicación que no está en francés.** Sin
+1. 🔴 **PENDIENTE DE CARLOS — certificar SellPointy conforme a la NOM-024-SSA3-2012**
+   (anotado el 2026-09-21). Es la norma mexicana de los sistemas de expediente clínico
+   electrónico y prevé su certificación. El Anexo A lo dice sin rodeos (A6: «SellPointy
+   no está certificado») y deja la decisión al médico, pero **una cláusula no hace que
+   el producto cumpla la norma**: mientras no se certifique, ofrecer el módulo de
+   Consultorio es el riesgo legal más serio de SellPointy. Primer paso: que un abogado
+   diga qué exposición real hay hoy y qué pide el trámite. El día que se certifique,
+   A6 se reescribe y sube la versión de los términos. Tarea `F9-CLINIC-NOM024-01`.
+2. **El Anexo A no lo revisó un abogado.** Lo redactó Claude y Carlos lo aprobó el
+   2026-09-21, con el riesgo a su cargo, igual que el resto de estos documentos.
+   Lo más delicado: A6 (NOM-024), T14 (indemnización) y A4 (consentimiento).
+3. **La aceptación del Anexo no queda registrada aparte.** Hoy se acepta con los
+   Términos (la pared de `TermsGate`). Lo más sólido sería pedirla AL ACTIVAR el
+   módulo, guardando quién, cuándo y qué versión. Tarea `F9-CLINIC-NOM024-02`.
+4. 🔴 **Si en Quebec se puede vender una aplicación que no está en francés.** Sin
    abogado, la pregunta sigue abierta. **Lo prudente, y lo que recomiendo: que
    `/fr-ca/` salga DESPUÉS de las otras cuatro versiones**, cuando el francés esté en
    la aplicación — que tú mismo dijiste que viene. Publicar antes es el riesgo más
    evitable de todo el sitio.
-3. **La facturación fiscal.** Estos términos no tocan CFDI ni facturas.
-4. **Que el límite de responsabilidad (T12) aguante ante un juez.** Las leyes de
+5. **La facturación fiscal.** Estos términos no tocan CFDI ni facturas.
+6. **Que el límite de responsabilidad (T13) aguante ante un juez.** Las leyes de
    consumo de cada país pueden recortarlo; es una cláusula estándar, no una garantía.
