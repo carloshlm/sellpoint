@@ -103,12 +103,17 @@ export const CUSTOM_PLAN_PARAM = "custom";
  * importes. `test/sections.test.ts` comprueba que el total sea la suma.
  */
 export const MOCK_SALE: Record<MarketId, { barcode: string; lines: number[]; total: number }> = {
-  mx: { barcode: "7501055300013", lines: [28, 24.9, 189], total: 241.9 },
+  mx: { barcode: "7501055300013", lines: [28, 52.5, 189], total: 269.5 },
   us: { barcode: "036000291452", lines: [3.98, 4.49, 12.99], total: 21.46 },
   ca: { barcode: "055000123457", lines: [4.58, 4.99, 14.99], total: 24.56 },
 };
 
-/** Cuántas piezas lleva cada renglón de la caja («2 piezas», «1 pieza», «1 pieza»). */
+/**
+ * Cuántas piezas lleva cada renglón de la caja («2 piezas», «250 g», «1 pieza»).
+ * El segundo se vende POR PESO (queso mozzarella): aquí cuenta como UNA venta,
+ * y su importe es el de esa porción — 250 g en México y Canadá, 8 oz en Estados
+ * Unidos. A $52.50 los 250 g salen $210 el kilo: un precio que un tendero cree.
+ */
 export const MOCK_SALE_QUANTITIES: readonly number[] = [2, 1, 1];
 
 /**

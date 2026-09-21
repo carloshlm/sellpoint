@@ -26,7 +26,8 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
       mock: {
         items: {
           first: { name: "Agua de manantial 1 L" },
-          second: { name: "Galletas de avena 6 oz" },
+          // En Estados Unidos el mostrador pesa en onzas.
+          second: { detail: "8 oz" },
           third: { name: "Aceite de oliva 17 fl oz" },
         },
       },
@@ -68,7 +69,7 @@ export const ROUTE_OVERRIDES: Partial<Record<Route, MessageOverrides>> = {
       mock: {
         items: {
           // Canadá es métrico.
-          second: { name: "Oatmeal cookies 170 g" },
+          second: { detail: "250 g" },
           third: { name: "Olive oil 500 mL" },
         },
       },

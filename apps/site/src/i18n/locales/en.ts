@@ -45,7 +45,7 @@ export const en: Messages = {
       pay: "Charge",
       items: {
         first: { name: "Spring water 1 L", detail: "Qty 2" },
-        second: { name: "Oatmeal cookies 6 oz", detail: "Qty 1" },
+        second: { name: "Mozzarella cheese", detail: "8 oz" },
         third: { name: "Olive oil 17 fl oz", detail: "Qty 1" },
       },
     },
@@ -125,7 +125,7 @@ export const en: Messages = {
     },
     imageAlt:
       "A cashier scans a bottle of water with a barcode scanner; next to her, a tablet shows the sale in SellPointy and a printer delivers the receipt.",
-    caption: "Illustrative image.",
+    caption: "Illustrative image of a sale with SellPointy.",
   },
   insights: {
     eyebrow: "Your dashboard",

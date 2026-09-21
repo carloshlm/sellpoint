@@ -45,7 +45,7 @@ export const fr: Messages = {
       pay: "Encaisser",
       items: {
         first: { name: "Eau de source 1 L", detail: "Qté 2" },
-        second: { name: "Biscuits à l'avoine 170 g", detail: "Qté 1" },
+        second: { name: "Fromage mozzarella", detail: "250 g" },
         third: { name: "Huile d'olive 500 mL", detail: "Qté 1" },
       },
     },
@@ -128,7 +128,7 @@ export const fr: Messages = {
     },
     imageAlt:
       "Une caissière scanne une bouteille d'eau avec un lecteur de codes-barres\u202f; à côté d'elle, une tablette affiche la vente dans SellPointy et une imprimante délivre le reçu.",
-    caption: "Image d'illustration.",
+    caption: "Image d'illustration d'une vente avec SellPointy.",
   },
   insights: {
     eyebrow: "Votre tableau de bord",

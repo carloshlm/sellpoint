@@ -116,9 +116,23 @@ describe("hero y la caja dibujada (PAGE-02)", () => {
   });
 
   it("México cobra en pesos los productos del prototipo", () => {
-    expect(pageOf("es-mx")).toContain("$241.90");
+    expect(pageOf("es-mx")).toContain("$269.50");
     expect(pageOf("es-mx")).toContain("Agua natural 1 L");
   });
+
+  // El segundo renglón se vende POR PESO (2026-09-21): quien vende queso, carne
+  // o semillas ve de un vistazo que la caja no es solo para piezas. El nombre
+  // no lleva gramaje —eso sería un empaque— y el peso va donde iría «1 pieza».
+  it.each([...ROUTES])(
+    "/%s/: el segundo producto se vende por peso, en la unidad de su mercado",
+    (route) => {
+      const { market } = getLocale(route);
+      const { second } = getMessages(route).hero.mock.items;
+      expect(second.name).not.toMatch(/\d/);
+      expect(second.detail).toMatch(market === "us" ? /^\d+ oz$/ : /^\d+\s?g$/);
+      expect(pageOf(route)).toContain(escaped(second.detail));
+    },
+  );
 
   it("el total es la suma de sus líneas: la caja no puede mentir", () => {
     for (const sale of Object.values(MOCK_SALE)) {
@@ -323,6 +337,8 @@ describe("en tu mostrador: la foto (PAGE-08)", () => {
     expect(img).toContain(`alt="${inAction.imageAlt.replace(/"/g, "&quot;")}"`);
     // La imagen es de estudio, no de un cliente: se dice.
     expect(textOf(section)).toContain(inAction.caption);
+    // «Imagen ilustrativa» a secas no dice DE QUÉ: el pie nombra lo que se ve.
+    expect(inAction.caption).toContain("SellPointy");
   });
 
   it("la foto no hace saltar la página ni estorba al titular", () => {

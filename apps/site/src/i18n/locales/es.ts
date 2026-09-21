@@ -51,7 +51,9 @@ export const es = {
       pay: "Cobrar",
       items: {
         first: { name: "Agua natural 1 L", detail: "2 piezas" },
-        second: { name: "Galletas de avena 170 g", detail: "1 pieza" },
+        // Se vende POR PESO: el nombre no lleva gramaje (eso sería un empaque) y
+        // el peso va donde iría «1 pieza». Así se ve que la caja no es solo piezas.
+        second: { name: "Queso mozzarella", detail: "250 g" },
         third: { name: "Aceite de oliva 500 ml", detail: "1 pieza" },
       },
     },
@@ -138,7 +140,7 @@ export const es = {
     },
     imageAlt:
       "Una cajera escanea una botella de agua con un lector de códigos; a su lado, una tablet muestra la venta en SellPointy y una impresora entrega el ticket.",
-    caption: "Imagen ilustrativa.",
+    caption: "Imagen ilustrativa de una venta con SellPointy.",
   },
   // El panel dibujado (PAGE-09). Es de TODOS los planes, y por eso no habla de
   // existencias: Basic no las lleva. Los importes viven en `config/page.ts`.

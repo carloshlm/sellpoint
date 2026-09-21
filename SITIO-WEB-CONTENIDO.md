@@ -230,8 +230,9 @@ francés están en `apps/site/src/i18n/locales/` (claves `inAction` e `insights`
   lector, aparece en pantalla con su precio y cobras. Sin teclear precios ni
   buscar en una lista.
 - **Pasos:** Escanea · Cobra · Entrega el ticket.
-- **Bajo la foto:** «Imagen ilustrativa.» — es una imagen de estudio, no un
-  cliente, y se dice.
+- **Bajo la foto:** «Imagen ilustrativa de una venta con SellPointy.» — es una
+  imagen de estudio, no un cliente, y se dice. *(2026-09-21: «Imagen ilustrativa.»
+  a secas no decía de qué; ahora el pie nombra lo que se ve.)*
 
 **Tu panel** (va después de «Beneficios», en banda azul profundo). El panel es
 de **todos los planes**, y por eso la sección **no habla de existencias** —Basic
