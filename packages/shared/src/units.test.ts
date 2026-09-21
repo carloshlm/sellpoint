@@ -7,6 +7,7 @@ import {
   UNIT_CODES,
   UNITS,
   unitName,
+  unitSymbol,
 } from "./units";
 
 /**
@@ -158,5 +159,23 @@ describe("convertUnits (F2-UOM-02)", () => {
   it("un valor no finito LANZA (mismo criterio que formatMoney)", () => {
     expect(() => convertUnits(Number.NaN, "kg", "gr")).toThrow();
     expect(() => convertUnits(Number.POSITIVE_INFINITY, "kg", "gr")).toThrow();
+  });
+});
+
+describe("unitSymbol — cómo se ESCRIBE la unidad junto a una cantidad", () => {
+  it("el símbolo es el del Sistema Internacional, no el código interno", () => {
+    // El código `gr` y `l` son nuestros; junto a un número se escribe «g» y «L».
+    expect(unitSymbol("gr")).toBe("g");
+    expect(unitSymbol("l")).toBe("L");
+  });
+
+  it("el resto de los códigos ya son su símbolo", () => {
+    for (const code of ["kg", "oz", "lb", "ml", "cm", "m", "in", "ft"]) {
+      expect(unitSymbol(code)).toBe(code);
+    }
+  });
+
+  it("un código desconocido se devuelve tal cual, como en unitName", () => {
+    expect(unitSymbol("xx")).toBe("xx");
   });
 });

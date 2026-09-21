@@ -207,6 +207,22 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     expect(screen.getByText("842 unidades")).toBeInTheDocument();
   });
 
+  it("la unidad se escribe con su símbolo: gramos «g» y litros «L», no el código interno", async () => {
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: [
+        { ...PRODUCTS.topSold[0], itemId: "g1", name: "Pimienta", units: "850.0000", unit: "gr" },
+        { ...PRODUCTS.topSold[0], itemId: "l1", name: "Leche", units: "12.5000", unit: "l" },
+        { ...PRODUCTS.topSold[0], itemId: "b1", name: "Jamón", units: "3.2500", unit: "lb" },
+      ],
+    } as dashboardApi.DashboardProducts);
+    await renderDashboard();
+    await screen.findByText("Más vendidos");
+    expect(screen.getByText("850 g")).toBeInTheDocument();
+    expect(screen.getByText("12.5 L")).toBeInTheDocument();
+    expect(screen.getByText("3.25 lb")).toBeInTheDocument();
+  });
+
   it("un API viejo que aún no manda `unit` sigue diciendo «unidades»", async () => {
     mocked.getDashboardProducts.mockResolvedValue({
       ...PRODUCTS,

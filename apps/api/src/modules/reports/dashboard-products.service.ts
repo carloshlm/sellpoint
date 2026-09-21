@@ -38,6 +38,11 @@ export interface DashboardProducts {
 /**
  * F5-DASH-05 — los tops: qué se VENDE y qué DEJA.
  *
+ * «Más vendidos» se ordena por IMPORTE, no por cantidad (F5-DASH-18, Carlos
+ * 2026-09-21): 253 fotocopias de $2 no venden más que 5.3 kg de queso de $540,
+ * y piezas contra kilos ni siquiera se pueden comparar — el dinero sí. La
+ * cantidad, con su unidad, acompaña a cada renglón como dato.
+ *
  * Son dos listas a propósito: vender mucho no es ganar mucho, y el top de
  * utilidad —solo líneas con costo congelado (F5-DASH-01)— es donde el
  * dashboard deja de ser caja registradora. La Δ% de cada producto contra el
@@ -95,7 +100,7 @@ export class DashboardProductsService {
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${desde} AND s.created_at < ${hasta}
            GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description), COALESCE(p.base_unit, 'unit')
-           ORDER BY SUM(i.quantity * COALESCE(pp.factor, 1)) DESC
+           ORDER BY SUM(i.line_total - i.tax_amount) DESC
            LIMIT 10`,
       );
 

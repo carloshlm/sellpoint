@@ -273,12 +273,47 @@ describe("Los widgets del dashboard (integration)", () => {
       units: "1.0000",
       unit: "unit",
     });
-    // Y el orden sigue siendo por cantidad, ya convertida: 27 piezas > 7.75 kg > 1.
+    // El orden es por IMPORTE: 7.75 kg de queso ($1,627.50) venden más que 27
+    // piezas de agua ($684). Piezas contra kilos no se pueden comparar; pesos sí.
     expect(r.topSold.map((f) => f.name)).toEqual([
-      "Agua 1L",
       "Queso mozzarella",
+      "Agua 1L",
       "Flete a domicilio",
     ]);
+  });
+
+  it("tops: «más vendido» es el que más DINERO vende — poco queso caro le gana a muchas fotocopias (F5-DASH-18)", async () => {
+    const ctx = await escenario();
+    // El caso real de Carlos (2026-09-21): 253 fotocopias de $2 quedaban en
+    // primer lugar y 5.3 kg de queso de $540 en octavo, vendiendo cinco veces más.
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      concepto: "Fotocopia",
+      quantity: 253,
+      unitPrice: 2,
+    });
+    const queso = await prisma.withTenantContext(ctx.tenantId, (tx) =>
+      tx.product.create({
+        data: {
+          tenantId: ctx.tenantId,
+          sku: `QO-${randomUUID().slice(0, 6)}`,
+          name: "Queso Oaxaca",
+          baseUnit: "kg",
+        },
+      }),
+    );
+    await vender(ctx, {
+      creadaEn: "2026-03-14T19:00:00Z",
+      productoId: queso.id,
+      quantity: 5.3,
+      unitPrice: 540,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    expect(r.topSold.map((f) => f.name)).toEqual(["Queso Oaxaca", "Fotocopia"]);
+    expect(r.topSold[0]).toMatchObject({ units: "5.3000", unit: "kg", revenue: "2862.00" });
+    expect(r.topSold[1]).toMatchObject({ units: "253.0000", unit: "unit", revenue: "506.00" });
   });
 
   it("tops: el más vendido no es el que más deja — y la Δ% alimenta la alerta de crecimiento", async () => {
@@ -323,10 +358,11 @@ describe("Los widgets del dashboard (integration)", () => {
 
     const r = await productos.products(USER(ctx), TODO, "month");
 
-    // Por unidades manda Misterio (50), luego A (30)…
-    expect(r.topSold[1]?.name).toBe("Agua 1L");
-    expect(r.topSold[1]?.units).toBe("30.0000");
-    // …pero por utilidad manda B: 500−100=400 contra 300−270=30.
+    // Por IMPORTE manda Misterio (2000), luego B (500) y al final A (300): A
+    // mueve más piezas que B, pero B vende más dinero (F5-DASH-18).
+    expect(r.topSold.map((f) => f.name)).toEqual(["Misterio", "Botana", "Agua 1L"]);
+    expect(r.topSold[2]?.units).toBe("30.0000");
+    // …y por utilidad manda B: 500−100=400 contra 300−270=30.
     expect(r.topProfit[0]?.name).toBe("Botana");
     expect(r.topProfit[0]?.profit).toBe("400.00");
     expect(r.topProfit[0]?.marginPct).toBe(80);
@@ -338,7 +374,7 @@ describe("Los widgets del dashboard (integration)", () => {
     // La delta de B: 500 ahora vs 250 en febrero corrido → +100%.
     expect(r.topSold.find((p) => p.name === "Botana")?.deltaPct).toBe(100);
     // A no tiene historia previa: null, no un +∞ disfrazado.
-    expect(r.topSold[1]?.deltaPct).toBeNull();
+    expect(r.topSold.find((p) => p.name === "Agua 1L")?.deltaPct).toBeNull();
   });
 
   it("F4-TAX-20: el impuesto no es ingreso — el revenue y la utilidad del top van sobre la base", async () => {
@@ -392,7 +428,7 @@ describe("Los widgets del dashboard (integration)", () => {
 
     const r = await productos.products(USER(ctx), TODO, "month");
 
-    // Más vendidos por unidades: el producto (20) sobre la consulta (8)…
+    // Más vendidos por importe: el producto (600) sobre la consulta (400)…
     expect(r.topSold[0]?.name).toBe("Agua 1L");
     expect(r.topSold[1]?.name).toBe("Consulta Médica");
     // …pero en utilidad la consulta arrasa: 320 contra 40.

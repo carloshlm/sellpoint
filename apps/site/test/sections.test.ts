@@ -401,7 +401,7 @@ describe("tu panel: el tablero dibujado (PAGE-09)", () => {
     ["fr-ca", "6,5 kg"],
   ] as const)("/%s/: el queso de «Más vendidos» dice %s, no unidades", (route, peso) => {
     const { market } = getLocale(route);
-    const [, queso] = mockTopSellers(market);
+    const queso = mockTopSellers(market).find((seller) => seller.weight !== undefined);
     const text = textOf(sectionOf(pageOf(route), ANCHORS.insights)).replace(/\u00a0|\u202f/g, " ");
     expect(text).toContain(peso);
     const unidades = getMessages(route).insights.mock.units.replace(
@@ -412,6 +412,29 @@ describe("tu panel: el tablero dibujado (PAGE-09)", () => {
     // Y el peso es el de la caja del hero: cada venta del panel es una porción de esas.
     expect(queso?.weight?.value).toBe((queso?.units ?? 0) * MOCK_SALE_WEIGHT[market].perSale);
   });
+
+  // Igual que el panel real (F5-DASH-18): «más vendido» es el que más DINERO
+  // vende. Piezas contra kilos no se comparan; importes sí.
+  it.each([...ROUTES])(
+    "/%s/: «Más vendidos» va de mayor a menor IMPORTE, y así se pinta",
+    (route) => {
+      const { market } = getLocale(route);
+      const sellers = mockTopSellers(market);
+      const amounts = sellers.map((seller) => seller.amount);
+      expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
+      // Las tres líneas de la caja siguen ahí, cada una una vez.
+      expect(sellers.map((seller) => seller.line).sort()).toEqual([0, 1, 2]);
+
+      const section = sectionOf(pageOf(route), ANCHORS.insights);
+      const { first, second, third } = getMessages(route).hero.mock.items;
+      const names = [first.name, second.name, third.name];
+      const positions = sellers.map((seller) =>
+        section.indexOf(escaped(names[seller.line] as string)),
+      );
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    },
+  );
 
   it("los números del panel cuadran entre sí: un tablero no puede mentir", () => {
     for (const market of Object.keys(MOCK_DASHBOARD) as (keyof typeof MOCK_DASHBOARD)[]) {
@@ -428,8 +451,8 @@ describe("tu panel: el tablero dibujado (PAGE-09)", () => {
       );
       // Cada «más vendido» cuesta lo mismo que en la caja del hero.
       const sale = MOCK_SALE[market];
-      mockTopSellers(market).forEach((seller, index) => {
-        const unitPrice = (sale.lines[index] ?? 0) / (MOCK_SALE_QUANTITIES[index] ?? 1);
+      mockTopSellers(market).forEach((seller) => {
+        const unitPrice = (sale.lines[seller.line] ?? 0) / (MOCK_SALE_QUANTITIES[seller.line] ?? 1);
         expect(Math.round(seller.amount * 100)).toBe(Math.round(unitPrice * seller.units * 100));
         expect(seller.amount).toBeLessThan(data.today);
       });

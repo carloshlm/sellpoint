@@ -1,4 +1,4 @@
-import { formatMoney, getUnit } from "@sellpoint/shared";
+import { formatMoney, getUnit, unitSymbol } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
 import { ScrollableList } from "@/components/ui/scrollable-list";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
@@ -65,7 +65,9 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
                   )}
                   <span className="text-muted-foreground tabular-nums">
                     {Number(producto.units)}{" "}
-                    {seMide(producto.unit) ? producto.unit : t("dashboard.top.units").toLowerCase()}
+                    {seMide(producto.unit)
+                      ? unitSymbol(producto.unit)
+                      : t("dashboard.top.units").toLowerCase()}
                   </span>
                   <span className="w-24 text-right tabular-nums">{dinero(producto.revenue)}</span>
                 </li>

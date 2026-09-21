@@ -175,6 +175,19 @@ export function getUnit(code: string): UnitDefinition | undefined {
 }
 
 /**
+ * Cómo se ESCRIBE la unidad junto a una cantidad: «7.75 kg», «250 g», «2 L».
+ * Casi todos los códigos ya son su símbolo; los dos que no lo son es porque el
+ * código es nuestro (`gr`, `l`) y el símbolo es el del Sistema Internacional.
+ * Lo que se cuenta (`unit`) no tiene símbolo: quien lo pinta escribe
+ * «unidades» o «piezas» en su idioma. Un código desconocido vuelve tal cual.
+ */
+const UNIT_SYMBOLS: Partial<Record<UnitCode, string>> = { gr: "g", l: "L" };
+
+export function unitSymbol(code: string): string {
+  return isUnitCode(code) ? (UNIT_SYMBOLS[code] ?? code) : code;
+}
+
+/**
  * Nombre de la unidad para mostrarle a una persona.
  *
  * `plural` para las frases que hablan de cantidades ("Equivale en gramos"); el

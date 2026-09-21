@@ -194,23 +194,33 @@ export const MOCK_SALE_WEIGHT: Record<MarketId, { perSale: number; unit: "kg" | 
 };
 
 /**
- * Los más vendidos de hoy: piezas e importe, al precio de la caja del hero.
+ * Los más vendidos de hoy: cantidad e importe, al precio de la caja del hero.
  * Lo que se vende por peso lleva además `weight`: «31 unidades» de queso no le
  * dice nada a quien lo despacha por kilo; «7.75 kg», sí.
+ *
+ * Van de mayor a menor IMPORTE, como en el panel real (F5-DASH-18): «más
+ * vendido» es el que más dinero vende. `line` dice de qué renglón de la caja
+ * del hero es cada uno, porque el orden ya no es el de la caja.
  */
-export function mockTopSellers(
-  market: MarketId,
-): { units: number; amount: number; weight?: { value: number; unit: "kg" | "lb" } }[] {
+export function mockTopSellers(market: MarketId): {
+  line: number;
+  units: number;
+  amount: number;
+  weight?: { value: number; unit: "kg" | "lb" };
+}[] {
   const sale = MOCK_SALE[market];
   const { perSale, unit } = MOCK_SALE_WEIGHT[market];
-  return MOCK_DASHBOARD[market].units.map((units, index) => {
-    const unitPrice = (sale.lines[index] ?? 0) / (MOCK_SALE_QUANTITIES[index] ?? 1);
-    return {
-      units,
-      amount: Math.round(unitPrice * units * 100) / 100,
-      ...(index === MOCK_WEIGHED_LINE ? { weight: { value: units * perSale, unit } } : {}),
-    };
-  });
+  return MOCK_DASHBOARD[market].units
+    .map((units, line) => {
+      const unitPrice = (sale.lines[line] ?? 0) / (MOCK_SALE_QUANTITIES[line] ?? 1);
+      return {
+        line,
+        units,
+        amount: Math.round(unitPrice * units * 100) / 100,
+        ...(line === MOCK_WEIGHED_LINE ? { weight: { value: units * perSale, unit } } : {}),
+      };
+    })
+    .sort((a, b) => b.amount - a.amount);
 }
 
 export function mockTotal(market: MarketId): number {

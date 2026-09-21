@@ -28,8 +28,8 @@ const { mock } = messages.insights;
 const data = MOCK_DASHBOARD[market];
 
 const products = messages.hero.mock.items;
-const sellers = mockTopSellers(market).map((seller, index) => ({
-  name: [products.first, products.second, products.third][index]?.name ?? "",
+const sellers = mockTopSellers(market).map((seller) => ({
+  name: [products.first, products.second, products.third][seller.line]?.name ?? "",
   // El número lo escribe `Intl`: en francés el decimal es coma («6,5 kg»).
   units: seller.weight
     ? `${new Intl.NumberFormat(htmlLang).format(seller.weight.value)} ${seller.weight.unit}`
