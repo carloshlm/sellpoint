@@ -16,7 +16,14 @@ export default defineConfig({
   // pequeños (el del menú, el de imprimir): con la CSP puesta, el navegador los
   // BLOQUEA y el menú del celular no abre. Con el límite en 0 todos salen como
   // archivo. `test/pages.test.ts` falla si vuelve a aparecer uno incrustado.
-  vite: { build: { assetsInlineLimit: 0 } },
+  vite: {
+    build: { assetsInlineLimit: 0 },
+    // `@sellpoint/shared` se compila a CommonJS (lo pide Nest). Al construir
+    // no importa, pero `astro dev` trata un paquete del workspace como código
+    // propio, intenta evaluarlo como módulo ES y revienta con «exports is not
+    // defined». Externo = lo carga Node tal cual, como hace el API.
+    ssr: { external: ["@sellpoint/shared"] },
+  },
 
   // F11-SITE-BASE-03 — las tres familias de la guía (§3), servidas desde el
   // propio dominio. Los archivos salen de paquetes de npm (`@fontsource*`), no
