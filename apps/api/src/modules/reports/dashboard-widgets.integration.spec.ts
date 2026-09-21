@@ -104,6 +104,8 @@ describe("Los widgets del dashboard (integration)", () => {
     servicioId?: string;
     /** F4-CONCEPT-07: una línea de concepto (sin producto ni servicio). */
     concepto?: string;
+    /** En qué presentación se tecleó la cantidad (Caja ×12, Porción 250 g…). */
+    presentacionId?: string;
     quantity: number;
     unitPrice: number;
     unitCost?: number;
@@ -143,6 +145,7 @@ describe("Los widgets del dashboard (integration)", () => {
                 ...(v.productoId !== undefined && { productId: v.productoId }),
                 ...(v.servicioId !== undefined && { serviceId: v.servicioId }),
                 ...(v.concepto !== undefined && { conceptDescription: v.concepto }),
+                ...(v.presentacionId !== undefined && { presentationId: v.presentacionId }),
                 quantity: v.quantity,
                 unitPrice: v.unitPrice,
                 discount: 0,
@@ -193,6 +196,89 @@ describe("Los widgets del dashboard (integration)", () => {
     // 17:00Z = 11:00 local; la de 23:30 local del 14 NO es de hoy.
     expect(r.byHour[11]).toEqual({ hour: 11, total: "200.00" });
     expect(r.byHour.reduce((n, h) => n + Number(h.total), 0)).toBe(200);
+  });
+
+  it("tops: lo vendido se cuenta en la UNIDAD BASE del producto — el queso en kg, la caja ×12 en piezas", async () => {
+    const ctx = await escenario();
+    // Queso por kilo, despachado en porciones de 250 g: 31 porciones = 7.75 kg,
+    // no «31 unidades» (Carlos, 2026-09-21).
+    const queso = await prisma.withTenantContext(ctx.tenantId, (tx) =>
+      tx.product.create({
+        data: {
+          tenantId: ctx.tenantId,
+          sku: `Q-${randomUUID().slice(0, 6)}`,
+          name: "Queso mozzarella",
+          baseUnit: "kg",
+          presentations: {
+            create: [
+              {
+                tenantId: ctx.tenantId,
+                name: "Porción 250 g",
+                factor: 0.25,
+                allowFractionalInput: true,
+              },
+            ],
+          },
+        },
+        include: { presentations: true },
+      }),
+    );
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:00:00Z",
+      productoId: queso.id,
+      presentacionId: queso.presentations[0]?.id as string,
+      quantity: 31,
+      unitPrice: 52.5,
+    });
+    // El agua: 2 cajas de 12 más 3 piezas sueltas son 27 piezas, no 5.
+    const caja = await prisma.withTenantContext(ctx.tenantId, (tx) =>
+      tx.productPresentation.create({
+        data: {
+          tenantId: ctx.tenantId,
+          productId: ctx.productoA,
+          name: "Caja ×12",
+          factor: 12,
+          allowFractionalInput: false,
+        },
+      }),
+    );
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:30:00Z",
+      productoId: ctx.productoA,
+      presentacionId: caja.id,
+      quantity: 2,
+      unitPrice: 300,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T18:40:00Z",
+      productoId: ctx.productoA,
+      quantity: 3,
+      unitPrice: 28,
+    });
+    await vender(ctx, {
+      creadaEn: "2026-03-14T19:00:00Z",
+      concepto: "Flete a domicilio",
+      quantity: 1,
+      unitPrice: 80,
+    });
+
+    const r = await productos.products(USER(ctx), TODO, "month");
+
+    const delQueso = r.topSold.find((f) => f.name === "Queso mozzarella");
+    expect(delQueso).toMatchObject({ units: "7.7500", unit: "kg" });
+    const delAgua = r.topSold.find((f) => f.name === "Agua 1L");
+    expect(delAgua).toMatchObject({ units: "27.0000", unit: "unit" });
+    // Un concepto (y un servicio) no tiene unidad de medida: se cuenta.
+    expect(r.topSold.find((f) => f.name === "Flete a domicilio")).toMatchObject({
+      units: "1.0000",
+      unit: "unit",
+    });
+    // Y el orden sigue siendo por cantidad, ya convertida: 27 piezas > 7.75 kg > 1.
+    expect(r.topSold.map((f) => f.name)).toEqual([
+      "Agua 1L",
+      "Queso mozzarella",
+      "Flete a domicilio",
+    ]);
   });
 
   it("tops: el más vendido no es el que más deja — y la Δ% alimenta la alerta de crecimiento", async () => {

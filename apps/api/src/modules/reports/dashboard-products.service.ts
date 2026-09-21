@@ -12,7 +12,14 @@ export interface DashboardProducts {
     itemId: string;
     sku: string;
     name: string;
+    /**
+     * Cuánto se vendió, en la UNIDAD BASE del producto: la venta guarda lo que
+     * el cajero tecleó en su presentación (2 × «Caja ×12», 31 × «Porción 250 g»)
+     * y aquí se convierte con el factor — 24 piezas, 7.75 kg.
+     */
     units: string;
+    /** Código de esa unidad (`kg`, `l`, `unit`…). Servicios y conceptos se cuentan: `unit`. */
+    unit: string;
     revenue: string;
     /** Δ% de la venta vs el período comparable; null sin historia previa. */
     deltaPct: number | null;
@@ -63,23 +70,32 @@ export class DashboardProductsService {
         user.tenantId,
         (tx) =>
           tx.$queryRaw<
-            { item_id: string; sku: string; name: string; units: string; revenue: string }[]
+            {
+              item_id: string;
+              sku: string;
+              name: string;
+              units: string;
+              unit: string;
+              revenue: string;
+            }[]
           >`
           SELECT COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)) AS item_id,
                  COALESCE(p.sku, sv.code, '') AS sku,
                  COALESCE(p.name, sv.name, i.concept_description) AS name,
-                 SUM(i.quantity)::text AS units,
+                 SUM(i.quantity * COALESCE(pp.factor, 1))::numeric(14,4)::text AS units,
+                 COALESCE(p.base_unit, 'unit') AS unit,
                  SUM(i.line_total - i.tax_amount)::text AS revenue
             FROM sale_items i
             JOIN sales s ON s.id = i.sale_id
             LEFT JOIN products p ON p.id = i.product_id
+            LEFT JOIN product_presentations pp ON pp.id = i.presentation_id
             LEFT JOIN services sv ON sv.id = i.service_id
            WHERE s.tenant_id = ${user.tenantId}::uuid
              AND s.status = 'completed'
              AND (${almacenes}::uuid[] IS NULL OR s.warehouse_id = ANY(${almacenes}::uuid[]))
              AND s.created_at >= ${desde} AND s.created_at < ${hasta}
-           GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description)
-           ORDER BY SUM(i.quantity) DESC
+           GROUP BY COALESCE(i.product_id::text, i.service_id::text, 'concept:' || lower(i.concept_description)), COALESCE(p.sku, sv.code, ''), COALESCE(p.name, sv.name, i.concept_description), COALESCE(p.base_unit, 'unit')
+           ORDER BY SUM(i.quantity * COALESCE(pp.factor, 1)) DESC
            LIMIT 10`,
       );
 
@@ -131,6 +147,7 @@ export class DashboardProductsService {
           sku: f.sku,
           name: f.name,
           units: f.units,
+          unit: f.unit,
           revenue: f.revenue,
           deltaPct:
             anterior !== undefined && anterior.greaterThan(0)

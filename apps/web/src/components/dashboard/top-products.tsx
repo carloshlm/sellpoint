@@ -1,4 +1,4 @@
-import { formatMoney } from "@sellpoint/shared";
+import { formatMoney, getUnit } from "@sellpoint/shared";
 import { useTranslation } from "react-i18next";
 import { ScrollableList } from "@/components/ui/scrollable-list";
 import { useAdminTenantScope, useScopedCurrency } from "@/lib/admin/scope";
@@ -6,6 +6,16 @@ import { usePermissions } from "@/lib/auth/permissions";
 import type { DashboardPeriod } from "@/lib/dashboard/api";
 import { useDashboardProducts } from "@/lib/dashboard/hooks";
 import { useAuthStore } from "@/stores/auth.store";
+
+/**
+ * Lo que se pesa o se mide dice su unidad («7.75 kg»); lo que se cuenta,
+ * «unidades». Una unidad desconocida o ausente —un API anterior a este campo—
+ * se cuenta: nunca se pinta un código que no se entiende.
+ */
+function seMide(unit: string | undefined): boolean {
+  const definicion = unit ? getUnit(unit) : undefined;
+  return definicion !== undefined && definicion.category !== "count";
+}
 
 /**
  * F5-DASH-12 — los dos tops lado a lado: qué se VENDE y qué DEJA. Dos listas
@@ -54,7 +64,8 @@ function TopProducts({ period }: { period: DashboardPeriod }) {
                     </span>
                   )}
                   <span className="text-muted-foreground tabular-nums">
-                    {Number(producto.units)} {t("dashboard.top.units").toLowerCase()}
+                    {Number(producto.units)}{" "}
+                    {seMide(producto.unit) ? producto.unit : t("dashboard.top.units").toLowerCase()}
                   </span>
                   <span className="w-24 text-right tabular-nums">{dinero(producto.revenue)}</span>
                 </li>

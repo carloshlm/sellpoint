@@ -47,7 +47,10 @@ export interface DashboardProducts {
     itemId: string;
     sku: string;
     name: string;
+    /** Cantidad vendida, ya convertida a la unidad base del producto. */
     units: string;
+    /** Código de esa unidad (`kg`, `l`, `unit`…); lo que se cuenta llega como `unit`. */
+    unit: string;
     revenue: string;
     deltaPct: number | null;
   }[];

@@ -58,6 +58,7 @@ const PRODUCTS: dashboardApi.DashboardProducts = {
       sku: "COC-600",
       name: "Coca-Cola 600ml",
       units: "842",
+      unit: "unit",
       revenue: "8420",
       deltaPct: 32,
     },
@@ -66,7 +67,18 @@ const PRODUCTS: dashboardApi.DashboardProducts = {
       sku: "SAB-45",
       name: "Sabritas 45g",
       units: "3",
+      unit: "unit",
       revenue: "60",
+      deltaPct: null,
+    },
+    // Se vende por peso: el API ya manda los kilos y su unidad.
+    {
+      itemId: "p3",
+      sku: "QUE-MOZ",
+      name: "Queso mozzarella",
+      units: "7.7500",
+      unit: "kg",
+      revenue: "1627.50",
       deltaPct: null,
     },
   ],
@@ -184,6 +196,25 @@ describe("Los widgets del panel (F5-DASH-11..15)", () => {
     await screen.findByText("Mayor utilidad");
     expect(screen.getByText(/Aún sin costos congelados/)).toBeInTheDocument();
     expect(screen.queryByText("Sin ventas en el período")).not.toBeInTheDocument();
+  });
+
+  it("lo que se vende por peso dice su unidad: «7.75 kg», no «7.75 unidades»", async () => {
+    await renderDashboard();
+    await screen.findByText("Más vendidos");
+    expect(screen.getByText("7.75 kg")).toBeInTheDocument();
+    expect(screen.queryByText(/7\.75 unidades/)).not.toBeInTheDocument();
+    // Lo que se cuenta sigue contándose.
+    expect(screen.getByText("842 unidades")).toBeInTheDocument();
+  });
+
+  it("un API viejo que aún no manda `unit` sigue diciendo «unidades»", async () => {
+    mocked.getDashboardProducts.mockResolvedValue({
+      ...PRODUCTS,
+      topSold: PRODUCTS.topSold.map(({ unit: _sinUnidad, ...resto }) => resto),
+    } as dashboardApi.DashboardProducts);
+    await renderDashboard();
+    await screen.findByText("Más vendidos");
+    expect(screen.getByText("842 unidades")).toBeInTheDocument();
   });
 
   it("los tops cuentan las dos historias y la lista de atención predice días", async () => {
