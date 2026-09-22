@@ -13,8 +13,12 @@ export const TAX_SETTINGS_KEY = ["tenant", "taxes"] as const;
 
 /**
  * F4-TAX-14 — los impuestos del negocio en el web. Cada mutación escribe la
- * caché con lo que devolvió el API, y cambiar el MODO refresca la sesión:
- * `AuthUser.tenant.taxMode` es lo que el carrito consulta para calcular.
+ * caché con lo que devolvió el API, y cambiar un MODO refresca la sesión:
+ * `AuthUser.tenant.taxMode` es lo que el carrito consulta para calcular, y
+ * `taxMode` y `costTaxMode` son lo que leen los formularios de producto,
+ * servicio y estudio para rotular el costo y el precio. El del costo nació
+ * después (F9-COSTMODE) y se quedó fuera de este refresco: el formulario
+ * seguía con el modo viejo hasta recargar la página (Carlos, 2026-09-22).
  */
 export function useTaxSettings(enabled = true) {
   return useQuery<TaxSettingsView, ApiError>({
@@ -35,7 +39,7 @@ export function useUpdateTaxSettings() {
     mutationFn: (input) => updateTaxSettings(input),
     onSuccess: async (data, input) => {
       escribe(data);
-      if (input.mode !== undefined || input.region !== undefined) {
+      if (input.mode !== undefined || input.costMode !== undefined || input.region !== undefined) {
         await resyncSession();
       }
     },
