@@ -100,8 +100,8 @@ describe("layout que encoge (LEY de responsive)", () => {
  */
 const usuarioDemo = (): AuthUser => buildAuthUser({ tenant: buildTenantBlock({ id: "t1" }) });
 
-async function renderLayout() {
-  useAuthStore.getState().setAuth("jwt-demo", usuarioDemo());
+async function renderLayout(usuario: AuthUser = usuarioDemo()) {
+  useAuthStore.getState().setAuth("jwt-demo", usuario);
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: ["/dashboard"] }),
@@ -128,6 +128,29 @@ describe("la versión al pie del menú (F6-RELEASE-04)", () => {
     const version = within(sidebar).getByTestId("app-version");
     expect(version).toHaveTextContent("v0.0.0");
     expect(version).toHaveAttribute("title", "Compilación local");
+  });
+});
+
+/** El orden de los grupos del menú: Punto de venta sube antes de Catálogos (Carlos, 2026-09-22). */
+describe("el orden de los grupos del menú", () => {
+  it("Backoffice, luego Punto de venta, luego Catálogos", async () => {
+    const sidebar = await renderLayout(
+      buildAuthUser({
+        tenant: buildTenantBlock({ id: "t1" }),
+        permissions: ["pos:sell", "products:read", "inventory:read"],
+        isPlatformAdmin: true,
+      }),
+    );
+    const grupos = within(sidebar)
+      .getAllByRole("group")
+      .map((grupo) => grupo.getAttribute("aria-label"));
+    expect(
+      grupos.filter((nombre) =>
+        ["Backoffice", "Punto de venta", "Catálogos"].includes(nombre ?? ""),
+      ),
+    ).toEqual(["Backoffice", "Punto de venta", "Catálogos"]);
+    // Y Movimientos sigue después de Catálogos: solo subió la caja.
+    expect(grupos.indexOf("Movimientos")).toBeGreaterThan(grupos.indexOf("Catálogos"));
   });
 });
 

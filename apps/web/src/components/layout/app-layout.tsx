@@ -278,6 +278,68 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </fieldset>
           )}
+          {/* Punto de venta va ANTES de Catálogos (Carlos, 2026-09-22), justo
+              después del backoffice. */}
+          {canSeePosNav && (
+            <fieldset aria-label={t("pos.title")} className="m-0 flex flex-col gap-1 border-0 p-0">
+              {expanded && (
+                <span
+                  aria-hidden="true"
+                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
+                >
+                  {t("pos.title")}
+                </span>
+              )}
+              {canSeeSellNav && (
+                <Link
+                  to="/pos"
+                  // `/pos` es PREFIJO de `/pos/quotes`, `/pos/sales` y
+                  // `/pos/close`: sin `exact`, TanStack lo marca activo en las
+                  // cuatro y quedan DOS items resaltados a la vez (Carlos lo vio
+                  // el 2026-08-22). Un menú con dos items encendidos deja de
+                  // responder la única pregunta que tiene: «¿dónde estoy?».
+                  // Fijado para toda la clase por `lib/ui/menu-activo-exacto.test.ts`.
+                  activeOptions={{ exact: true }}
+                  aria-label={t("pos.nav.sell")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <ShoppingCart className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.sell")}</span>}
+                </Link>
+              )}
+              {canSeeQuoteNav && !hasFeature("quotes") && navLock(t("pos.nav.quote"), FileText)}
+              {canSeeQuoteNav && hasFeature("quotes") && (
+                <Link
+                  to="/pos/quotes"
+                  aria-label={t("pos.nav.quote")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <FileText className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.quote")}</span>}
+                </Link>
+              )}
+              {canSeeSalesNav && (
+                <Link
+                  to="/pos/sales"
+                  aria-label={t("pos.nav.history")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Receipt className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.history")}</span>}
+                </Link>
+              )}
+              {canSeeSellNav && (
+                <Link
+                  to="/pos/close"
+                  aria-label={t("pos.nav.close")}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
+                >
+                  <Calculator className="size-4 shrink-0" aria-hidden="true" />
+                  {expanded && <span className="truncate">{t("pos.nav.close")}</span>}
+                </Link>
+              )}
+            </fieldset>
+          )}
           {canSeeCatalogNav && (
             <fieldset
               aria-label={t("catalogs.nav.group")}
@@ -410,67 +472,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 ) : (
                   navLock(t(label), Icon)
                 ),
-              )}
-            </fieldset>
-          )}
-
-          {canSeePosNav && (
-            <fieldset aria-label={t("pos.title")} className="m-0 flex flex-col gap-1 border-0 p-0">
-              {expanded && (
-                <span
-                  aria-hidden="true"
-                  className="px-3 pt-2 text-xs font-semibold text-muted-foreground uppercase"
-                >
-                  {t("pos.title")}
-                </span>
-              )}
-              {canSeeSellNav && (
-                <Link
-                  to="/pos"
-                  // `/pos` es PREFIJO de `/pos/quotes`, `/pos/sales` y
-                  // `/pos/close`: sin `exact`, TanStack lo marca activo en las
-                  // cuatro y quedan DOS items resaltados a la vez (Carlos lo vio
-                  // el 2026-08-22). Un menú con dos items encendidos deja de
-                  // responder la única pregunta que tiene: «¿dónde estoy?».
-                  // Fijado para toda la clase por `lib/ui/menu-activo-exacto.test.ts`.
-                  activeOptions={{ exact: true }}
-                  aria-label={t("pos.nav.sell")}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-                >
-                  <ShoppingCart className="size-4 shrink-0" aria-hidden="true" />
-                  {expanded && <span className="truncate">{t("pos.nav.sell")}</span>}
-                </Link>
-              )}
-              {canSeeQuoteNav && !hasFeature("quotes") && navLock(t("pos.nav.quote"), FileText)}
-              {canSeeQuoteNav && hasFeature("quotes") && (
-                <Link
-                  to="/pos/quotes"
-                  aria-label={t("pos.nav.quote")}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-                >
-                  <FileText className="size-4 shrink-0" aria-hidden="true" />
-                  {expanded && <span className="truncate">{t("pos.nav.quote")}</span>}
-                </Link>
-              )}
-              {canSeeSalesNav && (
-                <Link
-                  to="/pos/sales"
-                  aria-label={t("pos.nav.history")}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-                >
-                  <Receipt className="size-4 shrink-0" aria-hidden="true" />
-                  {expanded && <span className="truncate">{t("pos.nav.history")}</span>}
-                </Link>
-              )}
-              {canSeeSellNav && (
-                <Link
-                  to="/pos/close"
-                  aria-label={t("pos.nav.close")}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring [&.active]:bg-sidebar-accent [&.active]:text-sidebar-accent-foreground"
-                >
-                  <Calculator className="size-4 shrink-0" aria-hidden="true" />
-                  {expanded && <span className="truncate">{t("pos.nav.close")}</span>}
-                </Link>
               )}
             </fieldset>
           )}
