@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { PasswordField } from "@/components/form/password-field";
+import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
@@ -112,8 +113,15 @@ function ChangePasswordForm() {
             hidden
             data-testid="change-password-username"
           />
-          <PasswordField
+          {/*
+            SIN ojo, a propósito (Carlos, 2026-09-22): el navegador rellena la
+            contraseña actual, y con una sesión abierta cualquiera podría
+            leerla. El ojo sirve para no equivocarse al teclear una NUEVA; la
+            actual, quien la sabe la escribe. El API la verifica contra su hash.
+          */}
+          <TextField
             label={t("auth.changePassword.current")}
+            type="password"
             autoComplete="current-password"
             error={errors.currentPassword?.message ? t(errors.currentPassword.message) : undefined}
             {...register("currentPassword")}

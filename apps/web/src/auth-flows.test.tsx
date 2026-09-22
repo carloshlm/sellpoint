@@ -776,6 +776,13 @@ describe("F1-WEB-AUTH-10 — /profile", () => {
     expect(usuario).toHaveAttribute("autocomplete", "username");
     expect(usuario).toHaveValue("ana@acme.mx");
     expect(usuario).not.toBeVisible();
+
+    // La contraseña ACTUAL no lleva ojo (Carlos, 2026-09-22): el navegador la
+    // rellena, y con una sesión abierta cualquiera la leería. Las nuevas sí.
+    const actual = screen.getByLabelText("Contraseña actual");
+    expect(actual).toHaveAttribute("type", "password");
+    expect(actual.parentElement?.querySelector("button")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Mostrar contraseña" })).toHaveLength(2);
   });
 
   it("lista las sesiones activas y marca SOLO la actual como 'Esta sesión'", async () => {
