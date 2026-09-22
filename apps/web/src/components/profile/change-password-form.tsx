@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { TextField } from "@/components/form/text-field";
+import { PasswordField } from "@/components/form/password-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError } from "@/lib/api";
@@ -112,25 +112,22 @@ function ChangePasswordForm() {
             hidden
             data-testid="change-password-username"
           />
-          <TextField
+          <PasswordField
             label={t("auth.changePassword.current")}
-            type="password"
             autoComplete="current-password"
             error={errors.currentPassword?.message ? t(errors.currentPassword.message) : undefined}
             {...register("currentPassword")}
           />
-          <TextField
+          <PasswordField
             label={t("auth.changePassword.new")}
-            type="password"
             autoComplete="new-password"
             hint={passwordMet ? t("auth.register.passwordOk") : t("auth.register.passwordHint")}
             hintMet={passwordMet}
             error={errors.newPassword?.message ? t(errors.newPassword.message) : undefined}
             {...register("newPassword")}
           />
-          <TextField
+          <PasswordField
             label={t("auth.changePassword.confirm")}
-            type="password"
             autoComplete="new-password"
             error={errors.confirmPassword?.message ? t(errors.confirmPassword.message) : undefined}
             {...register("confirmPassword")}

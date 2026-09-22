@@ -13,6 +13,8 @@ interface TextFieldProps extends React.ComponentProps<"input"> {
   hint?: string;
   /** Pinta el hint como cumplido (validación en vivo de password). */
   hintMet?: boolean;
+  /** Algo pegado al borde derecho DENTRO del campo (el ojo de la contraseña). */
+  trailing?: React.ReactNode;
 }
 
 /**
@@ -24,6 +26,7 @@ function TextField({
   error,
   hint,
   hintMet = false,
+  trailing,
   className,
   ...inputProps
 }: TextFieldProps) {
@@ -37,12 +40,18 @@ function TextField({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...inputProps}
-      />
+      <div className="relative">
+        <Input
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          className={cn(trailing && "pr-10")}
+          {...inputProps}
+        />
+        {trailing && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-1">{trailing}</div>
+        )}
+      </div>
       {hint && !error && (
         <p
           id={hintId}

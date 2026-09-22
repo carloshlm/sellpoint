@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
+import { PasswordField } from "@/components/form/password-field";
 import { TextField } from "@/components/form/text-field";
 import { LegalConsentFields } from "@/components/legal/legal-links";
 import { Button } from "@/components/ui/button";
@@ -134,9 +135,8 @@ function RegisterPage() {
           error={errors.email?.message ? t(errors.email.message) : undefined}
           {...register("email")}
         />
-        <TextField
+        <PasswordField
           label={t("auth.register.password")}
-          type="password"
           autoComplete="new-password"
           hint={passwordMet ? t("auth.register.passwordOk") : t("auth.register.passwordHint")}
           hintMet={passwordMet}

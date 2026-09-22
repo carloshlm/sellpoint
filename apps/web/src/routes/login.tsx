@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
+import { PasswordField } from "@/components/form/password-field";
 import { TextField } from "@/components/form/text-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
@@ -83,9 +84,8 @@ function LoginPage() {
           error={errors.email?.message ? t(errors.email.message) : undefined}
           {...register("email")}
         />
-        <TextField
+        <PasswordField
           label={t("auth.login.password")}
-          type="password"
           autoComplete="current-password"
           error={errors.password?.message ? t(errors.password.message) : undefined}
           {...register("password")}

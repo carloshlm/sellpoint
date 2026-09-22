@@ -18,6 +18,8 @@
   "form": {
     "submitting": "Enviando…",
     "cancel": "Cancelar",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
     "save": "Guardar",
     "edit": "Editar",
     "delete": "Eliminar",

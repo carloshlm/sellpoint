@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { AuthCard } from "@/components/auth/auth-card";
-import { TextField } from "@/components/form/text-field";
+import { PasswordField } from "@/components/form/password-field";
 import { Button } from "@/components/ui/button";
 import type { ApiError } from "@/lib/api";
 import { useResetPassword } from "@/lib/auth/hooks";
@@ -81,9 +81,8 @@ function ResetPasswordPage() {
             {apiError}
           </p>
         )}
-        <TextField
+        <PasswordField
           label={t("auth.reset.password")}
-          type="password"
           autoComplete="new-password"
           hint={passwordMet ? t("auth.register.passwordOk") : t("auth.register.passwordHint")}
           hintMet={passwordMet}
