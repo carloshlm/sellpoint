@@ -1,4 +1,4 @@
-import { CASHIER, type Demo, http, idempotency, login, mailToken, today } from "./demo.js";
+import { CASHIER, DEMO, type Demo, http, idempotency, login, mailToken, today } from "./demo.js";
 import type { Stack } from "./stack.js";
 
 /**
@@ -216,13 +216,15 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
       warehouseIds: [centro, norte],
     }),
   );
-  await api("POST", "/services", {
-    code: "GARRAFON",
-    name: "Recarga de garrafón 20 L",
-    price: 32,
-    cost: 18,
-    warehouseIds: [centro, norte],
-  });
+  const garrafon = idOf(
+    await api("POST", "/services", {
+      code: "GARRAFON",
+      name: "Recarga de garrafón 20 L",
+      price: 32,
+      cost: 18,
+      warehouseIds: [centro, norte],
+    }),
+  );
   console.log("  · 2 servicios");
 
   // ── Catálogos propios (Plus) ───────────────────────────────────────────
@@ -437,6 +439,10 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
     return x < 0.55 ? "cash" : x < 0.9 ? "card" : "transfer";
   };
   const cajero = await login(CASHIER.email, CASHIER.password);
+  // Quien entra por invitación no aceptó los Términos y el Aviso de
+  // privacidad al registrarse, como Ana: los acepta la primera vez que entra.
+  // Sin esto, cada captura del cajero saldría con ese aviso encima.
+  await http("POST", "/auth/accept-terms", undefined, cajero);
   for (let dias = 20; dias >= 1; dias -= 1) {
     const turno = idOf(await http("POST", "/pos/session", { warehouseId: centro }, cajero));
     const cuantas = entre(18, 30);
@@ -630,7 +636,146 @@ export async function seedBusiness(stack: Stack, demo: Demo): Promise<void> {
   );
   console.log("  · 1 salida en borrador y 1 conteo en curso");
 
-  // 7. Cada cosa a su día. Los documentos confirmados y los movimientos
+  // 7. Hoy también cobra Luis, en SU turno de la Sucursal Centro: el turno es
+  // de cada cajero, así que el suyo y el de Ana conviven en la misma
+  // sucursal. Va DESPUÉS de todo lo anterior para no mover ningún folio de lo
+  // que ya citan las capturas. Sus ventas no llevan galletas, refresco ni
+  // pan: el conteo en curso compara contra la existencia de AHORA, y cada
+  // pieza vendida de esas tres se le volvería diferencia. Alcanza de sobra:
+  // lo que él vende cerró el mes con 60 o más (la reserva de `ticket()`), y
+  // lo que más se lleva son 27 aguas.
+  const cobrar = (paymentMethod: string, lines: Json[], extra: Json = {}) =>
+    http<{ id: string }>(
+      "POST",
+      "/pos/sales",
+      { paymentMethod, lines, ...extra },
+      cajero,
+      idempotency(),
+    );
+  const cotizar = (lines: Json[], note: string) =>
+    http<{ id: string; folio: string }>("POST", "/pos/quotes", { lines, note }, cajero);
+
+  // La cotización que un cliente pidió anteayer y hoy viene a pagar.
+  const pedido = await cotizar(
+    [
+      { productId: agua, presentationId: cajaAgua, quantity: 1 },
+      { productId: aceite, quantity: 2 },
+      { serviceId: envio, quantity: 1 },
+    ],
+    "Para una comida familiar; se entrega a domicilio.",
+  );
+  const turnoLuis = idOf(await http("POST", "/pos/session", { warehouseId: centro }, cajero));
+  await cobrar("cash", [
+    { productId: agua, quantity: 3 },
+    { serviceId: garrafon, quantity: 1 },
+  ]);
+  await cobrar("card", [
+    { productId: leche, quantity: 2 },
+    { productId: queso, presentationId: porcionQueso, quantity: 1 },
+  ]);
+  const devuelta = idOf(
+    await cobrar("cash", [
+      { productId: aceite, quantity: 1 },
+      { productId: frijol, quantity: 1 },
+    ]),
+  );
+  // Se cobra como lo hace la caja: se piden sus líneas listas para cobrar, y
+  // cada una viaja con el renglón de la cotización del que salió.
+  const paraCobrar = await http<{
+    id: string;
+    lines: {
+      presentationId: string | null;
+      quantity: string;
+      item: { type: string; id: string; quoteLineId?: string } | null;
+    }[];
+  }>("GET", `/pos/quotes/folio/${pedido.folio}/for-sale`, undefined, cajero);
+  await cobrar(
+    "card",
+    paraCobrar.lines.map((line) => {
+      if (line.item === null) {
+        throw new Error(`La cotización ${pedido.folio} trae una línea que ya no se puede cobrar.`);
+      }
+      return {
+        [line.item.type === "service" ? "serviceId" : "productId"]: line.item.id,
+        ...(line.presentationId !== null && { presentationId: line.presentationId }),
+        quoteLineId: line.item.quoteLineId,
+        quantity: Number(line.quantity),
+      };
+    }),
+    { quoteId: paraCobrar.id },
+  );
+  // Un gasto que salió de SU cajón. El rol Seller no registra gastos (le
+  // falta `expenses:manage`): lo registra Ana y elige como caja de origen el
+  // turno de Luis, como en el formulario de Gastos. Al cerrar, se le resta
+  // del efectivo que su turno espera.
+  const gastoDelCajon = idOf(
+    await api("POST", "/expenses", {
+      warehouseId: centro,
+      expenseDate: today(),
+      categoryId: categoria(/stationery|papeler/i),
+      beneficiary: "Papelería San Pablo",
+      description: "Rollos de papel térmico para la impresora de tickets",
+      amount: 90,
+      paymentMethod: "cash",
+      cashboxSessionId: turnoLuis,
+      notes: "Luis los pagó con el efectivo de su cajón.",
+    }),
+  );
+  await cobrar("cash", [
+    { productId: frijol, quantity: 1.5 },
+    { productId: leche, quantity: 2 },
+  ]);
+  // Una cotización vigente, de varias cosas, que el cliente se lleva para volver.
+  const vigente = await cotizar(
+    [
+      { productId: agua, presentationId: cajaAgua, quantity: 2 },
+      { productId: refresco, quantity: 12 },
+      { productId: aceite, quantity: 3 },
+      { productId: queso, quantity: 1 },
+      { serviceId: envio, quantity: 1 },
+    ],
+    "Para la fiesta del sábado. Llamar antes de enviar.",
+  );
+  // La última de la mañana, con un descuento autorizado con el código del
+  // negocio. Es la que sale en el ticket del capítulo 7.
+  await cobrar(
+    "cash",
+    [
+      { productId: agua, presentationId: cajaAgua, quantity: 1 },
+      { productId: queso, presentationId: porcionQueso, quantity: 1 },
+      { productId: leche, quantity: 2 },
+    ],
+    { discount: { amount: 15, code: DEMO.discountCode, reason: "Cliente frecuente" } },
+  );
+  // Cancelar es de gestión (`pos:cancel`, que Seller no tiene): la cancela Ana.
+  await api("POST", `/pos/sales/${devuelta}/cancel`, {
+    reason: "El cliente devolvió la mercancía sin abrir.",
+  });
+
+  // Sus ventas, desde las 9:00 y una cada 20 min, con la regla de las de Ana:
+  // nunca en el futuro. La cancelación, 15 min después de su venta, y su
+  // reverso en el kardex a esa misma hora. La cotización cobrada se pidió
+  // anteayer por la tarde y se cargó con la venta que la cobró; la vigente,
+  // entre la quinta venta y la sexta; el gasto, entre la cuarta y la quinta.
+  const deLuis = `sales.cashbox_session_id = '${turnoLuis}'`;
+  const aperturaLuis = `LEAST(${at(0, 525)}, (SELECT min(created_at) FROM sales WHERE cashbox_session_id = '${turnoLuis}') - interval '15 minutes')`;
+  const pagoDelGasto = `LEAST(${at(0, 610)}, now() - interval '7 minutes')`;
+  shifts.push(
+    `WITH s AS (SELECT id, row_number() OVER (ORDER BY created_at, folio) AS n FROM sales WHERE cashbox_session_id = '${turnoLuis}') UPDATE sales SET created_at = LEAST(${at(0, 540)} + (s.n - 1) * interval '20 minutes', now() - (7 - s.n) * interval '3 minutes') FROM s WHERE sales.id = s.id;`,
+    `UPDATE sale_items SET created_at = sales.created_at FROM sales WHERE sale_items.sale_id = sales.id AND ${deLuis};`,
+    `UPDATE stock_movements SET created_at = sales.created_at FROM sales WHERE stock_movements.sale_id = sales.id AND ${deLuis} AND stock_movements.reason_code = 'sale';`,
+    `UPDATE sales SET canceled_at = LEAST(created_at + interval '15 minutes', now() - interval '1 minute') WHERE id = '${devuelta}';`,
+    `UPDATE stock_movements SET created_at = sales.canceled_at FROM sales WHERE stock_movements.sale_id = sales.id AND sales.id = '${devuelta}' AND stock_movements.reason_code = 'sale_return';`,
+    `UPDATE cashbox_sessions SET opened_at = ${aperturaLuis}, created_at = ${aperturaLuis} WHERE id = '${turnoLuis}';`,
+    `UPDATE quotes SET created_at = ${at(2, 1050)}, loaded_at = sales.created_at FROM sales WHERE sales.quote_id = quotes.id AND quotes.id = '${pedido.id}';`,
+    `UPDATE quotes SET created_at = LEAST(${at(0, 630)}, now() - interval '5 minutes') WHERE id = '${vigente.id}';`,
+    `UPDATE expenses SET created_at = ${pagoDelGasto}, paid_at = ${pagoDelGasto}, updated_at = ${pagoDelGasto} WHERE id = '${gastoDelCajon}';`,
+  );
+  console.log(
+    `  · hoy: el turno de ${CASHIER.firstName}, abierto, con 6 ventas (una cancelada), 2 cotizaciones y un gasto de su cajón`,
+  );
+
+  // 8. Cada cosa a su día. Los documentos confirmados y los movimientos
   // tienen candados en la base que impiden modificarlos, y está bien que los
   // tengan: en un negocio real nadie reescribe el pasado. En la base del
   // manual, que es desechable, se apagan solo mientras corre este ajuste

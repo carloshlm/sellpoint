@@ -1,15 +1,19 @@
-import { mkdirSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Browser, type BrowserContext, chromium, type Page } from "playwright";
-import { DEMO } from "./demo.js";
+import { CASHIER, DEMO, http, NEWCOMER } from "./demo.js";
 import { IMG_DIR } from "./paths.js";
+import type { Actor, ApiSession } from "./screens/kit.js";
 import { SCREENS, type Screen } from "./screens.js";
-import { WEB_URL } from "./stack.js";
+import { API_URL, WEB_URL } from "./stack.js";
 
 /**
  * Toma todas las capturas del registro. La ventana es de escritorio y al
  * DOBLE de densidad: en el PDF se imprimen reducidas y así el texto sale
- * nítido. Siempre en español de México, tema claro.
+ * nítido. Siempre en español de México y con el tema claro, salvo lo que una
+ * captura pida (`viewport`, `colorScheme`, `locale`).
  */
 const CONTEXT = {
   viewport: { width: 1280, height: 800 },
@@ -19,7 +23,27 @@ const CONTEXT = {
   colorScheme: "light" as const,
 };
 
+/**
+ * La densidad a la que se convierte un PDF del API: la de las capturas, 96 ppp
+ * de pantalla por 2. Como el PDF del manual pone cada imagen a la mitad de sus
+ * píxeles, el ticket sale impreso a su tamaño real.
+ */
+const PDF_DPI = 96 * CONTEXT.deviceScaleFactor;
+
 const PADDING = 16;
+
+const API_ORIGIN = new URL(API_URL).origin;
+
+/** Con qué cuenta entra cada quien, y a qué ruta llega al entrar. */
+const ACCOUNTS: Record<
+  Exclude<Actor, "visitor">,
+  { email: string; password: string; landing: RegExp }
+> = {
+  owner: { email: DEMO.email, password: DEMO.password, landing: /\/dashboard/ },
+  cashier: { email: CASHIER.email, password: CASHIER.password, landing: /\/dashboard/ },
+  // No terminó el asistente de alta: el panel la manda a él.
+  newcomer: { email: NEWCOMER.email, password: NEWCOMER.password, landing: /\/onboarding/ },
+};
 
 /**
  * La app arranca en inglés sin importar el idioma del navegador, y solo cambia
@@ -34,15 +58,18 @@ async function newContext(browser: Browser): Promise<BrowserContext> {
   return context;
 }
 
-/** La sesión de la dueña, entrando por la pantalla de acceso como cualquiera. */
-async function ownerContext(browser: Browser): Promise<BrowserContext> {
+/** La sesión de una cuenta, entrando por la pantalla de acceso como cualquiera. */
+async function signedInContext(
+  browser: Browser,
+  account: { email: string; password: string; landing: RegExp },
+): Promise<BrowserContext> {
   const context = await newContext(browser);
   const page = await context.newPage();
   await page.goto(`${WEB_URL}/login`);
-  await page.getByLabel("Email").fill(DEMO.email);
-  await page.getByLabel("Contraseña", { exact: true }).fill(DEMO.password);
+  await page.getByLabel("Email").fill(account.email);
+  await page.getByLabel("Contraseña", { exact: true }).fill(account.password);
   await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL(/\/dashboard/);
+  await page.waitForURL(account.landing);
   await page.close();
   return context;
 }
@@ -54,6 +81,53 @@ async function settle(page: Page): Promise<void> {
   });
   // Un respiro para las transiciones de entrada (anillos de foco, menús).
   await page.waitForTimeout(300);
+}
+
+/**
+ * Lo que la pestaña de ESTA captura ve distinto, sin escribir nada en el
+ * servidor. El tema (del negocio) y el idioma (de la cuenta) llegan en
+ * `GET /me`: se cambian en esa respuesta. `apiOverrides` reemplaza el cuerpo
+ * de las lecturas que nombra. En los dos casos la petición real sí se hace,
+ * y de ella se conservan el estado y los encabezados (los de CORS incluidos):
+ * solo cambia lo que dice.
+ */
+async function pretend(page: Page, screen: Screen): Promise<void> {
+  if (screen.colorScheme) await page.emulateMedia({ colorScheme: screen.colorScheme });
+  if (screen.colorScheme || screen.locale) {
+    await page.route(
+      (url) => url.origin === API_ORIGIN && url.pathname === "/me",
+      async (route) => {
+        if (route.request().method() !== "GET") return route.fallback();
+        const response = await route.fetch();
+        const user = (await response.json()) as {
+          locale?: string;
+          tenant?: { theme?: string | null };
+        };
+        if (screen.colorScheme && user.tenant) user.tenant.theme = screen.colorScheme;
+        if (screen.locale) user.locale = screen.locale;
+        await route.fulfill({ response, json: user });
+      },
+    );
+  }
+  for (const [path, json] of Object.entries(screen.apiOverrides ?? {})) {
+    await page.route(
+      (url) => url.origin === API_ORIGIN && url.pathname === path,
+      async (route) => {
+        // Solo lecturas: una escritura no se simula, porque la de verdad
+        // tendría que ocurrir antes de poder cambiar lo que responde.
+        if (route.request().method() !== "GET") return route.fallback();
+        await route.fulfill({ response: await route.fetch(), json });
+      },
+    );
+  }
+}
+
+/** `?lang=` gana sobre lo que el navegador tenga guardado: así abre ya en ese idioma. */
+function withLocale(path: string, locale?: string): string {
+  if (locale === undefined) return path;
+  const [route = "", hash] = path.split("#");
+  const withLang = `${route}${route.includes("?") ? "&" : "?"}lang=${locale}`;
+  return hash === undefined ? withLang : `${withLang}#${hash}`;
 }
 
 async function shoot(page: Page, screen: Screen): Promise<void> {
@@ -98,6 +172,98 @@ async function shoot(page: Page, screen: Screen): Promise<void> {
   });
 }
 
+/** Una pantalla del web: se abre, se prepara y se recorta. */
+async function shootPage(context: BrowserContext, screen: Screen): Promise<void> {
+  const page = await context.newPage();
+  try {
+    if (screen.viewport) await page.setViewportSize(screen.viewport);
+    await pretend(page, screen);
+    await page.goto(`${WEB_URL}${withLocale(screen.path, screen.locale)}`);
+    await settle(page);
+    await screen.prepare?.(page);
+    await settle(page);
+    await shoot(page, screen);
+  } finally {
+    await page.close();
+  }
+}
+
+/**
+ * La sesión del API de quien toma la captura: un token nuevo de la MISMA
+ * sesión del navegador, renovado con su cookie. Entrar otra vez abriría una
+ * sesión nueva, y se vería en «Sesiones activas».
+ */
+async function apiSession(
+  context: BrowserContext,
+  screen: Screen,
+): Promise<ApiSession & { token: string }> {
+  if (screen.as === "visitor") {
+    throw new Error(`La captura «${screen.id}» pide un PDF del API, y sin sesión no hay cómo.`);
+  }
+  const renewed = await context.request.post(`${API_URL}/auth/refresh`);
+  if (!renewed.ok()) {
+    throw new Error(
+      `La captura «${screen.id}» no pudo renovar la sesión de «${screen.as}»: ${renewed.status()} ${await renewed.text()}`,
+    );
+  }
+  const { accessToken } = (await renewed.json()) as { accessToken: string };
+  return {
+    token: accessToken,
+    get: <T>(path: string) => http<T>("GET", path, undefined, accessToken),
+  };
+}
+
+let pdftoppmCommand: string | undefined;
+/** `pdftoppm`, de poppler: convierte una página de PDF en PNG. */
+function pdftoppm(): string {
+  if (pdftoppmCommand !== undefined) return pdftoppmCommand;
+  for (const candidate of ["pdftoppm", "/opt/homebrew/bin/pdftoppm", "/usr/local/bin/pdftoppm"]) {
+    if (spawnSync(candidate, ["-v"]).status === 0) {
+      pdftoppmCommand = candidate;
+      return candidate;
+    }
+  }
+  throw new Error(
+    "Para convertir un PDF del API en imagen hace falta pdftoppm, de poppler. Instálalo con: brew install poppler",
+  );
+}
+
+/**
+ * Un PDF del API (el ticket): se pide con la sesión de quien toma la captura
+ * y su PRIMERA página se convierte en `<id>.png`, junto a las demás.
+ */
+async function shootPdf(
+  context: BrowserContext,
+  screen: Screen,
+  resolve: NonNullable<Screen["pdf"]>,
+): Promise<void> {
+  const api = await apiSession(context, screen);
+  const path = await resolve(api);
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${api.token}` },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `La captura «${screen.id}» pidió ${path} y el API respondió ${response.status}: ${await response.text()}`,
+    );
+  }
+  const dir = mkdtempSync(join(tmpdir(), "manual-pdf-"));
+  try {
+    const pdf = join(dir, "page.pdf");
+    writeFileSync(pdf, Buffer.from(await response.arrayBuffer()));
+    // Solo la primera página (`-f 1 -l 1`), en un archivo sin número de página.
+    const firstPage = ["-png", "-r", String(PDF_DPI), "-f", "1", "-l", "1", "-singlefile"];
+    const converted = spawnSync(pdftoppm(), [...firstPage, pdf, join(IMG_DIR, screen.id)], {
+      encoding: "utf8",
+    });
+    if (converted.status !== 0) {
+      throw new Error(`pdftoppm no pudo convertir «${screen.id}»:\n${converted.stderr}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 /**
  * Toma las capturas del registro. Con `only`, solo las que cumplen, y sin
  * borrar las demás: es lo que usa `shoot.ts` mientras se escribe un capítulo.
@@ -108,21 +274,24 @@ export async function captureAll(only?: (screen: Screen) => boolean): Promise<vo
   const screens = only ? SCREENS.filter(only) : SCREENS;
   const browser = await chromium.launch();
   try {
-    const visitor = await newContext(browser);
-    const owner = await ownerContext(browser);
+    // Cada cuenta entra la primera vez que una captura la necesita: con un
+    // filtro de `shoot.ts`, solo entran las que hacen falta.
+    const contexts = new Map<Actor, Promise<BrowserContext>>();
+    const contextOf = (actor: Actor): Promise<BrowserContext> => {
+      let context = contexts.get(actor);
+      if (context === undefined) {
+        context =
+          actor === "visitor" ? newContext(browser) : signedInContext(browser, ACCOUNTS[actor]);
+        contexts.set(actor, context);
+      }
+      return context;
+    };
     console.log(`Tomando ${screens.length} capturas…`);
     for (const screen of screens) {
-      const page = await (screen.as === "owner" ? owner : visitor).newPage();
-      try {
-        await page.goto(`${WEB_URL}${screen.path}`);
-        await settle(page);
-        await screen.prepare?.(page);
-        await settle(page);
-        await shoot(page, screen);
-        console.log(`  · ${screen.id}`);
-      } finally {
-        await page.close();
-      }
+      const context = await contextOf(screen.as);
+      if (screen.pdf) await shootPdf(context, screen, screen.pdf);
+      else await shootPage(context, screen);
+      console.log(`  · ${screen.id}`);
     }
   } finally {
     await browser.close();

@@ -1,6 +1,6 @@
 import { relative } from "node:path";
 import { captureAll } from "./capture.js";
-import { createDemo, DEMO, payPlusPlan } from "./demo.js";
+import { CASHIER, createDemo, createNewcomer, DEMO, NEWCOMER, payPlusPlan } from "./demo.js";
 import { ROOT } from "./paths.js";
 import { buildPdf } from "./pdf.js";
 import { seedBusiness } from "./seed.js";
@@ -38,10 +38,16 @@ async function main(): Promise<void> {
       const demo = await createDemo(stack);
       await payPlusPlan(stack, demo);
       await seedBusiness(stack, demo);
+      await createNewcomer(stack);
       if (serve) {
-        console.log(
-          `Encendido en ${WEB_URL}/login?lang=es — ${DEMO.email} / ${DEMO.password}. Ctrl+C lo apaga.`,
-        );
+        console.log(`Encendido en ${WEB_URL}/login?lang=es. Ctrl+C lo apaga.`);
+        for (const [who, account] of [
+          ["la dueña", DEMO],
+          ["el cajero", CASHIER],
+          ["la cuenta nueva", NEWCOMER],
+        ] as const) {
+          console.log(`  · ${who}: ${account.email} / ${account.password}`);
+        }
         await new Promise(() => {});
       }
       await captureAll();

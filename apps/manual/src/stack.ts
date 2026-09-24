@@ -189,6 +189,10 @@ export async function up(): Promise<Stack> {
   const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const api = start("node", ["dist/main.js"], API_DIR, {
     NODE_ENV: "development",
+    // La hora del ticket se escribe en la zona del PROCESO del API, no en la
+    // del negocio: con la de la Mac, una venta de las 10:35 en la Ciudad de
+    // México saldría en el papel a otra hora que en el historial.
+    TZ: "America/Mexico_City",
     PORT: "3100",
     DATABASE_URL: urls.app,
     DATABASE_URL_ADMIN: urls.admin,

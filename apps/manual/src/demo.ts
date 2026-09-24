@@ -27,6 +27,19 @@ export const CASHIER = {
   password: "Cajero-Demo-2026",
 } as const;
 
+/**
+ * Una cuenta NUEVA, de otro negocio, a medio asistente de alta: para las
+ * capturas del capítulo 1. Se registra como en la pantalla de alta y verifica
+ * su correo; el asistente queda sin terminar.
+ */
+export const NEWCOMER = {
+  business: "Papelería Luna",
+  firstName: "Sofía",
+  lastName: "Luna",
+  email: "sofia.luna@example.com",
+  password: "Papeleria-Demo-2026",
+} as const;
+
 /** El administrador de SellPointy que registra el pago del plan desde el backoffice. */
 const BACKOFFICE = {
   business: "SellPointy",
@@ -101,7 +114,8 @@ export function today(offsetDays = 0): string {
 async function register(
   stack: Stack,
   account: {
-    business: string;
+    /** Sin él, como la pantalla de alta: el negocio lo nombra el paso 1 del asistente. */
+    business?: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -109,7 +123,7 @@ async function register(
   },
 ): Promise<{ tenantId: string; token: string }> {
   const { tenantId } = await http<{ tenantId: string }>("POST", "/auth/register-tenant", {
-    tenantName: account.business,
+    ...(account.business !== undefined && { tenantName: account.business }),
     email: account.email,
     password: account.password,
     firstName: account.firstName,
@@ -169,6 +183,44 @@ export async function createDemo(stack: Stack): Promise<Demo> {
   );
   console.log(`  · ${DEMO.email} entra a su panel`);
   return { tenantId, token };
+}
+
+/**
+ * La cuenta nueva de Sofía Luna. Se registra SIN nombre de negocio, como la
+ * pantalla de alta, y verifica su correo. Después guarda el paso 1 del
+ * asistente tal como lo hace «Continuar» (`name` = nombre legal): sin eso el
+ * asistente no deja ver los pasos 2 y 3, que el capítulo 1 también muestra.
+ * No lo termina: al entrar, el panel la manda al asistente (`/onboarding`),
+ * que abre en el paso 3.
+ */
+export async function createNewcomer(stack: Stack): Promise<void> {
+  console.log(`Creando la cuenta nueva «${NEWCOMER.business}»…`);
+  const { token } = await register(stack, {
+    firstName: NEWCOMER.firstName,
+    lastName: NEWCOMER.lastName,
+    email: NEWCOMER.email,
+    password: NEWCOMER.password,
+  });
+  await http(
+    "PATCH",
+    "/tenants/me",
+    {
+      country: "MX",
+      region: "CMX",
+      legalName: NEWCOMER.business,
+      // RFC con el formato válido; inventado.
+      taxId: "LUSO920418KT5",
+      address: "Calle Morelos 45",
+      addressLine2: "Col. San Rafael",
+      city: "Ciudad de México",
+      postalCode: "06470",
+      timezone: "America/Mexico_City",
+      currency: "MXN",
+      name: NEWCOMER.business,
+    },
+    token,
+  );
+  console.log(`  · ${NEWCOMER.email} está en el asistente de alta, con el paso 1 guardado`);
 }
 
 /**
