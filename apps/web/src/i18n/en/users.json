@@ -99,6 +99,92 @@
       "title": "Delete role",
       "body": "You are about to delete the \"{{name}}\" role. Anyone assigned to it loses the permissions it granted. This can not be undone.",
       "confirm": "Delete role"
+    },
+    "permissionCatalog": {
+      "groups": {
+        "users": "Users",
+        "roles": "Roles and permissions",
+        "tenants": "Business",
+        "catalogs": "Catalogs",
+        "products": "Products",
+        "warehouses": "Stores",
+        "inventory": "Inventory",
+        "services": "Services",
+        "pos": "Point of sale",
+        "reports": "Reports",
+        "reception": "Reception",
+        "medical_clinic": "Medical clinic",
+        "purchases": "Purchases",
+        "expenses": "Expenses",
+        "suppliers": "Suppliers"
+      },
+      "permissions": {
+        "users": {
+          "read": "View users",
+          "manage": "Manage users"
+        },
+        "roles": {
+          "read": "View roles and permissions",
+          "manage": "Manage roles"
+        },
+        "tenants": {
+          "manage": "Configure the business"
+        },
+        "catalogs": {
+          "read": "View catalogs",
+          "write": "Edit catalog records",
+          "manage": "Define catalog structure"
+        },
+        "products": {
+          "read": "View products",
+          "manage": "Edit products"
+        },
+        "warehouses": {
+          "read": "View stores",
+          "manage": "Manage stores"
+        },
+        "inventory": {
+          "read": "View inventory",
+          "movement": "Record entries, exits, and transfers",
+          "manage": "Cancel transfers and approve physical counts"
+        },
+        "services": {
+          "read": "View services",
+          "manage": "Edit services"
+        },
+        "pos": {
+          "sell": "Sell at checkout",
+          "quote": "Create quotes",
+          "view": "View sales history",
+          "cancel": "Cancel sales"
+        },
+        "reports": {
+          "read": "View reports"
+        },
+        "reception": {
+          "read": "View reception",
+          "manage": "Manage reception"
+        },
+        "medical_clinic": {
+          "read": "View clinic catalogs",
+          "manage": "Manage clinic catalogs",
+          "attend": "Attend patients"
+        },
+        "purchases": {
+          "read": "View purchases",
+          "manage": "Record purchases",
+          "cancel": "Cancel purchases"
+        },
+        "expenses": {
+          "read": "View expenses",
+          "manage": "Record expenses",
+          "cancel": "Cancel expenses"
+        },
+        "suppliers": {
+          "read": "View suppliers",
+          "manage": "Manage suppliers"
+        }
+      }
     }
   }
 }

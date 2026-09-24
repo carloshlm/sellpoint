@@ -53,7 +53,9 @@ describe("PermissionChecklist", () => {
     const onToggle = vi.fn();
     renderChecklist({ onToggle });
 
-    await user.click(screen.getByRole("checkbox", { name: "users:manage" }));
+    // El NOMBRE es lo que ve la persona (F10-MANFIX-05d); el CODE sigue
+    // siendo lo que `onToggle` recibe — eso no cambia.
+    await user.click(screen.getByRole("checkbox", { name: "Administrar usuarios" }));
 
     expect(onToggle).toHaveBeenCalledWith("users:manage", true);
   });
@@ -63,7 +65,7 @@ describe("PermissionChecklist", () => {
     const onToggle = vi.fn();
     renderChecklist({ onToggle });
 
-    await user.click(screen.getByRole("checkbox", { name: "users:read" }));
+    await user.click(screen.getByRole("checkbox", { name: "Ver usuarios" }));
 
     expect(onToggle).toHaveBeenCalledWith("users:read", false);
   });
@@ -71,7 +73,7 @@ describe("PermissionChecklist", () => {
   it("un code que el actor NO posee y que NO está en el rol (baseline) aparece deshabilitado", () => {
     renderChecklist();
 
-    expect(screen.getByRole("checkbox", { name: "products:manage" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Editar productos" })).toBeDisabled();
   });
 
   it("un code que el actor NO posee pero SÍ está en el rol (baseline) aparece HABILITADO (D5)", () => {
@@ -84,7 +86,7 @@ describe("PermissionChecklist", () => {
       selected: new Set(["users:read", "roles:manage"]),
     });
 
-    expect(screen.getByRole("checkbox", { name: "roles:manage" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "Administrar roles" })).toBeEnabled();
   });
 
   it("un code que el actor SÍ posee siempre está habilitado, esté o no en el baseline", () => {
@@ -94,13 +96,23 @@ describe("PermissionChecklist", () => {
       selected: new Set(),
     });
 
-    expect(screen.getByRole("checkbox", { name: "users:manage" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "Administrar usuarios" })).toBeEnabled();
   });
 
-  it("agrupa los permisos por módulo", () => {
+  /**
+   * F10-MANFIX-05d — el módulo se veía tal cual vive en la base
+   * (`medical_clinic`, con guion bajo: `capitalize` de CSS no inserta
+   * espacios) y cada permiso con su CÓDIGO (`pos:sell`). Un dueño de negocio
+   * no lee jerga de sistema.
+   */
+  it("agrupa los permisos por módulo, con el NOMBRE del grupo — no el code crudo", () => {
     renderChecklist();
 
-    expect(screen.getByText("users")).toBeInTheDocument();
-    expect(screen.getByText("roles")).toBeInTheDocument();
+    expect(screen.getByText("Usuarios")).toBeInTheDocument();
+    expect(screen.getByText("Roles y permisos")).toBeInTheDocument();
+    expect(screen.queryByText("users")).not.toBeInTheDocument();
+    expect(screen.queryByText("roles")).not.toBeInTheDocument();
+    expect(screen.queryByText("users:manage")).not.toBeInTheDocument();
+    expect(screen.queryByText("products:manage")).not.toBeInTheDocument();
   });
 });

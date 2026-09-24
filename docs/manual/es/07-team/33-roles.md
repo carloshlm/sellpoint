@@ -28,10 +28,10 @@ cualquiera de ellos.
 ## Ver los permisos de un rol
 
 Presiona un rol en la lista. A la derecha aparecen todos los permisos,
-agrupados, con marcados los que tiene ese rol. Cada permiso se muestra con su
-código: la primera parte dice sobre qué es (`pos` es el punto de venta,
-`inventory` el inventario) y la segunda qué deja hacer (`read` consultar,
-`manage` administrar). El apéndice B explica cada uno.
+agrupados por área del sistema («Punto de venta», «Inventario», «Compras»…),
+con marcados los que tiene ese rol. Cada uno se ve con un nombre claro («Vender
+en caja», «Cancelar ventas», «Administrar sucursales») y no con el código interno.
+El apéndice B explica qué hace cada permiso, rol por rol.
 
 ![Los permisos del rol Seller](screen:roles-seller)
 

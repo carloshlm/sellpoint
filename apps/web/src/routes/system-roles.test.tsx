@@ -408,7 +408,8 @@ describe("/system/roles", () => {
 
     await renderRoute("/system/roles");
     await user.click(await screen.findByRole("button", { name: /^Cajero/ }));
-    await user.click(await screen.findByRole("checkbox", { name: "roles:manage" }));
+    // F10-MANFIX-05d: el checkbox se ve (y se busca) por su NOMBRE, no el code.
+    await user.click(await screen.findByRole("checkbox", { name: "Administrar roles" }));
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     expect(

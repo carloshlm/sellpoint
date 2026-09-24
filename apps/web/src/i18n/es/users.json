@@ -99,6 +99,92 @@
       "title": "Eliminar rol",
       "body": "Vas a eliminar el rol «{{name}}». Las personas que lo tengan asignado pierden los permisos que les daba. Esta acción no se puede deshacer.",
       "confirm": "Eliminar rol"
+    },
+    "permissionCatalog": {
+      "groups": {
+        "users": "Usuarios",
+        "roles": "Roles y permisos",
+        "tenants": "Negocio",
+        "catalogs": "Catálogos",
+        "products": "Productos",
+        "warehouses": "Sucursales",
+        "inventory": "Inventario",
+        "services": "Servicios",
+        "pos": "Punto de venta",
+        "reports": "Reportes",
+        "reception": "Recepción",
+        "medical_clinic": "Consultorio médico",
+        "purchases": "Compras",
+        "expenses": "Gastos",
+        "suppliers": "Proveedores"
+      },
+      "permissions": {
+        "users": {
+          "read": "Ver usuarios",
+          "manage": "Administrar usuarios"
+        },
+        "roles": {
+          "read": "Ver roles y permisos",
+          "manage": "Administrar roles"
+        },
+        "tenants": {
+          "manage": "Configurar el negocio"
+        },
+        "catalogs": {
+          "read": "Ver catálogos",
+          "write": "Editar registros de catálogos",
+          "manage": "Definir la estructura de catálogos"
+        },
+        "products": {
+          "read": "Ver productos",
+          "manage": "Editar productos"
+        },
+        "warehouses": {
+          "read": "Ver sucursales",
+          "manage": "Administrar sucursales"
+        },
+        "inventory": {
+          "read": "Ver inventario",
+          "movement": "Registrar entradas, salidas y traspasos",
+          "manage": "Cancelar traspasos y aprobar inventarios físicos"
+        },
+        "services": {
+          "read": "Ver servicios",
+          "manage": "Editar servicios"
+        },
+        "pos": {
+          "sell": "Vender en caja",
+          "quote": "Generar cotizaciones",
+          "view": "Ver historial de ventas",
+          "cancel": "Cancelar ventas"
+        },
+        "reports": {
+          "read": "Ver reportes"
+        },
+        "reception": {
+          "read": "Ver recepción",
+          "manage": "Atender recepción"
+        },
+        "medical_clinic": {
+          "read": "Ver catálogos del consultorio",
+          "manage": "Administrar catálogos del consultorio",
+          "attend": "Atender pacientes"
+        },
+        "purchases": {
+          "read": "Ver compras",
+          "manage": "Registrar compras",
+          "cancel": "Anular compras"
+        },
+        "expenses": {
+          "read": "Ver gastos",
+          "manage": "Registrar gastos",
+          "cancel": "Anular gastos"
+        },
+        "suppliers": {
+          "read": "Ver proveedores",
+          "manage": "Administrar proveedores"
+        }
+      }
     }
   }
 }

@@ -1,6 +1,27 @@
+import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { PermissionGroup } from "@/lib/rbac/api";
+
+/**
+ * F10-MANFIX-05d — el nombre para MOSTRAR de un grupo (módulo) o un permiso,
+ * por catálogo `users.roles.permissionCatalog.*` (es/en). Nunca por `t()`
+ * con el CODE completo: el `:` de "pos:sell" es el `nsSeparator` por default
+ * de i18next y partiría la clave en namespace + resto — se arma la ruta a
+ * mano, en dos segmentos, y con `defaultValue` para no romper un code que
+ * *permission-translations.test.ts* todavía no cubra.
+ */
+function groupName(t: (key: string, options?: Record<string, unknown>) => string, module: string) {
+  return t(`users.roles.permissionCatalog.groups.${module}`, { defaultValue: module });
+}
+
+function permissionName(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  code: string,
+) {
+  const [module, action] = code.split(":");
+  return t(`users.roles.permissionCatalog.permissions.${module}.${action}`, { defaultValue: code });
+}
 
 interface PermissionChecklistProps {
   groups: PermissionGroup[];
@@ -36,11 +57,12 @@ function PermissionChecklist({
   onToggle,
   readOnly = false,
 }: PermissionChecklistProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6">
       {groups.map((group) => (
         <fieldset key={group.module} className="flex flex-col gap-2">
-          <legend className="text-sm font-medium capitalize">{group.module}</legend>
+          <legend className="text-sm font-medium">{groupName(t, group.module)}</legend>
           <div className="flex flex-col gap-2">
             {group.permissions.map((permission) => {
               const checked = selected.has(permission.code);
@@ -61,7 +83,7 @@ function PermissionChecklist({
                     htmlFor={inputId}
                     className={disabled ? "text-muted-foreground" : undefined}
                   >
-                    {permission.code}
+                    {permissionName(t, permission.code)}
                   </Label>
                 </div>
               );

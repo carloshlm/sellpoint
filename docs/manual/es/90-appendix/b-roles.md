@@ -4,58 +4,55 @@ who: todos
 ---
 
 Estos son los permisos con los que nacen los cuatro roles de fábrica (capítulo
-33). En la pantalla **Roles** cada permiso aparece con el código de la primera
-columna.
+33). En la pantalla **Roles** cada permiso aparece con el mismo nombre de la
+primera columna de estas tablas, agrupado por área del sistema.
 
 ## Vender y el catálogo
 
 | Permiso | Qué permite | Admin | Manager | Seller | Viewer |
 |---|---|:---:|:---:|:---:|:---:|
-| `pos:sell` | Operar el punto de venta: abrir turno y cobrar | ✓ | ✓ | ✓ | — |
-| `pos:quote` | Hacer cotizaciones | ✓ | ✓ | ✓ | — |
-| `pos:view` | Ver el historial de ventas y reimprimir tickets | ✓ | ✓ | ✓ | ✓ |
-| `pos:cancel` | Anular una venta ya cobrada | ✓ | ✓ | — | — |
-| `products:read` | Ver los productos | ✓ | ✓ | ✓ | ✓ |
-| `products:manage` | Crear y editar productos, presentaciones y composición | ✓ | ✓ | — | — |
-| `services:read` | Ver los servicios | ✓ | ✓ | ✓ | ✓ |
-| `services:manage` | Crear, editar, desactivar y eliminar servicios | ✓ | ✓ | — | — |
-| `suppliers:read` | Ver los proveedores | ✓ | ✓ | — | ✓ |
-| `suppliers:manage` | Dar de alta, editar y retirar proveedores | ✓ | ✓ | — | — |
-| `catalogs:read` | Ver los subcatálogos y sus registros | ✓ | ✓ | — | ✓ |
-| `catalogs:write` | Crear y editar registros de los subcatálogos | ✓ | ✓ | — | — |
-| `catalogs:manage` | Diseñar la estructura: subcatálogos y campos propios | ✓ | — | — | — |
-| `warehouses:read` | Ver las sucursales | ✓ | ✓ | — | ✓ |
-| `warehouses:manage` | Crear, editar y desactivar sucursales | ✓ | ✓ | — | — |
+| **Vender en caja** | Operar el punto de venta: abrir turno y cobrar | ✓ | ✓ | ✓ | — |
+| **Generar cotizaciones** | Hacer cotizaciones | ✓ | ✓ | ✓ | — |
+| **Ver historial de ventas** | Ver el historial de ventas y reimprimir tickets | ✓ | ✓ | ✓ | ✓ |
+| **Cancelar ventas** | Cancelar una venta ya cobrada | ✓ | ✓ | — | — |
+| **Ver productos** | Ver los productos | ✓ | ✓ | ✓ | ✓ |
+| **Editar productos** | Crear y editar productos, presentaciones y composición | ✓ | ✓ | — | — |
+| **Ver servicios** | Ver los servicios | ✓ | ✓ | ✓ | ✓ |
+| **Editar servicios** | Crear, editar, desactivar y eliminar servicios | ✓ | ✓ | — | — |
+| **Ver proveedores** | Ver los proveedores | ✓ | ✓ | — | ✓ |
+| **Administrar proveedores** | Dar de alta, editar y retirar proveedores | ✓ | ✓ | — | — |
+| **Ver catálogos** | Ver los subcatálogos y sus registros | ✓ | ✓ | — | ✓ |
+| **Editar registros de catálogos** | Crear y editar registros de los subcatálogos | ✓ | ✓ | — | — |
+| **Definir la estructura de catálogos** | Diseñar la estructura: subcatálogos y campos propios | ✓ | — | — | — |
+| **Ver sucursales** | Ver las sucursales | ✓ | ✓ | — | ✓ |
+| **Administrar sucursales** | Crear, editar y desactivar sucursales | ✓ | ✓ | — | — |
 
 ## Inventario, compras, gastos y administración
 
 | Permiso | Qué permite | Admin | Manager | Seller | Viewer |
 |---|---|:---:|:---:|:---:|:---:|
-| `inventory:read` | Ver existencias, kardex, traspasos y documentos de inventario | ✓ | ✓ | — | ✓ |
-| `inventory:movement` | Registrar y confirmar entradas, salidas y traspasos | ✓ | ✓ | — | — |
-| `inventory:manage` | Cancelar traspasos y aprobar inventarios físicos | ✓ | — | — | — |
-| `purchases:read` | Ver las compras a proveedores | ✓ | ✓ | — | ✓ |
-| `purchases:manage` | Registrar, editar y confirmar compras | ✓ | ✓ | — | — |
-| `purchases:cancel` | Anular compras | ✓ | ✓ | — | — |
-| `expenses:read` | Ver los gastos | ✓ | ✓ | — | ✓ |
-| `expenses:manage` | Registrar, editar y pagar gastos, y administrar sus categorías | ✓ | ✓ | — | — |
-| `expenses:cancel` | Anular gastos | ✓ | ✓ | — | — |
-| `reports:read` | Ver los reportes y los números del panel | ✓ | ✓ | — | ✓ |
-| `users:read` | Ver los usuarios | ✓ | ✓ | — | ✓ |
-| `users:manage` | Crear, editar y suspender usuarios | ✓ | — | — | — |
-| `roles:read` | Ver los roles y sus permisos | ✓ | ✓ | — | ✓ |
-| `roles:manage` | Crear y editar roles | ✓ | — | — | — |
-| `tenants:manage` | Cambiar los datos del negocio y ver **Mi plan** | ✓ | — | — | — |
+| **Ver inventario** | Ver existencias, kardex, traspasos y documentos de inventario | ✓ | ✓ | — | ✓ |
+| **Registrar entradas, salidas y traspasos** | Registrar y confirmar entradas, salidas y traspasos | ✓ | ✓ | — | — |
+| **Cancelar traspasos y aprobar inventarios físicos** | Cancelar traspasos y aprobar inventarios físicos | ✓ | — | — | — |
+| **Ver compras** | Ver las compras a proveedores | ✓ | ✓ | — | ✓ |
+| **Registrar compras** | Registrar, editar y confirmar compras | ✓ | ✓ | — | — |
+| **Anular compras** | Anular compras | ✓ | ✓ | — | — |
+| **Ver gastos** | Ver los gastos | ✓ | ✓ | — | ✓ |
+| **Registrar gastos** | Registrar, editar y pagar gastos, y administrar sus categorías | ✓ | ✓ | — | — |
+| **Anular gastos** | Anular gastos | ✓ | ✓ | — | — |
+| **Ver reportes** | Ver los reportes y los números del panel | ✓ | ✓ | — | ✓ |
+| **Ver usuarios** | Ver los usuarios | ✓ | ✓ | — | ✓ |
+| **Administrar usuarios** | Crear, editar y suspender usuarios | ✓ | — | — | — |
+| **Ver roles y permisos** | Ver los roles y sus permisos | ✓ | ✓ | — | ✓ |
+| **Administrar roles** | Crear y editar roles | ✓ | — | — | — |
+| **Configurar el negocio** | Cambiar los datos del negocio y ver **Mi plan** | ✓ | — | — | — |
 
 ## Para leer las tablas
 
-- La primera parte del código dice sobre qué es el permiso: `pos` es el punto
-  de venta, `inventory` el inventario, `tenants` tu negocio. La segunda dice qué
-  deja hacer: `read` consultar, `manage` administrar, `cancel` anular.
-- Tener un permiso no basta si tu plan no incluye la función: `purchases:manage`
-  no sirve en Basic, que no trae Compras (apéndice A).
-- Quien tiene **`users:manage` y `roles:manage`**, como el Admin, ve todas las
-  sucursales aunque tenga un alcance marcado (capítulo 32).
-- La lista también muestra permisos de **`reception`** y **`medical_clinic`**:
+- Tener un permiso no basta si tu plan no incluye la función: **Registrar
+  compras** no sirve en Basic, que no trae Compras (apéndice A).
+- Quien tiene **Administrar usuarios** y **Administrar roles**, como el Admin,
+  ve todas las sucursales aunque tenga un alcance marcado (capítulo 32).
+- La lista también muestra permisos de **Recepción** y **Consultorio médico**:
   son de módulos hechos a la medida para algunos negocios y no los cubre este
   manual.
