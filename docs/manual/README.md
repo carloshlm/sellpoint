@@ -6,18 +6,19 @@ semana y un PDF con capturas pegadas a mano envejece en días.
 
 | Pieza | Dónde vive | Estado |
 |---|---|---|
-| Textos, un archivo por capítulo | `docs/manual/es/` | 28 de 38: el capítulo 2, las partes 3 a 7 y los apéndices |
+| Textos, un archivo por capítulo | `docs/manual/es/` | Los 38: «Cómo leer este manual», los 34 capítulos y los 4 apéndices |
 | El registro de pantallas: qué captura cita cada capítulo y cómo se toma | `apps/manual/src/screens/`, un archivo por parte | Listo |
 | El generador: levanta un SellPointy aparte, crea el negocio de demostración, toma las capturas y arma el PDF | `apps/manual/` | Listo |
 | El PDF y las capturas | `docs/manual/dist/` (no se versiona) | Se genera |
-| La regla que lo mantiene al día: cada cambio de pantalla actualiza su capítulo | una skill + una prueba (fase 4) | Por construir |
+| La regla que lo mantiene al día: cada cambio de pantalla actualiza su capítulo | `apps/manual/src/manual.test.ts` (en el CI), `pnpm --filter manual affected` y la skill `sellpoint-manual` | Listo |
 
 ## Cómo se genera
 
-Con Colima encendido (Postgres y Redis), desde la raíz:
+Con Colima encendido (Postgres y Redis) y `pdftoppm` a la mano (`brew install poppler`: convierte
+el ticket en imagen), desde la raíz:
 
 ```bash
-pnpm manual       # todo: capturas nuevas y PDF (unos 2 minutos)
+pnpm manual       # todo: capturas nuevas y PDF (unos 10 minutos)
 pnpm manual:pdf   # solo el PDF, con las capturas que ya hay: para corregir un texto
 ```
 
@@ -38,7 +39,9 @@ Lo que hace `pnpm manual`, para que nada sorprenda:
   y los apaga al terminar.
 - **Crea el negocio de demostración por el camino de un cliente real**: se registra, verifica
   el correo con el enlace que el API escribe en su consola y termina el asistente de alta.
-  Es «Abarrotes La Esquina», de Ana Pérez (`ana.perez@example.com`), en México.
+  Es «Abarrotes La Esquina», de Ana Pérez (`ana.perez@example.com`), en México, con su cajero
+  Luis Ramírez (`luis.ramirez@example.com`, rol Seller). Crea además una cuenta nueva a medio
+  asistente de alta, «Papelería Luna» de Sofía Luna (`sofia.luna@example.com`), para el capítulo 1.
 - **Compila el API**, y eso le quita las traducciones a un API de desarrollo encendido: el
   generador avisa, y basta con reiniciarlo después.
 
@@ -58,12 +61,30 @@ Después es Markdown normal. Una captura se cita por su nombre en el registro de
 `![Texto que va de pie de foto](screen:sign-in)`. Si el capítulo cita una captura que no
 existe, el PDF no se arma y dice cuál falta.
 
+## Cómo se mantiene al día
+
+Cada cambio de pantalla corrige su capítulo **en el mismo commit**. Lo sostienen tres piezas:
+
+- **La prueba del CI**, `apps/manual/src/manual.test.ts`: corre con `pnpm test`, y sola con
+  `pnpm --filter manual test`, en un segundo y sin levantar nada. Revisa que cada capítulo abra
+  con su bloque y coincida con la tabla del índice (archivo, título, quién y plan); que cada
+  captura citada exista, sea de ese capítulo y la cite su capítulo; que la ruta de cada captura
+  exista en el web; que un capítulo no muestre una pantalla de un plan mayor que su marca; que
+  cada texto, `data-testid` e id que busca una captura exista en las traducciones o en los datos
+  de la demo (la captura que esperaba `pos:view` habría fallado el día que se escribió); y que el
+  copy no diga «asentar» ni use voseo. Mientras falte un capítulo del índice, falla y dice cuál.
+- **`pnpm --filter manual affected [base]`**: qué capítulos, capturas y textos viejos toca lo
+  que cambió desde `origin/main` (o la base que le pases), más lo que no has commiteado.
+- **La skill `sellpoint-manual`** (`.claude/skills/sellpoint-manual/SKILL.md`): los pasos, cómo
+  se escribe una captura que pasa la prueba y los comandos.
+
 ## Las fases (aprobadas por Carlos el 2026-09-23)
 
 1. ✅ **El índice** — este documento.
 2. ✅ Las capturas automáticas y el PDF, probados con el capítulo 2.
-3. Los capítulos. Hechas las partes 3 a 7 y los apéndices (2026-09-24); faltan la Parte 1 (salvo el capítulo 2), la Parte 2 y la portada.
-4. La regla para mantenerlo al día.
+3. ✅ **Los capítulos** (2026-09-24): las siete partes, los apéndices y «Cómo leer este manual».
+4. ✅ **La regla para mantenerlo al día** (2026-09-24): la prueba del CI, `affected` y la skill.
+   Ver «Cómo se mantiene al día».
 
 ## Reglas del contenido
 
